@@ -8,6 +8,17 @@ unmaintained = "none"
 ignore = [
   "RUSTSEC-2023-0071",
   "RUSTSEC-2024-0436",
+  # New advisories published against already-pinned versions (confirmed
+  # present on origin/main too, unrelated to any in-flight PR). Real fixes
+  # are version bumps (quick-xml >=0.41.0 via vox-publisher/tauri-runtime-wry;
+  # wasmtime-wasi/wiggle-generate/memmap2 via patched wasmtime releases;
+  # anyhow via a patched release) — tracked separately, not blocking merges
+  # meanwhile.
+  "RUSTSEC-2026-0195",
+  "RUSTSEC-2026-0188",
+  "RUSTSEC-2026-0186",
+  "RUSTSEC-2026-0190",
+  "RUSTSEC-2026-0194",
 ]
 unused-ignored-advisory = "allow"
 

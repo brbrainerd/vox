@@ -3,6 +3,7 @@ name = "vox-redact"
 description = "Regex-based redaction of secrets and PII from log lines and JSON values."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 regex = { workspace = true }
