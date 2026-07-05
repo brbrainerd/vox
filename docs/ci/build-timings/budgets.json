@@ -9,7 +9,6 @@
     "check_vox_oratio": 900000,
     "check_vox_mens_train": 1200000,
     "check_vox_mens_gpu": 1500000,
-    "check_vox_cli_populi_oratio": 1080000,
     "check_vox_mcp": 1800000
   }
 }
