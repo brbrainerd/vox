@@ -9,6 +9,7 @@ import type {
   RoutingSummary,
 } from './types/tauri';
 import type { TaskRow } from './components/surfaces/Tasks/tasksHelpers';
+import type { TownScan } from './components/gamify/urbs/types';
 
 // `OpenLocator` / `OpenOutcome` (the `open_locator` IPC DTOs) live in ./types/tauri
 // alongside the other Tauri command types; re-exported here for callers of the hub.
@@ -558,6 +559,44 @@ class VoxTransport {
   mercatusSaveConfig(config: unknown): Promise<void> {
     return invoke('mercatus_save_config', { config });
   }
+
+  /** Vox Urbs (gamify town): workspace crate/file scan for the town layout. */
+  workspaceTownScan(): Promise<TownScan> {
+    return invoke<TownScan>('workspace_town_scan');
+  }
+
+  /** Vox Urbs: CI fleet status tap (CASTRVM landmark). */
+  harnessCiFleetStatus(): Promise<HarnessCiFleetDto> {
+    return invoke<HarnessCiFleetDto>('harness_ci_fleet_status');
+  }
+
+  /** Vox Urbs: VCS branch/PR status tap (PORTVS landmark). */
+  vcsTownStatus(): Promise<HarnessVcsTownDto> {
+    return invoke<HarnessVcsTownDto>('vcs_town_status');
+  }
+
+  /** Vox Urbs: hopper queue tap (PORTVS ship count). */
+  hopperList(): Promise<HarnessHopperItemDto[]> {
+    return invoke<HarnessHopperItemDto[]>('hopper_list');
+  }
+}
+
+/** Mirrors Rust CI fleet status DTO consumed by the Vox Urbs harness taps. */
+export interface HarnessCiFleetDto {
+  runners: { name: string; busy: boolean; online: boolean }[];
+  queued: number;
+}
+
+/** Mirrors Rust VCS town status DTO consumed by the Vox Urbs harness taps. */
+export interface HarnessVcsTownDto {
+  branches: { name: string; is_head: boolean; track: string }[];
+  prs: { number: number; title: string; head_ref: string }[];
+  prs_available: boolean;
+}
+
+/** Mirrors Rust hopper item DTO consumed by the Vox Urbs harness taps. */
+export interface HarnessHopperItemDto {
+  state: string;
 }
 
 export const voxTransport = new VoxTransport();
@@ -753,6 +792,37 @@ export interface HopperTaskDto {
 /** List hopper task items (see `TasksView` / attention-inbox consumers). */
 export function hopperList(): Promise<HopperTaskDto[]> {
   return invoke<HopperTaskDto[]>('hopper_list');
+}
+
+// ---------------------------------------------------------------------------
+// CodeRabbit sweep transport wrappers.
+// ---------------------------------------------------------------------------
+
+export function codeRabbitTokenPresent(): Promise<boolean> {
+  return invoke<boolean>('coderabbit_token_present');
+}
+
+/** Generic over the view's own `Report` shape — this hub has no opinion on it. */
+export function codeRabbitReport<T = unknown>(): Promise<T> {
+  return invoke<T>('coderabbit_report');
+}
+
+export interface CodeRabbitSweepArgs {
+  since: string;
+  cap: number;
+  rankWeights: string;
+  top: number | null;
+  fullRepo: boolean;
+  [key: string]: unknown;
+}
+
+/** Generic over the view's own `Manifest` shape — this hub has no opinion on it. */
+export function codeRabbitPlan<T = unknown>(args: CodeRabbitSweepArgs): Promise<T> {
+  return invoke<T>('coderabbit_plan', args);
+}
+
+export function codeRabbitRunAsync(args: CodeRabbitSweepArgs): Promise<void> {
+  return invoke('coderabbit_run_async', args);
 }
 
 

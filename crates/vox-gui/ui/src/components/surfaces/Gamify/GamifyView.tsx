@@ -1,6 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useStore } from 'zustand';
-import { useLudusStore } from '../../gamify/store';
 import { useLabel } from '../../../hooks/useLanguage';
 import { LudusSandbox } from '../../gamify/LudusSandbox';
 import { invoke } from '@tauri-apps/api/core';
@@ -62,8 +60,6 @@ interface Quest {
 export function GamifyView({ pushToast }: GamifyViewProps) {
   const embedded = useIsEmbeddedSurface();
   const [profile, setProfile] = useState<LudusProfile | null>(null);
-  const buildings = useStore(useLudusStore, (state) => state.buildings);
-  const buildingFiles = React.useMemo(() => Object.keys(buildings), [buildings]);
   const [notes, setNotes] = useState<LudusNotification[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [companions, setCompanions] = useState<Companion[]>([]);
@@ -127,8 +123,8 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
 
       <div className="mb-6 border border-border-subtle rounded-xl overflow-hidden bg-bg-base/60 p-4">
         <h3 className="mb-2 font-display text-[12px] uppercase tracking-wide text-text-muted">Simulation Map</h3>
-        <div className="h-[450px]">
-          <LudusSandbox files={buildingFiles} />
+        <div className="h-[560px]">
+          <LudusSandbox energy={profile?.energy ?? 0} maxEnergy={profile?.max_energy ?? 0} />
         </div>
       </div>
 

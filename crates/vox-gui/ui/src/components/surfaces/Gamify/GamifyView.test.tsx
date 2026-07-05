@@ -48,7 +48,14 @@ beforeEach(() => {
           svg: '<svg></svg>',
         },
       ]);
-    return Promise.resolve([]);
+    if (cmd === 'list_ludus_notifications' || cmd === 'list_gamify_leaderboard' || cmd === 'list_gamify_quests')
+      return Promise.resolve([]);
+    if (cmd === 'workspace_town_scan')
+      return Promise.resolve({ crates: [], root: '/ws', scanned_at_ms: 1, truncated: false });
+    // Unregistered commands (e.g. the Urbs harness taps) reject, matching real
+    // Tauri behavior — this lets harnessData's tryInvoke degrade to null
+    // instead of silently resolving to `[]` and crashing on `.filter`.
+    return Promise.reject(new Error(`unmocked command: ${cmd}`));
   });
 });
 

@@ -15402,6 +15402,7 @@ name = "vox-cli-ci"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "cargo_metadata 0.23.1",
  "chrono",
  "clap",
  "glob",
@@ -16148,6 +16149,7 @@ dependencies = [
  "cpal",
  "dirs",
  "hound",
+ "ignore",
  "portable-pty",
  "rmp-serde",
  "serde",

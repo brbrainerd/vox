@@ -23,6 +23,7 @@ pub mod completion_quality;
 pub mod constants;
 pub mod coolify_eval;
 pub mod coverage_gates;
+pub mod crate_edges;
 pub mod data_storage_guard;
 pub mod dep_cycles;
 pub mod determinism_audit;

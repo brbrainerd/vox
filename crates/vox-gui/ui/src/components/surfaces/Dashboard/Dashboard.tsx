@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useStore } from 'zustand';
-import { useLudusStore } from '../../gamify/store';
 import { LudusSandbox } from '../../gamify/LudusSandbox';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
@@ -88,8 +86,6 @@ export function Dashboard({
   const [customizeMode, setCustomizeMode] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sandboxCollapsed, setSandboxCollapsed] = useState(false);
-  const buildings = useStore(useLudusStore, (state) => state.buildings);
-  const buildingFiles = React.useMemo(() => Object.keys(buildings), [buildings]);
   const [layout, setLayout] = useLocalStorage(
     SHELL_PREFERENCE_KEYS.dashboardLayout,
     loadDashboardLayout(defaultDashboardLayout()),
@@ -451,7 +447,7 @@ export function Dashboard({
         </div>
         {!sandboxCollapsed && (
           <div className="h-[250px] relative">
-            <LudusSandbox files={buildingFiles} />
+            <LudusSandbox />
           </div>
         )}
       </div>
