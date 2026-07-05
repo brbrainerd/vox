@@ -363,6 +363,14 @@ pub enum CiCmd {
         #[arg(long)]
         strict: bool,
     },
+    /// Require a `concurrency:` block on push/PR-triggered workflows (flood prevention);
+    /// exceptions registered in docs/src/ci/concurrency-exceptions.md.
+    #[command(name = "workflow-concurrency-guard")]
+    WorkflowConcurrencyGuard {
+        /// Fail (exit 1) instead of advisory warn.
+        #[arg(long)]
+        strict: bool,
+    },
     /// Advisory GUI visual AI review (screenshots vs design principles). Always exits 0; never gates.
     #[command(name = "gui-visual-review")]
     GuiVisualReview {
@@ -814,6 +822,16 @@ pub enum CiCmd {
         #[arg(long)]
         exit_zero: bool,
     },
+    /// Exact edge-set ratchet + layer rule for workspace crate dependencies.
+    /// Live graph from `cargo metadata` vs `contracts/ci/crate-edges.allow.v1.json`
+    /// (+ `crate-layers.v1.json`). New edges require a user-authorized ledger entry.
+    #[command(name = "crate-edges")]
+    CrateEdges {
+        /// Regenerate the baseline from the live graph (removal-only) and drop
+        /// stale exceptions. Bootstraps both contract files when missing.
+        #[arg(long)]
+        tighten: bool,
+    },
     /// Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges.
     /// With --deny-new, fails when a new advisory cycle appears not in the committed allowlist.
     #[command(name = "dep-cycles")]
@@ -855,6 +873,33 @@ pub enum CiCmd {
     /// autoscaler decisions from the decision log. Read-only; never mutates fleet state.
     #[command(name = "runner-status")]
     RunnerStatus,
+    /// Run-centric CI queue snapshot: classifies runs active/superseded/stale, carries the
+    /// async failure signal, emits machine-readable `advice`, and clears cancellable backlog.
+    /// The SSOT queue interaction for agents under the local-first CI contract.
+    #[command(name = "queue")]
+    Queue {
+        /// Emit the full QueueSnapshot as JSON.
+        #[arg(long)]
+        json: bool,
+        /// ≤7-line summary incl. FAILED lines (SessionStart hook uses this).
+        #[arg(long)]
+        brief: bool,
+        /// Read ~/.vox/ci-queue-snapshot.json (no network; refuses >10 min old).
+        #[arg(long)]
+        from_snapshot: bool,
+        /// Cancel superseded + stale runs (live data only; exempt-aware; ≤50/sweep).
+        #[arg(long)]
+        clear: bool,
+        /// With --clear: print the cancellation plan without cancelling.
+        #[arg(long)]
+        dry_run: bool,
+        /// Stale TTL in minutes for queued/pending runs (default 45).
+        #[arg(long)]
+        ttl_mins: Option<i64>,
+        /// PreToolUse hook mode: read hook JSON on stdin; exit 2 on banned remote-watch commands.
+        #[arg(long)]
+        hook_guard: bool,
+    },
     /// Measure CI job run-time (execution, not queue) and warn on anything over the budget (default 10m).
     #[command(name = "job-timings")]
     JobTimings {

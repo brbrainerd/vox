@@ -1,7 +1,6 @@
 #![allow(deprecated)]
 //! Integration tests for `VoxDb` when `local` feature is enabled (`connect(DbConfig::Local/::Memory)` paths).
 // Intentionally exercises the deprecated codex_legacy surface (these tests guard it until removal).
-#![allow(deprecated)]
 
 use super::*;
 use crate::schema::{BASELINE_VERSION, CODEX_CHAT_TABLES};

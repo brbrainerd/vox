@@ -222,14 +222,14 @@ fn numstat_new_path(raw: &str) -> String {
     if !raw.contains("=>") {
         return raw.to_string();
     }
-    if let (Some(lb), Some(rb)) = (raw.find('{'), raw.find('}')) {
-        if lb < rb {
-            let pre = &raw[..lb];
-            let inner = &raw[lb + 1..rb];
-            let post = &raw[rb + 1..];
-            let new = inner.split("=>").nth(1).unwrap_or(inner).trim();
-            return format!("{pre}{new}{post}").replace("//", "/");
-        }
+    if let (Some(lb), Some(rb)) = (raw.find('{'), raw.find('}'))
+        && lb < rb
+    {
+        let pre = &raw[..lb];
+        let inner = &raw[lb + 1..rb];
+        let post = &raw[rb + 1..];
+        let new = inner.split("=>").nth(1).unwrap_or(inner).trim();
+        return format!("{pre}{new}{post}").replace("//", "/");
     }
     raw.split("=>").nth(1).unwrap_or(raw).trim().to_string()
 }

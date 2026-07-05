@@ -263,7 +263,7 @@ vox-cli-share          = { layer = 5, kind = "library" }   # utils/share extract
 vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
 vox-cargo-shim        = { layer = 5, kind = "binary", staleness_exempt = true }  # fair-FIFO cargo shim (build broker)
-vox-build-queue       = { layer = 1, staleness_exempt = true }                   # queue/metrics lib for the build broker
+vox-build-queue       = { layer = 1, staleness_exempt = true, orphan_exempt = true }  # queue/metrics lib for the build broker; sole consumer vox-cargo-shim is excluded from the cargo workspace ([workspace] exclude), so it reads as 0 in-tree consumers
 vox-graph-reader      = { layer = 1, staleness_exempt = true }                   # read-only Vox Graph graph.json traversal
 vox-audit             = { layer = 5, kind = "binary" }                   # umbrella CR-L gate runner; contracts/ci/vox-audit-contract.v1.yaml
 voxup                 = { layer = 5, kind = "binary" }
@@ -289,6 +289,11 @@ reason = "MCP stdio host loads embedded orchestrator config via vox-orchestrator
 from   = "vox-ml-cli"
 to     = "vox-cli"
 reason = "Optional `mens-dei` workflow path shells out through `vox_cli::commands::build`, `build_service`, and `fs_utils` when `workflow-runtime` is disabled. Prefer extracting a shared L3 driver crate over tightening `vox-cli` deps."
+
+[[known_inversions]]
+from   = "vox-config"
+to     = "vox-git"
+reason = "graphify.rs::assess_corpus_status uses vox_git::read_only() for a scoped `git status --porcelain` freshness check (contracts/retrieval/vox-graph-corpora.v1.yaml). Pre-existing on main; never evaluated by this rule before 2026-07-03 because a missing-crates-in-layers.toml gap short-circuited the whole tool. Candidate fix: extract a read-only git-status helper into an L1/L2 crate both vox-config and vox-git can depend on."
 
 # ── Rule 11 (P3-T7): Forbidden code patterns ─────────────────────────────────
 # Forbid raw git invocations outside the concurrency-policy wrapper.

@@ -128,12 +128,25 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     let mut plan_snapshot = all_files.clone();
     plan_snapshot.sort();
 
-    // Secure the workspace before messing with branches and run_state
-    let guard = super::super::git::WorkspaceGuard::new(repo).await?;
+    // Secure the workspace before messing with branches and run_state. Plan-only
+    // runs mutate nothing, so the guard (which WIP-commits a dirty tree) must not
+    // engage there — a GUI "Preview" click must never touch git state.
+    let guard = if cfg.execute {
+        Some(super::super::git::WorkspaceGuard::new(repo).await?)
+    } else {
+        None
+    };
 
     let res = run_semantic_submit_core(repo, cfg, all_files, plan_snapshot, rank_score).await;
 
-    guard.restore().await?;
+    // Restore must not mask the real outcome: a failed `git reset` here would
+    // otherwise replace `res` (a more informative Err, or a legit Ok). Warn and
+    // return the original result — the guard's WIP commit is recoverable by hand.
+    if let Some(guard) = guard
+        && let Err(e) = guard.restore().await
+    {
+        eprintln!("[warn] failed to restore workspace guard: {e:#}");
+    }
     res
 }
 
@@ -278,13 +291,11 @@ async fn run_semantic_submit_core(
     let planner = SemanticPlanner::new(max_per, rule_set, cfg.legacy_chunk_split)
         .with_allow_markdown_prefixes(cfg.allow_markdown_prefixes.clone());
     let mut sem_manifest = planner.plan(all_files, &baseline_branch);
-    if cfg.rank_order {
-        if let Some(score) = rank_score.as_ref() {
-            ranker::reorder_chunks_by_score(&mut sem_manifest.chunks, score);
-            eprintln!(
-                "[semantic-submit] Re-ordered chunks by importance (highest-value PRs first)."
-            );
-        }
+    if cfg.rank_order
+        && let Some(score) = rank_score.as_ref()
+    {
+        ranker::reorder_chunks_by_score(&mut sem_manifest.chunks, score);
+        eprintln!("[semantic-submit] Re-ordered chunks by importance (highest-value PRs first).");
     }
     let ignored_reasons = summarize_ignored_reasons(&plan_snapshot, &planner);
 

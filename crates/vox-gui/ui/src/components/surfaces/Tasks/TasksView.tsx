@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLudusStore } from '../../gamify/store';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -7,10 +7,11 @@ import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { StatusPill } from '../../ui/StatusPill';
 import { DataTable } from '../../ui/DataTable';
-import { TaskRow, filterBySession, findWriteOverlaps } from './tasksHelpers';
+import { TaskRow, filterBySession, findWriteOverlaps, mapHopperTasksToRows, type HopperTaskDto } from './tasksHelpers';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { TaskComposer } from './TaskComposer';
-import { feedbackList, listenFeedbackChanged } from '../../../transport';
+import { feedbackList, hopperList, listenFeedbackChanged, type FeedbackRow } from '../../../transport';
+import type { AttentionInbox } from '../../../hooks/useAttentionInbox';
 
 interface StoredSession { id: string; title: string }
 
@@ -25,60 +26,36 @@ function loadSessionTitles(): Record<string, string> {
   }
 }
 
-interface HopperTaskDto {
-  item_id: string;
-  intent: string;
-  priority: number;
-  state: string;
-  task_id: number;
-}
-
 export function TasksView({
   pushToast: _pushToast,
   gamifyEnabled = false,
+  attention,
 }: {
   pushToast?: (t: unknown) => void;
   gamifyEnabled?: boolean;
+  /** When provided, this surface sources its task/feedback data from the
+   *  shared inbox instead of self-fetching (App owns polling via
+   *  useAttentionInbox) — mirrors NeedsYouSurface's dual-mode pattern. */
+  attention?: AttentionInbox;
 }) {
-  const [rows, setRows] = useState<TaskRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selfHopperTasks, setSelfHopperTasks] = useState<HopperTaskDto[]>([]);
+  const [selfNeedsYou, setSelfNeedsYou] = useState<FeedbackRow[]>([]);
+  const [loading, setLoading] = useState(!attention);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sessionFilter, setSessionFilter] = useState<string | null>(null);
   const [showBlocked, setShowBlocked] = useState(true);
   const mounted = useRef(true);
 
-  const refresh = useCallback(async () => {
+  const selfRefresh = useCallback(async () => {
     try {
       const [data, feedback] = await Promise.all([
-        invoke<HopperTaskDto[]>('hopper_list'),
-        feedbackList().catch(() => ({ needsYou: [] })),
+        hopperList(),
+        feedbackList().catch(() => ({ needsYou: [] as FeedbackRow[] })),
       ]);
-      const gateSet = new Set<number>(
-        (feedback?.needsYou ?? []).flatMap(f => f.gates ?? [])
-      );
       if (mounted.current) {
-        const mapped: TaskRow[] = data.map(dto => ({
-          id: dto.item_id,
-          description: dto.intent,
-          priority: dto.priority === 2 ? 'urgent' : dto.priority === 0 ? 'background' : 'normal',
-          lifecycle: gateSet.has(dto.task_id)
-            ? 'blocked'
-            : dto.state === 'assigned'
-            ? 'in_progress'
-            : dto.state === 'inbox'
-            ? 'queued'
-            : dto.state === 'done'
-            ? 'completed'
-            : 'unknown',
-          agent_id: null,
-          session_id: null,
-          estimated_complexity: 1,
-          depends_on: [],
-          write_files: [],
-          remote_node: null,
-        }));
-        setRows(mapped);
+        setSelfHopperTasks(data);
+        setSelfNeedsYou(feedback?.needsYou ?? []);
         setError(null);
       }
     } catch (e) {
@@ -88,21 +65,40 @@ export function TasksView({
     }
   }, []);
 
+  const refresh = useCallback(async () => {
+    if (attention) {
+      await attention.refresh();
+      return;
+    }
+    await selfRefresh();
+  }, [attention, selfRefresh]);
+
   useEffect(() => {
     mounted.current = true;
-    refresh();
+    // Shared-inbox mode: App already owns polling via useAttentionInbox.
+    // Skip the self-fetch effect (and its listeners) entirely.
+    if (attention) return () => { mounted.current = false; };
+
+    selfRefresh();
     const sub = listen<void>('vox://tasks-changed', () => {
-      refresh();
+      selfRefresh();
     });
     const subFeedback = listenFeedbackChanged(() => {
-      refresh();
+      selfRefresh();
     });
     return () => {
       mounted.current = false;
       sub.then((fn) => fn());
       subFeedback.then((fn) => fn());
     };
-  }, [refresh]);
+  }, [attention, selfRefresh]);
+
+  const rows: TaskRow[] = useMemo(() => {
+    const tasks = attention ? attention.hopperTasks : selfHopperTasks;
+    const feedbackNeedsYou = attention ? attention.needsYou : selfNeedsYou;
+    const gateSet = new Set<number>(feedbackNeedsYou.flatMap(f => f.gates ?? []));
+    return mapHopperTasksToRows(tasks, gateSet);
+  }, [attention, selfHopperTasks, selfNeedsYou]);
 
   const act = useCallback(
     async (fn: () => Promise<unknown>) => {

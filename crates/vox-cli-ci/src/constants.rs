@@ -15,6 +15,8 @@ pub const DOCS_SSOT_FILES: &[&str] = &[
     "docs/src/ci/workflow-enumeration.md",
     "docs/src/ci/binary-release-contract.md",
     "docs/src/ci/cli-baseline-metrics.md",
+    "docs/src/ci/concurrency-exceptions.md",
+    "docs/src/ci/local-first-ci.md",
 ];
 
 pub const CODEX_SSOT_FILES: &[&str] = &[

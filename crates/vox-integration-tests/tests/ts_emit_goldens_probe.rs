@@ -33,12 +33,12 @@ fn collect_expect_main_goldens() -> Vec<PathBuf> {
             let p = e.path();
             if p.is_dir() {
                 stack.push(p);
-            } else if p.extension().is_some_and(|x| x == "vox") {
-                if let Ok(src) = std::fs::read_to_string(&p) {
-                    if src.contains("fn main(") && src.contains("// EXPECT:") {
-                        out.push(p);
-                    }
-                }
+            } else if p.extension().is_some_and(|x| x == "vox")
+                && let Ok(src) = std::fs::read_to_string(&p)
+                && src.contains("fn main(")
+                && src.contains("// EXPECT:")
+            {
+                out.push(p);
             }
         }
     }

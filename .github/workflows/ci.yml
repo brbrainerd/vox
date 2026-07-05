@@ -7,11 +7,11 @@ on:
   # protection. Running the full gate again on push:main after a successful
   # merge_group run is pure duplication — it wastes two runner-slots per merge,
   # creates a second in-progress run that competes with the next PR's gate run,
-  # and the cancel-thrash from rapid pushes can starve the queue. All post-merge
-  # observability jobs (docker-vox-image-smoke, gui-playwright-smoke, etc.) that
-  # genuinely need to run on main are tiered behind the `full-ci` label or the
-  # `github.event_name != 'pull_request'` guard and continue to fire via
-  # merge_group (which is not a pull_request event).
+  # and the cancel-thrash from rapid pushes can starve the queue. Heavy
+  # observability jobs (docker-vox-image-smoke, gui-playwright-smoke, etc.) are
+  # tiered off merge_group entirely (runner-remediation Task 10 — the merge
+  # queue's runner ceiling can't absorb them) and instead run post-merge on
+  # `push:main` or via the `full-ci` PR label.
   merge_group:
 
 concurrency:
@@ -349,7 +349,10 @@ jobs:
     name: Guards (fast)
     needs: setup
     runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 15
+    # Raised from 15: the added GTK/dbus apt-get install + pnpm install (for the
+    # GUI honesty gate) can eat most of a 15-min budget on a cold self-hosted
+    # runner before the guards themselves even start.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -406,12 +409,22 @@ jobs:
           FULL="${{ needs.setup.outputs.full }}"
           CRATES="${{ needs.setup.outputs.affected_crates }}"
           fail=0
+          # Crates the root Cargo.toml `[workspace] exclude`s (keep in sync). Each has no
+          # workspace root of its own, so `cargo fmt --manifest-path` can't resolve their
+          # `edition.workspace = true` / `version.workspace = true` and errors with
+          # "failed to find a workspace root" — not a real format violation.
+          is_excluded_crate() {
+            case "$1" in
+              vox-cargo-shim|vox-plugin-cloud|vox-plugin-skill-compiler|vox-plugin-skill-git|\
+              vox-plugin-skill-memory|vox-plugin-skill-orchestrator|vox-plugin-skill-rag|\
+              vox-plugin-skill-testing|vox-plugin-skill-testing-validate) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
           if [ "$FULL" = "true" ]; then
             for m in crates/*/Cargo.toml; do
-              # vox-cargo-shim is excluded from the cargo workspace (see root Cargo.toml
-              # `[workspace] exclude`), so its `*.workspace = true` fields can't resolve
-              # via a standalone --manifest-path invocation.
-              [ "$m" = "crates/vox-cargo-shim/Cargo.toml" ] && continue
+              c="$(basename "$(dirname "$m")")"
+              is_excluded_crate "$c" && continue
               cargo fmt --manifest-path "$m" -- --check || fail=1
             done
           elif [ -z "$CRATES" ]; then
@@ -419,7 +432,7 @@ jobs:
             exit 0
           else
             for c in $CRATES; do
-              [ "$c" = "vox-cargo-shim" ] && continue
+              is_excluded_crate "$c" && continue
               m="crates/${c}/Cargo.toml"
               if [ -f "$m" ]; then
                 cargo fmt --manifest-path "$m" -- --check || fail=1
@@ -974,6 +987,10 @@ jobs:
         if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet ci fan-in-budget
 
+      - name: Crate edge ratchet + layer rule
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci crate-edges
+
       - name: Plugin-candidacy classifier (advisory — non-gating)
         if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet run --mode interp scripts/plugin-candidacy.vox
@@ -1441,7 +1458,7 @@ jobs:
 
   docker-vox-image-smoke:
     name: Docker build smoke (default + mesh)
-    # Tier: heavy (~30m). Run post-merge (push to main) + on PRs labelled
+    # Tier: heavy (~30m). Runs in the merge queue for main + on PRs labelled
     # `full-ci`; skip routine PR pushes (not a required check).
     # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
     # dependency, so it gates nothing — runs post-merge on main or via full-ci label.

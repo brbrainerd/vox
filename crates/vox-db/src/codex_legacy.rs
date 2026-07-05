@@ -372,10 +372,9 @@ pub async fn export_legacy_jsonl<W: Write>(
             .map_err(|e| StoreError::Db(format!("legacy export {table}: {e}")))?;
         while let Some(row) = rows.next().await? {
             let mut obj = serde_json::Map::new();
-            #[allow(clippy::needless_range_loop)]
-            for i in 0..columns.len() {
+            for (i, col) in columns.iter().enumerate() {
                 let v = row.get_value(i)?;
-                obj.insert(columns[i].clone(), sql_value_to_json(v));
+                obj.insert(col.clone(), sql_value_to_json(v));
             }
             let line = serde_json::json!({
                 "table": table,

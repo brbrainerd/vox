@@ -5,7 +5,6 @@
 //! polluted by other unit-test state. We serialize env-var mutations behind a mutex
 //! to prevent cross-test interference when running `cargo test` with multiple threads.
 // Rust 2024 made std::env::{set_var,remove_var} unsafe; serialized as noted above.
-#![allow(unsafe_code)]
 
 use std::sync::Mutex;
 use std::time::Instant;

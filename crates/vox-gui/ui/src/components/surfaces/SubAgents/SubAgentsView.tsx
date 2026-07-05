@@ -3,8 +3,6 @@ import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { useSubAgentStore } from './subAgentStore';
 import { fetchTree, listenActivity } from './subAgentClient';
 import { SubAgentTree } from './SubAgentTree';
-import { SubAgentContextEditor } from './SubAgentContextEditor';
-import { SubAgentControls } from './SubAgentControls';
 import { SubAgentActivityStream } from './SubAgentActivityStream';
 import type { SubAgentNode } from './types';
 
@@ -51,8 +49,7 @@ export function SubAgentsView(_props: SurfaceDecoratorProps) {
       <div style={{ flex: 1.4, overflow: 'auto' }}>
         {node ? (
           <>
-            <SubAgentControls windowId={node.windowId} status={node.status} />
-            <SubAgentContextEditor windowId={node.windowId} maxTokens={node.model.maxTokens} />
+            <h3>{node.title}</h3>
             <SubAgentActivityStream windowId={node.windowId} />
           </>
         ) : <p>Select a sub-agent</p>}

@@ -13,12 +13,12 @@ interface Props {
 export function FeedbackCard({ row, onResolve, onOpenContext }: Props) {
   if (row.kind === 'skill_proposal') {
     return (
-      <Glass size="sm" className="border-b border-zinc-800">
+      <Glass size="sm" className="border-b border-border-subtle">
         <div className="flex items-center gap-2 mb-1">
           <Pill phase="Clarification" label="Skill Proposal" />
-          <span className="text-[10px] text-zinc-500 font-mono">{row.feedbackId}</span>
+          <span className="text-[10px] text-text-muted font-mono">{row.feedbackId}</span>
         </div>
-        <p className="text-xs text-zinc-200 mb-2">{row.prompt}</p>
+        <p className="text-xs text-text-secondary mb-2">{row.prompt}</p>
         <div className="flex gap-1.5 flex-wrap">
           <button
             type="button"
@@ -31,7 +31,7 @@ export function FeedbackCard({ row, onResolve, onOpenContext }: Props) {
           <button
             type="button"
             aria-label="Dismiss this skill proposal"
-            className="text-[11px] font-semibold px-2.5 py-1 rounded border border-zinc-700 text-zinc-400 hover:bg-white/[0.02]"
+            className="text-[11px] font-semibold px-2.5 py-1 rounded border border-border-subtle text-text-muted hover:bg-overlay-subtle"
             onClick={() => onResolve(row.feedbackId, { action: 'skip' })}
           >
             Dismiss
@@ -42,16 +42,16 @@ export function FeedbackCard({ row, onResolve, onOpenContext }: Props) {
   }
   const isDoubt = row.kind === 'doubt';
   return (
-    <Glass size="sm" className="border-b border-zinc-800">
+    <Glass size="sm" className="border-b border-border-subtle">
       <div className="flex items-center gap-2 mb-1">
         <Pill phase={isDoubt ? 'Doubted' : 'Verifying'} label={isDoubt ? 'Doubt' : 'Clarification'} />
-        <span className="text-[10px] text-zinc-500 font-mono">{row.feedbackId}</span>
+        <span className="text-[10px] text-text-muted font-mono">{row.feedbackId}</span>
         {row.gates.length > 0 && (
-          <span className="text-[11px] text-zinc-500">parks {row.gates.length} task{row.gates.length > 1 ? 's' : ''}</span>
+          <span className="text-[11px] text-text-muted">parks {row.gates.length} task{row.gates.length > 1 ? 's' : ''}</span>
         )}
       </div>
       <button
-        className="text-xs text-zinc-200 mb-2 text-left block w-full hover:underline"
+        className="text-xs text-text-secondary mb-2 text-left block w-full hover:underline"
         aria-label="Open context"
         onClick={() => onOpenContext(row.feedbackId)}
       >
@@ -69,7 +69,7 @@ export function FeedbackCard({ row, onResolve, onOpenContext }: Props) {
             </button>
             <button
               aria-label="Let the agent verify"
-              className="text-[11px] font-semibold px-2.5 py-1 rounded border border-zinc-700 text-zinc-400 hover:bg-white/[0.02]"
+              className="text-[11px] font-semibold px-2.5 py-1 rounded border border-border-subtle text-text-muted hover:bg-overlay-subtle"
               onClick={() => onResolve(row.feedbackId, { action: 'let_verify' })}
             >
               Let it verify
@@ -89,14 +89,14 @@ export function FeedbackCard({ row, onResolve, onOpenContext }: Props) {
             ))}
             <button
               aria-label="Answer in free text"
-              className="text-[11px] font-semibold px-2.5 py-1 rounded border border-zinc-700 text-zinc-400 hover:bg-white/[0.02]"
+              className="text-[11px] font-semibold px-2.5 py-1 rounded border border-border-subtle text-text-muted hover:bg-overlay-subtle"
               onClick={() => onOpenContext(row.feedbackId)}
             >
               ✎ Answer…
             </button>
             <button
               aria-label="Skip this question"
-              className="text-[11px] font-semibold px-2.5 py-1 rounded border border-zinc-700 text-zinc-400 hover:bg-white/[0.02]"
+              className="text-[11px] font-semibold px-2.5 py-1 rounded border border-border-subtle text-text-muted hover:bg-overlay-subtle"
               onClick={() => onResolve(row.feedbackId, { action: 'skip' })}
             >
               Skip

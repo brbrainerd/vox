@@ -54,14 +54,14 @@ describe('Sidebar badges', () => {
     window.localStorage.clear();
   });
 
-  it('includes pending count in Runs nav aria-label', () => {
-    renderSidebar({ approvalsPending: 3 });
-    expect(screen.getByRole('button', { name: /Runs.*3 pending/i })).toBeDefined();
+  it('includes needs-you count in Runs nav aria-label', () => {
+    renderSidebar({ needsYouCount: 3 });
+    expect(screen.getByLabelText('Review, 3 items need you')).toBeDefined();
   });
 
-  it('uses default Runs aria-label when nothing is pending', () => {
-    renderSidebar({ approvalsPending: 0 });
-    expect(screen.getByRole('button', { name: 'Runs and Approvals' })).toBeDefined();
+  it('uses default Runs aria-label when nothing needs attention', () => {
+    renderSidebar({ needsYouCount: 0 });
+    expect(screen.getByRole('button', { name: 'Review' })).toBeDefined();
   });
 
   it('includes failing count in Settings nav aria-label', () => {

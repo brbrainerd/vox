@@ -14,6 +14,10 @@
 # and the heavier audit lanes. Those remain exclusive to the self-hosted gate. This
 # fallback covers the portable Rust core: fmt, clippy, unit/integration tests,
 # doctests, and supply-chain checks (deny/audit).
+#
+# All jobs in this workflow — including `gui-windows-build-smoke` — run only on
+# nightly schedule, manual dispatch, or PRs labeled `fleet-down`; none run on plain
+# PR pushes/synchronize.
 name: "CI Fallback (GitHub-hosted)"
 
 on:
@@ -130,10 +134,11 @@ jobs:
   # that Linux CI excludes when `vox-gui` is omitted from nextest/clippy.
   gui-windows-build-smoke:
     name: GUI Windows build smoke
-    # Same fleet-down-only gate as the `gate` job above — this job otherwise ran on
-    # every PR push (any `synchronize` event), not just genuine fallback scenarios,
-    # burning ~60 CI-minutes per push on a job that has never once completed within
-    # its timeout from a cold cache.
+    # Same outage valve as `gate`: on PRs, hosted Windows compute only runs when
+    # the fleet-down label is applied (or on schedule/dispatch). Previously had
+    # no condition at all, so it ran on every PR synchronize, burning ~60
+    # CI-minutes per push on a job that has never once completed within its
+    # timeout from a cold cache.
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'fleet-down')
     runs-on: windows-latest
     # TEMPORARY: raised from 60 to seed a Swatinem/rust-cache baseline via one
