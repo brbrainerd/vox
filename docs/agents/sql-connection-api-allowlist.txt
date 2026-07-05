@@ -29,3 +29,8 @@ crates/vox-workflow-runtime/tests/
 # backend connection/query/execute APIs by design while dialect-agnostic query
 # builders and codegen integration are landing.
 crates/vox-sql/
+# T5.1 regression test (sync_to_db_does_not_count_failed_writes_as_synced)
+# deliberately drops the `memories` table mid-test via db.connection() to
+# force a genuine write failure and assert the code doesn't count it as
+# synced. Test-only fault injection, not a production SQL call site.
+crates/vox-orchestrator/src/memory/tests.rs

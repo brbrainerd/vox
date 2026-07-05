@@ -575,22 +575,25 @@ async fn handle_tool_call_inner(
     // `handle_tool_call_with_mode` path (approval gate, TimedExecution,
     // telemetry, the new outer `tokio::time::timeout`) end-to-end without
     // depending on any real tool's I/O or subprocess behavior.
+    //
+    // Deliberately NOT a `match name { ... }` block: `mcp_wiring`'s
+    // TOOL_REGISTRY-vs-handler CI guard locates the real dispatch table by
+    // string-searching for the first `"match name {"` literal after
+    // `handle_tool_call`'s signature — a second such literal here would be
+    // found first, truncating the guard's scan before it ever reaches the
+    // real table below.
     #[cfg(test)]
-    match name {
-        "vox_test_hang_forever" => {
-            let sleep_ms = args
-                .get("sleep_ms")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(u64::MAX);
-            tokio::time::sleep(std::time::Duration::from_millis(sleep_ms)).await;
-            return Ok(ToolResult::ok("woke up (should not happen under test timeout)").to_json());
-        }
-        "vox_test_agy_like_long_running" => {
-            let sleep_ms = args.get("sleep_ms").and_then(|v| v.as_u64()).unwrap_or(0);
-            tokio::time::sleep(std::time::Duration::from_millis(sleep_ms)).await;
-            return Ok(ToolResult::ok("agy-like delegation completed").to_json());
-        }
-        _ => {}
+    if name == "vox_test_hang_forever" {
+        let sleep_ms = args
+            .get("sleep_ms")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(u64::MAX);
+        tokio::time::sleep(std::time::Duration::from_millis(sleep_ms)).await;
+        return Ok(ToolResult::ok("woke up (should not happen under test timeout)").to_json());
+    } else if name == "vox_test_agy_like_long_running" {
+        let sleep_ms = args.get("sleep_ms").and_then(|v| v.as_u64()).unwrap_or(0);
+        tokio::time::sleep(std::time::Duration::from_millis(sleep_ms)).await;
+        return Ok(ToolResult::ok("agy-like delegation completed").to_json());
     }
 
     match name {
