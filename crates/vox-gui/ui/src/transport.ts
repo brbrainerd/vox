@@ -757,4 +757,35 @@ export function hopperList(): Promise<HopperTaskDto[]> {
   return invoke<HopperTaskDto[]>('hopper_list');
 }
 
+// ---------------------------------------------------------------------------
+// CodeRabbit sweep transport wrappers.
+// ---------------------------------------------------------------------------
+
+export function codeRabbitTokenPresent(): Promise<boolean> {
+  return invoke<boolean>('coderabbit_token_present');
+}
+
+/** Generic over the view's own `Report` shape — this hub has no opinion on it. */
+export function codeRabbitReport<T = unknown>(): Promise<T> {
+  return invoke<T>('coderabbit_report');
+}
+
+export interface CodeRabbitSweepArgs {
+  since: string;
+  cap: number;
+  rankWeights: string;
+  top: number | null;
+  fullRepo: boolean;
+  [key: string]: unknown;
+}
+
+/** Generic over the view's own `Manifest` shape — this hub has no opinion on it. */
+export function codeRabbitPlan<T = unknown>(args: CodeRabbitSweepArgs): Promise<T> {
+  return invoke<T>('coderabbit_plan', args);
+}
+
+export function codeRabbitRunAsync(args: CodeRabbitSweepArgs): Promise<void> {
+  return invoke('coderabbit_run_async', args);
+}
+
 
