@@ -1280,6 +1280,7 @@
     "get_task_diff",
     "get_user_config",
     "get_vcs_isolation",
+    "harness_ci_fleet_status",
     "hopper_cancel",
     "hopper_list",
     "hopper_reprioritize",
@@ -1369,9 +1370,11 @@
     "term_submit",
     "trust_mesh_node",
     "untrust_mesh_node",
+    "vcs_town_status",
     "vox_docs_index",
     "vox_graphify_status",
-    "vox_search_query"
+    "vox_search_query",
+    "workspace_town_scan"
   ],
   "capabilities": [
     {
