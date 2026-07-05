@@ -835,3 +835,12 @@ knobs:
     status: active
     default_value: null
     since: "2026-07-04"
+
+  # ── orchestrator/openrouter ───────────────────────────────────────────────
+  - name: openrouter_base_url
+    env_var: OPENROUTER_BASE_URL
+    description: Override the OpenRouter API base URL (test/mock server injection point in vox-gamify and vox-orchestrator's OpenRouter clients). Follows OpenRouter's own env-var naming, not the VOX_ prefix convention.
+    owner_crate: vox-gamify
+    status: active
+    default_value: null
+    since: "2026-07-05"
