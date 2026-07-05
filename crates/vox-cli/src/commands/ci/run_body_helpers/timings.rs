@@ -137,6 +137,10 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
                 "check_vox_mens_train",
                 &["check", "-p", "vox-populi", "--features", "mens,mens-train"],
             ),
+            (
+                "check_vox_cli_populi_oratio",
+                &["check", "-p", "vox-cli", "--features", "oratio"],
+            ),
             ("check_vox_mcp", &["check", "-p", "vox-orchestrator-mcp"]),
         ];
         for (lane, args) in crate_lanes {
@@ -246,6 +250,7 @@ mod build_timing_budget_tests {
         "check_vox_db",
         "check_vox_oratio",
         "check_vox_mens_train",
+        "check_vox_cli_populi_oratio",
         "check_vox_mcp",
     ];
 

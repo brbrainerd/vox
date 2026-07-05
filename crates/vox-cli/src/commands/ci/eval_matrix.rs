@@ -44,6 +44,8 @@ const FILTER_COMPILER_SYNTAX_K_PARITY: &str = "syntax_k_artifact_for_parity_chai
 const FILTER_COMPILER_SYNTAX_K_GATE: &str = "syntax_k_regression_gate_observe_only";
 const FILTER_CONTEXT_ENVELOPE_ORCH: &str =
     "context_envelope_projection_validates_against_contract_schema";
+const FILTER_CONTEXT_ENVELOPE_MCP: &str =
+    "retrieval_evidence_projection_validates_against_context_envelope_schema";
 const FILTER_AGENT_HARNESS_CONTRACT: &str =
     "agent_harness_projection_validates_against_contract_schema";
 const FILTER_CONTEXT_LIFECYCLE_TELEMETRY_FIXTURES: &str =
@@ -270,6 +272,17 @@ fn run_benchmark_class(repo_root: &Path, class: &str) -> Result<()> {
                     "--test",
                     "context_lifecycle_telemetry_fixtures",
                     FILTER_CONTEXT_LIFECYCLE_TELEMETRY_FIXTURES,
+                ],
+            )?;
+            cargo_test_nocapture(
+                repo_root,
+                &[
+                    "test",
+                    "-p",
+                    PKG_VOX_MCP,
+                    "--test",
+                    "retrieval_evidence_context_envelope_contract",
+                    FILTER_CONTEXT_ENVELOPE_MCP,
                 ],
             )
         }
