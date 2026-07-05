@@ -153,28 +153,25 @@ pub enum OperationKind {
     // stays the cost SSOT; correlate via `trace_id`/`run_id` elsewhere.
     /// A dangerous-tool call parked on a human-in-the-loop approval decision.
     ///
-    /// ## `run_id` population — current real-world behavior (T1.5 follow-up
-    /// bridge landed, 2026-07-03)
+    /// ## `run_id` population — current real-world behavior (T1.5 follow-up bridge landed, 2026-07-03)
     ///
     /// `run_id` is populated by `vox-orchestrator-mcp/src/dispatch.rs`'s
     /// `run_id_for_approval`: an explicit `trace_id`/`correlation_id` from the
     /// tool-call `args`, falling back to `args.get("task_id")` when present.
     ///
     /// As of the T1.5 follow-up bridge (`vox_orchestrator::runtime::ToolDispatcher`
-    /// + `vox-orchestrator-mcp::autonomous_tool_dispatch::McpToolDispatcher`),
-    /// `args["task_id"]` **is** reliably set for autonomous-agent-triggered
-    /// approvals too: `AiTaskProcessor::process`
-    /// (`vox-orchestrator/src/runtime.rs`) parses a detected `@tool <name>
-    /// [json args]` intent line and calls `ToolDispatcher::dispatch` with the
-    /// real `TaskId` as an explicit parameter (not sourced from the model's
-    /// own narration); `McpToolDispatcher::dispatch` writes that verified
-    /// `task_id` into `args` immediately before calling
-    /// `handle_tool_call_with_mode`, overwriting anything the model might
-    /// have written there itself. `vox-orchestrator-d`'s binary wires this
-    /// dispatcher in when it spawns the `AgentFleet`
-    /// (`spawn_agent_fleet_if_enabled_with_dispatcher`), using the same
-    /// `ServerState` GUI-driven `orch.tool_call` calls run against — so
-    /// autonomous and GUI-invoked calls now share one approval gate and one
+    /// plus `vox-orchestrator-mcp::autonomous_tool_dispatch::McpToolDispatcher`),
+    /// `args["task_id"]` **is** reliably set for autonomous-agent-triggered approvals
+    /// too: `AiTaskProcessor::process` (`vox-orchestrator/src/runtime.rs`) parses a
+    /// detected `@tool <name> [json args]` intent line and calls
+    /// `ToolDispatcher::dispatch` with the real `TaskId` as an explicit parameter
+    /// (not sourced from the model's own narration); `McpToolDispatcher::dispatch`
+    /// writes that verified `task_id` into `args` immediately before calling
+    /// `handle_tool_call_with_mode`, overwriting anything the model might have
+    /// written there itself. `vox-orchestrator-d`'s binary wires this dispatcher in
+    /// when it spawns the `AgentFleet` (`spawn_agent_fleet_if_enabled_with_dispatcher`),
+    /// using the same `ServerState` GUI-driven `orch.tool_call` calls run against —
+    /// so autonomous and GUI-invoked calls now share one approval gate and one
     /// `run_id`-population path.
     ///
     /// Hosts that construct `AiTaskProcessor::new` directly (tests, or any

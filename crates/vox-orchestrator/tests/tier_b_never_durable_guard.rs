@@ -40,10 +40,10 @@ fn collect_rs_sources(dir: &Path, out: &mut Vec<(std::path::PathBuf, String)>) {
                 continue;
             }
             collect_rs_sources(&path, out);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                out.push((path, content));
-            }
+        } else if path.extension().and_then(|e| e.to_str()) == Some("rs")
+            && let Ok(content) = std::fs::read_to_string(&path)
+        {
+            out.push((path, content));
         }
     }
 }

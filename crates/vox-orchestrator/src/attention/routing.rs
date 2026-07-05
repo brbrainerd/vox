@@ -371,8 +371,6 @@ mod trust_decay_and_window_tests {
 
         // The active twin keeps acting (each `record_outcome` resets its idle clock),
         // so it never enters decay and its score stays put (still trusted).
-        let active = active;
-
         assert!(
             idle.trust_score < active.trust_score,
             "idle={:.4} should be measurably below active={:.4}",

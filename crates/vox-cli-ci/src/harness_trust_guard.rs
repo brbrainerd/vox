@@ -136,10 +136,10 @@ fn declares_cfg_test_mod(body: &str, mod_name: &str, file_name: Option<&str>) ->
             }
             if let Some(rest) = t.strip_prefix("#[path") {
                 // #[path = "some_file.rs"]
-                if let (Some(start), Some(end)) = (rest.find('"'), rest.rfind('"')) {
-                    if end > start {
-                        path_override = Some(rest[start + 1..end].to_string());
-                    }
+                if let (Some(start), Some(end)) = (rest.find('"'), rest.rfind('"'))
+                    && end > start
+                {
+                    path_override = Some(rest[start + 1..end].to_string());
                 }
                 continue;
             }
@@ -150,10 +150,10 @@ fn declares_cfg_test_mod(body: &str, mod_name: &str, file_name: Option<&str>) ->
             let target_pub = format!("pub mod {mod_name};");
             let target_pub_crate = format!("pub(crate) mod {mod_name};");
             if t == target || t == target_pub || t == target_pub_crate {
-                if let Some(want) = &path_override {
-                    if Some(want.as_str()) != file_name {
-                        break;
-                    }
+                if let Some(want) = &path_override
+                    && Some(want.as_str()) != file_name
+                {
+                    break;
                 }
                 return true;
             }
@@ -658,7 +658,7 @@ mod tests {
 
         // Precise check: the specific scan function must emit a violation
         // whose text names the pattern it caught.
-        let scan_violations = scan_fn(&[probe_path.clone()], &root);
+        let scan_violations = scan_fn(std::slice::from_ref(&probe_path), &root);
         assert_eq!(
             scan_violations.len(),
             1,
@@ -789,7 +789,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("probe.rs");
         std::fs::write(&f, "let orch = Orchestrator::new(config);\n").unwrap();
-        let result = scan_constructor_violations(&[f.clone()], &dir);
+        let result = scan_constructor_violations(std::slice::from_ref(&f), &dir);
         assert_eq!(result.violations.len(), 1);
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -807,7 +807,7 @@ mod tests {
             "#[cfg(test)]\nmod tests {\n    let orch = Orchestrator::new(config);\n}\n",
         )
         .unwrap();
-        let result = scan_constructor_violations(&[f.clone()], &dir);
+        let result = scan_constructor_violations(std::slice::from_ref(&f), &dir);
         assert!(result.violations.is_empty());
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -825,7 +825,7 @@ mod tests {
             "/*\nlet _orch = build_repo_scoped_orchestrator_cli(config);\n*/\n",
         )
         .unwrap();
-        let violations = scan_retired_client_constructions(&[f.clone()], &dir);
+        let violations = scan_retired_client_constructions(std::slice::from_ref(&f), &dir);
         assert!(violations.is_empty());
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -843,7 +843,7 @@ mod tests {
             "let _orch = build_repo_scoped_orchestrator_cli(config);\n",
         )
         .unwrap();
-        let violations = scan_retired_client_constructions(&[f.clone()], &dir);
+        let violations = scan_retired_client_constructions(std::slice::from_ref(&f), &dir);
         assert_eq!(violations.len(), 1);
         std::fs::remove_dir_all(&dir).ok();
     }
