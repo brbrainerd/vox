@@ -317,7 +317,7 @@ impl Parser {
                 // statement path instead of stealing them into parse_decl.
                 || (matches!(self.peek(), Token::Ident(n) if matches!(n.as_str(),
                         "table" | "index" | "query" | "mutation" | "server" | "form"))
-                    && matches!(self.peek_nth(1), Token::Ident(_)))
+                    && matches!(self.peek_nth(1), Token::Ident(_) | Token::TypeIdent(_)))
                 // Only tool/resource take a leading string literal (`tool "desc" fn …`).
                 || (matches!(self.peek(), Token::Ident(n) if matches!(n.as_str(), "tool" | "resource"))
                     && matches!(self.peek_nth(1), Token::Ident(_) | Token::StringLit(_)));

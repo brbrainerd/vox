@@ -11,7 +11,7 @@ This document defines the canonical vocabulary for the Vox programming language.
 `type`, `import`, `actor`, `workflow`, `activity`, `spawn`, `http`, `pub`, `with`, `on`, `state`, `derived`, `effect`, `mount`, `cleanup`, `view`, `component`, `agent`, `async`, `migrate`, `env`, `dec`
 
 ### Web & Reactive (Path C)
-`and`, `or`, `not`, `is`, `true`, `false`, `get`, `post`, `put`, `delete`, `table`, `index`, `query`, `mutation`, `server`, `tool`, `resource`
+`and`, `or`, `not`, `is`, `true`, `false`, `get`, `post`, `put`, `delete`, `table`, `index`, `query`, `mutation`, `server`, `tool`, `resource`, `form`
 
 ## Primitive Types
 `int`, `str`, `bool`, `float`, `Unit`, `Element`
