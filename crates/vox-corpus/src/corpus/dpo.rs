@@ -111,7 +111,7 @@ pub fn generate_dpo_from_extract(config: &DpoConfig) -> anyhow::Result<usize> {
 /// Reads an [`ExternalReviewReplayRow`](crate::external_review_replay::ExternalReviewReplayRow)
 /// JSONL file (written by `vox corpus review-export`) and produces `DpoPair` JSONL where:
 /// - `chosen`   = the suggested fix from the review finding (`response`).
-/// - `rejected` = a *provably worse* variant produced by [`make_worse_variant`].
+/// - `rejected` = a *provably worse* variant produced by `make_worse_variant`.
 ///
 /// Only `sample_kind == "review_fix_pairs"` rows carry a real fix in `response`;
 /// `review_antipattern_memory` / `review_regression_challenges` rows are prose and are
