@@ -43,9 +43,7 @@ pub(crate) fn group_by_crate(files: Vec<TownFileDto>) -> Vec<TownCrateDto> {
     for f in files {
         let key = match f.path.strip_prefix("crates/") {
             Some(rest) => match rest.split('/').next() {
-                Some(name) if rest.contains('/') => {
-                    (name.to_string(), format!("crates/{name}"))
-                }
+                Some(name) if rest.contains('/') => (name.to_string(), format!("crates/{name}")),
                 _ => ("(workspace)".to_string(), String::new()),
             },
             None => ("(workspace)".to_string(), String::new()),
@@ -77,7 +75,9 @@ fn scan(root: &Path) -> TownScanDto {
         if !path.is_file() || !is_source_file(path) {
             continue;
         }
-        let Ok(rel) = path.strip_prefix(root) else { continue };
+        let Ok(rel) = path.strip_prefix(root) else {
+            continue;
+        };
         let rel = rel.to_string_lossy().replace('\\', "/");
         // Skip build/vendor dirs the ignore crate may still surface.
         if rel.starts_with("target/") || rel.contains("node_modules/") {
@@ -121,10 +121,22 @@ mod tests {
     #[test]
     fn groups_crate_files_and_workspace_files() {
         let files = vec![
-            TownFileDto { path: "crates/vox-db/src/lib.rs".into(), lines: 100 },
-            TownFileDto { path: "crates/vox-db/src/store.rs".into(), lines: 50 },
-            TownFileDto { path: "crates/vox-cli/src/main.rs".into(), lines: 10 },
-            TownFileDto { path: "docs/src/intro.md".into(), lines: 5 },
+            TownFileDto {
+                path: "crates/vox-db/src/lib.rs".into(),
+                lines: 100,
+            },
+            TownFileDto {
+                path: "crates/vox-db/src/store.rs".into(),
+                lines: 50,
+            },
+            TownFileDto {
+                path: "crates/vox-cli/src/main.rs".into(),
+                lines: 10,
+            },
+            TownFileDto {
+                path: "docs/src/intro.md".into(),
+                lines: 5,
+            },
         ];
         let crates = group_by_crate(files);
         let names: Vec<&str> = crates.iter().map(|c| c.name.as_str()).collect();

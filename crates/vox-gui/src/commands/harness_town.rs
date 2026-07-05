@@ -69,7 +69,11 @@ pub(crate) fn parse_branches(out: &str) -> Vec<VcsBranchDto> {
             }
             let is_head = parts.next().map(|h| h.trim() == "*").unwrap_or(false);
             let track = parts.next().unwrap_or("").trim().to_string();
-            Some(VcsBranchDto { name: name.to_string(), is_head, track })
+            Some(VcsBranchDto {
+                name: name.to_string(),
+                is_head,
+                track,
+            })
         })
         .collect()
 }
@@ -127,7 +131,10 @@ pub async fn harness_ci_fleet_status() -> Result<CiFleetDto, String> {
         let runners = parse_runners(&runners_json)?;
         let queued_json = run(
             "gh",
-            &["api", &format!("repos/{slug}/actions/runs?status=queued&per_page=50")],
+            &[
+                "api",
+                &format!("repos/{slug}/actions/runs?status=queued&per_page=50"),
+            ],
         )?;
         let queued = serde_json::from_str::<serde_json::Value>(&queued_json)
             .ok()
@@ -157,7 +164,11 @@ pub async fn vcs_town_status() -> Result<VcsTownDto, String> {
                 Ok(json) => (parse_prs(&json).unwrap_or_default(), true),
                 Err(_) => (Vec::new(), false),
             };
-        Ok(VcsTownDto { branches, prs, prs_available })
+        Ok(VcsTownDto {
+            branches,
+            prs,
+            prs_available,
+        })
     })
     .await
     .map_err(|e| e.to_string())?
