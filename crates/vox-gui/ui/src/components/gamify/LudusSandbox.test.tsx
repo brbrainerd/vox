@@ -5,13 +5,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 
-const invokeMock = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a: unknown[]) => invokeMock(...a) }));
+const workspaceTownScan = vi.fn();
+const openLocator = vi.fn();
 vi.mock('../../transport', () => ({
   listenAgentEvents: vi.fn().mockRejectedValue(new Error('not in tauri')),
   // useLlmSpend (used for the HUD treasury) reads voxTransport from the same
   // module — the mock must provide it or the hook crashes on mount.
-  voxTransport: { getLlmSpend: vi.fn().mockRejectedValue(new Error('unavailable')) },
+  voxTransport: {
+    getLlmSpend: vi.fn().mockRejectedValue(new Error('unavailable')),
+    workspaceTownScan: (...a: unknown[]) => workspaceTownScan(...a),
+    openLocator: (...a: unknown[]) => openLocator(...a),
+    harnessCiFleetStatus: vi.fn().mockRejectedValue(new Error('unavailable')),
+    vcsTownStatus: vi.fn().mockRejectedValue(new Error('unavailable')),
+    hopperList: vi.fn().mockRejectedValue(new Error('unavailable')),
+  },
 }));
 
 import { LudusSandbox } from './LudusSandbox';
@@ -22,17 +29,15 @@ const SCAN = {
 };
 
 beforeEach(() => {
-  invokeMock.mockReset();
-  invokeMock.mockImplementation(async (cmd: string) => {
-    if (cmd === 'workspace_town_scan') return SCAN;
-    throw new Error('unavailable');
-  });
+  workspaceTownScan.mockReset();
+  openLocator.mockReset();
+  workspaceTownScan.mockResolvedValue(SCAN);
 });
 
 describe('LudusSandbox (Vox Urbs shell)', () => {
   it('renders the town canvas and loads the workspace scan', async () => {
     render(<LudusSandbox />);
-    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('workspace_town_scan'));
+    await waitFor(() => expect(workspaceTownScan).toHaveBeenCalled());
     expect(screen.getByTestId('urbs-canvas')).toBeTruthy();
   });
 
@@ -42,7 +47,7 @@ describe('LudusSandbox (Vox Urbs shell)', () => {
   });
 
   it('shows a scan-failed state (not a fake town) when the scan tap fails', async () => {
-    invokeMock.mockImplementation(async () => { throw new Error('nope'); });
+    workspaceTownScan.mockRejectedValue(new Error('nope'));
     render(<LudusSandbox />);
     await waitFor(() => expect(screen.getByText(/scan unavailable/i)).toBeTruthy());
   });

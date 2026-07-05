@@ -1,27 +1,30 @@
 // crates/vox-gui/ui/src/components/gamify/urbs/harnessData.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const invokeMock = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a: unknown[]) => invokeMock(...a) }));
+const harnessCiFleetStatus = vi.fn();
+const vcsTownStatus = vi.fn();
+const hopperList = vi.fn();
+vi.mock('../../../transport', () => ({
+  voxTransport: {
+    harnessCiFleetStatus: (...a: unknown[]) => harnessCiFleetStatus(...a),
+    vcsTownStatus: (...a: unknown[]) => vcsTownStatus(...a),
+    hopperList: (...a: unknown[]) => hopperList(...a),
+  },
+}));
 
 import { fetchHarnessSnapshot } from './harnessData';
 
-beforeEach(() => { invokeMock.mockReset(); });
+beforeEach(() => {
+  harnessCiFleetStatus.mockReset();
+  vcsTownStatus.mockReset();
+  hopperList.mockReset();
+});
 
 describe('fetchHarnessSnapshot', () => {
   it('maps successful taps into the snapshot, counting only non-assigned hopper items as queued', async () => {
-    invokeMock.mockImplementation(async (cmd: string) => {
-      switch (cmd) {
-        case 'harness_ci_fleet_status':
-          return { runners: [{ name: 'r1', busy: true, online: true }], queued: 2 };
-        case 'vcs_town_status':
-          return { branches: [{ name: 'main', is_head: true, track: '[ahead 1]' }], prs: [{ number: 1, title: 't', head_ref: 'h' }], prs_available: true };
-        case 'hopper_list':
-          return [{ id: 'a', state: 'inbox' }, { id: 'b', state: 'assigned' }, { id: 'c', state: 'inbox' }];
-        default:
-          throw new Error(`unexpected ${cmd}`);
-      }
-    });
+    harnessCiFleetStatus.mockResolvedValue({ runners: [{ name: 'r1', busy: true, online: true }], queued: 2 });
+    vcsTownStatus.mockResolvedValue({ branches: [{ name: 'main', is_head: true, track: '[ahead 1]' }], prs: [{ number: 1, title: 't', head_ref: 'h' }], prs_available: true });
+    hopperList.mockResolvedValue([{ id: 'a', state: 'inbox' }, { id: 'b', state: 'assigned' }, { id: 'c', state: 'inbox' }]);
     const s = await fetchHarnessSnapshot();
     expect(s.ci?.runners).toHaveLength(1);
     expect(s.ci?.queued).toBe(2);
@@ -33,10 +36,9 @@ describe('fetchHarnessSnapshot', () => {
   });
 
   it('a failing tap yields null for that field only (unlit, not fake)', async () => {
-    invokeMock.mockImplementation(async (cmd: string) => {
-      if (cmd === 'hopper_list') return [];
-      throw new Error('unavailable');
-    });
+    harnessCiFleetStatus.mockRejectedValue(new Error('unavailable'));
+    vcsTownStatus.mockRejectedValue(new Error('unavailable'));
+    hopperList.mockResolvedValue([]);
     const s = await fetchHarnessSnapshot();
     expect(s.ci).toBeNull();
     expect(s.vcs).toBeNull();

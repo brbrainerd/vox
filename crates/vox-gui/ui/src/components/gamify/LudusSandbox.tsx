@@ -1,11 +1,10 @@
 // crates/vox-gui/ui/src/components/gamify/LudusSandbox.tsx  (full replacement)
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
-import { invoke } from '@tauri-apps/api/core';
 import { useLudusStore } from './store';
 import { HudPanels } from './HudPanels';
 import { useLlmSpend } from '../../hooks/useLlmSpend';
-import { listenAgentEvents } from '../../transport';
+import { listenAgentEvents, voxTransport } from '../../transport';
 import { moodFromPhase } from './LudusSandbox.mappers';
 import type { MoodType } from './store';
 import { layoutTown, assignNewFile } from './urbs/layout';
@@ -62,7 +61,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
   // ── Workspace scan → layout ──────────────────────────────────────────────
   useEffect(() => {
     let live = true;
-    invoke<TownScan>('workspace_town_scan')
+    voxTransport.workspaceTownScan()
       .then((scan) => {
         if (!live) return;
         // Landmark heuristic v1: the 3 biggest crates by file count. (Spec
@@ -353,7 +352,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
         >
           <div className="max-w-[220px] truncate px-2 py-1 font-mono text-text-muted">{menu.path}</div>
           <button type="button" className="block w-full rounded px-2 py-1 text-left hover:bg-overlay-subtle"
-            onClick={() => { invoke('open_locator', { locator: { kind: 'file', value: scanRoot ? `${scanRoot}/${menu.path}` : menu.path } }).catch(() => {}); setMenu(null); }}>
+            onClick={() => { voxTransport.openLocator({ kind: 'file', value: scanRoot ? `${scanRoot}/${menu.path}` : menu.path }).catch(() => {}); setMenu(null); }}>
             Open file
           </button>
           <button type="button" className="block w-full rounded px-2 py-1 text-left hover:bg-overlay-subtle"

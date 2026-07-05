@@ -1,30 +1,22 @@
 // crates/vox-gui/ui/src/components/gamify/urbs/harnessData.ts
-import { invoke } from '@tauri-apps/api/core';
+import { voxTransport } from '../../../transport';
 import type { HarnessSnapshot } from './worldRenderer';
 
-async function tryInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
+async function tryTap<T>(name: string, fn: () => Promise<T>): Promise<T | null> {
   try {
-    return await invoke<T>(cmd, args);
+    return await fn();
   } catch (err) {
-    console.error(`[urbs] ${cmd} unavailable:`, err);
+    console.error(`[urbs] ${name} unavailable:`, err);
     return null;
   }
 }
 
-interface CiFleetDto { runners: { name: string; busy: boolean; online: boolean }[]; queued: number }
-interface VcsTownDto {
-  branches: { name: string; is_head: boolean; track: string }[];
-  prs: { number: number; title: string; head_ref: string }[];
-  prs_available: boolean;
-}
-interface HopperItemDto { state: string }
-
 /** One poll of every harness tap. Each failure → null (landmark unlit). */
 export async function fetchHarnessSnapshot(): Promise<HarnessSnapshot> {
   const [ci, vcs, hopper] = await Promise.all([
-    tryInvoke<CiFleetDto>('harness_ci_fleet_status'),
-    tryInvoke<VcsTownDto>('vcs_town_status'),
-    tryInvoke<HopperItemDto[]>('hopper_list'),
+    tryTap('harness_ci_fleet_status', () => voxTransport.harnessCiFleetStatus()),
+    tryTap('vcs_town_status', () => voxTransport.vcsTownStatus()),
+    tryTap('hopper_list', () => voxTransport.hopperList()),
   ]);
   return {
     ci: ci ? { runners: ci.runners.filter((r) => r.online), queued: ci.queued } : null,
