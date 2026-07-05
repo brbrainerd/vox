@@ -68,6 +68,53 @@ impl FeedbackStore {
         id
     }
 
+    /// T1.4: restore visibility for a `FeedbackRequested` op-log entry that
+    /// had no matching `FeedbackResolved` as of the last durable record
+    /// before a daemon restart. Unlike [`register`](Self::register), the id
+    /// is **preserved** from the durable `request_id` (so it lines up with
+    /// whatever the GUI/CLI already displayed for it) and this is a no-op if
+    /// an item with that id is already present (idempotent under repeated
+    /// rehydration calls). The op-log entry carries only `request_id`,
+    /// `task_id`, and a `kind` string — never the original `prompt`/
+    /// `options`/`gates` — so the reconstructed item's `prompt` is a
+    /// recovery-labeled placeholder, not the original text; this restores
+    /// *that a decision is still owed*, not the original interactive
+    /// question verbatim.
+    pub fn rehydrate_open(
+        &self,
+        id: FeedbackId,
+        kind: FeedbackKind,
+        doubted_task_id: Option<TaskId>,
+        created_at_ms: u64,
+    ) {
+        let mut inner = self.inner.write();
+        if inner.items.iter().any(|i| i.id == id) {
+            return;
+        }
+        let prompt = format!(
+            "[recovered-on-restart] a {:?} feedback request from before the last restart \
+             is still awaiting a decision (original prompt text was not durably recorded)",
+            kind
+        );
+        let req = FeedbackRequest {
+            id,
+            kind,
+            prompt,
+            options: vec![],
+            gates: doubted_task_id.into_iter().collect(),
+            doubted_task_id,
+            info_gain_bits: 0.0,
+            scaled_cost_ms: 0,
+            surface: Surface::NeedsYou,
+            session_id: None,
+            agent_id: None,
+            created_at_ms,
+            resolution: None,
+            meta: None,
+        };
+        inner.items.push(req);
+    }
+
     pub fn open_needs_you(&self) -> Vec<FeedbackRequest> {
         let inner = self.inner.read();
         inner

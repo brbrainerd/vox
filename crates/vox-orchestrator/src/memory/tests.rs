@@ -179,6 +179,51 @@ fn account_registry_isolation() {
     assert_ne!(alice_path, bob_path);
 }
 
+/// T5.1: a failed VoxDB write during `sync_to_db` must not be counted as synced.
+///
+/// Forces a genuine write failure by dropping the `memories` table out from under
+/// an otherwise-healthy `VoxDb` connection (`db.connection()` is the documented
+/// test-verification escape hatch — see `vox_db::VoxDb::connection`), then asserts
+/// `sync_to_db` reports `0` synced despite MEMORY.md holding facts, and that the
+/// facts are *not* recoverable from VoxDB afterward.
+#[tokio::test]
+async fn sync_to_db_does_not_count_failed_writes_as_synced() {
+    let dir = memory_workdir();
+    let mut mgr = MemoryManager::new(test_config(&dir)).expect("create");
+    mgr.persist_fact(AgentId(1), "alpha", "one", &[], None, None)
+        .expect("persist alpha");
+    mgr.persist_fact(AgentId(1), "beta", "two", &[], None, None)
+        .expect("persist beta");
+
+    let db = std::sync::Arc::new(
+        vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("connect memory db"),
+    );
+    // Sanity: a healthy DB actually syncs both facts.
+    let healthy_mgr = MemoryManager::new(test_config(&dir))
+        .expect("create healthy")
+        .with_db(db.clone());
+    let synced_ok = healthy_mgr.sync_to_db().await.expect("sync ok");
+    assert_eq!(synced_ok, 2, "healthy DB should sync both facts");
+
+    // Now break the write path: drop the table `save_memory` inserts into.
+    db.connection()
+        .execute("DROP TABLE memories", ())
+        .await
+        .expect("drop memories table");
+
+    let broken_mgr = mgr.with_db(db.clone());
+    let synced_after_break = broken_mgr
+        .sync_to_db()
+        .await
+        .expect("sync_to_db returns Ok even when individual writes fail");
+    assert_eq!(
+        synced_after_break, 0,
+        "a failed write must not be counted as synced"
+    );
+}
+
 #[test]
 fn account_registry_returns_same_instance() {
     let dir = memory_workdir();

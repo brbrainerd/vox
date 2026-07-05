@@ -6,9 +6,15 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-vox-orchestrator = { workspace = true }
+# token-counting: real per-model tokenization (tiktoken-rs) for context-window
+# compaction, instead of the whitespace-count fallback. This is the actual
+# daemon binary, so it must opt in on both edges: vox-orchestrator-mcp also
+# depends on vox-orchestrator with `default-features = false`, so its copy
+# needs the feature re-enabled independently (see vox-orchestrator-mcp's own
+# `token-counting` feature, which mirrors this one).
+vox-orchestrator = { workspace = true, features = ["token-counting"] }
 # Shipping MCP server: keep the full default tool surface (news/scientia/visus).
-vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser"] }
+vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser", "token-counting"] }
 vox-skills.workspace = true
 vox-db.workspace = true
 vox-secrets.workspace = true
@@ -21,6 +27,7 @@ tracing = { workspace = true }
 vox-foundation = { workspace = true }
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
+uuid = { workspace = true }
 workspace-hack = { workspace = true }
 
 [[bin]]

@@ -99,7 +99,7 @@ impl CompactionConfig {
 // ---------------------------------------------------------------------------
 
 /// A single conversation turn (user message or assistant response).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Turn {
     /// `"user"` or `"assistant"` (or `"system"`).
     pub role: String,
@@ -131,8 +131,17 @@ impl Turn {
 pub struct CompactionResult {
     /// Turns that survived the compaction pass.
     pub retained_turns: Vec<Turn>,
-    /// Number of turns that were dropped.
-    pub dropped_turns: usize,
+    /// Turns that were dropped by this pass, in their original order.
+    ///
+    /// This is the lossless-archival contract: callers MUST persist
+    /// `dropped_turns` somewhere retrievable (e.g. [`crate::session::Session`]'s
+    /// `archived_turns`) before discarding them from the live/working set.
+    /// `compact()` itself never discards data — it only classifies turns as
+    /// retained vs. dropped and hands both back to the caller.
+    pub dropped_turns: Vec<Turn>,
+    /// Number of turns that were dropped (`dropped_turns.len()`, kept as a
+    /// separate field for cheap access/back-compat with count-only readers).
+    pub dropped_count: usize,
     /// Tokens before compaction.
     pub tokens_before: usize,
     /// Estimated tokens after compaction.
@@ -211,76 +220,94 @@ impl CompactionEngine {
     ///
     /// Returns a [`CompactionResult`] describing what was retained/dropped.
     /// Does NOT modify `history` in place — caller replaces accordingly.
+    ///
+    /// **Lossless contract:** every turn removed from `history` is returned in
+    /// [`CompactionResult::dropped_turns`] in its original order — `compact()`
+    /// never discards a turn's content, it only classifies it as retained or
+    /// dropped. Callers that need durable archival (e.g. [`crate::session`])
+    /// must persist `dropped_turns` before dropping their own working copy.
     pub fn compact(&self, history: &[Turn]) -> Result<CompactionResult, CompactionError> {
         let tokens_before = Self::count_tokens(history);
 
         if !self.should_compact(tokens_before) {
             return Ok(CompactionResult {
                 retained_turns: history.to_vec(),
-                dropped_turns: 0,
+                dropped_turns: Vec::new(),
+                dropped_count: 0,
                 tokens_before,
                 tokens_after: tokens_before,
                 compacted: false,
             });
         }
 
-        let retained = match self.config.strategy {
+        let keep_indices: std::collections::HashSet<usize> = match self.config.strategy {
             CompactionStrategy::Aggressive => self.trim_aggressive(history),
             CompactionStrategy::Balanced => self.trim_balanced(history),
             CompactionStrategy::Conservative => self.trim_conservative(history),
         };
 
-        let tokens_after = Self::count_tokens(&retained);
-        let dropped_turns = history.len().saturating_sub(retained.len());
+        let mut retained_turns = Vec::with_capacity(keep_indices.len());
+        let mut dropped_turns = Vec::with_capacity(history.len() - keep_indices.len());
+        for (i, t) in history.iter().enumerate() {
+            if keep_indices.contains(&i) {
+                retained_turns.push(t.clone());
+            } else {
+                dropped_turns.push(t.clone());
+            }
+        }
+
+        let tokens_after = Self::count_tokens(&retained_turns);
+        let dropped_count = dropped_turns.len();
 
         // Guard: after compaction we must have enough headroom
         self.guard(tokens_after)?;
 
         Ok(CompactionResult {
-            retained_turns: retained,
+            retained_turns,
             dropped_turns,
+            dropped_count,
             tokens_before,
             tokens_after,
             compacted: true,
         })
     }
 
-    // ── Private trim strategies ──────────────────────────────────────────
+    // ── Private trim strategies ─────────────────────────────────────────
+    // Each returns the set of *retained* indices into `history`; `compact()`
+    // derives both `retained_turns` and `dropped_turns` from that single
+    // source of truth so the two lists always partition `history` exactly.
 
     /// Keep only the system prompt (if any) + the last N tokens of tail.
-    fn trim_aggressive(&self, history: &[Turn]) -> Vec<Turn> {
+    fn trim_aggressive(&self, history: &[Turn]) -> std::collections::HashSet<usize> {
         let target = self.config.tail_preserve_tokens;
-        let mut out: Vec<Turn> = Vec::new();
+        let mut keep = std::collections::HashSet::new();
 
         // Always keep system turns at the head
-        for t in history {
+        for (i, t) in history.iter().enumerate() {
             if t.role == "system" {
-                out.push(t.clone());
+                keep.insert(i);
             }
         }
 
         // Fill from the tail backwards until we hit target
-        let mut tail: Vec<Turn> = Vec::new();
         let mut accumulated = 0usize;
-        for t in history.iter().rev() {
+        for (i, t) in history.iter().enumerate().rev() {
             if t.role == "system" {
                 continue;
             }
             if accumulated + t.token_estimate <= target {
                 accumulated += t.token_estimate;
-                tail.push(t.clone());
+                keep.insert(i);
             } else {
                 break;
             }
         }
-        tail.reverse();
-        out.extend(tail);
-        out
+        keep
     }
 
     /// Head/tail preservation: keep head_preserve_tokens at the front and
     /// tail_preserve_tokens at the back, dropping the middle. Always preserves system messages.
-    fn trim_balanced(&self, history: &[Turn]) -> Vec<Turn> {
+    fn trim_balanced(&self, history: &[Turn]) -> std::collections::HashSet<usize> {
         let head_budget = self.config.head_preserve_tokens;
         let tail_budget = self.config.tail_preserve_tokens;
 
@@ -321,35 +348,31 @@ impl CompactionEngine {
             }
         }
 
-        let mut out = Vec::with_capacity(keep_indices.len());
-        for (i, t) in history.iter().enumerate() {
-            if keep_indices.contains(&i) {
-                out.push(t.clone());
-            }
-        }
-        out
+        keep_indices
     }
 
     /// Only drop whole turns from the middle until we fall below the trigger.
-    fn trim_conservative(&self, history: &[Turn]) -> Vec<Turn> {
+    fn trim_conservative(&self, history: &[Turn]) -> std::collections::HashSet<usize> {
         let trigger = self.config.trigger_at();
-        let mut turns = history.to_vec();
-        let mut total = Self::count_tokens(&turns);
+        let mut keep: std::collections::HashSet<usize> = (0..history.len()).collect();
+        let mut total = Self::count_tokens(history);
 
         // Find the midpoint; drop turns outward from the middle
         let preserve_head = 1; // keep at least first turn
         let preserve_tail = 2; // keep at least last 2 turns
 
         let mut lo = preserve_head;
-        while total >= trigger && lo < turns.len().saturating_sub(preserve_tail) {
-            if turns[lo].role == "system" {
+        while total >= trigger && lo < history.len().saturating_sub(preserve_tail) {
+            if history[lo].role == "system" {
                 lo += 1;
                 continue;
             }
-            total = total.saturating_sub(turns[lo].token_estimate);
-            turns.remove(lo);
+            if keep.remove(&lo) {
+                total = total.saturating_sub(history[lo].token_estimate);
+            }
+            lo += 1;
         }
-        turns
+        keep
     }
 }
 
@@ -395,7 +418,8 @@ mod tests {
         let turns = make_turns(&[1_000, 1_000]); // 2k tokens, well under 128k threshold
         let result = engine.compact(&turns).expect("compact");
         assert!(!result.compacted);
-        assert_eq!(result.dropped_turns, 0);
+        assert_eq!(result.dropped_count, 0);
+        assert!(result.dropped_turns.is_empty());
     }
 
     #[test]
@@ -414,7 +438,13 @@ mod tests {
         let turns = make_turns(&[5, 5, 20, 20, 5, 5]); // total 60, over threshold
         let result = engine.compact(&turns).expect("compact");
         assert!(result.compacted);
-        assert!(result.dropped_turns > 0);
+        assert!(result.dropped_count > 0);
+        assert_eq!(result.dropped_turns.len(), result.dropped_count);
+        // Lossless: retained + dropped accounts for every original turn.
+        assert_eq!(
+            result.retained_turns.len() + result.dropped_turns.len(),
+            turns.len()
+        );
         assert!(result.tokens_after <= 65); // should have reduced
     }
 
@@ -434,6 +464,51 @@ mod tests {
         let turns = make_turns(&[5, 5, 5, 5, 10]);
         let result = engine.compact(&turns).expect("compact");
         assert!(result.compacted);
+    }
+
+    /// RED-then-GREEN: `compact()` must return the actual dropped `Turn`
+    /// content (lossless), not just a count — this is the T4.2 audit-defect
+    /// fix. Every dropped turn's exact content must be present in
+    /// `dropped_turns`, and retained ∪ dropped must equal the original set.
+    #[test]
+    fn compact_losslessly_returns_dropped_turn_content() {
+        let cfg = CompactionConfig {
+            max_context_tokens: 100,
+            reserved_tokens: 10,
+            compaction_threshold: 0.5,
+            min_viable_tokens: 5,
+            strategy: CompactionStrategy::Balanced,
+            head_preserve_tokens: 10,
+            tail_preserve_tokens: 15,
+            complexity_token_weight: 32,
+        };
+        let engine = CompactionEngine::new(cfg);
+        let turns = make_turns(&[5, 5, 20, 20, 5, 5]);
+        let result = engine.compact(&turns).expect("compact");
+
+        assert!(result.compacted);
+        assert!(!result.dropped_turns.is_empty(), "must actually drop turns");
+
+        // Every dropped turn must be traceable back to the original history
+        // by exact content — nothing is summarized/mutated/lost at this layer.
+        for dropped in &result.dropped_turns {
+            assert!(
+                turns.contains(dropped),
+                "dropped turn content must match an original turn exactly"
+            );
+        }
+
+        // Lossless partition: retained + dropped reconstructs the full turn set
+        // (as a multiset — order/dedup are not required at this layer).
+        let mut reconstructed: Vec<&Turn> = result
+            .retained_turns
+            .iter()
+            .chain(result.dropped_turns.iter())
+            .collect();
+        let mut original: Vec<&Turn> = turns.iter().collect();
+        reconstructed.sort_by_key(|t| t.token_estimate);
+        original.sort_by_key(|t| t.token_estimate);
+        assert_eq!(reconstructed, original);
     }
 
     #[test]

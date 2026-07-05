@@ -8,7 +8,7 @@ pub mod sign;
 mod store;
 
 pub use persist::PersistError;
-pub use query::list_from_db;
+pub use query::{list_from_db, list_from_db_since, list_from_db_up_to};
 pub use store::{append_to_db, append_to_db_with_breaker, mark_undone_in_db};
 
 use std::collections::VecDeque;
@@ -43,6 +43,16 @@ impl OperationIdGenerator {
     /// Create a new generator starting at 1.
     pub fn new() -> Self {
         Self(AtomicU64::new(1))
+    }
+
+    /// Create a generator whose *next* produced id is `highest_existing + 1`
+    /// (T1.3 restart-durability). Pass the highest `op_id` already persisted
+    /// in `convergence_op_log` (queried via
+    /// `VoxDb::max_convergence_op_id`) so the sequence stays monotonic across
+    /// a daemon restart instead of resetting to `OP-000001` and colliding
+    /// with — or shadowing — history a client may have already replayed.
+    pub fn resuming_after(highest_existing: u64) -> Self {
+        Self(AtomicU64::new(highest_existing + 1))
     }
 
     /// Produce the next unique [`OperationId`].
@@ -135,6 +145,72 @@ pub enum OperationKind {
         optimizer_state_hash: String,
         step: u64,
     },
+    // ── T1.1: dispatch lifecycle events (harness reliability spec, Phase 1) ──
+    // These make approval / feedback / doubt / hopper lifecycle transitions
+    // durable via the existing op-log rather than a new ledger. See
+    // docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md
+    // section 3, T1.1. Cost fields are deliberately absent — vox-telemetry
+    // stays the cost SSOT; correlate via `trace_id`/`run_id` elsewhere.
+    /// A dangerous-tool call parked on a human-in-the-loop approval decision.
+    ///
+    /// ## `run_id` population — current real-world behavior (T1.5 follow-up bridge landed, 2026-07-03)
+    ///
+    /// `run_id` is populated by `vox-orchestrator-mcp/src/dispatch.rs`'s
+    /// `run_id_for_approval`: an explicit `trace_id`/`correlation_id` from the
+    /// tool-call `args`, falling back to `args.get("task_id")` when present.
+    ///
+    /// As of the T1.5 follow-up bridge (`vox_orchestrator::runtime::ToolDispatcher`
+    /// plus `vox-orchestrator-mcp::autonomous_tool_dispatch::McpToolDispatcher`),
+    /// `args["task_id"]` **is** reliably set for autonomous-agent-triggered approvals
+    /// too: `AiTaskProcessor::process` (`vox-orchestrator/src/runtime.rs`) parses a
+    /// detected `@tool <name> [json args]` intent line and calls
+    /// `ToolDispatcher::dispatch` with the real `TaskId` as an explicit parameter
+    /// (not sourced from the model's own narration); `McpToolDispatcher::dispatch`
+    /// writes that verified `task_id` into `args` immediately before calling
+    /// `handle_tool_call_with_mode`, overwriting anything the model might have
+    /// written there itself. `vox-orchestrator-d`'s binary wires this dispatcher in
+    /// when it spawns the `AgentFleet` (`spawn_agent_fleet_if_enabled_with_dispatcher`),
+    /// using the same `ServerState` GUI-driven `orch.tool_call` calls run against —
+    /// so autonomous and GUI-invoked calls now share one approval gate and one
+    /// `run_id`-population path.
+    ///
+    /// Hosts that construct `AiTaskProcessor::new` directly (tests, or any
+    /// future embedder that never builds an MCP `ServerState` in-process)
+    /// still get the pre-existing breadcrumb-only behavior — `run_id` is
+    /// `None` for their autonomous approvals, same as before this bridge
+    /// existed.
+    ApprovalRequested {
+        approval_id: String,
+        tool: String,
+        run_id: Option<String>,
+    },
+    /// A parked approval was resolved (approved/rejected/timed out/modified).
+    ApprovalResolved {
+        approval_id: String,
+        /// Stringified via the same convention as the MCP gate's
+        /// `format!("{outcome:?}").to_lowercase()`.
+        outcome: String,
+        resolver: Option<String>,
+    },
+    /// A soft-HITL feedback item (clarification / doubt / skill proposal) was registered.
+    FeedbackRequested {
+        request_id: String,
+        task_id: Option<u64>,
+        kind: String,
+    },
+    /// A feedback item was resolved (answer/skip/overrule/let_verify/accept_skill).
+    FeedbackResolved { request_id: String, action: String },
+    /// A task was flagged as suspect by a human, forcing a verification pass.
+    TaskDoubted {
+        task_id: u64,
+        reason: Option<String>,
+    },
+    /// A hopper intake item was admitted to the inbox.
+    HopperAdmit { item_id: String },
+    /// A hopper intake item was assigned to a dispatched task.
+    HopperAssign { item_id: String, task_id: u64 },
+    /// A hopper intake item's backing task completed; the item is Done.
+    HopperComplete { item_id: String },
 }
 
 /// A single entry in the operation log.
@@ -190,7 +266,7 @@ pub struct OperationEntry {
 /// Append-only operation log with undo/redo support.
 #[derive(Debug)]
 pub struct OpLog {
-    pub(crate) id_gen: OperationIdGenerator,
+    pub(crate) id_gen: std::sync::Arc<OperationIdGenerator>,
     pub(crate) db_snap_id_gen: AtomicU64,
     pub(crate) entries: VecDeque<OperationEntry>,
     pub(crate) max_entries: usize,
@@ -201,6 +277,13 @@ pub struct OpLog {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T1.1 dispatch-lifecycle variant fixture/schema validation lives in the
+    // `dispatch_events_contract` integration test (crates/vox-orchestrator-queue/tests/
+    // dispatch_events_contract.rs), which validates the per-fixture-file corpus under
+    // contracts/orchestration/fixtures/dispatch-events/ against
+    // contracts/orchestration/dispatch-events.v1.schema.json using the workspace
+    // `jsonschema` crate.
 
     fn agent() -> AgentId {
         AgentId(1)

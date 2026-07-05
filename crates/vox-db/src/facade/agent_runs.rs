@@ -168,4 +168,96 @@ impl VoxDb {
         }
         Ok(out)
     }
+
+    /// T1.5: find the `approval_id` of the most recent `ApprovalRequested`
+    /// op-log entry (see `vox_orchestrator_queue::oplog::OperationKind`)
+    /// whose `run_id` field matches `run_id`.
+    ///
+    /// `run_id` on `ApprovalRequested` is populated from
+    /// `crates/vox-orchestrator-mcp/src/dispatch.rs`'s `run_id_for_approval`
+    /// (explicit `trace_id`/`correlation_id` arg, falling back to the numeric
+    /// `task_id` when present — see the T1.5 comment at that call site). GUI
+    /// callers should therefore pass the orchestrator's numeric `task_id`
+    /// (stringified) here, not the GUI-minted `gui-<uuid>` run id — the two
+    /// are distinct id spaces and there is no reliable join on the latter
+    /// today. Returns `None` on no match, decode failure, or DB error
+    /// (best-effort — never fails the caller's finalize path).
+    pub async fn find_approval_id_for_run(&self, run_id: &str) -> Option<String> {
+        if run_id.trim().is_empty() {
+            return None;
+        }
+        let conn = self.conn.clone();
+        let pattern = format!("%\"ApprovalRequested\"%\"run_id\":\"{run_id}\"%");
+        let mut cursor = conn
+            .query(
+                "SELECT kind_json FROM convergence_op_log \
+                 WHERE kind_json LIKE ?1 \
+                 ORDER BY op_id DESC LIMIT 20",
+                turso::params![pattern],
+            )
+            .await
+            .ok()?;
+        while let Ok(Some(row)) = cursor.next().await {
+            let kind_json: String = row.get(0).ok()?;
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(&kind_json) else {
+                continue;
+            };
+            let Some(obj) = value.get("ApprovalRequested") else {
+                continue;
+            };
+            let matches_run = obj.get("run_id").and_then(|v| v.as_str()) == Some(run_id);
+            if !matches_run {
+                continue;
+            }
+            if let Some(approval_id) = obj.get("approval_id").and_then(|v| v.as_str()) {
+                return Some(approval_id.to_string());
+            }
+        }
+        None
+    }
+
+    /// T1.5: look up the cost/token totals from the `vox-telemetry`
+    /// `TaskRootSummaryEvent` for `task_id` (see
+    /// `crates/vox-db/src/telemetry_sink.rs`, which writes these under
+    /// `session_id = "task:{task_id}"`, `metric_type = "task.root_summary"`).
+    ///
+    /// Returns `(total_cost_usd, total_input_tokens, total_output_tokens)` from
+    /// the newest matching row, or `None` if no telemetry has been recorded yet
+    /// for this task (e.g. race with the async telemetry sink, or the run never
+    /// went through the orchestrator task pipeline). Best-effort: DB errors and
+    /// decode failures also yield `None` rather than propagating, so callers can
+    /// fall back to placeholder 0 values without erroring the whole finalize
+    /// path.
+    pub async fn find_task_root_summary_totals(&self, task_id: &str) -> Option<(f64, i64, i64)> {
+        if task_id.trim().is_empty() {
+            return None;
+        }
+        let session_id = format!("task:{task_id}");
+        // `list_research_metrics_by_session` matches `session_id` via a SQL
+        // `LIKE '{session_id}%'` PREFIX, not an exact match. Without a
+        // post-filter, looking up task "9" would also match rows for
+        // "task:99", "task:9x", etc., silently attributing another task's
+        // cost/token totals to this one. Fetch a small batch and keep only
+        // the exact match, mirroring the exact-match-after-broad-query
+        // pattern in the sibling `find_approval_id_for_run`.
+        let rows = self
+            .list_research_metrics_by_session(&session_id, Some("task.root_summary"), 20)
+            .await
+            .ok()?;
+        let (_, _, _, metadata_json) = rows
+            .into_iter()
+            .find(|(sid, _mtype, _mv, _meta)| sid == &session_id)?;
+        let metadata_json = metadata_json?;
+        let event: serde_json::Value = serde_json::from_str(&metadata_json).ok()?;
+        let cost = event.get("total_cost_usd").and_then(|v| v.as_f64())?;
+        let tokens_in = event
+            .get("total_input_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as i64;
+        let tokens_out = event
+            .get("total_output_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as i64;
+        Some((cost, tokens_in, tokens_out))
+    }
 }

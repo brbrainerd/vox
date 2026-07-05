@@ -12,6 +12,74 @@ use vox_orchestrator::{
     clarification_db_inbox_poll, mesh_federation_poll, orch_daemon,
 };
 
+/// Well-known file the daemon writes its auth token to at startup (T0.2), read
+/// back by [`vox_orchestrator::orch_daemon::OrchDaemonClient::new`] to
+/// auto-resolve a token for callers that don't already know one.
+fn token_file_path() -> PathBuf {
+    vox_config::paths::user_home_dir()
+        .join(".vox")
+        .join("run")
+        .join("orchestrator-daemon.token")
+}
+
+/// Resolve this daemon's auth token: use `VOX_ORCHESTRATOR_DAEMON_TOKEN` if an
+/// operator (or an explicit spawner like the GUI's `PersistentDaemon`) set it,
+/// else generate a fresh random token. Either way, (over)write the well-known
+/// token file so `OrchDaemonClient::new` callers can auto-resolve it.
+///
+/// A fresh daemon process always gets a fresh token file: since
+/// `TcpListener::bind` fails if another daemon already holds the port, there
+/// is never more than one live daemon per bind address, so unconditionally
+/// overwriting the file at startup is safe (a fresh daemon means a fresh trust
+/// boundary).
+fn resolve_and_persist_daemon_token(explicit_env_token: Option<String>) -> anyhow::Result<String> {
+    let token = match explicit_env_token {
+        Some(t) if !t.is_empty() => t,
+        _ => uuid::Uuid::new_v4().to_string(),
+    };
+
+    let path = token_file_path();
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)
+            .with_context(|| format!("creating daemon token dir {}", dir.display()))?;
+    }
+    std::fs::write(&path, &token)
+        .with_context(|| format!("writing daemon token file {}", path.display()))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = std::fs::Permissions::from_mode(0o600);
+        std::fs::set_permissions(&path, perms)
+            .with_context(|| format!("setting owner-only perms on {}", path.display()))?;
+    }
+    // On Windows the file is written under the user's profile directory
+    // (`%USERPROFILE%\.vox\run\...`), which is not world-readable by
+    // convention; explicit Windows ACL hardening is a possible follow-up, not
+    // required now.
+
+    Ok(token)
+}
+
+/// Refuse a non-loopback TCP bind unless the operator explicitly set
+/// `VOX_ORCHESTRATOR_DAEMON_TOKEN` themselves (T0.2). The daemon always has
+/// *some* token (auto-generated when unset), but relying on the local-only
+/// token *file* to protect a *remote*-reachable socket defeats the purpose: a
+/// remote attacker can't read the local file, but a legitimate remote caller
+/// also has no way to discover an auto-generated token. Conservative rule:
+/// non-loopback binds require the operator to have explicitly configured
+/// auth.
+fn refuse_non_loopback_without_explicit_token(
+    bind: &str,
+    explicit_env_token_was_set: bool,
+) -> anyhow::Result<()> {
+    if !orch_daemon::is_loopback_bind_addr(bind) && !explicit_env_token_was_set {
+        anyhow::bail!(
+            "refusing to bind vox-orchestrator-d to non-loopback address '{bind}': set VOX_ORCHESTRATOR_DAEMON_TOKEN explicitly before binding to a non-loopback address (an auto-generated token is only meaningfully protective for loopback-local callers)"
+        );
+    }
+    Ok(())
+}
+
 fn load_config() -> OrchestratorConfig {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let mut candidates = Vec::new();
@@ -57,6 +125,20 @@ async fn main() -> anyhow::Result<()> {
             )
         })?
         .to_string();
+
+    // Daemon auth token (T0.2): explicit env wins (lets a spawner like the
+    // GUI's PersistentDaemon inject a token it already knows, avoiding a race
+    // with reading the token file before this daemon has written it); else
+    // generate a fresh random token. Always (over)write the well-known token
+    // file so `OrchDaemonClient::new` callers can auto-resolve it.
+    let explicit_env_token =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonToken)
+            .expose()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+    let explicit_env_token_was_set = explicit_env_token.is_some();
+    let daemon_token: Arc<str> = resolve_and_persist_daemon_token(explicit_env_token)?.into();
 
     let cfg = load_config();
     let build = build_repo_scoped_orchestrator(cfg, None);
@@ -130,39 +212,12 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    runtime::spawn_agent_fleet_if_enabled(orch.clone());
-
-    // MCP parity: mesh federation snapshot, remote task pollers, event log, clarification inbox.
-    let populi_remote_snapshot = Arc::new(RwLock::new(RemotePopuliSnapshot::default()));
-    let populi_poll_join = Arc::new(Mutex::new(None));
-    mesh_federation_poll::spawn_populi_federation_poller(
-        &orch_config,
-        repository_id.clone(),
-        db_holder.clone(),
-        orch.clone(),
-        Arc::clone(&populi_remote_snapshot),
-        Arc::clone(&populi_poll_join),
-    );
-    a2a::spawn_populi_remote_result_poller(orch.clone(), Arc::new(Mutex::new(None)));
-    a2a::spawn_populi_remote_worker_poller(orch.clone(), Arc::new(Mutex::new(None)));
-
-    if let Some(db) = db_holder.as_ref() {
-        clarification_db_inbox_poll::spawn_clarification_db_inbox_poller(
-            db.clone(),
-            repository_id.clone(),
-            Arc::new(Mutex::new(None)),
-        );
-    }
-    vox_orchestrator::socrates::spawn_socrates_research_poller(orch.clone());
-
-    // Flywheel automation: Monitor diversity and trigger training
-    let flywheel = vox_orchestrator::services::flywheel::FlywheelMonitor::new(orch.clone());
-    flywheel.spawn().await;
-
-    // Attention calibration: periodically adapt ask-thresholds from logged outcomes.
-    vox_orchestrator::services::attention_calibration::spawn_attention_calibration(orch.clone());
-
-    // HTTP Gateway requires a ServerState
+    // HTTP Gateway (and the autonomous tool-dispatch bridge below) require a
+    // ServerState. Built here — before `spawn_agent_fleet_if_enabled_with_dispatcher`
+    // — so the AgentFleet's AiTaskProcessor can be wired with a real
+    // `ToolDispatcher` from the start (T1.5 follow-up: previously the fleet
+    // spawned before any ServerState existed, so there was no dispatcher to
+    // give it and autonomous `@tool` intents could only ever be logged).
     let session_cfg = vox_orchestrator::SessionConfig {
         repository_id: Some(repository_id.clone()),
         sessions_dir: build
@@ -205,6 +260,49 @@ async fn main() -> anyhow::Result<()> {
         state = state.with_db_initialized(db).await;
     }
 
+    // T1.5 follow-up: wire the AgentFleet's AiTaskProcessor with a real
+    // ToolDispatcher backed by this same ServerState, so an autonomous
+    // agent's own `@tool` intent lines are actually dispatched through the
+    // real MCP approval gate (not just logged as a tracing breadcrumb).
+    runtime::spawn_agent_fleet_if_enabled_with_dispatcher(
+        orch.clone(),
+        Some(
+            vox_orchestrator_mcp::autonomous_tool_dispatch::McpToolDispatcher::new_arc(
+                state.clone(),
+            ),
+        ),
+    );
+
+    // MCP parity: mesh federation snapshot, remote task pollers, event log, clarification inbox.
+    let populi_remote_snapshot = Arc::new(RwLock::new(RemotePopuliSnapshot::default()));
+    let populi_poll_join = Arc::new(Mutex::new(None));
+    mesh_federation_poll::spawn_populi_federation_poller(
+        &orch_config,
+        repository_id.clone(),
+        db_holder.clone(),
+        orch.clone(),
+        Arc::clone(&populi_remote_snapshot),
+        Arc::clone(&populi_poll_join),
+    );
+    a2a::spawn_populi_remote_result_poller(orch.clone(), Arc::new(Mutex::new(None)));
+    a2a::spawn_populi_remote_worker_poller(orch.clone(), Arc::new(Mutex::new(None)));
+
+    if let Some(db) = db_holder.as_ref() {
+        clarification_db_inbox_poll::spawn_clarification_db_inbox_poller(
+            db.clone(),
+            repository_id.clone(),
+            Arc::new(Mutex::new(None)),
+        );
+    }
+    vox_orchestrator::socrates::spawn_socrates_research_poller(orch.clone());
+
+    // Flywheel automation: Monitor diversity and trigger training
+    let flywheel = vox_orchestrator::services::flywheel::FlywheelMonitor::new(orch.clone());
+    flywheel.spawn().await;
+
+    // Attention calibration: periodically adapt ask-thresholds from logged outcomes.
+    vox_orchestrator::services::attention_calibration::spawn_attention_calibration(orch.clone());
+
     // Serve orch.tool_call / orch.resolve_approval / orch.list_pending_approvals
     // against this same ServerState so the GUI runs tools + resolves HITL
     // approvals through the one shared orchestrator (B5 path-c, B3 cross-process).
@@ -224,8 +322,10 @@ async fn main() -> anyhow::Result<()> {
     if bind.is_empty() {
         anyhow::bail!("VOX_ORCHESTRATOR_DAEMON_SOCKET is empty after normalization");
     }
+    refuse_non_loopback_without_explicit_token(&bind, explicit_env_token_was_set)?;
 
-    orch_daemon::run_tcp_server_with_extra(&bind, repository_id, orch, extra).await
+    orch_daemon::run_tcp_server_with_extra(&bind, repository_id, orch, extra, Some(daemon_token))
+        .await
 }
 
 #[cfg(test)]
@@ -237,5 +337,49 @@ mod tests {
         // Cheap smoke: the daemon binary can at least build a default config.
         let cfg = OrchestratorConfig::default();
         let _debug = format!("{cfg:?}");
+    }
+
+    #[test]
+    fn loopback_bind_never_refused() {
+        refuse_non_loopback_without_explicit_token("127.0.0.1:9745", false)
+            .expect("loopback bind must be allowed without an explicit token");
+        refuse_non_loopback_without_explicit_token("localhost:9745", false)
+            .expect("loopback bind must be allowed without an explicit token");
+    }
+
+    #[test]
+    fn non_loopback_bind_without_explicit_token_is_refused() {
+        let err = refuse_non_loopback_without_explicit_token("0.0.0.0:9745", false)
+            .expect_err("non-loopback bind without an explicit token must be refused");
+        assert!(
+            err.to_string().contains("VOX_ORCHESTRATOR_DAEMON_TOKEN"),
+            "refusal message should point at the fix: {err}"
+        );
+    }
+
+    #[test]
+    fn non_loopback_bind_with_explicit_token_is_allowed() {
+        refuse_non_loopback_without_explicit_token("0.0.0.0:9745", true)
+            .expect("non-loopback bind with an explicitly-set token must be allowed");
+    }
+
+    #[test]
+    fn resolve_and_persist_daemon_token_prefers_explicit_env_value() {
+        let token =
+            resolve_and_persist_daemon_token(Some("explicit-token-value".to_string())).unwrap();
+        assert_eq!(token, "explicit-token-value");
+    }
+
+    #[test]
+    fn resolve_and_persist_daemon_token_generates_when_unset() {
+        let token = resolve_and_persist_daemon_token(None).unwrap();
+        // A generated token is a UUID string, not empty and not the sentinel
+        // explicit value used by the sibling test.
+        assert!(!token.is_empty());
+        assert_ne!(token, "explicit-token-value");
+        assert!(
+            uuid::Uuid::parse_str(&token).is_ok(),
+            "expected a UUID-shaped generated token, got: {token}"
+        );
     }
 }

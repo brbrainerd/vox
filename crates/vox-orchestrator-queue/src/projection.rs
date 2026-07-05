@@ -61,13 +61,68 @@ impl ProjectionRegistry {
     /// Blake3 over the concatenated deterministic snapshots of all projections.
     /// Two registries with identical state sequences must return identical hashes.
     pub fn snapshot_blake3(&self) -> [u8; 32] {
-        let mut hasher = blake3::Hasher::new();
-        for p in &self.projections {
-            let buf = p.snapshot();
-            hasher.update(p.name().as_bytes());
-            hasher.update(&(buf.len() as u64).to_be_bytes());
-            hasher.update(&buf);
-        }
-        *hasher.finalize().as_bytes()
+        blake3::hash(&self.snapshot_bytes()).into()
     }
+
+    /// Deterministically encode every registered projection's `snapshot()` output
+    /// into a single byte buffer, framed as `(name_len, name, buf_len, buf)*` in
+    /// registration order. This is the exact byte sequence [`Self::snapshot_blake3`]
+    /// hashes, so re-hashing the buffer this returns always reproduces the same
+    /// digest — the buffer is what a checkpoint blob stores, and [`Self::restore_bytes`]
+    /// is its inverse.
+    pub fn snapshot_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::new();
+        for p in &self.projections {
+            let name = p.name().as_bytes();
+            let data = p.snapshot();
+            buf.extend_from_slice(&(name.len() as u64).to_be_bytes());
+            buf.extend_from_slice(name);
+            buf.extend_from_slice(&(data.len() as u64).to_be_bytes());
+            buf.extend_from_slice(&data);
+        }
+        buf
+    }
+
+    /// Inverse of [`Self::snapshot_bytes`]: split the framed buffer back into
+    /// per-projection slices and call [`Projection::restore`] on each registered
+    /// projection whose name matches a frame. Frames for names with no registered
+    /// projection are skipped (forward-compatible with future projections).
+    pub fn restore_bytes(&self, mut buf: &[u8]) -> Result<(), ProjectionError> {
+        use std::collections::HashMap;
+        let mut frames: HashMap<String, &[u8]> = HashMap::new();
+        while !buf.is_empty() {
+            let (name, rest) = take_framed(buf)?;
+            let (data, rest) = take_framed(rest)?;
+            frames.insert(
+                String::from_utf8(name.to_vec())
+                    .map_err(|e| ProjectionError::Decode(e.to_string()))?,
+                data,
+            );
+            buf = rest;
+        }
+        for p in &self.projections {
+            if let Some(data) = frames.get(p.name()) {
+                p.restore(data)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Read one `(len: u64 BE, bytes)` frame off the front of `buf`, returning the
+/// frame's bytes and the remaining slice.
+fn take_framed(buf: &[u8]) -> Result<(&[u8], &[u8]), ProjectionError> {
+    if buf.len() < 8 {
+        return Err(ProjectionError::Decode(
+            "truncated checkpoint buffer: missing length prefix".into(),
+        ));
+    }
+    let (len_bytes, rest) = buf.split_at(8);
+    let len = u64::from_be_bytes(len_bytes.try_into().unwrap()) as usize;
+    if rest.len() < len {
+        return Err(ProjectionError::Decode(
+            "truncated checkpoint buffer: frame shorter than declared length".into(),
+        ));
+    }
+    Ok(rest.split_at(len))
 }

@@ -2,6 +2,30 @@
 //!
 //! Extracted from `vox-cli-core::orchestrator_driver` to invert the CLI ↔ orchestrator
 //! dependency over time (see `docs/src/architecture/layers.toml`).
+//!
+//! ## T2.3: [`EmbeddedOrchestratorDriver`] is daemon-bootstrap-only
+//!
+//! As of T2.3 (CLI converges on the daemon), every `vox-cli` command that
+//! previously used [`EmbeddedOrchestratorDriver`] (or the bare
+//! `build_repo_scoped_orchestrator*` functions) to get a private, throwaway
+//! `Orchestrator` handle has been migrated to talk to the shared, long-lived
+//! `vox-orchestrator-d` TCP daemon instead — via
+//! `vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure`
+//! (T2.2) + `vox_orchestrator::orch_daemon::OrchDaemonClient`. A private
+//! in-process orchestrator per CLI invocation is a split-brain source: its
+//! task queue, approvals, and event bus are invisible to the daemon (and
+//! thus to the GUI, `vox mcp`, and every other daemon client), and vice
+//! versa.
+//!
+//! **[`EmbeddedOrchestratorDriver`] itself is still correct and required** —
+//! but only as the daemon's *own* bootstrap mechanism (see
+//! `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs`, which builds an
+//! `Orchestrator` via `build_repo_scoped_orchestrator` directly — the single
+//! process that legitimately owns "the" orchestrator instance). Do not add
+//! new **client-side** callers of this driver (or of
+//! `build_repo_scoped_orchestrator*`) from `vox-cli` or `vox-gui` — route
+//! through the daemon instead, as `dei.rs`/`visus/mod.rs`/`live.rs`/
+//! `extras/ludus/hud.rs` now do.
 
 use std::path::PathBuf;
 use std::sync::Arc;

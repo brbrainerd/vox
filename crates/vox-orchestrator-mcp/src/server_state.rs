@@ -594,7 +594,7 @@ impl ServerState {
 
     /// Attach a workspace journey database to the state and all relevant subsystems.
     pub async fn with_db_initialized(mut self, db: Arc<vox_db::VoxDb>) -> Self {
-        self.orchestrator.attach_db(db.clone());
+        self.orchestrator.attach_db(db.clone()).await;
         let mut sm = self.session_manager.lock().await;
         sm.attach_db(db.clone());
         drop(sm);
@@ -609,6 +609,11 @@ impl ServerState {
         });
         self.db = Some(db);
         self.load_attention_preferences_from_db().await;
+
+        // T1.4: restore visibility for approvals/feedback that were open (no
+        // matching *Resolved in the durable oplog) as of the last restart —
+        // see `hitl_rehydrate` module docs for exactly what "restored" means.
+        crate::hitl_rehydrate::rehydrate_open_hitl_from_oplog(&self).await;
 
         self
     }

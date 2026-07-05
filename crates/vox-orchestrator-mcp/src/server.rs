@@ -13,7 +13,7 @@ use rmcp::{ErrorData, RoleServer, ServerHandler};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
-const REM_TOOL_DISPATCH: &str = "Retry the call; if it persists, check tool arguments against the schema and restart the MCP server.";
+const REM_DAEMON_UNREACHABLE: &str = "vox-orchestrator-d could not be reached or spawned. Check that the `vox-orchestrator-d` binary is installed (sibling of this executable, ~/.vox/bin, or PATH), then retry.";
 
 const RESOURCE_LLMS_TXT_URI: &str = "resource://vox/llms.txt";
 const RESOURCE_AGENTS_MD_URI: &str = "resource://vox/agents.md";
@@ -132,14 +132,32 @@ fn get_vox_prompt(repo_root: &std::path::Path, name: &str) -> Result<GetPromptRe
 }
 
 /// RMCP [`ServerHandler`] implementation listing tools and dispatching `call_tool`.
+///
+/// T2.2: `state` still backs protocol-level concerns (tool-schema listing,
+/// resources, prompts — all static/local data, no live orchestrator state
+/// involved) so a client can discover this server's tools even before any
+/// daemon is running. Actual tool *execution* (`call_tool`) is forwarded to
+/// the single shared `vox-orchestrator-d` daemon via `daemon`, so a tool
+/// call made through `vox mcp` lands in the same `ServerState` a GUI client
+/// (or any other daemon client) sees — see `crate::daemon_route`.
 pub struct VoxMcpServer {
     state: ServerState,
+    daemon: std::sync::Arc<
+        vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure,
+    >,
 }
 
 impl VoxMcpServer {
-    /// Wrap `state` for use with `rmcp` transport loops.
+    /// Wrap `state` for use with `rmcp` transport loops. `state` continues to
+    /// back protocol-level concerns (tool listing/resources/prompts); tool
+    /// execution routes through a freshly constructed daemon-ensure helper.
     pub fn new(state: ServerState) -> Self {
-        Self { state }
+        Self {
+            state,
+            daemon: std::sync::Arc::new(
+                vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure::default(),
+            ),
+        }
     }
 }
 
@@ -355,7 +373,7 @@ impl ServerHandler for VoxMcpServer {
             .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
         let name_str = params.name.to_string();
         let (result_json, is_error): (String, bool) =
-            match crate::handle_tool_call(&self.state, &name_str, args).await {
+            match crate::daemon_route::call_tool_via_daemon(&self.daemon, &name_str, args).await {
                 Ok(json) => {
                     let is_err = tool_json_envelope_is_error(&json);
                     (json, is_err)
@@ -365,7 +383,7 @@ impl ServerHandler for VoxMcpServer {
                     (
                         ToolResult::<serde_json::Value>::err_with_remediation(
                             msg,
-                            REM_TOOL_DISPATCH,
+                            REM_DAEMON_UNREACHABLE,
                         )
                         .to_json(),
                         true,

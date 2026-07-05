@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serde::Serialize;
 use tauri::Emitter;
-use vox_cli_core::daemon_ipc::dispatch::call_daemon;
+use vox_config::timeouts::D_2S;
 use vox_foundation::protocol::orch_daemon_method;
 use vox_orchestrator::orch_daemon::OrchDaemonClient;
 use vox_package_types::manifest::VoxManifest;
@@ -12,42 +12,67 @@ use crate::commands::daemon::PersistentDaemon;
 /// Tauri event channel carrying live orchestrator status snapshots to the UI.
 pub const ORCH_STATUS_EVENT: &str = "vox://orch-status";
 
+/// Backoff between reconnect attempts for the status/event streams (T3.1).
+/// Short enough that a reconnect is not user-visible for a transient blip,
+/// long enough not to hammer a daemon that is still coming up after a spawn.
+const STREAM_RECONNECT_BACKOFF: std::time::Duration = D_2S;
+
 /// Spawn a background task that subscribes to the orchestrator daemon's status
 /// stream and re-emits each snapshot as the [`ORCH_STATUS_EVENT`] Tauri event.
 ///
-/// Resilient by design: if the daemon is unavailable or the stream ends, the task
-/// simply exits without crashing the app. The emitted payload has the same shape
-/// as [`get_orchestrator_status`] (the GUI-mapped status object with `agent_count`).
+/// T3.1: this is a **reconnect loop**, not a one-shot subscription — when the
+/// stream ends for any reason (daemon death, network blip, subscribe error),
+/// it waits [`STREAM_RECONNECT_BACKOFF`], re-resolves the daemon via
+/// [`PersistentDaemon::ensure_live`] (which detects and replaces a dead
+/// cached daemon rather than reusing a stale address), and resubscribes. The
+/// loop only exits if the `AppHandle` itself is gone (the app is shutting
+/// down), so a mid-session daemon death self-heals instead of producing
+/// permanent silent staleness. The emitted payload has the same shape as
+/// [`get_orchestrator_status`] (the GUI-mapped status object with `agent_count`).
 // toestub-ignore(skeleton/untested-pub-api) — spawns a background task bridging the orchestrator daemon to Tauri events; covered by integration
 pub fn spawn_orchestrator_status_stream(
     app_handle: tauri::AppHandle,
     daemon: Arc<PersistentDaemon>,
 ) {
     tokio::spawn(async move {
-        let addr = match daemon.ensure().await {
-            Ok(a) => a,
-            Err(e) => {
-                tracing::debug!("daemon unavailable: {e}");
-                return;
-            }
-        };
-        let (tx, mut rx) =
-            tokio::sync::mpsc::channel::<serde_json::Value>(crate::config::ORCH_STATUS_CHANNEL_CAP);
+        loop {
+            let addr = match daemon.ensure_live().await {
+                Ok(a) => a,
+                Err(e) => {
+                    tracing::debug!("daemon unavailable: {e}; retrying");
+                    tokio::time::sleep(STREAM_RECONNECT_BACKOFF).await;
+                    continue;
+                }
+            };
+            let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(
+                crate::config::ORCH_STATUS_CHANNEL_CAP,
+            );
 
-        // Drive the subscription in its own task so we can drain `rx` concurrently.
-        let producer = tokio::spawn(async move {
-            let _ = OrchDaemonClient::new(addr).subscribe(tx).await;
-        });
+            let token = daemon.token().await;
+            // Drive the subscription in its own task so we can drain `rx` concurrently.
+            let producer = tokio::spawn(async move {
+                let client = match token {
+                    Some(t) => OrchDaemonClient::with_token(addr, t),
+                    None => OrchDaemonClient::new(addr),
+                };
+                client.subscribe(tx).await
+            });
 
-        while let Some(raw) = rx.recv().await {
-            let gui_status = to_gui_status(raw);
-            if let Ok(value) = serde_json::to_value(&gui_status) {
-                let _ = app_handle.emit(ORCH_STATUS_EVENT, value);
+            while let Some(raw) = rx.recv().await {
+                let gui_status = to_gui_status(raw);
+                if let Ok(value) = serde_json::to_value(&gui_status) {
+                    let _ = app_handle.emit(ORCH_STATUS_EVENT, value);
+                }
             }
+
+            // Stream ended (daemon stopped or errored). Invalidate the cached
+            // daemon so the next loop iteration's `ensure_live` re-resolves
+            // rather than trusting a connection we just watched die, then
+            // back off before reconnecting.
+            let _ = producer.await;
+            daemon.invalidate().await;
+            tokio::time::sleep(STREAM_RECONNECT_BACKOFF).await;
         }
-
-        // Stream ended (daemon stopped or errored); let the producer wind down.
-        let _ = producer.await;
     });
 }
 
@@ -56,39 +81,80 @@ pub fn spawn_orchestrator_status_stream(
 /// (`{ id, timestamp_ms, kind: { type, ..fields } }`).
 pub const AGENT_EVENTS_EVENT: &str = "vox://agent-events";
 
+/// Extract the durable-op offset (`op_id`) to resume from after a reconnect,
+/// from either a live `AgentEvent` frame's `id` field or a T1.3
+/// replay-envelope frame's `op_id` field (`{ replay: true, op_id, ... }`,
+/// see `orch_daemon::replay_frame_value`). Falls back to leaving the offset
+/// unchanged (`None`) if the frame has neither — a best-effort forward
+/// cursor, not a correctness-critical one (a missed bump just means the next
+/// reconnect replays slightly more than strictly necessary, never less).
+fn extract_offset(value: &serde_json::Value) -> Option<u64> {
+    value
+        .get("op_id")
+        .and_then(|v| v.as_u64())
+        .or_else(|| value.get("id").and_then(|v| v.as_u64()))
+}
+
 /// Spawn a background task that subscribes to the orchestrator daemon's
 /// agent-event stream and re-emits each event as the [`AGENT_EVENTS_EVENT`]
 /// Tauri event.
 ///
-/// Mirrors [`spawn_orchestrator_status_stream`] (the B1 pattern). Resilient by
-/// design: if the daemon is unavailable or the stream ends, the task simply
-/// exits without crashing the app. Each emitted payload is the raw serialized
-/// `AgentEvent` forwarded verbatim from the daemon.
+/// Mirrors [`spawn_orchestrator_status_stream`] (the B1 pattern) as a
+/// **reconnect loop** (T3.1): the first connection uses plain
+/// `subscribe_events`; every reconnect after a stream drop uses
+/// [`OrchDaemonClient::subscribe_events_from_offset`] with the last-seen
+/// event's offset (tracked via [`extract_offset`]) so events emitted during
+/// the outage are replayed from Tier-A durable history instead of silently
+/// skipped. If the daemon is unavailable, the task backs off and retries
+/// rather than exiting. Each emitted payload is the raw serialized
+/// `AgentEvent` (or T1.3 replay envelope) forwarded verbatim from the daemon.
 // toestub-ignore(skeleton/untested-pub-api) — spawns a background task bridging the orchestrator daemon to Tauri events; covered by integration
 pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<PersistentDaemon>) {
     tokio::spawn(async move {
-        let addr = match daemon.ensure().await {
-            Ok(a) => a,
-            Err(e) => {
-                tracing::debug!("daemon unavailable: {e}");
-                return;
+        let mut last_offset: Option<u64> = None;
+        loop {
+            let addr = match daemon.ensure_live().await {
+                Ok(a) => a,
+                Err(e) => {
+                    tracing::debug!("daemon unavailable: {e}; retrying");
+                    tokio::time::sleep(STREAM_RECONNECT_BACKOFF).await;
+                    continue;
+                }
+            };
+            let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(
+                crate::config::AGENT_EVENTS_CHANNEL_CAP,
+            );
+
+            let token = daemon.token().await;
+            let from_offset = last_offset;
+            // Drive the subscription in its own task so we can drain `rx` concurrently.
+            let producer = tokio::spawn(async move {
+                let client = match token {
+                    Some(t) => OrchDaemonClient::with_token(addr, t),
+                    None => OrchDaemonClient::new(addr),
+                };
+                match from_offset {
+                    // Reconnect: replay everything since the last event we saw.
+                    Some(offset) => client.subscribe_events_from_offset(offset, tx).await,
+                    // First connection: plain live-tail, no replay needed.
+                    None => client.subscribe_events(tx).await,
+                }
+            });
+
+            while let Some(value) = rx.recv().await {
+                if let Some(offset) = extract_offset(&value) {
+                    last_offset = Some(offset);
+                }
+                let _ = app_handle.emit(AGENT_EVENTS_EVENT, value);
             }
-        };
-        let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(
-            crate::config::AGENT_EVENTS_CHANNEL_CAP,
-        );
 
-        // Drive the subscription in its own task so we can drain `rx` concurrently.
-        let producer = tokio::spawn(async move {
-            let _ = OrchDaemonClient::new(addr).subscribe_events(tx).await;
-        });
-
-        while let Some(value) = rx.recv().await {
-            let _ = app_handle.emit(AGENT_EVENTS_EVENT, value);
+            // Stream ended (daemon stopped or errored). Invalidate the cached
+            // daemon so the next loop iteration's `ensure_live` re-resolves,
+            // then back off before reconnecting (with replay-from-offset).
+            let _ = producer.await;
+            daemon.invalidate().await;
+            tokio::time::sleep(STREAM_RECONNECT_BACKOFF).await;
         }
-
-        // Stream ended (daemon stopped or errored); let the producer wind down.
-        let _ = producer.await;
     });
 }
 
@@ -185,15 +251,21 @@ fn get_opt_f64(v: &serde_json::Value, key: &str) -> Option<f64> {
     v.get(key).and_then(|x| x.as_f64())
 }
 
-async fn daemon_status() -> Result<serde_json::Value, String> {
-    call_daemon(
-        "vox-orchestrator-d",
-        orch_daemon_method::STATUS,
-        serde_json::json!({}),
-        false,
-    )
-    .await
-    .map_err(|e| e.to_string())
+async fn call_orchestrator_daemon(
+    daemon: &PersistentDaemon,
+    method: &str,
+    params: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let addr = daemon.ensure().await?;
+    let client = match daemon.token().await {
+        Some(token) => OrchDaemonClient::with_token(addr, token),
+        None => OrchDaemonClient::new(addr),
+    };
+    client.call(method, params).await.map_err(|e| e.to_string())
+}
+
+async fn daemon_status(daemon: &PersistentDaemon) -> Result<serde_json::Value, String> {
+    call_orchestrator_daemon(daemon, orch_daemon_method::STATUS, serde_json::json!({})).await
 }
 
 fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
@@ -283,12 +355,11 @@ fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
     }
 }
 
-async fn enrich_mesh_from_tool(gui: &mut GuiOrchestratorStatus) {
-    let mesh = call_daemon(
-        "vox-orchestrator-d",
+async fn enrich_mesh_from_tool(gui: &mut GuiOrchestratorStatus, daemon: &PersistentDaemon) {
+    let mesh = call_orchestrator_daemon(
+        daemon,
         orch_daemon_method::TOOL_CALL,
         serde_json::json!({ "name": "vox_mesh_nodes", "args": {} }),
-        false,
     )
     .await;
     if let Ok(value) = mesh {
@@ -308,22 +379,26 @@ async fn enrich_mesh_from_tool(gui: &mut GuiOrchestratorStatus) {
 }
 
 #[tauri::command]
-pub async fn get_orchestrator_status() -> Result<serde_json::Value, String> {
-    let status = daemon_status().await?;
+pub async fn get_orchestrator_status(
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<serde_json::Value, String> {
+    let status = daemon_status(&daemon).await?;
     let mut gui = to_gui_status(status);
     if gui.peers.is_empty() {
-        enrich_mesh_from_tool(&mut gui).await;
+        enrich_mesh_from_tool(&mut gui, &daemon).await;
     }
     gui.alerts = crate::commands::gamify::fetch_gamify_alerts().await;
     serde_json::to_value(gui).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_orchestrator_status_bin() -> Result<tauri::ipc::Response, String> {
-    let status = daemon_status().await?;
+pub async fn get_orchestrator_status_bin(
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<tauri::ipc::Response, String> {
+    let status = daemon_status(&daemon).await?;
     let mut gui = to_gui_status(status);
     if gui.peers.is_empty() {
-        enrich_mesh_from_tool(&mut gui).await;
+        enrich_mesh_from_tool(&mut gui, &daemon).await;
     }
     gui.alerts = crate::commands::gamify::fetch_gamify_alerts().await;
     let bytes = rmp_serde::to_vec_named(&gui).map_err(|e| e.to_string())?;
@@ -334,6 +409,7 @@ pub async fn get_orchestrator_status_bin() -> Result<tauri::ipc::Response, Strin
 pub async fn set_orchestrator_config(
     app_handle: tauri::AppHandle,
     config: serde_json::Value,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<(), String> {
     // 1. Discover Vox.toml
     let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
@@ -441,12 +517,12 @@ pub async fn set_orchestrator_config(
 
     // 4. Try to signal vox-orchestrator-d to hot-reload if it is running
     // We do this in a fire-and-forget manner to not block or fail the UI update.
+    let daemon: Arc<PersistentDaemon> = daemon.inner().clone();
     tokio::spawn(async move {
-        let _ = vox_cli_core::daemon_ipc::dispatch::call_daemon(
-            "vox-orchestrator-d",
-            vox_foundation::protocol::orch_daemon_method::RELOAD_CONFIG,
+        let _ = call_orchestrator_daemon(
+            &daemon,
+            orch_daemon_method::RELOAD_CONFIG,
             serde_json::json!({}),
-            false,
         )
         .await;
     });
@@ -783,6 +859,7 @@ mod budget_tests {
             threshold_tokens: 102_400,
             usable_tokens: 118_000,
             strategy: "balanced".to_string(),
+            used_tokens: 0,
         };
         let json = serde_json::to_value(&payload).expect("serialize");
         assert_eq!(json["max_context_tokens"], 128_000);

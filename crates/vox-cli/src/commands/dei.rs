@@ -1,18 +1,105 @@
 #![cfg(feature = "dei")]
 use anyhow::Result;
 use owo_colors::OwoColorize;
-use vox_orchestrator::{
-    AgentId, FileAffinity, Orchestrator, OrchestratorConfig, TaskId, TaskPriority,
-    build_repo_scoped_orchestrator, discover_repository_from_cwd, json_vcs_facade,
-};
-use vox_orchestrator_driver::OrchestratorDriver as _;
+use serde::Deserialize;
+use vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure;
+use vox_foundation::protocol::orch_daemon_method;
+use vox_orchestrator::{FileAffinity, OrchestratorConfig, TaskPriority};
+
+/// Deserializable mirror of the fields `dei.rs` reads from
+/// [`vox_orchestrator::orchestrator::types::OrchestratorStatus`]'s JSON
+/// (that type only derives `Serialize`, since it's the daemon's *outgoing*
+/// wire shape — this is the CLI's read-side view over the same JSON).
+#[derive(Debug, Deserialize)]
+struct DaemonOrchestratorStatus {
+    enabled: bool,
+    agent_count: usize,
+    total_queued: usize,
+    total_in_progress: usize,
+    total_completed: usize,
+    locked_files: usize,
+    total_weighted_load: f64,
+    predicted_load: f64,
+    reserved_agents: usize,
+    dynamic_agents: usize,
+    agents: Vec<DaemonAgentSummary>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DaemonAgentSummary {
+    id: u64,
+    name: String,
+    queued: usize,
+    urgent_count: usize,
+    normal_count: usize,
+    background_count: usize,
+    in_progress: bool,
+    completed: usize,
+    paused: bool,
+    owned_files: usize,
+    dynamic: bool,
+    weighted_load: f64,
+}
+
+/// T2.3: `vox dei` subcommands route through the shared `vox-orchestrator-d`
+/// TCP daemon (spawning it if absent) instead of building a private,
+/// throwaway in-process `Orchestrator` per invocation — see
+/// `crates/vox-cli-core/src/daemon_ipc/orchestrator_daemon_ensure.rs`. This
+/// closes the split-brain gap T2.1 fixed for the GUI: a `vox dei doubt`/`vox
+/// dei submit` run from a terminal is now visible to the GUI's Approvals/DEI
+/// views (and vice versa), rather than mutating a state the daemon never
+/// sees.
+async fn daemon_client() -> Result<vox_orchestrator::orch_daemon::OrchDaemonClient> {
+    let ensure = OrchestratorDaemonEnsure::default();
+    ensure
+        .client()
+        .await
+        .map_err(|e| anyhow::anyhow!("could not reach or spawn vox-orchestrator-d: {e}"))
+}
+
+/// Call an MCP tool through the daemon's `orch.tool_call` RPC and unwrap the
+/// `ToolResult<T>` envelope (`{"success": bool, "data": .., "error": ..}`)
+/// into a plain `Result`. Mirrors `vox-orchestrator-mcp::daemon_route::call_tool_via_daemon`
+/// (T2.2's stdio-MCP pattern) but returns the already-parsed `data` payload
+/// since every `dei.rs` call site wants the inner value, not the raw envelope.
+async fn tool_call(
+    client: &vox_orchestrator::orch_daemon::OrchDaemonClient,
+    name: &str,
+    args: serde_json::Value,
+) -> Result<serde_json::Value> {
+    let envelope = client
+        .call(
+            orch_daemon_method::TOOL_CALL,
+            serde_json::json!({ "name": name, "args": args }),
+        )
+        .await?;
+    match envelope.get("success").and_then(|s| s.as_bool()) {
+        Some(true) => Ok(envelope
+            .get("data")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null)),
+        Some(false) => {
+            let msg = envelope
+                .get("error")
+                .and_then(|e| e.as_str())
+                .unwrap_or("tool call failed");
+            anyhow::bail!("{msg}")
+        }
+        // Tools that don't use the ToolResult envelope (rare) — pass through raw.
+        None => Ok(envelope),
+    }
+}
 
 /// `vox orchestrator status` — show all agents, queues, and file assignments.
 pub async fn status() -> Result<()> {
-    let driver = vox_orchestrator_driver::EmbeddedOrchestratorDriver::load_and_build();
-    driver.spawn_background_tasks();
-    let status = driver.status();
-    let config = driver.config().clone();
+    let client = daemon_client().await?;
+    let raw = client.orchestrator_status().await?;
+    let status: DaemonOrchestratorStatus = serde_json::from_value(raw)
+        .map_err(|e| anyhow::anyhow!("daemon returned malformed status: {e}"))?;
+    // scaling_threshold/scaling_profile are static Vox.toml-derived config, not
+    // daemon-shared mutable state — reading them locally (like `config()`
+    // below) is not a split-brain risk, unlike the agent/task counts above.
+    let config = load_config();
 
     println!("{}", "╔══════════════════════════════════════╗".cyan());
     println!("{}", "║   Vox DEI Status                     ║".cyan());
@@ -108,8 +195,7 @@ pub async fn submit(
     priority: Option<&str>,
     session_id: Option<String>,
 ) -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
+    let client = daemon_client().await?;
 
     let file_manifest: Vec<FileAffinity> = files.iter().map(FileAffinity::write).collect();
 
@@ -119,17 +205,40 @@ pub async fn submit(
         _ => None,
     };
 
-    match orch
-        .submit_task(description, file_manifest, priority, session_id, None)
-        .await
-    {
-        Ok(task_id) => {
-            let id_str = task_id.to_string();
-            println!(
-                "  {} Task {} submitted successfully",
-                "✓".green().bold(),
-                id_str.bold()
-            );
+    // The daemon's SUBMIT_TASK handler treats an explicit JSON `null` for
+    // "priority" as "params.get(..) returned Some(Null)" and tries to
+    // deserialize that as a (non-Option) TaskPriority, which fails — the
+    // field must be OMITTED entirely (not present as null) to mean "use the
+    // default priority", same contract as "session_id" below.
+    let mut params = serde_json::json!({
+        "description": description,
+        "file_manifest": file_manifest,
+    });
+    let obj = params.as_object_mut().expect("json!({...}) is an object");
+    if let Some(p) = priority {
+        obj.insert("priority".to_string(), serde_json::to_value(p)?);
+    }
+    if let Some(sid) = session_id {
+        obj.insert("session_id".to_string(), serde_json::Value::String(sid));
+    }
+
+    match client.submit_task(params).await {
+        Ok(v) => {
+            if let Some(task_id) = v.get("task_id").and_then(|x| x.as_u64()) {
+                println!(
+                    "  {} Task {} submitted successfully",
+                    "✓".green().bold(),
+                    task_id.to_string().bold()
+                );
+            } else if let Some(dup) = v.get("duplicate_of").and_then(|x| x.as_u64()) {
+                println!(
+                    "  {} Near-duplicate of task {}; not submitted",
+                    "ℹ".blue().bold(),
+                    dup
+                );
+            } else {
+                println!("  {} Task submitted: {}", "✓".green().bold(), v);
+            }
         }
         Err(e) => {
             println!("  {} Failed to submit task: {}", "✗".red().bold(), e);
@@ -147,10 +256,8 @@ pub async fn assistant(session_id: String, files: &[String], priority: Option<&s
     if sid.is_empty() {
         anyhow::bail!("session_id must be non-empty");
     }
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
-    orch.clone().spawn_background_tasks();
-
+    // Background task scheduling is the shared daemon's responsibility now
+    // (it runs its own spawn_background_tasks loop); this loop just submits.
     let file_list: Vec<String> = if files.is_empty() {
         vec![".".to_string()]
     } else {
@@ -177,31 +284,61 @@ pub async fn assistant(session_id: String, files: &[String], priority: Option<&s
 }
 
 /// `vox orchestrator queue` — show a specific agent's queue.
+///
+/// T2.3: the daemon does not expose a dedicated "one agent's queue as
+/// markdown" RPC (that rendering lived on the in-process `PriorityQueue`
+/// type). Reimplemented as a markdown-equivalent view over
+/// [`orch_daemon_method::LIST_TASKS`] filtered to `agent_id`, so this stays
+/// daemon-routed rather than reintroducing a private orchestrator.
 pub async fn queue(agent_id: u64) -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
+    let client = daemon_client().await?;
+    let v = client
+        .call(orch_daemon_method::LIST_TASKS, serde_json::json!({}))
+        .await?;
+    let tasks = v
+        .get("tasks")
+        .and_then(|t| t.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let mine: Vec<&serde_json::Value> = tasks
+        .iter()
+        .filter(|t| t.get("agent_id").and_then(|a| a.as_u64()) == Some(agent_id))
+        .collect();
 
-    let id = AgentId(agent_id);
-    match orch.agent_queue(id) {
-        Some(q) => {
-            let q_lock = q.read().unwrap();
-            println!("{}", q_lock.to_markdown());
-        }
-        None => {
-            let id_str = id.to_string();
-            println!("  {} Agent {} not found", "✗".red().bold(), id_str.bold());
-        }
+    if mine.is_empty() {
+        println!(
+            "  {} Agent {} has no tasks (or does not exist)",
+            "ℹ".blue().bold(),
+            agent_id
+        );
+        return Ok(());
     }
+
+    println!("## Agent {agent_id}\n");
+    for t in mine {
+        let id = t.get("id").and_then(|x| x.as_u64()).unwrap_or(0);
+        let desc = t.get("description").and_then(|x| x.as_str()).unwrap_or("");
+        let priority = t
+            .get("priority")
+            .and_then(|x| x.as_str())
+            .unwrap_or("Normal");
+        let lifecycle = t
+            .get("lifecycle")
+            .and_then(|x| x.as_str())
+            .unwrap_or("Queued");
+        let marker = if lifecycle == "InProgress" { "/" } else { " " };
+        println!("- [{marker}] **[{id}]** {desc} ({priority})");
+    }
+    println!();
 
     Ok(())
 }
 
 /// `vox orchestrator rebalance` — trigger manual rebalancing.
 pub async fn rebalance() -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
-
-    let moved = orch.rebalance();
+    let client = daemon_client().await?;
+    let v = client.rebalance().await?;
+    let moved = v.get("rebalanced").and_then(|x| x.as_u64()).unwrap_or(0);
     if moved > 0 {
         println!("  {} Rebalanced: {} tasks moved", "✓".green().bold(), moved);
     } else {
@@ -212,6 +349,14 @@ pub async fn rebalance() -> Result<()> {
 }
 
 /// `vox orchestrator config` — show current orchestrator configuration.
+///
+/// T2.3: kept local (not routed through the daemon). This reads static
+/// `Vox.toml`/defaults via [`load_config`] — it is not shared, mutable
+/// daemon state (no task queue, no approvals), so there is no split-brain
+/// risk in reading it locally, and the daemon's own `config.get` RPC
+/// (`orch_daemon_method::CONFIG_GET`/`ai.` `config.get`) exposes a narrower
+/// subset (`max_agents`/`planning_enabled`/...) than this command's full
+/// scaling/queue/cost-preference dump.
 pub async fn config() -> Result<()> {
     let cfg = load_config();
 
@@ -263,12 +408,9 @@ pub async fn config() -> Result<()> {
 
 /// `vox orchestrator pause` — pause an agent.
 pub async fn pause(agent_id: u64) -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
-    let id = AgentId(agent_id);
-
-    match orch.pause_agent(id) {
-        Ok(()) => println!("  {} Agent {} paused", "✓".green().bold(), id),
+    let client = daemon_client().await?;
+    match client.pause_agent(agent_id).await {
+        Ok(_) => println!("  {} Agent {} paused", "✓".green().bold(), agent_id),
         Err(e) => println!("  {} {}", "✗".red().bold(), e),
     }
 
@@ -277,12 +419,9 @@ pub async fn pause(agent_id: u64) -> Result<()> {
 
 /// `vox orchestrator resume` — resume an agent.
 pub async fn resume(agent_id: u64) -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
-    let id = AgentId(agent_id);
-
-    match orch.resume_agent(id) {
-        Ok(()) => println!("  {} Agent {} resumed", "✓".green().bold(), id),
+    let client = daemon_client().await?;
+    match client.resume_agent(agent_id).await {
+        Ok(_) => println!("  {} Agent {} resumed", "✓".green().bold(), agent_id),
         Err(e) => println!("  {} {}", "✗".red().bold(), e),
     }
 
@@ -290,11 +429,47 @@ pub async fn resume(agent_id: u64) -> Result<()> {
 }
 
 /// `vox orchestrator save` — manually save orchestrator state.
+///
+/// T2.3: previously snapshotted a freshly-constructed, always-empty local
+/// `Orchestrator`'s `.status()` — i.e. it never actually persisted the real
+/// (daemon-owned) state. Now snapshots the shared daemon's live status.
 pub async fn save() -> Result<()> {
     let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config.clone());
+    let client = daemon_client().await?;
+    let raw = client.orchestrator_status().await?;
+    let status: DaemonOrchestratorStatus = serde_json::from_value(raw)
+        .map_err(|e| anyhow::anyhow!("daemon returned malformed status: {e}"))?;
     let store = vox_db::VoxDb::open_default().await?;
-    let state = vox_orchestrator::state::OrchestratorState::from_status(&orch.status(), &config);
+    // Built directly from the daemon's JSON status rather than
+    // `OrchestratorState::from_status` (which requires the real, non-`Deserialize`
+    // `OrchestratorStatus` struct — see `DaemonOrchestratorStatus`'s doc comment).
+    // `context_entries` isn't part of this CLI's status view (STATUS's daemon
+    // JSON does include it, but `dei.rs` never rendered it before either) — an
+    // empty map here doesn't regress anything the old local-orchestrator path
+    // captured, since that path's orchestrator was always freshly-constructed
+    // and empty to begin with.
+    let state = vox_orchestrator::state::OrchestratorState {
+        version: 1,
+        config: config.clone(),
+        agents: status
+            .agents
+            .iter()
+            .map(|a| vox_orchestrator::state::SavedAgentState {
+                id: a.id,
+                name: a.name.clone(),
+                queued_count: a.queued,
+                urgent_count: a.urgent_count,
+                normal_count: a.normal_count,
+                background_count: a.background_count,
+                completed_count: a.completed,
+                paused: a.paused,
+            })
+            .collect(),
+        total_completed: status.total_completed,
+        saved_at: chrono::Utc::now().to_rfc3339(),
+        context_entries: Default::default(),
+        plugin_states: Default::default(),
+    };
 
     match state.save_to_db(&store).await {
         Ok(_) => println!(
@@ -308,21 +483,39 @@ pub async fn save() -> Result<()> {
 }
 
 /// `vox stop` — trigger early stop.
+///
+/// T2.3: no daemon RPC for emergency-stop exists yet
+/// (`orch_daemon_method` has no `EMERGENCY_STOP`/equivalent). Adding one is a
+/// backend change outside this task's scope — scoped down to an explicit
+/// follow-up rather than silently left broken: this still calls
+/// `emergency_stop` on a freshly-constructed **local** orchestrator, which
+/// does NOT stop the shared daemon's agents (pre-existing gap, now
+/// documented rather than silently carried forward).
 pub async fn stop(reason: Option<String>) -> Result<()> {
+    eprintln!(
+        "  {} `vox stop` does not yet reach the shared vox-orchestrator-d daemon \
+         (no orch_daemon_method::EMERGENCY_STOP exists); this only stops a \
+         throwaway local orchestrator instance. Follow-up: add a daemon RPC \
+         (T2.4 candidate).",
+        "⚠".yellow().bold()
+    );
     let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
+    let orch = vox_orchestrator::build_repo_scoped_orchestrator(config, None).orchestrator;
     orch.emergency_stop(reason.clone());
     println!(
-        "  {} Orchestrator emergency stop requested",
+        "  {} Local orchestrator emergency stop requested (daemon unaffected)",
         "✓".green().bold()
     );
     Ok(())
 }
 
 /// `vox orchestrator load` — manually load orchestrator state.
+///
+/// T2.3: reads only `VoxDb` (a persistence read, not shared orchestrator
+/// state); the previous local `Orchestrator` construction here was unused
+/// dead weight (bound to `_orch`, never applied) — dropped rather than
+/// routed through the daemon, since there is nothing to route.
 pub async fn load() -> Result<()> {
-    let config = load_config();
-    let _orch = build_repo_scoped_orchestrator_cli(config);
     let store = vox_db::VoxDb::open_default().await?;
 
     match vox_orchestrator::state::OrchestratorState::load_from_db(&store).await {
@@ -337,57 +530,83 @@ pub async fn load() -> Result<()> {
     Ok(())
 }
 
-/// `vox orchestrator undo` — undo the last N operations.
-pub async fn undo(count: usize) -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
+/// Shared body for [`undo`]/[`redo`]: list the daemon's oplog via the
+/// `vox_oplog` MCP tool (`orch.tool_call`), find the last entry matching
+/// `wants_undone` (mirrors the previous local `.find(|e| e.undone == ...)`
+/// scan), then apply `apply_method` (`vox_undo`/`vox_redo`) to it. Loops up
+/// to `count` times, stopping early on the first "nothing left" or error —
+/// same semantics as the original local-oplog-scan implementation.
+async fn undo_redo_via_daemon(
+    count: usize,
+    wants_undone: bool,
+    apply_tool: &str,
+    verb: &str,
+) -> Result<()> {
+    let client = daemon_client().await?;
+    let mut successful = 0usize;
 
-    if let Ok(store) = vox_db::VoxDb::open_default().await {
-        let _ = orch.init_db(std::sync::Arc::new(store)).await;
-    }
-
-    let mut successful = 0;
     for _ in 0..count {
-        // Find the last NON-UNDONE operation from the history (newest first)
-        if let Some(op) = vox_orchestrator::sync_lock::rw_read(&*orch.oplog)
-            .history()
+        let list = tool_call(&client, "vox_oplog", serde_json::json!({ "limit": 50 })).await?;
+        let ops = list
+            .get("operations")
+            .and_then(|o| o.as_array())
+            .cloned()
+            .unwrap_or_default();
+        // History is newest-first per json_vcs_facade::oplog_list_json's ordering.
+        let Some(op) = ops
             .iter()
-            .rev()
-            .find(|e| !e.undone)
-        {
-            let id = op.id;
-            // op.description is &String here, need to clone before it's borrowed mutably
-            let desc = op.description.clone();
-            match orch.undo_operation(id).await {
-                Ok(_) => {
-                    successful += 1;
-                    println!(
-                        "  {} Undid operation {} ({})",
-                        "✓".green().bold(),
-                        id.to_string().bold(),
-                        desc
-                    );
-                }
-                Err(e) => {
-                    println!(
-                        "  {} Failed to undo operation {}: {}",
-                        "✗".red().bold(),
-                        id,
-                        e
-                    );
-                    break;
-                }
-            }
-        } else {
-            println!("  {} No more operations to undo", "ℹ".blue().bold());
+            .find(|e| e.get("undone").and_then(|u| u.as_bool()) == Some(wants_undone))
+        else {
+            println!("  {} No more operations to {}", "ℹ".blue().bold(), verb);
             break;
+        };
+        let id = op
+            .get("id")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string();
+        let desc = op
+            .get("description")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        match tool_call(
+            &client,
+            apply_tool,
+            serde_json::json!({ "operation_id": id }),
+        )
+        .await
+        {
+            Ok(_) => {
+                successful += 1;
+                let past_tense = if verb == "undo" { "Undid" } else { "Redid" };
+                println!(
+                    "  {} {} operation {} ({})",
+                    "✓".green().bold(),
+                    past_tense,
+                    id.bold(),
+                    desc
+                );
+            }
+            Err(e) => {
+                println!(
+                    "  {} Failed to {} operation {}: {}",
+                    "✗".red().bold(),
+                    verb,
+                    id,
+                    e
+                );
+                break;
+            }
         }
     }
 
     if successful > 0 {
         println!(
-            "\n  {} successfully undid {} operations",
+            "\n  {} successfully {}d {} operations",
             "✓".green(),
+            verb,
             successful
         );
     }
@@ -395,61 +614,14 @@ pub async fn undo(count: usize) -> Result<()> {
     Ok(())
 }
 
+/// `vox orchestrator undo` — undo the last N operations.
+pub async fn undo(count: usize) -> Result<()> {
+    undo_redo_via_daemon(count, false, "vox_undo", "undo").await
+}
+
 /// `vox orchestrator redo` — redo the last N undone operations.
 pub async fn redo(count: usize) -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
-
-    if let Ok(store) = vox_db::VoxDb::open_default().await {
-        let _ = orch.init_db(std::sync::Arc::new(store)).await;
-    }
-
-    let mut successful = 0;
-    for _ in 0..count {
-        // Find the last operation that was undone (redo-able)
-        if let Some(op) = vox_orchestrator::sync_lock::rw_read(&*orch.oplog)
-            .history()
-            .iter()
-            .rev()
-            .find(|e| e.undone)
-        {
-            let id = op.id;
-            let desc = op.description.clone();
-            match orch.redo_operation(id).await {
-                Ok(_) => {
-                    successful += 1;
-                    println!(
-                        "  {} Redid operation {} ({})",
-                        "✓".green().bold(),
-                        id.to_string().bold(),
-                        desc
-                    );
-                }
-                Err(e) => {
-                    println!(
-                        "  {} Failed to redo operation {}: {}",
-                        "✗".red().bold(),
-                        id,
-                        e
-                    );
-                    break;
-                }
-            }
-        } else {
-            println!("  {} No more operations to redo", "ℹ".blue().bold());
-            break;
-        }
-    }
-
-    if successful > 0 {
-        println!(
-            "\n  {} successfully redid {} operations",
-            "✓".green(),
-            successful
-        );
-    }
-
-    Ok(())
+    undo_redo_via_daemon(count, true, "vox_redo", "redo").await
 }
 
 /// DEI (Distributed Execution Intelligence) command CLI.
@@ -671,47 +843,70 @@ fn print_dei_json(v: &serde_json::Value) -> Result<()> {
 }
 
 async fn run_dei_workspace(cmd: DeiWorkspaceCmd) -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
+    let client = daemon_client().await?;
     let v = match cmd {
         DeiWorkspaceCmd::Create { agent_id } => {
-            json_vcs_facade::workspace_create_json(&orch, agent_id)
+            tool_call(
+                &client,
+                "vox_workspace_create",
+                serde_json::json!({ "agent_id": agent_id }),
+            )
+            .await?
         }
         DeiWorkspaceCmd::Status { agent_id } => {
-            json_vcs_facade::workspace_status_json(&orch, agent_id)
+            tool_call(
+                &client,
+                "vox_workspace_status",
+                serde_json::json!({ "agent_id": agent_id }),
+            )
+            .await?
         }
         DeiWorkspaceCmd::Merge { agent_id } => {
-            json_vcs_facade::workspace_merge_json(&orch, agent_id)
+            // vox_workspace_merge's ToolResult is itself an error (not a
+            // {"merged":false} success payload) when there's no active
+            // workspace — tool_call already turns that into an Err, so the
+            // explicit "merged == false" bail! from the old local-orchestrator
+            // path is redundant here; propagate via `?` instead.
+            tool_call(
+                &client,
+                "vox_workspace_merge",
+                serde_json::json!({ "agent_id": agent_id }),
+            )
+            .await?
         }
     };
-    if v.get("merged") == Some(&serde_json::Value::Bool(false)) {
-        anyhow::bail!(
-            "no active workspace for this agent (same condition as MCP `vox_workspace_merge`)"
-        );
-    }
     print_dei_json(&v)?;
     Ok(())
 }
 
 async fn run_dei_snapshot(cmd: DeiSnapshotCmd) -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
+    let client = daemon_client().await?;
     match cmd {
         DeiSnapshotCmd::List { agent_id, limit } => {
-            let v = json_vcs_facade::snapshot_list_json(&orch, agent_id, limit);
+            let v = tool_call(
+                &client,
+                "vox_snapshot_list",
+                serde_json::json!({ "agent_id": agent_id, "limit": limit }),
+            )
+            .await?;
             print_dei_json(&v)?;
         }
         DeiSnapshotCmd::Diff { before, after } => {
-            let v = json_vcs_facade::snapshot_diff_json(&orch, before, after);
-            if v.get("error").is_some() {
-                anyhow::bail!("snapshot diff: one or both snapshot ids not found");
-            }
+            let v = tool_call(
+                &client,
+                "vox_snapshot_diff",
+                serde_json::json!({ "before": before, "after": after }),
+            )
+            .await?;
             print_dei_json(&v)?;
         }
         DeiSnapshotCmd::Restore { snapshot_id } => {
-            let v = json_vcs_facade::snapshot_restore_json(&orch, &snapshot_id)
-                .await
-                .map_err(|e| anyhow::anyhow!(e))?;
+            let v = tool_call(
+                &client,
+                "vox_snapshot_restore",
+                serde_json::json!({ "snapshot_id": snapshot_id }),
+            )
+            .await?;
             print_dei_json(&v)?;
         }
     }
@@ -719,28 +914,70 @@ async fn run_dei_snapshot(cmd: DeiSnapshotCmd) -> Result<()> {
 }
 
 async fn run_dei_oplog(cmd: DeiOplogCmd) -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
+    let client = daemon_client().await?;
     match cmd {
         DeiOplogCmd::List { agent_id, limit } => {
-            let v = json_vcs_facade::oplog_list_json(&orch, agent_id, limit).await;
+            let v = tool_call(
+                &client,
+                "vox_oplog",
+                serde_json::json!({ "agent_id": agent_id, "limit": limit }),
+            )
+            .await?;
             print_dei_json(&v)?;
         }
     }
     Ok(())
 }
 
+/// `vox dei takeover-status` — aggregated repo + workspace + snapshot/oplog
+/// tails for human handoff.
+///
+/// T2.3: no single daemon RPC/MCP tool bundles this exact
+/// repo-identity+workspace+snapshots+oplog shape
+/// (`json_vcs_facade::takeover_handoff_json`). Reassembled client-side from
+/// three daemon-routed calls (workspace/snapshot/oplog, all already migrated
+/// above) plus local repo-identity discovery (`discover_repository_from_cwd`
+/// is a pure filesystem read, not orchestrator state) — same external JSON
+/// shape as before, now sourced from the shared daemon instead of a private
+/// throwaway orchestrator.
 async fn run_dei_takeover_status(agent_id: u64, human: bool) -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
-    let repo = discover_repository_from_cwd(None);
-    let v = json_vcs_facade::takeover_handoff_json(
-        &orch,
-        &repo.root.display().to_string(),
-        &repo.repository_id,
-        agent_id,
+    let client = daemon_client().await?;
+    let repo = vox_orchestrator::discover_repository_from_cwd(None);
+
+    let workspace = tool_call(
+        &client,
+        "vox_workspace_status",
+        serde_json::json!({ "agent_id": agent_id }),
     )
-    .await;
+    .await
+    .unwrap_or_else(|e| serde_json::json!({ "has_workspace": false, "error": e.to_string() }));
+    let snapshots = tool_call(
+        &client,
+        "vox_snapshot_list",
+        serde_json::json!({ "agent_id": agent_id, "limit": 5 }),
+    )
+    .await
+    .unwrap_or_else(|_| serde_json::json!({ "snapshots": [] }));
+    let oplog = tool_call(
+        &client,
+        "vox_oplog",
+        serde_json::json!({ "agent_id": agent_id, "limit": 5 }),
+    )
+    .await
+    .unwrap_or_else(|_| serde_json::json!({ "operations": [] }));
+
+    let v = serde_json::json!({
+        "schema": "vox_takeover_handoff_v1",
+        "schema_version": 1,
+        "repository": {
+            "root": repo.root.display().to_string(),
+            "repository_id": repo.repository_id,
+        },
+        "agent_id": agent_id.to_string(),
+        "workspace": workspace,
+        "snapshots": snapshots,
+        "oplog": oplog,
+    });
     if human {
         print_takeover_human_summary(&v);
         println!();
@@ -883,15 +1120,24 @@ fn load_config() -> OrchestratorConfig {
     vox_orchestrator_driver::build_embedded_orchestrator_config()
 }
 
-fn build_repo_scoped_orchestrator_cli(config: OrchestratorConfig) -> std::sync::Arc<Orchestrator> {
-    std::sync::Arc::new(build_repo_scoped_orchestrator(config, None).orchestrator)
-}
-
-async fn doubt(task_id: u64, reason: Option<String>) -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
-    orch.doubt_task(TaskId(task_id), reason)
-        .map_err(|e| anyhow::anyhow!(e))?;
+/// `vox dei doubt` — flag a task as suspect via the daemon's
+/// [`orch_daemon_method::DOUBT_TASK`] RPC.
+///
+/// T2.3: previously ran against a private local `Orchestrator`, and its own
+/// comment noted this CLI path did NOT go through the MCP/daemon oplog wiring
+/// (a pre-existing T1.1 gap it had to work around with an immediate manual
+/// `emit_doubt_events` broadcast — see the removed comment). The daemon's
+/// `DOUBT_TASK` handler (`orch_daemon/mod.rs`) already does the durable
+/// oplog-record-then-broadcast sequence correctly, so routing through it
+/// fixes that gap rather than reintroducing the workaround.
+pub async fn doubt(task_id: u64, reason: Option<String>) -> Result<()> {
+    let client = daemon_client().await?;
+    client
+        .call(
+            orch_daemon_method::DOUBT_TASK,
+            serde_json::json!({ "task_id": task_id, "reason": reason }),
+        )
+        .await?;
     println!(
         "{} Task {} flagged as suspect.",
         "✓".green().bold(),
@@ -900,11 +1146,22 @@ async fn doubt(task_id: u64, reason: Option<String>) -> Result<()> {
     Ok(())
 }
 
+/// `vox dei overrule` — force-complete a doubted/failed task via the
+/// daemon's [`orch_daemon_method::OVERRULE_TASK`] RPC.
+///
+/// T2.3: same rationale as [`doubt`] — the daemon's `OVERRULE_TASK` handler
+/// already performs the durable `TaskComplete` oplog record before
+/// broadcasting, so the manual `record_operation` + `emit_overrule_events`
+/// this CLI command used to do against a private local orchestrator is no
+/// longer needed client-side.
 async fn overrule(task_id: u64, reason: String) -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
-    orch.overrule_task(TaskId(task_id), Some(reason))
-        .map_err(|e| anyhow::anyhow!(e))?;
+    let client = daemon_client().await?;
+    client
+        .call(
+            orch_daemon_method::OVERRULE_TASK,
+            serde_json::json!({ "task_id": task_id, "reason": reason }),
+        )
+        .await?;
     println!(
         "{} Task {} overruled and marked as completed.",
         "✓".green().bold(),

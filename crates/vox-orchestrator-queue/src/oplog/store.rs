@@ -88,7 +88,7 @@ impl OpLog {
     /// Create a new log with the given capacity.
     pub fn new(max_entries: usize) -> Self {
         Self {
-            id_gen: super::OperationIdGenerator::new(),
+            id_gen: std::sync::Arc::new(super::OperationIdGenerator::new()),
             db_snap_id_gen: std::sync::atomic::AtomicU64::new(1),
             entries: std::collections::VecDeque::new(),
             max_entries,
@@ -99,6 +99,36 @@ impl OpLog {
     /// Produce the next unique DB snapshot ID.
     pub fn next_db_snapshot_id(&self) -> u64 {
         self.db_snap_id_gen.fetch_add(1, Ordering::Relaxed)
+    }
+
+    /// Reseed the [`OperationId`] generator so the *next* produced id is
+    /// `highest_existing + 1` (T1.3 restart-durability). No-op-safe to call
+    /// with a lower value than the generator's current position — it only
+    /// ever moves the counter forward via `resuming_after`'s `AtomicU64::new`
+    /// (a fresh generator is swapped in), so callers should invoke this once,
+    /// early, before any `record`/`record_persisted` calls on this `OpLog`.
+    pub fn reseed_id_gen_from_highest(&mut self, highest_existing: u64) {
+        self.id_gen = std::sync::Arc::new(super::OperationIdGenerator::resuming_after(
+            highest_existing,
+        ));
+        // Keep the bound PersistContext's generator (if any) pointed at the
+        // same Arc — checkpoint::compact_now mints the Checkpoint marker's id
+        // through `PersistContext.id_gen`, so a stale reference here would
+        // silently un-fix the T1.6 follow-up Bug 1 id-collision fix for any
+        // `OpLog` that reseeds after `with_db` (i.e. every `with_db_seeded`
+        // caller with existing history).
+        if let Some(ctx) = self.persist.as_ref() {
+            let updated = super::persist::PersistContext {
+                db: ctx.db.clone(),
+                daemon_id: ctx.daemon_id,
+                set_id: ctx.set_id,
+                compaction_interval: ctx.compaction_interval,
+                repository_id: ctx.repository_id.clone(),
+                projections: ctx.projections.clone(),
+                id_gen: self.id_gen.clone(),
+            };
+            self.persist = Some(std::sync::Arc::new(updated));
+        }
     }
 
     /// Record a new operation.

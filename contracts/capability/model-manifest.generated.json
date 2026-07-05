@@ -51,6 +51,17 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_add_approval_allowlist_entry",
+      "mcp_tool": "vox_add_approval_allowlist_entry",
+      "implicit": false,
+      "title": "Add Approval Allowlist Entry",
+      "description_model": "Persist a per-repository \"always allow this tool\" entry so it auto-approves without parking for HITL approval (T0.3).",
+      "side_effect_class": "writes_files",
+      "scope_kind": "session",
+      "reversible": true,
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_agent_assess",
       "mcp_tool": "vox_agent_assess",
       "implicit": false,
@@ -1288,6 +1299,16 @@
       "implicit": false,
       "title": "Lint Crate",
       "description_model": "Run cargo clippy for a crate or whole workspace.",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_list_approval_allowlist",
+      "mcp_tool": "vox_list_approval_allowlist",
+      "implicit": false,
+      "title": "List Approval Allowlist",
+      "description_model": "List MCP tools currently allowlisted for auto-approval in a repository (T0.3).",
+      "scope_kind": "session",
+      "reversible": false,
       "curated": true
     },
     {

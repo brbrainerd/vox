@@ -166,7 +166,11 @@ async fn mcp_tool_call(
     args: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
     let addr = daemon.ensure().await?;
-    OrchDaemonClient::new(addr)
+    let client = match daemon.token().await {
+        Some(token) => OrchDaemonClient::with_token(addr, token),
+        None => OrchDaemonClient::new(addr),
+    };
+    client
         .call(
             orch_daemon_method::TOOL_CALL,
             serde_json::json!({ "name": tool, "args": args }),

@@ -3,9 +3,6 @@
  * Import these instead of inline numeric literals in setInterval/setTimeout/debounce.
  */
 
-/** Orchestrator status polling fallback when Tauri event stream unavailable (ms). */
-export const ORCH_POLL_FALLBACK_MS = 2000;
-
 /** Policy badge refresh interval in sidebar (ms). */
 export const POLICY_BADGE_POLL_MS = 60_000;
 

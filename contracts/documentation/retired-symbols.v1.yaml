@@ -61,3 +61,8 @@ symbols:
     pattern: "\\bvox-ml-cli-standalone\\b"
     replacement: "vox-ml-cli"
     rationale: "The `-standalone` suffix dates to when the binary was split from the workspace; the canonical crate name is now `vox-ml-cli` (which itself depends on vox-populi). Only the literal old name is retired."
+  - id: user-approval-arg-bypass
+    pattern: "\\.get\\(\\s*\"user_approval\"\\s*\\)"
+    replacement: "no arg-based approval bypass; use a transport-authenticated permission mode (T0.2/T0.3)"
+    rationale: "Security-critical HITL backdoor (T0.1, 2026-07-02): reading `args.get(\"user_approval\")` in the MCP dispatch chokepoint let any tool-call argument — including ones composed by the LLM agent itself — skip the human-approval gate on dangerous tools (vox_run_shell, vox_deploy, vox_multi_replace(_file), vox_write_file, vox_delete_file). The gate must always park for a real human decision; do not reintroduce an args-based fast path. Only the `.get(\"user_approval\")` read call shape is banned, not the bare string, since tests must legitimately construct `json!({\"user_approval\": true})` to prove the key is ignored."
+    scan_rust_source: true

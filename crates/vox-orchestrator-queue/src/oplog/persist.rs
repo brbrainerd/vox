@@ -14,7 +14,9 @@ use std::sync::Arc;
 use vox_db::VoxDb;
 use vox_orchestrator_types::{AgentId, ChangeId, SnapshotId};
 
-use super::{OpLog, OperationEntry, OperationId, OperationKind};
+use crate::projection::ProjectionRegistry;
+
+use super::{OpLog, OperationEntry, OperationId, OperationIdGenerator, OperationKind};
 
 const DEFAULT_COMPACTION_INTERVAL: u64 = 1_000_000;
 
@@ -27,6 +29,26 @@ pub struct PersistContext {
     /// 16-byte convergence-set ULID (hex-encoded for storage).
     pub set_id: [u8; 16],
     pub compaction_interval: u64,
+    /// Logical namespace `compact_now`/checkpoint hydration use to scope
+    /// `checkpoint_blobs` rows (T1.6). Defaults to `"default"` — callers with
+    /// multiple independent op-log streams sharing one `VoxDb` should set a
+    /// distinct value per stream so their checkpoints don't collide.
+    pub repository_id: String,
+    /// Registered projections to snapshot on compaction (T1.6). `None` means
+    /// `compact_now` records a `Checkpoint` marker with an empty payload and
+    /// prunes warm rows, but has nothing to restore state from — set this via
+    /// [`Self::with_projections`] to get a real, restorable checkpoint.
+    pub projections: Option<Arc<ProjectionRegistry>>,
+    /// The *same* [`OperationIdGenerator`] instance backing the owning
+    /// [`OpLog`] (shared via `Arc`, wired in [`OpLog::with_db`]/
+    /// [`OpLog::reseed_id_gen_from_highest`]). `checkpoint::compact_now` mints
+    /// its `Checkpoint` marker's id through this — never via freestanding
+    /// arithmetic like `up_to.0 + 1` — so the marker's id always advances the
+    /// same atomic counter every other `record`/`record_persisted` call uses.
+    /// Minting out-of-band let the very next `record_persisted` call reuse the
+    /// same id, and `insert_convergence_op_log`'s `INSERT OR IGNORE` silently
+    /// swallowed the resulting collision (T1.6 follow-up, Bug 1).
+    pub id_gen: Arc<OperationIdGenerator>,
 }
 
 impl std::fmt::Debug for PersistContext {
@@ -35,27 +57,83 @@ impl std::fmt::Debug for PersistContext {
             .field("daemon_id", &hex::encode(self.daemon_id))
             .field("set_id", &hex::encode(self.set_id))
             .field("compaction_interval", &self.compaction_interval)
+            .field("repository_id", &self.repository_id)
+            .field("has_projections", &self.projections.is_some())
             .finish()
     }
 }
 
 impl PersistContext {
     pub fn new(db: VoxDb, daemon_id: [u8; 16], set_id: [u8; 16]) -> Self {
+        Self::with_id_gen(db, daemon_id, set_id, Arc::new(OperationIdGenerator::new()))
+    }
+
+    /// Like [`Self::new`], but shares an existing [`OperationIdGenerator`]
+    /// (e.g. the owning [`OpLog`]'s) instead of minting a fresh one. Callers
+    /// that construct a `PersistContext` outside of [`OpLog::with_db`] should
+    /// use this to keep the checkpoint marker's id allocation on the same
+    /// counter as every other durable write.
+    pub fn with_id_gen(
+        db: VoxDb,
+        daemon_id: [u8; 16],
+        set_id: [u8; 16],
+        id_gen: Arc<OperationIdGenerator>,
+    ) -> Self {
         Self {
             db,
             daemon_id,
             set_id,
             compaction_interval: DEFAULT_COMPACTION_INTERVAL,
+            repository_id: "default".to_string(),
+            projections: None,
+            id_gen,
         }
+    }
+
+    /// Attach a [`ProjectionRegistry`] so `compact_now` produces real,
+    /// restorable checkpoint blobs instead of an empty-payload marker.
+    pub fn with_projections(mut self, registry: Arc<ProjectionRegistry>) -> Self {
+        self.projections = Some(registry);
+        self
     }
 }
 
 impl OpLog {
-    /// Create a log bound to `vox-db` for write-through persistence.
+    /// Create a log bound to `vox-db` for write-through persistence. Does
+    /// **not** query the DB — the [`OperationId`] generator still starts at 1.
+    /// Prefer [`Self::with_db_seeded`] in any path that must survive a
+    /// process restart with a monotonic id sequence (T1.3); this sync
+    /// constructor is kept for callers that cannot await (rare) and for
+    /// call sites that immediately follow up with
+    /// [`Self::reseed_id_gen_from_highest`] themselves.
     pub fn with_db(db: VoxDb, hot_capacity: usize) -> Self {
         let mut log = OpLog::new(hot_capacity);
-        log.persist = Some(Arc::new(PersistContext::new(db, [0u8; 16], [0u8; 16])));
+        log.persist = Some(Arc::new(PersistContext::with_id_gen(
+            db,
+            [0u8; 16],
+            [0u8; 16],
+            log.id_gen.clone(),
+        )));
         log
+    }
+
+    /// [`Self::with_db`], then seed the [`OperationId`] generator from the
+    /// highest `op_id` already persisted in `convergence_op_log` (T1.3
+    /// restart-durability). A fresh DB with no rows yet leaves the generator
+    /// starting at 1, matching today's behavior; a DB carrying prior history
+    /// (the process restarted) resumes strictly after the highest existing id
+    /// so a client using `OperationId` as a replay offset never sees the
+    /// sequence go backwards or collide across a restart.
+    pub async fn with_db_seeded(db: VoxDb, hot_capacity: usize) -> Result<Self, PersistError> {
+        let highest = db
+            .max_convergence_op_id()
+            .await
+            .map_err(|e| PersistError::Db(e.to_string()))?;
+        let mut log = Self::with_db(db, hot_capacity);
+        if let Some(highest) = highest {
+            log.reseed_id_gen_from_highest(highest);
+        }
+        Ok(log)
     }
 
     /// Bind daemon + set identity (must be called before first `record_persisted`).
@@ -66,6 +144,38 @@ impl OpLog {
                 daemon_id,
                 set_id,
                 compaction_interval: ctx.compaction_interval,
+                repository_id: ctx.repository_id.clone(),
+                projections: ctx.projections.clone(),
+                id_gen: ctx.id_gen.clone(),
+            };
+            self.persist = Some(Arc::new(updated));
+        }
+    }
+
+    /// Return a clone of the bound [`PersistContext`], if any — used by
+    /// `checkpoint::compact_now`/`hydrate_from_checkpoint` callers (including
+    /// the T1.6 test suite) that need to call those functions directly with a
+    /// deterministic `up_to` rather than waiting for the compaction-interval
+    /// trigger inside `record_persisted`.
+    pub fn persist_context(&self) -> Option<Arc<PersistContext>> {
+        self.persist.clone()
+    }
+
+    /// Attach a [`ProjectionRegistry`] to this log's bound [`PersistContext`]
+    /// (T1.6). Must be called after [`Self::with_db`]/[`Self::with_db_seeded`];
+    /// a no-op if no persist context is bound yet. Every subsequent
+    /// `record_persisted` call applies the entry to `registry`, and
+    /// `compact_now` snapshots it into the checkpoint blob.
+    pub fn bind_projections(&mut self, registry: Arc<ProjectionRegistry>) {
+        if let Some(ctx) = self.persist.as_ref() {
+            let updated = PersistContext {
+                db: ctx.db.clone(),
+                daemon_id: ctx.daemon_id,
+                set_id: ctx.set_id,
+                compaction_interval: ctx.compaction_interval,
+                repository_id: ctx.repository_id.clone(),
+                projections: Some(registry),
+                id_gen: ctx.id_gen.clone(),
             };
             self.persist = Some(Arc::new(updated));
         }
@@ -110,6 +220,10 @@ impl OpLog {
             .clone();
 
         write_entry(&ctx, &entry).await?;
+
+        if let Some(registry) = ctx.projections.as_ref() {
+            registry.apply(&entry).await;
+        }
 
         if id.0.is_multiple_of(ctx.compaction_interval) {
             super::checkpoint::compact_now(ctx, id).await?;

@@ -100,6 +100,25 @@ pub async fn ask_clarification(state: &ServerState, params: AskClarificationPara
         Surface::Withheld => "withheld",
     };
 
+    // T1.2: durable FeedbackRequested BEFORE the event-bus broadcast (Tier-A
+    // durable-before-broadcast contract; see `vox_orchestrator::events::is_tier_a`).
+    state
+        .orchestrator
+        .record_operation(
+            agent_id,
+            vox_orchestrator::oplog::OperationKind::FeedbackRequested {
+                request_id: id.0.clone(),
+                task_id: gates_task_ids.first().map(|t| t.0),
+                kind: "clarification".into(),
+            },
+            format!("Clarification requested: {}", id.0),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
     state
         .orchestrator
         .event_bus()
@@ -168,14 +187,60 @@ pub async fn resolve_feedback(state: &ServerState, params: ResolveFeedbackParams
         if let (vox_orchestrator::feedback::FeedbackAction::Overrule, Some(tid)) =
             (&action, req.doubted_task_id)
         {
-            if let Err(e) = state
+            match state
                 .orchestrator
                 .overrule_task(tid, Some("Overruled by user via Needs You".to_string()))
             {
-                tracing::error!("Failed to overrule task {}: {:?}", tid.0, e);
+                Ok(outcome) => {
+                    // T1.2 follow-up: durable TaskComplete BEFORE the bus broadcast.
+                    // `Orchestrator::overrule_task` is sync (it holds a queue write-lock
+                    // across the mutation) and no longer emits on the event bus itself;
+                    // it returns an `OverruleOutcome` we durably record here, then
+                    // broadcast via `emit_overrule_events` only after the oplog write
+                    // completes.
+                    state
+                        .orchestrator
+                        .record_operation(
+                            outcome.agent_id,
+                            vox_orchestrator::oplog::OperationKind::TaskComplete { task_id: tid.0 },
+                            format!("Task {} overruled", tid.0),
+                            None,
+                            None,
+                            None,
+                            None,
+                        )
+                        .await;
+                    state.orchestrator.emit_overrule_events(&outcome);
+                }
+                Err(e) => {
+                    tracing::error!("Failed to overrule task {}: {:?}", tid.0, e);
+                }
             }
         }
     }
+
+    // T1.2: durable FeedbackResolved BEFORE the event-bus broadcast. The
+    // action string mirrors `FeedbackAction`'s `#[serde(tag = "action",
+    // rename_all = "snake_case")]` wire form (e.g. "answer", "overrule").
+    let action_str = serde_json::to_value(&action)
+        .ok()
+        .and_then(|v| v.get("action").and_then(|a| a.as_str()).map(str::to_string))
+        .unwrap_or_else(|| "unknown".to_string());
+    state
+        .orchestrator
+        .record_operation(
+            agent_id,
+            vox_orchestrator::oplog::OperationKind::FeedbackResolved {
+                request_id: fid.0.clone(),
+                action: action_str,
+            },
+            format!("Feedback resolved: {}", fid.0),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
 
     state
         .orchestrator
@@ -251,7 +316,31 @@ pub async fn propose_skill(
         params.session_id,
         params.candidate,
     ) {
-        Some(fid) => ToolResult::ok(serde_json::json!({ "feedback_id": fid.0 })).to_json(),
+        Some(fid) => {
+            // T1.2: durable FeedbackRequested BEFORE the bus broadcast. `propose_skill`
+            // itself stays sync (dedup check only) and no longer emits on the event bus;
+            // we record durably here (already async), then broadcast explicitly.
+            state
+                .orchestrator
+                .record_operation(
+                    vox_orchestrator::AgentId(0),
+                    vox_orchestrator::oplog::OperationKind::FeedbackRequested {
+                        request_id: fid.0.clone(),
+                        task_id: None,
+                        kind: "skill_proposal".into(),
+                    },
+                    format!("Skill proposal requested: {}", fid.0),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await;
+            state
+                .orchestrator
+                .emit_feedback_requested_skill_proposal(&fid);
+            ToolResult::ok(serde_json::json!({ "feedback_id": fid.0 })).to_json()
+        }
         None => ToolResult::ok(serde_json::json!({ "skipped": "duplicate proposal already open" }))
             .to_json(),
     }

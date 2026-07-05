@@ -1,7 +1,11 @@
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
-use vox_cli_core::daemon_ipc::dispatch::call_daemon;
 use vox_foundation::protocol::orch_daemon_method;
+use vox_orchestrator::orch_daemon::OrchDaemonClient;
 use vox_orchestrator::{FileAffinity, TaskPriority};
+
+use crate::commands::daemon::PersistentDaemon;
 
 #[derive(Debug, Deserialize)]
 pub struct SubmitTaskInput {
@@ -37,18 +41,23 @@ pub struct ControlPlaneResult {
 }
 
 async fn call_orchestrator_daemon(
+    daemon: &PersistentDaemon,
     method: &str,
     params: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
-    call_daemon("vox-orchestrator-d", method, params, false)
-        .await
-        .map_err(|e| e.to_string())
+    let addr = daemon.ensure().await?;
+    let client = match daemon.token().await {
+        Some(token) => OrchDaemonClient::with_token(addr, token),
+        None => OrchDaemonClient::new(addr),
+    };
+    client.call(method, params).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn submit_orchestrator_task(
     app_handle: tauri::AppHandle,
     input: SubmitTaskInput,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<ControlPlaneResult, String> {
     let file_manifest: Vec<FileAffinity> = input.files.iter().map(FileAffinity::write).collect();
     let priority = match input.priority.as_deref() {
@@ -91,7 +100,8 @@ pub async fn submit_orchestrator_task(
             );
         }
     }
-    let response = call_orchestrator_daemon(orch_daemon_method::SUBMIT_TASK, params).await?;
+    let response =
+        call_orchestrator_daemon(&daemon, orch_daemon_method::SUBMIT_TASK, params).await?;
     let task_id = response
         .get("task_id")
         .and_then(|v| v.as_u64())
@@ -115,8 +125,12 @@ pub async fn submit_orchestrator_task(
 }
 
 #[tauri::command]
-pub async fn pause_orchestrator_agent(agent_id: u64) -> Result<ControlPlaneResult, String> {
+pub async fn pause_orchestrator_agent(
+    agent_id: u64,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::PAUSE_AGENT,
         serde_json::json!({ "agent_id": agent_id }),
     )
@@ -130,8 +144,12 @@ pub async fn pause_orchestrator_agent(agent_id: u64) -> Result<ControlPlaneResul
 }
 
 #[tauri::command]
-pub async fn resume_orchestrator_agent(agent_id: u64) -> Result<ControlPlaneResult, String> {
+pub async fn resume_orchestrator_agent(
+    agent_id: u64,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::RESUME_AGENT,
         serde_json::json!({ "agent_id": agent_id }),
     )
@@ -148,8 +166,10 @@ pub async fn resume_orchestrator_agent(agent_id: u64) -> Result<ControlPlaneResu
 pub async fn doubt_orchestrator_task(
     task_id: u64,
     reason: Option<String>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::DOUBT_TASK,
         serde_json::json!({
             "task_id": task_id,
@@ -169,8 +189,10 @@ pub async fn doubt_orchestrator_task(
 pub async fn overrule_orchestrator_task(
     task_id: u64,
     reason: String,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::OVERRULE_TASK,
         serde_json::json!({
             "task_id": task_id,
@@ -218,9 +240,15 @@ fn normalize_lifecycle(raw: &str) -> String {
 }
 
 #[tauri::command]
-pub async fn list_orchestrator_tasks() -> Result<Vec<TaskRowDto>, String> {
-    let response =
-        call_orchestrator_daemon(orch_daemon_method::LIST_TASKS, serde_json::json!({})).await?;
+pub async fn list_orchestrator_tasks(
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<Vec<TaskRowDto>, String> {
+    let response = call_orchestrator_daemon(
+        &daemon,
+        orch_daemon_method::LIST_TASKS,
+        serde_json::json!({}),
+    )
+    .await?;
     let tasks = response
         .get("tasks")
         .and_then(|v| v.as_array())
@@ -281,8 +309,10 @@ pub async fn edit_orchestrator_task(
     app_handle: tauri::AppHandle,
     task_id: u64,
     description: String,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::EDIT_TASK,
         serde_json::json!({ "task_id": task_id, "description": description }),
     )
@@ -301,8 +331,10 @@ pub async fn edit_orchestrator_task(
 pub async fn cancel_orchestrator_task(
     app_handle: tauri::AppHandle,
     task_id: u64,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::CANCEL_TASK,
         serde_json::json!({ "task_id": task_id }),
     )
@@ -321,8 +353,10 @@ pub async fn cancel_orchestrator_task(
 pub async fn interrupt_orchestrator_task(
     app_handle: tauri::AppHandle,
     task_id: u64,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::INTERRUPT_TASK,
         serde_json::json!({ "task_id": task_id }),
     )
@@ -342,8 +376,10 @@ pub async fn reorder_orchestrator_task(
     app_handle: tauri::AppHandle,
     task_id: u64,
     priority: String,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::REORDER_TASK,
         serde_json::json!({ "task_id": task_id, "priority": priority }),
     )
@@ -365,8 +401,10 @@ pub async fn reorder_orchestrator_task(
 pub async fn approve_orchestrator_task_plan(
     app_handle: tauri::AppHandle,
     task_id: u64,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::APPROVE_PLAN,
         serde_json::json!({ "task_id": task_id }),
     )
@@ -386,8 +424,10 @@ pub async fn approve_orchestrator_task_plan(
 pub async fn skip_orchestrator_verify(
     app_handle: tauri::AppHandle,
     task_id: u64,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::SKIP_VERIFY,
         serde_json::json!({ "task_id": task_id }),
     )
@@ -407,8 +447,10 @@ pub async fn skip_orchestrator_verify(
 pub async fn force_orchestrator_verify(
     app_handle: tauri::AppHandle,
     task_id: u64,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
+        &daemon,
         orch_daemon_method::FORCE_VERIFY,
         serde_json::json!({ "task_id": task_id }),
     )

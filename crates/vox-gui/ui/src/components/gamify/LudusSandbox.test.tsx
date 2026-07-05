@@ -1,179 +1,59 @@
 // @vitest-environment jsdom
+// crates/vox-gui/ui/src/components/gamify/LudusSandbox.test.tsx  (full replacement)
+// The pragma above is REQUIRED as line 1: vitest.config.ts sets no global
+// environment, so render()/screen crash under the default node env without it.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
-import { LudusSandbox, assignPlotCoordinates } from './LudusSandbox';
-import { useLudusStore } from './store';
-import * as transport from '../../transport';
+import { render, screen, waitFor } from '@testing-library/react';
 
+const workspaceTownScan = vi.fn();
+const openLocator = vi.fn();
 vi.mock('../../transport', () => ({
-  listenAgentEvents: vi.fn().mockResolvedValue(() => {}),
+  listenAgentEvents: vi.fn().mockRejectedValue(new Error('not in tauri')),
+  // useLlmSpend (used for the HUD treasury) reads voxTransport from the same
+  // module — the mock must provide it or the hook crashes on mount.
+  voxTransport: {
+    getLlmSpend: vi.fn().mockRejectedValue(new Error('unavailable')),
+    workspaceTownScan: (...a: unknown[]) => workspaceTownScan(...a),
+    openLocator: (...a: unknown[]) => openLocator(...a),
+    harnessCiFleetStatus: vi.fn().mockRejectedValue(new Error('unavailable')),
+    vcsTownStatus: vi.fn().mockRejectedValue(new Error('unavailable')),
+    hopperList: vi.fn().mockRejectedValue(new Error('unavailable')),
+  },
 }));
 
-describe('LudusSandbox map logic', () => {
-  it('assignPlotCoordinates exists', () => {
-    expect(assignPlotCoordinates).toBeDefined();
-  });
+import { LudusSandbox } from './LudusSandbox';
 
-  it('correctly maps client mouse coords to offset coordinates', () => {
-    const mouseX = 150;
-    const mouseY = 150;
-    const cameraX = 50;
-    const cameraY = 50;
-    const zoom = 2;
+const SCAN = {
+  crates: [{ name: 'a', root: 'crates/a', files: [{ path: 'crates/a/x.rs', lines: 10 }] }],
+  root: '/ws', scanned_at_ms: 1, truncated: false,
+};
 
-    const worldX = (mouseX - cameraX) / zoom;
-    const worldY = (mouseY - cameraY) / zoom;
-
-    expect(worldX).toBe(50);
-    expect(worldY).toBe(50);
-  });
+beforeEach(() => {
+  workspaceTownScan.mockReset();
+  openLocator.mockReset();
+  workspaceTownScan.mockResolvedValue(SCAN);
 });
 
-describe('DOM Subscription Engine', () => {
-  it('correctly reacts to store updates without parent re-renders', () => {
-    let callCount = 0;
-    const unsubscribe = useLudusStore.subscribe((state) => {
-      if (state.agents['agent_1']) callCount += 1;
-    });
-
-    useLudusStore.getState().updateAgent('agent_1', { x: 4, y: 4 });
-    expect(callCount).toBe(1);
-    unsubscribe();
-  });
-});
-
-describe('Telemetry Ingestion Mapping', () => {
-  beforeEach(() => {
-    useLudusStore.getState().reset();
+describe('LudusSandbox (Vox Urbs shell)', () => {
+  it('renders the town canvas and loads the workspace scan', async () => {
+    render(<LudusSandbox />);
+    await waitFor(() => expect(workspaceTownScan).toHaveBeenCalled());
+    expect(screen.getByTestId('urbs-canvas')).toBeTruthy();
   });
 
-  it('subscribes to agent events and updates building state on file_edited', () => {
-    let eventCallback: any;
-    vi.mocked(transport.listenAgentEvents).mockImplementation((cb) => {
-      eventCallback = cb;
-      return Promise.resolve(() => {});
-    });
-
-    const files = ['crates/vox-db/src/lib.rs'];
-    const { render } = require('@testing-library/react');
-    render(<LudusSandbox files={files} />);
-
-    // Initially, warnings/errors are 0
-    const store = useLudusStore.getState();
-    const initialBuilding = store.buildings['crates/vox-db/src/lib.rs'];
-    expect(initialBuilding?.warnings ?? 0).toBe(0);
-
-    // Simulate a file_edited event
-    if (eventCallback) {
-      eventCallback({
-        id: 1,
-        timestamp_ms: Date.now(),
-        kind: {
-          type: 'file_edited',
-          path: 'crates/vox-db/src/lib.rs',
-        },
-      });
-    }
-
-    const updatedBuilding = useLudusStore.getState().buildings['crates/vox-db/src/lib.rs'];
-    expect(updatedBuilding.warnings).toBe(1);
+  it('shows SIM PAVSED when the agent event stream is unavailable', async () => {
+    render(<LudusSandbox />);
+    await waitFor(() => expect(screen.getByText(/SIM PAVSED/i)).toBeTruthy());
   });
 
-  it('updates camera offsets when focusedFile changes', () => {
-    const files = ['crates/vox-db/src/lib.rs'];
-    const { render } = require('@testing-library/react');
-    render(<LudusSandbox files={files} />);
-
-    // Trigger focused file state change
-    useLudusStore.getState().setFocusedFile('crates/vox-db/src/lib.rs');
-    
-    // Camera target centering check (verifies camera center state is updated)
-    const store = useLudusStore.getState();
-    expect(store.focusedFile).toBe('crates/vox-db/src/lib.rs');
+  it('shows a scan-failed state (not a fake town) when the scan tap fails', async () => {
+    workspaceTownScan.mockRejectedValue(new Error('nope'));
+    render(<LudusSandbox />);
+    await waitFor(() => expect(screen.getByText(/scan unavailable/i)).toBeTruthy());
   });
 
-  it('correctly maps canvas clicks to building focusedFile states', () => {
-    const files = ['crates/vox-db/src/lib.rs'];
-    const { render, fireEvent } = require('@testing-library/react');
-    const { container } = render(<LudusSandbox files={files} />);
-    const canvas = container.querySelector('canvas');
-    expect(canvas).toBeDefined();
-
-    // The single plot for crates/vox-db/src/lib.rs is at x=4, y=4, z=0
-    // projectIso(4, 4, 0, 64, 32, 1000, 100) -> px = 1000, py = 228
-    // Default camera is { x: 400, y: 100, zoom: 1 }
-    // clientX = camera.x + px = 1400
-    // clientY = camera.y + py = 328
-    
-    // We mock getBoundingClientRect on the canvas to return { left: 0, top: 0, width: 800, height: 500 }
-    canvas.getBoundingClientRect = () => ({
-      left: 0,
-      top: 0,
-      right: 800,
-      bottom: 500,
-      width: 800,
-      height: 500,
-      x: 0,
-      y: 0,
-      toJSON: () => {},
-    });
-
-    // Reset focusedFile first
-    useLudusStore.getState().setFocusedFile(null);
-
-    fireEvent.click(canvas, { clientX: 400, clientY: 328 });
-    
-    expect(useLudusStore.getState().focusedFile).toBe('crates/vox-db/src/lib.rs');
-  });
-
-  it('correctly renders construction scaffolding clipboards for active tasks', async () => {
-    const files = ['crates/vox-db/src/lib.rs'];
-    const { render, screen } = require('@testing-library/react');
-    render(<LudusSandbox files={files} />);
-
-    // Initially no clipboard
-    expect(screen.queryByTestId('task-clipboard')).toBeNull();
-
-    // Simulate active agent task on file
-    useLudusStore.getState().updateAgentTask('agent_1', {
-      taskId: 'task_1',
-      filePath: 'crates/vox-db/src/lib.rs',
-      status: 'in_progress',
-    });
-
-    // We expect the clipboard to render now!
-    const clipboard = await screen.findByTestId('task-clipboard');
-    expect(clipboard).toBeDefined();
-  });
-
-  it('correctly spawns speech bubbles when telemetry events occur', async () => {
-    let eventCallback: any;
-    vi.mocked(transport.listenAgentEvents).mockImplementation((cb) => {
-      eventCallback = cb;
-      return Promise.resolve(() => {});
-    });
-
-    const files = ['crates/vox-db/src/lib.rs'];
-    const { render, screen } = require('@testing-library/react');
-    render(<LudusSandbox files={files} />);
-
-    // Initially no speech bubble
-    expect(screen.queryByText(/Hammering out features/)).toBeNull();
-
-    // Trigger file_edited event
-    if (eventCallback) {
-      eventCallback({
-        id: 2,
-        timestamp_ms: Date.now(),
-        kind: {
-          type: 'file_edited',
-          path: 'crates/vox-db/src/lib.rs',
-        },
-      });
-    }
-
-    // Expect speech bubble to render
-    const bubbleElement = await screen.findByText(/Hammering out features/);
-    expect(bubbleElement).toBeDefined();
+  it('renders the HUD with real-null treasury (em-dash) when spend tap fails', async () => {
+    render(<LudusSandbox />);
+    await waitFor(() => expect(screen.getByTestId('hud-value').textContent).toBe('—'));
   });
 });

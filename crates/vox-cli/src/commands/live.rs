@@ -15,9 +15,10 @@
 use anyhow::Result;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use tokio::time::{Duration, sleep};
+use tokio::time::sleep;
+use vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure;
+use vox_orchestrator::AgentEvent;
 use vox_orchestrator::events::AgentEventKind;
-use vox_orchestrator::{AgentEvent, OrchestratorConfig, build_repo_scoped_orchestrator};
 
 const BOLD: &str = "\x1b[1m";
 const RESET: &str = "\x1b[0m";
@@ -281,9 +282,19 @@ pub async fn run() -> Result<()> {
         return run_event_log_tail(path).await;
     }
 
-    let config = OrchestratorConfig::default();
-    let orch = build_repo_scoped_orchestrator(config, None).orchestrator;
-    let mut rx = orch.event_bus().subscribe();
+    // T2.3: subscribe to the shared vox-orchestrator-d daemon's live agent-event
+    // stream (spawning it if absent) instead of standing up a private,
+    // throwaway in-process Orchestrator with its own empty event bus — the old
+    // in-process mode could never show anything happening elsewhere (GUI, `vox
+    // dei submit`, MCP), since nothing was ever posted to its isolated bus.
+    let daemon = OrchestratorDaemonEnsure::default();
+    let client = daemon
+        .client()
+        .await
+        .map_err(|e| anyhow::anyhow!("could not reach or spawn vox-orchestrator-d: {e}"))?;
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(256);
+    let producer = tokio::spawn(async move { client.subscribe_events(tx).await });
 
     let mut stats = LiveStats::default();
     let mut tick: u64 = 0;
@@ -291,14 +302,23 @@ pub async fn run() -> Result<()> {
 
     loop {
         tokio::select! {
-            Ok(event) = rx.recv() => {
-                merge_agent_event(&mut stats, &event);
-                render(&stats, tick);
+            Some(raw) = rx.recv() => {
+                match serde_json::from_value::<AgentEvent>(raw) {
+                    Ok(event) => {
+                        merge_agent_event(&mut stats, &event);
+                        render(&stats, tick);
+                    }
+                    Err(_) => { /* skip frames that don't match AgentEvent's shape */ }
+                }
             }
             _ = sleep(vox_config::timeouts::D_250MS) => {
                 tick = tick.wrapping_add(1);
                 render(&stats, tick);
             }
+            else => break,
         }
     }
+
+    let _ = producer.await;
+    Ok(())
 }

@@ -163,13 +163,56 @@ pub async fn reorder_task(state: &ServerState, params: crate::params::ReorderTas
 pub async fn doubt_task(state: &ServerState, params: crate::params::DoubtTaskParams) -> String {
     let task_id = TaskId(params.task_id);
     let assigned = state.orchestrator.agent_assigned_to_task(task_id);
+    let reason_for_oplog = params.reason.clone();
     let res = state
         .orchestrator
         .doubt_task(task_id, params.reason)
         .map_err(|e| e.to_string());
 
     match res {
-        Ok(()) => {
+        Ok(outcome) => {
+            // T1.2: durable TaskDoubted BEFORE the bus broadcast. `Orchestrator::doubt_task`
+            // is sync (it holds a queue write-lock across the mutation) and no longer emits
+            // on the event bus itself; it returns a `DoubtOutcome` we durably record here,
+            // then broadcast via `emit_doubt_events` only after the oplog write completes.
+            state
+                .orchestrator
+                .record_operation(
+                    assigned.unwrap_or(vox_orchestrator::AgentId(0)),
+                    vox_orchestrator::oplog::OperationKind::TaskDoubted {
+                        task_id: params.task_id,
+                        reason: reason_for_oplog,
+                    },
+                    format!("Task {} doubted", params.task_id),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await;
+            // T1.1 follow-up: durable FeedbackRequested{kind:"doubt"} for the
+            // Doubt-kind feedback item `Orchestrator::doubt_task` registered in
+            // the Needs-You inbox — the sibling half of the TaskDoubted write
+            // above, so a reader of the op-log sees both halves of a doubt
+            // (bus-emit half + feedback-registration half), matching how
+            // `propose_skill`'s FeedbackRequested is recorded in feedback_tools.rs.
+            state
+                .orchestrator
+                .record_operation(
+                    assigned.unwrap_or(vox_orchestrator::AgentId(0)),
+                    vox_orchestrator::oplog::OperationKind::FeedbackRequested {
+                        request_id: outcome.feedback_id.0.clone(),
+                        task_id: Some(params.task_id),
+                        kind: "doubt".into(),
+                    },
+                    format!("Feedback requested (doubt): {}", outcome.feedback_id.0),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await;
+            state.orchestrator.emit_doubt_events(task_id, &outcome);
             // Gamification: suspecting is a habit-building interaction.
             if let (Some(db), Some(aid)) = (&state.db, assigned) {
                 let uid = vox_gamify::db::canonical_user_id();

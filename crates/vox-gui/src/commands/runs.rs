@@ -97,6 +97,15 @@ pub async fn finish_gui_run(
     cost_usd: Option<f64>,
     tokens_in: Option<i64>,
     tokens_out: Option<i64>,
+    // T1.5: the orchestrator's numeric task_id (stringified), when this GUI
+    // run wraps a `submit_orchestrator_task` call. Distinct from `run_id`
+    // (a GUI-minted `gui-<uuid>` — see `nextGuiRunId()` in the frontend) —
+    // `task_id` is the correlation key shared with `ApprovalRequested.run_id`
+    // (best-effort fallback, see dispatch.rs) and with vox-telemetry's
+    // `TaskRootSummaryEvent.task_id`. `None` for runs with no backing
+    // orchestrator task (e.g. agent pause/resume), which simply skip the
+    // joins below and keep whatever explicit cost/token args were passed.
+    task_id: Option<String>,
 ) -> Result<(), String> {
     let db = connect_workspace_journey_optional(DbConnectSurface::Runtime, true)
         .await
@@ -151,6 +160,27 @@ pub async fn finish_gui_run(
     row.updated_at_ms = ts;
     row.completed_at_ms = Some(ts);
     row.last_error = error;
+
+    // T1.5: best-effort joins against durable correlation data. Neither
+    // lookup can fail this call — a missing approval or not-yet-flushed
+    // telemetry event just leaves the existing placeholder value (None /
+    // 0), matching the "graceful degradation" requirement in the T1.5 spec.
+    if let Some(tid) = task_id.as_deref().filter(|s| !s.trim().is_empty()) {
+        if row.approval_ref.is_none()
+            && let Some(approval_id) = db.find_approval_id_for_run(tid).await
+        {
+            row.approval_ref = Some(approval_id);
+        }
+        if row.cost_usd == 0.0
+            && row.tokens_in == 0
+            && row.tokens_out == 0
+            && let Some((cost, tin, tout)) = db.find_task_root_summary_totals(tid).await
+        {
+            row.cost_usd = cost;
+            row.tokens_in = tin;
+            row.tokens_out = tout;
+        }
+    }
 
     db.agent_runs_upsert(&row)
         .await

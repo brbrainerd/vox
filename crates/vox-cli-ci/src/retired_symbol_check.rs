@@ -17,6 +17,16 @@ struct RetiredSymbol {
     pattern: String,
     replacement: String,
     rationale: String,
+    /// Opt in to scanning `crates/**/*.rs` for this pattern on EVERY run,
+    /// regardless of `VOX_CI_RETIRED_SYMBOL_SCAN_CRATES` (which is off by
+    /// default in CI — a full-crate scan of every retired pattern currently
+    /// surfaces ~96 pre-existing hits, almost all benign self-reference in
+    /// the detectors/compat shims that implement or guard the retirement
+    /// itself, not live regressions). Reserve this for entries that guard a
+    /// security-critical regression (e.g. an auth/approval bypass) where the
+    /// pattern is narrow enough not to false-positive.
+    #[serde(default)]
+    scan_rust_source: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -42,15 +52,32 @@ fn should_skip_rust_line(line: &str) -> bool {
     false
 }
 
+/// True if `name` contains an embedded `-YYYY-MM-DD` ISO date token (year 2025
+/// or 2026) anywhere, not just as a leading filename prefix — e.g.
+/// `vox-axis-harness-reliability-spec-plan-2026-07-02.md`. Requires a genuine
+/// year/month/day triple (not a bare year) so this doesn't over-broaden to
+/// filenames that merely mention "2026" once.
+fn has_embedded_iso_date(name: &str) -> bool {
+    let stem = name.strip_suffix(".md").unwrap_or(name);
+    let parts: Vec<&str> = stem.split('-').collect();
+    parts.windows(3).any(|w| {
+        matches!(w[0], "2025" | "2026")
+            && w[1].len() == 2
+            && w[1].chars().all(|c| c.is_ascii_digit())
+            && w[2].len() == 2
+            && w[2].chars().all(|c| c.is_ascii_digit())
+    })
+}
+
 /// Docs that catalog codebase evolution (audits, findings, migration plans,
 /// dated snapshots, design specs) intentionally name retired symbols while
 /// explaining what replaced them. Treat these as documentation-of-history
 /// surfaces, not as user-facing guidance, and skip the policy check for them.
 ///
 /// This is a principled carve-out: anything under `docs/src/architecture/` that
-/// is date-stamped or matches a known history-doc suffix, plus the entire
-/// `history/` subtree and the `docs/superpowers/{specs,plans}/` design-doc
-/// subtrees, qualifies.
+/// is date-stamped (leading or embedded) or matches a known history-doc suffix,
+/// plus the entire `history/` subtree and the `docs/superpowers/{specs,plans}/`
+/// design-doc subtrees, qualifies.
 fn is_historical_or_audit_doc(rel_path: &Path) -> bool {
     let s = rel_path.to_string_lossy().replace('\\', "/");
     let name = rel_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
@@ -65,8 +92,10 @@ fn is_historical_or_audit_doc(rel_path: &Path) -> bool {
         if s.starts_with("docs/src/architecture/history/") {
             return true;
         }
-        // Date-stamped architectural snapshots like `2026-05-08-workspace-reorg-*.md`.
-        if name.starts_with("2026-") || name.starts_with("2025-") {
+        // Date-stamped architectural snapshots like `2026-05-08-workspace-reorg-*.md`,
+        // or a full ISO date embedded mid-filename like
+        // `vox-axis-harness-reliability-spec-plan-2026-07-02.md`.
+        if name.starts_with("2026-") || name.starts_with("2025-") || has_embedded_iso_date(name) {
             return true;
         }
         // Known history-doc suffix patterns.
@@ -411,12 +440,15 @@ pub fn run(root: &Path) -> Result<()> {
             )
         })
         .unwrap_or(false);
-    if scan_crates {
-        eprintln!(
-            "retired-symbol-check: scanning crates/**/*.rs (VOX_CI_RETIRED_SYMBOL_SCAN_CRATES is set)"
-        );
-        let crates_dir = root.join("crates");
-        if crates_dir.is_dir() {
+    let crates_dir = root.join("crates");
+    if crates_dir.is_dir() {
+        if scan_crates {
+            // Opt-in full scan: every retired pattern against every crate source
+            // file. Noisy on this repo today (~96 pre-existing hits, mostly
+            // detector/compat self-reference) — not run in CI by default.
+            eprintln!(
+                "retired-symbol-check: scanning crates/**/*.rs (VOX_CI_RETIRED_SYMBOL_SCAN_CRATES is set)"
+            );
             let mut rs_files = Vec::new();
             collect_crate_rs_files(&crates_dir, &mut rs_files);
             for path in rs_files {
@@ -433,6 +465,34 @@ pub fn run(root: &Path) -> Result<()> {
                         is_rust: true,
                     },
                 ));
+            }
+        } else {
+            // Always-on narrow scan: only patterns explicitly marked
+            // `scan_rust_source: true` guard against a Rust-source regression,
+            // so they run on every CI invocation without the opt-in noise.
+            let always_on: Vec<(&RetiredSymbol, Regex)> = regexes
+                .iter()
+                .filter(|(sym, _)| sym.scan_rust_source)
+                .map(|(sym, re)| (*sym, re.clone()))
+                .collect();
+            if !always_on.is_empty() {
+                let mut rs_files = Vec::new();
+                collect_crate_rs_files(&crates_dir, &mut rs_files);
+                for path in rs_files {
+                    let body = fs::read_to_string(&path)
+                        .with_context(|| format!("Failed to read {}", path.display()))?;
+                    failures.extend(scan_source_lines(
+                        &path,
+                        root,
+                        &body,
+                        &always_on,
+                        ScanCfg {
+                            is_md: false,
+                            skip_md_table_rows: false,
+                            is_rust: true,
+                        },
+                    ));
+                }
             }
         }
     }

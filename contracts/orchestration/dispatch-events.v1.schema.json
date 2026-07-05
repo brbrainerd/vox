@@ -1,0 +1,143 @@
+{
+  "x-vox-version": 1,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxlang.org/contracts/orchestration/dispatch-events.v1.schema.json",
+  "title": "Dispatch lifecycle op-log events (v1)",
+  "description": "Contract for the new-in-T1.1 OperationKind variants (crates/vox-orchestrator-queue/src/oplog/mod.rs) that make task/approval/feedback/doubt/hopper lifecycle transitions durable via the existing op-log. Encodes serde's externally-tagged wire shape for a Rust enum: {\"<Variant>\": {<fields>}}. See docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md section 3, T1.1. Cost fields are deliberately out of scope — vox-telemetry stays the cost SSOT.",
+  "type": "object",
+  "minProperties": 1,
+  "maxProperties": 1,
+  "oneOf": [
+    {
+      "required": ["ApprovalRequested"],
+      "properties": {
+        "ApprovalRequested": {
+          "type": "object",
+          "required": ["approval_id", "tool", "run_id"],
+          "properties": {
+            "approval_id": { "type": "string", "minLength": 1 },
+            "tool": { "type": "string", "minLength": 1 },
+            "run_id": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "required": ["ApprovalResolved"],
+      "properties": {
+        "ApprovalResolved": {
+          "type": "object",
+          "required": ["approval_id", "outcome", "resolver"],
+          "properties": {
+            "approval_id": { "type": "string", "minLength": 1 },
+            "outcome": {
+              "type": "string",
+              "description": "Stringified via the same convention as the MCP gate's format!(\"{outcome:?}\").to_lowercase().",
+              "minLength": 1
+            },
+            "resolver": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "required": ["FeedbackRequested"],
+      "properties": {
+        "FeedbackRequested": {
+          "type": "object",
+          "required": ["request_id", "task_id", "kind"],
+          "properties": {
+            "request_id": { "type": "string", "minLength": 1 },
+            "task_id": { "type": ["integer", "null"], "minimum": 0 },
+            "kind": {
+              "type": "string",
+              "enum": ["clarification", "doubt", "skill_proposal"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "required": ["FeedbackResolved"],
+      "properties": {
+        "FeedbackResolved": {
+          "type": "object",
+          "required": ["request_id", "action"],
+          "properties": {
+            "request_id": { "type": "string", "minLength": 1 },
+            "action": {
+              "type": "string",
+              "enum": ["answer", "skip", "overrule", "let_verify", "accept_skill"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "required": ["TaskDoubted"],
+      "properties": {
+        "TaskDoubted": {
+          "type": "object",
+          "required": ["task_id", "reason"],
+          "properties": {
+            "task_id": { "type": "integer", "minimum": 0 },
+            "reason": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "required": ["HopperAdmit"],
+      "properties": {
+        "HopperAdmit": {
+          "type": "object",
+          "required": ["item_id"],
+          "properties": {
+            "item_id": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "required": ["HopperAssign"],
+      "properties": {
+        "HopperAssign": {
+          "type": "object",
+          "required": ["item_id", "task_id"],
+          "properties": {
+            "item_id": { "type": "string", "minLength": 1 },
+            "task_id": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "required": ["HopperComplete"],
+      "properties": {
+        "HopperComplete": {
+          "type": "object",
+          "required": ["item_id"],
+          "properties": {
+            "item_id": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

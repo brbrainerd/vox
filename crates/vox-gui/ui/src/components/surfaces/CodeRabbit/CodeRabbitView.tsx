@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { codeRabbitPlan, codeRabbitReport, codeRabbitRunAsync, codeRabbitTokenPresent } from '../../../transport';
 
 interface CodeRabbitViewProps {
   pushToast: (t: any) => void;
@@ -63,8 +63,8 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
   const [running, setRunning] = useState(false);
 
   useEffect(() => {
-    invoke<boolean>('coderabbit_token_present').then(setTokenOk).catch(() => setTokenOk(false));
-    invoke<Report>('coderabbit_report').then(setReport).catch(() => {});
+    codeRabbitTokenPresent().then(setTokenOk).catch(() => setTokenOk(false));
+    codeRabbitReport<Report>().then(setReport).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -76,7 +76,7 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
         kind: e.payload.status === 'error' ? 'error' : 'success',
         message: e.payload.status === 'error' ? `CodeRabbit run failed: ${e.payload.error}` : 'CodeRabbit run finished',
       });
-      invoke<Report>('coderabbit_report').then(setReport).catch(() => {});
+      codeRabbitReport<Report>().then(setReport).catch(() => {});
     }).then((u) => {
       // If we unmounted before listen() resolved, unlisten immediately (no leak).
       if (cancelled) u();
@@ -96,7 +96,7 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
   const plan = useCallback(async () => {
     setBusy(true);
     try {
-      const m = await invoke<Manifest>('coderabbit_plan', { since, cap, rankWeights: weights, top: topN, fullRepo });
+      const m = await codeRabbitPlan<Manifest>({ since, cap, rankWeights: weights, top: topN, fullRepo });
       setManifest(m);
     } catch (err) {
       _props.pushToast({ kind: 'error', message: `Plan failed: ${err}` });
@@ -108,7 +108,7 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
   const run = useCallback(async () => {
     setRunning(true);
     try {
-      await invoke('coderabbit_run_async', { since, cap, rankWeights: weights, top: topN, fullRepo });
+      await codeRabbitRunAsync({ since, cap, rankWeights: weights, top: topN, fullRepo });
       _props.pushToast({ kind: 'info', message: 'CodeRabbit sweep started' });
     } catch (err) {
       setRunning(false);

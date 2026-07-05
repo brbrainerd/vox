@@ -9,6 +9,7 @@ import type {
   RoutingSummary,
 } from './types/tauri';
 import type { TaskRow } from './components/surfaces/Tasks/tasksHelpers';
+import type { TownScan } from './components/gamify/urbs/types';
 
 // `OpenLocator` / `OpenOutcome` (the `open_locator` IPC DTOs) live in ./types/tauri
 // alongside the other Tauri command types; re-exported here for callers of the hub.
@@ -231,6 +232,35 @@ export interface RegistryFile {
 /** Resolved set of operations keyed by underscore-joined path for O(1) lookup. */
 type RegistryIndex = Map<string, RegistryOperation>;
 
+/**
+ * T0.3: GUI-selected `PermissionMode` wire string
+ * (`"ask" | "accept_edits" | "accept_all" | "plan"`), threaded onto every
+ * `invoke_mcp_tool` call this transport makes. Module-level (not per-call)
+ * so any surface driving a tool call — not just the approvals view that
+ * owns the toggle — picks up the currently selected mode without every
+ * call site needing to know about it. `null` (the default) means "no mode
+ * selected"; the Rust side treats an absent mode as the fail-safe `ask`
+ * default (today's always-park behavior for dangerous tools).
+ *
+ * Mirrors `vox_orchestrator_mcp::permission_modes::PermissionMode`
+ * (`contracts/orchestration/permission-modes.v1.yaml`).
+ */
+let currentPermissionMode: string | null = null;
+
+/** Read the currently selected `PermissionMode` wire string, or `null`. */
+export function getPermissionMode(): string | null {
+  return currentPermissionMode;
+}
+
+/**
+ * Set the `PermissionMode` wire string threaded onto subsequent
+ * `invoke_mcp_tool` calls. Pass `null` (or `'ask'`) to return to the
+ * fail-safe default.
+ */
+export function setPermissionMode(mode: string | null): void {
+  currentPermissionMode = mode;
+}
+
 class VoxTransport {
   private registryCache: RegistryFile | null = null;
   private registryIndex: RegistryIndex | null = null;
@@ -400,7 +430,11 @@ class VoxTransport {
     );
     if (action?.handler_kind === 'mcp') {
       const tool = action.mcp_name ?? canonical;
-      const result = await invoke<any>('invoke_mcp_tool', { tool, args });
+      const result = await invoke<any>('invoke_mcp_tool', {
+        tool,
+        args,
+        permissionMode: currentPermissionMode,
+      });
       const isError =
         result != null &&
         typeof result === 'object' &&
@@ -439,7 +473,11 @@ class VoxTransport {
     tool: string,
     args: Record<string, unknown> = {},
   ): Promise<{ is_error?: boolean; result?: unknown }> {
-    return invoke('invoke_mcp_tool', { tool, args });
+    return invoke('invoke_mcp_tool', {
+      tool,
+      args,
+      permissionMode: currentPermissionMode,
+    });
   }
 
   openLocator(locator: OpenLocator): Promise<OpenOutcome> {
@@ -521,6 +559,44 @@ class VoxTransport {
   mercatusSaveConfig(config: unknown): Promise<void> {
     return invoke('mercatus_save_config', { config });
   }
+
+  /** Vox Urbs (gamify town): workspace crate/file scan for the town layout. */
+  workspaceTownScan(): Promise<TownScan> {
+    return invoke<TownScan>('workspace_town_scan');
+  }
+
+  /** Vox Urbs: CI fleet status tap (CASTRVM landmark). */
+  harnessCiFleetStatus(): Promise<HarnessCiFleetDto> {
+    return invoke<HarnessCiFleetDto>('harness_ci_fleet_status');
+  }
+
+  /** Vox Urbs: VCS branch/PR status tap (PORTVS landmark). */
+  vcsTownStatus(): Promise<HarnessVcsTownDto> {
+    return invoke<HarnessVcsTownDto>('vcs_town_status');
+  }
+
+  /** Vox Urbs: hopper queue tap (PORTVS ship count). */
+  hopperList(): Promise<HarnessHopperItemDto[]> {
+    return invoke<HarnessHopperItemDto[]>('hopper_list');
+  }
+}
+
+/** Mirrors Rust CI fleet status DTO consumed by the Vox Urbs harness taps. */
+export interface HarnessCiFleetDto {
+  runners: { name: string; busy: boolean; online: boolean }[];
+  queued: number;
+}
+
+/** Mirrors Rust VCS town status DTO consumed by the Vox Urbs harness taps. */
+export interface HarnessVcsTownDto {
+  branches: { name: string; is_head: boolean; track: string }[];
+  prs: { number: number; title: string; head_ref: string }[];
+  prs_available: boolean;
+}
+
+/** Mirrors Rust hopper item DTO consumed by the Vox Urbs harness taps. */
+export interface HarnessHopperItemDto {
+  state: string;
 }
 
 export const voxTransport = new VoxTransport();
@@ -716,6 +792,37 @@ export interface HopperTaskDto {
 /** List hopper task items (see `TasksView` / attention-inbox consumers). */
 export function hopperList(): Promise<HopperTaskDto[]> {
   return invoke<HopperTaskDto[]>('hopper_list');
+}
+
+// ---------------------------------------------------------------------------
+// CodeRabbit sweep transport wrappers.
+// ---------------------------------------------------------------------------
+
+export function codeRabbitTokenPresent(): Promise<boolean> {
+  return invoke<boolean>('coderabbit_token_present');
+}
+
+/** Generic over the view's own `Report` shape — this hub has no opinion on it. */
+export function codeRabbitReport<T = unknown>(): Promise<T> {
+  return invoke<T>('coderabbit_report');
+}
+
+export interface CodeRabbitSweepArgs {
+  since: string;
+  cap: number;
+  rankWeights: string;
+  top: number | null;
+  fullRepo: boolean;
+  [key: string]: unknown;
+}
+
+/** Generic over the view's own `Manifest` shape — this hub has no opinion on it. */
+export function codeRabbitPlan<T = unknown>(args: CodeRabbitSweepArgs): Promise<T> {
+  return invoke<T>('coderabbit_plan', args);
+}
+
+export function codeRabbitRunAsync(args: CodeRabbitSweepArgs): Promise<void> {
+  return invoke('coderabbit_run_async', args);
 }
 
 

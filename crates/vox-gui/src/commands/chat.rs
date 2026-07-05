@@ -1,8 +1,12 @@
 //! GUI chat session persistence via `conversations` / `conversation_messages`.
 
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 use vox_db::DbConnectSurface;
 use vox_db::connect_workspace_journey_optional;
+
+use crate::commands::daemon::PersistentDaemon;
 
 #[derive(Debug, Serialize)]
 pub struct ChatSessionDto {
@@ -126,6 +130,7 @@ pub struct ChatAppendInput {
 pub async fn chat_append_message<R: tauri::Runtime>(
     app_handle: tauri::AppHandle<R>,
     input: ChatAppendInput,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<i64, String> {
     if input.session_id.trim().is_empty() {
         return Err("session_id must not be empty".to_string());
@@ -161,9 +166,10 @@ pub async fn chat_append_message<R: tauri::Runtime>(
     if let Some(classified) = vox_orchestrator::secretary::classify(&input.role, &input.content) {
         let session_id = input.session_id.clone();
         let app_handle_clone = app_handle.clone();
+        let daemon: Arc<PersistentDaemon> = daemon.inner().clone();
         tokio::spawn(async move {
-            use vox_cli_core::daemon_ipc::dispatch::call_daemon;
             use vox_foundation::protocol::orch_daemon_method;
+            use vox_orchestrator::orch_daemon::OrchDaemonClient;
 
             let params = serde_json::json!({
                 "description": classified.intent,
@@ -175,14 +181,19 @@ pub async fn chat_append_message<R: tauri::Runtime>(
                 "dry_run": null,
                 "active_skill": null,
             });
-            match call_daemon(
-                "vox-orchestrator-d",
-                orch_daemon_method::SUBMIT_TASK,
-                params,
-                false,
-            )
-            .await
-            {
+            let submit_result = async {
+                let addr = daemon.ensure().await?;
+                let client = match daemon.token().await {
+                    Some(token) => OrchDaemonClient::with_token(addr, token),
+                    None => OrchDaemonClient::new(addr),
+                };
+                client
+                    .call(orch_daemon_method::SUBMIT_TASK, params)
+                    .await
+                    .map_err(|e| e.to_string())
+            }
+            .await;
+            match submit_result {
                 Ok(raw) => {
                     let item_id = raw
                         .get("task_id")
@@ -244,7 +255,9 @@ mod tests {
 
     #[tokio::test]
     async fn chat_append_rejects_empty_session_id() {
+        use tauri::Manager;
         let app = tauri::test::mock_app();
+        app.manage(Arc::new(PersistentDaemon::default()));
         let input = ChatAppendInput {
             session_id: "   ".to_string(),
             role: "user".to_string(),
@@ -252,7 +265,8 @@ mod tests {
             task_id: None,
             model_id: None,
         };
-        let err = chat_append_message(app.handle().clone(), input)
+        let daemon = app.state::<Arc<PersistentDaemon>>();
+        let err = chat_append_message(app.handle().clone(), input, daemon)
             .await
             .expect_err("empty session");
         assert!(err.contains("session_id"));

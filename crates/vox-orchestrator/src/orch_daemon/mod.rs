@@ -28,6 +28,96 @@ pub fn normalize_tcp_bind_addr(raw: &str) -> String {
     s.strip_prefix("tcp://").unwrap_or(s).trim().to_string()
 }
 
+/// Is `addr` (a normalized `host:port` bind address) a loopback address?
+/// Recognizes `127.0.0.1`, `localhost`, and `::1` (with or without a trailing
+/// `:port`; `::1` may also appear bracketed as `[::1]:port`). Used to decide
+/// whether `vox-orchestrator-d` may bind without an explicitly operator-set
+/// `VOX_ORCHESTRATOR_DAEMON_TOKEN` (T0.2).
+#[must_use]
+pub fn is_loopback_bind_addr(addr: &str) -> bool {
+    let s = addr.trim();
+    // Bare unbracketed IPv6 loopback, with no `:port` suffix (ambiguous to
+    // split on ':' otherwise, since the host itself contains colons).
+    if s == "::1" {
+        return true;
+    }
+    // Bracketed IPv6 host (`[::1]:9745` or bare `[::1]`).
+    if let Some(rest) = s.strip_prefix('[') {
+        if let Some(end) = rest.find(']') {
+            let host = &rest[..end];
+            return host == "::1";
+        }
+        return false;
+    }
+    // Host portion is everything before the last `:port`, if present and the
+    // remainder after it parses as a port number; otherwise treat the whole
+    // string as the host (covers bare "localhost" / "127.0.0.1").
+    let host = match s.rsplit_once(':') {
+        Some((h, port)) if !h.is_empty() && port.chars().all(|c| c.is_ascii_digit()) => h,
+        _ => s,
+    };
+    matches!(host, "127.0.0.1" | "localhost" | "::1")
+}
+
+/// Constant-time byte comparison to avoid a timing side channel on the daemon
+/// auth token (T0.2). Mirrors the existing helper of the same name/shape in
+/// `vox-orchestrator-mcp::http_gateway` and `vox-actor-runtime::auth` — kept
+/// as a small local copy here rather than a shared dependency, matching how
+/// those other crates each already define their own.
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    let mut diff = (a.len() != b.len()) as u8;
+    for i in 0..a.len().max(b.len()) {
+        let ai = *a.get(i).unwrap_or(&0);
+        let bi = *b.get(i).unwrap_or(&0);
+        diff |= ai ^ bi;
+    }
+    diff == 0
+}
+
+#[cfg(test)]
+mod constant_time_eq_tests {
+    use super::*;
+
+    #[test]
+    fn equal_bytes_match() {
+        assert!(constant_time_eq(b"same-token", b"same-token"));
+        assert!(constant_time_eq(b"", b""));
+    }
+
+    #[test]
+    fn different_bytes_do_not_match() {
+        assert!(!constant_time_eq(b"correct-token", b"wrong-token-value"));
+        assert!(!constant_time_eq(b"short", b"shorter-or-longer"));
+        assert!(!constant_time_eq(b"a", b""));
+        assert!(!constant_time_eq(b"", b"a"));
+    }
+}
+
+#[cfg(test)]
+mod loopback_bind_addr_tests {
+    use super::*;
+
+    #[test]
+    fn loopback_addresses_recognized() {
+        assert!(is_loopback_bind_addr("127.0.0.1:9745"));
+        assert!(is_loopback_bind_addr("127.0.0.1"));
+        assert!(is_loopback_bind_addr("localhost:9745"));
+        assert!(is_loopback_bind_addr("localhost"));
+        assert!(is_loopback_bind_addr("::1"));
+        assert!(is_loopback_bind_addr("[::1]:9745"));
+        assert!(is_loopback_bind_addr("[::1]"));
+    }
+
+    #[test]
+    fn non_loopback_addresses_rejected() {
+        assert!(!is_loopback_bind_addr("0.0.0.0:9745"));
+        assert!(!is_loopback_bind_addr("0.0.0.0"));
+        assert!(!is_loopback_bind_addr("192.168.1.5:9745"));
+        assert!(!is_loopback_bind_addr("example.com:9745"));
+        assert!(!is_loopback_bind_addr("[::]:9745"));
+    }
+}
+
 /// Stdio transport for `vox-orchestrator-d` (not a TCP bind address).
 #[must_use]
 pub fn is_stdio_transport(raw: &str) -> bool {
@@ -76,6 +166,14 @@ async fn write_frame<W: AsyncWriteExt + Unpin>(
 /// the peer disconnects (a write error ends the stream). The daemon initiates
 /// every frame; the subscriber never polls. An initial snapshot is sent
 /// immediately, then a new frame is emitted on each change.
+///
+/// T1.3 note: `orch.subscribe` carries whole-status *snapshots*, not discrete
+/// durably-ided operations — there is no `OperationId`-keyed history to replay
+/// here the way `stream_agent_events` replays durable Tier-A ops. A
+/// `from_offset` param would have nothing meaningful to do, so this function
+/// intentionally does not accept one; a reconnecting client just gets the
+/// current snapshot immediately (which is already always-fresh, unlike a
+/// discrete event log).
 async fn stream_status_events<W: AsyncWriteExt + Unpin>(
     id: &str,
     orch: &Arc<Orchestrator>,
@@ -103,11 +201,114 @@ async fn stream_status_events<W: AsyncWriteExt + Unpin>(
 /// ends the stream). Fully push-driven — no polling. The bus has no replay, so
 /// only events emitted after this subscription are delivered; broadcast lag
 /// (slow consumer past the channel capacity) is skipped rather than fatal.
-async fn stream_agent_events<W: AsyncWriteExt + Unpin>(
+///
+/// T1.2 note on Tier-B batching/coalescing: the plan language calls for the
+/// daemon relay to batch/coalesce Tier-B frames (`TokenStreamed` etc.) so a
+/// slow client lags on tokens, never on lifecycle. This was evaluated and
+/// deliberately deferred rather than implemented here: the wire contract for
+/// this stream (`OrchDaemonClient::subscribe_with_method`, see
+/// `orch_daemon/client.rs`) forwards each `DispatchPayload::Event.value` to
+/// callers as **one serialized `AgentEvent`** (`{id, timestamp_ms, kind}`);
+/// existing consumers (dashboard SSE bridges, CLI subscribers) deserialize
+/// each pushed value as a single event, not an array. Coalescing multiple
+/// Tier-B events into one frame would require either (a) changing that wire
+/// contract (a breaking change to every consumer, out of scope for a T1.2
+/// reliability fix) or (b) a non-standard sentinel/array-vs-object framing
+/// distinguished per-message (meaningfully more complex, and risks
+/// destabilizing this already-working streaming path for a nice-to-have).
+/// What *is* already true, and was verified rather than assumed: this loop
+/// never blocks indefinitely on a slow client — `write_frame` bounds each
+/// write to the size of one JSON line, and a genuinely stuck TCP write
+/// eventually errors (peer closed / OS buffer semantics) rather than hanging
+/// forever; and `RecvError::Lagged` already means a slow consumer skips
+/// stale broadcast entries instead of blocking the sender. So the "never
+/// lags on lifecycle" property holds today at the *broadcast* layer (Tier-A
+/// events are never the ones silently dropped by `Lagged`, because Tier-A
+/// callers durably record them independently of bus delivery — see
+/// `events::is_tier_a`); it just isn't reinforced by frame-level batching in
+/// this relay loop. Follow-up: introduce a versioned array/batch frame kind
+/// in `vox_foundation::protocol::DispatchPayload` and update
+/// `subscribe_with_method` to unwrap it, then reintroduce coalescing here.
+/// One durable Tier-A op re-shaped as a replay frame value (T1.3). Deliberately
+/// **not** disguised as an `AgentEvent` — reconstructing the original
+/// `AgentEventKind` from a durable `OperationKind` would need a fragile
+/// reverse-mapping (the two enums are not 1:1; several `AgentEventKind`
+/// variants carry fields `OperationKind` never recorded). Instead this is an
+/// honest, distinctly-shaped envelope a caller can tell apart from a live
+/// `AgentEvent` frame (`replay: true`, `op_id` instead of live `id`). Existing
+/// consumers (dashboard/GUI bridges) only forward `Value` verbatim today — see
+/// `crates/vox-gui/src/commands/orchestrator.rs`'s `spawn_agent_event_stream`
+/// — so this new shape does not break them; a caller that cares distinguishes
+/// replay frames from live ones by checking for the `replay` key.
+fn replay_frame_value(entry: &vox_orchestrator_queue::oplog::OperationEntry) -> serde_json::Value {
+    serde_json::json!({
+        "replay": true,
+        "op_id": entry.id.0,
+        "agent_id": entry.agent_id.0,
+        "timestamp_ms": entry.timestamp_ms,
+        "description": entry.description,
+        "kind": serde_json::to_value(&entry.kind).unwrap_or(serde_json::Value::Null),
+    })
+}
+
+/// [`stream_agent_events`], optionally preceded by a **replay phase** (T1.3)
+/// when `from_offset` is `Some`: every durable Tier-A op with `op_id >
+/// from_offset` for this daemon's repository is pushed (oldest-first, each as
+/// a [`replay_frame_value`] envelope) *before* the live-tail loop begins.
+/// `from_offset` absent reproduces today's behavior exactly (live-tail only,
+/// no replay, no back-compat break for existing callers).
+///
+/// Known limitation (documented per plan rather than built out): there is a
+/// narrow window between "replay query executed" and "live subscription
+/// established" in which a new Tier-A op could land and be missed by both —
+/// the replay already ran, and the live `rx.recv()` subscription is created
+/// strictly after it. Closing this gap fully would mean subscribing to the
+/// live bus (buffering) *before* running the replay query, then de-duplicating
+/// against whatever replay returns by `op_id`. That is a bigger redesign than
+/// this task's scope; the accepted fallback is a best-effort narrow gap. A
+/// client that needs gapless delivery can mitigate by reconnecting with
+/// `from_offset` set to the last op_id/event id it saw, same as the
+/// Lagged-reconnect story below.
+async fn stream_agent_events_from<W: AsyncWriteExt + Unpin>(
     id: &str,
     orch: &Arc<Orchestrator>,
     out: &mut W,
+    from_offset: Option<u64>,
 ) -> anyhow::Result<()> {
+    if let Some(since) = from_offset {
+        if let Some(db) = orch.db() {
+            let repo = crate::lineage::repository_id();
+            match vox_orchestrator_queue::oplog::list_from_db_since(&db, repo.as_str(), since).await
+            {
+                Ok(entries) => {
+                    for entry in &entries {
+                        let frame = DispatchResponse {
+                            id: id.to_string(),
+                            payload: DispatchPayload::Event {
+                                value: replay_frame_value(entry),
+                            },
+                        };
+                        write_frame(out, &frame).await?;
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        from_offset = since,
+                        "orch.subscribe_events: replay query failed; proceeding to live-tail \
+                         without replay (client may be missing durable history)"
+                    );
+                }
+            }
+        } else {
+            tracing::warn!(
+                from_offset = since,
+                "orch.subscribe_events: from_offset requested but no DB attached; \
+                 no durable history to replay, proceeding straight to live-tail"
+            );
+        }
+    }
+
     let mut rx = orch.event_bus().subscribe();
     loop {
         match rx.recv().await {
@@ -120,9 +321,41 @@ async fn stream_agent_events<W: AsyncWriteExt + Unpin>(
                 // Errors once the peer closes the connection, ending the stream.
                 write_frame(out, &frame).await?;
             }
-            // Slow consumer fell behind the broadcast capacity — skip the gap
-            // and keep streaming rather than dropping the subscriber.
-            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+            // Slow consumer fell behind the broadcast capacity. Always log the
+            // skip count (T1.3) — previously silent. Behavior then forks on
+            // whether this subscriber is offset-aware:
+            //   * offset-aware (`from_offset.is_some()`): end the stream with a
+            //     structured error naming a reconnect offset, rather than
+            //     silently continuing to lose events under an API the client
+            //     has already opted into being able to recover via.
+            //   * legacy (no `from_offset`): keep the existing `continue`
+            //     behavior unchanged — an existing non-offset-aware caller has
+            //     no way to ask for a resumable reconnect, so ending the
+            //     stream here would just be a regression (stream dies with no
+            //     recovery path) rather than an improvement.
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                tracing::warn!(
+                    skipped,
+                    offset_aware = from_offset.is_some(),
+                    "orch.subscribe_events: broadcast receiver lagged, skipped {skipped} events"
+                );
+                if from_offset.is_some() {
+                    let frame = DispatchResponse {
+                        id: id.to_string(),
+                        payload: DispatchPayload::Error {
+                            message: format!(
+                                "lagged: skipped {skipped} live events; reconnect with a \
+                                 from_offset at or after the last op_id/event id you \
+                                 successfully received"
+                            ),
+                            code: 2,
+                        },
+                    };
+                    let _ = write_frame(out, &frame).await;
+                    return Ok(());
+                }
+                continue;
+            }
             // Sender (orchestrator) dropped — nothing more will arrive.
             Err(tokio::sync::broadcast::error::RecvError::Closed) => return Ok(()),
         }
@@ -542,8 +775,48 @@ pub async fn dispatch_request(
                 .get("reason")
                 .and_then(|x| x.as_str())
                 .map(ToString::to_string);
+            let assigned = orch.agent_assigned_to_task(TaskId(task_id));
+            let reason_for_oplog = reason.clone();
             match orch.doubt_task(TaskId(task_id), reason) {
-                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Ok(outcome) => {
+                    // T1.2: durable TaskDoubted BEFORE the bus broadcast, mirroring the MCP
+                    // `doubt_task` tool's wiring (task_tools/lifecycle.rs) for this second
+                    // (daemon RPC) call path into `Orchestrator::doubt_task`. `doubt_task`
+                    // no longer emits on the event bus itself — we record durably first,
+                    // then broadcast via `emit_doubt_events`.
+                    orch.record_operation(
+                        assigned.unwrap_or(crate::AgentId(0)),
+                        crate::oplog::OperationKind::TaskDoubted {
+                            task_id,
+                            reason: reason_for_oplog,
+                        },
+                        format!("Task {task_id} doubted"),
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await;
+                    // T1.1 follow-up: durable FeedbackRequested{kind:"doubt"} for the
+                    // Doubt-kind feedback item, mirroring the MCP doubt_task tool's
+                    // wiring (task_tools/lifecycle.rs) for this call path too.
+                    orch.record_operation(
+                        assigned.unwrap_or(crate::AgentId(0)),
+                        crate::oplog::OperationKind::FeedbackRequested {
+                            request_id: outcome.feedback_id.0.clone(),
+                            task_id: Some(task_id),
+                            kind: "doubt".into(),
+                        },
+                        format!("Feedback requested (doubt): {}", outcome.feedback_id.0),
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await;
+                    orch.emit_doubt_events(TaskId(task_id), &outcome);
+                    response_result(&req.id, serde_json::json!({ "ok": true }))
+                }
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }
@@ -557,7 +830,23 @@ pub async fn dispatch_request(
                 .and_then(|x| x.as_str())
                 .map(ToString::to_string);
             match orch.overrule_task(TaskId(task_id), reason) {
-                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Ok(outcome) => {
+                    // T1.2 follow-up: durable TaskComplete BEFORE the bus broadcast,
+                    // mirroring the MCP resolve-feedback overrule wiring in
+                    // feedback_tools.rs for this call path too.
+                    orch.record_operation(
+                        outcome.agent_id,
+                        crate::oplog::OperationKind::TaskComplete { task_id },
+                        format!("Task {} overruled", task_id),
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await;
+                    orch.emit_overrule_events(&outcome);
+                    response_result(&req.id, serde_json::json!({ "ok": true }))
+                }
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }
@@ -594,6 +883,77 @@ pub async fn dispatch_request(
         }
         orch_daemon_method::VCS_ISOLATION_SET_STRATEGY => {
             handle_vcs_isolation_set_strategy(&req.id, &orch, &req.params)
+        }
+        orch_daemon_method::SAFETY_BUDGET_SIGNALS => {
+            let budget_manager = orch.budget_manager_handle();
+            let bm = crate::sync_lock::rw_read(&*budget_manager);
+            let status = orch.status();
+            let agents: Vec<serde_json::Value> = status
+                .agents
+                .iter()
+                .map(|a| {
+                    let signal = bm.agent_budget_signal(a.id);
+                    serde_json::json!({
+                        "id": a.id.0,
+                        "name": a.name,
+                        "signal": signal,
+                    })
+                })
+                .collect();
+            response_result(&req.id, serde_json::json!({ "agents": agents }))
+        }
+        orch_daemon_method::SAFETY_LEDGER => {
+            let filter_agent = req.params.get("agent_id").and_then(|x| x.as_u64());
+            let ledger_handle = orch.tool_ledger_handle();
+            let ledger = ledger_handle.read().unwrap();
+            let snapshot = ledger.snapshot();
+            let receipts: Vec<serde_json::Value> = snapshot
+                .iter()
+                .filter(|(_, (aid, _))| filter_agent.is_none_or(|target| aid.0 == target))
+                .map(|(id, (aid, tool))| {
+                    serde_json::json!({
+                        "receipt_id": id,
+                        "agent_id": aid.0,
+                        "tool_name": tool,
+                    })
+                })
+                .collect();
+            response_result(&req.id, serde_json::json!({ "receipts": receipts }))
+        }
+        orch_daemon_method::SAFETY_LOCKS => {
+            let snapshot = orch.resource_locks().snapshot();
+            let locks: Vec<serde_json::Value> = snapshot
+                .iter()
+                .map(|lock| {
+                    serde_json::json!({
+                        "resource_id": lock.resource_id,
+                        "kind": lock.kind,
+                        "holder": lock.holder.0,
+                        "expires_ms": lock.expires_ms,
+                    })
+                })
+                .collect();
+            response_result(&req.id, serde_json::json!({ "locks": locks }))
+        }
+        orch_daemon_method::ATTENTION_SNAPSHOT => {
+            let budget_manager = orch.budget_manager_handle();
+            let bm = crate::sync_lock::rw_read(&*budget_manager);
+            let snap = bm.attention_snapshot();
+
+            let config_handle = orch.config_handle();
+            let config = crate::sync_lock::rw_read(&*config_handle);
+
+            response_result(
+                &req.id,
+                serde_json::json!({
+                    "snapshot": snap,
+                    "config": {
+                        "attention_enabled": config.attention_enabled,
+                        "attention_budget_ms": config.attention_budget_ms,
+                        "attention_alert_threshold": config.attention_alert_threshold,
+                    },
+                }),
+            )
         }
         other => response_err(&req.id, format!("unknown method: {other}")),
     }
@@ -667,6 +1027,8 @@ mod isolation_dispatch_tests {
             id: "1".to_string(),
             method: method.to_string(),
             params,
+            auth_token: None,
+            permission_mode: None,
         }
     }
 
@@ -797,6 +1159,8 @@ mod task_dispatch_tests {
             id: "1".to_string(),
             method: method.to_string(),
             params,
+            auth_token: None,
+            permission_mode: None,
         }
     }
 
@@ -1001,6 +1365,7 @@ async fn handle_connection(
     repository_id: String,
     orch: Arc<Orchestrator>,
     extra: Option<Arc<dyn ExtraDispatch>>,
+    token: Option<Arc<str>>,
 ) -> anyhow::Result<()> {
     let (read_half, mut write_half) = socket.split();
     let mut reader = BufReader::new(read_half);
@@ -1023,13 +1388,34 @@ async fn handle_connection(
                 continue;
             }
         };
+        // Auth gate (T0.2): every method — including SUBSCRIBE/SUBSCRIBE_EVENTS
+        // and the `extra` dispatch — must pass this check before being handled.
+        // Only enforced when the daemon has a configured token; a wrong or
+        // missing token gets a clear error response and the connection is left
+        // open (matching the invalid-JSON-parse path) so a client can retry
+        // with a corrected token on the same connection. The byte comparison
+        // itself is constant-time (mirroring the HTTP gateway's bearer-token
+        // check) to avoid a timing side channel on the secret; the `is_some()`
+        // branch above is not secret-dependent, so it does not need to be.
+        if let Some(expected) = token.as_deref() {
+            let provided = req.auth_token.as_deref().unwrap_or("");
+            if !constant_time_eq(provided.as_bytes(), expected.as_bytes()) {
+                let resp = response_err(
+                    &req.id,
+                    "unauthorized: missing or invalid daemon auth token",
+                );
+                write_frame(&mut write_half, &resp).await?;
+                continue;
+            }
+        }
         if req.method == orch_daemon_method::SUBSCRIBE {
             // Long-lived push stream; returns when the peer disconnects.
             stream_status_events(&req.id, &orch, &mut write_half).await?;
             break;
         }
         if req.method == orch_daemon_method::SUBSCRIBE_EVENTS {
-            stream_agent_events(&req.id, &orch, &mut write_half).await?;
+            let from_offset = parse_from_offset(&req.params);
+            stream_agent_events_from(&req.id, &orch, &mut write_half, from_offset).await?;
             break;
         }
         if let Some(ex) = extra.as_ref() {
@@ -1044,6 +1430,15 @@ async fn handle_connection(
     Ok(())
 }
 
+/// Parse the optional `params.from_offset` (T1.3 replay cursor) from a
+/// `SUBSCRIBE_EVENTS` request. Absent/non-numeric yields `None`, reproducing
+/// today's live-tail-only behavior — this is intentionally lenient (no error
+/// response for a malformed value) since a subscribe request has no normal
+/// error-response path once streaming begins.
+fn parse_from_offset(params: &serde_json::Value) -> Option<u64> {
+    params.get("from_offset").and_then(|v| v.as_u64())
+}
+
 /// Accept connections until `listener` is dropped (runs forever on success).
 pub async fn serve_listener(
     listener: TcpListener,
@@ -1051,17 +1446,20 @@ pub async fn serve_listener(
     repository_id: String,
     orch: Arc<Orchestrator>,
 ) -> anyhow::Result<()> {
-    serve_listener_with_extra(listener, bind_display, repository_id, orch, None).await
+    serve_listener_with_extra(listener, bind_display, repository_id, orch, None, None).await
 }
 
 /// [`serve_listener`] with an optional [`ExtraDispatch`] hook (the daemon binary
-/// wires one carrying its MCP `ServerState`).
+/// wires one carrying its MCP `ServerState`) and an optional daemon auth
+/// `token` (T0.2) — when `Some`, every connection must present a matching
+/// `DispatchRequest.auth_token` or is rejected before any dispatch.
 pub async fn serve_listener_with_extra(
     listener: TcpListener,
     bind_display: String,
     repository_id: String,
     orch: Arc<Orchestrator>,
     extra: Option<Arc<dyn ExtraDispatch>>,
+    token: Option<Arc<str>>,
 ) -> anyhow::Result<()> {
     tracing::info!(bind = %bind_display, "vox-orchestrator-d listening");
     loop {
@@ -1070,8 +1468,9 @@ pub async fn serve_listener_with_extra(
         let repo = repository_id.clone();
         let o = orch.clone();
         let ex = extra.clone();
+        let tok = token.clone();
         tokio::spawn(async move {
-            if let Err(e) = handle_connection(socket, repo, o, ex).await {
+            if let Err(e) = handle_connection(socket, repo, o, ex, tok).await {
                 tracing::debug!(error = %e, "orch daemon connection closed with error");
             }
         });
@@ -1084,18 +1483,28 @@ pub async fn run_tcp_server(
     repository_id: String,
     orch: Arc<Orchestrator>,
 ) -> anyhow::Result<()> {
-    run_tcp_server_with_extra(bind, repository_id, orch, None).await
+    run_tcp_server_with_extra(bind, repository_id, orch, None, None).await
 }
 
-/// [`run_tcp_server`] with an optional [`ExtraDispatch`] hook.
+/// [`run_tcp_server`] with an optional [`ExtraDispatch`] hook and an optional
+/// daemon auth `token` (T0.2).
 pub async fn run_tcp_server_with_extra(
     bind: &str,
     repository_id: String,
     orch: Arc<Orchestrator>,
     extra: Option<Arc<dyn ExtraDispatch>>,
+    token: Option<Arc<str>>,
 ) -> anyhow::Result<()> {
     let listener = TcpListener::bind(bind).await?;
-    serve_listener_with_extra(listener, bind.to_string(), repository_id, orch, extra).await
+    serve_listener_with_extra(
+        listener,
+        bind.to_string(),
+        repository_id,
+        orch,
+        extra,
+        token,
+    )
+    .await
 }
 
 /// Read newline-delimited [`DispatchRequest`] from stdin; write [`DispatchResponse`] lines to stdout.
@@ -1140,7 +1549,8 @@ pub async fn run_stdio_server_with_extra(
             break;
         }
         if req.method == orch_daemon_method::SUBSCRIBE_EVENTS {
-            stream_agent_events(&req.id, &orch, &mut stdout).await?;
+            let from_offset = parse_from_offset(&req.params);
+            stream_agent_events_from(&req.id, &orch, &mut stdout, from_offset).await?;
             break;
         }
         if let Some(ex) = extra.as_ref() {

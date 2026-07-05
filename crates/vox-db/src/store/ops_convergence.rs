@@ -115,6 +115,48 @@ impl crate::VoxDb {
         .map_err(StoreError::Turso)
     }
 
+    /// Highest `op_id` currently persisted in `convergence_op_log`, or `None` if the
+    /// table has no rows yet. Used by `OpLog::with_db` (T1.3) to initialize the
+    /// in-process [`OperationIdGenerator`](vox_orchestrator_queue equivalent) from
+    /// durable state on restart, rather than always starting a fresh generator at 1.
+    pub async fn max_convergence_op_id(&self) -> Result<Option<u64>, StoreError> {
+        let conn = self.conn.clone();
+        let mut rows = conn
+            .query("SELECT MAX(op_id) FROM convergence_op_log", params![])
+            .await
+            .map_err(StoreError::Turso)?;
+
+        if let Some(row) = rows.next().await.map_err(StoreError::Turso)? {
+            let max_id: Option<i64> = row.get(0).ok().flatten();
+            Ok(max_id.map(|v| v as u64))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Delete `convergence_op_log` rows with `op_id_lo < op_id <= op_id_hi`
+    /// (T1.6 warm-tier pruning after a checkpoint covers them). Returns the
+    /// number of rows deleted.
+    pub async fn prune_convergence_op_log_up_to(
+        &self,
+        op_id_lo: u64,
+        op_id_hi: u64,
+    ) -> Result<u64, StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let affected = conn
+                    .execute(
+                        "DELETE FROM convergence_op_log WHERE op_id > ?1 AND op_id <= ?2",
+                        params![op_id_lo as i64, op_id_hi as i64],
+                    )
+                    .await?;
+                Ok::<u64, StoreError>(affected)
+            })
+            .await
+    }
+
     /// Load the most recent `limit` rows from `convergence_op_log`, ordered newest-first.
     pub async fn load_recent_convergence_op_log(
         &self,

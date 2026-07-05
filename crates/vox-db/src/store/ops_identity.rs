@@ -146,6 +146,81 @@ impl VoxDb {
             .await
     }
 
+    /// Upsert a linked external-provider identity (e.g. GitHub) for a Vox user in the
+    /// LUDUS identity-federation schema (`vox_identities`, schema V19).
+    ///
+    /// `provider_login` is a mutable display name (shown to the user only); `provider_id`
+    /// is expected to be the provider's stable identifier and is used for lookups.
+    /// `access_token_ref` is a reference into `vox-secrets`, never the raw token.
+    pub async fn upsert_vox_identity(
+        &self,
+        vox_user_id: &str,
+        provider: &str,
+        provider_id: &str,
+        provider_login: Option<&str>,
+        access_token_ref: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        let vox_user_id = vox_user_id.to_string();
+        let provider = provider.to_string();
+        let provider_id = provider_id.to_string();
+        let provider_login = provider_login.map(|s| s.to_string());
+        let access_token_ref = access_token_ref.map(|s| s.to_string());
+
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO vox_identities
+                        (vox_user_id, provider, provider_id, provider_login, access_token_ref, linked_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, strftime('%s', 'now'))
+                     ON CONFLICT(vox_user_id, provider) DO UPDATE SET
+                        provider_id = excluded.provider_id,
+                        provider_login = excluded.provider_login,
+                        access_token_ref = excluded.access_token_ref,
+                        linked_at = excluded.linked_at",
+                    params![
+                        vox_user_id,
+                        provider,
+                        provider_id,
+                        provider_login,
+                        access_token_ref
+                    ],
+                )
+                .await?;
+                Ok(())
+            })
+            .await
+    }
+
+    /// List all linked external-provider identities for a Vox user.
+    ///
+    /// Returns `(provider, provider_id, provider_login)` tuples.
+    pub async fn get_vox_identities(
+        &self,
+        vox_user_id: &str,
+    ) -> Result<Vec<(String, String, Option<String>)>, StoreError> {
+        let vox_user_id = vox_user_id.to_string();
+        let rows = self
+            .query_all(
+                "SELECT provider, provider_id, provider_login
+                 FROM vox_identities
+                 WHERE vox_user_id = ?1",
+                (vox_user_id,),
+            )
+            .await?;
+
+        rows.into_iter()
+            .map(|r| {
+                Ok((
+                    r.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                    r.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                    r.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                ))
+            })
+            .collect()
+    }
+
     /// Calculate trust decay and remove grants for nodes that exceed the severity threshold in the last 24 hours.
     pub async fn process_reputation_decay(
         &self,

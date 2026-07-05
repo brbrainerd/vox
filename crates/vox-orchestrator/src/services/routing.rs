@@ -992,6 +992,7 @@ mod tests {
                 last_updated_ms: 0,
                 variance: 0.10,
                 is_override: false,
+                outcome_window: Default::default(),
             },
         );
         trust.insert(
@@ -1006,6 +1007,7 @@ mod tests {
                 last_updated_ms: 0,
                 variance: 0.05,
                 is_override: false,
+                outcome_window: Default::default(),
             },
         );
 

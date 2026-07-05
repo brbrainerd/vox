@@ -35,6 +35,7 @@ impl SessionManager {
                     last_active: now_secs(),
                     last_expensive_op_at: None,
                     turns: Vec::new(),
+                    archived_turns: Vec::new(),
                     meta: HashMap::new(),
                     plugin_state: HashMap::new(),
                     turn_count: 0,
@@ -114,7 +115,13 @@ impl SessionManager {
             }
             SessionEvent::Compacted { summary, at, .. } => {
                 let tokens = crate::compaction::CompactionEngine::estimate_tokens(&summary);
-                s.turns.clear();
+                // The persisted `Compacted` event carries only a summary string
+                // (not raw turn content), so replay cannot recover exact dropped
+                // turns from the event log alone. Archive what's known — the
+                // live turns being dropped by this replay step — so at least
+                // in-process compaction (compact_auto's own archival, replayed
+                // via this same event) does not regress to a hard discard.
+                s.archived_turns.append(&mut s.turns);
                 s.turns.push(SessionTurn {
                     role: "system".to_string(),
                     content: format!("[compacted summary]\n{summary}"),

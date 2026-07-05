@@ -15,4 +15,10 @@ ignore = [
   # their upstream's latest release with no fix yet).
   "RUSTSEC-2026-0194",
   "RUSTSEC-2026-0195",
+  # Mirrors the deny.toml ignore: new advisories against already-pinned versions,
+  # fixed by patched wasmtime-wasi/wiggle-generate/memmap2/anyhow releases,
+  # tracked separately.
+  "RUSTSEC-2026-0188",
+  "RUSTSEC-2026-0186",
+  "RUSTSEC-2026-0190",
 ]
