@@ -113,6 +113,12 @@ pub struct Session {
     pub last_expensive_op_at: Option<u64>,
     /// Conversation history (cleared on reset, pruned on compaction).
     pub turns: Vec<SessionTurn>,
+    /// Turns dropped by a compaction pass, archived losslessly (never
+    /// silently discarded). Retrievable via [`Session::archived_turns`].
+    /// Not cleared by `reset()` — archival is permanent history, distinct
+    /// from the live working set.
+    #[serde(default)]
+    pub archived_turns: Vec<SessionTurn>,
     /// Arbitrary per-session key-value metadata.
     pub meta: HashMap<String, String>,
     /// Per-plugin persistent state.
@@ -137,6 +143,7 @@ impl Session {
             last_active: now,
             last_expensive_op_at: None,
             turns: Vec::new(),
+            archived_turns: Vec::new(),
             meta: HashMap::new(),
             plugin_state: HashMap::new(),
             turn_count: 0,
@@ -201,7 +208,11 @@ impl Session {
         cleared
     }
 
-    /// Compact: replace history with a summary turn.
+    /// Compact: replace history with a caller-supplied summary turn.
+    ///
+    /// **Lossless:** every turn removed from the live `turns` list is appended
+    /// to `archived_turns` first, so `compact()` never discards conversation
+    /// content — it is always retrievable via [`Session::archived_turns`].
     pub fn compact(&mut self, summary: &str) -> usize {
         let removed = self.turns.len().saturating_sub(1);
         let summary_tokens = crate::compaction::CompactionEngine::estimate_tokens(summary);
@@ -211,10 +222,86 @@ impl Session {
             tokens: summary_tokens,
             at: now_secs(),
         };
-        self.turns.clear();
+        // Archive every turn being dropped before clearing the working set —
+        // the whole live set is being replaced by the summary turn.
+        self.archived_turns.append(&mut self.turns);
         self.turns.push(summary_turn);
         self.state = SessionState::Compacted;
         removed
+    }
+
+    /// Run an automatic [`crate::compaction::CompactionEngine`] pass over this
+    /// session's live turns, archiving dropped turns losslessly and replacing
+    /// them with a generated summary turn. No-op (returns `None`) when the
+    /// session is not over the engine's compaction threshold.
+    ///
+    /// Unlike [`Session::compact`], this does not require a caller-supplied
+    /// summary — it derives one from the dropped turns themselves — which
+    /// makes it safe to call automatically from message-assembly code paths
+    /// (e.g. immediately before an `llm_chat`/`llm_stream` call) rather than
+    /// only from an explicit, human/agent-triggered MCP tool call.
+    pub fn compact_auto(
+        &mut self,
+        engine: &crate::compaction::CompactionEngine,
+    ) -> Option<crate::compaction::CompactionResult> {
+        let as_turns: Vec<crate::compaction::Turn> = self
+            .turns
+            .iter()
+            .map(|t| crate::compaction::Turn {
+                role: t.role.clone(),
+                content: t.content.clone(),
+                token_estimate: t.tokens,
+            })
+            .collect();
+
+        let result = engine.compact(&as_turns).ok()?;
+        if !result.compacted {
+            return None;
+        }
+
+        // Archive the actual dropped turns losslessly before replacing the
+        // live working set — this is the fix for the "compact() discards
+        // dropped turns" audit defect.
+        let at = now_secs();
+        self.archived_turns
+            .extend(result.dropped_turns.iter().map(|t| SessionTurn {
+                role: t.role.clone(),
+                content: t.content.clone(),
+                tokens: t.token_estimate,
+                at,
+            }));
+
+        let summary = format!(
+            "[auto-compacted {} turn(s); {} -> {} tokens]",
+            result.dropped_count, result.tokens_before, result.tokens_after
+        );
+        let summary_tokens = crate::compaction::CompactionEngine::estimate_tokens(&summary);
+
+        self.turns = result
+            .retained_turns
+            .iter()
+            .map(|t| SessionTurn {
+                role: t.role.clone(),
+                content: t.content.clone(),
+                tokens: t.token_estimate,
+                at,
+            })
+            .collect();
+        self.turns.push(SessionTurn {
+            role: "system".to_string(),
+            content: summary,
+            tokens: summary_tokens,
+            at,
+        });
+        self.state = SessionState::Compacted;
+
+        Some(result)
+    }
+
+    /// Turns dropped by a compaction pass, retrievable after the fact.
+    /// Never mutated except by appending — this is the durable archive.
+    pub fn archived_turns(&self) -> &[SessionTurn] {
+        &self.archived_turns
     }
 
     /// Returns estimated token count of current history.

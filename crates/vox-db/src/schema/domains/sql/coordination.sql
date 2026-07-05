@@ -32,6 +32,23 @@ CREATE INDEX IF NOT EXISTS idx_agent_oplog_ts ON agent_oplog(timestamp_ms);
 CREATE INDEX IF NOT EXISTS idx_agent_oplog_repo ON agent_oplog(repository_id);
 CREATE INDEX IF NOT EXISTS idx_agent_oplog_repo_ts ON agent_oplog(repository_id, timestamp_ms);
 
+-- T1.6: cold-tier checkpoint blobs. Each row is a `Projection::snapshot()`-derived
+-- payload for the ops in (op_id_lo..=op_id_hi] of `agent_oplog`, referenced from an
+-- `OperationKind::Checkpoint { payload_blob_id, .. }` entry in that same table.
+-- `id` is what `payload_blob_id` stores (a plain autoincrement row id, not a CAS
+-- content hash) so `Checkpoint.payload_blob_id: u64` round-trips exactly.
+CREATE TABLE IF NOT EXISTS checkpoint_blobs (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    repository_id TEXT    NOT NULL DEFAULT '',
+    op_id_lo      INTEGER NOT NULL,
+    op_id_hi      INTEGER NOT NULL,
+    blake3        TEXT    NOT NULL,   -- hex blake3 of `payload`, matches Checkpoint.projection_blake3
+    payload       BLOB    NOT NULL,   -- concatenated deterministic Projection snapshots
+    created_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_checkpoint_blobs_repo_hi ON checkpoint_blobs(repository_id, op_id_hi);
+
 CREATE TABLE IF NOT EXISTS a2a_messages (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     message_uuid   TEXT    NOT NULL UNIQUE,

@@ -80,6 +80,71 @@ fn compact_replaces_with_summary() {
     assert_eq!(mgr.get(&id).expect("get").state, SessionState::Compacted);
 }
 
+/// T4.2: `compact()` must not silently discard dropped turns — they must be
+/// retrievable afterward via `Session::archived_turns()` with exact content.
+#[test]
+fn compact_archives_dropped_turns_losslessly() {
+    let (cfg, _dir) = test_config();
+    let mut mgr = SessionManager::new(cfg).expect("create manager");
+    let id = mgr.create(AgentId(1), None).expect("create");
+    mgr.add_turn(&id, "user", "lots of content", 100)
+        .expect("add");
+    mgr.add_turn(&id, "assistant", "response", 50).expect("add");
+
+    mgr.compact(&id, "Session summary: fixed parser")
+        .expect("compact");
+
+    let session = mgr.get(&id).expect("get");
+    let archived = session.archived_turns();
+    assert_eq!(archived.len(), 2, "both original turns must be archived");
+    assert_eq!(archived[0].content, "lots of content");
+    assert_eq!(archived[1].content, "response");
+    // The live turns list now holds only the summary, but the dropped
+    // content is not gone — it survived in the archive.
+    assert_eq!(session.turns.len(), 1);
+}
+
+/// T4.2: automatic compaction (the wiring path used before an LLM call) also
+/// archives losslessly and only fires once the session is over threshold.
+#[test]
+fn compact_auto_noop_under_threshold_then_archives_over_threshold() {
+    let (cfg, _dir) = test_config();
+    let mut mgr = SessionManager::new(cfg).expect("create manager");
+    let id = mgr.create(AgentId(1), None).expect("create");
+    mgr.add_turn(&id, "user", "short", 5).expect("add");
+
+    let engine = crate::compaction::CompactionEngine::default();
+    let session = mgr.get_mut(&id).expect("get_mut");
+    assert!(
+        session.compact_auto(&engine).is_none(),
+        "well under the 128k-token default threshold — must be a no-op"
+    );
+    assert_eq!(session.turns.len(), 1, "no-op must not mutate turns");
+    assert!(session.archived_turns().is_empty());
+
+    // Now push it over a tiny custom threshold and confirm real archival.
+    let tiny = crate::compaction::CompactionEngine::new(crate::compaction::CompactionConfig {
+        max_context_tokens: 100,
+        reserved_tokens: 10,
+        compaction_threshold: 0.5,
+        min_viable_tokens: 5,
+        strategy: crate::compaction::CompactionStrategy::Balanced,
+        head_preserve_tokens: 10,
+        tail_preserve_tokens: 15,
+        complexity_token_weight: 32,
+    });
+    mgr.add_turn(&id, "assistant", "b", 20).expect("add");
+    mgr.add_turn(&id, "user", "c", 20).expect("add");
+    mgr.add_turn(&id, "assistant", "d", 20).expect("add");
+    let session = mgr.get_mut(&id).expect("get_mut");
+    let result = session
+        .compact_auto(&tiny)
+        .expect("must compact — over threshold");
+    assert!(result.compacted);
+    assert!(result.dropped_count > 0);
+    assert_eq!(session.archived_turns().len(), result.dropped_count);
+}
+
 #[test]
 fn set_meta_persisted() {
     let (cfg, _dir) = test_config();

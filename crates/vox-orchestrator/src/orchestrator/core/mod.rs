@@ -40,16 +40,39 @@ impl crate::orchestrator::Orchestrator {
             std::sync::Arc<std::sync::RwLock<crate::queue::AgentQueue>>,
         >::new()));
 
+        // Constructed here (rather than only in the `Self { .. }` literal below) so the
+        // hopper dispatcher's `enqueue_closure` can populate it directly — previously
+        // hopper-dispatched tasks were enqueued onto an agent's queue but never recorded
+        // in `task_assignments`, so `complete_task`/`fail_task` (which look tasks up by
+        // this map) couldn't find them (T1.1 hopper wiring; caught by a RED test).
+        let task_assignments = Arc::new(RwLock::new(HashMap::<
+            crate::types::TaskId,
+            crate::types::AgentId,
+        >::new()));
+
         let enqueue_agents = Arc::clone(&agents);
-        let enqueue_closure = move |task: crate::types::AgentTask| {
-            let agents_lock = enqueue_agents.read().unwrap();
-            if let Some(queue_arc) = agents_lock.values().min_by_key(|q| q.read().unwrap().len()) {
-                let mut queue = queue_arc.write().unwrap();
-                queue.enqueue(task);
-            } else {
-                tracing::warn!("No active agents available to enqueue task: {:?}", task.id);
-            }
-        };
+        let enqueue_assignments = Arc::clone(&task_assignments);
+        let enqueue_closure =
+            move |task: crate::types::AgentTask| -> Option<crate::types::AgentId> {
+                let agents_lock = enqueue_agents.read().unwrap();
+                if let Some((&agent_id, queue_arc)) = agents_lock
+                    .iter()
+                    .min_by_key(|(_, q)| q.read().unwrap().len())
+                {
+                    let task_id = task.id;
+                    let mut queue = queue_arc.write().unwrap();
+                    queue.enqueue(task);
+                    drop(queue);
+                    enqueue_assignments
+                        .write()
+                        .unwrap()
+                        .insert(task_id, agent_id);
+                    Some(agent_id)
+                } else {
+                    tracing::warn!("No active agents available to enqueue task: {:?}", task.id);
+                    None
+                }
+            };
 
         let reprio_agents = Arc::clone(&agents);
         let reprio_closure =
@@ -87,15 +110,22 @@ impl crate::orchestrator::Orchestrator {
             }
         };
 
+        // Constructed here (rather than only in the `Self { .. }` literal below) so the
+        // hopper dispatcher — spawned before `Self` exists — can share the same durable
+        // op-log the rest of the orchestrator uses (T1.1 hopper wiring).
+        let oplog = Arc::new(RwLock::new(crate::oplog::OpLog::default()));
+
         if tokio::runtime::Handle::try_current().is_ok() {
             let dispatcher_rx = event_bus.subscribe();
             let dispatcher_hopper =
                 Arc::clone(&hopper) as Arc<dyn crate::hopper::store::HopperIntake>;
-            tokio::spawn(crate::orchestrator::dispatch::run_dispatcher(
+            let dispatcher_oplog = Arc::clone(&oplog);
+            tokio::spawn(crate::orchestrator::dispatch::run_dispatcher_with_oplog(
                 dispatcher_rx,
                 dispatcher_hopper,
                 enqueue_closure,
                 None,
+                Some(dispatcher_oplog),
             ));
 
             let cascade_rx = event_bus.subscribe();
@@ -128,7 +158,7 @@ impl crate::orchestrator::Orchestrator {
             groups: Arc::new(RwLock::new(AffinityGroupRegistry::defaults())),
             task_id_gen: TaskIdGenerator::new(),
             agent_id_gen: AgentIdGenerator::new(),
-            task_assignments: Arc::new(RwLock::new(HashMap::new())),
+            task_assignments,
             qa_router: Arc::new(RwLock::new(crate::qa::QARouter::new())),
             monitor: Arc::new(RwLock::new(crate::monitor::AiMonitor::new(
                 config.continuation_cooldown_ms,
@@ -156,7 +186,7 @@ impl crate::orchestrator::Orchestrator {
             isolation_policy: Arc::new(RwLock::new(isolation_plan_from_config(&config))),
             task_traces: Arc::new(RwLock::new(HashMap::new())),
             snapshot_store: Arc::new(RwLock::new(crate::snapshot::SnapshotStore::default())),
-            oplog: Arc::new(RwLock::new(crate::oplog::OpLog::default())),
+            oplog,
             conflict_manager: Arc::new(RwLock::new(crate::conflicts::ConflictManager::new())),
             workspace_manager: Arc::new(RwLock::new(crate::workspace::WorkspaceManager::new())),
             db: Arc::new(RwLock::new(None)),
@@ -270,8 +300,10 @@ impl crate::orchestrator::Orchestrator {
 }
 
 mod accessors;
+pub mod checkpoint;
 mod init;
 mod lineage;
+mod rehydrate;
 mod telemetry;
 mod temporal;
 mod usage;

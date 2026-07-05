@@ -199,11 +199,9 @@ pub async fn run_train(
             };
 
             let adapter_dir = output_dir.clone();
-            let git_sha = std::process::Command::new("git")
-                .args(["rev-parse", "--short", "HEAD"])
-                .output()
+            let repo_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            let git_sha = vox_git::read_only(&repo_root, &["rev-parse", "--short", "HEAD"])
                 .ok()
-                .and_then(|o| String::from_utf8(o.stdout).ok())
                 .unwrap_or_default()
                 .trim()
                 .to_string();

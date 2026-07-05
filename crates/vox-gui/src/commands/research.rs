@@ -29,7 +29,11 @@ pub async fn start_research_async(
     verify_claims: Option<bool>,
 ) -> Result<Value, String> {
     let addr = daemon.ensure().await.map_err(|e| e.to_string())?;
-    OrchDaemonClient::new(addr)
+    let client = match daemon.token().await {
+        Some(token) => OrchDaemonClient::with_token(addr, token),
+        None => OrchDaemonClient::new(addr),
+    };
+    client
         .call(
             dei_method::RESEARCH_RUN,
             json!({

@@ -12,7 +12,7 @@ pub use vox_llm_egress::throttle;
 
 pub use chat::{infer_with_retry, llm_chat};
 pub use embed::llm_embed;
-pub use stream::llm_stream;
+pub use stream::{llm_stream, llm_stream_activity};
 pub use types::{LlmChatMessage, LlmConfig, LlmResponse, ModelMetric, ModelRegistryEntry};
 pub use vox_telemetry::{
     FixtureModelIntentResolvedEvent, OrchSubagentDispatchEvent, SubagentDispatchTelemetryPayload,

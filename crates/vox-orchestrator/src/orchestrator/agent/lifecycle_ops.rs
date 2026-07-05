@@ -156,75 +156,126 @@ impl crate::orchestrator::Orchestrator {
             );
             emit_task_cancelled(task_id, agent_id, "populi_remote");
             #[cfg(feature = "populi-transport")]
-            if let (Some(key), Ok(handle)) =
-                (idempotency_key, tokio::runtime::Handle::try_current())
             {
-                let cfg = crate::sync_lock::rw_read(&*self.config).clone();
-                if cfg.populi_remote_execute_experimental {
-                    if let (Some(base), Some(recv_s)) = (
-                        cfg.populi_control_url
-                            .as_deref()
-                            .map(str::trim)
-                            .filter(|s| !s.is_empty())
-                            .map(|s| s.to_string()),
-                        cfg.populi_remote_execute_receiver_agent
-                            .as_deref()
-                            .map(str::trim)
-                            .filter(|s| !s.is_empty()),
-                    ) {
-                        if let Ok(recv_id) = recv_s.parse::<u64>() {
-                            let send_id = cfg
-                                .populi_remote_execute_sender_agent
+                let tid = task_id.0;
+                match (idempotency_key, tokio::runtime::Handle::try_current()) {
+                    (Some(key), Ok(handle)) => {
+                        let cfg = crate::sync_lock::rw_read(&*self.config).clone();
+                        if !cfg.populi_remote_execute_experimental {
+                            tracing::warn!(
+                                task_id = tid,
+                                "populi remote_task_cancel skipped: populi_remote_execute_experimental disabled; remote node was NOT notified of cancellation"
+                            );
+                        } else {
+                            let base = cfg
+                                .populi_control_url
                                 .as_deref()
                                 .map(str::trim)
                                 .filter(|s| !s.is_empty())
-                                .and_then(|s| s.parse::<u64>().ok())
-                                .unwrap_or(1);
-                            let cancel = crate::a2a::RemoteTaskCancel {
-                                idempotency_key: key,
-                                task_id: task_id.0,
-                                reason: Some("orchestrator_cancel".to_string()),
-                            };
-                            let timeout_ms = cfg.populi_http_timeout_ms.max(500);
-                            let tid = task_id.0;
-                            let lease_id = delegate.as_ref().and_then(|d| d.lease_id.clone());
-                            let claimer_node_id =
-                                delegate.as_ref().and_then(|d| d.claimer_node_id.clone());
-                            handle.spawn(async move {
-                                let client =
-                                    vox_populi::http_client::PopuliHttpClient::new_with_timeout(
-                                        &base,
-                                        std::time::Duration::from_millis(timeout_ms),
-                                    )
-                                    .with_env_deliver_token();
-                                if let Err(e) = crate::a2a::relay_remote_task_cancel(
-                                    &client,
-                                    crate::types::AgentId(send_id),
-                                    crate::types::AgentId(recv_id),
-                                    &cancel,
-                                )
-                                .await
-                                {
-                                    tracing::debug!(
-                                        error = %e,
+                                .map(|s| s.to_string());
+                            let recv_s = cfg
+                                .populi_remote_execute_receiver_agent
+                                .as_deref()
+                                .map(str::trim)
+                                .filter(|s| !s.is_empty());
+                            match (base, recv_s) {
+                                (Some(base), Some(recv_s)) => match recv_s.parse::<u64>() {
+                                    Ok(recv_id) => {
+                                        let send_id = cfg
+                                            .populi_remote_execute_sender_agent
+                                            .as_deref()
+                                            .map(str::trim)
+                                            .filter(|s| !s.is_empty())
+                                            .and_then(|s| s.parse::<u64>().ok())
+                                            .unwrap_or(1);
+                                        let cancel = crate::a2a::RemoteTaskCancel {
+                                            idempotency_key: key,
+                                            task_id: tid,
+                                            reason: Some("orchestrator_cancel".to_string()),
+                                        };
+                                        let timeout_ms = cfg.populi_http_timeout_ms.max(500);
+                                        let lease_id =
+                                            delegate.as_ref().and_then(|d| d.lease_id.clone());
+                                        let claimer_node_id = delegate
+                                            .as_ref()
+                                            .and_then(|d| d.claimer_node_id.clone());
+                                        handle.spawn(async move {
+                                            let client =
+                                                vox_populi::http_client::PopuliHttpClient::new_with_timeout(
+                                                    &base,
+                                                    std::time::Duration::from_millis(timeout_ms),
+                                                )
+                                                .with_env_deliver_token();
+                                            match crate::a2a::relay_remote_task_cancel(
+                                                &client,
+                                                crate::types::AgentId(send_id),
+                                                crate::types::AgentId(recv_id),
+                                                &cancel,
+                                            )
+                                            .await
+                                            {
+                                                Ok(()) => {
+                                                    tracing::info!(
+                                                        task_id = tid,
+                                                        "populi remote_task_cancel relay acknowledged"
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    tracing::warn!(
+                                                        error = %e,
+                                                        task_id = tid,
+                                                        "populi remote_task_cancel relay failed; remote node may not have received the cancellation"
+                                                    );
+                                                }
+                                            }
+                                            if let (Some(lease_id), Some(claimer_node_id)) =
+                                                (lease_id, claimer_node_id)
+                                            {
+                                                if let Err(e) = client
+                                                    .exec_lease_release(
+                                                        &vox_populi::transport::RemoteExecLeaseReleaseRequest {
+                                                            lease_id,
+                                                            claimer_node_id,
+                                                        },
+                                                    )
+                                                    .await
+                                                {
+                                                    tracing::warn!(
+                                                        error = %e,
+                                                        task_id = tid,
+                                                        "populi exec_lease_release failed after cancel"
+                                                    );
+                                                }
+                                            }
+                                        });
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!(
+                                            task_id = tid,
+                                            receiver = %recv_s,
+                                            error = %e,
+                                            "populi remote_task_cancel skipped: populi_remote_execute_receiver_agent is not a valid agent id; remote node was NOT notified of cancellation"
+                                        );
+                                    }
+                                },
+                                (base, recv_s) => {
+                                    tracing::warn!(
                                         task_id = tid,
-                                        "populi remote_task_cancel relay failed (best-effort)"
+                                        has_control_url = base.is_some(),
+                                        has_receiver_agent = recv_s.is_some(),
+                                        "populi remote_task_cancel skipped: populi_control_url and/or populi_remote_execute_receiver_agent not configured; remote node was NOT notified of cancellation"
                                     );
                                 }
-                                if let (Some(lease_id), Some(claimer_node_id)) =
-                                    (lease_id, claimer_node_id)
-                                {
-                                    let _ = client
-                                        .exec_lease_release(
-                                            &vox_populi::transport::RemoteExecLeaseReleaseRequest {
-                                                lease_id,
-                                                claimer_node_id,
-                                            },
-                                        )
-                                        .await;
-                                }
-                            });
+                            }
                         }
+                    }
+                    (idempotency_key, handle_result) => {
+                        tracing::warn!(
+                            task_id = tid,
+                            has_idempotency_key = idempotency_key.is_some(),
+                            has_tokio_runtime = handle_result.is_ok(),
+                            "populi remote_task_cancel skipped: missing idempotency key or no tokio runtime available; remote node was NOT notified of cancellation"
+                        );
                     }
                 }
             }

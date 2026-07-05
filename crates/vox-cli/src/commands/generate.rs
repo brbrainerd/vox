@@ -7,6 +7,31 @@
 //!
 //! `--legacy-direct` (deprecated): bypasses the orchestrator and calls the inference server
 //! directly. Pre-Task 1.9 behavior. Prefer orchestrator mode; this flag is an escape hatch.
+//!
+//! ## T2.3: accepted stateless exception (default orchestrator mode)
+//!
+//! Despite the name, `run_via_orchestrator`'s default path does **not** go
+//! through the shared `vox-orchestrator-d` daemon's preflight/permission/
+//! approval chain — it calls `vox_orchestrator_mcp::llm_bridge::vox_local_generate`
+//! in-process, which talks HTTP directly to the MENS inference server
+//! (`VOX_LOCAL_ENDPOINT`) with its own health-probe cache, validate/retry
+//! loop, and response shape (`{code, valid, errors, warnings, attempts}`).
+//!
+//! This is deliberately NOT rerouted onto the daemon's `orch_daemon_method`/
+//! `ai.generate` RPC (`crate::dei_daemon::method::AI_GENERATE`): that RPC's
+//! server-side handler (`vox_orchestrator::orch_daemon::dei_dispatch::handle_ai_generate`)
+//! calls a generic `vox_gamify::ai::FreeAiClient::auto_discover()` text
+//! completion — no MENS-specific validate/retry loop, no `VOX_LOCAL_ENDPOINT`
+//! resolution, and a completely different response shape. Routing through it
+//! would silently change `vox generate`'s behavior rather than just its
+//! transport, which the rest of T2.3's migrations were careful to avoid.
+//! Making `ai.generate`'s daemon handler MENS-aware (so it's a true drop-in)
+//! is a larger backend change than fits T2.3 — scoped down to an explicit
+//! follow-up rather than silently left as an undocumented bypass. Unlike
+//! `dei.rs`'s task/agent/approval RPCs, `vox generate` touches no shared
+//! mutable orchestrator state (no task queue, no approvals) — it is a
+//! stateless codegen call — so the split-brain risk this task's other
+//! migrations close does not apply here in the same way.
 
 use anyhow::{Context, Result};
 use std::io::Write;
@@ -114,6 +139,8 @@ pub async fn run(
 
 type GenerateOutput = (String, Option<bool>, Vec<String>, Vec<String>, u64);
 
+/// T2.3: accepted stateless exception — does NOT route through the shared
+/// `vox-orchestrator-d` daemon; see this module's top doc comment for why.
 #[cfg(feature = "mcp-server")]
 async fn run_via_orchestrator(
     client: &reqwest::Client,

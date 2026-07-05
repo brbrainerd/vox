@@ -1,5 +1,7 @@
 //! Tauri commands for model registry, routing preferences, and scoreboard surfaces.
 
+use std::sync::Arc;
+
 use serde::Serialize;
 use vox_config::AutoRoutingPriority;
 use vox_orchestrator::config::CostPreference;
@@ -7,6 +9,9 @@ use vox_orchestrator::models::{
     ModelRegistry, ModelSelectionRequest, SelectionIntent, TaskCategory, decide,
     select_with_default_registry,
 };
+use vox_orchestrator::orch_daemon::OrchDaemonClient;
+
+use crate::commands::daemon::PersistentDaemon;
 
 #[derive(Debug, Serialize)]
 pub struct ModelCardDto {
@@ -185,7 +190,7 @@ pub async fn get_active_model() -> Result<Option<String>, String> {
         .map(str::to_string))
 }
 
-pub async fn get_routing_summary() -> Result<RoutingSummaryDto, String> {
+pub async fn get_routing_summary(daemon: &PersistentDaemon) -> Result<RoutingSummaryDto, String> {
     let reg = registry_from_cache();
     let cfg = vox_config::load_model_routing_config();
     let active = get_active_model().await.ok().flatten();
@@ -202,14 +207,21 @@ pub async fn get_routing_summary() -> Result<RoutingSummaryDto, String> {
             latency_score: d.score_breakdown.latency_score,
         })
     };
-    let exploration_spent_usd = vox_cli_core::daemon_ipc::dispatch::call_daemon(
-        "vox-orchestrator-d",
-        vox_foundation::protocol::orch_daemon_method::STATUS,
-        serde_json::json!({}),
-        false,
-    )
+    let exploration_spent_usd = async {
+        let addr = daemon.ensure().await.ok()?;
+        let client = match daemon.token().await {
+            Some(token) => OrchDaemonClient::with_token(addr, token),
+            None => OrchDaemonClient::new(addr),
+        };
+        client
+            .call(
+                vox_foundation::protocol::orch_daemon_method::STATUS,
+                serde_json::json!({}),
+            )
+            .await
+            .ok()
+    }
     .await
-    .ok()
     .and_then(|status| {
         status
             .get("global_exploration_cost_usd")
@@ -333,8 +345,10 @@ pub async fn suggest_model_for_task(task: String) -> Result<String, String> {
 
 /// Live routing summary (registry + env; avoids heavy orchestrator bootstrap in Tauri).
 #[tauri::command]
-pub async fn get_routing_summary_live() -> Result<RoutingSummaryDto, String> {
-    get_routing_summary().await
+pub async fn get_routing_summary_live(
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<RoutingSummaryDto, String> {
+    get_routing_summary(&daemon).await
 }
 
 /// Empty-policy JSON returned when no `selection_policy` preference is persisted.

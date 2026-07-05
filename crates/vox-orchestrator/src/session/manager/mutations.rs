@@ -231,6 +231,110 @@ impl SessionManager {
         Ok(removed)
     }
 
+    /// Assemble the message list for an `llm_chat`/`llm_stream` call from a
+    /// session's live turns, running an automatic compaction pass first when
+    /// the session is over `engine`'s threshold.
+    ///
+    /// This is the T4.2 wiring point: message assembly for the LLM call
+    /// **always** goes through this method (or an equivalent that calls
+    /// [`super::super::state::Session::compact_auto`]) rather than reading
+    /// `session.turns` directly, so a conversation driven over the context
+    /// limit is compacted — with dropped turns archived losslessly — before
+    /// the oversized history ever reaches the wire.
+    ///
+    /// Returns the assembled messages plus the [`crate::compaction::CompactionResult`]
+    /// when a compaction pass actually ran (`None` when the session was under
+    /// threshold and no compaction was needed).
+    ///
+    /// ## T4.2 follow-up review (2026-07-03): no production caller today
+    ///
+    /// An adversarial re-review confirmed this method has exactly one caller
+    /// in the workspace: [`context_compaction_wiring_test`](../../../tests/context_compaction_wiring_test.rs)
+    /// (the T4.2 acceptance test). This was audited, not assumed:
+    ///
+    /// - Every real production `llm_chat`/`llm_stream` call site in the
+    ///   workspace was audited (`orchestrator/task_dispatch/submit/goal.rs`'s
+    ///   CRAG relevance evaluator + LLM plan synthesizer, the identical plan
+    ///   synthesizer in `orchestrator/task_dispatch/submit/dei_plan_materialize.rs`,
+    ///   `vox-scientia/src/evidence_assist.rs`, and
+    ///   `vox-cli/src/commands/model/eval.rs`) and every one is genuinely
+    ///   single-shot, stateless prompt/response calls (one query + one
+    ///   retrieved document -> one relevance word; one goal -> synthesized
+    ///   plan nodes; `eval.rs` loops over fixtures but builds a fresh
+    ///   one-message vec per iteration, never an accumulating conversation).
+    ///   None accumulates conversation turns, and `Orchestrator` does not
+    ///   hold a `SessionManager` at all — its `session_id: Option<String>`
+    ///   params are Codex/plan-persistence correlation IDs, unrelated to
+    ///   `SessionManager`'s own session-id space. Wiring these through
+    ///   `assemble_llm_messages` would be a no-op at best (no accumulated
+    ///   turns to compact) and a false semantic link at worst (conflating
+    ///   two unrelated "session_id" concepts). Out of scope by design, not
+    ///   by oversight.
+    /// - `SessionManager` itself is held by `vox-orchestrator-mcp`'s
+    ///   `ServerState` (a real, turn-accumulating session store used by
+    ///   GUI/CLI-facing chat surfaces), but that crate has **zero**
+    ///   `llm_chat`/`llm_stream` call sites — it's an MCP tool-dispatch
+    ///   layer, not an LLM chat driver. The genuine multi-turn conversation
+    ///   loop that should call `assemble_llm_messages` before its `llm_chat`
+    ///   call does not exist yet in this codebase.
+    ///
+    /// Net: the mechanism is real, tested end-to-end (including a real
+    /// `llm_chat` call over the compacted message list), and its data
+    /// structure/losslessness properties are sound. What's still open is a
+    /// production integration point, which requires a real multi-turn chat
+    /// surface to exist first — building one is out of scope for a T4.2
+    /// follow-up. Tracked for a future task once such a surface lands.
+    #[cfg(feature = "runtime")]
+    pub fn assemble_llm_messages(
+        &mut self,
+        session_id: &str,
+        engine: &crate::compaction::CompactionEngine,
+    ) -> Result<
+        (
+            Vec<vox_actor_runtime::llm::LlmChatMessage>,
+            Option<crate::compaction::CompactionResult>,
+        ),
+        SessionError,
+    > {
+        let session = self
+            .sessions
+            .get_mut(session_id)
+            .ok_or_else(|| SessionError::NotFound(session_id.to_string()))?;
+
+        let compaction_result = session.compact_auto(engine);
+
+        if let Some(result) = &compaction_result {
+            let at = now_secs();
+            let event = SessionEvent::Compacted {
+                summary: format!(
+                    "auto-compacted {} turn(s) ({} -> {} tokens)",
+                    result.dropped_count, result.tokens_before, result.tokens_after
+                ),
+                turns_removed: result.dropped_count,
+                at,
+            };
+            if let Some(db) = &self.db {
+                let db = db.clone();
+                let sid = session_id.to_string();
+                let payload = serde_json::to_string(&event).map_err(SessionError::Serialize)?;
+                run_session_db_io(async move {
+                    db.append_session_event(&sid, "compacted", &payload).await
+                })?;
+            }
+        }
+
+        let messages = session
+            .turns
+            .iter()
+            .map(|t| vox_actor_runtime::llm::LlmChatMessage {
+                role: t.role.clone(),
+                content: t.content.clone(),
+            })
+            .collect();
+
+        Ok((messages, compaction_result))
+    }
+
     /// Record an expensive op for the session and persist the event.
     pub fn record_expensive_op(&mut self, session_id: &str) -> Result<(), SessionError> {
         let at = now_secs();

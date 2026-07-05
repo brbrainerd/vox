@@ -7,6 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
+use crate::services::persistence_obs::log_persistence_failure;
 use crate::types::AgentId;
 
 use super::config::MemoryConfig;
@@ -127,7 +128,7 @@ impl MemoryManager {
             let entry = entry.to_string();
             let acc = self.config.account_id.clone();
             tokio::spawn(async move {
-                let _ = db
+                if let Err(e) = db
                     .save_memory(vox_db::SaveMemoryParams {
                         agent_id: "global",
                         session_id: "global",
@@ -137,7 +138,14 @@ impl MemoryManager {
                         importance: 1.0,
                         vcs_snapshot_id: None,
                     })
-                    .await;
+                    .await
+                {
+                    // Fire-and-forget dual-write: file log above already succeeded, but a
+                    // dropped Result here means VoxDB silently diverges from MEMORY.md's
+                    // daily log with no observable trace.
+                    // Refs: vox-axis-harness-reliability-spec-plan-2026-07-02.md T5.1.
+                    log_persistence_failure("memory.daily_log", e);
+                }
             });
         }
         Ok(())
@@ -176,7 +184,7 @@ impl MemoryManager {
                     "{{\"key\":\"{k}\",\"account_id\":\"{acc}\"}}",
                     acc = account_id_str
                 );
-                let _ = db
+                if let Err(e) = db
                     .save_memory(vox_db::SaveMemoryParams {
                         agent_id: &agent_str,
                         session_id: "global",
@@ -186,10 +194,17 @@ impl MemoryManager {
                         importance: 1.0,
                         vcs_snapshot_id: None,
                     })
-                    .await;
+                    .await
+                {
+                    // Fire-and-forget dual-write: in-memory cache + MEMORY.md already
+                    // hold this fact, but a dropped Result here means VoxDB silently
+                    // diverges with no observable trace.
+                    // Refs: vox-axis-harness-reliability-spec-plan-2026-07-02.md T5.1.
+                    log_persistence_failure("memory.persist_fact.save_memory", e);
+                }
 
                 // 2. Upsert a knowledge_node for this fact
-                let _ = db
+                if let Err(e) = db
                     .upsert_knowledge_node(
                         &k,
                         "fact",
@@ -198,21 +213,32 @@ impl MemoryManager {
                         m_url.as_deref(),
                         m_type.as_deref(),
                     )
-                    .await;
+                    .await
+                {
+                    log_persistence_failure("memory.persist_fact.upsert_knowledge_node", e);
+                }
 
                 // 3. Create knowledge_edge links for related facts
                 for r in rels {
-                    let _ = db
+                    if let Err(e) = db
                         .upsert_knowledge_node(&r, "concept", &r, None, None, None)
-                        .await;
-                    let _ = db
+                        .await
+                    {
+                        log_persistence_failure("memory.persist_fact.upsert_related_node", e);
+                    }
+                    if let Err(e) = db
                         .create_knowledge_edge(&k, &r, "related_to", 1.0, None)
-                        .await;
+                        .await
+                    {
+                        log_persistence_failure("memory.persist_fact.create_edge", e);
+                    }
                 }
 
                 // 4. Generate and store vector embedding (NEW)
                 if let Some(svc) = embed_svc {
-                    let _ = svc.embed_and_store("fact", &k, &v, None).await;
+                    if let Err(e) = svc.embed_and_store("fact", &k, &v, None).await {
+                        log_persistence_failure("memory.persist_fact.embed_and_store", e);
+                    }
                 }
             });
         }
@@ -307,7 +333,7 @@ impl MemoryManager {
             if let Ok(Some(value)) = self.long_term.get(key) {
                 let fact_line = format!("{key}: {value}");
                 let fact_meta = format!("{{\"key\":\"{key}\"}}");
-                let _ = db
+                match db
                     .save_memory(vox_db::SaveMemoryParams {
                         agent_id: "global",
                         session_id: "sync",
@@ -317,8 +343,21 @@ impl MemoryManager {
                         importance: 1.0,
                         vcs_snapshot_id: None,
                     })
-                    .await;
-                synced += 1;
+                    .await
+                {
+                    Ok(_) => synced += 1,
+                    Err(e) => {
+                        // A failed write must not be counted as synced: callers use the
+                        // returned count to decide whether MEMORY.md facts are durably
+                        // mirrored in VoxDB. Counting failures as successes would hide
+                        // real data loss behind a healthy-looking number.
+                        // Refs: vox-axis-harness-reliability-spec-plan-2026-07-02.md T5.1.
+                        crate::services::persistence_obs::log_persistence_failure(
+                            "memory.sync_to_db",
+                            e,
+                        );
+                    }
+                }
             }
         }
         Ok(synced)

@@ -129,6 +129,20 @@ impl GatewayState {
     #[cfg(test)]
     pub(crate) async fn for_test() -> Self {
         let server_state = ServerState::new_test().await;
+        Self::for_test_with_state(server_state, HashSet::new()).await
+    }
+
+    /// Same as [`Self::for_test`], but takes a caller-supplied `ServerState`
+    /// (so a test can share one orchestrator between the gateway and another
+    /// consumer, e.g. a daemon's `orch.tool_call`) and an explicit
+    /// `allowed_tools` set (`for_test`'s empty set makes every tool call fail
+    /// the gateway's role-visibility check before it ever reaches the
+    /// orchestrator).
+    #[cfg(test)]
+    pub(crate) async fn for_test_with_state(
+        server_state: ServerState,
+        allowed_tools: HashSet<String>,
+    ) -> Self {
         let hopper: Arc<dyn vox_orchestrator::hopper::HopperIntake> =
             Arc::new(vox_orchestrator::hopper::InMemoryHopper::new(Arc::new(
                 server_state.orchestrator.event_bus.clone(),
@@ -142,8 +156,8 @@ impl GatewayState {
             health_auth_required: false,
             require_forwarded_https: false,
             trust_forwarded_for: false,
-            allowed_tools: Arc::new(HashSet::new()),
-            read_role_eligible_tools: Arc::new(HashSet::new()),
+            allowed_tools: Arc::new(allowed_tools.clone()),
+            read_role_eligible_tools: Arc::new(allowed_tools),
             read_role_tools_override: None,
             calls_per_minute: DEFAULT_RATE_LIMIT_PER_MINUTE,
             rate_limiter: new_identity_rate_limiter(DEFAULT_RATE_LIMIT_PER_MINUTE),
@@ -886,6 +900,140 @@ mod tests {
         assert!(
             ids.contains(&item_id.as_str()),
             "submitted item {item_id} must appear in inbox, got {ids:?}"
+        );
+    }
+
+    /// T2.4 RED test: gateway single-spawn cross-visibility. A dangerous tool
+    /// call routed through the HTTP gateway's `/v1/tools/call` parks a pending
+    /// approval; a separate `orch.tool_call`-style consumer (a daemon
+    /// `ExtraDispatch` wired against the SAME `ServerState`/orchestrator, the
+    /// exact sharing arrangement `vox_orchestrator_d`'s `main()` sets up
+    /// between `spawn_http_gateway_if_enabled` and `McpExtraDispatch`) sees
+    /// and resolves that SAME approval via `orch.list_pending_approvals` /
+    /// `orch.resolve_approval`. This proves the gateway and the daemon's own
+    /// dispatch share one `ServerState` (one state owner), not two disjoint
+    /// orchestrators — the regression this test guards against is a second,
+    /// independent `ServerState` sneaking into the gateway spawn path.
+    #[tokio::test]
+    async fn gateway_tool_call_approval_is_visible_and_resolvable_via_daemon_extra_dispatch() {
+        use axum::body::{Body, to_bytes};
+        use axum::extract::ConnectInfo;
+        use axum::http::{Request, StatusCode};
+        use tower::ServiceExt;
+        use vox_foundation::protocol::{DispatchPayload, DispatchRequest};
+        use vox_orchestrator::orch_daemon::ExtraDispatch;
+
+        fn req(method: &str, params: serde_json::Value) -> DispatchRequest {
+            DispatchRequest {
+                id: "1".to_string(),
+                method: method.to_string(),
+                params,
+                auth_token: None,
+                permission_mode: None,
+            }
+        }
+
+        let server_state = ServerState::new_test().await;
+
+        // The daemon-side consumer: `McpExtraDispatch` wraps the SAME
+        // `ServerState` clone `vox_orchestrator_d::main` passes both to
+        // `spawn_http_gateway_if_enabled` and to its `ExtraDispatch`.
+        let extra = crate::daemon_extra::McpExtraDispatch::new(server_state.clone());
+
+        // The gateway-side consumer: a production router built from the SAME
+        // `ServerState` clone, with `vox_run_shell` allowed so the call
+        // actually reaches the dangerous-tool approval gate.
+        let mut allowed = HashSet::new();
+        allowed.insert("vox_run_shell".to_string());
+        let gateway_state = GatewayState::for_test_with_state(server_state, allowed).await;
+        let app = build_app(gateway_state);
+
+        // Fire the gateway tool call in the background — it blocks parked on
+        // the approval until resolved below.
+        let call = tokio::spawn(async move {
+            let peer: SocketAddr = "127.0.0.1:1234".parse().unwrap();
+            let mut req = Request::builder()
+                .method("POST")
+                .uri("/v1/tools/call")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "name": "vox_run_shell", "args": { "command": "echo hi" } })
+                        .to_string(),
+                ))
+                .unwrap();
+            req.extensions_mut().insert(ConnectInfo(peer));
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            let bytes = to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+            serde_json::from_slice::<Value>(&bytes).unwrap()
+        });
+
+        // Poll `orch.list_pending_approvals` via the daemon-side ExtraDispatch
+        // until the gateway-parked approval becomes visible there.
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+        #[allow(unused_assignments)]
+        let mut approvals = Value::Null;
+        loop {
+            let resp = extra
+                .try_handle(&req(
+                    vox_foundation::protocol::orch_daemon_method::LIST_PENDING_APPROVALS,
+                    serde_json::json!({}),
+                ))
+                .await
+                .expect("orch.list_pending_approvals dispatched by ExtraDispatch");
+            approvals = match resp.payload {
+                DispatchPayload::Result { value } => value,
+                other => panic!("expected Result payload, got {other:?}"),
+            };
+            if approvals
+                .get("approvals")
+                .and_then(|a| a.as_array())
+                .map(|a| !a.is_empty())
+                .unwrap_or(false)
+            {
+                break;
+            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "gateway-routed vox_run_shell call never became visible via a separate \
+                 daemon ExtraDispatch's orch.list_pending_approvals — gateway and daemon \
+                 do not share one ServerState"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+
+        let approval_id = approvals["approvals"][0]["approval_id"]
+            .as_str()
+            .expect("approval_id present")
+            .to_string();
+        assert_eq!(
+            approvals["approvals"][0]["tool"].as_str(),
+            Some("vox_run_shell")
+        );
+
+        // Resolve it from the daemon-side ExtraDispatch — proving the
+        // approval is genuinely resolvable cross-consumer, not just visible.
+        let resolve_resp = extra
+            .try_handle(&req(
+                vox_foundation::protocol::orch_daemon_method::RESOLVE_APPROVAL,
+                serde_json::json!({ "approval_id": approval_id, "outcome": "rejected" }),
+            ))
+            .await
+            .expect("orch.resolve_approval dispatched by ExtraDispatch");
+        let resolved = match resolve_resp.payload {
+            DispatchPayload::Result { value } => value,
+            other => panic!("expected Result payload, got {other:?}"),
+        };
+        assert_eq!(
+            resolved.get("resolved"),
+            Some(&serde_json::Value::Bool(true))
+        );
+
+        // The originally gateway-routed call must have woken up and completed.
+        let outcome = call.await.expect("join");
+        assert_eq!(
+            outcome["success"], false,
+            "rejected approval must surface as a failed call"
         );
     }
 }

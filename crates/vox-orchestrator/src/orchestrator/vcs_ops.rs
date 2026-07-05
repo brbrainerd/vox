@@ -94,6 +94,51 @@ impl crate::orchestrator::Orchestrator {
         db_snapshot_before: Option<u64>,
         db_snapshot_after: Option<u64>,
     ) -> OperationId {
+        self.record_operation_inner(
+            agent_id,
+            kind,
+            description,
+            snapshot_before,
+            snapshot_after,
+            db_snapshot_before,
+            db_snapshot_after,
+            true,
+        )
+        .await
+    }
+
+    /// [`Self::record_operation`], but never triggers T1.6 checkpoint
+    /// compaction. Used exclusively by `orchestrator/core/checkpoint.rs` to
+    /// write the `Checkpoint` marker itself — going through the normal
+    /// `record_operation` there would recurse (`record_operation` ->
+    /// `persist_oplog_entry` -> `maybe_compact` -> `compact_now` ->
+    /// `record_operation` -> ...), which `rustc` correctly rejects as
+    /// unbounded async recursion. The marker still needs the same
+    /// `OperationIdGenerator`-backed id allocation and durable write path as
+    /// every other op (see `compact_now`'s doc comment) — it just must not
+    /// re-arm the trigger it was itself invoked by.
+    pub(crate) async fn record_operation_no_compact_trigger(
+        &self,
+        agent_id: AgentId,
+        kind: OperationKind,
+        description: impl Into<String>,
+    ) -> OperationId {
+        self.record_operation_inner(agent_id, kind, description, None, None, None, None, false)
+            .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn record_operation_inner(
+        &self,
+        agent_id: AgentId,
+        kind: OperationKind,
+        description: impl Into<String>,
+        snapshot_before: Option<SnapshotId>,
+        snapshot_after: Option<SnapshotId>,
+        db_snapshot_before: Option<u64>,
+        db_snapshot_after: Option<u64>,
+        trigger_compact: bool,
+    ) -> OperationId {
         let desc = description.into();
         let db_snap_before = match db_snapshot_before {
             Some(id) => Some(id),
@@ -127,7 +172,8 @@ impl crate::orchestrator::Orchestrator {
             });
             (op_id, entry_meta)
         };
-        self.persist_oplog_entry(agent_id, op_id, entry_meta).await;
+        self.persist_oplog_entry_inner(agent_id, op_id, entry_meta, trigger_compact)
+            .await;
         op_id
     }
 
@@ -143,6 +189,24 @@ impl crate::orchestrator::Orchestrator {
             Option<crate::workspace::ChangeId>,
             u64,
         )>,
+    ) {
+        self.persist_oplog_entry_inner(agent_id, op_id, entry_meta, true)
+            .await
+    }
+
+    async fn persist_oplog_entry_inner(
+        &self,
+        agent_id: AgentId,
+        op_id: OperationId,
+        entry_meta: Option<(
+            OperationKind,
+            String,
+            Option<String>,
+            Option<String>,
+            Option<crate::workspace::ChangeId>,
+            u64,
+        )>,
+        trigger_compact: bool,
     ) {
         let db_opt = { crate::sync_lock::rw_read(&*self.db).clone() };
         if let (
@@ -172,6 +236,19 @@ impl crate::orchestrator::Orchestrator {
                     operation_id = %op_id_str,
                     "failed to persist oplog entry to db"
                 );
+            }
+
+            if trigger_compact {
+                // T1.6: trigger cold-tier checkpoint compaction every N ops.
+                // Cheap no-op check (a modulo) on the hot path; the actual
+                // compaction work only runs once every `CHECKPOINT_INTERVAL`
+                // durable writes. `Box::pin` breaks the type-level async
+                // recursion cycle rustc sees through
+                // `maybe_compact` -> `compact_now` ->
+                // `record_operation_no_compact_trigger` -> ... -> here
+                // (runtime recursion is bounded by `trigger_compact=false`
+                // on that inner path, but the compiler can't see that).
+                Box::pin(super::core::checkpoint::maybe_compact(self, op_id.0)).await;
             }
         }
     }

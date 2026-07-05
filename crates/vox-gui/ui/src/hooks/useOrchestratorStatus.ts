@@ -5,11 +5,16 @@ import { decode } from '@msgpack/msgpack';
 import type { OrchestratorStatus } from '../types/tauri';
 import { listenOrchStatus, voxTransport } from '../transport';
 import { useVoxQuery } from './useVoxQuery';
-import { ORCH_POLL_FALLBACK_MS } from '../config/constants';
 
 /** TanStack query result plus orchestrator-specific transport metadata. */
 export type OrchestratorStatusHookResult = UseQueryResult<OrchestratorStatus, Error> & {
-  /** Polling fallback is active because the live event stream is unavailable. */
+  /**
+   * The live event stream is not currently delivering updates — either the
+   * initial `listenOrchStatus` registration failed, or no status snapshot
+   * has arrived recently (T3.1: the backend `PersistentDaemon` reconnect
+   * loop self-heals a mid-session daemon death, so this is a "reconnecting /
+   * stale" signal for the UI rather than a trigger for a client-side poll).
+   */
   usesPolling: boolean;
   /** The `listenOrchStatus` subscription failed (fetch may still succeed). */
   listenFailed: boolean;
@@ -94,9 +99,16 @@ export function useOrchestratorStatus(): OrchestratorStatusHookResult {
     { staleTime: 5_000, retry: false },
   );
 
+  // T3.1: the backend `PersistentDaemon` reconnect loop
+  // (`spawn_orchestrator_status_stream` in `crates/vox-gui/src/commands/orchestrator.rs`)
+  // now self-heals a mid-session daemon death — it detects the dead daemon,
+  // re-resolves (adopt/respawn), and resubscribes on its own. The frontend no
+  // longer needs a timer-driven polling fallback to paper over a stream that
+  // silently went quiet forever; it only needs to detect and surface
+  // staleness/registration failure so the UI can show a reconnecting/stale
+  // indicator (see `useFreshness`/`freshnessTone`).
   useEffect(() => {
     let unlisten: (() => void) | undefined;
-    let fallbackInterval: ReturnType<typeof setInterval> | undefined;
     let cancelled = false;
 
     listenOrchStatus((status) => {
@@ -113,18 +125,17 @@ export function useOrchestratorStatus(): OrchestratorStatusHookResult {
       })
       .catch(() => {
         if (!cancelled) {
+          // Registration itself failed (e.g. non-Tauri/browser context).
+          // Surface it; no client-side poll loop — the backend reconnect
+          // loop is what recovers a live daemon, not this hook.
           setListenFailed(true);
           setUsesPolling(true);
-          fallbackInterval = setInterval(() => {
-            void queryClient.invalidateQueries({ queryKey: ORCH_STATUS_QUERY_KEY });
-          }, ORCH_POLL_FALLBACK_MS);
         }
       });
 
     return () => {
       cancelled = true;
       unlisten?.();
-      if (fallbackInterval !== undefined) clearInterval(fallbackInterval);
     };
   }, [queryClient]);
 

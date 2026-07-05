@@ -28,6 +28,8 @@ pub async fn call(method: &str, params: Value, _auto_open: bool) -> anyhow::Resu
         id: uuid::Uuid::new_v4().to_string(),
         method: method.into(),
         params,
+        auth_token: None,
+        permission_mode: None,
     };
 
     let json = serde_json::to_string(&req)? + "\n";

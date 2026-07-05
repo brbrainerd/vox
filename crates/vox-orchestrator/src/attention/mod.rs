@@ -23,7 +23,10 @@ pub use interruption_policy::{
     InterruptionChannel, InterruptionDecision, InterruptionSignals, evaluate_interruption,
     scaled_interrupt_cost_ms,
 };
-pub use routing::{AgentTrustScore, classify_tier};
+pub use routing::{
+    AgentTrustScore, DEFAULT_TRUST_WINDOW_MS, TRUST_DECAY_GRACE_MS, TRUST_DECAY_HALF_LIFE_MS,
+    classify_tier,
+};
 
 #[cfg(test)]
 mod tests {
@@ -42,6 +45,7 @@ mod tests {
             last_updated_ms: 0,
             variance: 0.10,
             is_override: false,
+            outcome_window: Default::default(),
         }
     }
 

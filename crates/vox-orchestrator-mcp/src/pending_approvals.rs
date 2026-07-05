@@ -8,10 +8,15 @@
 //! on `ServerState`, so the awaiting tool call and the resolve/list tools all
 //! share it (in-process; the GUI drives both through B5's `invoke_mcp_tool`).
 //!
-//! Scope: in-memory only (lost on restart — a pending call then errors out).
-//! Cross-process resolve for autonomous daemon agents (registry on
-//! `Orchestrator` + an `orch.resolve_approval` RPC) and DB persistence are
-//! deliberate follow-ups.
+//! Scope: in-memory only (lost on restart — a pending call then errors out;
+//! T1.4's [`reregister_after_restart`](PendingApprovals::reregister_after_restart)
+//! restores *visibility* of pre-restart entries but not their live waiter).
+//! Cross-process access for autonomous daemon agents and the GUI is served by
+//! the daemon's `orch.list_pending_approvals` / `orch.resolve_approval` RPCs
+//! (see `daemon_extra.rs`'s `ExtraDispatch` impl, which reads/writes this same
+//! registry off `ServerState`) — implemented, not a follow-up. DB persistence
+//! of resolved approvals (for audit/history beyond the in-memory list) remains
+//! a deliberate follow-up.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -72,11 +77,49 @@ impl PendingApprovals {
         (id, rx)
     }
 
-    /// Resolve a pending approval, waking its awaiter with `outcome`. Returns
-    /// `false` if no pending approval has that id.
+    /// T1.4: re-park an approval that was requested (per the durable op-log's
+    /// `ApprovalRequested`) but never resolved before a daemon restart. Unlike
+    /// [`register`](Self::register), the id is **preserved** from the original
+    /// request (so `vox_resolve_approval` still targets the same
+    /// `approval_id` a human may already be looking at in `hitl_approvals`)
+    /// and there is deliberately **no oneshot waiter** — the original tool
+    /// call that parked on it died with the process and cannot be woken. This
+    /// restores *visibility* (the entry reappears in `list()` and can be
+    /// `resolve()`d for audit-consistency / human record-keeping) without
+    /// pretending the original in-flight call can be resumed. A no-op if an
+    /// entry with this id is already pending (idempotent under repeated
+    /// rehydration calls).
+    pub fn reregister_after_restart(
+        &self,
+        approval_id: ApprovalId,
+        tool: String,
+        summary: String,
+        requested_at_ms: u64,
+    ) {
+        let mut g = self.inner.lock().expect("pending-approvals lock");
+        if g.pending.iter().any(|p| p.approval_id == approval_id) {
+            return;
+        }
+        g.pending.push(PendingApprovalInfo {
+            approval_id,
+            tool,
+            summary,
+            requested_at_ms,
+        });
+    }
+
+    /// Resolve a pending approval, waking its awaiter with `outcome` if one is
+    /// still parked. Returns `true` whenever a pending entry with this id
+    /// existed and was removed — including a restart-recovered entry with no
+    /// live waiter (see
+    /// [`reregister_after_restart`](Self::reregister_after_restart)), since
+    /// the approval decision is recorded either way; only `false` when no
+    /// pending approval has that id at all.
     pub fn resolve(&self, id: &str, outcome: ApprovalOutcome) -> bool {
         let mut g = self.inner.lock().expect("pending-approvals lock");
+        let before = g.pending.len();
         g.pending.retain(|p| p.approval_id != id);
+        let had_pending = g.pending.len() != before;
         match g.waiters.remove(id) {
             Some(tx) => {
                 // Err only if the awaiter already gave up (e.g. timed out); the
@@ -84,7 +127,9 @@ impl PendingApprovals {
                 let _ = tx.send(outcome);
                 true
             }
-            None => false,
+            // No live waiter (e.g. a restart-recovered entry) — still counts
+            // as resolved as long as a pending entry actually existed.
+            None => had_pending,
         }
     }
 

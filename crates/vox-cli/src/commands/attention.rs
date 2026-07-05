@@ -1,5 +1,6 @@
 use clap::Subcommand;
 use miette::Result;
+use vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure;
 
 /// Manage and inspect the Vox attention-budgeting system.
 #[derive(Debug, Subcommand)]
@@ -45,67 +46,104 @@ pub async fn handle_attention_command(
     }
 }
 
+/// T2.3 follow-up: `vox attention snapshot` routes through the shared
+/// `vox-orchestrator-d` TCP daemon (spawning it if absent) instead of
+/// building a private, throwaway in-process `Orchestrator` per invocation —
+/// see `crates/vox-cli-core/src/daemon_ipc/orchestrator_daemon_ensure.rs` and
+/// `commands/safety.rs`'s `daemon_client()` (same pattern). Before this fix,
+/// `snapshot_cmd` built a fresh, always-empty local `Orchestrator` via
+/// `build_repo_scoped_orchestrator_for_repository`, so `vox attention
+/// snapshot` displayed fake/empty budget data rather than the real daemon's
+/// live state — the same class of bug T2.3 fixed for `dei save()` and the
+/// `5d16b2879d` follow-up fixed for `vox safety`.
+async fn daemon_client() -> miette::Result<vox_orchestrator::orch_daemon::OrchDaemonClient> {
+    let ensure = OrchestratorDaemonEnsure::default();
+    ensure
+        .client()
+        .await
+        .map_err(|e| miette::miette!("could not reach or spawn vox-orchestrator-d: {e}"))
+}
+
 async fn snapshot_cmd(workspace_root: &std::path::Path) -> Result<()> {
-    let repo = vox_repository::discover_repository_or_fallback(workspace_root);
-    let mut config = vox_orchestrator::OrchestratorConfig::load_from_toml(&repo.root)
-        .map_err(|e| miette::miette!("{}", e))?;
+    let _ = workspace_root; // no longer used: snapshot now reads daemon-shared state.
+    let client = daemon_client().await?;
 
-    let db = crate::workspace_db::connect_cli_workspace_voxdb()
+    let resp = client
+        .attention_snapshot()
         .await
-        .map_err(|e| miette::miette!("Failed to open DB: {}", e))?;
+        .map_err(|e| miette::miette!("orch.attention_snapshot failed: {e}"))?;
 
-    if let Ok(Some(val)) = db
-        .get_user_preference("local_user", "attention_enabled")
-        .await
-    {
-        if let Ok(b) = val.parse::<bool>() {
-            config.attention_enabled = b;
-        }
-    }
-    if let Ok(Some(val)) = db
-        .get_user_preference("local_user", "attention_budget_ms")
-        .await
-    {
-        if let Ok(v) = val.parse::<u64>() {
-            config.attention_budget_ms = v;
-        }
-    }
-    if let Ok(Some(val)) = db
-        .get_user_preference("local_user", "attention_alert_threshold")
-        .await
-    {
-        if let Ok(v) = val.parse::<f64>() {
-            config.attention_alert_threshold = v;
-        }
-    }
-
-    let build =
-        vox_orchestrator::build_repo_scoped_orchestrator_for_repository(config.clone(), &repo);
-    let bm = build.orchestrator.budget_manager_handle();
-    let snap = vox_orchestrator::sync_lock::rw_read(&*bm).attention_snapshot();
+    let snap = resp
+        .get("snapshot")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let max_attention_ms = snap
+        .get("max_attention_ms")
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    let spent_ms = snap.get("spent_ms").and_then(|x| x.as_u64()).unwrap_or(0);
+    let spent_ratio = if max_attention_ms == 0 {
+        1.0
+    } else {
+        spent_ms as f64 / max_attention_ms as f64
+    };
+    let interrupt_freq_per_hour = snap
+        .get("interrupt_freq_per_hour")
+        .and_then(|x| x.as_f64())
+        .unwrap_or(0.0);
+    let total_requests = snap
+        .get("total_requests")
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    let auto_approved = snap
+        .get("auto_approved")
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    let inbox_suppressed_count = snap
+        .get("inbox_suppressed_count")
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    let focus_depth = if interrupt_freq_per_hour >= 8.0 {
+        "Deep"
+    } else if interrupt_freq_per_hour >= 3.0 {
+        "Focused"
+    } else {
+        "Ambient"
+    };
 
     println!("--- Pilot Attention Snapshot ---");
-    println!("  Budget (ms):      {}", snap.max_attention_ms);
-    println!("  Spent (ms):       {}", snap.spent_ms);
-    println!("  Spent Ratio:      {:.2}%", snap.spent_ratio() * 100.0);
-    println!("  Focus Depth:      {:?}", snap.focus_depth());
-    println!(
-        "  Interrupt Freq:   {:.2} / hr",
-        snap.interrupt_freq_per_hour
-    );
-    println!(
-        "  Requests/Auto:    {} / {}",
-        snap.total_requests, snap.auto_approved
-    );
-    println!("  Suppressed Inbox: {}", snap.inbox_suppressed_count);
+    println!("  Budget (ms):      {}", max_attention_ms);
+    println!("  Spent (ms):       {}", spent_ms);
+    println!("  Spent Ratio:      {:.2}%", spent_ratio * 100.0);
+    println!("  Focus Depth:      {:?}", focus_depth);
+    println!("  Interrupt Freq:   {:.2} / hr", interrupt_freq_per_hour);
+    println!("  Requests/Auto:    {} / {}", total_requests, auto_approved);
+    println!("  Suppressed Inbox: {}", inbox_suppressed_count);
 
-    println!("");
+    let config = resp
+        .get("config")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let attention_enabled = config
+        .get("attention_enabled")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(true);
+    let attention_budget_ms = config
+        .get("attention_budget_ms")
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    let attention_alert_threshold = config
+        .get("attention_alert_threshold")
+        .and_then(|x| x.as_f64())
+        .unwrap_or(0.0);
+
+    println!();
     println!("Policy Config (effective):");
-    println!("  attention_enabled = {}", config.attention_enabled);
-    println!("  attention_budget_ms = {}", config.attention_budget_ms);
+    println!("  attention_enabled = {}", attention_enabled);
+    println!("  attention_budget_ms = {}", attention_budget_ms);
     println!(
         "  attention_alert_threshold = {}",
-        config.attention_alert_threshold
+        attention_alert_threshold
     );
 
     Ok(())

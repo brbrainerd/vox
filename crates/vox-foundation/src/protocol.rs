@@ -112,6 +112,25 @@ pub mod orch_daemon_method {
     /// Params: `{"task_id": u64, "policy": "any"|"local_only"|{"exclude": ["node1",...]}}` → `{"ok": true}`.
     /// Updates the `mesh_policy` of a queued task. Served via `ExtraDispatch`.
     pub const SET_MESH_POLICY: &str = "orch.set_mesh_policy";
+    /// Params: `{}` → `{"agents": [{"id", "name", "signal": BudgetSignal}]}` —
+    /// per-agent budget/drift signal from the daemon's shared `BudgetManager`
+    /// (T2.3 follow-up: `vox safety status`). Mirrors
+    /// `BudgetManager::agent_budget_signal` for every agent in
+    /// `Orchestrator::status().agents`.
+    pub const SAFETY_BUDGET_SIGNALS: &str = "orch.safety_budget_signals";
+    /// Params: `{"agent_id": u64?}` → `{"receipts": [{"receipt_id", "agent_id", "tool_name"}]}`
+    /// — snapshot of the daemon's shared cryptographic tool receipt ledger,
+    /// optionally filtered to one agent (T2.3 follow-up: `vox safety ledger`).
+    pub const SAFETY_LEDGER: &str = "orch.safety_ledger";
+    /// Params: `{}` → `{"locks": [{"resource_id", "kind", "holder", "expires_ms"}]}`
+    /// — snapshot of the daemon's shared generic resource lock manager (T2.3
+    /// follow-up: `vox safety locks`).
+    pub const SAFETY_LOCKS: &str = "orch.safety_locks";
+    /// Params: `{}` → `{"snapshot": AttentionBudget, "config": {"attention_enabled",
+    /// "attention_budget_ms", "attention_alert_threshold"}}` — the daemon's shared
+    /// real-time cognitive attention budget/threshold summary (T2.3 follow-up:
+    /// `vox attention snapshot`). Mirrors `BudgetManager::attention_snapshot`.
+    pub const ATTENTION_SNAPSHOT: &str = "orch.attention_snapshot";
 }
 
 pub mod dei_method {
@@ -140,6 +159,25 @@ pub struct DispatchRequest {
     pub id: String,
     pub method: String,
     pub params: Value,
+    /// Shared-secret daemon auth token (T0.2). A TOP-LEVEL field, deliberately
+    /// separate from `params`: `params` is caller/tool-composed JSON, so the
+    /// auth token must never be settable by tool-call-composing code — only
+    /// the transport layer (`OrchDaemonClient`) sets this. `#[serde(default)]`
+    /// so existing serialized requests without the field still deserialize
+    /// (they simply fail the daemon's auth check rather than the parse).
+    #[serde(default)]
+    pub auth_token: Option<String>,
+    /// GUI-selected permission mode (T0.3: `"ask" | "accept_edits" |
+    /// "accept_all" | "plan"`), consulted by the dangerous-tool HITL gate in
+    /// `vox-orchestrator-mcp`'s dispatch (`orch.tool_call`). Same isolation
+    /// rationale as `auth_token`: a TOP-LEVEL field, separate from `params`,
+    /// set only by the transport layer (`OrchDaemonClient`) — never
+    /// reachable from tool-call `params` JSON the LLM agent composes, so a
+    /// model can never self-select an auto-approving mode. `#[serde(default)]`
+    /// so a missing/absent field resolves to `None`, which the gate treats
+    /// as the fail-safe `ask` mode (today's always-park behavior).
+    #[serde(default)]
+    pub permission_mode: Option<String>,
 }
 
 /// Incoming response envelope from Dei-style JSON-line daemons.

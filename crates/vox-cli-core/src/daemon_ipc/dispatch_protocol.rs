@@ -46,6 +46,8 @@ mod tests {
             id: "req-1".into(),
             method: vox_foundation::protocol::dei_method::AI_GENERATE.into(),
             params: serde_json::json!({ "prompt": "hello" }),
+            auth_token: None,
+            permission_mode: None,
         };
         let instance = serde_json::to_value(&req).expect("serialize DispatchRequest");
         vox_jsonschema_util::validate(

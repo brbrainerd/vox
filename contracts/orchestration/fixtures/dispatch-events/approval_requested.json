@@ -1,0 +1,7 @@
+{
+  "ApprovalRequested": {
+    "approval_id": "AP-000001",
+    "tool": "vox_run_shell",
+    "run_id": "run-abc123"
+  }
+}

@@ -22,7 +22,9 @@ pub struct HitlApprovalRow {
     pub tool: String,
     /// Short human-readable summary of the gated action.
     pub summary: String,
-    /// Lifecycle status: `pending` | `approved` | `rejected` | `modified` | `timed_out`.
+    /// Lifecycle status: `pending` | `approved` | `rejected` | `modified` |
+    /// `timed_out` | `orphaned` (T1.4 follow-up: a `pending` row reconciled at
+    /// boot with no discoverable resolution — see `hitl_approval_mark_orphaned`).
     pub status: String,
     /// When the approval was requested (unix-ms).
     pub requested_at_ms: i64,
@@ -134,5 +136,48 @@ impl VoxDb {
             out.push(map_row(&row)?);
         }
         Ok(out)
+    }
+
+    /// All rows currently `status = 'pending'` (boot-time reconciliation scan).
+    // toestub-ignore(skeleton/untested-pub-api) — exercised by tests/hitl_approvals_tests.rs and hitl_rehydrate_on_restart_tests.rs
+    pub async fn hitl_approvals_pending(&self) -> Result<Vec<HitlApprovalRow>, StoreError> {
+        let conn = self.conn.clone();
+        let sql = format!("SELECT {SELECT_COLS} FROM hitl_approvals WHERE status = 'pending'");
+        let mut cursor = conn.query(&sql, turso::params![]).await?;
+        let mut out = Vec::new();
+        while let Some(row) = cursor.next().await? {
+            out.push(map_row(&row)?);
+        }
+        Ok(out)
+    }
+
+    /// T1.4 follow-up: mark a `hitl_approvals` row `'orphaned'` — used at boot
+    /// for rows still `status = 'pending'` whose `approval_id` is neither
+    /// re-registered into the live `PendingApprovals` (i.e. it predates the
+    /// oplog-derived open set for this restart) nor backfillable from an
+    /// `ApprovalResolved` oplog entry the audit-table write missed. Distinct
+    /// from the terminal outcomes written by `hitl_approval_resolve`
+    /// (`approved`/`rejected`/`modified`/`timed_out`) — `orphaned` records
+    /// "this audit row's true resolution is unknown", not a real decision.
+    // toestub-ignore(skeleton/untested-pub-api) — exercised by tests/hitl_approvals_tests.rs and hitl_rehydrate_on_restart_tests.rs
+    pub async fn hitl_approval_mark_orphaned(
+        &self,
+        approval_id: &str,
+        orphaned_at_ms: i64,
+    ) -> Result<(), StoreError> {
+        let approval_id = approval_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE hitl_approvals SET status = 'orphaned', resolved_at_ms = ?2 \
+                     WHERE approval_id = ?1 AND status = 'pending'",
+                    turso::params![approval_id, orphaned_at_ms],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
     }
 }

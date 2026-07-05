@@ -20,8 +20,10 @@ async fn doubt_task_surfaces_feedback_card() {
     }
     crate::sync_lock::rw_write(&*orch.task_assignments).insert(tid, aid);
 
-    orch.doubt_task(tid, Some("conflicting spec".into()))
+    let outcome = orch
+        .doubt_task(tid, Some("conflicting spec".into()))
         .expect("doubt_task");
+    orch.emit_doubt_events(tid, &outcome);
 
     let open = orch.feedback().open_needs_you();
     let doubt = open

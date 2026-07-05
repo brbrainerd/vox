@@ -27,10 +27,33 @@ use crate::{news_tools, scientia_tools};
 use crate::{oratio_tools, speech_pipeline_tools};
 
 /// Dispatch `name` to the matching submodule handler and record skill telemetry if DB is available.
+///
+/// Equivalent to calling [`handle_tool_call_with_mode`] with `permission_mode: None`
+/// (i.e. today's baseline `ask` / always-park behavior for dangerous tools).
+/// Kept as the primary entry point since most callers (stdio MCP server, HTTP
+/// gateway, tests) have no `PermissionMode` to thread through — only the
+/// daemon's authenticated `orch.tool_call` path (T0.2/T0.3) carries one.
 pub async fn handle_tool_call(
     state: &ServerState,
     name: &str,
     args: serde_json::Value,
+) -> Result<String, anyhow::Error> {
+    handle_tool_call_with_mode(state, name, args, None).await
+}
+
+/// Same as [`handle_tool_call`], but accepts an explicit `permission_mode`
+/// wire string (T0.3 — `DispatchRequest::permission_mode`, mirrored via
+/// `OrchDaemonClient`). `None` (or any unrecognized value) resolves to
+/// [`crate::permission_modes::PermissionMode::Ask`] — the fail-safe default
+/// that matches pre-T0.3 always-park behavior. `permission_mode` must NEVER
+/// be sourced from `args` (tool-call params the LLM agent composes) — only
+/// from this explicit parameter, which callers populate from the
+/// authenticated transport layer, never from caller-supplied JSON.
+pub async fn handle_tool_call_with_mode(
+    state: &ServerState,
+    name: &str,
+    args: serde_json::Value,
+    permission_mode: Option<&str>,
 ) -> Result<String, anyhow::Error> {
     let start_time = std::time::Instant::now();
     let name_canonical = tool_aliases::canonical_tool_name(name);
@@ -51,6 +74,25 @@ pub async fn handle_tool_call(
                 .filter(|s| !s.is_empty())
                 .map(ToString::to_string)
         });
+    // T1.5: best-effort correlation fallback for the dangerous-tool approval
+    // gate below. No dedicated `run_id`-shaped field is threaded from the GUI
+    // through `DispatchRequest`/`ServerState` today (verified: `invoke_mcp_tool`
+    // in crates/vox-gui/src/commands/mcp.rs only forwards `permission_mode` as a
+    // top-level field; `trace_id`/`correlation_id` are caller-composed `args`
+    // that agent tool-calls rarely set). The one identifier that reliably IS
+    // present on tool calls issued while executing an orchestrator task is the
+    // numeric `task_id` (see `ctx.task_id` below, and
+    // `vox_telemetry::TaskRootSummaryEvent::task_id`, which is the same value
+    // `submit_orchestrator_task` returns to the GUI). Using it as the
+    // `ApprovalRequested`/`ApprovalResolved` `run_id` when no explicit
+    // trace/correlation id was supplied lets `finish_gui_run` join a run's
+    // approval by `task_id` without adding new top-level plumbing — see
+    // docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md T1.5.
+    let run_id_for_approval = trace_for_telemetry.clone().or_else(|| {
+        args.get("task_id")
+            .and_then(|v| v.as_u64())
+            .map(|t| t.to_string())
+    });
 
     // Check Budget limits for explicit Tool interception (Agent Self-Correction)
     let b_signal = {
@@ -120,26 +162,48 @@ pub async fn handle_tool_call(
         }
     }
 
-    // Trust-Tier RBAC for dangerous operations
-    if matches!(
-        name_canonical,
-        "vox_run_shell"
-            | "vox_deploy"
-            | "vox_multi_replace"
-            | "vox_multi_replace_file"
-            | "vox_write_file"
-            | "vox_delete_file"
-    ) {
-        // Enforce explicit UserApproval requirement
-        let approved = args
-            .get("user_approval")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        if !approved {
-            // B3 HITL: rather than rejecting outright, register an interactive
-            // approval and await the human decision (resolved in-process via the
-            // `vox_resolve_approval` tool). The `user_approval: true` fast path
-            // above stays for callers that pre-confirm.
+    // Trust-Tier RBAC for dangerous operations. T0.3: gate membership is now
+    // registry-driven (crate::permission_modes::RISK_CLASSES, mirroring
+    // contracts/orchestration/permission-modes.v1.yaml) instead of a hardcoded
+    // tool-name allowlist. A tool absent from the registry is `unknown` and
+    // skips this gate entirely — same shape as the pre-T0.3 hardcoded list
+    // (this is an allowlist-of-dangerous-tools, not a denylist; see the
+    // tool_aliases hardening note in the contract file and in
+    // crate::permission_modes for the documented scope of that exposure).
+    if crate::permission_modes::is_gated_tool(name_canonical) {
+        // T0.3 precedence tiers 2 + 3: a caller-selected PermissionMode
+        // (never sourced from `args` — see `handle_tool_call_with_mode`'s
+        // doc comment) or a persisted per-repo allowlist entry may
+        // auto-approve this call, skipping the park-and-await below
+        // entirely. Falls through to the unconditional HITL park otherwise
+        // (today's baseline `ask`-mode behavior, byte-for-byte unchanged).
+        let mode = crate::permission_modes::PermissionMode::from_wire(permission_mode);
+        // `mode_auto_approves` already returns `false` unconditionally for
+        // any tool with `always_requires_approval: true` (e.g.
+        // vox_add_approval_allowlist_entry — see the T0.3 follow-up review
+        // finding), so no separate check is needed here for tier 2.
+        let mode_auto_approved = crate::permission_modes::mode_auto_approves(mode, name_canonical);
+        let allowlisted = if mode_auto_approved {
+            false // short-circuit: no need to hit the DB if the mode already approved
+        } else if !crate::permission_modes::allowlist_eligible(name_canonical) {
+            // Tier 3 is not even consulted for an `always_requires_approval`
+            // tool — it must always park regardless of what's persisted.
+            false
+        } else {
+            crate::approval_allowlist::is_allowlisted(
+                state.repository.repository_id.as_str(),
+                name_canonical,
+            )
+            .await
+        };
+
+        if !mode_auto_approved && !allowlisted {
+            // B3 HITL: unconditionally register an interactive approval and await the
+            // human decision (resolved in-process via the `vox_resolve_approval` tool).
+            // There is NO arg-based fast path here — a tool-call argument must never be
+            // able to skip human approval for a dangerous operation, since the LLM
+            // agent itself composes the tool-call JSON. See T0.1 in
+            // docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md.
             let now_ms = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
@@ -160,6 +224,29 @@ pub async fn handle_tool_call(
                     .hitl_approval_record(&approval_id, name_canonical, &summary, now_ms as i64)
                     .await;
             }
+            // T1.1: op-log is the dispatch-lifecycle SSOT (durable independently of
+            // hitl_approvals, which stays as a derived/joined table — see the
+            // reconciliation table in vox-axis-harness-reliability-spec-plan-2026-07-02.md
+            // section 2). `record_operation` acquires the std RwLock write guard
+            // synchronously, releases it before its own internal `.await`, and is
+            // therefore safe to call directly here (same pattern as vcs_ops.rs's
+            // existing `record` caller).
+            state
+                .orchestrator
+                .record_operation(
+                    vox_orchestrator::AgentId(0),
+                    vox_orchestrator::oplog::OperationKind::ApprovalRequested {
+                        approval_id: approval_id.clone(),
+                        tool: name_canonical.to_string(),
+                        run_id: run_id_for_approval.clone(),
+                    },
+                    format!("Approval requested for {name_canonical}"),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await;
             const APPROVAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
             let outcome = match tokio::time::timeout(APPROVAL_TIMEOUT, rx).await {
                 Ok(Ok(o)) => o,
@@ -169,16 +256,33 @@ pub async fn handle_tool_call(
                     vox_orchestrator::ApprovalOutcome::TimedOut
                 }
             };
+            let resolved_status = format!("{outcome:?}").to_lowercase();
             if let Some(db) = state.db.as_ref() {
                 let resolved_ms = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_millis() as i64;
-                let status = format!("{outcome:?}").to_lowercase();
                 let _ = db
-                    .hitl_approval_resolve(&approval_id, &status, resolved_ms)
+                    .hitl_approval_resolve(&approval_id, &resolved_status, resolved_ms)
                     .await;
             }
+            // T1.1: durable ApprovalResolved alongside the hitl_approvals write above.
+            state
+                .orchestrator
+                .record_operation(
+                    vox_orchestrator::AgentId(0),
+                    vox_orchestrator::oplog::OperationKind::ApprovalResolved {
+                        approval_id: approval_id.clone(),
+                        outcome: resolved_status,
+                        resolver: None,
+                    },
+                    format!("Approval resolved for {name_canonical}"),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await;
             if !matches!(
                 outcome,
                 vox_orchestrator::ApprovalOutcome::Approved
@@ -191,6 +295,8 @@ pub async fn handle_tool_call(
             }
             // Approved / Modified: fall through and execute the tool.
         }
+        // mode_auto_approved || allowlisted: skip the park entirely, fall
+        // through and execute the tool immediately.
     }
 
     // Build a TraceContext from the incoming call metadata so all async code reachable
@@ -234,12 +340,45 @@ pub async fn handle_tool_call(
     let aci_envelope = state.orchestrator_config.agentos_aci_envelope_enabled;
     let checkpoint_hints = state.orchestrator_config.agentos_checkpoint_hints_enabled;
 
+    // T4.3: outer execution timeout around the actual tool dispatch, sourced
+    // per-tool from `dispatch_timeout::timeout_for` (agy delegation tools get
+    // a much larger exception; everything else gets the global default). This
+    // is independent of and does NOT replace the 300s HITL approval-wait
+    // above — that bounds waiting for a human decision before execution ever
+    // starts; this bounds the execution itself, for every tool, gated or not.
+    // `vox_db::TimedExecution` (the `te` used below) only measures duration
+    // for telemetry and never bounded it, so a hung tool implementation
+    // previously blocked this handler (and the MCP connection) indefinitely.
+    let call_timeout = crate::dispatch_timeout::timeout_for(name_canonical);
     let result = te
         .run(|| {
             let args = args.clone();
-            vox_telemetry::TRACE_CTX.scope(trace_ctx, async move {
-                handle_tool_call_inner(state, name_canonical, args).await
-            })
+            async move {
+                match tokio::time::timeout(
+                    call_timeout,
+                    vox_telemetry::TRACE_CTX.scope(trace_ctx, async move {
+                        handle_tool_call_inner(state, name_canonical, args).await
+                    }),
+                )
+                .await
+                {
+                    Ok(inner) => inner,
+                    Err(_elapsed) => {
+                        tracing::warn!(
+                            tool = name_canonical,
+                            timeout_secs = call_timeout.as_secs(),
+                            "tool execution exceeded its dispatch timeout"
+                        );
+                        Ok(crate::params::ToolResult::<()>::err(format!(
+                            "Tool '{name_canonical}' exceeded its execution timeout ({}s) and was aborted. \
+                             This is a dispatch-level guard independent of any approval wait; the tool call \
+                             itself took too long to complete.",
+                            call_timeout.as_secs()
+                        ))
+                        .to_json_compact())
+                    }
+                }
+            }
         })
         .await;
 
@@ -431,6 +570,32 @@ async fn handle_tool_call_inner(
         }
     }
 
+    // T4.3 RED-test doubles: never compiled into a non-test build. Lets the
+    // dispatch-timeout tests exercise the real `handle_tool_call` /
+    // `handle_tool_call_with_mode` path (approval gate, TimedExecution,
+    // telemetry, the new outer `tokio::time::timeout`) end-to-end without
+    // depending on any real tool's I/O or subprocess behavior.
+    //
+    // Deliberately NOT a `match name { ... }` block: `mcp_wiring`'s
+    // TOOL_REGISTRY-vs-handler CI guard locates the real dispatch table by
+    // string-searching for the first `"match name {"` literal after
+    // `handle_tool_call`'s signature — a second such literal here would be
+    // found first, truncating the guard's scan before it ever reaches the
+    // real table below.
+    #[cfg(test)]
+    if name == "vox_test_hang_forever" {
+        let sleep_ms = args
+            .get("sleep_ms")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(u64::MAX);
+        tokio::time::sleep(std::time::Duration::from_millis(sleep_ms)).await;
+        return Ok(ToolResult::ok("woke up (should not happen under test timeout)").to_json());
+    } else if name == "vox_test_agy_like_long_running" {
+        let sleep_ms = args.get("sleep_ms").and_then(|v| v.as_u64()).unwrap_or(0);
+        tokio::time::sleep(std::time::Duration::from_millis(sleep_ms)).await;
+        return Ok(ToolResult::ok("agy-like delegation completed").to_json());
+    }
+
     match name {
         "vox_visual_rag_query" => {
             Ok(rag_tools::visual_rag_query(state, serde_json::from_value(args)?).await)
@@ -469,6 +634,55 @@ async fn handle_tool_call_inner(
                 "resolved": resolved,
                 "approval_id": approval_id,
                 "outcome": format!("{outcome:?}"),
+            }))
+            .to_json_compact())
+        }
+        // T0.3 Part D: persist a "always allow this tool in this repo"
+        // allowlist entry (tier 3 of the dangerous-tool gate's precedence
+        // order — see contracts/orchestration/permission-modes.v1.yaml). The
+        // GUI's ApprovalsView calls this alongside resolving the current
+        // approval when the "always allow" checkbox is set. `repo_id`
+        // defaults to the current server's own repository when omitted, but
+        // callers should pass it explicitly to avoid ambiguity.
+        "vox_add_approval_allowlist_entry" => {
+            let tool = args.get("tool").and_then(|v| v.as_str()).unwrap_or("");
+            let repo_id = args
+                .get("repo_id")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .unwrap_or(state.repository.repository_id.as_str());
+            if tool.is_empty() {
+                return Ok(
+                    crate::params::ToolResult::<()>::err("`tool` (string) is required")
+                        .to_json_compact(),
+                );
+            }
+            match crate::approval_allowlist::add_entry(repo_id, tool).await {
+                Ok(()) => Ok(crate::params::ToolResult::ok(serde_json::json!({
+                    "added": true,
+                    "repo_id": repo_id,
+                    "tool": tool,
+                }))
+                .to_json_compact()),
+                Err(e) => Ok(crate::params::ToolResult::<()>::err(format!(
+                    "failed to persist allowlist entry: {e}"
+                ))
+                .to_json_compact()),
+            }
+        }
+        // T0.3 Part D: list allowlisted tools for a repo (GUI display of
+        // current allowlist state). `repo_id` defaults to this server's own
+        // repository when omitted.
+        "vox_list_approval_allowlist" => {
+            let repo_id = args
+                .get("repo_id")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .unwrap_or(state.repository.repository_id.as_str());
+            let tools = crate::approval_allowlist::list_for_repo(repo_id).await;
+            Ok(crate::params::ToolResult::ok(serde_json::json!({
+                "repo_id": repo_id,
+                "tools": tools,
             }))
             .to_json_compact())
         }
@@ -1763,6 +1977,16 @@ mod registry_dispatch_tests {
         "vox_browser_extract",
         "vox_browser_extract_json",
         "vox_browser_act",
+        // T0.3: always_requires_approval — parks unconditionally under every
+        // PermissionMode (including accept_all) and is never satisfied by
+        // the persisted allowlist (see permission_modes::RISK_CLASSES /
+        // dispatch.rs's dangerous-tool gate). Probing it with `handle_tool_call`
+        // (mode = None -> Ask) here would register a pending approval that
+        // nothing in this test ever resolves, burning the full 300s
+        // APPROVAL_TIMEOUT before falling through as TimedOut — under
+        // nextest's slow-timeout profile this test gets killed and retried
+        // long before that, wasting several minutes of CI time per run.
+        "vox_add_approval_allowlist_entry",
     ];
 
     #[tokio::test]
@@ -1809,5 +2033,106 @@ mod registry_dispatch_tests {
                 );
             }
         }
+    }
+}
+
+// ── T4.3: per-tool-call dispatch timeout tests ──────────────────────────────
+#[cfg(test)]
+mod dispatch_timeout_tests {
+    use super::handle_tool_call;
+    use crate::server_state::ServerState;
+    use serde_json::json;
+
+    /// RED test 1: a deliberately-hanging tool returns a timeout error
+    /// envelope after its configured (short, test-only) duration, and the
+    /// handler remains responsive for a subsequent normal call — proving the
+    /// outer `tokio::time::timeout` in `handle_tool_call_with_mode` actually
+    /// aborts execution rather than leaving the connection hanging, and that
+    /// it doesn't leave any shared state (locks, `ServerState`) poisoned.
+    #[tokio::test]
+    async fn hanging_tool_times_out_and_handler_stays_responsive() {
+        let state = ServerState::new_test().await;
+
+        let started = std::time::Instant::now();
+        let res = handle_tool_call(&state, "vox_test_hang_forever", json!({}))
+            .await
+            .expect("dispatch itself must not error; timeout is surfaced as a ToolResult envelope");
+        let elapsed = started.elapsed();
+
+        assert!(
+            crate::server_state::tool_json_envelope_is_error(&res),
+            "expected a `success: false` timeout envelope, got: {res}"
+        );
+        assert!(
+            res.contains("exceeded its execution timeout"),
+            "expected the timeout error message, got: {res}"
+        );
+        // The configured test timeout is 200ms; give generous CI slack but
+        // assert it did NOT wait anywhere near the (effectively infinite)
+        // sleep duration the test tool would otherwise run for.
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "timeout took far too long to fire: {elapsed:?}"
+        );
+
+        // Handler must still be responsive afterward — prove no poisoned
+        // lock / broken state by making an ordinary, fast call right after.
+        let follow_up = handle_tool_call(&state, "vox_skill_list", json!({}))
+            .await
+            .expect("handler must remain responsive after a prior call timed out");
+        assert!(
+            !crate::server_state::tool_json_envelope_is_error(&follow_up),
+            "follow-up call unexpectedly failed: {follow_up}"
+        );
+    }
+
+    /// RED test 2: an agy-delegation test-double that sleeps LONGER than the
+    /// global default timeout but SHORTER than its own configured long
+    /// timeout completes successfully — proving the agy exception is a real,
+    /// effective per-tool override and not just documented.
+    #[tokio::test]
+    async fn agy_like_tool_survives_past_the_global_default_timeout() {
+        let state = ServerState::new_test().await;
+
+        // Global default (dispatch_timeout::DEFAULT_TIMEOUT) is 120s in
+        // production; `vox_test_agy_like_long_running`'s own configured
+        // timeout is 2000ms (test-only). Sleep for longer than a plausible
+        // "wrong, defaulted" timeout would allow but well inside its actual
+        // 2000ms budget.
+        let sleep_ms = 600u64;
+        assert!(
+            sleep_ms
+                < crate::dispatch_timeout::timeout_for("vox_test_agy_like_long_running").as_millis()
+                    as u64,
+            "test sleep must stay under the tool's own configured timeout"
+        );
+
+        let res = handle_tool_call(
+            &state,
+            "vox_test_agy_like_long_running",
+            json!({ "sleep_ms": sleep_ms }),
+        )
+        .await
+        .expect("dispatch must not error");
+
+        assert!(
+            !crate::server_state::tool_json_envelope_is_error(&res),
+            "agy-like long-running tool should have completed within its own exception timeout, got: {res}"
+        );
+        assert!(res.contains("agy-like delegation completed"));
+    }
+
+    /// RED test 3 (regression guard): a normal, fast tool completing well
+    /// within its timeout is unaffected by the new outer guard.
+    #[tokio::test]
+    async fn fast_normal_tool_is_unaffected_by_the_outer_timeout() {
+        let state = ServerState::new_test().await;
+        let res = handle_tool_call(&state, "vox_skill_list", json!({}))
+            .await
+            .expect("dispatch must not error");
+        assert!(
+            !crate::server_state::tool_json_envelope_is_error(&res),
+            "fast tool unexpectedly failed: {res}"
+        );
     }
 }

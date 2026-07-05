@@ -240,7 +240,7 @@ async fn record_telemetry_outcome(
 }
 
 #[allow(unused_variables)]
-async fn record_telemetry_attempt(
+pub(super) async fn record_telemetry_attempt(
     config: &LlmConfig,
     outcome: &str,
     latency_ms: i64,

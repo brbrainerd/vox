@@ -223,6 +223,22 @@ pub enum AgentEventKind {
         attempted_budget_ms: u64,
     },
 
+    /// An autonomous agent's own `@tool` intent line (emitted while
+    /// executing a task) was actually dispatched through the real MCP tool
+    /// gate (T1.5 follow-up — `AiTaskProcessor::process` +
+    /// `runtime::ToolDispatcher`), as opposed to only being logged as a
+    /// tracing breadcrumb.
+    ToolCallDispatched {
+        task_id: TaskId,
+        agent_id: AgentId,
+        tool_name: String,
+        /// `true` if the dispatch call itself returned `Ok` (the tool result
+        /// may still encode a `success: false` `ToolResult` payload inside
+        /// that `Ok` string — this only reflects whether dispatch completed
+        /// without an `Err`).
+        ok: bool,
+    },
+
     /// A file lock was acquired.
     LockAcquired {
         agent_id: AgentId,
@@ -734,6 +750,188 @@ pub enum MeshAction {
 }
 
 // ---------------------------------------------------------------------------
+// Tier classification (T1.2: two-tier append-before-broadcast)
+// ---------------------------------------------------------------------------
+//
+// **Tier A** (durable-before-broadcast): dispatch-lifecycle transitions that
+// T1.1 wired into the durable op-log via `Orchestrator::record_operation` —
+// task submit/complete/fail, HITL approval request/resolve, soft-HITL
+// feedback request/resolve, task-doubt, and hopper admit/assign/complete.
+// These fire at most a few times per second, so paying an oplog append (and,
+// via `append_to_db_with_breaker`, an eventual durable write) per event is
+// cheap. Production call sites MUST durably record a Tier-A transition
+// *before* broadcasting the corresponding `AgentEventKind` on the
+// [`EventBus`] — see `Orchestrator::record_operation`'s doc comment and the
+// call sites in `vox-orchestrator-mcp/src/{dispatch,feedback_tools}.rs`,
+// `vox-orchestrator/src/orchestrator/{task_dispatch,agent/doubt,dispatch}.rs`,
+// and `vox-orchestrator/src/orch_daemon/mod.rs`.
+//
+// **Tier B** (broadcast-only, never durably journaled): everything else —
+// `TokenStreamed`, heartbeats, throughput/cost ticks, lock/diag chatter, and
+// any other high-frequency or purely observational event. These can fire
+// hundreds of times per second (e.g. one `TokenStreamed` per LLM token);
+// fsync-per-append here was explicitly rejected as a design (it would bloat
+// the op-log and stall the hot path on disk I/O). Tier-B events are pure
+// broadcast: no durable record, no undo/redo, no replay. The recovery
+// contract for a crashed/restarted daemon is "resume from the last committed
+// Tier-A transition" — never mid-token, never mid-heartbeat.
+//
+// `AgentEventKind` is not `#[non_exhaustive]`, so [`is_tier_a`] is written as
+// an exhaustive match: adding a new variant without extending this match is a
+// compile error, which is the enforcement mechanism (a future contributor is
+// forced to make an explicit tier decision rather than silently defaulting).
+
+/// Returns `true` if `kind` is a **Tier A** event: a dispatch-lifecycle
+/// transition that must be durably recorded (via `Orchestrator::record_operation`)
+/// *before* being broadcast on the [`EventBus`]. See the module-level tier
+/// documentation above.
+#[must_use]
+pub fn is_tier_a(kind: &AgentEventKind) -> bool {
+    match kind {
+        // Task lifecycle — mirrors OperationKind::{TaskSubmit,TaskComplete,TaskFail}.
+        AgentEventKind::TaskSubmitted { .. }
+        | AgentEventKind::TaskCompleted { .. }
+        | AgentEventKind::TaskFailed { .. }
+        // Soft-HITL feedback — mirrors OperationKind::{FeedbackRequested,FeedbackResolved}.
+        | AgentEventKind::FeedbackRequested { .. }
+        | AgentEventKind::FeedbackResolved { .. }
+        // Doom-loop doubt — mirrors OperationKind::TaskDoubted.
+        | AgentEventKind::TaskDoubted { .. }
+        // Hopper admit — mirrors OperationKind::HopperAdmit (HopperAssign/HopperComplete
+        // have no direct AgentEventKind broadcast counterpart today).
+        | AgentEventKind::HopperItemAdmitted { .. } => true,
+
+        // Everything else is Tier B: broadcast-only, never durably journaled.
+        AgentEventKind::AgentSpawned { .. }
+        | AgentEventKind::AgentRetired { .. }
+        | AgentEventKind::AgentHeartbeat { .. }
+        | AgentEventKind::ActivityChanged { .. }
+        | AgentEventKind::OperatingModeChanged { .. }
+        | AgentEventKind::TaskStarted { .. }
+        | AgentEventKind::TaskPhaseChanged { .. }
+        | AgentEventKind::TaskDelegated { .. }
+        | AgentEventKind::TaskResolved { .. }
+        | AgentEventKind::ToolTimedOut { .. }
+        | AgentEventKind::LockAcquired { .. }
+        | AgentEventKind::LockReleased { .. }
+        | AgentEventKind::AgentIdle { .. }
+        | AgentEventKind::AgentBusy { .. }
+        | AgentEventKind::MessageSent { .. }
+        | AgentEventKind::CostIncurred { .. }
+        | AgentEventKind::EmergencyStop { .. }
+        | AgentEventKind::ContinuationTriggered { .. }
+        | AgentEventKind::PlanHandoff { .. }
+        | AgentEventKind::ScopeViolation { .. }
+        | AgentEventKind::CompactionTriggered { .. }
+        | AgentEventKind::MemoryFlushed { .. }
+        | AgentEventKind::SessionCreated { .. }
+        | AgentEventKind::SessionReset { .. }
+        | AgentEventKind::SnapshotCaptured { .. }
+        | AgentEventKind::ConflictDetected { .. }
+        | AgentEventKind::OperationUndone { .. }
+        | AgentEventKind::OperationRedone { .. }
+        | AgentEventKind::AgentHandoffRejected { .. }
+        | AgentEventKind::AgentHandoffAccepted { .. }
+        | AgentEventKind::UrgentRebalanceTriggered { .. }
+        | AgentEventKind::TokenStreamed { .. }
+        | AgentEventKind::InjectionDetected { .. }
+        | AgentEventKind::PromptConflictDetected { .. }
+        | AgentEventKind::PlanningRouted { .. }
+        | AgentEventKind::PlanSessionCreated { .. }
+        | AgentEventKind::PlanVersionCreated { .. }
+        | AgentEventKind::ReplanTriggered { .. }
+        | AgentEventKind::WorkflowHandoffRequested { .. }
+        | AgentEventKind::WorkflowHandoffCompleted { .. }
+        | AgentEventKind::WorkflowStarted { .. }
+        | AgentEventKind::WorkflowCompleted { .. }
+        | AgentEventKind::WorkflowFailed { .. }
+        | AgentEventKind::ActivityStarted { .. }
+        | AgentEventKind::ActivityCompleted { .. }
+        | AgentEventKind::ActivityRetried { .. }
+        | AgentEventKind::ConflictResolved { .. }
+        | AgentEventKind::WorkspaceCreated { .. }
+        | AgentEventKind::EndpointReliabilityObservation { .. }
+        | AgentEventKind::OrchestratorIdle { .. }
+        | AgentEventKind::TaskExpired { .. }
+        | AgentEventKind::MensObserverObservation { .. }
+        | AgentEventKind::AutoHealApplied { .. }
+        | AgentEventKind::AutoHealSuggested { .. }
+        | AgentEventKind::AttentionBudgetAlert { .. }
+        | AgentEventKind::BudgetAlert { .. }
+        | AgentEventKind::AttentionBudgetReset { .. }
+        | AgentEventKind::TrustOverride { .. }
+        | AgentEventKind::AttentionConfigReloaded
+        | AgentEventKind::ContextTruncated { .. }
+        | AgentEventKind::LlmCallCompleted { .. }
+        | AgentEventKind::ObservationRecorded { .. }
+        | AgentEventKind::OrientCompleted { .. }
+        | AgentEventKind::ResearchExecuted { .. }
+        | AgentEventKind::ResearchSynthesisExecuted { .. }
+        | AgentEventKind::DoubtReported { .. }
+        | AgentEventKind::SemanticDriftDetected { .. }
+        | AgentEventKind::BuildStage { .. }
+        | AgentEventKind::ThroughputTick { .. }
+        | AgentEventKind::CostTick { .. }
+        | AgentEventKind::FileDiagChanged { .. }
+        | AgentEventKind::MeshTopologyChanged { .. }
+        | AgentEventKind::TaskReprioritized { .. }
+        | AgentEventKind::HopperItemOverridden { .. }
+        | AgentEventKind::HopperItemCancelled { .. }
+        | AgentEventKind::MeshNodeBudget { .. }
+        | AgentEventKind::MeshActionCommitted { .. }
+        | AgentEventKind::PavPhaseChanged { .. }
+        | AgentEventKind::ToolCallDispatched { .. } => false,
+    }
+}
+
+/// Bare variant names of every Tier-B `AgentEventKind` (the `false` arms of
+/// [`is_tier_a`]), for consumers that need the set as strings rather than
+/// pattern-matchable values (e.g. `tests/tier_b_never_durable_guard.rs`'s
+/// source-grep, which checks for these names appearing as `OperationKind::`
+/// constructor arguments at durable-write call sites — `OperationKind` is a
+/// different, `#[non_exhaustive]` enum in another crate with no structural
+/// link to `AgentEventKind`, so this can't be derived via a shared trait/derive
+/// without adding an `EnumIter`-style dependency).
+///
+/// **Keep in sync with [`is_tier_a`]'s match arms by hand** — there is no
+/// compiler enforcement linking this list to the match. If you add a new
+/// `AgentEventKind` variant, update `is_tier_a`'s match (compiler-enforced,
+/// since it's exhaustive) *and*, if the variant is Tier B, add its name here.
+#[rustfmt::skip]
+pub const TIER_B_KIND_NAMES: &[&str] = &[
+    "AgentSpawned", "AgentRetired", "AgentHeartbeat", "ActivityChanged",
+    "OperatingModeChanged", "TaskStarted", "TaskPhaseChanged", "TaskDelegated",
+    "TaskResolved", "ToolTimedOut", "LockAcquired", "LockReleased", "AgentIdle",
+    "AgentBusy", "MessageSent", "CostIncurred", "EmergencyStop",
+    "ContinuationTriggered", "PlanHandoff", "ScopeViolation",
+    "CompactionTriggered", "MemoryFlushed", "SessionCreated", "SessionReset",
+    "SnapshotCaptured", "ConflictDetected", "OperationUndone", "OperationRedone",
+    "AgentHandoffRejected", "AgentHandoffAccepted", "UrgentRebalanceTriggered",
+    "TokenStreamed", "InjectionDetected", "PromptConflictDetected",
+    "PlanningRouted", "PlanSessionCreated", "PlanVersionCreated",
+    "ReplanTriggered", "WorkflowHandoffRequested", "WorkflowHandoffCompleted",
+    "WorkflowStarted", "WorkflowCompleted", "WorkflowFailed", "ActivityStarted",
+    "ActivityCompleted", "ActivityRetried", "ConflictResolved",
+    "WorkspaceCreated", "EndpointReliabilityObservation", "OrchestratorIdle",
+    "TaskExpired", "MensObserverObservation", "AutoHealApplied",
+    "AutoHealSuggested", "AttentionBudgetAlert", "BudgetAlert",
+    "AttentionBudgetReset", "TrustOverride", "AttentionConfigReloaded",
+    "ContextTruncated", "LlmCallCompleted", "ObservationRecorded",
+    "OrientCompleted", "ResearchExecuted", "ResearchSynthesisExecuted",
+    "DoubtReported", "SemanticDriftDetected", "BuildStage", "ThroughputTick",
+    "CostTick", "FileDiagChanged", "MeshTopologyChanged", "TaskReprioritized",
+    "HopperItemOverridden", "HopperItemCancelled", "MeshNodeBudget",
+    "MeshActionCommitted", "PavPhaseChanged", "ToolCallDispatched",
+];
+
+/// Returns `true` if `kind` is a **Tier B** event (broadcast-only, never
+/// durably journaled). The exact complement of [`is_tier_a`].
+#[must_use]
+pub fn is_tier_b(kind: &AgentEventKind) -> bool {
+    !is_tier_a(kind)
+}
+
+// ---------------------------------------------------------------------------
 // Event bus
 // ---------------------------------------------------------------------------
 
@@ -949,5 +1147,129 @@ mod tests {
         assert!(json.contains("verifying"), "phase value missing: {json}");
         let back: AgentEvent = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back.id, EventId(77));
+    }
+
+    // -----------------------------------------------------------------------
+    // T1.2: tier classification
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn token_streamed_is_tier_b() {
+        let kind = AgentEventKind::TokenStreamed {
+            agent_id: AgentId(1),
+            text: "hello".into(),
+        };
+        assert!(
+            is_tier_b(&kind),
+            "TokenStreamed must be Tier B (broadcast-only, never durably journaled)"
+        );
+        assert!(!is_tier_a(&kind), "is_tier_a must be the exact complement");
+    }
+
+    #[test]
+    fn task_completed_is_tier_a() {
+        let kind = AgentEventKind::TaskCompleted {
+            task_id: TaskId(1),
+            agent_id: AgentId(1),
+            session_id: None,
+            audit_report: None,
+        };
+        assert!(
+            is_tier_a(&kind),
+            "TaskCompleted must be Tier A (durable-before-broadcast): it mirrors \
+             OperationKind::TaskComplete, which T1.1 durably records"
+        );
+        assert!(!is_tier_b(&kind), "is_tier_b must be the exact complement");
+    }
+
+    #[test]
+    fn t1_1_durable_variants_are_all_tier_a() {
+        // Every AgentEventKind that mirrors a T1.1 durable OperationKind
+        // (task lifecycle, feedback, doubt, hopper-admit) must classify Tier A.
+        let tier_a_kinds = [
+            AgentEventKind::TaskSubmitted {
+                task_id: TaskId(1),
+                agent_id: AgentId(1),
+                description: "d".into(),
+                session_id: None,
+            },
+            AgentEventKind::TaskCompleted {
+                task_id: TaskId(1),
+                agent_id: AgentId(1),
+                session_id: None,
+                audit_report: None,
+            },
+            AgentEventKind::TaskFailed {
+                task_id: TaskId(1),
+                agent_id: AgentId(1),
+                error: "e".into(),
+                session_id: None,
+                audit_report: None,
+            },
+            AgentEventKind::FeedbackRequested {
+                feedback_id: "F-1".into(),
+                kind: "doubt".into(),
+                gates: vec![],
+                surface: "needs_you".into(),
+            },
+            AgentEventKind::FeedbackResolved {
+                feedback_id: "F-1".into(),
+            },
+            AgentEventKind::TaskDoubted {
+                task_id: TaskId(1),
+                agent_id: AgentId(1),
+                reason: None,
+            },
+            AgentEventKind::HopperItemAdmitted {
+                item_id: HopperItemId("hp-1".into()),
+                classified_priority: TaskPriority::Normal,
+                classified_affinity: vec![],
+                confidence: 0.5,
+                session_id: None,
+            },
+        ];
+        for kind in &tier_a_kinds {
+            assert!(is_tier_a(kind), "expected Tier A: {kind:?}");
+        }
+    }
+
+    #[test]
+    fn high_frequency_kinds_are_all_tier_b() {
+        // Heartbeats, throughput/cost ticks, lock/diag chatter must never be Tier A
+        // (would defeat the whole point of keeping the durable oplog low-frequency).
+        let tier_b_kinds = [
+            AgentEventKind::TokenStreamed {
+                agent_id: AgentId(1),
+                text: "x".into(),
+            },
+            AgentEventKind::AgentHeartbeat {
+                agent_id: AgentId(1),
+                activity: AgentActivity::Idle,
+                active_skill: None,
+            },
+            AgentEventKind::ThroughputTick {
+                ts_ms: 0,
+                tokens_per_sec: 0.0,
+                active_runs: 0,
+            },
+            AgentEventKind::CostTick {
+                ts_ms: 0,
+                delta_usd: 0.0,
+                total_24h_usd: 0.0,
+                model: "m".into(),
+            },
+            AgentEventKind::LockAcquired {
+                agent_id: AgentId(1),
+                path: PathBuf::from("f"),
+                exclusive: true,
+            },
+            AgentEventKind::LockReleased {
+                agent_id: AgentId(1),
+                path: PathBuf::from("f"),
+            },
+        ];
+        for kind in &tier_b_kinds {
+            assert!(is_tier_b(kind), "expected Tier B: {kind:?}");
+        }
     }
 }

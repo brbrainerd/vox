@@ -1249,6 +1249,17 @@ pub const SPECS_MISSING_TAIL: &[SecretSpec] = &[
         scope_description: "",
     },
     SecretSpec {
+        id: SecretId::VoxOrchestratorDaemonToken,
+        canonical_env: "VOX_ORCHESTRATOR_DAEMON_TOKEN",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Shared secret used to authenticate TCP connections to vox-orchestrator-d. Optional: if unset, the daemon generates a random token at startup and writes it to <home>/.vox/run/orchestrator-daemon.token. Set explicitly when an external spawner (e.g. the GUI's PersistentDaemon) needs to inject a known token to avoid a startup race, or when binding the daemon to a non-loopback address.",
+        scope_description: "",
+    },
+    SecretSpec {
         id: SecretId::VoxOpenRouterClassifierEnabled,
         canonical_env: "VOX_OPEN_ROUTER_CLASSIFIER_ENABLED",
         aliases: &[],

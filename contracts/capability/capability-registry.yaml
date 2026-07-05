@@ -5204,6 +5204,22 @@ curated:
   mcp_tool: vox_a2a_tasks
   cli_path: null
   parameters: null
+- id: mcp.vox_add_approval_allowlist_entry
+  title: Add Approval Allowlist Entry
+  description_human: null
+  description_model: Persist a per-repository "always allow this tool" entry so it auto-approves without parking for HITL approval (T0.3).
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: true
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_add_approval_allowlist_entry
+  cli_path: null
+  parameters: null
 - id: mcp.vox_agent_assess
   title: Agent Assess
   description_human: null
@@ -7573,6 +7589,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_lint_crate
+  cli_path: null
+  parameters: null
+- id: mcp.vox_list_approval_allowlist
+  title: List Approval Allowlist
+  description_human: null
+  description_model: List MCP tools currently allowlisted for auto-approval in a repository (T0.3).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_list_approval_allowlist
   cli_path: null
   parameters: null
 - id: mcp.vox_list_context

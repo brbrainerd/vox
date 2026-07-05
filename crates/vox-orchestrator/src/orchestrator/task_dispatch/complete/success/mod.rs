@@ -510,6 +510,39 @@ impl Orchestrator {
         )
         .await;
 
+        // T1.1 (hopper wiring): if this task originated from a hopper-admitted
+        // item — `intake_to_task` derives `task_id` deterministically via
+        // `stable_hash(item_id)`, so we recover the item by re-hashing each
+        // still-assigned item rather than storing a separate reverse map — mark
+        // it done on the real `HopperIntake::complete` and durably record
+        // `HopperComplete`. Best-effort: tasks submitted directly (not via the
+        // hopper) simply have no matching assigned item, which is expected.
+        {
+            let hopper = self.hopper();
+            let matching_item = hopper.assigned().await.into_iter().find(|item| {
+                crate::orchestrator::dispatch::stable_hash(&item.item_id.0) == task_id.0
+            });
+            if let Some(item) = matching_item {
+                if hopper.complete(&item.item_id).await.is_ok() {
+                    self.record_operation(
+                        agent_id,
+                        crate::oplog::OperationKind::HopperComplete {
+                            item_id: item.item_id.0.clone(),
+                        },
+                        format!(
+                            "Hopper item {} completed (task {})",
+                            item.item_id.0, task_id
+                        ),
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await;
+                }
+            }
+        }
+
         self.record_success_persistence(
             task_id,
             agent_id,

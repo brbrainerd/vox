@@ -1,18 +1,29 @@
-//! In-process orchestrator HUD for Ludus companions (`vox ludus hud`; needs `ludus-hud` feature).
+//! Orchestrator HUD for Ludus companions (`vox ludus hud`; needs `ludus-hud` feature).
+//!
+//! T2.3: subscribes to the shared `vox-orchestrator-d` daemon's agent-event
+//! stream (spawning it if absent) instead of a private, throwaway in-process
+//! `Orchestrator`'s isolated bulletin bus — the old in-process mode's bus
+//! never received anything from other clients (GUI, `vox dei submit`, MCP),
+//! so the HUD could only ever show its own dead orchestrator.
 
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use std::collections::HashMap;
-use tokio::time::{Duration, sleep};
+use tokio::time::sleep;
+use vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure;
 use vox_gamify::companion::{Companion, Interaction, render_multi_agent_status};
 use vox_gamify::db::canonical_user_id;
-use vox_orchestrator::types::AgentMessage;
-use vox_orchestrator::{OrchestratorConfig, build_repo_scoped_orchestrator};
+use vox_orchestrator::AgentEvent;
+use vox_orchestrator::events::AgentEventKind;
 
 pub async fn run() -> Result<()> {
-    let config = OrchestratorConfig::default();
-    let orch = build_repo_scoped_orchestrator(config, None).orchestrator;
-    let mut rx = orch.bulletin().subscribe();
+    let daemon = OrchestratorDaemonEnsure::default();
+    let client = daemon
+        .client()
+        .await
+        .map_err(|e| anyhow::anyhow!("could not reach or spawn vox-orchestrator-d: {e}"))?;
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(256);
+    let producer = tokio::spawn(async move { client.subscribe_events(tx).await });
     let uid = canonical_user_id();
 
     println!(
@@ -26,13 +37,17 @@ pub async fn run() -> Result<()> {
     loop {
         tokio::select! {
             result = rx.recv() => {
-                let msg = match result {
-                    Ok(m) => m,
-                    Err(_) => continue,
+                let Some(raw) = result else {
+                    // Daemon stream ended; stop polling further frames but
+                    // keep rendering the last-known companion state below.
+                    break;
+                };
+                let Ok(event) = serde_json::from_value::<AgentEvent>(raw) else {
+                    continue;
                 };
 
-                match msg {
-                    AgentMessage::AgentSpawned { agent_id, name } => {
+                match event.kind {
+                    AgentEventKind::AgentSpawned { agent_id, name } => {
                         let c = Companion::new(
                             format!("agent-{}", agent_id.0),
                             &uid,
@@ -41,17 +56,20 @@ pub async fn run() -> Result<()> {
                         );
                         companions.insert(agent_id.0, c);
                     }
-                    AgentMessage::TaskAssigned { agent_id, .. } => {
+                    // AgentMessage::TaskAssigned had no AgentEventKind equivalent by
+                    // that name; TaskStarted is the closest semantic match (agent
+                    // begins working a task) — same Interaction as before.
+                    AgentEventKind::TaskStarted { agent_id, .. } => {
                         if let Some(c) = companions.get_mut(&agent_id.0) {
                             c.interact(Interaction::TaskAssigned);
                         }
                     }
-                    AgentMessage::TaskCompleted { agent_id, .. } => {
+                    AgentEventKind::TaskCompleted { agent_id, .. } => {
                         if let Some(c) = companions.get_mut(&agent_id.0) {
                             c.interact(Interaction::TaskCompleted);
                         }
                     }
-                    AgentMessage::TaskFailed { agent_id, .. } => {
+                    AgentEventKind::TaskFailed { agent_id, .. } => {
                         if let Some(c) = companions.get_mut(&agent_id.0) {
                             c.interact(Interaction::TaskFailed);
                             tracing::debug!(
@@ -60,7 +78,7 @@ pub async fn run() -> Result<()> {
                             );
                         }
                     }
-                    AgentMessage::TaskDoubted { agent_id, .. } => {
+                    AgentEventKind::TaskDoubted { agent_id, .. } => {
                         if let Some(c) = companions.get_mut(&agent_id.0) {
                             c.interact(Interaction::TaskDoubted);
                             tracing::debug!(
@@ -69,7 +87,7 @@ pub async fn run() -> Result<()> {
                             );
                         }
                     }
-                    AgentMessage::LockAcquired { agent_id, .. } => {
+                    AgentEventKind::LockAcquired { agent_id, .. } => {
                         if let Some(c) = companions.get_mut(&agent_id.0) {
                             c.interact(Interaction::LockAcquired);
                         }
@@ -90,4 +108,7 @@ pub async fn run() -> Result<()> {
             println!("{}\n", ascii.cyan());
         }
     }
+
+    let _ = producer.await;
+    Ok(())
 }

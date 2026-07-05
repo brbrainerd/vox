@@ -3,6 +3,7 @@ name = "vox-langtool"
 description = "DB-free CLI for writing in the Vox language: check, fmt, run, build."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [[bin]]
 name = "vox-langtool"

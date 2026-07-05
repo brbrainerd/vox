@@ -229,6 +229,15 @@ pub struct BudgetManager {
     /// Threshold in USD (stored via `f64::to_bits()`): if cost_since_last_completion exceeds
     /// this, doom-loop fires. Default: $2.00. Set via `set_doom_loop_cost_threshold`.
     pub(crate) doom_loop_threshold_usd: Arc<std::sync::atomic::AtomicU64>,
+    /// T5.3: in-flight pre-dispatch token estimates per tenant, used by
+    /// [`Self::try_reserve_tenant_tokens`] for the tenant monthly budget gate
+    /// (whose "current usage" is a DB `SUM` over completed cost records, not an
+    /// in-memory counter, so it cannot itself be locked). Adding this tenant's
+    /// other in-flight reservations to the DB snapshot atomically with recording
+    /// the new one closes the same TOCTOU race that `try_reserve_agent_tokens`
+    /// closes for the per-agent in-memory counter. Released via
+    /// [`Self::release_tenant_tokens`] if the submission fails after reservation.
+    pub(crate) pending_tenant_tokens: Arc<std::sync::RwLock<HashMap<String, i64>>>,
 }
 
 impl BudgetManager {
@@ -272,6 +281,7 @@ impl BudgetManager {
                 );
                 Arc::new(std::sync::atomic::AtomicU64::new(2.00f64.to_bits()))
             },
+            pending_tenant_tokens: Arc::new(std::sync::RwLock::new(HashMap::new())),
         }
     }
 
@@ -658,8 +668,24 @@ impl BudgetManager {
         entry.record_outcome(success, alpha, provisional_min, trusted_min)
     }
 
+    /// Snapshot of all trust scores, with idle-time decay applied lazily on read (T5.5).
+    ///
+    /// Decay is intentionally applied here — the shared read path for `attention_fields.rs`
+    /// and routing — rather than via a background sweep, so a snapshot always reflects the
+    /// caller's `now` regardless of when the agent last acted. This composes with (does not
+    /// replace) the Kalman-filter revocation-on-failure mechanism: decay and `record_outcome`
+    /// both update the same `trust_score`/`variance`/`last_updated_ms` fields on
+    /// `AgentTrustScore`. Idle agents are NOT written back into `self.trust_scores` here
+    /// (read-only snapshot); the decayed value becomes durable the next time the agent
+    /// produces an outcome and `record_trust_outcome` is called, or callers may persist the
+    /// snapshot explicitly.
     pub fn trust_snapshot(&self) -> HashMap<AgentId, AgentTrustScore> {
-        sync_lock::rw_read(&*self.trust_scores).clone()
+        let now_ms = crate::types::now_unix_ms();
+        let mut snapshot = sync_lock::rw_read(&*self.trust_scores).clone();
+        for score in snapshot.values_mut() {
+            score.apply_idle_decay(now_ms);
+        }
+        snapshot
     }
 
     pub fn force_trust_score(&self, agent_id: AgentId, score: f64) {
@@ -740,6 +766,106 @@ impl BudgetManager {
             return false;
         }
         budget.tokens_used.saturating_add(estimated_tokens) > cap
+    }
+
+    /// T5.3: atomic check-and-reserve for the pre-dispatch token estimate.
+    ///
+    /// Replaces the racy `would_exceed_token_budget` + (nothing) pattern: the
+    /// budget-cap check and the reservation now happen under a *single*
+    /// write-lock acquisition on `self.inner`, so two concurrent callers for the
+    /// same agent can no longer both observe the same `tokens_used` snapshot and
+    /// both pass. The reservation is folded directly into `tokens_used` (the
+    /// same counter [`Self::record_usage`] increments for real, post-execution
+    /// usage) — the estimate is provisionally "spent" the moment it is admitted,
+    /// exactly like a DB `UPDATE ... SET spent = spent + ? WHERE spent + ? <=
+    /// budget` would provisionally commit the write within the same statement
+    /// that checks it.
+    ///
+    /// Returns `true` if the reservation was made (budget not exceeded).
+    /// Returns `false` if making the reservation would exceed the agent's
+    /// effective cap — no reservation is recorded in that case.
+    ///
+    /// Callers that fail after reserving (e.g. a later step in the same
+    /// submission errors out) MUST call [`Self::release_agent_tokens`] with the
+    /// same `estimated_tokens` to avoid permanently overcounting the agent's
+    /// usage. Callers that succeed keep the reservation as-is: it is later
+    /// superseded (not double-counted) because the real usage recorded via
+    /// [`Self::record_usage`] reflects actual tokens for the same unit of work
+    /// the estimate stood in for.
+    pub fn try_reserve_agent_tokens(&self, agent_id: AgentId, estimated_tokens: usize) -> bool {
+        let mut map = sync_lock::rw_write(&*self.inner);
+        let Some(budget) = map.get_mut(&agent_id) else {
+            return true; // no budget → do not block, nothing to reserve against
+        };
+        let cap = budget.effective_max_tokens();
+        if cap == 0 {
+            return true;
+        }
+        if budget.tokens_used.saturating_add(estimated_tokens) > cap {
+            return false;
+        }
+        budget.tokens_used = budget.tokens_used.saturating_add(estimated_tokens);
+        true
+    }
+
+    /// Release a token reservation previously made by
+    /// [`Self::try_reserve_agent_tokens`] (subtracts it back out of
+    /// `tokens_used`). Call only on a submission failure path *after* a
+    /// successful reservation. Safe to call even if no budget entry exists;
+    /// saturating subtraction avoids underflow if called more than once.
+    pub fn release_agent_tokens(&self, agent_id: AgentId, estimated_tokens: usize) {
+        let mut map = sync_lock::rw_write(&*self.inner);
+        if let Some(budget) = map.get_mut(&agent_id) {
+            budget.tokens_used = budget.tokens_used.saturating_sub(estimated_tokens);
+        }
+    }
+
+    /// T5.3: atomic check-and-reserve for the tenant monthly token budget gate.
+    ///
+    /// The gate's "current usage" (`current_tokens_from_db`) is a `SUM` over
+    /// completed cost records, computed by the caller *before* this call — it
+    /// cannot itself be locked. This method closes the race by adding this
+    /// tenant's other in-flight (reserved but not yet completed) submissions to
+    /// that snapshot atomically with recording the new reservation, under a
+    /// single write-lock acquisition. Two concurrent submissions for the same
+    /// tenant can no longer both pass against the same DB snapshot.
+    ///
+    /// Returns `Ok(())` and records the reservation if within budget, or `Err`
+    /// (matching [`crate::budget_gate::OrchestratorBudgetGate::check_tenant_monthly_budget`]'s
+    /// error message shape) without reserving if it would exceed the cap.
+    ///
+    /// Callers that fail after reserving MUST call
+    /// [`Self::release_tenant_tokens`] with the same `estimated_tokens`.
+    pub fn try_reserve_tenant_tokens(
+        &self,
+        tenant_id: &str,
+        tier: &str,
+        current_tokens_from_db: i64,
+        estimated_tokens: i64,
+        gate: &crate::budget_gate::OrchestratorBudgetGate,
+    ) -> Result<(), String> {
+        let mut pending = sync_lock::rw_write(&*self.pending_tenant_tokens);
+        let already_pending = pending.get(tenant_id).copied().unwrap_or(0);
+        gate.check_tenant_monthly_budget(
+            tier,
+            current_tokens_from_db.saturating_add(already_pending),
+            estimated_tokens,
+        )?;
+        *pending.entry(tenant_id.to_string()).or_insert(0) += estimated_tokens;
+        Ok(())
+    }
+
+    /// Release a tenant token reservation previously made by
+    /// [`Self::try_reserve_tenant_tokens`]. Safe to call even if no reservation
+    /// exists.
+    pub fn release_tenant_tokens(&self, tenant_id: &str, estimated_tokens: i64) {
+        let mut pending = sync_lock::rw_write(&*self.pending_tenant_tokens);
+        if let Some(v) = pending.get_mut(tenant_id) {
+            *v = v.saturating_sub(estimated_tokens).max(0);
+            if *v <= 0 {
+                pending.remove(tenant_id);
+            }
+        }
     }
 }
 
@@ -834,6 +960,193 @@ mod tests {
         assert!(
             bm.doom_loop_cost_check(agent).is_none(),
             "should not fire after task completion"
+        );
+    }
+
+    #[test]
+    fn test_try_reserve_agent_tokens_rejects_when_over_cap() {
+        let bm = BudgetManager::new(None);
+        let agent = AgentId(50);
+        bm.reset(agent, 1000);
+        bm.record_usage(agent, 900);
+        assert!(
+            !bm.try_reserve_agent_tokens(agent, 200),
+            "reservation pushing 900+200=1100 over cap 1000 must be rejected"
+        );
+        // Rejected reservation must not have been recorded.
+        assert_eq!(bm.check_budget(agent).unwrap().tokens_used, 900);
+    }
+
+    #[test]
+    fn test_try_reserve_agent_tokens_accepts_and_records_when_room() {
+        let bm = BudgetManager::new(None);
+        let agent = AgentId(51);
+        bm.reset(agent, 1000);
+        bm.record_usage(agent, 700);
+        assert!(bm.try_reserve_agent_tokens(agent, 200));
+        // The reservation is folded directly into tokens_used.
+        assert_eq!(bm.check_budget(agent).unwrap().tokens_used, 900);
+    }
+
+    #[test]
+    fn test_release_agent_tokens_reverts_reservation() {
+        let bm = BudgetManager::new(None);
+        let agent = AgentId(52);
+        bm.reset(agent, 1000);
+        bm.record_usage(agent, 700);
+        assert!(bm.try_reserve_agent_tokens(agent, 200));
+        assert_eq!(bm.check_budget(agent).unwrap().tokens_used, 900);
+        bm.release_agent_tokens(agent, 200);
+        assert_eq!(bm.check_budget(agent).unwrap().tokens_used, 700);
+    }
+
+    /// T5.3: proves the TOCTOU race is closed for the per-agent pre-dispatch
+    /// token check. Before the fix, `task_submit.rs` used
+    /// `would_exceed_token_budget` (a read-only check) with no reservation:
+    /// under a cap of 1000 and 900 already used, N concurrent callers each
+    /// estimating 50 tokens would ALL observe `900 + 50 = 950 <= 1000` against
+    /// the same stale snapshot and ALL pass, even though admitting more than 2
+    /// of them together would blow the budget.
+    ///
+    /// With `try_reserve_agent_tokens`, the check and the write share one
+    /// critical section, so admissions serialize against the *updated* total —
+    /// only exactly `floor((1000 - 900) / 50) = 2` of the N concurrent callers
+    /// can be admitted, and `tokens_used` never exceeds the cap.
+    #[test]
+    fn test_try_reserve_agent_tokens_concurrent_does_not_overspend() {
+        use std::sync::{Arc, Barrier};
+        use std::thread;
+
+        let bm = Arc::new(BudgetManager::new(None));
+        let agent = AgentId(60);
+        let cap = 1000usize;
+        let already_used = 900usize;
+        let per_task_estimate = 50usize;
+        let concurrency = 16usize;
+
+        bm.reset(agent, cap);
+        bm.record_usage(agent, already_used);
+
+        // Sanity check the race actually exists under the old read-only check:
+        // every one of the concurrent callers would individually pass.
+        assert!(!bm.would_exceed_token_budget(agent, per_task_estimate));
+
+        let barrier = Arc::new(Barrier::new(concurrency));
+        let handles: Vec<_> = (0..concurrency)
+            .map(|_| {
+                let bm = Arc::clone(&bm);
+                let barrier = Arc::clone(&barrier);
+                thread::spawn(move || {
+                    // All threads block here and are released together, forcing
+                    // genuine concurrent access to `try_reserve_agent_tokens`
+                    // rather than incidental sequential scheduling.
+                    barrier.wait();
+                    bm.try_reserve_agent_tokens(agent, per_task_estimate)
+                })
+            })
+            .collect();
+
+        let results: Vec<bool> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+        let admitted = results.iter().filter(|&&ok| ok).count();
+
+        let remaining = cap - already_used; // 100
+        let expected_admitted = remaining / per_task_estimate; // 2
+        assert_eq!(
+            admitted, expected_admitted,
+            "exactly floor((cap - used) / estimate) reservations must be admitted, got {admitted}"
+        );
+
+        let final_used = bm.check_budget(agent).unwrap().tokens_used;
+        assert!(
+            final_used <= cap,
+            "budget must never be exceeded: tokens_used={final_used} cap={cap}"
+        );
+        assert_eq!(
+            final_used,
+            already_used + expected_admitted * per_task_estimate,
+            "tokens_used must reflect exactly the admitted reservations, no more"
+        );
+    }
+
+    #[test]
+    fn test_try_reserve_tenant_tokens_rejects_when_over_cap() {
+        use crate::budget_gate::{BudgetGateConfig, OrchestratorBudgetGate, TenantTierLimit};
+
+        let bm = BudgetManager::new(None);
+        let gate = OrchestratorBudgetGate::new(BudgetGateConfig {
+            global_limits: vec![TenantTierLimit {
+                tier: "free".to_string(),
+                max_tokens_per_month: 1000,
+                max_concurrent_sessions: 100,
+                action: None,
+                fallback_tier: None,
+            }],
+            ..BudgetGateConfig::default()
+        });
+
+        assert!(
+            bm.try_reserve_tenant_tokens("tenant-a", "free", 900, 200, &gate)
+                .is_err(),
+            "900 already used + 200 estimate = 1100 > 1000 cap must be rejected"
+        );
+    }
+
+    /// T5.3: proves the TOCTOU race is closed for the tenant monthly budget
+    /// gate. The gate's "current usage" is a DB `SUM` snapshot taken by the
+    /// caller before this call; without a reservation ledger, N concurrent
+    /// submissions for the same tenant would all check against the same stale
+    /// `current_tokens_from_db` and all pass. `try_reserve_tenant_tokens` folds
+    /// this tenant's other in-flight reservations into the check atomically.
+    #[test]
+    fn test_try_reserve_tenant_tokens_concurrent_does_not_overspend() {
+        use crate::budget_gate::{BudgetGateConfig, OrchestratorBudgetGate, TenantTierLimit};
+        use std::sync::{Arc, Barrier};
+        use std::thread;
+
+        let bm = Arc::new(BudgetManager::new(None));
+        let gate = Arc::new(OrchestratorBudgetGate::new(BudgetGateConfig {
+            global_limits: vec![TenantTierLimit {
+                tier: "free".to_string(),
+                max_tokens_per_month: 1000,
+                max_concurrent_sessions: 100,
+                action: None,
+                fallback_tier: None,
+            }],
+            ..BudgetGateConfig::default()
+        }));
+        let tenant_id = "tenant-race";
+        let current_tokens_from_db = 900i64; // same stale SUM every caller sees
+        let per_task_estimate = 50i64;
+        let concurrency = 16usize;
+
+        let barrier = Arc::new(Barrier::new(concurrency));
+        let handles: Vec<_> = (0..concurrency)
+            .map(|_| {
+                let bm = Arc::clone(&bm);
+                let gate = Arc::clone(&gate);
+                let barrier = Arc::clone(&barrier);
+                thread::spawn(move || {
+                    barrier.wait();
+                    bm.try_reserve_tenant_tokens(
+                        tenant_id,
+                        "free",
+                        current_tokens_from_db,
+                        per_task_estimate,
+                        &gate,
+                    )
+                    .is_ok()
+                })
+            })
+            .collect();
+
+        let results: Vec<bool> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+        let admitted = results.iter().filter(|&&ok| ok).count();
+
+        let remaining = 1000 - current_tokens_from_db;
+        let expected_admitted = (remaining / per_task_estimate) as usize; // 2
+        assert_eq!(
+            admitted, expected_admitted,
+            "exactly floor((cap - used) / estimate) reservations must be admitted, got {admitted}"
         );
     }
 }

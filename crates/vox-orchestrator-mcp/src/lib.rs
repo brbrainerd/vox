@@ -7,13 +7,30 @@ extern crate vox_codegen;
 /// HTTP routes (moved from vox-orchestrator/services/routes).
 pub mod services;
 
+/// T1.5 follow-up: bridges `AiTaskProcessor`'s autonomous `@tool` intent
+/// lines into real MCP dispatch (`handle_tool_call_with_mode`), so autonomous
+/// dangerous-tool calls go through the same approval gate as GUI-invoked
+/// ones, with `task_id` threaded through as an explicit parameter.
+pub mod autonomous_tool_dispatch;
 /// `<TOOL_CALLS>` XML fallback for LLM providers without native function-call support.
 pub mod chat_fallback_tools;
 pub mod daemon_extra;
+/// T2.2: `vox mcp` stdio server's tool-call forwarding to `vox-orchestrator-d`.
+pub mod daemon_route;
 pub mod feedback_tools;
+/// T1.4: restore visibility for open approvals/feedback from the durable
+/// op-log on `ServerState` boot (MCP stdio + `vox-orchestrator-d`).
+pub mod hitl_rehydrate;
 pub mod params;
 pub mod pending_approvals;
 pub mod server_state;
+
+/// T0.3: persisted per-repo "always allow this tool" allowlist (tier 3 of the
+/// dangerous-tool gate's precedence order).
+pub mod approval_allowlist;
+/// T0.3: registry-driven risk classification + `PermissionMode` auto-approve
+/// matrix (tier 2 of the dangerous-tool gate's precedence order).
+pub mod permission_modes;
 
 pub mod aci;
 /// Agent native gateway and skill tools.
@@ -42,6 +59,9 @@ pub mod compiler_tools;
 /// Codex schema digest + sample row tools for `.vox` modules.
 pub mod db_tools;
 pub mod dispatch;
+/// T4.3: per-tool-call execution timeout table (outer `tokio::time::timeout`
+/// wrapping actual tool dispatch — independent of the HITL approval-wait).
+pub mod dispatch_timeout;
 /// Execution time tracking tools.
 pub mod exec_time_tools;
 /// Central `git` executor with banned-command denylist and `vox.vcs.exec` telemetry.
@@ -164,7 +184,7 @@ pub mod speech_constraints;
 // Wired from sibling modules (`dispatch`, `registry`, …); anchor for unwired-module scans.
 pub use vox_mcp_registry::TOOL_REGISTRY;
 
-pub use dispatch::handle_tool_call;
+pub use dispatch::{handle_tool_call, handle_tool_call_with_mode};
 pub use registry::tool_registry;
 pub use tool_aliases::canonical_tool_name;
 /// VoxMens runtime integration — semantic tool retrieval (B3+).

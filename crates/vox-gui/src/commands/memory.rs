@@ -1,3 +1,19 @@
+//! Mnemosyne (memory) surface for the Vox GUI.
+//!
+//! `mnemosyne_recall` / `mnemosyne_reindex` previously called
+//! `vox_orchestrator::bootstrap::build_repo_scoped_orchestrator`, which
+//! constructs a brand-new in-process `Orchestrator` — a second, disconnected
+//! instance from the one owned by `vox-orchestrator-d` (see
+//! `crate::commands::daemon::PersistentDaemon`). Only `build.config.memory`
+//! was ever read from that build, so both commands now call
+//! `repo_scoped_orchestrator_config` directly (config-only: no `Orchestrator`
+//! constructed) to resolve the repo-scoped `.vox/memory` paths. `MemoryManager`
+//! and `MemorySearchEngine` (hybrid search over `search_documents` /
+//! `knowledge_nodes` / `memories`) still run in-process here — they are
+//! stateless-per-call readers/writers over the shared VoxDb, not a second
+//! orchestrator, so there is no split-brain risk analogous to a duplicate
+//! `Orchestrator`.
+
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
@@ -5,7 +21,7 @@ use std::sync::Mutex;
 use tauri::command;
 use turso::params;
 use vox_db::{DbConnectSurface, connect_workspace_journey_optional};
-use vox_orchestrator::bootstrap::build_repo_scoped_orchestrator;
+use vox_orchestrator::bootstrap::{discover_repository_from_cwd, repo_scoped_orchestrator_config};
 use vox_orchestrator::memory::MemoryManager;
 use vox_search::memory_hybrid::MemorySearchEngine;
 
@@ -146,8 +162,13 @@ pub async fn mnemosyne_recall(
     _scope: String,
     limit: usize,
 ) -> Result<Vec<UiHitResult>, String> {
+    // Config-only bootstrap: `repo_scoped_orchestrator_config` roots the memory
+    // paths under `.vox/memory` for the current repository without constructing
+    // an `Orchestrator` (which would be a second in-process instance, disjoint
+    // from the one the daemon owns — see module docs).
     let config = vox_orchestrator::OrchestratorConfig::default();
-    let build = build_repo_scoped_orchestrator(config, None::<&std::path::Path>);
+    let repository = discover_repository_from_cwd(None);
+    let memory_config = repo_scoped_orchestrator_config(config, &repository).memory;
 
     let db = connect_workspace_journey_optional(DbConnectSurface::Runtime, true)
         .await
@@ -157,7 +178,7 @@ pub async fn mnemosyne_recall(
     let engine = MemorySearchEngine::new().with_db(Arc::new(db));
 
     // Index the local workspace memory if possible
-    let memory_manager = MemoryManager::new(build.config.memory).map_err(|e| e.to_string())?;
+    let memory_manager = MemoryManager::new(memory_config).map_err(|e| e.to_string())?;
     let _memory_content = memory_manager.bootstrap_context();
 
     // Perform hybrid search
@@ -204,15 +225,17 @@ pub async fn mnemosyne_recall(
 
 #[command]
 pub async fn mnemosyne_reindex() -> Result<(), String> {
+    // Config-only bootstrap (see `mnemosyne_recall`) — no in-process `Orchestrator`.
     let config = vox_orchestrator::OrchestratorConfig::default();
-    let build = build_repo_scoped_orchestrator(config, None::<&std::path::Path>);
+    let repository = discover_repository_from_cwd(None);
+    let memory_config = repo_scoped_orchestrator_config(config, &repository).memory;
 
     // Get DB handle
     let db = connect_workspace_journey_optional(DbConnectSurface::Runtime, true)
         .await
         .ok_or_else(|| "No workspace db found".to_string())?;
 
-    let mut memory_manager = MemoryManager::new(build.config.memory)
+    let mut memory_manager = MemoryManager::new(memory_config)
         .map_err(|e| e.to_string())?
         .with_db(Arc::new(db));
 

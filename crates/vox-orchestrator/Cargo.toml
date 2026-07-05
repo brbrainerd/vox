@@ -18,8 +18,14 @@ default = [
 # routes that serve JSON over TCP. Not needed by library consumers.
 http-server = ["dep:axum"]
 # Pre-call token counting via tiktoken-rs. Needed for context-window
-# management and pre-flight cost estimates. Off by default in the library;
-# enabled by the daemon binary and tests that exercise context management.
+# management and pre-flight cost estimates. Off by default in this library
+# crate (kept lean for --no-default-features / non-LLM consumers); the real
+# daemon binary (vox-orchestrator-d) explicitly re-enables it via its
+# Cargo.toml dependency features (both its direct `vox-orchestrator` dep and
+# its `vox-orchestrator-mcp` dep, since the latter pulls in `vox-orchestrator`
+# with `default-features = false`) so production builds get real per-model
+# tokenization instead of the whitespace-count fallback in
+# `context/token_optimization.rs`.
 token-counting = ["dep:tiktoken-rs"]
 # In-process corpus DB integrations. Enabled by default; --no-default-features
 # disables to allow compiling without database dependencies.
@@ -145,6 +151,7 @@ jsonschema = { workspace = true, default-features = false }
 tower = { workspace = true, features = ["util"] }
 # WAT→WASM for the mesh bundle-execution test (synthesize a real WASI module).
 wat = "1.220"
+wiremock = { workspace = true }
 
 [[test]]
 name = "skill_runtime_inproc"

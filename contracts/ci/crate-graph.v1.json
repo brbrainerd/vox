@@ -328,6 +328,7 @@
       "workspace-hack"
     ],
     "vox-gamify": [
+      "vox-actor-runtime",
       "vox-bounded-fs",
       "vox-config",
       "vox-db",
@@ -452,6 +453,7 @@
       "vox-db",
       "vox-eval",
       "vox-foundation",
+      "vox-git",
       "vox-http-client",
       "vox-jsonschema-util",
       "vox-mesh-types",
@@ -521,6 +523,7 @@
       "vox-actor-runtime",
       "vox-bounded-fs",
       "vox-capability-registry",
+      "vox-cli-core",
       "vox-code-audit",
       "vox-codegen",
       "vox-codegen-ts",

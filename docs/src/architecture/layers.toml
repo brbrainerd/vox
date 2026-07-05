@@ -120,17 +120,17 @@ vox-arch-check         = { layer = 0, kind = "binary" }
 vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable — must not be folded into vox-foundation
 vox-rename-registry       = { layer = 0, staleness_exempt = true }   # rename-registry + primitive-tag lookup; zero workspace deps
 vox-shell-stdlib-types    = { layer = 0, staleness_exempt = true }   # VoxFileRecord + std.fs types; shared between compiler interp path and actor-runtime codegen path
-vox-config-derive     = { layer = 0 }   # proc-macro companion for #[derive(VoxConfig)]; zero runtime deps
-vox-language-surface  = { layer = 0 }   # zero workspace deps (workspace-hack only)
+vox-config-derive         = { layer = 0, staleness_exempt = true }   # `#[derive(VoxConfig)]` proc-macro; zero workspace deps (syn/quote/proc-macro2 only), dev-dep of vox-config
 
 # ── L1 — primitives & utilities ───────────────────────────────────────────────
 vox-bounded-fs        = { layer = 1, max_dependents = 25, staleness_exempt = true }
+vox-language-surface  = { layer = 1 }   # SSOT for keyword/decorator/builtin surface strings; zero logic deps, shared by vox-compiler (L3) and vox-grammar-export (L1) to avoid a cycle
+vox-redact            = { layer = 1 }   # conservative PII/secret redaction (regex + serde_json only); consumed by vox-terminal-core (L3) and vox-orchestrator-mcp (L3)
 vox-hf-layout         = { layer = 1, max_loc = 6_000 }               # HF config.json layout (MENS / Candle plugins)
 vox-crypto            = { layer = 1, staleness_exempt = true }
 vox-secrets           = { layer = 1, max_dependents = 27 }  # 26 direct consumers (all call resolve_secret); budget = current + 1. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
 
 vox-jsonschema-util   = { layer = 1 }
-vox-redact            = { layer = 1 }   # log/string redaction utility; deps regex+serde_json only
 vox-foundation        = { layer = 1, staleness_exempt = true, max_dependents = 18 }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
 
 vox-identity          = { layer = 1 }
@@ -151,6 +151,7 @@ vox-runtime           = { layer = 2, max_dependents = 20 }       # umbrella runt
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2, max_dependents = 20 }
+vox-cli-contracts       = { layer = 2 }   # trait seam between vox-cli (L5, provides impls) and vox-cli-ci (L5, consumes); deps only vox-config (L2), sync/no-tokio by design
 vox-llm-egress          = { layer = 2, max_dependents = 10 }   # sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution
 
 vox-repository          = { layer = 2 }
@@ -216,7 +217,6 @@ vox-lsp                 = { layer = 3 }
 vox-gamify              = { layer = 3, max_loc = 20_000 }
 vox-skills              = { layer = 3, staleness_exempt = true }
 vox-cli-core            = { layer = 3 }
-vox-cli-contracts       = { layer = 3 }   # trait seam between vox-cli and vox-cli-ci (VoxCliProviders); deps top out at vox-config (L2)
 
 vox-orchestrator-mcp    = { layer = 3, max_loc = 40_000 }        # Phase 4 extraction
 vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extraction
@@ -257,13 +257,13 @@ vox-cli               = { layer = 5, kind = "binary", max_loc = 90_000, max_work
 vox-gui               = { layer = 5, kind = "binary", max_loc = 25_000 } # Tauri desktop shell; depends on vox-cli / vox-orchestrator
 vox-cli-tests         = { layer = 5, kind = "test-only" }
 vox-cli-ci             = { layer = 5, kind = "library", max_loc = 15_000 }
-vox-cli-research       = { layer = 5, kind = "library" }   # commands/research/ extracted from vox-cli; consumed exclusively by vox-cli
-vox-cli-review         = { layer = 5, kind = "library" }   # coderabbit review flow extracted from vox-cli; consumed exclusively by vox-cli
-vox-cli-share          = { layer = 5, kind = "library" }   # utils/share extracted from vox-cli; consumed exclusively by vox-cli
+vox-cli-research       = { layer = 5, kind = "library" }   # research commands (run/eval/infra/mesh-intake) extracted from vox-cli; deps vox-orchestrator/vox-db (L3)
+vox-cli-review         = { layer = 5, kind = "library" }   # `vox review coderabbit` extracted from vox-cli; deps vox-code-audit/vox-forge/vox-git (L3)
+vox-cli-share          = { layer = 5, kind = "library" }   # `vox share` public-URL tunneling extracted from vox-cli; deps vox-config/vox-http-client only but is a vox-cli command surface
 vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
 vox-cargo-shim        = { layer = 5, kind = "binary", staleness_exempt = true }  # fair-FIFO cargo shim (build broker)
-vox-build-queue       = { layer = 1, staleness_exempt = true, orphan_exempt = true }  # queue/metrics lib for the build broker; sole consumer vox-cargo-shim is excluded from the cargo workspace ([workspace] exclude), so it reads as 0 in-tree consumers
+vox-build-queue       = { layer = 1, staleness_exempt = true, orphan_exempt = true }  # queue/metrics lib for the build broker; sole consumer is vox-cargo-shim, which is excluded from the cargo workspace ([workspace.exclude], since its bin must be literally named `cargo`) so the dep edge never appears in `cargo metadata`
 vox-graph-reader      = { layer = 1, staleness_exempt = true }                   # read-only Vox Graph graph.json traversal
 vox-audit             = { layer = 5, kind = "binary" }                   # umbrella CR-L gate runner; contracts/ci/vox-audit-contract.v1.yaml
 voxup                 = { layer = 5, kind = "binary" }
@@ -293,7 +293,7 @@ reason = "Optional `mens-dei` workflow path shells out through `vox_cli::command
 [[known_inversions]]
 from   = "vox-config"
 to     = "vox-git"
-reason = "graphify.rs::assess_corpus_status uses vox_git::read_only() for a scoped `git status --porcelain` freshness check (contracts/retrieval/vox-graph-corpora.v1.yaml). Pre-existing on main; never evaluated by this rule before 2026-07-03 because a missing-crates-in-layers.toml gap short-circuited the whole tool. Candidate fix: extract a read-only git-status helper into an L1/L2 crate both vox-config and vox-git can depend on."
+reason = "vox-config::graphify (corpus-staleness check) calls only vox_git::read_only, the dependency-free raw-`git status --porcelain` shim in read_cmd.rs — it never touches the gix-backed GitBridge machinery that makes vox-git L3. read_only has no deps beyond std + thiserror, so it is itself L0/L1-shaped; it is just physically colocated with the heavier gix bridge. Pre-existing on main; never evaluated by this rule before 2026-07-03 because a missing-crates-in-layers.toml gap short-circuited the whole tool. Prefer extracting read_cmd.rs into a small L1 crate (e.g. vox-git-read) shared by vox-config and vox-git's other L3+ callers over tightening vox-config's layer."
 
 # ── Rule 11 (P3-T7): Forbidden code patterns ─────────────────────────────────
 # Forbid raw git invocations outside the concurrency-policy wrapper.
@@ -313,6 +313,13 @@ exempt_files     = [
     "crates/vox-git/src/read_cmd.rs",
     # Isolated per-test tempdir fixtures; no shared-repo concurrency risk.
     "crates/vox-effort-audit/tests/support/mod.rs",
+    # Skill install: shallow-clones a user-supplied git URL into a fresh
+    # tempfile::tempdir() (never a shared/working repo), with protocol
+    # allowlisting, a stall guard, and CREATE_NO_WINDOW already applied.
+    # vox-plugin-host is deliberately dependency-free (see module doc on
+    # user_install.rs) — routing through GitExec would add an L3 dep edge
+    # for a one-shot operation with no shared-repo concurrency risk.
+    "crates/vox-plugin-host/src/user_install.rs",
     "crates/vox-orchestrator-mcp/src/git_exec.rs",
     "crates/vox-build-meta/src/lib.rs",
     "crates/vox-cli/src/commands/ci/data_storage_guard.rs",
@@ -501,6 +508,12 @@ exempt_files     = [
     # as that technique works only by coincidence of proximity and is misleading.
     "crates/vox-code-audit/src/detectors/magic_value.rs",
     "crates/vox-code-audit/src/detectors/scaling.rs",
+    # Whole-file test module (included only via `#[cfg(test)] mod tests;` in
+    # eval_gate/mod.rs) — the `exempt_tests` inline-block detector only covers
+    # in-file `#[cfg(test)] mod { .. }` blocks, not a separate file pulled in
+    # under a `#[cfg(test)]` mod declaration in the parent. `/tmp/...` literals
+    # here are mock tool-call fixture args, never shipped.
+    "crates/vox-ml-cli/src/commands/mens/eval_gate/tests.rs",
 ]
 allow_annotation = "// vox-arch-check: allow abs-path"
 reason           = "Hardcoded absolute paths break across OSes; use std::env::temp_dir()/dirs/Path::join."

@@ -1,0 +1,233 @@
+# contracts/orchestration/permission-modes.v1.yaml
+# T0.3 (Phase 0, vox-axis-harness-reliability-spec-plan-2026-07-02.md): risk
+# classification + permission-mode auto-approve matrix for the dangerous-tool
+# HITL gate in `crates/vox-orchestrator-mcp/src/dispatch.rs`.
+#
+# Mirrored by `crates/vox-orchestrator-mcp/src/permission_modes.rs::RISK_CLASSES`
+# (a hand-written Rust const table). A parity test
+# (`crates/vox-orchestrator-mcp/tests/pending_approvals_tests.rs::
+# risk_classes_yaml_matches_rust_table`) walks this file and asserts the Rust
+# table has the identical set of tool -> (class, reversible,
+# always_requires_approval) mappings, so the two cannot silently drift.
+#
+# `safety_class` vocabulary is the SAME enum as
+# `contracts/gui/action-manifest.v1.yaml` (`read_only, mutating, destructive,
+# unknown`) — deliberately reused rather than inventing a parallel taxonomy.
+# `reversible` mirrors that file's `reversible` boolean field.
+#
+# v1 schemas are considered stable. Bump to a v2 file (with explicit
+# migration_window) when introducing breaking changes.
+lifecycle: stable
+
+version: 1
+x-vox-version: 1
+description: >
+  Risk classification for MCP tools gated by the dangerous-tool HITL approval
+  flow, plus the PermissionMode -> auto-approve matrix that decides which
+  (safety_class, reversible) combinations may skip the human-approval park.
+
+# One entry per MCP tool that needs a risk classification for the
+# dangerous-tool gate. A tool NOT listed here defaults to `unknown` / never
+# auto-approved (the gate's safe default — see `defaults` below). This list is
+# intentionally scoped to the handful of tools the gate actually cares about;
+# it is NOT a mirror of the ~400-row contracts/operations/catalog.v1.yaml.
+risk_classes:
+  - tool: vox_write_file
+    class: mutating
+    reversible: true
+    always_requires_approval: false
+    rationale: >
+      Overwrites file content, but the write lands in a VCS-tracked
+      workspace — the prior content can be recovered via `git diff` / VCS
+      undo, so this is reversible in practice (mirrors action-manifest.v1.yaml's
+      treatment of file-write operations).
+
+  - tool: vox_multi_replace
+    class: mutating
+    reversible: true
+    always_requires_approval: false
+    rationale: >
+      In-place multi-region text replace. Same reversibility rationale as
+      vox_write_file — changes are visible in the workspace VCS diff and can
+      be reverted.
+
+  - tool: vox_multi_replace_file
+    class: mutating
+    reversible: true
+    always_requires_approval: false
+    rationale: Same as vox_multi_replace, addressed by explicit file path.
+
+  - tool: vox_delete_file
+    class: destructive
+    reversible: false
+    always_requires_approval: false
+    rationale: >
+      Removes a file from the working tree. Even though most repos are
+      VCS-tracked and a delete CAN be recovered via `git checkout`, recovery
+      is not guaranteed (untracked files, uncommitted new files) and the
+      action is irreversible from the tool's own point of view — treat as
+      destructive/non-reversible to keep the safe default.
+
+  - tool: vox_run_shell
+    class: destructive
+    reversible: false
+    always_requires_approval: false
+    rationale: >
+      Arbitrary shell command execution. Blast radius is unbounded (network
+      calls, process spawns, file deletion, secrets exfiltration) and effects
+      are not confined to the VCS-tracked workspace, so this can never be
+      treated as reversible regardless of what the command happens to do.
+
+  - tool: vox_deploy
+    class: destructive
+    reversible: false
+    always_requires_approval: false
+    rationale: >
+      Ships changes to a live target outside the local workspace (this
+      process's undo/VCS story does not apply once a deploy has shipped).
+
+  - tool: vox_add_approval_allowlist_entry
+    class: mutating
+    reversible: false
+    always_requires_approval: true
+    rationale: >
+      Added post-review (T0.3 follow-up finding): this tool's effect is
+      granting FUTURE auto-approval for an arbitrary (repo_id, tool) pair —
+      an ongoing security effect, not a single bounded mutation like a file
+      write. If gated only by class/reversible it would be eligible for
+      accept_edits/accept_all auto-approve or the persisted allowlist,
+      letting a model call it directly to pre-authorize itself for anything
+      (including vox_run_shell/vox_deploy) without ever parking once — the
+      same self-serve-bypass shape T0.1 closed for the `user_approval` tool
+      arg. `always_requires_approval: true` means this tool NEVER
+      auto-approves under any mode (including accept_all) or the allowlist;
+      it always parks for a human decision.
+
+# Any tool absent from `risk_classes` is treated as `unknown` and is NEVER
+# auto-approved by permission_mode or the allowlist — this preserves today's
+# always-park behavior as the safe default for anything not explicitly
+# classified. This also means an unclassified/misspelled tool name can never
+# accidentally slip into an auto-approve path; it just isn't gated at all
+# (read-only tools were never part of this allowlist-of-dangerous-tools gate
+# to begin with — see the tool_aliases hardening note below).
+defaults:
+  unclassified_tool_safety_class: unknown
+  unclassified_tool_auto_approved: false
+
+# PermissionMode -> which (safety_class, reversible) combinations that mode
+# auto-approves for tools appearing in `risk_classes`. A combination not
+# listed under a mode is NOT auto-approved by that mode (falls through to the
+# existing park-and-await HITL flow in dispatch.rs).
+modes:
+  ask:
+    description: >
+      Default / baseline mode. Auto-approves nothing — every dangerous tool
+      call parks for a human decision, matching today's (pre-T0.3) behavior
+      exactly. This is also the mode used when no permission_mode is set on
+      the DispatchRequest at all (fail-safe default).
+    auto_approve: []
+
+  accept_edits:
+    description: >
+      Auto-approves mutating, reversible tools only (file edits that can be
+      recovered via VCS). Destructive tools and any non-reversible mutating
+      tool still park.
+    auto_approve:
+      - class: mutating
+        reversible: true
+
+  accept_all:
+    description: >
+      Auto-approves both mutating and destructive tools, regardless of
+      reversibility. The most permissive mode; intended for a human who has
+      explicitly opted in to unattended operation for this session. EXCEPT
+      any tool with `always_requires_approval: true` (currently
+      vox_add_approval_allowlist_entry) — those never auto-approve under
+      ANY mode, including this one.
+    auto_approve:
+      - class: mutating
+        reversible: true
+      - class: mutating
+        reversible: false
+      - class: destructive
+        reversible: true
+      - class: destructive
+        reversible: false
+
+  plan:
+    description: >
+      Read-only / planning mode. Auto-approves nothing for THIS gate — same
+      effective behavior as `ask` here, since dangerous tools by definition
+      aren't read_only. Plan mode's real effect (blocking mutating tools
+      before they are even attempted, rather than parking them for approval)
+      lives elsewhere in the system and is OUT OF SCOPE for T0.3; this gate
+      only implements the auto-approve/park decision for tools that reach it.
+    auto_approve: []
+
+# Precedence order for the FINAL approval decision on a gated tool call, from
+# highest to lowest priority (first match wins). This is documentation for
+# future work — T0.3 implements tiers 2 and 3 only (permission_mode and
+# persisted_allowlist, both wired into dispatch.rs's gate ahead of the
+# existing park-and-await). Tiers 1, 4, and 5 already exist as independent
+# mechanisms elsewhere in the codebase; unifying all five into one decision
+# function is explicitly NOT done by this task.
+precedence:
+  - tier: explicit_deny
+    status: not_yet_built
+    note: >
+      No explicit per-tool/per-repo deny mechanism exists anywhere in the
+      codebase today (checked at T0.3 time). Future work: a denylist that
+      overrides everything below it (including accept_all / an allowlist
+      entry), for a human to hard-block a specific tool even under a
+      permissive mode.
+
+  - tier: permission_mode
+    status: implemented_t0_3
+    source: this file's `modes` map
+    implementation: crates/vox-orchestrator-mcp/src/permission_modes.rs
+
+  - tier: persisted_allowlist
+    status: implemented_t0_3
+    source: vox-db user_preferences, registry "approval_allowlist"
+    implementation: crates/vox-orchestrator-mcp/src/approval_allowlist.rs
+    note: >
+      Per-(repository_id, tool_name) durable "always allow" entries. Checked
+      only after permission_mode says "still park" for this call — an
+      allowlist entry can auto-approve a tool under `ask` mode, but does not
+      override a hypothetical future explicit_deny (tier 1). Not consulted
+      at all for a tool with `always_requires_approval: true` — such a tool
+      always parks regardless of what's persisted.
+
+  - tier: risk_confidence_matrix_hitl_actions
+    status: pre_existing_independent_mechanism
+    source: contracts/orchestration/risk-confidence-matrix.v1.yaml (hitl_actions)
+    implementation: crates/vox-orchestrator/src/risk_matrix.rs::RiskMatrixConfig
+    note: >
+      Four-dimension composite risk scorer (irreversibility, blast_radius,
+      compliance_exposure, confidence_deficit) mapping to
+      proceed/warn-context/escalate/block-and-escalate. Operates
+      independently of the dangerous-tool gate in dispatch.rs today; T0.3
+      does not wire it into this gate's decision.
+
+  - tier: attention_auto_approve_tier
+    status: pre_existing_independent_mechanism
+    source: crates/vox-orchestrator/src/attention/routing.rs
+    implementation: ApprovalTier::AutoApprove classifier
+    note: >
+      Attention-budget-driven approval routing tier. Also operates
+      independently of the dangerous-tool gate in dispatch.rs today; T0.3
+      does not wire it into this gate's decision.
+
+# tool_aliases hardening note (T0.3 Part A.3): the dangerous-tool gate reads
+# `name_canonical` (the output of
+# `vox_orchestrator_mcp::tool_aliases::canonical_tool_name`), which does exact
+# case-sensitive matching and returns the raw input unchanged on a miss. A
+# tool name that does not exactly match any `risk_classes` entry above is
+# `unknown` and is therefore NOT gated at all (this mirrors the PRE-T0.3
+# behavior: the old hardcoded `matches!` block was also an allowlist-of-
+# dangerous-tools, not a denylist, so an unrecognized name always skipped the
+# gate). T0.3 does not change this shape; broadening it to a full "reject any
+# tool name not in the ~400-row MCP tool registry" denylist is flagged as
+# explicit follow-up work, since it touches the shared `canonical_tool_name`
+# helper used by ~50+ other call sites (scope_guard, lock_guard, telemetry,
+# ...) and needs its own task.

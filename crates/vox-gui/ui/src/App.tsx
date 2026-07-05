@@ -474,6 +474,21 @@ export default function App() {
     };
   }, []);
 
+  // T1.5: best-effort extraction of the orchestrator's numeric task_id from a
+  // command's result (currently only `submit_orchestrator_task` -> SubmitTaskResult
+  // carries one). Passed to `finish_gui_run` as the correlation key the Rust side
+  // uses to join `agent_runs.approval_ref`/cost/tokens from durable oplog +
+  // vox-telemetry data — see crates/vox-gui/src/commands/runs.rs. `run_id` (the
+  // GUI-minted id) and `task_id` (the orchestrator's) are distinct id spaces;
+  // this is the one place they meet.
+  const extractTaskId = (result: unknown): string | null => {
+    if (result && typeof result === 'object' && 'task_id' in result) {
+      const tid = (result as { task_id?: string | number | null }).task_id;
+      return tid == null ? null : String(tid);
+    }
+    return null;
+  };
+
   const executeIpcWithRun = useCallback(async <T,>(command: string, payload: Record<string, unknown>, workflowName: string, onRun?: (runId: string) => void): Promise<T> => {
     const runId = nextGuiRunId();
     onRun?.(runId);
@@ -491,7 +506,8 @@ export default function App() {
         run_id: runId,
         success: true,
         completed_steps: 1,
-        error: null
+        error: null,
+        task_id: extractTaskId(result),
       });
       finished = true;
       return result;

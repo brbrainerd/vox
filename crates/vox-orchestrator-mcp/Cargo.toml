@@ -24,6 +24,9 @@ news-publish = [
 toestub-gate = ["vox-orchestrator/toestub-gate"]
 json-schema = ["vox-orchestrator/json-schema"]
 populi-transport = ["vox-orchestrator/populi-transport", "vox-populi/transport"]
+# Per-model token estimation (tiktoken-rs) for context-window compaction.
+# Mirrors vox-orchestrator/token-counting; shipping binaries opt in.
+token-counting = ["vox-orchestrator/token-counting"]
 oratio-rerank = ["dep:vox-speech"]
 gui-visual-review = []
 # Chromium CDP browser automation (`vox_browser_*`, ~1.1k LoC). OFF by default so
@@ -35,6 +38,11 @@ heavy-browser = []
 vox-orchestrator-driver = { workspace = true }
 vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime"] }
 vox-research-shim = { workspace = true, features = ["runtime", "gamify"] }
+# T2.2: shared daemon-ensure helper (spawn/ping/auth `vox-orchestrator-d`) so
+# the stdio MCP server's tool-call path routes through the same daemon the
+# GUI uses, instead of booting a private ServerState. Only the `orchestrator`
+# feature's module (`daemon_ipc::orchestrator_daemon_ensure`) is used here.
+vox-cli-core = { workspace = true, features = ["orchestrator"] }
 
 # MCP-stack deps (always compiled when this crate is in the build)
 axum = { workspace = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
