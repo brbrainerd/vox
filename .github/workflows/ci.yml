@@ -1341,8 +1341,16 @@ jobs:
           if [ "$(uname -s)" != "Darwin" ]; then
             METAL_EXCLUDE=(--exclude vox-plugin-mens-candle-metal --exclude vox-quantize)
           fi
+          # vox-codegen declares a `standalone` feature that is intentionally
+          # never enabled (see its Cargo.toml comment): it's only there so the
+          # `#[cfg(feature = "standalone")]` guards in the `#[path]`-embedded
+          # vox-codegen-ts/src/mod.rs are known cfgs. --all-features force-
+          # enables it anyway, which makes the embedded copy take the
+          # standalone branch (`use vox_codegen::...`) while compiled inside
+          # vox-codegen itself, an unresolved-import error. It has no other
+          # non-default feature, so excluding it loses no real coverage.
           if [ "$FULL" = "true" ]; then
-            cargo check --workspace --exclude vox-gui "${CUDA_EXCLUDE[@]}" "${METAL_EXCLUDE[@]}" --all-features
+            cargo check --workspace --exclude vox-gui --exclude vox-codegen "${CUDA_EXCLUDE[@]}" "${METAL_EXCLUDE[@]}" --all-features
           elif [ -n "$P_ARGS" ]; then
             # shellcheck disable=SC2086
             cargo check $P_ARGS --all-features
