@@ -17336,6 +17336,7 @@ dependencies = [
  "vox-gamify",
  "vox-orchestrator",
  "vox-orchestrator-types",
+ "vox-publisher",
  "vox-research-events",
  "vox-scientia",
  "vox-search",
