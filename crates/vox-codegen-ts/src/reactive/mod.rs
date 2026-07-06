@@ -7,7 +7,8 @@
 //! return uses a small placeholder fragment and the diagnostics are appended to
 //! `ReactiveViewBridgeStats::reactive_view_emit_failures`.
 //!
-//! Legacy [`emit_hir_expr`](crate::hir_emit::emit_hir_expr) is computed **only** to
+//! Legacy `emit_hir_expr` (in `hir_emit`; path differs between standalone and
+//! `#[path]`-embedded builds, see the crate root's `parent` module) is computed **only** to
 //! classify `ReactiveViewEmitPathway::WebIrViewEmittedParityMismatch` vs `WebIrViewEmitted`
 //! (whitespace-normalized compare); it is never selected as the emitted view body.
 //!

@@ -1,4 +1,4 @@
-//! Loader for [`contracts/pipeline/canonical-ladder.v1.yaml`] — SSOT for backwards emission verification.
+//! Loader for `contracts/pipeline/canonical-ladder.v1.yaml` — SSOT for backwards emission verification.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
