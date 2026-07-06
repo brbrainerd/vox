@@ -1307,8 +1307,8 @@ jobs:
           VOX_BUILD_TIMINGS_BUDGET_FAIL: "1"
         run: ./target/debug/vox --quiet ci build-timings --crates
 
-      - name: vox-cli feature matrix
-        run: ./target/debug/vox --quiet ci feature-matrix
+      - name: vox-cli feature matrix + no vox_orchestrator imports
+        run: ./target/debug/vox --quiet ci feature-matrix && ./target/debug/vox --quiet ci no-vox-orchestrator-import
 
       - name: Workspace-wide all-features check (A.4)
         shell: bash

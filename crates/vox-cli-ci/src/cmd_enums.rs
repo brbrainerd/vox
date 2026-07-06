@@ -305,7 +305,12 @@ pub enum CiCmd {
     #[command(name = "retirement-audit")]
     RetirementAudit,
     /// Ensures `vox-cli` sources do not reference the staging `vox-dei` crate via a Rust path import.
-    #[command(name = "no-dei-import", visible_alias = "no-vox-dei-import")]
+    /// `no-vox-orchestrator-import` is a historical alias predating the `vox_dei` rename (see
+    /// docs/src/reference/cli.md and docs/src/ci/command-surface-duals.md).
+    #[command(
+        name = "no-dei-import",
+        visible_aliases = ["no-vox-dei-import", "no-vox-orchestrator-import"]
+    )]
     NoDeiImport,
     /// Run `vox-doc-pipeline --check` to verify SUMMARY.md matches docs/src
     CheckSummaryDrift,
