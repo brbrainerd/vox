@@ -383,7 +383,7 @@ pub fn apply_policy(
 /// multipliers from a loaded [`crate::economy::EconomyConfig`] (the economy
 /// contract) rather than the bare in-code constants.
 ///
-/// When `cfg` is [`EconomyConfig::default`] this is byte-identical to the
+/// When `cfg` is [`crate::economy::EconomyConfig::default`] this is byte-identical to the
 /// legacy [`apply_policy`] (the defaults mirror the constants in this module),
 /// so the migration is behavior-preserving for the shipped contract.
 #[allow(clippy::too_many_arguments)]

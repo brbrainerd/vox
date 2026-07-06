@@ -10,7 +10,7 @@
 //! historical audit in `crates/vox-orchestrator-queue/src/oplog/mod.rs`'s
 //! `OperationKind::ApprovalRequested` doc comment.
 //!
-//! [`McpToolDispatcher`] implements `vox_orchestrator::runtime::ToolDispatcher`
+//! [`crate::autonomous_tool_dispatch::McpToolDispatcher`] implements `vox_orchestrator::runtime::ToolDispatcher`
 //! (defined in `vox-orchestrator`, not here — same dependency-direction
 //! constraint as `daemon_extra.rs`'s `ExtraDispatch`: `vox-orchestrator` cannot
 //! depend on this crate) against this crate's [`ServerState`], the same state

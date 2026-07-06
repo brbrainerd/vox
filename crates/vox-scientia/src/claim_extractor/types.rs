@@ -38,7 +38,7 @@ pub struct AtomicClaim {
 pub struct VerifierOutput {
     pub claim_id: u64,
     pub support_score: f64,
-    /// Score in [0,1] indicating how strongly the context contradicts the claim.
+    /// Score in \[0,1\] indicating how strongly the context contradicts the claim.
     /// Populated by the Mock backend via lexical-negation asymmetry heuristic, and
     /// by the HTTP backend when the endpoint returns a `contradiction_score` field.
     /// 0.0 when the backend has no contradiction signal.

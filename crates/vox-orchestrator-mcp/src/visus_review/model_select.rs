@@ -1,5 +1,5 @@
 //! Pick a vision-capable model: first config-preference the registry marks
-//! supports_vision; else fall back to preference[0].
+//! supports_vision; else fall back to preference\[0\].
 
 pub trait VisionCatalog {
     fn supports_vision(&self, model_id: &str) -> Option<bool>;

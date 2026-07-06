@@ -1138,7 +1138,7 @@ pub enum CiCmd {
     /// Walk crates/ for code/composite Plugin.toml files and assert ABI matches the host. Skips intentionally-broken `noop-bad-*` fixtures.
     #[command(name = "plugin-abi-parity")]
     PluginAbiParity {
-        /// Build each discovered plugin cdylib (cargo build -p <crate>) before loading it.
+        /// Build each discovered plugin cdylib (cargo build -p `<crate>`) before loading it.
         /// Use in CI so the gate covers newly-added plugins without a manual build list.
         #[arg(long)]
         build: bool,

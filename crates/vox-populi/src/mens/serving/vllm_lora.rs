@@ -80,7 +80,7 @@ impl VllmLoraClient {
     /// # Note on HTTP
     /// Callers are expected to issue the actual HTTP load/unload calls to vLLM
     /// *around* this method. The evicted name (if any) can be retrieved via
-    /// [`lru_eviction_candidate`] *before* calling `ensure_adapter_loaded` when
+    /// [`Self::lru_eviction_candidate`] *before* calling `ensure_adapter_loaded` when
     /// `loaded_count() == max_loaded` and the adapter is not yet tracked.
     pub fn ensure_adapter_loaded(
         &mut self,

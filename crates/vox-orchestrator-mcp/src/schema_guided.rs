@@ -7,7 +7,7 @@
 //! # Config knob
 //! The backend string is read from `VOX_MENS_GUIDED_DECODING_BACKEND` (env) or
 //! `~/.vox/config.toml` under the same key.  When absent the compiled-in default
-//! [`DEFAULT_GUIDED_DECODING_BACKEND`] ("outlines") is used.
+//! [`crate::schema_guided::DEFAULT_GUIDED_DECODING_BACKEND`] ("outlines") is used.
 //!
 //! No secret is involved; resolution goes through [`vox_config::env_parse::resolve_config_str`].
 

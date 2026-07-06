@@ -1,5 +1,5 @@
 //! Minimal FSRS-style spaced-repetition state update. Deterministic, no LLM.
-//! `stability` is roughly "days until ~90% recall"; `difficulty` in [1,10].
+//! `stability` is roughly "days until ~90% recall"; `difficulty` in \[1,10\].
 
 /// A discovery item's memory state. `due_ms` is an absolute epoch-ms timestamp.
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -49,7 +49,7 @@
 //! The fix taken here is approach (a) from the follow-up review, not (b):
 //! `compact_now` does **not** fold HITL state into the `OpenTaskState`
 //! checkpoint payload the way it does for tasks. Instead, immediately before
-//! pruning, [`open_hitl_operation_ids`] rescans everything currently present
+//! pruning, `open_hitl_operation_ids` rescans everything currently present
 //! in `agent_oplog` up to `up_to` for `*Requested` entries with no matching
 //! `*Resolved` (or, for `TaskDoubted`, no matching `TaskComplete`/`TaskFail`)
 //! counterpart, and those specific rows are excluded from the prune via
@@ -64,7 +64,7 @@
 //! representation of the same fact that the two code paths could drift apart
 //! on. If open-HITL volume ever grows large enough for this rescan to become
 //! a real cost, revisit folding it into the checkpoint payload the way
-//! [`OpenTaskState`](super::rehydrate::OpenTaskState) already does for tasks
+//! `OpenTaskState` (super::rehydrate::OpenTaskState) already does for tasks
 //! — but do not reintroduce unconditional pruning without either exclusion
 //! mechanism in place.
 

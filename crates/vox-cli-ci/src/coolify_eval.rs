@@ -1,7 +1,7 @@
 //! Coolify eval sandbox — HTTP API discovery and compose sync (no SSH).
 //!
-//! Uses Clavis [`SecretId::CoolifyBaseUrl`], [`SecretId::CoolifyToken`],
-//! [`SecretId::CoolifyReadToken`], [`SecretId::CoolifyAppUuid`].
+//! Uses Clavis [`vox_secrets::SecretId::CoolifyBaseUrl`], [`vox_secrets::SecretId::CoolifyToken`],
+//! [`vox_secrets::SecretId::CoolifyReadToken`], [`vox_secrets::SecretId::CoolifyAppUuid`].
 
 use anyhow::{Context, Result};
 use serde_json::{Value, json};

@@ -169,9 +169,9 @@ fn candle_proxy_stack_status(
 /// Shared entry: tokenizer + weights presence checks keyed by kernel.
 ///
 /// For Candle QLoRA, skips the full `preflight_native_qlora` scan here because:
-/// - Key coverage is already validated by the planner via [`candle_proxy_stack_status`].
+/// - Key coverage is already validated by the planner via `candle_proxy_stack_status`.
 /// - `candle_qlora_train::run_candle_qlora_train` always calls `preflight_native_qlora`
-///   itself to obtain the [`QloraEmbedBundle`] it needs — running it twice wastes ~5s
+///   itself to obtain the `QloraEmbedBundle` it needs — running it twice wastes ~5s
 ///   of redundant safetensors I/O.
 pub fn preflight_model_bundle(
     kernel: PopuliTrainBackend,

@@ -34,8 +34,8 @@ impl crate::orchestrator::Orchestrator {
     ///
     /// Does **not** broadcast `TaskDoubted`/`FeedbackRequested` on the event bus —
     /// callers must durably record the transition first via `record_operation`,
-    /// then call [`Orchestrator::emit_doubt_events`] with the returned
-    /// [`DoubtOutcome`] (T1.2: Tier-A durable-before-broadcast).
+    /// then call [`Self::emit_doubt_events`] with the returned
+    /// `DoubtOutcome` (T1.2: Tier-A durable-before-broadcast).
     pub fn doubt_task(
         &self,
         task_id: TaskId,
@@ -144,7 +144,7 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Broadcast the `TaskDoubted` + `FeedbackRequested` bus events for a
-    /// [`DoubtOutcome`] previously returned by [`Orchestrator::doubt_task`].
+    /// `DoubtOutcome` previously returned by [`Self::doubt_task`].
     /// Callers MUST call this only *after* durably recording the transition
     /// (via `record_operation`) — see the T1.2 tier-A contract on
     /// [`crate::events::is_tier_a`].
@@ -176,8 +176,8 @@ impl crate::orchestrator::Orchestrator {
     ///
     /// Does **not** broadcast `TaskCompleted` on the event bus — callers must
     /// durably record the transition first via `record_operation`, then call
-    /// [`Orchestrator::emit_overrule_events`] with the returned
-    /// [`OverruleOutcome`] (T1.2: Tier-A durable-before-broadcast).
+    /// [`Self::emit_overrule_events`] with the returned
+    /// `OverruleOutcome` (T1.2: Tier-A durable-before-broadcast).
     pub fn overrule_task(
         &self,
         task_id: TaskId,
@@ -247,8 +247,8 @@ impl crate::orchestrator::Orchestrator {
         })
     }
 
-    /// Broadcast the `TaskCompleted` bus event for an [`OverruleOutcome`]
-    /// previously returned by [`Orchestrator::overrule_task`]. Callers MUST
+    /// Broadcast the `TaskCompleted` bus event for an `OverruleOutcome`
+    /// previously returned by [`Self::overrule_task`]. Callers MUST
     /// call this only *after* durably recording the transition (via
     /// `record_operation`) — see the T1.2 tier-A contract on
     /// [`crate::events::is_tier_a`].

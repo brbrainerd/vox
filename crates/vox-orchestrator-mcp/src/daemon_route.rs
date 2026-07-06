@@ -7,7 +7,7 @@
 //! was invisible to the GUI's Approvals view, and vice versa (the same
 //! split-brain T2.1 eliminated for the GUI).
 //!
-//! [`call_tool_via_daemon`] forwards each tool call over TCP to the daemon's
+//! [`crate::daemon_route::call_tool_via_daemon`] forwards each tool call over TCP to the daemon's
 //! `orch.tool_call` method (served by `McpExtraDispatch`, see
 //! `crate::daemon_extra`), spawning the daemon first if none is reachable
 //! (via [`vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::OrchestratorDaemonEnsure`]).

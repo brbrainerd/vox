@@ -9,7 +9,8 @@
 //! This module is intentionally **pure**: no network, no disk, no A2A wire messages,
 //! no federated sync loop. It is the decision layer that Task 3.3 (the actual sync
 //! protocol) will build on top of. Throughput weighting reuses the per-GPU FP16
-//! TFLOPS table via [`crate::mens::cloud::TimeEstimator::tflops_for`] in the
+//! TFLOPS table via `crate::mens::cloud::TimeEstimator::tflops_for` (behind the
+//! `mens-cloud` feature) in the
 //! estimator-backed variant; the default variant uses uniform weights so the core
 //! logic stays unit-testable without loading `gpu-specs.yaml`.
 
