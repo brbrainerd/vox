@@ -1320,8 +1320,11 @@ jobs:
           # `cuda` feature, which requires nvcc — unlike the CUDA build-timings
           # lane, this step had no guard for that, so it always failed on
           # fleets without the CUDA toolkit installed.
+          # `command -v nvcc` alone isn't reliable here — some fleet runners
+          # have a stale/broken PATH entry that resolves but fails when
+          # actually invoked. Run the same check cudarc's build.rs does.
           CUDA_EXCLUDE=()
-          if ! command -v nvcc >/dev/null 2>&1; then
+          if ! nvcc --version >/dev/null 2>&1; then
             CUDA_EXCLUDE=(--exclude vox-plugin-mens-candle-cuda)
           fi
           if [ "$FULL" = "true" ]; then
