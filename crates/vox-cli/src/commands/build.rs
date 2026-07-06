@@ -702,8 +702,33 @@ fn verify_ts_relative_imports_from_file(ts_file: &Path) -> Result<()> {
     Ok(())
 }
 
+/// `voxResolveLayerRoot` (portal/layer support) is a hard runtime dependency
+/// of any generated component using `@layer`, not an optional one-shot
+/// scaffold file — so it must exist even when `--emit-config` /
+/// `VOX_WEB_EMIT_SCAFFOLD` wasn't requested. Writes it (and the roots/type
+/// helpers it can pull in) if App.tsx references it and it's missing.
+fn ensure_layer_resolver_if_referenced(out_dir: &Path) -> Result<()> {
+    let app_path = out_dir.join("App.tsx");
+    let Ok(content) = fs::read_to_string(&app_path) else {
+        return Ok(());
+    };
+    if !content.contains("./vox-layer-resolver") {
+        return Ok(());
+    }
+    let resolver_path = out_dir.join("vox-layer-resolver.ts");
+    if !resolver_path.is_file() {
+        fs::write(
+            &resolver_path,
+            vox_codegen::web_ir::layer_emit::emit_layer_portal_resolver(),
+        )
+        .with_context(|| format!("Failed to write {}", resolver_path.display()))?;
+    }
+    Ok(())
+}
+
 /// Fail fast when generated `routes.manifest.ts` or `App.tsx` references missing `./` modules.
 fn verify_app_tsx_route_imports(out_dir: &Path) -> Result<()> {
+    ensure_layer_resolver_if_referenced(out_dir)?;
     let manifest = out_dir.join("routes.manifest.ts");
     if manifest.is_file() {
         verify_ts_relative_imports_from_file(&manifest)?;
