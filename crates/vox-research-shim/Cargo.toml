@@ -13,7 +13,7 @@ runtime = ["scientia-claims"]
 ## Route claim extraction through `vox-scientia::claim_extractor` before LLM cascade.
 scientia-claims = ["dep:vox-scientia"]
 ## Enable Populi news-publish routing in the mesh subscriber.
-news-publish = []
+news-publish = ["dep:vox-publisher"]
 ## Optional Ludus/mesh kudos for SCIENTIA research milestones (never gates publication).
 gamify = ["dep:vox-gamify"]
 
@@ -34,6 +34,7 @@ tracing = { workspace = true }
 workspace-hack = { workspace = true }
 vox-scientia = { workspace = true, optional = true }
 vox-gamify = { workspace = true, optional = true }
+vox-publisher = { workspace = true, optional = true }
 
 [dev-dependencies]
 jsonschema = { workspace = true, default-features = false }
