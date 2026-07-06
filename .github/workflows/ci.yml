@@ -1316,8 +1316,16 @@ jobs:
           set -euo pipefail
           FULL="${{ needs.setup.outputs.full }}"
           P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
+          # `--all-features` unconditionally enables vox-plugin-mens-candle-cuda's
+          # `cuda` feature, which requires nvcc — unlike the CUDA build-timings
+          # lane, this step had no guard for that, so it always failed on
+          # fleets without the CUDA toolkit installed.
+          CUDA_EXCLUDE=()
+          if ! command -v nvcc >/dev/null 2>&1; then
+            CUDA_EXCLUDE=(--exclude vox-plugin-mens-candle-cuda)
+          fi
           if [ "$FULL" = "true" ]; then
-            cargo check --workspace --exclude vox-gui --all-features
+            cargo check --workspace --exclude vox-gui "${CUDA_EXCLUDE[@]}" --all-features
           elif [ -n "$P_ARGS" ]; then
             # shellcheck disable=SC2086
             cargo check $P_ARGS --all-features
