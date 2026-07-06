@@ -1316,19 +1316,33 @@ jobs:
           set -euo pipefail
           FULL="${{ needs.setup.outputs.full }}"
           P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
-          # `--all-features` unconditionally enables vox-plugin-mens-candle-cuda's
-          # `cuda` feature, which requires nvcc — unlike the CUDA build-timings
-          # lane, this step had no guard for that, so it always failed on
-          # fleets without the CUDA toolkit installed.
-          # `command -v nvcc` alone isn't reliable here — some fleet runners
-          # have a stale/broken PATH entry that resolves but fails when
-          # actually invoked. Run the same check cudarc's build.rs does.
+          # `--all-features` unconditionally enables every workspace crate's
+          # `cuda` feature (candle-core/cuda etc.), which requires nvcc — this
+          # step had no guard for that, so it always failed on fleets without
+          # the CUDA toolkit installed. `command -v nvcc` alone isn't reliable
+          # here — some fleet runners have a stale/broken PATH entry that
+          # resolves but fails when actually invoked. Run the same check
+          # cudarc's build.rs does. Crates with their own `cuda` feature:
+          # vox-plugin-mens-candle-cuda, vox-quantize, vox-plugin-speech,
+          # vox-populi (mens-candle-qlora-cuda), vox-speech. vox-ml-cli's
+          # `mens-candle-cuda` feature forwards into vox-populi's cuda
+          # feature via `vox-populi/mens-candle-qlora-cuda`, so it needs
+          # excluding too or --all-features re-enables it as a dependency.
           CUDA_EXCLUDE=()
           if ! nvcc --version >/dev/null 2>&1; then
-            CUDA_EXCLUDE=(--exclude vox-plugin-mens-candle-cuda)
+            CUDA_EXCLUDE=(--exclude vox-plugin-mens-candle-cuda --exclude vox-quantize --exclude vox-plugin-speech --exclude vox-populi --exclude vox-speech --exclude vox-ml-cli)
+          fi
+          # Same problem for the `metal` feature: it links Apple's Metal
+          # framework via objc2/candle-core, which cannot compile off macOS at
+          # all (no runtime-check fallback like nvcc). This job always runs on
+          # self-hosted Linux, so always exclude the crates with their own
+          # `metal` feature: vox-plugin-mens-candle-metal, vox-quantize.
+          METAL_EXCLUDE=()
+          if [ "$(uname -s)" != "Darwin" ]; then
+            METAL_EXCLUDE=(--exclude vox-plugin-mens-candle-metal --exclude vox-quantize)
           fi
           if [ "$FULL" = "true" ]; then
-            cargo check --workspace --exclude vox-gui "${CUDA_EXCLUDE[@]}" --all-features
+            cargo check --workspace --exclude vox-gui "${CUDA_EXCLUDE[@]}" "${METAL_EXCLUDE[@]}" --all-features
           elif [ -n "$P_ARGS" ]; then
             # shellcheck disable=SC2086
             cargo check $P_ARGS --all-features
