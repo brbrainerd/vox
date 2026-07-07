@@ -1,4 +1,4 @@
-// vox:caps fs env
+// vox:caps fs env process
 // Native replacement for prep_mens_mix_inputs.sh.
 
 fn main() {

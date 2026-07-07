@@ -57,18 +57,37 @@ async fn main() -> anyhow::Result<()> {
 
     // Intercept ML commands and delegate to vox-ml-cli
     let args: Vec<String> = std::env::args().collect();
-    if args.len() > 1 {
-        let cmd = args[1].as_str();
+    // Skip leading global flags (`--quiet`/`-q`, `--json`, `--verbose`/`-v`,
+    // `--color <WHEN>`) so `vox --quiet mens ...` is detected the same as
+    // `vox mens ...` instead of falling through to the internal dispatch,
+    // where `Cli::Mens`/`Populi`/`Oratio` are `unreachable!()` by design.
+    let sub_idx = args
+        .iter()
+        .enumerate()
+        .skip(1)
+        .find(|(i, a)| {
+            if a.as_str() == "--color" {
+                return false;
+            }
+            if args.get(i.wrapping_sub(1)).map(String::as_str) == Some("--color") {
+                return false;
+            }
+            !a.starts_with('-')
+        })
+        .map(|(i, _)| i);
+    if let Some(idx) = sub_idx {
+        let cmd = args[idx].as_str();
         let is_ml = matches!(cmd, "mens" | "oratio" | "speech" | "populi" | "train");
         let is_ext_ml = cmd == "ext"
-            && args.len() > 2
+            && args.len() > idx + 1
             && matches!(
-                args[2].as_str(),
+                args[idx + 1].as_str(),
                 "mens" | "oratio" | "speech" | "populi" | "train"
             );
 
         if is_ml || is_ext_ml {
-            let primary_cmd = if is_ext_ml { args[2].as_str() } else { cmd };
+            let sub_start = if is_ext_ml { idx + 1 } else { idx };
+            let primary_cmd = args[sub_start].as_str();
             // All ML/AI domains delegate to vox-ml-cli. (The retired `vox schola`
             // top-level command + its phantom `vox-schola` binary were removed;
             // training lives under `vox mens train`, which uses the internal
@@ -79,7 +98,7 @@ async fn main() -> anyhow::Result<()> {
                 command.arg("mens");
             }
 
-            let forward_args = if is_ext_ml { &args[2..] } else { &args[1..] };
+            let forward_args = &args[sub_start..];
             command.args(forward_args);
 
             // Wait for completion and exit with same status
