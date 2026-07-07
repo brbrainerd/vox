@@ -19,6 +19,8 @@
 //! follow-up tasks of the implementation plan; until then nothing in this
 //! module actually reports anything anywhere.
 
+use std::path::PathBuf;
+
 use regex::Regex;
 
 /// One parsed `oom-kill:constraint=CONSTRAINT_MEMCG` kernel log line — the
@@ -77,6 +79,53 @@ pub fn parse_oom_events(dmesg_text: &str) -> Vec<OomEvent> {
         .collect()
 }
 
+// --- dedup persistence across ticks -----------------------------------
+
+fn oom_seen_path() -> PathBuf {
+    crate::fs_utils::user_home_dir()
+        .join(".vox")
+        .join("ci-runner-oom-seen.json")
+}
+
+fn read_oom_seen() -> Vec<String> {
+    std::fs::read_to_string(oom_seen_path())
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn write_oom_seen(seen: &[String]) {
+    let p = oom_seen_path();
+    if let Some(parent) = p.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(s) = serde_json::to_string_pretty(seen) {
+        let _ = std::fs::write(p, s);
+    }
+}
+
+/// Events from `events` whose raw line isn't already in `seen`. Pure.
+pub fn new_events<'a>(events: &'a [OomEvent], seen: &[String]) -> Vec<&'a OomEvent> {
+    events
+        .iter()
+        .filter(|e| !seen.iter().any(|s| s == &e.raw_line))
+        .collect()
+}
+
+/// Cap on the seen-list so its state file never grows unbounded.
+const OOM_SEEN_MAX: usize = 500;
+
+/// Append newly-seen raw lines to the existing seen-list, capped to
+/// [`OOM_SEEN_MAX`] most-recent entries (oldest dropped first). Pure.
+pub fn append_seen(mut seen: Vec<String>, newly_seen: &[String]) -> Vec<String> {
+    seen.extend(newly_seen.iter().cloned());
+    if seen.len() > OOM_SEEN_MAX {
+        let drop = seen.len() - OOM_SEEN_MAX;
+        seen.drain(0..drop);
+    }
+    seen
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -130,5 +179,57 @@ mod tests {
         assert_eq!(events.len(), 2);
         assert_eq!(events[0].process, "cargo");
         assert_eq!(events[1].process, "rustc");
+    }
+
+    #[test]
+    fn new_events_filters_out_already_seen_lines() {
+        let events = vec![
+            OomEvent {
+                raw_line: "line-a".to_string(),
+                process: "cargo".to_string(),
+                cgroup_id: "a".repeat(64),
+            },
+            OomEvent {
+                raw_line: "line-b".to_string(),
+                process: "rustc".to_string(),
+                cgroup_id: "b".repeat(64),
+            },
+        ];
+        let seen = vec!["line-a".to_string()];
+        let fresh = new_events(&events, &seen);
+        assert_eq!(fresh.len(), 1);
+        assert_eq!(fresh[0].raw_line, "line-b");
+    }
+
+    #[test]
+    fn new_events_returns_all_when_seen_is_empty() {
+        let events = vec![OomEvent {
+            raw_line: "line-a".to_string(),
+            process: "cargo".to_string(),
+            cgroup_id: "a".repeat(64),
+        }];
+        assert_eq!(new_events(&events, &[]).len(), 1);
+    }
+
+    #[test]
+    fn append_seen_caps_to_max_dropping_oldest_first() {
+        let seen: Vec<String> = (0..OOM_SEEN_MAX).map(|i| format!("old-{i}")).collect();
+        let newly = vec!["new-1".to_string(), "new-2".to_string()];
+        let updated = append_seen(seen, &newly);
+        assert_eq!(updated.len(), OOM_SEEN_MAX);
+        // The two oldest entries were dropped to make room.
+        assert!(!updated.contains(&"old-0".to_string()));
+        assert!(!updated.contains(&"old-1".to_string()));
+        assert!(updated.contains(&"old-2".to_string()));
+        // The new entries are present.
+        assert!(updated.contains(&"new-1".to_string()));
+        assert!(updated.contains(&"new-2".to_string()));
+    }
+
+    #[test]
+    fn append_seen_under_cap_keeps_everything() {
+        let seen = vec!["a".to_string()];
+        let updated = append_seen(seen, &["b".to_string()]);
+        assert_eq!(updated, vec!["a".to_string(), "b".to_string()]);
     }
 }
