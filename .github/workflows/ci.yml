@@ -1248,16 +1248,7 @@ jobs:
     name: Audits (TOESTUB-full + build-timings + feature-matrix + completion + mens-gate)
     needs: setup
     runs-on: [self-hosted, linux, x64]
-    # This job's true steady-state runtime (TOESTUB validation, safety-inventory,
-    # hardcoded-values-audit, completion-audit, detect-rules-bench, build-timings,
-    # feature-matrix cargo checks, the all-features check, cuda-features, and the
-    # corpus_prep + mens-mix step) was never actually observed before — every run
-    # on this branch failed on an earlier, now-fixed bug first. Once those were
-    # fixed, this job started reaching the 25-minute ceiling under normal
-    # self-hosted-runner contention (repeatedly landing at ~25m15s, i.e. cut off
-    # mid-step by the timeout, not a real hang). 35m matches the headroom given to
-    # other substantial jobs in this workflow (30/40m).
-    timeout-minutes: 35
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
