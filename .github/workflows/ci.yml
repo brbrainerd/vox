@@ -1371,6 +1371,19 @@ jobs:
         if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet ci cuda-features
 
+      # `vox mens ...` / `vox populi ...` (used by the next two steps, including
+      # transitively via corpus_prep.vox's golden-example extraction) delegate to
+      # a separate `vox-ml-cli` binary (see main.rs's ML-command interception).
+      # No CI job has ever built it, so that delegation has always failed here —
+      # previously masked by a `vox-cli` dispatch panic (fixed separately); now
+      # that the panic is gone, the delegation actually attempts to run and needs
+      # the target binary to exist and be on PATH.
+      - name: Build vox-ml-cli (mens/populi CLI delegation target)
+        if: needs.setup.outputs.full == 'true'
+        run: |
+          cargo build -p vox-ml-cli --locked
+          echo "$PWD/target/debug" >> "$GITHUB_PATH"
+
       - name: Mens corpus mix (strict required sources)
         if: needs.setup.outputs.full == 'true'
         run: |
