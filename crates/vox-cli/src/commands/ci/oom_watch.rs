@@ -11,19 +11,24 @@
 //! (`vox ci runner-scale`, invoked every 2 minutes), not inside the job.
 //!
 //! Design: docs/superpowers/specs/2026-07-07-ci-runner-memory-budget-and-oom-visibility-design.md
+//!
+//! **Currently implemented in this file:** dmesg-line parsing only
+//! (`parse_oom_events`, below) — a pure string-parsing function with no
+//! `gh`/`dmesg`/reporting IO. Dedup persistence, container-name resolution,
+//! GitHub job correlation, and PR comment composition/posting all land in
+//! follow-up tasks of the implementation plan; until then nothing in this
+//! module actually reports anything anywhere.
 
-use std::collections::HashMap;
-use std::path::PathBuf;
-
-use anyhow::{Context, Result};
 use regex::Regex;
-
-use super::constants::REPO_SLUG;
-use super::runner_scale::{gh_json, quiet_command};
 
 /// One parsed `oom-kill:constraint=CONSTRAINT_MEMCG` kernel log line — the
 /// single `dmesg` line that carries both the killed process name and the
 /// container's full cgroup id together (`oom_memcg=/docker/<id>,...,task=<name>`).
+///
+/// `#[allow(dead_code)]`: not yet constructed outside `#[cfg(test)]` — the
+/// dedup-persistence task later in the implementation plan is the first
+/// caller. Remove this allow once that task lands and wires it up.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OomEvent {
     /// Raw matched line, used as the dedup key (content-based, not
@@ -35,6 +40,10 @@ pub struct OomEvent {
     pub cgroup_id: String,
 }
 
+/// `#[allow(dead_code)]`: only called from `parse_oom_events` today, which
+/// is itself only called from tests until the orchestration task
+/// (`scan_and_report_oom_events`) lands later in the implementation plan.
+#[allow(dead_code)]
 fn oom_line_regex() -> &'static Regex {
     static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     RE.get_or_init(|| {
@@ -47,6 +56,11 @@ fn oom_line_regex() -> &'static Regex {
 /// extracting the killed process name and the container's cgroup id from
 /// each. Lines that don't match (the overwhelming majority of `dmesg`) are
 /// skipped. Pure — no IO.
+///
+/// `#[allow(dead_code)]`: only called from tests today — the orchestration
+/// task (`scan_and_report_oom_events`) later in the implementation plan is
+/// the first non-test caller. Remove this allow once that task lands.
+#[allow(dead_code)]
 pub fn parse_oom_events(dmesg_text: &str) -> Vec<OomEvent> {
     let re = oom_line_regex();
     dmesg_text
@@ -95,11 +109,18 @@ mod tests {
     }
 
     #[test]
-    fn parses_multiple_events_and_skips_noise_between_them() {
+    fn parses_multiple_events_in_order_and_skips_a_malformed_decoy() {
+        // The decoy line on [3.0] deliberately contains the
+        // "oom-kill:constraint=CONSTRAINT_MEMCG" substring the initial
+        // `.filter()` checks for, but its cgroup id is truncated (not a
+        // valid 64-char hex string), so it fails `re.captures` and must be
+        // dropped by the `filter_map`'s `?` short-circuit -- proving the
+        // noise-skipping is enforced by the regex capture, not merely by
+        // lines never containing the substring to begin with.
         let text = format!(
             "[1.0] noise\n\
              [2.0] oom-kill:constraint=CONSTRAINT_MEMCG,oom_memcg=/docker/{a},task_memcg=/docker/{a},task=cargo,pid=1,uid=0\n\
-             [3.0] Memory cgroup out of memory: Killed process 1 (cargo)\n\
+             [3.0] oom-kill:constraint=CONSTRAINT_MEMCG,oom_memcg=/docker/deadbeef,task_memcg=/docker/deadbeef,task=truncated,pid=9,uid=0\n\
              [4.0] more noise\n\
              [5.0] oom-kill:constraint=CONSTRAINT_MEMCG,oom_memcg=/docker/{b},task_memcg=/docker/{b},task=rustc,pid=2,uid=0\n",
             a = "a".repeat(64),
