@@ -103,7 +103,13 @@ jobs:
         run: |
           set -euo pipefail
           acted=0
-          gh pr list --state open --json number,headRefOid --jq '.[]|[.number,.headRefOid]|@tsv' | while IFS=$'\t' read -r num sha; do
+          # REST, not `gh pr list` (GraphQL-backed): `gh pr list` always fetches a
+          # richer PR shape internally (review requests incl. team reviewers) even
+          # when --json only asks for number/headRefOid, which needs `read:org` on
+          # the token. SSOT_AUTOREGEN_TOKEN only has `repo`+`workflow`, so that call
+          # silently errored every time this step ran, and this loop never executed
+          # at all (queue_age>30 fired repeatedly this session with zero effect).
+          gh api "repos/$REPO/pulls?state=open&per_page=100" --paginate --jq '.[]|[.number,.head.sha]|@tsv' | while IFS=$'\t' read -r num sha; do
             inflight=$(gh run list --workflow ci-fallback-hosted.yml --json status,headSha \
               --jq "[.[]|select(.headSha==\"$sha\" and (.status==\"in_progress\" or .status==\"queued\"))]|length")
             if [ "$inflight" = 0 ]; then
@@ -122,7 +128,11 @@ jobs:
         if: ${{ steps.check.outputs.online != '0' && env.DRY_RUN != 'true' }}
         run: |
           set -euo pipefail
-          gh pr list --state open --label fleet-down --json number --jq '.[].number' | while read -r num; do
+          # REST, not `gh pr list` — same read:org scope problem as the failover
+          # step above. Filter the fleet-down label client-side via jq instead of
+          # `gh pr list --label`, which is the flag that triggers the richer query.
+          gh api "repos/$REPO/pulls?state=open&per_page=100" --paginate \
+            --jq '.[] | select(any(.labels[]; .name == "fleet-down")) | .number' | while read -r num; do
             gh pr edit "$num" --remove-label fleet-down && echo "::notice::{\"action\":\"recover\",\"pr\":$num}"
           done
 
