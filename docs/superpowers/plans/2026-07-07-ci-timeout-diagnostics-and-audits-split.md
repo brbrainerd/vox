@@ -71,6 +71,13 @@ git commit -m "feat(ci): add job-timing-start composite action"
 # cancelled/timed out — this is what distinguishes "ran out the clock" from
 # a fast real failure/cancellation without hand-computing timestamps after
 # the fact.
+#
+# IMPORTANT (post-adversarial-review): elapsed-time-as-percentage-of-budget
+# is NOT by itself evidence of a timeout — a job can legitimately succeed at
+# 99% of its budget on a contended fleet. `job-status` (GitHub's own rolling
+# job status: success/failure/cancelled) is the real signal for "did this
+# actually get cancelled" — the branching below is gated on it first, and
+# `pct` only refines the message *within* the already-cancelled case.
 name: Job Timing Report
 description: Emits an elapsed-vs-budget notice/warning annotation for the calling job.
 inputs:
@@ -81,10 +88,18 @@ inputs:
       is a literal the job author keeps in sync with `timeout-minutes:`
       by hand (same as that value already is).
     required: true
+  job-status:
+    description: >
+      Pass `${{ job.status }}` from the calling workflow — GitHub's own
+      rolling status of the job so far (success/failure/cancelled).
+    required: true
 runs:
   using: composite
   steps:
     - shell: bash
+      env:
+        BUDGET_MINUTES: ${{ inputs.budget-minutes }}
+        JOB_STATUS: ${{ inputs.job-status }}
       run: |
         set -euo pipefail
         start="${JOB_TIMING_START_EPOCH:-}"
@@ -96,38 +111,38 @@ runs:
         elapsed_s=$(( now - start ))
         elapsed_m=$(( elapsed_s / 60 ))
         elapsed_rem_s=$(( elapsed_s % 60 ))
-        budget_m="${{ inputs.budget-minutes }}"
-        budget_s=$(( budget_m * 60 ))
+        budget_s=$(( BUDGET_MINUTES * 60 ))
         pct=$(( elapsed_s * 100 / budget_s ))
-        summary="Elapsed ${elapsed_m}m${elapsed_rem_s}s of ${budget_m}m budget (${pct}%)"
-        if [ "$pct" -ge 98 ]; then
-          echo "::warning title=Job Timing::${summary} — LIKELY TIMED OUT, not a generic cancellation"
-        elif [ "$pct" -ge 80 ]; then
-          echo "::warning title=Job Timing::${summary} — approaching timeout"
-        else
+        summary="Elapsed ${elapsed_m}m${elapsed_rem_s}s of ${BUDGET_MINUTES}m budget (${pct}%)"
+        if [ "$JOB_STATUS" != "cancelled" ]; then
           echo "::notice title=Job Timing::${summary}"
+        elif [ "$pct" -ge 90 ]; then
+          echo "::warning title=Job Timing::${summary} — LIKELY HIT THIS JOB'S OWN timeout-minutes, not an external cancellation"
+        else
+          echo "::warning title=Job Timing::${summary} — cancelled well before budget exhausted; LIKELY AN EXTERNAL CANCELLATION (fleet event, concurrency-group supersede, manual cancel), not this job's own timeout"
         fi
 ```
 
 - [ ] **Step 2: Verify the arithmetic/branching logic in isolation**
 
-The composite action's shell logic can't run standalone (it needs `$GITHUB_ENV`/`inputs.*` context), so verify the exact same arithmetic by extracting it into a throwaway local script with mocked values covering all three branches plus the missing-start-var guard:
+The composite action's shell logic can't run standalone (it needs `$GITHUB_ENV`/`inputs.*` context), so verify the exact same arithmetic by extracting it into a throwaway local script with mocked values covering all four branches (success-at-high-elapsed must NOT say timed out — that's the exact false positive this design was fixed to avoid):
 
 ```bash
 cd "C:/Users/Owner/AppData/Local/Temp/vox-guihonesty-fix"
-for case in "low" "approaching" "timedout" "missing"; do
+for case in "success_high" "cancelled_low" "cancelled_high" "missing"; do
   echo "=== case: $case ==="
   if [ "$case" = "missing" ]; then
     start=""
+    JOB_STATUS="cancelled"
   else
     now_test=$(date +%s)
     case "$case" in
-      low)        start=$(( now_test - 300 )) ;;   # 5 min elapsed
-      approaching) start=$(( now_test - 1140 )) ;;  # 19 min elapsed
-      timedout)   start=$(( now_test - 1495 )) ;;   # 24m55s elapsed
+      success_high)  start=$(( now_test - 1485 )); JOB_STATUS="success" ;;    # 24m45s elapsed, but SUCCEEDED
+      cancelled_low) start=$(( now_test - 300 ));  JOB_STATUS="cancelled" ;;  # 5 min elapsed, cancelled early
+      cancelled_high) start=$(( now_test - 1495 )); JOB_STATUS="cancelled" ;; # 24m55s elapsed, cancelled near budget
     esac
   fi
-  budget_m=25
+  BUDGET_MINUTES=25
   if [ -z "$start" ]; then
     echo "::warning title=Job Timing::job-timing-start action did not run first; skipping report"
     continue
@@ -136,32 +151,32 @@ for case in "low" "approaching" "timedout" "missing"; do
   elapsed_s=$(( now - start ))
   elapsed_m=$(( elapsed_s / 60 ))
   elapsed_rem_s=$(( elapsed_s % 60 ))
-  budget_s=$(( budget_m * 60 ))
+  budget_s=$(( BUDGET_MINUTES * 60 ))
   pct=$(( elapsed_s * 100 / budget_s ))
-  summary="Elapsed ${elapsed_m}m${elapsed_rem_s}s of ${budget_m}m budget (${pct}%)"
-  if [ "$pct" -ge 98 ]; then
-    echo "::warning title=Job Timing::${summary} — LIKELY TIMED OUT, not a generic cancellation"
-  elif [ "$pct" -ge 80 ]; then
-    echo "::warning title=Job Timing::${summary} — approaching timeout"
-  else
+  summary="Elapsed ${elapsed_m}m${elapsed_rem_s}s of ${BUDGET_MINUTES}m budget (${pct}%)"
+  if [ "$JOB_STATUS" != "cancelled" ]; then
     echo "::notice title=Job Timing::${summary}"
+  elif [ "$pct" -ge 90 ]; then
+    echo "::warning title=Job Timing::${summary} — LIKELY HIT THIS JOB'S OWN timeout-minutes, not an external cancellation"
+  else
+    echo "::warning title=Job Timing::${summary} — cancelled well before budget exhausted; LIKELY AN EXTERNAL CANCELLATION (fleet event, concurrency-group supersede, manual cancel), not this job's own timeout"
   fi
 done
 ```
 
 Expected output (four cases, one per branch):
 ```
-=== case: low ===
-::notice title=Job Timing::Elapsed 5m0s of 25m budget (20%)
-=== case: approaching ===
-::warning title=Job Timing::Elapsed 19m0s of 25m budget (81%) — approaching timeout
-=== case: timedout ===
-::warning title=Job Timing::Elapsed 24m55s of 25m budget (99%) — LIKELY TIMED OUT, not a generic cancellation
+=== case: success_high ===
+::notice title=Job Timing::Elapsed 24m45s of 25m budget (99%)
+=== case: cancelled_low ===
+::warning title=Job Timing::Elapsed 5m0s of 25m budget (20%) — cancelled well before budget exhausted; LIKELY AN EXTERNAL CANCELLATION (fleet event, concurrency-group supersede, manual cancel), not this job's own timeout
+=== case: cancelled_high ===
+::warning title=Job Timing::Elapsed 24m55s of 25m budget (99%) — LIKELY HIT THIS JOB'S OWN timeout-minutes, not an external cancellation
 === case: missing ===
 ::warning title=Job Timing::job-timing-start action did not run first; skipping report
 ```
 
-If the percentages don't land in the expected bracket (e.g. off-by-one at the 80/98 boundary), adjust the mocked `start` offsets or the composite action's thresholds until they match — the four branches above are the contract this step must satisfy.
+The `success_high` case is the one that matters most: 99% elapsed but `JOB_STATUS=success` must print the plain `::notice` with no "timed out" language at all. If it doesn't, the gate ordering in the composite action is wrong — fix it before proceeding, this is the exact false positive the whole design exists to eliminate.
 
 - [ ] **Step 3: Commit**
 
@@ -247,6 +262,7 @@ Replace with:
         uses: ./.github/actions/job-timing-report
         with:
           budget-minutes: "20"
+          job-status: ${{ job.status }}
 
   lints:
 ```
@@ -315,6 +331,7 @@ Replace with:
         uses: ./.github/actions/job-timing-report
         with:
           budget-minutes: "20"
+          job-status: ${{ job.status }}
 
   compiler-gates:
 ```
@@ -403,6 +420,7 @@ Replace with:
         uses: ./.github/actions/job-timing-report
         with:
           budget-minutes: "20"
+          job-status: ${{ job.status }}
 
   tests:
 ```
@@ -483,6 +501,7 @@ Replace with:
         uses: ./.github/actions/job-timing-report
         with:
           budget-minutes: "30"
+          job-status: ${{ job.status }}
 
   audits:
 ```
@@ -543,6 +562,7 @@ Replace with:
         uses: ./.github/actions/job-timing-report
         with:
           budget-minutes: "35"
+          job-status: ${{ job.status }}
 ```
 
 Use `"35"` here (this job's *current* `timeout-minutes` value, before Task 10 lowers it to 20 later in this plan) — Task 10 updates both the `timeout-minutes:` line and this `budget-minutes:` value together, so they never drift out of sync even mid-plan.
@@ -582,6 +602,13 @@ git commit -m "feat(ci): wire job-timing steps into audits job"
 // it exists only so `#[cfg(feature = "standalone")]` guards in its
 // `#[path]`-embedded vox-codegen-ts/src/mod.rs are known cfgs, and
 // force-enabling it via --all-features breaks the embedded (default) build.
+//
+// Deliberately NOT carried over from the original ci.yml bash: the
+// FULL-vs-affected-crates-only (`P_ARGS`) branch. That branch existed so a
+// small PR touching only a few crates wouldn't pay for a full-workspace
+// compile. This script only runs nightly now (never per-PR), and a nightly
+// cron has no PR diff at all — there is no "small PR" case here, so this
+// always does the full workspace check unconditionally. Not a lost feature.
 
 fn nvcc_available() to bool {
     let res_opt = process.run("nvcc", ["--version"]);
@@ -648,17 +675,22 @@ fn main() {
 
 - [ ] **Step 2: Verify the script runs and produces the expected excluded-crate list**
 
-Run: `cd "C:/Users/Owner/AppData/Local/Temp/vox-guihonesty-fix" && ./target/debug/vox --quiet run --interp scripts/ci/all_features_check.vox 2>&1 | head -5`
+Redirect to a file rather than piping through `head` — piping (`cmd | head -5`) would make a later `$?` check report `head`'s exit code, not the actual command's, silently defeating the exit-code check in the next step:
 
-Expected first line of output (this machine has no `nvcc` and is not Darwin, so both exclude branches fire):
+Run: `cd "C:/Users/Owner/AppData/Local/Temp/vox-guihonesty-fix" && ./target/debug/vox --quiet run --interp scripts/ci/all_features_check.vox > /tmp/all_features_check_verify.log 2>&1; echo "exit code: $?"`
+
+This is the full `--all-features` workspace check (several minutes even with a warm sccache; this exact argument list has already been verified to pass cleanly earlier in this session via manual `cargo tree -i cudarc`/`-i objc2` checks showing neither package resolves) — let it run to completion in the foreground, or via `run_in_background: true` if the executor supports it, since it's a multi-minute command.
+
+Expected: `exit code: 0`
+
+Then confirm the constructed argument list matches expectations:
+
+Run: `head -1 /tmp/all_features_check_verify.log`
+
+Expected (this machine has no `nvcc` and is not Darwin, so both exclude branches fire):
 ```
 Running: cargo check --workspace --exclude vox-gui --exclude vox-codegen --exclude vox-plugin-mens-candle-cuda --exclude vox-quantize --exclude vox-plugin-speech --exclude vox-populi --exclude vox-speech --exclude vox-ml-cli --exclude vox-plugin-mens-candle-metal --exclude vox-quantize --all-features
 ```
-
-Let the command continue running to completion (a full `--all-features` workspace check; several minutes even with a warm sccache — this exact argument list has already been verified to pass cleanly earlier in this session via manual `cargo tree -i cudarc`/`-i objc2` checks showing neither package resolves). Confirm it exits 0:
-
-Run: `echo "exit code: $?"`
-Expected: `exit code: 0`
 
 - [ ] **Step 3: Commit**
 
@@ -881,11 +913,39 @@ Replace with:
     timeout-minutes: 20
 ```
 
-- [ ] **Step 3: Verify the resulting YAML is well-formed and the job's step list makes sense**
+- [ ] **Step 3: Update the `job-timing-report` call (added in Task 7) to match the new budget**
 
-Run: `cd "C:/Users/Owner/AppData/Local/Temp/vox-guihonesty-fix" && python -c "import yaml; d = yaml.safe_load(open('.github/workflows/ci.yml')); print('OK, audits timeout-minutes =', d['jobs']['audits']['timeout-minutes'])"`
+Task 7 added this job's `job-timing-report` step using `budget-minutes: "35"` (the value at the time). Now that Step 2 above changed `timeout-minutes` to `20`, this must change too or the timing report will compare elapsed time against the wrong (stale) budget. Find:
 
-Expected: `OK, audits timeout-minutes = 20`
+```yaml
+      - if: always()
+        uses: ./.github/actions/job-timing-report
+        with:
+          budget-minutes: "35"
+          job-status: ${{ job.status }}
+```
+
+Replace with:
+
+```yaml
+      - if: always()
+        uses: ./.github/actions/job-timing-report
+        with:
+          budget-minutes: "20"
+          job-status: ${{ job.status }}
+```
+
+- [ ] **Step 4: Verify the resulting YAML is well-formed and the job's step list makes sense**
+
+Run: `cd "C:/Users/Owner/AppData/Local/Temp/vox-guihonesty-fix" && python -c "import yaml; d = yaml.safe_load(open('.github/workflows/ci.yml')); j = d['jobs']['audits']; print('OK, audits timeout-minutes =', j['timeout-minutes']); print('OK, job-timing-report budget-minutes =', j['steps'][-1]['with']['budget-minutes'])"`
+
+Expected:
+```
+OK, audits timeout-minutes = 20
+OK, job-timing-report budget-minutes = 20
+```
+
+If the two numbers don't match, Step 3 above wasn't applied — this is exactly the drift this step exists to catch.
 
 Then confirm no leftover reference to the removed steps:
 
@@ -893,7 +953,7 @@ Run: `grep -n "feature-matrix\|Workspace-wide all-features check" .github/workfl
 
 Expected: no matches inside the `audits:` job block (the string `feature-matrix` may still legitimately appear in the job's `name:` line if Step 2 above wasn't applied correctly — re-check that the `name:` was updated to drop `+ feature-matrix` too).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -907,17 +967,27 @@ git commit -m "fix(ci): trim audits job (feature-matrix + all-features-check mov
 **Files:**
 - Read-only verification of: `.github/workflows/ci.yml`, `.github/workflows/feature-audits-nightly.yml`, `.github/actions/job-timing-start/action.yml`, `.github/actions/job-timing-report/action.yml`, `scripts/ci/all_features_check.vox`
 
-- [ ] **Step 1: Confirm all 5 target jobs have exactly one `job-timing-start` and one `job-timing-report`**
+- [ ] **Step 1: Confirm all 5 target jobs have exactly one `job-timing-start`, one `job-timing-report`, and one `job-status` input**
 
-Run: `cd "C:/Users/Owner/AppData/Local/Temp/vox-guihonesty-fix" && grep -c "uses: ./.github/actions/job-timing-start" .github/workflows/ci.yml && grep -c "uses: ./.github/actions/job-timing-report" .github/workflows/ci.yml`
+Run: `cd "C:/Users/Owner/AppData/Local/Temp/vox-guihonesty-fix" && grep -c "uses: ./.github/actions/job-timing-start" .github/workflows/ci.yml && grep -c "uses: ./.github/actions/job-timing-report" .github/workflows/ci.yml && grep -c "job-status: \${{ job.status }}" .github/workflows/ci.yml`
 
-Expected: both commands print `5`.
+Expected: all three commands print `5`. If `job-timing-report`'s count is `5` but `job-status`'s count is less, one of the 5 call sites is missing the `job-status` input (it would silently fall through to the `required: true` validation failing at runtime, not at commit time — catch it here instead).
 
 - [ ] **Step 2: Confirm each `job-timing-report`'s `budget-minutes` matches its job's `timeout-minutes`**
 
-Run: `grep -B2 "job-timing-report" .github/workflows/ci.yml | grep -A2 "job-timing-report\|budget-minutes"`
+Run: `cd "C:/Users/Owner/AppData/Local/Temp/vox-guihonesty-fix" && python -c "
+import yaml
+d = yaml.safe_load(open('.github/workflows/ci.yml'))
+for name in ['guards-fast', 'lints', 'compiler-gates', 'tests', 'audits']:
+    job = d['jobs'][name]
+    tm = job['timeout-minutes']
+    report_step = [s for s in job['steps'] if s.get('uses') == './.github/actions/job-timing-report'][0]
+    bm = report_step['with']['budget-minutes']
+    match = 'OK' if str(tm) == str(bm) else 'MISMATCH'
+    print(f'{name}: timeout-minutes={tm} budget-minutes={bm} {match}')
+"`
 
-Manually cross-check each printed `budget-minutes` value against that job's `timeout-minutes:` (guards-fast=20, lints=20, compiler-gates=20, tests=30, audits=20 after Task 10). Fix any mismatch inline before proceeding.
+Expected: every line prints `OK` (guards-fast=20, lints=20, compiler-gates=20, tests=30, audits=20 after Task 10). Fix any `MISMATCH` inline before proceeding — this is a real bug (the report would compare elapsed time against the wrong budget), not a style nit.
 
 - [ ] **Step 3: Run the repo's existing workflow-lint tooling locally if available**
 

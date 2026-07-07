@@ -78,21 +78,53 @@ inputs/outputs beyond what's described:
   Writes `JOB_TIMING_START_EPOCH=$(date +%s)` to `$GITHUB_ENV`.
 - `.github/actions/job-timing-report/action.yml` — **last** step of the job,
   `if: always()` so it runs whether the job succeeded, failed, or was
-  cancelled/timed out. Takes one input, `budget-minutes` (a plain string the
-  job author sets to match that job's own `timeout-minutes:` — no dynamic
-  read-back of the job's own timeout exists in Actions' expression context,
-  so this is a manually-kept-in-sync literal, same as the existing
-  `timeout-minutes:` value itself). Computes
-  `elapsed = now - JOB_TIMING_START_EPOCH`, converts to minutes, computes
-  `pct = elapsed / (budget-minutes * 60) * 100`. Emits one of:
-  - `pct < 80`: `::notice title=Job Timing::Elapsed {elapsed} of {budget}m budget ({pct}%)`
-  - `pct >= 80`: `::warning title=Job Timing::Elapsed {elapsed} of {budget}m budget ({pct}%) — approaching timeout`
-  - `pct >= 98`: `::warning title=Job Timing::Elapsed {elapsed} of {budget}m budget ({pct}%) — LIKELY TIMED OUT, not a generic cancellation`
+  cancelled/timed out. Takes two inputs:
+  - `budget-minutes` (a plain string the job author sets to match that job's
+    own `timeout-minutes:` — no dynamic read-back of the job's own timeout
+    exists in Actions' expression context, so this is a manually-kept-in-sync
+    literal, same as the existing `timeout-minutes:` value itself).
+  - `job-status` (set to the literal `${{ job.status }}` — GitHub Actions'
+    own rolling status of the job so far: `success`, `failure`, or
+    `cancelled`).
+
+  **Revision note (post-adversarial-review):** the first draft of this
+  design computed `pct = elapsed / budget` alone and printed "LIKELY TIMED
+  OUT" whenever `pct >= 98`, with no regard for whether the job actually
+  succeeded. That's a manufactured false positive: a job that legitimately
+  *succeeds* at 99% of its budget (common on a contended fleet) would have
+  been mislabeled "likely timed out" in its own summary — the opposite of
+  the stated goal. `job.status` is the correct signal (it directly reflects
+  whether GitHub actually cancelled the job), so the design now gates on it:
+
+  Computes `elapsed = now - JOB_TIMING_START_EPOCH`, converts to minutes,
+  computes `pct = elapsed / (budget-minutes * 60) * 100`. Emits one of:
+  - `job-status != 'cancelled'`: `::notice title=Job Timing::Elapsed {elapsed} of {budget}m budget ({pct}%)` — plain report, regardless of `pct`. A success or a real failure is never labeled a timeout.
+  - `job-status == 'cancelled' && pct >= 90`: `::warning title=Job Timing::Elapsed {elapsed} of {budget}m budget ({pct}%) — LIKELY HIT THIS JOB'S OWN timeout-minutes, not an external cancellation`
+  - `job-status == 'cancelled' && pct < 90`: `::warning title=Job Timing::Elapsed {elapsed} of {budget}m budget ({pct}%) — cancelled well before budget exhausted; LIKELY AN EXTERNAL CANCELLATION (fleet event, concurrency-group supersede, manual cancel), not this job's own timeout`
+
+  The 90% threshold (not 98%) has a deliberate safety margin: this session's
+  own observed real timeouts landed at ~101% of budget by GitHub's own
+  `started_at`/`completed_at` accounting (25m15-17s of a 25m budget), because
+  GitHub's `started_at` includes runner-assignment/checkout overhead that
+  happens *before* `job-timing-start` (the first step *after* checkout) ever
+  runs — so this design's internal measurement will always read a little
+  lower than GitHub's own trigger point. A wide band costs nothing now that
+  `job.status` is the real discriminator and `pct` only refines the message
+  within the already-`cancelled` case.
 
   (`::error` is deliberately not used for the timing report itself — a slow
   job isn't necessarily a failed job, and using `warning`/`notice` avoids the
   timing step itself flipping an otherwise-green job red. The real
   pass/fail signal stays with the job's actual steps.)
+
+  **Security hardening:** both inputs are passed into the `run:` block via a
+  step-level `env:` mapping and referenced as `$BUDGET_MINUTES`/`$JOB_STATUS`,
+  not interpolated directly as `${{ inputs.* }}` inside the shell script.
+  Direct interpolation isn't exploitable here (both inputs are author-set
+  literals, not attacker-controlled), but this repo already runs `zizmor`
+  (workflow SAST) on every workflow change specifically to catch
+  template-injection-shaped patterns (`workflow-lint.yml`), so routing
+  through `env:` is the zizmor-clean idiom and free to do from the start.
 
 **Why composite actions, not copy-pasted `run:` blocks:** 5 jobs × 2 steps
 would otherwise duplicate the same shell logic 10 times across `ci.yml`;
@@ -134,13 +166,24 @@ behave (checked: none of them create issues or post to Slack on failure).
 
 The all-features check step's CUDA/metal/vox-codegen exclude logic
 (currently ~30 lines inline in `ci.yml`'s Audits job) moves to
-`scripts/ci/all_features_check.vox` (or a `vox-cli-ci` subcommand if that's
-a better fit for this codebase's existing SSOT-script conventions — decided
-during planning, not here) so both the nightly workflow and any future
-caller share one source of truth for the exclude list, instead of
-duplicating it if the nightly workflow needs the same logic. (The current
-single copy in `ci.yml` moves wholesale; nothing is duplicated as an
-interim state.)
+`scripts/ci/all_features_check.vox` — decided during planning: a `.vox`
+script, not a new `vox-cli-ci` subcommand, matching this repo's existing
+`scripts/ci/*.vox` convention (`corpus_prep.vox`, `compile_kernels.vox`) and
+its VoxScript-only CI-automation policy (`AGENTS.md`). So both the nightly
+workflow and any future caller share one source of truth for the exclude
+list, instead of duplicating it. (The current single copy in `ci.yml` moves
+wholesale; nothing is duplicated as an interim state.)
+
+**Deliberately dropped in the extraction:** the original bash's `FULL` vs
+`P_ARGS` branch (full-workspace check vs. affected-crates-only check,
+driven by `needs.setup.outputs.full`/`affected_p_args`) is *not* carried
+into the extracted script. That branch existed so a small PR touching only
+a few crates wouldn't pay for a full-workspace `--all-features` compile.
+Once this check only runs nightly (never per-PR), there is no "small PR"
+case to optimize for — a nightly run has no PR diff at all, so it always
+wants the full check. The extracted script unconditionally does the full
+`--workspace --all-features` check; this is an intentional simplification,
+not a lost feature.
 
 **3c. Trim `ci.yml`'s Audits job**
 
