@@ -738,6 +738,15 @@ Add to `oom_watch.rs`, after the GitHub-correlation block and before `#[cfg(test
 ```rust
 // --- PR comment composition and posting ----------------------------------
 
+/// Neutralize a run of 3+ backticks so an embedded raw dmesg line can never
+/// break out of the surrounding markdown code fence in [`oom_comment_body`].
+/// dmesg content is kernel-generated, not attacker input, but a process name
+/// containing backticks (however unlikely) shouldn't be able to garble the
+/// comment. Pure.
+fn escape_for_code_fence(s: &str) -> String {
+    s.replace("```", "`\u{200b}``") // zero-width space splits the run
+}
+
 /// Build the PR comment body for one detected OOM kill. Pure — testable
 /// without a live `gh` call.
 pub fn oom_comment_body(event: &OomEvent, job_name: &str, run_id: u64) -> String {
@@ -749,7 +758,8 @@ pub fn oom_comment_body(event: &OomEvent, job_name: &str, run_id: u64) -> String
          Evidence (`dmesg`):\n```\n{}\n```\n\n\
          Auto-detected by the host-side runner autoscaler (`vox ci runner-scale`) — \
          no action needed unless this recurs after a `MEM_PER_RUNNER` bump.",
-        event.process, event.raw_line
+        event.process,
+        escape_for_code_fence(&event.raw_line)
     )
 }
 
@@ -778,15 +788,90 @@ fn post_pr_comment(pr_number: u64, body: &str, dry_run: bool) -> Result<()> {
 Run: `cargo test -p vox-cli --lib oom_watch::`
 Expected: PASS — 12 tests total now.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Add the pipeline-integration test**
+
+This is the piece the design spec's Testing section calls for: chain every pure step
+together (parse → dedup → resolve name → correlate job → compose body) against fixture
+strings, with **no live IO at all**, proving the whole non-IO logic chain produces a
+correct comment body end to end. This is what makes the posting step's *input*
+verifiable locally without ever touching a real PR — the only untested code left after
+this is the single `gh_json` call inside `post_pr_comment` itself, a one-line pass-
+through with no logic of its own (same convention as this file's other thin `gh`/
+`docker` wrappers).
+
+Add to the `tests` module in `oom_watch.rs`:
+
+```rust
+    #[test]
+    fn full_pipeline_parses_correlates_and_composes_a_correct_comment() {
+        let cgroup = "d".repeat(64);
+        let dmesg_text = format!(
+            "[1.0] noise\n\
+             [2.0] oom-kill:constraint=CONSTRAINT_MEMCG,oom_memcg=/docker/{cgroup},\
+             task_memcg=/docker/{cgroup},task=rustdoc,pid=99,uid=0\n"
+        );
+        let events_text = format!(
+            "2026-07-07T07:53:04.000000000-04:00 container die {cgroup} \
+             (exitCode=137, name=vox-runner-auto-abc123-0)\n"
+        );
+        let job_rows = vec![(
+            "vox-runner-auto-abc123-0".to_string(),
+            "Lints (clippy + rustdoc)".to_string(),
+        )];
+
+        // 1. parse: one fresh event, never seen before.
+        let events = parse_oom_events(&dmesg_text);
+        assert_eq!(events.len(), 1);
+        let fresh = new_events(&events, &[]);
+        assert_eq!(fresh.len(), 1);
+
+        // 2. resolve: cgroup id -> container name.
+        let names = parse_container_names(&events_text);
+        let container_name = names.get(&fresh[0].cgroup_id).expect("name resolved");
+        assert_eq!(container_name, "vox-runner-auto-abc123-0");
+
+        // 3. correlate: container name -> job name.
+        let job_name = find_matching_job(&job_rows, container_name).expect("job matched");
+        assert_eq!(job_name, "Lints (clippy + rustdoc)");
+
+        // 4. compose: final comment body is correct.
+        let body = oom_comment_body(fresh[0], job_name, 28861698905);
+        assert!(body.contains("Lints (clippy + rustdoc)"));
+        assert!(body.contains("rustdoc"));
+        assert!(body.contains("28861698905"));
+        assert!(body.contains(fresh[0].raw_line.as_str()));
+    }
+
+    #[test]
+    fn escape_for_code_fence_neutralizes_triple_backticks() {
+        let raw = "before ``` after";
+        let escaped = escape_for_code_fence(raw);
+        assert!(!escaped.contains("```"));
+        assert!(escaped.contains("before"));
+        assert!(escaped.contains("after"));
+    }
+```
+
+- [ ] **Step 6: Run the tests to verify they pass**
+
+Run: `cargo test -p vox-cli --lib oom_watch::`
+Expected: PASS — 14 tests total now (12 from Step 4 + the pipeline test + the
+backtick-escape test).
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add crates/vox-cli/src/commands/ci/oom_watch.rs
 git commit -m "feat(ci): compose and post the OOM evidence PR comment
 
-oom_comment_body is a pure, tested string builder; post_pr_comment is
-a thin gh api wrapper gated on the same dry_run flag runner_scale.rs
-already threads through every other mutation."
+oom_comment_body is a pure, tested string builder (with a triple-
+backtick guard so an embedded raw dmesg line can never break out of
+its markdown code fence); post_pr_comment is a thin gh api wrapper
+gated on the same dry_run flag runner_scale.rs already threads
+through every other mutation. Adds a pipeline-integration test
+chaining parse -> dedup -> resolve -> correlate -> compose against
+fixtures with no live IO, satisfying the design spec's requirement to
+verify the posting step's input without touching a real PR."
 ```
 
 ---
@@ -795,7 +880,32 @@ already threads through every other mutation."
 
 **Files:**
 - Modify: `crates/vox-cli/src/commands/ci/oom_watch.rs`
-- Modify: `crates/vox-cli/src/commands/ci/runner_scale.rs:801-809` (insert point)
+- Modify: `crates/vox-cli/src/commands/ci/runner_scale.rs` (insert point identified by
+  text search below, not a line number — the surrounding function has two
+  visually-similar `lock.refresh(...)` fragments near this point, so a line-number
+  citation alone is ambiguous; anchor on the unique `let max = max_runners();` line
+  instead)
+
+**Design notes carried over from adversarial review** (see the design spec's
+"Revised during plan self-review" note and Non-goals): this step revises the first
+draft of this task in three load-bearing ways, all driven by the fact the Windows Task
+Scheduler entry that runs this command (`VoxCIRunnerScale`) is configured to forcibly
+kill the whole process if a single tick runs longer than 2 minutes:
+
+1. **Only mark an event "seen" after a successful post**, and persist immediately
+   after each one — never batch the whole tick's outcomes into one write at the end.
+   A transient correlation failure (the job hasn't shown up in the API yet, `gh` is
+   briefly rate-limited) must not permanently suppress a real event; and if the
+   process is killed between posting a comment and persisting that fact, the next
+   tick must not re-post a duplicate.
+2. **Only run the scan on an `--apply` tick**, never on a read-only dry-run
+   monitoring invocation (the module doc already documents those as safe to run
+   concurrently for dashboards — this scan's IO chain would make that no longer true
+   if it ran unconditionally).
+3. **Cap how many fresh events get the full correlation treatment per tick** — an OOM
+   storm (several kills in one window) must not fan out into dozens of sequential
+   `gh api` calls in a single already-busy tick. Events past the cap are simply left
+   unmarked-seen and picked up on a later tick, not dropped.
 
 - [ ] **Step 1: Implement the orchestration function**
 
@@ -804,13 +914,25 @@ Add to `oom_watch.rs`, after the PR-comment block and before `#[cfg(test)]`:
 ```rust
 // --- orchestration ---------------------------------------------------------
 
-/// Scan for new OOM-kill events since the last tick, correlate each to the
-/// PR/run that was executing on the killed container, and post a comment
-/// there. Best-effort: any IO failure for one event is logged and skipped
-/// rather than aborting the whole scan, matching this file's degraded-not-
-/// fatal error handling elsewhere. Returns the count of successfully
-/// reported events.
-pub fn scan_and_report_oom_events(dry_run: bool, now: i64) -> Result<u32> {
+/// Cap on how many fresh OOM events get correlated (and potentially posted) in a
+/// single tick. An OOM storm shouldn't fan out into dozens of sequential `gh api`
+/// calls inside one already-busy, time-boxed tick (the host's Task Scheduler entry
+/// kills the whole process past 2 minutes). Events past the cap are left
+/// unmarked-seen and simply get picked up on a later tick — nothing is dropped,
+/// just spread out.
+const OOM_FAN_OUT_MAX: usize = 5;
+
+/// Scan for new OOM-kill events since the last tick, correlate each to the PR/run
+/// that was executing on the killed container, and post a comment there.
+/// Best-effort per event: an event is marked "seen" (so it's never retried) **only**
+/// after a successful post — a transient correlation failure (job not visible in the
+/// API yet, `gh` briefly unavailable) leaves it unmarked so it's retried next tick,
+/// rather than permanently and silently dropped. Persisted immediately after each
+/// successful post rather than batched at the end, so a process kill mid-tick (the
+/// host's Task Scheduler entry force-stops a tick past 2 minutes) can't cause the
+/// next tick to re-post a duplicate for an event that already succeeded. Returns the
+/// count of successfully reported events.
+pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
     let dmesg_out = quiet_command("wsl")
         .args(["-e", "dmesg", "-T"])
         .output()
@@ -818,112 +940,169 @@ pub fn scan_and_report_oom_events(dry_run: bool, now: i64) -> Result<u32> {
     let dmesg_text = String::from_utf8_lossy(&dmesg_out.stdout);
     let events = parse_oom_events(&dmesg_text);
 
+    // Drift detection: if dmesg's line format ever changes (kernel/cgroup-driver
+    // upgrade), the regex in parse_oom_events could silently stop matching. Compare
+    // against a plain substring count so a format drift is visible in the log
+    // instead of the scan just quietly finding nothing forever.
+    let constraint_lines = dmesg_text
+        .lines()
+        .filter(|l| l.contains("oom-kill:constraint=CONSTRAINT_MEMCG"))
+        .count();
+    if constraint_lines > events.len() {
+        eprintln!(
+            "runner-scale: OOM-visibility saw {constraint_lines} oom-kill:constraint= \
+             line(s) in dmesg but only parsed {} into events — dmesg's line format may \
+             have drifted; check oom_line_regex against a fresh sample",
+            events.len()
+        );
+    }
+
     let seen = read_oom_seen();
-    let fresh = new_events(&events, &seen);
+    let fresh: Vec<&OomEvent> = new_events(&events, &seen)
+        .into_iter()
+        .take(OOM_FAN_OUT_MAX)
+        .collect();
     if fresh.is_empty() {
         return Ok(0);
     }
 
+    // The cgroup id dmesg reports (oom_memcg=/docker/<id>) and the container id
+    // `docker events` reports are the same full 64-character docker container id —
+    // both come from the same underlying container, just observed by two different
+    // subsystems (the kernel cgroup controller and the Docker daemon's event log).
     let events_text = fetch_recent_container_events(now)?;
     let names = parse_container_names(&events_text);
 
     let mut reported = 0u32;
-    let mut newly_seen = Vec::new();
-    for event in &fresh {
-        newly_seen.push(event.raw_line.clone());
+    let mut seen_so_far = seen;
+    for event in fresh {
         let Some(container_name) = names.get(&event.cgroup_id) else {
             eprintln!(
                 "runner-scale: OOM event on cgroup {} (process {}) — no matching \
                  managed container name found in the last {OOM_EVENTS_WINDOW_SECS}s of \
-                 docker events, skipping",
+                 docker events; will retry next tick",
                 event.cgroup_id, event.process
             );
             continue;
         };
+        // Correlation trusts a bare runner_name match with no kill-timestamp gate:
+        // this fleet's runners are strictly ephemeral (one container takes exactly
+        // one dispatched job, then self-deregisters and exits — see the module doc
+        // at the top of runner_scale.rs), so a container name is never reused across
+        // two different jobs. There is no second job it could be misattributed to.
         match find_run_for_runner(container_name) {
             Ok(Some(m)) => {
                 let body = oom_comment_body(event, &m.job_name, m.run_id);
-                match post_pr_comment(m.pr_number, &body, dry_run) {
-                    Ok(()) => reported += 1,
-                    Err(e) => eprintln!("runner-scale: OOM comment post failed (degraded): {e:#}"),
+                match post_pr_comment(m.pr_number, &body, false) {
+                    Ok(()) => {
+                        reported += 1;
+                        // Persist immediately: only ever mark an event seen right
+                        // after its post actually succeeded, and do it before moving
+                        // on to the next event so a mid-loop process kill can't
+                        // leave a successfully-posted event unrecorded.
+                        seen_so_far = append_seen(seen_so_far, &[event.raw_line.clone()]);
+                        write_oom_seen(&seen_so_far);
+                    }
+                    Err(e) => eprintln!(
+                        "runner-scale: OOM comment post failed (will retry next tick): {e:#}"
+                    ),
                 }
             }
             Ok(None) => {
                 eprintln!(
                     "runner-scale: OOM on {container_name} — no PR-triggered job match found \
-                     in recent runs"
+                     in recent runs; will retry next tick"
                 );
             }
             Err(e) => {
-                eprintln!("runner-scale: OOM job correlation failed (degraded): {e:#}");
+                eprintln!(
+                    "runner-scale: OOM job correlation failed (will retry next tick): {e:#}"
+                );
             }
         }
     }
 
-    let updated_seen = append_seen(seen, &newly_seen);
-    if !dry_run {
-        write_oom_seen(&updated_seen);
-    }
     Ok(reported)
 }
 ```
 
+Note this function no longer takes a `dry_run` parameter — Step 3 below only calls it
+on an `--apply` tick, so by the time it runs, posting is always real (`post_pr_comment`
+is called with `false`). The read-only dry-run path never reaches this function at
+all, so there is nothing for it to simulate.
+
 - [ ] **Step 2: Run the full file's tests to confirm the new code compiles cleanly**
 
 Run: `cargo test -p vox-cli --lib oom_watch::`
-Expected: PASS — same 12 tests as Task 6 (this step adds no new unit tests, since `scan_and_report_oom_events` is an IO-heavy orchestration function — same convention as `runner_scale::run_scale` itself, which also has no direct unit test; only its pure helpers do).
+Expected: PASS — same 14 tests as Task 6 (this step adds no new unit tests, since
+`scan_and_report_oom_events` is an IO-heavy orchestration function — same convention as
+`runner_scale::run_scale` itself, which also has no direct unit test; only its pure
+helpers do, and Task 6's pipeline-integration test already covers the pure logic this
+function chains together).
 
-- [ ] **Step 3: Wire the scan into `run_scale`'s tick**
+- [ ] **Step 3: Wire the scan into `run_scale`'s tick, gated on `--apply`**
 
-Edit `runner_scale.rs`. Immediately after the existing block at lines 801-809:
+Edit `runner_scale.rs`. Find the unique line `let max = max_runners();` inside
+`run_scale`. Insert a new block immediately **before** it (leave the existing blank
+line between this new block and `let max = max_runners();` in place):
 
 ```rust
-    // 0. Local-first CI: auto-clear superseded/stale runs and refresh the
-    //    queue snapshot every tick (stale sweep self-disables at fleet 0).
-    let (cleared_superseded, cleared_stale) = super::queue::auto_clear_and_snapshot(dry_run, now)
-        .unwrap_or_else(|e| {
-            eprintln!("runner-scale: queue auto-clear skipped (degraded): {e:#}");
-            (0, 0)
-        });
+    // 0.5. OOM-visibility: detect any runner container hard-killed by its own
+    //      memory cgroup limit since the last tick, and comment on the affected
+    //      PR/run directly — the job itself can't self-report, since its whole
+    //      execution environment (the runner agent process) died with the
+    //      container. Apply-only: a read-only dry-run monitoring invocation must
+    //      stay cheap and side-effect-free (this file's own doc comment already
+    //      promises dry-run is "safe to run concurrently for monitoring"), which
+    //      this scan's dmesg/docker/gh IO chain would no longer be true of if it
+    //      ran unconditionally.
+    if apply {
+        let oom_reported = super::oom_watch::scan_and_report_oom_events(now)
+            .unwrap_or_else(|e| {
+                eprintln!("runner-scale: OOM-visibility scan skipped (degraded): {e:#}");
+                0
+            });
+        if oom_reported > 0 {
+            println!("runner-scale: reported {oom_reported} OOM-killed job(s) this tick");
+        }
+    }
 
     if let Some(lock) = _lock.as_ref() {
         lock.refresh(now_secs());
     }
 ```
 
-Insert a new step immediately after it (before the blank line that precedes `let max = max_runners();`):
-
-```rust
-    // 0.5. OOM-visibility: detect any runner container hard-killed by its own
-    //      memory cgroup limit since the last tick, and comment on the
-    //      affected PR/run directly — the job itself can't self-report, since
-    //      its whole execution environment (the runner agent process) died
-    //      with the container.
-    let oom_reported = super::oom_watch::scan_and_report_oom_events(dry_run, now)
-        .unwrap_or_else(|e| {
-            eprintln!("runner-scale: OOM-visibility scan skipped (degraded): {e:#}");
-            0
-        });
-    if oom_reported > 0 {
-        println!("runner-scale: reported {oom_reported} OOM-killed job(s) this tick");
-    }
-```
+This references the `apply` parameter of `run_scale(apply: bool)` directly — it's a
+function parameter, still in scope at this point in the function body (only `dry_run`,
+a `let`-bound local computed from it near the top, has been introduced since). The
+trailing `lock.refresh(...)` mirrors the existing pattern immediately above the queue
+auto-clear step: this new step can also make several sequential `gh api` calls (up to
+`OOM_FAN_OUT_MAX` events × a run/job lookup each), so refresh the heartbeat afterward
+too, for the same reason the queue step already does.
 
 - [ ] **Step 4: Run the runner_scale test suite to confirm the wiring compiles and nothing broke**
 
 Run: `cargo test -p vox-cli --lib runner_scale::`
-Expected: PASS — all existing tests still pass (the new step is called from `run_scale`, which has no direct unit test itself, matching its existing untested-orchestration status).
+Expected: PASS — all existing tests still pass (the new step is called from `run_scale`,
+which has no direct unit test itself, matching its existing untested-orchestration
+status).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add crates/vox-cli/src/commands/ci/oom_watch.rs crates/vox-cli/src/commands/ci/runner_scale.rs
-git commit -m "feat(ci): wire OOM visibility into the autoscaler's 2-minute tick
+git commit -m "feat(ci): wire OOM visibility into the autoscaler's apply ticks
 
-scan_and_report_oom_events now runs every tick alongside the existing
-queue auto-clear step, degraded-not-fatal on any IO failure. A future
-OOM-killed job is now self-diagnosing on the affected PR within about
-2 minutes instead of requiring manual dmesg archaeology."
+scan_and_report_oom_events now runs on every --apply tick (never on a
+read-only dry-run monitoring invocation, which must stay cheap and
+side-effect-free), degraded-not-fatal on any IO failure, capped at 5
+fresh events per tick, and persisting each successful post
+immediately rather than batching -- so a transient correlation
+failure retries instead of permanently suppressing, and a mid-tick
+process kill (the host's 2-minute Task Scheduler cap) can't cause a
+duplicate comment on the next tick. A future OOM-killed job is now
+self-diagnosing on the affected PR within about 2 minutes instead of
+requiring manual dmesg archaeology."
 ```
 
 ---
@@ -942,10 +1121,29 @@ Expected: PASS — no regressions anywhere in the crate from either Task 1's con
 Run: `cargo clippy -p vox-cli --all-targets -- -D warnings`
 Expected: no new warnings from `oom_watch.rs` or the `runner_scale.rs` edits. Fix any that appear before proceeding (e.g. an unused import, a needless clone) rather than suppressing them.
 
-- [ ] **Step 3: Build the release-relevant binary and dry-run the real command locally**
+- [ ] **Step 3: Build the release-relevant binary and confirm dry-run stays cheap**
 
-Run: `cargo build -p vox-cli --bin vox` then `./target/debug/vox ci runner-scale` (no `--apply` — dry-run by default)
-Expected: exits 0, prints a `runner-scale: dry_run=true ...` summary line same as before this change, and does **not** crash even if `wsl -e dmesg -T` or `docker events` produce zero matching OOM lines (the common case) — confirming the new step degrades to "0 reported" silently rather than erroring out a normal tick.
+Run: `cargo build -p vox-cli --bin vox` then `./target/debug/vox ci runner-scale` (no
+`--apply` — dry-run by default)
+Expected: exits 0, prints a `runner-scale: dry_run=true ...` summary line same as before
+this change, **and completes in about the same time it did before this task** — since
+Task 7 gates the whole OOM scan on `apply`, a dry-run invocation should spawn no `wsl`
+or extra `docker events` process at all (Task 7's design deliberately keeps the
+read-only monitoring path unchanged). If dry-run visibly takes longer or you see
+`wsl`/`dmesg`/`docker events` in its process activity, the `if apply` gate in Task 7
+Step 3 isn't wired correctly — go back and check it.
+
+Actually exercising `scan_and_report_oom_events` end-to-end (real `dmesg`, real `docker
+events`, a real `gh api` POST) requires an `--apply` tick, which mutates the live fleet
+and — if a real OOM event happens to be pending — posts a real PR comment. That's not
+something to trigger casually from a local sanity check. Confidence for the posting
+path instead comes from: Task 6's pipeline-integration test (100% of the non-IO logic:
+parse, dedup, resolve, correlate, compose, all chained together against fixtures) plus
+the fact that `post_pr_comment`'s only untested part is a single `gh_json` call with no
+branching logic of its own — the same convention this file already uses for its other
+thin `gh`/`docker` wrappers (`deregister`, `reap`, `docker(...)` itself). The real
+`--apply` path gets its first live exercise the next time the Task Scheduler fires
+after this lands, same as every other change to this autoscaler.
 
 - [ ] **Step 4: Confirm the `ci_workflow_contract` guard test (if any references these files) still passes**
 

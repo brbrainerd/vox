@@ -92,28 +92,51 @@ Given both, detection and reporting move to the **host-side autoscaler**
 VoxCIRunnerScale /fo LIST /v`), which already runs with full host-level `dmesg` access
 (confirmed directly: `wsl -e dmesg -T` from the host works fine).
 
-On each 2-minute tick, in addition to its existing reconcile logic:
+On each 2-minute tick, but **only on an `--apply` (mutating) tick** — never on a
+read-only dry-run monitoring invocation, which the module doc already documents as
+safe to run concurrently for dashboards, and which should stay cheap and
+side-effect-free (see revision note below) — in addition to its existing reconcile
+logic:
 
-1. Scan `dmesg -T` for `Memory cgroup out of memory` lines newer than a persisted
-   cursor (mirrors the existing `~/.vox/ci-runner-idle.json` state pattern — new file
-   `~/.vox/ci-runner-oom-cursor.json` storing the last-seen kernel timestamp).
+1. Scan `dmesg -T` for `oom-kill:constraint=CONSTRAINT_MEMCG` lines (the single kernel
+   line that carries both the killed process name and the container's cgroup id
+   together — see the "Root cause" evidence above), filtering out lines already
+   reported. **Revised during plan self-review**: rather than a timestamp cursor,
+   dedup is content-based — a capped list of raw matched lines
+   (`~/.vox/ci-runner-oom-seen.json`, mirrors the existing `~/.vox/ci-runner-idle.json`
+   state-file pattern), because `dmesg -T`'s human-readable timestamp is
+   locale/format-fragile to parse reliably, while the raw line itself is a stable,
+   sufficient dedup key. An event is only added to this seen-list **after** it has
+   been either successfully reported or definitively determined to have no possible
+   PR match — never on a merely transient correlation failure (see point 3) — so a
+   temporary `gh` outage defers reporting rather than silently and permanently
+   dropping it.
 2. Resolve each new line's `oom_memcg=/docker/<id>` to a runner container **name**
    (== `RUNNER_NAME`, which `spawn_one` already sets as an env var on every container —
-   see `runner_scale.rs:563`). Since the container may already be destroyed and
-   replaced by the time the next tick runs, maintain a short-lived ID→name cache built
-   from `docker events` history (the same event stream that showed `container destroy`
-   / `container create` pairs during this investigation) rather than only the current
-   `docker ps` snapshot.
+   see `runner_scale.rs:563`; the dmesg cgroup id and the id `docker events` reports
+   are the same full 64-character container id). Since the container may already be
+   destroyed and replaced by the time the next tick runs, resolve via a bounded
+   `docker events --since/--until` window (covers already-destroyed containers, unlike
+   a `docker ps` snapshot) rather than a long-lived cache.
 3. Once the container name is known, find which job/run was executing on it: GitHub
-   Actions job objects expose a `runner_name` field once a job is assigned to a runner.
-   Query recent workflow runs' jobs (`gh api repos/{REPO_SLUG}/actions/runs?...` →
-   `.jobs[]`) for a `runner_name` match around the kill's timestamp.
-4. Post a PR comment (`gh pr comment <number> --body "..."`, matching this repo's
-   existing pattern of using `gh api`/`gh pr edit` for out-of-band CI signaling in
-   `ci-health-watchdog.yml`) on the PR associated with that run: which job died, the
-   killed process name, and the raw `dmesg` line as evidence — so anyone looking at the
-   failed run sees the real cause within about 2 minutes, without needing to run this
-   same manual investigation by hand.
+   Actions job objects expose a `runner_name` field once a job is assigned to a
+   runner. Query recent workflow runs (`gh api repos/{REPO_SLUG}/actions/runs?...` →
+   `.workflow_runs[]` for run id + PR number), then each candidate run's jobs
+   (`gh api repos/{REPO_SLUG}/actions/runs/<id>/jobs` → `.jobs[]`) for a `runner_name`
+   match. No explicit kill-timestamp gate is needed: this fleet's runners are strictly
+   **ephemeral, one container per one job** (documented at the top of
+   `runner_scale.rs` — a container registers `--ephemeral`, takes exactly one
+   dispatched job, then self-deregisters and exits), so a container name is
+   effectively unique to the single job it ran — there is no second job to
+   misattribute it to. Cap how many fresh events get this treatment per tick, so an
+   OOM storm (several kills in one 2-minute window) can't fan out into an unbounded
+   number of `gh api` calls.
+4. Post a PR comment (`gh api repos/{REPO_SLUG}/issues/<pr>/comments -f body=...`,
+   matching this repo's existing pattern of using `gh api` for out-of-band CI
+   signaling in `ci-health-watchdog.yml`) on the PR associated with that run: which
+   job died, the killed process name, and the raw `dmesg` line as evidence — so anyone
+   looking at the failed run sees the real cause within about 2 minutes, without
+   needing to run this same manual investigation by hand.
 - A check-run annotation (attached directly to the specific failed check, rather than a
   general PR comment) would be a nicer landing spot but needs the check-run ID, which
   is more API calls to resolve reliably — noted as a possible v2 improvement, not
@@ -124,15 +147,21 @@ On each 2-minute tick, in addition to its existing reconcile logic:
 - `fleet_budget_fits_wsl2_ceiling` extension is a real Rust unit test in
   `runner_scale.rs`, following the existing pattern in that file.
 - The dmesg-scan-and-correlate logic is pure enough to unit test without a live
-  Docker/GitHub environment: the dmesg-line parser (extracting timestamp, killed
-  process, `oom_memcg=` id), the cursor persistence (don't re-report the same line
-  twice across ticks), and the container-name resolution (id → name via the events
-  cache) are each testable against fixture input strings, mirroring this file's
-  existing unit-test style rather than needing an integration harness.
-- The `gh api`/`gh pr comment` posting step is the one piece that needs a live-ish
-  check: a dry-run mode (`--dry-run`, matching the existing flag already used elsewhere
-  in this command) that prints the resolved PR/comment body instead of posting, so this
-  is verifiable locally without spamming a real PR during development.
+  Docker/GitHub environment: the dmesg-line parser (extracting the killed process and
+  `oom_memcg=` id), the seen-list dedup (don't re-report the same line twice across
+  ticks), and the container-name resolution (id → name from `docker events` text) are
+  each testable against fixture input strings, mirroring this file's existing
+  unit-test style rather than needing an integration harness.
+- The `gh api` posting step's own IO wrapper is a thin, untested pass-through (same
+  convention as this file's other one-line `gh`/`docker` wrappers, e.g. `deregister`,
+  `reap`) gated on the same `dry_run` flag every other mutation in this command already
+  uses — this command is dry-run **by default**, `--apply` opts into mutation, so
+  there is no separate `--dry-run` flag to add. What *is* new and does need a test: a
+  pipeline-integration test chaining the parse → dedup → correlate → compose steps
+  together against fixture strings (no live IO at all) and asserting the final
+  composed comment body is correct — this is what makes the posting step's *input*
+  verifiable locally without spamming a real PR, since the only untested part left is
+  the single `gh api` call itself.
 - This directly guards against the same class of bug this whole investigation fixed in
   the CI-timeout-diagnostics design earlier this session: a detector that never
   actually fires on the failure case it exists to catch.
@@ -159,3 +188,13 @@ On each 2-minute tick, in addition to its existing reconcile logic:
 - Not implementing a check-run annotation in this pass — a PR comment is the v1 landing
   spot; annotating the specific failed check directly is a possible follow-up, not
   required to make the failure visible on the affected PR.
+- Not running the OOM scan on dry-run (read-only monitoring) ticks — adversarial review
+  (2026-07-07) flagged that the original design would have run the full dmesg/docker/gh
+  IO chain on every invocation, including concurrent read-only status checks that exist
+  today specifically because they're supposed to be cheap and side-effect-free. Gating
+  on `--apply` keeps that property intact.
+- Not parsing dmesg's human-readable timestamp for correlation or cursor purposes —
+  considered and rejected twice (once for the seen-list, again for a kill-timestamp
+  correlation gate) in favor of, respectively, content-based dedup and the ephemeral
+  one-container-one-job invariant. Locale/format fragility wasn't worth taking on for
+  either.
