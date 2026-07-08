@@ -83,10 +83,12 @@ pub fn parse_oom_events(dmesg_text: &str) -> Vec<OomEvent> {
 
 // --- dedup persistence across ticks -----------------------------------
 
-/// `#[allow(dead_code)]`: only called from `read_oom_seen`/`write_oom_seen`
-/// today, which are themselves only called from tests until the
-/// orchestration task (`scan_and_report_oom_events`) lands later in the
-/// implementation plan.
+/// `#[allow(dead_code)]`: not called from anywhere yet, including tests —
+/// the file-IO round-trip this and its two siblings below perform isn't unit
+/// tested (matches this file's other thin, side-effecting IO wrappers, e.g.
+/// `fetch_recent_container_events` once that lands). The orchestration task
+/// (`scan_and_report_oom_events`) later in the implementation plan is the
+/// first caller. Remove this allow once that task lands.
 #[allow(dead_code)]
 fn oom_seen_path() -> PathBuf {
     crate::fs_utils::user_home_dir()
@@ -94,9 +96,10 @@ fn oom_seen_path() -> PathBuf {
         .join("ci-runner-oom-seen.json")
 }
 
-/// `#[allow(dead_code)]`: only called from tests today — the orchestration
-/// task (`scan_and_report_oom_events`) later in the implementation plan is
-/// the first non-test caller. Remove this allow once that task lands.
+/// `#[allow(dead_code)]`: not called from anywhere yet, including tests —
+/// see [`oom_seen_path`]. The orchestration task
+/// (`scan_and_report_oom_events`) later in the implementation plan is the
+/// first caller. Remove this allow once that task lands.
 #[allow(dead_code)]
 fn read_oom_seen() -> Vec<String> {
     std::fs::read_to_string(oom_seen_path())
@@ -105,9 +108,10 @@ fn read_oom_seen() -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// `#[allow(dead_code)]`: only called from tests today — the orchestration
-/// task (`scan_and_report_oom_events`) later in the implementation plan is
-/// the first non-test caller. Remove this allow once that task lands.
+/// `#[allow(dead_code)]`: not called from anywhere yet, including tests —
+/// see [`oom_seen_path`]. The orchestration task
+/// (`scan_and_report_oom_events`) later in the implementation plan is the
+/// first caller. Remove this allow once that task lands.
 #[allow(dead_code)]
 fn write_oom_seen(seen: &[String]) {
     let p = oom_seen_path();
