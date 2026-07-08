@@ -15,13 +15,15 @@
 //! **Currently implemented in this file:** dmesg-line parsing
 //! (`parse_oom_events`), dedup-persistence primitives (`read_oom_seen`/
 //! `write_oom_seen`/`new_events`/`append_seen`), container-name resolution
-//! (`parse_container_names`/`fetch_recent_container_events`), and GitHub
-//! job/run correlation (`find_matching_job`/`find_run_for_runner`) — all pure
-//! or thin IO, no orchestration yet. PR comment composition/posting still
-//! lands in a follow-up task of the implementation plan; nothing in this
-//! module is called from a live code path yet (the module itself isn't even
-//! wired into `mod.rs` as `pub` — that happens once an orchestration
-//! entrypoint needs to call into it).
+//! (`parse_container_names`/`fetch_recent_container_events`), GitHub job/run
+//! correlation (`find_matching_job`/`find_run_for_runner`), and PR comment
+//! composition/posting (`oom_comment_body`/`post_pr_comment`) — all pure or
+//! thin IO. The top-level orchestration entrypoint that chains these
+//! together and is called from the autoscaler tick still lands in a
+//! follow-up task of the implementation plan; nothing in this module is
+//! called from a live code path yet (the module itself isn't even wired into
+//! `mod.rs` as `pub` — that happens once that orchestration entrypoint
+//! exists).
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -355,11 +357,24 @@ fn find_run_for_runner(runner_name: &str) -> Result<Option<RunnerJobMatch>> {
 
 // --- PR comment composition and posting ----------------------------------
 
-/// Neutralize a run of 3+ backticks so an embedded raw dmesg line can never
-/// break out of the surrounding markdown code fence in [`oom_comment_body`].
-/// dmesg content is kernel-generated, not attacker input, but a process name
-/// containing backticks (however unlikely) shouldn't be able to garble the
-/// comment. Pure.
+fn backtick_run_regex() -> &'static Regex {
+    static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"`{3,}").expect("static backtick-run regex must compile"))
+}
+
+/// Neutralize every run of 3+ backticks so an embedded raw dmesg line can
+/// never break out of the surrounding markdown code fence in
+/// [`oom_comment_body`]. dmesg content is kernel-generated, not attacker
+/// input, but a process name containing backticks (however unlikely)
+/// shouldn't be able to garble the comment. Pure.
+///
+/// A single non-overlapping `str::replace("```", ...)` is not sufficient
+/// here: replacing the first three backticks of a 4+ backtick run leaves the
+/// remaining backtick(s) free to rejoin the inserted characters into a fresh
+/// ` ``` ` (e.g. `"````".replace("```", "`\u{200b}``")` still contains
+/// `"```"`). Instead, match each maximal run of 3+ backticks with a regex and
+/// insert a zero-width space after every backtick in the matched run, so no
+/// 3 consecutive backticks can ever survive.
 ///
 /// `#[allow(dead_code)]`: only called from `oom_comment_body` and tests today
 /// — the orchestration task (`scan_and_report_oom_events`) later in the
@@ -367,7 +382,14 @@ fn find_run_for_runner(runner_name: &str) -> Result<Option<RunnerJobMatch>> {
 /// that task lands.
 #[allow(dead_code)]
 fn escape_for_code_fence(s: &str) -> String {
-    s.replace("```", "`\u{200b}``") // zero-width space splits the run
+    backtick_run_regex()
+        .replace_all(s, |caps: &regex::Captures| {
+            caps[0]
+                .chars()
+                .map(|c| format!("{c}\u{200b}"))
+                .collect::<String>()
+        })
+        .into_owned()
 }
 
 /// Build the PR comment body for one detected OOM kill. Pure — testable
@@ -629,6 +651,32 @@ mod tests {
     #[test]
     fn escape_for_code_fence_neutralizes_triple_backticks() {
         let raw = "before ``` after";
+        let escaped = escape_for_code_fence(raw);
+        assert!(!escaped.contains("```"));
+        assert!(escaped.contains("before"));
+        assert!(escaped.contains("after"));
+    }
+
+    #[test]
+    fn escape_for_code_fence_neutralizes_longer_backtick_runs() {
+        // Non-overlapping single-pass replacement of "```" would leave a
+        // dangling ``` in 4+ backtick runs (e.g. "````".replace("```", ...)
+        // matches once at index 0, leaving the 4th backtick to rejoin the
+        // inserted "``" into a fresh "```"). Cover 4, 5, and 6+ backticks so
+        // the fix (loop-until-stable or a `` `{3,}` `` regex) is verified
+        // against the case where the bug actually manifests.
+        for raw in ["````", "`````", "``````", "```````"] {
+            let escaped = escape_for_code_fence(raw);
+            assert!(
+                !escaped.contains("```"),
+                "escape_for_code_fence({raw:?}) still contains a triple-backtick run: {escaped:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn escape_for_code_fence_neutralizes_backtick_run_embedded_in_text() {
+        let raw = "before ````` after";
         let escaped = escape_for_code_fence(raw);
         assert!(!escaped.contains("```"));
         assert!(escaped.contains("before"));
