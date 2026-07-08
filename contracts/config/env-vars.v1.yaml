@@ -3192,7 +3192,7 @@ variables:
     kind: "string"
     required: false
     introduced_in: "0.6.0"
-    description: "CI runner autoscaler: hard ceiling on concurrent managed ephemeral runners (default 6)."
+    description: "CI runner autoscaler: hard ceiling on concurrent managed ephemeral runners (default 2)."
   - name: "VOX_RUNNER_WARM_POOL"
     owner_crate: "vox-cli"
     kind: "string"
