@@ -94,7 +94,7 @@ const EXPLICIT_TIMEOUTS: &[(&str, Duration)] = &[
 ];
 
 /// Resolve the outer dispatch timeout for `tool_name`. Falls back to
-/// [`DEFAULT_TIMEOUT`] for any tool absent from [`EXPLICIT_TIMEOUTS`] —
+/// [`DEFAULT_TIMEOUT`] for any tool absent from `EXPLICIT_TIMEOUTS` —
 /// including every tool not yet classified, which is the safe default
 /// (bounded, not unbounded).
 #[must_use]

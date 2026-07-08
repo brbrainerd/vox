@@ -89,7 +89,7 @@ impl SemanticPlanner {
         Self::ignored_reason_with(path, &[])
     }
 
-    /// [`ignored_reason`] with optional markdown/txt prefix rescue.
+    /// [`Self::ignored_reason`] with optional markdown/txt prefix rescue.
     pub fn ignored_reason_with(
         path: &str,
         allow_markdown_prefixes: &[String],

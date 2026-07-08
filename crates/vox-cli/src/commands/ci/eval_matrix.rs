@@ -21,7 +21,7 @@ const DATA_REL: &str = "contracts/eval/benchmark-matrix.json";
 // --- Crate / feature names (avoid scattered literals in cargo argv) ---
 const PKG_VOX_CLI: &str = "vox-cli";
 const PKG_VOX_POPULI_MENS: &str = "vox-populi";
-const PKG_VOX_MCP: &str = "vox-mcp";
+const PKG_VOX_MCP: &str = "vox-orchestrator-mcp";
 const PKG_VOX_RUNTIME: &str = "vox-actor-runtime";
 const PKG_VOX_ORCHESTRATOR: &str = "vox-orchestrator";
 const PKG_VOX_DOC_INVENTORY: &str = "vox-doc-inventory";

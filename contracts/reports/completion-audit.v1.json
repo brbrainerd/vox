@@ -1,29 +1,28 @@
 {
-  "x-vox-version": 1,
   "schema_version": 1,
-  "generated_at": "2026-04-02T10:08:34.565080+00:00",
+  "generated_at": "2026-07-05T12:51:29.761659900+00:00",
   "policy_schema_version": 1,
-  "repository_id": "d820b80d21b5d07a",
+  "repository_id": "17f5f540fcee09c6",
   "findings": [
-    
+    {
       "detector_id": "ignored-test-debt",
       "tier": "B",
       "severity": "warning",
       "file_path": null,
       "line": null,
-      "message": "ignored Rust test markers (#[ignore…) count=22",
-      "fingerprint": "43cc5e89d33aa236",
-      "metric": 22
+      "message": "ignored Rust test markers (#[ignore…) count=189",
+      "fingerprint": "0f581a4e0049d7e3",
+      "metric": 189
     },
-    
+    {
       "detector_id": "todo-macro-prod",
       "tier": "B",
       "severity": "warning",
       "file_path": null,
       "line": null,
-      "message": "todo!() occurrences in non-test crate sources count=23",
-      "fingerprint": "15fa500ac05c6cd7",
-      "metric": 23
+      "message": "todo!() occurrences in non-test crate sources count=69",
+      "fingerprint": "f353580564bd680e",
+      "metric": 69
     }
   ]
 }

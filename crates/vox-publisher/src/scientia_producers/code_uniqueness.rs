@@ -72,7 +72,7 @@ fn is_symbol_start(trimmed: &str) -> bool {
 /// includes the contiguous block of `///` / `//!` doc lines that immediately
 /// precede the symbol plus the signature lines up to (and including) the line
 /// that opens the body (`{`) or ends the item (`;`), capped at
-/// [`SNIPPET_LINE_CAP`] lines.
+/// `SNIPPET_LINE_CAP` lines.
 #[must_use]
 pub fn extract_snippets(path: &str, source: &str) -> Vec<CodeSnippet> {
     let lines: Vec<&str> = source.lines().collect();

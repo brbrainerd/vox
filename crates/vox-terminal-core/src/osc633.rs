@@ -39,7 +39,7 @@ pub fn decode_command(enc: &str) -> String {
 
 /// Byte-fed OSC-633 scanner.
 ///
-/// Call [`feed`] with raw PTY bytes. Returns any events emitted in this batch.
+/// Call [`Osc633Parser::feed`] with raw PTY bytes. Returns any events emitted in this batch.
 /// Partial escape sequences are buffered and completed on the next call.
 #[derive(Default)]
 pub struct Osc633Parser {

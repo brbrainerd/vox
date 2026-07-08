@@ -54,7 +54,8 @@ pub fn emit_react_es_import_lines(imports: &[HirImport]) -> String {
 }
 
 /// Emit support lines for known external libraries referenced by `import react …`
-/// (Phase 5 SSOT, see [`crate::external_libs`]): required CSS-file
+/// (Phase 5 SSOT, see `external_libs`; path differs between standalone and
+/// `#[path]`-embedded builds): required CSS-file
 /// imports (e.g. Mantine `@mantine/core/styles.css`, which is mandatory and not
 /// runtime-injected) plus one-line setup guidance for mandatory providers
 /// (Chakra/Mantine/Paper/Tamagui). `target_is_rn` filters web-only vs RN-only

@@ -1,5 +1,5 @@
 //! Operator-facing error strings shared by [`super::execution_planner`] and
-//! [`super::qlora_preflight`] so CLI/planner/preflight stay aligned.
+//! `qlora_preflight` so CLI/planner/preflight stay aligned.
 
 /// Planner + native QLoRA preflight: tokenizer mode gate.
 pub const QLORA_REQUIRES_HF_TOKENIZER: &str = "QLoRA (`--backend qlora`) requires `--tokenizer hf` and a Hugging Face `tokenizer.json` on disk.";

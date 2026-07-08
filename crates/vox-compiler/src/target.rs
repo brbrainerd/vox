@@ -1,7 +1,7 @@
 //! The single source of truth for "which backend consumes a lowered program."
 //!
 //! Adding a variant deliberately breaks every parity-checked match downstream
-//! (see [`crate::parity_matrix`]). This is the *breadth* axis of the parity
+//! (see `crate::feature_matrix`). This is the *breadth* axis of the parity
 //! contract made real in the type system: a feature must be considered against
 //! every `Target`.
 //!

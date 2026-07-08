@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "schema_version": 1,
-  "tier_b_max_by_detector": 
+  "tier_b_max_by_detector": {
     "ignored-test-debt": 200,
     "todo-macro-prod": 800
   }

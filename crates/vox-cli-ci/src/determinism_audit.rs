@@ -37,8 +37,16 @@ pub fn run(root: &Path) -> Result<()> {
         let stem = path.file_stem().unwrap().to_str().unwrap();
         println!("  Checking {}...", stem);
 
+        // Each example gets its own subdirectory per run — `vox build` writes a
+        // fixed bundle of files (types.ts, schemas.ts, etc., not a single
+        // <stem>.ts), so sharing one flat directory across every golden example
+        // would let later examples silently overwrite earlier ones' output.
+        let dir1 = temp_dir1.join(stem);
+        let dir2 = temp_dir2.join(stem);
+        fs::create_dir_all(&dir1)?;
+        fs::create_dir_all(&dir2)?;
+
         // Run build 1
-        let out1 = temp_dir1.join(format!("{}.ts", stem));
         let status1 = Command::new(&cargo)
             .current_dir(root)
             .args([
@@ -49,7 +57,7 @@ pub fn run(root: &Path) -> Result<()> {
                 "build",
                 path.to_str().unwrap(),
                 "-o",
-                out1.parent().unwrap().to_str().unwrap(),
+                dir1.to_str().unwrap(),
             ])
             .status()?;
         if !status1.success() {
@@ -57,7 +65,6 @@ pub fn run(root: &Path) -> Result<()> {
         }
 
         // Run build 2
-        let out2 = temp_dir2.join(format!("{}.ts", stem));
         let status2 = Command::new(&cargo)
             .current_dir(root)
             .args([
@@ -68,21 +75,36 @@ pub fn run(root: &Path) -> Result<()> {
                 "build",
                 path.to_str().unwrap(),
                 "-o",
-                out2.parent().unwrap().to_str().unwrap(),
+                dir2.to_str().unwrap(),
             ])
             .status()?;
         if !status2.success() {
             return Err(anyhow!("Build 2 failed for {}", stem));
         }
 
-        // Compare
-        let content1 = fs::read(&out1)?;
-        let content2 = fs::read(&out2)?;
-        if content1 != content2 {
-            return Err(anyhow!(
-                "Nondeterministic output detected for {}. Outputs differ between runs.",
-                stem
-            ));
+        // Compare every file written to dir1 against its counterpart in dir2.
+        let mut files1: Vec<_> = fs::read_dir(&dir1)?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.is_file())
+            .collect();
+        files1.sort();
+        if files1.is_empty() {
+            return Err(anyhow!("Build produced no output files for {}", stem));
+        }
+        for f1 in &files1 {
+            let fname = f1.file_name().unwrap();
+            let f2 = dir2.join(fname);
+            let content1 = fs::read(f1)?;
+            let content2 =
+                fs::read(&f2).map_err(|e| anyhow!("second run missing {}: {e}", f2.display()))?;
+            if content1 != content2 {
+                return Err(anyhow!(
+                    "Nondeterministic output detected for {} ({}). Outputs differ between runs.",
+                    stem,
+                    fname.to_string_lossy()
+                ));
+            }
         }
     }
 

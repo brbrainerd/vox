@@ -215,6 +215,7 @@ async fn record_telemetry_outcome(
                 let outcome = vox_db::store::types::ModelOutcome {
                     session_id: &session_id,
                     user_id: user_id.as_deref(),
+                    tenant_id: None,
                     prompt: &prompt_owned,
                     response: &response_owned,
                     model_id: &model_id_owned,

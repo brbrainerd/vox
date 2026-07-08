@@ -117,7 +117,7 @@ impl crate::VoxDb {
 
     /// Highest `op_id` currently persisted in `convergence_op_log`, or `None` if the
     /// table has no rows yet. Used by `OpLog::with_db` (T1.3) to initialize the
-    /// in-process [`OperationIdGenerator`](vox_orchestrator_queue equivalent) from
+    /// in-process `OperationIdGenerator` (vox_orchestrator_queue equivalent) from
     /// durable state on restart, rather than always starting a fresh generator at 1.
     pub async fn max_convergence_op_id(&self) -> Result<Option<u64>, StoreError> {
         let conn = self.conn.clone();

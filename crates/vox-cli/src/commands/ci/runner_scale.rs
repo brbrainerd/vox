@@ -34,12 +34,12 @@ use super::constants::REPO_SLUG;
 const REPO_URL: &str = "https://github.com/vox-foundation/vox";
 const RUNNER_IMAGE: &str = "vox-ci-runner-local:latest";
 /// Name prefix for autoscaler-managed runner containers.
-const MANAGED_PREFIX: &str = "vox-runner-auto-";
+pub(crate) const MANAGED_PREFIX: &str = "vox-runner-auto-";
 const RUNNER_LABELS: &str = "self-hosted,linux,x64,docker,browser";
 const CACHE_VOLUME: &str = "vox-ci-runner-cache";
 
 const CPUS_PER_RUNNER: &str = "4";
-const MEM_PER_RUNNER: &str = "5000m";
+const MEM_PER_RUNNER: &str = "14000m";
 /// Shared S3-compatible compile cache (MinIO container `vox-sccache-minio` on
 /// this host; see docs/src/ci/shared-compile-cache.md). Runner containers reach
 /// the host's MinIO by **IP**: opendal's S3 client (sccache's backend) rejects a
@@ -54,10 +54,16 @@ const SCCACHE_S3_HOST_PROBE: &str = "127.0.0.1:9000";
 /// Fallback container→host IP when Docker resolution fails (the common Docker
 /// bridge gateway). Used only if [`resolve_container_host_ip`] can't ask Docker.
 const SCCACHE_S3_FALLBACK_HOST_IP: &str = "172.17.0.1";
-/// Default ceiling on concurrent managed runners (6 runners × 4 cpu = 24 vCPU =
-/// WSL2 processors cap; 6 × 5000m = 30 GB < 32 GB WSL2 memory cap).
+/// Default ceiling on concurrent managed runners. Chosen from a MEASURED
+/// peak, not an even division of host RAM: `cargo doc --workspace --exclude
+/// vox-gui --no-deps` peaked at ~12.06GB RSS in a real, uncapped measurement
+/// run (2026-07-07) — 2.4x the old 5GB-per-runner budget, which is why
+/// runners were being memcg-OOM-killed mid-build well before their job's own
+/// `timeout-minutes` (see docs/superpowers/specs/2026-07-07-ci-runner-memory-
+/// budget-and-oom-visibility-design.md). `2 runners × 14000m = 28GB`, leaving
+/// ~3GB headroom for the WSL2 VM/Docker daemon on this 31GB host.
 /// Override: `VOX_RUNNER_MAX`.
-pub const DEFAULT_MAX_RUNNERS: u32 = 6;
+pub const DEFAULT_MAX_RUNNERS: u32 = 2;
 /// Reap a runner after this many seconds of continuous idle (registered but
 /// never assigned a job — e.g. the queued run was cancelled). Ephemeral runners
 /// exit on their own after their single job, so this is only a startup-grace
@@ -808,6 +814,29 @@ pub fn run_scale(apply: bool) -> Result<()> {
         lock.refresh(now_secs());
     }
 
+    // 0.5. OOM-visibility: detect any runner container hard-killed by its own
+    //      memory cgroup limit since the last tick, and comment on the affected
+    //      PR/run directly — the job itself can't self-report, since its whole
+    //      execution environment (the runner agent process) died with the
+    //      container. Apply-only: a read-only dry-run monitoring invocation must
+    //      stay cheap and side-effect-free (this file's own doc comment already
+    //      promises dry-run is "safe to run concurrently for monitoring"), which
+    //      this scan's dmesg/docker/gh IO chain would no longer be true of if it
+    //      ran unconditionally.
+    if apply {
+        let oom_reported = super::oom_watch::scan_and_report_oom_events(now).unwrap_or_else(|e| {
+            eprintln!("runner-scale: OOM-visibility scan skipped (degraded): {e:#}");
+            0
+        });
+        if oom_reported > 0 {
+            println!("runner-scale: reported {oom_reported} OOM-killed job(s) this tick");
+        }
+    }
+
+    if let Some(lock) = _lock.as_ref() {
+        lock.refresh(now_secs());
+    }
+
     let max = max_runners();
     let reap_secs = idle_reap_secs();
     let warm = warm_pool();
@@ -1275,6 +1304,15 @@ mod tests {
         assert!(
             DEFAULT_MAX_RUNNERS * mem_mb <= 32_000,
             "fleet RAM must fit WSL2 32GB cap"
+        );
+        // Floor tied to a measured real-world peak (2026-07-07: `cargo doc
+        // --workspace --exclude vox-gui --no-deps` peaked at ~12.06GB RSS in an
+        // uncapped measurement run — see the design doc). A future edit must
+        // not silently shrink the budget back below what a real build in this
+        // workspace actually needs.
+        assert!(
+            mem_mb >= 12_000,
+            "MEM_PER_RUNNER must stay above the measured ~12GB build peak"
         );
     }
 

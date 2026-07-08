@@ -179,6 +179,13 @@ pub fn record_opt_with_unit_blocking(
     if !telemetry_enabled() {
         return;
     }
+    if tokio::runtime::Handle::try_current().is_ok() {
+        // Called from within an already-running tokio runtime (e.g. an async CLI
+        // dispatch path) — block_on would panic ("Cannot start a runtime from
+        // within a runtime"). Telemetry is best-effort, so skip rather than crash.
+        tracing::debug!(target: "vox.benchmark_telemetry", "skip: already inside a tokio runtime");
+        return;
+    }
     let Ok(cfg) = DbConfig::resolve_canonical() else {
         tracing::debug!(target: "vox.benchmark_telemetry", "skip: db config unresolved");
         return;
@@ -228,6 +235,12 @@ pub fn record_syntax_k_opt_blocking(
     details: Option<serde_json::Value>,
 ) {
     if !syntax_k_telemetry_enabled() {
+        return;
+    }
+    if tokio::runtime::Handle::try_current().is_ok() {
+        // See record_opt_with_unit_blocking: block_on would panic if called from
+        // within an already-running tokio runtime. Telemetry is best-effort.
+        tracing::debug!(target: "vox.benchmark_telemetry", "skip syntax-k: already inside a tokio runtime");
         return;
     }
     let Ok(cfg) = DbConfig::resolve_canonical() else {

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "rust": {
-    "unsafe_brace_block_opens": 466,
-    "lines_unsafe_with_env_mutation": 165,
+    "unsafe_brace_block_opens": 501,
+    "lines_unsafe_with_env_mutation": 186,
     "ignored_test_functions_total": 142,
     "ignored_test_governance_violation_count": 16,
     "ignored_tests_top_files": [

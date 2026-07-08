@@ -13,7 +13,7 @@ use super::producer::{Producer, ProducerContext};
 
 const PRODUCER_NAME: &str = "mens_training_run";
 
-/// Snapshot of one training run — mirrors [`vox_db::TrainingRunRecord`] fields
+/// Snapshot of one training run — mirrors [`vox_db::training_run::TrainingRunRecord`] fields
 /// used by the detector (also deserialized from fixture JSON in tests).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MensTrainingRunSnapshot {

@@ -54,16 +54,24 @@ detectors:
       TOESTUB victory-claim detector (premature Done/complete comments, lazy TODO/FIXME).
       Advisory unless promoted after calibration; emitted when vox-cli is built with
       feature completion-toestub.
-  - id: skeleton-hollow-fn
+  - id: skeleton
     tier: B
     description: >
-      Functions with trivially-default return values (Ok(()), true, Vec::new(), etc.)
-      that compile but perform no meaningful computation. TOESTUB skeleton/hollow-fn.
-  - id: skeleton-declared-not-called
+      TOESTUB anti-skeleton family, matched by the `skeleton` segment before the
+      `/` in rule ids (tier_for_detector splits on the first `/`, same convention
+      as every other category/subtype rule id in vox-code-audit). Covers
+      skeleton/hollow-fn (functions with trivially-default return values —
+      Ok(()), true, Vec::new(), etc. — that compile but perform no meaningful
+      computation) and skeleton/declared-not-called (public functions with no
+      observed call sites in the crate; advisory until false-positive
+      calibration completes).
+  - id: arch
     tier: C
     description: >
-      Public functions with no observed call sites in the crate (advisory until
-      false-positive calibration completes).
+      Architecture-smell family matched by the `arch` segment before the `/` in
+      rule ids. Currently covers arch/cross-crate-dup (near-duplicate code
+      blocks across crates, e.g. copy-pasted test suites); advisory until
+      false-positive calibration completes.
 mens:
   anti_stub_maps_to_tier_B: true
   summary_field: completion_policy

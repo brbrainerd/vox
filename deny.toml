@@ -8,17 +8,25 @@ unmaintained = "none"
 ignore = [
   "RUSTSEC-2023-0071",
   "RUSTSEC-2024-0436",
+  # 2026-07-03: quick-xml DoS advisories (fixed in >=0.41.0). vox-publisher's own
+  # direct quick-xml dep is bumped to 0.41 (see workspace Cargo.toml), but 3 transitive
+  # instances remain pinned below 0.41 by upstream crates that haven't released a fix
+  # yet: feed-rs 2.3.1 (quick-xml 0.37.5, feed-rs is at its latest release), plist 1.9.0
+  # (quick-xml 0.39.4, plist is at its latest release), self_update 0.44.0 (quick-xml
+  # 0.38.4 — self_update's only newer release, 1.0.0-rc.1, still pins quick-xml "0.38"
+  # unchanged, so bumping it would not fix this and was reverted after verification).
+  # Revisit when any of feed-rs/plist/self_update ship a release depending on quick-xml
+  # >=0.41.
+  "RUSTSEC-2026-0194",
+  "RUSTSEC-2026-0195",
   # New advisories published against already-pinned versions (confirmed
   # present on origin/main too, unrelated to any in-flight PR). Real fixes
-  # are version bumps (quick-xml >=0.41.0 via vox-publisher/tauri-runtime-wry;
-  # wasmtime-wasi/wiggle-generate/memmap2 via patched wasmtime releases;
-  # anyhow via a patched release) — tracked separately, not blocking merges
-  # meanwhile.
-  "RUSTSEC-2026-0195",
+  # are version bumps (wasmtime-wasi/wiggle-generate/memmap2 via patched wasmtime
+  # releases; anyhow via a patched release) — tracked separately, not blocking
+  # merges meanwhile.
   "RUSTSEC-2026-0188",
   "RUSTSEC-2026-0186",
   "RUSTSEC-2026-0190",
-  "RUSTSEC-2026-0194",
 ]
 unused-ignored-advisory = "allow"
 

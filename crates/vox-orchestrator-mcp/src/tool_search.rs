@@ -5,8 +5,8 @@
 //! only the matching tools (name + description + input schema) on demand. This keeps
 //! context usage low as the tool surface (500+ tools) grows.
 //!
-//! The ranking ([`rank_tools`]) is a pure keyword match over [`TOOL_REGISTRY`]; the
-//! handler ([`vox_tool_search`]) attaches each hit's input schema from
+//! The ranking ([`crate::tool_search::rank_tools`]) is a pure keyword match over [`TOOL_REGISTRY`]; the
+//! handler ([`crate::tool_search::vox_tool_search`]) attaches each hit's input schema from
 //! [`crate::input_schemas`]. Tools remain dispatchable by name regardless of whether
 //! they were surfaced here — discovery and execution are independent.
 
@@ -22,8 +22,8 @@ const SCORE_DESCRIPTION: u32 = 1;
 /// Rank registry tools against a whitespace-separated keyword `query`.
 ///
 /// Each lowercased term scores per tool: exact name-segment match
-/// ([`SCORE_NAME_SEGMENT_EXACT`]) > name substring ([`SCORE_NAME_SUBSTRING`]) >
-/// description hit ([`SCORE_DESCRIPTION`]); term scores sum. Tools with score 0
+/// (`SCORE_NAME_SEGMENT_EXACT`) > name substring (`SCORE_NAME_SUBSTRING`) >
+/// description hit (`SCORE_DESCRIPTION`); term scores sum. Tools with score 0
 /// are dropped; ties break by name ascending; at most `limit` entries return.
 pub fn rank_tools(query: &str, limit: usize) -> Vec<&'static McpToolRegistryEntry> {
     let terms: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();

@@ -125,11 +125,20 @@ pub(crate) fn check_no_vox_dei(root: &Path) -> Result<()> {
     let re = regex::Regex::new(r"\bvox_dei::")?;
     visit_rs_files(&src, &mut |p: &Path| {
         let text = read_utf8_path_capped(p)?;
-        if re.is_match(&text) {
-            return Err(anyhow!(
-                "vox-cli must not import the retired orchestrator shim as `vox_dei::` (forbidden in-tree). Offender: {}",
-                p.display()
-            ));
+        for line in text.lines() {
+            let trimmed = line.trim_start();
+            // Skip comments and this guard's own backtick-quoted mention of
+            // `vox_dei::` in its error message — only flag the token
+            // appearing as actual Rust syntax (a real `use`/path reference).
+            if trimmed.starts_with("//") || line.contains("`vox_dei::") {
+                continue;
+            }
+            if re.is_match(line) {
+                return Err(anyhow!(
+                    "vox-cli must not import the retired orchestrator shim as `vox_dei::` (forbidden in-tree). Offender: {}",
+                    p.display()
+                ));
+            }
         }
         Ok(())
     })?;

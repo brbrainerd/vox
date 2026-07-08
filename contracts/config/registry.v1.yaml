@@ -826,3 +826,21 @@ knobs:
     status: active
     default_value: "false"
     since: "2026-06-15"
+
+  # ── ci/queue (local-first CI, hook guard) ─────────────────────────────────
+  - name: hook_guard_disable
+    env_var: VOX_HOOK_GUARD_DISABLE
+    description: Set to "1" in a maintainer session's hook process env to short-circuit the PreToolUse command guard; not settable from inside a guarded command string.
+    owner_crate: vox-cli
+    status: active
+    default_value: null
+    since: "2026-07-04"
+
+  # ── orchestrator/openrouter ───────────────────────────────────────────────
+  - name: openrouter_base_url
+    env_var: OPENROUTER_BASE_URL
+    description: Override the OpenRouter API base URL (test/mock server injection point in vox-gamify and vox-orchestrator's OpenRouter clients). Follows OpenRouter's own env-var naming, not the VOX_ prefix convention.
+    owner_crate: vox-gamify
+    status: active
+    default_value: null
+    since: "2026-07-05"

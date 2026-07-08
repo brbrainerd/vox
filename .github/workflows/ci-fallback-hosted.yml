@@ -136,10 +136,16 @@ jobs:
     name: GUI Windows build smoke
     # Same outage valve as `gate`: on PRs, hosted Windows compute only runs when
     # the fleet-down label is applied (or on schedule/dispatch). Previously had
-    # no condition at all, so it ran on every PR synchronize.
+    # no condition at all, so it ran on every PR synchronize, burning ~60
+    # CI-minutes per push on a job that has never once completed within its
+    # timeout from a cold cache.
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'fleet-down')
     runs-on: windows-latest
-    timeout-minutes: 60
+    # TEMPORARY: raised from 60 to seed a Swatinem/rust-cache baseline via one
+    # workflow_dispatch run — this job has never completed within 60 min from a
+    # cold cache, so no cache has ever been saved. Revert to 60 once a cache
+    # exists and incremental runs are confirmed fast.
+    timeout-minutes: 150
     steps:
       - name: Checkout
         uses: actions/checkout@v7

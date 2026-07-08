@@ -86,4 +86,5 @@
     GeneratedField { key: "VOX_SEARCH_TAVILY_ON_EMPTY", label: "Search Tavily On Empty", hint: "Auto-fire Tavily when local search is empty.", section: "tuning", kind: "bool", options: &[], default: "true" },
     GeneratedField { key: "VOX_SEARCH_TAVILY_ON_WEAK", label: "Search Tavily On Weak", hint: "Auto-fire Tavily when local evidence is weak.", section: "tuning", kind: "bool", options: &[], default: "false" },
     GeneratedField { key: "VOX_SEARCH_VERIFICATION_QUALITY_THRESHOLD", label: "Search Verification Quality Threshold", hint: "Min confidence for search hit verification.", section: "tuning", kind: "float", options: &[], default: "0.7" },
+    GeneratedField { key: "VOX_TAVILY_RESEARCH", label: "Tavily research tier", hint: "When truthy, enable Tavily /research deep-research tier in web gather.", section: "tuning", kind: "bool", options: &[], default: "false" },
 ]

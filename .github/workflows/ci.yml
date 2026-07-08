@@ -348,8 +348,20 @@ jobs:
   guards-fast:
     name: Guards (fast)
     needs: setup
+    # Tiered off merge_group (2026-07-08): DEFAULT_MAX_RUNNERS dropped 6->2 to
+    # stop runner containers being memcg-OOM-killed (measured ~12GB build peak
+    # against the old 5GB budget -- see docs/superpowers/specs/2026-07-07-ci-
+    # runner-memory-budget-and-oom-visibility-design.md). The merge_group fan-
+    # out guard (merge_group_fanout_guard.rs) requires the self-hosted lane fit
+    # in one wave; `tests` was kept as the merge-queue-specific check (catches
+    # integration issues between independently-reviewed PRs), this job already
+    # ran on the PR itself before it entered the queue.
+    if: github.event_name != 'merge_group'
     runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 15
+    # Raised from 15: the added GTK/dbus apt-get install + pnpm install (for the
+    # GUI honesty gate) can eat most of a 15-min budget on a cold self-hosted
+    # runner before the guards themselves even start.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -358,6 +370,8 @@ jobs:
           path: target/debug
       - name: Ensure vox-cli executable
         run: chmod +x target/debug/vox
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -471,6 +485,18 @@ jobs:
 
       - name: Retired symbol documentation guard
         run: ./target/debug/vox --quiet ci retired-symbol-check
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install vox-gui/ui deps (for gui-honesty's tsc/vitest checks)
+        run: |
+          cd crates/vox-gui/ui
+          pnpm install --prefer-offline
 
       - name: GUI honesty gate
         run: cargo run -p vox-cli -- ci gui-honesty
@@ -635,6 +661,9 @@ jobs:
   lints:
     name: Lints (clippy + rustdoc + TOESTUB-scoped + hakari + grammar)
     needs: setup
+    # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
+    # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
+    if: github.event_name != 'merge_group'
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     steps:
@@ -782,7 +811,9 @@ jobs:
   compiler-gates:
     name: Compiler gates (WebIR + projection + golden examples + benches)
     needs: setup
-    if: ${{ needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true' }}
+    # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
+    # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
+    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true')
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     steps:
@@ -1230,8 +1261,20 @@ jobs:
   audits:
     name: Audits (TOESTUB-full + build-timings + feature-matrix + completion + mens-gate)
     needs: setup
+    # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
+    # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
+    if: github.event_name != 'merge_group'
     runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 25
+    # This job's true steady-state runtime (TOESTUB validation, safety-inventory,
+    # hardcoded-values-audit, completion-audit, detect-rules-bench, build-timings,
+    # feature-matrix cargo checks, the all-features check, cuda-features, and the
+    # corpus_prep + mens-mix step) was never actually observed before — every run
+    # on this branch failed on an earlier, now-fixed bug first. Once those were
+    # fixed, this job started reaching the 25-minute ceiling under normal
+    # self-hosted-runner contention (repeatedly landing at ~25m15s, i.e. cut off
+    # mid-step by the timeout, not a real hang). 35m matches the headroom given to
+    # other substantial jobs in this workflow (30/40m).
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -1299,8 +1342,41 @@ jobs:
           set -euo pipefail
           FULL="${{ needs.setup.outputs.full }}"
           P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
+          # `--all-features` unconditionally enables every workspace crate's
+          # `cuda` feature (candle-core/cuda etc.), which requires nvcc — this
+          # step had no guard for that, so it always failed on fleets without
+          # the CUDA toolkit installed. `command -v nvcc` alone isn't reliable
+          # here — some fleet runners have a stale/broken PATH entry that
+          # resolves but fails when actually invoked. Run the same check
+          # cudarc's build.rs does. Crates with their own `cuda` feature:
+          # vox-plugin-mens-candle-cuda, vox-quantize, vox-plugin-speech,
+          # vox-populi (mens-candle-qlora-cuda), vox-speech. vox-ml-cli's
+          # `mens-candle-cuda` feature forwards into vox-populi's cuda
+          # feature via `vox-populi/mens-candle-qlora-cuda`, so it needs
+          # excluding too or --all-features re-enables it as a dependency.
+          CUDA_EXCLUDE=()
+          if ! nvcc --version >/dev/null 2>&1; then
+            CUDA_EXCLUDE=(--exclude vox-plugin-mens-candle-cuda --exclude vox-quantize --exclude vox-plugin-speech --exclude vox-populi --exclude vox-speech --exclude vox-ml-cli)
+          fi
+          # Same problem for the `metal` feature: it links Apple's Metal
+          # framework via objc2/candle-core, which cannot compile off macOS at
+          # all (no runtime-check fallback like nvcc). This job always runs on
+          # self-hosted Linux, so always exclude the crates with their own
+          # `metal` feature: vox-plugin-mens-candle-metal, vox-quantize.
+          METAL_EXCLUDE=()
+          if [ "$(uname -s)" != "Darwin" ]; then
+            METAL_EXCLUDE=(--exclude vox-plugin-mens-candle-metal --exclude vox-quantize)
+          fi
+          # vox-codegen declares a `standalone` feature that is intentionally
+          # never enabled (see its Cargo.toml comment): it's only there so the
+          # `#[cfg(feature = "standalone")]` guards in the `#[path]`-embedded
+          # vox-codegen-ts/src/mod.rs are known cfgs. --all-features force-
+          # enables it anyway, which makes the embedded copy take the
+          # standalone branch (`use vox_codegen::...`) while compiled inside
+          # vox-codegen itself, an unresolved-import error. It has no other
+          # non-default feature, so excluding it loses no real coverage.
           if [ "$FULL" = "true" ]; then
-            cargo check --workspace --exclude vox-gui --all-features
+            cargo check --workspace --exclude vox-gui --exclude vox-codegen "${CUDA_EXCLUDE[@]}" "${METAL_EXCLUDE[@]}" --all-features
           elif [ -n "$P_ARGS" ]; then
             # shellcheck disable=SC2086
             cargo check $P_ARGS --all-features
@@ -1312,11 +1388,52 @@ jobs:
         if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet ci cuda-features
 
-      - name: Mens corpus mix (strict required sources)
+      # `vox mens ...` / `vox populi ...` (used by the next two steps, including
+      # transitively via corpus_prep.vox's golden-example extraction) delegate to
+      # a separate `vox-ml-cli` binary (see main.rs's ML-command interception).
+      # No CI job has ever built it, so that delegation has always failed here —
+      # previously masked by a `vox-cli` dispatch panic (fixed separately); now
+      # that the panic is gone, the delegation actually attempts to run and needs
+      # the target binary to exist and be on PATH.
+      - name: Build vox-ml-cli (mens/populi CLI delegation target)
         if: needs.setup.outputs.full == 'true'
         run: |
+          cargo build -p vox-ml-cli --locked
+          echo "$PWD/target/debug" >> "$GITHUB_PATH"
+
+      - name: Mens corpus mix (strict required sources)
+        if: needs.setup.outputs.full == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
           ./target/debug/vox --quiet run --interp scripts/ci/corpus_prep.vox
-          ./target/debug/vox --quiet mens corpus mix --config mens/config/mix.yaml
+
+          # `mens/config/mix.yaml` marks `target/dogfood/validated_mixed.jsonl`
+          # `optional: false` on purpose (see its own comment + the commit that
+          # set it, e2c417a2: "strict-mix now fails closed if missing") -- that
+          # fail-closed behavior is a real, correct safety guard for an actual
+          # training run, where this hand-curated golden corpus is expected to
+          # already exist on disk (accumulated over real dogfooding, never
+          # produced by any automated pipeline -- confirmed by grepping the
+          # whole repo for a producer and finding none). A fresh CI checkout
+          # has no such accumulated state, so this ONE specific, understood,
+          # already-diagnosed absence is tolerated here. Anything else --
+          # a different missing required source, a corrupt mix.yaml, a mix
+          # that genuinely fails for any other reason -- still fails this job
+          # for real; only the exact known message is swallowed.
+          set +e
+          mix_output=$(./target/debug/vox --quiet mens corpus mix --config mens/config/mix.yaml 2>&1)
+          mix_status=$?
+          set -e
+          echo "$mix_output"
+          if [ "$mix_status" -ne 0 ]; then
+            if echo "$mix_output" | grep -q "required source missing:.*validated_mixed\.jsonl"; then
+              echo "::warning title=Mens corpus mix::Skipped -- target/dogfood/validated_mixed.jsonl (hand-curated training corpus, no automated producer) isn't present in this CI checkout. Still strictly required+enforced for real training runs; this is a CI-only tolerance, not a config change."
+            else
+              echo "::error title=Mens corpus mix::Failed for a reason OTHER than the known-absent validated_mixed.jsonl training artifact -- this is a real failure."
+              exit "$mix_status"
+            fi
+          fi
 
       - name: Populi CI gate matrix (single manifest)
         if: needs.setup.outputs.full == 'true'

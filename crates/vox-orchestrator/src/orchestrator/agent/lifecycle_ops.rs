@@ -308,7 +308,7 @@ impl crate::orchestrator::Orchestrator {
 
     /// Signal a running local task to abort by setting its interrupt flag.
     ///
-    /// The flag is stored in [`Orchestrator::interrupt_flags`]. The running
+    /// The flag is stored in [`Self::interrupt_flags`]. The running
     /// [`crate::runtime::AiTaskProcessor`] must poll this flag during inference to
     /// actually stop early (see `crates/vox-orchestrator/src/interrupt.rs` for the
     /// full wiring plan).  If the task is queued (not yet in-progress), this
@@ -334,7 +334,7 @@ impl crate::orchestrator::Orchestrator {
     /// Release locks and emit telemetry when an in-progress local task aborts
     /// because its interrupt flag was set (see `runtime::AiTaskProcessor`).
     ///
-    /// Mirrors the lock-release path of [`Orchestrator::cancel_task`]: it revokes
+    /// Mirrors the lock-release path of [`Self::cancel_task`]: it revokes
     /// the file lock, affinity, and scope-guard claims held by `agent_id` for the
     /// interrupted task's write files (unless another queued/running task still
     /// claims them), drops the task assignment, and emits the

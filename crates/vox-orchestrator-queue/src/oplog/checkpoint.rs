@@ -5,7 +5,7 @@
 //! ## Storage
 //!
 //! The checkpoint payload (every registered [`Projection`](crate::projection::Projection)'s
-//! `snapshot()` output, framed via [`ProjectionRegistry::snapshot_bytes`]) is
+//! `snapshot()` output, framed via [`ProjectionRegistry::snapshot_bytes`](crate::projection::ProjectionRegistry::snapshot_bytes)) is
 //! stored in vox-db's `checkpoint_blobs` table — a small dedicated table
 //! rather than the generic `objects` CAS store, because `OperationKind::Checkpoint.
 //! payload_blob_id` is a `u64` row id (cheap to reference from the durable op

@@ -295,16 +295,36 @@ impl LowerCtx {
                 ok_binding,
                 ok_arm,
                 span,
-            } => HirExpr::AsyncView(Box::new(crate::hir::nodes::async_view::HirAsyncView {
-                source: Box::new(self.lower_expr(source)),
-                fetching_arm: fetching.as_ref().map(|e| Box::new(self.lower_expr(e))),
-                empty_arm: empty.as_ref().map(|e| Box::new(self.lower_expr(e))),
-                error_binding: error_binding.clone(),
-                error_arm: error_arm.as_ref().map(|e| Box::new(self.lower_expr(e))),
-                ok_binding: ok_binding.clone(),
-                ok_arm: ok_arm.as_ref().map(|e| Box::new(self.lower_expr(e))),
-                span: *span,
-            })),
+            } => {
+                let lowered_error_arm = error_arm.as_ref().map(|e| {
+                    self.def_map.push_scope();
+                    if let Some(name) = error_binding {
+                        self.def_map.define(name.clone());
+                    }
+                    let lowered = Box::new(self.lower_expr(e));
+                    self.def_map.pop_scope();
+                    lowered
+                });
+                let lowered_ok_arm = ok_arm.as_ref().map(|e| {
+                    self.def_map.push_scope();
+                    if let Some(name) = ok_binding {
+                        self.def_map.define(name.clone());
+                    }
+                    let lowered = Box::new(self.lower_expr(e));
+                    self.def_map.pop_scope();
+                    lowered
+                });
+                HirExpr::AsyncView(Box::new(crate::hir::nodes::async_view::HirAsyncView {
+                    source: Box::new(self.lower_expr(source)),
+                    fetching_arm: fetching.as_ref().map(|e| Box::new(self.lower_expr(e))),
+                    empty_arm: empty.as_ref().map(|e| Box::new(self.lower_expr(e))),
+                    error_binding: error_binding.clone(),
+                    error_arm: lowered_error_arm,
+                    ok_binding: ok_binding.clone(),
+                    ok_arm: lowered_ok_arm,
+                    span: *span,
+                }))
+            }
         }
     }
 

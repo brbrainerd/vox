@@ -35,7 +35,7 @@ const REPLAY_MEASURED_STATUS_LEGACY: &str = "replay_measured";
 /// Read the measured replay score from the latest matching status event.
 ///
 /// Events are scanned in caller order; pass rows from
-/// [`vox_db::VoxDb::list_publication_status_events`] (DESC by id) so the first
+/// `vox_db::VoxDb::list_publication_status_events` (DESC by id) so the first
 /// hit is the most recent measurement.
 #[must_use]
 pub fn artifact_replayability_measured_from_status_events(

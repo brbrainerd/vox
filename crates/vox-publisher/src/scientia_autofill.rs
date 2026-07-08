@@ -1,6 +1,6 @@
 //! Deterministic archive-metadata autofill. Pure planner + JSON applier.
 //! NEVER overwrites a present value; every fill carries provenance
-//! origin "autofill:<rule>". LLM-generated content is out of scope by design.
+//! origin "autofill:`<rule>`". LLM-generated content is out of scope by design.
 
 use serde::{Deserialize, Serialize};
 

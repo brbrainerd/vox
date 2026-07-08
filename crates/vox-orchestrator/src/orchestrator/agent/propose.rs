@@ -8,7 +8,7 @@ impl crate::orchestrator::Orchestrator {
     /// Does **not** broadcast `FeedbackRequested` on the event bus — this
     /// method is sync and cannot `.await` the durable oplog write, so callers
     /// must durably record the transition first via `record_operation`, then
-    /// call [`Orchestrator::emit_feedback_requested`] with the returned id
+    /// call [`Self::emit_feedback_requested_skill_proposal`] with the returned id
     /// (T1.2: Tier-A durable-before-broadcast).
     pub fn propose_skill(
         &self,
@@ -50,7 +50,7 @@ impl crate::orchestrator::Orchestrator {
     }
 
     /// Broadcast the `FeedbackRequested` bus event for a skill proposal
-    /// previously registered by [`Orchestrator::propose_skill`]. Callers MUST
+    /// previously registered by [`Self::propose_skill`]. Callers MUST
     /// call this only *after* durably recording the transition (via
     /// `record_operation`) — see the T1.2 tier-A contract on
     /// [`crate::events::is_tier_a`].

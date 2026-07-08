@@ -10,6 +10,7 @@ mod gui_surface_coverage;
 pub mod gui_surface_registry;
 #[cfg(test)]
 mod merge_group_fanout_guard;
+mod oom_watch;
 mod operations_catalog;
 mod pipeline_parity;
 mod policy_allowlist_parity;

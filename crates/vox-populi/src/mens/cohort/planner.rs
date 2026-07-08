@@ -108,7 +108,7 @@ pub const MIN_USEFUL_SPEEDUP: f64 = 1.1;
 /// in parallel), so the gain reflects parallelism without GPU-class weighting.
 ///
 /// For TFLOPS-weighted throughput (heterogeneous GPUs), use
-/// [`plan_cohort_with_estimator`].
+/// `plan_cohort_with_estimator` (behind the `mens-cloud` feature).
 #[must_use]
 pub fn plan_cohort(nodes: &[CohortNode], target_model: &str, target_params_b: f64) -> CohortPlan {
     plan_cohort_weighted(nodes, target_model, target_params_b, |_| 1.0)

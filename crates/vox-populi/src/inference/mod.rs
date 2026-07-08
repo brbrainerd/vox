@@ -1,6 +1,6 @@
 //! Pluggable inference backends for mesh-routed model execution (Mn-T2).
 //!
-//! Training contracts live in [`super::distributed_training`]; this module models **inference**
+//! Training contracts live in `crate::distributed_training`; this module models **inference**
 //! dispatch across heterogeneous devices.
 
 mod backend;

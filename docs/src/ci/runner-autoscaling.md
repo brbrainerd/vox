@@ -3,7 +3,7 @@ title: "Self-Hosted CI Runner Autoscaling"
 description: "Ephemeral, demand-scaled self-hosted CI runner pool: how it works, how to roll it out, and how to recover when runners are down. Replaces the two always-on vox-runner containers."
 category: "CI & Quality"
 status: "current"
-last_updated: "2026-06-06"
+last_updated: "2026-07-08"
 training_eligible: true
 training_rationale: "Documents the runner autoscaler design + rollout so the single-box CI fleet can be operated and recovered reliably."
 ---
@@ -44,9 +44,21 @@ Docker containers (`vox-runner-1/2`) on a single Windows i9-14900KS (32 threads,
   in-progress runs and counts jobs with `status: queued` whose label set the
   pool can serve (`self-hosted,linux,x64,docker,browser`). One PR fanning out a
   dozen jobs registers a dozen demand, capped at the pool max.
-- **Bounded:** up to `VOX_RUNNER_MAX` (default 6), each `--cpus=4
-  --memory=5000m` → at most 24 vCPU / 30 GB when fully saturated (fits the WSL2
-  24-cpu / 32-GB ceiling); tune `VOX_RUNNER_MAX` to leave headroom for Windows.
+- **Bounded:** up to `VOX_RUNNER_MAX` (default 2), each `--cpus=4
+  --memory=14000m` → at most 8 vCPU / 28 GB when fully saturated (fits the
+  WSL2 24-cpu / 32-GB ceiling); tune `VOX_RUNNER_MAX` to leave headroom for
+  Windows. The per-runner memory budget was raised from an earlier `5000m` to
+  `14000m` (and the runner count correspondingly dropped from 6) after a real
+  build (`cargo doc --workspace --exclude vox-gui --no-deps`) was measured
+  peaking at ~12GB RSS — the old budget was silently causing runner
+  containers to be killed by their own memory cgroup limit mid-build. See
+  `docs/superpowers/specs/2026-07-07-ci-runner-memory-budget-and-oom-visibility-design.md`.
+- **OOM-visible:** if a runner container is ever hard-killed by its own
+  memory cgroup limit again (e.g. a future job's build exceeds the current
+  14GB budget), `vox ci runner-scale`'s host-side autoscaler tick detects it
+  via `dmesg` on the next `--apply` run, correlates it to the PR/job that was
+  executing on that runner, and posts a comment directly on the affected PR
+  with the evidence — no manual `dmesg` archaeology needed.
 - **Warm:** every runner mounts a shared `vox-ci-runner-cache` volume with
   `sccache` (`SCCACHE_DIR=/cache/sccache`), so ephemeral cold starts reuse
   compiler output instead of rebuilding the world.
@@ -87,7 +99,7 @@ runaway pool. Demand = count of `queued` **jobs** matching the pool's labels
 
 | Env var | Default | Meaning |
 |---|---|---|
-| `VOX_RUNNER_MAX` | `6` | Hard ceiling on concurrent managed runners (6 × 4 cpu / 5000m = 24 vCPU / 30 GB, fits WSL2 24/32) |
+| `VOX_RUNNER_MAX` | `2` | Hard ceiling on concurrent managed runners (2 × 4 cpu / 14000m = 8 vCPU / 28 GB, fits WSL2 24/32) |
 | `VOX_RUNNER_IDLE_REAP_SECS` | `300` | Grace window before reaping a never-assigned runner |
 | `VOX_RUNNER_WARM_POOL` | `1` | Idle runners to keep registered for instant dispatch |
 

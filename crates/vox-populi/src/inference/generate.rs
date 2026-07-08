@@ -5,7 +5,7 @@
 //! known performance limitation — acceptable for the small CPU models this crate
 //! currently targets, to be replaced by an incremental KV-cache decode later (Mn-T2).
 //!
-//! Sampling note: [`crate::SamplingParams`] carries no RNG seed, so the "sampling" path
+//! Sampling note: [`super::SamplingParams`] carries no RNG seed, so the "sampling" path
 //! here is **deterministic**: temperature/top-p shape the nucleus, then we pick the
 //! argmax of the renormalized in-nucleus distribution. This makes generation
 //! reproducible without pulling in an RNG crate. True stochastic sampling needs a seed

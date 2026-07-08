@@ -141,7 +141,7 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
                 "check_vox_cli_populi_oratio",
                 &["check", "-p", "vox-cli", "--features", "oratio"],
             ),
-            ("check_vox_mcp", &["check", "-p", "vox-mcp"]),
+            ("check_vox_mcp", &["check", "-p", "vox-orchestrator-mcp"]),
         ];
         for (lane, args) in crate_lanes {
             records.push(run_cargo_lane(&cargo, root, lane, args));

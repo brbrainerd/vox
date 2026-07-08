@@ -1,7 +1,7 @@
 //! The feature × target support matrix — the SSOT for "who implements what."
 //!
 //! This is the *breadth* axis of the pipeline-parity contract
-//! ([`docs/src/architecture/pipeline-parity-ssot-2026-06-14.md`]). Every Vox
+//! (`docs/src/architecture/pipeline-parity-ssot-2026-06-14.md`). Every Vox
 //! language feature (decorator, expr/stmt kind, decl kind) has a declared
 //! [`Support`] for every [`Target`]: `Implemented`, `Unverified` (declared but
 //! not yet proven by the canonical golden ladder), or `Unsupported(code)` with

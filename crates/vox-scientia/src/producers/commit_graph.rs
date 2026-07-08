@@ -90,7 +90,7 @@ pub fn classify_subject(subject: &str) -> Option<CommitClass> {
 
 /// Corroboration producer for embedding-distance novelty on commit-derived findings.
 ///
-/// Scout / discovery-watch fold [`vox_publisher::scientia_producers::code_uniqueness`]
+/// Scout / discovery-watch fold `vox_publisher::scientia_producers::code_uniqueness`
 /// signals after commit_graph surfaces a candidate.
 #[must_use]
 pub fn corroboration_producer() -> &'static str {

@@ -866,10 +866,22 @@ impl<'a> Checker<'a> {
                     let _ = self.check_expr(a, None);
                 }
                 if let Some(a) = &v.error_arm {
+                    self.env.push_scope();
+                    if let Some(name) = &v.error_binding {
+                        let fresh = self.uf.fresh_var();
+                        self.bind_pattern(&HirPattern::Ident(name.clone(), v.span), &fresh, false);
+                    }
                     let _ = self.check_expr(a, None);
+                    self.env.pop_scope();
                 }
                 if let Some(a) = &v.ok_arm {
+                    self.env.push_scope();
+                    if let Some(name) = &v.ok_binding {
+                        let fresh = self.uf.fresh_var();
+                        self.bind_pattern(&HirPattern::Ident(name.clone(), v.span), &fresh, false);
+                    }
                     let _ = self.check_expr(a, None);
+                    self.env.pop_scope();
                 }
                 Ty::Unit
             }
