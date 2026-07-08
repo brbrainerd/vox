@@ -12,12 +12,14 @@
 //!
 //! Design: docs/superpowers/specs/2026-07-07-ci-runner-memory-budget-and-oom-visibility-design.md
 //!
-//! **Currently implemented in this file:** dmesg-line parsing only
-//! (`parse_oom_events`, below) — a pure string-parsing function with no
-//! `gh`/`dmesg`/reporting IO. Dedup persistence, container-name resolution,
-//! GitHub job correlation, and PR comment composition/posting all land in
-//! follow-up tasks of the implementation plan; until then nothing in this
-//! module actually reports anything anywhere.
+//! **Currently implemented in this file:** dmesg-line parsing
+//! (`parse_oom_events`) and dedup-persistence primitives (`read_oom_seen`/
+//! `write_oom_seen`/`new_events`/`append_seen`) — all pure or thin IO, no
+//! orchestration yet. Container-name resolution, GitHub job correlation, and
+//! PR comment composition/posting still land in follow-up tasks of the
+//! implementation plan; nothing in this module is called from a live code
+//! path yet (the module itself isn't even wired into `mod.rs` as `pub` —
+//! that happens once an orchestration entrypoint needs to call into it).
 
 use std::path::PathBuf;
 
@@ -81,12 +83,21 @@ pub fn parse_oom_events(dmesg_text: &str) -> Vec<OomEvent> {
 
 // --- dedup persistence across ticks -----------------------------------
 
+/// `#[allow(dead_code)]`: only called from `read_oom_seen`/`write_oom_seen`
+/// today, which are themselves only called from tests until the
+/// orchestration task (`scan_and_report_oom_events`) lands later in the
+/// implementation plan.
+#[allow(dead_code)]
 fn oom_seen_path() -> PathBuf {
     crate::fs_utils::user_home_dir()
         .join(".vox")
         .join("ci-runner-oom-seen.json")
 }
 
+/// `#[allow(dead_code)]`: only called from tests today — the orchestration
+/// task (`scan_and_report_oom_events`) later in the implementation plan is
+/// the first non-test caller. Remove this allow once that task lands.
+#[allow(dead_code)]
 fn read_oom_seen() -> Vec<String> {
     std::fs::read_to_string(oom_seen_path())
         .ok()
@@ -94,6 +105,10 @@ fn read_oom_seen() -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// `#[allow(dead_code)]`: only called from tests today — the orchestration
+/// task (`scan_and_report_oom_events`) later in the implementation plan is
+/// the first non-test caller. Remove this allow once that task lands.
+#[allow(dead_code)]
 fn write_oom_seen(seen: &[String]) {
     let p = oom_seen_path();
     if let Some(parent) = p.parent() {
@@ -105,6 +120,11 @@ fn write_oom_seen(seen: &[String]) {
 }
 
 /// Events from `events` whose raw line isn't already in `seen`. Pure.
+///
+/// `#[allow(dead_code)]`: only called from tests today — the orchestration
+/// task (`scan_and_report_oom_events`) later in the implementation plan is
+/// the first non-test caller. Remove this allow once that task lands.
+#[allow(dead_code)]
 pub fn new_events<'a>(events: &'a [OomEvent], seen: &[String]) -> Vec<&'a OomEvent> {
     events
         .iter()
@@ -113,10 +133,21 @@ pub fn new_events<'a>(events: &'a [OomEvent], seen: &[String]) -> Vec<&'a OomEve
 }
 
 /// Cap on the seen-list so its state file never grows unbounded.
+///
+/// `#[allow(dead_code)]`: only referenced from tests today — the
+/// orchestration task (`scan_and_report_oom_events`) later in the
+/// implementation plan is the first non-test use. Remove this allow once
+/// that task lands.
+#[allow(dead_code)]
 const OOM_SEEN_MAX: usize = 500;
 
 /// Append newly-seen raw lines to the existing seen-list, capped to
 /// [`OOM_SEEN_MAX`] most-recent entries (oldest dropped first). Pure.
+///
+/// `#[allow(dead_code)]`: only called from tests today — the orchestration
+/// task (`scan_and_report_oom_events`) later in the implementation plan is
+/// the first non-test caller. Remove this allow once that task lands.
+#[allow(dead_code)]
 pub fn append_seen(mut seen: Vec<String>, newly_seen: &[String]) -> Vec<String> {
     seen.extend(newly_seen.iter().cloned());
     if seen.len() > OOM_SEEN_MAX {
