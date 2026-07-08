@@ -86,8 +86,24 @@ fn write_oom_seen(seen: &[String]) {
     if let Some(parent) = p.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    if let Ok(s) = serde_json::to_string_pretty(seen) {
-        let _ = std::fs::write(p, s);
+    match serde_json::to_string_pretty(seen) {
+        Ok(s) => {
+            if let Err(e) = std::fs::write(&p, s) {
+                eprintln!(
+                    "runner-scale: failed to write OOM seen-state to {}: {e:#} — a duplicate \
+                     PR comment may follow next tick since this event couldn't be persisted \
+                     as seen",
+                    p.display()
+                );
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "runner-scale: failed to serialize OOM seen-state for {}: {e:#} — a duplicate \
+                 PR comment may follow next tick since this event couldn't be persisted as seen",
+                p.display()
+            );
+        }
     }
 }
 
@@ -180,36 +196,40 @@ fn fetch_recent_container_events(now: i64) -> Result<String> {
 
 // --- GitHub job/run correlation ------------------------------------------
 
-/// One (runner_name, job_name) row from a workflow run's jobs list. Pure —
-/// testable without a live `gh` call, mirroring how `runner_scale::runner_rows`
-/// separates the tab-parsing shape from the `gh api` call that produces it.
-pub fn find_matching_job<'a>(
-    job_rows: &'a [(String, String)],
-    runner_name: &str,
-) -> Option<&'a str> {
-    job_rows
-        .iter()
-        .find(|(rn, _)| rn == runner_name)
-        .map(|(_, name)| name.as_str())
-}
-
-/// A workflow run this OOM event corresponds to: run id, originating PR
-/// number, and the job name that was executing on the killed runner.
+/// One job row from a workflow run's jobs list: the runner it was assigned
+/// to, its name, and which run/PR it belongs to. Pure — testable without a
+/// live `gh` call, mirroring how `runner_scale::runner_rows` separates the
+/// tab-parsing shape from the `gh api` call that produces it.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RunnerJobMatch {
+pub struct JobRow {
+    pub runner_name: String,
+    pub job_name: String,
     pub run_id: u64,
     pub pr_number: u64,
-    pub job_name: String,
+}
+
+/// Find the job row (if any) assigned to `runner_name`. Pure.
+pub fn find_matching_job<'a>(job_rows: &'a [JobRow], runner_name: &str) -> Option<&'a JobRow> {
+    job_rows.iter().find(|r| r.runner_name == runner_name)
 }
 
 /// Cap on recent runs inspected per status when correlating a runner name to
 /// a job — mirrors `runner_scale::DEMAND_RUNS_PER_STATUS`.
 const CORRELATE_RUNS_PER_STATUS: u32 = 20;
 
-/// Find which job (if any) was assigned to `runner_name`, scanning recent
-/// in_progress then completed runs. GitHub Actions job objects expose a
-/// `runner_name` field once a job is assigned to a runner.
-fn find_run_for_runner(runner_name: &str) -> Result<Option<RunnerJobMatch>> {
+/// Fetch every job row (with an assigned runner) across recent in_progress
+/// then completed PR-triggered runs, once per tick. Callers share the
+/// returned `Vec` across every fresh OOM event in that tick via
+/// [`find_matching_job`], rather than each event re-fetching its own copy —
+/// the previous per-event design could fan out to hundreds of sequential
+/// `gh api` calls in a single tick once more than one event landed together.
+///
+/// A single run's job-list fetch failing (transient `gh` hiccup) only skips
+/// that one run — it no longer aborts the whole scan, so a later run that
+/// actually holds the match still gets checked instead of the entire
+/// correlation being abandoned on the first transient error.
+fn fetch_recent_job_rows() -> Result<Vec<JobRow>> {
+    let mut rows = Vec::new();
     for status in ["in_progress", "completed"] {
         let runs = gh_json(&[
             "api",
@@ -231,29 +251,33 @@ fn find_run_for_runner(runner_name: &str) -> Result<Option<RunnerJobMatch>> {
             if pr_number == 0 {
                 continue; // not a PR-triggered run — no PR to comment on
             }
-            let job_raw = gh_json(&[
+            let job_raw = match gh_json(&[
                 "api",
                 &format!("repos/{REPO_SLUG}/actions/runs/{run_id}/jobs?per_page=100"),
                 "--jq",
                 r#".jobs[]|select(.runner_name != null)|[.runner_name, .name]|@tsv"#,
-            ])?;
-            let job_rows: Vec<(String, String)> = job_raw
-                .lines()
-                .filter_map(|l| {
-                    let mut p = l.split('\t');
-                    Some((p.next()?.to_string(), p.next()?.to_string()))
-                })
-                .collect();
-            if let Some(job_name) = find_matching_job(&job_rows, runner_name) {
-                return Ok(Some(RunnerJobMatch {
+            ]) {
+                Ok(j) => j,
+                Err(e) => {
+                    eprintln!(
+                        "runner-scale: OOM correlation couldn't list jobs for run {run_id} \
+                         (skipping this run, other runs still checked): {e:#}"
+                    );
+                    continue;
+                }
+            };
+            rows.extend(job_raw.lines().filter_map(|l| {
+                let mut p = l.split('\t');
+                Some(JobRow {
+                    runner_name: p.next()?.to_string(),
+                    job_name: p.next()?.to_string(),
                     run_id,
                     pr_number,
-                    job_name: job_name.to_string(),
-                }));
-            }
+                })
+            }));
         }
     }
-    Ok(None)
+    Ok(rows)
 }
 
 // --- PR comment composition and posting ----------------------------------
@@ -389,6 +413,11 @@ pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
     let events_text = fetch_recent_container_events(now)?;
     let names = parse_container_names(&events_text);
 
+    // Fetched once per tick and shared across every fresh event below via
+    // find_matching_job, instead of each event independently re-fetching the
+    // same run/job listing — see fetch_recent_job_rows's doc comment.
+    let job_rows = fetch_recent_job_rows()?;
+
     let mut reported = 0u32;
     let mut seen_so_far = seen;
     for event in fresh {
@@ -406,33 +435,26 @@ pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
         // one dispatched job, then self-deregisters and exits — see the module doc
         // at the top of runner_scale.rs), so a container name is never reused across
         // two different jobs. There is no second job it could be misattributed to.
-        match find_run_for_runner(container_name) {
-            Ok(Some(m)) => {
-                let body = oom_comment_body(event, &m.job_name, m.run_id);
-                match post_pr_comment(m.pr_number, &body, false) {
-                    Ok(()) => {
-                        reported += 1;
-                        // Persist immediately: only ever mark an event seen right
-                        // after its post actually succeeded, and do it before moving
-                        // on to the next event so a mid-loop process kill can't
-                        // leave a successfully-posted event unrecorded.
-                        seen_so_far =
-                            append_seen(seen_so_far, std::slice::from_ref(&event.raw_line));
-                        write_oom_seen(&seen_so_far);
-                    }
-                    Err(e) => eprintln!(
-                        "runner-scale: OOM comment post failed (will retry next tick): {e:#}"
-                    ),
-                }
-            }
-            Ok(None) => {
-                eprintln!(
-                    "runner-scale: OOM on {container_name} — no PR-triggered job match found \
-                     in recent runs; will retry next tick"
-                );
+        let Some(m) = find_matching_job(&job_rows, container_name) else {
+            eprintln!(
+                "runner-scale: OOM on {container_name} — no PR-triggered job match found \
+                 in recent runs; will retry next tick"
+            );
+            continue;
+        };
+        let body = oom_comment_body(event, &m.job_name, m.run_id);
+        match post_pr_comment(m.pr_number, &body, false) {
+            Ok(()) => {
+                reported += 1;
+                // Persist immediately: only ever mark an event seen right after
+                // its post actually succeeded, and do it before moving on to
+                // the next event so a mid-loop process kill can't leave a
+                // successfully-posted event unrecorded.
+                seen_so_far = append_seen(seen_so_far, std::slice::from_ref(&event.raw_line));
+                write_oom_seen(&seen_so_far);
             }
             Err(e) => {
-                eprintln!("runner-scale: OOM job correlation failed (will retry next tick): {e:#}");
+                eprintln!("runner-scale: OOM comment post failed (will retry next tick): {e:#}")
             }
         }
     }
@@ -582,22 +604,34 @@ mod tests {
     #[test]
     fn find_matching_job_returns_the_matching_row() {
         let rows = vec![
-            (
-                "vox-runner-auto-aaa-0".to_string(),
-                "Lints (clippy + rustdoc)".to_string(),
-            ),
-            ("vox-runner-auto-bbb-0".to_string(), "Audits".to_string()),
+            JobRow {
+                runner_name: "vox-runner-auto-aaa-0".to_string(),
+                job_name: "Lints (clippy + rustdoc)".to_string(),
+                run_id: 1,
+                pr_number: 100,
+            },
+            JobRow {
+                runner_name: "vox-runner-auto-bbb-0".to_string(),
+                job_name: "Audits".to_string(),
+                run_id: 2,
+                pr_number: 200,
+            },
         ];
-        assert_eq!(
-            find_matching_job(&rows, "vox-runner-auto-bbb-0"),
-            Some("Audits")
-        );
+        let matched = find_matching_job(&rows, "vox-runner-auto-bbb-0").expect("should match");
+        assert_eq!(matched.job_name, "Audits");
+        assert_eq!(matched.run_id, 2);
+        assert_eq!(matched.pr_number, 200);
     }
 
     #[test]
     fn find_matching_job_none_when_no_row_matches() {
-        let rows = vec![("vox-runner-auto-aaa-0".to_string(), "Lints".to_string())];
-        assert_eq!(find_matching_job(&rows, "vox-runner-auto-zzz-9"), None);
+        let rows = vec![JobRow {
+            runner_name: "vox-runner-auto-aaa-0".to_string(),
+            job_name: "Lints".to_string(),
+            run_id: 1,
+            pr_number: 100,
+        }];
+        assert!(find_matching_job(&rows, "vox-runner-auto-zzz-9").is_none());
     }
 
     #[test]
@@ -627,10 +661,12 @@ mod tests {
             "2026-07-07T07:53:04.000000000-04:00 container die {cgroup} \
              (exitCode=137, name=vox-runner-auto-abc123-0)\n"
         );
-        let job_rows = vec![(
-            "vox-runner-auto-abc123-0".to_string(),
-            "Lints (clippy + rustdoc)".to_string(),
-        )];
+        let job_rows = vec![JobRow {
+            runner_name: "vox-runner-auto-abc123-0".to_string(),
+            job_name: "Lints (clippy + rustdoc)".to_string(),
+            run_id: 28861698905,
+            pr_number: 440,
+        }];
 
         // 1. parse: one fresh event, never seen before.
         let events = parse_oom_events(&dmesg_text);
@@ -643,12 +679,12 @@ mod tests {
         let container_name = names.get(&fresh[0].cgroup_id).expect("name resolved");
         assert_eq!(container_name, "vox-runner-auto-abc123-0");
 
-        // 3. correlate: container name -> job name.
-        let job_name = find_matching_job(&job_rows, container_name).expect("job matched");
-        assert_eq!(job_name, "Lints (clippy + rustdoc)");
+        // 3. correlate: container name -> job row.
+        let matched = find_matching_job(&job_rows, container_name).expect("job matched");
+        assert_eq!(matched.job_name, "Lints (clippy + rustdoc)");
 
         // 4. compose: final comment body is correct.
-        let body = oom_comment_body(fresh[0], job_name, 28861698905);
+        let body = oom_comment_body(fresh[0], &matched.job_name, matched.run_id);
         assert!(body.contains("Lints (clippy + rustdoc)"));
         assert!(body.contains("rustdoc"));
         assert!(body.contains("28861698905"));
