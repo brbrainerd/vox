@@ -261,7 +261,10 @@ fn fetch_recent_container_events(now: i64) -> Result<String> {
 /// One (runner_name, job_name) row from a workflow run's jobs list. Pure —
 /// testable without a live `gh` call, mirroring how `runner_scale::runner_rows`
 /// separates the tab-parsing shape from the `gh api` call that produces it.
-pub fn find_matching_job<'a>(job_rows: &'a [(String, String)], runner_name: &str) -> Option<&'a str> {
+pub fn find_matching_job<'a>(
+    job_rows: &'a [(String, String)],
+    runner_name: &str,
+) -> Option<&'a str> {
     job_rows
         .iter()
         .find(|(rn, _)| rn == runner_name)
@@ -318,8 +321,7 @@ fn find_run_for_runner(runner_name: &str) -> Result<Option<RunnerJobMatch>> {
             let (Some(run_id_str), Some(pr_str)) = (parts.next(), parts.next()) else {
                 continue;
             };
-            let (Ok(run_id), Ok(pr_number)) =
-                (run_id_str.parse::<u64>(), pr_str.parse::<u64>())
+            let (Ok(run_id), Ok(pr_number)) = (run_id_str.parse::<u64>(), pr_str.parse::<u64>())
             else {
                 continue;
             };
@@ -472,8 +474,14 @@ mod tests {
              2026-07-07T08:06:39.404509619-04:00 container exec_die cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc (name=vox_clickhouse)\n"
         );
         let names = parse_container_names(&text);
-        assert_eq!(names.get(a.as_str()), Some(&"vox-runner-auto-6a4cebb2-0".to_string()));
-        assert_eq!(names.get(b.as_str()), Some(&"vox-runner-auto-6a4ced91-0".to_string()));
+        assert_eq!(
+            names.get(a.as_str()),
+            Some(&"vox-runner-auto-6a4cebb2-0".to_string())
+        );
+        assert_eq!(
+            names.get(b.as_str()),
+            Some(&"vox-runner-auto-6a4ced91-0".to_string())
+        );
         // Non-managed containers (no MANAGED_PREFIX) must be filtered out --
         // vox_clickhouse is real host traffic we don't care about here.
         assert_eq!(names.len(), 2);
@@ -487,7 +495,10 @@ mod tests {
     #[test]
     fn find_matching_job_returns_the_matching_row() {
         let rows = vec![
-            ("vox-runner-auto-aaa-0".to_string(), "Lints (clippy + rustdoc)".to_string()),
+            (
+                "vox-runner-auto-aaa-0".to_string(),
+                "Lints (clippy + rustdoc)".to_string(),
+            ),
             ("vox-runner-auto-bbb-0".to_string(), "Audits".to_string()),
         ];
         assert_eq!(
