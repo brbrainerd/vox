@@ -348,6 +348,15 @@ jobs:
   guards-fast:
     name: Guards (fast)
     needs: setup
+    # Tiered off merge_group (2026-07-08): DEFAULT_MAX_RUNNERS dropped 6->2 to
+    # stop runner containers being memcg-OOM-killed (measured ~12GB build peak
+    # against the old 5GB budget -- see docs/superpowers/specs/2026-07-07-ci-
+    # runner-memory-budget-and-oom-visibility-design.md). The merge_group fan-
+    # out guard (merge_group_fanout_guard.rs) requires the self-hosted lane fit
+    # in one wave; `tests` was kept as the merge-queue-specific check (catches
+    # integration issues between independently-reviewed PRs), this job already
+    # ran on the PR itself before it entered the queue.
+    if: github.event_name != 'merge_group'
     runs-on: [self-hosted, linux, x64]
     # Raised from 15: the added GTK/dbus apt-get install + pnpm install (for the
     # GUI honesty gate) can eat most of a 15-min budget on a cold self-hosted
@@ -652,6 +661,9 @@ jobs:
   lints:
     name: Lints (clippy + rustdoc + TOESTUB-scoped + hakari + grammar)
     needs: setup
+    # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
+    # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
+    if: github.event_name != 'merge_group'
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     steps:
@@ -799,7 +811,9 @@ jobs:
   compiler-gates:
     name: Compiler gates (WebIR + projection + golden examples + benches)
     needs: setup
-    if: ${{ needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true' }}
+    # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
+    # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
+    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true')
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     steps:
@@ -1247,6 +1261,9 @@ jobs:
   audits:
     name: Audits (TOESTUB-full + build-timings + feature-matrix + completion + mens-gate)
     needs: setup
+    # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
+    # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
+    if: github.event_name != 'merge_group'
     runs-on: [self-hosted, linux, x64]
     # This job's true steady-state runtime (TOESTUB validation, safety-inventory,
     # hardcoded-values-audit, completion-audit, detect-rules-bench, build-timings,
