@@ -12,18 +12,8 @@
 //!
 //! Design: docs/superpowers/specs/2026-07-07-ci-runner-memory-budget-and-oom-visibility-design.md
 //!
-//! **Currently implemented in this file:** dmesg-line parsing
-//! (`parse_oom_events`), dedup-persistence primitives (`read_oom_seen`/
-//! `write_oom_seen`/`new_events`/`append_seen`), container-name resolution
-//! (`parse_container_names`/`fetch_recent_container_events`), GitHub job/run
-//! correlation (`find_matching_job`/`find_run_for_runner`), and PR comment
-//! composition/posting (`oom_comment_body`/`post_pr_comment`) — all pure or
-//! thin IO. The top-level orchestration entrypoint that chains these
-//! together and is called from the autoscaler tick still lands in a
-//! follow-up task of the implementation plan; nothing in this module is
-//! called from a live code path yet (the module itself isn't even wired into
-//! `mod.rs` as `pub` — that happens once that orchestration entrypoint
-//! exists).
+//! Top-level entrypoint: [`scan_and_report_oom_events`], called from the
+//! autoscaler's `--apply` tick in `runner_scale.rs`.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -37,11 +27,6 @@ use super::runner_scale::{MANAGED_PREFIX, gh_json, quiet_command};
 /// One parsed `oom-kill:constraint=CONSTRAINT_MEMCG` kernel log line — the
 /// single `dmesg` line that carries both the killed process name and the
 /// container's full cgroup id together (`oom_memcg=/docker/<id>,...,task=<name>`).
-///
-/// `#[allow(dead_code)]`: not yet constructed outside `#[cfg(test)]` — the
-/// dedup-persistence task later in the implementation plan is the first
-/// caller. Remove this allow once that task lands and wires it up.
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OomEvent {
     /// Raw matched line, used as the dedup key (content-based, not
@@ -53,10 +38,6 @@ pub struct OomEvent {
     pub cgroup_id: String,
 }
 
-/// `#[allow(dead_code)]`: only called from `parse_oom_events` today, which
-/// is itself only called from tests until the orchestration task
-/// (`scan_and_report_oom_events`) lands later in the implementation plan.
-#[allow(dead_code)]
 fn oom_line_regex() -> &'static Regex {
     static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     RE.get_or_init(|| {
@@ -69,11 +50,6 @@ fn oom_line_regex() -> &'static Regex {
 /// extracting the killed process name and the container's cgroup id from
 /// each. Lines that don't match (the overwhelming majority of `dmesg`) are
 /// skipped. Pure — no IO.
-///
-/// `#[allow(dead_code)]`: only called from tests today — the orchestration
-/// task (`scan_and_report_oom_events`) later in the implementation plan is
-/// the first non-test caller. Remove this allow once that task lands.
-#[allow(dead_code)]
 pub fn parse_oom_events(dmesg_text: &str) -> Vec<OomEvent> {
     let re = oom_line_regex();
     dmesg_text
@@ -92,24 +68,12 @@ pub fn parse_oom_events(dmesg_text: &str) -> Vec<OomEvent> {
 
 // --- dedup persistence across ticks -----------------------------------
 
-/// `#[allow(dead_code)]`: not called from anywhere yet, including tests —
-/// the file-IO round-trip this and its two siblings below perform isn't unit
-/// tested (matches this file's other thin, side-effecting IO wrappers, e.g.
-/// `fetch_recent_container_events` once that lands). The orchestration task
-/// (`scan_and_report_oom_events`) later in the implementation plan is the
-/// first caller. Remove this allow once that task lands.
-#[allow(dead_code)]
 fn oom_seen_path() -> PathBuf {
     crate::fs_utils::user_home_dir()
         .join(".vox")
         .join("ci-runner-oom-seen.json")
 }
 
-/// `#[allow(dead_code)]`: not called from anywhere yet, including tests —
-/// see [`oom_seen_path`]. The orchestration task
-/// (`scan_and_report_oom_events`) later in the implementation plan is the
-/// first caller. Remove this allow once that task lands.
-#[allow(dead_code)]
 fn read_oom_seen() -> Vec<String> {
     std::fs::read_to_string(oom_seen_path())
         .ok()
@@ -117,11 +81,6 @@ fn read_oom_seen() -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// `#[allow(dead_code)]`: not called from anywhere yet, including tests —
-/// see [`oom_seen_path`]. The orchestration task
-/// (`scan_and_report_oom_events`) later in the implementation plan is the
-/// first caller. Remove this allow once that task lands.
-#[allow(dead_code)]
 fn write_oom_seen(seen: &[String]) {
     let p = oom_seen_path();
     if let Some(parent) = p.parent() {
@@ -133,11 +92,6 @@ fn write_oom_seen(seen: &[String]) {
 }
 
 /// Events from `events` whose raw line isn't already in `seen`. Pure.
-///
-/// `#[allow(dead_code)]`: only called from tests today — the orchestration
-/// task (`scan_and_report_oom_events`) later in the implementation plan is
-/// the first non-test caller. Remove this allow once that task lands.
-#[allow(dead_code)]
 pub fn new_events<'a>(events: &'a [OomEvent], seen: &[String]) -> Vec<&'a OomEvent> {
     events
         .iter()
@@ -146,21 +100,10 @@ pub fn new_events<'a>(events: &'a [OomEvent], seen: &[String]) -> Vec<&'a OomEve
 }
 
 /// Cap on the seen-list so its state file never grows unbounded.
-///
-/// `#[allow(dead_code)]`: only referenced from tests today — the
-/// orchestration task (`scan_and_report_oom_events`) later in the
-/// implementation plan is the first non-test use. Remove this allow once
-/// that task lands.
-#[allow(dead_code)]
 const OOM_SEEN_MAX: usize = 500;
 
 /// Append newly-seen raw lines to the existing seen-list, capped to
 /// [`OOM_SEEN_MAX`] most-recent entries (oldest dropped first). Pure.
-///
-/// `#[allow(dead_code)]`: only called from tests today — the orchestration
-/// task (`scan_and_report_oom_events`) later in the implementation plan is
-/// the first non-test caller. Remove this allow once that task lands.
-#[allow(dead_code)]
 pub fn append_seen(mut seen: Vec<String>, newly_seen: &[String]) -> Vec<String> {
     seen.extend(newly_seen.iter().cloned());
     if seen.len() > OOM_SEEN_MAX {
@@ -172,11 +115,6 @@ pub fn append_seen(mut seen: Vec<String>, newly_seen: &[String]) -> Vec<String> 
 
 // --- container name resolution ------------------------------------------
 
-/// `#[allow(dead_code)]`: only called from `parse_container_names` today,
-/// which is itself not yet called outside `#[cfg(test)]` — the orchestration
-/// task (`scan_and_report_oom_events`) later in the implementation plan is
-/// the first non-test caller. Remove this allow once that task lands.
-#[allow(dead_code)]
 fn container_event_regex() -> &'static Regex {
     static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     RE.get_or_init(|| {
@@ -190,11 +128,6 @@ fn container_event_regex() -> &'static Regex {
 /// too (the whole point — an OOM-killed runner is gone by the time the next
 /// tick polls), since `docker events` is a historical log, not a live query.
 /// Pure — no IO.
-///
-/// `#[allow(dead_code)]`: only called from tests today — the orchestration
-/// task (`scan_and_report_oom_events`) later in the implementation plan is
-/// the first non-test caller. Remove this allow once that task lands.
-#[allow(dead_code)]
 pub fn parse_container_names(events_text: &str) -> HashMap<String, String> {
     let re = container_event_regex();
     let mut map = HashMap::new();
@@ -216,24 +149,11 @@ pub fn parse_container_names(events_text: &str) -> HashMap<String, String> {
 /// Window (seconds) of `docker events` history to fetch when resolving a
 /// cgroup id to a container name. Comfortably covers the 2-minute autoscaler
 /// tick cadence with margin for a slow tick.
-///
-/// `#[allow(dead_code)]`: only referenced from [`fetch_recent_container_events`]
-/// today, which is itself not yet called outside `#[cfg(test)]` — the
-/// orchestration task (`scan_and_report_oom_events`) later in the
-/// implementation plan is the first non-test caller. Remove this allow once
-/// that task lands.
-#[allow(dead_code)]
 const OOM_EVENTS_WINDOW_SECS: i64 = 600;
 
 /// Fetch `docker events` for the last [`OOM_EVENTS_WINDOW_SECS`], bounded by
 /// `--since`/`--until` (both unix seconds) so this returns immediately rather
 /// than streaming.
-///
-/// `#[allow(dead_code)]`: not yet called outside `#[cfg(test)]` — the
-/// orchestration task (`scan_and_report_oom_events`) later in the
-/// implementation plan is the first caller. Remove this allow once that task
-/// lands.
-#[allow(dead_code)]
 fn fetch_recent_container_events(now: i64) -> Result<String> {
     let since = (now - OOM_EVENTS_WINDOW_SECS).to_string();
     let until = now.to_string();
@@ -275,12 +195,6 @@ pub fn find_matching_job<'a>(
 
 /// A workflow run this OOM event corresponds to: run id, originating PR
 /// number, and the job name that was executing on the killed runner.
-///
-/// `#[allow(dead_code)]`: not yet constructed outside `#[cfg(test)]`'s
-/// callers — the orchestration task (`scan_and_report_oom_events`) later in
-/// the implementation plan is the first non-test caller. Remove this allow
-/// once that task lands.
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunnerJobMatch {
     pub run_id: u64,
@@ -290,24 +204,11 @@ pub struct RunnerJobMatch {
 
 /// Cap on recent runs inspected per status when correlating a runner name to
 /// a job — mirrors `runner_scale::DEMAND_RUNS_PER_STATUS`.
-///
-/// `#[allow(dead_code)]`: only referenced from [`find_run_for_runner`]
-/// today, which is itself not yet called outside `#[cfg(test)]` — the
-/// orchestration task (`scan_and_report_oom_events`) later in the
-/// implementation plan is the first non-test caller. Remove this allow once
-/// that task lands.
-#[allow(dead_code)]
 const CORRELATE_RUNS_PER_STATUS: u32 = 20;
 
 /// Find which job (if any) was assigned to `runner_name`, scanning recent
 /// in_progress then completed runs. GitHub Actions job objects expose a
 /// `runner_name` field once a job is assigned to a runner.
-///
-/// `#[allow(dead_code)]`: not yet called outside `#[cfg(test)]` — the
-/// orchestration task (`scan_and_report_oom_events`) later in the
-/// implementation plan is the first caller. Remove this allow once that task
-/// lands.
-#[allow(dead_code)]
 fn find_run_for_runner(runner_name: &str) -> Result<Option<RunnerJobMatch>> {
     for status in ["in_progress", "completed"] {
         let runs = gh_json(&[
@@ -375,12 +276,6 @@ fn backtick_run_regex() -> &'static Regex {
 /// `"```"`). Instead, match each maximal run of 3+ backticks with a regex and
 /// insert a zero-width space after every backtick in the matched run, so no
 /// 3 consecutive backticks can ever survive.
-///
-/// `#[allow(dead_code)]`: only called from `oom_comment_body` and tests today
-/// — the orchestration task (`scan_and_report_oom_events`) later in the
-/// implementation plan is the first non-test caller. Remove this allow once
-/// that task lands.
-#[allow(dead_code)]
 fn escape_for_code_fence(s: &str) -> String {
     backtick_run_regex()
         .replace_all(s, |caps: &regex::Captures| {
@@ -394,11 +289,6 @@ fn escape_for_code_fence(s: &str) -> String {
 
 /// Build the PR comment body for one detected OOM kill. Pure — testable
 /// without a live `gh` call.
-///
-/// `#[allow(dead_code)]`: only called from tests today — the orchestration
-/// task (`scan_and_report_oom_events`) later in the implementation plan is
-/// the first non-test caller. Remove this allow once that task lands.
-#[allow(dead_code)]
 pub fn oom_comment_body(event: &OomEvent, job_name: &str, run_id: u64) -> String {
     format!(
         "**CI runner OOM-killed** — job `{job_name}` (run `{run_id}`) did not fail \
@@ -416,7 +306,6 @@ pub fn oom_comment_body(event: &OomEvent, job_name: &str, run_id: u64) -> String
 /// Post `body` as a comment on PR `pr_number`. No-op (prints instead) when
 /// `dry_run` — mirrors this command's existing `--apply`-gated mutation
 /// pattern (`reap`, `deregister` etc. in `runner_scale.rs`).
-#[allow(dead_code)]
 fn post_pr_comment(pr_number: u64, body: &str, dry_run: bool) -> Result<()> {
     if dry_run {
         println!("[dry-run] would comment on PR #{pr_number}:\n{body}");
@@ -458,6 +347,12 @@ pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
         .args(["-e", "dmesg", "-T"])
         .output()
         .context("run dmesg via wsl (is WSL2 available on this host?)")?;
+    if !dmesg_out.status.success() {
+        return Err(anyhow!(
+            "wsl -e dmesg -T failed: {}",
+            String::from_utf8_lossy(&dmesg_out.stderr).trim()
+        ));
+    }
     let dmesg_text = String::from_utf8_lossy(&dmesg_out.stdout);
     let events = parse_oom_events(&dmesg_text);
 
@@ -521,7 +416,8 @@ pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
                         // after its post actually succeeded, and do it before moving
                         // on to the next event so a mid-loop process kill can't
                         // leave a successfully-posted event unrecorded.
-                        seen_so_far = append_seen(seen_so_far, &[event.raw_line.clone()]);
+                        seen_so_far =
+                            append_seen(seen_so_far, std::slice::from_ref(&event.raw_line));
                         write_oom_seen(&seen_so_far);
                     }
                     Err(e) => eprintln!(
