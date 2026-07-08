@@ -14,13 +14,14 @@
 //!
 //! **Currently implemented in this file:** dmesg-line parsing
 //! (`parse_oom_events`), dedup-persistence primitives (`read_oom_seen`/
-//! `write_oom_seen`/`new_events`/`append_seen`), and container-name
-//! resolution (`parse_container_names`/`fetch_recent_container_events`) — all
-//! pure or thin IO, no orchestration yet. GitHub job correlation and PR
-//! comment composition/posting still land in follow-up tasks of the
-//! implementation plan; nothing in this module is called from a live code
-//! path yet (the module itself isn't even wired into `mod.rs` as `pub` —
-//! that happens once an orchestration entrypoint needs to call into it).
+//! `write_oom_seen`/`new_events`/`append_seen`), container-name resolution
+//! (`parse_container_names`/`fetch_recent_container_events`), and GitHub
+//! job/run correlation (`find_matching_job`/`find_run_for_runner`) — all pure
+//! or thin IO, no orchestration yet. PR comment composition/posting still
+//! lands in a follow-up task of the implementation plan; nothing in this
+//! module is called from a live code path yet (the module itself isn't even
+//! wired into `mod.rs` as `pub` — that happens once an orchestration
+//! entrypoint needs to call into it).
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -28,7 +29,8 @@ use std::path::PathBuf;
 use anyhow::{Context, Result, anyhow};
 use regex::Regex;
 
-use super::runner_scale::{MANAGED_PREFIX, quiet_command};
+use super::constants::REPO_SLUG;
+use super::runner_scale::{MANAGED_PREFIX, gh_json, quiet_command};
 
 /// One parsed `oom-kill:constraint=CONSTRAINT_MEMCG` kernel log line — the
 /// single `dmesg` line that carries both the killed process name and the
@@ -254,6 +256,101 @@ fn fetch_recent_container_events(now: i64) -> Result<String> {
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
+// --- GitHub job/run correlation ------------------------------------------
+
+/// One (runner_name, job_name) row from a workflow run's jobs list. Pure —
+/// testable without a live `gh` call, mirroring how `runner_scale::runner_rows`
+/// separates the tab-parsing shape from the `gh api` call that produces it.
+pub fn find_matching_job<'a>(job_rows: &'a [(String, String)], runner_name: &str) -> Option<&'a str> {
+    job_rows
+        .iter()
+        .find(|(rn, _)| rn == runner_name)
+        .map(|(_, name)| name.as_str())
+}
+
+/// A workflow run this OOM event corresponds to: run id, originating PR
+/// number, and the job name that was executing on the killed runner.
+///
+/// `#[allow(dead_code)]`: not yet constructed outside `#[cfg(test)]`'s
+/// callers — the orchestration task (`scan_and_report_oom_events`) later in
+/// the implementation plan is the first non-test caller. Remove this allow
+/// once that task lands.
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunnerJobMatch {
+    pub run_id: u64,
+    pub pr_number: u64,
+    pub job_name: String,
+}
+
+/// Cap on recent runs inspected per status when correlating a runner name to
+/// a job — mirrors `runner_scale::DEMAND_RUNS_PER_STATUS`.
+///
+/// `#[allow(dead_code)]`: only referenced from [`find_run_for_runner`]
+/// today, which is itself not yet called outside `#[cfg(test)]` — the
+/// orchestration task (`scan_and_report_oom_events`) later in the
+/// implementation plan is the first non-test caller. Remove this allow once
+/// that task lands.
+#[allow(dead_code)]
+const CORRELATE_RUNS_PER_STATUS: u32 = 20;
+
+/// Find which job (if any) was assigned to `runner_name`, scanning recent
+/// in_progress then completed runs. GitHub Actions job objects expose a
+/// `runner_name` field once a job is assigned to a runner.
+///
+/// `#[allow(dead_code)]`: not yet called outside `#[cfg(test)]` — the
+/// orchestration task (`scan_and_report_oom_events`) later in the
+/// implementation plan is the first caller. Remove this allow once that task
+/// lands.
+#[allow(dead_code)]
+fn find_run_for_runner(runner_name: &str) -> Result<Option<RunnerJobMatch>> {
+    for status in ["in_progress", "completed"] {
+        let runs = gh_json(&[
+            "api",
+            &format!(
+                "repos/{REPO_SLUG}/actions/runs?status={status}&per_page={CORRELATE_RUNS_PER_STATUS}"
+            ),
+            "--jq",
+            r#".workflow_runs[]|[.id, (.pull_requests[0].number // 0)]|@tsv"#,
+        ])?;
+        for line in runs.lines() {
+            let mut parts = line.split('\t');
+            let (Some(run_id_str), Some(pr_str)) = (parts.next(), parts.next()) else {
+                continue;
+            };
+            let (Ok(run_id), Ok(pr_number)) =
+                (run_id_str.parse::<u64>(), pr_str.parse::<u64>())
+            else {
+                continue;
+            };
+            if pr_number == 0 {
+                continue; // not a PR-triggered run — no PR to comment on
+            }
+            let job_raw = gh_json(&[
+                "api",
+                &format!("repos/{REPO_SLUG}/actions/runs/{run_id}/jobs?per_page=100"),
+                "--jq",
+                r#".jobs[]|select(.runner_name != null)|[.runner_name, .name]|@tsv"#,
+            ])?;
+            let job_rows: Vec<(String, String)> = job_raw
+                .lines()
+                .filter_map(|l| {
+                    let mut p = l.split('\t');
+                    Some((p.next()?.to_string(), p.next()?.to_string()))
+                })
+                .collect();
+            if let Some(job_name) = find_matching_job(&job_rows, runner_name) {
+                return Ok(Some(RunnerJobMatch {
+                    run_id,
+                    pr_number,
+                    job_name: job_name.to_string(),
+                }));
+            }
+        }
+    }
+    Ok(None)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -385,5 +482,23 @@ mod tests {
     #[test]
     fn parse_container_names_empty_on_no_matches() {
         assert!(parse_container_names("no container events here\n").is_empty());
+    }
+
+    #[test]
+    fn find_matching_job_returns_the_matching_row() {
+        let rows = vec![
+            ("vox-runner-auto-aaa-0".to_string(), "Lints (clippy + rustdoc)".to_string()),
+            ("vox-runner-auto-bbb-0".to_string(), "Audits".to_string()),
+        ];
+        assert_eq!(
+            find_matching_job(&rows, "vox-runner-auto-bbb-0"),
+            Some("Audits")
+        );
+    }
+
+    #[test]
+    fn find_matching_job_none_when_no_row_matches() {
+        let rows = vec![("vox-runner-auto-aaa-0".to_string(), "Lints".to_string())];
+        assert_eq!(find_matching_job(&rows, "vox-runner-auto-zzz-9"), None);
     }
 }
