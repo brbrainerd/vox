@@ -353,6 +353,64 @@ fn find_run_for_runner(runner_name: &str) -> Result<Option<RunnerJobMatch>> {
     Ok(None)
 }
 
+// --- PR comment composition and posting ----------------------------------
+
+/// Neutralize a run of 3+ backticks so an embedded raw dmesg line can never
+/// break out of the surrounding markdown code fence in [`oom_comment_body`].
+/// dmesg content is kernel-generated, not attacker input, but a process name
+/// containing backticks (however unlikely) shouldn't be able to garble the
+/// comment. Pure.
+///
+/// `#[allow(dead_code)]`: only called from `oom_comment_body` and tests today
+/// — the orchestration task (`scan_and_report_oom_events`) later in the
+/// implementation plan is the first non-test caller. Remove this allow once
+/// that task lands.
+#[allow(dead_code)]
+fn escape_for_code_fence(s: &str) -> String {
+    s.replace("```", "`\u{200b}``") // zero-width space splits the run
+}
+
+/// Build the PR comment body for one detected OOM kill. Pure — testable
+/// without a live `gh` call.
+///
+/// `#[allow(dead_code)]`: only called from tests today — the orchestration
+/// task (`scan_and_report_oom_events`) later in the implementation plan is
+/// the first non-test caller. Remove this allow once that task lands.
+#[allow(dead_code)]
+pub fn oom_comment_body(event: &OomEvent, job_name: &str, run_id: u64) -> String {
+    format!(
+        "**CI runner OOM-killed** — job `{job_name}` (run `{run_id}`) did not fail \
+         normally: its runner container's process `{}` was killed by the kernel's \
+         per-container memory cgroup limit, not a real `timeout-minutes` cutoff or an \
+         external cancellation.\n\n\
+         Evidence (`dmesg`):\n```\n{}\n```\n\n\
+         Auto-detected by the host-side runner autoscaler (`vox ci runner-scale`) — \
+         no action needed unless this recurs after a `MEM_PER_RUNNER` bump.",
+        event.process,
+        escape_for_code_fence(&event.raw_line)
+    )
+}
+
+/// Post `body` as a comment on PR `pr_number`. No-op (prints instead) when
+/// `dry_run` — mirrors this command's existing `--apply`-gated mutation
+/// pattern (`reap`, `deregister` etc. in `runner_scale.rs`).
+#[allow(dead_code)]
+fn post_pr_comment(pr_number: u64, body: &str, dry_run: bool) -> Result<()> {
+    if dry_run {
+        println!("[dry-run] would comment on PR #{pr_number}:\n{body}");
+        return Ok(());
+    }
+    gh_json(&[
+        "api",
+        "-X",
+        "POST",
+        &format!("repos/{REPO_SLUG}/issues/{pr_number}/comments"),
+        "-f",
+        &format!("body={body}"),
+    ])?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -511,5 +569,69 @@ mod tests {
     fn find_matching_job_none_when_no_row_matches() {
         let rows = vec![("vox-runner-auto-aaa-0".to_string(), "Lints".to_string())];
         assert_eq!(find_matching_job(&rows, "vox-runner-auto-zzz-9"), None);
+    }
+
+    #[test]
+    fn oom_comment_body_includes_job_process_and_raw_evidence() {
+        let event = OomEvent {
+            raw_line: "the raw dmesg line".to_string(),
+            process: "rustdoc".to_string(),
+            cgroup_id: "a".repeat(64),
+        };
+        let body = oom_comment_body(&event, "Lints (clippy + rustdoc)", 28861698905);
+        assert!(body.contains("Lints (clippy + rustdoc)"));
+        assert!(body.contains("28861698905"));
+        assert!(body.contains("rustdoc"));
+        assert!(body.contains("the raw dmesg line"));
+        assert!(body.contains("OOM"));
+    }
+
+    #[test]
+    fn full_pipeline_parses_correlates_and_composes_a_correct_comment() {
+        let cgroup = "d".repeat(64);
+        let dmesg_text = format!(
+            "[1.0] noise\n\
+             [2.0] oom-kill:constraint=CONSTRAINT_MEMCG,oom_memcg=/docker/{cgroup},\
+             task_memcg=/docker/{cgroup},task=rustdoc,pid=99,uid=0\n"
+        );
+        let events_text = format!(
+            "2026-07-07T07:53:04.000000000-04:00 container die {cgroup} \
+             (exitCode=137, name=vox-runner-auto-abc123-0)\n"
+        );
+        let job_rows = vec![(
+            "vox-runner-auto-abc123-0".to_string(),
+            "Lints (clippy + rustdoc)".to_string(),
+        )];
+
+        // 1. parse: one fresh event, never seen before.
+        let events = parse_oom_events(&dmesg_text);
+        assert_eq!(events.len(), 1);
+        let fresh = new_events(&events, &[]);
+        assert_eq!(fresh.len(), 1);
+
+        // 2. resolve: cgroup id -> container name.
+        let names = parse_container_names(&events_text);
+        let container_name = names.get(&fresh[0].cgroup_id).expect("name resolved");
+        assert_eq!(container_name, "vox-runner-auto-abc123-0");
+
+        // 3. correlate: container name -> job name.
+        let job_name = find_matching_job(&job_rows, container_name).expect("job matched");
+        assert_eq!(job_name, "Lints (clippy + rustdoc)");
+
+        // 4. compose: final comment body is correct.
+        let body = oom_comment_body(fresh[0], job_name, 28861698905);
+        assert!(body.contains("Lints (clippy + rustdoc)"));
+        assert!(body.contains("rustdoc"));
+        assert!(body.contains("28861698905"));
+        assert!(body.contains(fresh[0].raw_line.as_str()));
+    }
+
+    #[test]
+    fn escape_for_code_fence_neutralizes_triple_backticks() {
+        let raw = "before ``` after";
+        let escaped = escape_for_code_fence(raw);
+        assert!(!escaped.contains("```"));
+        assert!(escaped.contains("before"));
+        assert!(escaped.contains("after"));
     }
 }
