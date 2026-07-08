@@ -824,11 +824,10 @@ pub fn run_scale(apply: bool) -> Result<()> {
     //      this scan's dmesg/docker/gh IO chain would no longer be true of if it
     //      ran unconditionally.
     if apply {
-        let oom_reported = super::oom_watch::scan_and_report_oom_events(now)
-            .unwrap_or_else(|e| {
-                eprintln!("runner-scale: OOM-visibility scan skipped (degraded): {e:#}");
-                0
-            });
+        let oom_reported = super::oom_watch::scan_and_report_oom_events(now).unwrap_or_else(|e| {
+            eprintln!("runner-scale: OOM-visibility scan skipped (degraded): {e:#}");
+            0
+        });
         if oom_reported > 0 {
             println!("runner-scale: reported {oom_reported} OOM-killed job(s) this tick");
         }

@@ -432,9 +432,7 @@ pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
                 );
             }
             Err(e) => {
-                eprintln!(
-                    "runner-scale: OOM job correlation failed (will retry next tick): {e:#}"
-                );
+                eprintln!("runner-scale: OOM job correlation failed (will retry next tick): {e:#}");
             }
         }
     }
