@@ -12,6 +12,31 @@ import type { SearchableHit } from './searchableRegistry';
 
 export const FACET_CAP = 6;
 
+/** Help docs appear in Omnibar only when the query looks help-oriented. */
+export function shouldIncludeDocsInOmnibar(
+  query: string,
+  options?: { prefixMode?: 'default' | 'commands' | 'agents' | 'skills' },
+): boolean {
+  if (options?.prefixMode === 'skills') return true;
+  const q = query.trim().toLowerCase();
+  if (q.startsWith('/')) return true;
+  if (q.startsWith('help ')) return true;
+  return /\bhelp\b/.test(q);
+}
+
+/** Strip leading `help` tokens so `help cli` matches doc titles like "CLI Reference". */
+export function queryForFederatedSearch(query: string): string {
+  const trimmed = query.trim();
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('help ')) {
+    return trimmed.slice(5).trim();
+  }
+  if (/\bhelp\b/.test(lower)) {
+    return trimmed.replace(/\bhelp\b/gi, '').trim();
+  }
+  return trimmed;
+}
+
 export type FacetKey = 'surfaces' | 'commands' | 'onScreen' | 'graph' | 'docs';
 export type Provenance = 'manifest' | 'corpus' | 'runtime' | 'graph' | 'docs';
 
@@ -28,6 +53,8 @@ export interface OmnibarGraphResult {
 
 export interface OmnibarSources {
   query: string;
+  /** Palette prefix mode (`/` opens docs+skills lane). */
+  prefixMode?: 'default' | 'commands' | 'agents' | 'skills';
   federated: FederatedIndexEntry[];
   backendHits: UnifiedHit[];
   manifest: ContentManifestEntry[];
@@ -217,18 +244,20 @@ export function buildOmnibarFacets(src: OmnibarSources): OmnibarFacet[] {
         activate: { type: 'graph' as const, node: n },
       }));
 
-  // DOCS — federated doc entries.
+  // DOCS — federated doc entries (help-only queries).
   const docRows: OmnibarRow[] = [];
-  for (const e of src.federated) {
-    if (e.kind !== 'doc' || e.payload.type !== 'doc') continue;
-    docRows.push({
-      id: e.id,
-      facet: 'docs',
-      label: e.label,
-      detail: e.detail,
-      provenance: 'docs',
-      activate: { type: 'doc', path: e.payload.path },
-    });
+  if (shouldIncludeDocsInOmnibar(src.query, { prefixMode: src.prefixMode })) {
+    for (const e of src.federated) {
+      if (e.kind !== 'doc' || e.payload.type !== 'doc') continue;
+      docRows.push({
+        id: e.id,
+        facet: 'docs',
+        label: e.label,
+        detail: e.detail,
+        provenance: 'docs',
+        activate: { type: 'doc', path: e.payload.path },
+      });
+    }
   }
 
   return [

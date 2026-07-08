@@ -3,7 +3,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Browser surface', () => {
   test('loads Browser panel and shows preview controls', async ({ page }) => {
     await page.addInitScript(() => {
-      localStorage.setItem('vox_active_view', 'browser');
+      localStorage.setItem(
+        'vox_workbench_tabs.v1',
+        JSON.stringify({ openTabs: ['chat', 'browser'], activeTab: 'browser' }),
+      );
       localStorage.setItem('vox_sidebar_mode', 'default');
       (window as any).__TAURI_INTERNALS__ = {
         invoke: async (cmd: string) => {

@@ -2,14 +2,20 @@
  * Reusable Tauri-invoke mock for vox-gui e2e screenshot sweeps.
  *
  * `installTauriMock(viewKey)` is injected via `page.addInitScript`. It forces the target surface
- * (localStorage `vox_active_view` + the `get_initial_view` command) and installs a rich
+ * (localStorage `vox_workbench_tabs.v1` + the `get_initial_view` command) and installs a rich
  * `window.__TAURI_INTERNALS__.invoke` mock so every panel renders with representative data in a
  * bare browser (no Tauri host). The body is the verbatim mock previously inlined in
  * `screenshots.spec.ts` — keep EVERY command case in sync.
  */
 export function installTauriMock(viewKey: string): void {
   try {
-    localStorage.setItem('vox_active_view', JSON.stringify(viewKey));
+    localStorage.setItem(
+      'vox_workbench_tabs.v1',
+      JSON.stringify({
+        openTabs: Array.from(new Set(['chat', viewKey])),
+        activeTab: viewKey,
+      }),
+    );
     localStorage.setItem('vox_sidebar_mode', 'default');
   } catch {
     // Playwright data URLs / sandboxed contexts may deny localStorage.
@@ -230,7 +236,16 @@ export function installTauriMock(viewKey: string): void {
         };
         case 'get_action_manifest': return { x_vox_version: 2, schema_version: 1, generated_from: 'mock', actions: [] };
         case 'get_full_registry': return { commands: [] };
-        case 'vox_docs_index': return [];
+        case 'vox_docs_index':
+          return [
+            {
+              title: 'CLI Reference',
+              description: 'Vox command-line interface',
+              path: 'docs/src/reference/cli.md',
+            },
+          ];
+        case 'read_doc_markdown':
+          return `# ${String(args?.path ?? 'doc')}\n\nMock documentation body for visual audit.`;
         case 'get_command_metadata': return { safety_class: 'read_only', confirmation_policy: 'none' };
         case 'list_gui_runs': return Array.from({ length: 5 }, (_, i) => ({
           run_id: `gui-run-${i + 1}`, workflow_name: ['gui.harness.submit', 'gui.policy.doubt', 'gui.search', 'gui.research', 'gui.repo'][i],
@@ -243,7 +258,21 @@ export function installTauriMock(viewKey: string): void {
           { id: 'OPENROUTER_API_KEY', present: false, preview: null },
           { id: 'TAVILY_API_KEY', present: true, preview: 'tvly-...wxyz' },
         ];
+        case 'get_orchestrator_config': return {};
+        case 'secrets_backend_status':
+          return { backendMode: 'vault', profile: 'dev', strict: false, available: true, detail: null };
+        case 'signing_key_status':
+          return { nodeId: 'node-abc', algorithm: 'ed25519', fingerprint: 'fp-deadbeef', pubkeyHex: '00', present: true };
+        case 'get_user_config': return null;
+        case 'get_llm_config': return {};
+        case 'get_llm_spend':
+          return { sessionUsd: 0, dayUsd: 0, totalUsd: 0, dailyBudgetUsd: 50, perSessionBudgetUsd: 10 };
         case 'get_gui_preference': return null;
+        case 'pty_spawn':
+        case 'pty_write':
+        case 'pty_resize':
+        case 'pty_close':
+          return null;
         case 'invoke_mcp_tool': return { tool: args?.tool ?? 'unknown', is_error: false, result: mcpResult(args?.tool ?? '') };
         case 'execute_command': {
           const path: string[] = args?.path ?? [];

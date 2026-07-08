@@ -2,7 +2,7 @@ import React from 'react';
 import { Backdrop } from '../ui/Backdrop';
 import { Sidebar, type SidebarMode } from './Sidebar';
 import { TopHud, type HudMode } from './TopHud';
-import { DockShell } from './DockShell';
+import { SurfaceScrollHost } from './SurfaceScrollHost';
 import { BreadcrumbBar } from './BreadcrumbBar';
 import { StatusBar } from './StatusBar';
 import { SurfaceErrorBoundary } from '../ui/ErrorBoundary';
@@ -17,6 +17,8 @@ type KpiState = typeof INITIAL_KPIS;
 export interface AppShellProps {
   activeView: string;
   onNavigate: (view: string) => void;
+  onOpenParent: (parentKey: string) => void;
+  onOpenTab: (viewKey: string) => void;
   sidebarMode: SidebarMode;
   setSidebarMode: (mode: SidebarMode) => void;
   agentsCount: number;
@@ -39,6 +41,7 @@ export interface AppShellProps {
   /** When false, Loquela / transcript stack is omitted (Chat surface hosts composer). */
   chatDocked: boolean;
   chatDock?: React.ReactNode;
+  tabBar?: React.ReactNode;
   children: React.ReactNode;
   /** Workspace display name for TopHud (defaults to Operator in TopHud). */
   workspaceTitle?: string;
@@ -52,6 +55,8 @@ export interface AppShellProps {
 export function AppShell({
   activeView,
   onNavigate,
+  onOpenParent,
+  onOpenTab,
   sidebarMode,
   setSidebarMode,
   agentsCount,
@@ -73,6 +78,7 @@ export function AppShell({
   surfaceLabel,
   chatDocked,
   chatDock,
+  tabBar,
   children,
   workspaceTitle,
   visibleTiles,
@@ -89,7 +95,8 @@ export function AppShell({
 
       <Sidebar
         view={activeView}
-        setView={onNavigate}
+        onOpenParent={onOpenParent}
+        onOpenTab={onOpenTab}
         agentsCount={agentsCount}
         data={data}
         mode={sidebarMode}
@@ -134,10 +141,9 @@ export function AppShell({
         </div>
 
         <div className={`flex-1 min-h-0 overflow-hidden p-5 ${mainPaddingBottom}`}>
+          {tabBar}
           <SurfaceErrorBoundary key={surfaceKey} surface={surfaceLabel}>
-            <DockShell panelId="main-surface" panelTitle={surfaceLabel}>
-              {children}
-            </DockShell>
+            <SurfaceScrollHost>{children}</SurfaceScrollHost>
           </SurfaceErrorBoundary>
         </div>
 

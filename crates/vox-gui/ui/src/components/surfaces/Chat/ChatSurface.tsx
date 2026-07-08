@@ -13,6 +13,8 @@ import {
 } from './ChatExecutionRail';
 import { ChatSessionRail } from './ChatSessionRail';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
+import type { AttentionBudgetSnapshot } from '../../../types/tauri';
+import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
 import { SecretaryToast } from './SecretaryToast';
 import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } from '../../../transport';
 import { Matrix } from '../Matrix/Matrix';
@@ -43,6 +45,9 @@ interface ChatSurfaceProps {
   composer?: React.ReactNode;
   focusedFeedbackId?: string | null;
   gamifyEnabled?: boolean;
+  attention_budget?: AttentionBudgetSnapshot | null;
+  waitingQuestions?: number;
+  blockedTasks?: number;
 }
 
 export function ChatSurface({
@@ -62,6 +67,9 @@ export function ChatSurface({
   composer,
   focusedFeedbackId,
   gamifyEnabled,
+  attention_budget,
+  waitingQuestions = 0,
+  blockedTasks = 0,
 }: ChatSurfaceProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
@@ -252,7 +260,18 @@ export function ChatSurface({
           />
         )}
         {composer != null ? (
-          <div className="mt-auto shrink-0 border-t border-border-subtle pt-3">{composer}</div>
+          <div className="mt-auto shrink-0 border-t border-border-subtle pt-3">
+            {attention_budget ? (
+              <div className="mb-2 px-1" data-testid="chat-attention-meter">
+                <AttentionBudgetMeter
+                  budget={attention_budget}
+                  waitingQuestions={waitingQuestions}
+                  blockedTasks={blockedTasks}
+                />
+              </div>
+            ) : null}
+            {composer}
+          </div>
         ) : null}
       </div>
 

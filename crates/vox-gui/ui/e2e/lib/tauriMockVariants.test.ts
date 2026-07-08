@@ -32,10 +32,15 @@ async function withFakeWindow<T>(fn: (win: any) => Promise<T> | T): Promise<T> {
 }
 
 describe('installEmptyStateMock', () => {
-  it('sets vox_active_view in localStorage', async () => {
+  it('sets vox_workbench_tabs.v1 in localStorage', async () => {
     await withFakeWindow((win) => {
       installEmptyStateMock('dashboard');
-      expect(win.localStorage._storage['vox_active_view']).toBe(JSON.stringify('dashboard'));
+      const raw = win.localStorage._storage['vox_workbench_tabs.v1'];
+      expect(raw).toBeTruthy();
+      const parsed = JSON.parse(raw);
+      expect(parsed.activeTab).toBe('dashboard');
+      expect(parsed.openTabs).toContain('dashboard');
+      expect(parsed.openTabs).toContain('chat');
     });
   });
 

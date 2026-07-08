@@ -197,7 +197,11 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
         )}
       </div>
 
-      <ArchiveStatusSummary />
+      <ArchiveStatusSummary
+        onFetchError={(message) =>
+          pushToast({ tone: 'warn', title: 'Archive rollup', body: message, cause: 'backend-error' })
+        }
+      />
 
       {cost && (
         <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">

@@ -16,6 +16,7 @@ pub mod dynamic_mapping;
 pub mod execute;
 pub mod gamify;
 pub mod graphify;
+pub mod gui_db_pool;
 pub mod harness;
 pub mod harness_town;
 pub mod identity;

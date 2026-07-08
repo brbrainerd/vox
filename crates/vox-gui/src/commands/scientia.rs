@@ -1,8 +1,13 @@
 //! Typed Scientia-domain read commands (research sessions + publication manifests).
-//! Reads go directly to the canonical DB, mirroring the CLI handlers — no CLI
-//! stdout parsing and no dependency on the (disabled) HTTP gateway.
+//! Reads go through the shared [`GuiDbPool`] — no per-invoke connect.
+
+use std::sync::Arc;
 
 use tauri::Emitter;
+use tauri::State;
+use vox_db::VoxDb;
+
+use crate::commands::gui_db_pool::{GuiDbPool, map_db_err};
 
 #[derive(Debug, serde::Serialize)]
 pub struct ResearchSessionDto {
@@ -20,19 +25,16 @@ pub struct ResearchDetailDto {
     pub artifact_json: Option<String>,
 }
 
-async fn connect_canonical_db() -> Result<vox_db::VoxDb, String> {
-    vox_db::VoxDb::connect_canonical()
-        .await
-        .map_err(|e| e.to_string())
-}
-
 #[tauri::command]
-pub async fn list_research_sessions(limit: Option<u32>) -> Result<Vec<ResearchSessionDto>, String> {
-    let db = connect_canonical_db().await?;
+pub async fn list_research_sessions(
+    pool: State<'_, GuiDbPool>,
+    limit: Option<u32>,
+) -> Result<Vec<ResearchSessionDto>, String> {
+    let db = pool.handle()?;
     let rows = db
         .list_recent_research_sessions(limit.unwrap_or(20))
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(map_db_err)?;
     Ok(rows
         .iter()
         .map(|r| ResearchSessionDto {
@@ -46,17 +48,20 @@ pub async fn list_research_sessions(limit: Option<u32>) -> Result<Vec<ResearchSe
 }
 
 #[tauri::command]
-pub async fn get_research_session_detail(session_id: i64) -> Result<ResearchDetailDto, String> {
-    let db = connect_canonical_db().await?;
+pub async fn get_research_session_detail(
+    pool: State<'_, GuiDbPool>,
+    session_id: i64,
+) -> Result<ResearchDetailDto, String> {
+    let db = pool.handle()?;
     let s = db
         .get_research_session(session_id)
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(map_db_err)?
         .ok_or_else(|| format!("research session {session_id} not found"))?;
     let artifact = db
         .get_research_artifact(session_id)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(map_db_err)?;
     Ok(ResearchDetailDto {
         session: ResearchSessionDto {
             id: s.id,
@@ -81,15 +86,14 @@ pub struct PublicationManifestDto {
 
 #[tauri::command]
 pub async fn list_publication_manifests(
+    pool: State<'_, GuiDbPool>,
     limit: Option<u32>,
 ) -> Result<Vec<PublicationManifestDto>, String> {
-    let db = vox_db::VoxDb::connect_default()
-        .await
-        .map_err(|e| e.to_string())?;
+    let db = pool.handle()?;
     let manifests = db
         .list_publication_manifests(Some("scientia"), None, limit.unwrap_or(200) as i64)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(map_db_err)?;
     Ok(manifests
         .iter()
         .map(|m| PublicationManifestDto {
@@ -160,11 +164,11 @@ async fn scientia_queue_signal(db: &vox_db::VoxDb) -> Result<(u64, usize, usize)
     let manifests = db
         .list_publication_manifests(Some("scientia"), None, 500)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(map_db_err)?;
     let sessions = db
         .list_recent_research_sessions(200)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(map_db_err)?;
     fn fnv1a_mix(mut acc: u64, bytes: &[u8]) -> u64 {
         for &b in bytes {
             acc ^= b as u64;
@@ -199,20 +203,9 @@ async fn scientia_queue_signal(db: &vox_db::VoxDb) -> Result<(u64, usize, usize)
 /// UI's interval refresh into event-driven refresh. Resilient by design: a DB
 /// error is logged and retried on the next tick; the task never crashes the app.
 // toestub-ignore(skeleton/untested-pub-api) — spawns a background DB-watch task bridging Scientia-queue changes to Tauri events; covered by integration
-pub fn spawn_scientia_queue_stream(app_handle: tauri::AppHandle) {
+pub fn spawn_scientia_queue_stream(app_handle: tauri::AppHandle, db: Arc<VoxDb>) {
     tokio::spawn(async move {
         let mut last_signal: Option<u64> = None;
-        // Open the connection once outside the poll loop and reuse across ticks.
-        let db = loop {
-            match vox_db::VoxDb::connect_canonical().await {
-                Ok(db) => break db,
-                Err(e) => {
-                    tracing::debug!("scientia queue: db unavailable (will retry): {e}");
-                    tokio::time::sleep(std::time::Duration::from_millis(SCIENTIA_POLL_INTERVAL_MS))
-                        .await;
-                }
-            }
-        };
         loop {
             match scientia_queue_signal(&db).await {
                 Ok((signal, manifest_count, research_count)) => {
@@ -238,22 +231,9 @@ pub fn spawn_scientia_queue_stream(app_handle: tauri::AppHandle) {
 /// Spawn a background task that watches `scientia_discovery_inbox` for new row ids
 /// and emits [`SCIENTIA_DISCOVERY_SURFACED_EVENT`] for each newly-surfaced candidate.
 // toestub-ignore(skeleton/untested-pub-api) — spawns a background DB-watch task; covered by unit tests on diff logic
-pub fn spawn_discovery_surfaced_stream(app_handle: tauri::AppHandle) {
+pub fn spawn_discovery_surfaced_stream(app_handle: tauri::AppHandle, db: Arc<VoxDb>) {
     tokio::spawn(async move {
-        let mut last_max_id: i64 = 0;
-        let db = loop {
-            match vox_db::VoxDb::connect_canonical().await {
-                Ok(db) => {
-                    last_max_id = db.max_discovery_inbox_id().await.unwrap_or(0);
-                    break db;
-                }
-                Err(e) => {
-                    tracing::debug!("discovery surfaced: db unavailable (will retry): {e}");
-                    tokio::time::sleep(std::time::Duration::from_millis(SCIENTIA_POLL_INTERVAL_MS))
-                        .await;
-                }
-            }
-        };
+        let mut last_max_id: i64 = db.max_discovery_inbox_id().await.unwrap_or(0);
         loop {
             match db.max_discovery_inbox_id().await {
                 Ok(current_max) if current_max > last_max_id => {

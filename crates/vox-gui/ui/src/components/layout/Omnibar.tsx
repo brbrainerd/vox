@@ -13,6 +13,7 @@ import { querySearchableRegistry } from '../../lib/searchableRegistry';
 import {
   buildOmnibarFacets,
   omnibarRowsInOrder,
+  queryForFederatedSearch,
   type FacetKey,
   type GraphNeighbor,
   type OmnibarGraphResult,
@@ -161,10 +162,10 @@ export function Omnibar({
   const { search: searchFederated } = useFederatedSearchIndex(skillSources);
   const fedKinds = useMemo(() => federatedKindsForMode(prefixMode), [prefixMode]);
   const federated = useMemo(
-    () =>
-      effectiveQ.trim() && fedKinds.length > 0
-        ? searchFederated(effectiveQ, { kinds: fedKinds })
-        : [],
+    () => {
+      const q = queryForFederatedSearch(effectiveQ);
+      return q && fedKinds.length > 0 ? searchFederated(q, { kinds: fedKinds }) : [];
+    },
     [searchFederated, effectiveQ, fedKinds],
   );
 
@@ -207,6 +208,7 @@ export function Omnibar({
   const facets = useMemo(() => {
     const base = buildOmnibarFacets({
       query: effectiveQ,
+      prefixMode,
       federated,
       backendHits,
       manifest,
@@ -221,7 +223,7 @@ export function Omnibar({
         ? { ...f, rows: [...agentRows, ...f.rows] }
         : f,
     );
-  }, [effectiveQ, federated, backendHits, manifest, runtimeHits, graph, agentRows]);
+  }, [effectiveQ, prefixMode, federated, backendHits, manifest, runtimeHits, graph, agentRows]);
   const rows = useMemo(() => omnibarRowsInOrder(facets), [facets]);
 
   const activateRow = useCallback(

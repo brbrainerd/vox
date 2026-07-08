@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -22,7 +22,8 @@ import { LanguageProvider } from '../../hooks/useLanguage';
 
 const baseProps = {
   view: 'dashboard',
-  setView: vi.fn(),
+  onOpenParent: vi.fn(),
+  onOpenTab: vi.fn(),
   agentsCount: 2,
   data: {
     agents: [],
@@ -97,6 +98,13 @@ describe('Sidebar has no nav filter', () => {
     renderSidebar();
     expect(screen.getByRole('button', { name: 'Chat' })).toBeDefined();
     expect(screen.getByRole('button', { name: /Agents/ })).toBeDefined();
+  });
+
+  it('workspace nav calls onOpenParent with workspace key', () => {
+    const onOpenParent = vi.fn();
+    renderSidebar({ onOpenParent });
+    fireEvent.click(screen.getByRole('button', { name: /Workspace/i }));
+    expect(onOpenParent).toHaveBeenCalledWith('workspace');
   });
 });
 

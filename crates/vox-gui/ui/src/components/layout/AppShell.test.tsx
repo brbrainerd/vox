@@ -24,9 +24,9 @@ vi.mock('./StatusBar', () => ({
   StatusBar: () => <div data-testid="status-bar" role="status" aria-label="Operator status" />,
 }));
 
-vi.mock('./DockShell', () => ({
-  DockShell: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dock-shell">{children}</div>
+vi.mock('./SurfaceScrollHost', () => ({
+  SurfaceScrollHost: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="surface-scroll-host">{children}</div>
   ),
 }));
 
@@ -41,6 +41,8 @@ vi.mock('../ui/ErrorBoundary', () => ({
 const baseProps = {
   activeView: 'dashboard',
   onNavigate: vi.fn(),
+  onOpenParent: vi.fn(),
+  onOpenTab: vi.fn(),
   sidebarMode: 'default' as const,
   setSidebarMode: vi.fn(),
   agentsCount: 0,

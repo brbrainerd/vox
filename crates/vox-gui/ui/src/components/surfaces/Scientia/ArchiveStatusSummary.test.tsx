@@ -40,7 +40,7 @@ describe('ArchiveStatusSummary', () => {
     await waitFor(() => {
       expect(screen.getByText('Zenodo DOI')).toBeTruthy();
       expect(screen.getByText('SWHID')).toBeTruthy();
-      expect(screen.getByText('Not deposited')).toBeTruthy();
+      expect(screen.getByText('Pending deposit (sample)')).toBeTruthy();
     });
   });
 });

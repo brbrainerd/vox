@@ -14,7 +14,6 @@ import {
   useOrchestratorStatus,
 } from '../../../hooks/useOrchestratorStatus';
 import type { OrchestratorStatus, RawAgentSummary, Toast } from '../../../types/tauri';
-import { viz } from '../../../lib/visualTokens';
 
 function agentsFromStatus(status: OrchestratorStatus | undefined): AgentChip[] {
   return (status?.agents ?? []).map((a: RawAgentSummary) => ({
@@ -76,9 +75,6 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
     setOpenAgentId(agentId);
   };
 
-  // What "send to agent" / "copy block" act on: the latest completed shell
-  // block (command + output + exit) when integration is active, else the last
-  // typed line.
   const blockBody = renderBlockForAgent(latestBlock, lastLine);
 
   const copyLastBlock = async () => {
@@ -103,28 +99,24 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+    <div className="flex h-full min-h-0 flex-col" data-testid="console-root">
+      <div className="flex shrink-0 items-center justify-between">
+        <div className="min-w-0 flex-1">
           <AgentStrip agents={agents} onOpen={openAgentTab} />
           {orchError && (
-            <div
-              role="alert"
-              aria-live="polite"
-              style={{ padding: '0 10px 4px', fontSize: 11, color: viz.amber400 }}
-            >
+            <div role="alert" aria-live="polite" className="px-2.5 pb-1 text-[11px] text-amber-400">
               {orchError}
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 6, margin: '0 10px' }}>
-          <Button onClick={copyLastBlock} style={{ fontSize: 11 }}>
+        <div className="mx-2.5 flex gap-1.5">
+          <Button onClick={copyLastBlock} className="text-[11px]">
             copy last block
           </Button>
           <Button
             disabled={agents.length === 0}
             onClick={() => setComposing(true)}
-            style={{ fontSize: 11 }}
+            className="text-[11px]"
           >
             send to agent
           </Button>
@@ -138,19 +130,10 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
           onClose={() => setComposing(false)}
         />
       )}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {openAgentId && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '4px 10px',
-                fontSize: 11,
-                borderBottom: '1px solid rgba(255,255,255,0.08)',
-              }}
-            >
+            <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-2.5 py-1 text-[11px]">
               <span>agent {openAgentId}</span>
               <Button
                 onClick={() => setOpenAgentId(null)}
@@ -160,13 +143,13 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
               </Button>
             </div>
           )}
-          <div style={{ flex: 1, minHeight: 0, display: openAgentId ? 'block' : 'none' }}>
-            {openAgentId && <AgentTab agentId={openAgentId} />}
+          <div className={`min-h-0 flex-1 ${openAgentId ? 'block' : 'hidden'}`}>
+            {openAgentId ? <AgentTab agentId={openAgentId} /> : null}
           </div>
-          <div style={{ flex: 1, minHeight: 0, display: openAgentId ? 'none' : 'block' }}>
+          <div className={`min-h-0 flex-1 ${openAgentId ? 'hidden' : 'block'}`}>
             <TerminalTab tabId={tabId} pendingLine={pending} onBlock={handleBlock} />
           </div>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '6px 10px' }}>
+          <div className="shrink-0 border-t border-white/10 px-2.5 py-1.5">
             <InputEditor
               onSubmit={submit}
               onActiveSuggestion={setActiveAction}

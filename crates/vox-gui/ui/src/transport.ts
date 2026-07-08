@@ -488,6 +488,10 @@ class VoxTransport {
     return invoke('vox_docs_index');
   }
 
+  readDocMarkdown(path: string): Promise<string> {
+    return invoke('read_doc_markdown', { path });
+  }
+
   /** VG-1 build-time GUI content manifest (gui-content-manifest.json). */
   voxContentManifest(): Promise<import('./hooks/useContentManifest').ContentManifestEntry[]> {
     return invoke('vox_content_manifest');
