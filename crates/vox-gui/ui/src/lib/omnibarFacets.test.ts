@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildOmnibarFacets, FACET_CAP, type OmnibarSources } from './omnibarFacets';
+import { buildOmnibarFacets, FACET_CAP, queryForFederatedSearch, shouldIncludeDocsInOmnibar, type OmnibarSources } from './omnibarFacets';
+import { searchFederatedIndex } from './federatedSearchIndex';
 import type { FederatedIndexEntry } from './federatedSearchIndex';
 import type { UnifiedHit } from '../components/surfaces/Search/searchHelpers';
 import type { ContentManifestEntry } from '../hooks/useContentManifest';
@@ -65,6 +66,7 @@ describe('buildOmnibarFacets', () => {
   it('buckets sources into the five facets with provenance labels', () => {
     const facets = buildOmnibarFacets(
       sources({
+        query: 'help pending',
         federated: [surface('approvals', 'Approvals'), docEntry('a.md', 'Approvals workflow')],
         backendHits: [cmdHit('vox_resolve_approval')],
         manifest: [manifestRow('activity')],
@@ -117,5 +119,36 @@ describe('buildOmnibarFacets', () => {
     );
     const order = facets.flatMap((f) => f.rows);
     expect(order[0].facet).toBe('surfaces');
+  });
+
+  it('hides doc facet unless the query is help-oriented', () => {
+    const hidden = buildOmnibarFacets(
+      sources({ query: 'pending', federated: [docEntry('a.md', 'Guide')] }),
+    );
+    expect(hidden.find((f) => f.key === 'docs')!.rows).toHaveLength(0);
+
+    const shown = buildOmnibarFacets(
+      sources({ query: 'help cli', federated: [docEntry('a.md', 'CLI guide')] }),
+    );
+    expect(shown.find((f) => f.key === 'docs')!.rows).toHaveLength(1);
+  });
+
+  it('queryForFederatedSearch strips help prefix for doc matching', () => {
+    expect(queryForFederatedSearch('help cli')).toBe('cli');
+    const entries = [docEntry('docs/src/reference/cli.md', 'CLI Reference')];
+    const hits = searchFederatedIndex(entries, queryForFederatedSearch('help cli'), { kinds: ['doc'] });
+    expect(hits).toHaveLength(1);
+  });
+
+  it('shows docs facet for skills prefix mode', () => {
+    const shown = buildOmnibarFacets(
+      sources({
+        query: 'cli',
+        prefixMode: 'skills',
+        federated: [docEntry('a.md', 'CLI guide')],
+      }),
+    );
+    expect(shown.find((f) => f.key === 'docs')!.rows).toHaveLength(1);
+    expect(shouldIncludeDocsInOmnibar('cli', { prefixMode: 'skills' })).toBe(true);
   });
 });

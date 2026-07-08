@@ -2,10 +2,12 @@ import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } 
 import { invoke } from '@tauri-apps/api/core';
 import { AppShell } from './components/layout/AppShell';
 import { SidebarMode } from './components/layout/Sidebar';
-import { AttentionStrip } from './components/layout/AttentionStrip';
 import { type HudMode } from './components/layout/TopHud';
-import { renderSurfaceView } from './components/layout/surfaceComponents';
-import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDiscoveryPresetForLegacyKey } from './lib/navigation';
+import { renderSurfaceContent } from './components/layout/surfaceComponents';
+import { DocReader } from './components/surfaces/DocReader/DocReader';
+import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDiscoveryPresetForLegacyKey, labelForNavKey, tabLabelFor, DEFAULT_CHILD_BY_PARENT } from './lib/navigation';
+import { WorkbenchTabBar } from './components/layout/WorkbenchTabBar';
+import { useWorkbenchTabs, isDocTab, docPathFromTab, isPinnedTab } from './hooks/useWorkbenchTabs';
 import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
@@ -189,7 +191,9 @@ function mapAlert(a: RawLudusAlert): LudusAlert {
 export default function App() {
   const [data, setData] = useState<DashboardData>(INITIAL_DATA);
   const [kpis, setKpis] = useState(INITIAL_KPIS);
-  const [activeView, setActiveView] = useLocalStorage<View>('vox_active_view', 'dashboard');
+  const workbench = useWorkbenchTabs();
+  const { openTab, openDocTab, closeTab, openTabs, activeTab, activeViewKey, docLabels } = workbench;
+  const activeView = (activeViewKey ?? 'dashboard') as View;
   const [sidebarMode, setSidebarMode] = useLocalStorage<SidebarMode>(
     SHELL_PREFERENCE_KEYS.sidebarMode,
     'default',
@@ -366,7 +370,7 @@ export default function App() {
         redirectSearchViewToOmnibar(fromHash, {
           openOmnibar: () => setIsCommandOpen(true),
           navigateTo: (vk) => {
-            setActiveView(vk as View);
+            openTab(vk);
             syncViewToLocation(vk);
           },
           fallbackChild: 'memory',
@@ -374,17 +378,17 @@ export default function App() {
       ) {
         return;
       }
-      if (fromHash && LEGACY_VIEWS.includes(fromHash)) {
+      if (fromHash && isKnownView(fromHash)) {
         seedDiscoveryPresetForLegacyKey(fromHash);
         const { child } = resolveNavigation(fromHash);
-        setActiveView(child as View);
+        openTab(child);
         syncViewToLocation(child);
         return;
       }
-      if (view && LEGACY_VIEWS.includes(view)) {
+      if (view && isKnownView(view)) {
         seedDiscoveryPresetForLegacyKey(view);
         const { child } = resolveNavigation(view);
-        setActiveView(child as View);
+        openTab(child);
         syncViewToLocation(child);
       }
     }).catch(() => {});
@@ -533,9 +537,14 @@ export default function App() {
   const navigateTo = useCallback((viewKey: string) => {
     seedDiscoveryPresetForLegacyKey(viewKey);
     const { child } = resolveNavigation(viewKey);
-    setActiveView(child as View);
+    openTab(child);
     syncViewToLocation(child);
-  }, [setActiveView]);
+  }, [openTab]);
+
+  const openParentNav = useCallback((parentKey: string) => {
+    const child = DEFAULT_CHILD_BY_PARENT[parentKey] ?? parentKey;
+    navigateTo(child);
+  }, [navigateTo]);
 
   const [focusedFeedbackId, setFocusedFeedbackId] = useState<string | null>(null);
 
@@ -579,7 +588,7 @@ export default function App() {
         redirectSearchViewToOmnibar(fromHash, {
           openOmnibar: () => setIsCommandOpen(true),
           navigateTo: (vk) => {
-            setActiveView(vk as View);
+            openTab(vk);
             syncViewToLocation(vk);
           },
           fallbackChild: 'memory',
@@ -587,15 +596,16 @@ export default function App() {
       ) {
         return;
       }
-      if (fromHash && LEGACY_VIEWS.includes(fromHash)) {
+      if (fromHash) {
         seedDiscoveryPresetForLegacyKey(fromHash);
         const { child } = resolveNavigation(fromHash);
-        setActiveView(child as View);
+        openTab(child);
+        syncViewToLocation(child);
       }
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, [setActiveView]);
+  }, [openTab]);
 
   // ── Cross-surface deep-link: a surface may request navigation to another
   // surface (optionally seeding a value) by dispatching a `vox://navigate-surface`
@@ -977,7 +987,28 @@ export default function App() {
     }
   }, [data, installedSkillEntries, handlePause, handleResume, handleAckAlert, handleLoquelaSubmit, pushToast, navigateTo, focusComposer]);
 
-  const nav = resolveNavigation(activeView);
+
+  const workbenchTabBar = (
+    <WorkbenchTabBar
+      tabs={openTabs.map((id) => ({
+        id,
+        label: isDocTab(id)
+          ? (docLabels[id] ?? docPathFromTab(id).split('/').pop()?.replace(/\.md$/i, '') ?? 'Doc')
+          : tabLabelFor(id),
+        badge: id === 'chat' && attention.totalCount > 0 ? attention.totalCount : undefined,
+        pinned: isPinnedTab(id),
+      }))}
+      activeTab={activeTab}
+      onSelect={(id) => {
+        if (isDocTab(id)) {
+          openDocTab(docPathFromTab(id));
+        } else {
+          navigateTo(id);
+        }
+      }}
+      onClose={closeTab}
+    />
+  );
 
   const chatExecutionKpis = useMemo(
     () => ({
@@ -1067,8 +1098,6 @@ export default function App() {
       navigateTo('console');
     },
     attention_budget: orchQuery.data?.attention_budget,
-    activeChild: nav.child,
-    onChildChange: (vk: string) => navigateTo(vk),
     activeSessionId,
     onSessionChange: setActiveSessionId,
     chatMessages: activeChatMessages,
@@ -1091,7 +1120,9 @@ export default function App() {
     attention,
   };
 
-  const mainSurface = renderSurfaceView(nav.parent, surfaceProps);
+  const mainSurface = isDocTab(activeTab ?? '')
+    ? <DocReader tabId={activeTab!} />
+    : renderSurfaceContent(activeView, surfaceProps);
 
   const chatDock = (
     <>
@@ -1110,10 +1141,11 @@ export default function App() {
 
   return (
     <>
-      <AttentionStrip budget={orchQuery.data?.attention_budget} waitingQuestions={attention.needsYou.length} blockedTasks={attention.blockedTasksCount} />
       <AppShell
         activeView={activeView}
         onNavigate={(v) => navigateTo(v)}
+        onOpenParent={openParentNav}
+        onOpenTab={(v) => navigateTo(v)}
         sidebarMode={sidebarMode}
         setSidebarMode={setSidebarMode}
         agentsCount={data.agents.filter((a) => a.phase !== 'Idle').length}
@@ -1131,10 +1163,11 @@ export default function App() {
         liveFreshMs={LIVE_EVENT_FRESH_MS}
         hudMode={hudMode}
         setHudMode={setHudMode}
-        surfaceKey={`${nav.parent}-${nav.child}`}
-        surfaceLabel={nav.child}
+        surfaceKey={activeTab ?? activeView}
+        surfaceLabel={isDocTab(activeTab ?? '') ? 'Doc' : labelForNavKey(activeView)}
         chatDocked={chatDocked}
         chatDock={chatDock}
+        tabBar={workbenchTabBar}
         workspaceTitle={workspaceTitle}
         visibleTiles={visibleTiles}
         activeModel={activeModel}
@@ -1176,9 +1209,7 @@ export default function App() {
           navigateTo('chat');
           handleLoquelaSubmit({ description: query, session_id: activeSessionId });
         }}
-        onOpenDoc={(path) => {
-          voxTransport.openLocator({ kind: 'file', value: path }).catch(() => {});
-        }}
+        onOpenDoc={(path) => openDocTab(path)}
         agents={data.agents}
         skills={installedSkillEntries}
         gamifyEnabled={gamifySettings.enabled}

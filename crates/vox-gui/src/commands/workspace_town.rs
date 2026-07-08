@@ -101,10 +101,10 @@ static CACHE: Mutex<Option<TownScanDto>> = Mutex::new(None);
 #[tauri::command]
 pub async fn workspace_town_scan() -> Result<TownScanDto, String> {
     let now = chrono::Utc::now().timestamp_millis();
-    if let Some(cached) = CACHE.lock().unwrap().clone() {
-        if now - cached.scanned_at_ms < CACHE_TTL_MS {
-            return Ok(cached);
-        }
+    if let Some(cached) = CACHE.lock().unwrap().clone()
+        && now - cached.scanned_at_ms < CACHE_TTL_MS
+    {
+        return Ok(cached);
     }
     let root = std::env::current_dir().map_err(|e| e.to_string())?;
     let fresh = tokio::task::spawn_blocking(move || scan(&root))

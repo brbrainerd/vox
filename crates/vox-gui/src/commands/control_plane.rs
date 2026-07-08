@@ -92,13 +92,13 @@ pub async fn submit_orchestrator_task(
     if let Some(risk) = input.risk.as_deref().filter(|r| !r.trim().is_empty()) {
         enqueue_hints.insert("risk".into(), serde_json::json!(risk));
     }
-    if !enqueue_hints.is_empty() {
-        if let Some(obj) = params.as_object_mut() {
-            obj.insert(
-                "enqueue_hints".into(),
-                serde_json::Value::Object(enqueue_hints),
-            );
-        }
+    if !enqueue_hints.is_empty()
+        && let Some(obj) = params.as_object_mut()
+    {
+        obj.insert(
+            "enqueue_hints".into(),
+            serde_json::Value::Object(enqueue_hints),
+        );
     }
     let response =
         call_orchestrator_daemon(&daemon, orch_daemon_method::SUBMIT_TASK, params).await?;

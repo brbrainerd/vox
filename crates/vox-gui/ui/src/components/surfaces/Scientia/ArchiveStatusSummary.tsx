@@ -29,7 +29,11 @@ function depositedCount(rows: ArchiveRollup[]): { zenodo: number; swh: number; p
  * Compact archive deposit rollup for the Scientia dashboard: samples recent
  * scientia manifests and shows Zenodo / SWHID coverage (read-only).
  */
-export function ArchiveStatusSummary() {
+interface ArchiveStatusSummaryProps {
+  onFetchError?: (message: string) => void;
+}
+
+export function ArchiveStatusSummary({ onFetchError }: ArchiveStatusSummaryProps) {
   const [rows, setRows] = useState<ArchiveRollup[] | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -46,12 +50,13 @@ export function ArchiveStatusSummary() {
         })),
       );
       setRows(rollups);
-    } catch {
+    } catch (err) {
       setRows([]);
+      onFetchError?.(err instanceof Error ? err.message : 'Archive rollup failed');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onFetchError]);
 
   useEffect(() => {
     void load();
@@ -92,7 +97,12 @@ export function ArchiveStatusSummary() {
             </div>
             <div className="rounded-lg border border-border-subtle bg-overlay-subtle px-2 py-1.5 text-center">
               <div className="font-mono text-lg text-amber-300">{counts.pending}</div>
-              <div className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Not deposited</div>
+              <div
+                className="font-mono text-[9px] uppercase tracking-wider text-text-muted"
+                title="Sample of recent publications without Zenodo DOI or SWHID"
+              >
+                Pending deposit (sample)
+              </div>
             </div>
           </div>
 

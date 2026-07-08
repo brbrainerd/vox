@@ -145,6 +145,30 @@ describe('ChatSurface', () => {
       expect(screen.getByText(/Fix the broken authentication/)).toBeInTheDocument();
     });
   });
+
+  it('shows AttentionBudgetMeter above composer when budget present', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          activeSessionId="s1"
+          composer={<div data-testid="loquela-composer">composer</div>}
+          attention_budget={{
+            max_attention_ms: 600_000,
+            spent_ms: 300_000,
+            total_requests: 10,
+            auto_approved: 8,
+            rejected: 1,
+            interrupt_freq_per_hour: 5,
+            last_interrupt_ms: 0,
+            inbox_suppressed_count: 2,
+          }}
+        />
+      </LanguageProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('meter', { name: /attention spent/i })).toBeDefined();
+    });
+    expect(screen.getByTestId('chat-attention-meter')).toBeDefined();
+  });
 });
-
-

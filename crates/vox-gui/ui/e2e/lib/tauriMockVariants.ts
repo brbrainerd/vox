@@ -72,7 +72,13 @@ export function installEmptyStateMock(viewKey: string): void {
   }
 
   try {
-    window.localStorage.setItem('vox_active_view', JSON.stringify(viewKey));
+    window.localStorage.setItem(
+      'vox_workbench_tabs.v1',
+      JSON.stringify({
+        openTabs: Array.from(new Set(['chat', viewKey])),
+        activeTab: viewKey,
+      }),
+    );
     window.localStorage.setItem('vox_sidebar_mode', 'default');
   } catch { /* sandboxed contexts may deny localStorage */ }
   (window as any).__TAURI_CALLS__ = [];
@@ -131,7 +137,13 @@ export function installErrorStateMock(viewKey: string): void {
   }
 
   try {
-    window.localStorage.setItem('vox_active_view', JSON.stringify(viewKey));
+    window.localStorage.setItem(
+      'vox_workbench_tabs.v1',
+      JSON.stringify({
+        openTabs: Array.from(new Set(['chat', viewKey])),
+        activeTab: viewKey,
+      }),
+    );
     window.localStorage.setItem('vox_sidebar_mode', 'default');
   } catch { /* sandboxed contexts may deny localStorage */ }
   (window as any).__TAURI_CALLS__ = [];

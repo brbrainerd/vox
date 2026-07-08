@@ -847,7 +847,6 @@ mod hopper_tests {
 }
 
 #[cfg(test)]
-
 mod budget_tests {
     use super::*;
 

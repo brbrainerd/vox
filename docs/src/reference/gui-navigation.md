@@ -26,15 +26,34 @@ The operator console compresses legacy sidebar entries into **nine surfaces** pl
 
 Legacy view keys (`approvals`, `flow`, `catalog`, …) still deep-link: they open the correct parent and inner tab.
 
+## Workbench tabs (Axis, July 2026)
+
+Each **leaf surface** opens as its own workbench tab in the header stack. The sidebar opens the **default child** for a parent (for example Workspace → Console). Open tabs persist under `vox_workbench_tabs.v1`; the location hash `#view=<key>` stays in sync with the active tab.
+
+```text
+┌ Sidebar ─┬─ TopHud ────────────────────────────────────────────────┐
+│          ├─ WorkbenchTabBar (open leaf tabs; close non-pinned)       │
+│          ├─ StatusBar                                                │
+│          ├─ Active surface (`SurfaceScrollHost` — single scrollport)   │
+└──────────┴──────────────────────────────────────────────────────────┘
+```
+
+- **Pinned by default:** Chat. Dashboard is opened on first run when no saved state exists.
+- **Documentation:** Help docs open as `doc:<path>` tabs via Omnibar (`/help …` queries) or `read_doc_markdown` IPC; in-app `DocReader` renders markdown.
+- **Attention budget:** shown only on the Chat tab (composer meter), not as a global strip.
+- **Legacy inner tabs (`ParentSurface` / `SubTabs`)** are retired for primary navigation — use workbench tabs and sidebar parents instead.
+
+E2E visual audit: `pnpm exec playwright test e2e/workbench-tabs.spec.ts e2e/screenshots.spec.ts --project=chromium`.
+
 ## Shell chrome
 
 Operator surfaces share a fixed header stack inside `AppShell` (sidebar left, chrome + surface right):
 
 ```text
 ┌ Sidebar ─┬─ TopHud (KPI tiles, OpenRouter spend, ⌘K trigger) ─────────┐
-│          ├─ Breadcrumb › inner tabs                                    │
+│          ├─ WorkbenchTabBar (open surfaces)                            │
 │          ├─ StatusBar (agents · queue · budget · mesh · model · live)  │
-│          ├─ Active surface (`DockShell` / dockview panels)             │
+│          ├─ Active surface (`SurfaceScrollHost`)                       │
 └──────────┴────────────────────────────────────────────────────────────┘
 ```
 

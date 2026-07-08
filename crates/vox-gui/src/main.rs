@@ -60,6 +60,15 @@ async fn main() {
             commands::browser::BrowserState::default(),
         ))
         .setup(|app| {
+            let pool = tauri::async_runtime::block_on(
+                commands::gui_db_pool::GuiDbPool::connect_workspace(),
+            );
+            if let Ok(db) = pool.handle() {
+                commands::scientia::spawn_scientia_queue_stream(app.handle().clone(), db.clone());
+                commands::scientia::spawn_discovery_surfaced_stream(app.handle().clone(), db);
+            }
+            app.manage(pool);
+
             // Single persistent orchestrator daemon shared by tool calls,
             // approvals, and the status/event streams.
             let daemon = app
@@ -81,10 +90,6 @@ async fn main() {
             // only checked reactively the next time a stream/command touches
             // the daemon.
             daemon.clone().spawn_supervisor();
-            // F2: start the live Scientia-queue watcher, emitting a
-            // "vox://scientia-queue" ping when the DB-backed queue changes.
-            commands::scientia::spawn_scientia_queue_stream(app.handle().clone());
-            commands::scientia::spawn_discovery_surfaced_stream(app.handle().clone());
             let daemon = app
                 .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
                 .inner()
@@ -163,6 +168,7 @@ async fn main() {
             commands::llm_settings::set_llm_config,
             commands::llm_settings::openrouter_key_status,
             commands::docs_index::vox_docs_index,
+            commands::docs_index::read_doc_markdown,
             commands::orchestrator::get_orchestrator_status,
             commands::orchestrator::get_orchestrator_status_bin,
             commands::orchestrator::set_orchestrator_config,

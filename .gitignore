@@ -44,6 +44,14 @@ docs-astro/public/.well-known
 # Per honest-completion-plan §3.x.
 /contracts/reports/llm-panel-cache/
 
+# GUI visual AI review — per-run dated JSON reports are CI upload artifacts only.
+# Committed SSOT: cache.v1.json (+ ledger.jsonl when present). See docs/src/architecture/gui-visual-ai-review.md.
+/contracts/reports/gui-visual-review/*.json
+!/contracts/reports/gui-visual-review/cache.v1.json
+
+# Playwright HTML report (local e2e runs; never commit)
+**/playwright-report/
+
 # === SCRATCH / EPHEMERAL / LOGS ===
 .tmp_metadata.json
 scratch/*

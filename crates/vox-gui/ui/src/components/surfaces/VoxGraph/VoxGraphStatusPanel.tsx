@@ -69,6 +69,7 @@ function RebuildButton({ corpusId }: { corpusId: string }) {
 
 export function VoxGraphStatusPanel() {
   const { data, isLoading, isError, error } = useVoxGraphStatus();
+  const corpusHealthLabel = useLabel('vg-corpus-health');
 
   if (isLoading) {
     return (
@@ -93,7 +94,7 @@ export function VoxGraphStatusPanel() {
   return (
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="ds-section-head">{useLabel('vg-corpus-health')}</h2>
+        <h2 className="ds-section-head">{corpusHealthLabel}</h2>
         <span className="font-mono text-[10px] text-zinc-500">
           Default: {data.default_corpus_id}
         </span>

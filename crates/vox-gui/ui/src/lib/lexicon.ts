@@ -107,3 +107,9 @@ export function currentLang(): Lang {
     return 'en';
   }
 }
+
+/** Sidebar top-level parent label (matches `Sidebar` navLabelFor). */
+export function sidebarParentLabel(parentKey: string, lang: Lang = 'en'): string {
+  const lexKey = LEXICON[`nav:${parentKey}`] ? `nav:${parentKey}` : parentKey;
+  return labelFor(lexKey, lang);
+}

@@ -168,6 +168,11 @@ export function labelForNavKey(key: string): string {
   return NAV_LABELS[key] ?? key.replace(/-/g, ' ');
 }
 
+/** Short label for workbench tab bar chips. */
+export function tabLabelFor(viewKey: string): string {
+  return labelForNavKey(viewKey);
+}
+
 export interface BreadcrumbSegment {
   key: string;
   label: string;

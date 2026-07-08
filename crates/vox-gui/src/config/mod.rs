@@ -13,6 +13,7 @@ pub const AGENT_EVENTS_CHANNEL_CAP: usize = 256;
 /// One field entry in the generated settings catalog.
 /// Regenerate with: `vox ci config-gui-codegen --fields`
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)] // consumed by Settings IPC wiring (planned); catalog SSOT for codegen
 pub struct GeneratedField {
     pub key: &'static str,
     pub label: &'static str,
@@ -28,4 +29,5 @@ pub struct GeneratedField {
 
 /// The generated settings catalog — a static view over CONFIG_KEYS.
 /// DO NOT EDIT: regenerate with `vox ci config-gui-codegen --fields`
+#[allow(dead_code)]
 pub const GENERATED_FIELDS: &[GeneratedField] = include!("generated_fields.rs");

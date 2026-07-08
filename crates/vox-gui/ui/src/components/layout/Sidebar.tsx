@@ -5,11 +5,11 @@ import { Icon } from '../ui/Icons';
 import { AxisMark } from '../ui/AxisMark';
 import { DashboardData } from '../../types/dashboard';
 import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
-import { TOP_LEVEL_VIEWS, DEFAULT_CHILD_BY_PARENT, resolveNavigation } from '../../lib/navigation';
+import { TOP_LEVEL_VIEWS, resolveNavigation } from '../../lib/navigation';
 import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens';
 import { useFreshness } from '../../hooks/useFreshness';
 import { useLang } from '../../hooks/useLanguage';
-import { LEXICON, labelFor } from '../../lib/lexicon';
+import { LEXICON, labelFor, sidebarParentLabel } from '../../lib/lexicon';
 
 export type SidebarMode = 'rail' | 'default' | 'wide';
 
@@ -62,12 +62,12 @@ const TOP_NAV_ICON: Record<string, string> = {
   settings: 'settings',
 };
 
-const navLabelFor = (key: string, lang: 'en' | 'la') =>
-  labelFor(LEXICON[`nav:${key}`] ? `nav:${key}` : key, lang);
+const navLabelFor = (key: string, lang: 'en' | 'la') => sidebarParentLabel(key, lang);
 
 interface SidebarProps {
   view: string;
-  setView: (v: string) => void;
+  onOpenParent: (parentKey: string) => void;
+  onOpenTab: (viewKey: string) => void;
   agentsCount: number;
   data: DashboardData;
   mode: SidebarMode;
@@ -83,7 +83,8 @@ interface SidebarProps {
 
 export function Sidebar({
   view,
-  setView,
+  onOpenParent,
+  onOpenTab,
   agentsCount,
   mode,
   setMode,
@@ -179,7 +180,7 @@ export function Sidebar({
                 innerRef={isActive ? activeRef : undefined}
                 collapsed={collapsed}
                 active={isActive}
-                onClick={() => setView(DEFAULT_CHILD_BY_PARENT[key] ?? key)}
+                onClick={() => onOpenParent(key)}
                 icon={<IconCmp className="size-4" />}
                 label={label}
                 badge={badge}
@@ -196,7 +197,7 @@ export function Sidebar({
               <NavItem
                 collapsed={collapsed}
                 active={activeParent === 'settings'}
-                onClick={() => setView('settings')}
+                onClick={() => onOpenTab('settings')}
                 icon={<Icon.settings className="size-4" />}
                 label={labelFor('settings', lang)}
                 badge={policyBadge && policyBadge.count > 0 ? policyBadge.count : undefined}
@@ -212,7 +213,7 @@ export function Sidebar({
                 <NavItem
                   collapsed={collapsed}
                   active={view === 'coverage'}
-                  onClick={() => setView('coverage')}
+                  onClick={() => onOpenTab('coverage')}
                   icon={<Icon.check className="size-4" />}
                   label={labelFor('coverage', lang)}
                   ariaLabel="Coverage, CI surface gaps"

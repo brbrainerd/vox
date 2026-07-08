@@ -3,10 +3,15 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use vox_db::DbConnectSurface;
-use vox_db::connect_workspace_journey_optional;
+use tauri::State;
+use vox_db::VoxDb;
 
 use crate::commands::daemon::PersistentDaemon;
+use crate::commands::gui_db_pool::{GuiDbPool, map_db_err};
+
+fn pool_db(pool: &GuiDbPool) -> Result<Arc<VoxDb>, String> {
+    pool.handle()
+}
 
 #[derive(Debug, Serialize)]
 pub struct ChatSessionDto {
@@ -29,21 +34,18 @@ pub struct ChatMessageDto {
     pub model_id: Option<String>,
 }
 
-async fn gui_db() -> Result<vox_db::VoxDb, String> {
-    connect_workspace_journey_optional(DbConnectSurface::Runtime, true)
-        .await
-        .ok_or_else(|| "workspace database unavailable".to_string())
-}
-
 #[tauri::command]
-pub async fn chat_create_session(title: Option<String>) -> Result<ChatSessionDto, String> {
-    let db = gui_db().await?;
+pub async fn chat_create_session(
+    pool: State<'_, GuiDbPool>,
+    title: Option<String>,
+) -> Result<ChatSessionDto, String> {
+    let db = pool_db(&pool)?;
     let session_id = uuid::Uuid::new_v4().to_string();
     let title = title.unwrap_or_else(|| "New chat".to_string());
     let conv_id = db
         .chat_ensure_gui_session(&session_id, &title)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(map_db_err)?;
     Ok(ChatSessionDto {
         session_id,
         title,
@@ -54,13 +56,13 @@ pub async fn chat_create_session(title: Option<String>) -> Result<ChatSessionDto
 }
 
 #[tauri::command]
-pub async fn chat_list_sessions(limit: Option<usize>) -> Result<Vec<ChatSessionDto>, String> {
-    let db = gui_db().await?;
+pub async fn chat_list_sessions(
+    pool: State<'_, GuiDbPool>,
+    limit: Option<usize>,
+) -> Result<Vec<ChatSessionDto>, String> {
+    let db = pool_db(&pool)?;
     let lim = limit.unwrap_or(40);
-    let rows = db
-        .chat_list_gui_sessions(lim)
-        .await
-        .map_err(|e| e.to_string())?;
+    let rows = db.chat_list_gui_sessions(lim).await.map_err(map_db_err)?;
     Ok(rows
         .into_iter()
         .map(
@@ -77,15 +79,16 @@ pub async fn chat_list_sessions(limit: Option<usize>) -> Result<Vec<ChatSessionD
 
 #[tauri::command]
 pub async fn chat_get_messages(
+    pool: State<'_, GuiDbPool>,
     session_id: String,
     limit: Option<usize>,
 ) -> Result<Vec<ChatMessageDto>, String> {
-    let db = gui_db().await?;
+    let db = pool_db(&pool)?;
     let lim = limit.unwrap_or(500);
     let rows = db
         .chat_get_gui_messages(&session_id, lim)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(map_db_err)?;
     Ok(rows
         .into_iter()
         .map(|(id, role, content, created_at, payload)| {
@@ -130,6 +133,7 @@ pub struct ChatAppendInput {
 pub async fn chat_append_message<R: tauri::Runtime>(
     app_handle: tauri::AppHandle<R>,
     input: ChatAppendInput,
+    pool: State<'_, GuiDbPool>,
     daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<i64, String> {
     if input.session_id.trim().is_empty() {
@@ -138,11 +142,11 @@ pub async fn chat_append_message<R: tauri::Runtime>(
     if input.role.trim().is_empty() {
         return Err("role must not be empty".to_string());
     }
-    let db = gui_db().await?;
+    let db = pool_db(&pool)?;
     let conv_id = db
         .chat_ensure_gui_session(&input.session_id, "Chat")
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(map_db_err)?;
     let payload = match (&input.task_id, &input.model_id) {
         (None, None) => None,
         _ => {
@@ -159,7 +163,7 @@ pub async fn chat_append_message<R: tauri::Runtime>(
     let msg_id = db
         .chat_append_message(conv_id, &input.role, &input.content, payload.as_deref())
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(map_db_err)?;
 
     // Secretary: detect actionable intent in user messages and submit to hopper.
     // Fire-and-forget — errors here must never fail the chat message save.
@@ -223,29 +227,36 @@ pub async fn chat_append_message<R: tauri::Runtime>(
 }
 
 #[tauri::command]
-pub async fn chat_rename_session(session_id: String, title: String) -> Result<(), String> {
-    let db = gui_db().await?;
+pub async fn chat_rename_session(
+    pool: State<'_, GuiDbPool>,
+    session_id: String,
+    title: String,
+) -> Result<(), String> {
+    let db = pool_db(&pool)?;
     let conv_id = db
         .chat_find_gui_conversation_id(&session_id)
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(map_db_err)?
         .ok_or_else(|| "session not found".to_string())?;
     db.chat_rename_conversation(conv_id, &title)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(map_db_err)
 }
 
 #[tauri::command]
-pub async fn chat_archive_session(session_id: String) -> Result<(), String> {
-    let db = gui_db().await?;
+pub async fn chat_archive_session(
+    pool: State<'_, GuiDbPool>,
+    session_id: String,
+) -> Result<(), String> {
+    let db = pool_db(&pool)?;
     let conv_id = db
         .chat_find_gui_conversation_id(&session_id)
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(map_db_err)?
         .ok_or_else(|| "session not found".to_string())?;
     db.chat_archive_conversation(conv_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(map_db_err)
 }
 
 #[cfg(test)]
@@ -258,6 +269,7 @@ mod tests {
         use tauri::Manager;
         let app = tauri::test::mock_app();
         app.manage(Arc::new(PersistentDaemon::default()));
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
         let input = ChatAppendInput {
             session_id: "   ".to_string(),
             role: "user".to_string(),
@@ -266,7 +278,8 @@ mod tests {
             model_id: None,
         };
         let daemon = app.state::<Arc<PersistentDaemon>>();
-        let err = chat_append_message(app.handle().clone(), input, daemon)
+        let pool = app.state::<GuiDbPool>();
+        let err = chat_append_message(app.handle().clone(), input, pool, daemon)
             .await
             .expect_err("empty session");
         assert!(err.contains("session_id"));

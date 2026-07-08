@@ -22,7 +22,8 @@ import { LanguageProvider } from '../../hooks/useLanguage';
 
 const baseProps = {
   view: 'dashboard',
-  setView: vi.fn(),
+  onOpenParent: vi.fn(),
+  onOpenTab: vi.fn(),
   agentsCount: 2,
   data: { agents: [], stream: [], alerts: [], skills: [], peers: [], kpis: {} as any, contextChips: [] },
   mode: 'default' as const, // NOT 'rail' — the wide lockup

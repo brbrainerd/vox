@@ -24,7 +24,7 @@ pub fn quiet_command(program: impl AsRef<std::ffi::OsStr>) -> std::process::Comm
 ///
 /// Use this instead of [`tokio::process::Command::new`] for async spawns from
 /// the GUI backend.
-#[allow(unused_mut)]
+#[allow(unused_mut, dead_code)] // shared helper for upcoming async GUI subprocess spawns
 pub fn quiet_tokio_command(program: impl AsRef<std::ffi::OsStr>) -> tokio::process::Command {
     let mut cmd = tokio::process::Command::new(program);
     #[cfg(windows)]

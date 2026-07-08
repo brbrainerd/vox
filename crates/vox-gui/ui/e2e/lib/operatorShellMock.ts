@@ -11,7 +11,13 @@ export interface OperatorShellMockOptions {
 export function installOperatorShellMock(opts: OperatorShellMockOptions = {}): void {
   const initialView = opts.initialView ?? 'dashboard';
   try {
-    localStorage.setItem('vox_active_view', JSON.stringify(initialView));
+    localStorage.setItem(
+      'vox_workbench_tabs.v1',
+      JSON.stringify({
+        openTabs: Array.from(new Set(['chat', initialView])),
+        activeTab: initialView,
+      }),
+    );
     localStorage.setItem('vox_sidebar_mode', 'default');
   } catch {
     // sandboxed contexts may deny localStorage
@@ -112,6 +118,8 @@ export function installOperatorShellMock(opts: OperatorShellMockOptions = {}): v
           return { xpGranted: 0, lumensGranted: 0, achievementTitle: null };
         case 'vox_docs_index':
           return [];
+        case 'read_doc_markdown':
+          return `# ${String(args?.path ?? 'doc')}\n\nMock doc.`;
         case 'vox_search_query':
           return { hits: [], next_cursor: null, total: 0 };
         case 'chat_list_sessions':

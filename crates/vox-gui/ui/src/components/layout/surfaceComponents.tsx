@@ -19,7 +19,6 @@ import { MissionControlPanel } from '../surfaces/MissionControl/MissionControlPa
 import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
 import { PoliciesView } from '../surfaces/Policies/PoliciesView';
 import { NeedsYouSurface } from '../surfaces/NeedsYou/NeedsYouSurface';
-import { ParentSurface } from './ParentSurface';
 import { surfaceDecorators } from '../surfaces/decoratorRegistry';
 import { VoxGraphStatusPanel } from '../surfaces/VoxGraph/VoxGraphStatusPanel';
 import { Mercatus } from '../surfaces/Mercatus';
@@ -201,6 +200,9 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           composer={props.chatComposer}
           focusedFeedbackId={props.focusedFeedbackId}
           gamifyEnabled={props.gamifyEnabled}
+          attention_budget={props.attention_budget}
+          waitingQuestions={props.attention?.needsYou.length}
+          blockedTasks={props.attention?.blockedTasksCount}
         />
       );
     default:
@@ -208,17 +210,12 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
   }
 }
 
-export function renderSurfaceView(parentKey: string, props: SurfaceProps): React.ReactNode {
-  if (parentKey === 'chat') {
-    return childRenderer(props, 'chat');
-  }
-  const activeChild = props.activeChild ?? parentKey;
-  return (
-    <ParentSurface
-      parentKey={parentKey}
-      activeChild={activeChild}
-      onChildChange={props.onChildChange ?? (() => {})}
-      renderChild={(vk) => childRenderer(props, vk)}
-    />
-  );
+export function renderSurfaceContent(viewKey: string, props: SurfaceProps): React.ReactNode {
+  return childRenderer(props, viewKey);
+}
+
+/** @deprecated Prefer {@link renderSurfaceContent} with a leaf view key. */
+export function renderSurfaceView(_parentKey: string, props: SurfaceProps): React.ReactNode {
+  const viewKey = props.activeChild ?? _parentKey;
+  return renderSurfaceContent(viewKey, props);
 }

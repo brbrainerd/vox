@@ -1332,6 +1332,7 @@
     "pty_close",
     "pty_spawn",
     "pty_write",
+    "read_doc_markdown",
     "record_gui_event",
     "record_publication_claim_review",
     "remove_secret",

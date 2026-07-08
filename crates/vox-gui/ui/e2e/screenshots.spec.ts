@@ -55,6 +55,8 @@ test.describe('GUI visual audit', () => {
       await page.goto('/');
       // The app shell (sidebar nav) must mount before we judge the surface itself.
       await page.waitForSelector('nav', { timeout: 15_000 });
+      await expect(page.getByTestId('workbench-tab-bar')).toBeVisible();
+      await expect(page.getByTestId(`workbench-tab-${view}`)).toHaveAttribute('aria-selected', 'true');
       await page.waitForTimeout(1600);
       await page.screenshot({ path: `e2e/screens/${view}.png`, fullPage: true });
 
