@@ -21,9 +21,14 @@
 //! path yet (the module itself isn't even wired into `mod.rs` as `pub` —
 //! that happens once an orchestration entrypoint needs to call into it).
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
+use anyhow::{Context, Result};
 use regex::Regex;
+
+use super::constants::REPO_SLUG;
+use super::runner_scale::{MANAGED_PREFIX, gh_json, quiet_command};
 
 /// One parsed `oom-kill:constraint=CONSTRAINT_MEMCG` kernel log line — the
 /// single `dmesg` line that carries both the killed process name and the
@@ -161,6 +166,65 @@ pub fn append_seen(mut seen: Vec<String>, newly_seen: &[String]) -> Vec<String> 
     seen
 }
 
+// --- container name resolution ------------------------------------------
+
+fn container_event_regex() -> &'static Regex {
+    static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"container \S+ ([0-9a-f]{64}) \(.*?name=([^,)]+)")
+            .expect("static container-event regex must compile")
+    })
+}
+
+/// Parse `docker events` text into an id→name map, restricted to managed
+/// runner containers (`MANAGED_PREFIX`). Covers already-destroyed containers
+/// too (the whole point — an OOM-killed runner is gone by the time the next
+/// tick polls), since `docker events` is a historical log, not a live query.
+/// Pure — no IO.
+pub fn parse_container_names(events_text: &str) -> HashMap<String, String> {
+    let re = container_event_regex();
+    let mut map = HashMap::new();
+    for line in events_text.lines() {
+        let Some(caps) = re.captures(line) else {
+            continue;
+        };
+        let (Some(id), Some(name)) = (caps.get(1), caps.get(2)) else {
+            continue;
+        };
+        let name = name.as_str();
+        if name.starts_with(MANAGED_PREFIX) {
+            map.insert(id.as_str().to_string(), name.to_string());
+        }
+    }
+    map
+}
+
+/// Window (seconds) of `docker events` history to fetch when resolving a
+/// cgroup id to a container name. Comfortably covers the 2-minute autoscaler
+/// tick cadence with margin for a slow tick.
+const OOM_EVENTS_WINDOW_SECS: i64 = 600;
+
+/// Fetch `docker events` for the last [`OOM_EVENTS_WINDOW_SECS`], bounded by
+/// `--since`/`--until` (both unix seconds) so this returns immediately rather
+/// than streaming.
+fn fetch_recent_container_events(now: i64) -> Result<String> {
+    let since = (now - OOM_EVENTS_WINDOW_SECS).to_string();
+    let until = now.to_string();
+    let out = quiet_command("docker")
+        .args([
+            "events",
+            "--since",
+            &since,
+            "--until",
+            &until,
+            "--filter",
+            "type=container",
+        ])
+        .output()
+        .context("run docker events")?;
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -266,5 +330,31 @@ mod tests {
         let seen = vec!["a".to_string()];
         let updated = append_seen(seen, &["b".to_string()]);
         assert_eq!(updated, vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[test]
+    fn parses_container_names_from_real_docker_events_format() {
+        // Verbatim shape of real docker events output captured during the
+        // 2026-07-07 investigation (ids shortened-then-padded to stay valid
+        // 64-char hex for the fixture).
+        let a = "a".repeat(64);
+        let b = "b".repeat(64);
+        let text = format!(
+            "2026-07-07T08:14:08.590272062-04:00 container kill {a} (image=vox-ci-runner-local:latest, name=vox-runner-auto-6a4cebb2-0)\n\
+             2026-07-07T08:14:08.766164548-04:00 container die {a} (exitCode=137, name=vox-runner-auto-6a4cebb2-0)\n\
+             2026-07-07T08:14:10.722839758-04:00 container start {b} (name=vox-runner-auto-6a4ced91-0)\n\
+             2026-07-07T08:06:39.404509619-04:00 container exec_die cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc (name=vox_clickhouse)\n"
+        );
+        let names = parse_container_names(&text);
+        assert_eq!(names.get(a.as_str()), Some(&"vox-runner-auto-6a4cebb2-0".to_string()));
+        assert_eq!(names.get(b.as_str()), Some(&"vox-runner-auto-6a4ced91-0".to_string()));
+        // Non-managed containers (no MANAGED_PREFIX) must be filtered out --
+        // vox_clickhouse is real host traffic we don't care about here.
+        assert_eq!(names.len(), 2);
+    }
+
+    #[test]
+    fn parse_container_names_empty_on_no_matches() {
+        assert!(parse_container_names("no container events here\n").is_empty());
     }
 }

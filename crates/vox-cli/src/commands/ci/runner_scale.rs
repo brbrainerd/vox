@@ -34,7 +34,7 @@ use super::constants::REPO_SLUG;
 const REPO_URL: &str = "https://github.com/vox-foundation/vox";
 const RUNNER_IMAGE: &str = "vox-ci-runner-local:latest";
 /// Name prefix for autoscaler-managed runner containers.
-const MANAGED_PREFIX: &str = "vox-runner-auto-";
+pub(crate) const MANAGED_PREFIX: &str = "vox-runner-auto-";
 const RUNNER_LABELS: &str = "self-hosted,linux,x64,docker,browser";
 const CACHE_VOLUME: &str = "vox-ci-runner-cache";
 
