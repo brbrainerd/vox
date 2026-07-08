@@ -13,10 +13,11 @@
 //! Design: docs/superpowers/specs/2026-07-07-ci-runner-memory-budget-and-oom-visibility-design.md
 //!
 //! **Currently implemented in this file:** dmesg-line parsing
-//! (`parse_oom_events`) and dedup-persistence primitives (`read_oom_seen`/
-//! `write_oom_seen`/`new_events`/`append_seen`) — all pure or thin IO, no
-//! orchestration yet. Container-name resolution, GitHub job correlation, and
-//! PR comment composition/posting still land in follow-up tasks of the
+//! (`parse_oom_events`), dedup-persistence primitives (`read_oom_seen`/
+//! `write_oom_seen`/`new_events`/`append_seen`), and container-name
+//! resolution (`parse_container_names`/`fetch_recent_container_events`) — all
+//! pure or thin IO, no orchestration yet. GitHub job correlation and PR
+//! comment composition/posting still land in follow-up tasks of the
 //! implementation plan; nothing in this module is called from a live code
 //! path yet (the module itself isn't even wired into `mod.rs` as `pub` —
 //! that happens once an orchestration entrypoint needs to call into it).
@@ -24,11 +25,10 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use regex::Regex;
 
-use super::constants::REPO_SLUG;
-use super::runner_scale::{MANAGED_PREFIX, gh_json, quiet_command};
+use super::runner_scale::{MANAGED_PREFIX, quiet_command};
 
 /// One parsed `oom-kill:constraint=CONSTRAINT_MEMCG` kernel log line — the
 /// single `dmesg` line that carries both the killed process name and the
@@ -168,6 +168,11 @@ pub fn append_seen(mut seen: Vec<String>, newly_seen: &[String]) -> Vec<String> 
 
 // --- container name resolution ------------------------------------------
 
+/// `#[allow(dead_code)]`: only called from `parse_container_names` today,
+/// which is itself not yet called outside `#[cfg(test)]` — the orchestration
+/// task (`scan_and_report_oom_events`) later in the implementation plan is
+/// the first non-test caller. Remove this allow once that task lands.
+#[allow(dead_code)]
 fn container_event_regex() -> &'static Regex {
     static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     RE.get_or_init(|| {
@@ -181,6 +186,11 @@ fn container_event_regex() -> &'static Regex {
 /// too (the whole point — an OOM-killed runner is gone by the time the next
 /// tick polls), since `docker events` is a historical log, not a live query.
 /// Pure — no IO.
+///
+/// `#[allow(dead_code)]`: only called from tests today — the orchestration
+/// task (`scan_and_report_oom_events`) later in the implementation plan is
+/// the first non-test caller. Remove this allow once that task lands.
+#[allow(dead_code)]
 pub fn parse_container_names(events_text: &str) -> HashMap<String, String> {
     let re = container_event_regex();
     let mut map = HashMap::new();
@@ -202,11 +212,24 @@ pub fn parse_container_names(events_text: &str) -> HashMap<String, String> {
 /// Window (seconds) of `docker events` history to fetch when resolving a
 /// cgroup id to a container name. Comfortably covers the 2-minute autoscaler
 /// tick cadence with margin for a slow tick.
+///
+/// `#[allow(dead_code)]`: only referenced from [`fetch_recent_container_events`]
+/// today, which is itself not yet called outside `#[cfg(test)]` — the
+/// orchestration task (`scan_and_report_oom_events`) later in the
+/// implementation plan is the first non-test caller. Remove this allow once
+/// that task lands.
+#[allow(dead_code)]
 const OOM_EVENTS_WINDOW_SECS: i64 = 600;
 
 /// Fetch `docker events` for the last [`OOM_EVENTS_WINDOW_SECS`], bounded by
 /// `--since`/`--until` (both unix seconds) so this returns immediately rather
 /// than streaming.
+///
+/// `#[allow(dead_code)]`: not yet called outside `#[cfg(test)]` — the
+/// orchestration task (`scan_and_report_oom_events`) later in the
+/// implementation plan is the first caller. Remove this allow once that task
+/// lands.
+#[allow(dead_code)]
 fn fetch_recent_container_events(now: i64) -> Result<String> {
     let since = (now - OOM_EVENTS_WINDOW_SECS).to_string();
     let until = now.to_string();
@@ -222,6 +245,12 @@ fn fetch_recent_container_events(now: i64) -> Result<String> {
         ])
         .output()
         .context("run docker events")?;
+    if !out.status.success() {
+        return Err(anyhow!(
+            "docker events failed: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
