@@ -433,6 +433,119 @@ fn post_pr_comment(pr_number: u64, body: &str, dry_run: bool) -> Result<()> {
     Ok(())
 }
 
+// --- orchestration ---------------------------------------------------------
+
+/// Cap on how many fresh OOM events get correlated (and potentially posted) in a
+/// single tick. An OOM storm shouldn't fan out into dozens of sequential `gh api`
+/// calls inside one already-busy, time-boxed tick (the host's Task Scheduler entry
+/// kills the whole process past 2 minutes). Events past the cap are left
+/// unmarked-seen and simply get picked up on a later tick — nothing is dropped,
+/// just spread out.
+const OOM_FAN_OUT_MAX: usize = 5;
+
+/// Scan for new OOM-kill events since the last tick, correlate each to the PR/run
+/// that was executing on the killed container, and post a comment there.
+/// Best-effort per event: an event is marked "seen" (so it's never retried) **only**
+/// after a successful post — a transient correlation failure (job not visible in the
+/// API yet, `gh` briefly unavailable) leaves it unmarked so it's retried next tick,
+/// rather than permanently and silently dropped. Persisted immediately after each
+/// successful post rather than batched at the end, so a process kill mid-tick (the
+/// host's Task Scheduler entry force-stops a tick past 2 minutes) can't cause the
+/// next tick to re-post a duplicate for an event that already succeeded. Returns the
+/// count of successfully reported events.
+pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
+    let dmesg_out = quiet_command("wsl")
+        .args(["-e", "dmesg", "-T"])
+        .output()
+        .context("run dmesg via wsl (is WSL2 available on this host?)")?;
+    let dmesg_text = String::from_utf8_lossy(&dmesg_out.stdout);
+    let events = parse_oom_events(&dmesg_text);
+
+    // Drift detection: if dmesg's line format ever changes (kernel/cgroup-driver
+    // upgrade), the regex in parse_oom_events could silently stop matching. Compare
+    // against a plain substring count so a format drift is visible in the log
+    // instead of the scan just quietly finding nothing forever.
+    let constraint_lines = dmesg_text
+        .lines()
+        .filter(|l| l.contains("oom-kill:constraint=CONSTRAINT_MEMCG"))
+        .count();
+    if constraint_lines > events.len() {
+        eprintln!(
+            "runner-scale: OOM-visibility saw {constraint_lines} oom-kill:constraint= \
+             line(s) in dmesg but only parsed {} into events — dmesg's line format may \
+             have drifted; check oom_line_regex against a fresh sample",
+            events.len()
+        );
+    }
+
+    let seen = read_oom_seen();
+    let fresh: Vec<&OomEvent> = new_events(&events, &seen)
+        .into_iter()
+        .take(OOM_FAN_OUT_MAX)
+        .collect();
+    if fresh.is_empty() {
+        return Ok(0);
+    }
+
+    // The cgroup id dmesg reports (oom_memcg=/docker/<id>) and the container id
+    // `docker events` reports are the same full 64-character docker container id —
+    // both come from the same underlying container, just observed by two different
+    // subsystems (the kernel cgroup controller and the Docker daemon's event log).
+    let events_text = fetch_recent_container_events(now)?;
+    let names = parse_container_names(&events_text);
+
+    let mut reported = 0u32;
+    let mut seen_so_far = seen;
+    for event in fresh {
+        let Some(container_name) = names.get(&event.cgroup_id) else {
+            eprintln!(
+                "runner-scale: OOM event on cgroup {} (process {}) — no matching \
+                 managed container name found in the last {OOM_EVENTS_WINDOW_SECS}s of \
+                 docker events; will retry next tick",
+                event.cgroup_id, event.process
+            );
+            continue;
+        };
+        // Correlation trusts a bare runner_name match with no kill-timestamp gate:
+        // this fleet's runners are strictly ephemeral (one container takes exactly
+        // one dispatched job, then self-deregisters and exits — see the module doc
+        // at the top of runner_scale.rs), so a container name is never reused across
+        // two different jobs. There is no second job it could be misattributed to.
+        match find_run_for_runner(container_name) {
+            Ok(Some(m)) => {
+                let body = oom_comment_body(event, &m.job_name, m.run_id);
+                match post_pr_comment(m.pr_number, &body, false) {
+                    Ok(()) => {
+                        reported += 1;
+                        // Persist immediately: only ever mark an event seen right
+                        // after its post actually succeeded, and do it before moving
+                        // on to the next event so a mid-loop process kill can't
+                        // leave a successfully-posted event unrecorded.
+                        seen_so_far = append_seen(seen_so_far, &[event.raw_line.clone()]);
+                        write_oom_seen(&seen_so_far);
+                    }
+                    Err(e) => eprintln!(
+                        "runner-scale: OOM comment post failed (will retry next tick): {e:#}"
+                    ),
+                }
+            }
+            Ok(None) => {
+                eprintln!(
+                    "runner-scale: OOM on {container_name} — no PR-triggered job match found \
+                     in recent runs; will retry next tick"
+                );
+            }
+            Err(e) => {
+                eprintln!(
+                    "runner-scale: OOM job correlation failed (will retry next tick): {e:#}"
+                );
+            }
+        }
+    }
+
+    Ok(reported)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

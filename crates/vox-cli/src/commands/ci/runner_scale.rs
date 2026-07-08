@@ -814,6 +814,30 @@ pub fn run_scale(apply: bool) -> Result<()> {
         lock.refresh(now_secs());
     }
 
+    // 0.5. OOM-visibility: detect any runner container hard-killed by its own
+    //      memory cgroup limit since the last tick, and comment on the affected
+    //      PR/run directly — the job itself can't self-report, since its whole
+    //      execution environment (the runner agent process) died with the
+    //      container. Apply-only: a read-only dry-run monitoring invocation must
+    //      stay cheap and side-effect-free (this file's own doc comment already
+    //      promises dry-run is "safe to run concurrently for monitoring"), which
+    //      this scan's dmesg/docker/gh IO chain would no longer be true of if it
+    //      ran unconditionally.
+    if apply {
+        let oom_reported = super::oom_watch::scan_and_report_oom_events(now)
+            .unwrap_or_else(|e| {
+                eprintln!("runner-scale: OOM-visibility scan skipped (degraded): {e:#}");
+                0
+            });
+        if oom_reported > 0 {
+            println!("runner-scale: reported {oom_reported} OOM-killed job(s) this tick");
+        }
+    }
+
+    if let Some(lock) = _lock.as_ref() {
+        lock.refresh(now_secs());
+    }
+
     let max = max_runners();
     let reap_secs = idle_reap_secs();
     let warm = warm_pool();
