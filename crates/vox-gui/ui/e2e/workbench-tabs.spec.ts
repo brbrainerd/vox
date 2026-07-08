@@ -10,19 +10,8 @@ import {
   TOP_LEVEL_VIEWS,
   tabLabelFor,
 } from '../src/lib/navigation';
+import { sidebarParentLabel } from '../src/lib/lexicon';
 import { installTauriMock } from './lib/tauriMock';
-
-/** Sidebar button labels (lexicon SSOT — not always equal to `labelForNavKey`). */
-const SIDEBAR_LABEL_BY_PARENT: Record<string, string> = {
-  chat: 'Chat',
-  runs: 'Review',
-  agents: 'Agents',
-  knowledge: 'Knowledge',
-  workspace: 'Workspace',
-  commands: 'Commands',
-  compute: 'Compute',
-  mercatus: 'Market',
-};
 
 const LEAF_VIEWS: string[] = Array.from(
   new Set(
@@ -60,7 +49,7 @@ test.describe('Workbench tabs — sidebar parents', () => {
 
   for (const parentKey of SIDEBAR_PARENTS) {
     const defaultChild = DEFAULT_CHILD_BY_PARENT[parentKey] ?? parentKey;
-    const sidebarLabel = SIDEBAR_LABEL_BY_PARENT[parentKey] ?? parentKey;
+    const sidebarLabel = sidebarParentLabel(parentKey);
 
     test(`sidebar "${sidebarLabel}" opens default tab ${defaultChild}`, async ({ page }) => {
       await page.addInitScript(installTauriMock, 'dashboard');

@@ -192,7 +192,7 @@ export default function App() {
   const [data, setData] = useState<DashboardData>(INITIAL_DATA);
   const [kpis, setKpis] = useState(INITIAL_KPIS);
   const workbench = useWorkbenchTabs();
-  const { openTab, openDocTab, closeTab, openTabs, activeTab, activeViewKey } = workbench;
+  const { openTab, openDocTab, closeTab, openTabs, activeTab, activeViewKey, docLabels } = workbench;
   const activeView = (activeViewKey ?? 'dashboard') as View;
   const [sidebarMode, setSidebarMode] = useLocalStorage<SidebarMode>(
     SHELL_PREFERENCE_KEYS.sidebarMode,
@@ -993,7 +993,7 @@ export default function App() {
       tabs={openTabs.map((id) => ({
         id,
         label: isDocTab(id)
-          ? (docPathFromTab(id).split('/').pop()?.replace(/\.md$/i, '') ?? 'Doc')
+          ? (docLabels[id] ?? docPathFromTab(id).split('/').pop()?.replace(/\.md$/i, '') ?? 'Doc')
           : tabLabelFor(id),
         badge: id === 'chat' && attention.totalCount > 0 ? attention.totalCount : undefined,
         pinned: isPinnedTab(id),

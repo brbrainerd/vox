@@ -12,7 +12,7 @@ use tauri::Emitter;
 use vox_terminal_core::pty::{PtyHandle, spawn_pty};
 
 // Re-export pure helpers so existing call sites in this crate still compile.
-pub use vox_terminal_core::pty::{default_shell, shell_integration_snippet};
+pub use vox_terminal_core::pty::default_shell;
 
 /// Tauri event carrying a chunk of PTY output. Payload: { tab_id, data }.
 pub const PTY_OUTPUT_EVENT: &str = "vox://pty-output";
@@ -26,10 +26,12 @@ pub struct PtyManager {
 }
 
 impl PtyManager {
+    #[cfg(test)]
     pub fn has(&self, tab_id: &str) -> bool {
         self.sessions.lock().unwrap().contains_key(tab_id)
     }
 
+    #[cfg(test)]
     pub fn count(&self) -> usize {
         self.sessions.lock().unwrap().len()
     }
@@ -105,6 +107,7 @@ pub fn pty_close(manager: tauri::State<'_, PtyManager>, tab_id: String) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vox_terminal_core::pty::shell_integration_snippet;
 
     #[test]
     fn default_shell_is_nonempty() {

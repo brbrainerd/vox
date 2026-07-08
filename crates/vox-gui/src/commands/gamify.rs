@@ -294,12 +294,12 @@ fn gui_event_result_from_route(
 fn merge_gui_event_json(hook: &str, metadata: Option<serde_json::Value>) -> serde_json::Value {
     let routed = map_gui_hook_event_type(hook);
     let mut event_json = serde_json::json!({ "type": routed, "source": "gui" });
-    if let Some(serde_json::Value::Object(meta)) = metadata {
-        if let Some(obj) = event_json.as_object_mut() {
-            for (k, v) in meta {
-                if k != "type" {
-                    obj.insert(k, v);
-                }
+    if let Some(serde_json::Value::Object(meta)) = metadata
+        && let Some(obj) = event_json.as_object_mut()
+    {
+        for (k, v) in meta {
+            if k != "type" {
+                obj.insert(k, v);
             }
         }
     }

@@ -9,7 +9,7 @@ import { TOP_LEVEL_VIEWS, resolveNavigation } from '../../lib/navigation';
 import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens';
 import { useFreshness } from '../../hooks/useFreshness';
 import { useLang } from '../../hooks/useLanguage';
-import { LEXICON, labelFor } from '../../lib/lexicon';
+import { LEXICON, labelFor, sidebarParentLabel } from '../../lib/lexicon';
 
 export type SidebarMode = 'rail' | 'default' | 'wide';
 
@@ -62,8 +62,7 @@ const TOP_NAV_ICON: Record<string, string> = {
   settings: 'settings',
 };
 
-const navLabelFor = (key: string, lang: 'en' | 'la') =>
-  labelFor(LEXICON[`nav:${key}`] ? `nav:${key}` : key, lang);
+const navLabelFor = (key: string, lang: 'en' | 'la') => sidebarParentLabel(key, lang);
 
 interface SidebarProps {
   view: string;

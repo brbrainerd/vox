@@ -16,6 +16,8 @@ export function isPinnedTab(id: TabId): boolean {
 export interface StoredWorkbenchState {
   openTabs: TabId[];
   activeTab: TabId | null;
+  /** Optional display titles for `doc:` tabs (keyed by tab id). */
+  docLabels?: Record<TabId, string>;
 }
 
 function normalizeViewKey(key: string): string {
@@ -66,6 +68,7 @@ export function useWorkbenchTabs() {
 
   const openTabs = stored.openTabs;
   const activeTab = stored.activeTab;
+  const docLabels = stored.docLabels ?? {};
 
   const openTab = useCallback(
     (viewKey: string) => {
@@ -87,11 +90,14 @@ export function useWorkbenchTabs() {
   );
 
   const openDocTab = useCallback(
-    (path: string, _title?: string) => {
+    (path: string, title?: string) => {
       const id = docTabId(path);
       setStored((prev) => ({
         openTabs: prev.openTabs.includes(id) ? prev.openTabs : [...prev.openTabs, id],
         activeTab: id,
+        docLabels: title
+          ? { ...(prev.docLabels ?? {}), [id]: title }
+          : prev.docLabels,
       }));
     },
     [setStored],
@@ -104,11 +110,13 @@ export function useWorkbenchTabs() {
         const idx = prev.openTabs.indexOf(id);
         if (idx === -1) return prev;
         const nextTabs = prev.openTabs.filter((t) => t !== id);
+        const nextLabels = { ...(prev.docLabels ?? {}) };
+        delete nextLabels[id];
         if (nextTabs.length === 0) {
-          return { openTabs: [...PINNED_TABS, FALLBACK_TAB], activeTab: FALLBACK_TAB };
+          return { openTabs: [...PINNED_TABS, FALLBACK_TAB], activeTab: FALLBACK_TAB, docLabels: nextLabels };
         }
         const neighbor = nextTabs[Math.min(idx, nextTabs.length - 1)] ?? nextTabs[0];
-        return { openTabs: nextTabs, activeTab: neighbor };
+        return { openTabs: nextTabs, activeTab: neighbor, docLabels: nextLabels };
       });
     },
     [setStored],
@@ -119,5 +127,5 @@ export function useWorkbenchTabs() {
     [activeTab],
   );
 
-  return { openTabs, activeTab, activeViewKey, openTab, openParent, openDocTab, closeTab };
+  return { openTabs, activeTab, activeViewKey, docLabels, openTab, openParent, openDocTab, closeTab };
 }

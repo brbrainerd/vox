@@ -62,10 +62,11 @@ describe('useWorkbenchTabs', () => {
     expect(result.current.openTabs).toEqual(['chat', 'dashboard']);
   });
 
-  it('doc tab ids are stable', () => {
+  it('doc tab ids are stable and titles persist', () => {
     const { result } = renderHook(() => useWorkbenchTabs());
-    act(() => result.current.openDocTab('docs/src/reference/cli.md', 'CLI'));
+    act(() => result.current.openDocTab('docs/src/reference/cli.md', 'CLI Reference'));
     expect(result.current.activeTab).toBe('doc:docs/src/reference/cli.md');
+    expect(result.current.docLabels['doc:docs/src/reference/cli.md']).toBe('CLI Reference');
   });
 
   it('migrates legacy vox_active_view on first load', () => {
