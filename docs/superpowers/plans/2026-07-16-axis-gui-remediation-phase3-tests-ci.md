@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Execute spec Phase 3 (Test & CI buildout) of `docs/superpowers/specs/2026-07-16-axis-gui-audit-remediation-design.md` with fork **F2 resolved = post-merge only, NO PR gating**: make the asserting screenshot sweep fail the post-merge `gui-playwright-smoke` job loudly, close the surface-registry escape (guard test + MissionControl fix), un-skip the empty/error variant sweep as an advisory CI step with toast/alert assertions, add an IPC-failure degradation spec plus three interaction specs (approvals, tasks, chat) against the existing tauriMock, dedupe the duplicated mock bootstrap into a shared module, fix the visual-review cache key (model id + prompt version + schema_version 1 + dead-viewKey prune), and delete the orphan `playwright.screens.config.ts`.
+**Goal:** Execute spec Phase 3 (Test & CI buildout) of `docs/superpowers/specs/2026-07-16-axis-gui-audit-remediation-design.md` with fork **F2 resolved = post-merge only, NO PR gating**: make the asserting screenshot sweep fail the post-merge `gui-playwright-smoke` job loudly, close the surface-registry escape (guard test + MissionControl fix), un-skip the empty/error variant sweep as an advisory CI step with toast/alert assertions, add an IPC-failure degradation spec plus three interaction specs (approvals, tasks, chat) against the existing tauriMock — with a fourth, post-Phase-2 interaction task (Task 13: model picker apply, session rename/archive, hopper mark-done) — dedupe the duplicated mock bootstrap into a shared module, fix the visual-review cache key (model id + prompt version + schema_version 1 + dead-viewKey prune), and delete the orphan `playwright.screens.config.ts`.
 
 **Architecture:** Frontend guards are vitest source-scanning tests in `crates/vox-gui/ui/src/guards/` (idiom: `ipcBoundaries.test.ts`, `surfaceHonesty.guard.test.ts`). E2e specs are Playwright specs in `crates/vox-gui/ui/e2e/` driven by init-script Tauri mocks (`e2e/lib/tauriMock.ts` / `tauriMockVariants.ts`); because `page.addInitScript(fn, arg)` serializes the function body, shared mock code is injected as a composed script string via a new `e2e/lib/tauriMockShared.ts`. The visual-review cache lives in `crates/vox-orchestrator-mcp/src/visus_review/` behind feature `gui-visual-review`. CI edits touch only the `gui-playwright-smoke` job in `.github/workflows/ci.yml` (lines ~1620-1734); the required `ci-summary` needs list (line 1449) is **never** touched.
 
@@ -160,18 +160,20 @@ Ground truth (verified 2026-07-16):
 
 ---
 
-## Task 3: Fix MissionControl (remove the dead route) + record the Matrix verdict
+## Task 3: Fix MissionControl (remove the dead route) + delete dead `DiscoveryReviewView` + record the Matrix verdict
 
 **Investigation result (decided; re-verify in steps):**
 - `MissionControlPanel` is routed at `surfaceComponents.tsx:178-179` under `'mission-control'`, which appears in the `View` union (`App.tsx:122`) and `LEGACY_VIEWS` (`App.tsx:130`) but has **no** registry entry, **no** sidebar nav, and **no** `navigateTo('mission-control')` caller anywhere in `ui/src` — reachable only by hand-crafted deep link. The panel duplicates already-registered surfaces: subagent tree (= `sub-agents` decorator `SubAgentsView`), pending approvals with `vox_resolve_approval` (= `approvals` / `ApprovalsView`), mesh policy controls (= `mesh` / `MeshView`). Its own header comment (`MissionControlPanel.tsx:1`) says it was parked awaiting a spec that never landed: `// TODO: register in panelRegistry once dockable-workspace spec lands (spec-6)`. **Decision: REMOVE the route and the component** — do not register it in `contracts/gui/surface-registry.v1.yaml`; registering would add a redundant nav surface and permanent screenshot cost for duplicated functionality.
 - `Matrix` (`ui/src/components/surfaces/Matrix/Matrix.tsx`) is **NOT dead code — do not remove it.** It is unrouted in `childRenderer`, but `ChatSurface.tsx:20` imports it and renders it at `ChatSurface.tsx:329` as the chat rail's folded Routing panel (`ChatExecutionRail.tsx:32`: "folded Matrix surface — gui-ia-blueprint: matrix → chat rail"). It also has a live unit test (`Matrix.test.tsx`). No action beyond this recorded verdict.
+- `Scientia/DiscoveryReviewView.tsx` is the one genuinely dead spec-listed candidate (spec P2 "Dead code candidates"): its only non-test references are its own test file and the `ipcBoundaries.test.ts` allowlist entry (line 69). **Decision: REMOVE it too** (same discipline as MissionControl). The other three spec-listed candidates are NOT dead — `DiscoveryReview.tsx` is live via `DiscoverySurface.tsx:66`, `ScientiaDashboard.tsx` via `ScientiaSurface.tsx:40` (decoratorRegistry), `Settings/PriorityChainEditor.tsx` via `SettingsView.tsx:1407` — record that verdict in the commit body, do not touch them.
 
 **Files:**
 - `crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx:18` (import), `:178-179` (case)
 - `crates/vox-gui/ui/src/App.tsx:122` (`| 'mission-control'` in the View union), `:130` (`'mission-control'` in `LEGACY_VIEWS`)
-- `crates/vox-gui/ui/src/guards/ipcBoundaries.test.ts:60` (allowlist entry)
+- `crates/vox-gui/ui/src/guards/ipcBoundaries.test.ts:60` (MissionControl allowlist entry), `:69` (DiscoveryReviewView allowlist entry)
 - `crates/vox-gui/ui/src/lib/lexicon.ts:52` (`'mc-mission'` label)
 - Delete: `crates/vox-gui/ui/src/components/surfaces/MissionControl/` (`MissionControlPanel.tsx`, `MissionControlPanel.test.tsx`)
+- Delete: `crates/vox-gui/ui/src/components/surfaces/Scientia/DiscoveryReviewView.tsx` + `DiscoveryReviewView.test.tsx`
 
 **Steps:**
 
@@ -208,6 +210,14 @@ Ground truth (verified 2026-07-16):
   `'mc-mission': { en: 'Mission Control', la: 'Praefectura' },`
   then `git grep -n "mc-mission" crates/vox-gui/ui/src` — expect no matches. If a lexicon completeness test fails in the next step, restore the entry and note why in the commit.
 - [ ] Note (do NOT act): the Tauri command `list_mc_approvals` may now be frontend-dead (`list_subagent_tree` is still used by `SubAgents/subAgentClient.ts`). Record this in the commit body as a Phase-2/cleanup candidate; backend command removal is out of Phase 3 scope.
+- [ ] Re-verify `DiscoveryReviewView` is dead (expect matches ONLY in its own test and the ipcBoundaries allowlist):
+  ```
+  git grep -n "DiscoveryReviewView" crates/vox-gui/ui
+  ```
+  Expected matches ONLY: `src/guards/ipcBoundaries.test.ts:69` (allowlist entry), `src/components/surfaces/Scientia/DiscoveryReviewView.tsx` (its own definition), and `src/components/surfaces/Scientia/DiscoveryReviewView.test.tsx`. Any other hit (an import from a live component) = STOP for this sub-item, keep the file, and record why in the commit body.
+- [ ] `git rm crates/vox-gui/ui/src/components/surfaces/Scientia/DiscoveryReviewView.tsx crates/vox-gui/ui/src/components/surfaces/Scientia/DiscoveryReviewView.test.tsx`
+- [ ] `ipcBoundaries.test.ts:69`: delete the allowlist line
+  `'components/surfaces/Scientia/DiscoveryReviewView.tsx',` (shrink-only allowlist, same as the MissionControl entry). Do NOT touch `DiscoveryReview.tsx` (no "View" suffix) — it is live via `DiscoverySurface.tsx:66`.
 - [ ] Verify green:
   ```
   cd C:\Users\Owner\vox\crates\vox-gui\ui
@@ -215,11 +225,11 @@ Ground truth (verified 2026-07-16):
   pnpm exec vitest run src/guards/surfaceRegistryEscape.test.ts src/guards/ipcBoundaries.test.ts
   pnpm test
   ```
-  Expected: typecheck clean; the registry-escape guard now **4 passed / 0 failed**; ipcBoundaries passes; full vitest suite passes (the deleted `MissionControlPanel.test.tsx` no longer runs).
+  Expected: typecheck clean; the registry-escape guard now **4 passed / 0 failed**; ipcBoundaries passes; full vitest suite passes (the deleted `MissionControlPanel.test.tsx` and `DiscoveryReviewView.test.tsx` no longer run).
 - [ ] Commit:
   ```
   git add -A crates/vox-gui/ui/src
-  git commit -m "fix(gui): remove unregistered mission-control route + panel; registry-escape guard green (B8)" -m "Matrix confirmed live (ChatSurface routing rail) - kept. list_mc_approvals now a backend-dead-command candidate." -m "Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+  git commit -m "fix(gui): remove unregistered mission-control route + panel and dead DiscoveryReviewView; registry-escape guard green (B8)" -m "Matrix confirmed live (ChatSurface routing rail) - kept. DiscoveryReview/ScientiaDashboard/PriorityChainEditor confirmed live - kept. list_mc_approvals now a backend-dead-command candidate." -m "Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
   ```
 
 ---
@@ -450,14 +460,14 @@ Spec Phase 3 item 5. Ground truth in `crates/vox-orchestrator-mcp/src/visus_revi
       }
   }
   ```
-- [ ] Build + test (redirect, never pipe cargo):
+- [ ] Build + test (redirect, never pipe cargo; PowerShell syntax):
   ```
   cd C:\Users\Owner\vox
-  cargo test -p vox-orchestrator-mcp --features gui-visual-review visus_review > "%TEMP%\visus_test.log" 2>&1
+  cargo test -p vox-orchestrator-mcp --features gui-visual-review visus_review > "$env:TEMP\visus_test.log" 2>&1
   ```
-  Read the log. Expected: all `visus_review` tests pass (decide_tests 9, verdict_tests 2, types tests 5, prompt tests 2, plus model_select/spike modules untouched). Then:
+  Read the log. Expected: all `visus_review` tests pass (decide_tests 8 — the eight `#[test]` fns in the replacement module above — verdict_tests 2, types tests 5, prompt tests 2, plus model_select/spike modules untouched). Then:
   ```
-  cargo clippy -p vox-orchestrator-mcp --features gui-visual-review -- -D warnings > "%TEMP%\visus_clippy.log" 2>&1
+  cargo clippy -p vox-orchestrator-mcp --features gui-visual-review -- -D warnings > "$env:TEMP\visus_clippy.log" 2>&1
   cargo fmt -p vox-orchestrator-mcp
   ```
 - [ ] Note in the commit body: the committed `contracts/reports/gui-visual-review/cache.v1.json` still says `schema_version: 0` — the next post-merge AI run discards it, fully re-reviews once, prunes dead viewKeys, and the CI bot commits the migrated v1 cache (`ci.yml` step "Commit visual-review cache + report"). Deliberate one-time cost; do not hand-edit the JSON.
@@ -649,11 +659,11 @@ Spec Phase 3 item 4 (tail). The duplication (verified): `tauriMock.ts:10-26` (lo
   // after
   await addMockInitScript(page, installTauriMock, view);
   ```
-  plus `import { addMockInitScript } from './lib/tauriMockShared';` in each spec. Secondary `addInitScript` calls that are NOT mock installers (e.g. `screenshots.spec.ts:102` sidebar-mode localStorage, `workbench-tabs.spec.ts` equivalents) stay as-is. Verify no stragglers:
+  plus `import { addMockInitScript } from './lib/tauriMockShared';` in each spec. Secondary `addInitScript` calls that are NOT mock installers (e.g. `screenshots.spec.ts:102` sidebar-mode localStorage, `workbench-tabs.spec.ts` equivalents) stay as-is. Verify no stragglers **among the three migrated installers only**:
   ```
-  git grep -n "addInitScript(install" crates/vox-gui/ui/e2e
+  git grep -nE "addInitScript\((installTauriMock|installEmptyStateMock|installErrorStateMock)" crates/vox-gui/ui/e2e
   ```
-  Expected: no matches.
+  Expected: no matches. Note: a broader `addInitScript(install` grep still matches by design — the nine `installOperatorShellMock` spec call sites (chat-composer-dock, chat-session-rail, coderabbit, dashboard-pilot, dock-layout, palette-search-navigate, policies, status-bar-surfaces, submit-task-palette) plus doc-comment lines in `operatorShellMock.ts` and `tauriMockVariants.ts` are expected leftovers. `operatorShellMock` is out of scope for this task; do NOT "migrate" those sites — the installer is self-contained and does not read `window.__VOX_MOCK_SHARED__`.
 - [ ] Update `tauriMockVariants.test.ts`: import `runInstallerWithShared, mockInitScript` from `./tauriMockShared`; every direct `installEmptyStateMock('x')` / `installErrorStateMock('x')` call becomes `runInstallerWithShared(installEmptyStateMock, 'x')` (11 call sites, lines 37-118). Add a serialization regression test at the end:
   ```ts
   describe('mockInitScript serialization', () => {
@@ -714,30 +724,40 @@ The global toast container (`ui/src/components/ui/Toasts.tsx:28-33`) is an alway
     'memory', 'vox-search', 'policies', 'gamify', 'settings',
   ] as const;
   ```
-- [ ] In the error-states loop, capture console errors too (change line 73 `const { pageErrors } = captureErrors(page);` to `const { pageErrors } = captureErrors(page);` — unchanged — and after the existing `expect(pageErrors, ...)` at line 82, add the affordance assertion:
+- [ ] In the error-states loop, after the existing `expect(pageErrors, ...)` at line 82, add the affordance assertion. Two hardening rules (both load-bearing): (1) use `expect.poll` (auto-retrying), never a fixed sleep + one-shot count — a toast appearing at 1300ms on a loaded runner must not flip the result; (2) scope the alert/copy checks to the workbench main panel and exclude the global "Chat sessions" toast — `chat_list_sessions` is already in `ERROR_CMDS` and its failure fires an app-level toast from `App.tsx:396-406` on EVERY view, so an unscoped count is always >= 1 and the assertion could never fail. The main-panel container is the surface content rendered inside `SurfaceErrorBoundary` (`AppShell.tsx:143-148`), stable locator `[data-testid="surface-scroll-host"]` (`SurfaceScrollHost.tsx:5`).
   ```ts
         // Visible degradation, not a blank panel: at least one toast item
-        // (children of the always-rendered role=status container), a
-        // role=alert region, or visible error copy.
-        const toastItems = page.getByRole('status').locator('.pointer-events-auto');
-        const alerts = page.getByRole('alert');
-        const errorCopy = page.getByText(/error|failed|unavailable|could not|retry/i);
-        const affordances =
-          (await toastItems.count()) + (await alerts.count()) + (await errorCopy.count());
-        expect(
-          affordances,
-          `[${view}-error] no visible toast/alert/error copy — surface degraded to a blank panel`,
-        ).toBeGreaterThan(0);
+        // attributable to THIS surface (the global 'Chat sessions' toast fires
+        // on every view and must not vacuously satisfy other surfaces), a
+        // role=alert region in the main panel, or visible error copy in the
+        // main panel. Auto-retrying: toast/alert timing varies on CI runners.
+        const mainPanel = page.getByTestId('surface-scroll-host');
+        const toastItems =
+          view === 'chat'
+            ? page.getByRole('status').locator('.pointer-events-auto')
+            : page.getByRole('status').locator('.pointer-events-auto').filter({ hasNotText: /chat sessions/i });
+        const alerts = mainPanel.getByRole('alert');
+        const errorCopy = mainPanel.getByText(/error|failed|unavailable|could not|retry/i);
+        await expect
+          .poll(
+            async () =>
+              (await toastItems.count()) + (await alerts.count()) + (await errorCopy.count()),
+            {
+              timeout: 10_000,
+              message: `[${view}-error] no visible toast/alert/error copy — surface degraded to a blank panel`,
+            },
+          )
+          .toBeGreaterThan(0);
   ```
   Keep the env gate (`test.skip(!RUN_VARIANTS, ...)`, lines 44 and 70) — CI opts in via the workflow env var (Task 11); local default stays skipped. Update the file header comment (lines 3-5) to mention the post-merge CI step.
-- [ ] Verify locally (opt in via env):
+- [ ] Verify locally (opt in via env — PowerShell syntax; `set X=1` is a cmd.exe-ism that silently fails to export in PowerShell, making every test self-skip and the run a false green):
   ```
   cd C:\Users\Owner\vox\crates\vox-gui\ui
-  set VOX_VARIANT_SCREENSHOTS=1
+  $env:VOX_VARIANT_SCREENSHOTS = '1'
   pnpm exec playwright test screenshots-variants.spec.ts --project=chromium --workers=2
-  set VOX_VARIANT_SCREENSHOTS=
+  Remove-Item Env:VOX_VARIANT_SCREENSHOTS
   ```
-  Expected: empty-state tests pass as before; error-state tests pass for surfaces that render error affordances. **If a surface fails the new assertion**, that is a real Phase-3 finding: check whether Task 7's `ERROR_CMDS` additions (`invoke_mcp_tool`, `hopper_list`) cover it; if the surface genuinely renders blank on error, keep the assertion (variants are advisory in CI per F2) and list the failing surface(s) in the commit body as remediation candidates — do NOT weaken the assertion.
+  Expected: **20 passed, 0 skipped** (10 empty + 10 error). Any `skipped` count > 0 means the env gate never opened — the run verified nothing; fix the env var before trusting it. Empty-state tests pass as before; error-state tests pass for surfaces that render error affordances. **If a surface fails the new assertion**, that is a real Phase-3 finding: check whether Task 7's `ERROR_CMDS` additions (`invoke_mcp_tool`, `hopper_list`) cover it; if the surface genuinely renders blank on error, keep the assertion (variants are advisory in CI per F2) and list the failing surface(s) in the commit body as remediation candidates — do NOT weaken the assertion.
 - [ ] Commit:
   ```
   git add crates/vox-gui/ui/e2e/screenshots-variants.spec.ts
@@ -752,6 +772,11 @@ Spec Phase 3 item 3 (new-spec half): a spec using `installErrorStateMock` (`e2e/
 
 Coverage gaps found in `ERROR_CMDS` (lines 109-117): Approvals loads via `invoke_mcp_tool` (`ApprovalsView.tsx:119` → `vox_pending_approvals`) and Tasks via `hopper_list` (`transport.ts:797-799`) — neither command is in `ERROR_CMDS`, so today the error mock exercises neither surface's failure path.
 
+**Reality check on which surfaces can actually show error UI (verified 2026-07-16):**
+- **tasks:** in the shipped app TasksView runs in shared-attention mode — App always passes `attention` (`App.tsx:1120`, `surfaceComponents.tsx:127`), and the actual `hopper_list` caller is `useAttentionInbox`, which **silently swallows** rejections: `Promise.resolve(hopperList()).catch(() => [] as HopperTaskDto[])` (`useAttentionInbox.ts:34`). `TasksView.setError` (`TasksView.tsx:61-62`) fires only in the self-fetch mode the app never uses. So with `hopper_list` in `ERROR_CMDS`, the tasks surface renders an **empty list, not error UI** — a real silent-swallow defect, excluded from `KEY_SURFACES` below with a TODO trail.
+- **dashboard:** consumes only the bootstrap `get_orchestrator_status_bin` payload (which the error mock always answers) — its default widgets and `useAgentApprovals` swallow their own errors, so the error mock exercises no dashboard failure path at all. Also excluded with a TODO trail.
+- **Vacuity hazard for all remaining surfaces:** `chat_list_sessions` (already in `ERROR_CMDS`) fails at App mount on EVERY view and pushes a global "Chat sessions" warn toast (`App.tsx:396-406`, ~5s lifetime) — an unscoped toast/text count is therefore always >= 1 and assertion 3 could never fail. The spec below scopes alerts/error-copy to the workbench main panel (`SurfaceErrorBoundary` content, `AppShell.tsx:143-148` → `[data-testid="surface-scroll-host"]`) and excludes the chat-sessions toast on non-chat views.
+
 **Files:**
 - Edit: `crates/vox-gui/ui/e2e/lib/tauriMockVariants.ts` (`ERROR_CMDS` set)
 - Create: `crates/vox-gui/ui/e2e/error-states.spec.ts`
@@ -762,7 +787,7 @@ Coverage gaps found in `ERROR_CMDS` (lines 109-117): Approvals loads via `invoke
   ```ts
       'invoke_mcp_tool', 'hopper_list',
   ```
-  (Both are data-fetch paths: `invoke_mcp_tool` failures are caught by `ApprovalsView.refresh` → "Approvals load failed" toast, and by `feedbackList().catch` consumers; `hopper_list` failures land in `TasksView`'s `setError` state.)
+  (`invoke_mcp_tool` failures are caught by `ApprovalsView.refresh` → "Approvals load failed" toast, and by `feedbackList().catch` consumers. `hopper_list` is added **knowingly exercising a silent-swallow defect**: `useAttentionInbox.ts:34` converts the rejection to `[]` with no toast/error state, so no affordance reaches the tasks surface today — the entry documents the defect and becomes meaningful the moment a follow-up gives the attention inbox an error affordance.)
 - [ ] Create `crates/vox-gui/ui/e2e/error-states.spec.ts`:
   ```ts
   /**
@@ -775,7 +800,16 @@ Coverage gaps found in `ERROR_CMDS` (lines 109-117): Approvals loads via `invoke
   import { installErrorStateMock } from './lib/tauriMockVariants';
   import { addMockInitScript } from './lib/tauriMockShared';
 
-  const KEY_SURFACES = ['dashboard', 'chat', 'runs', 'approvals', 'models', 'tasks'] as const;
+  // TODO(phase3-followup): tasks — useAttentionInbox swallows hopper_list
+  // rejections with `.catch(() => [])` (useAttentionInbox.ts:34) and TasksView's
+  // setError path never runs in shared-attention mode, so the surface renders an
+  // EMPTY list (no affordance) on IPC failure. Re-add once the inbox surfaces
+  // fetch errors.
+  // TODO(phase3-followup): dashboard — consumes only bootstrap orchestrator
+  // status; its widgets + useAgentApprovals swallow errors, so the error mock
+  // exercises no dashboard failure path. Re-add once dashboard has a real
+  // data-error affordance.
+  const KEY_SURFACES = ['chat', 'runs', 'approvals', 'models'] as const;
 
   test.describe('IPC-failure degradation', () => {
     for (const view of KEY_SURFACES) {
@@ -788,6 +822,9 @@ Coverage gaps found in `ERROR_CMDS` (lines 109-117): Approvals loads via `invoke
         await page.goto('/');
         await page.waitForSelector('nav', { timeout: 15_000 });
         await expect(page.getByTestId('workbench-tab-bar')).toBeVisible();
+        // Short bounded settle so async uncaught rejections have time to surface
+        // before assertion 1 (the affordance check below is auto-retrying and
+        // needs no sleep).
         await page.waitForTimeout(1200);
 
         // 1. Failures are HANDLED — no uncaught exceptions/rejections.
@@ -795,13 +832,26 @@ Coverage gaps found in `ERROR_CMDS` (lines 109-117): Approvals loads via `invoke
         // 2. Not blank: the page body renders substantive content (shell + surface chrome).
         const bodyText = (await page.locator('body').innerText()).trim();
         expect(bodyText.length, `[${view}] rendered blank on IPC failure`).toBeGreaterThan(0);
-        // 3. Visible error affordance somewhere on screen.
-        const toastItems = page.getByRole('status').locator('.pointer-events-auto');
-        const alerts = page.getByRole('alert');
-        const errorCopy = page.getByText(/error|failed|unavailable|could not|retry/i);
-        const affordances =
-          (await toastItems.count()) + (await alerts.count()) + (await errorCopy.count());
-        expect(affordances, `[${view}] no visible error affordance`).toBeGreaterThan(0);
+        // 3. Visible error affordance attributable to THIS surface. Scoped to the
+        // workbench main panel (surface content inside SurfaceErrorBoundary,
+        // AppShell.tsx:143-148) so static chrome elsewhere can't satisfy it, and
+        // excluding the global 'Chat sessions' toast (App.tsx:396-406 fires it on
+        // EVERY view because chat_list_sessions is in ERROR_CMDS) so the count
+        // can actually be 0 on a blank panel. Auto-retrying: no fixed-sleep race.
+        const mainPanel = page.getByTestId('surface-scroll-host');
+        const toastItems =
+          view === 'chat'
+            ? page.getByRole('status').locator('.pointer-events-auto')
+            : page.getByRole('status').locator('.pointer-events-auto').filter({ hasNotText: /chat sessions/i });
+        const alerts = mainPanel.getByRole('alert');
+        const errorCopy = mainPanel.getByText(/error|failed|unavailable|could not|retry/i);
+        await expect
+          .poll(
+            async () =>
+              (await toastItems.count()) + (await alerts.count()) + (await errorCopy.count()),
+            { timeout: 10_000, message: `[${view}] no visible error affordance` },
+          )
+          .toBeGreaterThan(0);
         await ctx.close();
       });
     }
@@ -812,7 +862,7 @@ Coverage gaps found in `ERROR_CMDS` (lines 109-117): Approvals loads via `invoke
   cd C:\Users\Owner\vox\crates\vox-gui\ui
   pnpm exec playwright test error-states.spec.ts --project=chromium
   ```
-  Expected: 6 passed. **If a surface fails**: assertion 1 or 2 failing is a real defect — apply the minimal handler fix in that surface (idiom: `.catch` + `setError`/`pushToast`, see `TasksView.tsx:50-66`) and keep the test; assertion 3 failing means the surface swallows errors silently — if the minimal fix is not obvious, temporarily narrow `KEY_SURFACES` to the passing set and add a `// TODO(phase3-followup): <view> renders no error affordance — <one-line finding>` comment above the array naming each excluded surface. Never ship a weakened assertion without the TODO trail.
+  Expected: **4 passed** (chat, runs, approvals, models — tasks and dashboard are pre-declared assertion-3 gaps, see the TODO trail above `KEY_SURFACES`). **If one of the four fails**: assertion 1 or 2 failing is a real defect — apply the minimal handler fix in that surface (idiom: `.catch` + `setError`/`pushToast`, see `TasksView.tsx:50-66`) and keep the test; assertion 3 failing means the surface swallows errors silently — if the minimal fix is not obvious, move that view to the TODO trail with a `// TODO(phase3-followup): <view> renders no error affordance — <one-line finding>` comment above the array. Never ship a weakened assertion without the TODO trail.
 - [ ] Re-run the variant vitest suite (ERROR_CMDS changed): `pnpm exec vitest run e2e/lib/tauriMockVariants.test.ts` — expected green.
 - [ ] Commit:
   ```
@@ -930,6 +980,8 @@ Spec Phase 3 item 4. Ground truth: `ApprovalsView.tsx:119` loads via `voxTranspo
 
 Spec Phase 3 item 4. Ground truth (`TasksView.tsx`): create = `invoke('hopper_submit', { intent, affinity: [] })` (`:120`) from `TaskComposer` (textarea `aria-label="Add a task"`, `Add` button, Enter submits — `TaskComposer.tsx:22-44`); cancel = `invoke('hopper_cancel', { itemId: String(id) })` (`:125`, button `title="Cancel task"` at `:238`); reprioritize = `invoke('hopper_reprioritize', { itemId, priority })` (`:127-128`) via the row `<select>` (values 2/1/0, `:144-157`). Rows come from `hopper_list` (`transport.ts:797-799`, DTO `{ item_id, intent, priority, state, task_id }`) mapped by `mapHopperTasksToRows` (`tasksHelpers.ts:75-96`; `row.id = dto.item_id`, `state: 'inbox'` → `queued`). The mock has NO `hopper_*` cases today (`list_orchestrator_tasks: []` at tauriMock.ts:307 is a different store).
 
+**Staleness caveat (Phase-2 interaction):** this ground truth was verified against PRE-Phase-2 `TasksView.tsx`. Phase 2 Task 10 rewrites `remove`/`reprioritize` into per-origin handlers (orchestrator rows go to `cancel_orchestrator_task`/`reorder_orchestrator_task`; hopper rows keep `hopper_cancel`/`hopper_reprioritize`) and replaces the priority option-value literals with `TASK_PRIORITY_WIRE` constants. If Phase 2 has landed when this task executes (the spec's rollout order says it has), **re-verify the call shapes and line refs against the landed `TasksView.tsx` before trusting the quotes above** — the spec below stays valid because it creates hopper-origin rows only, but the cited line numbers and literal option values will have drifted. Task 13 owns the post-Phase-2 additions (mark-done, origin-aware actions).
+
 **Files:**
 - Edit: `crates/vox-gui/ui/e2e/lib/tauriMock.ts` (stateful hopper cases)
 - Create: `crates/vox-gui/ui/e2e/tasks-interactions.spec.ts`
@@ -1036,7 +1088,7 @@ Spec Phase 3 item 4. Ground truth (`TasksView.tsx`): create = `invoke('hopper_su
 ## Task 10: Interaction spec — Chat submit → stream → persist
 
 Spec Phase 3 item 4. Ground truth:
-- Submit (`App.tsx:670-755`): persists the user row via `invoke('chat_append_message', { input: { session_id, role: 'user', content, task_id: null } })`, then ONE `submit_orchestrator_task` dispatch (`allow_duplicate: false`); mock returns `{ ok: true, task_id: '101' }` (`tauriMock.ts:289`).
+- Submit (`App.tsx:670-755`): persists the user row via `invoke('chat_append_message', { input: { session_id, role: 'user', content, task_id: null, already_submitted: true } })` — post-Phase-1 Task 1, App.tsx sends `already_submitted: true` on the user persist; that flag is the C2 contract that stops the backend secretary re-submit (re-verify against the landed App.tsx) — then ONE `submit_orchestrator_task` dispatch (`allow_duplicate: false`); mock returns `{ ok: true, task_id: '101' }` (`tauriMock.ts:289`).
 - Stream correlation (`lib/chatCorrelation.ts:140-167`): frames arrive on Tauri event `vox://agent-events` (`transport.ts:34`), shape `{ id, timestamp_ms, kind: { type, ... } }`; `task_started {agent_id, task_id}` seeds agent→task; `token_streamed {agent_id, text}` appends to the assistant bubble; `task_completed {task_id}` marks it `done`.
 - Persist (`App.tsx:836-859`): each completed assistant bubble persists once via `chat_append_message` with `role: 'assistant'` and `task_id`.
 - Composer: textarea `aria-label="Task composer"` (`Loquela.tsx:502`), plain Enter submits (`:456`). Sessions: mock `chat_list_sessions` returns `mock-session-1`.
@@ -1052,7 +1104,13 @@ Spec Phase 3 item 4. Ground truth:
   /**
    * Chat submit -> stream -> persist against the tauriMock, driving the
    * `vox://agent-events` stream with the __TAURI_EMIT__ helper (tauriMockShared).
-   * Also guards the C2 regression at the e2e level: exactly ONE dispatch per submit.
+   * Guards two distinct contracts:
+   *  - frontend double-dispatch (e.g. duplicate Enter handling): exactly ONE
+   *    `submit_orchestrator_task` per submit;
+   *  - the C2 `already_submitted` contract: the persisted user row must carry
+   *    `already_submitted: true` — that flag is what stops the Rust backend's
+   *    secretary re-submit (the re-submit itself happens daemon-side and is
+   *    invisible to this mock, so the flag IS the observable C2 guard here).
    */
   import { test, expect } from '@playwright/test';
   import { installTauriMock } from './lib/tauriMock';
@@ -1067,7 +1125,9 @@ Spec Phase 3 item 4. Ground truth:
     await composer.fill('Summarize the repository layout');
     await composer.press('Enter');
 
-    // Optimistic user bubble + exactly one dispatch.
+    // Optimistic user bubble + exactly one dispatch (guards FRONTEND
+    // double-dispatch, e.g. duplicate Enter handling — NOT C2; the C2
+    // re-submit is daemon-side and never crosses the Tauri invoke boundary).
     await expect(page.getByText('Summarize the repository layout')).toBeVisible();
     await expect
       .poll(() =>
@@ -1076,14 +1136,17 @@ Spec Phase 3 item 4. Ground truth:
         ),
       )
       .toBe(1);
-    // User row persisted on submit.
+    // User row persisted on submit, carrying the C2 contract flag: Phase 1
+    // makes App.tsx send already_submitted: true, which is exactly what stops
+    // the backend secretary from re-submitting — the only mock-visible C2 guard.
     expect(
       await page.evaluate(() =>
         (window as any).__TAURI_CALLS__.some(
           (c: any) =>
             c.cmd === 'chat_append_message' &&
             c.args?.input?.role === 'user' &&
-            c.args?.input?.content === 'Summarize the repository layout',
+            c.args?.input?.content === 'Summarize the repository layout' &&
+            c.args?.input?.already_submitted === true,
         ),
       ),
     ).toBe(true);
@@ -1128,11 +1191,11 @@ Spec Phase 3 item 4. Ground truth:
   cd C:\Users\Owner\vox\crates\vox-gui\ui
   pnpm exec playwright test chat-interactions.spec.ts --project=chromium
   ```
-  Expected: 1 passed. Debug notes if red: (a) tokens dropped → the `plugin:event|listen` registration isn't recording handlers — confirm Task 5's `eventPluginResponse` is reached (add a temporary `page.evaluate(() => (window as any).__TAURI_EVENT_LISTENERS__)` dump; `vox://agent-events` must have ≥1 handler after load); (b) two `submit_orchestrator_task` calls → the C2 double-submit regressed (Phase 1 scope) — report, don't paper over; (c) no assistant persist → `task_completed` must carry the SAME numeric task_id the mock returned (`'101'`; `chatCorrelation.ts` normalizes via `String()`).
+  Expected: 1 passed. Debug notes if red: (a) tokens dropped → the `plugin:event|listen` registration isn't recording handlers — confirm Task 5's `eventPluginResponse` is reached (add a temporary `page.evaluate(() => (window as any).__TAURI_EVENT_LISTENERS__)` dump; `vox://agent-events` must have ≥1 handler after load); (b) two `submit_orchestrator_task` calls → a FRONTEND double-dispatch (duplicate Enter/submit handling), while a missing or `false` `already_submitted` on the user persist → the Phase-1 C2 fix regressed in App.tsx — in either case report, don't paper over; (c) no assistant persist → `task_completed` must carry the SAME numeric task_id the mock returned (`'101'`; `chatCorrelation.ts` normalizes via `String()`).
 - [ ] Commit:
   ```
   git add crates/vox-gui/ui/e2e/chat-interactions.spec.ts
-  git commit -m "test(gui-e2e): chat submit->stream->persist interaction spec over __TAURI_EMIT__ (one-dispatch C2 guard)" -m "Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+  git commit -m "test(gui-e2e): chat submit->stream->persist interaction spec over __TAURI_EMIT__ (one-dispatch + already_submitted C2 contract guards)" -m "Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
   ```
 
 ---
@@ -1198,7 +1261,7 @@ Spec Phase 3 items 1 + 3 (workflow half). All edits inside the `gui-playwright-s
 
 ## Task 12: Whole-phase verification sweep
 
-Run the full local equivalent of the post-merge job plus every suite this plan touched, in one sitting, before declaring Phase 3 done.
+Run the full local equivalent of the post-merge job plus every suite this plan touched, in one sitting, before declaring Phase 3 done. Scope: Tasks 1-11 only — Task 13 (post-Phase-2 interaction specs) is gated on the Phase 2 series having landed and carries its own verification steps; if it has already been executed, include its three specs in the sweep expectations below.
 
 **Files:** none (verification only).
 
@@ -1215,19 +1278,19 @@ Run the full local equivalent of the post-merge job plus every suite this plan t
   ```
   pnpm exec playwright test --project=chromium --workers=4
   ```
-  Expected: green — including the three new interaction specs and `error-states.spec.ts`; `screenshots-variants.spec.ts` reports its tests as *skipped* (env gate off).
-- [ ] Variant sweep opt-in (what the advisory CI step runs):
+  Expected: green — including the three Task 8-10 interaction specs and `error-states.spec.ts` (4 passed; tasks/dashboard are pre-declared TODO(phase3-followup) gaps, see Task 7); `screenshots-variants.spec.ts` reports its tests as *skipped* (env gate off).
+- [ ] Variant sweep opt-in (what the advisory CI step runs — PowerShell syntax; cmd.exe's `set X=1` does NOT export in PowerShell and every test would silently self-skip):
   ```
-  set VOX_VARIANT_SCREENSHOTS=1
+  $env:VOX_VARIANT_SCREENSHOTS = '1'
   pnpm exec playwright test screenshots-variants.spec.ts --project=chromium --workers=2
-  set VOX_VARIANT_SCREENSHOTS=
+  Remove-Item Env:VOX_VARIANT_SCREENSHOTS
   ```
-  Expected: green, or documented advisory failures matching Task 6's commit-body findings list (nothing new/unexplained).
-- [ ] Rust (redirect, never pipe):
+  Expected: **20 passed, 0 skipped** (any `skipped` > 0 = the env gate never opened; the run verified nothing), or documented advisory failures matching Task 6's commit-body findings list (nothing new/unexplained).
+- [ ] Rust (redirect, never pipe; PowerShell syntax):
   ```
   cd C:\Users\Owner\vox
-  cargo test -p vox-orchestrator-mcp --features gui-visual-review visus_review > "%TEMP%\phase3_rust.log" 2>&1
-  cargo clippy -p vox-orchestrator-mcp --features gui-visual-review -- -D warnings > "%TEMP%\phase3_clippy.log" 2>&1
+  cargo test -p vox-orchestrator-mcp --features gui-visual-review visus_review > "$env:TEMP\phase3_rust.log" 2>&1
+  cargo clippy -p vox-orchestrator-mcp --features gui-visual-review -- -D warnings > "$env:TEMP\phase3_clippy.log" 2>&1
   ```
   Read both logs — expected: all tests pass, zero clippy warnings.
 - [ ] Negative test of the registry guard (proves the guard guards — spec "Testing strategy"): temporarily add a bogus routed case to `surfaceComponents.tsx`:
@@ -1237,14 +1300,223 @@ Run the full local equivalent of the post-merge job plus every suite this plan t
   ```
   run `pnpm exec vitest run src/guards/surfaceRegistryEscape.test.ts` — expected: FAILS naming `not-a-registered-surface`. Revert the temporary case (`git checkout -- src/components/layout/surfaceComponents.tsx` from the ui dir) and re-run — green.
 - [ ] Confirm the working tree contains no stray artifacts: `git status` shows only intended commits, no unstaged `e2e/screens/*.png` churn committed (screenshots are gitignored output — verify none were `git add`ed by earlier tasks; if any were, unstage them).
-- [ ] Final: `git log --oneline -12` — expect the ~10 Phase-3 commits from Tasks 1-11 in order, each independently revertable.
+- [ ] Final: `git log --oneline -12` — expect the 11 Phase-3 commits from Tasks 1-11 in order (one per task; Task 13 adds its own commits later, once Phase 2 has landed), each independently revertable, on top of the starting commit.
+
+---
+
+## Task 13: Post-Phase-2 interaction specs (model picker, session rename/archive, task mark-done)
+
+Spec Phase 3 item 4 (remaining three of the five named interaction specs). **Sequencing gate:** this task executes only AFTER the Phase 2 series (`2026-07-16-axis-gui-remediation-phase2-wiring.md`) has landed — it drives UI that Phase 2 creates (`ChatModelPicker`, the session-rail kebab menu, the Tasks mark-done button) and relies on the tauriMock command cases the Phase 2 plan (after its own review fixes) adds for `set_active_model`, `chat_rename_session`, `chat_archive_session`, and `hopper_mark_done`. Per the spec's rollout order (bugs → wiring → tests/CI) Phase 2 has landed by the time this plan runs, so execute Task 13 in normal order; if Phase 2 has NOT landed, skip this task, leave its checkboxes unticked, and revisit — do not write specs against wiring that does not exist. Tasks 1-12 have no dependency on this task.
+
+Ground truth is split between landed code and Phase-2-plan artifacts:
+- **Verified against current code:** the session rail has `data-testid="chat-session-rail"` and renders sessions as `role="tab"` with the title (`chat-session-rail.spec.ts:19-22`); the tauriMock's `chat_list_sessions` returns one session `mock-session-1` / "Mock chat" (`tauriMock.ts:224`); `get_active_model` returns `'opus-4-8'` and `list_model_cards` returns ids including `'sonnet-4-6'` (`tauriMock.ts:28-43,131-132`); Task 9's hopper mock provides `__MOCK_HOPPER__` + `hopper_submit`/`hopper_list`.
+- **Keyed to the Phase 2 plan's stated roles/testids (artifacts that do not exist pre-P2 — re-verify each against the LANDED code in Step 0):** `ChatModelPicker` trigger button accessible-name `model: <activeModel>`, dropdown `role="listbox"` `aria-label="Pick active model"`, entries `role="option"` named by model id, apply = `invoke('set_active_model', { modelId })` (phase2 plan Task 7 Steps 5-6); session-rail kebab `aria-label="Session actions for <title>"`, `role="menuitem"` Rename/Archive, rename input `aria-label="New session title"` with Enter-commit, handlers `invoke('chat_rename_session', { sessionId, title })` / `invoke('chat_archive_session', { sessionId })` (phase2 plan Task 11); Tasks mark-done button `title="Mark done"` on hopper-origin non-completed rows calling `hopperMarkDone(String(r.id))` → `invoke('hopper_mark_done', { itemId })`, done rows grouped under 'Completed' (phase2 plan Tasks 9-10). **Caveat:** phase2's adversarial-review fix for its F4 finding may re-route the picker's apply so the pick also (or instead) threads a `model_override` into the chat submit payload — Step 0 must pin the landed IPC contract before the assertion is trusted.
+
+**Files:**
+- Edit: `crates/vox-gui/ui/e2e/lib/tauriMock.ts` (stateful sessions; verify/extend the Phase-2-added `hopper_mark_done` + session cases)
+- Create: `crates/vox-gui/ui/e2e/model-picker-interactions.spec.ts`
+- Create: `crates/vox-gui/ui/e2e/session-rail-actions.spec.ts`
+- Edit: `crates/vox-gui/ui/e2e/tasks-interactions.spec.ts` (append the mark-done test)
+
+**Steps:**
+
+- [ ] **Step 0 — re-verify the Phase-2 landed surface** (the plan-stated shapes above may have drifted in review):
+  ```
+  git grep -n "Pick active model\|Session actions for\|New session title\|Mark done" crates/vox-gui/ui/src
+  git grep -n "set_active_model\|chat_rename_session\|chat_archive_session\|hopper_mark_done" crates/vox-gui/ui/src crates/vox-gui/ui/e2e/lib
+  ```
+  Expected: hits in `ChatModelPicker.tsx`, `ChatSessionRail.tsx`, `ChatSurface.tsx`, `TasksView.tsx`, and `e2e/lib/tauriMock.ts` (the Phase-2-added mock cases). If any selector/command differs from the ground truth above, use the landed form in the specs below. Also pin the picker's apply contract: read the landed `ChatModelPicker.tsx` — if the pick threads `model_override` into the chat submit instead of (or in addition to) calling `set_active_model`, assert THAT payload in Step 2. Re-verify TasksView's per-origin action shapes (Task 9 caveat): hopper rows must still call `hopper_cancel`/`hopper_reprioritize`.
+- [ ] **Step 1 — make the sessions mock stateful** (skip any part Phase 2 already made stateful). In `installTauriMock`, seed next to `__MOCK_APPROVALS__`/`__MOCK_HOPPER__`:
+  ```ts
+    (window as any).__MOCK_SESSIONS__ = [
+      { session_id: 'mock-session-1', title: 'Mock chat', updated_at: 'now', message_count: 2, conversation_id: 1 },
+    ];
+  ```
+  and replace/add the switch cases (Tauri camelCase arg mapping — the frontend sends `{ sessionId, title }`):
+  ```ts
+          case 'chat_list_sessions':
+            return ((window as any).__MOCK_SESSIONS__ as any[]).map(s => ({ ...s }));
+          case 'chat_rename_session': {
+            const hit = ((window as any).__MOCK_SESSIONS__ as any[]).find(
+              s => s.session_id === String(args?.sessionId),
+            );
+            if (hit) hit.title = String(args?.title ?? hit.title);
+            return null;
+          }
+          case 'chat_archive_session': {
+            (window as any).__MOCK_SESSIONS__ = ((window as any).__MOCK_SESSIONS__ as any[]).filter(
+              s => s.session_id !== String(args?.sessionId),
+            );
+            return null;
+          }
+  ```
+  and verify the Phase-2-added `hopper_mark_done` case is stateful against `__MOCK_HOPPER__`; if it is missing or stateless, use:
+  ```ts
+          case 'hopper_mark_done': {
+            const items = (window as any).__MOCK_HOPPER__ as any[];
+            const hit = items.find(t => t.item_id === String(args?.itemId));
+            if (hit) hit.state = 'done';
+            return hit ? { ...hit } : null;
+          }
+  ```
+  (Task 9's `hopper_list` case already returns everything in `__MOCK_HOPPER__`, so done rows keep flowing — matching Phase 2's "hopper_list includes terminal done items" read.)
+- [ ] **Step 2 — create `crates/vox-gui/ui/e2e/model-picker-interactions.spec.ts`:**
+  ```ts
+  /**
+   * Chat model picker apply flow (Phase 2 wiring) against the stateful tauriMock.
+   * Selectors keyed to the Phase 2 plan's stated roles (re-verified in Step 0).
+   */
+  import { test, expect } from '@playwright/test';
+  import { installTauriMock } from './lib/tauriMock';
+  import { addMockInitScript } from './lib/tauriMockShared';
+
+  test('picking a model applies it and updates the trigger label', async ({ page }) => {
+    await addMockInitScript(page, installTauriMock, 'chat');
+    await page.goto('/');
+    await page.waitForSelector('nav', { timeout: 15_000 });
+
+    // Trigger renders the active model (mock get_active_model = 'opus-4-8').
+    await page.getByRole('button', { name: /model: opus-4-8/i }).click();
+    await expect(page.getByRole('listbox', { name: 'Pick active model' })).toBeVisible();
+    await page.getByRole('option', { name: 'sonnet-4-6' }).click();
+
+    // Outgoing IPC contract. If Step 0 found the landed picker threads
+    // model_override into the submit payload instead, assert that payload here.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() =>
+            (window as any).__TAURI_CALLS__.filter((c: any) => c.cmd === 'set_active_model').length,
+          ),
+        { timeout: 10_000 },
+      )
+      .toBeGreaterThan(0);
+    const call = await page.evaluate(() =>
+      (window as any).__TAURI_CALLS__.find((c: any) => c.cmd === 'set_active_model'),
+    );
+    expect(call.args).toMatchObject({ modelId: 'sonnet-4-6' });
+
+    // Product-rendered result: onApplied updates the trigger label.
+    await expect(page.getByRole('button', { name: /model: sonnet-4-6/i })).toBeVisible();
+  });
+  ```
+- [ ] **Step 3 — create `crates/vox-gui/ui/e2e/session-rail-actions.spec.ts`:**
+  ```ts
+  /**
+   * Session rail rename/archive flows (Phase 2 wiring) against the stateful
+   * tauriMock: outgoing IPC contract + product-rendered rail state after the
+   * handler's loadSessions() refetch of the stateful mock.
+   */
+  import { test, expect } from '@playwright/test';
+  import { installTauriMock } from './lib/tauriMock';
+  import { addMockInitScript } from './lib/tauriMockShared';
+
+  test.describe('Session rail actions', () => {
+    test.beforeEach(async ({ page }) => {
+      await addMockInitScript(page, installTauriMock, 'chat');
+      await page.setViewportSize({ width: 1400, height: 900 });
+      await page.goto('/');
+      await page.waitForSelector('nav', { timeout: 15_000 });
+      await expect(page.getByTestId('chat-session-rail')).toBeVisible();
+      await expect(page.getByRole('tab', { name: /Mock chat/i })).toBeVisible();
+    });
+
+    test('rename flows through chat_rename_session and re-renders the new title', async ({ page }) => {
+      await page.getByRole('button', { name: 'Session actions for Mock chat' }).click();
+      await page.getByRole('menuitem', { name: /rename/i }).click();
+      const input = page.getByRole('textbox', { name: /new session title/i });
+      await input.fill('Renamed chat');
+      await input.press('Enter');
+
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() =>
+              (window as any).__TAURI_CALLS__.filter((c: any) => c.cmd === 'chat_rename_session').length,
+            ),
+          { timeout: 10_000 },
+        )
+        .toBe(1);
+      const call = await page.evaluate(() =>
+        (window as any).__TAURI_CALLS__.find((c: any) => c.cmd === 'chat_rename_session'),
+      );
+      expect(call.args).toMatchObject({ sessionId: 'mock-session-1', title: 'Renamed chat' });
+      await expect(page.getByRole('tab', { name: /Renamed chat/i })).toBeVisible();
+    });
+
+    test('archive flows through chat_archive_session and removes the session tab', async ({ page }) => {
+      await page.getByRole('button', { name: 'Session actions for Mock chat' }).click();
+      await page.getByRole('menuitem', { name: /archive/i }).click();
+
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() =>
+              (window as any).__TAURI_CALLS__.filter((c: any) => c.cmd === 'chat_archive_session').length,
+            ),
+          { timeout: 10_000 },
+        )
+        .toBe(1);
+      const call = await page.evaluate(() =>
+        (window as any).__TAURI_CALLS__.find((c: any) => c.cmd === 'chat_archive_session'),
+      );
+      expect(call.args).toMatchObject({ sessionId: 'mock-session-1' });
+      await expect(page.getByRole('tab', { name: /Mock chat/i })).toHaveCount(0);
+    });
+  });
+  ```
+- [ ] **Step 4 — append the mark-done test to `crates/vox-gui/ui/e2e/tasks-interactions.spec.ts`:**
+  ```ts
+  test('create -> mark done calls hopper_mark_done and retires the affordance', async ({ page }) => {
+    await addMockInitScript(page, installTauriMock, 'tasks');
+    await page.goto('/');
+    await page.waitForSelector('nav', { timeout: 15_000 });
+
+    const composer = page.getByLabel('Add a task');
+    await composer.fill('Write the changelog');
+    await composer.press('Enter');
+    await expect(page.getByText('Write the changelog')).toBeVisible();
+
+    const row = page.locator('tr', { hasText: 'Write the changelog' });
+    await row.getByTitle('Mark done').click();
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() =>
+            (window as any).__TAURI_CALLS__.filter((c: any) => c.cmd === 'hopper_mark_done').length,
+          ),
+        { timeout: 10_000 },
+      )
+      .toBe(1);
+    const call = await page.evaluate(() =>
+      (window as any).__TAURI_CALLS__.find((c: any) => c.cmd === 'hopper_mark_done'),
+    );
+    expect(call.args).toMatchObject({ itemId: 'hop-1' });
+
+    // Done rows stay listed (Phase 2: hopper_list includes terminal done items)
+    // but lose the mark-done affordance (hopper-origin + not-completed guard).
+    await expect(page.getByText('Write the changelog')).toBeVisible();
+    await expect(row.getByTitle('Mark done')).toHaveCount(0);
+  });
+  ```
+  Same selector caveats as the existing test in this file (`tr` vs `[role="row"]`); additionally re-verify that the landed `mapHopperTasksToRows` maps `state: 'done'` → `lifecycle: 'completed'` (Phase 2 Task 10 groups such rows under 'Completed') — if done rows are filtered out of the view instead, replace the last two assertions with `await expect(page.getByText('Write the changelog')).toHaveCount(0);` and note the landed behavior in the commit body.
+- [ ] **Step 5 — run everything this task touched:**
+  ```
+  cd C:\Users\Owner\vox\crates\vox-gui\ui
+  pnpm exec playwright test model-picker-interactions.spec.ts session-rail-actions.spec.ts tasks-interactions.spec.ts --project=chromium
+  ```
+  Expected: 4 passed (1 picker + 2 rail + the extended tasks spec now counts 2). Then re-run the sweep the mock edits could affect: `pnpm exec playwright test screenshots.spec.ts chat-interactions.spec.ts --project=chromium --workers=4` — green (the chat screenshot still renders 'Mock chat'; the sessions/hopper cases changed shape only from literal to stateful).
+- [ ] **Step 6 — commit:**
+  ```
+  git add crates/vox-gui/ui/e2e
+  git commit -m "test(gui-e2e): post-Phase-2 interaction specs - model picker apply, session rename/archive, hopper mark-done" -m "Completes spec Phase 3 item 4's five interaction flows; stateful session/hopper mock cases." -m "Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+  ```
 
 ---
 
 ## Out of scope (explicitly deferred, do not implement here)
 
-- **Model picker apply / session rename-archive interaction specs** (spec Phase 3 item 4 mentions them): they depend on Phase 2 wiring (`set_active_model` chat picker, `chat_rename_session`/`chat_archive_session` context menu) that does not exist yet. Add those specs in the Phase 2 series.
-- **Tasks "mark done" interaction**: depends on Phase 2 item 6 (fork F1 merge-view + done state).
+- **Model picker apply / session rename/archive / tasks mark-done interaction specs are NOT deferred out of this plan** — they are owned by **Task 13 above**, explicitly gated on the Phase 2 series having landed. (Phase 2 adds the wiring and the tauriMock command cases but contains no e2e interaction specs of its own; pointing the deferral at "the Phase 2 series" would orphan these specs between the two plans.)
 - **Workbench doc-tab open/close spec**: already covered by `e2e/workbench-tabs.spec.ts` — skip (verified: 10 tests including doc-tab persistence).
 - **PR gating of any GUI job**: fork F2 resolved as post-merge only. Nothing in this plan may add `gui-playwright-smoke` (or any new job) to `ci-summary.needs` or change PR triggers.
 - **Unstaging `contracts/reports/gui-visual-review/0000-00-00.json`** and the `--date` default fix: Phase 1 item 7.

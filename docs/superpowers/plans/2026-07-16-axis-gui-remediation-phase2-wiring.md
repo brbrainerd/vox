@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the Axis GUI a real harness: model selection proactively gated on API-key presence and live local-server health, the two dead routing engines deleted (fork F3), a per-backend availability panel + chat model picker, honest hopper DTOs, a merge-view Tasks surface over both task stores (fork F1) with mark-done, and working session rename/archive + per-message model attribution.
+**Goal:** Make the Axis GUI a real harness: model selection proactively gated on API-key presence and live local-server health, the two dead routing engines deleted (fork F3), a per-backend availability panel + a chat model pick threaded to the daemon via `enqueue_hints.model_override`, honest hopper DTOs, a merge-view Tasks surface over both task stores (fork F1) with mark-done, and working session rename/archive + per-message model attribution.
 
-**Architecture:** All gating lands inside the one exercised selection path — `decide()` in `vox-orchestrator` (candidate filter) plus the MCP resolver's `routing_allows` closure for local-health — with the reactive fallback chain untouched as the safety net. Health probing is substrate in `vox-actor-runtime::inference_env` (TTL cache, sync peek + async refresh) shared by the resolver and a new Tauri command. The Tasks surface merges the SQLite hopper read (extended with its *actually persisted* fields) with the existing daemon-backed `list_orchestrator_tasks` read, origin-tagged in the frontend. Chat model attribution rides the already-broadcast `cost_incurred` agent event (`events.rs:274-277` carries `agent_id` + `model`), correlated client-side through the existing `agentToTask`/`taskToRun` maps.
+**Architecture:** All gating lands inside the one exercised selection path — `decide()` in `vox-orchestrator` (candidate filter) plus the MCP resolver's `routing_allows` closure for local-health — with the reactive fallback chain untouched as the safety net. Health probing is substrate in `vox-actor-runtime::inference_env` (TTL cache, sync peek + async refresh) shared by the resolver and a new Tauri command; the health gate covers only the providers that server actually serves (`Ollama | PopuliMesh` — VoxLocal has its own endpoint + probe). The chat model pick threads through the one channel the daemon actually consumes: `enqueue_hints.model_override` (`tasks.rs:241-243`) → `AgentTask::model_override` (`apply_hints`, `tasks.rs:861-862`) → `StreamRoute::UserModelOverride` at dispatch (`runtime.rs:408-421`). The Tasks surface merges the SQLite hopper read (extended with its *actually persisted* fields) with the existing daemon-backed `list_orchestrator_tasks` read, origin-tagged in the frontend. Chat model attribution rides the already-broadcast `cost_incurred` agent event (`events.rs:274-277` carries `agent_id` + `model`), routed to the owning session by `sessionChatStore.resolveSessionForEvent` (which gains a `cost_incurred` branch — at runtime every frame goes through the session store, never `chatReducer` directly) and correlated through the existing `agentToTask`/`taskToRun` maps.
 
 **Tech Stack:** Rust (tauri 2, tokio, serde, serial_test), vox-orchestrator / vox-orchestrator-mcp / vox-actor-runtime / vox-config / vox-gui crates; React 19 + TypeScript + Vitest + Testing Library (pnpm-managed at `crates/vox-gui/ui`, **pnpm not npm**); Playwright e2e via `e2e/lib/tauriMock.ts`. Windows dev box: never `cargo fmt --all` (use `cargo fmt -p <crate>`), never pipe cargo output to `head`/`grep` (redirect to a file if needed), never `cargo clippy --all-targets` across the workspace with vox-gui included (use `-p <crate>`, and for workspace sweeps `--exclude vox-gui`).
 
@@ -14,9 +14,10 @@
 
 - **Item 1 insertion point (B3):** the candidate filter of `decide()` (`crates/vox-orchestrator/src/models/select.rs:97-124` and the exploration loop at `:126-155`), activating `ModelRegistry::key_is_present_for` (`registry.rs:272-275`). Chosen over folding `available_inference_providers()` into `routing_allows` (`resolve.rs:233`) because: (a) `decide()` is consumed by every structured-selection caller — the MCP chat resolver (`resolve.rs:362`), the GUI decision preview (`vox-gui/src/commands/models.rs:200`) — not just MCP chat; (b) the gate lands *before* scoring, so the scorer picks the best *available* model instead of a keyless pick being discarded post-hoc; (c) rejections surface in `rejection_reasons`, which the GUI already renders. The MCP resolver's non-`decide()` paths (hard pin, free-tier, cheapest fallback) keep their reactive fallback net.
 - **Item 3 deletion scope (F3), caller-verified:** `resolve_chat_provider_route` / `resolve_chat_provider_route_impl` / `populi_model_plausible` have **zero production callers** (only their own `#[cfg(test)]` tests; verified by grep — `llm/cascade.rs`, `vox-research-shim`, and `vox-codegen`'s emitted fixture consume only `RouteResolutionInput::{mens_chat_model, openrouter_model}` + `chat_route_to_llm_config`, which stay). `ModelPool::resolve`/`resolve_with_fallback`/`rule_matches`/`list_enabled_providers` have zero consumers outside `vox-config` itself (the 2026-06-19 dynamic-model-pool plan's Tauri commands were never built). `VoxToml` (`toml_schema.rs:9-20`) is `#[serde(default)]` with no `deny_unknown_fields`, so removing the `model_pool` field is parse-safe for existing `~/.vox/config.toml` files; `persist.rs` merge-writes seeded from the existing file, so we also explicitly `remove("model_pool")` on save to retire the key.
+- **Item 4 picker channel (honest wiring):** the chat model pick does **not** ride `set_active_model` (`crates/vox-gui/src/commands/models.rs:156`) — that command only sets `VOX_MODEL` in the *GUI* process env and writes an `active_model` DB preference nothing in any selection path reads; chat tasks execute in the separate `vox-orchestrator-d` daemon. The pick threads as `enqueue_hints.model_override`: `TaskEnqueueHints.model_override` (`crates/vox-orchestrator/src/types/tasks.rs:241-243`) → applied to `AgentTask` (`tasks.rs:861-862`) → consumed at dispatch as `StreamRoute::UserModelOverride` (`crates/vox-orchestrator/src/runtime.rs:408-421`). `set_active_model` stays as-is for the Models-surface display only.
 - **Item 5 real-fields check:** the hopper SQLite row persists `item_id, intent, affinity_json, priority, source(json), session_id, state(json), submitted_at` (`sqlite_store.rs:30-61,85-96`). Therefore the DTO gains **`session_id`** (column), **`agent_id`** (inside `ItemState::Assigned { agent_id }` state JSON), **`remote_node`** (inside `IntakeSource::Mesh { node_id }` source JSON) — and **not** `depends_on`/`write_files`/`estimated_complexity`, which the hopper does not persist. Those three come alive via the merge-view (Task 10): orchestrator task-graph rows already carry them (`control_plane.rs:211-305`).
-- **Item 6 merge-view (F1):** frontend union. `list_orchestrator_tasks` (daemon `LIST_TASKS`, registered `main.rs:157`) already returns the full `TaskRowDto`; `hopper_list` is extended to include terminal `done` items so the `completed` branch is reachable. No dedupe hazard: chat submissions go to the orchestrator graph (`SUBMIT_TASK`), hopper items only from the TasksView composer/secretary — disjoint stores by construction.
-- **Item 7 model attribution source:** no task event carries a model id (`TaskCompleted` at `events.rs:179-186` has none), but `CostIncurred { agent_id, provider, model, .. }` (`events.rs:274-277`) is broadcast on the same `vox://agent-events` stream the chat reducer already consumes, and the reducer already owns `agentToTask` + `taskToRun`. Wire `cost_incurred → modelId` client-side; persist via the already-tested `model_id` payload field in `chat.rs`.
+- **Item 6 merge-view (F1), mirroring the spec's recorded decision (spec Phase 2 item 6):** frontend union in TasksView. `list_orchestrator_tasks` (daemon `LIST_TASKS`, registered `main.rs:157`) already returns the full `TaskRowDto`; `hopper_list` is extended **only** with terminal `done` items (bounded, most-recent-N — Task 9) so the `completed` branch is reachable, and TasksView merges those rows with the `list_orchestrator_tasks` read, origin-tagged. **Scope limit (recorded in the spec):** `hopper_list` itself stays hopper-only — other consumers (`useAttentionInbox` blocked-count, the urbs harness read) keep hopper-only semantics by design, so gated orchestrator tasks show as blocked rows in the Tasks surface but are **not** counted in the attention strip. No dedupe hazard: chat submissions go to the orchestrator graph (`SUBMIT_TASK`), hopper items only from the TasksView composer/secretary — disjoint stores by construction (this reasoning is also why the union must NOT be pushed into `hopper_list` itself).
+- **Item 7 model attribution source:** no task event carries a model id (`TaskCompleted` at `events.rs:179-186` has none), but `CostIncurred { agent_id, provider, model, .. }` (`events.rs:274-277`) is broadcast on the same `vox://agent-events` stream. At runtime App routes **every** agent-event frame through `sessionChatStore` (`App.tsx:443-452` → `dispatchSessionChat({ type: 'agentEvent', … })`), so `resolveSessionForEvent` must gain a `cost_incurred` branch (its agent-id-scan group) or the frame is dropped before `chatReducer` ever sees it. Wire `cost_incurred → modelId` in both layers; persist via the already-tested `model_id` payload field in `chat.rs`.
 
 **Suggested PR series** (each task = one commit; each PR independently green): PR-A Tasks 1–3 (selection gating) · PR-B Tasks 4–5 (engine deletions) · PR-C Tasks 6–7 (availability panel + picker) · PR-D Tasks 8–10 (Tasks surface) · PR-E Tasks 11–12 (session management + model badge).
 
@@ -261,31 +262,97 @@ Current gate closure (`resolve.rs:233-235`) — applied at every acceptance poin
     };
 ```
 
-- [ ] **Step 1: Failing test.** Create `crates/vox-orchestrator-mcp/src/llm_bridge/local_health.rs` containing only the test first (module registered in Step 3's `mod.rs` edit — do that edit now so the test compiles into the tree):
+**Gate scope (deliberate):** the probe hits `vox_config::inference::local_ollama_populi_base_url()`, which serves **only** `Ollama` and `PopuliMesh` candidates (`model_resolution.rs:93-96` routes PopuliMesh to that base). `VoxLocal` is a *different* server on a different port — `VOX_LOCAL_ENDPOINT`, default `http://127.0.0.1:7863`, with its own probe `providers::probe_vox_local_health` (`crates/vox-orchestrator-mcp/src/llm_bridge/providers/probe.rs:17-24`) already guarding the call path inside `vox_local_generate` (`llm_bridge/mod.rs:52-66`). Gating VoxLocal on the Ollama/populi probe would wrongly exclude a healthy MENS server whenever Ollama is down — including the VoxLocal-preferred acceptance branch at `resolve.rs:337-348`. So VoxLocal is explicitly **ungated** here.
+
+- [ ] **Step 1: Failing tests.** Create `crates/vox-orchestrator-mcp/src/llm_bridge/local_health.rs` containing only the tests first (module registered in Step 3's `mod.rs` edit — do that edit now so the tests compile into the tree):
 
 ```rust
-//! Short-TTL local-backend (Ollama/VoxLocal/PopuliMesh) health gate for the
-//! synchronous MCP model resolver. Peeks the vox-actor-runtime probe cache;
-//! unknown health is optimistic (allowed) — the reactive fallback chain in the
-//! infer loop remains the safety net for the first call after startup.
+//! Short-TTL local-backend (Ollama/PopuliMesh) health gate for the synchronous
+//! MCP model resolver. Peeks the vox-actor-runtime probe cache; unknown health
+//! is optimistic (allowed) — the reactive fallback chain in the infer loop
+//! remains the safety net for the first call after startup. VoxLocal is NOT
+//! gated here: it runs on its own server (`VOX_LOCAL_ENDPOINT`) with its own
+//! probe (`providers::probe_vox_local_health`) already in the call path.
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vox_orchestrator::models::ProviderType;
+    use vox_orchestrator::models::{ModelCapabilities, ModelSpec, ProviderType};
 
     #[test]
     fn unknown_health_is_optimistic_and_only_confirmed_down_excludes() {
         assert!(local_gate_allows(&ProviderType::Ollama, None));
-        assert!(local_gate_allows(&ProviderType::VoxLocal, Some(true)));
+        assert!(local_gate_allows(&ProviderType::PopuliMesh, Some(true)));
+        assert!(!local_gate_allows(&ProviderType::Ollama, Some(false)));
         assert!(!local_gate_allows(&ProviderType::PopuliMesh, Some(false)));
+        // VoxLocal is served by a different server (VOX_LOCAL_ENDPOINT) whose
+        // own probe guards the call path — never gated on the populi probe.
+        assert!(local_gate_allows(&ProviderType::VoxLocal, Some(false)));
         // Cloud providers are never health-gated by this check.
         assert!(local_gate_allows(&ProviderType::OpenRouter, Some(false)));
+    }
+
+    // Wiring test 1 (cache plumbing): seed a known-down snapshot through the
+    // Task 2 substrate (unbound port ⇒ unreachable) and assert the peek reads
+    // it back through the same TTL + key normalization the resolver will use.
+    #[tokio::test]
+    async fn cache_plumbing_reads_the_shared_probe_cache() {
+        let base = "http://127.0.0.1:1"; // guaranteed-unbound, like inference_env's own test
+        let snap = vox_actor_runtime::inference_env::probe_populi_capabilities_cached(
+            base,
+            LOCAL_HEALTH_TTL,
+        )
+        .await;
+        assert!(!snap.reachable);
+        assert_eq!(local_backend_health_for(base), Some(false));
+        // An unprobed URL is unknown (peek returns None; only a background
+        // refresh fires) — the optimistic path.
+        assert_eq!(local_backend_health_for("http://127.0.0.1:2"), None);
+    }
+
+    fn gate_spec(id: &str, provider_type: ProviderType) -> ModelSpec {
+        // Fixture idiom: provider_endpoints.rs:102-120.
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 8_000,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            observed_cost_per_1k: None,
+            strengths: vec![],
+            capabilities: ModelCapabilities::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: vox_orchestrator::models::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    // Wiring test 2 (resolver gate): `local_candidate_allowed` is exactly what
+    // the `routing_allows` closure calls — drive it through the test-only
+    // health override so a botched health lookup or provider-match can't hide
+    // behind "unknown ⇒ optimistic".
+    #[test]
+    fn resolver_gate_excludes_populi_backed_candidates_when_confirmed_down() {
+        set_test_health_override(Some(Some(false)));
+        assert!(!local_candidate_allowed(&gate_spec("ollama-m", ProviderType::Ollama)));
+        assert!(!local_candidate_allowed(&gate_spec("mesh-m", ProviderType::PopuliMesh)));
+        assert!(local_candidate_allowed(&gate_spec("vox-m", ProviderType::VoxLocal)));
+        assert!(local_candidate_allowed(&gate_spec("or-m", ProviderType::OpenRouter)));
+        set_test_health_override(None);
+        // Override cleared ⇒ real path; no fresh probe of the config base URL
+        // in a unit-test env ⇒ unknown ⇒ optimistic.
+        assert!(local_candidate_allowed(&gate_spec("ollama-m", ProviderType::Ollama)));
     }
 }
 ```
 
-- [ ] **Step 2: Watch it fail.** `cargo test -p vox-orchestrator-mcp local_health` → compile error: ``cannot find function `local_gate_allows` in this scope``.
+- [ ] **Step 2: Watch it fail.** `cargo test -p vox-orchestrator-mcp local_health` → compile error: ``cannot find function `local_gate_allows` in this scope`` (and `local_backend_health_for`, `local_candidate_allowed`, `set_test_health_override`, `LOCAL_HEALTH_TTL`).
 - [ ] **Step 3: Implement.** Fill in `local_health.rs` above the test module:
 
 ```rust
@@ -296,29 +363,31 @@ use vox_orchestrator::models::{ModelSpec, ProviderType};
 /// How long a probe result is trusted before a re-probe is triggered.
 const LOCAL_HEALTH_TTL: Duration = Duration::from_secs(15);
 
-fn is_local_provider(p: &ProviderType) -> bool {
-    matches!(
-        p,
-        ProviderType::Ollama | ProviderType::VoxLocal | ProviderType::PopuliMesh
-    )
+/// Providers served by the shared Ollama/populi local server
+/// (`vox_config::inference::local_ollama_populi_base_url()`). VoxLocal is
+/// deliberately absent: different server, different port, own probe (F5).
+fn is_populi_backed_local(p: &ProviderType) -> bool {
+    matches!(p, ProviderType::Ollama | ProviderType::PopuliMesh)
 }
 
 /// Pure decision core (unit-tested): `health` = `Some(reachable)` from a fresh
 /// probe, `None` = unknown. Unknown ⇒ allowed.
 fn local_gate_allows(provider: &ProviderType, health: Option<bool>) -> bool {
-    !is_local_provider(provider) || health != Some(false)
+    !is_populi_backed_local(provider) || health != Some(false)
 }
 
-/// Fresh-cached local-backend reachability; `None` = no fresh probe. A stale /
+/// Fresh-cached reachability of `base_url`; `None` = no fresh probe. A stale /
 /// missing entry fires a non-blocking background refresh when a tokio runtime
-/// is available (the MCP server always runs inside one).
-fn local_backend_health() -> Option<bool> {
-    let base = vox_config::inference::local_ollama_populi_base_url();
-    if let Some(snap) = vox_actor_runtime::inference_env::last_populi_probe(&base, LOCAL_HEALTH_TTL)
+/// is available (the MCP server always runs inside one). Parameterized on the
+/// base URL so the cache plumbing is unit-testable without touching config.
+fn local_backend_health_for(base_url: &str) -> Option<bool> {
+    if let Some(snap) =
+        vox_actor_runtime::inference_env::last_populi_probe(base_url, LOCAL_HEALTH_TTL)
     {
         return Some(snap.reachable);
     }
     if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        let base = base_url.to_string();
         handle.spawn(async move {
             let _ = vox_actor_runtime::inference_env::probe_populi_capabilities_cached(
                 &base,
@@ -330,9 +399,34 @@ fn local_backend_health() -> Option<bool> {
     None
 }
 
-/// Gate consulted by the resolver's `routing_allows`: local candidates are
-/// offered only while the local server is not known-down.
+fn local_backend_health() -> Option<bool> {
+    local_backend_health_for(&vox_config::inference::local_ollama_populi_base_url())
+}
+
+/// Test-only seam: `Some(health)` forces `local_candidate_allowed` to see that
+/// health value; `None` restores the real cache-peek path.
+#[cfg(test)]
+static TEST_HEALTH_OVERRIDE: std::sync::Mutex<Option<Option<bool>>> =
+    std::sync::Mutex::new(None);
+
+#[cfg(test)]
+fn set_test_health_override(v: Option<Option<bool>>) {
+    *TEST_HEALTH_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = v;
+}
+
+/// Gate consulted by the resolver's `routing_allows`: Ollama/PopuliMesh
+/// candidates are offered only while their shared local server is not
+/// known-down. VoxLocal and cloud providers always pass.
 pub(crate) fn local_candidate_allowed(m: &ModelSpec) -> bool {
+    #[cfg(test)]
+    if let Some(overridden) = *TEST_HEALTH_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+    {
+        return local_gate_allows(&m.provider_type, overridden);
+    }
     local_gate_allows(&m.provider_type, local_backend_health())
 }
 ```
@@ -348,11 +442,12 @@ pub(crate) fn local_candidate_allowed(m: &ModelSpec) -> bool {
     };
 ```
 
-  Confirm `vox-actor-runtime` is already a dependency of `vox-orchestrator-mcp` (it is — `resolve.rs:3` imports `vox_actor_runtime::model_resolution`).
-- [ ] **Step 4: Watch it pass.** `cargo test -p vox-orchestrator-mcp local_health` → `test result: ok.` Then `cargo test -p vox-orchestrator-mcp model_route_policy` → pre-existing resolver tests stay green (test env has no fresh probe ⇒ unknown ⇒ optimistic, behavior unchanged).
+  Confirm `vox-actor-runtime` is already a dependency of `vox-orchestrator-mcp` (it is — `resolve.rs:3` imports `vox_actor_runtime::model_resolution`). The `#[tokio::test]` needs tokio's `macros`+`rt` features available to the crate's tests — the crate is an async server and already runs tokio; if the attribute doesn't resolve, add `tokio = { workspace = true, features = ["macros", "rt"] }` under `[dev-dependencies]`.
+- [ ] **Step 4: Watch it pass.** `cargo test -p vox-orchestrator-mcp local_health` → `test result: ok. 3 passed` (truth table + cache plumbing + resolver gate — no silent skips). Then `cargo test -p vox-orchestrator-mcp model_route_policy` → pre-existing resolver tests stay green (test env has no fresh probe of the config base URL ⇒ unknown ⇒ optimistic, behavior unchanged).
 - [ ] **Step 5: Lint + commit.**
   `cargo clippy -p vox-orchestrator-mcp -- -D warnings` and `cargo fmt -p vox-orchestrator-mcp`
-  `git add crates/vox-orchestrator-mcp/src/llm_bridge/local_health.rs crates/vox-orchestrator-mcp/src/llm_bridge/mod.rs crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs && git commit -m "feat(mcp): health-gate local model candidates via cached populi probe (B4)"`
+  `git add crates/vox-orchestrator-mcp/src/llm_bridge/local_health.rs crates/vox-orchestrator-mcp/src/llm_bridge/mod.rs crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs && git commit -m "feat(mcp): health-gate Ollama/PopuliMesh candidates via cached populi probe (B4); VoxLocal ungated"`
+  (Include `crates/vox-orchestrator-mcp/Cargo.toml` in the `git add` if the tokio dev-dependency tweak from Step 3 was needed.)
 
 ### Task 4 — Delete dead engine 1: `resolve_chat_provider_route` (fork F3)
 
@@ -361,7 +456,7 @@ pub(crate) fn local_candidate_allowed(m: &ModelSpec) -> bool {
 
 - [ ] **Step 1: Re-verify zero production callers (guard against drift since this plan was written).**
   `grep -rn "resolve_chat_provider_route" C:/Users/Owner/vox/crates --include=*.rs` → hits only inside `crates/vox-actor-runtime/src/model_resolution.rs`. If any other hit appears, STOP and re-scope.
-  Also verify per-field before deleting each: `grep -rn "manual_model\|manual_base_url\|manual_bearer\|prefer_populi_when_gpu\|populi_probe\|hf_dedicated_chat_url\|hf_dedicated_chat_model\|hf_router_model" C:/Users/Owner/vox/crates --include=*.rs` → expected hits only in `model_resolution.rs` itself (as of writing, `cascade.rs`, `vox-research-shim/{verifier,planner,claims,stages,web_gather}.rs` and `vox-codegen/src/codegen_rust/emit/ai_fixture/llm.rs` use only `RouteResolutionInput::default()`, `.openrouter_model`, `.mens_chat_model`).
+  Also verify per-field before deleting each: `grep -rn "manual_model\|manual_base_url\|manual_bearer\|prefer_populi_when_gpu\|populi_probe\|hf_dedicated_chat_url\|hf_dedicated_chat_model\|hf_router_model" C:/Users/Owner/vox/crates --include=*.rs` → expected hits: `model_resolution.rs` itself **plus two same-named vox-config getter hits** — `crates/vox-config/src/inference.rs:262` (`pub fn hf_dedicated_chat_model()`) and its re-export at `crates/vox-config/src/lib.rs:62`. Those are config accessor *functions*, not `RouteResolutionInput` field consumers — they stay (they merely lose their last in-repo caller when the resolver's `Default` drops the hf fields). Any hit beyond those: STOP and re-scope. (As of writing, `cascade.rs`, `vox-research-shim/{verifier,planner,claims,stages,web_gather}.rs` and `vox-codegen/src/codegen_rust/emit/ai_fixture/llm.rs` use only `RouteResolutionInput::default()`, `.openrouter_model`, `.mens_chat_model`.)
 - [ ] **Step 2: Delete.** In `model_resolution.rs`:
   1. Delete `populi_model_plausible` (`:67-72`), `resolve_chat_provider_route_impl` (`:80-271`), and `resolve_chat_provider_route` (`:273-277`).
   2. Slim `RouteResolutionInput` to the two fields its remaining consumers use, and its `Default` accordingly:
@@ -624,9 +719,16 @@ pub async fn inference_provider_status() -> Result<Vec<ProviderStatusDto>, Strin
 **Files:**
 - `crates/vox-gui/ui/src/components/surfaces/Models/BackendAvailability.tsx` (new) + `BackendAvailability.test.tsx` (new)
 - `crates/vox-gui/ui/src/components/surfaces/Models/ModelsView.tsx:48-72` (fetch), `:88-127` (render)
+- `crates/vox-gui/src/commands/control_plane.rs:10-31` (`SubmitTaskInput` gains `model_override`), `:69-102` (params builder extracted + hint inserted)
+- `crates/vox-gui/ui/src/types/tauri.ts:40-54` (`ChatPayload` gains `model_override`)
+- `crates/vox-gui/ui/src/App.tsx` (`chatModelOverride` state; composer submit at `:1056`; `handleLoquelaSubmit` input at `:690-702`)
+- `crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx:184-206` (thread override props into `ChatSurface`)
 - `crates/vox-gui/ui/src/components/surfaces/Chat/ChatModelPicker.tsx` (new) + `ChatModelPicker.test.tsx` (new)
-- `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx:194-217` (mount picker beside the execution rail)
-- `crates/vox-gui/ui/e2e/lib/tauriMock.ts` (add `inference_provider_status` case near `list_orchestrator_tasks` at `:307`)
+- `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx:30-73` (props), `:194-217` (mount picker beside the execution rail)
+- `crates/vox-gui/ui/e2e/lib/tauriMock.ts` (add `inference_provider_status` + `set_active_model` cases near `list_orchestrator_tasks` at `:307`)
+- `crates/vox-gui/ui/e2e/lib/tauriMockVariants.ts:16-23` (add `inference_provider_status` to `LIST_CMDS` in `installEmptyStateMock`)
+
+**Picker channel (per Resolved decision "Item 4"):** the pick does NOT go through `set_active_model` — that command never reaches the daemon that serves chat. It threads as `enqueue_hints.model_override` on the chat submit. e2e *interaction* specs for picker-apply are owned by **Phase 3 Task 13 (post-Phase-2)**; this task only supplies the mock command cases those specs will need.
 
 - [ ] **Step 1: Failing test (presentational availability strip).** `BackendAvailability.test.tsx`, mirroring the Testing Library idiom of `ChatSessionRail.test.tsx:1-32`:
 
@@ -729,12 +831,127 @@ const [cards, routing, active, statuses] = await Promise.all([
   invoke<string | null>('get_active_model'),
   invoke<ProviderStatus[]>('inference_provider_status').catch(() => [] as ProviderStatus[]),
 ]);
-setProviderStatuses(statuses);
+// Harden against a RESOLVED null (the e2e variant mocks and any future backend
+// change resolve unknown commands to null — `.catch` never fires for that, and
+// `statuses.length` would then TypeError inside BackendAvailability).
+setProviderStatuses(Array.isArray(statuses) ? statuses : []);
 // render, after the Decision Preview Glass block:
 <BackendAvailability statuses={providerStatuses} />
 ```
 
-- [ ] **Step 5: Failing test (chat model picker).** `ChatModelPicker.test.tsx`:
+- [ ] **Step 5: Failing Rust test (override reaches the daemon params).** Append a test module at the end of `crates/vox-gui/src/commands/control_plane.rs`:
+
+```rust
+#[cfg(test)]
+mod submit_params_tests {
+    use super::*;
+
+    fn input(model_override: Option<&str>) -> SubmitTaskInput {
+        SubmitTaskInput {
+            description: "wire the picker".into(),
+            files: vec![],
+            priority: None,
+            session_id: Some("gui-session-9".into()),
+            mode: None,
+            tier: None,
+            allow_duplicate: None,
+            model_hint: None,
+            dry_run: None,
+            active_skill: None,
+            clutch: None,
+            risk: None,
+            model_override: model_override.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn submit_params_carry_model_override_enqueue_hint() {
+        let params = submit_task_params(input(Some("anthropic/claude-opus-4.7")));
+        assert_eq!(
+            params["enqueue_hints"]["model_override"],
+            "anthropic/claude-opus-4.7"
+        );
+    }
+
+    #[test]
+    fn no_pick_means_no_override_hint() {
+        let params = submit_task_params(input(None));
+        // No other hints set either ⇒ the enqueue_hints key is absent entirely
+        // (the daemon rejects a null enqueue_hints).
+        assert!(params.get("enqueue_hints").is_none());
+    }
+}
+```
+
+  Run: `cargo test -p vox-gui submit_params` → compile error: `no field model_override on type SubmitTaskInput` / ``cannot find function `submit_task_params` ``.
+- [ ] **Step 6: Implement (control_plane.rs).**
+  1. `SubmitTaskInput` (`:10-31`) gains, after `risk`:
+
+```rust
+    /// Explicit chat model pick from the ChatModelPicker; forwarded as the
+    /// `model_override` enqueue hint (`TaskEnqueueHints.model_override`,
+    /// tasks.rs:241-243 → `AgentTask::model_override` via apply_hints
+    /// tasks.rs:861-862 → `StreamRoute::UserModelOverride` runtime.rs:408-421).
+    pub model_override: Option<String>,
+```
+
+  2. Extract the params construction (currently inline at `:62-102` of `submit_orchestrator_task`) into a testable builder, inserting the new hint beside the tier→`model_preference` entry in the `enqueue_hints` map (`:83-92`):
+
+```rust
+/// Build the daemon SUBMIT_TASK params from the composer input. Extracted from
+/// `submit_orchestrator_task` so the enqueue-hint wiring is unit-testable.
+fn submit_task_params(input: SubmitTaskInput) -> serde_json::Value {
+    let file_manifest: Vec<FileAffinity> = input.files.iter().map(FileAffinity::write).collect();
+    let priority = match input.priority.as_deref() {
+        Some("urgent") => Some(TaskPriority::Urgent),
+        Some("normal") => Some(TaskPriority::Normal),
+        Some("background") => Some(TaskPriority::Background),
+        _ => None,
+    };
+    let mut params = serde_json::json!({
+        "description": input.description,
+        "file_manifest": file_manifest,
+        "priority": priority,
+        "session_id": input.session_id.filter(|s| !s.trim().is_empty()),
+        "allow_duplicate": input.allow_duplicate.unwrap_or(true),
+        "model_hint": input.model_hint.filter(|s| !s.trim().is_empty()),
+        "dry_run": input.dry_run,
+        "active_skill": input.active_skill.filter(|s| !s.trim().is_empty()),
+    });
+    // Carry composer mode/tier/pick through as enqueue hints (tier →
+    // model_preference; explicit pick → model_override). Only attach the key
+    // when non-empty — the daemon rejects a null enqueue_hints.
+    let mut enqueue_hints = serde_json::Map::new();
+    if let Some(tier) = input.tier.as_deref().filter(|t| !t.trim().is_empty()) {
+        enqueue_hints.insert("model_preference".into(), serde_json::json!(tier));
+    }
+    if let Some(model) = input.model_override.as_deref().filter(|m| !m.trim().is_empty()) {
+        enqueue_hints.insert("model_override".into(), serde_json::json!(model));
+    }
+    if let Some(mode) = input.mode.as_deref().filter(|m| !m.trim().is_empty()) {
+        enqueue_hints.insert("mode".into(), serde_json::json!(mode));
+    }
+    if let Some(clutch) = input.clutch.as_deref().filter(|c| !c.trim().is_empty()) {
+        enqueue_hints.insert("clutch".into(), serde_json::json!(clutch));
+    }
+    if let Some(risk) = input.risk.as_deref().filter(|r| !r.trim().is_empty()) {
+        enqueue_hints.insert("risk".into(), serde_json::json!(risk));
+    }
+    if !enqueue_hints.is_empty()
+        && let Some(obj) = params.as_object_mut()
+    {
+        obj.insert(
+            "enqueue_hints".into(),
+            serde_json::Value::Object(enqueue_hints),
+        );
+    }
+    params
+}
+```
+
+  and shrink `submit_orchestrator_task`'s body to `let params = submit_task_params(input);` before the `call_orchestrator_daemon(&daemon, orch_daemon_method::SUBMIT_TASK, params)` call (the response handling at `:103-124` is unchanged).
+  Run: `cargo test -p vox-gui submit_params` → `test result: ok. 2 passed`; `cargo build -p vox-gui` → green.
+- [ ] **Step 7: Failing test (chat model picker + payload wiring guard).** `ChatModelPicker.test.tsx`:
 
 ```tsx
 // @vitest-environment jsdom
@@ -742,6 +959,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 const invoke = vi.fn();
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a: unknown[]) => invoke(...a) }));
@@ -757,33 +976,60 @@ describe('ChatModelPicker', () => {
     });
   });
 
-  it('loads the catalog on open and applies a pick via set_active_model', async () => {
+  it('loads the catalog on open and reports a pick via onApplied — never set_active_model', async () => {
     const user = userEvent.setup();
     const onApplied = vi.fn();
     render(<ChatModelPicker activeModel="openai/gpt-5.2-mini" onApplied={onApplied} />);
     await user.click(screen.getByRole('button', { name: /model: openai\/gpt-5\.2-mini/i }));
     await user.click(await screen.findByRole('option', { name: 'anthropic/claude-opus-4.7' }));
-    expect(invoke).toHaveBeenCalledWith('set_active_model', { modelId: 'anthropic/claude-opus-4.7' });
     expect(onApplied).toHaveBeenCalledWith('anthropic/claude-opus-4.7');
+    // Honest wiring: set_active_model only touches the GUI process and is never
+    // read by the daemon serving chat — the pick must NOT ride it.
+    expect(invoke).not.toHaveBeenCalledWith('set_active_model', expect.anything());
+  });
+
+  it('offers auto-route to clear the override', async () => {
+    const user = userEvent.setup();
+    const onApplied = vi.fn();
+    render(<ChatModelPicker activeModel="anthropic/claude-opus-4.7" onApplied={onApplied} />);
+    await user.click(screen.getByRole('button', { name: /model: anthropic/i }));
+    await user.click(await screen.findByRole('option', { name: /auto-route/i }));
+    expect(onApplied).toHaveBeenCalledWith(null);
+  });
+});
+
+// Wiring guard (readFileSync idiom, mirroring Phase 1's ErrorBoundary.test.tsx):
+// the picked model must reach the submit payload App sends to the daemon.
+describe('model_override submit-payload wiring', () => {
+  it('App.tsx threads the pick into the submit_orchestrator_task input', () => {
+    const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
+    // handleLoquelaSubmit maps the payload field into the daemon input…
+    expect(appSrc).toMatch(/model_override:\s*payload\.model_override\s*\?\?\s*null/);
+    // …and the composer call site injects the picker state into the payload.
+    expect(appSrc).toMatch(/model_override:\s*chatModelOverride/);
   });
 });
 ```
 
-  Run `pnpm -C crates/vox-gui/ui test ChatModelPicker` → fails (module missing).
-- [ ] **Step 6: Implement `ChatModelPicker.tsx`:**
+  Run `pnpm -C crates/vox-gui/ui test ChatModelPicker` → fails (module missing; wiring-guard regexes unmatched).
+- [ ] **Step 8: Implement `ChatModelPicker.tsx` + thread the pick to the submit payload.**
 
 ```tsx
 import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
-/** Chat-surface pick of the active model — wires the already-implemented
- *  `set_active_model` (crates/vox-gui/src/commands/models.rs:156) into chat. */
+/** Chat-surface model pick. The pick is lifted to App state and threaded into
+ *  the chat submit payload as the `model_override` enqueue hint — the one
+ *  channel the daemon consumes (TaskEnqueueHints.model_override →
+ *  AgentTask.model_override → StreamRoute::UserModelOverride). Deliberately
+ *  NOT `set_active_model`, which only touches the GUI process (Resolved
+ *  decision "Item 4"). `null` pick = auto-route (clear the override). */
 export function ChatModelPicker({
   activeModel,
   onApplied,
 }: {
   activeModel?: string | null;
-  onApplied?: (modelId: string) => void;
+  onApplied?: (modelId: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [models, setModels] = useState<Array<{ id: string }>>([]);
@@ -794,21 +1040,17 @@ export function ChatModelPicker({
     setOpen(next);
     if (next && models.length === 0) {
       try {
-        setModels(await invoke<Array<{ id: string }>>('list_model_cards', { limit: 120 }));
+        const cards = await invoke<Array<{ id: string }>>('list_model_cards', { limit: 120 });
+        setModels(Array.isArray(cards) ? cards : []);
       } catch (e) {
         setError(String(e));
       }
     }
   };
 
-  const apply = async (id: string) => {
-    try {
-      await invoke('set_active_model', { modelId: id });
-      onApplied?.(id);
-      setOpen(false);
-    } catch (e) {
-      setError(String(e));
-    }
+  const apply = (id: string | null) => {
+    onApplied?.(id);
+    setOpen(false);
   };
 
   return (
@@ -824,16 +1066,27 @@ export function ChatModelPicker({
       {open && (
         <ul
           role="listbox"
-          aria-label="Pick active model"
+          aria-label="Pick model for this chat"
           className="absolute z-50 mt-1 max-h-64 w-72 overflow-y-auto rounded-lg border border-border-subtle bg-bg-base p-1 custom-scrollbar"
         >
+          <li key="auto-route">
+            <button
+              type="button"
+              role="option"
+              aria-selected={activeModel == null}
+              onClick={() => apply(null)}
+              className="w-full truncate rounded px-2 py-1 text-left font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
+            >
+              auto-route (clear override)
+            </button>
+          </li>
           {models.map(m => (
             <li key={m.id}>
               <button
                 type="button"
                 role="option"
                 aria-selected={m.id === activeModel}
-                onClick={() => void apply(m.id)}
+                onClick={() => apply(m.id)}
                 className="w-full truncate rounded px-2 py-1 text-left font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
               >
                 {m.id}
@@ -848,14 +1101,24 @@ export function ChatModelPicker({
 }
 ```
 
-  Mount in `ChatSurface.tsx`: import it, then add local state `const [pickedModel, setPickedModel] = useState<string | null>(null);` and render just above the transcript block (inside the main column, before `{railVis.sessionRail ? …}` content column — concretely, insert as the first child of the flex column that holds the transcript):
-  `<div className="mb-2 flex justify-end"><ChatModelPicker activeModel={pickedModel ?? activeModel} onApplied={setPickedModel} /></div>`
-- [ ] **Step 7: Watch it pass + typecheck.** `pnpm -C crates/vox-gui/ui test ChatModelPicker` → ok; `pnpm -C crates/vox-gui/ui typecheck` → clean.
-- [ ] **Step 8: e2e mock coverage.** In `e2e/lib/tauriMock.ts` add beside `case 'list_orchestrator_tasks': return [];` (`:307`):
+  Then thread the pick end-to-end (the picker state lives in App, because the submit payload is built there):
+  1. `types/tauri.ts` — `ChatPayload` (`:40-54`) gains `/** Explicit model pick for this submit; maps to the model_override enqueue hint. */ model_override?: string | null;`.
+  2. `ChatSurface.tsx` — props (`:30-51`) gain `modelOverride?: string | null;` and `onModelOverrideChange?: (id: string | null) => void;` (destructure both). Import `ChatModelPicker` and render just above the transcript block, as the first child of the flex column that holds the transcript (`<div className="flex min-w-0 flex-1 flex-col gap-4">`):
+  `<div className="mb-2 flex justify-end"><ChatModelPicker activeModel={modelOverride ?? activeModel} onApplied={id => onModelOverrideChange?.(id)} /></div>`
+  3. `surfaceComponents.tsx` — `SurfaceProps` gains `chatModelOverride?: string | null;` and `onChatModelOverrideChange?: (id: string | null) => void;`; the `case 'chat'` mount (`:184-206`) passes `modelOverride={props.chatModelOverride}` and `onModelOverrideChange={props.onChatModelOverrideChange}`.
+  4. `App.tsx` — add `const [chatModelOverride, setChatModelOverride] = useState<string | null>(null);` beside the other chat state; supply both new props where App builds the surface props (beside `chatActiveModel`); change the composer call site (`:1056`) to
+  `onSubmit={(p) => handleLoquelaSubmit({ ...p, session_id: activeSessionId, model_override: chatModelOverride })}`
+  and in `handleLoquelaSubmit`'s input object (`:690-702`), after `model_hint`, add `model_override: payload.model_override ?? null,`. (Leave `model_hint`/`tier` untouched — `model_override` is the binding channel, `model_hint` stays the non-binding one.)
+- [ ] **Step 9: Watch it pass + typecheck.** `pnpm -C crates/vox-gui/ui test ChatModelPicker` → ok (2 picker tests + wiring guard); `pnpm -C crates/vox-gui/ui typecheck` → clean.
+- [ ] **Step 10: e2e mock coverage (both mock layers — Phase 3 Task 13's interaction specs consume these).**
+  1. `e2e/lib/tauriMock.ts` — add beside `case 'list_orchestrator_tasks': return [];` (`:307`):
   `case 'inference_provider_status': return [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null, local_models: [] }, { provider: 'Ollama', key_present: true, is_local: true, local_reachable: true, local_models: ['llama3.2'] }];`
-  Run the existing screenshot sweep locally to confirm Models still renders: `pnpm -C crates/vox-gui/ui exec playwright test e2e/screenshots.spec.ts --project=chromium` (or the models-only grep if the suite is slow).
-- [ ] **Step 9: Commit.**
-  `git add crates/vox-gui/ui/src/components/surfaces/Models crates/vox-gui/ui/src/components/surfaces/Chat/ChatModelPicker.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatModelPicker.test.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx crates/vox-gui/ui/e2e/lib/tauriMock.ts && git commit -m "feat(gui): backend availability strip + chat model picker wired to set_active_model (B9)"`
+  `case 'set_active_model': return null;` (Models-surface apply path; needed by Phase 3 Task 13's specs.)
+  2. `e2e/lib/tauriMockVariants.ts` — add `'inference_provider_status'` to `LIST_CMDS` in `installEmptyStateMock` (`:16-23`) so the empty-state sweep resolves it to `[]` instead of falling through to `default: return null` (which, without the Step 4 `Array.isArray` guard, would TypeError `BackendAvailability`). `installErrorStateMock` needs no entry: it has no LIST_CMDS, and its rejecting `list_model_cards` already fails the whole `Promise.all` before `setProviderStatuses` runs.
+  3. Run the existing screenshot sweep locally to confirm Models still renders: `pnpm -C crates/vox-gui/ui exec playwright test e2e/screenshots.spec.ts --project=chromium` (or the models-only grep if the suite is slow).
+- [ ] **Step 11: Lint + commit.**
+  `cargo fmt -p vox-gui`
+  `git add crates/vox-gui/src/commands/control_plane.rs crates/vox-gui/ui/src/components/surfaces/Models crates/vox-gui/ui/src/components/surfaces/Chat/ChatModelPicker.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatModelPicker.test.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx crates/vox-gui/ui/src/types/tauri.ts crates/vox-gui/ui/src/App.tsx crates/vox-gui/ui/e2e/lib/tauriMock.ts crates/vox-gui/ui/e2e/lib/tauriMockVariants.ts && git commit -m "feat(gui): backend availability strip + chat model pick via model_override enqueue hint (B9)"`
 
 ### Task 8 — Hopper DTO: real persisted fields
 
@@ -1010,12 +1273,16 @@ export interface HopperTaskDto {
 ### Task 9 — Hopper: list `done` items + `hopper_mark_done` command
 
 **Files:**
-- `crates/vox-orchestrator/src/hopper/sqlite_store.rs:232-252` (`complete` searches only `assigned()`), tests `:415-444`
+- `crates/vox-db/src/store/ops_orchestrator.rs:352-374` (`hopper_history_list` — unbounded; add a bounded variant beside it)
+- `crates/vox-orchestrator/src/hopper/sqlite_store.rs:232-252` (`complete` searches only `assigned()`), `:137-145` (`history()` — pattern for `history_recent`), tests `:415-444`
 - `crates/vox-gui/src/commands/orchestrator.rs:741-755` (`hopper_list`), `:807-821` (`hopper_cancel` — pattern for the new command)
 - `crates/vox-gui/src/main.rs:177-180` (register `hopper_mark_done`)
 - `crates/vox-gui/ui/src/transport.ts:796-799` (wrapper)
+- `crates/vox-gui/ui/e2e/lib/tauriMock.ts` (add `hopper_mark_done` case — mock coverage for Phase 3 Task 13's interaction specs)
 
 Two verified facts drive this task: `HopperIntake::complete` exists (`store.rs:96`) but `SqliteHopper::complete` only finds items in `assigned()` (`sqlite_store.rs:233-237`), while the in-memory store completes from any state (`store.rs:426-434`) — a to-do sitting in Inbox cannot be marked done today. And `hopper_list` reads only `inbox() + assigned()` (`orchestrator.rs:748-753`), so `state == "done"` never reaches the UI (`tasksHelpers` `completed` branch unreachable).
+
+**Bound on the done read (F7):** `vox_db::hopper_history_list` (`ops_orchestrator.rs:352-357`) has **no LIMIT** — it returns every done/overridden/cancelled row ever persisted, ascending. `hopper_list` is re-polled on every `vox://tasks-changed` (TasksView.tsx:82-88) and by the shared attention-inbox path, so chaining the full history would grow the Tasks payload without bound. The done read is therefore bounded to the most recent **`DONE_HISTORY_LIMIT = 50`** items via a new `hopper_history_list_recent(limit)` query (`ORDER BY submitted_at DESC LIMIT ?1`), and the bound is pinned by tests below.
 
 - [ ] **Step 1: Failing store test.** Append to `mod tests` in `sqlite_store.rs` (idiom `:421-443`):
 
@@ -1042,10 +1309,32 @@ Two verified facts drive this task: `HopperIntake::complete` exists (`store.rs:9
         assert!(hopper.inbox().await.is_empty());
         assert!(hopper.history().await.iter().any(|i| i.item_id == item.item_id));
     }
+
+    #[tokio::test]
+    async fn history_recent_is_bounded_and_newest_first() {
+        let db = Arc::new(
+            vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+                .await
+                .expect("db"),
+        );
+        let hopper = SqliteHopper::new(db);
+        for intent in ["first", "second", "third"] {
+            let item = hopper
+                .submit(intent.into(), vec![], PriorityHint::Normal, IntakeSource::Developer, None)
+                .await;
+            hopper.complete(&item.item_id).await.expect("completable");
+        }
+        let recent = hopper.history_recent(2).await;
+        assert_eq!(recent.len(), 2, "limit must bound the read");
+        // ORDER BY submitted_at DESC ⇒ newest first; "first" (oldest) is cut.
+        assert!(recent.iter().all(|i| i.intent != "first"));
+    }
 ```
 
-- [ ] **Step 2: Watch it fail.** `cargo test -p vox-orchestrator hopper::sqlite_store` → `complete_marks_inbox_item_done_and_history_lists_it` FAILED: `called Result::unwrap()/expect on an Err value: NotFound(..)` (complete only searches assigned).
-- [ ] **Step 3: Implement (store parity).** In `SqliteHopper::complete` (`sqlite_store.rs:232-242`), replace the lookup with the same inbox+assigned chain `cancel` uses (`:254-260`), and keep the terminal guard cancel has:
+  (If all three submits land in the same microsecond on a fast machine, tie-break flakiness is possible — assert on `len()` only in that case; `submitted_at` comes from `now_micros()`, so in practice the ordering assertion holds.)
+- [ ] **Step 2: Watch it fail.** `cargo test -p vox-orchestrator hopper::sqlite_store` → `complete_marks_inbox_item_done_and_history_lists_it` FAILED: `called Result::unwrap()/expect on an Err value: NotFound(..)` (complete only searches assigned); `history_recent_is_bounded_and_newest_first` → compile error (`history_recent` doesn't exist).
+- [ ] **Step 3: Implement (store parity + bounded history).**
+  1. In `SqliteHopper::complete` (`sqlite_store.rs:232-242`), replace the lookup with the same inbox+assigned chain `cancel` uses (`:254-260`), including cancel's terminal guard (`:267-272`) for symmetry — note the guard is defensive-only through this lookup: `inbox()`/`assigned()` SQL filters (`ops_orchestrator.rs:306,331`) never return terminal rows, so it cannot fire here, but keeping `complete` and `cancel` structurally identical costs nothing and survives future lookup changes:
 
 ```rust
     async fn complete(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError> {
@@ -1061,6 +1350,15 @@ Two verified facts drive this task: `HopperIntake::complete` exists (`store.rs:9
             None => return Err(HopperError::NotFound(item_id.0.clone())),
         };
 
+        // Defensive parity with cancel (:267-272); unreachable via the
+        // inbox/assigned chain today (their SQL excludes terminal states).
+        if matches!(
+            item.state,
+            ItemState::Done | ItemState::Overridden | ItemState::Cancelled
+        ) {
+            return Err(HopperError::Terminal);
+        }
+
         item.state = ItemState::Done;
         let state_json = serde_json::to_string(&item.state).unwrap();
 
@@ -1072,11 +1370,69 @@ Two verified facts drive this task: `HopperIntake::complete` exists (`store.rs:9
     }
 ```
 
-  `cargo test -p vox-orchestrator hopper` → green.
-- [ ] **Step 4: Implement (GUI command + done in list).** In `orchestrator.rs`:
-  1. `hopper_list` (`:742-755`) — include terminal `Done` items (skip `Cancelled`/`Overridden` — they are removals, not completions):
+  2. In `crates/vox-db/src/store/ops_orchestrator.rs`, add below `hopper_history_list` (`:374`) a bounded variant (param idiom: `turso::params![limit]`, see `oratio_eval.rs:193-198`):
 
 ```rust
+    /// Most-recent `limit` hopper items in terminal states, newest first.
+    /// Bounded companion to [`Self::hopper_history_list`] for hot read paths
+    /// (the GUI Tasks surface re-polls on every tasks-changed event).
+    pub async fn hopper_history_list_recent(
+        &self,
+        limit: u32,
+    ) -> Result<Vec<HopperInboxRow>, StoreError> {
+        let mut rows = self.conn.query(
+            "SELECT item_id, intent, affinity_json, priority, source, session_id, state, submitted_at
+             FROM hopper_inbox
+             WHERE state IN ('\"done\"', '\"overridden\"', '\"cancelled\"')
+             ORDER BY submitted_at DESC LIMIT ?1",
+            turso::params![limit],
+        ).await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push(HopperInboxRow {
+                item_id: row.get(0)?,
+                intent: row.get(1)?,
+                affinity_json: row.get(2)?,
+                priority: row.get(3)?,
+                source: row.get(4)?,
+                session_id: row.get(5)?,
+                state: row.get(6)?,
+                submitted_at: row.get(7)?,
+            });
+        }
+        Ok(out)
+    }
+```
+
+  3. In `sqlite_store.rs`, add an inherent method beside the `HopperIntake` impl (pattern: `history()` at `:137-145` — inherent, not a trait method, because the trait has no bounded read):
+
+```rust
+impl SqliteHopper {
+    /// Most-recent `limit` terminal items, newest first (bounded history read).
+    pub async fn history_recent(&self, limit: u32) -> Vec<IntakeItem> {
+        match self.db.hopper_history_list_recent(limit).await {
+            Ok(rows) => rows.into_iter().map(row_to_item).collect(),
+            Err(e) => {
+                tracing::error!("Failed to list recent history from sqlite hopper: {:?}", e);
+                vec![]
+            }
+        }
+    }
+}
+```
+
+  `cargo test -p vox-orchestrator hopper` → green (both new tests).
+- [ ] **Step 4: Implement (GUI command + bounded done in list).** In `orchestrator.rs`:
+  1. `hopper_list` (`:742-755`) — include the most recent terminal `Done` items, bounded (skip `Cancelled`/`Overridden` — they are removals, not completions):
+
+```rust
+/// Most-recent bound on completed items chained into `hopper_list` (F7): the
+/// command is re-polled on every tasks-changed event, so the done read must
+/// not grow with all-time history. Pinned by
+/// `done_history_limit_is_the_agreed_bound` below and exercised by
+/// `history_recent_is_bounded_and_newest_first` in sqlite_store.rs.
+const DONE_HISTORY_LIMIT: u32 = 50;
+
 #[tauri::command]
 pub async fn hopper_list() -> Result<Vec<HopperTaskDto>, String> {
     use vox_orchestrator::hopper::HopperIntake;
@@ -1086,8 +1442,10 @@ pub async fn hopper_list() -> Result<Vec<HopperTaskDto>, String> {
     let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
     let inbox = hopper.inbox().await;
     let assigned = hopper.assigned().await;
+    // Bounded, newest-first; the recent-window read also fetches overridden/
+    // cancelled rows, so filter to Done here.
     let done: Vec<_> = hopper
-        .history()
+        .history_recent(DONE_HISTORY_LIMIT)
         .await
         .into_iter()
         .filter(|i| matches!(i.state, vox_orchestrator::hopper::ItemState::Done))
@@ -1098,6 +1456,17 @@ pub async fn hopper_list() -> Result<Vec<HopperTaskDto>, String> {
     }
     Ok(all)
 }
+```
+
+  and append the bound's drift guard to `mod hopper_tests`:
+
+```rust
+    #[test]
+    fn done_history_limit_is_the_agreed_bound() {
+        // Spec Phase 2 item 6 records "bounded, most-recent-N" for the done
+        // read; changing N is a product decision, not a drive-by.
+        assert_eq!(DONE_HISTORY_LIMIT, 50);
+    }
 ```
 
   2. New command, mirroring `hopper_cancel` (`:807-821`):
@@ -1130,10 +1499,13 @@ export function hopperMarkDone(itemId: string): Promise<HopperTaskDto> {
 }
 ```
 
-- [ ] **Step 5: Verify.** `cargo test -p vox-gui hopper` and `cargo build -p vox-gui` → green. `pnpm -C crates/vox-gui/ui typecheck` → clean.
+  5. e2e mock coverage for the new command — in `e2e/lib/tauriMock.ts`, beside `case 'list_orchestrator_tasks': return [];` (`:307`):
+  `case 'hopper_mark_done': return { item_id: 'mock-item', intent: 'mock to-do', priority: 1, state: 'done', task_id: 1, session_id: null, agent_id: null, remote_node: null };`
+  (The mark-done *interaction* spec that drives this is owned by **Phase 3 Task 13 (post-Phase-2)**; this case is the mock coverage it will need.)
+- [ ] **Step 5: Verify.** `cargo test -p vox-db hopper` (new bounded query compiles + existing hopper ops stay green), `cargo test -p vox-gui hopper` (includes `done_history_limit_is_the_agreed_bound`) and `cargo build -p vox-gui` → green. `pnpm -C crates/vox-gui/ui typecheck` → clean.
 - [ ] **Step 6: Commit.**
-  `cargo fmt -p vox-orchestrator && cargo fmt -p vox-gui`
-  `git add crates/vox-orchestrator/src/hopper/sqlite_store.rs crates/vox-gui/src/commands/orchestrator.rs crates/vox-gui/src/main.rs crates/vox-gui/ui/src/transport.ts && git commit -m "feat(gui): hopper_mark_done command + done items in hopper_list; sqlite complete() inbox parity"`
+  `cargo fmt -p vox-db && cargo fmt -p vox-orchestrator && cargo fmt -p vox-gui`
+  `git add crates/vox-db/src/store/ops_orchestrator.rs crates/vox-orchestrator/src/hopper/sqlite_store.rs crates/vox-gui/src/commands/orchestrator.rs crates/vox-gui/src/main.rs crates/vox-gui/ui/src/transport.ts crates/vox-gui/ui/e2e/lib/tauriMock.ts && git commit -m "feat(gui): hopper_mark_done command + bounded done items in hopper_list; sqlite complete() inbox parity"`
 
 ### Task 10 — Merge-view Tasks read (fork F1) + shared priority constant
 
@@ -1142,7 +1514,10 @@ export function hopperMarkDone(itemId: string): Promise<HopperTaskDto> {
 - `crates/vox-gui/ui/src/components/surfaces/Tasks/tasksHelpers.ts:9-41` (`TaskRow.origin`), `:75-96` (origin tag), new `mapOrchestratorTasksToRows`
 - `crates/vox-gui/ui/src/components/surfaces/Tasks/tasksHelpers.test.ts:4-16` (row helper), new cases
 - `crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.tsx:50-101` (fetch/merge), `:118-157` (per-origin actions), `:139-245` (columns), `:253` (subtitle)
+- `crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.copy.test.tsx` (created by Phase 1 Task 6 — rewrite for the merged-view subtitle)
 - `crates/vox-gui/src/commands/orchestrator.rs` `mod hopper_tests` (Rust-side priority guard)
+
+**Base state:** this task lands on top of Phase 1. Phase 1 Task 6 REPLACED the TasksView subtitle wholesale (the pre-Phase-1 sentence "Everything queued or running across the agent fleet." no longer exists in source) and pinned the interim copy with `TasksView.copy.test.tsx`; Phase 1 Task 5 added `TasksView.listeners.test.tsx`. Both tests mock `invoke` with `vi.fn().mockResolvedValue(null)` — every command they don't care about RESOLVES `null`, which is why Step 6.1 must coerce non-array results. Scope limit per the spec's recorded decision (Resolved decisions item 6): the union lives in TasksView only; `hopper_list`/`useAttentionInbox` stay hopper-only.
 
 - [ ] **Step 1: Failing tests — shared priority constant (both sides).**
   TS — `crates/vox-gui/ui/src/lib/taskPriority.test.ts`:
@@ -1292,16 +1667,22 @@ export function mapOrchestratorTasksToRows(
 
   `pnpm -C crates/vox-gui/ui test tasksHelpers` → green.
 - [ ] **Step 6: Wire TasksView.**
-  1. Fetch: add orchestrator rows in *both* modes (attention mode only supplies hopper rows). Add state `const [orchTasks, setOrchTasks] = useState<OrchestratorTaskDto[]>([]);` and a fetch inside `selfRefresh` (`:50-66`) *and* a parallel effect for attention mode (subscribe to the same `vox://tasks-changed` event) — concretely extend `selfRefresh`'s `Promise.all` with `voxTransport.listOrchestratorTasks().catch(() => [])`, and in attention mode run a dedicated `useEffect` that fetches on mount + on `vox://tasks-changed`:
+  1. Fetch: add orchestrator rows in *both* modes (attention mode only supplies hopper rows). Add state `const [orchTasks, setOrchTasks] = useState<OrchestratorTaskDto[]>([]);` and a fetch inside `selfRefresh` (`:50-66`) *and* a parallel effect for attention mode (subscribe to the same `vox://tasks-changed` event) — concretely extend `selfRefresh`'s `Promise.all` with `voxTransport.listOrchestratorTasks().then(r => (Array.isArray(r) ? r : [])).catch(() => [])`, and in attention mode run a dedicated `useEffect` that fetches on mount + on `vox://tasks-changed`:
 
 ```ts
 const fetchOrch = useCallback(async () => {
   try {
     const rows = await voxTransport.listOrchestratorTasks() as unknown as OrchestratorTaskDto[];
-    if (mounted.current) setOrchTasks(rows);
+    // Coerce non-arrays (mirrors useAttentionInbox's `tasks ?? []`): the
+    // transport returns the raw invoke result with no null guard
+    // (transport.ts:366-368), and both Phase-1 TasksView tests mock invoke to
+    // RESOLVE null — `rows.map` in the memo would TypeError otherwise.
+    if (mounted.current) setOrchTasks(Array.isArray(rows) ? rows : []);
   } catch { /* daemon down — hopper rows still render */ }
 }, []);
 ```
+
+  Apply the same coercion to the `selfRefresh` extension: `voxTransport.listOrchestratorTasks().then(r => (Array.isArray(r) ? r : [])).catch(() => [])`.
 
   2. Merge in the `rows` memo (`:96-101`):
 
@@ -1351,8 +1732,24 @@ const fetchOrch = useCallback(async () => {
   (if `Icon.check` does not exist in `ui/Icons`, use the existing checkmark icon name found there — verify before use.)
   5. Origin chip in the description meta row (after the mesh badge at `:214-221`): `<span className="rounded border border-border-subtle px-1 font-mono text-[9px] text-text-muted">{r.origin}</span>`.
   6. `groupBy` (`:320`): completed rows currently fall into 'Queued'; extend: `r.lifecycle === 'completed' ? 'Completed' : …` before the queued fallback.
-  7. Subtitle (`:253`) — now true again, keep "Everything queued or running across the agent fleet." and drop any store-specific caveat added in Phase 1's copy-honesty fix (reconcile with whatever Phase 1 landed there — the merged view supersedes it).
-- [ ] **Step 7: Verify.** `pnpm -C crates/vox-gui/ui test tasksHelpers taskPriority` → green; `pnpm -C crates/vox-gui/ui typecheck` → clean; `cargo test -p vox-gui task_priority_wire` → green. Optionally drive the mocked surface: `pnpm -C crates/vox-gui/ui exec playwright test e2e/screenshots.spec.ts --project=chromium`.
+  7. Subtitle (`:253`) — **write a new subtitle** (Phase 1 Task 6 replaced the pre-Phase-1 sentence entirely; there is no old text to "keep"). The merged view makes a fleet-wide claim honest again, so use:
+  `Everything queued or running across the agent fleet — hopper to-dos and orchestrator task graph runs, tagged by origin.`
+  (Deliberately contains "hopper" and "orchestrator task graph", and avoids "chat submissions land here", so the copy-test rewrite in 6.8 stays minimal.)
+  8. Rewrite `TasksView.copy.test.tsx` (created by Phase 1 Task 6) for the merged-view subtitle — keep its render scaffold and `vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }))` untouched; replace the assertion block with:
+
+```ts
+    // Phase 2 Task 10: the merge-view supersedes Phase 1's interim caveat copy.
+    // The old caveat sentence must be gone…
+    expect(screen.queryByText(/chat submissions land here/i)).toBeNull();
+    expect(screen.queryByText(/are not listed here yet/i)).toBeNull();
+    // …and the new subtitle names both stores and the origin tagging.
+    expect(screen.getByText(/tagged by origin/i)).toBeTruthy();
+    expect(screen.getByText(/hopper/i)).toBeTruthy();
+    expect(screen.getByText(/orchestrator task graph/i)).toBeTruthy();
+```
+
+  (The `queryByText(/chat submissions land here/i)` null assertion is kept because the new copy avoids that phrase; the `/hopper/` + `/orchestrator task graph/` assertions carry over but now pin the NEW sentence.)
+- [ ] **Step 7: Verify.** `pnpm -C crates/vox-gui/ui test tasksHelpers taskPriority TasksView` → green — this explicitly includes the two Phase-1 regression suites: `TasksView.copy.test.tsx` (rewritten in 6.8) and `TasksView.listeners.test.tsx` (unmodified — its `invoke` mock resolves `null`, which the Step 6.1 `Array.isArray` coercion absorbs; if it fails with a `.map` TypeError, the coercion was skipped). Then `pnpm -C crates/vox-gui/ui typecheck` → clean; `cargo test -p vox-gui task_priority_wire` → green. Optionally drive the mocked surface: `pnpm -C crates/vox-gui/ui exec playwright test e2e/screenshots.spec.ts --project=chromium`.
 - [ ] **Step 8: Commit.**
   `git add crates/vox-gui/ui/src/lib/taskPriority.ts crates/vox-gui/ui/src/lib/taskPriority.test.ts crates/vox-gui/ui/src/components/surfaces/Tasks crates/vox-gui/src/commands/orchestrator.rs && git commit -m "feat(gui): origin-tagged merge-view Tasks read + mark-done + shared priority constant (B1/F1)"`
 
@@ -1362,8 +1759,9 @@ const fetchOrch = useCallback(async () => {
 - `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSessionRail.tsx:14-19` (props), `:74-97` (session row)
 - `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSessionRail.test.tsx`
 - `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx:114-128` (`loadSessions`), `:194-204` (rail mount)
+- `crates/vox-gui/ui/e2e/lib/tauriMock.ts` (add `chat_rename_session` + `chat_archive_session` cases — mock coverage for Phase 3 Task 13's interaction specs)
 
-Backend commands `chat_rename_session` (`chat.rs:229-244`) and `chat_archive_session` (`chat.rs:246-260`) are implemented and registered (`main.rs:146-147`); Tauri camelCase arg mapping means the frontend passes `{ sessionId, title }`.
+Backend commands `chat_rename_session` (`chat.rs:229-244`) and `chat_archive_session` (`chat.rs:246-260`) are implemented and registered (`main.rs:146-147`); Tauri camelCase arg mapping means the frontend passes `{ sessionId, title }`. The rename/archive e2e *interaction* specs (driving the row menu against a stateful mock) are owned by **Phase 3 Task 13 (post-Phase-2)** — this task lands the component wiring, its vitest coverage, and the tauriMock command cases those specs will need.
 
 - [ ] **Step 1: Failing component test.** Append to `ChatSessionRail.test.tsx` (existing idiom `:19-57`):
 
@@ -1542,21 +1940,29 @@ export interface ChatSessionRailProps {
 ```
 
   and pass them at the rail mount (`:194-204`): `onRenameSession={(id, t) => void renameSession(id, t)} onArchiveSession={id => void archiveSession(id)}`.
-- [ ] **Step 5: Watch it pass.** `pnpm -C crates/vox-gui/ui test ChatSessionRail` → all pass (including the 3 pre-existing tests — handlers are optional props, so they need no changes); `pnpm -C crates/vox-gui/ui typecheck` → clean. e2e sanity: `pnpm -C crates/vox-gui/ui exec playwright test e2e/chat-session-rail.spec.ts --project=chromium` still green.
+- [ ] **Step 4b: e2e mock coverage.** In `e2e/lib/tauriMock.ts`, beside the existing chat cases (`chat_append_message` at `:227`):
+  `case 'chat_rename_session': return null;`
+  `case 'chat_archive_session': return null;`
+  (Phase 3 Task 13's rename/archive interaction spec replaces these with a stateful variant; landing the cases now means the commands never fall through to an unrelated `default` while that spec is built.)
+- [ ] **Step 5: Watch it pass.** `pnpm -C crates/vox-gui/ui test ChatSessionRail` → all pass (including the 3 pre-existing tests — handlers are optional props, so they need no changes); `pnpm -C crates/vox-gui/ui typecheck` → clean. e2e sanity: `pnpm -C crates/vox-gui/ui exec playwright test e2e/chat-session-rail.spec.ts --project=chromium` still green — note this pre-existing spec has zero rename/archive coverage (verified by grep); it is a regression sanity check only, NOT the interaction spec, which lands in Phase 3 Task 13.
 - [ ] **Step 6: Commit.**
-  `git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatSessionRail.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSessionRail.test.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx && git commit -m "feat(gui): wire chat_rename_session/chat_archive_session into session rail menu"`
+  `git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatSessionRail.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSessionRail.test.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx crates/vox-gui/ui/e2e/lib/tauriMock.ts && git commit -m "feat(gui): wire chat_rename_session/chat_archive_session into session rail menu"`
 
 ### Task 12 — Persist + render `model_id` on assistant messages
 
 **Files:**
 - `crates/vox-gui/ui/src/lib/chatCorrelation.ts:11-21` (`ChatMessage`), `:140-246` (reducer `agentEvent` cases)
 - `crates/vox-gui/ui/src/lib/chatCorrelation.test.ts` (new cases)
+- `crates/vox-gui/ui/src/lib/sessionChatStore.ts` (`resolveSessionForEvent` agent-id-scan group — gains `cost_incurred`)
+- `crates/vox-gui/ui/src/lib/sessionChatStore.test.ts` (end-to-end routing test)
 - `crates/vox-gui/ui/src/App.tsx:629-650` (hydrate), `:849-856` (assistant persist)
 - `crates/vox-gui/ui/src/components/surfaces/Chat/ChatTranscript.tsx:14-50` (`MessageBubble` renders `ModelBadge`)
 
 Backend already done and tested: `ChatAppendInput.model_id` (`chat.rs:127-129`), payload write (`chat.rs:150-162`), read-back (`chat.rs:95-117`), DTO tests (`chat.rs:322-352`). Model source: `cost_incurred` frames (`events.rs:274-277`, serde `tag="type", rename_all="snake_case"` at `events.rs:114-115`) on the unfiltered `vox://agent-events` re-emit (`orchestrator.rs:82`, `main.rs:86`).
 
-- [ ] **Step 1: Failing reducer test.** Append to `describe('chatReducer', …)` in `chatCorrelation.test.ts` (helpers `evt`/`assistant` at `:12-18`):
+**Two layers, both mandatory (F13):** at runtime App never feeds `chatReducer` directly — every frame goes `listenAgentEvents → dispatchSessionChat({ type: 'agentEvent', … })` (`App.tsx:443-452`), and `sessionChatStore.resolveSessionForEvent` drops any frame it cannot route (`if (!sessionId) return base;`). Its agent-id-scan group currently routes only `token_streamed | tool_timed_out | activity_changed | snapshot_captured` — without a `cost_incurred` branch, the reducer case below is dead code and the badge/persist/hydrate never fire. **Base state is post-Phase-1:** Phase 1 Task 8 added a `pending: AgentEventFrame[]` buffer to the store (`BUFFERABLE_TYPES = token_streamed/task_started` only) and left `resolveSessionForEvent` itself untouched, so the routing edit below applies cleanly on top; `cost_incurred` is deliberately NOT added to `BUFFERABLE_TYPES` (cost frames arrive long after `submitResolved`; a frame lost to that race is recovered by the persist/hydrate path anyway).
+
+- [ ] **Step 1: Failing tests (reducer + store routing).** Append to `describe('chatReducer', …)` in `chatCorrelation.test.ts` (helpers `evt`/`assistant` at `:12-18`):
 
 ```ts
   it('stamps modelId on the assistant bubble from cost_incurred via the agent map', () => {
@@ -1582,10 +1988,39 @@ Backend already done and tested: `ChatAppendInput.model_id` (`chat.rs:127-129`),
   });
 ```
 
-- [ ] **Step 2: Watch it fail.** `pnpm -C crates/vox-gui/ui test chatCorrelation` → TS error `Property 'modelId' does not exist on type 'ChatMessage'` / `expected undefined to be 'anthropic/claude-opus-4.7'`.
-- [ ] **Step 3: Implement reducer.** `chatCorrelation.ts`:
-  1. `ChatMessage` (`:11-21`) gains `/** Model that produced this assistant message (from cost_incurred). */ modelId?: string;`.
-  2. New case inside the `agentEvent` switch, next to `task_started` (`:143-147`):
+  And the **store-level routing test** — append to `describe('sessionChatStore', …)` in `sessionChatStore.test.ts` (its `evt` helper at `:9-13` builds the `{ id, timestamp_ms, kind }` frame shape). This drives `sessionChatReducer` end-to-end, exactly the path App uses at runtime — it fails even with a perfect `chatReducer` case if `resolveSessionForEvent` drops the frame:
+
+```ts
+  it('routes cost_incurred through the agent map and stamps modelId end-to-end', () => {
+    let store = sessionChatReducer(initialSessionChatStore, {
+      type: 'submit',
+      sessionId: 'sess-a',
+      runId: 'R1',
+      prompt: 'q',
+    });
+    store = sessionChatReducer(store, {
+      type: 'submitResolved',
+      sessionId: 'sess-a',
+      runId: 'R1',
+      taskId: '7',
+    });
+    store = sessionChatReducer(store, {
+      type: 'agentEvent',
+      event: evt({ type: 'task_started', task_id: 7, agent_id: 3, session_id: 'sess-a' }),
+    });
+    store = sessionChatReducer(store, {
+      type: 'agentEvent',
+      event: evt({ type: 'cost_incurred', agent_id: 3, provider: 'openrouter', model: 'anthropic/claude-opus-4.7' }),
+    });
+    const assistant = getSessionMessages(store, 'sess-a').find(m => m.role === 'assistant');
+    expect(assistant?.modelId).toBe('anthropic/claude-opus-4.7');
+  });
+```
+
+- [ ] **Step 2: Watch them fail.** `pnpm -C crates/vox-gui/ui test chatCorrelation sessionChatStore` → TS error `Property 'modelId' does not exist on type 'ChatMessage'` / `expected undefined to be 'anthropic/claude-opus-4.7'` (the store test fails on both counts: no `modelId` AND `resolveSessionForEvent` returning `undefined` for `cost_incurred`).
+- [ ] **Step 3: Implement reducer + session routing.**
+  1. `chatCorrelation.ts` — `ChatMessage` (`:11-21`) gains `/** Model that produced this assistant message (from cost_incurred). */ modelId?: string;`.
+  2. `chatCorrelation.ts` — new case inside the `agentEvent` switch, next to `task_started` (`:143-147`):
 
 ```ts
         case 'cost_incurred': {
@@ -1598,9 +2033,32 @@ Backend already done and tested: `ChatAppendInput.model_id` (`chat.rs:127-129`),
         }
 ```
 
-  `pnpm -C crates/vox-gui/ui test chatCorrelation` → green.
+  3. `sessionChatStore.ts` — add `cost_incurred` to `resolveSessionForEvent`'s agent-id-scan group (the frame carries `agent_id`, so the existing `state.agentToTask[agentId]` session scan routes it). Current code (`:67-72`, unchanged by Phase 1):
+
+```ts
+  if (
+    type === 'token_streamed' ||
+    type === 'tool_timed_out' ||
+    type === 'activity_changed' ||
+    type === 'snapshot_captured'
+  ) {
+```
+
+  becomes:
+
+```ts
+  if (
+    type === 'token_streamed' ||
+    type === 'tool_timed_out' ||
+    type === 'activity_changed' ||
+    type === 'snapshot_captured' ||
+    type === 'cost_incurred'
+  ) {
+```
+
+  `pnpm -C crates/vox-gui/ui test chatCorrelation sessionChatStore` → green (including Phase 1 Task 8's pending-buffer tests, untouched).
 - [ ] **Step 4: Persist + hydrate (App.tsx).**
-  1. Persist (`:849-856`) — add the field to the input object:
+  1. Persist (`:849-856`) — add the field to the input object AND replace the silent `.catch(() => {})` with the same toast idiom the user-persist path already uses (`App.tsx:677-679`) — this closes the spec's P2 "silent `.catch(() => {})` on assistant-message persist" finding, which no other task touches:
 
 ```ts
         invoke('chat_append_message', {
@@ -1611,8 +2069,10 @@ Backend already done and tested: `ChatAppendInput.model_id` (`chat.rs:127-129`),
             task_id: m.taskId ?? null,
             model_id: m.modelId ?? null,
           },
-        }).catch(() => {});
+        }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: String(err), cause: 'backend-error' }));
 ```
+
+  (The enclosing effect's dependency array is `[chatStore]` — add `pushToast` to it; `pushToast` is a stable callback, so the effect's behavior is unchanged.)
 
   2. Hydrate (`:632-645`) — extend the row type and mapping:
 
@@ -1642,16 +2102,21 @@ Backend already done and tested: `ChatAppendInput.model_id` (`chat.rs:127-129`),
       )}
 ```
 
-- [ ] **Step 6: Verify.** `pnpm -C crates/vox-gui/ui test chatCorrelation ModelBadge` → green; `pnpm -C crates/vox-gui/ui typecheck` → clean; `cargo test -p vox-gui chat_message_dto` → still green (backend contract unchanged). Runtime spot-check (post-merge smoke covers it too): with a live daemon, send a chat message and confirm the badge appears on completion and survives a session switch (hydrate path).
+- [ ] **Step 6: Verify.** `pnpm -C crates/vox-gui/ui test chatCorrelation sessionChatStore ModelBadge` → green; `pnpm -C crates/vox-gui/ui typecheck` → clean; `cargo test -p vox-gui chat_message_dto` → still green (backend contract unchanged). Runtime spot-check (post-merge smoke covers it too): with a live daemon, send a chat message and confirm the badge appears on completion and survives a session switch (hydrate path) — this spot-check only works because Step 3.3 routes `cost_incurred` through the session store.
 - [ ] **Step 7: Commit.**
-  `git add crates/vox-gui/ui/src/lib/chatCorrelation.ts crates/vox-gui/ui/src/lib/chatCorrelation.test.ts crates/vox-gui/ui/src/App.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatTranscript.tsx && git commit -m "feat(gui): persist and render assistant model_id via cost_incurred correlation"`
+  `git add crates/vox-gui/ui/src/lib/chatCorrelation.ts crates/vox-gui/ui/src/lib/chatCorrelation.test.ts crates/vox-gui/ui/src/lib/sessionChatStore.ts crates/vox-gui/ui/src/lib/sessionChatStore.test.ts crates/vox-gui/ui/src/App.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatTranscript.tsx && git commit -m "feat(gui): persist and render assistant model_id via cost_incurred correlation"`
 
 ---
 
+## Out of scope (owned elsewhere — recorded so nothing falls between plans)
+
+- **e2e interaction specs for the Phase 2 wiring** — model-picker apply, session rename/archive, and hopper mark-done Playwright specs are owned by **Phase 3 Task 13 (post-Phase-2)**, sequenced after this series lands. This plan deliberately ships only vitest component/unit coverage plus the `tauriMock.ts`/`tauriMockVariants.ts` command cases those specs will consume (`inference_provider_status` + `set_active_model` in Task 7, `hopper_mark_done` in Task 9, `chat_rename_session`/`chat_archive_session` in Task 11). Do NOT add interaction specs here; do NOT expect them to exist when verifying this series.
+- **Attention-strip counts stay hopper-only** — per the spec's recorded scope limit (Resolved decisions item 6), `useAttentionInbox`/`blockedTasksCount` are intentionally not extended to orchestrator tasks in this series.
+
 ## Final verification (whole series)
 
-- [ ] `cargo test -p vox-orchestrator -p vox-actor-runtime -p vox-orchestrator-mcp -p vox-config -p vox-gui > target/phase2-tests.log 2>&1; tail -n 40 target/phase2-tests.log` (redirect — never pipe cargo to head/grep)
-- [ ] `cargo clippy -p vox-orchestrator -p vox-actor-runtime -p vox-orchestrator-mcp -p vox-config -- -D warnings` (vox-gui deliberately excluded from clippy; it is covered by `cargo test -p vox-gui` + build)
-- [ ] `pnpm -C crates/vox-gui/ui test` and `pnpm -C crates/vox-gui/ui typecheck`
-- [ ] `pnpm -C crates/vox-gui/ui exec playwright test e2e/chat-session-rail.spec.ts e2e/screenshots.spec.ts --project=chromium`
-- [ ] `cargo fmt -p vox-orchestrator -p vox-actor-runtime -p vox-orchestrator-mcp -p vox-config -p vox-gui` (NEVER `cargo fmt --all`)
+- [ ] `cargo test -p vox-orchestrator -p vox-actor-runtime -p vox-orchestrator-mcp -p vox-config -p vox-db -p vox-gui > target/phase2-tests.log 2>&1; tail -n 40 target/phase2-tests.log` (redirect — never pipe cargo to head/grep; `tail` here is Git-Bash — in PowerShell use `Get-Content -Tail 40 target/phase2-tests.log`)
+- [ ] `cargo clippy -p vox-orchestrator -p vox-actor-runtime -p vox-orchestrator-mcp -p vox-config -p vox-db -- -D warnings` (vox-gui deliberately excluded from clippy; it is covered by `cargo test -p vox-gui` + build)
+- [ ] `pnpm -C crates/vox-gui/ui test` and `pnpm -C crates/vox-gui/ui typecheck` (the full vitest run includes the Phase-1 regression suites this series must keep green: `TasksView.copy.test.tsx` as rewritten by Task 10, `TasksView.listeners.test.tsx`, and the Phase-1 `sessionChatStore` pending-buffer tests)
+- [ ] `pnpm -C crates/vox-gui/ui exec playwright test e2e/chat-session-rail.spec.ts e2e/screenshots.spec.ts --project=chromium` (pre-existing specs only — regression sanity; the interaction specs for this series' wiring land in Phase 3 Task 13)
+- [ ] `cargo fmt -p vox-orchestrator -p vox-actor-runtime -p vox-orchestrator-mcp -p vox-config -p vox-db -p vox-gui` (NEVER `cargo fmt --all`)

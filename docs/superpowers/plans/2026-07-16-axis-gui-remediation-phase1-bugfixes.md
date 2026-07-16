@@ -60,7 +60,7 @@ Fix (per spec): the composer marks its persist call `already_submitted: true` so
 **Files:**
 - Modify: `crates/vox-gui/src/commands/chat.rs` (`ChatAppendInput` at lines 121-130, secretary block at lines 168-224, tests module at lines 262-353)
 - Create: `crates/vox-gui/ui/src/lib/composerSubmit.ts`
-- Create: `crates/vox-gui/ui/src/lib/composerSubmit.test.ts`
+- Create: `crates/vox-gui/ui/src/lib/composerSubmit.test.ts` (payload-builder tests + F28 App.tsx wiring guard)
 - Modify: `crates/vox-gui/ui/src/App.tsx` (composer persist call at lines 677-679; import block near line 14)
 
 ### Steps
@@ -257,6 +257,8 @@ Fix (per spec): the composer marks its persist call `already_submitted: true` so
 
   ```ts
   import { describe, expect, it } from 'vitest';
+  import { readFileSync } from 'node:fs';
+  import { resolve } from 'node:path';
   import { userAppendInput } from './composerSubmit';
 
   describe('userAppendInput', () => {
@@ -277,13 +279,34 @@ Fix (per spec): the composer marks its persist call `already_submitted: true` so
       expect(userAppendInput('sess-1', null).content).toBe('');
     });
   });
+
+  // F28 wiring guard: the payload-builder tests above cannot catch a reverted
+  // or skipped call-site edit — revert the App.tsx change and they stay green
+  // while the double-submit returns. Mirror the Task 2 idiom (ErrorBoundary
+  // .test.tsx reads main.tsx via readFileSync) and pin the composer persist
+  // call to the new payload builder.
+  describe('App.tsx composer persist wiring (C2)', () => {
+    it('routes the chat_append_message payload through userAppendInput', () => {
+      const app = readFileSync(resolve(__dirname, '../App.tsx'), 'utf8');
+      const call = app.indexOf("invoke('chat_append_message'");
+      expect(call).toBeGreaterThan(-1);
+      // The FIRST chat_append_message invoke in App.tsx is the composer
+      // user-persist path (the later one at ~849 persists assistant replies);
+      // its input must come from userAppendInput(...).
+      expect(app.slice(call, call + 220)).toContain('userAppendInput(sessionId');
+      // The old inline payload (which never carried already_submitted) is gone.
+      expect(app).not.toContain("{ session_id: sessionId, role: 'user'");
+    });
+  });
   ```
+
+  No Rust-side source-guard test is added for the `chat_append_message` gate rewiring (impl step 3): `secretary_candidate` and `submitted_task_id` are private fns, so skipping or reverting that edit leaves them referenced only from `#[cfg(test)]` code, and this task's `cargo clippy -p vox-gui -- -D warnings` step fails on `dead_code` — the clippy gate already covers that seam.
 
 - [ ] Run and confirm the expected failure (module does not exist):
   ```
   pnpm --dir crates/vox-gui/ui test -- src/lib/composerSubmit.test.ts
   ```
-  Expected: `Cannot find module './composerSubmit'` (or equivalent resolve error).
+  Expected: `Cannot find module './composerSubmit'` (or equivalent resolve error). (After `composerSubmit.ts` exists but before the App.tsx edit below, the file loads and the two payload-builder tests pass while the `App.tsx composer persist wiring (C2)` test fails — `userAppendInput(sessionId` not found in App.tsx.)
 
 - [ ] **Implement the frontend side.** Create `crates/vox-gui/ui/src/lib/composerSubmit.ts`:
 
@@ -349,7 +372,7 @@ Fix (per spec): the composer marks its persist call `already_submitted: true` so
   pnpm --dir crates/vox-gui/ui test -- src/lib/composerSubmit.test.ts
   pnpm --dir crates/vox-gui/ui typecheck
   ```
-  Expected: 2 tests pass; typecheck clean.
+  Expected: 3 tests pass (2 payload-builder + 1 App.tsx wiring guard); typecheck clean.
 
 - [ ] Format, lint, commit:
   ```
@@ -772,7 +795,7 @@ Fix (per spec): the composer marks its persist call `already_submitted: true` so
 
 ## Task 5: Listener leaks, unhandled `listen()` rejections, `useLocalStorage` warn
 
-Five independent micro-fixes with one shared theme: async `listen()` subscriptions must survive unmount races (disposed-flag pattern, reference implementation `components/surfaces/Console/AgentTab.tsx:16-37`) and must never leave an unhandled promise rejection when the event bridge is unavailable (vite preview, tests, headless capture). Plus: `useLocalStorage` currently logs storage errors via `console.log`, hiding them from warning filters.
+Six independent listener micro-fixes with one shared theme: async `listen()` subscriptions must survive unmount races (disposed-flag pattern, reference implementation `components/surfaces/Console/AgentTab.tsx:16-37`) and must never leave an unhandled promise rejection when the event bridge is unavailable (vite preview, tests, headless capture) — SubAgentsView, NeedsYouSurface, TasksView, SettingsView, CodeRabbitView, and ActivitySurface (F1: two unguarded chains at `ActivitySurface.tsx:283-303`, same shape as SettingsView — no `.catch` anywhere, cleanup `.then((unlisten) => unlisten())`). Plus: `useLocalStorage` currently logs storage errors via `console.log`, hiding them from warning filters. Plus (F18): `ChatSurface.tsx:130-132` re-triggers session hydration that `App.tsx:652-654` already owns — a redundant second `chat_get_messages` (limit 500) fetch on every session switch — so the ChatSurface trigger and its now-dead `onHydrateSession` prop are deleted. Scope note (F2): `BrowserView.tsx`'s three listener effects (`listenAgentEvents`/`listenBrowserFrames`/`listenPreviewAvailable`, `BrowserView.tsx:175-238`) are deliberately OUT of scope — each already `.catch()`es its `listen()` chain, so the residual risk there is leak-only (no disposed flag if unmount wins the race against `listen()` resolving), never an unhandled rejection; that lower-priority conversion is deferred, so do not assume this task fully closes the leak class.
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/surfaces/SubAgents/SubAgentsView.tsx` (lines 32-42)
@@ -787,10 +810,16 @@ Five independent micro-fixes with one shared theme: async `listen()` subscriptio
 - Modify: `crates/vox-gui/ui/src/components/surfaces/CodeRabbit/CodeRabbitView.test.tsx` (new test)
 - Modify: `crates/vox-gui/ui/src/hooks/useLocalStorage.ts` (lines 14, 23)
 - Create: `crates/vox-gui/ui/src/hooks/useLocalStorage.test.ts`
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Activity/ActivitySurface.tsx` (lines 283-303)
+- Create: `crates/vox-gui/ui/src/components/surfaces/Activity/ActivitySurface.listeners.test.tsx`
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx` (prop at lines 36 and 59, hydrate effect at lines 130-132)
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx` (imports; new hydration-ownership describe)
+- Modify: `crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx` (lines 60, 192)
+- Modify: `crates/vox-gui/ui/src/App.tsx` (line 1104; live line is 1105 after Task 1 added one import line)
 
 ### Steps
 
-- [ ] **Write the failing tests (all five sites, then implement all five).**
+- [ ] **Write the failing tests (all sites, then implement all).**
 
   **(a)** In `crates/vox-gui/ui/src/components/surfaces/SubAgents/SubAgentsView.test.tsx`, first make the `listenActivity` mock overridable. Current code (lines 5-9):
   ```ts
@@ -949,13 +978,74 @@ Five independent micro-fixes with one shared theme: async `listen()` subscriptio
   });
   ```
 
+  **(g)** Create `crates/vox-gui/ui/src/components/surfaces/Activity/ActivitySurface.listeners.test.tsx` (mirrors the TasksView idiom in (c); kept separate from the existing `ActivitySurface.container.test.tsx`, whose module-level transport mock resolves its listeners):
+  ```tsx
+  // @vitest-environment jsdom
+  import { describe, it, expect, vi } from 'vitest';
+  import { render, screen, waitFor } from '@testing-library/react';
+  import React from 'react';
+
+  // Simulate the bare-browser case (F1): both Activity listener chains reject
+  // when the Tauri event bridge is unavailable. Vitest fails the run on
+  // unhandled rejections, so this test is red until the .catch guards exist.
+  vi.mock('../../../transport', () => ({
+    activityQuery: vi.fn().mockResolvedValue([]),
+    listenActivityAppended: vi.fn().mockRejectedValue(new Error('event bridge unavailable')),
+    listenAgentEvents: vi.fn().mockRejectedValue(new Error('event bridge unavailable')),
+  }));
+
+  import { ActivitySurface } from './ActivitySurface';
+
+  describe('ActivitySurface listener guards', () => {
+    it('mounts and unmounts without unhandled rejections when listen() rejects', async () => {
+      const { unmount } = render(<ActivitySurface pushToast={() => {}} />);
+      await waitFor(() => expect(screen.getByText(/agent activity timeline/i)).toBeTruthy());
+      unmount();
+      // Flush microtasks so any dangling rejection surfaces and fails the run.
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  });
+  ```
+
+  **(h)** In `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx`, add the fs imports next to the existing vitest imports. Current code (lines 1-4):
+  ```tsx
+  // @vitest-environment jsdom
+  import { describe, it, expect, vi, beforeEach } from 'vitest';
+  import { render, screen, waitFor, act } from '@testing-library/react';
+  import React from 'react';
+  ```
+  becomes:
+  ```tsx
+  // @vitest-environment jsdom
+  import { describe, it, expect, vi, beforeEach } from 'vitest';
+  import { render, screen, waitFor, act } from '@testing-library/react';
+  import { readFileSync } from 'node:fs';
+  import { resolve } from 'node:path';
+  import React from 'react';
+  ```
+  Then append a new top-level describe after the closing `});` of `describe('ChatSurface', ...)` (end of file), mirroring the Task 2 readFileSync wiring idiom:
+  ```tsx
+  describe('session hydration ownership (F18: redundant double hydrate per session switch)', () => {
+    it('ChatSurface has no hydrate trigger — App.tsx owns hydration', () => {
+      const surface = readFileSync(resolve(__dirname, './ChatSurface.tsx'), 'utf8');
+      // The redundant effect (`if (activeId && onHydrateSession) onHydrateSession(activeId)`)
+      // and its prop are gone — App's activeSessionId effect is the only trigger.
+      expect(surface).not.toContain('onHydrateSession');
+      const surfaces = readFileSync(resolve(__dirname, '../../layout/surfaceComponents.tsx'), 'utf8');
+      expect(surfaces).not.toContain('onHydrateChatSession');
+      const app = readFileSync(resolve(__dirname, '../../../App.tsx'), 'utf8');
+      expect(app).toContain('hydrateChatSession(activeSessionId)');
+    });
+  });
+  ```
+
 - [ ] Run and confirm the expected failures:
   ```
-  pnpm --dir crates/vox-gui/ui test -- src/components/surfaces/SubAgents/SubAgentsView.test.tsx src/components/surfaces/NeedsYou/__tests__/NeedsYouSurface.test.tsx src/components/surfaces/Tasks/TasksView.listeners.test.tsx src/components/surfaces/Settings/SettingsView.test.tsx src/components/surfaces/CodeRabbit/CodeRabbitView.test.tsx src/hooks/useLocalStorage.test.ts
+  pnpm --dir crates/vox-gui/ui test -- src/components/surfaces/SubAgents/SubAgentsView.test.tsx src/components/surfaces/NeedsYou/__tests__/NeedsYouSurface.test.tsx src/components/surfaces/Tasks/TasksView.listeners.test.tsx src/components/surfaces/Settings/SettingsView.test.tsx src/components/surfaces/CodeRabbit/CodeRabbitView.test.tsx src/hooks/useLocalStorage.test.ts src/components/surfaces/Activity/ActivitySurface.listeners.test.tsx src/components/surfaces/Chat/ChatSurface.test.tsx
   ```
-  Expected: SubAgents leak-guard test fails (unlisten never called); NeedsYou leak-guard test fails; TasksView and SettingsView tests fail with reported unhandled rejections; CodeRabbitView rejection test fails with an unhandled rejection; both useLocalStorage tests fail (`console.log` used, `console.warn` not).
+  Expected: SubAgents leak-guard test fails (unlisten never called); NeedsYou leak-guard test fails; TasksView and SettingsView tests fail with reported unhandled rejections; CodeRabbitView rejection test fails with an unhandled rejection; both useLocalStorage tests fail (`console.log` used, `console.warn` not); the ActivitySurface listener test fails with reported unhandled rejections (from both unguarded chains); the ChatSurface hydration-ownership test fails (`onHydrateSession` still present in ChatSurface.tsx). ChatSurface's seven pre-existing tests stay green.
 
-- [ ] **Implement all five sites.**
+- [ ] **Implement all sites.**
 
   **(a)** `SubAgentsView.tsx`, the listener effect. Current code (lines 32-42):
   ```ts
@@ -1106,17 +1196,103 @@ Five independent micro-fixes with one shared theme: async `listen()` subscriptio
 
   **(f)** `useLocalStorage.ts`: change both `console.log(error);` occurrences (lines 14 and 23) to `console.warn(error);`.
 
+  **(g)** `ActivitySurface.tsx`, both listener effects (F1) — same `.catch(() => undefined)` + `fn?.()` treatment as TasksView in (c). Current code (lines 282-303):
+  ```ts
+  // Reactive updates on "vox://activity-appended"
+  useEffect(() => {
+    const unlistenPromise = listenActivityAppended(() => {
+      fetchLogs();
+    });
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [fetchLogs]);
+
+  // Also refresh on "vox://agent-events" — this event IS already emitted by the
+  // Rust daemon bridge (spawn_agent_event_stream), whereas "vox://activity-appended"
+  // has no Rust emitter yet. This makes the timeline update live without any new
+  // backend work (Option B: lazy reactive refresh).
+  useEffect(() => {
+    const unlistenPromise = listenAgentEvents(() => {
+      fetchLogs();
+    });
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [fetchLogs]);
+  ```
+  becomes:
+  ```ts
+  // Reactive updates on "vox://activity-appended"
+  useEffect(() => {
+    // listen() rejects when the Tauri event bridge is unavailable (bare
+    // browser, tests, headless capture) — guard so nothing leaks an
+    // unhandled rejection and cleanup still resolves.
+    const unlistenPromise = listenActivityAppended(() => {
+      fetchLogs();
+    }).catch(() => undefined);
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten?.());
+    };
+  }, [fetchLogs]);
+
+  // Also refresh on "vox://agent-events" — this event IS already emitted by the
+  // Rust daemon bridge (spawn_agent_event_stream), whereas "vox://activity-appended"
+  // has no Rust emitter yet. This makes the timeline update live without any new
+  // backend work (Option B: lazy reactive refresh).
+  useEffect(() => {
+    // Guarded like the effect above: listen() rejects outside Tauri.
+    const unlistenPromise = listenAgentEvents(() => {
+      fetchLogs();
+    }).catch(() => undefined);
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten?.());
+    };
+  }, [fetchLogs]);
+  ```
+
+  **(h)** Delete the redundant hydrate trigger and its dead prop (F18). The prop's only consumer is the effect being deleted, its only wiring is `surfaceComponents.tsx:192` (fed from `App.tsx` `onHydrateChatSession: hydrateChatSession`), and no test references either name — so the whole thread comes out; `App.tsx:652-654` (the effect that fires `hydrateChatSession(activeSessionId)` on every session switch) remains the single hydration owner. Four edits:
+
+  1. `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx` — drop the effect. Current code (lines 130-132):
+     ```ts
+     useEffect(() => {
+       if (activeId && onHydrateSession) onHydrateSession(activeId);
+     }, [activeId, onHydrateSession]);
+     ```
+     Delete these three lines (and the blank line that follows, keeping one blank line between the neighboring effects).
+  2. Same file — drop the prop. In `ChatSurfaceProps` (line 36), delete:
+     ```ts
+       onHydrateSession?: (sessionId: string) => void;
+     ```
+     and in the destructuring parameter list (line 59), delete:
+     ```ts
+       onHydrateSession,
+     ```
+  3. `crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx` — delete the `SurfaceProps` field (line 60):
+     ```ts
+       onHydrateChatSession?: (sessionId: string) => void;
+     ```
+     and the JSX pass-through inside `case 'chat'` (line 192):
+     ```tsx
+               onHydrateSession={props.onHydrateChatSession}
+     ```
+  4. `crates/vox-gui/ui/src/App.tsx` — delete the supplier line (line 1104 pre-plan; 1105 after Task 1's import). Current code:
+     ```ts
+         onHydrateChatSession: hydrateChatSession,
+     ```
+     `hydrateChatSession` itself stays: its remaining caller is the App-level effect (`if (activeSessionId) hydrateChatSession(activeSessionId);`), which is exactly the single owner this fix leaves in place. Removing all four sites together is required for a clean `tsc --noEmit` (the object literal at App.tsx:1104 would fail the excess-property check once the `SurfaceProps` field is gone).
+
 - [ ] Run and confirm all pass:
   ```
-  pnpm --dir crates/vox-gui/ui test -- src/components/surfaces/SubAgents/SubAgentsView.test.tsx src/components/surfaces/NeedsYou/__tests__/NeedsYouSurface.test.tsx src/components/surfaces/Tasks/TasksView.listeners.test.tsx src/components/surfaces/Settings/SettingsView.test.tsx src/components/surfaces/CodeRabbit/CodeRabbitView.test.tsx src/hooks/useLocalStorage.test.ts
+  pnpm --dir crates/vox-gui/ui test -- src/components/surfaces/SubAgents/SubAgentsView.test.tsx src/components/surfaces/NeedsYou/__tests__/NeedsYouSurface.test.tsx src/components/surfaces/Tasks/TasksView.listeners.test.tsx src/components/surfaces/Settings/SettingsView.test.tsx src/components/surfaces/CodeRabbit/CodeRabbitView.test.tsx src/hooks/useLocalStorage.test.ts src/components/surfaces/Activity/ActivitySurface.listeners.test.tsx src/components/surfaces/Chat/ChatSurface.test.tsx
   pnpm --dir crates/vox-gui/ui typecheck
   ```
   Expected: all pass, no unhandled-rejection reports in the vitest summary.
 
 - [ ] Commit:
   ```
-  git -C C:/Users/Owner/vox add crates/vox-gui/ui/src/components/surfaces/SubAgents/SubAgentsView.tsx crates/vox-gui/ui/src/components/surfaces/SubAgents/SubAgentsView.test.tsx crates/vox-gui/ui/src/components/surfaces/NeedsYou/NeedsYouSurface.tsx "crates/vox-gui/ui/src/components/surfaces/NeedsYou/__tests__/NeedsYouSurface.test.tsx" crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.tsx crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.listeners.test.tsx crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.test.tsx crates/vox-gui/ui/src/components/surfaces/CodeRabbit/CodeRabbitView.tsx crates/vox-gui/ui/src/components/surfaces/CodeRabbit/CodeRabbitView.test.tsx crates/vox-gui/ui/src/hooks/useLocalStorage.ts crates/vox-gui/ui/src/hooks/useLocalStorage.test.ts
-  git -C C:/Users/Owner/vox commit -m "fix(gui): listener leak guards, listen() rejection guards, useLocalStorage warns"
+  git -C C:/Users/Owner/vox add crates/vox-gui/ui/src/components/surfaces/SubAgents/SubAgentsView.tsx crates/vox-gui/ui/src/components/surfaces/SubAgents/SubAgentsView.test.tsx crates/vox-gui/ui/src/components/surfaces/NeedsYou/NeedsYouSurface.tsx "crates/vox-gui/ui/src/components/surfaces/NeedsYou/__tests__/NeedsYouSurface.test.tsx" crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.tsx crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.listeners.test.tsx crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.test.tsx crates/vox-gui/ui/src/components/surfaces/CodeRabbit/CodeRabbitView.tsx crates/vox-gui/ui/src/components/surfaces/CodeRabbit/CodeRabbitView.test.tsx crates/vox-gui/ui/src/hooks/useLocalStorage.ts crates/vox-gui/ui/src/hooks/useLocalStorage.test.ts crates/vox-gui/ui/src/components/surfaces/Activity/ActivitySurface.tsx crates/vox-gui/ui/src/components/surfaces/Activity/ActivitySurface.listeners.test.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx crates/vox-gui/ui/src/App.tsx
+  git -C C:/Users/Owner/vox commit -m "fix(gui): listener leak/rejection guards, useLocalStorage warns, drop double chat hydrate"
   ```
 
 ---
@@ -1611,4 +1787,4 @@ Chat submissions go to the orchestrator task graph (`submit_orchestrator_task` �
 - [ ] Frontend typecheck/build gate: `pnpm --dir crates/vox-gui/ui typecheck` — expected: clean.
 - [ ] Rust: `cargo test -p vox-gui` and `cargo test -p vox-orchestrator-mcp visus_review` — expected: green. (Do not run workspace-wide `clippy --all-targets`; vox-gui's buildscript breaks it — use the per-crate clippy commands already run in Tasks 1 and 7.)
 - [ ] `git -C C:/Users/Owner/vox status --short contracts/reports/gui-visual-review/` — expected: nothing staged, no `0000-00-00.json`.
-- [ ] `git log --oneline -8` shows the seven commits (Tasks 1-8; Task 0 has no commit), each independently revertable.
+- [ ] `git log --oneline -9` shows the eight commits (Tasks 1-8; Task 0 has no commit) on top of the starting commit, each independently revertable.
