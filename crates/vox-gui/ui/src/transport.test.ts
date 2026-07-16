@@ -42,7 +42,11 @@ describe('VoxTransport new methods', () => {
   it('invokeMcpTool forwards tool name and args', async () => {
     mockInvoke.mockResolvedValue({ is_error: false, result: { ok: true } });
     const result = await voxTransport.invokeMcpTool('vox_skill_list', {});
-    expect(mockInvoke).toHaveBeenCalledWith('invoke_mcp_tool', { tool: 'vox_skill_list', args: {} });
+    expect(mockInvoke).toHaveBeenCalledWith('invoke_mcp_tool', {
+      tool: 'vox_skill_list',
+      args: {},
+      permissionMode: null,
+    });
     expect(result).toEqual({ is_error: false, result: { ok: true } });
   });
 
@@ -65,6 +69,15 @@ describe('VoxTransport new methods', () => {
     mockInvoke.mockResolvedValue([]);
     await voxTransport.voxDocsIndex();
     expect(mockInvoke).toHaveBeenCalledWith('vox_docs_index');
+  });
+
+  it('readDocMarkdown calls read_doc_markdown with path', async () => {
+    mockInvoke.mockResolvedValue('# Title\n\nBody text');
+    const result = await voxTransport.readDocMarkdown('docs/src/reference/cli.md');
+    expect(mockInvoke).toHaveBeenCalledWith('read_doc_markdown', {
+      path: 'docs/src/reference/cli.md',
+    });
+    expect(result).toBe('# Title\n\nBody text');
   });
 
   it('voxSearchQuery calls vox_search_query with scope', async () => {

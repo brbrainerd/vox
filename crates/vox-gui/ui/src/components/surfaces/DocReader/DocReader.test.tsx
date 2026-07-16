@@ -4,15 +4,14 @@ import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}));
-
 vi.mock('../../../transport', () => ({
-  voxTransport: { openLocator: vi.fn().mockResolvedValue({ action: 'opened' }) },
+  voxTransport: {
+    openLocator: vi.fn().mockResolvedValue({ action: 'opened' }),
+    readDocMarkdown: vi.fn(),
+  },
 }));
 
-import { invoke } from '@tauri-apps/api/core';
+import { voxTransport } from '../../../transport';
 import { DocReader } from './DocReader';
 
 function renderDocReader(tabId: string) {
@@ -26,8 +25,8 @@ function renderDocReader(tabId: string) {
 
 describe('DocReader', () => {
   beforeEach(() => {
-    vi.mocked(invoke).mockReset();
-    vi.mocked(invoke).mockResolvedValue('# Title\n\nBody text');
+    vi.mocked(voxTransport.readDocMarkdown).mockReset();
+    vi.mocked(voxTransport.readDocMarkdown).mockResolvedValue('# Title\n\nBody text');
   });
 
   it('loads and renders markdown for a doc tab id', async () => {
@@ -36,8 +35,6 @@ describe('DocReader', () => {
       expect(screen.getByTestId('doc-reader')).toBeDefined();
       expect(screen.getByText(/Body text/)).toBeDefined();
     });
-    expect(invoke).toHaveBeenCalledWith('read_doc_markdown', {
-      path: 'docs/src/reference/cli.md',
-    });
+    expect(voxTransport.readDocMarkdown).toHaveBeenCalledWith('docs/src/reference/cli.md');
   });
 });
