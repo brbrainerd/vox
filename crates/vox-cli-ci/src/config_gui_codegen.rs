@@ -38,12 +38,18 @@ pub fn section_of(k: &ConfigKey) -> String {
     .to_string()
 }
 
-/// Derive a stable kebab id from the key: strip VOX_ prefix, lowercase, _ -> -.
+/// Derive a stable kebab id from the FULL key: lowercase, _ -> -.
+///
+/// Deliberately does NOT strip the `VOX_` prefix (unlike `keywords_of`), because
+/// `CONFIG_KEYS` contains current/legacy pairs that share the same tail once that
+/// prefix is dropped — e.g. `VOX_OPENAI_BASE_URL` (env-homed) and the legacy
+/// `OPENAI_BASE_URL` (vox.toml-homed) both reduce to `openai-base-url`. Since
+/// `ConfigKey::key` is documented as "the unique id" of the registry, deriving the
+/// GUI id from the full key makes id uniqueness follow automatically from key
+/// uniqueness instead of depending on prefix bookkeeping — see
+/// `ids_are_unique_across_surfaced_keys` below.
 pub fn id_of(key: &str) -> String {
-    key.strip_prefix("VOX_")
-        .unwrap_or(key)
-        .to_lowercase()
-        .replace('_', "-")
+    key.to_lowercase().replace('_', "-")
 }
 
 /// Search keywords from the key tokens (lowercased, VOX dropped).
@@ -234,11 +240,39 @@ mod tests {
     use vox_config::config_registry::CONFIG_KEYS;
     #[test]
     fn id_and_keywords_derive_from_key() {
-        assert_eq!(id_of("VOX_SEARCH_BM25_K1"), "search-bm25-k1");
+        // id_of keeps the VOX_ prefix (see doc comment) so ids stay 1:1 with keys;
+        // keywords_of still drops it since search keywords don't need uniqueness.
+        assert_eq!(id_of("VOX_SEARCH_BM25_K1"), "vox-search-bm25-k1");
         assert_eq!(
             keywords_of("VOX_SEARCH_BM25_K1"),
             vec!["search", "bm25", "k1"]
         );
+    }
+    #[test]
+    fn id_of_disambiguates_current_vs_legacy_pair() {
+        // Regression test for the VOX_OPENAI_BASE_URL / OPENAI_BASE_URL collision:
+        // both keys reduce to "openai-base-url" once the VOX_ prefix is stripped,
+        // so id_of must NOT strip it.
+        assert_eq!(id_of("VOX_OPENAI_BASE_URL"), "vox-openai-base-url");
+        assert_eq!(id_of("OPENAI_BASE_URL"), "openai-base-url");
+        assert_ne!(id_of("VOX_OPENAI_BASE_URL"), id_of("OPENAI_BASE_URL"));
+    }
+    #[test]
+    fn ids_are_unique_across_surfaced_keys() {
+        // The regression guard: any current CONFIG_KEYS collision (or any future
+        // one — e.g. a new legacy alias for an existing VOX_-prefixed key) must
+        // produce distinct GUI-search ids. This is what would have caught the
+        // VOX_OPENAI_BASE_URL / OPENAI_BASE_URL collision before it shipped.
+        let mut seen: std::collections::HashMap<String, &str> = std::collections::HashMap::new();
+        for k in CONFIG_KEYS.iter().filter(|k| is_surfaced(k)) {
+            let id = id_of(k.key);
+            if let Some(prev_key) = seen.insert(id.clone(), k.key) {
+                panic!(
+                    "duplicate GUI-search id {id:?} derived from both {prev_key:?} and {:?}",
+                    k.key
+                );
+            }
+        }
     }
     #[test]
     fn renders_surfaced_keys_with_header() {
