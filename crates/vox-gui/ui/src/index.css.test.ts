@@ -32,3 +32,22 @@ describe('STATUS_TONE', () => {
   });
 });
 
+describe('ds-section-head (B7: migrated from ds/components.css so it actually loads)', () => {
+  it('is defined in the app stylesheet', () => {
+    expect(css).toContain('.ds-section-head');
+  });
+
+  it('underlines the heading (divider below, never a cap above)', () => {
+    const start = css.indexOf('.ds-section-head');
+    const body = css.slice(start, css.indexOf('}', start));
+    expect(body).toContain('border-bottom: 1px solid var(--color-border-subtle)');
+    expect(body).toContain('font-family: var(--font-family-display)');
+    expect(body).not.toContain('border-top');
+  });
+
+  it('does not pull in the standalone ds bundle (token/font double-load hazard)', () => {
+    expect(css).not.toContain("@import '../ds");
+    expect(css).not.toContain('ds/styles.css');
+  });
+});
+

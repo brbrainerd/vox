@@ -34,6 +34,8 @@
  * A divider that introduces a section UNDERLINES its heading (border-bottom
  * beneath the label) — it never caps the section with a top border above the
  * first label, which crowds the text and hurts readability. Items follow below.
+ * NOTE: the app copy of this rule lives in ui/src/index.css (`.ds-section-head`);
+ * keep the two in sync when editing.
  */
 .ds-section-head {
   font-family: var(--font-family-display);
