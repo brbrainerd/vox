@@ -1,5 +1,4 @@
 import React from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { useVoxQuery } from '../../../hooks/useVoxQuery';
 import { voxTransport } from '../../../transport';
 import { Button } from '../../ui/Button';
@@ -11,7 +10,7 @@ interface DocReaderProps {
 
 export function DocReader({ tabId }: DocReaderProps) {
   const path = docPathFromTab(tabId);
-  const q = useVoxQuery(['doc', path], () => invoke<string>('read_doc_markdown', { path }), {
+  const q = useVoxQuery(['doc', path], () => voxTransport.readDocMarkdown(path), {
     enabled: path.length > 0,
   });
 
