@@ -281,11 +281,14 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
 
   // Reactive updates on "vox://activity-appended"
   useEffect(() => {
+    // listen() rejects when the Tauri event bridge is unavailable (bare
+    // browser, tests, headless capture) — guard so nothing leaks an
+    // unhandled rejection and cleanup still resolves.
     const unlistenPromise = listenActivityAppended(() => {
       fetchLogs();
-    });
+    }).catch(() => undefined);
     return () => {
-      unlistenPromise.then((unlisten) => unlisten());
+      unlistenPromise.then((unlisten) => unlisten?.());
     };
   }, [fetchLogs]);
 
@@ -294,11 +297,12 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
   // has no Rust emitter yet. This makes the timeline update live without any new
   // backend work (Option B: lazy reactive refresh).
   useEffect(() => {
+    // Guarded like the effect above: listen() rejects outside Tauri.
     const unlistenPromise = listenAgentEvents(() => {
       fetchLogs();
-    });
+    }).catch(() => undefined);
     return () => {
-      unlistenPromise.then((unlisten) => unlisten());
+      unlistenPromise.then((unlisten) => unlisten?.());
     };
   }, [fetchLogs]);
 

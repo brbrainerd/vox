@@ -33,7 +33,6 @@ interface ChatSurfaceProps {
   messages?: ChatMessage[];
   activeSessionId?: string;
   onSessionChange?: (sessionId: string) => void;
-  onHydrateSession?: (sessionId: string) => void;
   tasks?: ChatExecutionTask[];
   intents?: string[];
   executionKpis?: ChatExecutionRailKpis;
@@ -56,7 +55,6 @@ export function ChatSurface({
   messages = [],
   activeSessionId,
   onSessionChange,
-  onHydrateSession,
   tasks = [],
   intents,
   executionKpis,
@@ -126,10 +124,6 @@ export function ChatSurface({
   useEffect(() => {
     loadSessions();
   }, [loadSessions]);
-
-  useEffect(() => {
-    if (activeId && onHydrateSession) onHydrateSession(activeId);
-  }, [activeId, onHydrateSession]);
 
   useEffect(() => {
     const sub = listenSecretaryProposed((payload) => {

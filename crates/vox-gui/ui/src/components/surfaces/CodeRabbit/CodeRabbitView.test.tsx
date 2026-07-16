@@ -74,4 +74,13 @@ describe('CodeRabbitView toast shape (B6)', () => {
     expect(toast).not.toHaveProperty('kind');
     expect(toast).not.toHaveProperty('message');
   });
+
+  it('mounts and unmounts without unhandled rejections when the progress listener fails', async () => {
+    listenMock.mockReset();
+    listenMock.mockRejectedValue(new Error('event bridge unavailable'));
+    const { unmount } = render(<CodeRabbitView pushToast={vi.fn()} />);
+    await new Promise((r) => setTimeout(r, 0));
+    unmount();
+    await new Promise((r) => setTimeout(r, 0));
+  });
 });

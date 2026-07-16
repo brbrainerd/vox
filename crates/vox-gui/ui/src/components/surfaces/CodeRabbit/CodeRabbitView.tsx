@@ -83,7 +83,7 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
       // If we unmounted before listen() resolved, unlisten immediately (no leak).
       if (cancelled) u();
       else un = u;
-    });
+    }).catch(() => { /* event bridge unavailable — no progress toasts */ });
     return () => {
       cancelled = true;
       un?.();

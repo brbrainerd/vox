@@ -30,6 +30,7 @@ export function SubAgentsView(_props: SurfaceDecoratorProps) {
 
   useEffect(() => { let live = true; fetchTree().then((t) => { if (live) setTree(t); }).catch(() => {}); return () => { live = false; }; }, [setTree]);
   useEffect(() => {
+    let disposed = false;
     let un: (() => void) | undefined;
     listenActivity((e) => {
       // Backend does not yet stamp window_id on agent events (audit correction #1):
@@ -37,8 +38,17 @@ export function SubAgentsView(_props: SurfaceDecoratorProps) {
       const w = (e.kind as { window_id?: string }).window_id
         ?? useSubAgentStore.getState().selectedWindowId;
       if (w) pushEvent(w, e);
-    }).then((u) => { un = u; }).catch(() => {});
-    return () => un?.();
+    })
+      .then((u) => {
+        // Unmount may win the race against the async subscription resolving.
+        if (disposed) u();
+        else un = u;
+      })
+      .catch(() => {});
+    return () => {
+      disposed = true;
+      un?.();
+    };
   }, [pushEvent]);
 
   const node = selected ? findNode(tree, selected) : null;

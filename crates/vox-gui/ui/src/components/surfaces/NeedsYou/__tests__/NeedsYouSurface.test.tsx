@@ -68,4 +68,21 @@ describe('NeedsYouSurface', () => {
     await waitFor(() => expect(screen.getByText(/Nothing needs you/i)).toBeTruthy());
     expect(spy).not.toHaveBeenCalled();
   });
+
+  it('unlistens immediately when unmounted before listenFeedbackChanged resolves (leak guard)', async () => {
+    const unlisten = vi.fn();
+    let resolveListen!: (u: () => void) => void;
+    vi.spyOn(transport, 'listenFeedbackChanged').mockImplementation(
+      () => new Promise((res) => { resolveListen = res; }),
+    );
+    const { unmount } = render(
+      <LanguageProvider>
+        <NeedsYouSurface onOpenContext={() => {}} pushToast={() => {}} />
+      </LanguageProvider>,
+    );
+    await waitFor(() => expect(resolveListen).toBeTruthy());
+    unmount();
+    resolveListen(unlisten);
+    await waitFor(() => expect(unlisten).toHaveBeenCalledTimes(1));
+  });
 });

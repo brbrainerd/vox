@@ -1102,7 +1102,6 @@ export default function App() {
     activeSessionId,
     onSessionChange: setActiveSessionId,
     chatMessages: activeChatMessages,
-    onHydrateChatSession: hydrateChatSession,
     onFocusComposer: focusComposer,
     chatTasks,
     chatIntents,

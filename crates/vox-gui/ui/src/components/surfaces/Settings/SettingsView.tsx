@@ -757,8 +757,9 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
   // Reactive refresh: the backend emits "vox://llm-config-changed" whenever config
   // changes (this GUI, env reload, or mesh sync). Re-pull the catalog on each event.
   useEffect(() => {
-    const un = listen('vox://llm-config-changed', () => { reload(); });
-    return () => { un.then((f) => f()); };
+    // Guarded: listen() rejects outside Tauri (bare browser/tests).
+    const un = listen('vox://llm-config-changed', () => { reload(); }).catch(() => undefined);
+    return () => { un.then((f) => f?.()); };
   }, [reload]);
   useEffect(() => () => { if (savedToast.current) clearTimeout(savedToast.current); }, []);
 

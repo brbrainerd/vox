@@ -80,16 +80,19 @@ export function TasksView({
     if (attention) return () => { mounted.current = false; };
 
     selfRefresh();
+    // listen() rejects when the Tauri event bridge is unavailable (bare
+    // browser, tests) — guard so nothing leaks an unhandled rejection and
+    // cleanup still resolves.
     const sub = listen<void>('vox://tasks-changed', () => {
       selfRefresh();
-    });
+    }).catch(() => undefined);
     const subFeedback = listenFeedbackChanged(() => {
       selfRefresh();
-    });
+    }).catch(() => undefined);
     return () => {
       mounted.current = false;
-      sub.then((fn) => fn());
-      subFeedback.then((fn) => fn());
+      sub.then((fn) => fn?.());
+      subFeedback.then((fn) => fn?.());
     };
   }, [attention, selfRefresh]);
 
