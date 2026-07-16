@@ -36,9 +36,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           # universal-apple-darwin is a Tauri meta-target, not a real rustup
-          # triple — install the two real Apple triples the lipo step below
-          # builds against instead.
-          targets: ${{ matrix.target == 'universal-apple-darwin' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.target }}
+          # triple. The x86_64-apple-darwin cross target is added separately
+          # below via `rustup target add` (not here) because this repo pins
+          # its toolchain via rust-toolchain.toml (channel 1.96.0) — `rustup
+          # target add`, run with no channel argument, always targets whatever
+          # toolchain cargo will actually use (the pinned one), avoiding a
+          # mismatch between this action's `@stable` alias and that pin.
+          targets: ${{ matrix.target == 'universal-apple-darwin' && 'aarch64-apple-darwin' || matrix.target }}
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -50,9 +54,12 @@ jobs:
 
       - name: Install Linux Dependencies
         if: runner.os == 'Linux'
+        # libasound2-dev: vox-gui's cpal mic-capture (desktop speech-to-text) pulls
+        # alsa-sys, whose build script needs the ALSA dev headers (see the same
+        # note in gui-cross-build.yml — this workflow was missing it).
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev
 
       - name: Typecheck frontend (tsc --noEmit)
         working-directory: ./crates/vox-gui/ui
@@ -72,6 +79,13 @@ jobs:
       - name: Build vox CLI sidecar (release, macOS universal)
         if: matrix.target == 'universal-apple-darwin'
         run: |
+          # rustup target add (no channel arg) always targets whatever
+          # toolchain cargo will actually use here — the repo's pinned
+          # rust-toolchain.toml channel — regardless of what toolchain the
+          # earlier dtolnay/rust-toolchain@stable step installed under the
+          # "stable" alias. Installing this via the action's `targets:` input
+          # instead left x86_64-apple-darwin's core/std missing at build time.
+          rustup target add x86_64-apple-darwin
           cargo build -p vox-cli --release --target aarch64-apple-darwin
           cargo build -p vox-cli --release --target x86_64-apple-darwin
           mkdir -p target/release
