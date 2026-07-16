@@ -35,7 +35,10 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          # universal-apple-darwin is a Tauri meta-target, not a real rustup
+          # triple — install the two real Apple triples the lipo step below
+          # builds against instead.
+          targets: ${{ matrix.target == 'universal-apple-darwin' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.target }}
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -60,6 +63,38 @@ jobs:
       - name: Build frontend
         working-directory: ./crates/vox-gui/ui
         run: pnpm build
+
+      # vox-gui's tauri.conf.json declares `externalBin: ["../../target/release/vox"]`
+      # (a Tauri sidecar) — tauri-action does not build or universalize this binary
+      # itself, so it must be staged at the triple-suffixed sidecar path before
+      # "Build Tauri Application" or crates/vox-gui/build.rs panics. See the
+      # "vox-gui sidecar missing" entry in AGENTS.md's Perennial Bug Patterns.
+      - name: Build vox CLI sidecar (release, macOS universal)
+        if: matrix.target == 'universal-apple-darwin'
+        run: |
+          cargo build -p vox-cli --release --target aarch64-apple-darwin
+          cargo build -p vox-cli --release --target x86_64-apple-darwin
+          mkdir -p target/release
+          lipo -create -output target/release/vox-universal-apple-darwin \
+            target/aarch64-apple-darwin/release/vox \
+            target/x86_64-apple-darwin/release/vox
+
+      - name: Build vox CLI sidecar (release)
+        if: matrix.target != 'universal-apple-darwin'
+        run: cargo build -p vox-cli --release --target ${{ matrix.target }}
+
+      - name: Stage Tauri external sidecar (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force target/release | Out-Null
+          Copy-Item target/${{ matrix.target }}/release/vox.exe target/release/vox-${{ matrix.target }}.exe -Force
+
+      - name: Stage Tauri external sidecar (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p target/release
+          cp target/${{ matrix.target }}/release/vox target/release/vox-${{ matrix.target }}
 
       - name: Build Tauri Application
         uses: tauri-apps/tauri-action@v1
