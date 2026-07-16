@@ -253,7 +253,8 @@ export function TasksView({
         <div>
           <h1 className="text-[15px] font-medium text-text-primary">Tasks</h1>
           <p className="text-[11px] text-text-muted">
-            Everything queued or running across the agent fleet. Chat submissions land here.
+            The hopper to-do queue — items added from the composer below. Chat
+            submissions run in the orchestrator task graph and are not listed here yet.
           </p>
         </div>
         <Button

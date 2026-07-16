@@ -170,7 +170,9 @@ pub async fn chat_append_message<R: tauri::Runtime>(
         .await
         .map_err(map_db_err)?;
 
-    // Secretary: detect actionable intent in user messages and submit to hopper.
+    // Secretary: detect actionable intent in user messages and submit it to the
+    // orchestrator daemon task graph (SUBMIT_TASK) — NOT the SQLite hopper that
+    // the Tasks surface lists (store unification is Phase 2, fork F1).
     // Fire-and-forget — errors here must never fail the chat message save.
     if let Some(classified) =
         secretary_candidate(&input.role, &input.content, input.already_submitted)
