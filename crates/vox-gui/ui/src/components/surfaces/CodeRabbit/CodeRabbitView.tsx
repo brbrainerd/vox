@@ -49,7 +49,7 @@ export function toSliceRows(manifest: Manifest | null, report: Report | null) {
   });
 }
 
-export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement {
+export function CodeRabbitView({ pushToast }: CodeRabbitViewProps): React.ReactElement {
   const [since, setSince] = useState('2026-04-01');
   const [fullRepo, setFullRepo] = useState(false);
   const [cap, setCap] = useState(150);
@@ -73,7 +73,7 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
     let cancelled = false;
     listen<{ status: string; error?: string }>('coderabbit://progress', (e) => {
       setRunning(false);
-      _props.pushToast(
+      pushToast(
         e.payload.status === 'error'
           ? { tone: 'warn', title: 'CodeRabbit run failed', body: e.payload.error, cause: 'backend-error' }
           : { tone: 'ok', title: 'CodeRabbit run finished', cause: 'backend-ok' },
@@ -88,9 +88,7 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
       cancelled = true;
       un?.();
     };
-    // pushToast is treated as stable; depending on [_props] would re-subscribe every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pushToast]);
 
   // Same top-N for plan and run so the preview matches what actually executes.
   const topN = top.trim() ? Math.max(1, Math.trunc(Number(top))) : null;
@@ -101,22 +99,22 @@ export function CodeRabbitView(_props: CodeRabbitViewProps): React.ReactElement 
       const m = await codeRabbitPlan<Manifest>({ since, cap, rankWeights: weights, top: topN, fullRepo });
       setManifest(m);
     } catch (err) {
-      _props.pushToast({ tone: 'warn', title: 'Plan failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Plan failed', body: String(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
-  }, [since, cap, weights, topN, fullRepo, _props]);
+  }, [since, cap, weights, topN, fullRepo, pushToast]);
 
   const run = useCallback(async () => {
     setRunning(true);
     try {
       await codeRabbitRunAsync({ since, cap, rankWeights: weights, top: topN, fullRepo });
-      _props.pushToast({ tone: 'info', title: 'CodeRabbit sweep started', cause: 'backend-ok' });
+      pushToast({ tone: 'info', title: 'CodeRabbit sweep started', cause: 'backend-ok' });
     } catch (err) {
       setRunning(false);
-      _props.pushToast({ tone: 'warn', title: 'Run failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Run failed', body: String(err), cause: 'backend-error' });
     }
-  }, [since, cap, weights, topN, fullRepo, _props]);
+  }, [since, cap, weights, topN, fullRepo, pushToast]);
 
   const rows = toSliceRows(manifest, report);
   const totalFiles = rows.reduce((a, r) => a + r.files, 0);
