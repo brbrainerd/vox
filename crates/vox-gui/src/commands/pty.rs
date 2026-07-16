@@ -131,9 +131,17 @@ mod tests {
 
     #[test]
     fn integration_snippet_skips_unknown_shells() {
-        assert!(shell_integration_snippet("fish").is_none());
+        // zsh/fish gained OSC 633 integration in vox-terminal-core's Track 6
+        // (Nushell effort) — see shell_integration_snippet's own doc comment
+        // and test module in crates/vox-terminal-core/src/pty.rs. cmd.exe has
+        // no OSC 633 support and stays unsupported.
         assert!(shell_integration_snippet("cmd.exe").is_none());
-        assert!(shell_integration_snippet("zsh").is_none());
+    }
+
+    #[test]
+    fn integration_snippet_supports_zsh_and_fish() {
+        assert!(shell_integration_snippet("zsh").is_some());
+        assert!(shell_integration_snippet("fish").is_some());
     }
 
     #[test]
