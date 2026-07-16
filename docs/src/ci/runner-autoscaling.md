@@ -115,13 +115,20 @@ outage surfaces in seconds, not after a 20-minute stall.
 These steps are disruptive (they restart WSL / replace the fleet), so run them
 when no critical CI is mid-flight.
 
-1. **Build the image** from the now-reproducible source:
+1. **Build the image** from the now-reproducible source. On this Windows host run
+   it **inside WSL2** — `docker build` hangs over the `docker-wsl` SSH context (see
+   the note at the end of this page):
    ```bash
-   docker build -t vox-ci-runner-local:latest -f infra/ci-runner/Dockerfile .
+   wsl -d Ubuntu -- bash -c "cd /mnt/c/Users/Owner/vox && \
+     docker build -t vox-ci-runner-local:latest -f infra/ci-runner/Dockerfile ."
    ```
+   The build context is ~1.2G; `.dockerignore` must keep excluding `.worktrees/`
+   (~85G) and `mens/runs`+`mens/data` (~23G), or this balloons. Do **not** exclude
+   all of `mens/` — `mens/config/templates.yaml` is `include_str!`'d by
+   `vox-corpus` and the root `Dockerfile`'s build needs it.
 2. **Apply the WSL ceiling** (the `.wslconfig` bump to 24 cpu / 32 GB):
    ```powershell
-   wsl --shutdown    # kills all containers; Docker Desktop restarts them
+   wsl --shutdown    # kills all containers; systemd restarts docker.service on next `wsl`
    ```
 3. **Retire the always-on pair** (the autoscaler replaces them):
    ```bash
@@ -145,8 +152,39 @@ when no critical CI is mid-flight.
 - Quick check: `vox ci runner-preflight`.
 - Daemon up, just need runners: `vox run scripts/ci-runners-up.vox`.
 - Legacy always-on containers merely stopped: `docker start vox-runner-1 vox-runner-2`.
-- Docker Desktop/WSL itself down (the usual cause of multi-hour outages — restart
-  policy can't help when the daemon is gone): start Docker Desktop, then the above.
+- WSL2 Docker Engine itself down (the usual cause of multi-hour outages — restart
+  policy can't help when the daemon is gone): start it with
+  `wsl -d Ubuntu -u root -- service docker start` (Docker Desktop is **not** used
+  on this host — see the note below), then the above.
+
+> **Docker on this host = WSL2-native Docker Engine, not Docker Desktop.** Docker
+> Desktop's Windows service is permanently wedged on this machine (an
+> un-deletable Unix-socket-emulation reparse point survives reboot + factory
+> reset), so Docker Engine (`docker-ce`) is installed **inside** the WSL2 Ubuntu
+> distro (systemd-managed `docker.service`). Ignore any older instruction to
+> "start Docker Desktop" or enable its "WSL Integration" toggle — neither applies.
+>
+> **Windows tooling needs no special invocation — except `docker build`.** The
+> Windows `docker` CLI reaches the WSL2 daemon through the active `docker-wsl`
+> **SSH context** (`docker context show` → `docker-wsl`), so `docker info` / `run` /
+> `ps` / `rm` — and every `Command::new("docker")` callsite in this repo, including
+> the autoscaler — just work. The context authenticates with a dedicated key
+> (`~/.ssh/id_ed25519_docker_wsl`) whose `authorized_keys` entry is `restrict`ed to
+> `command="docker system dial-stdio"`. There is deliberately **no TCP daemon
+> socket** (no `2375`): the Docker API is root-equivalent and unauthenticated over
+> TCP, so it is not exposed.
+>
+> **⚠️ `docker build` hangs over the SSH context.** BuildKit cannot negotiate its
+> session over `docker system dial-stdio`; the CLI blocks indefinitely at ~0% CPU
+> with no output (reproduced with a one-line `FROM hello-world` context, so it is
+> not a context-size problem). **Build inside WSL2 instead** — see the build step
+> below. Only `build` is affected.
+>
+> Caveats: the context and key are **per-user** (`%USERPROFILE%`), so a scheduled
+> task or service running as another account (e.g. `SYSTEM`) will not see them and
+> must be run as the owning user. Direct `wsl.exe docker <args>` remains a working
+> fallback — from Git Bash set `MSYS_NO_PATHCONV=1` first, or POSIX paths get
+> mangled.
 
 ## Cross-refs
 - Runner contract: [`runner-contract.md`](runner-contract.md).

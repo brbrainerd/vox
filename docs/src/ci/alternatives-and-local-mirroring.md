@@ -98,8 +98,11 @@ mismatch) before they burn minutes.
   with `--network none` for guard-only lanes.
 
 **Windows support.** `act` runs on Windows via WinGet, Scoop, Chocolatey, or
-the `gh act` extension; Docker Desktop with the WSL 2 backend is the supported
-daemon. Install + troubleshooting tables: [local-ci-pre-push.md
+the `gh act` extension; the supported daemon is the **WSL2-native Docker Engine**
+(`docker-ce` installed inside the WSL2 distro — Docker Desktop is not used on this
+host; see [runner-autoscaling.md](runner-autoscaling.md)). No special invocation is
+needed: `act` picks up the active `docker-wsl` SSH context like any other Docker
+client. Install + troubleshooting tables: [local-ci-pre-push.md
 §Installing `act`](../contributors/local-ci-pre-push.md#installing-act).
 Both `--bind` (cargo cache mount) and `--artifact-server-path` may need
 Windows-specific overrides; documented in the same section.

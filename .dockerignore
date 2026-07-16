@@ -1,4 +1,14 @@
 target/
+# `target/` is context-root-relative and does NOT match nested build dirs; without
+# these two, `.worktrees/` alone streams ~85G into the daemon (and over SSH, for a
+# remote/WSL2 docker context). The images COPY none of it.
+**/target/
+.worktrees/
+# Local training artifacts (~23G) — no image COPYs them, and `mens/runs/` is
+# gitignored anyway. Do NOT exclude all of `mens/`: `mens/config/templates.yaml`
+# is include_str!'d by crates/vox-corpus (root Dockerfile's cargo build needs it).
+mens/runs/
+mens/data/
 .git/
 node_modules/
 dist/

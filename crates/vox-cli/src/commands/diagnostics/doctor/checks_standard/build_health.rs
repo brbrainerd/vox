@@ -212,8 +212,8 @@ pub(crate) async fn docker_health(checks: &mut Vec<Check>) {
                     diag(
                         "docker.wsl_wedged",
                         "error",
-                        "Docker Desktop's WSL distro is wedged (permission denied / stopped) — autoscaler `docker info` fails",
-                        "wsl --terminate podman-machine-default  (then restart Docker Desktop)",
+                        "WSL2 Docker Engine unreachable (permission denied / service stopped) — autoscaler `docker info` fails",
+                        "wsl -d Ubuntu -u root -- service docker start",
                         true,
                     ),
                 ),
@@ -226,7 +226,8 @@ pub(crate) async fn docker_health(checks: &mut Vec<Check>) {
                         if cfg!(target_os = "linux") {
                             "systemctl restart docker"
                         } else {
-                            "start Docker Desktop"
+                            // WSL2-native Docker Engine (Docker Desktop is not used here).
+                            "wsl -d Ubuntu -u root -- service docker start"
                         },
                         cfg!(target_os = "linux"),
                     ),
@@ -240,7 +241,7 @@ pub(crate) async fn docker_health(checks: &mut Vec<Check>) {
                 "docker.absent",
                 "warn",
                 "`docker` not on PATH",
-                "install Docker Desktop / docker engine",
+                "install Docker Engine in WSL2 (see docs/src/ci/runner-autoscaling.md)",
                 false,
             ),
         )),
@@ -410,7 +411,7 @@ pub(crate) async fn compile_probe(checks: &mut Vec<Check>) {
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum HealAction {
     DisableSccache,
-    RestartWslDistro,
+    StartWslDocker,
     FlagOnly,
 }
 
@@ -419,7 +420,7 @@ pub(crate) enum HealAction {
 pub(crate) fn heal_action(diagnosis_id: &str) -> HealAction {
     match diagnosis_id {
         "sccache.pathological" => HealAction::DisableSccache,
-        "docker.wsl_wedged" => HealAction::RestartWslDistro,
+        "docker.wsl_wedged" => HealAction::StartWslDocker,
         _ => HealAction::FlagOnly,
     }
 }
@@ -484,10 +485,12 @@ async fn execute_heal(action: &HealAction) {
             // to the operator since it edits ~/.cargo/config.toml).
             let _ = quiet("sccache").arg("--stop-server").output().await;
         }
-        HealAction::RestartWslDistro => {
-            // Targeted: only the wedged distro, not all of WSL.
+        HealAction::StartWslDocker => {
+            // WSL2-native Docker Engine (Docker Desktop is not used on this host):
+            // start the systemd docker.service inside the Ubuntu distro. Benign if
+            // already running. ponytail: distro name hardcoded to this box's `Ubuntu`.
             let _ = quiet("wsl")
-                .args(["--terminate", "podman-machine-default"])
+                .args(["-d", "Ubuntu", "-u", "root", "--", "service", "docker", "start"])
                 .output()
                 .await;
         }
@@ -716,7 +719,7 @@ mod tests {
         );
         assert_eq!(
             heal_action("docker.wsl_wedged"),
-            HealAction::RestartWslDistro
+            HealAction::StartWslDocker
         );
         // shim-shadowed toolchain must never auto-run rustup-init
         assert_eq!(

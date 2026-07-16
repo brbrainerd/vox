@@ -13,10 +13,13 @@
 #   - Rust 1.96.0   → root Dockerfile (`rust:1.96.0-slim-bookworm`) / rust-toolchain.toml / contracts SSOT
 #   - Node 24       → docs-quality.yml `node-version: 24`
 #   - pnpm 9        → ci.yml `pnpm/action-setup@v6` version 9
-#   - Runner 2.334.0 → matches the deployed fleet (`Current runner version`)
+#   - Runner 2.335.1 → matches the version GitHub forces via self-update on cold
+#     start; keep this current or every ephemeral runner re-downloads on boot,
+#     defeating "ready to take a job immediately" (see `Downloading N runner` in
+#     the container's startup log to check for drift).
 
 ARG RUST_VERSION=1.96.0
-ARG RUNNER_VERSION=2.334.0
+ARG RUNNER_VERSION=2.335.1
 
 FROM ubuntu:24.04
 

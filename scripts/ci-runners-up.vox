@@ -27,12 +27,12 @@ fn main() {
     // Make sure the Docker daemon is reachable before asking the scaler to act.
     let probe = process.run("docker", ["info"]);
     if probe is null {
-        log.error("ci-runners-up: cannot exec docker — is Docker Desktop running?");
+        log.error("ci-runners-up: cannot exec docker — is the WSL2 Docker Engine installed and on PATH? (see docs/src/ci/runner-autoscaling.md)");
         process.exit(1);
     }
     let pr = probe.unwrap();
     if pr.code != 0 {
-        log.error("ci-runners-up: docker daemon not reachable — start Docker Desktop, then retry.");
+        log.error("ci-runners-up: docker daemon not reachable — start the WSL2 Docker Engine (`wsl -d Ubuntu -u root -- service docker start`), then retry.");
         process.exit(1);
     }
 
