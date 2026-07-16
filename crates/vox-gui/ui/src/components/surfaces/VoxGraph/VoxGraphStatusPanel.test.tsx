@@ -100,6 +100,7 @@ describe('VoxGraphStatusPanel', () => {
       expect(mockInvoke).toHaveBeenCalledWith('invoke_mcp_tool', {
         tool: 'vox_search_rebuild',
         args: { corpus: 'repo-code-graph' },
+        permissionMode: null,
       });
     });
   });
