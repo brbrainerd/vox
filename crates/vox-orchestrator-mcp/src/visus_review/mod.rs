@@ -406,13 +406,83 @@ fn failed_surface(entry: &ManifestEntry, why: &str) -> SurfaceReport {
     }
 }
 
+/// Default report date for the CLI: today's UTC date. Replaces the historical
+/// `--date`-absent behavior of writing a junk `0000-00-00.json` report.
+pub fn default_report_date() -> String {
+    chrono::Utc::now().format("%Y-%m-%d").to_string()
+}
+
 pub fn write_report(
     report_dir: &Path,
     date: &str,
     report: &RunReport,
 ) -> std::io::Result<std::path::PathBuf> {
+    // Refuse placeholder/garbage dates ("0000-00-00" has month 0 and fails the
+    // parse) so a stray report file can never be produced again.
+    if chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").is_err() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("refusing to write report: {date:?} is not a real YYYY-MM-DD date"),
+        ));
+    }
     std::fs::create_dir_all(report_dir)?;
     let path = report_dir.join(format!("{date}.json"));
     std::fs::write(&path, serde_json::to_string_pretty(report).unwrap() + "\n")?;
     Ok(path)
+}
+
+#[cfg(test)]
+mod report_date_tests {
+    use super::*;
+
+    fn empty_report() -> RunReport {
+        RunReport {
+            schema_version: 1,
+            generated_at: "t".into(),
+            default_model: "m".into(),
+            surfaces: vec![],
+            total_capture_ms: 0,
+            total_review_ms: 0,
+            surfaces_reviewed: 0,
+            surfaces_cached: 0,
+            surfaces_deferred: 0,
+            spiked: false,
+            spike_detail: String::new(),
+        }
+    }
+
+    #[test]
+    fn default_report_date_is_a_real_utc_date() {
+        let d = default_report_date();
+        assert_ne!(d, "0000-00-00");
+        assert!(
+            chrono::NaiveDate::parse_from_str(&d, "%Y-%m-%d").is_ok(),
+            "not a real YYYY-MM-DD date: {d}"
+        );
+    }
+
+    #[test]
+    fn write_report_refuses_the_zero_date_placeholder() {
+        let dir = tempfile::tempdir().unwrap();
+        let err = write_report(dir.path(), "0000-00-00", &empty_report())
+            .expect_err("0000-00-00 must be refused");
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(!dir.path().join("0000-00-00.json").exists());
+    }
+
+    #[test]
+    fn write_report_refuses_non_date_strings() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(write_report(dir.path(), "not-a-date", &empty_report()).is_err());
+        assert!(write_report(dir.path(), "", &empty_report()).is_err());
+    }
+
+    #[test]
+    fn write_report_accepts_a_real_date() {
+        let dir = tempfile::tempdir().unwrap();
+        let p =
+            write_report(dir.path(), "2026-07-16", &empty_report()).expect("real date accepted");
+        assert!(p.exists());
+        assert!(p.ends_with("2026-07-16.json"));
+    }
 }

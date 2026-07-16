@@ -1,6 +1,6 @@
 //! Advisory GUI visual review CLI. ALWAYS exits 0 — never gates CI.
 use std::path::Path;
-use vox_orchestrator_mcp::visus_review::{RunArgs, run, write_report};
+use vox_orchestrator_mcp::visus_review::{RunArgs, default_report_date, run, write_report};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -18,7 +18,7 @@ async fn main() {
         .unwrap_or_else(|| "contracts/reports/gui-visual-review/cache.v1.json".into());
     let report_dir =
         get("--report-dir").unwrap_or_else(|| "contracts/reports/gui-visual-review".into());
-    let date = get("--date").unwrap_or_else(|| "0000-00-00".into());
+    let date = get("--date").unwrap_or_else(default_report_date);
     let now = get("--now").unwrap_or_default();
     let do_ai = a.iter().any(|x| x == "--ai");
     let args = RunArgs {
