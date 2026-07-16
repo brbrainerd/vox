@@ -61,6 +61,9 @@ fn read_token_file() -> Option<String> {
 /// console-attached process (e.g. `vox mcp` run under an MCP client that
 /// hides the console) never flashes an extra window.
 fn quiet_command(program: impl AsRef<std::ffi::OsStr>) -> std::process::Command {
+    // `mut` is only exercised by the cfg(windows) block below; without the
+    // cfg_attr, non-Windows clippy fails the -D warnings gate on unused_mut.
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut cmd = std::process::Command::new(program);
     #[cfg(windows)]
     {
