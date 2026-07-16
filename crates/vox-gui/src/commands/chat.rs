@@ -127,6 +127,11 @@ pub struct ChatAppendInput {
     /// Optional model id to record in the message payload (e.g. for assistant messages).
     #[serde(default)]
     pub model_id: Option<String>,
+    /// True when the composer already dispatched this message as a task
+    /// (`submit_orchestrator_task`). The secretary must not submit it again
+    /// (C2: every actionable composer message used to be SUBMIT_TASK'd twice).
+    #[serde(default)]
+    pub already_submitted: bool,
 }
 
 #[tauri::command]
@@ -167,7 +172,9 @@ pub async fn chat_append_message<R: tauri::Runtime>(
 
     // Secretary: detect actionable intent in user messages and submit to hopper.
     // Fire-and-forget — errors here must never fail the chat message save.
-    if let Some(classified) = vox_orchestrator::secretary::classify(&input.role, &input.content) {
+    if let Some(classified) =
+        secretary_candidate(&input.role, &input.content, input.already_submitted)
+    {
         let session_id = input.session_id.clone();
         let app_handle_clone = app_handle.clone();
         let daemon: Arc<PersistentDaemon> = daemon.inner().clone();
@@ -199,21 +206,24 @@ pub async fn chat_append_message<R: tauri::Runtime>(
             .await;
             match submit_result {
                 Ok(raw) => {
-                    let item_id = raw
-                        .get("task_id")
-                        .and_then(|v| v.as_u64())
-                        .map(|v| v.to_string())
-                        .unwrap_or_else(|| "unknown".to_string());
-                    crate::commands::orchestrator::emit_secretary_proposed(
-                        &app_handle_clone,
-                        crate::commands::orchestrator::SecretaryProposedPayload {
-                            item_id,
-                            intent: classified.intent,
-                            confidence_pct: classified.confidence_pct,
-                        },
-                    );
-                    // Also ping the tasks list so it refreshes immediately.
-                    crate::commands::orchestrator::emit_tasks_changed(&app_handle_clone);
+                    if let Some(item_id) = submitted_task_id(&raw) {
+                        crate::commands::orchestrator::emit_secretary_proposed(
+                            &app_handle_clone,
+                            crate::commands::orchestrator::SecretaryProposedPayload {
+                                item_id,
+                                intent: classified.intent,
+                                confidence_pct: classified.confidence_pct,
+                            },
+                        );
+                        // Also ping the tasks list so it refreshes immediately.
+                        crate::commands::orchestrator::emit_tasks_changed(&app_handle_clone);
+                    } else {
+                        // Daemon deduped (task_id null, duplicate_of set): nothing new
+                        // was enqueued, so no toast and no tasks-changed ping.
+                        tracing::debug!(
+                            "secretary: daemon deduped near-duplicate; suppressing toast"
+                        );
+                    }
                 }
                 Err(e) => {
                     // Daemon unavailable or rejected — log and move on.
@@ -259,6 +269,29 @@ pub async fn chat_archive_session(
         .map_err(map_db_err)
 }
 
+/// Secretary gate: never classify a message the composer already submitted
+/// as a task — that path caused every actionable composer message to be
+/// SUBMIT_TASK'd twice (explicit submit + secretary re-submit).
+fn secretary_candidate(
+    role: &str,
+    content: &str,
+    already_submitted: bool,
+) -> Option<vox_orchestrator::secretary::ClassifyResult> {
+    if already_submitted {
+        return None;
+    }
+    vox_orchestrator::secretary::classify(role, content)
+}
+
+/// Task id from a `SUBMIT_TASK` daemon reply. `None` means the daemon
+/// deduped the submission (`task_id: null` + `duplicate_of`): nothing new
+/// was created, so no "Secretary proposed a task" toast may be emitted.
+fn submitted_task_id(raw: &serde_json::Value) -> Option<String> {
+    raw.get("task_id")
+        .and_then(|v| v.as_u64())
+        .map(|v| v.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -276,6 +309,7 @@ mod tests {
             content: "hi".to_string(),
             task_id: None,
             model_id: None,
+            already_submitted: false,
         };
         let daemon = app.state::<Arc<PersistentDaemon>>();
         let pool = app.state::<GuiDbPool>();
@@ -349,5 +383,42 @@ mod tests {
         };
         let j = serde_json::to_string(&dto).unwrap();
         assert!(!j.contains("model_id"), "model_id absent when None: {j}");
+    }
+
+    #[test]
+    fn secretary_skips_messages_the_composer_already_submitted() {
+        // Precondition: this message IS actionable for the classifier.
+        let msg = "fix the broken authentication flow in the login page it keeps redirecting users";
+        assert!(
+            vox_orchestrator::secretary::classify("user", msg).is_some(),
+            "precondition: classifier finds this actionable"
+        );
+        // The composer already dispatched it -> secretary must stand down.
+        assert!(secretary_candidate("user", msg, true).is_none());
+        // Same message NOT pre-submitted -> secretary still classifies it.
+        assert!(secretary_candidate("user", msg, false).is_some());
+    }
+
+    #[test]
+    fn submitted_task_id_is_none_when_daemon_dedupes() {
+        // Dedupe reply: null task_id + duplicate_of. No toast may be built from this.
+        assert_eq!(
+            submitted_task_id(&serde_json::json!({"task_id": null, "duplicate_of": 7})),
+            None
+        );
+        assert_eq!(submitted_task_id(&serde_json::json!({})), None);
+        assert_eq!(
+            submitted_task_id(&serde_json::json!({"task_id": 42})),
+            Some("42".to_string())
+        );
+    }
+
+    #[test]
+    fn chat_append_input_already_submitted_defaults_to_false() {
+        let input: ChatAppendInput = serde_json::from_str(
+            r#"{"session_id":"s","role":"user","content":"hi","task_id":null}"#,
+        )
+        .expect("older frontends omit the field");
+        assert!(!input.already_submitted);
     }
 }

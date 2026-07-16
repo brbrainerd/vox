@@ -12,6 +12,7 @@ import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
 import { Toasts, ToastItem } from './components/ui/Toasts';
+import { userAppendInput } from './lib/composerSubmit';
 import { Transcript } from './components/surfaces/Loquela/Transcript';
 import { DiffReview } from './components/surfaces/Loquela/DiffReview';
 import { InlineApprovals } from './components/surfaces/Loquela/InlineApprovals';
@@ -675,7 +676,7 @@ export default function App() {
       return;
     }
     invoke('chat_append_message', {
-      input: { session_id: sessionId, role: 'user', content: String(payload.description ?? ''), task_id: null },
+      input: userAppendInput(sessionId, payload.description),
     }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: String(err), cause: 'backend-error' }));
     recordGamifyGuiEvent('chat_message_sent', { session_id: sessionId }, { enabled: gamifySettings.enabled });
     const contextFiles = contextRefsFromPayload(payload);
