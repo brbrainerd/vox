@@ -14,12 +14,30 @@ export interface SessionChatStore {
   sessions: Record<string, ChatState>;
   /** task_id → session_id for routing agent events */
   taskToSession: Record<string, string>;
+  /** Unroutable token_streamed/task_started frames buffered until the
+   *  submit that owns them resolves; replayed in `submitResolved`. Fixes
+   *  the token-loss race where task_started precedes submitResolved. */
+  pending: AgentEventFrame[];
 }
 
 export const initialSessionChatStore: SessionChatStore = {
   sessions: {},
   taskToSession: {},
+  pending: [],
 };
+
+/** Replay window for unroutable frames: anything older than this (relative
+ *  to the newest buffered frame) is a lost cause, not a race, and is evicted. */
+const PENDING_REPLAY_WINDOW_MS = 30_000;
+/** Hard cap so a runaway stream cannot grow the buffer without bound. */
+const PENDING_MAX_FRAMES = 200;
+/** Frame types that participate in the submit race and are worth holding. */
+const BUFFERABLE_TYPES = new Set(['token_streamed', 'task_started']);
+
+function bufferPending(pending: AgentEventFrame[], event: AgentEventFrame): AgentEventFrame[] {
+  const cutoff = event.timestamp_ms - PENDING_REPLAY_WINDOW_MS;
+  return [...pending.filter((f) => f.timestamp_ms >= cutoff), event].slice(-PENDING_MAX_FRAMES);
+}
 
 export type SessionChatAction =
   | { type: 'submit'; sessionId: string; runId: string; prompt: string }
@@ -102,15 +120,26 @@ export function sessionChatReducer(store: SessionChatStore, action: SessionChatA
       const sid = action.sessionId;
       const taskId = String(action.taskId);
       const prev = ensureSession(store, sid);
-      const next = chatReducer(prev, {
+      const resolved = chatReducer(prev, {
         type: 'submitResolved',
         runId: action.runId,
         taskId,
       });
-      return {
-        ...withSession(store, sid, next),
+      let next: SessionChatStore = {
+        ...withSession(store, sid, resolved),
         taskToSession: { ...store.taskToSession, [taskId]: sid },
       };
+      // Replay frames that raced ahead of this resolution, in arrival
+      // order. Frames that are STILL unroutable re-buffer themselves via
+      // the agentEvent case, so nothing is lost or reordered.
+      const queued = next.pending;
+      if (queued.length > 0) {
+        next = { ...next, pending: [] };
+        for (const event of queued) {
+          next = sessionChatReducer(next, { type: 'agentEvent', event });
+        }
+      }
+      return next;
     }
 
     case 'failRun': {
@@ -140,7 +169,15 @@ export function sessionChatReducer(store: SessionChatStore, action: SessionChatA
 
       const base = { ...store, taskToSession };
       const sessionId = resolveSessionForEvent(base, action.event);
-      if (!sessionId) return base;
+      if (!sessionId) {
+        // Race: token_streamed/task_started can precede submitResolved (no
+        // task→session mapping yet, no session_id on the frame). Buffer
+        // instead of dropping; `submitResolved` replays the queue.
+        if (BUFFERABLE_TYPES.has(kind.type)) {
+          return { ...base, pending: bufferPending(base.pending, action.event) };
+        }
+        return base;
+      }
 
       const prev = ensureSession(base, sessionId);
       const next = chatReducer(prev, { type: 'agentEvent', event: action.event });

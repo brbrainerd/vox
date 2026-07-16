@@ -107,6 +107,7 @@ describe('sessionChatStore', () => {
     const store = {
       sessions: {},
       taskToSession: { '42': 'sess-x' },
+      pending: [],
     };
     expect(
       resolveSessionForEvent(store, evt({ type: 'task_completed', task_id: 42, agent_id: 1 })),
@@ -165,5 +166,59 @@ describe('sessionChatStore', () => {
     expect(
       getSessionMessages(store, 'sess-b').some((m) => m.text.includes('snap-1')),
     ).toBe(true);
+  });
+
+  it('buffers frames that race ahead of submitResolved and replays them (token-loss fix)', () => {
+    let store = sessionChatReducer(initialSessionChatStore, {
+      type: 'submit',
+      sessionId: 'sess-a',
+      runId: 'R1',
+      prompt: 'q',
+    });
+    // task_started arrives BEFORE submitResolved and carries no session_id —
+    // unroutable at this point.
+    store = sessionChatReducer(store, {
+      type: 'agentEvent',
+      event: evt({ type: 'task_started', task_id: 7, agent_id: 3 }),
+    });
+    store = sessionChatReducer(store, {
+      type: 'agentEvent',
+      event: evt({ type: 'token_streamed', agent_id: 3, text: 'Hi' }),
+    });
+    // Nothing routed yet; both frames are held, not dropped.
+    expect(getSessionMessages(store, 'sess-a').find(m => m.role === 'assistant')?.text).toBe('');
+    expect(store.pending.length).toBe(2);
+    // The submit resolves — buffered frames replay in order.
+    store = sessionChatReducer(store, {
+      type: 'submitResolved',
+      sessionId: 'sess-a',
+      runId: 'R1',
+      taskId: '7',
+    });
+    const assistant = getSessionMessages(store, 'sess-a').find(m => m.role === 'assistant');
+    expect(assistant?.text).toBe('Hi');
+    expect(assistant?.status).toBe('streaming');
+    expect(store.pending.length).toBe(0);
+  });
+
+  it('evicts buffered frames older than the replay window', () => {
+    let store = sessionChatReducer(initialSessionChatStore, {
+      type: 'agentEvent',
+      event: { id: 1, timestamp_ms: 1_000, kind: { type: 'token_streamed', agent_id: 9, text: 'stale' } },
+    });
+    // 60s later — the stale frame is outside the 30s window and gets evicted.
+    store = sessionChatReducer(store, {
+      type: 'agentEvent',
+      event: { id: 2, timestamp_ms: 61_000, kind: { type: 'token_streamed', agent_id: 9, text: 'fresh' } },
+    });
+    expect(store.pending.map(f => f.id)).toEqual([2]);
+  });
+
+  it('does not buffer unroutable frame types outside the race (task_completed etc.)', () => {
+    const store = sessionChatReducer(initialSessionChatStore, {
+      type: 'agentEvent',
+      event: evt({ type: 'task_completed', task_id: 999 }),
+    });
+    expect(store.pending.length).toBe(0);
   });
 });
