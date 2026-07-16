@@ -67,3 +67,4 @@ tauri = { workspace = true, features = ["test"] }
 [build-dependencies]
 vox-build-meta = { workspace = true }
 tauri-build = { version = "2", features = [] }
+serde_json = { workspace = true }
