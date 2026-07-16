@@ -1,7 +1,7 @@
 # Axis GUI Audit Remediation — Design Spec
 
 Date: 2026-07-16
-Status: draft — pending user review
+Status: approved (forks resolved by user 2026-07-16)
 Source: 5-agent audit (chat, tasks/workbench, model switching, test infra, frontend sweep) + graphify reachability analysis on the refreshed vox-gui graph (4,046 nodes / 8,437 edges).
 
 ## Goal
@@ -75,7 +75,7 @@ Workbench tabs (open/close/pin/persist/migrate, tested); chat streaming pipeline
 
 ### Phase 3 — Test & CI buildout
 
-1. **PR gate (C1, per fork F2):** split a fast required `gui-smoke-pr` job running vitest + the asserting `screenshots.spec.ts` sweep (error-boundary/console/pageerror checks over all registry views) on every PR; keep the full job (variants, visual-review AI pass) post-merge. Add it to the required `ci-summary` needs.
+1. **Post-merge hardening (C1, per fork F2 — user chose no PR gating):** the smoke job stays post-merge/`full-ci`-only. Mitigation: the asserting `screenshots.spec.ts` sweep step loses `continue-on-error` inside that job so main-branch breakage fails the job loudly (visible in CI-monitor) instead of passing silently; variants and AI review remain advisory.
 2. **Close the registry escape (B8):** a guard test that walks `surfaceComponents.tsx` render cases + special tab types (DocReader) and fails if any routed surface lacks a registry viewKey or an explicit allowlist entry. Fix `MissionControl` (register or remove), remove `Matrix` if confirmed dead.
 3. **Error/notification coverage:** un-skip `screenshots-variants.spec.ts` in the post-merge job (empty + error states for key surfaces); add toast assertions (`role=status`/`role=alert`) to the variant error runs; add an IPC-failure spec using `installErrorStateMock` asserting each key surface degrades with visible error UI, not a blank panel.
 4. **Interaction specs (initial set):** approvals approve/reject flow, task create→reprioritize→cancel→done, chat submit→stream→persist (mocked), model picker apply, session rename/archive. All against the existing tauriMock; deduplicate the `bootstrapResponse` block shared by `tauriMock.ts`/`tauriMockVariants.ts`.
@@ -89,8 +89,8 @@ Every Phase 1 fix lands with the regression test named beside it. Phase 2 backen
 
 Three PR series in phase order (bugs → wiring → tests/CI), each independently green and revertable. Phase 1 items are small enough to land as one PR of independent commits. The staged `0000-00-00.json` unstage happens immediately, outside the series.
 
-## Decision forks (recorded)
+## Decision forks (RESOLVED by user, 2026-07-16)
 
-- **F1 — Task store scope:** merge-view (unified read, both stores kept, origin-tagged) — RECOMMENDED; vs full store unification (large, risky); vs copy-fix only (dishonest UX remains).
-- **F2 — CI gating:** fast required PR smoke + full post-merge — RECOMMENDED; vs full job required on PRs (slow, runner load); vs status quo (crashes merge green).
-- **F3 — Routing engines:** delete both dead engines — RECOMMENDED; vs wiring ModelPool as an operator gating layer on top of decide() (adds a second config surface; YAGNI today).
+- **F1 — Task store scope: merge-view.** Unified origin-tagged read; both stores kept; "mark done" added.
+- **F2 — CI gating: keep post-merge only.** No PR gate. Mitigation only: asserting sweep fails the post-merge job loudly (drop `continue-on-error` on that step).
+- **F3 — Routing engines: delete both.** Single exercised path = `decide()` + credential/health gating + reactive fallback.
