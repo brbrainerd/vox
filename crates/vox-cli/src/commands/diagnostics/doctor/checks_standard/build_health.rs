@@ -490,7 +490,9 @@ async fn execute_heal(action: &HealAction) {
             // start the systemd docker.service inside the Ubuntu distro. Benign if
             // already running. ponytail: distro name hardcoded to this box's `Ubuntu`.
             let _ = quiet("wsl")
-                .args(["-d", "Ubuntu", "-u", "root", "--", "service", "docker", "start"])
+                .args([
+                    "-d", "Ubuntu", "-u", "root", "--", "service", "docker", "start",
+                ])
                 .output()
                 .await;
         }
@@ -717,10 +719,7 @@ mod tests {
             heal_action("sccache.pathological"),
             HealAction::DisableSccache
         );
-        assert_eq!(
-            heal_action("docker.wsl_wedged"),
-            HealAction::StartWslDocker
-        );
+        assert_eq!(heal_action("docker.wsl_wedged"), HealAction::StartWslDocker);
         // shim-shadowed toolchain must never auto-run rustup-init
         assert_eq!(
             heal_action("toolchain.rustc_shadowed"),
