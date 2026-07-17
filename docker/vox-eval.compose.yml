@@ -7,13 +7,16 @@
 # Secrets are injected as environment variables via Coolify's project secrets.
 #
 # Image SSOT: GHCR (built by .github/workflows/docker-eval.yml with VOX_CLI_FEATURES=mcp-server).
+# Published under the personal brbrainerd namespace, not vox-foundation: the
+# org's free-tier plan blocks changing container-package visibility, and
+# pull_policy: always below needs an anonymously-pullable public image.
 # Docs: docs/src/architecture/eval-sandbox-deployment.md
 
 name: vox-eval-sandbox
 
 services:
   eval:
-    image: ghcr.io/vox-foundation/vox-eval:latest
+    image: ghcr.io/brbrainerd/vox-eval:latest
     pull_policy: always
     container_name: vox-eval-sandbox
     restart: unless-stopped

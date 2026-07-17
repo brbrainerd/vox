@@ -24,7 +24,11 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   REGISTRY: ghcr.io
-  IMAGE_NAME: vox-foundation/vox-eval
+  # Published under the personal namespace, not vox-foundation: the org's
+  # free-tier plan blocks changing container-package visibility, and this
+  # image carries no secrets/workspace by design, so it must be pullable
+  # without registry credentials from the public Coolify deploy host.
+  IMAGE_NAME: brbrainerd/vox-eval
 
 jobs:
   build-and-push:
@@ -38,11 +42,14 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Container Registry
+        # GITHUB_TOKEN can only publish to packages under the repo's own
+        # owner (vox-foundation/*); pushing to a personal namespace
+        # (brbrainerd/vox-eval) needs a PAT scoped to that account.
         uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: brbrainerd
+          password: ${{ secrets.GHCR_PAT }}
 
       - name: Extract Docker metadata
         id: meta

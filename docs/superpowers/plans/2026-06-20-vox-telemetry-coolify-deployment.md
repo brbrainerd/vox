@@ -932,7 +932,7 @@ status: "current"
 
 | Service | Subdomain | Compose SSOT | GHCR image | App-UUID secret | Health URL |
 |---|---|---|---|---|---|
-| Eval sandbox | eval.voxlang.org | vox-eval.compose.yml | ghcr.io/vox-foundation/vox-eval | COOLIFY_APP_UUID | https://eval.voxlang.org/health |
+| Eval sandbox | eval.voxlang.org | vox-eval.compose.yml | ghcr.io/brbrainerd/vox-eval (personal namespace — org free tier can't make container packages public) | COOLIFY_APP_UUID | https://eval.voxlang.org/health |
 | Telemetry | telemetry.voxlang.org | docker/vox-telemetry.compose.yml | ghcr.io/vox-foundation/vox-telemetry-server | COOLIFY_TELEMETRY_APP_UUID | https://telemetry.voxlang.org/healthz |
 
 ## Add-a-service template (6 artifacts)
