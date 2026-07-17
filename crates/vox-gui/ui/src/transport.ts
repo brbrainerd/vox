@@ -801,6 +801,11 @@ export function hopperList(): Promise<HopperTaskDto[]> {
   return invoke<HopperTaskDto[]>('hopper_list');
 }
 
+/** Mark a hopper to-do done (terminal Done state; distinct from cancel). */
+export function hopperMarkDone(itemId: string): Promise<HopperTaskDto> {
+  return invoke<HopperTaskDto>('hopper_mark_done', { itemId });
+}
+
 // ---------------------------------------------------------------------------
 // CodeRabbit sweep transport wrappers.
 // ---------------------------------------------------------------------------

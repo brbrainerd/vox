@@ -25,6 +25,17 @@ impl SqliteHopper {
     pub fn with_bus(db: Arc<vox_db::VoxDb>, bus: Arc<EventBus>) -> Self {
         Self { db, bus }
     }
+
+    /// Most-recent `limit` terminal items, newest first (bounded history read).
+    pub async fn history_recent(&self, limit: u32) -> Vec<IntakeItem> {
+        match self.db.hopper_history_list_recent(limit).await {
+            Ok(rows) => rows.into_iter().map(row_to_item).collect(),
+            Err(e) => {
+                tracing::error!("Failed to list recent history from sqlite hopper: {:?}", e);
+                vec![]
+            }
+        }
+    }
 }
 
 fn row_to_item(row: HopperInboxRow) -> IntakeItem {
@@ -231,15 +242,25 @@ impl HopperIntake for SqliteHopper {
 
     async fn complete(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError> {
         let item = self
-            .assigned()
+            .inbox()
             .await
             .into_iter()
+            .chain(self.assigned().await)
             .find(|i| &i.item_id == item_id);
 
         let mut item = match item {
             Some(i) => i,
             None => return Err(HopperError::NotFound(item_id.0.clone())),
         };
+
+        // Defensive parity with cancel; unreachable via the inbox/assigned
+        // chain today (their SQL excludes terminal states).
+        if matches!(
+            item.state,
+            ItemState::Done | ItemState::Overridden | ItemState::Cancelled
+        ) {
+            return Err(HopperError::Terminal);
+        }
 
         item.state = ItemState::Done;
         let state_json = serde_json::to_string(&item.state).unwrap();
@@ -440,5 +461,63 @@ mod tests {
         let inbox = reloaded.inbox().await;
         assert_eq!(inbox.len(), 1);
         assert_eq!(inbox[0].intent, "persist me");
+    }
+
+    #[tokio::test]
+    async fn complete_marks_inbox_item_done_and_history_lists_it() {
+        let db = Arc::new(
+            vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+                .await
+                .expect("db"),
+        );
+        let hopper = SqliteHopper::new(db);
+        let item = hopper
+            .submit(
+                "todo done directly from inbox".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                None,
+            )
+            .await;
+        let done = hopper
+            .complete(&item.item_id)
+            .await
+            .expect("inbox item completable");
+        assert_eq!(done.state, ItemState::Done);
+        assert!(hopper.inbox().await.is_empty());
+        assert!(
+            hopper
+                .history()
+                .await
+                .iter()
+                .any(|i| i.item_id == item.item_id)
+        );
+    }
+
+    #[tokio::test]
+    async fn history_recent_is_bounded_and_newest_first() {
+        let db = Arc::new(
+            vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+                .await
+                .expect("db"),
+        );
+        let hopper = SqliteHopper::new(db);
+        for intent in ["first", "second", "third"] {
+            let item = hopper
+                .submit(
+                    intent.into(),
+                    vec![],
+                    PriorityHint::Normal,
+                    IntakeSource::Developer,
+                    None,
+                )
+                .await;
+            hopper.complete(&item.item_id).await.expect("completable");
+        }
+        let recent = hopper.history_recent(2).await;
+        assert_eq!(recent.len(), 2, "limit must bound the read");
+        // ORDER BY submitted_at DESC ⇒ newest first; "first" (oldest) is cut.
+        assert!(recent.iter().all(|i| i.intent != "first"));
     }
 }

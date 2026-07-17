@@ -179,6 +179,7 @@ async fn main() {
             commands::orchestrator::hopper_submit,
             commands::orchestrator::hopper_reprioritize,
             commands::orchestrator::hopper_cancel,
+            commands::orchestrator::hopper_mark_done,
             commands::dynamic_mapping::get_command_metadata,
             commands::dynamic_mapping::get_full_registry,
             commands::models::list_model_cards,

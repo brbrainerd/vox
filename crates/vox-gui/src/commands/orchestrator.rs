@@ -755,6 +755,13 @@ fn hopper_item_to_dto(item: &vox_orchestrator::hopper::IntakeItem) -> HopperTask
     }
 }
 
+/// Most-recent bound on completed items chained into `hopper_list` (F7): the
+/// command is re-polled on every tasks-changed event, so the done read must
+/// not grow with all-time history. Pinned by
+/// `done_history_limit_is_the_agreed_bound` below and exercised by
+/// `history_recent_is_bounded_and_newest_first` in sqlite_store.rs.
+const DONE_HISTORY_LIMIT: u32 = 50;
+
 #[tauri::command]
 pub async fn hopper_list() -> Result<Vec<HopperTaskDto>, String> {
     use vox_orchestrator::hopper::HopperIntake;
@@ -764,8 +771,16 @@ pub async fn hopper_list() -> Result<Vec<HopperTaskDto>, String> {
     let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
     let inbox = hopper.inbox().await;
     let assigned = hopper.assigned().await;
+    // Bounded, newest-first; the recent-window read also fetches overridden/
+    // cancelled rows, so filter to Done here.
+    let done: Vec<_> = hopper
+        .history_recent(DONE_HISTORY_LIMIT)
+        .await
+        .into_iter()
+        .filter(|i| matches!(i.state, vox_orchestrator::hopper::ItemState::Done))
+        .collect();
     let mut all = Vec::new();
-    for item in inbox.iter().chain(assigned.iter()) {
+    for item in inbox.iter().chain(assigned.iter()).chain(done.iter()) {
         all.push(hopper_item_to_dto(item));
     }
     Ok(all)
@@ -837,6 +852,22 @@ pub async fn hopper_cancel(
     Ok(hopper_item_to_dto(&item))
 }
 
+#[tauri::command]
+pub async fn hopper_mark_done(
+    app_handle: tauri::AppHandle,
+    item_id: String,
+) -> Result<HopperTaskDto, String> {
+    use vox_orchestrator::hopper::HopperIntake;
+    let db = vox_db::VoxDb::connect_canonical()
+        .await
+        .map_err(|e| e.to_string())?;
+    let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
+    let hid = vox_orchestrator::hopper::HopperItemId(item_id);
+    let item = hopper.complete(&hid).await.map_err(|e| e.to_string())?;
+    emit_tasks_changed(&app_handle);
+    Ok(hopper_item_to_dto(&item))
+}
+
 #[cfg(test)]
 mod hopper_tests {
     use super::*;
@@ -891,6 +922,13 @@ mod hopper_tests {
         );
         let dto2 = hopper_item_to_dto(&plain);
         assert!(dto2.session_id.is_none() && dto2.agent_id.is_none() && dto2.remote_node.is_none());
+    }
+
+    #[test]
+    fn done_history_limit_is_the_agreed_bound() {
+        // Spec Phase 2 item 6 records "bounded, most-recent-N" for the done
+        // read; changing N is a product decision, not a drive-by.
+        assert_eq!(DONE_HISTORY_LIMIT, 50);
     }
 }
 

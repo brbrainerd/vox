@@ -373,6 +373,36 @@ impl crate::VoxDb {
         Ok(out)
     }
 
+    /// Most-recent `limit` hopper items in terminal states, newest first.
+    /// Bounded companion to [`Self::hopper_history_list`] for hot read paths
+    /// (the GUI Tasks surface re-polls on every tasks-changed event).
+    pub async fn hopper_history_list_recent(
+        &self,
+        limit: u32,
+    ) -> Result<Vec<HopperInboxRow>, StoreError> {
+        let mut rows = self.conn.query(
+            "SELECT item_id, intent, affinity_json, priority, source, session_id, state, submitted_at
+             FROM hopper_inbox
+             WHERE state IN ('\"done\"', '\"overridden\"', '\"cancelled\"')
+             ORDER BY submitted_at DESC LIMIT ?1",
+            turso::params![limit],
+        ).await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push(HopperInboxRow {
+                item_id: row.get(0)?,
+                intent: row.get(1)?,
+                affinity_json: row.get(2)?,
+                priority: row.get(3)?,
+                source: row.get(4)?,
+                session_id: row.get(5)?,
+                state: row.get(6)?,
+                submitted_at: row.get(7)?,
+            });
+        }
+        Ok(out)
+    }
+
     /// Update the state of a hopper item.
     pub async fn hopper_update_state(
         &self,
