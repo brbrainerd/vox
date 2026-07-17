@@ -13,7 +13,7 @@ name: vox-eval-sandbox
 
 services:
   eval:
-    image: ghcr.io/brbrainerd/vox-eval-sandbox:latest
+    image: ghcr.io/brbrainerd/vox-eval:latest
     pull_policy: always
     container_name: vox-eval-sandbox
     restart: unless-stopped

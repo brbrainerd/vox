@@ -28,12 +28,9 @@ env:
   # free-tier plan blocks changing container-package visibility, and this
   # image carries no secrets/workspace by design, so it must be pullable
   # without registry credentials from the public Coolify deploy host.
-  # Fresh name (-sandbox): the first brbrainerd/vox-eval push carried the
-  # auto-generated org.opencontainers.image.source label pointing at the org
-  # repo, which linked it pre-publication and made it inherit the org's
-  # (visibility-locked) governance. This package must be born UNLINKED —
-  # hence the new name and the suppressed source label below.
-  IMAGE_NAME: brbrainerd/vox-eval-sandbox
+  # SSOT: ghcr.io/brbrainerd/vox-eval (flipped to Public 2026-07-18 via the
+  # package's own Danger Zone settings, personal account, no org linkage).
+  IMAGE_NAME: brbrainerd/vox-eval
 
 jobs:
   build-and-push:
@@ -72,10 +69,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           # Deliberately NOT passing steps.meta.outputs.labels: the generated
-          # org.opencontainers.image.source label (pointing at the org repo)
-          # links the GHCR package to vox-foundation/vox pre-publication and
-          # makes it inherit the org's visibility-locked governance. This
-          # package must stay unlinked so the personal account controls it.
+          # org.opencontainers.image.source label points at vox-foundation/vox,
+          # and a repo-source label can link a GHCR package to that repo.
+          # Suppressed defensively so this personal-namespace package stays
+          # under the personal account's own visibility control.
           labels: |
             org.opencontainers.image.description=Vox eval sandbox (vox mcp HTTP gateway; no workspace, no keys)
           # Cache layers between builds using the registry
