@@ -51,6 +51,21 @@ pub async fn run_stdio_server_blocking() -> anyhow::Result<()> {
     #[cfg(feature = "populi-transport")]
     crate::populi_startup::publish_mesh_on_mcp_start(&state).await;
 
+    // Headless HTTP-gateway deployments (e.g. the eval sandbox) have no stdio
+    // client that will ever connect — serving stdio there just reads EOF on
+    // the first handshake and exits, crash-looping the container. When the
+    // HTTP gateway is enabled, run it as the primary blocking loop instead.
+    if crate::http_gateway::http_gateway_enabled() {
+        tracing::info!(
+            "VOX_MCP_HTTP_ENABLED=1: running HTTP gateway only (stdio transport skipped)"
+        );
+        let handle = crate::http_gateway::spawn_http_gateway_if_enabled(state.clone())?
+            .ok_or_else(|| anyhow::anyhow!("http gateway reported enabled but failed to spawn"))?;
+        handle.await?;
+        tracing::info!("vox native mcp http gateway shutting down");
+        return Ok(());
+    }
+
     let server = crate::server::VoxMcpServer::new(state);
     tracing::info!("server state initialized, starting stdio transport...");
 
