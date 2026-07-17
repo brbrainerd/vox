@@ -726,15 +726,32 @@ pub struct HopperTaskDto {
     pub priority: u8,
     pub state: String,
     pub task_id: u64,
+    /// Chat/CLI session the item was submitted from (persisted column).
+    pub session_id: Option<String>,
+    /// Agent bound to the item while `state == "assigned"` (from state JSON).
+    pub agent_id: Option<String>,
+    /// Origin daemon for mesh-replicated items (from source JSON).
+    pub remote_node: Option<String>,
 }
 
 fn hopper_item_to_dto(item: &vox_orchestrator::hopper::IntakeItem) -> HopperTaskDto {
+    let agent_id = match &item.state {
+        vox_orchestrator::hopper::ItemState::Assigned { agent_id } => Some(agent_id.clone()),
+        _ => None,
+    };
+    let remote_node = match &item.source {
+        vox_orchestrator::hopper::IntakeSource::Mesh { node_id } => Some(node_id.clone()),
+        _ => None,
+    };
     HopperTaskDto {
         item_id: item.item_id.0.clone(),
         intent: item.intent.clone(),
         priority: item.classified_priority as u8,
         state: item.state.kind().to_string(),
         task_id: vox_orchestrator::orchestrator::dispatch::stable_hash(&item.item_id.0),
+        session_id: item.session_id.clone(),
+        agent_id,
+        remote_node,
     }
 }
 
@@ -843,6 +860,37 @@ mod hopper_tests {
             dto.task_id,
             vox_orchestrator::orchestrator::dispatch::stable_hash(&item.item_id.0)
         );
+    }
+
+    #[test]
+    fn hopper_dto_carries_persisted_session_agent_and_mesh_fields() {
+        use vox_orchestrator::hopper::types::ItemState;
+        let mut item = IntakeItem::new(
+            "wired intent".to_string(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Mesh {
+                node_id: "did:vox:peer-1".into(),
+            },
+            Some("gui-session-9".to_string()),
+        );
+        item.state = ItemState::Assigned {
+            agent_id: "agent-42".into(),
+        };
+        let dto = hopper_item_to_dto(&item);
+        assert_eq!(dto.session_id.as_deref(), Some("gui-session-9"));
+        assert_eq!(dto.agent_id.as_deref(), Some("agent-42"));
+        assert_eq!(dto.remote_node.as_deref(), Some("did:vox:peer-1"));
+        // Inbox developer items carry none of the three.
+        let plain = IntakeItem::new(
+            "p".into(),
+            vec![],
+            PriorityHint::Normal,
+            IntakeSource::Developer,
+            None,
+        );
+        let dto2 = hopper_item_to_dto(&plain);
+        assert!(dto2.session_id.is_none() && dto2.agent_id.is_none() && dto2.remote_node.is_none());
     }
 }
 

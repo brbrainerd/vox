@@ -115,4 +115,17 @@ describe('mapHopperTasksToRows', () => {
     );
     expect(rows[0].lifecycle).toBe('queued');
   });
+
+  it('carries real session/agent/mesh fields from the DTO instead of hardcoded nulls', () => {
+    const rows = mapHopperTasksToRows(
+      [{
+        item_id: 'a', intent: 'A', priority: 1, state: 'assigned', task_id: 1,
+        session_id: 'gui-9', agent_id: 'agent-42', remote_node: 'did:vox:peer-1',
+      }],
+      new Set(),
+    );
+    expect(rows[0].session_id).toBe('gui-9');
+    expect(rows[0].agent_id).toBe('agent-42');
+    expect(rows[0].remote_node).toBe('did:vox:peer-1');
+  });
 });

@@ -4,6 +4,9 @@ export interface HopperTaskDto {
   priority: number;
   state: string;
   task_id: number;
+  session_id?: string | null;
+  agent_id?: string | null;
+  remote_node?: string | null;
 }
 
 export interface TaskRow {
@@ -11,7 +14,7 @@ export interface TaskRow {
   description: string;
   priority: string; // 'urgent' | 'normal' | 'background' (normalized by the Tauri DTO)
   lifecycle: string; // 'queued' | 'in_progress' | 'blocked' | 'completed' | 'unknown'
-  agent_id: number | null;
+  agent_id: number | string | null;
   session_id: string | null;
   estimated_complexity: number;
   depends_on: (number | string)[];
@@ -86,12 +89,14 @@ export function mapHopperTasksToRows(tasks: HopperTaskDto[], gatedTaskIds: Set<n
       : dto.state === 'done'
       ? 'completed'
       : 'unknown',
-    agent_id: null,
-    session_id: null,
+    agent_id: dto.agent_id ?? null,
+    session_id: dto.session_id ?? null,
+    // Not persisted by the hopper store (sqlite_store.rs) — real values for
+    // these arrive on orchestrator-origin rows via the merge-view read.
     estimated_complexity: 1,
     depends_on: [],
     write_files: [],
-    remote_node: null,
+    remote_node: dto.remote_node ?? null,
   }));
 }
 

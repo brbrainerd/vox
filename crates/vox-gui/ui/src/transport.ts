@@ -791,6 +791,9 @@ export interface HopperTaskDto {
   priority: number;
   state: string;
   task_id: number;
+  session_id?: string | null;
+  agent_id?: string | null;
+  remote_node?: string | null;
 }
 
 /** List hopper task items (see `TasksView` / attention-inbox consumers). */
