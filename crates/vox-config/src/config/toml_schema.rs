@@ -16,7 +16,6 @@ pub(super) struct VoxToml {
     pub(super) build: Option<BuildTomlSection>,
     pub(super) llm: Option<LlmTomlSection>,
     pub(super) agent: Option<AgentTomlSection>,
-    pub(super) model_pool: Option<crate::model_pool::ModelPool>,
 }
 
 #[derive(Debug, Deserialize, Default)]

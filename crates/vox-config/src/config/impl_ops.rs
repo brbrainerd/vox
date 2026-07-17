@@ -306,10 +306,6 @@ impl VoxConfig {
         {
             self.agent_provider = v;
         }
-
-        if let Some(v) = parsed.model_pool {
-            self.model_pool = v;
-        }
     }
 
     fn apply_env(&mut self) {
@@ -506,39 +502,34 @@ db_extra = "de"
     }
 
     #[test]
-    fn reads_and_saves_model_pool() {
+    fn tolerates_and_retires_legacy_model_pool_table() {
+        // A pre-2026-07-16 config.toml may still contain [model_pool] (engine
+        // deleted per Axis GUI remediation F3). It must parse fine and the key
+        // must be dropped on the next save.
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("config.toml");
         let initial = r#"[vox]
-model = "m1"
+model = "anthropic/claude-sonnet-4"
 
 [model_pool]
-rules = [
-  { kind = "free" },
-  { kind = "provider", value = "anthropic" }
-]
+rules = [{ kind = "free" }]
 includes = ["inc-1"]
-excludes = ["exc-1"]
-disabled_sources = ["groq"]
 "#;
         std::fs::write(&path, initial).expect("write");
 
         let mut cfg = VoxConfig::default();
         cfg.apply_toml_file(&path);
 
-        assert_eq!(cfg.model_pool.rules.len(), 2);
-        assert_eq!(cfg.model_pool.includes, vec!["inc-1"]);
-        assert_eq!(cfg.model_pool.excludes, vec!["exc-1"]);
-        assert_eq!(cfg.model_pool.disabled_sources, vec!["groq"]);
+        // Unknown table is ignored; known fields still load.
+        assert_eq!(cfg.model, "anthropic/claude-sonnet-4");
 
-        // Mutate and save
-        cfg.model_pool.excludes.push("exc-2".to_string());
         super::super::persist::save_merged_global_config(&path, &cfg).expect("save");
 
-        // Reload and verify
-        let mut reloaded = VoxConfig::default();
-        reloaded.apply_toml_file(&path);
-        assert_eq!(reloaded.model_pool.excludes, vec!["exc-1", "exc-2"]);
+        let saved_text = std::fs::read_to_string(&path).expect("read back");
+        assert!(
+            !saved_text.contains("model_pool"),
+            "legacy model_pool key must be dropped on save, got:\n{saved_text}"
+        );
     }
 
     #[test]

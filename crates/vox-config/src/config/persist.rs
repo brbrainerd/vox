@@ -112,9 +112,9 @@ pub(super) fn save_merged_global_config(path: &Path, cfg: &VoxConfig) -> std::io
     );
     root.insert("agent".to_string(), Value::Table(agent));
 
-    let pool_val = toml::Value::try_from(&cfg.model_pool)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
-    root.insert("model_pool".to_string(), pool_val);
+    // model_pool engine deleted 2026-07-16 (Axis GUI remediation F3): drop the
+    // legacy key on save so it doesn't linger in config.toml forever.
+    root.remove("model_pool");
 
     let out = toml::to_string_pretty(&Value::Table(root))
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
