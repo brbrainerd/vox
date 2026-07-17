@@ -48,6 +48,7 @@ describe('IPC boundaries (Phase 0B)', () => {
       'components/surfaces/Approvals/ApprovalsView.tsx',
       'components/surfaces/Browser/BrowserView.tsx',
       'components/surfaces/Chat/ChatAgentEventRow.tsx',
+      'components/surfaces/Chat/ChatModelPicker.tsx',
       'components/surfaces/Chat/ChatSurface.tsx',
       'components/surfaces/CommandCardsView.tsx',
       'components/surfaces/Gamify/GamifyView.tsx',
