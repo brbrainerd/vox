@@ -167,6 +167,7 @@ async fn main() {
             commands::llm_settings::get_llm_config,
             commands::llm_settings::set_llm_config,
             commands::llm_settings::openrouter_key_status,
+            commands::llm_settings::inference_provider_status,
             commands::docs_index::vox_docs_index,
             commands::docs_index::read_doc_markdown,
             commands::orchestrator::get_orchestrator_status,

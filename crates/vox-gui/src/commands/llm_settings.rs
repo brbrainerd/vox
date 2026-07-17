@@ -59,3 +59,69 @@ pub async fn openrouter_key_status() -> Result<OpenRouterKeyStatusDto, String> {
         vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey).is_present();
     Ok(OpenRouterKeyStatusDto { configured })
 }
+
+#[derive(Debug, Serialize)]
+pub struct ProviderStatusDto {
+    /// Debug-format provider name, e.g. "OpenRouter", "Ollama".
+    pub provider: String,
+    pub key_present: bool,
+    pub is_local: bool,
+    /// Some(reachable) from the cached local probe; None for cloud providers.
+    pub local_reachable: Option<bool>,
+    /// Model names the local server reported (empty for cloud providers).
+    pub local_models: Vec<String>,
+}
+
+/// Per-backend availability (B9): credential presence for every candidate
+/// provider + live local-server health from the shared TTL-cached probe.
+#[tauri::command]
+pub async fn inference_provider_status() -> Result<Vec<ProviderStatusDto>, String> {
+    use vox_orchestrator::models::ProviderType;
+    let statuses = vox_orchestrator::models::key_guard::inference_provider_statuses();
+    let base = vox_config::inference::local_ollama_populi_base_url();
+    let probe = vox_actor_runtime::inference_env::probe_populi_capabilities_cached(
+        &base,
+        std::time::Duration::from_secs(15),
+    )
+    .await;
+    Ok(statuses
+        .into_iter()
+        .map(|(p, key_present)| {
+            let is_local = matches!(
+                p,
+                ProviderType::Ollama | ProviderType::PopuliMesh | ProviderType::VoxLocal
+            );
+            ProviderStatusDto {
+                provider: format!("{p:?}"),
+                key_present,
+                is_local,
+                local_reachable: is_local.then_some(probe.reachable),
+                local_models: if is_local {
+                    probe.model_names.clone()
+                } else {
+                    Vec::new()
+                },
+            }
+        })
+        .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn provider_status_dto_serializes_shape_frontend_expects() {
+        let dto = ProviderStatusDto {
+            provider: "Anthropic".into(),
+            key_present: false,
+            is_local: false,
+            local_reachable: None,
+            local_models: vec![],
+        };
+        let j = serde_json::to_value(&dto).expect("serialize");
+        assert_eq!(j["provider"], "Anthropic");
+        assert_eq!(j["key_present"], false);
+        assert!(j["local_reachable"].is_null());
+    }
+}

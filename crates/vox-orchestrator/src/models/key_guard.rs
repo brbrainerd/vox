@@ -9,24 +9,35 @@ use vox_secrets::SecretId;
 /// selector and the `vox_credentials_status` surface consult — OpenRouter is
 /// one of many.
 pub fn available_inference_providers() -> Vec<ProviderType> {
-    let candidates: &[ProviderType] = &[
-        ProviderType::GoogleDirect,
-        ProviderType::OpenRouter,
-        ProviderType::Groq,
-        ProviderType::Mistral,
-        ProviderType::DeepSeek,
-        ProviderType::SambaNova,
-        ProviderType::Cerebras,
-        ProviderType::Anthropic,
-        ProviderType::HuggingFaceRouter,
-        ProviderType::Ollama,
-        ProviderType::PopuliMesh,
-        ProviderType::VoxLocal,
-    ];
-    candidates
+    CANDIDATE_PROVIDERS
         .iter()
         .filter(|p| provider_secret_is_available(p))
         .cloned()
+        .collect()
+}
+
+/// Every provider the selector will consider, in display order.
+pub const CANDIDATE_PROVIDERS: &[ProviderType] = &[
+    ProviderType::GoogleDirect,
+    ProviderType::OpenRouter,
+    ProviderType::Groq,
+    ProviderType::Mistral,
+    ProviderType::DeepSeek,
+    ProviderType::SambaNova,
+    ProviderType::Cerebras,
+    ProviderType::Anthropic,
+    ProviderType::HuggingFaceRouter,
+    ProviderType::Ollama,
+    ProviderType::PopuliMesh,
+    ProviderType::VoxLocal,
+];
+
+/// Per-provider credential presence for the full candidate list — the
+/// GUI availability panel's SSOT (B9).
+pub fn inference_provider_statuses() -> Vec<(ProviderType, bool)> {
+    CANDIDATE_PROVIDERS
+        .iter()
+        .map(|p| (p.clone(), provider_secret_is_available(p)))
         .collect()
 }
 
@@ -67,5 +78,19 @@ mod avail_tests {
         assert!(avail.contains(&ProviderType::VoxLocal));
         // The function must be total (returns the providers it checked, not empty).
         assert!(avail.len() >= 3);
+    }
+
+    #[test]
+    fn statuses_cover_every_candidate_and_mark_locals_present() {
+        let statuses = inference_provider_statuses();
+        assert_eq!(statuses.len(), CANDIDATE_PROVIDERS.len());
+        for (p, present) in &statuses {
+            if matches!(
+                p,
+                ProviderType::Ollama | ProviderType::PopuliMesh | ProviderType::VoxLocal
+            ) {
+                assert!(*present, "local provider {p:?} must always report present");
+            }
+        }
     }
 }
