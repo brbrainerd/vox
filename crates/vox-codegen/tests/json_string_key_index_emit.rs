@@ -61,6 +61,39 @@ fn subscript_with_string_literal_key_is_object_lookup() {
 }
 
 #[test]
+fn subscript_with_concatenated_string_key_is_object_lookup() {
+    // `k1 + k2` is a `HirExpr::Binary` typed `str`; it must take the object
+    // path (interp: `Object[Str]` lookup returns Some(42) — verified live).
+    let out =
+        emit_first_fn("fn f(j: Json, k1: str, k2: str) to Option[Json] { return j[k1 + k2] }");
+    assert!(
+        !out.contains("as usize"),
+        "concatenated string key must not cast to usize; got:\n{out}"
+    );
+    assert!(
+        !out.contains(".cloned()"),
+        "concatenated string key lowers to owned VoxJson::get — no .cloned(); got:\n{out}"
+    );
+}
+
+#[test]
+fn mixed_int_float_equality_promotes_int_side() {
+    // Interp promotes Int↔Float in equality (`eval/value.rs`:
+    // `(Int(a), Float(b)) => (*a as f64) == *b`); `1 is 1.0` prints `true`.
+    // Without promotion the emitted `a == b` is `i64 == f64` — E0277.
+    let out = emit_first_fn("fn f(a: int, b: float) to bool { return a is b }");
+    assert!(
+        out.contains("as f64"),
+        "mixed int/float equality must cast the int side to f64; got:\n{out}"
+    );
+    let out2 = emit_first_fn("fn f(a: int, b: float) to bool { return a isnt b }");
+    assert!(
+        out2.contains("as f64"),
+        "mixed int/float inequality must cast the int side to f64; got:\n{out2}"
+    );
+}
+
+#[test]
 fn int_indexing_keeps_usize_list_path() {
     let out = emit_first_fn("fn f(xs: List[str], i: int) to Option[str] { return xs[i] }");
     assert!(

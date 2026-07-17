@@ -530,6 +530,8 @@ where
             | HirBinOp::Gt
             | HirBinOp::Lte
             | HirBinOp::Gte
+            | HirBinOp::Is
+            | HirBinOp::Isnt
     ) {
         let lk = numeric_kind(l, inferred_types);
         let rk = numeric_kind(r, inferred_types);
@@ -664,7 +666,8 @@ pub(super) fn index_key_is_string(
         | HirExpr::FieldAccess(_, _, span)
         | HirExpr::MethodCall(_, _, _, _, span)
         | HirExpr::Call(_, _, _, span)
-        | HirExpr::Index(_, _, span) => inferred_types
+        | HirExpr::Index(_, _, span)
+        | HirExpr::Binary(_, _, _, span) => inferred_types
             .and_then(|m| m.get(span))
             .is_some_and(|t| matches!(t, HirType::Named(n) if n == "str")),
         _ => false,

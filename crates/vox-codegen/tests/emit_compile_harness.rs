@@ -211,7 +211,11 @@ fn main() {
 /// - a no-`else` `if` whose branch tail is value-typed (e.g. a `match` with
 ///   Vox `{}` empty-object arms) must discard the tail (was: E0317);
 /// - mixed int/float arithmetic must promote the int side (was: E0277);
-/// - a value used inside a loop must not be moved as a "last use" (was: E0382).
+/// - a value used inside a loop must not be moved as a "last use" (was: E0382);
+/// - mixed int/float equality must promote the int side (was: E0277 — interp
+///   `eval/value.rs` compares `(Int, Float)` as `(*a as f64) == *b`);
+/// - a concatenated string key (`HirExpr::Binary` typed `str`) must take the
+///   object-lookup path, not `as usize` list indexing.
 #[test]
 fn json_string_key_and_numeric_lowerings_compile() {
     assert_compiles(
@@ -238,6 +242,12 @@ fn main() {
         i = i + 1
     }
     print(str(total))
+    let whole = 2
+    if whole is 2.0 { print("eq-promoted") }
+    if whole isnt 2.5 { print("neq-promoted") }
+    let k1 = "a"
+    let k2 = ""
+    print(str(jnum(j, k1 + k2)))
 }
 "#,
     );
