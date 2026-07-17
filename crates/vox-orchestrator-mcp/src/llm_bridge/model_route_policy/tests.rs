@@ -12,6 +12,38 @@ use super::{
 
 static INFERENCE_PROFILE_TEST_LOCK: Mutex<()> = Mutex::new(());
 
+/// RAII guard that sets an env var and restores the prior value on drop
+/// (mirrors the vox-orchestrator select.rs test idiom). Callers must hold
+/// `INFERENCE_PROFILE_TEST_LOCK` for the guard's lifetime: the B3 key gate
+/// (`ModelRegistry::key_is_present_for`) reads provider keys from the process
+/// env, so any test whose fixtures include cloud providers must both hold the
+/// lock and set the key explicitly.
+struct EnvKeyGuard {
+    key: &'static str,
+    prior: Option<String>,
+}
+
+impl EnvKeyGuard {
+    fn set(key: &'static str, value: &str) -> Self {
+        let prior = std::env::var(key).ok();
+        // SAFETY: serialized with `INFERENCE_PROFILE_TEST_LOCK` (held by caller).
+        unsafe { std::env::set_var(key, value) };
+        Self { key, prior }
+    }
+}
+
+impl Drop for EnvKeyGuard {
+    fn drop(&mut self) {
+        // SAFETY: serialized with `INFERENCE_PROFILE_TEST_LOCK` (held by caller).
+        unsafe {
+            match &self.prior {
+                Some(v) => std::env::set_var(self.key, v),
+                None => std::env::remove_var(self.key),
+            }
+        }
+    }
+}
+
 fn tiny_registry_with_free_and_paid() -> ModelRegistry {
     let mut r = ModelRegistry::default();
     r.register(ModelSpec {
@@ -65,6 +97,11 @@ fn mcp_global_llm_context_fill_ratio_none_without_budget() {
 
 #[test]
 fn enforce_free_tier_only_swaps_paid_best_for() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    // Fixtures are OpenRouter models; the B3 key gate requires the key present.
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
@@ -89,6 +126,11 @@ fn enforce_free_tier_only_swaps_paid_best_for() {
 
 #[test]
 fn free_clutch_force_free_pool_filters_to_free_model() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    // Fixtures are OpenRouter models; the B3 key gate requires the key present.
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
@@ -503,10 +545,9 @@ fn mcp_request_to_canonical_decision_to_route_output_parity() {
     let _g = INFERENCE_PROFILE_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    // SAFETY: env mutations are serialized by `INFERENCE_PROFILE_TEST_LOCK`.
-    unsafe {
-        std::env::set_var("OPENROUTER_API_KEY", "test-key");
-    }
+    // Fixtures are OpenRouter models; the B3 key gate requires the key present.
+    // Guard restores the prior value on drop (never clobbers an ambient key).
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
 
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
@@ -553,9 +594,6 @@ fn mcp_request_to_canonical_decision_to_route_output_parity() {
         expected_labels,
         "Route telemetry output must match canonical route backend for resolved model"
     );
-    unsafe {
-        std::env::remove_var("OPENROUTER_API_KEY");
-    }
 }
 
 #[test]
@@ -607,6 +645,9 @@ fn vox_local_not_preferred_for_non_code_tasks() {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     unsafe { std::env::set_var("vox_populi::inference_PROFILE", "desktop_ollama") };
     vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
+    // The contrast fixture is an OpenRouter cloud model; the B3 key gate would
+    // otherwise filter it out, leaving zero candidates for Research tasks.
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
