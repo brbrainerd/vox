@@ -1,259 +1,301 @@
 {
   "schema_version": 1,
-  "has_compile_times": true,
-  "crates_without_compile_times": 4,
+  "has_compile_times": false,
+  "crates_without_compile_times": 125,
   "crates": [
     {
       "crate": "vox-actor-runtime",
-      "compile_s": 4.5,
-      "dependents": 45,
-      "blast_s": 349.0,
-      "fan_in": 12
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
+      "fan_in": 13
     },
     {
       "crate": "vox-arch-check",
-      "compile_s": 4.0,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 4.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-ast",
-      "compile_s": 4.4,
-      "dependents": 46,
-      "blast_s": 354.0,
+      "compile_s": 0.0,
+      "dependents": 50,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
       "crate": "vox-audit",
-      "compile_s": 26.8,
+      "compile_s": 0.0,
       "dependents": 4,
-      "blast_s": 85.0,
+      "blast_s": 0.0,
       "fan_in": 1
     },
     {
       "crate": "vox-bounded-fs",
-      "compile_s": 2.4,
-      "dependents": 64,
-      "blast_s": 413.0,
-      "fan_in": 20
+      "compile_s": 0.0,
+      "dependents": 71,
+      "blast_s": 0.0,
+      "fan_in": 25
     },
     {
       "crate": "vox-build-meta",
-      "compile_s": 2.1,
+      "compile_s": 0.0,
       "dependents": 5,
-      "blast_s": 64.0,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
+      "crate": "vox-build-queue",
+      "compile_s": 0.0,
+      "dependents": 0,
+      "blast_s": 0.0,
+      "fan_in": 0
+    },
+    {
       "crate": "vox-capability-registry",
-      "compile_s": 3.5,
-      "dependents": 6,
-      "blast_s": 131.0,
+      "compile_s": 0.0,
+      "dependents": 7,
+      "blast_s": 0.0,
       "fan_in": 2
     },
     {
       "crate": "vox-cli",
-      "compile_s": 53.7,
+      "compile_s": 0.0,
       "dependents": 3,
-      "blast_s": 58.0,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
       "crate": "vox-cli-ci",
-      "compile_s": 0.9,
+      "compile_s": 0.0,
       "dependents": 4,
-      "blast_s": 59.0,
+      "blast_s": 0.0,
       "fan_in": 1
     },
     {
+      "crate": "vox-cli-contracts",
+      "compile_s": 0.0,
+      "dependents": 5,
+      "blast_s": 0.0,
+      "fan_in": 2
+    },
+    {
       "crate": "vox-cli-core",
-      "compile_s": 3.8,
-      "dependents": 7,
-      "blast_s": 72.0,
-      "fan_in": 5
+      "compile_s": 0.0,
+      "dependents": 9,
+      "blast_s": 0.0,
+      "fan_in": 6
+    },
+    {
+      "crate": "vox-cli-research",
+      "compile_s": 0.0,
+      "dependents": 4,
+      "blast_s": 0.0,
+      "fan_in": 1
+    },
+    {
+      "crate": "vox-cli-review",
+      "compile_s": 0.0,
+      "dependents": 0,
+      "blast_s": 0.0,
+      "fan_in": 0
+    },
+    {
+      "crate": "vox-cli-share",
+      "compile_s": 0.0,
+      "dependents": 4,
+      "blast_s": 0.0,
+      "fan_in": 1
     },
     {
       "crate": "vox-cli-tests",
-      "compile_s": 2.7,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 3.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-code-audit",
-      "compile_s": 9.7,
-      "dependents": 16,
-      "blast_s": 214.0,
-      "fan_in": 4
+      "compile_s": 0.0,
+      "dependents": 20,
+      "blast_s": 0.0,
+      "fan_in": 5
     },
     {
       "crate": "vox-codegen",
-      "compile_s": 6.0,
-      "dependents": 45,
-      "blast_s": 349.0,
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
       "fan_in": 9
     },
     {
       "crate": "vox-codegen-ts",
-      "compile_s": 2.1,
-      "dependents": 45,
-      "blast_s": 349.0,
-      "fan_in": 1
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
+      "fan_in": 2
     },
     {
       "crate": "vox-compiler",
-      "compile_s": 14.5,
-      "dependents": 45,
-      "blast_s": 349.0,
-      "fan_in": 21
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
+      "fan_in": 24
     },
     {
       "crate": "vox-config",
-      "compile_s": 2.5,
-      "dependents": 60,
-      "blast_s": 403.0,
-      "fan_in": 40
+      "compile_s": 0.0,
+      "dependents": 67,
+      "blast_s": 0.0,
+      "fan_in": 46
+    },
+    {
+      "crate": "vox-config-derive",
+      "compile_s": 0.0,
+      "dependents": 67,
+      "blast_s": 0.0,
+      "fan_in": 1
     },
     {
       "crate": "vox-constrained-gen",
-      "compile_s": 2.4,
-      "dependents": 46,
-      "blast_s": 352.0,
+      "compile_s": 0.0,
+      "dependents": 50,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
       "crate": "vox-container",
-      "compile_s": 2.7,
-      "dependents": 47,
-      "blast_s": 354.0,
+      "compile_s": 0.0,
+      "dependents": 51,
+      "blast_s": 0.0,
       "fan_in": 4
     },
     {
       "crate": "vox-container-types",
-      "compile_s": 2.5,
-      "dependents": 49,
-      "blast_s": 357.0,
+      "compile_s": 0.0,
+      "dependents": 53,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
       "crate": "vox-corpus",
-      "compile_s": 6.3,
-      "dependents": 45,
-      "blast_s": 349.0,
-      "fan_in": 5
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
+      "fan_in": 6
     },
     {
       "crate": "vox-crypto",
-      "compile_s": 2.7,
-      "dependents": 63,
-      "blast_s": 410.0,
+      "compile_s": 0.0,
+      "dependents": 70,
+      "blast_s": 0.0,
       "fan_in": 11
     },
     {
       "crate": "vox-db",
-      "compile_s": 21.2,
-      "dependents": 45,
-      "blast_s": 349.0,
-      "fan_in": 25
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
+      "fan_in": 28
     },
     {
       "crate": "vox-db-types",
-      "compile_s": 4.8,
-      "dependents": 46,
-      "blast_s": 354.0,
+      "compile_s": 0.0,
+      "dependents": 50,
+      "blast_s": 0.0,
       "fan_in": 2
     },
     {
       "crate": "vox-deploy-codegen",
-      "compile_s": 0.8,
-      "dependents": 46,
-      "blast_s": 350.0,
+      "compile_s": 0.0,
+      "dependents": 50,
+      "blast_s": 0.0,
       "fan_in": 5
     },
     {
       "crate": "vox-doc-inventory",
-      "compile_s": 4.3,
+      "compile_s": 0.0,
       "dependents": 4,
-      "blast_s": 62.0,
+      "blast_s": 0.0,
       "fan_in": 1
     },
     {
       "crate": "vox-doc-pipeline",
-      "compile_s": 2.7,
-      "dependents": 4,
-      "blast_s": 60.0,
-      "fan_in": 1
+      "compile_s": 0.0,
+      "dependents": 5,
+      "blast_s": 0.0,
+      "fan_in": 2
     },
     {
       "crate": "vox-drift-check",
-      "compile_s": 4.9,
+      "compile_s": 0.0,
       "dependents": 4,
-      "blast_s": 63.0,
+      "blast_s": 0.0,
       "fan_in": 1
     },
     {
       "crate": "vox-effort-audit",
-      "compile_s": 2.0,
+      "compile_s": 0.0,
       "dependents": 5,
-      "blast_s": 61.0,
+      "blast_s": 0.0,
       "fan_in": 2
     },
     {
       "crate": "vox-effort-route",
-      "compile_s": 1.7,
+      "compile_s": 0.0,
       "dependents": 4,
-      "blast_s": 59.0,
+      "blast_s": 0.0,
       "fan_in": 1
     },
     {
       "crate": "vox-eval",
-      "compile_s": 2.4,
-      "dependents": 46,
-      "blast_s": 352.0,
-      "fan_in": 5
+      "compile_s": 0.0,
+      "dependents": 50,
+      "blast_s": 0.0,
+      "fan_in": 7
     },
     {
       "crate": "vox-forge",
-      "compile_s": 3.9,
-      "dependents": 16,
-      "blast_s": 189.0,
-      "fan_in": 1
+      "compile_s": 0.0,
+      "dependents": 20,
+      "blast_s": 0.0,
+      "fan_in": 2
     },
     {
       "crate": "vox-foundation",
-      "compile_s": 3.2,
-      "dependents": 46,
-      "blast_s": 353.0,
-      "fan_in": 14
+      "compile_s": 0.0,
+      "dependents": 50,
+      "blast_s": 0.0,
+      "fan_in": 15
     },
     {
       "crate": "vox-gamify",
-      "compile_s": 5.6,
-      "dependents": 15,
-      "blast_s": 184.0,
+      "compile_s": 0.0,
+      "dependents": 18,
+      "blast_s": 0.0,
       "fan_in": 6
     },
     {
       "crate": "vox-git",
-      "compile_s": 2.4,
-      "dependents": 6,
-      "blast_s": 64.0,
-      "fan_in": 4
+      "compile_s": 0.0,
+      "dependents": 68,
+      "blast_s": 0.0,
+      "fan_in": 8
     },
     {
       "crate": "vox-grammar-export",
-      "compile_s": 3.4,
-      "dependents": 47,
-      "blast_s": 355.0,
-      "fan_in": 5
+      "compile_s": 0.0,
+      "dependents": 51,
+      "blast_s": 0.0,
+      "fan_in": 6
     },
     {
       "crate": "vox-graph-reader",
       "compile_s": 0.0,
-      "dependents": 6,
-      "blast_s": 128.0,
-      "fan_in": 2
+      "dependents": 8,
+      "blast_s": 0.0,
+      "fan_in": 4
     },
     {
       "crate": "vox-gui",
@@ -264,213 +306,213 @@
     },
     {
       "crate": "vox-hf-layout",
-      "compile_s": 1.9,
-      "dependents": 46,
-      "blast_s": 351.0,
+      "compile_s": 0.0,
+      "dependents": 50,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
       "crate": "vox-http-client",
-      "compile_s": 3.2,
-      "dependents": 63,
-      "blast_s": 410.0,
-      "fan_in": 18
+      "compile_s": 0.0,
+      "dependents": 70,
+      "blast_s": 0.0,
+      "fan_in": 21
     },
     {
       "crate": "vox-identity",
-      "compile_s": 1.2,
-      "dependents": 46,
-      "blast_s": 351.0,
+      "compile_s": 0.0,
+      "dependents": 50,
+      "blast_s": 0.0,
       "fan_in": 4
     },
     {
       "crate": "vox-integration-tests",
-      "compile_s": 1.3,
-      "dependents": 0,
-      "blast_s": 1.0,
-      "fan_in": 0
-    },
-    {
-      "crate": "vox-journal",
-      "compile_s": 1.9,
-      "dependents": 47,
-      "blast_s": 355.0,
-      "fan_in": 2
-    },
-    {
-      "crate": "vox-jsonschema-util",
-      "compile_s": 3.0,
-      "dependents": 47,
-      "blast_s": 362.0,
-      "fan_in": 7
-    },
-    {
-      "crate": "vox-langtool",
-      "compile_s": 3.7,
-      "dependents": 0,
-      "blast_s": 4.0,
-      "fan_in": 0
-    },
-    {
-      "crate": "vox-llm-config",
-      "compile_s": 0.0,
-      "dependents": 61,
-      "blast_s": 403.0,
-      "fan_in": 1
-    },
-    {
-      "crate": "vox-llm-egress",
-      "compile_s": 0.0,
-      "dependents": 61,
-      "blast_s": 403.0,
-      "fan_in": 4
-    },
-    {
-      "crate": "vox-lsp",
-      "compile_s": 6.3,
-      "dependents": 14,
-      "blast_s": 179.0,
-      "fan_in": 4
-    },
-    {
-      "crate": "vox-mcp-llm-bridge",
       "compile_s": 0.0,
       "dependents": 0,
       "blast_s": 0.0,
       "fan_in": 0
     },
     {
-      "crate": "vox-mcp-registry",
-      "compile_s": 2.1,
-      "dependents": 46,
-      "blast_s": 351.0,
+      "crate": "vox-journal",
+      "compile_s": 0.0,
+      "dependents": 51,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
+      "crate": "vox-jsonschema-util",
+      "compile_s": 0.0,
+      "dependents": 52,
+      "blast_s": 0.0,
+      "fan_in": 9
+    },
+    {
+      "crate": "vox-langtool",
+      "compile_s": 0.0,
+      "dependents": 0,
+      "blast_s": 0.0,
+      "fan_in": 0
+    },
+    {
+      "crate": "vox-language-surface",
+      "compile_s": 0.0,
+      "dependents": 52,
+      "blast_s": 0.0,
+      "fan_in": 2
+    },
+    {
+      "crate": "vox-llm-config",
+      "compile_s": 0.0,
+      "dependents": 68,
+      "blast_s": 0.0,
+      "fan_in": 1
+    },
+    {
+      "crate": "vox-llm-egress",
+      "compile_s": 0.0,
+      "dependents": 68,
+      "blast_s": 0.0,
+      "fan_in": 4
+    },
+    {
+      "crate": "vox-lsp",
+      "compile_s": 0.0,
+      "dependents": 17,
+      "blast_s": 0.0,
+      "fan_in": 4
+    },
+    {
+      "crate": "vox-mcp-registry",
+      "compile_s": 0.0,
+      "dependents": 51,
+      "blast_s": 0.0,
+      "fan_in": 4
+    },
+    {
       "crate": "vox-mesh-policy",
-      "compile_s": 1.0,
-      "dependents": 14,
-      "blast_s": 173.0,
+      "compile_s": 0.0,
+      "dependents": 17,
+      "blast_s": 0.0,
       "fan_in": 1
     },
     {
       "crate": "vox-mesh-types",
-      "compile_s": 2.7,
-      "dependents": 67,
-      "blast_s": 419.0,
+      "compile_s": 0.0,
+      "dependents": 74,
+      "blast_s": 0.0,
       "fan_in": 11
     },
     {
       "crate": "vox-ml-cli",
-      "compile_s": 5.9,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 6.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-openai",
-      "compile_s": 1.0,
-      "dependents": 62,
-      "blast_s": 404.0,
+      "compile_s": 0.0,
+      "dependents": 69,
+      "blast_s": 0.0,
       "fan_in": 4
     },
     {
       "crate": "vox-openclaw-runtime",
-      "compile_s": 2.7,
-      "dependents": 45,
-      "blast_s": 349.0,
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
       "crate": "vox-orchestrator",
-      "compile_s": 26.8,
-      "dependents": 13,
-      "blast_s": 172.0,
-      "fan_in": 9
+      "compile_s": 0.0,
+      "dependents": 16,
+      "blast_s": 0.0,
+      "fan_in": 12
     },
     {
       "crate": "vox-orchestrator-d",
-      "compile_s": 6.2,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 6.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-orchestrator-driver",
-      "compile_s": 0.6,
+      "compile_s": 0.0,
       "dependents": 10,
-      "blast_s": 142.0,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
       "crate": "vox-orchestrator-mcp",
-      "compile_s": 63.6,
-      "dependents": 5,
-      "blast_s": 128.0,
-      "fan_in": 4
+      "compile_s": 0.0,
+      "dependents": 6,
+      "blast_s": 0.0,
+      "fan_in": 5
     },
     {
       "crate": "vox-orchestrator-queue",
-      "compile_s": 2.1,
-      "dependents": 45,
-      "blast_s": 349.0,
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
       "fan_in": 2
     },
     {
       "crate": "vox-orchestrator-test-helpers",
-      "compile_s": 0.6,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 1.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-orchestrator-types",
-      "compile_s": 3.4,
-      "dependents": 47,
-      "blast_s": 362.0,
+      "compile_s": 0.0,
+      "dependents": 51,
+      "blast_s": 0.0,
       "fan_in": 8
     },
     {
       "crate": "vox-package",
-      "compile_s": 2.3,
-      "dependents": 45,
-      "blast_s": 349.0,
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
       "fan_in": 6
     },
     {
       "crate": "vox-package-types",
-      "compile_s": 3.8,
-      "dependents": 47,
-      "blast_s": 354.0,
+      "compile_s": 0.0,
+      "dependents": 51,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
       "crate": "vox-plugin-api",
-      "compile_s": 2.2,
-      "dependents": 54,
-      "blast_s": 380.0,
-      "fan_in": 15
+      "compile_s": 0.0,
+      "dependents": 58,
+      "blast_s": 0.0,
+      "fan_in": 16
     },
     {
       "crate": "vox-plugin-browser",
-      "compile_s": 3.9,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 4.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-plugin-catalog",
-      "compile_s": 6.0,
-      "dependents": 6,
-      "blast_s": 134.0,
-      "fan_in": 2
+      "compile_s": 0.0,
+      "dependents": 7,
+      "blast_s": 0.0,
+      "fan_in": 3
     },
     {
       "crate": "vox-plugin-host",
-      "compile_s": 2.4,
-      "dependents": 46,
-      "blast_s": 352.0,
-      "fan_in": 5
+      "compile_s": 0.0,
+      "dependents": 50,
+      "blast_s": 0.0,
+      "fan_in": 7
     },
     {
       "crate": "vox-plugin-mens-candle-cuda",
@@ -488,311 +530,353 @@
     },
     {
       "crate": "vox-plugin-nvml-probe",
-      "compile_s": 3.8,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 4.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-plugin-populi-mesh",
-      "compile_s": 5.2,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 5.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-plugin-publication",
-      "compile_s": 2.5,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 3.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-plugin-runtime-container",
-      "compile_s": 1.6,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 2.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-plugin-runtime-wasm",
-      "compile_s": 1.9,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 2.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-plugin-sdk",
-      "compile_s": 0.2,
+      "compile_s": 0.0,
       "dependents": 2,
-      "blast_s": 13.0,
+      "blast_s": 0.0,
       "fan_in": 2
     },
     {
       "crate": "vox-plugin-speech",
-      "compile_s": 9.4,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 9.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-plugin-test-harness",
-      "compile_s": 1.0,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 1.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-plugin-types",
-      "compile_s": 2.2,
-      "dependents": 56,
-      "blast_s": 383.0,
-      "fan_in": 6
+      "compile_s": 0.0,
+      "dependents": 61,
+      "blast_s": 0.0,
+      "fan_in": 8
     },
     {
       "crate": "vox-plugin-webhook",
-      "compile_s": 5.2,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 5.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-populi",
-      "compile_s": 17.1,
-      "dependents": 45,
-      "blast_s": 349.0,
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
       "fan_in": 6
     },
     {
       "crate": "vox-populi-types",
-      "compile_s": 0.8,
-      "dependents": 46,
-      "blast_s": 350.0,
+      "compile_s": 0.0,
+      "dependents": 50,
+      "blast_s": 0.0,
       "fan_in": 1
     },
     {
       "crate": "vox-project-scaffold",
-      "compile_s": 0.7,
-      "dependents": 7,
-      "blast_s": 155.0,
+      "compile_s": 0.0,
+      "dependents": 8,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
       "crate": "vox-publisher",
-      "compile_s": 10.1,
-      "dependents": 15,
-      "blast_s": 185.0,
-      "fan_in": 5
+      "compile_s": 0.0,
+      "dependents": 18,
+      "blast_s": 0.0,
+      "fan_in": 7
     },
     {
       "crate": "vox-quantize",
-      "compile_s": 2.7,
-      "dependents": 46,
-      "blast_s": 352.0,
+      "compile_s": 0.0,
+      "dependents": 50,
+      "blast_s": 0.0,
       "fan_in": 1
     },
     {
+      "crate": "vox-redact",
+      "compile_s": 0.0,
+      "dependents": 9,
+      "blast_s": 0.0,
+      "fan_in": 2
+    },
+    {
       "crate": "vox-rename-registry",
-      "compile_s": 2.0,
+      "compile_s": 0.0,
       "dependents": 1,
-      "blast_s": 6.0,
+      "blast_s": 0.0,
       "fan_in": 1
     },
     {
       "crate": "vox-repository",
-      "compile_s": 2.7,
-      "dependents": 49,
-      "blast_s": 358.0,
-      "fan_in": 18
+      "compile_s": 0.0,
+      "dependents": 53,
+      "blast_s": 0.0,
+      "fan_in": 20
     },
     {
       "crate": "vox-research-events",
-      "compile_s": 6.1,
-      "dependents": 17,
-      "blast_s": 199.0,
+      "compile_s": 0.0,
+      "dependents": 20,
+      "blast_s": 0.0,
       "fan_in": 6
     },
     {
       "crate": "vox-research-shim",
-      "compile_s": 2.4,
-      "dependents": 6,
-      "blast_s": 130.0,
-      "fan_in": 2
+      "compile_s": 0.0,
+      "dependents": 8,
+      "blast_s": 0.0,
+      "fan_in": 3
     },
     {
       "crate": "vox-rn-codegen",
-      "compile_s": 1.2,
+      "compile_s": 0.0,
       "dependents": 4,
-      "blast_s": 59.0,
+      "blast_s": 0.0,
       "fan_in": 1
     },
     {
       "crate": "vox-rule-pack",
-      "compile_s": 3.4,
-      "dependents": 17,
-      "blast_s": 217.0,
-      "fan_in": 2
+      "compile_s": 0.0,
+      "dependents": 21,
+      "blast_s": 0.0,
+      "fan_in": 3
     },
     {
       "crate": "vox-runtime",
-      "compile_s": 2.2,
-      "dependents": 48,
-      "blast_s": 357.0,
+      "compile_s": 0.0,
+      "dependents": 52,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
       "crate": "vox-runtime-rn",
-      "compile_s": 3.8,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 4.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-scaling-policy",
-      "compile_s": 2.8,
-      "dependents": 65,
-      "blast_s": 416.0,
-      "fan_in": 5
+      "compile_s": 0.0,
+      "dependents": 72,
+      "blast_s": 0.0,
+      "fan_in": 6
     },
     {
       "crate": "vox-scientia",
-      "compile_s": 8.0,
-      "dependents": 16,
-      "blast_s": 193.0,
+      "compile_s": 0.0,
+      "dependents": 19,
+      "blast_s": 0.0,
       "fan_in": 6
     },
     {
       "crate": "vox-scientia-jsonschema-codegen",
-      "compile_s": 3.8,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 4.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-search",
-      "compile_s": 3.1,
-      "dependents": 17,
-      "blast_s": 196.0,
-      "fan_in": 7
+      "compile_s": 0.0,
+      "dependents": 20,
+      "blast_s": 0.0,
+      "fan_in": 8
     },
     {
       "crate": "vox-secrets",
-      "compile_s": 3.5,
-      "dependents": 61,
-      "blast_s": 406.0,
-      "fan_in": 31
+      "compile_s": 0.0,
+      "dependents": 68,
+      "blast_s": 0.0,
+      "fan_in": 34
     },
     {
       "crate": "vox-shell-stdlib-types",
-      "compile_s": 0.3,
-      "dependents": 46,
-      "blast_s": 350.0,
+      "compile_s": 0.0,
+      "dependents": 50,
+      "blast_s": 0.0,
       "fan_in": 2
     },
     {
+      "crate": "vox-similarity",
+      "compile_s": 0.0,
+      "dependents": 8,
+      "blast_s": 0.0,
+      "fan_in": 1
+    },
+    {
+      "crate": "vox-skill-discovery",
+      "compile_s": 0.0,
+      "dependents": 7,
+      "blast_s": 0.0,
+      "fan_in": 1
+    },
+    {
       "crate": "vox-skill-runtime",
-      "compile_s": 1.1,
-      "dependents": 48,
-      "blast_s": 354.0,
+      "compile_s": 0.0,
+      "dependents": 52,
+      "blast_s": 0.0,
       "fan_in": 4
     },
     {
       "crate": "vox-skills",
-      "compile_s": 1.5,
-      "dependents": 45,
-      "blast_s": 349.0,
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
       "fan_in": 5
     },
     {
       "crate": "vox-speech",
-      "compile_s": 2.6,
+      "compile_s": 0.0,
       "dependents": 2,
-      "blast_s": 4.0,
+      "blast_s": 0.0,
       "fan_in": 2
     },
     {
       "crate": "vox-sql",
-      "compile_s": 7.7,
-      "dependents": 45,
-      "blast_s": 349.0,
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
       "crate": "vox-tauri-codegen",
-      "compile_s": 0.9,
-      "dependents": 45,
-      "blast_s": 349.0,
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
       "fan_in": 2
     },
     {
       "crate": "vox-tauri-stt",
-      "compile_s": 1.7,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 2.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-telemetry",
-      "compile_s": 3.5,
-      "dependents": 48,
-      "blast_s": 365.0,
-      "fan_in": 11
+      "compile_s": 0.0,
+      "dependents": 70,
+      "blast_s": 0.0,
+      "fan_in": 14
+    },
+    {
+      "crate": "vox-telemetry-otlp",
+      "compile_s": 0.0,
+      "dependents": 4,
+      "blast_s": 0.0,
+      "fan_in": 1
     },
     {
       "crate": "vox-tensor",
-      "compile_s": 0.8,
-      "dependents": 45,
-      "blast_s": 349.0,
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
       "fan_in": 3
     },
     {
+      "crate": "vox-term",
+      "compile_s": 0.0,
+      "dependents": 4,
+      "blast_s": 0.0,
+      "fan_in": 1
+    },
+    {
+      "crate": "vox-terminal-core",
+      "compile_s": 0.0,
+      "dependents": 5,
+      "blast_s": 0.0,
+      "fan_in": 2
+    },
+    {
       "crate": "vox-test-harness",
-      "compile_s": 1.2,
-      "dependents": 45,
-      "blast_s": 349.0,
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
       "fan_in": 5
     },
     {
       "crate": "vox-vcs",
-      "compile_s": 2.7,
-      "dependents": 14,
-      "blast_s": 175.0,
+      "compile_s": 0.0,
+      "dependents": 17,
+      "blast_s": 0.0,
       "fan_in": 1
     },
     {
       "crate": "vox-wasm-engine",
-      "compile_s": 2.8,
+      "compile_s": 0.0,
       "dependents": 1,
-      "blast_s": 5.0,
+      "blast_s": 0.0,
       "fan_in": 1
     },
     {
       "crate": "vox-wire-format-validator",
-      "compile_s": 3.1,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 3.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "vox-workflow-runtime",
-      "compile_s": 2.1,
-      "dependents": 45,
-      "blast_s": 349.0,
+      "compile_s": 0.0,
+      "dependents": 49,
+      "blast_s": 0.0,
       "fan_in": 2
     },
     {
       "crate": "voxup",
-      "compile_s": 3.9,
+      "compile_s": 0.0,
       "dependents": 0,
-      "blast_s": 4.0,
+      "blast_s": 0.0,
       "fan_in": 0
     },
     {
       "crate": "workspace-hack",
-      "compile_s": 0.5,
-      "dependents": 94,
-      "blast_s": 492.0,
-      "fan_in": 72
+      "compile_s": 0.0,
+      "dependents": 100,
+      "blast_s": 0.0,
+      "fan_in": 71
     }
   ]
 }
