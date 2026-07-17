@@ -7,7 +7,18 @@ use vox_compiler::hir::{HirExpr, HirStmt};
 pub struct UsageTracker {
     /// Maps identifier name to its last known usage span.
     pub last_use: HashMap<String, Span>,
+    /// Non-zero while walking a `while`/`loop` body (or condition). Uses there
+    /// re-execute every iteration, so they must never count as a "last use"
+    /// (moving there is E0382); a sentinel span is recorded instead.
+    loop_depth: usize,
 }
+
+/// Span that can never equal a real identifier use site — recorded for uses
+/// inside loops so `is_last_use` is false for them.
+const IN_LOOP_SENTINEL: Span = Span {
+    start: usize::MAX,
+    end: usize::MAX,
+};
 
 impl UsageTracker {
     pub fn build(body: &[HirStmt]) -> Self {
@@ -30,15 +41,20 @@ impl UsageTracker {
             HirStmt::While {
                 condition, body, ..
             } => {
+                // Condition and body both re-run every iteration.
+                self.loop_depth += 1;
                 self.walk_expr(condition);
                 for s in body {
                     self.walk_stmt(s);
                 }
+                self.loop_depth -= 1;
             }
             HirStmt::Loop { body, .. } => {
+                self.loop_depth += 1;
                 for s in body {
                     self.walk_stmt(s);
                 }
+                self.loop_depth -= 1;
             }
             _ => {}
         }
@@ -47,7 +63,12 @@ impl UsageTracker {
     fn walk_expr(&mut self, expr: &HirExpr) {
         match expr {
             HirExpr::Ident(name, span) => {
-                self.last_use.insert(name.clone(), *span);
+                let recorded = if self.loop_depth > 0 {
+                    IN_LOOP_SENTINEL
+                } else {
+                    *span
+                };
+                self.last_use.insert(name.clone(), recorded);
             }
             HirExpr::Binary(_, l, r, _) => {
                 self.walk_expr(l);
@@ -135,5 +156,20 @@ mod semcov_behavior_tests {
         let bogus = Span::new(recorded.start + 1, recorded.end + 1);
         assert!(!tracker.is_last_use("s", bogus));
         assert!(!tracker.is_last_use("nonexistent", recorded));
+    }
+
+    #[test]
+    fn use_inside_loop_is_never_last_use() {
+        // Catches: moving a value at its textually-last use inside a `while`
+        // body (re-executed every iteration → E0382 use-of-moved-value).
+        let body = first_fn_body(
+            "fn f(s: str) to Unit { let mut i = 0\n while i < 3 { std.print(s)\n i = i + 1 } }",
+        );
+        let tracker = UsageTracker::build(&body);
+        let recorded = *tracker.last_use.get("s").expect("s tracked");
+        assert_eq!(
+            recorded, IN_LOOP_SENTINEL,
+            "in-loop use must record the sentinel, not a real span"
+        );
     }
 }

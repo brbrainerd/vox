@@ -598,6 +598,18 @@ where
             return s;
         }
     }
+    // `x.get(key)` with a STRING-typed key (literal or inferred `str`) is an
+    // object/JSON keyed lookup — `VoxJson::get(String) -> Option<VoxJson>`,
+    // already owned — never a usize list index. Must run before
+    // `try_emit_str_method`, whose `get` arm only screens out string LITERALS
+    // and would otherwise cast a string VARIABLE to `usize` (E0308/E0605) and
+    // bolt `.cloned()` onto an owned Option (E0599).
+    if method == "get"
+        && args.len() == 1
+        && super::stmt_expr::index_key_is_string(&args[0].value, inferred_types)
+    {
+        return format!("({}).get({})", o, arg_exprs[0]);
+    }
     if let Some(s) = try_emit_str_method(method, &o, &arg_exprs) {
         return s;
     }

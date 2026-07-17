@@ -204,6 +204,45 @@ fn main() {
     );
 }
 
+/// Regression net for the `crate-build-audit.vox` compiled-mode family:
+/// - string-keyed JSON `get`/subscript must lower to `VoxJson::get(String)`
+///   (was: `(j).get((k) as usize).cloned()` → E0308/E0605/E0599);
+/// - `int(x)` must lower to a numeric cast (was: bare `int(..)` call → E0425);
+/// - a no-`else` `if` whose branch tail is value-typed (e.g. a `match` with
+///   Vox `{}` empty-object arms) must discard the tail (was: E0317);
+/// - mixed int/float arithmetic must promote the int side (was: E0277);
+/// - a value used inside a loop must not be moved as a "last use" (was: E0382).
+#[test]
+fn json_string_key_and_numeric_lowerings_compile() {
+    assert_compiles(
+        r#"
+fn jnum(j: Json, k: str) to float {
+    return j.get(k).and_then(fn(x: Json) to Option[float] { x.as_float() }).unwrap_or(0.0)
+}
+fn main() {
+    let j = json.parse("{\"a\": 2}").unwrap()
+    let k = "a"
+    print(str(jnum(j, k)))
+    print(str(jnum(j, "a")))
+    let scaled = int(3.7)
+    let ratio = scaled / 2.0
+    print(str(ratio))
+    if not fs.exists("vox-harness-nonexistent-dir") {
+        match json.parse("{}") { Ok(_) => {} Error(_) => {} }
+    }
+    let names = ["a", "b"]
+    let mut i = 0
+    let mut total = 0
+    while i < names.len() {
+        if jnum(j, names.get(i).unwrap()) > 0.0 { total = total + 1 }
+        i = i + 1
+    }
+    print(str(total))
+}
+"#,
+    );
+}
+
 #[test]
 fn list_ops_compile() {
     assert_compiles(
