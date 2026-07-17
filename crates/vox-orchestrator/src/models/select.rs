@@ -111,6 +111,10 @@ pub fn decide(
             rejection_reasons.push(format!("{} rejected: intent constraints", m.id));
             continue;
         }
+        if !ModelRegistry::key_is_present_for(&m) {
+            rejection_reasons.push(format!("{} rejected: missing provider key", m.id));
+            continue;
+        }
         let conf = confidence_state_for_model(&m);
         if !is_routing_eligible(conf) {
             rejection_reasons.push(format!(
@@ -138,6 +142,9 @@ pub fn decide(
                     continue;
                 }
                 if !supports_intent_constraints(&m, &request.intent) {
+                    continue;
+                }
+                if !ModelRegistry::key_is_present_for(&m) {
                     continue;
                 }
                 let conf = confidence_state_for_model(&m);
@@ -1255,6 +1262,84 @@ mod tests {
             .expect("a model exists for codegen");
         let via_cascade = select(&intent, &registry).expect("a model exists for codegen");
         assert_eq!(via_policy.model_id, via_cascade.model_id);
+    }
+
+    // ── Phase-2 wiring: key-gated candidate filter (B3) ─────────────────────
+    fn key_gate_spec(id: &str, provider_type: ProviderType) -> ModelSpec {
+        crate::models::ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 32_000,
+            cost_per_1k: 0.001,
+            cost_per_1k_input: 0.001,
+            cost_per_1k_output: 0.001,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::StrengthTag::Generalist],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            // UserConfig ⇒ ModelConfidence::Confirmed ⇒ routing-eligible
+            // (discovery_pipeline.rs:25-34), so only the key gate is under test.
+            pricing_source: crate::models::spec::PricingSource::UserConfig,
+            supported_parameters: vec![],
+        }
+    }
+
+    #[test]
+    #[serial]
+    #[allow(unsafe_code)]
+    fn key_gate_excludes_keyless_provider_and_reports_rejection() {
+        // SAFETY: #[serial] serializes env mutation; mirrors models/tests.rs:133-140.
+        unsafe {
+            std::env::remove_var("ANTHROPIC_API_KEY");
+            std::env::remove_var("VOX_ANTHROPIC_API_KEY");
+        }
+        let mut registry = ModelRegistry::default();
+        registry.register(key_gate_spec(
+            "anthropic-direct-test",
+            ProviderType::Anthropic,
+        ));
+        registry.register(key_gate_spec("ollama-local-test", ProviderType::Ollama));
+        let req =
+            ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
+        let d = decide(&req, &registry).expect("local (keyless-OK) candidate remains");
+        assert_eq!(d.selected_model, "ollama-local-test");
+        assert!(
+            d.rejection_reasons
+                .iter()
+                .any(|r| r.contains("anthropic-direct-test") && r.contains("missing provider key")),
+            "keyless provider must be rejected with a key reason: {:?}",
+            d.rejection_reasons
+        );
+    }
+
+    #[test]
+    #[serial]
+    #[allow(unsafe_code)]
+    fn key_gate_admits_provider_when_key_present() {
+        let prior = std::env::var("ANTHROPIC_API_KEY").ok();
+        // SAFETY: #[serial]; prior value restored below.
+        unsafe { std::env::set_var("ANTHROPIC_API_KEY", "test-key") };
+        let mut registry = ModelRegistry::default();
+        registry.register(key_gate_spec(
+            "anthropic-direct-test",
+            ProviderType::Anthropic,
+        ));
+        let req =
+            ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
+        let d = decide(&req, &registry).expect("keyed candidate is eligible");
+        assert_eq!(d.selected_model, "anthropic-direct-test");
+        #[allow(unsafe_code)]
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("ANTHROPIC_API_KEY", v),
+                None => std::env::remove_var("ANTHROPIC_API_KEY"),
+            }
+        }
     }
 }
 

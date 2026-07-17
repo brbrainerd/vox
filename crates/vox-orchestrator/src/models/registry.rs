@@ -269,8 +269,9 @@ impl ModelRegistry {
             .any(|s| *s == strength || *s == crate::models::StrengthTag::Generalist)
     }
 
-    #[allow(dead_code)]
-    fn key_is_present_for(m: &ModelSpec) -> bool {
+    /// Credential gate used by the canonical selector: true iff the provider's
+    /// primary key is resolvable right now (local providers always pass).
+    pub(crate) fn key_is_present_for(m: &ModelSpec) -> bool {
         provider_secret_is_available(&m.provider_type)
     }
 
