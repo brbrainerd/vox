@@ -568,6 +568,10 @@ pub const THIRD_PARTY_ALLOWLIST: &[&str] = &[
     "CARGO_MANIFEST_DIR",
     "CARGO_PKG_VERSION",
     "CARGO_PKG_NAME",
+    // Cargo/rustc toolchain names read by build scripts and doctor probes
+    // (vox-gui/build.rs sidecar check; gui_sidecar doctor triple detection).
+    "TARGET",
+    "RUSTC",
     "XDG_CONFIG_HOME",
     "XDG_DATA_HOME",
     "XDG_CACHE_HOME",
