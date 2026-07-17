@@ -72,4 +72,47 @@ describe('ChatSessionRail', () => {
     await user.click(screen.getByRole('button', { name: /collapse sessions rail/i }));
     expect(localStorage.getItem('gui.chat.sessions_collapsed.v1')).toBe('true');
   });
+
+  it('renames a session through the row menu', async () => {
+    const user = userEvent.setup();
+    const onRename = vi.fn();
+    render(
+      <LanguageProvider>
+        <ChatSessionRail
+          sessions={sessions}
+          activeSessionId="s1"
+          onSessionChange={vi.fn()}
+          onCreateSession={vi.fn()}
+          onRenameSession={onRename}
+          onArchiveSession={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: /session actions for First/i }));
+    await user.click(screen.getByRole('menuitem', { name: /rename/i }));
+    const input = screen.getByRole('textbox', { name: /new session title/i });
+    await user.clear(input);
+    await user.type(input, 'Renamed{Enter}');
+    expect(onRename).toHaveBeenCalledWith('s1', 'Renamed');
+  });
+
+  it('archives a session through the row menu', async () => {
+    const user = userEvent.setup();
+    const onArchive = vi.fn();
+    render(
+      <LanguageProvider>
+        <ChatSessionRail
+          sessions={sessions}
+          activeSessionId="s1"
+          onSessionChange={vi.fn()}
+          onCreateSession={vi.fn()}
+          onRenameSession={vi.fn()}
+          onArchiveSession={onArchive}
+        />
+      </LanguageProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: /session actions for Second/i }));
+    await user.click(screen.getByRole('menuitem', { name: /archive/i }));
+    expect(onArchive).toHaveBeenCalledWith('s2');
+  });
 });

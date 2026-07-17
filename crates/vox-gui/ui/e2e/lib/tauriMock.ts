@@ -225,6 +225,8 @@ export function installTauriMock(viewKey: string): void {
         case 'chat_create_session': return { session_id: 'mock-session-new', title: 'New chat', updated_at: 'now', message_count: 0, conversation_id: 2 };
         case 'chat_get_messages': return [{ id: 1, role: 'user', content: 'hello', created_at: 'now', task_id: null }];
         case 'chat_append_message': return 1;
+        case 'chat_rename_session': return null;
+        case 'chat_archive_session': return null;
         case 'get_identity_summary': return { display_name: 'tester@vox', os_user: 'tester' };
         case 'get_command_catalog': return {
           generated_from: 'mock',

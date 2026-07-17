@@ -184,6 +184,27 @@ export function ChatSurface({
     }
   };
 
+  const renameSession = async (sessionId: string, title: string) => {
+    try {
+      await invoke('chat_rename_session', { sessionId, title });
+      await loadSessions();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Rename failed', body: String(err), cause: 'backend-error' });
+    }
+  };
+
+  const archiveSession = async (sessionId: string) => {
+    try {
+      await invoke('chat_archive_session', { sessionId });
+      const remaining = sessions.filter(s => s.session_id !== sessionId);
+      setSessions(remaining);
+      if (activeId === sessionId && remaining.length > 0) onSessionChange?.(remaining[0].session_id);
+      await loadSessions();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Archive failed', body: String(err), cause: 'backend-error' });
+    }
+  };
+
   const railKpis = executionKpis ?? {
     activeAgents: { value: 0 },
     queueDepth: { value: 0 },
@@ -199,6 +220,8 @@ export function ChatSurface({
         setSessionOverlayOpen(false);
       }}
       onCreateSession={() => void createSession()}
+      onRenameSession={(id, t) => void renameSession(id, t)}
+      onArchiveSession={id => void archiveSession(id)}
     />
   );
 

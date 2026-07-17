@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Glass } from '../../ui/Glass';
 import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/Icons';
@@ -16,6 +16,8 @@ export interface ChatSessionRailProps {
   activeSessionId: string;
   onSessionChange: (sessionId: string) => void;
   onCreateSession: () => void;
+  onRenameSession?: (sessionId: string, title: string) => void;
+  onArchiveSession?: (sessionId: string) => void;
 }
 
 const SESSIONS_COLLAPSED_KEY = 'gui.chat.sessions_collapsed.v1';
@@ -25,8 +27,12 @@ export function ChatSessionRail({
   activeSessionId,
   onSessionChange,
   onCreateSession,
+  onRenameSession,
+  onArchiveSession,
 }: ChatSessionRailProps) {
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(SESSIONS_COLLAPSED_KEY, false);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
 
   if (collapsed) {
     return (
@@ -73,26 +79,85 @@ export function ChatSessionRail({
         >
           {sessions.map(s => {
             const isActive = s.session_id === activeSessionId;
+            if (renaming === s.session_id) {
+              return (
+                <input
+                  key={s.session_id}
+                  aria-label="New session title"
+                  defaultValue={s.title}
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      const title = (e.target as HTMLInputElement).value.trim();
+                      if (title) onRenameSession?.(s.session_id, title);
+                      setRenaming(null);
+                    }
+                    if (e.key === 'Escape') setRenaming(null);
+                  }}
+                  className="w-full rounded-lg border border-brass/40 bg-bg-base px-2.5 py-2 text-xs text-text-primary outline-none"
+                />
+              );
+            }
             return (
-              <Button
-                key={s.session_id}
-                role="tab"
-                aria-pressed={isActive}
-                aria-selected={isActive}
-                onClick={() => onSessionChange(s.session_id)}
-                className={`w-full justify-start rounded-lg border px-2.5 py-2 text-left text-xs ${
-                  isActive
-                    ? 'border-brass/40 bg-brass/10 text-brass'
-                    : 'border-border-subtle text-text-muted hover:text-text-secondary'
-                }`}
-              >
-                <span className="block truncate">{s.title}</span>
-                {s.message_count > 0 ? (
-                  <span className="mt-0.5 block font-mono text-[10px] text-text-muted">
-                    {s.message_count} msg{s.message_count === 1 ? '' : 's'}
-                  </span>
-                ) : null}
-              </Button>
+              <div key={s.session_id} className="relative flex items-stretch gap-1">
+                <Button
+                  role="tab"
+                  aria-pressed={isActive}
+                  aria-selected={isActive}
+                  onClick={() => onSessionChange(s.session_id)}
+                  className={`min-w-0 flex-1 justify-start rounded-lg border px-2.5 py-2 text-left text-xs ${
+                    isActive
+                      ? 'border-brass/40 bg-brass/10 text-brass'
+                      : 'border-border-subtle text-text-muted hover:text-text-secondary'
+                  }`}
+                >
+                  <span className="block truncate">{s.title}</span>
+                  {s.message_count > 0 ? (
+                    <span className="mt-0.5 block font-mono text-[10px] text-text-muted">
+                      {s.message_count} msg{s.message_count === 1 ? '' : 's'}
+                    </span>
+                  ) : null}
+                </Button>
+                {(onRenameSession || onArchiveSession) && (
+                  <button
+                    type="button"
+                    aria-label={`Session actions for ${s.title}`}
+                    aria-haspopup="menu"
+                    aria-expanded={menuFor === s.session_id}
+                    onClick={() => setMenuFor(m => (m === s.session_id ? null : s.session_id))}
+                    className="shrink-0 rounded px-1 text-text-muted hover:bg-overlay-subtle hover:text-text-secondary"
+                  >
+                    ⋯
+                  </button>
+                )}
+                {menuFor === s.session_id && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full z-50 mt-1 w-28 rounded-lg border border-border-subtle bg-bg-base p-1"
+                  >
+                    {onRenameSession && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => { setMenuFor(null); setRenaming(s.session_id); }}
+                        className="w-full rounded px-2 py-1 text-left text-xs text-text-secondary hover:bg-overlay-subtle"
+                      >
+                        Rename
+                      </button>
+                    )}
+                    {onArchiveSession && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => { setMenuFor(null); onArchiveSession(s.session_id); }}
+                        className="w-full rounded px-2 py-1 text-left text-xs text-rose-300 hover:bg-overlay-subtle"
+                      >
+                        Archive
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
