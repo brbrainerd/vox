@@ -38,6 +38,8 @@ vi.mock('../../../transport', () => ({
   feedbackList: vi.fn().mockResolvedValue({ needsYou: [], withheld: [] }),
   listenFeedbackChanged: vi.fn().mockResolvedValue(() => {}),
   hopperList: vi.fn().mockResolvedValue([]),
+  hopperMarkDone: vi.fn().mockResolvedValue({}),
+  voxTransport: { listOrchestratorTasks: vi.fn().mockResolvedValue([]) },
 }));
 
 import { feedbackList, hopperList } from '../../../transport';
@@ -159,7 +161,7 @@ describe('TasksView', () => {
     });
   });
 
-  it('sources rows from the shared attention inbox and does not fetch/poll on its own', async () => {
+  it('sources hopper rows from the shared attention inbox and only self-fetches the orchestrator read', async () => {
     const attention = {
       approvals: [],
       needsYou: [],
@@ -182,7 +184,9 @@ describe('TasksView', () => {
     expect(invoke).not.toHaveBeenCalled();
     expect(hopperList).not.toHaveBeenCalled();
     expect(feedbackList).not.toHaveBeenCalled();
-    expect(mockListen).not.toHaveBeenCalled();
+    // Phase 2 Task 10: attention mode still runs the orchestrator merge read,
+    // subscribed to tasks-changed only (no feedback listener, no polling).
+    expect(mockListen).toHaveBeenCalledWith('vox://tasks-changed', expect.any(Function));
   });
 
   it('derives blocked lifecycle from attention.needsYou gates, not its own fetch, when attention is provided', async () => {

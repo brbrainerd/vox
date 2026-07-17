@@ -29,9 +29,12 @@ const attention: AttentionInbox = {
 describe('TasksView copy honesty (B1 interim)', () => {
   it('does not claim chat submissions land here, and says where rows really come from', () => {
     render(<TasksView attention={attention} />);
-    // The old lie: chat submissions go to the orchestrator task graph, not the hopper.
+    // Phase 2 Task 10: the merge-view supersedes Phase 1's interim caveat copy.
+    // The old caveat sentence must be gone…
     expect(screen.queryByText(/chat submissions land here/i)).toBeNull();
-    // The honest replacement names both stores.
+    expect(screen.queryByText(/are not listed here yet/i)).toBeNull();
+    // …and the new subtitle names both stores and the origin tagging.
+    expect(screen.getByText(/tagged by origin/i)).toBeTruthy();
     expect(screen.getByText(/hopper/i)).toBeTruthy();
     expect(screen.getByText(/orchestrator task graph/i)).toBeTruthy();
   });

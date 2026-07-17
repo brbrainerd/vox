@@ -1,3 +1,5 @@
+import { priorityLabel } from '../../../lib/taskPriority';
+
 export interface HopperTaskDto {
   item_id: string;
   intent: string;
@@ -20,6 +22,7 @@ export interface TaskRow {
   depends_on: (number | string)[];
   write_files: string[];
   remote_node: string | null;
+  origin: 'hopper' | 'orchestrator';
 }
 
 export interface GroupedTasks {
@@ -79,7 +82,7 @@ export function mapHopperTasksToRows(tasks: HopperTaskDto[], gatedTaskIds: Set<n
   return tasks.map(dto => ({
     id: dto.item_id,
     description: dto.intent,
-    priority: dto.priority === 2 ? 'urgent' : dto.priority === 0 ? 'background' : 'normal',
+    priority: priorityLabel(dto.priority),
     lifecycle: gatedTaskIds.has(dto.task_id)
       ? 'blocked'
       : dto.state === 'assigned'
@@ -97,6 +100,41 @@ export function mapHopperTasksToRows(tasks: HopperTaskDto[], gatedTaskIds: Set<n
     depends_on: [],
     write_files: [],
     remote_node: dto.remote_node ?? null,
+    origin: 'hopper' as const,
+  }));
+}
+
+export interface OrchestratorTaskDto {
+  id: number;
+  description: string;
+  priority: string;   // normalized lowercase by the Tauri command
+  lifecycle: string;  // normalized snake_case by the Tauri command
+  agent_id: number | null;
+  session_id: string | null;
+  estimated_complexity: number;
+  depends_on: number[];
+  write_files: string[];
+  remote_node: string | null;
+}
+
+/** Orchestrator task-graph rows (chat submissions land here) mapped into the
+ *  same TaskRow shape as hopper rows, origin-tagged for the merge-view. */
+export function mapOrchestratorTasksToRows(
+  tasks: OrchestratorTaskDto[],
+  gatedTaskIds: Set<number>,
+): TaskRow[] {
+  return tasks.map(t => ({
+    id: t.id,
+    description: t.description,
+    priority: t.priority,
+    lifecycle: gatedTaskIds.has(t.id) ? 'blocked' : t.lifecycle,
+    agent_id: t.agent_id,
+    session_id: t.session_id,
+    estimated_complexity: t.estimated_complexity,
+    depends_on: t.depends_on,
+    write_files: t.write_files,
+    remote_node: t.remote_node,
+    origin: 'orchestrator' as const,
   }));
 }
 

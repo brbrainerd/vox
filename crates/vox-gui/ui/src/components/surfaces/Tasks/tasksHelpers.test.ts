@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupTasks, cyclePriority, filterBySession, findWriteOverlaps, mapHopperTasksToRows, TaskRow } from './tasksHelpers';
+import { groupTasks, cyclePriority, filterBySession, findWriteOverlaps, mapHopperTasksToRows, mapOrchestratorTasksToRows, TaskRow } from './tasksHelpers';
 
 const row = (over: Partial<TaskRow>): TaskRow => ({
   id: 1,
@@ -12,6 +12,7 @@ const row = (over: Partial<TaskRow>): TaskRow => ({
   depends_on: [],
   write_files: [],
   remote_node: null,
+  origin: 'hopper' as const,
   ...over,
 });
 
@@ -127,5 +128,44 @@ describe('mapHopperTasksToRows', () => {
     expect(rows[0].session_id).toBe('gui-9');
     expect(rows[0].agent_id).toBe('agent-42');
     expect(rows[0].remote_node).toBe('did:vox:peer-1');
+  });
+});
+
+describe('mapOrchestratorTasksToRows', () => {
+  it('tags orchestrator rows with their origin and passes real graph fields through', () => {
+    const rows = mapOrchestratorTasksToRows(
+      [{
+        id: 41, description: 'graph task', priority: 'urgent', lifecycle: 'queued',
+        agent_id: 7, session_id: 'gui-9', estimated_complexity: 3,
+        depends_on: [40], write_files: ['src/a.rs'], remote_node: null,
+      }],
+      new Set(),
+    );
+    expect(rows[0]).toMatchObject({
+      id: 41, origin: 'orchestrator', priority: 'urgent', lifecycle: 'queued',
+      agent_id: 7, session_id: 'gui-9', depends_on: [40], write_files: ['src/a.rs'],
+    });
+  });
+
+  it('marks gated orchestrator tasks blocked', () => {
+    const rows = mapOrchestratorTasksToRows(
+      [{
+        id: 41, description: 'g', priority: 'normal', lifecycle: 'queued',
+        agent_id: null, session_id: null, estimated_complexity: 1,
+        depends_on: [], write_files: [], remote_node: null,
+      }],
+      new Set([41]),
+    );
+    expect(rows[0].lifecycle).toBe('blocked');
+  });
+});
+
+describe('origin tagging', () => {
+  it('hopper rows are origin-tagged hopper', () => {
+    const rows = mapHopperTasksToRows(
+      [{ item_id: 'a', intent: 'A', priority: 1, state: 'inbox', task_id: 1 }],
+      new Set(),
+    );
+    expect(rows[0].origin).toBe('hopper');
   });
 });

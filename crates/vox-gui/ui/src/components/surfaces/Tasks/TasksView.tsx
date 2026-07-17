@@ -7,10 +7,11 @@ import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { StatusPill } from '../../ui/StatusPill';
 import { DataTable } from '../../ui/DataTable';
-import { TaskRow, filterBySession, findWriteOverlaps, mapHopperTasksToRows, type HopperTaskDto } from './tasksHelpers';
+import { TaskRow, filterBySession, findWriteOverlaps, mapHopperTasksToRows, mapOrchestratorTasksToRows, type HopperTaskDto, type OrchestratorTaskDto } from './tasksHelpers';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { TaskComposer } from './TaskComposer';
-import { feedbackList, hopperList, listenFeedbackChanged, type FeedbackRow } from '../../../transport';
+import { feedbackList, hopperList, hopperMarkDone, listenFeedbackChanged, voxTransport, type FeedbackRow } from '../../../transport';
+import { priorityLabel, TASK_PRIORITY_WIRE } from '../../../lib/taskPriority';
 import type { AttentionInbox } from '../../../hooks/useAttentionInbox';
 
 interface StoredSession { id: string; title: string }
@@ -40,6 +41,7 @@ export function TasksView({
 }) {
   const [selfHopperTasks, setSelfHopperTasks] = useState<HopperTaskDto[]>([]);
   const [selfNeedsYou, setSelfNeedsYou] = useState<FeedbackRow[]>([]);
+  const [orchTasks, setOrchTasks] = useState<OrchestratorTaskDto[]>([]);
   const [loading, setLoading] = useState(!attention);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -49,13 +51,18 @@ export function TasksView({
 
   const selfRefresh = useCallback(async () => {
     try {
-      const [data, feedback] = await Promise.all([
+      const [data, feedback, orch] = await Promise.all([
         hopperList(),
         feedbackList().catch(() => ({ needsYou: [] as FeedbackRow[] })),
+        voxTransport
+          .listOrchestratorTasks()
+          .then(r => (Array.isArray(r) ? (r as unknown as OrchestratorTaskDto[]) : []))
+          .catch(() => [] as OrchestratorTaskDto[]),
       ]);
       if (mounted.current) {
         setSelfHopperTasks(data);
         setSelfNeedsYou(feedback?.needsYou ?? []);
+        setOrchTasks(orch);
         setError(null);
       }
     } catch (e) {
@@ -63,6 +70,17 @@ export function TasksView({
     } finally {
       if (mounted.current) setLoading(false);
     }
+  }, []);
+
+  const fetchOrch = useCallback(async () => {
+    try {
+      const rows = await voxTransport.listOrchestratorTasks() as unknown as OrchestratorTaskDto[];
+      // Coerce non-arrays (mirrors useAttentionInbox's `tasks ?? []`): the
+      // transport returns the raw invoke result with no null guard
+      // (transport.ts:366-368), and both Phase-1 TasksView tests mock invoke to
+      // RESOLVE null — `rows.map` in the memo would TypeError otherwise.
+      if (mounted.current) setOrchTasks(Array.isArray(rows) ? rows : []);
+    } catch { /* daemon down — hopper rows still render */ }
   }, []);
 
   const refresh = useCallback(async () => {
@@ -75,9 +93,19 @@ export function TasksView({
 
   useEffect(() => {
     mounted.current = true;
-    // Shared-inbox mode: App already owns polling via useAttentionInbox.
-    // Skip the self-fetch effect (and its listeners) entirely.
-    if (attention) return () => { mounted.current = false; };
+    // Shared-inbox mode: App already owns polling via useAttentionInbox —
+    // but the shared inbox supplies only hopper rows, so the orchestrator
+    // read still runs here (mount + tasks-changed).
+    if (attention) {
+      fetchOrch();
+      const orchSub = listen<void>('vox://tasks-changed', () => {
+        fetchOrch();
+      }).catch(() => undefined);
+      return () => {
+        mounted.current = false;
+        orchSub.then((fn) => fn?.());
+      };
+    }
 
     selfRefresh();
     // listen() rejects when the Tauri event bridge is unavailable (bare
@@ -94,14 +122,17 @@ export function TasksView({
       sub.then((fn) => fn?.());
       subFeedback.then((fn) => fn?.());
     };
-  }, [attention, selfRefresh]);
+  }, [attention, selfRefresh, fetchOrch]);
 
   const rows: TaskRow[] = useMemo(() => {
     const tasks = attention ? attention.hopperTasks : selfHopperTasks;
     const feedbackNeedsYou = attention ? attention.needsYou : selfNeedsYou;
     const gateSet = new Set<number>(feedbackNeedsYou.flatMap(f => f.gates ?? []));
-    return mapHopperTasksToRows(tasks, gateSet);
-  }, [attention, selfHopperTasks, selfNeedsYou]);
+    return [
+      ...mapOrchestratorTasksToRows(orchTasks, gateSet),
+      ...mapHopperTasksToRows(tasks, gateSet),
+    ];
+  }, [attention, selfHopperTasks, selfNeedsYou, orchTasks]);
 
   const act = useCallback(
     async (fn: () => Promise<unknown>) => {
@@ -125,10 +156,21 @@ export function TasksView({
     });
   };
 
-  const remove = (id: string | number) => act(() => invoke('hopper_cancel', { itemId: String(id) }));
+  const remove = (r: TaskRow) =>
+    act(() =>
+      r.origin === 'orchestrator'
+        ? invoke('cancel_orchestrator_task', { taskId: Number(r.id) })
+        : invoke('hopper_cancel', { itemId: String(r.id) }),
+    );
 
-  const reprioritize = (id: string | number, priority: number) =>
-    act(() => invoke('hopper_reprioritize', { itemId: String(id), priority }));
+  const markDone = (r: TaskRow) => act(() => hopperMarkDone(String(r.id)));
+
+  const reprioritize = (r: TaskRow, priority: number) =>
+    act(() =>
+      r.origin === 'orchestrator'
+        ? invoke('reorder_orchestrator_task', { taskId: Number(r.id), priority: priorityLabel(priority) })
+        : invoke('hopper_reprioritize', { itemId: String(r.id), priority }),
+    );
 
   const sessionTitles = loadSessionTitles();
   const presentSessions = Array.from(
@@ -146,17 +188,17 @@ export function TasksView({
       width: 110,
       render: (r: TaskRow) => (
         <select
-          value={r.priority === 'urgent' ? 2 : r.priority === 'background' ? 0 : 1}
+          value={r.priority === 'urgent' ? TASK_PRIORITY_WIRE.urgent : r.priority === 'background' ? TASK_PRIORITY_WIRE.background : TASK_PRIORITY_WIRE.normal}
           onChange={(e) => {
             const val = Number(e.target.value);
-            reprioritize(r.id, val);
+            reprioritize(r, val);
           }}
           disabled={busy || r.lifecycle === 'blocked'}
           className="bg-zinc-900 text-zinc-100 border border-white/10 rounded px-1.5 py-0.5 text-xs outline-none focus:border-brass/50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <option value={2}>Urgent</option>
-          <option value={1}>Normal</option>
-          <option value={0}>Background</option>
+          <option value={TASK_PRIORITY_WIRE.urgent}>Urgent</option>
+          <option value={TASK_PRIORITY_WIRE.normal}>Normal</option>
+          <option value={TASK_PRIORITY_WIRE.background}>Background</option>
         </select>
       ),
     },
@@ -222,6 +264,7 @@ export function TasksView({
                   mesh: {r.remote_node}
                 </span>
               )}
+              <span className="rounded border border-border-subtle px-1 font-mono text-[9px] text-text-muted">{r.origin}</span>
             </div>
           </div>
         );
@@ -233,10 +276,15 @@ export function TasksView({
       width: 50,
       render: (r: TaskRow) => (
         <div className="flex justify-end">
+          {r.origin === 'hopper' && r.lifecycle !== 'completed' && (
+            <Button variant="ghost" size="xs" onClick={() => markDone(r)} disabled={busy} title="Mark done">
+              <Icon.check className="size-3.5 text-text-muted hover:text-emerald-400 transition" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="xs"
-            onClick={() => remove(r.id)}
+            onClick={() => remove(r)}
             disabled={busy}
             title="Cancel task"
           >
@@ -253,8 +301,8 @@ export function TasksView({
         <div>
           <h1 className="text-[15px] font-medium text-text-primary">Tasks</h1>
           <p className="text-[11px] text-text-muted">
-            The hopper to-do queue — items added from the composer below. Chat
-            submissions run in the orchestrator task graph and are not listed here yet.
+            Everything queued or running across the agent fleet — hopper to-dos
+            and orchestrator task graph runs, tagged by origin.
           </p>
         </div>
         <Button
@@ -321,7 +369,7 @@ export function TasksView({
           rows={filteredRows}
           columns={columns}
           getRowId={r => String(r.id)}
-          groupBy={r => (r.lifecycle === 'in_progress' ? 'In progress' : r.lifecycle === 'blocked' ? 'Blocked' : 'Queued')}
+          groupBy={r => (r.lifecycle === 'in_progress' ? 'In progress' : r.lifecycle === 'blocked' ? 'Blocked' : r.lifecycle === 'completed' ? 'Completed' : 'Queued')}
           loading={loading}
           emptyState={
             <EmptyState

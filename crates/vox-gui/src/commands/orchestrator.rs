@@ -930,6 +930,16 @@ mod hopper_tests {
         // read; changing N is a product decision, not a drive-by.
         assert_eq!(DONE_HISTORY_LIMIT, 50);
     }
+
+    #[test]
+    fn task_priority_wire_values_match_frontend_constants() {
+        // Mirror of crates/vox-gui/ui/src/lib/taskPriority.ts (TASK_PRIORITY_WIRE).
+        // If either side changes, both tests must be updated together.
+        use vox_orchestrator::types::TaskPriority;
+        assert_eq!(TaskPriority::Background as u8, 0);
+        assert_eq!(TaskPriority::Normal as u8, 1);
+        assert_eq!(TaskPriority::Urgent as u8, 2);
+    }
 }
 
 #[cfg(test)]
