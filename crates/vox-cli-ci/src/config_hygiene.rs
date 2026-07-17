@@ -568,6 +568,10 @@ pub const THIRD_PARTY_ALLOWLIST: &[&str] = &[
     "CARGO_MANIFEST_DIR",
     "CARGO_PKG_VERSION",
     "CARGO_PKG_NAME",
+    // Cargo/rustc toolchain names read by build scripts and doctor probes
+    // (vox-gui/build.rs sidecar check; gui_sidecar doctor triple detection).
+    "TARGET",
+    "RUSTC",
     "XDG_CONFIG_HOME",
     "XDG_DATA_HOME",
     "XDG_CACHE_HOME",
@@ -724,6 +728,23 @@ mod tests {
         let hits = check_env_reads_registered(src, "x.rs", &registered);
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].check, "env-var-not-in-registry");
+    }
+
+    #[test]
+    fn toolchain_env_vars_target_and_rustc_are_allowlisted() {
+        // Regression: TARGET (vox-gui/build.rs sidecar check) and RUSTC
+        // (gui_sidecar doctor probe) are cargo/rustc-provided names and must
+        // stay exempt, while an unregistered name in the same source still
+        // flags — the exemption must not over-widen.
+        let registered = std::collections::HashSet::new(); // empty registry
+        let src = r#"
+            let t = std::env::var("TARGET").unwrap_or_default();
+            let r = std::env::var("RUSTC").unwrap_or_default();
+            let bad = std::env::var("VOX_UNREGISTERED_KNOB").ok();
+        "#;
+        let hits = check_env_reads_registered(src, "x.rs", &registered);
+        assert_eq!(hits.len(), 1, "only the unregistered var flags: {hits:?}");
+        assert!(hits[0].message.contains("VOX_UNREGISTERED_KNOB"));
     }
 
     #[test]
