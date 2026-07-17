@@ -28,6 +28,11 @@ pub struct SubmitTaskInput {
     pub clutch: Option<String>,
     /// Drive Console risk label (`high`|`moderate`|`low`); forwarded as enqueue hint.
     pub risk: Option<String>,
+    /// Explicit chat model pick from the ChatModelPicker; forwarded as the
+    /// `model_override` enqueue hint (`TaskEnqueueHints.model_override`,
+    /// tasks.rs:241-243 → `AgentTask::model_override` via apply_hints
+    /// tasks.rs:861-862 → `StreamRoute::UserModelOverride` runtime.rs:408-421).
+    pub model_override: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -53,12 +58,9 @@ async fn call_orchestrator_daemon(
     client.call(method, params).await.map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub async fn submit_orchestrator_task(
-    app_handle: tauri::AppHandle,
-    input: SubmitTaskInput,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
-) -> Result<ControlPlaneResult, String> {
+/// Build the daemon SUBMIT_TASK params from the composer input. Extracted from
+/// `submit_orchestrator_task` so the enqueue-hint wiring is unit-testable.
+fn submit_task_params(input: SubmitTaskInput) -> serde_json::Value {
     let file_manifest: Vec<FileAffinity> = input.files.iter().map(FileAffinity::write).collect();
     let priority = match input.priority.as_deref() {
         Some("urgent") => Some(TaskPriority::Urgent),
@@ -76,12 +78,19 @@ pub async fn submit_orchestrator_task(
         "dry_run": input.dry_run,
         "active_skill": input.active_skill.filter(|s| !s.trim().is_empty()),
     });
-    // Carry composer mode/tier through as enqueue hints (tier → model_preference).
-    // Only attach the key when non-empty — the daemon rejects a null enqueue_hints
-    // (it deserializes the value into a TaskEnqueueHints struct).
+    // Carry composer mode/tier/pick through as enqueue hints (tier →
+    // model_preference; explicit pick → model_override). Only attach the key
+    // when non-empty — the daemon rejects a null enqueue_hints.
     let mut enqueue_hints = serde_json::Map::new();
     if let Some(tier) = input.tier.as_deref().filter(|t| !t.trim().is_empty()) {
         enqueue_hints.insert("model_preference".into(), serde_json::json!(tier));
+    }
+    if let Some(model) = input
+        .model_override
+        .as_deref()
+        .filter(|m| !m.trim().is_empty())
+    {
+        enqueue_hints.insert("model_override".into(), serde_json::json!(model));
     }
     if let Some(mode) = input.mode.as_deref().filter(|m| !m.trim().is_empty()) {
         enqueue_hints.insert("mode".into(), serde_json::json!(mode));
@@ -100,6 +109,16 @@ pub async fn submit_orchestrator_task(
             serde_json::Value::Object(enqueue_hints),
         );
     }
+    params
+}
+
+#[tauri::command]
+pub async fn submit_orchestrator_task(
+    app_handle: tauri::AppHandle,
+    input: SubmitTaskInput,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<ControlPlaneResult, String> {
+    let params = submit_task_params(input);
     let response =
         call_orchestrator_daemon(&daemon, orch_daemon_method::SUBMIT_TASK, params).await?;
     let task_id = response
@@ -474,5 +493,45 @@ mod tests {
         // If this test compiles, our imports are correct.
         let _ = std::mem::size_of::<SubmitTaskInput>();
         let _ = std::mem::size_of::<ControlPlaneResult>();
+    }
+}
+
+#[cfg(test)]
+mod submit_params_tests {
+    use super::*;
+
+    fn input(model_override: Option<&str>) -> SubmitTaskInput {
+        SubmitTaskInput {
+            description: "wire the picker".into(),
+            files: vec![],
+            priority: None,
+            session_id: Some("gui-session-9".into()),
+            mode: None,
+            tier: None,
+            allow_duplicate: None,
+            model_hint: None,
+            dry_run: None,
+            active_skill: None,
+            clutch: None,
+            risk: None,
+            model_override: model_override.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn submit_params_carry_model_override_enqueue_hint() {
+        let params = submit_task_params(input(Some("anthropic/claude-opus-4.7")));
+        assert_eq!(
+            params["enqueue_hints"]["model_override"],
+            "anthropic/claude-opus-4.7"
+        );
+    }
+
+    #[test]
+    fn no_pick_means_no_override_hint() {
+        let params = submit_task_params(input(None));
+        // No other hints set either ⇒ the enqueue_hints key is absent entirely
+        // (the daemon rejects a null enqueue_hints).
+        assert!(params.get("enqueue_hints").is_none());
     }
 }

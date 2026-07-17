@@ -12,6 +12,7 @@ import {
   type ChatExecutionTask,
 } from './ChatExecutionRail';
 import { ChatSessionRail } from './ChatSessionRail';
+import { ChatModelPicker } from './ChatModelPicker';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import type { AttentionBudgetSnapshot } from '../../../types/tauri';
 import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
@@ -47,6 +48,8 @@ interface ChatSurfaceProps {
   attention_budget?: AttentionBudgetSnapshot | null;
   waitingQuestions?: number;
   blockedTasks?: number;
+  modelOverride?: string | null;
+  onModelOverrideChange?: (id: string | null) => void;
 }
 
 export function ChatSurface({
@@ -68,6 +71,8 @@ export function ChatSurface({
   attention_budget,
   waitingQuestions = 0,
   blockedTasks = 0,
+  modelOverride,
+  onModelOverrideChange,
 }: ChatSurfaceProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
@@ -240,6 +245,7 @@ export function ChatSurface({
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="mb-2 flex justify-end"><ChatModelPicker activeModel={modelOverride ?? activeModel} onApplied={id => onModelOverrideChange?.(id)} /></div>
         {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
           <EmptyState
             icon={<Icon.spark className="size-8 text-brass" aria-hidden="true" />}

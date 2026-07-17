@@ -19,7 +19,7 @@ export function installEmptyStateMock(viewKey: string): void {
     'list_research_sessions', 'list_publication_manifests', 'list_branches',
     'list_secret_status', 'list_repo_files', 'chat_list_sessions',
     'policy_list', 'policy_status', 'get_routing_intentions', 'get_model_scoreboard',
-    'list_orchestrator_tasks',
+    'list_orchestrator_tasks', 'inference_provider_status',
   ]);
 
   /** Detail-fetch commands with a known shape — return typed-empty, not null. */

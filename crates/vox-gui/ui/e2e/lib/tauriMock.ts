@@ -305,6 +305,8 @@ export function installTauriMock(viewKey: string): void {
         case 'plugin:event|listen': return Math.floor(Math.random() * 10000);
         case 'plugin:event|unlisten': return null;
         case 'list_orchestrator_tasks': return [];
+        case 'inference_provider_status': return [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null, local_models: [] }, { provider: 'Ollama', key_present: true, is_local: true, local_reachable: true, local_models: ['llama3.2'] }];
+        case 'set_active_model': return null;
         case 'get_archive_status': return { swhid: null, swh_task_id: null, swh_task_status: null, zenodo_doi: null, zenodo_state: null };
         case 'get_completion_report': return { score: 100, warnings: [], is_complete: true };
         default: return null;

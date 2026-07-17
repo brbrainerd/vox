@@ -73,6 +73,8 @@ export interface SurfaceProps {
   onOpenFeedbackContext?: (id: string) => void;
   focusedFeedbackId?: string | null;
   attention?: AttentionInbox;
+  chatModelOverride?: string | null;
+  onChatModelOverrideChange?: (id: string | null) => void;
 }
 
 export function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
@@ -201,6 +203,8 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           attention_budget={props.attention_budget}
           waitingQuestions={props.attention?.needsYou.length}
           blockedTasks={props.attention?.blockedTasksCount}
+          modelOverride={props.chatModelOverride}
+          onModelOverrideChange={props.onChatModelOverrideChange}
         />
       );
     default:

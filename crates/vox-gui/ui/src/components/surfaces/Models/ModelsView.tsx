@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import { BackendAvailability, type ProviderStatus } from './BackendAvailability';
 
 interface ModelCard {
   id: string;
@@ -44,18 +45,24 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
   const [summary, setSummary] = useState<RoutingSummary | null>(null);
   const [activeModel, setActiveModel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [providerStatuses, setProviderStatuses] = useState<ProviderStatus[]>([]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [cards, routing, active] = await Promise.all([
+      const [cards, routing, active, statuses] = await Promise.all([
         invoke<ModelCard[]>('list_model_cards', { limit: 120 }),
         invoke<RoutingSummary>('get_routing_summary_live'),
         invoke<string | null>('get_active_model'),
+        invoke<ProviderStatus[]>('inference_provider_status').catch(() => [] as ProviderStatus[]),
       ]);
       setModels(cards);
       setSummary(routing);
       setActiveModel(active);
+      // Harden against a RESOLVED null (the e2e variant mocks and any future backend
+      // change resolve unknown commands to null — `.catch` never fires for that, and
+      // `statuses.length` would then TypeError inside BackendAvailability).
+      setProviderStatuses(Array.isArray(statuses) ? statuses : []);
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Models load failed', body: String(err) });
     } finally {
@@ -115,6 +122,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
           ) : null}
         </Glass>
       )}
+      <BackendAvailability statuses={providerStatuses} />
       {loading && models.length === 0 ? (
         <Glass className="p-8 text-center text-text-muted text-sm">Loading model catalog…</Glass>
       ) : (

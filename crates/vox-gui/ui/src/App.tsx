@@ -232,6 +232,7 @@ export default function App() {
   );
   const [hudMode, setHudMode] = useLocalStorage<HudMode>(SHELL_PREFERENCE_KEYS.hudMode, 'full');
   const [activeSessionId, setActiveSessionId] = useState<string>('');
+  const [chatModelOverride, setChatModelOverride] = useState<string | null>(null);
   const {
     tasks: chatTasks,
     intents: chatIntents,
@@ -695,6 +696,7 @@ export default function App() {
             session_id: sessionId || null,
             mode: payload.mode ?? null,
             model_hint: payload.model_hint ?? payload.tier ?? null,
+            model_override: payload.model_override ?? null,
             dry_run: payload.dry_run ?? null,
             active_skill: payload.active_skill ?? activeSkill?.id ?? null,
             allow_duplicate: allowDuplicate,
@@ -1054,7 +1056,7 @@ export default function App() {
     <Loquela
       chips={chips}
       setChips={setChips}
-      onSubmit={(p) => handleLoquelaSubmit({ ...p, session_id: activeSessionId })}
+      onSubmit={(p) => handleLoquelaSubmit({ ...p, session_id: activeSessionId, model_override: chatModelOverride })}
       onSlashCommand={handleLoquelaSlash}
       taskInProgress={taskInProgress}
       currentTaskId={taskInProgress ? inFlightTaskId : undefined}
@@ -1107,6 +1109,8 @@ export default function App() {
     chatIntents,
     chatExecutionKpis,
     chatActiveModel: activeModel,
+    chatModelOverride,
+    onChatModelOverrideChange: setChatModelOverride,
     chatOpenrouterSpendUsd: openrouterSpendUsd,
     chatAgentStreamItems: activeChatAgentItems,
     onOpenAgentInFlow: (agentId: string) => {

@@ -51,6 +51,8 @@ export interface ChatPayload {
   clutch?: string | null;
   /** Drive Console risk posture — safety gate level. Track D wires this to the orchestrator. */
   risk?: string | null;
+  /** Explicit model pick for this submit; maps to the model_override enqueue hint. */
+  model_override?: string | null;
 }
 
 export interface RoutingPriority {
