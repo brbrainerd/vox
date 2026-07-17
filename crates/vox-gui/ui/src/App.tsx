@@ -632,7 +632,7 @@ export default function App() {
     if (!sessionId) return;
     try {
       const rows = await invoke<
-        Array<{ id: number; role: string; content: string; task_id?: string }>
+        Array<{ id: number; role: string; content: string; task_id?: string; model_id?: string }>
       >('chat_get_messages', { sessionId, limit: 500 });
       dispatchSessionChat({
         type: 'hydrate',
@@ -644,6 +644,7 @@ export default function App() {
           status: 'done' as const,
           runId: r.task_id ?? `persist-${r.id}`,
           taskId: r.task_id ?? undefined,
+          modelId: r.model_id ?? undefined,
         })),
       });
     } catch {
@@ -855,11 +856,12 @@ export default function App() {
             role: 'assistant',
             content,
             task_id: m.taskId ?? null,
+            model_id: m.modelId ?? null,
           },
-        }).catch(() => {});
+        }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: String(err), cause: 'backend-error' }));
       }
     }
-  }, [chatStore]);
+  }, [chatStore, pushToast]);
 
   // Attach one or more locators to the shared Loquela context set. These chips
   // become the next task's file manifest (see handleLoquelaSubmit), so this is

@@ -4,6 +4,7 @@ import type { ChatMessage } from '../../../lib/chatCorrelation';
 import type { StreamItem } from '../../../types/dashboard';
 import { buildTranscriptTimeline } from '../../../lib/chatTranscriptTimeline';
 import { ChatAgentEventRow } from './ChatAgentEventRow';
+import { ModelBadge } from './ModelBadge';
 
 interface ChatTranscriptProps {
   messages: ChatMessage[];
@@ -43,6 +44,11 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       {failed && (
         <div className="mt-1 font-mono text-[10px] text-rose-400">
           error: {message.error ?? 'task failed'}
+        </div>
+      )}
+      {message.role === 'assistant' && message.status === 'done' && message.modelId && (
+        <div className="mt-1 flex justify-end">
+          <ModelBadge model={message.modelId} />
         </div>
       )}
     </div>

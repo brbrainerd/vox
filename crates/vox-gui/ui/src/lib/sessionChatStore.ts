@@ -86,7 +86,8 @@ export function resolveSessionForEvent(store: SessionChatStore, event: AgentEven
     type === 'token_streamed' ||
     type === 'tool_timed_out' ||
     type === 'activity_changed' ||
-    type === 'snapshot_captured'
+    type === 'snapshot_captured' ||
+    type === 'cost_incurred'
   ) {
     const agentId = kind.agent_id != null ? String(kind.agent_id) : '';
     if (agentId) {

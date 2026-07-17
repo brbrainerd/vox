@@ -18,6 +18,8 @@ export interface ChatMessage {
   error?: string;
   /** Chat session (tab) this message belongs to. */
   sessionId?: string;
+  /** Model that produced this assistant message (from cost_incurred). */
+  modelId?: string;
 }
 
 /** A frame delivered over the `vox://agent-events` Tauri event. */
@@ -144,6 +146,14 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           const agentId = String(kind.agent_id);
           const taskId = String(kind.task_id);
           return { ...state, agentToTask: { ...state.agentToTask, [agentId]: taskId } };
+        }
+        case 'cost_incurred': {
+          const agentId = String(kind.agent_id);
+          const taskId = state.agentToTask[agentId];
+          const runId = taskId ? state.taskToRun[taskId] : undefined;
+          const model = typeof kind.model === 'string' ? kind.model : '';
+          if (!model) return state;
+          return mapAssistant(state, runId, (m) => (m.modelId ? m : { ...m, modelId: model }));
         }
         case 'token_streamed': {
           const agentId = String(kind.agent_id);

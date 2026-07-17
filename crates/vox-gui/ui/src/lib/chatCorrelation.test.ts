@@ -106,6 +106,28 @@ describe('chatReducer', () => {
     expect(s.messages[0].text).toContain('Checkpoint saved');
     expect(s.messages[0].text).toContain('snap-abc');
   });
+
+  it('stamps modelId on the assistant bubble from cost_incurred via the agent map', () => {
+    let s = chatReducer(initialChatState, { type: 'submit', runId: 'R1', prompt: 'hi' });
+    s = chatReducer(s, { type: 'submitResolved', runId: 'R1', taskId: '7' });
+    s = chatReducer(s, evt({ type: 'task_started', task_id: 7, agent_id: 3 }));
+    s = chatReducer(s, evt({ type: 'cost_incurred', agent_id: 3, provider: 'openrouter', model: 'anthropic/claude-opus-4.7' }));
+    expect(assistant(s, 'R1')?.modelId).toBe('anthropic/claude-opus-4.7');
+  });
+
+  it('keeps the first modelId when multiple cost frames arrive', () => {
+    let s = chatReducer(initialChatState, { type: 'submit', runId: 'R1', prompt: 'hi' });
+    s = chatReducer(s, { type: 'submitResolved', runId: 'R1', taskId: '7' });
+    s = chatReducer(s, evt({ type: 'task_started', task_id: 7, agent_id: 3 }));
+    s = chatReducer(s, evt({ type: 'cost_incurred', agent_id: 3, provider: 'openrouter', model: 'model-a' }));
+    s = chatReducer(s, evt({ type: 'cost_incurred', agent_id: 3, provider: 'openrouter', model: 'model-b' }));
+    expect(assistant(s, 'R1')?.modelId).toBe('model-a');
+  });
+
+  it('ignores cost_incurred for unknown agents', () => {
+    const s = chatReducer(initialChatState, evt({ type: 'cost_incurred', agent_id: 99, provider: 'x', model: 'm' }));
+    expect(s.messages).toHaveLength(0);
+  });
 });
 
 describe('assistant persistence helpers', () => {

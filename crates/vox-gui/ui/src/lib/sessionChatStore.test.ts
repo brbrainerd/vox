@@ -221,4 +221,29 @@ describe('sessionChatStore', () => {
     });
     expect(store.pending.length).toBe(0);
   });
+
+  it('routes cost_incurred through the agent map and stamps modelId end-to-end', () => {
+    let store = sessionChatReducer(initialSessionChatStore, {
+      type: 'submit',
+      sessionId: 'sess-a',
+      runId: 'R1',
+      prompt: 'q',
+    });
+    store = sessionChatReducer(store, {
+      type: 'submitResolved',
+      sessionId: 'sess-a',
+      runId: 'R1',
+      taskId: '7',
+    });
+    store = sessionChatReducer(store, {
+      type: 'agentEvent',
+      event: evt({ type: 'task_started', task_id: 7, agent_id: 3, session_id: 'sess-a' }),
+    });
+    store = sessionChatReducer(store, {
+      type: 'agentEvent',
+      event: evt({ type: 'cost_incurred', agent_id: 3, provider: 'openrouter', model: 'anthropic/claude-opus-4.7' }),
+    });
+    const assistant = getSessionMessages(store, 'sess-a').find(m => m.role === 'assistant');
+    expect(assistant?.modelId).toBe('anthropic/claude-opus-4.7');
+  });
 });
