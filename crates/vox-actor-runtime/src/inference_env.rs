@@ -3,6 +3,10 @@
 //! Environment **keys and base URL precedence** live in [`vox_config::inference`]; this module adds
 //! HTTP capability discovery and constants for the HF Inference Providers router.
 
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
+
 pub use vox_config::inference::{
     huggingface_hub_token, local_ollama_populi_base_url, openrouter_api_key,
 };
@@ -205,6 +209,43 @@ pub async fn probe_populi_capabilities(base_url: &str) -> PopuliCapabilitySnapsh
     snapshot
 }
 
+static POPULI_PROBE_CACHE: OnceLock<Mutex<HashMap<String, (Instant, PopuliCapabilitySnapshot)>>> =
+    OnceLock::new();
+
+fn probe_cache() -> &'static Mutex<HashMap<String, (Instant, PopuliCapabilitySnapshot)>> {
+    POPULI_PROBE_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Non-blocking peek at the last probe of `base_url`, if fresher than `ttl`.
+/// Sync so credential/health gates on synchronous selection paths can consult
+/// it without an executor. `None` means "unknown" — callers must treat unknown
+/// as allowed (optimistic) and trigger a refresh via
+/// [`probe_populi_capabilities_cached`].
+pub fn last_populi_probe(base_url: &str, ttl: Duration) -> Option<PopuliCapabilitySnapshot> {
+    let key = base_url.trim_end_matches('/').to_string();
+    let cache = probe_cache().lock().ok()?;
+    let (at, snap) = cache.get(&key)?;
+    (at.elapsed() <= ttl).then(|| snap.clone())
+}
+
+/// [`probe_populi_capabilities`] with a short-TTL process-wide cache: returns
+/// the cached snapshot when fresher than `ttl`, otherwise probes and stores.
+pub async fn probe_populi_capabilities_cached(
+    base_url: &str,
+    ttl: Duration,
+) -> PopuliCapabilitySnapshot {
+    if let Some(snap) = last_populi_probe(base_url, ttl) {
+        return snap;
+    }
+    let snap = probe_populi_capabilities(base_url).await;
+    if let Ok(mut cache) = probe_cache().lock() {
+        // `probe_populi_capabilities` stores the trimmed base URL in
+        // `snap.base_url`, so this key matches the lookup normalization above.
+        cache.insert(snap.base_url.clone(), (Instant::now(), snap.clone()));
+    }
+    snap
+}
+
 fn parse_ollama_tags_models(json: &str) -> Vec<String> {
     let Ok(v) = serde_json::from_str::<serde_json::Value>(json) else {
         return Vec::new();
@@ -252,6 +293,26 @@ mod tests {
         let s = probe_populi_capabilities("http://127.0.0.1:1").await;
         assert!(!s.reachable);
         assert!(s.model_names.is_empty());
+    }
+
+    #[tokio::test]
+    async fn cached_probe_stores_snapshot_and_sync_peek_respects_ttl() {
+        let base = "http://127.0.0.1:1"; // guaranteed-unbound port, like probe_unbound_port_unreachable
+        // No entry before the first probe.
+        assert!(last_populi_probe(base, std::time::Duration::from_secs(60)).is_none());
+        let s = probe_populi_capabilities_cached(base, std::time::Duration::from_secs(60)).await;
+        assert!(!s.reachable);
+        // Fresh entry is peekable without awaiting…
+        let peeked = last_populi_probe(base, std::time::Duration::from_secs(60))
+            .expect("snapshot cached after probe");
+        assert!(!peeked.reachable);
+        assert_eq!(peeked.base_url, s.base_url);
+        // Trailing-slash URLs normalize to the same cache key (probe trims base_url).
+        assert!(
+            last_populi_probe("http://127.0.0.1:1/", std::time::Duration::from_secs(60)).is_some()
+        );
+        // …and a zero TTL treats it as stale.
+        assert!(last_populi_probe(base, std::time::Duration::ZERO).is_none());
     }
 
     #[test]
