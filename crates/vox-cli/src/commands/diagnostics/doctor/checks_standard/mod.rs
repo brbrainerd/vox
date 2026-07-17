@@ -5,6 +5,7 @@ mod build_health;
 mod compile_target;
 mod freshness;
 mod gpu_hardware;
+mod gui_sidecar;
 mod llm_routing;
 mod model_catalog;
 mod model_telemetry;
@@ -56,6 +57,7 @@ pub async fn run_checks(
     gpu_hardware::run(checks).await;
     vox_ignore::run(auto_heal, checks).await;
     web_frontend::run(checks).await;
+    gui_sidecar::run(checks);
     model_telemetry::run(checks).await;
     model_catalog::run(checks).await;
     tail::run(auto_heal, checks).await;
