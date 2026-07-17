@@ -514,8 +514,34 @@ where
     // Comparisons wrap each side so `expr as i64 < n` lowers to
     // `(expr as i64) < n` — otherwise rustc parses `<` as the start of generic
     // arguments on the cast type (E0433-style parse error on script builds).
-    let l = emit(l, OwnershipMode::Owned);
-    let r = emit(r, OwnershipMode::Owned);
+    // Mixed int/float numerics: the interpreter promotes the int side to float
+    // (`Int op Float → Float`), but Rust has no `i64 op f64` impls (E0277).
+    // When one side is known-int and the other known-float, cast the int side.
+    let mut l_txt = emit(l, OwnershipMode::Owned);
+    let mut r_txt = emit(r, OwnershipMode::Owned);
+    if matches!(
+        op,
+        HirBinOp::Add
+            | HirBinOp::Sub
+            | HirBinOp::Mul
+            | HirBinOp::Div
+            | HirBinOp::Mod
+            | HirBinOp::Lt
+            | HirBinOp::Gt
+            | HirBinOp::Lte
+            | HirBinOp::Gte
+            | HirBinOp::Is
+            | HirBinOp::Isnt
+    ) {
+        let lk = numeric_kind(l, inferred_types);
+        let rk = numeric_kind(r, inferred_types);
+        match (lk, rk) {
+            (Some("int"), Some("float")) => l_txt = format!("(({l_txt}) as f64)"),
+            (Some("float"), Some("int")) => r_txt = format!("(({r_txt}) as f64)"),
+            _ => {}
+        }
+    }
+    let (l, r) = (l_txt, r_txt);
     if matches!(
         op,
         HirBinOp::Lt | HirBinOp::Gt | HirBinOp::Lte | HirBinOp::Gte
@@ -523,6 +549,42 @@ where
         format!("(({l}) {op_str} ({r}))")
     } else {
         format!("({l} {op_str} {r})")
+    }
+}
+
+/// Best-effort numeric classification of an operand: `Some("int")` /
+/// `Some("float")` from a literal or the typechecker's span-keyed inference,
+/// `None` when unknown. Used for int→float promotion in `emit_binary_expr`.
+fn numeric_kind(
+    e: &HirExpr,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+) -> Option<&'static str> {
+    match e {
+        HirExpr::IntLit(..) => Some("int"),
+        HirExpr::FloatLit(..) => Some("float"),
+        HirExpr::Ident(_, span)
+        | HirExpr::FieldAccess(_, _, span)
+        | HirExpr::MethodCall(_, _, _, _, span)
+        | HirExpr::Call(_, _, _, span)
+        | HirExpr::Index(_, _, span)
+        | HirExpr::Binary(_, _, _, span) => {
+            match inferred_types.and_then(|m| m.get(span)) {
+                Some(HirType::Named(n)) if n == "int" => Some("int"),
+                Some(HirType::Named(n)) if n == "float" => Some("float"),
+                _ => {
+                    // `int(x)` / `float(x)` conversion calls are definitive even
+                    // without span-type info (the script lane's map is sparse).
+                    if let HirExpr::Call(callee, _, _, _) = e
+                        && let HirExpr::Ident(n, _) = callee.as_ref()
+                        && (n == "int" || n == "float")
+                    {
+                        return Some(if n == "int" { "int" } else { "float" });
+                    }
+                    None
+                }
+            }
+        }
+        _ => None,
     }
 }
 
@@ -586,6 +648,29 @@ fn emit_ident_expr(
                 }
             }
         }
+    }
+}
+
+/// True when a subscript/`get` key expression is string-typed — either a string
+/// literal or an expression whose inferred type is `str`. Distinguishes
+/// object/JSON keyed lookup (`obj[key]`, `VoxJson::get(String)`) from list
+/// indexing (`xs[i]`, `Vec::get(usize)`); mirrors the interpreter's
+/// `(Object, Str)` vs `(List, Int)` Index arms in eval/expr.rs.
+pub(super) fn index_key_is_string(
+    idx: &HirExpr,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+) -> bool {
+    match idx {
+        HirExpr::StringLit(..) => true,
+        HirExpr::Ident(_, span)
+        | HirExpr::FieldAccess(_, _, span)
+        | HirExpr::MethodCall(_, _, _, _, span)
+        | HirExpr::Call(_, _, _, span)
+        | HirExpr::Index(_, _, span)
+        | HirExpr::Binary(_, _, _, span) => inferred_types
+            .and_then(|m| m.get(span))
+            .is_some_and(|t| matches!(t, HirType::Named(n) if n == "str")),
+        _ => false,
     }
 }
 
@@ -764,11 +849,24 @@ pub(super) fn emit_expr_with(
             // Emit `.get(i).cloned()` -> `Option<T>` rather than raw `xs[i]`
             // (which returns `T` and panics out of bounds) so the Option match
             // typechecks and bounds are safe.
-            format!(
-                "{}.get({} as usize).cloned()",
-                emit(obj, OwnershipMode::Owned),
-                emit(idx, OwnershipMode::Owned)
-            )
+            //
+            // A STRING-typed key means object subscript (`obj[key]`, interpreter
+            // eval::expr Index arm `(Object, Str)`), which lowers to
+            // `VoxJson::get(String) -> Option<VoxJson>` — already owned, no
+            // `.cloned()`, and never cast to `usize` (E0308/E0605 otherwise).
+            if index_key_is_string(idx, inferred_types) {
+                format!(
+                    "{}.get({})",
+                    emit(obj, OwnershipMode::Owned),
+                    emit(idx, OwnershipMode::Owned)
+                )
+            } else {
+                format!(
+                    "{}.get({} as usize).cloned()",
+                    emit(obj, OwnershipMode::Owned),
+                    emit(idx, OwnershipMode::Owned)
+                )
+            }
         }
         // Frontend/web-only constructs must never panic the codegen pass.
         // Emit a `compile_error!` so rustc surfaces a clear, actionable message
@@ -1054,6 +1152,15 @@ where
         )),
         ("str", 1) => Some(format!(
             "as_string(&{})",
+            emit(&args[0].value, OwnershipMode::Owned)
+        )),
+        // `int(x)` numeric conversion — interpreter truncates floats
+        // (`f as i64`) and passes ints through; `as i64` matches both.
+        // (String parsing, which the interpreter also supports, has no
+        // type-directed emission here yet; a cast on a String is an honest
+        // compile error rather than a silent misparse.)
+        ("int", 1) => Some(format!(
+            "(({}) as i64)",
             emit(&args[0].value, OwnershipMode::Owned)
         )),
         ("assert", 1) => {

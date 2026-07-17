@@ -278,6 +278,12 @@ where
 /// Emit one branch of an `if`/`else` used as an expression. The last
 /// `HirStmt::Expr` in the branch is a tail value (no trailing `;`), matching
 /// `emit_block_tail` and Rust if-expression semantics.
+///
+/// `discard_tail` is set for a no-`else` `if`: Rust requires such an `if` to be
+/// `()`-typed, so a value-yielding tail (e.g. a `match` whose arms are Vox `{}`
+/// empty-object literals → `serde_json::json!({})`) is bound to `let _ = …;`
+/// instead of being left as the branch value (E0317 otherwise). The interpreter
+/// likewise discards the value of a no-else `if` statement.
 fn emit_if_branch_body(
     stmts: &[vox_compiler::hir::HirStmt],
     indent: usize,
@@ -286,6 +292,7 @@ fn emit_if_branch_body(
     mutation_tx: bool,
     inferred_types: Option<&HashMap<Span, HirType>>,
     usage: Option<&super::usage::UsageTracker>,
+    discard_tail: bool,
 ) -> String {
     use vox_compiler::hir::HirStmt;
     let pad = " ".repeat(indent * 4);
@@ -297,8 +304,13 @@ fn emit_if_branch_body(
     for (i, stmt) in stmts.iter().enumerate() {
         if i == last {
             if let HirStmt::Expr { expr, .. } = stmt {
+                let (tail_open, tail_close) = if discard_tail {
+                    ("let _ = ", ";")
+                } else {
+                    ("", "")
+                };
                 out.push_str(&format!(
-                    "{pad}{}\n",
+                    "{pad}{tail_open}{}{tail_close}\n",
                     super::stmt_expr::emit_expr_with(
                         expr,
                         is_route,
@@ -401,6 +413,8 @@ where
         mutation_tx,
         inferred_types,
         usage,
+        // No `else` → the `if` must be `()`-typed; discard the tail value.
+        else_b.is_none(),
     ));
     s.push_str("    }");
     if let Some(eb) = else_b {
@@ -413,6 +427,7 @@ where
             mutation_tx,
             inferred_types,
             usage,
+            false,
         ));
         s.push_str("    }");
     }
