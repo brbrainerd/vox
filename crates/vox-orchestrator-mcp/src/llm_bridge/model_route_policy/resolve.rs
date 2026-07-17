@@ -231,7 +231,9 @@ fn resolve_mcp_chat_model_sync_inner(
     let models_handle = orch.models_handle();
     let registry = vox_orchestrator::sync_lock::rw_read(&*models_handle);
     let routing_allows = |m: &ModelSpec| {
-        routing_policy.provider_filter_allows(m) && provider_allowed_by_route_policy(m)
+        routing_policy.provider_filter_allows(m)
+            && provider_allowed_by_route_policy(m)
+            && crate::llm_bridge::local_health::local_candidate_allowed(m)
     };
 
     let mut required_capabilities: Vec<vox_orchestrator::models::Capability> = {
