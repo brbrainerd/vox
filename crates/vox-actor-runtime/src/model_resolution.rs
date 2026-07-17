@@ -1,6 +1,10 @@
-//! Single **policy-shaped** resolver: manual → Mens (GPU-prefer) → HF dedicated → HF router → OpenRouter → local Mens → bootstrap.
+//! Chat-route → [`crate::llm::LlmConfig`] conversion (`chat_route_to_llm_config`),
+//! telemetry labels (`route_telemetry_labels`), and [`RouteResolutionInput`] model
+//! preferences for the research cascade builders.
 //!
-//! Maps to [`crate::llm::LlmConfig`] for OpenAI-compatible HTTP chat only (including Ollama `/v1/chat/completions`).
+//! The former 7-way provider-route resolver (`resolve_chat_provider_route`) was
+//! deleted 2026-07-16 (Axis GUI remediation F3); the single exercised selection
+//! path is `vox_orchestrator::models::decide()` + the reactive fallback chain.
 //!
 //! ## Backend lane alignment (orchestrator / MCP)
 //!
@@ -11,269 +15,41 @@
 //! Chat-only routes add extra shapes (HF router/dedicated, manual OpenAI-compatible); those map to
 //! `ChatRouteBackend::CascadeFallback` unless the manual URL is Google Generative Language API (→ `ChatRouteBackend::GeminiDirect`).
 
-use crate::inference_env::{self, PopuliCapabilitySnapshot};
 use crate::llm::LlmConfig;
-use crate::route_capability_policy::RouteCapabilityPolicySnapshot;
 pub use vox_orchestrator_types::{
     ChatProviderRouteKind, ChatRouteBackend, backend_telemetry_labels, route_backend_for_chat_route,
 };
 
-/// Inputs for [`resolve_chat_provider_route`].
+/// Model preferences threaded into the research cascade builders
+/// ([`crate::llm::cascade`]). The former 7-way provider-route resolver that
+/// consumed the full struct was deleted 2026-07-16 (Axis GUI remediation F3);
+/// the single exercised selection path is `vox_orchestrator::models::decide()`
+/// + the reactive fallback chain.
 #[derive(Debug, Clone)]
 pub struct RouteResolutionInput {
-    /// When set, wins over automatic policy (interpreted as OpenRouter-style id if no manual base URL).
-    pub manual_model: Option<String>,
-    /// Full OpenAI-compatible chat URL when bypassing automatic discovery (`…/v1/chat/completions`).
-    pub manual_base_url: Option<String>,
-    /// Optional bearer token for the manual endpoint (otherwise unauthenticated).
-    pub manual_bearer: Option<String>,
-    /// When true, prefer local Mens only if probe reports GPU-capable runtime.
-    pub prefer_populi_when_gpu: bool,
-    /// Latest [`PopuliCapabilitySnapshot`] from [`inference_env::probe_populi_capabilities`], if any.
-    pub populi_probe: Option<PopuliCapabilitySnapshot>,
-    /// Model tag to use with local Mens/Ollama when that route wins.
+    /// Model tag to use with local Mens/Ollama when that lane is offered.
     pub mens_chat_model: String,
-    /// Pinned Inference Endpoint chat URL (`HF_DEDICATED_CHAT_URL` via [`vox_config::inference`]).
-    pub hf_dedicated_chat_url: Option<String>,
-    /// Model id for the dedicated endpoint (`HF_DEDICATED_CHAT_MODEL`).
-    pub hf_dedicated_chat_model: Option<String>,
-    /// Preferred HF Inference Providers router model id when a token is present.
-    pub hf_router_model: Option<String>,
-    /// Preferred OpenRouter model when that lane wins.
+    /// Preferred OpenRouter model when that lane is offered.
     pub openrouter_model: String,
 }
 
 impl Default for RouteResolutionInput {
     fn default() -> Self {
         Self {
-            manual_model: None,
-            manual_base_url: None,
-            manual_bearer: None,
-            prefer_populi_when_gpu: true,
-            populi_probe: None,
             mens_chat_model: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxPopuliModel)
                 .expose()
                 .filter(|s: &&str| !s.trim().is_empty())
                 .map(|s: &str| s.to_string())
                 .unwrap_or_else(|| "default-model".to_string()),
-            hf_dedicated_chat_url: vox_config::inference::hf_dedicated_chat_completions_url(),
-            hf_dedicated_chat_model: vox_config::inference::hf_dedicated_chat_model(),
-            hf_router_model: vox_config::inference::hf_chat_model_preference(),
             openrouter_model: vox_config::inference::openrouter_chat_model_preference(),
         }
     }
-}
-
-fn populi_model_plausible(snapshot: &PopuliCapabilitySnapshot, model: &str) -> bool {
-    if model == "default-model" {
-        return true;
-    }
-    snapshot.model_names.iter().any(|n| n == model)
 }
 
 /// Stable `(provider_family, route_choice)` labels — derived from [`route_backend_for_chat_route`] + [`backend_telemetry_labels`].
 #[must_use]
 pub fn route_telemetry_labels(route: &ChatProviderRouteKind) -> (&'static str, &'static str) {
     backend_telemetry_labels(route_backend_for_chat_route(route))
-}
-
-fn resolve_chat_provider_route_impl(
-    input: &RouteResolutionInput,
-    hf_token_present: bool,
-) -> ChatProviderRouteKind {
-    let policy = RouteCapabilityPolicySnapshot::from_env();
-
-    // Canonical selector-first contract:
-    // when upstream selector has already made a routing decision, honor it.
-    if input.manual_model.is_none() {
-        if let Ok(selected) = std::env::var("VOX_SELECTOR_MODEL") {
-            let selected = selected.trim().to_string();
-            if !selected.is_empty() {
-                if selected.starts_with("mesh/") && policy.allow_local_model_http {
-                    return ChatProviderRouteKind::PopuliMesh {
-                        model: selected,
-                        base_url: vox_config::local_ollama_populi_base_url(),
-                    };
-                }
-                if selected.starts_with("mens/") && policy.allow_local_model_http {
-                    return ChatProviderRouteKind::PopuliLocal {
-                        model: selected,
-                        base_url: vox_config::local_ollama_populi_base_url(),
-                    };
-                }
-                if policy.allow_provider_network && policy.allow_net {
-                    return ChatProviderRouteKind::OpenRouter { model: selected };
-                }
-            }
-        }
-    }
-
-    // Canonical SSOT: active model pin from orchestrator/dashboard (`VOX_MODEL` / Clavis).
-    if input.manual_model.is_none() {
-        if let Some(active) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxModel)
-            .expose()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(str::to_string)
-        {
-            if active.starts_with("mesh/") {
-                if policy.allow_local_model_http {
-                    return ChatProviderRouteKind::PopuliMesh {
-                        model: active,
-                        base_url: vox_config::local_ollama_populi_base_url(),
-                    };
-                }
-            } else if active.starts_with("mens/") {
-                if policy.allow_local_model_http {
-                    return ChatProviderRouteKind::PopuliLocal {
-                        model: active.clone(),
-                        base_url: vox_config::local_ollama_populi_base_url(),
-                    };
-                }
-            } else if policy.allow_provider_network && policy.allow_net {
-                return ChatProviderRouteKind::OpenRouter { model: active };
-            }
-        }
-    }
-
-    if let Some(ref m) = input.manual_model {
-        if let Some(ref base) = input.manual_base_url {
-            if !policy.allow_net {
-                tracing::warn!(
-                    target: "vox_orchestrator::model_route",
-                    event = "route_policy_denied",
-                    route = "manual_openai_compatible",
-                    reason = "allow_net=false",
-                    "routing: manual endpoint denied by capability policy"
-                );
-                return ChatProviderRouteKind::OpenRouter {
-                    model: vox_config::OPENROUTER_AUTO.to_string(),
-                };
-            }
-            return ChatProviderRouteKind::ManualOpenAiCompatible {
-                base_url: base.clone(),
-                model: m.clone(),
-                bearer: input.manual_bearer.clone(),
-            };
-        }
-        if !policy.allow_provider_network || !policy.allow_net {
-            tracing::warn!(
-                target: "vox_orchestrator::model_route",
-                event = "route_policy_denied",
-                route = "openrouter_manual_model",
-                reason = "provider/network disabled",
-                "routing: manual OpenRouter model denied by capability policy"
-            );
-            return ChatProviderRouteKind::OpenRouter {
-                model: vox_config::OPENROUTER_AUTO.to_string(),
-            };
-        }
-        return ChatProviderRouteKind::OpenRouter { model: m.clone() };
-    }
-
-    if input.prefer_populi_when_gpu && policy.allow_local_model_http {
-        if let Some(ref snap) = input.populi_probe {
-            if snap.reachable
-                && snap.gpu_capable == Some(true)
-                && populi_model_plausible(snap, &input.mens_chat_model)
-            {
-                tracing::info!(
-                    target: "vox_orchestrator::model_route",
-                    event = "route_resolution",
-                    choice = "populi_gpu",
-                    model = %input.mens_chat_model,
-                    "routing: Mens (GPU-prefer)"
-                );
-                return ChatProviderRouteKind::PopuliLocal {
-                    base_url: snap.base_url.clone(),
-                    model: input.mens_chat_model.clone(),
-                };
-            }
-        }
-    }
-
-    if hf_token_present && policy.allow_provider_network && policy.allow_net {
-        if let (Some(url), Some(mid)) =
-            (&input.hf_dedicated_chat_url, &input.hf_dedicated_chat_model)
-        {
-            tracing::info!(
-                target: "vox_orchestrator::model_route",
-                event = "route_resolution",
-                choice = "huggingface_dedicated",
-                model = %mid,
-                "routing: Hugging Face dedicated endpoint"
-            );
-            return ChatProviderRouteKind::HuggingFaceDedicated(
-                inference_env::resolve_huggingface_dedicated(url.clone(), mid.clone()),
-            );
-        }
-    }
-
-    if hf_token_present && policy.allow_provider_network && policy.allow_net {
-        if let Some(ref mid) = input.hf_router_model {
-            tracing::info!(
-                target: "vox_orchestrator::model_route",
-                event = "route_resolution",
-                choice = "huggingface_router",
-                model = %mid,
-                "routing: Hugging Face router"
-            );
-            return ChatProviderRouteKind::HuggingFaceRouter(
-                inference_env::resolve_huggingface_router(mid.clone()),
-            );
-        }
-    }
-
-    if policy.allow_provider_network
-        && policy.allow_net
-        && vox_config::inference::openrouter_api_key().is_some()
-    {
-        tracing::info!(
-            target: "vox_orchestrator::model_route",
-            event = "route_resolution",
-            choice = "openrouter",
-            model = %input.openrouter_model,
-            "routing: OpenRouter"
-        );
-        return ChatProviderRouteKind::OpenRouter {
-            model: input.openrouter_model.clone(),
-        };
-    }
-
-    if policy.allow_local_model_http
-        && let Some(ref snap) = input.populi_probe
-    {
-        if snap.reachable && populi_model_plausible(snap, &input.mens_chat_model) {
-            tracing::info!(
-                target: "vox_orchestrator::model_route",
-                event = "route_resolution",
-                choice = "populi_any",
-                model = %input.mens_chat_model,
-                "routing: Mens (reachable)"
-            );
-            return ChatProviderRouteKind::PopuliLocal {
-                base_url: snap.base_url.clone(),
-                model: input.mens_chat_model.clone(),
-            };
-        }
-    }
-
-    tracing::info!(
-        target: "vox_orchestrator::model_route",
-        event = "route_resolution",
-        choice = "openrouter_bootstrap",
-        model = %vox_config::OPENROUTER_AUTO,
-        "routing: OpenRouter bootstrap (no keys / no local)"
-    );
-    ChatProviderRouteKind::OpenRouter {
-        model: vox_config::OPENROUTER_AUTO.to_string(),
-    }
-}
-
-/// Apply SSOT precedence from the routing plan (manual → GPU Mens → HF dedicated → HF router → OpenRouter → any Mens → OpenRouter auto).
-#[must_use]
-pub fn resolve_chat_provider_route(input: &RouteResolutionInput) -> ChatProviderRouteKind {
-    resolve_chat_provider_route_impl(input, inference_env::huggingface_hub_token().is_some())
 }
 
 /// Convert a route into [`LlmConfig`] for [`crate::llm::llm_chat`].
@@ -378,62 +154,8 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
 
 #[cfg(test)]
 mod tests {
-    use serial_test::serial;
-
     use super::*;
-
-    #[test]
-    fn manual_wins() {
-        let snap = PopuliCapabilitySnapshot {
-            base_url: "http://localhost:11434".to_string(),
-            reachable: true,
-            model_names: vec!["default-model".to_string()],
-            gpu_capable: Some(true),
-            notes: String::new(),
-        };
-        let r = resolve_chat_provider_route(&RouteResolutionInput {
-            manual_model: Some("x/y".to_string()),
-            manual_base_url: Some("https://api.example/v1/chat/completions".to_string()),
-            manual_bearer: Some("tok".to_string()),
-            prefer_populi_when_gpu: true,
-            populi_probe: Some(snap),
-            mens_chat_model: "default-model".into(),
-            hf_dedicated_chat_url: None,
-            hf_dedicated_chat_model: None,
-            hf_router_model: Some("hf/model".to_string()),
-            openrouter_model: "openrouter/auto".into(),
-        });
-        assert_eq!(
-            r,
-            ChatProviderRouteKind::ManualOpenAiCompatible {
-                base_url: "https://api.example/v1/chat/completions".to_string(),
-                model: "x/y".to_string(),
-                bearer: Some("tok".to_string()),
-            }
-        );
-    }
-
-    #[test]
-    fn openrouter_id_without_base() {
-        let r = resolve_chat_provider_route(&RouteResolutionInput {
-            manual_model: Some("anthropic/claude".to_string()),
-            manual_base_url: None,
-            manual_bearer: None,
-            prefer_populi_when_gpu: false,
-            populi_probe: None,
-            mens_chat_model: "m".into(),
-            hf_dedicated_chat_url: None,
-            hf_dedicated_chat_model: None,
-            hf_router_model: None,
-            openrouter_model: "openrouter/auto".into(),
-        });
-        assert_eq!(
-            r,
-            ChatProviderRouteKind::OpenRouter {
-                model: "anthropic/claude".to_string()
-            }
-        );
-    }
+    use crate::inference_env;
 
     #[test]
     fn llm_config_ollama_chat_url_trimmed() {
@@ -458,63 +180,6 @@ mod tests {
             c.base_url.as_deref(),
             Some(ep.chat_completions_url.as_str())
         );
-    }
-
-    #[test]
-    fn dedicated_endpoint_before_shared_router_when_token_present() {
-        let r = resolve_chat_provider_route_impl(
-            &RouteResolutionInput {
-                manual_model: None,
-                manual_base_url: None,
-                manual_bearer: None,
-                prefer_populi_when_gpu: false,
-                populi_probe: None,
-                mens_chat_model: "m".into(),
-                hf_dedicated_chat_url: Some("https://ep.example/v1/chat/completions".into()),
-                hf_dedicated_chat_model: Some("deployed-model".into()),
-                hf_router_model: Some("hf/router-model".into()),
-                openrouter_model: "openrouter/auto".into(),
-            },
-            true,
-        );
-        assert_eq!(route_telemetry_labels(&r), ("custom", "cascade"));
-        assert_eq!(
-            route_backend_for_chat_route(&r),
-            ChatRouteBackend::CascadeFallback
-        );
-        match r {
-            ChatProviderRouteKind::HuggingFaceDedicated(ep) => {
-                assert_eq!(ep.model, "deployed-model");
-                assert_eq!(
-                    ep.chat_completions_url,
-                    "https://ep.example/v1/chat/completions"
-                );
-            }
-            other => panic!("expected dedicated route, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn router_when_no_dedicated_fields() {
-        let r = resolve_chat_provider_route_impl(
-            &RouteResolutionInput {
-                manual_model: None,
-                manual_base_url: None,
-                manual_bearer: None,
-                prefer_populi_when_gpu: false,
-                populi_probe: None,
-                mens_chat_model: "m".into(),
-                hf_dedicated_chat_url: None,
-                hf_dedicated_chat_model: None,
-                hf_router_model: Some("org/hf-only".into()),
-                openrouter_model: "openrouter/auto".into(),
-            },
-            true,
-        );
-        match r {
-            ChatProviderRouteKind::HuggingFaceRouter(ep) => assert_eq!(ep.model, "org/hf-only"),
-            other => panic!("expected router, got {other:?}"),
-        }
     }
 
     #[test]
@@ -565,46 +230,5 @@ mod tests {
             model: "llama3.2".into(),
         };
         assert_eq!(route_backend_for_chat_route(&r), ChatRouteBackend::Ollama);
-    }
-
-    #[test]
-    #[serial]
-    fn selector_model_env_precedes_default_cascade() {
-        let prior = std::env::var("VOX_SELECTOR_MODEL").ok();
-        // SAFETY: `#[serial]` prevents other env-mutating tests from running
-        // concurrently; the prior value is snapshotted above and restored below.
-        #[allow(unsafe_code)]
-        unsafe {
-            std::env::set_var("VOX_SELECTOR_MODEL", "openai/gpt-4o-mini")
-        };
-        let r = resolve_chat_provider_route_impl(
-            &RouteResolutionInput {
-                manual_model: None,
-                manual_base_url: None,
-                manual_bearer: None,
-                prefer_populi_when_gpu: false,
-                populi_probe: None,
-                mens_chat_model: "mens/default".into(),
-                hf_dedicated_chat_url: None,
-                hf_dedicated_chat_model: None,
-                hf_router_model: None,
-                openrouter_model: "openrouter/auto".into(),
-            },
-            false,
-        );
-        match r {
-            ChatProviderRouteKind::OpenRouter { model } => {
-                assert_eq!(model, "openai/gpt-4o-mini");
-            }
-            other => panic!("expected selector openrouter route, got {other:?}"),
-        }
-        // SAFETY: serialized via `#[serial]`; restore the snapshotted prior value.
-        #[allow(unsafe_code)]
-        unsafe {
-            match prior {
-                Some(v) => std::env::set_var("VOX_SELECTOR_MODEL", v),
-                None => std::env::remove_var("VOX_SELECTOR_MODEL"),
-            }
-        }
     }
 }
