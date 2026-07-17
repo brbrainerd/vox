@@ -45,16 +45,22 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention }: Props) 
     // Embedded mini-render: one initial fetch only — no repeating poll and no
     // pushed feedback-changed subscription.
     if (embedded) return;
+    let disposed = false;
     let unlisten: (() => void) | null = null;
     listenFeedbackChanged(() => {
       refresh();
-    }).then((un) => {
-      unlisten = un;
-    });
+    })
+      .then((un) => {
+        // Unmount may win the race against the async subscription resolving.
+        if (disposed) un();
+        else unlisten = un;
+      })
+      .catch(() => { /* event bridge unavailable (bare browser/tests) — poll still runs */ });
 
     const timer = setInterval(refresh, 5000);
 
     return () => {
+      disposed = true;
       if (unlisten) unlisten();
       clearInterval(timer);
     };

@@ -220,4 +220,15 @@ describe('SettingsView', () => {
     fireEvent.click(toggle);
     expect(window.localStorage.getItem('vox.lang')).toBe('la');
   });
+
+  it('mounts and unmounts without unhandled rejections when the config-changed listener fails', async () => {
+    const { listen } = await import('@tauri-apps/api/event');
+    (listen as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('event bridge unavailable'),
+    );
+    const { unmount } = render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    await screen.findByLabelText('Search settings');
+    unmount();
+    await new Promise((r) => setTimeout(r, 0));
+  });
 });

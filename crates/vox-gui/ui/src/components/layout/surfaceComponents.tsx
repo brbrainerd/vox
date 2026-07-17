@@ -57,7 +57,6 @@ export interface SurfaceProps {
   activeSessionId?: string;
   onSessionChange?: (sessionId: string) => void;
   chatMessages?: ChatMessage[];
-  onHydrateChatSession?: (sessionId: string) => void;
   onFocusComposer?: () => void;
   chatTasks?: ChatExecutionTask[];
   chatIntents?: string[];
@@ -189,7 +188,6 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           messages={props.chatMessages}
           activeSessionId={props.activeSessionId}
           onSessionChange={props.onSessionChange}
-          onHydrateSession={props.onHydrateChatSession}
           tasks={props.chatTasks}
           intents={props.chatIntents}
           executionKpis={props.chatExecutionKpis}

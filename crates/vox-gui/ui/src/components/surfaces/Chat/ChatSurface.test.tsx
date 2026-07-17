@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import React from 'react';
 
 const { mockSecretaryPayload, getSecretaryEventHandler, setSecretaryEventHandler } = vi.hoisted(() => {
@@ -170,5 +172,18 @@ describe('ChatSurface', () => {
       expect(screen.getByRole('meter', { name: /attention spent/i })).toBeDefined();
     });
     expect(screen.getByTestId('chat-attention-meter')).toBeDefined();
+  });
+});
+
+describe('session hydration ownership (F18: redundant double hydrate per session switch)', () => {
+  it('ChatSurface has no hydrate trigger — App.tsx owns hydration', () => {
+    const surface = readFileSync(resolve(__dirname, './ChatSurface.tsx'), 'utf8');
+    // The redundant effect (`if (activeId && onHydrateSession) onHydrateSession(activeId)`)
+    // and its prop are gone — App's activeSessionId effect is the only trigger.
+    expect(surface).not.toContain('onHydrateSession');
+    const surfaces = readFileSync(resolve(__dirname, '../../layout/surfaceComponents.tsx'), 'utf8');
+    expect(surfaces).not.toContain('onHydrateChatSession');
+    const app = readFileSync(resolve(__dirname, '../../../App.tsx'), 'utf8');
+    expect(app).toContain('hydrateChatSession(activeSessionId)');
   });
 });
