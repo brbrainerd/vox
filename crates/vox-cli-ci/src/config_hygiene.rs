@@ -731,6 +731,23 @@ mod tests {
     }
 
     #[test]
+    fn toolchain_env_vars_target_and_rustc_are_allowlisted() {
+        // Regression: TARGET (vox-gui/build.rs sidecar check) and RUSTC
+        // (gui_sidecar doctor probe) are cargo/rustc-provided names and must
+        // stay exempt, while an unregistered name in the same source still
+        // flags — the exemption must not over-widen.
+        let registered = std::collections::HashSet::new(); // empty registry
+        let src = r#"
+            let t = std::env::var("TARGET").unwrap_or_default();
+            let r = std::env::var("RUSTC").unwrap_or_default();
+            let bad = std::env::var("VOX_UNREGISTERED_KNOB").ok();
+        "#;
+        let hits = check_env_reads_registered(src, "x.rs", &registered);
+        assert_eq!(hits.len(), 1, "only the unregistered var flags: {hits:?}");
+        assert!(hits[0].message.contains("VOX_UNREGISTERED_KNOB"));
+    }
+
+    #[test]
     fn registered_env_read_is_not_flagged() {
         let mut registered = std::collections::HashSet::new();
         registered.insert("VOX_WASM_SKILL_FUEL".to_string());
