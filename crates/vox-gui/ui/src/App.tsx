@@ -12,6 +12,7 @@ import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
 import { Toasts, ToastItem } from './components/ui/Toasts';
+import { BackendBanner } from './components/ui/BackendBanner';
 import { userAppendInput } from './lib/composerSubmit';
 import { Transcript } from './components/surfaces/Loquela/Transcript';
 import { DiffReview } from './components/surfaces/Loquela/DiffReview';
@@ -1146,7 +1147,9 @@ export default function App() {
 
   return (
     <>
-      <AppShell
+      <div className="flex h-screen flex-col">
+        <BackendBanner />
+        <AppShell
         activeView={activeView}
         onNavigate={(v) => navigateTo(v)}
         onOpenParent={openParentNav}
@@ -1181,7 +1184,8 @@ export default function App() {
         onOpenAchievements={openAchievements}
       >
         {mainSurface}
-      </AppShell>
+        </AppShell>
+      </div>
 
       <AchievementsDrawer
         open={achievementsOpen}

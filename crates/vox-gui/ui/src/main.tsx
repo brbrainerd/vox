@@ -8,6 +8,7 @@ import { installConsoleBridge } from './lib/consoleBridge'
 import { LanguageProvider } from './hooks/useLanguage'
 import { applyTheme } from './lib/theme'
 import { voxTransport } from './transport'
+import { backendAvailable, installBackendUnavailableRejectionFilter } from './lib/backendGuard'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,9 +23,14 @@ const queryClient = new QueryClient({
 // (vite preview, headless screenshot capture) tag <html> so index.css can
 // neutralize backdrop-filter — software compositing cannot rasterize the glass
 // blur and hangs screenshot capture. The real Tauri app is unaffected.
-if (typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ === 'undefined') {
+if (!backendAvailable()) {
   document.documentElement.classList.add('no-tauri')
 }
+
+// In browser-preview mode, suppress raw __TAURI_INTERNALS__ TypeErrors and
+// typed BackendUnavailableError rejections instead of letting them surface
+// as uncaught console noise.
+installBackendUnavailableRejectionFilter()
 
 // Mirror webview console errors/warnings into the backend log stream (no-op outside Tauri).
 installConsoleBridge()

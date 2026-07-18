@@ -90,7 +90,7 @@ export function AppShell({
   const mainPaddingBottom = chatDocked ? 'pb-[180px]' : 'pb-5';
 
   return (
-    <div className="flex h-screen w-screen bg-bg-base text-text-muted font-sans selection:bg-brass/30 selection:text-text-primary overflow-hidden">
+    <div className="flex h-full w-screen bg-bg-base text-text-muted font-sans selection:bg-brass/30 selection:text-text-primary overflow-hidden">
       <Backdrop />
 
       <Sidebar
