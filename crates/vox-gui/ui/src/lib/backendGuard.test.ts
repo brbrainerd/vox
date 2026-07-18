@@ -1,11 +1,20 @@
 // crates/vox-gui/ui/src/lib/backendGuard.test.ts
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   backendAvailable,
   BackendUnavailableError,
   makeBackendUnavailableRejectionFilter,
   __resetBackendAvailabilityForTests,
 } from './backendGuard';
+
+// Phase A test-setup.ts stubs __TAURI_INTERNALS__ globally for suites that mock
+// @tauri-apps/api; this suite asserts unavailable-mode behavior, so it must undo
+// that stub before every test, not just clean up after.
+beforeEach(() => {
+  delete (globalThis as any).__TAURI_INTERNALS__;
+  delete (globalThis as any).window;
+  __resetBackendAvailabilityForTests();
+});
 
 afterEach(() => {
   delete (globalThis as any).__TAURI_INTERNALS__;

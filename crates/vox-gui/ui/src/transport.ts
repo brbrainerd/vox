@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { backendAvailable, BackendUnavailableError } from './lib/backendGuard';
 import type { ActionManifest } from './types/actionManifest';
 import type {
   CommandCatalog,
@@ -15,6 +16,23 @@ import type { TownScan } from './components/gamify/urbs/types';
 // alongside the other Tauri command types; re-exported here for callers of the hub.
 export type { OpenLocator, OpenOutcome } from './types/tauri';
 
+// __VOX_RAW_IPC_BEGIN__
+// The ONLY permitted raw Tauri `invoke`/`listen` uses in this file.
+// Guarded by src/guards/transportIpcGuard.test.ts.
+function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  if (!backendAvailable()) return Promise.reject(new BackendUnavailableError(cmd));
+  return args === undefined ? invoke<T>(cmd) : invoke<T>(cmd, args);
+}
+
+function safeListen<T>(
+  event: string,
+  handler: (event: { payload: T }) => void,
+): Promise<UnlistenFn> {
+  if (!backendAvailable()) return Promise.reject(new BackendUnavailableError(`listen:${event}`));
+  return listen<T>(event, handler);
+}
+// __VOX_RAW_IPC_END__
+
 /** Tauri event name carrying the orchestrator status snapshot (see B1 daemon stream). */
 export const ORCH_STATUS_EVENT = 'vox://orch-status';
 
@@ -27,7 +45,7 @@ export const ORCH_STATUS_EVENT = 'vox://orch-status';
 export function listenOrchStatus(
   onStatus: (status: OrchestratorStatus) => void,
 ): Promise<UnlistenFn> {
-  return listen<OrchestratorStatus>(ORCH_STATUS_EVENT, (event) => onStatus(event.payload));
+  return safeListen<OrchestratorStatus>(ORCH_STATUS_EVENT, (event) => onStatus(event.payload));
 }
 
 /** Tauri event name carrying a single live AgentEvent (see B4 daemon stream). */
@@ -53,7 +71,7 @@ export interface AgentEventFrame {
 export function listenAgentEvents(
   onEvent: (e: AgentEventFrame) => void,
 ): Promise<UnlistenFn> {
-  return listen<AgentEventFrame>(AGENT_EVENTS_EVENT, (event) => onEvent(event.payload));
+  return safeListen<AgentEventFrame>(AGENT_EVENTS_EVENT, (event) => onEvent(event.payload));
 }
 
 /** Tauri event name carrying a Scientia-queue change ping (see F2 DB watcher). */
@@ -78,7 +96,7 @@ export interface ScientiaQueuePing {
 export function listenScientiaQueue(
   onChange: (ping: ScientiaQueuePing) => void,
 ): Promise<UnlistenFn> {
-  return listen<ScientiaQueuePing>(SCIENTIA_QUEUE_EVENT, (event) => onChange(event.payload));
+  return safeListen<ScientiaQueuePing>(SCIENTIA_QUEUE_EVENT, (event) => onChange(event.payload));
 }
 
 /** Tauri event for one newly-surfaced discovery inbox row (mirrors `scientia.discovery.surfaced`). */
@@ -102,7 +120,7 @@ export interface DiscoverySurfacedPayload {
 export function listenDiscoverySurfaced(
   onRow: (row: DiscoverySurfacedPayload) => void,
 ): Promise<UnlistenFn> {
-  return listen<DiscoverySurfacedPayload>(SCIENTIA_DISCOVERY_SURFACED_EVENT, (event) =>
+  return safeListen<DiscoverySurfacedPayload>(SCIENTIA_DISCOVERY_SURFACED_EVENT, (event) =>
     onRow(event.payload),
   );
 }
@@ -147,13 +165,13 @@ export interface PreviewAvailablePayload {
 export function listenBrowserFrames(
   onFrame: (frame: BrowserFramePayload) => void,
 ): Promise<UnlistenFn> {
-  return listen<BrowserFramePayload>(BROWSER_FRAME_EVENT, (event) => onFrame(event.payload));
+  return safeListen<BrowserFramePayload>(BROWSER_FRAME_EVENT, (event) => onFrame(event.payload));
 }
 
 export function listenPreviewAvailable(
   onPreview: (payload: PreviewAvailablePayload) => void,
 ): Promise<UnlistenFn> {
-  return listen<PreviewAvailablePayload>(PREVIEW_AVAILABLE_EVENT, (event) => onPreview(event.payload));
+  return safeListen<PreviewAvailablePayload>(PREVIEW_AVAILABLE_EVENT, (event) => onPreview(event.payload));
 }
 
 /** Tauri event name emitted when the secretary auto-submits a task from chat. */
@@ -171,7 +189,7 @@ export interface SecretaryProposedPayload {
 export function listenSecretaryProposed(
   onProposed: (payload: SecretaryProposedPayload) => void,
 ): Promise<UnlistenFn> {
-  return listen<SecretaryProposedPayload>(SECRETARY_PROPOSED_EVENT, (event) => onProposed(event.payload));
+  return safeListen<SecretaryProposedPayload>(SECRETARY_PROPOSED_EVENT, (event) => onProposed(event.payload));
 }
 
 
@@ -272,7 +290,7 @@ class VoxTransport {
   async getRegistry(): Promise<RegistryFile> {
     if (this.registryCache) return this.registryCache;
     if (!this.registryFetch) {
-      this.registryFetch = invoke<RegistryFile>('get_full_registry').then(r => {
+      this.registryFetch = safeInvoke<RegistryFile>('get_full_registry').then(r => {
         this.registryCache = r;
         // Build an index for fast lookups.
         this.registryIndex = new Map(
@@ -296,7 +314,7 @@ class VoxTransport {
   async getActionManifest(): Promise<ActionManifest> {
     if (this.actionManifestCache) return this.actionManifestCache;
     if (!this.actionManifestFetch) {
-      this.actionManifestFetch = invoke<ActionManifest>('get_action_manifest').then((m) => {
+      this.actionManifestFetch = safeInvoke<ActionManifest>('get_action_manifest').then((m) => {
         this.actionManifestCache = m;
         return m;
       });
@@ -344,27 +362,27 @@ class VoxTransport {
   }
 
   async getCatalog(): Promise<CommandCatalog> {
-    return invoke<CommandCatalog>('get_command_catalog');
+    return safeInvoke<CommandCatalog>('get_command_catalog');
   }
 
   async listModels(limit = 120) {
-    return invoke('list_model_cards', { limit });
+    return safeInvoke('list_model_cards', { limit });
   }
 
   async getActiveModel() {
-    return invoke<string | null>('get_active_model');
+    return safeInvoke<string | null>('get_active_model');
   }
 
   async setActiveModel(modelId: string) {
-    return invoke('set_active_model', { modelId });
+    return safeInvoke('set_active_model', { modelId });
   }
 
   async getRoutingSummaryLive(): Promise<RoutingSummary> {
-    return invoke<RoutingSummary>('get_routing_summary_live');
+    return safeInvoke<RoutingSummary>('get_routing_summary_live');
   }
 
   async listOrchestratorTasks(): Promise<TaskRow[]> {
-    return invoke<TaskRow[]>('list_orchestrator_tasks');
+    return safeInvoke<TaskRow[]>('list_orchestrator_tasks');
   }
 
   async setRoutingPriority(priority: {
@@ -375,29 +393,29 @@ class VoxTransport {
     balance: number;
     mobile: number;
   }) {
-    return invoke('set_routing_priority', priority);
+    return safeInvoke('set_routing_priority', priority);
   }
 
   /** Read the persisted selection-policy JSON (`{"steps":[...]}`). */
   async getSelectionPolicy(): Promise<string> {
-    return invoke<string>('get_selection_policy');
+    return safeInvoke<string>('get_selection_policy');
   }
 
   /** Persist a selection-policy JSON; backend validates it parses as SelectionPolicy. */
   async setSelectionPolicy(json: string): Promise<void> {
-    return invoke('set_selection_policy', { json });
+    return safeInvoke('set_selection_policy', { json });
   }
 
   async getModelScoreboard(windowDays = 7) {
-    return invoke('get_model_scoreboard', { windowDays });
+    return safeInvoke('get_model_scoreboard', { windowDays });
   }
 
   async explainModelSelection(task: string, complexity?: number) {
-    return invoke('explain_model_selection', { task, complexity });
+    return safeInvoke('explain_model_selection', { task, complexity });
   }
 
   async suggestModelForTask(task: string) {
-    return invoke('suggest_model_for_task', { task });
+    return safeInvoke('suggest_model_for_task', { task });
   }
 
   async callTool(name: string, args: Record<string, any> = {}): Promise<ExecuteOutput> {
@@ -430,7 +448,7 @@ class VoxTransport {
     );
     if (action?.handler_kind === 'mcp') {
       const tool = action.mcp_name ?? canonical;
-      const result = await invoke<any>('invoke_mcp_tool', {
+      const result = await safeInvoke<any>('invoke_mcp_tool', {
         tool,
         args,
         permissionMode: currentPermissionMode,
@@ -446,7 +464,7 @@ class VoxTransport {
       };
     }
     const path = action?.cli_path ?? (await this.resolvePath(name));
-    const res = await invoke<ExecuteOutput>('execute_command', {
+    const res = await safeInvoke<ExecuteOutput>('execute_command', {
       path,
       args: { ...args, __argv: args.__argv ?? [] },
     });
@@ -454,26 +472,26 @@ class VoxTransport {
   }
 
   async getMetadata(path: string[]): Promise<CommandMetadata | null> {
-    return invoke('get_command_metadata', { path });
+    return safeInvoke('get_command_metadata', { path });
   }
 
   logFrontend(level: 'error' | 'warn' | 'info', message: string): Promise<void> {
-    return invoke('log_frontend', { level, message });
+    return safeInvoke('log_frontend', { level, message });
   }
 
   getGuiPreference(key: string): Promise<string | null> {
-    return invoke<string | null>('get_gui_preference', { key });
+    return safeInvoke<string | null>('get_gui_preference', { key });
   }
 
   setGuiPreference(key: string, value: string): Promise<void> {
-    return invoke('set_gui_preference', { key, value });
+    return safeInvoke('set_gui_preference', { key, value });
   }
 
   invokeMcpTool(
     tool: string,
     args: Record<string, unknown> = {},
   ): Promise<{ is_error?: boolean; result?: unknown }> {
-    return invoke('invoke_mcp_tool', {
+    return safeInvoke('invoke_mcp_tool', {
       tool,
       args,
       permissionMode: currentPermissionMode,
@@ -481,25 +499,25 @@ class VoxTransport {
   }
 
   openLocator(locator: OpenLocator): Promise<OpenOutcome> {
-    return invoke<OpenOutcome>('open_locator', { locator });
+    return safeInvoke<OpenOutcome>('open_locator', { locator });
   }
 
   voxDocsIndex(): Promise<{ title: string; description: string; path: string }[]> {
-    return invoke('vox_docs_index');
+    return safeInvoke('vox_docs_index');
   }
 
   readDocMarkdown(path: string): Promise<string> {
-    return invoke('read_doc_markdown', { path });
+    return safeInvoke('read_doc_markdown', { path });
   }
 
   /** VG-1 build-time GUI content manifest (gui-content-manifest.json). */
   voxContentManifest(): Promise<import('./hooks/useContentManifest').ContentManifestEntry[]> {
-    return invoke('vox_content_manifest');
+    return safeInvoke('vox_content_manifest');
   }
 
   /** Policy catalog rows for federated OmniSearch (see policy_list IPC). */
   listPolicies(): Promise<{ name: string; status?: string }[]> {
-    return invoke<{ id: string }[]>('policy_list', { domain: null, group: null }).then(rows => {
+    return safeInvoke<{ id: string }[]>('policy_list', { domain: null, group: null }).then(rows => {
       if (!Array.isArray(rows)) return [];
       return rows.map(r => ({ name: r.id }));
     });
@@ -514,74 +532,74 @@ class VoxTransport {
     corpora: string[];
     repo_truncated: boolean;
   }> {
-    return invoke('vox_search_query', { query, limit, scope });
+    return safeInvoke('vox_search_query', { query, limit, scope });
   }
 
   /** Raw MessagePack orchestrator snapshot (same payload as `get_orchestrator_status`). */
   getOrchestratorStatusBin(): Promise<Uint8Array> {
-    return invoke<Uint8Array>('get_orchestrator_status_bin');
+    return safeInvoke<Uint8Array>('get_orchestrator_status_bin');
   }
 
   getIdentitySummary(): Promise<IdentitySummary> {
-    return invoke<IdentitySummary>('get_identity_summary');
+    return safeInvoke<IdentitySummary>('get_identity_summary');
   }
 
   getLlmSpend(sessionId?: string | null): Promise<LlmSpendDto> {
-    return invoke<LlmSpendDto>('get_llm_spend', sessionId != null ? { sessionId } : {});
+    return safeInvoke<LlmSpendDto>('get_llm_spend', sessionId != null ? { sessionId } : {});
   }
 
   getGamifySettings(): Promise<GamifySettingsDto> {
-    return invoke<GamifySettingsDto>('get_gamify_settings');
+    return safeInvoke<GamifySettingsDto>('get_gamify_settings');
   }
 
   recordGuiEvent(
     eventType: string,
     metadata?: Record<string, unknown>,
   ): Promise<GuiEventResultDto> {
-    return invoke<GuiEventResultDto>('record_gui_event', {
+    return safeInvoke<GuiEventResultDto>('record_gui_event', {
       eventType,
       metadata: metadata ?? null,
     });
   }
 
   getMemoryStatus(): Promise<{ corpus_counts: Record<string, number> }> {
-    return invoke<{ corpus_counts: Record<string, number> }>('get_memory_status');
+    return safeInvoke<{ corpus_counts: Record<string, number> }>('get_memory_status');
   }
 
   doubtTask(taskId: number, reason?: string): Promise<unknown> {
-    return invoke('doubt_orchestrator_task', { taskId, reason: reason ?? null });
+    return safeInvoke('doubt_orchestrator_task', { taskId, reason: reason ?? null });
   }
 
   overruleTask(taskId: number, reason: string): Promise<unknown> {
-    return invoke('overrule_orchestrator_task', { taskId, reason });
+    return safeInvoke('overrule_orchestrator_task', { taskId, reason });
   }
 
   mercatusLoadConfig(): Promise<unknown> {
-    return invoke('mercatus_load_config');
+    return safeInvoke('mercatus_load_config');
   }
 
   mercatusSaveConfig(config: unknown): Promise<void> {
-    return invoke('mercatus_save_config', { config });
+    return safeInvoke('mercatus_save_config', { config });
   }
 
   /** Vox Urbs (gamify town): workspace crate/file scan for the town layout. */
   workspaceTownScan(): Promise<TownScan> {
-    return invoke<TownScan>('workspace_town_scan');
+    return safeInvoke<TownScan>('workspace_town_scan');
   }
 
   /** Vox Urbs: CI fleet status tap (CASTRVM landmark). */
   harnessCiFleetStatus(): Promise<HarnessCiFleetDto> {
-    return invoke<HarnessCiFleetDto>('harness_ci_fleet_status');
+    return safeInvoke<HarnessCiFleetDto>('harness_ci_fleet_status');
   }
 
   /** Vox Urbs: VCS branch/PR status tap (PORTVS landmark). */
   vcsTownStatus(): Promise<HarnessVcsTownDto> {
-    return invoke<HarnessVcsTownDto>('vcs_town_status');
+    return safeInvoke<HarnessVcsTownDto>('vcs_town_status');
   }
 
   /** Vox Urbs: hopper queue tap (PORTVS ship count). */
   hopperList(): Promise<HarnessHopperItemDto[]> {
-    return invoke<HarnessHopperItemDto[]>('hopper_list');
+    return safeInvoke<HarnessHopperItemDto[]>('hopper_list');
   }
 }
 
@@ -623,11 +641,11 @@ export interface ActionHelp {
 }
 
 export function discoverySuggest(typed: string, limit = 8): Promise<Suggestion[]> {
-  return invoke<Suggestion[]>('discovery_suggest', { typed, limit });
+  return safeInvoke<Suggestion[]>('discovery_suggest', { typed, limit });
 }
 
 export function discoveryHelp(actionId: string): Promise<ActionHelp | null> {
-  return invoke<ActionHelp | null>('discovery_help', { actionId });
+  return safeInvoke<ActionHelp | null>('discovery_help', { actionId });
 }
 
 export function discoveryRecord(
@@ -636,19 +654,19 @@ export function discoveryRecord(
   nowMs: number,
   dwellMs: number,
 ): Promise<void> {
-  return invoke('discovery_record', { actionId, used, nowMs, dwellMs });
+  return safeInvoke('discovery_record', { actionId, used, nowMs, dwellMs });
 }
 
 export function ptySpawn(tabId: string, cols: number, rows: number): Promise<void> {
-  return invoke('pty_spawn', { tabId, cols, rows });
+  return safeInvoke('pty_spawn', { tabId, cols, rows });
 }
 
 export function ptyWrite(tabId: string, data: string): Promise<void> {
-  return invoke('pty_write', { tabId, data });
+  return safeInvoke('pty_write', { tabId, data });
 }
 
 export function ptyClose(tabId: string): Promise<void> {
-  return invoke('pty_close', { tabId });
+  return safeInvoke('pty_close', { tabId });
 }
 
 export const PTY_OUTPUT_EVENT = 'vox://pty-output';
@@ -657,13 +675,13 @@ export const PTY_EXIT_EVENT = 'vox://pty-exit';
 export function listenPtyOutput(
   onChunk: (tabId: string, data: string) => void,
 ): Promise<UnlistenFn> {
-  return listen<{ tab_id: string; data: string }>(PTY_OUTPUT_EVENT, (e) =>
+  return safeListen<{ tab_id: string; data: string }>(PTY_OUTPUT_EVENT, (e) =>
     onChunk(e.payload.tab_id, e.payload.data),
   );
 }
 
 export function listenPtyExit(onExit: (tabId: string) => void): Promise<UnlistenFn> {
-  return listen<{ tab_id: string }>(PTY_EXIT_EVENT, (e) => onExit(e.payload.tab_id));
+  return safeListen<{ tab_id: string }>(PTY_EXIT_EVENT, (e) => onExit(e.payload.tab_id));
 }
 
 // ---------------------------------------------------------------------------
@@ -671,16 +689,16 @@ export function listenPtyExit(onExit: (tabId: string) => void): Promise<Unlisten
 // ---------------------------------------------------------------------------
 
 export function policySetEnabled(id: string, enabled: boolean): Promise<void> {
-  return invoke('policy_set_enabled', { id, enabled });
+  return safeInvoke('policy_set_enabled', { id, enabled });
 }
 
 export function policyEdit(id: string, title?: string, description?: string): Promise<void> {
-  return invoke('policy_edit', { id, title: title ?? null, description: description ?? null });
+  return safeInvoke('policy_edit', { id, title: title ?? null, description: description ?? null });
 }
 
 /** Send a free-form note to an agent's A2A inbox. Resolves to the message id. */
 export function sendToAgent(agentId: string, body: string): Promise<string> {
-  return invoke<string>('send_to_agent', { agentId, body });
+  return safeInvoke<string>('send_to_agent', { agentId, body });
 }
 
 export interface ContextBudgetPayload {
@@ -694,7 +712,7 @@ export interface ContextBudgetPayload {
 }
 
 export function getContextBudget(sessionId?: string | null): Promise<ContextBudgetPayload> {
-  return invoke<ContextBudgetPayload>('get_context_budget', sessionId != null ? { sessionId } : {});
+  return safeInvoke<ContextBudgetPayload>('get_context_budget', sessionId != null ? { sessionId } : {});
 }
 
 export interface ActivityRowDto {
@@ -715,13 +733,13 @@ export interface ActivityFilterDto {
 }
 
 export function activityQuery(filter: ActivityFilterDto): Promise<ActivityRowDto[]> {
-  return invoke<ActivityRowDto[]>('activity_query', { filter });
+  return safeInvoke<ActivityRowDto[]>('activity_query', { filter });
 }
 
 export const ACTIVITY_APPENDED_EVENT = 'vox://activity-appended';
 
 export function listenActivityAppended(onAppend: () => void): Promise<UnlistenFn> {
-  return listen<void>(ACTIVITY_APPENDED_EVENT, () => onAppend());
+  return safeListen<void>(ACTIVITY_APPENDED_EVENT, () => onAppend());
 }
 
 // `getGraphifyStatus` (direct `vox_graphify_status` Tauri command) retired in
@@ -759,7 +777,7 @@ export function normalizeFeedback(raw: any): { needsYou: FeedbackRow[]; withheld
 }
 
 export async function feedbackList(): Promise<{ needsYou: FeedbackRow[]; withheld: FeedbackRow[] }> {
-  const res = await invoke<string>('invoke_mcp_tool', { tool: 'vox_feedback_list', args: {} });
+  const res = await safeInvoke<string>('invoke_mcp_tool', { tool: 'vox_feedback_list', args: {} });
   const parsed = JSON.parse(res);
   if (!parsed.success) {
     throw new Error(parsed.error || 'Failed to list feedback');
@@ -768,7 +786,7 @@ export async function feedbackList(): Promise<{ needsYou: FeedbackRow[]; withhel
 }
 
 export async function feedbackResolve(feedbackId: string, action: Record<string, unknown>): Promise<void> {
-  const res = await invoke<string>('invoke_mcp_tool', {
+  const res = await safeInvoke<string>('invoke_mcp_tool', {
     tool: 'vox_resolve_feedback',
     args: { feedback_id: feedbackId, action }
   });
@@ -779,7 +797,7 @@ export async function feedbackResolve(feedbackId: string, action: Record<string,
 }
 
 export function listenFeedbackChanged(onChange: () => void): Promise<UnlistenFn> {
-  return listen<any>(AGENT_EVENTS_EVENT, (e) => {
+  return safeListen<any>(AGENT_EVENTS_EVENT, (e) => {
     const t = e?.payload?.kind?.type;
     if (t === 'feedback_requested' || t === 'feedback_resolved') onChange();
   });
@@ -798,12 +816,12 @@ export interface HopperTaskDto {
 
 /** List hopper task items (see `TasksView` / attention-inbox consumers). */
 export function hopperList(): Promise<HopperTaskDto[]> {
-  return invoke<HopperTaskDto[]>('hopper_list');
+  return safeInvoke<HopperTaskDto[]>('hopper_list');
 }
 
 /** Mark a hopper to-do done (terminal Done state; distinct from cancel). */
 export function hopperMarkDone(itemId: string): Promise<HopperTaskDto> {
-  return invoke<HopperTaskDto>('hopper_mark_done', { itemId });
+  return safeInvoke<HopperTaskDto>('hopper_mark_done', { itemId });
 }
 
 // ---------------------------------------------------------------------------
@@ -811,12 +829,12 @@ export function hopperMarkDone(itemId: string): Promise<HopperTaskDto> {
 // ---------------------------------------------------------------------------
 
 export function codeRabbitTokenPresent(): Promise<boolean> {
-  return invoke<boolean>('coderabbit_token_present');
+  return safeInvoke<boolean>('coderabbit_token_present');
 }
 
 /** Generic over the view's own `Report` shape — this hub has no opinion on it. */
 export function codeRabbitReport<T = unknown>(): Promise<T> {
-  return invoke<T>('coderabbit_report');
+  return safeInvoke<T>('coderabbit_report');
 }
 
 export interface CodeRabbitSweepArgs {
@@ -830,11 +848,11 @@ export interface CodeRabbitSweepArgs {
 
 /** Generic over the view's own `Manifest` shape — this hub has no opinion on it. */
 export function codeRabbitPlan<T = unknown>(args: CodeRabbitSweepArgs): Promise<T> {
-  return invoke<T>('coderabbit_plan', args);
+  return safeInvoke<T>('coderabbit_plan', args);
 }
 
 export function codeRabbitRunAsync(args: CodeRabbitSweepArgs): Promise<void> {
-  return invoke('coderabbit_run_async', args);
+  return safeInvoke('coderabbit_run_async', args);
 }
 
 

@@ -8,3 +8,9 @@ expect.extend(matchers);
 afterEach(() => {
   cleanup();
 });
+
+// Phase A backendGuard: tests exercise transport against mocked
+// @tauri-apps/api — make detection succeed in BOTH node and jsdom envs.
+// Suites asserting no-backend behavior delete this key and call
+// __resetBackendAvailabilityForTests() in their own beforeEach.
+(globalThis as any).__TAURI_INTERNALS__ ??= {};
