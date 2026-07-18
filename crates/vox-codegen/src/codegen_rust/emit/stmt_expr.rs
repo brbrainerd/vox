@@ -378,16 +378,20 @@ fn emit_return_stmt(
 }
 
 /// When one side of an `is`/`isnt` comparison is a `Some(..)` constructor and the
-/// other is a borrowing `.get(i)` call, return the two emitted operands with
-/// `.cloned()` applied to the get side.
+/// other is a `.get(i)` call, return the two emitted operands unchanged (beyond
+/// normal ownership-mode emission).
 ///
 /// `<list/map>.get(i)` lowers to Rust `Vec::get`/`HashMap::get`, which return a
-/// *borrow* (`Option<&T>`), but the interpreter's `.get` is value-semantic
-/// (`v.get(i).cloned()` → `Option<T>`). Comparing the borrow against `Some(owned)`
-/// (`Option<T>`) fails to type-check (`expected Option<&T>, found Option<T>`), so
-/// the get side is `.cloned()` to an owned `Option<T>`. Shared by the binary `is`
-/// path and the `assert(x is y)` → `assert_eq!` path. Returns `None` when the
-/// pattern doesn't apply (operands are emitted unchanged by the caller).
+/// *borrow* (`Option<&T>`); the interpreter's `.get` is value-semantic, so
+/// `try_emit_list_method`'s own `"get"` arm (`method_emit.rs`) already appends
+/// `.cloned()` to produce an owned `Option<T>` that type-checks against the
+/// owned `Some(..)` on the other side. This function used to append a *second*
+/// `.cloned()` here — a leftover from before that arm did its own cloning —
+/// which produced `Option<T>: .cloned()` (E0599, `cloned` is only defined on
+/// `Option<&T>`/iterators) once the method-call path started cloning itself.
+/// Shared by the binary `is` path and the `assert(x is y)` → `assert_eq!` path.
+/// Returns `None` when the pattern doesn't apply (operands are emitted
+/// unchanged by the caller).
 fn normalize_get_vs_some<F>(l: &HirExpr, r: &HirExpr, emit: &F) -> Option<(String, String)>
 where
     F: Fn(&HirExpr, OwnershipMode) -> String,
@@ -398,16 +402,8 @@ where
     };
     let is_borrowing_get =
         |e: &HirExpr| matches!(e, HirExpr::MethodCall(_, m, _, _, _) if m == "get");
-    if is_some_ctor(r) && is_borrowing_get(l) {
-        Some((
-            format!("({}).cloned()", emit(l, OwnershipMode::Owned)),
-            emit(r, OwnershipMode::Owned),
-        ))
-    } else if is_some_ctor(l) && is_borrowing_get(r) {
-        Some((
-            emit(l, OwnershipMode::Owned),
-            format!("({}).cloned()", emit(r, OwnershipMode::Owned)),
-        ))
+    if (is_some_ctor(r) && is_borrowing_get(l)) || (is_some_ctor(l) && is_borrowing_get(r)) {
+        Some((emit(l, OwnershipMode::Owned), emit(r, OwnershipMode::Owned)))
     } else {
         None
     }
@@ -1147,11 +1143,11 @@ where
         ("broadcast", 1) => Some(format!(
             "{{ let __vox_mgr = ::vox_actor_runtime::SubscriptionManager::default(); \
              let __vox_ch = std::env::var(\"VOX_BROADCAST_CHANNEL\").unwrap_or_default(); \
-             __vox_mgr.notify_payload(&__vox_ch, as_string(&{})).await; }}",
+             __vox_mgr.notify_payload(&__vox_ch, as_string(&({}))).await; }}",
             emit(&args[0].value, OwnershipMode::Owned)
         )),
         ("str", 1) => Some(format!(
-            "as_string(&{})",
+            "as_string(&({}))",
             emit(&args[0].value, OwnershipMode::Owned)
         )),
         // `int(x)` numeric conversion — interpreter truncates floats
