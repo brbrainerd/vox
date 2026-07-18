@@ -72,7 +72,7 @@ The user's requirement: these error classes must be **caught by the system, repe
 - overflow flags: `document.body` horizontal scroll (`scrollWidth > clientWidth`), plus any `[data-testid="surface-scroll-host"]` horizontal overflow
 - capture duration
 
-**Manifest:** `review-bundle/latest/manifest.json` — `{ schema_version: 1, generated_at, git_sha, entries: [ { id: "<surface>--<state>--<viewport>--<browser>", surface, state, viewport, browser, file, sha256, axe_violations: [...], console_errors: [...], page_errors: [...], icon_issues: [...], overflow: {...}, capture_ms } ] }`.
+**Manifest:** each capture appends one JSON object per line to `review-bundle/latest/entries-<browser>.jsonl` — `{ id: "<surface>--<state>--<viewport>--<browser>", surface, state, viewport, browser, file, sha256, state_ok, axe_violations: [...], console_errors: [...], page_errors: [...], icon_issues: [...], overflow: {...}, captured_at }`. JSONL append is parallel-worker-safe (no shared-manifest write races across Playwright workers); the Rust analyzer reads `entries-*.jsonl` directly.
 
 **Invocation:** `pnpm review:capture` (package.json script setting `VOX_REVIEW_CAPTURE=1` and running `playwright test e2e/review/capture.spec.ts` across both browser projects). The spec self-skips without the env var so the default sweep/CI is unaffected. Estimated volume: ~25 surfaces × ~1.5 avg states × 3 viewports × 2 browsers ≈ 200–250 captures.
 
