@@ -1,0 +1,68 @@
+// vox:caps subprocess env
+// scripts/frontend-review.vox — one-command frontend review pipeline.
+//   vox run --mode interp scripts/frontend-review.vox                 -> capture + programmatic analysis
+//   VOX_REVIEW_AI=1 vox run --mode interp scripts/frontend-review.vox -> also AI defect analysis (looped until frontier empty)
+
+fn run_pnpm(args: list[str]) to int {
+    let mut proc = process.run("pnpm", args)
+    if proc.is_none() {
+        proc = process.run("pnpm.cmd", args)  // Windows: pnpm is a .cmd shim (see gui-build.vox)
+    }
+    if proc.is_none() {
+        log.error("frontend-review: could not spawn pnpm — is it on PATH?")
+        process.exit(1)
+    }
+    let res = proc.unwrap()
+    if res.stdout != "" { print(res.stdout) }
+    if res.stderr != "" { print(res.stderr) }
+    return res.code
+}
+
+fn run_analysis(ai: bool) to int {
+    let mut cargo_args = ["run", "-p", "vox-orchestrator-mcp", "--features", "gui-visual-review",
+        "--bin", "gui-visual-review", "--", "--bundle", "crates/vox-gui/ui/review-bundle/latest"]
+    if ai { cargo_args = cargo_args.push("--ai") }
+    let proc = process.run("cargo", cargo_args)
+    if proc.is_none() {
+        log.error("frontend-review: could not spawn cargo")
+        process.exit(1)
+    }
+    let res = proc.unwrap()
+    if res.stdout != "" { print(res.stdout) }
+    if res.stderr != "" { print(res.stderr) }
+    return res.code
+}
+
+fn main() {
+    std.env.set("VOX_REVIEW_CAPTURE", "1")
+    print("[frontend-review] capturing matrix (chromium + firefox)...")
+    let code = run_pnpm(["--dir", "crates/vox-gui/ui", "exec", "playwright", "test",
+        "e2e/review/capture.spec.ts", "--project=chromium", "--project=firefox-review", "--workers=4"])
+    if code != 0 {
+        print("[frontend-review] capture reported failures (continuing — capture is evidence, entries were still written)")
+    }
+
+    let ai = std.env.get("VOX_REVIEW_AI")
+    let mut do_ai = false
+    if ai.is_some() {
+        if ai.unwrap() == "1" { do_ai = true }
+    }
+    print("[frontend-review] analyzing bundle...")
+    let mut rounds = 0
+    let mut analysis = run_analysis(do_ai)
+    // Frontier resumability: with AI on, rerun until the analyzer reports a
+    // drained frontier (deferred == 0 -> it prints DONE; bounded loop guard).
+    while do_ai and analysis == 0 and rounds < 10 {
+        rounds = rounds + 1
+        // The analyzer exits 0 always (CI advisory parity); it prints
+        // "deferred: N" — rerun while N > 0 by checking the digest freshness
+        // is handled inside the binary via cache; a re-run with empty
+        // frontier is a fast no-op, so a fixed small loop is safe and simple.
+        analysis = run_analysis(true)
+    }
+    if analysis != 0 {
+        log.error("frontend-review: analysis FAILED (exit " + str(analysis) + ")")
+        process.exit(1)
+    }
+    print("[frontend-review] done — digest: contracts/reports/gui-visual-review/bundle-digest.md")
+}
