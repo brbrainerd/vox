@@ -95,6 +95,8 @@ export function installTauriMock(viewKey: string): void {
     },
   ];
 
+  (window as any).__MOCK_HOPPER__ = [] as any[];
+
   const mcpResult = (tool: string, targs?: any) => {
     if (tool.includes('mesh_nodes')) return { nodes: [{ id: 'node-a', status: 'online', vram_gb: 24 }, { id: 'node-b', status: 'online', vram_gb: 12 }], edges: [] };
     if (tool.includes('resolve_approval')) {
@@ -293,6 +295,31 @@ export function installTauriMock(viewKey: string): void {
           return filtered.slice(0, lim);
         }
         case 'list_orchestrator_tasks': return [];
+        case 'hopper_list':
+          return ((window as any).__MOCK_HOPPER__ as any[]).map(t => ({ ...t }));
+        case 'hopper_submit': {
+          const items = (window as any).__MOCK_HOPPER__ as any[];
+          const n = items.length + 1;
+          items.push({
+            item_id: `hop-${n}`,
+            intent: String(args?.intent ?? ''),
+            priority: 1,
+            state: 'inbox',
+            task_id: 9000 + n,
+          });
+          return { item_id: `hop-${n}` };
+        }
+        case 'hopper_cancel': {
+          const items = (window as any).__MOCK_HOPPER__ as any[];
+          (window as any).__MOCK_HOPPER__ = items.filter(t => t.item_id !== String(args?.itemId));
+          return null;
+        }
+        case 'hopper_reprioritize': {
+          const items = (window as any).__MOCK_HOPPER__ as any[];
+          const hit = items.find(t => t.item_id === String(args?.itemId));
+          if (hit) hit.priority = Number(args?.priority ?? 1);
+          return null;
+        }
         case 'hopper_mark_done': return { item_id: 'mock-item', intent: 'mock to-do', priority: 1, state: 'done', task_id: 1, session_id: null, agent_id: null, remote_node: null };
         case 'inference_provider_status': return [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null, local_models: [] }, { provider: 'Ollama', key_present: true, is_local: true, local_reachable: true, local_models: ['llama3.2'] }];
         case 'set_active_model': return null;
