@@ -13,11 +13,13 @@ therefore drove the **React frontend** under the Vite dev server with a **mocked
 (`window.__TAURI_INTERNALS__.invoke`), the same mechanism the existing `e2e/dashboard.spec.ts` uses.
 
 - Harness (reusable, committed): `crates/vox-gui/ui/e2e/screenshots.spec.ts` +
-  `crates/vox-gui/ui/playwright.screens.config.ts`.
+  `crates/vox-gui/ui/playwright.config.ts`.
 - Run it: start the dev server (`pnpm --dir crates/vox-gui/ui dev`, port **1420**), then
-  `pnpm --dir crates/vox-gui/ui exec playwright test --config=playwright.screens.config.ts`.
+  `pnpm --dir crates/vox-gui/ui exec playwright test screenshots.spec.ts --project=chromium`.
 - Output: a full-page PNG per surface under `crates/vox-gui/ui/e2e/screens/` (24 surfaces + the command
   palette). The PNGs are regenerable build artifacts (not committed).
+
+The standalone playwright.screens.config.ts was removed 2026-07-16 (orphan — no script or CI referenced it).
 
 **Scope caveat.** This audits the rendered frontend with representative fixture data. It does **not** cover
 real-IPC behavior, live event streams, the native Tauri window chrome, or true backend data shapes. Several
