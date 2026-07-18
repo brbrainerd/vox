@@ -97,6 +97,10 @@ export function installTauriMock(viewKey: string): void {
 
   (window as any).__MOCK_HOPPER__ = [] as any[];
 
+  (window as any).__MOCK_SESSIONS__ = [
+    { session_id: 'mock-session-1', title: 'Mock chat', updated_at: 'now', message_count: 2, conversation_id: 1 },
+  ] as any[];
+
   const mcpResult = (tool: string, targs?: any) => {
     if (tool.includes('mesh_nodes')) return { nodes: [{ id: 'node-a', status: 'online', vram_gb: 24 }, { id: 'node-b', status: 'online', vram_gb: 12 }], edges: [] };
     if (tool.includes('resolve_approval')) {
@@ -214,12 +218,24 @@ export function installTauriMock(viewKey: string): void {
             { id: 'rules', depth: 2, entries: 210, hot: true, dirty: false, spark: [1, 1, 2, 2, 3, 2, 3] },
           ],
         };
-        case 'chat_list_sessions': return [{ session_id: 'mock-session-1', title: 'Mock chat', updated_at: 'now', message_count: 2, conversation_id: 1 }];
+        case 'chat_list_sessions':
+          return ((window as any).__MOCK_SESSIONS__ as any[]).map(s => ({ ...s }));
         case 'chat_create_session': return { session_id: 'mock-session-new', title: 'New chat', updated_at: 'now', message_count: 0, conversation_id: 2 };
         case 'chat_get_messages': return [{ id: 1, role: 'user', content: 'hello', created_at: 'now', task_id: null }];
         case 'chat_append_message': return 1;
-        case 'chat_rename_session': return null;
-        case 'chat_archive_session': return null;
+        case 'chat_rename_session': {
+          const hit = ((window as any).__MOCK_SESSIONS__ as any[]).find(
+            s => s.session_id === String(args?.sessionId),
+          );
+          if (hit) hit.title = String(args?.title ?? hit.title);
+          return null;
+        }
+        case 'chat_archive_session': {
+          (window as any).__MOCK_SESSIONS__ = ((window as any).__MOCK_SESSIONS__ as any[]).filter(
+            s => s.session_id !== String(args?.sessionId),
+          );
+          return null;
+        }
         case 'get_command_catalog': return {
           generated_from: 'mock',
           entries: ['check', 'build', 'test', 'run', 'fmt', 'audit', 'research', 'scientia'].map(n => ({
@@ -320,7 +336,12 @@ export function installTauriMock(viewKey: string): void {
           if (hit) hit.priority = Number(args?.priority ?? 1);
           return null;
         }
-        case 'hopper_mark_done': return { item_id: 'mock-item', intent: 'mock to-do', priority: 1, state: 'done', task_id: 1, session_id: null, agent_id: null, remote_node: null };
+        case 'hopper_mark_done': {
+          const items = (window as any).__MOCK_HOPPER__ as any[];
+          const hit = items.find(t => t.item_id === String(args?.itemId));
+          if (hit) hit.state = 'done';
+          return hit ? { ...hit } : null;
+        }
         case 'inference_provider_status': return [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null, local_models: [] }, { provider: 'Ollama', key_present: true, is_local: true, local_reachable: true, local_models: ['llama3.2'] }];
         case 'set_active_model': return null;
         case 'get_archive_status': return { swhid: null, swh_task_id: null, swh_task_status: null, zenodo_doi: null, zenodo_state: null };

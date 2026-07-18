@@ -45,3 +45,36 @@ test('create -> reprioritize -> cancel round-trip', async ({ page }) => {
     ),
   ).toBe(true);
 });
+
+test('create -> mark done calls hopper_mark_done and retires the affordance', async ({ page }) => {
+  await addMockInitScript(page, installTauriMock, 'tasks');
+  await page.goto('/');
+  await page.waitForSelector('nav', { timeout: 15_000 });
+
+  const composer = page.getByLabel('Add a task');
+  await composer.fill('Write the changelog');
+  await composer.press('Enter');
+  await expect(page.getByText('Write the changelog')).toBeVisible();
+
+  const row = page.locator('tr', { hasText: 'Write the changelog' });
+  await row.getByTitle('Mark done').click();
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() =>
+          (window as any).__TAURI_CALLS__.filter((c: any) => c.cmd === 'hopper_mark_done').length,
+        ),
+      { timeout: 10_000 },
+    )
+    .toBe(1);
+  const call = await page.evaluate(() =>
+    (window as any).__TAURI_CALLS__.find((c: any) => c.cmd === 'hopper_mark_done'),
+  );
+  expect(call.args).toMatchObject({ itemId: 'hop-1' });
+
+  // Done rows stay listed (hopper_list includes terminal done items; state
+  // 'done' maps to lifecycle 'completed' in mapHopperTasksToRows) but lose the
+  // mark-done affordance (hopper-origin + lifecycle !== 'completed' guard).
+  await expect(page.getByText('Write the changelog')).toBeVisible();
+  await expect(row.getByTitle('Mark done')).toHaveCount(0);
+});
