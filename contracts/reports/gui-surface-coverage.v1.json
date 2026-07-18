@@ -82,6 +82,7 @@
     "ci coverage-gates",
     "ci crate-budget",
     "ci crate-build-map-parity",
+    "ci crate-edges",
     "ci cuda-features",
     "ci cuda-release-build",
     "ci data-ssot-guards",
