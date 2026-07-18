@@ -15,7 +15,6 @@ import { BrowserView } from '../surfaces/Browser/BrowserView';
 import { ApprovalsView } from '../surfaces/Approvals/ApprovalsView';
 import { CodeRabbitView } from '../surfaces/CodeRabbit/CodeRabbitView';
 import { DiscoverySurface } from '../surfaces/Discovery/DiscoverySurface';
-import { MissionControlPanel } from '../surfaces/MissionControl/MissionControlPanel';
 import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
 import { PoliciesView } from '../surfaces/Policies/PoliciesView';
 import { NeedsYouSurface } from '../surfaces/NeedsYou/NeedsYouSurface';
@@ -176,8 +175,6 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           attention={props.attention}
         />
       );
-    case 'mission-control':
-      return <MissionControlPanel pushToast={props.pushToast} />;
     case 'policies':
       return <PoliciesView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'skills':

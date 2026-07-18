@@ -120,7 +120,6 @@ type View =
   | 'knowledge'
   | 'compute'
   | 'mercatus'
-  | 'mission-control'
   | 'sub-agents';
 
 const LEGACY_VIEWS: string[] = [
@@ -128,7 +127,7 @@ const LEGACY_VIEWS: string[] = [
   'mesh', 'gamify', 'harness', 'browser', 'console', 'coderabbit', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
   'publications', 'search', 'vox-search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute', 'mercatus',
-  'review', 'tasks', 'mission-control', 'sub-agents',
+  'review', 'tasks', 'sub-agents',
 ];
 
 // Single source of truth for valid view ids (deep-link validation + initial-view).
