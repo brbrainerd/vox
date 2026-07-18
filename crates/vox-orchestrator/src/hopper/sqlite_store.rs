@@ -550,7 +550,10 @@ mod tests {
                 None,
             )
             .await;
-        hopper.complete(&completed.item_id).await.expect("completable");
+        hopper
+            .complete(&completed.item_id)
+            .await
+            .expect("completable");
 
         // A burst of more-recent cancellations that would previously have
         // consumed the shared LIMIT budget ahead of the completion above.
