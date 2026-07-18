@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config';
 // separately via `pnpm test:e2e` and must NOT be collected by vitest.
 export default defineConfig({
   test: {
-    include: ['src/**/*.{test,spec}.{ts,tsx}', 'e2e/lib/**/*.test.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'e2e/lib/**/*.test.ts', 'e2e/review/**/*.test.ts'],
     // Exclude the Playwright specs (e2e/*.spec.ts) but allow the pure unit-tested
     // e2e/lib helpers above to be collected by vitest.
     exclude: ['e2e/*.spec.ts', 'node_modules/**', 'dist/**'],
