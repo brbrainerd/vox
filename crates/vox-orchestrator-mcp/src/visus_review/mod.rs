@@ -7,6 +7,7 @@
 //! now drives the bounded review-bundle path (`--bundle ...`) instead. The
 //! legacy path stays compiled and unit-tested but should be deleted once the
 //! bundle path has fully proven out.
+pub mod bundle;
 pub mod model_select;
 pub mod prompt;
 pub mod spike;
