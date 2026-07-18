@@ -25,6 +25,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use vox_codegen::codegen_rust::generate_script;
 use vox_compiler::hir::lower_module;
@@ -94,6 +95,10 @@ fn inject_workspace_patches(project_dir: &Path) {
     let _ = std::fs::write(cargo_path, toml);
 }
 
+/// Monotonic counter so every `compile_vox_script` invocation gets a distinct
+/// Cargo package name (see below for why that matters).
+static PACKAGE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
 /// Generate a native script crate for `src`, write it to a fresh temp dir, and
 /// `cargo build` it. `Ok(())` iff it compiled; otherwise the captured cargo
 /// stderr.
@@ -103,7 +108,26 @@ fn compile_vox_script(src: &str) -> Result<(), String> {
     // Run typecheck so `inferred_types` is populated — required for list/str method
     // disambiguation (e.g. `count`/`contains` shared between str and List receivers).
     let _ = typecheck_hir_module(src, &mut hir);
-    let output = generate_script(&hir, "vox-script", Some(&runtime_path()))
+    // Every test previously codegen'd under the same hardcoded package name
+    // ("vox-script"), all sharing one CARGO_TARGET_DIR for speed. Different
+    // tests' generated crates live in different temp source dirs, but Cargo's
+    // build-cache/fingerprint lookup for a path package is not reliably keyed
+    // off the full source path under a shared target dir on this toolchain —
+    // in practice, running the full harness reused a *different* test's
+    // stale compiled `vox_script` rlib/rmeta, so `main.rs` (freshly generated,
+    // referencing that test's own functions) failed to resolve them
+    // (rustc E0425 "cannot find value `foo`"). The specific tests that failed
+    // varied nondeterministically run-to-run — the signature of a cache
+    // collision race, not a codegen correctness bug. Giving each invocation
+    // its own package name makes every generated crate's cache key unique,
+    // so builds can never be conflated while still reusing the shared target
+    // dir's compiled *dependencies* (tokio, vox-actor-runtime, etc.) for speed.
+    let pkg_name = format!(
+        "vox-script-{}-{}",
+        std::process::id(),
+        PACKAGE_COUNTER.fetch_add(1, Ordering::Relaxed)
+    );
+    let output = generate_script(&hir, &pkg_name, Some(&runtime_path()))
         .map_err(|e| format!("codegen failed: {e}"))?;
 
     let dir = tempfile::tempdir().map_err(|e| format!("tempdir: {e}"))?;

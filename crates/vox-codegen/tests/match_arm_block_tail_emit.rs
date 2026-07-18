@@ -37,7 +37,7 @@ fn match_arm_block_trailing_expr_has_no_semicolon() {
         "trailing match-arm expression must not get a semicolon; got:\n{out}"
     );
     assert!(
-        out.contains("Some(as_string(&y))\n") || out.contains("Some(str(y))\n"),
+        out.contains("Some(as_string(&(y)))\n") || out.contains("Some(str(y))\n"),
         "expected tail expression without semicolon; got:\n{out}"
     );
 }

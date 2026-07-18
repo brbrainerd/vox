@@ -61,7 +61,7 @@ fn indexed_for_loop_index_used_in_string_concat() {
     );
 
     assert!(
-        out.contains(".enumerate()") && out.contains("as_string(&i)"),
+        out.contains(".enumerate()") && out.contains("as_string(&(i))"),
         "indexed loop body must reference index in expressions; got:\n{out}"
     );
 }
