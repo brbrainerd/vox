@@ -83,10 +83,23 @@ interface OmnibarProps {
   onRunCommand: (command: string) => void;
   onSendToChat: (query: string) => void;
   onOpenDoc: (path: string) => void;
+  onSubmitTask: () => void;
   agents: Agent[];
   skills: CommandCatalogEntry[];
   gamifyEnabled?: boolean;
 }
+
+/** Always-offered quick action — not derived from any search source, so it
+ *  must be spliced into the commands facet directly rather than relying on
+ *  buildOmnibarFacets' query-matched rows (which are empty on an empty query). */
+const SUBMIT_TASK_ROW: OmnibarRow = {
+  id: 'quick-action:submit-task',
+  facet: 'commands',
+  label: 'Submit new task…',
+  detail: 'Open Chat and focus the composer',
+  provenance: 'corpus',
+  activate: { type: 'submit-task' },
+};
 
 function ProvenanceBadge({ hint }: { hint: string }) {
   return (
@@ -103,6 +116,7 @@ export function Omnibar({
   onRunCommand,
   onSendToChat,
   onOpenDoc,
+  onSubmitTask,
   agents,
   skills,
   gamifyEnabled = false,
@@ -215,12 +229,16 @@ export function Omnibar({
       runtimeHits,
       graph,
     });
-    if (agentRows.length === 0) return base;
     // Carry agents into the COMMANDS facet (finding #5) without re-capping below
     // FACET_CAP would drop real commands — agents lead, then existing commands.
+    // SUBMIT_TASK_ROW is a default quick action shown only on the empty-query
+    // landing state — like a real command palette's default suggestions, it
+    // steps aside the moment the user starts searching for something else.
+    const withSubmitTask = effectiveQ.trim() ? agentRows : [...agentRows, SUBMIT_TASK_ROW];
+    if (withSubmitTask.length === 0) return base;
     return base.map((f) =>
       f.key === 'commands'
-        ? { ...f, rows: [...agentRows, ...f.rows] }
+        ? { ...f, rows: [...withSubmitTask, ...f.rows] }
         : f,
     );
   }, [effectiveQ, prefixMode, federated, backendHits, manifest, runtimeHits, graph, agentRows]);
@@ -268,10 +286,13 @@ export function Omnibar({
         case 'agent':
           onNavigate('roster');
           break;
+        case 'submit-task':
+          onSubmitTask();
+          break;
       }
       onClose();
     },
-    [onNavigate, onRunCommand, onOpenDoc, onClose, gamifyEnabled],
+    [onNavigate, onRunCommand, onOpenDoc, onSubmitTask, onClose, gamifyEnabled],
   );
 
   const expandGraphNeighbors = useCallback((row: OmnibarRow) => {

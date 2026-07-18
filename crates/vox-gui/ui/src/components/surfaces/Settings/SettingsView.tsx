@@ -1214,6 +1214,9 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       <div role="status" aria-live="polite" className="sr-only">
         {prefAnnounce}
       </div>
+      <h1 className="col-span-12 font-display text-lg tracking-[0.14em] uppercase text-text-primary">
+        {useLabel('settings')}
+      </h1>
       {/* Nav */}
       <Glass className="col-span-12 md:col-span-3 p-3">
         <input

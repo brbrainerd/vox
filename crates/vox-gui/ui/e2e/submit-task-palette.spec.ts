@@ -17,7 +17,7 @@ test.describe('Submit new task palette action', () => {
     await page.waitForSelector('nav', { timeout: 15_000 });
 
     await page.keyboard.press('Control+k');
-    await expect(page.getByPlaceholder(/search commands/i)).toBeVisible();
+    await expect(page.getByPlaceholder(/search surfaces, commands/i)).toBeVisible();
 
     await page.getByRole('button', { name: /Submit new task/i }).click();
 

@@ -36,7 +36,11 @@ export function useFederatedSearchIndex(skills: FederatedIndexSources['skills'] 
     voxTransport
       .voxDocsIndex()
       .then(index => {
-        if (!cancelled) setDocs(index);
+        // A misbehaving/incomplete backend mock (or a genuinely absent
+        // command) can resolve with null/undefined; buildFederatedIndex
+        // iterates sources.docs eagerly and unconditionally, so a nullish
+        // value here crashes the whole app shell, not just search.
+        if (!cancelled) setDocs(Array.isArray(index) ? index : []);
       })
       .catch(() => {
         if (!cancelled) setDocs([]);

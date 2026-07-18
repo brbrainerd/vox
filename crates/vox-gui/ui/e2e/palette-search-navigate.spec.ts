@@ -17,7 +17,7 @@ test.describe('Command palette search navigation', () => {
     await page.waitForSelector('nav', { timeout: 15_000 });
 
     await page.keyboard.press('Control+k');
-    const paletteInput = page.getByPlaceholder(/search commands/i);
+    const paletteInput = page.getByPlaceholder(/search surfaces, commands/i);
     await expect(paletteInput).toBeVisible();
 
     await paletteInput.fill('fmt');

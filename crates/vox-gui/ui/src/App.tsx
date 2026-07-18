@@ -1210,6 +1210,7 @@ export default function App() {
             viewKey: 'console',
           });
         }}
+        onSubmitTask={() => handleSubmitTaskAction(navigateTo, focusComposer)}
         onSendToChat={(query) => {
           navigateTo('chat');
           handleLoquelaSubmit({ description: query, session_id: activeSessionId });

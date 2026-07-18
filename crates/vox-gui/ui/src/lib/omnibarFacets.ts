@@ -72,7 +72,8 @@ export type OmnibarActivation =
   | { type: 'agent'; agentId: string }
   | { type: 'skill'; skillId: string }
   | { type: 'setting'; section: string; settingId: string }
-  | { type: 'policy'; policyId: string };
+  | { type: 'policy'; policyId: string }
+  | { type: 'submit-task' };
 
 export interface OmnibarRow {
   id: string;

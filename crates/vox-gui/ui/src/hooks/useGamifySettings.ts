@@ -15,7 +15,11 @@ export function useGamifySettings(pollMs = 30_000): GamifySettings {
       voxTransport
         .getGamifySettings()
         .then((s) => {
-          if (!cancelled) setSettings(s);
+          // A misbehaving/incomplete backend mock (or a genuinely absent
+          // command) can resolve with null/undefined; trust the default
+          // rather than let a nullish settings object crash every reader
+          // of gamifySettings.enabled across the app.
+          if (!cancelled) setSettings(s ?? DEFAULT_SETTINGS);
         })
         .catch(() => {});
     };
