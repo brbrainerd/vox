@@ -4,6 +4,10 @@
  * NOT run on standard CI. Opt in with:
  *   VOX_VARIANT_SCREENSHOTS=1 pnpm exec playwright test screenshots-variants.spec.ts --project=chromium
  *
+ * A post-merge CI step opts in via the workflow env var (see Task 11) so the
+ * error-state assertions below still get exercised on a schedule even though
+ * this spec self-skips by default in the standard PR-gating sweep.
+ *
  * Output:
  *   e2e/screens/<view>-empty.png  — surface with all list/detail IPC returning empty
  *   e2e/screens/<view>-error.png  — surface with key data-fetch IPC throwing errors
@@ -21,7 +25,7 @@ const RUN_VARIANTS = !!process.env['VOX_VARIANT_SCREENSHOTS'];
 
 const KEY_SURFACES = [
   'dashboard', 'chat', 'runs', 'approvals', 'models',
-  'memory', 'search', 'policies', 'gamify', 'settings',
+  'memory', 'vox-search', 'policies', 'gamify', 'settings',
 ] as const;
 
 const BENIGN_CONSOLE: string[] = ['favicon'];
@@ -81,6 +85,30 @@ test.describe('GUI visual audit — error states', () => {
       // Error-state surfaces MAY render an error boundary — both are valid.
       // What we audit: does the error UI look reasonable (not blank, not garbled)?
       expect(pageErrors, `[${view}-error] uncaught page errors:\n${pageErrors.join('\n')}`).toEqual([]);
+
+      // Visible degradation, not a blank panel: at least one toast item
+      // attributable to THIS surface (the global 'Chat sessions' toast fires
+      // on every view and must not vacuously satisfy other surfaces), a
+      // role=alert region in the main panel, or visible error copy in the
+      // main panel. Auto-retrying: toast/alert timing varies on CI runners.
+      const mainPanel = page.getByTestId('surface-scroll-host');
+      const toastItems =
+        view === 'chat'
+          ? page.getByRole('status').locator('.pointer-events-auto')
+          : page.getByRole('status').locator('.pointer-events-auto').filter({ hasNotText: /chat sessions/i });
+      const alerts = mainPanel.getByRole('alert');
+      const errorCopy = mainPanel.getByText(/error|failed|unavailable|could not|retry/i);
+      await expect
+        .poll(
+          async () =>
+            (await toastItems.count()) + (await alerts.count()) + (await errorCopy.count()),
+          {
+            timeout: 10_000,
+            message: `[${view}-error] no visible toast/alert/error copy — surface degraded to a blank panel`,
+          },
+        )
+        .toBeGreaterThan(0);
+
       await ctx.close();
     });
   }
