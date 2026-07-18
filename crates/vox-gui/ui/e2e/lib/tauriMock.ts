@@ -85,20 +85,29 @@ export function installTauriMock(viewKey: string): void {
     started_at_ms: 1717000000000, finished_at_ms: 1717400000000,
   }));
 
-  const mcpResult = (tool: string) => {
+  (window as any).__MOCK_APPROVALS__ = [
+    {
+      approval_id: 'AP-000001',
+      tool: 'vox_run_shell',
+      summary: 'rm -rf build',
+      requested_at_ms: 1717400000000,
+      resolved: false,
+    },
+  ];
+
+  const mcpResult = (tool: string, targs?: any) => {
     if (tool.includes('mesh_nodes')) return { nodes: [{ id: 'node-a', status: 'online', vram_gb: 24 }, { id: 'node-b', status: 'online', vram_gb: 12 }], edges: [] };
+    if (tool.includes('resolve_approval')) {
+      const id = String(targs?.approval_id ?? '');
+      const hit = ((window as any).__MOCK_APPROVALS__ as any[]).find(a => a.approval_id === id);
+      if (hit) hit.resolved = true;
+      return { success: true, data: { resolved: !!hit } };
+    }
     if (tool.includes('pending_approval')) {
-      return {
-        success: true,
-        data: {
-          approvals: [{
-            approval_id: 'AP-000001',
-            tool: 'vox_run_shell',
-            summary: 'rm -rf build',
-            requested_at_ms: 1717400000000,
-          }],
-        },
-      };
+      const pending = ((window as any).__MOCK_APPROVALS__ as any[])
+        .filter(a => !a.resolved)
+        .map(({ resolved: _r, ...a }) => a);
+      return { success: true, data: { approvals: pending } };
     }
     if (tool.includes('git_diff')) return { success: true, data: 'diff --git a/README.md b/README.md\n' };
     if (tool.includes('skill') || tool.includes('plugin')) return { skills: [{ id: 'superpowers', name: 'Superpowers', enabled: true }], plugins: [{ id: 'design', name: 'Design' }] };
@@ -254,7 +263,7 @@ export function installTauriMock(viewKey: string): void {
         case 'pty_resize':
         case 'pty_close':
           return null;
-        case 'invoke_mcp_tool': return { tool: args?.tool ?? 'unknown', is_error: false, result: mcpResult(args?.tool ?? '') };
+        case 'invoke_mcp_tool': return { tool: args?.tool ?? 'unknown', is_error: false, result: mcpResult(args?.tool ?? '', args?.args) };
         case 'execute_command': {
           const path: string[] = args?.path ?? [];
           const p = path.join(' ');
