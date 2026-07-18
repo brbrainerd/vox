@@ -5,13 +5,20 @@
  * installErrorStateMock  — key data-fetch IPC commands throw so the UI must render error states.
  *
  * Usage (Playwright):
- *   await page.addInitScript(installEmptyStateMock, viewKey)
- *   await page.addInitScript(installErrorStateMock, viewKey)
+ *   await addMockInitScript(page, installEmptyStateMock, viewKey)
+ *   await addMockInitScript(page, installErrorStateMock, viewKey)
  *
  * Structurally mirrors installTauriMock in tauriMock.ts — drop-in replacement.
  */
 
 export function installEmptyStateMock(viewKey: string): void {
+  const shared = (window as any).__VOX_MOCK_SHARED__;
+  if (!shared) {
+    throw new Error(
+      'installEmptyStateMock must be injected via addMockInitScript (e2e/lib/tauriMockShared.ts)',
+    );
+  }
+
   /** IPC commands that return lists — return [] in empty-state mock. */
   const LIST_CMDS = new Set([
     'list_model_cards', 'list_gui_runs', 'list_ludus_notifications',
@@ -49,62 +56,28 @@ export function installEmptyStateMock(viewKey: string): void {
     }
   }
 
-  /** Commands that must succeed for the app shell to mount at all. */
-  // NOTE: bootstrapResponse is duplicated verbatim in installErrorStateMock.
-  // This is REQUIRED by Playwright's page.addInitScript which serialises the
-  // entire function body as a string — module-level constants are NOT in scope
-  // inside the browser. Keep both copies in sync when adding new bootstrap commands.
-  function bootstrapResponse(cmd: string, viewKey: string): unknown {
-    switch (cmd) {
-      case 'get_initial_view': return viewKey;
-      case 'get_build_info': return { version: '0.6.0', display: '0.6.0+local (dev)' };
-      case 'get_orchestrator_status_bin': return new Uint8Array([0x80]);
-      case 'get_orchestrator_status': return { agent_count: 0, agents: [], recent_events: [], alerts: [], peers: [] };
-      case 'get_action_manifest': return { x_vox_version: 2, schema_version: 1, generated_from: 'mock-empty', actions: [] };
-      case 'get_gui_preference': return null;
-      case 'get_gamify_settings': return { enabled: false, mode: 'off' };
-      case 'get_identity_summary': return { display_name: 'tester@vox', os_user: 'tester' };
-      case 'get_active_model': return null;
-      case 'get_selection_policy': return { chain: [], free_tier: true };
-      case 'vox_docs_index': return [];
-      default: return null;
-    }
-  }
-
-  try {
-    window.localStorage.setItem(
-      'vox_workbench_tabs.v1',
-      JSON.stringify({
-        openTabs: Array.from(new Set(['chat', viewKey])),
-        activeTab: viewKey,
-      }),
-    );
-    window.localStorage.setItem('vox_sidebar_mode', 'default');
-  } catch { /* sandboxed contexts may deny localStorage */ }
-  (window as any).__TAURI_CALLS__ = [];
-  (window as any).__TAURI_EVENT_PLUGIN_INTERNALS__ = {
-    unregisterListener: (event: string, eventId: number) => {}
-  };
-
+  shared.seedMockEnvironment(viewKey);
   (window as any).__TAURI_INTERNALS__ = {
     ...((window as any).__TAURI_INTERNALS__ || {}),
-    transformCallback: (cb: (...args: unknown[]) => unknown) => {
-      const id = `cb_${Math.random().toString(36).slice(2)}`;
-      (window as any)[id] = cb;
-      return id;
-    },
     invoke: async (cmd: string, args?: any) => {
       (window as any).__TAURI_CALLS__.push({ cmd, args: args ?? null });
       if (LIST_CMDS.has(cmd)) return [];
       if (DETAIL_CMDS.has(cmd)) return emptyDetailResponse(cmd);
-      if (cmd === 'plugin:event|listen') return Math.floor(Math.random() * 10000);
-      if (cmd === 'plugin:event|unlisten') return null;
-      return bootstrapResponse(cmd, viewKey);
+      const ev = shared.eventPluginResponse(cmd, args);
+      if (ev !== undefined) return ev;
+      return shared.bootstrapResponse(cmd, viewKey);
     },
   };
 }
 
 export function installErrorStateMock(viewKey: string): void {
+  const shared = (window as any).__VOX_MOCK_SHARED__;
+  if (!shared) {
+    throw new Error(
+      'installErrorStateMock must be injected via addMockInitScript (e2e/lib/tauriMockShared.ts)',
+    );
+  }
+
   /** IPC commands whose failure exercises error-state UI in the component. */
   const ERROR_CMDS = new Set([
     'list_gui_runs', 'list_model_cards', 'get_routing_summary_live',
@@ -116,56 +89,17 @@ export function installErrorStateMock(viewKey: string): void {
     'get_completion_report',
   ]);
 
-  /** Commands that must succeed for the app shell to mount at all. */
-  // NOTE: bootstrapResponse is duplicated verbatim from installEmptyStateMock.
-  // See the comment there for why. Keep both copies in sync.
-  function bootstrapResponse(cmd: string, viewKey: string): unknown {
-    switch (cmd) {
-      case 'get_initial_view': return viewKey;
-      case 'get_build_info': return { version: '0.6.0', display: '0.6.0+local (dev)' };
-      case 'get_orchestrator_status_bin': return new Uint8Array([0x80]);
-      case 'get_orchestrator_status': return { agent_count: 0, agents: [], recent_events: [], alerts: [], peers: [] };
-      case 'get_action_manifest': return { x_vox_version: 2, schema_version: 1, generated_from: 'mock-empty', actions: [] };
-      case 'get_gui_preference': return null;
-      case 'get_gamify_settings': return { enabled: false, mode: 'off' };
-      case 'get_identity_summary': return { display_name: 'tester@vox', os_user: 'tester' };
-      case 'get_active_model': return null;
-      case 'get_selection_policy': return { chain: [], free_tier: true };
-      case 'vox_docs_index': return [];
-      default: return null;
-    }
-  }
-
-  try {
-    window.localStorage.setItem(
-      'vox_workbench_tabs.v1',
-      JSON.stringify({
-        openTabs: Array.from(new Set(['chat', viewKey])),
-        activeTab: viewKey,
-      }),
-    );
-    window.localStorage.setItem('vox_sidebar_mode', 'default');
-  } catch { /* sandboxed contexts may deny localStorage */ }
-  (window as any).__TAURI_CALLS__ = [];
-  (window as any).__TAURI_EVENT_PLUGIN_INTERNALS__ = {
-    unregisterListener: (event: string, eventId: number) => {}
-  };
-
+  shared.seedMockEnvironment(viewKey);
   (window as any).__TAURI_INTERNALS__ = {
     ...((window as any).__TAURI_INTERNALS__ || {}),
-    transformCallback: (cb: (...args: unknown[]) => unknown) => {
-      const id = `cb_${Math.random().toString(36).slice(2)}`;
-      (window as any)[id] = cb;
-      return id;
-    },
     invoke: async (cmd: string, args?: any) => {
       (window as any).__TAURI_CALLS__.push({ cmd, args: args ?? null });
       if (ERROR_CMDS.has(cmd)) {
         throw new Error(`[mock-error] ${cmd} simulated IPC failure`);
       }
-      if (cmd === 'plugin:event|listen') return Math.floor(Math.random() * 10000);
-      if (cmd === 'plugin:event|unlisten') return null;
-      return bootstrapResponse(cmd, viewKey);
+      const ev = shared.eventPluginResponse(cmd, args);
+      if (ev !== undefined) return ev;
+      return shared.bootstrapResponse(cmd, viewKey);
     },
   };
 }

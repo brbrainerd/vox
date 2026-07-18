@@ -11,6 +11,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { SURFACE_REGISTRY } from '../src/generated/surfaceRegistry.generated';
 import { installTauriMock } from './lib/tauriMock';
+import { addMockInitScript } from './lib/tauriMockShared';
 
 /**
  * Every screenshot-able surface is derived from the generated SURFACE_REGISTRY — the same
@@ -51,7 +52,7 @@ test.describe('GUI visual audit', () => {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       const page = await ctx.newPage();
       const { consoleErrors, pageErrors } = captureErrors(page);
-      await page.addInitScript(installTauriMock, view);
+      await addMockInitScript(page, installTauriMock, view);
       await page.goto('/');
       // The app shell (sidebar nav) must mount before we judge the surface itself.
       await page.waitForSelector('nav', { timeout: 15_000 });
@@ -79,7 +80,7 @@ test.describe('GUI visual audit', () => {
   test('capture command-palette', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
-    await page.addInitScript(installTauriMock, 'dashboard');
+    await addMockInitScript(page, installTauriMock, 'dashboard');
     await page.goto('/');
     await page.waitForTimeout(1000);
     await page.keyboard.press('Control+k');
@@ -97,7 +98,7 @@ test.describe('GUI visual audit', () => {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       const page = await ctx.newPage();
       const { consoleErrors, pageErrors } = captureErrors(page);
-      await page.addInitScript(installTauriMock, 'dashboard');
+      await addMockInitScript(page, installTauriMock, 'dashboard');
       // useLocalStorage JSON-parses its value, so the mode must be stored as JSON.
       await page.addInitScript((m: string) => localStorage.setItem('vox_sidebar_mode', JSON.stringify(m)), sbMode);
       await page.goto('/');

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { installEmptyStateMock, installErrorStateMock } from './tauriMockVariants';
+import { runInstallerWithShared, mockInitScript } from './tauriMockShared';
 
 /**
  * The factories are designed to be injected via page.addInitScript (serialised + re-executed
@@ -34,7 +35,7 @@ async function withFakeWindow<T>(fn: (win: any) => Promise<T> | T): Promise<T> {
 describe('installEmptyStateMock', () => {
   it('sets vox_workbench_tabs.v1 in localStorage', async () => {
     await withFakeWindow((win) => {
-      installEmptyStateMock('dashboard');
+      runInstallerWithShared(installEmptyStateMock, 'dashboard');
       const raw = win.localStorage._storage['vox_workbench_tabs.v1'];
       expect(raw).toBeTruthy();
       const parsed = JSON.parse(raw);
@@ -46,7 +47,7 @@ describe('installEmptyStateMock', () => {
 
   it('returns [] for list_gui_runs', async () => {
     await withFakeWindow(async (win) => {
-      installEmptyStateMock('runs');
+      runInstallerWithShared(installEmptyStateMock, 'runs');
       const result = await win.__TAURI_INTERNALS__.invoke('list_gui_runs');
       expect(result).toEqual([]);
     });
@@ -54,7 +55,7 @@ describe('installEmptyStateMock', () => {
 
   it('returns the viewKey for get_initial_view', async () => {
     await withFakeWindow(async (win) => {
-      installEmptyStateMock('settings');
+      runInstallerWithShared(installEmptyStateMock, 'settings');
       const result = await win.__TAURI_INTERNALS__.invoke('get_initial_view');
       expect(result).toBe('settings');
     });
@@ -62,7 +63,7 @@ describe('installEmptyStateMock', () => {
 
   it('returns typed-empty object for get_memory_status', async () => {
     await withFakeWindow(async (win) => {
-      installEmptyStateMock('memory');
+      runInstallerWithShared(installEmptyStateMock, 'memory');
       const result = await win.__TAURI_INTERNALS__.invoke('get_memory_status');
       expect(result).toMatchObject({ corpus_counts: {}, shards: [] });
     });
@@ -74,7 +75,7 @@ describe('installEmptyStateMock', () => {
       'get_gui_preference', 'get_gamify_settings', 'get_identity_summary',
     ];
     await withFakeWindow(async (win) => {
-      installEmptyStateMock('dashboard');
+      runInstallerWithShared(installEmptyStateMock, 'dashboard');
       for (const cmd of bootstrapCmds) {
         await expect(win.__TAURI_INTERNALS__.invoke(cmd)).resolves.not.toThrow();
       }
@@ -83,7 +84,7 @@ describe('installEmptyStateMock', () => {
 
   it('sets __TAURI_EVENT_PLUGIN_INTERNALS__ with unregisterListener stub', () => {
     withFakeWindow((win) => {
-      installEmptyStateMock('dashboard');
+      runInstallerWithShared(installEmptyStateMock, 'dashboard');
       expect(win.__TAURI_EVENT_PLUGIN_INTERNALS__).toBeDefined();
       expect(typeof win.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener).toBe('function');
     });
@@ -93,14 +94,14 @@ describe('installEmptyStateMock', () => {
 describe('installErrorStateMock', () => {
   it('throws for list_gui_runs', async () => {
     await withFakeWindow(async (win) => {
-      installErrorStateMock('runs');
+      runInstallerWithShared(installErrorStateMock, 'runs');
       await expect(win.__TAURI_INTERNALS__.invoke('list_gui_runs')).rejects.toThrow('[mock-error]');
     });
   });
 
   it('still returns viewKey for get_initial_view', async () => {
     await withFakeWindow(async (win) => {
-      installErrorStateMock('models');
+      runInstallerWithShared(installErrorStateMock, 'models');
       const result = await win.__TAURI_INTERNALS__.invoke('get_initial_view');
       expect(result).toBe('models');
     });
@@ -108,16 +109,38 @@ describe('installErrorStateMock', () => {
 
   it('throws for policy_list', async () => {
     await withFakeWindow(async (win) => {
-      installErrorStateMock('policies');
+      runInstallerWithShared(installErrorStateMock, 'policies');
       await expect(win.__TAURI_INTERNALS__.invoke('policy_list')).rejects.toThrow('[mock-error]');
     });
   });
 
   it('sets __TAURI_EVENT_PLUGIN_INTERNALS__ with unregisterListener stub', () => {
     withFakeWindow((win) => {
-      installErrorStateMock('runs');
+      runInstallerWithShared(installErrorStateMock, 'runs');
       expect(win.__TAURI_EVENT_PLUGIN_INTERNALS__).toBeDefined();
       expect(typeof win.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener).toBe('function');
+    });
+  });
+});
+
+describe('mockInitScript serialization', () => {
+  it('composed script is self-contained and runs against a bare window', async () => {
+    await withFakeWindow(async (win) => {
+      // eslint-disable-next-line no-new-func -- exercising the exact addInitScript path
+      new Function(mockInitScript(installErrorStateMock, 'runs'))();
+      expect(win.__VOX_MOCK_SHARED__).toBeDefined();
+      await expect(win.__TAURI_INTERNALS__.invoke('list_gui_runs')).rejects.toThrow('[mock-error]');
+      expect(await win.__TAURI_INTERNALS__.invoke('get_initial_view')).toBe('runs');
+    });
+  });
+  it('emit helper dispatches to listeners registered via plugin:event|listen', async () => {
+    await withFakeWindow(async (win) => {
+      runInstallerWithShared(installEmptyStateMock, 'dashboard');
+      const seen: unknown[] = [];
+      const handler = win.__TAURI_INTERNALS__.transformCallback((e: any) => seen.push(e.payload));
+      await win.__TAURI_INTERNALS__.invoke('plugin:event|listen', { event: 'vox://agent-events', handler });
+      win.__TAURI_EMIT__('vox://agent-events', { id: 1, kind: { type: 'task_started' } });
+      expect(seen).toHaveLength(1);
     });
   });
 });

@@ -12,10 +12,11 @@
  */
 import { test, expect } from '@playwright/test';
 import { installTauriMock } from './lib/tauriMock';
+import { addMockInitScript } from './lib/tauriMockShared';
 
 test.describe('Axis brand', () => {
   test('document title is Axis', async ({ page }) => {
-    await page.addInitScript(installTauriMock, 'dashboard');
+    await addMockInitScript(page, installTauriMock, 'dashboard');
     await page.goto('/');
     await expect(page).toHaveTitle('Axis');
   });
@@ -23,7 +24,7 @@ test.describe('Axis brand', () => {
   test('sidebar shows the AxisMark + AXIS wordmark + Vox Axis footer', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
-    await page.addInitScript(installTauriMock, 'dashboard');
+    await addMockInitScript(page, installTauriMock, 'dashboard');
     await page.goto('/');
     await page.waitForSelector('nav', { timeout: 15_000 });
 
@@ -46,7 +47,7 @@ test.describe('Axis brand', () => {
   test('mark stays visible in rail (collapsed) mode', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
-    await page.addInitScript(installTauriMock, 'dashboard');
+    await addMockInitScript(page, installTauriMock, 'dashboard');
     // useLocalStorage JSON-parses its value, so the mode must be stored as JSON.
     await page.addInitScript(() => localStorage.setItem('vox_sidebar_mode', JSON.stringify('rail')));
     await page.goto('/');

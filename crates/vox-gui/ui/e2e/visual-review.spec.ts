@@ -3,6 +3,7 @@ import { readFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installTauriMock } from './lib/tauriMock';
+import { addMockInitScript } from './lib/tauriMockShared';
 import { sha256Png, buildManifest, writeManifest, type ManifestEntry } from './lib/screenshotManifest';
 import { SURFACE_REGISTRY } from '../src/generated/surfaceRegistry.generated';
 
@@ -25,7 +26,7 @@ test('visual-review: capture every surface + emit manifest', async ({ browser },
   for (const view of VIEWS) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
     const page = await context.newPage();
-    await page.addInitScript(installTauriMock, view);
+    await addMockInitScript(page, installTauriMock, view);
     const t0 = Date.now();
     await page.goto('/');
     await page.waitForSelector('nav', { timeout: 15_000 });

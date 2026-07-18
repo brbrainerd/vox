@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { installTauriMock } from './lib/tauriMock';
+import { addMockInitScript } from './lib/tauriMockShared';
 
 test.describe('Console workbench tab', () => {
   test('console tab shows terminal or orchestrator error', async ({ page }) => {
-    await page.addInitScript(installTauriMock, 'console');
+    await addMockInitScript(page, installTauriMock, 'console');
     await page.goto('/#view=console');
     await page.waitForSelector('nav', { timeout: 15_000 });
 

@@ -12,6 +12,7 @@ import {
 } from '../src/lib/navigation';
 import { sidebarParentLabel } from '../src/lib/lexicon';
 import { installTauriMock } from './lib/tauriMock';
+import { addMockInitScript } from './lib/tauriMockShared';
 
 const LEAF_VIEWS: string[] = Array.from(
   new Set(
@@ -32,7 +33,7 @@ async function expectActiveWorkbenchTab(page: import('@playwright/test').Page, v
 test.describe('Workbench tabs — hash navigation', () => {
   for (const viewKey of LEAF_VIEWS) {
     test(`#view=${viewKey} selects workbench tab`, async ({ page }) => {
-      await page.addInitScript(installTauriMock, viewKey);
+      await addMockInitScript(page, installTauriMock, viewKey);
       await page.goto(`/#view=${encodeURIComponent(viewKey)}`);
       await page.waitForSelector('nav', { timeout: 15_000 });
       await expectActiveWorkbenchTab(page, viewKey);
@@ -52,7 +53,7 @@ test.describe('Workbench tabs — sidebar parents', () => {
     const sidebarLabel = sidebarParentLabel(parentKey);
 
     test(`sidebar "${sidebarLabel}" opens default tab ${defaultChild}`, async ({ page }) => {
-      await page.addInitScript(installTauriMock, 'dashboard');
+      await addMockInitScript(page, installTauriMock, 'dashboard');
       await page.goto('/');
       await page.waitForSelector('aside nav', { timeout: 15_000 });
 
@@ -68,7 +69,7 @@ test.describe('Workbench tabs — sidebar parents', () => {
   }
 
   test('footer Settings opens settings tab', async ({ page }) => {
-    await page.addInitScript(installTauriMock, 'dashboard');
+    await addMockInitScript(page, installTauriMock, 'dashboard');
     await page.goto('/');
     await page.waitForSelector('aside nav', { timeout: 15_000 });
     await page.locator('aside').first().getByRole('button', { name: /^Settings/ }).scrollIntoViewIfNeeded();
@@ -77,7 +78,7 @@ test.describe('Workbench tabs — sidebar parents', () => {
   });
 
   test('footer Coverage opens coverage tab', async ({ page }) => {
-    await page.addInitScript(installTauriMock, 'dashboard');
+    await addMockInitScript(page, installTauriMock, 'dashboard');
     await page.goto('/');
     await page.waitForSelector('aside nav', { timeout: 15_000 });
     await page.locator('aside').first().getByRole('button', { name: /^Coverage/ }).scrollIntoViewIfNeeded();
@@ -88,7 +89,7 @@ test.describe('Workbench tabs — sidebar parents', () => {
 
 test.describe('Workbench tabs — tab bar interactions', () => {
   test('switching tabs updates hash and aria-selected', async ({ page }) => {
-    await page.addInitScript(installTauriMock, 'dashboard');
+    await addMockInitScript(page, installTauriMock, 'dashboard');
     await page.goto('/');
     await page.waitForSelector('nav', { timeout: 15_000 });
 
@@ -102,7 +103,7 @@ test.describe('Workbench tabs — tab bar interactions', () => {
   });
 
   test('closing a non-pinned tab removes it from the tab bar', async ({ page }) => {
-    await page.addInitScript(installTauriMock, 'console');
+    await addMockInitScript(page, installTauriMock, 'console');
     await page.goto('/#view=console');
     await page.waitForSelector('nav', { timeout: 15_000 });
 
@@ -113,7 +114,7 @@ test.describe('Workbench tabs — tab bar interactions', () => {
   });
 
   test('chat tab is pinned and has no close button', async ({ page }) => {
-    await page.addInitScript(installTauriMock, 'dashboard');
+    await addMockInitScript(page, installTauriMock, 'dashboard');
     await page.goto('/');
     await page.waitForSelector('nav', { timeout: 15_000 });
 
@@ -123,7 +124,7 @@ test.describe('Workbench tabs — tab bar interactions', () => {
   });
 
   test('help omnibar search opens doc reader tab', async ({ page }) => {
-    await page.addInitScript(installTauriMock, 'dashboard');
+    await addMockInitScript(page, installTauriMock, 'dashboard');
     await page.goto('/');
     await page.waitForSelector('nav', { timeout: 15_000 });
 
@@ -156,7 +157,7 @@ const SURFACE_SMOKE: Record<string, string> = {
 test.describe('Workbench tabs — surface smoke', () => {
   for (const [viewKey, testId] of Object.entries(SURFACE_SMOKE)) {
     test(`#view=${viewKey} mounts ${testId}`, async ({ page }) => {
-      await page.addInitScript(installTauriMock, viewKey);
+      await addMockInitScript(page, installTauriMock, viewKey);
       await page.goto(`/#view=${encodeURIComponent(viewKey)}`);
       await page.waitForSelector('nav', { timeout: 15_000 });
       await expectActiveWorkbenchTab(page, viewKey);
@@ -168,7 +169,7 @@ test.describe('Workbench tabs — surface smoke', () => {
 test.describe('Workbench tabs — scroll host', () => {
   test('settings surface scrolls inside surface-scroll-viewport', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 420 });
-    await page.addInitScript(installTauriMock, 'settings');
+    await addMockInitScript(page, installTauriMock, 'settings');
     await page.goto('/#view=settings');
     await page.waitForSelector('nav', { timeout: 15_000 });
     await expect(page.getByLabel('Search settings')).toBeVisible();

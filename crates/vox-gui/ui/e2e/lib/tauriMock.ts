@@ -1,29 +1,20 @@
 /**
  * Reusable Tauri-invoke mock for vox-gui e2e screenshot sweeps.
  *
- * `installTauriMock(viewKey)` is injected via `page.addInitScript`. It forces the target surface
- * (localStorage `vox_workbench_tabs.v1` + the `get_initial_view` command) and installs a rich
- * `window.__TAURI_INTERNALS__.invoke` mock so every panel renders with representative data in a
- * bare browser (no Tauri host). The body is the verbatim mock previously inlined in
- * `screenshots.spec.ts` — keep EVERY command case in sync.
+ * `installTauriMock(viewKey)` is injected via `addMockInitScript` (e2e/lib/tauriMockShared.ts),
+ * not raw `page.addInitScript`. It forces the target surface (localStorage `vox_workbench_tabs.v1`
+ * + the `get_initial_view` command) and installs a rich `window.__TAURI_INTERNALS__.invoke` mock
+ * so every panel renders with representative data in a bare browser (no Tauri host). The body is
+ * the verbatim mock previously inlined in `screenshots.spec.ts` — keep EVERY command case in sync.
  */
 export function installTauriMock(viewKey: string): void {
-  try {
-    localStorage.setItem(
-      'vox_workbench_tabs.v1',
-      JSON.stringify({
-        openTabs: Array.from(new Set(['chat', viewKey])),
-        activeTab: viewKey,
-      }),
+  const shared = (window as any).__VOX_MOCK_SHARED__;
+  if (!shared) {
+    throw new Error(
+      'installTauriMock must be injected via addMockInitScript (e2e/lib/tauriMockShared.ts)',
     );
-    localStorage.setItem('vox_sidebar_mode', 'default');
-  } catch {
-    // Playwright data URLs / sandboxed contexts may deny localStorage.
   }
-  (window as any).__TAURI_CALLS__ = [];
-  (window as any).__TAURI_EVENT_PLUGIN_INTERNALS__ = {
-    unregisterListener: (event: string, eventId: number) => {}
-  };
+  shared.seedMockEnvironment(viewKey);
 
   const modelIds = ['mens-8b', 'opus-4-8', 'sonnet-4-6', 'haiku-4-5', 'qwen-coder-7b', 'local-llama'];
   const modelNames = ['Mens 8B', 'Opus 4.8', 'Sonnet 4.6', 'Haiku 4.5', 'Qwen Coder 7B', 'Local Llama'];
@@ -116,18 +107,9 @@ export function installTauriMock(viewKey: string): void {
 
   (window as any).__TAURI_INTERNALS__ = {
     ...((window as any).__TAURI_INTERNALS__ || {}),
-    transformCallback: (cb: (...args: unknown[]) => unknown) => {
-      const id = `cb_${Math.random().toString(36).slice(2)}`;
-      (window as any)[id] = cb;
-      return id;
-    },
     invoke: async (cmd: string, args?: any) => {
       (window as any).__TAURI_CALLS__.push({ cmd, args: args ?? null });
       switch (cmd) {
-        case 'get_initial_view': return viewKey;
-        case 'get_build_info': return { version: '0.6.0', display: '0.6.0+local (dev)' };
-        case 'get_orchestrator_status_bin': return new Uint8Array([0x80]);
-        case 'get_orchestrator_status': return { agent_count: 0, agents: [], recent_events: [], alerts: [], peers: [] };
         case 'list_model_cards': return models;
         case 'get_active_model': return 'opus-4-8';
         case 'get_routing_summary_live':
@@ -227,7 +209,6 @@ export function installTauriMock(viewKey: string): void {
         case 'chat_append_message': return 1;
         case 'chat_rename_session': return null;
         case 'chat_archive_session': return null;
-        case 'get_identity_summary': return { display_name: 'tester@vox', os_user: 'tester' };
         case 'get_command_catalog': return {
           generated_from: 'mock',
           entries: ['check', 'build', 'test', 'run', 'fmt', 'audit', 'research', 'scientia'].map(n => ({
@@ -236,7 +217,6 @@ export function installTauriMock(viewKey: string): void {
             arguments: [{ name: 'path', short: null, long: 'path', help: 'Target path', required: false, takes_value: true, value_kind: 'value', possible_values: [], default_values: [] }],
           })),
         };
-        case 'get_action_manifest': return { x_vox_version: 2, schema_version: 1, generated_from: 'mock', actions: [] };
         case 'get_full_registry': return { commands: [] };
         case 'vox_docs_index':
           return [
@@ -269,7 +249,6 @@ export function installTauriMock(viewKey: string): void {
         case 'get_llm_config': return {};
         case 'get_llm_spend':
           return { sessionUsd: 0, dayUsd: 0, totalUsd: 0, dailyBudgetUsd: 50, perSessionBudgetUsd: 10 };
-        case 'get_gui_preference': return null;
         case 'pty_spawn':
         case 'pty_write':
         case 'pty_resize':
@@ -304,15 +283,17 @@ export function installTauriMock(viewKey: string): void {
             : mockFiles;
           return filtered.slice(0, lim);
         }
-        case 'plugin:event|listen': return Math.floor(Math.random() * 10000);
-        case 'plugin:event|unlisten': return null;
         case 'list_orchestrator_tasks': return [];
         case 'hopper_mark_done': return { item_id: 'mock-item', intent: 'mock to-do', priority: 1, state: 'done', task_id: 1, session_id: null, agent_id: null, remote_node: null };
         case 'inference_provider_status': return [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null, local_models: [] }, { provider: 'Ollama', key_present: true, is_local: true, local_reachable: true, local_models: ['llama3.2'] }];
         case 'set_active_model': return null;
         case 'get_archive_status': return { swhid: null, swh_task_id: null, swh_task_status: null, zenodo_doi: null, zenodo_state: null };
         case 'get_completion_report': return { score: 100, warnings: [], is_complete: true };
-        default: return null;
+        default: {
+          const ev = shared.eventPluginResponse(cmd, args);
+          if (ev !== undefined) return ev;
+          return shared.bootstrapResponse(cmd, viewKey);
+        }
       }
     },
   };

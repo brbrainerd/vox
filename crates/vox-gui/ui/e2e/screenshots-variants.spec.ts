@@ -12,6 +12,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installEmptyStateMock, installErrorStateMock } from './lib/tauriMockVariants';
+import { addMockInitScript } from './lib/tauriMockShared';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCREENS_DIR = join(__dirname, 'screens');
@@ -45,7 +46,7 @@ test.describe('GUI visual audit — empty states', () => {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       const page = await ctx.newPage();
       const { consoleErrors, pageErrors } = captureErrors(page);
-      await page.addInitScript(installEmptyStateMock, view);
+      await addMockInitScript(page, installEmptyStateMock, view);
       await page.goto('/');
       await page.waitForSelector('nav', { timeout: 15_000 });
       await page.waitForTimeout(1600);
@@ -71,7 +72,7 @@ test.describe('GUI visual audit — error states', () => {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       const page = await ctx.newPage();
       const { pageErrors } = captureErrors(page);
-      await page.addInitScript(installErrorStateMock, view);
+      await addMockInitScript(page, installErrorStateMock, view);
       await page.goto('/');
       await page.waitForSelector('nav', { timeout: 15_000 });
       await page.waitForTimeout(1600);

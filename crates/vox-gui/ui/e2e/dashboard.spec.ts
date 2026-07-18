@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { installTauriMock } from './lib/tauriMock';
+import { addMockInitScript } from './lib/tauriMockShared';
 
 test.describe('Vox Dashboard', () => {
   test('should load the dashboard and verify event payload delivery', async ({ page }) => {
-    await page.addInitScript(installTauriMock, 'dashboard');
+    await addMockInitScript(page, installTauriMock, 'dashboard');
     await page.goto('/');
 
     // Check if the dashboard loads
