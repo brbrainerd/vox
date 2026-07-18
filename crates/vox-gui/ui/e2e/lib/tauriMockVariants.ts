@@ -87,6 +87,7 @@ export function installErrorStateMock(viewKey: string): void {
     'list_gamify_companions', 'list_gamify_quests', 'list_gamify_leaderboard',
     'get_command_catalog', 'list_orchestrator_tasks', 'get_archive_status',
     'get_completion_report',
+    'invoke_mcp_tool', 'hopper_list',
   ]);
 
   shared.seedMockEnvironment(viewKey);
