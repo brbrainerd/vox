@@ -380,10 +380,14 @@ impl crate::VoxDb {
         &self,
         limit: u32,
     ) -> Result<Vec<HopperInboxRow>, StoreError> {
+        // Only `done` — the sole caller (hopper_list) filters to Done anyway,
+        // and sharing this LIMIT with overridden/cancelled rows could starve
+        // genuinely completed items out of the window entirely if those
+        // states churn faster than completions (see F7 follow-up).
         let mut rows = self.conn.query(
             "SELECT item_id, intent, affinity_json, priority, source, session_id, state, submitted_at
              FROM hopper_inbox
-             WHERE state IN ('\"done\"', '\"overridden\"', '\"cancelled\"')
+             WHERE state = '\"done\"'
              ORDER BY submitted_at DESC LIMIT ?1",
             turso::params![limit],
         ).await?;

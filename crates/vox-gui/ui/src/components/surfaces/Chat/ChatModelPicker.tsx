@@ -7,6 +7,26 @@ import { invoke } from '@tauri-apps/api/core';
  *  AgentTask.model_override → StreamRoute::UserModelOverride). Deliberately
  *  NOT `set_active_model`, which only touches the GUI process (Resolved
  *  decision "Item 4"). `null` pick = auto-route (clear the override). */
+interface ProviderStatus {
+  provider: string;
+  key_present: boolean;
+  is_local: boolean;
+  local_reachable: boolean | null;
+}
+
+/** True when the picker should refuse this provider — no key for a cloud
+ *  provider, or the cached local-server probe reports it unreachable. This
+ *  is what keeps the picker's list in sync with the BackendAvailability
+ *  strip; without it a user could pick a model the strip is simultaneously
+ *  showing as unavailable, and the request would fail 100% of the time. */
+function isProviderUnavailable(provider: string | undefined, statuses: ProviderStatus[]): boolean {
+  if (!provider) return false;
+  const s = statuses.find(x => x.provider.toLowerCase() === provider.toLowerCase());
+  if (!s) return false;
+  if (s.is_local) return s.local_reachable === false;
+  return !s.key_present;
+}
+
 export function ChatModelPicker({
   activeModel,
   onApplied,
@@ -15,7 +35,8 @@ export function ChatModelPicker({
   onApplied?: (modelId: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [models, setModels] = useState<Array<{ id: string }>>([]);
+  const [models, setModels] = useState<Array<{ id: string; provider?: string }>>([]);
+  const [statuses, setStatuses] = useState<ProviderStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const toggle = async () => {
@@ -23,15 +44,20 @@ export function ChatModelPicker({
     setOpen(next);
     if (next && models.length === 0) {
       try {
-        const cards = await invoke<Array<{ id: string }>>('list_model_cards', { limit: 120 });
+        const [cards, providerStatuses] = await Promise.all([
+          invoke<Array<{ id: string; provider?: string }>>('list_model_cards', { limit: 120 }),
+          invoke<ProviderStatus[]>('inference_provider_status'),
+        ]);
         setModels(Array.isArray(cards) ? cards : []);
+        setStatuses(Array.isArray(providerStatuses) ? providerStatuses : []);
       } catch (e) {
         setError(String(e));
       }
     }
   };
 
-  const apply = (id: string | null) => {
+  const apply = (id: string | null, unavailable: boolean) => {
+    if (unavailable) return;
     onApplied?.(id);
     setOpen(false);
   };
@@ -57,25 +83,36 @@ export function ChatModelPicker({
               type="button"
               role="option"
               aria-selected={activeModel == null}
-              onClick={() => apply(null)}
+              onClick={() => apply(null, false)}
               className="w-full truncate rounded px-2 py-1 text-left font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
             >
               auto-route (clear override)
             </button>
           </li>
-          {models.map(m => (
-            <li key={m.id}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={m.id === activeModel}
-                onClick={() => apply(m.id)}
-                className="w-full truncate rounded px-2 py-1 text-left font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
-              >
-                {m.id}
-              </button>
-            </li>
-          ))}
+          {models.map(m => {
+            const unavailable = isProviderUnavailable(m.provider, statuses);
+            return (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={m.id === activeModel}
+                  aria-disabled={unavailable}
+                  disabled={unavailable}
+                  title={unavailable ? `${m.provider} is currently unavailable (no key or unreachable)` : undefined}
+                  onClick={() => apply(m.id, unavailable)}
+                  className={`w-full truncate rounded px-2 py-1 text-left font-mono text-[10px] ${
+                    unavailable
+                      ? 'cursor-not-allowed text-text-muted/50'
+                      : 'text-text-secondary hover:bg-overlay-subtle'
+                  }`}
+                >
+                  {m.id}
+                  {unavailable ? ' (unavailable)' : ''}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
       {error && <div role="alert" className="mt-1 text-[10px] text-rose-400">{error}</div>}

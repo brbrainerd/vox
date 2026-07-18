@@ -771,8 +771,9 @@ pub async fn hopper_list() -> Result<Vec<HopperTaskDto>, String> {
     let hopper = vox_orchestrator::hopper::SqliteHopper::new(Arc::new(db));
     let inbox = hopper.inbox().await;
     let assigned = hopper.assigned().await;
-    // Bounded, newest-first; the recent-window read also fetches overridden/
-    // cancelled rows, so filter to Done here.
+    // Bounded, newest-first; the recent-window read is already scoped to
+    // `done` at the SQL layer (ops_orchestrator::hopper_history_list_recent),
+    // this filter is defense-in-depth against that changing silently.
     let done: Vec<_> = hopper
         .history_recent(DONE_HISTORY_LIMIT)
         .await

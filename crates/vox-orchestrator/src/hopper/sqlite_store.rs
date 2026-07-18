@@ -253,8 +253,14 @@ impl HopperIntake for SqliteHopper {
             None => return Err(HopperError::NotFound(item_id.0.clone())),
         };
 
-        // Defensive parity with cancel; unreachable via the inbox/assigned
-        // chain today (their SQL excludes terminal states).
+        // NOTE: unreachable today. inbox()/assigned() SQL already excludes
+        // terminal states, so `item` here is never Done/Overridden/Cancelled
+        // — this is not a verified double-completion guard, just defensive
+        // parity with the same (equally unreachable) check in cancel(). A
+        // real guard would need item lookup widened to all states plus a
+        // compare-and-swap update (hopper_update_state is an unconditional
+        // UPDATE with no expected-state check), which is a bigger change
+        // than this fix's scope — tracked, not silently claimed as done.
         if matches!(
             item.state,
             ItemState::Done | ItemState::Overridden | ItemState::Cancelled
@@ -519,5 +525,50 @@ mod tests {
         assert_eq!(recent.len(), 2, "limit must bound the read");
         // ORDER BY submitted_at DESC ⇒ newest first; "first" (oldest) is cut.
         assert!(recent.iter().all(|i| i.intent != "first"));
+    }
+
+    #[tokio::test]
+    async fn history_recent_does_not_let_cancellations_starve_done_items() {
+        // Regression: history_recent's LIMIT must be scoped to `done` alone.
+        // If cancelled/overridden rows shared the same LIMIT budget, a burst
+        // of cancellations newer than a completion could push that
+        // completed item out of the window entirely, even though it's the
+        // only thing hopper_list's Done view actually wants to show.
+        let db = Arc::new(
+            vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+                .await
+                .expect("db"),
+        );
+        let hopper = SqliteHopper::new(db);
+
+        let completed = hopper
+            .submit(
+                "the one completed item".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                None,
+            )
+            .await;
+        hopper.complete(&completed.item_id).await.expect("completable");
+
+        // A burst of more-recent cancellations that would previously have
+        // consumed the shared LIMIT budget ahead of the completion above.
+        for intent in ["cancelled-1", "cancelled-2", "cancelled-3"] {
+            let item = hopper
+                .submit(
+                    intent.into(),
+                    vec![],
+                    PriorityHint::Normal,
+                    IntakeSource::Developer,
+                    None,
+                )
+                .await;
+            hopper.cancel(&item.item_id).await.expect("cancellable");
+        }
+
+        let recent = hopper.history_recent(1).await;
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].intent, "the one completed item");
     }
 }

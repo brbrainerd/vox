@@ -15,7 +15,18 @@ describe('ChatModelPicker', () => {
   beforeEach(() => {
     invoke.mockReset();
     invoke.mockImplementation(async (cmd: string) => {
-      if (cmd === 'list_model_cards') return [{ id: 'openai/gpt-5.2-mini' }, { id: 'anthropic/claude-opus-4.7' }];
+      if (cmd === 'list_model_cards') {
+        return [
+          { id: 'openai/gpt-5.2-mini', provider: 'openai' },
+          { id: 'anthropic/claude-opus-4.7', provider: 'anthropic' },
+        ];
+      }
+      if (cmd === 'inference_provider_status') {
+        return [
+          { provider: 'OpenAI', key_present: true, is_local: false, local_reachable: null },
+          { provider: 'Anthropic', key_present: true, is_local: false, local_reachable: null },
+        ];
+      }
       return null;
     });
   });
@@ -39,6 +50,50 @@ describe('ChatModelPicker', () => {
     await user.click(screen.getByRole('button', { name: /model: anthropic/i }));
     await user.click(await screen.findByRole('option', { name: /auto-route/i }));
     expect(onApplied).toHaveBeenCalledWith(null);
+  });
+
+  it('disables a model whose provider has no key configured, and refuses the pick on click', async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'list_model_cards') {
+        return [
+          { id: 'openai/gpt-5.2-mini', provider: 'openai' },
+          { id: 'anthropic/claude-opus-4.7', provider: 'anthropic' },
+        ];
+      }
+      if (cmd === 'inference_provider_status') {
+        return [
+          { provider: 'OpenAI', key_present: false, is_local: false, local_reachable: null },
+          { provider: 'Anthropic', key_present: true, is_local: false, local_reachable: null },
+        ];
+      }
+      return null;
+    });
+    const user = userEvent.setup();
+    const onApplied = vi.fn();
+    render(<ChatModelPicker activeModel={null} onApplied={onApplied} />);
+    await user.click(screen.getByRole('button', { name: /model: auto-route/i }));
+    const unavailableOption = await screen.findByRole('option', { name: /openai\/gpt-5\.2-mini/i });
+    expect(unavailableOption).toBeDisabled();
+    await user.click(unavailableOption);
+    expect(onApplied).not.toHaveBeenCalled();
+  });
+
+  it('disables a local provider model when the cached health probe reports unreachable', async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'list_model_cards') return [{ id: 'ollama/llama3', provider: 'ollama' }];
+      if (cmd === 'inference_provider_status') {
+        return [{ provider: 'Ollama', key_present: true, is_local: true, local_reachable: false }];
+      }
+      return null;
+    });
+    const user = userEvent.setup();
+    const onApplied = vi.fn();
+    render(<ChatModelPicker activeModel={null} onApplied={onApplied} />);
+    await user.click(screen.getByRole('button', { name: /model: auto-route/i }));
+    const option = await screen.findByRole('option', { name: /ollama\/llama3/i });
+    expect(option).toBeDisabled();
+    await user.click(option);
+    expect(onApplied).not.toHaveBeenCalled();
   });
 });
 

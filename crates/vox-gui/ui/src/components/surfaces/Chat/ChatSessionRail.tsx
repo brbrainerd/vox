@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Glass } from '../../ui/Glass';
 import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/Icons';
@@ -33,6 +33,19 @@ export function ChatSessionRail({
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(SESSIONS_COLLAPSED_KEY, false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const railRef = useRef<HTMLElement>(null);
+
+  // Dismiss the open row menu on any interaction outside it — otherwise it
+  // stays rendered indefinitely over other content (no close affordance
+  // besides its own menu items).
+  useEffect(() => {
+    if (!menuFor) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!railRef.current?.contains(e.target as Node)) setMenuFor(null);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [menuFor]);
 
   if (collapsed) {
     return (
@@ -55,7 +68,7 @@ export function ChatSessionRail({
   }
 
   return (
-    <aside className="w-44 shrink-0" data-testid="chat-session-rail">
+    <aside ref={railRef} className="w-44 shrink-0" data-testid="chat-session-rail">
       <Glass className="flex h-full max-h-[70vh] flex-col gap-2 p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('chat-sessions')}</h2>
@@ -93,6 +106,13 @@ export function ChatSessionRail({
                       setRenaming(null);
                     }
                     if (e.key === 'Escape') setRenaming(null);
+                  }}
+                  onBlur={e => {
+                    // Clicking away shouldn't strand this row as a bare
+                    // input forever — commit like Enter, or cancel.
+                    const title = e.target.value.trim();
+                    if (title) onRenameSession?.(s.session_id, title);
+                    setRenaming(null);
                   }}
                   className="w-full rounded-lg border border-brass/40 bg-bg-base px-2.5 py-2 text-xs text-text-primary outline-none"
                 />

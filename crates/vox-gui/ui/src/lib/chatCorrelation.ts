@@ -99,6 +99,19 @@ function mapAssistant(
   return changed ? { ...state, messages } : state;
 }
 
+/** Drop a completed/failed task's agentToTask entry so a later CostIncurred
+ *  frame for a reused agent_id can't be misrouted to this (now-stale) task
+ *  by cross-session scans (see resolveSessionForEvent). CostIncurred carries
+ *  no task_id/session_id of its own, so this eviction is what keeps the
+ *  agent_id -> task_id mapping from outliving the task it described. */
+function evictAgentToTask(state: ChatState, agentId: unknown): ChatState {
+  const key = String(agentId);
+  if (!(key in state.agentToTask)) return state;
+  const agentToTask = { ...state.agentToTask };
+  delete agentToTask[key];
+  return { ...state, agentToTask };
+}
+
 /**
  * Pure reducer correlating Loquela submissions with the live agent-event
  * stream. `task_id` is normalized to a string everywhere (submit returns a
@@ -168,12 +181,14 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         }
         case 'task_completed': {
           const runId = state.taskToRun[String(kind.task_id)];
-          return mapAssistant(state, runId, (m) => ({ ...m, status: 'done' }));
+          const next = mapAssistant(state, runId, (m) => ({ ...m, status: 'done' }));
+          return evictAgentToTask(next, kind.agent_id);
         }
         case 'task_failed': {
           const runId = state.taskToRun[String(kind.task_id)];
           const error = typeof kind.error === 'string' ? kind.error : undefined;
-          return mapAssistant(state, runId, (m) => ({ ...m, status: 'failed', error }));
+          const next = mapAssistant(state, runId, (m) => ({ ...m, status: 'failed', error }));
+          return evictAgentToTask(next, kind.agent_id);
         }
         case 'tool_timed_out': {
           const tool = typeof kind.tool_key === 'string' ? kind.tool_key : 'tool';
