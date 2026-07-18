@@ -1,1 +1,3309 @@
-{"schema_version":1,"entries":{}}
+{
+  "schema_version": 1,
+  "entries": {
+    "activity--default--compact--chromium": {
+      "screenshot_sha256": "5c4193521c00115c5d428c60dceb0a051330954ad7d53be8bb61e8681bf33415",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "activity--default--compact--firefox": {
+      "screenshot_sha256": "d9615073e57520a22adf4073d656117f3061c0479a809ba93695bcc56ff7fb28",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "activity--default--laptop--chromium": {
+      "screenshot_sha256": "d872c68d5f59f58bcacacde317d38db71da987bb48bdb850bee7c2d32d8a97b1",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "activity--default--laptop--firefox": {
+      "screenshot_sha256": "08bbb2860552fcdc345658e685ca032e2391df7f5c3f061df294563ad8bbc94c",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "activity--default--wide--chromium": {
+      "screenshot_sha256": "4b8f97121b1f4809d1238f2c8ea8b68c107d5a280c96d0bc999b95eeb3e25456",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "activity--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "682a2367cef54fc27ac4ef78f0034a4572c0aa13244a6bdf40a8ac5ba5365a3e",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "activity--default--wide--firefox": {
+      "screenshot_sha256": "42a74c16ca516f8e37ec019030ecb66de13ff65cd2ab05dee9d7b513d0732dcf",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--default--compact--chromium": {
+      "screenshot_sha256": "578da1c8c5a3c40cf923f625c7f8013f7b60144145972ea174386a811673d4ec",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--default--compact--firefox": {
+      "screenshot_sha256": "44b660997be6953547dd2d927b9321f036a97d174fca93a017136fc8bb54a603",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--default--laptop--chromium": {
+      "screenshot_sha256": "df84d24f1f2f0926298aac0d980dccdaf11fee21f554682009bb085aec0d429d",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--default--laptop--firefox": {
+      "screenshot_sha256": "5ef6f192e3bfce8ee6bfcdb80d18f0dab2617fea0244189fc66804fefa5cc5b3",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--default--wide--chromium": {
+      "screenshot_sha256": "063d366bcc2c515b4c1acdb275b38cfedcd5c41a53c39070bab64491c40c79ce",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "2bcccd98a94a0fb7ca67dcd78f2d926db8c79a203de3b973c8af9ab71252b454",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--default--wide--firefox": {
+      "screenshot_sha256": "20753b6390f60b19a2c8882b6e74fbb3921579873de59dc6bcdac13d8d6a1192",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--empty--compact--chromium": {
+      "screenshot_sha256": "ff0183416c089f9ac7c3c34eeef67cb58a46394e0f12a049df8f08dc1012dbdd",
+      "score": 15,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--empty--compact--firefox": {
+      "screenshot_sha256": "fc3cbd44fef34514554fb514e17fe1af1a858ccab5d0cb597e16c50520923bff",
+      "score": 15,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--empty--laptop--chromium": {
+      "screenshot_sha256": "4885e7b6f19621e0d9dffddfae68fa3d0df9f2d55355f31417fa2200ad9d0d5d",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--empty--laptop--firefox": {
+      "screenshot_sha256": "01d0531da5ea3d90e5cf1ac33507c032bfc9a3e6f75d083a97fa12de295218b3",
+      "score": 30,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--empty--wide--chromium": {
+      "screenshot_sha256": "1c8912d1a9f680fa8dffc36922b99cf331592d8245a84bb2c498c7bb3f10310b",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--empty--wide--firefox": {
+      "screenshot_sha256": "b4a571dcdfbcccc185578f731c903d196878702b038ca6f72db9a35637a4567e",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--error--compact--chromium": {
+      "screenshot_sha256": "3b69f86b0a8b4c6206d03beeceb917fb5312ecdd2f5cb2b0cc57d83b115ea557",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--error--compact--firefox": {
+      "screenshot_sha256": "98f20fa5a49a065fb747abde11c8453b0c461c4c98eab428c7d40894b30fbce8",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--error--laptop--chromium": {
+      "screenshot_sha256": "313e2dc9cec62762bdb57b4fbcf3af537bfd1667aa79ae9457931701133b4764",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--error--laptop--firefox": {
+      "screenshot_sha256": "f3a21ebe8681ddabdc422b90a8fe54b88fdf79891a858d0e599bfd2b922a3553",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--error--wide--chromium": {
+      "screenshot_sha256": "d88144d345bcf3568443dc8f7545219871818331fa3896df118e92d1a600101a",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--error--wide--firefox": {
+      "screenshot_sha256": "847f14861b5200e95602b73daff63f23b1894cbd2c36b9228372c58f638ba440",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--row-focused--compact--chromium": {
+      "screenshot_sha256": "3b05c63b70110d1778af951e3126341675baa607bd696200a280a56953568883",
+      "score": 82,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--row-focused--compact--firefox": {
+      "screenshot_sha256": "c3c1133ead3886f73504ade01024af2e27d13d13a7d607abe2d2d9060ec54bad",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--row-focused--laptop--chromium": {
+      "screenshot_sha256": "88d73ae20da0c151a5e00783dbe850f2d242d4a19ae1826e861f334d9a75ca70",
+      "score": 82,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--row-focused--laptop--firefox": {
+      "screenshot_sha256": "a32b7b4933951883f995a9edfa302cc0f7d1139caef0bd0dfc0009b8e8a1cb92",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--row-focused--wide--chromium": {
+      "screenshot_sha256": "a6850402eac67ed0c56c3fb2e5bbf4e09181dd4d3de93fe772d1ffba3bcb455e",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "approvals--row-focused--wide--firefox": {
+      "screenshot_sha256": "2377bbe9609cddcc453162f21e433791e7c91563d6848148159469083ed0e2d1",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "browser--default--compact--chromium": {
+      "screenshot_sha256": "c275513f57e404f99922bf8035be066396916c61d7dc23f3a4c453647ce5dcd2",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "browser--default--compact--firefox": {
+      "screenshot_sha256": "87e8a71208709bab2985b8a4eb707d51656672b64de4343929ff59f2c336c815",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "browser--default--laptop--chromium": {
+      "screenshot_sha256": "4ed8c8318eb31cc1c8dbd77f7fb7a3040dc0d72dfebccd9d0733868bf32e4db2",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "browser--default--laptop--firefox": {
+      "screenshot_sha256": "540386cf1d1b7238b85f71b3c040ba1ded3bce554e02c35bd77fae5e1bb5c840",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "browser--default--wide--chromium": {
+      "screenshot_sha256": "c30a7a47f0738986002626df1d8d55cc032e47f231547719750ef0eafb1198a4",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "browser--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "427f2379c542058d36b2ad40ec7c616fd0f3d19598134be32d510b84352fcbf2",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "browser--default--wide--firefox": {
+      "screenshot_sha256": "4861851e64b22e16f58f0aaa8ce4e9df49cb98b3e2c478c811e1331df0ae9b4d",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "catalog--default--compact--chromium": {
+      "screenshot_sha256": "74a9edee800269ce23f6fae6f9e2920b0da1e32fda63f2b56293ce6971c2782f",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "catalog--default--compact--firefox": {
+      "screenshot_sha256": "6714c671d91bee14f4e555f4972e483e4bc71d7fc5d3124a8ba0074f493a3609",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "catalog--default--laptop--chromium": {
+      "screenshot_sha256": "e665d1b5b0378f0e7000502aacbb32132c48a3bab383b19dba4f3f902d93f688",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "catalog--default--laptop--firefox": {
+      "screenshot_sha256": "fd8a682b2050e1f2b69b9c072f67b625ef3d9f9fbc536c781378087e9e4bad13",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "catalog--default--wide--chromium": {
+      "screenshot_sha256": "4ac1bc423161760eb08e9d3fe056e05b38993f81e8cae625ca8e5b127f9158e4",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "catalog--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "fa3e26852a6800e6b41ec6c99f679a0e8081052d08f61b2200abf532cc1e08bb",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "catalog--default--wide--firefox": {
+      "screenshot_sha256": "d0798858cb5bc0b12712c45714e553a5e32ab74534ebd501a1ead205086e1a14",
+      "score": 90,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--composer-filled--compact--chromium": {
+      "screenshot_sha256": "59dae28be6b868bd8b4f1fe6d6f1ba6b3506e8813e411af9b89b8525773ca536",
+      "score": 82,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--composer-filled--compact--firefox": {
+      "screenshot_sha256": "a0ad06243a7664e6a0e3037cd58d816e557df7d953f53069bc4571a59384df0b",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--composer-filled--laptop--chromium": {
+      "screenshot_sha256": "cec9be82a06cfc9d011a7da4b39acc6c3f1420fd32d37ceabb329c0eaa259c11",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--composer-filled--laptop--firefox": {
+      "screenshot_sha256": "5f22cdbecf61f51e626490180863b82b19c4d320bcd14b852aa97863ae0ce7b1",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--composer-filled--wide--chromium": {
+      "screenshot_sha256": "6148d85130ca9636aa248b5a60c04359b38a3f91062484f35b8b3b9bb33438c6",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--composer-filled--wide--firefox": {
+      "screenshot_sha256": "687f0ba314952e6576381da311fe58ea891f949f41fdffeb98ae20caf751767f",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--default--compact--chromium": {
+      "screenshot_sha256": "ee59fbb2a45818e686306a0de564c3e8e10116b45f4c3e097e24793c4f880bbd",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--default--compact--firefox": {
+      "screenshot_sha256": "10af1cc338c08e329a6570b850879b15339ff0b6f9b8a19c94ec14ee687aebe3",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--default--laptop--chromium": {
+      "screenshot_sha256": "6f03ffde62ac45b2ee1c6b58f26248d422f8d21d27efd4d8449a2c2e3882818b",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--default--laptop--firefox": {
+      "screenshot_sha256": "d059198e20b49aeeb3b378decdffa92c8660b1bfe2bae3a463673375e9e00361",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--default--wide--chromium": {
+      "screenshot_sha256": "c66608682526f628c8eaa2e2be0eede9900d43742d003c56715a2229cc3b4c72",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "f35a7f48e00b07d311c99538bc72ed8f98a2e8c88bcad5e4dbd890e23cda7954",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--default--wide--firefox": {
+      "screenshot_sha256": "a6eae07f3d7a35427bd3e36b1aca1214c9d60622eac273481b48c90448ec9394",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--empty--compact--chromium": {
+      "screenshot_sha256": "aec9fe295dcc0142572cb2331459d775680c957ceb8b1cf2bcdd5e63bd8ac748",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--empty--compact--firefox": {
+      "screenshot_sha256": "7b8365da39124253414d7336f55de5b689fb78876311b81ce2c1ce1a6aae43a4",
+      "score": 15,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--empty--laptop--chromium": {
+      "screenshot_sha256": "ee60b0bf66ff75c5193c9bcab65e0d2ec895b3845922bd54b10eae1492d064fd",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--empty--laptop--firefox": {
+      "screenshot_sha256": "5303ecb7112ae188144c23bff798deea03cb8e54ede184cb95b9c4d3f6c08599",
+      "score": 30,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--empty--wide--chromium": {
+      "screenshot_sha256": "049282a6940392c1654f8650b0d1de7c4d2dbbf5d16236143bec272df146e989",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--empty--wide--firefox": {
+      "screenshot_sha256": "c3bfd97a8c199021317a9922d6e4d4d35d8fee137de93ff46486adeb056143c4",
+      "score": 30,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--error--compact--chromium": {
+      "screenshot_sha256": "a39f387b606b2675c033c06137eab96d14e4f292e978a5dd889455d0d0ac3ba4",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--error--compact--firefox": {
+      "screenshot_sha256": "b6f8141a2ea63932dd172a657ab71254e0709bc7b8d727326fed7b0f33709c8c",
+      "score": 25,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--error--laptop--chromium": {
+      "screenshot_sha256": "08b933d89b68da871f9f2e3b4b97064ed41479e3199f2d70c8b0f488830c0e94",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--error--laptop--firefox": {
+      "screenshot_sha256": "87ddcc913083cc95e1e1a65e2f0f80e5d7a81373b57b83d17b5e41553c097357",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--error--wide--chromium": {
+      "screenshot_sha256": "d5a0358e3bcb0b7fcb7e40b49afdff49dcb1b6f39a5001554fc57611524cae9b",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--error--wide--firefox": {
+      "screenshot_sha256": "e198bc55b7218e25a320dd8a1a8faf0e5cc9274a6d2c175eed869a6ff6f75eba",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--model-picker-open--compact--chromium": {
+      "screenshot_sha256": "3f453a614205b72db5ecefb001aab1a7484f93e15e933cfa390d657e2fe4f360",
+      "score": 70,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--model-picker-open--compact--firefox": {
+      "screenshot_sha256": "e148011850816ea5c67af2f07ac4cb03866151da6ce07db78b42e59187fbd129",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--model-picker-open--laptop--chromium": {
+      "screenshot_sha256": "42331aa00f673fd659219f9ec3a6e87594d3ece9eb0943a5e3a73d278a1ca677",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--model-picker-open--laptop--firefox": {
+      "screenshot_sha256": "5c2a4e04954a1b927fb5191ef5f05d149f66967a3b7283fe993610ab30687713",
+      "score": 72,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--model-picker-open--wide--chromium": {
+      "screenshot_sha256": "70706c4d861638805aab0a16abc5a5e8eaf1ce4c0fa445bfdae9043ed842e653",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--model-picker-open--wide--firefox": {
+      "screenshot_sha256": "9dcdd385e112a17a9441c6e73f68e6e3eb66cc91821811dfb46bf8623ff47890",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--rails-overlay-open--compact--chromium": {
+      "screenshot_sha256": "0654f5ff46333576d5b810951b7a2576fb5a5bd679d092b3f1aa09fa5f9f0be2",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--rails-overlay-open--compact--firefox": {
+      "screenshot_sha256": "63160e813eee88274329060e1a18a49c8f98bfcd73244f0c8653b20735f3daa6",
+      "score": 35,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--session-menu-open--compact--chromium": {
+      "screenshot_sha256": "11d144eb405757e5839c020343337ab0635fd627f01a6c1f56e3f35308137d3e",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--session-menu-open--compact--firefox": {
+      "screenshot_sha256": "39cdbce52d5ce01002651dd6af6a027c2b4298c5836444f5a0ba198ca378282b",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--session-menu-open--laptop--chromium": {
+      "screenshot_sha256": "62ed99734c30da1e0eee49420cb9cfa50a9de26bf4de0458e999db0c3a8fb593",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--session-menu-open--laptop--firefox": {
+      "screenshot_sha256": "c20573f02af9adb16b0999f6c739d807ffac0d99619795c4dc01578a9620bd36",
+      "score": 72,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--session-menu-open--wide--chromium": {
+      "screenshot_sha256": "d2b038b95bfe8af164f2e5d710a65b80b95f99dcde706bbfc2cfca861bc4e1d6",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "chat--session-menu-open--wide--firefox": {
+      "screenshot_sha256": "e344c3078567eaa575242677a30f5b4a94a2f360defc90b697a87326c03ab9b6",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coderabbit--default--compact--chromium": {
+      "screenshot_sha256": "9a4101e91e604808020d8b2e6b9f3da8cfc2b77d8f570f711fdc2d28202ae3c0",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coderabbit--default--compact--firefox": {
+      "screenshot_sha256": "a76c2a64aadd105b9bb578a829e582d4b9719b2fab54d1ffb29eb824bc4d1bf0",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coderabbit--default--laptop--chromium": {
+      "screenshot_sha256": "1c33aa9a767c537396a00773fbb380bcd1a2146918478798a39c53ea6a6ef0b4",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coderabbit--default--laptop--firefox": {
+      "screenshot_sha256": "b34611eb4983e8c96b1658789e8911d50c948d876b921db5ac3cbd4878b7c61f",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coderabbit--default--wide--chromium": {
+      "screenshot_sha256": "e3ffafa8c29237b3f5308aec9917acdb757a336e94ed03e44b2803f74a91ccbb",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coderabbit--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "fb2259ff7293f48ba3d96402e9f27438e0e3bd68b1a642a097cf8003c13f020e",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coderabbit--default--wide--firefox": {
+      "screenshot_sha256": "225608deafad54a88198e743f7c5e2532506109bbea726a4d04e74853bc5cedf",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "console--default--compact--chromium": {
+      "screenshot_sha256": "58037635bc0cb494fc73a82606a3951feb30d7744adc47600a5f4604b0e47f0e",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "console--default--compact--firefox": {
+      "screenshot_sha256": "1bf2c9af2e9f85543ba1cb8ccf9d07fc21f32b87b79a09048ba65ef92bd5c108",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "console--default--laptop--chromium": {
+      "screenshot_sha256": "1f5d859d97eea54adb9bf0a4cab5fcdaa0b0f1eaabd640187e364eb177ebbab1",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "console--default--laptop--firefox": {
+      "screenshot_sha256": "30a592f164e53ac1471435bf356a171d34d18931a31ea7d4281917c4b489df1d",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "console--default--wide--chromium": {
+      "screenshot_sha256": "dfaf40476f676c4997251d1e134b056b534f5c1380e8b5df10084b3f40113b1c",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "console--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "37c7dc03743d5956f3e51a2e31b32146ab5473c6bea1576f97e9b0237fbf4ebe",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "console--default--wide--firefox": {
+      "screenshot_sha256": "3fb39f1542564fb6d4df88960df9d810b5a710ce6f2ff00b55953485eb73311a",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coverage--default--compact--chromium": {
+      "screenshot_sha256": "30f359b1cf3e79d47b43c7e14e1d33ccf2a6b38d347257211545da32b25e8225",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coverage--default--compact--firefox": {
+      "screenshot_sha256": "9e60f3a229881647284eb79f2b265d030574756727f0b59f09eb4906a6406f5a",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coverage--default--laptop--chromium": {
+      "screenshot_sha256": "7a8bcb93e5755178d67fe15248dd847ac03639f82551122a5873cfe4ffeaf2ed",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coverage--default--laptop--firefox": {
+      "screenshot_sha256": "1437f56d63e91a9944a038194acf28af2019d547320606f3cd90cf183238e807",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coverage--default--wide--chromium": {
+      "screenshot_sha256": "00e7910857c46eec125246614b9f143bc37bdd08e1c7d863c0d01bb9144246f1",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coverage--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "2d426be2753c54d0597de7fbd0f3479ad0d96e48122b5e852a77e58143eff199",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "coverage--default--wide--firefox": {
+      "screenshot_sha256": "77c574a144af1f2fab030abd5ecf7c8b105976b5031a1fbd8a6a6021acd04ff1",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--achievements-open--compact--chromium": {
+      "screenshot_sha256": "e3a921b0e8e0dabf6d7de68a562eca7b39629b1b0c3427bd19b39642fd4e79bf",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--achievements-open--compact--firefox": {
+      "screenshot_sha256": "c69509bdfb28105f84d761409d36c735da5e7ca4a08b1c4c871ca5625a153d56",
+      "score": 15,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--achievements-open--laptop--chromium": {
+      "screenshot_sha256": "797628b9263acd9f5fae2a18f754c655fbea2906d8b877eda33d0effb0081875",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--achievements-open--laptop--firefox": {
+      "screenshot_sha256": "4068b61c2d8f67b113a72baaf6f34d3ba12c8f9730504dd52062338dcdd4491d",
+      "score": 35,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--achievements-open--wide--chromium": {
+      "screenshot_sha256": "931f770bc62be414451f49378d5a92bd12c7894be29ef1dc788cea6ffb75be81",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--achievements-open--wide--firefox": {
+      "screenshot_sha256": "59f94e0f322cc0f45ad81e6947230c93025f75054e904ef4c2d12022cfb9d82b",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--default--compact--chromium": {
+      "screenshot_sha256": "526ebbefdf15d8d5551a83d8932f034af7ebe9e20cfd5a8cb932762f24bdefeb",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--default--compact--firefox": {
+      "screenshot_sha256": "4197dd5ced49737d83d8070d0f19035c60a9acac338f182d692df4fa81bc8d39",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--default--laptop--chromium": {
+      "screenshot_sha256": "a5b3b947a31956b4f6325f889833e31a60bfa2397e1bc36222740a72563509b3",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--default--laptop--firefox": {
+      "screenshot_sha256": "3b2002771bfe0f563a66a268e6f1d9ed4ed3b72010f92b7746c4b601e8da0d80",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--default--wide--chromium": {
+      "screenshot_sha256": "e9ceae45439c83e7038b20712153ba291565bc4f89cd7a17ea4da346d8ab5ca9",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "0ad1ef0f1ec4d705a2e3102dc99516752a92a5cd5409eb5f6c81c9b07714744b",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--default--wide--firefox": {
+      "screenshot_sha256": "1f14e4a5c900e7173e6df4cd07eb429059c98b942df56f2c1b7a2e00eef36784",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--empty--compact--chromium": {
+      "screenshot_sha256": "d8407249a2b87357b450361fb027972a85bdd851935917b9609bfd4eb4444d3d",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--empty--compact--firefox": {
+      "screenshot_sha256": "5ce6762c2ea6ada6c9bbdd7e2e55a4c7103233a6f3a1494817648d0ada7bae76",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--empty--laptop--chromium": {
+      "screenshot_sha256": "851b42826c947a86ebfa23ca8b3deee6a3f1fa34012086bbc8758be0aaa6e59d",
+      "score": 35,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--empty--laptop--firefox": {
+      "screenshot_sha256": "6ef1761cfaa5109bdb88957f05d791e0c45360bc0794118c371f0baa2a8025ac",
+      "score": 35,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--empty--wide--chromium": {
+      "screenshot_sha256": "c869f14e0e95163770182ae3b63fffd49a0c49b4514a9e7070e5085daf64ebd7",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--empty--wide--firefox": {
+      "screenshot_sha256": "f61bc0f4d27151487dbf57c9bb3159113fb75bb5bad37575e07871fd64ab463b",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--error--compact--chromium": {
+      "screenshot_sha256": "c8ed87e43d8f6648fc8f44dec1224e7e0db4534ec5b81196bcbe24247d721e03",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--error--compact--firefox": {
+      "screenshot_sha256": "704d9f2c5852fcb7ca34a589b85806077baaf224a3c382e0d4b6568777bc2568",
+      "score": 35,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--error--laptop--chromium": {
+      "screenshot_sha256": "400d877eb07256969c0e39f95db6088459bad02a95e62a40d91f7915f5b5fa0e",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--error--laptop--firefox": {
+      "screenshot_sha256": "de8cef5fbf0c76d82c74228ec3b47ebf3ca1c59576a30a4cce6649ff8b3373a2",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--error--wide--chromium": {
+      "screenshot_sha256": "81b267a4c345620abeb9ef07af7c9d86787e826d3d1603ce108755f027019ec6",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--error--wide--firefox": {
+      "screenshot_sha256": "5061f1cf1e3a33cb9b8630bccfa9291ab627edfaf2513395dccb1145e74613ed",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--focus-visible--compact--chromium": {
+      "screenshot_sha256": "f4e0c60f6fc9cd679d968148749c5f65076716cfe4e1bba258607e835c550a31",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--focus-visible--compact--firefox": {
+      "screenshot_sha256": "73c913bfe1c11384ff435d44d8d04e640d0c45497b0969c4d9e586a683f2c656",
+      "score": 82,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--focus-visible--laptop--chromium": {
+      "screenshot_sha256": "b0ea5c2c4ff7cbf61453632d7f0b371c5a33fb3af055fc45920bf399d35cab9b",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--focus-visible--laptop--firefox": {
+      "screenshot_sha256": "aae4ecb3e0dd2bed6c81de59ccf7a5f6b0e45f6ecbaa8abbbc73f84ab8511515",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--focus-visible--wide--chromium": {
+      "screenshot_sha256": "ebbe8d31c2cdc8e8865a4ed57c5fe308f13f4a4bab5e4762c9e4ae0924923c18",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--focus-visible--wide--firefox": {
+      "screenshot_sha256": "1fc73cd7acc6cf6d03e75ff37fe6bd91fe37ec1c35a3e5ec8f81e325f7e81063",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--hud-hidden--compact--chromium": {
+      "screenshot_sha256": "3f8dd9a6e3f0d3e2fe1e559839daa4f9f7607455ac412e3b8443e30df6d82eab",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--hud-hidden--compact--firefox": {
+      "screenshot_sha256": "1709ba50e8899b059180197bd1798d9c3d1db4fb5e96a1fe48bcf434c97a8dd4",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--hud-hidden--laptop--chromium": {
+      "screenshot_sha256": "e1c2f080ffdcba52d8100db28798f45f1424358e854240fc72b6ace6edc07e15",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--hud-hidden--laptop--firefox": {
+      "screenshot_sha256": "9fb65982823b2664f0b9137fcbc3cd950cb59e3981e4f5baf8c28740b08cca5e",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--hud-hidden--wide--chromium": {
+      "screenshot_sha256": "43ebac3e1dbdf67310731d33fc2ebe6e936719fab498035eee3de7a1eaf9a1b0",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--hud-hidden--wide--firefox": {
+      "screenshot_sha256": "a4cc77858fb2b02e17fa4dae68281caf5711aa13d2a84ef0d5d715d633de5a8e",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--no-backend--wide--chromium": {
+      "screenshot_sha256": "331ef63dcd2a8e37c2bbd1b41635ad145efd0c6a36a5afd0e460cf0c991a2411",
+      "score": 30,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--no-backend--wide--firefox": {
+      "screenshot_sha256": "7758bf7ff5e202a8f0c21876428f98affe88dee71970006341c6c5e1ea17a98d",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--omnibar-open--compact--chromium": {
+      "screenshot_sha256": "1da711f8e4861a1e6e764717cfd1bbdd6023837052c499f2d84279610c4eda74",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--omnibar-open--compact--firefox": {
+      "screenshot_sha256": "437b9622d11d312da16650ec7f382434ac00a077b5e4265ab987c2cb0a43ffbc",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--omnibar-open--laptop--chromium": {
+      "screenshot_sha256": "0e43445593e032d811b261a5c62a6e4c47bc2d4cc53e14bb4aca989169f7ca1f",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--omnibar-open--laptop--firefox": {
+      "screenshot_sha256": "d52e4e20d1fc21dc271d4727a4dde557bdd1292de9f60954eef992fa559bca90",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--omnibar-open--wide--chromium": {
+      "screenshot_sha256": "11a3653310a85c29586b2d853a0be276b53eaa08826a805288ea513ad0d90b25",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--omnibar-open--wide--firefox": {
+      "screenshot_sha256": "689173dffdc78e8ac1e258c3b9efb021c7adb13dfc05a46018572df88488b5c4",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--sidebar-collapsed--compact--chromium": {
+      "screenshot_sha256": "689b7773ca69e5b1460712a862bb34bb9e6aca1e21b1d98ceb74f64b381face9",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--sidebar-collapsed--compact--firefox": {
+      "screenshot_sha256": "5cd2fd82298287ab1a2173025c2cee0c6677843e3d161a0726b1afe2eb2ab19f",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--sidebar-collapsed--laptop--chromium": {
+      "screenshot_sha256": "effebb4ab97c212ff91662ffa8db7708ad3d9d9154375503345dcfef4dea417c",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--sidebar-collapsed--laptop--firefox": {
+      "screenshot_sha256": "707a871eb52b46b79c17d00e0bc25c52f056d0d026b5e36dd54c34b6775a235b",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--sidebar-collapsed--wide--chromium": {
+      "screenshot_sha256": "00c72b7ca0a32637987a11d556e609a0420e383580b4318417ae22b46148c6c7",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "dashboard--sidebar-collapsed--wide--firefox": {
+      "screenshot_sha256": "b63f5ceb995451eb91e4eeafe6b6e661e1cc2357f3563c29fac3e06ab278e1c9",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "flow--default--compact--chromium": {
+      "screenshot_sha256": "1d1d6703ec89c21fb6737685107c654f7f5d137a4c5a75b87b08e73603752d3f",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "flow--default--compact--firefox": {
+      "screenshot_sha256": "ab4b6d062cd1bf38a17f9e72386b9871ca264249b63294f1965eb7f38a4e85fe",
+      "score": 88,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "flow--default--laptop--chromium": {
+      "screenshot_sha256": "fcf9917ec6ba77f9e02a693c9cb2b81c43fb5523e52d4cf08d49b78195c96b6f",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "flow--default--laptop--firefox": {
+      "screenshot_sha256": "d5bebef12daf78e8e54e9c9e6bdb821a559ef8390232bf841bd3d13905eb1c31",
+      "score": 88,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "flow--default--wide--chromium": {
+      "screenshot_sha256": "942a200a0626787ba44dd635c49af92327f20a2f42fa4a5c95d1e17f65c9321d",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "flow--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "38afe5f9fa8fcb31a4ad87b4e2b7de644c417ea9e45b0904b5c5440cf53ccb42",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "flow--default--wide--firefox": {
+      "screenshot_sha256": "3045197bc698a1dccab6aac7a91c359a6a7a4dcae9c19df12575bf66a55d6ef3",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--default--compact--chromium": {
+      "screenshot_sha256": "6a0de7aa240bd227ae59b4cead829272e5cbb5f313adc995e4a770585772a65e",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--default--compact--firefox": {
+      "screenshot_sha256": "11caa0d3ca88b924f44a76fceaa3cc82d9782926ae29845c6ce3998c81dd72af",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--default--laptop--chromium": {
+      "screenshot_sha256": "b8049c278d07f08fd425c8d555f4abd39b02effeb16a17c5304f08adef1044c1",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--default--laptop--firefox": {
+      "screenshot_sha256": "98903d145b222cd1afb3b68fe0032d94aee97ac84e4e936808286f048ce2575c",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--default--wide--chromium": {
+      "screenshot_sha256": "1e6899e37f5f41cbbb7c9afdbc346f2ee3a3118bcb6a5393aee1a643ceed732d",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "4f94d2e644328ffa9975f580d53c197c03633b384985e6dccff2c59b3b06a5cd",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--default--wide--firefox": {
+      "screenshot_sha256": "fc635126ad36c4c96ca28c43157bcd6efa15d248e46b387ffad8b03335cdd1bf",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--empty--compact--chromium": {
+      "screenshot_sha256": "8d863e9eeae100efa2670a643b7e749f663046e8e111e37cffd995b8906c8706",
+      "score": 30,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--empty--compact--firefox": {
+      "screenshot_sha256": "61f52394f35aa70f6890e8124e625b89dc8440a9128f434e827d38b0f1083ae9",
+      "score": 30,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--empty--laptop--chromium": {
+      "screenshot_sha256": "bb5beb3803c5a1f4a3374447f0553deb05ed571b03c945437b4e790310193862",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--empty--laptop--firefox": {
+      "screenshot_sha256": "466c48a3efb2bb7af3cfee6eb733d863dc62ebe015b714f0cef2ddb223067522",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--empty--wide--chromium": {
+      "screenshot_sha256": "b29efca82f79564923e46195b17d48c5f41b94fcb78165706366d138e25009c9",
+      "score": 30,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--empty--wide--firefox": {
+      "screenshot_sha256": "15852027a597d7096856c8b422c6b1a17d30d67f4c2ee91b6fbbd5c01d68fc9d",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--error--compact--chromium": {
+      "screenshot_sha256": "aa95e90786693aa220238a6f13e138b86b9d62b084c079ebc4e10125673a7fc1",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--error--compact--firefox": {
+      "screenshot_sha256": "87099ce3846bd5b41bd81541a732b799c9ec9af8050d864826c45173c5d08b4d",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--error--laptop--chromium": {
+      "screenshot_sha256": "18ec2a115d4bae71077cc650c2db1d1ccc4b37a13d179d66324587197abf006c",
+      "score": 30,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--error--laptop--firefox": {
+      "screenshot_sha256": "baa026347416687487bfc7e77e53886ddfee9f142b0393ead0be0decdfddaec8",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--error--wide--chromium": {
+      "screenshot_sha256": "e0d731de01d82fb1aa6861e9b146fbc6632aa30d3dbcb1ecb1e73c23b4a42ee4",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "gamify--error--wide--firefox": {
+      "screenshot_sha256": "1e6d70533e1cfa15a9e98394d1af6bd0bad358a526eb40844d3aadfd98035fe7",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "harness--default--compact--chromium": {
+      "screenshot_sha256": "30bce18e04fe3a637a3255985163a5a06960defa4f05d6f7a98a2385c8cf9ef8",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "harness--default--compact--firefox": {
+      "screenshot_sha256": "5814c43efb7617282c699a14609d0d8e17645561788448b6c1795f8f017e67b8",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "harness--default--laptop--chromium": {
+      "screenshot_sha256": "61dbc87b3cfb373a3ee26ad1597cbb49db028bc5ca7b035e32f0870c6f2a9d1b",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "harness--default--laptop--firefox": {
+      "screenshot_sha256": "082d4f1a4324d881a12021b8c72c3bee13422de4e3693de6813713b66e587055",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "harness--default--wide--chromium": {
+      "screenshot_sha256": "86da585301b9f46d3b74d4adeda85c42b8676e314f6584ae20a9c68d358b6163",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "harness--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "846117cfbd2ff3d7901c72e8682eda6f2b9aeb20e15bb9e9377adb11f13d1eba",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "harness--default--wide--firefox": {
+      "screenshot_sha256": "e75b4817800da1077a6279dbeeb547f1ad532d9ed9631a246c45d77bfb517085",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--default--compact--chromium": {
+      "screenshot_sha256": "4777dccc6d71e557d631aca1c0b68b82ba173ee15d57e4d30dc6273f0180b3bb",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--default--compact--firefox": {
+      "screenshot_sha256": "bc99581b3b50fe5fe9dc4532db502fb1edbcd9e926d3c22740a45cfe2090c63b",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--default--laptop--chromium": {
+      "screenshot_sha256": "127e89554b6e7294d944dcf1e872ada1b8095d3e4d42c85c73ccada6b173fde1",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--default--laptop--firefox": {
+      "screenshot_sha256": "67e71b29c446d55c785681f5135a94381d5971d511a3acc7109e1e72bbc6297f",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--default--wide--chromium": {
+      "screenshot_sha256": "48377b35e7439d9a8706cfefc97249b0dc317c27020ae5537382b63759e71167",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "eda6e3a1b9d6f1f9a09441b1fbcafcb517d7a709fdd1099887ea8d18a54a5b71",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--default--wide--firefox": {
+      "screenshot_sha256": "061690868dfe5d8ab6bfee38d1fbeaceb217c36b5cde9fd39f9ac1343dbcc074",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--empty--compact--chromium": {
+      "screenshot_sha256": "4e02a80b134475050166df45d5622d9ade05ba904598854e046b76f914387f55",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--empty--compact--firefox": {
+      "screenshot_sha256": "e78679b09d1557081a8bcab655b96194975a5ca0226793ec3cfd99f4b4bf5a6e",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--empty--laptop--chromium": {
+      "screenshot_sha256": "0f3b5800daf2f59884684360b3d8014821ac0476660be9c2ce574b447a844934",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--empty--laptop--firefox": {
+      "screenshot_sha256": "91c37cf6a49e7b097246e0aa9f4e2930ee46e608ebd28f8419fbb2f5fb823ab1",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--empty--wide--chromium": {
+      "screenshot_sha256": "3a72789d847a0fdaa3018dfbb21cd34b70648fca25c499955574d88ffc22a7fe",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--empty--wide--firefox": {
+      "screenshot_sha256": "3607d88a42cc19c626c137d908020e74235b9a0b41f39deda329130618078185",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--error--compact--chromium": {
+      "screenshot_sha256": "eea64a7688b100b9dd44909ab26950ca0715ffdca1ab9c7fc7d3585b6143a1d0",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--error--compact--firefox": {
+      "screenshot_sha256": "a1852d32b8b6d0fe43cc13e8ea97c2a7aea53e8d9dfe077c4774d604503749bb",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--error--laptop--chromium": {
+      "screenshot_sha256": "98af32c6120e2f10a569971fd81078c7124f3f6d910ab0bb9a59b46ff1abd58a",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--error--laptop--firefox": {
+      "screenshot_sha256": "24ddff3367d62cb30240fa57ba495205a21e1e7aa4f0ec6aee6fb375758207f7",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--error--wide--chromium": {
+      "screenshot_sha256": "5db557cdf354d2867be83093936ddc514e2591750197eb569884c3df07b08d22",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "memory--error--wide--firefox": {
+      "screenshot_sha256": "a69ed9c73aa61581cf25aea34afaf8cba995fd6f70f27f9d3fefc57ff65c4fbd",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mens--default--compact--chromium": {
+      "screenshot_sha256": "53f95b88608ace65d81abcb9990bebfdebf755d6b34062b1b09c8a8b242e6f21",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mens--default--compact--firefox": {
+      "screenshot_sha256": "2ec832ba072b22c09450dfdce8801012325011593fb3579df4a093c4fd8233ea",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mens--default--laptop--chromium": {
+      "screenshot_sha256": "46a6f5085fffd6765283ecb5fe68f6a2043efa919a86e6c4e4b053055c669972",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mens--default--laptop--firefox": {
+      "screenshot_sha256": "a8c3d9d835dae0a61d2528c11991e700f8bed19469bb5cdd616dd8149a1dab49",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mens--default--wide--chromium": {
+      "screenshot_sha256": "83aff3864f1ef8a247859be50ffeb595756529ec963a392990b9038867ba8df4",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mens--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "32074d0cca56780fecee1ae391f8d74ea0eb75caba93946de6f4d118bf131efa",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mens--default--wide--firefox": {
+      "screenshot_sha256": "20b208fe901e439fcabfe7a459d44cbe1d0fff95806e0f53bc1f8f05a15494bb",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mercatus--default--compact--chromium": {
+      "screenshot_sha256": "56a3041887035042a6c50190fa9a4c49e3d790246e8dfff04b9ed5f0793d227b",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mercatus--default--compact--firefox": {
+      "screenshot_sha256": "a1490fe8bf4fb5403d60be30110ca8019c88de7361ae7eed11036c33715d1352",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mercatus--default--laptop--chromium": {
+      "screenshot_sha256": "fb98101aa22e3a31792bc205c43e5fbf0ce6d0d68660e231c33d9e1067f81d3d",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mercatus--default--laptop--firefox": {
+      "screenshot_sha256": "0d8b3dcd497f87e912b183de476e7fae32e6c5335fcabc9754926b0107ba4110",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mercatus--default--wide--chromium": {
+      "screenshot_sha256": "d8d8fec12cc2cbb8874bf7ffd6ccc3919f5a7cf3771c7c7f3cce7741ceacc5c6",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mercatus--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "fc7d4a364b012dc34f64a2524a5034303a7c5abb7cc56cf5a6e37cf5d415bc2d",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mercatus--default--wide--firefox": {
+      "screenshot_sha256": "4300acdd5fe61e3fa06676e832e369dfb17bf35a30402de6f3d9c3580b81464a",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mesh--default--compact--chromium": {
+      "screenshot_sha256": "dd039d90979f63929590abf981ec2097f4d0aeff57fc899a0c68e83125430667",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mesh--default--compact--firefox": {
+      "screenshot_sha256": "875c82e5b09d83653be9606573825ec29784361b710d45ac4ab664e6a0f456ab",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mesh--default--laptop--chromium": {
+      "screenshot_sha256": "2a1641e149277f202f80209518287b81f177b3e4524625206e2d729b9197bade",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mesh--default--laptop--firefox": {
+      "screenshot_sha256": "edef5134d853c90fe0403cc0eaa2c45d087856c8c2f6587e9586be3c2e5e628a",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mesh--default--wide--chromium": {
+      "screenshot_sha256": "235eda918a274173c88d1a6d53eca39656909de8b55c6891c61978ce4910d210",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mesh--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "73ead88f125006bbba078e687aada911f9506bbe4c351feb72c8f9577cdda7d3",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "mesh--default--wide--firefox": {
+      "screenshot_sha256": "7d8958baa6dd9ad148c9b21dd7f63b450808e814f56d5f39a5ab9f6e036955c2",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--default--compact--chromium": {
+      "screenshot_sha256": "9be4c92205cc31cfd5e1f09e8788c5057a97eb086b1ba29e3d4f861096d5aad4",
+      "score": 88,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--default--compact--firefox": {
+      "screenshot_sha256": "bda05a0984c52af13a3dbbf46d97e52f80591008a5d79a7cdbc37224866e901e",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--default--laptop--chromium": {
+      "screenshot_sha256": "46452b4acbdd0a1aca50de0e7a66118feb22db93dccc99d0bd497bebb7e768a0",
+      "score": 88,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--default--laptop--firefox": {
+      "screenshot_sha256": "c22cfb41e4d6c8f958d5fef23cb6e3c93446ce7456016fc75e94fc507a471a1f",
+      "score": 88,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--default--wide--chromium": {
+      "screenshot_sha256": "1f0ee06115855c8a40abf7f0858b25087644e1eb0320332e587e06e1e064834a",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "05fb54b3b2dcce55f0b5ec78b7abf6f354ee0d631d80105212343714d1dda763",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--default--wide--firefox": {
+      "screenshot_sha256": "aab56d142eebde556cc286e844d939221a4ad46be23b3482b88f615cf0f662d2",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--empty--compact--chromium": {
+      "screenshot_sha256": "7d558b8284c056ac9527e69b5aac1666a18abb0840caac0cf03b1b2be5e37988",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--empty--compact--firefox": {
+      "screenshot_sha256": "41261ed620893f796ae4ea58b847831784a77c819d924709b160b45fd45b2c86",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--empty--laptop--chromium": {
+      "screenshot_sha256": "42e3246ca6ebac207b5d46723dc184549fe7c1a87f852e101428cf09e1bfbbfb",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--empty--laptop--firefox": {
+      "screenshot_sha256": "7e91cd6437852ad79e86531368c67417108e52a8194c626c1355dd35ac8afa89",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--empty--wide--chromium": {
+      "screenshot_sha256": "23b33201817d425bf642c7e609944a3f5975b865b472ffc1e00c6d371b132d7e",
+      "score": 15,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--empty--wide--firefox": {
+      "screenshot_sha256": "2dd93787a5a04e46e556ac9b2af072ba0ad4e129b3e23efdfb4f8235b4ca02de",
+      "score": 30,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--error--compact--chromium": {
+      "screenshot_sha256": "d6fa73663551380d945445ea903260dd671533122360cbadbfbb715dd1219b02",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--error--compact--firefox": {
+      "screenshot_sha256": "7623ae2eb6169eb4b57bd98e8618c15f14dc3c2f77bccc86268ff8406fd41855",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--error--laptop--chromium": {
+      "screenshot_sha256": "96e791c0b0782e15fd4d0c9f5cb18d3ffb24672ec46b265c64575e230aa32d06",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--error--laptop--firefox": {
+      "screenshot_sha256": "953d26bc7d5b406aad4610ea6748b4bd4522e65e6a3c15fce23c36d150942f8a",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--error--wide--chromium": {
+      "screenshot_sha256": "18429d916d66a7d7b5b3a494b1c54bff69b3a0728b3b2bdbb5ff68092e9e5f67",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "models--error--wide--firefox": {
+      "screenshot_sha256": "0246ec39a2ce1607bab4c316808a9857a792ee8eb8368ed02c51448905b78085",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "needs-you--default--compact--chromium": {
+      "screenshot_sha256": "10cc46a9bff78887f03a70d0343241bbef718ee454a0cfcfe4a07cbcbd92bf92",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "needs-you--default--compact--firefox": {
+      "screenshot_sha256": "52e38ecf7409cbf8943ab9999618c14ae1e88bb071ec0dff7d3a1b78e5c33caa",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "needs-you--default--laptop--chromium": {
+      "screenshot_sha256": "b4d488c7b9cc84eb3a7cc3a9a80b57a58ed462ed310216e7ee4abc1feca0e75f",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "needs-you--default--laptop--firefox": {
+      "screenshot_sha256": "1dc2d254ee469559c68b4bed3a8aedd2711a1f2b39400373a615bda76484294b",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "needs-you--default--wide--chromium": {
+      "screenshot_sha256": "7b8cba3c23cde9101e373d6a44bad4bd189fdf86d2425838574c93e8d364b71e",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "needs-you--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "07210c369cd67f4870b5465b391b402062be528e7f8e8d8529929c64a31cc7ed",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "needs-you--default--wide--firefox": {
+      "screenshot_sha256": "01df69948440d72397f723b966030d81067cd9a2b5e15272c39f7790cb2af125",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "oratio--default--compact--chromium": {
+      "screenshot_sha256": "25f0d3e2032bfcc0f547a7531fad4dcf5da7de552c9c0485ecabed85a5884ec0",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "oratio--default--compact--firefox": {
+      "screenshot_sha256": "977c34fe596ec4891b0f1de3fa6ba8753e2a22fa4e3dc72d7fa62cd173dff051",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "oratio--default--laptop--chromium": {
+      "screenshot_sha256": "e24779e7a35d77570c8723515d08e3810757449c016414eba461dbbe10e72801",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "oratio--default--laptop--firefox": {
+      "screenshot_sha256": "a7b8e6a03612903db5651139cbdeba28d23584a1d049bb85a718731563a85bcb",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "oratio--default--wide--chromium": {
+      "screenshot_sha256": "f93ba7a27938e895e1f54784ffa9e2bc3aee067c0725a2ec3aa9e69db9c51d0d",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "oratio--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "f6b636e5d4fd3bbe49f6a6ae878cc19ef5d086b137a378c9064cf9e4cf2bf3d8",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "oratio--default--wide--firefox": {
+      "screenshot_sha256": "d1dbc323e4337d751a227f63fcc60bc5dac1ad974590edfb5b34cfad1d3bae97",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--default--compact--chromium": {
+      "screenshot_sha256": "519c77c1ae930fc55ef5d60f6136da32e70ad2813c7a252f10b2c786b8bce775",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--default--compact--firefox": {
+      "screenshot_sha256": "2193de3897d4066c9c221d71db82a01dd72a103f271c5b1e7b0e00bcca9a5732",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--default--laptop--chromium": {
+      "screenshot_sha256": "a9ae831ead2cdb280eb76811e951eba5c43334840fd2ffb258bde33f9ae2deae",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--default--laptop--firefox": {
+      "screenshot_sha256": "3680a3f768387d7cb57d7949b85043a3b7d3279f0616d78da7d5977057e02390",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--default--wide--chromium": {
+      "screenshot_sha256": "f79b82071797aa9b125d198aba1ccdafbb953869807f787d14ee35f509b7fee2",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "d8e0ce801b1f33456291584e1c920e051a73f566497a34febcae71963d637c5a",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--default--wide--firefox": {
+      "screenshot_sha256": "0aa9c5b51191bb7cfcb3c76a66f93b7d59363c78765ebf67998694ab9b3988aa",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--empty--compact--chromium": {
+      "screenshot_sha256": "93ffa7815cbb3c5eba14f5464a71e471557ef2d17888d9c44232a3700f8b0646",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--empty--compact--firefox": {
+      "screenshot_sha256": "c57b1afb2eec1901daed618cf8852006047303fd1ab90a0922556169d5329ddc",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--empty--laptop--chromium": {
+      "screenshot_sha256": "bbb95e56adde565f60933c92c6675b442133441247636b78cf237b4749bdbf1f",
+      "score": 30,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--empty--laptop--firefox": {
+      "screenshot_sha256": "b1942772dd225ad08b328669083eb4e8fde978461b35cf9568087d42c9134fd3",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--empty--wide--chromium": {
+      "screenshot_sha256": "4a286454388c87ebb44aba206ebebd72cd4d3efc0e4e4d0a0093d127762dedb7",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--empty--wide--firefox": {
+      "screenshot_sha256": "d6720506497638bc34520a11b7d527e15359866daef8f3dcdcffbda3b2be29b6",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--error--compact--chromium": {
+      "screenshot_sha256": "590bb004c53baef86f6f9cfc3dd0d2887ccc2551597f48ee2f1e97f706bd815e",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--error--compact--firefox": {
+      "screenshot_sha256": "e5d222020b7ac1ff1bff1664c83800cbe348c09f3c4664c214a3ce8e73e76eb7",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--error--laptop--chromium": {
+      "screenshot_sha256": "fa69ec355c107740a295877cbd0f404ed9b3b5e68a059a60284e524f6a7c4294",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--error--laptop--firefox": {
+      "screenshot_sha256": "434931060978d4ae1cc75a4eea69acb8642b65228eae8a9bf5a67ba785fb87cd",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--error--wide--chromium": {
+      "screenshot_sha256": "028b4eda57b464f7df78a84d42d1db925345a27ec48023f49d72b3d960a3870e",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "policies--error--wide--firefox": {
+      "screenshot_sha256": "25ef64f298873616223c6d1e3301db9cd2e4cf94d7cd4c8bc6d5878d164edb6a",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "populi--default--compact--chromium": {
+      "screenshot_sha256": "393303a091a0ba2b83a5c0e63747ad00db0254c04a3ed0ff2f6c56ebd8e2eb9f",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "populi--default--compact--firefox": {
+      "screenshot_sha256": "3a012b2610f77670e43a24406636ae7f1a0f47e0531d3fe4b06efdee1369ae4f",
+      "score": 88,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "populi--default--laptop--chromium": {
+      "screenshot_sha256": "6dfeb94ca3f98d5ff4d43c5989a8bd165f61f5a9aacd7aba589357e2c3ef152c",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "populi--default--laptop--firefox": {
+      "screenshot_sha256": "72896f4f8c8800856fc36506711f9d0d665f2e3ffdc6f03fe2a007c4b3c7ff1e",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "populi--default--wide--chromium": {
+      "screenshot_sha256": "564f1d6f31e0e83a3407f8e8f83f8f7e0bb7ba60fcfe340a6c015923edf03ad7",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "populi--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "79526d019074f8fb37411637c55a78a1ae008764911f2d12949af4de64d8178e",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "populi--default--wide--firefox": {
+      "screenshot_sha256": "309770577d98f73fe81b292578d6c31158ac03753307e486ec495f94984bd99a",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "publications--default--compact--chromium": {
+      "screenshot_sha256": "320bf2ddd5bf7a55c341d9b302c6d8204c3623484209b0c8e70e9ceb52d214b5",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "publications--default--compact--firefox": {
+      "screenshot_sha256": "d50942c9414003d53d1e111e92b5cc63e593b13d80d8037990131acf3e6348ea",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "publications--default--laptop--chromium": {
+      "screenshot_sha256": "73042b43533818e0b279b76cfb44a3264e07061d1780926fa98080897ab0576e",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "publications--default--laptop--firefox": {
+      "screenshot_sha256": "577642f19e1fd100ff8f0eeb0431ca986e929219e91b8af46da4fe059406703a",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "publications--default--wide--chromium": {
+      "screenshot_sha256": "c37d83590f23ced7aeb3e3d638c134a67acefaf09507e253270ca830e906bc5a",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "publications--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "acc84e6a430b9f915e4a5ef265b25fb07716cd910cd7bfead86ba3eaf41c42f4",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "publications--default--wide--firefox": {
+      "screenshot_sha256": "d4d016b4721af9a90a5dfa84bac4ec69ab91b0e983cb576293fd82213ad6311e",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "repository--default--compact--chromium": {
+      "screenshot_sha256": "cbf0b0808dc86fdf164755340816566963529c90831da83dccb860ea12bd0c55",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "repository--default--compact--firefox": {
+      "screenshot_sha256": "10376612ef96ffbab373b01cefe5395d35a24f8ef19a0e9b5e3515edd06cb6c8",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "repository--default--laptop--chromium": {
+      "screenshot_sha256": "5f505bacaf069fd423da40623112750da3222229ea3d32ec6c3b6f0d963f4202",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "repository--default--laptop--firefox": {
+      "screenshot_sha256": "4a858074008bcaf0056f358247e97c389d8849f0d72c70cbe95dda497ae335f5",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "repository--default--wide--chromium": {
+      "screenshot_sha256": "c277ea4d8bacf1b2eb99923a7a3a7dbf15bb8170e123b30b3510e6e711e6fa4b",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "repository--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "08ffc11721fa3cf4f783a9f6b87e91ba0bcc94dd7f5b3e6b3e369a0364c66386",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "repository--default--wide--firefox": {
+      "screenshot_sha256": "3324cb5d9d56fdf388745c340a0e7e1e6bda37046c3f367d9ab82ec01379a26f",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "research--default--compact--chromium": {
+      "screenshot_sha256": "34d856136044f9dafcf57c53726d3e1eca1ce9fff08622b6031547c96e734515",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "research--default--compact--firefox": {
+      "screenshot_sha256": "079a057ae46e72fb5eca78cd2349d967ac44e4eb982d889dd3ed09b61e1d9eec",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "research--default--laptop--chromium": {
+      "screenshot_sha256": "ee39257eab09eea0aee90843e0837cde2d7031e802514a007cb1a5c3e45d950e",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "research--default--laptop--firefox": {
+      "screenshot_sha256": "ee67ef7cd05bbce96a5d2bc59245dc64fa70f51c472f17e4927958ba99a29b06",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "research--default--wide--chromium": {
+      "screenshot_sha256": "d6d29fdb0aabeaf2e7f27021b80538a4a4bbdbffae7dd3d5958a723dd5211b79",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "research--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "3e735410e56a988721c4571209a4c258b9682e02d5dbcbaecefbf6537d2b751c",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "research--default--wide--firefox": {
+      "screenshot_sha256": "53db882ef181e148954acd835f5df4b8928c92d185fd29e814e2782473211f43",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--default--compact--chromium": {
+      "screenshot_sha256": "49470a0bb7bd70dc555f23796a17ec59b346cec8ad1f382055f9788acf9ac719",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--default--compact--firefox": {
+      "screenshot_sha256": "4b08bbfd9bda10a22389d9df31b2f43dfe45d744918116b8d07e0366eb5d5e26",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--default--laptop--chromium": {
+      "screenshot_sha256": "fe05749292ae856ca63e7d9d5c7c2d2962e8037bf30783358c098482e60b9799",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--default--laptop--firefox": {
+      "screenshot_sha256": "5d1301353ee816330fd157d06a7b76d7dea461e6e78835f4814ddcd0917ae4f8",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--default--wide--chromium": {
+      "screenshot_sha256": "2a7b32c15c3acd0c0fd71e133156d0308263c304832d049108b071f9c02b3aa1",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "6d4c43f45dbedc2df7e0911001e6f762015326d1093f5267a1f9727eec03f1bc",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--default--wide--firefox": {
+      "screenshot_sha256": "a444169679f0dd97dd417862f11f7f163856f4a7de858d37bca744c59f6224fb",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--empty--compact--chromium": {
+      "screenshot_sha256": "03a0a77ce856697f6209bf9347323b6b3465c20481b1a0d90a2499dca826f25e",
+      "score": 30,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--empty--compact--firefox": {
+      "screenshot_sha256": "5bc7d5807f55a73a84175eba3557c84bf28dec596fdb7d7c5544b2e905b38ea5",
+      "score": 35,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--empty--laptop--chromium": {
+      "screenshot_sha256": "25363bc1fb941a448e94f8ef1262c0835af74c203453396ea9a5f3c12856369c",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--empty--laptop--firefox": {
+      "screenshot_sha256": "2a658b8baafbf06bed325cff620440b6d22adbc8d9a392f0f06fa687e5415986",
+      "score": 30,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--empty--wide--chromium": {
+      "screenshot_sha256": "e7af4fac7a5821964e43a2f008b8e2333eed68707c8b76f51ce50e7a904125f6",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--empty--wide--firefox": {
+      "screenshot_sha256": "123ada599510d37577b5a9ff0b9486acb0870bd46fd464d4732a10d7f5c08163",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--error--compact--chromium": {
+      "screenshot_sha256": "e173c48780f172043fe1c43bf7364063cbdfb30b57e6393c94b881f909038704",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--error--compact--firefox": {
+      "screenshot_sha256": "7da2b141d6c4293fec9b8b651d7f23794f498cf249ff658235197b84fc60d34e",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--error--laptop--chromium": {
+      "screenshot_sha256": "9b93dc0a422ab4dd3471886b3286ba14741c89dde8e5fa8b2e284b5b65cf6403",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--error--laptop--firefox": {
+      "screenshot_sha256": "74a75e4421acb2d8ae9571d6dc800a13eea48d086e2758210c8896cad9f523db",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--error--wide--chromium": {
+      "screenshot_sha256": "653153ed8092fb4d523e7a0f41966e114a22d1e423c14560e1e8ca17348d1df3",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "runs--error--wide--firefox": {
+      "screenshot_sha256": "c8ca3d3244a3c3a5ecc303b8e72476af71c27791b041123d0217f733ae4f384c",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "scientia--default--compact--chromium": {
+      "screenshot_sha256": "c9a018f8afc69fbe0f53307b175b5e68b194e1289a1876fe80484fa9a9088b37",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "scientia--default--compact--firefox": {
+      "screenshot_sha256": "28009b1279ba0c459be63c39b80ec6450f4b29b4602401800a75d2f1b6ea9a58",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "scientia--default--laptop--chromium": {
+      "screenshot_sha256": "284edafe2e4238fb8241f23e13c3db6b37e96394dc129c20674e065b70e02e1c",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "scientia--default--laptop--firefox": {
+      "screenshot_sha256": "8c5501f882e79cd4d7ede3e1384426f6e2f20ac43d48737342409cece0ea04ab",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "scientia--default--wide--chromium": {
+      "screenshot_sha256": "02827e5731665339314311f233b0fd1e1871cebcaeeaffb26aaa2ca9db1ff2a7",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "scientia--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "1e5ea09fd120424cdc467caf61434255fe2fccb750c9cf94eed76c1e4263ca8c",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "scientia--default--wide--firefox": {
+      "screenshot_sha256": "de72f1edc09e2e14efb60222a2a3e3edad14f05a27ccbb4321529526ccedc9e4",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--default--compact--chromium": {
+      "screenshot_sha256": "5f02f60488ef0eaf38c3ab9526174befe93130b47ee9445db1ccfb5c5653e9e1",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--default--compact--firefox": {
+      "screenshot_sha256": "42ff38eeabd80b9d584131f06d1bd6e1c81eb9d7fb2d7b53a29a5d01e293e706",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--default--laptop--chromium": {
+      "screenshot_sha256": "7df523cc78e00b72f4ad0295b13ea62fc19b56ca6309829a29d63d3a008fafeb",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--default--laptop--firefox": {
+      "screenshot_sha256": "f4321acfc0d4ea41c64ffbb08a3928142ca5cc91a0af7029e9a5e7ef4d14a4f6",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--default--wide--chromium": {
+      "screenshot_sha256": "3966c7d462f7857746494ccf04f0222afacdf4a79185c629fadee3c1ff30196f",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "b6bbf4cfca0f008068ed659874e3b2345643a63a7509a00767df5c4ea98aba05",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--default--wide--firefox": {
+      "screenshot_sha256": "c9a4de454265dd8b5d52031c5c7920e2ae6872ef98a24844a9a89a9693108882",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--empty--compact--chromium": {
+      "screenshot_sha256": "2dd2e91dd76133c60a5f5fa510a69c77c0335fd160a2a8318b7704624e45064f",
+      "score": 0,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--empty--compact--firefox": {
+      "screenshot_sha256": "e9f85e2e63d3aac4273b8de0f3ff7395a7a33fc5a866e2c720e5e5c3b20dae3d",
+      "score": 0,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--empty--laptop--chromium": {
+      "screenshot_sha256": "f4d098651848a0f96a591315ff03e7a761c0d967d4a3d3eab9c4e4375f098aba",
+      "score": 0,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--empty--laptop--firefox": {
+      "screenshot_sha256": "8117fa50ac4da340948b9c9e0e16f99d48c49461331900eed349b14bc5b72f0c",
+      "score": 0,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--empty--wide--chromium": {
+      "screenshot_sha256": "6dc45ea1b97b7b0c73a75f88f044d352c5c835e4b34ad01688323a8fe4af0519",
+      "score": 0,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--empty--wide--firefox": {
+      "screenshot_sha256": "d71caae547da4781c9b06e155cb393dd0654d96ea04ef1ced950108fde78476e",
+      "score": 0,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--error--compact--chromium": {
+      "screenshot_sha256": "2cdbc1d737c50da56df6a03339f123f5fdd38f27c99f7f7dcd3c86a09d92e22f",
+      "score": 10,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--error--compact--firefox": {
+      "screenshot_sha256": "10e5172e6505b4e34036ba301a508b55ecbda701ad22b014f39224b603143e6d",
+      "score": 15,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--error--laptop--chromium": {
+      "screenshot_sha256": "fd973e3f9bc25eff27b9e271a2a171d9600e5dfd70c0cd94bd69afce55c14e3b",
+      "score": 10,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--error--laptop--firefox": {
+      "screenshot_sha256": "f52b61c7c1c260c2be75b9fe7de18a7fd4f9fc7f64d90c6a919f9ec800ab690d",
+      "score": 10,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--error--wide--chromium": {
+      "screenshot_sha256": "eda2d95c0661dcff99094b1045c165fdd816a6c9eb97fd585796da8988a926c3",
+      "score": 0,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--error--wide--firefox": {
+      "screenshot_sha256": "94be6c160440a17e406bf0ed5b16198e6ac8204d640eb624d5b03222bbd23781",
+      "score": 10,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--search-filtered--compact--chromium": {
+      "screenshot_sha256": "cdbb48f2cbc3f200997cca149085727c60806756ce584a5664938e9ec97507da",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--search-filtered--compact--firefox": {
+      "screenshot_sha256": "c3b9f5bcd825e91504c8c68ba81dea97c3284b9c44a8ff8b1fc452109c1ffbb9",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--search-filtered--laptop--chromium": {
+      "screenshot_sha256": "d991296a32634ea5c5705b185fa54230fa7d284db08dfc2b5426b9418c9a8df0",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--search-filtered--laptop--firefox": {
+      "screenshot_sha256": "d7ee017a9ee1d212bcd25fcb7e2051d26e389407e6ce9f3d1ad309a211350b3a",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--search-filtered--wide--chromium": {
+      "screenshot_sha256": "5cf4e8f8822f700b4fc8de2332e7da34b7b12a64966faec553d23927797a8d77",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--search-filtered--wide--firefox": {
+      "screenshot_sha256": "bcc8ecc615c62dd089018b833e2be403f028119e6579edb1bdec1f4dff683245",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--section-keybinds--compact--chromium": {
+      "screenshot_sha256": "e6c215e466d9a4bdab0c961db15625534dcef1a0ae53f21073ee534ed7c5ac77",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--section-keybinds--compact--firefox": {
+      "screenshot_sha256": "652f00835e9591170aeaeb9755d79b59e66e8755fa22c81df9a6d1c84cf31240",
+      "score": 45,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--section-keybinds--laptop--chromium": {
+      "screenshot_sha256": "e602baa3e7c293cb02078facde962f3c13b21d49fbb795d69ff22afe44b98575",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--section-keybinds--laptop--firefox": {
+      "screenshot_sha256": "3a9e03838d65d82b5294c33e9354983da6375fa0580420e582e311920ffec72b",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--section-keybinds--wide--chromium": {
+      "screenshot_sha256": "f1a46ef22dd6c7c627c6ea52ca73f57e20482756c00e476353adb2a2bb495c76",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "settings--section-keybinds--wide--firefox": {
+      "screenshot_sha256": "09554623123efc8e8b28b73d46740827fc752a5db60e400d1f824468b937ee76",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "skills--default--compact--chromium": {
+      "screenshot_sha256": "922f2fe20c572b17fb542c768c49f8e5ee78ccef819417cf4d1a90012b949e5f",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "skills--default--compact--firefox": {
+      "screenshot_sha256": "b614dd6a6413d5903b9c3081c50275b45ee655ed953221e814c490b85f9511eb",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "skills--default--laptop--chromium": {
+      "screenshot_sha256": "033fda22679330df3d5103c0ea343003a9ec84fe1c7dc04e7e0eb4d2237ab685",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "skills--default--laptop--firefox": {
+      "screenshot_sha256": "94222c16b17199e2dd8fa9bcc17364614cf8d55bc66a7df96fb47eef7787d487",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "skills--default--wide--chromium": {
+      "screenshot_sha256": "d265cef2e7a6e94dd4cf31f94c99cafc504a5bb73cfc8d02baacba92106859ea",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "skills--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "c36f0ad1dc04ae2edb7a668c4a4675e5aa52337bf48ac7df68d6a13ffdaaff4e",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "skills--default--wide--firefox": {
+      "screenshot_sha256": "8c206ea2bf69c8931e7b47a6dc04918a6bd16904c777316b4866ff3940d8b546",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "sub-agents--default--compact--chromium": {
+      "screenshot_sha256": "df1b27fdd081f22de254209dc100baf5163e06c704d14be67964dccb4aaf26f1",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "sub-agents--default--compact--firefox": {
+      "screenshot_sha256": "bd087c73443c933ad8e6313ad9de4b4ee36f057b1e6cda7770219dc6d3a3658d",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "sub-agents--default--laptop--chromium": {
+      "screenshot_sha256": "9aaa1bd551566e62d81e506bb4d6f5cb1c2fc70290b199916d889ced5a5059d7",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "sub-agents--default--laptop--firefox": {
+      "screenshot_sha256": "3346d8e06feed4481a4966095fe1e16d86a6932391e7579d6e98084ca0638486",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "sub-agents--default--wide--chromium": {
+      "screenshot_sha256": "816e7febfdacf87bff1f9d94c1234eeac0bb1cb3fffe25b87cd42d7b516d524b",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "sub-agents--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "dd85587a4df8ffe02f499f6ce56d9c0bc2700aa097bc5dcdda1f9d3ec2a494a3",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "sub-agents--default--wide--firefox": {
+      "screenshot_sha256": "a406dafcb4674bacf797236a5f096923c91bdeb7506700bd5c6e816baa8d9884",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--composer-filled--compact--chromium": {
+      "screenshot_sha256": "eea337b75640e0914dc28b90ab892edd962a880d169a97089a3154bc257b88ac",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--composer-filled--compact--firefox": {
+      "screenshot_sha256": "104fbf6d0ec5c08014cc8256a65a32b90e8ec6a8893d4010b451a7ea9cfd6661",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--composer-filled--laptop--chromium": {
+      "screenshot_sha256": "7a1450a84fc1e25c3d5239e6a6539dd8f64062b627677d039046dc456a1f2e73",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--composer-filled--laptop--firefox": {
+      "screenshot_sha256": "318ebd467e931fd22da23ad660aa22b301d13d939b8eca975ba0a82fa88b1be1",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--composer-filled--wide--chromium": {
+      "screenshot_sha256": "5901e5a47e1fbdc2f3232563d38b9443e4b6b8876e03628d290fe4d39c9cd11d",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--composer-filled--wide--firefox": {
+      "screenshot_sha256": "871fa71a0ec21e6dc2c982fe3852b3e1ff7ab06d8494f9b1b44d51e9c6196cbd",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--default--compact--chromium": {
+      "screenshot_sha256": "4c9bde996a9f996b66093af6af567d136cffffe1e67c367fcd6426f5d9ee30e0",
+      "score": 92,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--default--compact--firefox": {
+      "screenshot_sha256": "560972ab751f29f3c0e346ea9da495e00edf30c1bb94fed6ce75de8a671dc05f",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--default--laptop--chromium": {
+      "screenshot_sha256": "711fcd9f285e667c3044a40e3e01ddcba530bc1ddfd8b06414408e69f25451ab",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--default--laptop--firefox": {
+      "screenshot_sha256": "29045b8ac7a1a0bcd2e3b7a19517dcca84b2e37ffd69629bf599296a0fd2d965",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--default--wide--chromium": {
+      "screenshot_sha256": "1683ec64ab287e8a8932a6d1371632f9dbf8865008b1b30e4f1ea5752cc6c5b6",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "4fef9d46cf15e8956d8036fbfa987e736a7fdbac3ba049098c1ab7eba27df011",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "tasks--default--wide--firefox": {
+      "screenshot_sha256": "d010ca0e1740375de33ad06f1f043a2900fa46636c5250d8fe6fd30d850ad879",
+      "score": 85,
+      "verdict": "pass_with_notes",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--default--compact--chromium": {
+      "screenshot_sha256": "110964f0ea34745b64bd3b0f13e7c71f25a4b7e1eb28112dc1164c145c90953a",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--default--compact--firefox": {
+      "screenshot_sha256": "0833ff8f42f8139e660a41d3670f4aa6f4a84700a5f7051ec91134db1baed845",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--default--laptop--chromium": {
+      "screenshot_sha256": "68a0a3c5821b18b704e657b4bc6deaa70533037e2b097a05fdf88c635431d51b",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--default--laptop--firefox": {
+      "screenshot_sha256": "2aa1c3afb1d9eabe803e971496cca9dc3f98b87038e23e3e7a6334eb000546d3",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--default--wide--chromium": {
+      "screenshot_sha256": "6fc83023faa9ff82ee3628a9e5241ca414f30b0522e791d53cde1ba11816eaed",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--default--wide--chromium--theme-high-contrast": {
+      "screenshot_sha256": "980b0957d45a93edfa39877ffdf1d3988b86c82ec7c5c93b4816f23ea1f8fbb7",
+      "score": 75,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--default--wide--firefox": {
+      "screenshot_sha256": "0bee59af20ef69ae7ef0d8dd5b51946a8d78f50b1b516bd8e43647fbc97893b4",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--empty--compact--chromium": {
+      "screenshot_sha256": "8a4409f46b3df5ee563047f951880a736cabb27cb2b43e7260186695bfe7ec98",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--empty--compact--firefox": {
+      "screenshot_sha256": "85a83816821b6efd37cd5044cc6261838d0ddaa5adcfda0d0b7e2e0c92f13a3f",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--empty--laptop--chromium": {
+      "screenshot_sha256": "6379db38ec6f63ae1aac5507bfb8341c4e1f26193aa7fce1be9e6e70c9a77865",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--empty--laptop--firefox": {
+      "screenshot_sha256": "4d36fc61315825ab5ca848e87ae35abb447b14d25e2fedba8ee7e57ca807bbc0",
+      "score": 40,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--empty--wide--chromium": {
+      "screenshot_sha256": "01d2f8292a8de92ca4f102c2a14a418a4e76ed8840c73ddb231f0714e32614ce",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--empty--wide--firefox": {
+      "screenshot_sha256": "67783c5621b52e47a7bd2484cd686f5fead47fe5479585384234f905caf711f0",
+      "score": 20,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--error--compact--chromium": {
+      "screenshot_sha256": "632d344b5eaecbc0b222127765d49e50c397830cec004f0dde43032f94f8367d",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--error--compact--firefox": {
+      "screenshot_sha256": "248c155ed347a1c5969d6d1c05d6d4903097231f67d312f8f4ac1550ea0c399c",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--error--laptop--chromium": {
+      "screenshot_sha256": "aac8aaad7f8896cf8b71eba03963042c84967c27ba169387ad9062daf280a9e0",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--error--laptop--firefox": {
+      "screenshot_sha256": "648f3e35377917f5bc1ca72df7bde20e3355025b10efb04983abf2a27fbcec2d",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--error--wide--chromium": {
+      "screenshot_sha256": "1d7277aedd13e3a71d64061117d941919b0d919af942107390f4e134bec74774",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    },
+    "vox-search--error--wide--firefox": {
+      "screenshot_sha256": "c61cfb20446721c055a6e440087e59e3ab26c084aef376c86b05e3d178c319a1",
+      "score": 65,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "",
+      "prompt_version": "2026-07-18.1"
+    }
+  }
+}
