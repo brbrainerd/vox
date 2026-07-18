@@ -72,14 +72,26 @@ pub struct CacheEntry {
     pub verdict: String,
     pub model: String,
     pub reviewed_at: String,
+    /// Prompt version the verdict was produced under (empty on legacy entries).
+    #[serde(default)]
+    pub prompt_version: String,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheIndex {
     #[serde(default = "default_schema")]
     pub schema_version: u32,
     #[serde(default)]
     pub entries: BTreeMap<String, CacheEntry>,
+}
+
+impl Default for CacheIndex {
+    fn default() -> Self {
+        Self {
+            schema_version: default_schema(),
+            entries: BTreeMap::new(),
+        }
+    }
 }
 fn default_schema() -> u32 {
     1
@@ -107,11 +119,22 @@ mod tests {
                 verdict: "pass_with_notes".into(),
                 model: "google/gemini-3-flash-preview".into(),
                 reviewed_at: "2026-06-15T00:00:00Z".into(),
+                prompt_version: "2026-07-16.1".into(),
             },
         );
         let s = serde_json::to_string(&idx).unwrap();
         let back: CacheIndex = serde_json::from_str(&s).unwrap();
         assert_eq!(back.entries["dashboard"].score, 82);
+    }
+    #[test]
+    fn default_cache_index_is_schema_1_not_0() {
+        assert_eq!(CacheIndex::default().schema_version, 1);
+    }
+    #[test]
+    fn legacy_entry_without_prompt_version_deserializes_empty() {
+        let json = r#"{ "screenshot_sha256":"aa", "score":90, "verdict":"pass", "model":"m", "reviewed_at":"t" }"#;
+        let e: CacheEntry = serde_json::from_str(json).unwrap();
+        assert_eq!(e.prompt_version, "");
     }
     #[test]
     fn verdict_tolerates_missing_finding_fields() {

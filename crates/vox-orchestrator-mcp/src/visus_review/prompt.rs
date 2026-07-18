@@ -1,5 +1,10 @@
 //! System prompt for adversarial GUI screenshot review.
 
+/// Cache-busting prompt version. BUMP whenever `RUBRIC`, `system_prompt`, or
+/// `user_prompt` change meaning: a verdict produced under an older prompt must
+/// not satisfy the new one (decide_status compares this against each cache entry).
+pub const PROMPT_VERSION: &str = "2026-07-16.1";
+
 pub const RUBRIC: &str = r#"
 Review this desktop-app surface SCREENSHOT adversarially against these principles. Hunt for real defects; do not flatter.
 1 Visual hierarchy: exactly one primary action; scale/weight/contrast rank elements (#65-73).
@@ -33,6 +38,10 @@ pub fn user_prompt(view_key: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn prompt_version_is_set() {
+        assert!(!PROMPT_VERSION.trim().is_empty());
+    }
     #[test]
     fn prompt_states_json_only_contract() {
         let p = system_prompt();

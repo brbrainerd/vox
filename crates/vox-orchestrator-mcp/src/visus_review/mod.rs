@@ -37,18 +37,51 @@ pub enum ReviewDecision {
     Cached,
 }
 
-pub fn decide_status(cache: &CacheIndex, view_key: &str, fresh_sha: &str) -> ReviewDecision {
+/// Cache schema this build reads/writes. A mismatched on-disk cache is
+/// discarded wholesale (one-time full re-review) rather than trusted.
+pub const CACHE_SCHEMA_VERSION: u32 = 1;
+
+pub fn decide_status(
+    cache: &CacheIndex,
+    view_key: &str,
+    fresh_sha: &str,
+    model: &str,
+    prompt_version: &str,
+) -> ReviewDecision {
     match cache.entries.get(view_key) {
         None => ReviewDecision::New,
-        Some(e) if e.screenshot_sha256 == fresh_sha => ReviewDecision::Cached,
+        Some(e)
+            if e.screenshot_sha256 == fresh_sha
+                && e.model == model
+                && e.prompt_version == prompt_version =>
+        {
+            ReviewDecision::Cached
+        }
         Some(_) => ReviewDecision::Changed,
     }
+}
+
+/// Drop cache entries whose viewKey is absent from the current capture
+/// manifest (dead surfaces). No-op on an empty manifest so a missing/unreadable
+/// manifest never wipes a good cache.
+pub fn prune_dead_views(cache: &mut CacheIndex, manifest: &Manifest) {
+    if manifest.surfaces.is_empty() {
+        return;
+    }
+    let live: std::collections::BTreeSet<&str> = manifest
+        .surfaces
+        .iter()
+        .map(|s| s.view_key.as_str())
+        .collect();
+    cache.entries.retain(|k, _| live.contains(k.as_str()));
 }
 
 #[cfg(test)]
 mod decide_tests {
     use super::*;
-    fn cache_with(view: &str, sha: &str) -> CacheIndex {
+    const M: &str = "google/gemini-3-flash-preview";
+    const PV: &str = "2026-07-16.1";
+    fn cache_with(view: &str, sha: &str, model: &str, prompt_version: &str) -> CacheIndex {
         let mut c = CacheIndex::default();
         c.entries.insert(
             view.into(),
@@ -56,8 +89,9 @@ mod decide_tests {
                 screenshot_sha256: sha.into(),
                 score: 90,
                 verdict: "pass".into(),
-                model: "m".into(),
+                model: model.into(),
                 reviewed_at: "t".into(),
+                prompt_version: prompt_version.into(),
             },
         );
         c
@@ -65,23 +99,74 @@ mod decide_tests {
     #[test]
     fn new_surface_is_new() {
         assert_eq!(
-            decide_status(&CacheIndex::default(), "x", "aa"),
+            decide_status(&CacheIndex::default(), "x", "aa", M, PV),
             ReviewDecision::New
         );
     }
     #[test]
-    fn same_hash_is_cached() {
+    fn same_hash_model_and_prompt_is_cached() {
         assert_eq!(
-            decide_status(&cache_with("x", "aa"), "x", "aa"),
+            decide_status(&cache_with("x", "aa", M, PV), "x", "aa", M, PV),
             ReviewDecision::Cached
         );
     }
     #[test]
     fn different_hash_is_changed() {
         assert_eq!(
-            decide_status(&cache_with("x", "aa"), "x", "bb"),
+            decide_status(&cache_with("x", "aa", M, PV), "x", "bb", M, PV),
             ReviewDecision::Changed
         );
+    }
+    #[test]
+    fn different_model_is_changed_even_with_same_hash() {
+        assert_eq!(
+            decide_status(&cache_with("x", "aa", "old/model", PV), "x", "aa", M, PV),
+            ReviewDecision::Changed
+        );
+    }
+    #[test]
+    fn different_prompt_version_is_changed_even_with_same_hash() {
+        assert_eq!(
+            decide_status(&cache_with("x", "aa", M, "2026-01-01.1"), "x", "aa", M, PV),
+            ReviewDecision::Changed
+        );
+    }
+    #[test]
+    fn legacy_entry_empty_prompt_version_is_changed() {
+        assert_eq!(
+            decide_status(&cache_with("x", "aa", M, ""), "x", "aa", M, PV),
+            ReviewDecision::Changed
+        );
+    }
+    #[test]
+    fn prune_drops_views_absent_from_manifest() {
+        let mut c = cache_with("dead-view", "aa", M, PV);
+        c.entries
+            .extend(cache_with("live-view", "bb", M, PV).entries);
+        let manifest = Manifest {
+            total_capture_ms: 0,
+            surfaces: vec![ManifestEntry {
+                view_key: "live-view".into(),
+                file: "live-view.png".into(),
+                sha256: "bb".into(),
+                capture_ms: 1,
+            }],
+        };
+        prune_dead_views(&mut c, &manifest);
+        assert!(c.entries.contains_key("live-view"));
+        assert!(!c.entries.contains_key("dead-view"));
+    }
+    #[test]
+    fn prune_is_noop_on_empty_manifest() {
+        let mut c = cache_with("x", "aa", M, PV);
+        prune_dead_views(
+            &mut c,
+            &Manifest {
+                total_capture_ms: 0,
+                surfaces: vec![],
+            },
+        );
+        assert_eq!(c.entries.len(), 1);
     }
 }
 
@@ -140,6 +225,13 @@ pub async fn run(args: &RunArgs<'_>) -> RunReport {
         .ok()
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_default();
+    if cache.schema_version != CACHE_SCHEMA_VERSION {
+        eprintln!(
+            "::warning::gui-visual-review: cache schema_version {} != {} — discarding cache (one-time full re-review)",
+            cache.schema_version, CACHE_SCHEMA_VERSION
+        );
+        cache = CacheIndex::default();
+    }
 
     // Config: load the on-disk policy, else fall back to the hardcoded default.
     let cfg: VisualReviewConfig =
@@ -172,7 +264,13 @@ pub async fn run(args: &RunArgs<'_>) -> RunReport {
         // Per-run time budget: once exhausted, defer remaining surfaces without
         // calling the model. Cached surfaces are cheap, so we only budget-gate
         // surfaces that would otherwise trigger an AI review.
-        let decision = decide_status(&cache, &entry.view_key, &entry.sha256);
+        let decision = decide_status(
+            &cache,
+            &entry.view_key,
+            &entry.sha256,
+            &model,
+            prompt::PROMPT_VERSION,
+        );
         if args.do_ai
             && decision != ReviewDecision::Cached
             && (start.elapsed().as_millis() as u64) >= cfg.total_review_budget_ms
@@ -239,6 +337,7 @@ pub async fn run(args: &RunArgs<'_>) -> RunReport {
                                 verdict: report.verdict.clone().unwrap_or_default(),
                                 model: report.model.clone().unwrap_or_else(|| model.clone()),
                                 reviewed_at: args.now_iso.clone(),
+                                prompt_version: prompt::PROMPT_VERSION.to_string(),
                             },
                         );
                     }
@@ -266,6 +365,8 @@ pub async fn run(args: &RunArgs<'_>) -> RunReport {
 
     // Persist the updated cache so subsequent runs short-circuit reviewed surfaces.
     if args.do_ai {
+        prune_dead_views(&mut cache, &manifest);
+        cache.schema_version = CACHE_SCHEMA_VERSION;
         if let Some(parent) = args.cache_path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
