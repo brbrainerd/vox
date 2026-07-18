@@ -1673,28 +1673,18 @@ jobs:
             crates/vox-gui/ui/playwright-report
           if-no-files-found: ignore
 
-      # Empty/error variant sweep (screenshots-variants.spec.ts is env-gated and
-      # self-skips in the asserting sweep above). Advisory per fork F2: failures
-      # surface in logs + artifacts but never fail the post-merge job.
-      - name: GUI variant states sweep (empty/error, advisory)
+      # Review-bundle capture (chromium-only in CI to bound cost; firefox is
+      # local/on-demand via scripts/frontend-review.vox). Advisory per F2.
+      - name: Review-bundle capture (chromium)
         working-directory: crates/vox-gui/ui
         env:
-          VOX_VARIANT_SCREENSHOTS: "1"
-        run: pnpm exec playwright test screenshots-variants.spec.ts --project=chromium --workers=2
+          VOX_REVIEW_CAPTURE: "1"
+        run: pnpm exec playwright test e2e/review/capture.spec.ts --project=chromium --workers=2
         continue-on-error: true
-
-      - name: GUI visual-review capture (manifest)
-        working-directory: crates/vox-gui/ui
-        run: pnpm exec playwright test --config playwright.config.ts visual-review --project=chromium --workers=1
-        continue-on-error: true
-
-      - name: GUI visual AI review (advisory, non-gating)
+      - name: Review-bundle AI defect analysis (advisory)
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: |
-          DATE=$(date -u +%F)
-          NOW=$(date -u +%FT%TZ)
-          cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --ai --date "$DATE" --now "$NOW"
+        run: cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --bundle crates/vox-gui/ui/review-bundle/latest --ai --max-reviews 40
         continue-on-error: true
 
       - name: Upload visual-review report + screens (always)
@@ -1703,10 +1693,8 @@ jobs:
         with:
           name: gui-visual-review-${{ github.run_id }}
           path: |
-            contracts/reports/gui-visual-review/
-            crates/vox-gui/ui/e2e/screens/manifest.json
-            crates/vox-gui/ui/e2e/screens/*-empty.png
-            crates/vox-gui/ui/e2e/screens/*-error.png
+            crates/vox-gui/ui/review-bundle/latest/
+            contracts/reports/gui-visual-review/bundle-report.v1.json
           if-no-files-found: ignore
           retention-days: 14
 
@@ -1718,7 +1706,7 @@ jobs:
           if ! git diff --quiet -- contracts/reports/gui-visual-review/; then
             git config user.name "vox-ssot-bot"
             git config user.email "bot@vox-foundation"
-            git add contracts/reports/gui-visual-review/cache.v1.json contracts/reports/gui-visual-review/ledger.jsonl
+            git add contracts/reports/gui-visual-review/bundle-cache.v1.json contracts/reports/gui-visual-review/bundle-digest.md
             git commit -m "chore(visual-review): update cache + ledger [skip ci]"
             git push origin HEAD:main || echo "::warning::visual-review cache push skipped (non-fast-forward)"
           fi

@@ -48,6 +48,7 @@ docs-astro/public/.well-known
 # Committed SSOT: cache.v1.json (+ ledger.jsonl when present). See docs/src/architecture/gui-visual-ai-review.md.
 /contracts/reports/gui-visual-review/*.json
 !/contracts/reports/gui-visual-review/cache.v1.json
+!/contracts/reports/gui-visual-review/bundle-cache.v1.json
 
 # Playwright HTML report (local e2e runs; never commit)
 **/playwright-report/
