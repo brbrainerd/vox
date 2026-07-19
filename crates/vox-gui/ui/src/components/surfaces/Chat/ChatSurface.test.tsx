@@ -60,6 +60,15 @@ describe('ChatSurface', () => {
     });
   });
 
+  it('has exactly one accessible h1 for the surface root (axe page-has-heading-one)', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={() => {}} activeSessionId="s1" />
+      </LanguageProvider>,
+    );
+    expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
   it('marks the active session tab with aria-pressed', async () => {
     render(<LanguageProvider><ChatSurface pushToast={noopToast} activeSessionId="s1" /></LanguageProvider>);
     const active = await screen.findByRole('tab', { name: /First/ });

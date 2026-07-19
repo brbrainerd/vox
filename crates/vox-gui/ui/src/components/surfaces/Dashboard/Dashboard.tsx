@@ -368,6 +368,9 @@ export function Dashboard({
 
   return (
     <div className="relative">
+      {/* Axe page-has-heading-one: surface renders inside a heading-less shell.
+          "The Stream" below is a section heading, not the surface root title. */}
+      <h1 className="sr-only">Dashboard</h1>
       {onOpenChat && (
         <div className="mx-5 mb-4 mt-2 flex items-center justify-between gap-4 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.06] px-4 py-3">
           <div>

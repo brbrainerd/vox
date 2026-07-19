@@ -245,6 +245,10 @@ export function ChatSurface({
       className="relative flex min-h-[60vh] gap-4"
       data-testid="chat-surface-layout"
     >
+      {/* Axe page-has-heading-one: surfaces render inside a heading-less shell.
+          NOTE: if chatDocked (App.tsx, currently hardcoded false) is ever
+          enabled, a docked ChatSurface adds a second h1 to the page. */}
+      <h1 className="sr-only">Chat</h1>
       {railVis.sessionRail ? (
         sessionRailNode
       ) : (

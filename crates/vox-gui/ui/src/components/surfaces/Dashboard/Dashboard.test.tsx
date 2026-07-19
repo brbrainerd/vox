@@ -68,6 +68,11 @@ describe('Dashboard', () => {
     window.localStorage.clear();
   });
 
+  it('has exactly one accessible h1 for the surface root (axe page-has-heading-one)', async () => {
+    renderDashboard();
+    expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
   it('renders "The Stream" heading', () => {
     render(
       <LanguageProvider>
