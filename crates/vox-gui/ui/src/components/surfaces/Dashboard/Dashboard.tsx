@@ -352,6 +352,9 @@ export function Dashboard({
   if (loading) {
     return (
       <div className="grid grid-cols-12 gap-5 p-5" role="status" aria-label="Loading dashboard">
+        {/* Axe page-has-heading-one: keep the accessible root heading present
+            in the loading state too, matching the loaded-state h1 below. */}
+        <h1 className="sr-only">Dashboard</h1>
         <Glass className="col-span-12 xl:col-span-8 p-5">
           <Skeleton className="h-6 w-40 mb-4" />
           <Skeleton className="h-24 w-full mb-2" />

@@ -73,6 +73,25 @@ describe('Dashboard', () => {
     expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
+  it('has exactly one accessible h1 while loading (axe page-has-heading-one)', async () => {
+    render(
+      <LanguageProvider>
+        <Dashboard
+          data={emptyDash}
+          loading
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onDoubt={vi.fn()}
+          onOverrule={vi.fn()}
+          onAckLudus={vi.fn()}
+          filterKind="all"
+          setFilterKind={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
   it('renders "The Stream" heading', () => {
     render(
       <LanguageProvider>
