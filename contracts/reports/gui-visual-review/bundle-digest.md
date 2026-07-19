@@ -4,1124 +4,1452 @@ Generated:
 
 | Total | Reviewed | Cached | Deferred | Defects |
 |---|---|---|---|---|
-| 413 | 191 | 222 | 0 | 613 |
+| 413 | 395 | 18 | 0 | 941 |
 
 ## activity
 
-- **activity--default--compact--chromium** [chromium / compact] status=cached score=Some(75) verdict=Some("fail")
+- **activity--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (4:1) for the description text 'Durable log of high-signal events...' against the dark background, failing WCAG AA standards. — Below 'Agent Activity Timeline' heading
+  - (minor) layout: The 'Refresh' button in the filter bar is vertically misaligned (appears slightly higher) relative to the 'Agent' and 'Event Type' select inputs. — Filter bar container
+  - (minor) clipping: The 'auto-route' text in the header stats bar is hyphenated/wrapped awkwardly, suggesting tight horizontal constraints for the value field. — Header stats bar, MODEL section
 - **activity--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) contrast: The description text 'Durable log of high-signal events...' and the breadcrumb 'KNOWLEDGE > DISCOVERY' have low contrast against the dark background, making them difficult to read. — Main content area, below the title and above the stats bar
-  - (minor) layout: The 'Refresh' button in the filter bar is slightly misaligned vertically compared to the 'Agent' and 'Event Type' select inputs. — Filter bar within the Activity Timeline section
-  - (minor) clipping: The 'Discovery' tab in the workbench tab bar has a close 'X' icon that is very close to the right edge of the pill, suggesting tight padding/clipping risk at compact widths. — Workbench tab bar below the stats bar
-- **activity--default--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (4:1) for the description text 'Durable log of high-signal events...' against the dark background, failing WCAG AA standards. — Below the 'Agent Activity Timeline' heading
+  - (minor) layout: The 'Refresh' button contains a warning triangle icon which typically signifies an error state, but it is used here as a standard action button, which is semantically confusing. — Filter bar, right side of 'Event Type' dropdown
+  - (minor) other: Select elements for 'Agent' and 'Event Type' lack accessible names/labels, hindering screen reader navigation. — Filter bar container
+- **activity--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (4:1) for the description text 'Durable log of high-signal events emitted across agent orchestrations.' against the dark background, failing WCAG AA standards. — Below 'Agent Activity Timeline' header
+  - (minor) clipping: The 'BUDGET' value '$12.34/$50.00' in the top status bar appears slightly cramped, though not fully truncated, it risks clipping at smaller viewports. — Top status bar, center-left
+  - (minor) other: Select elements for 'Agent' and 'Event Type' lack accessible names (labels), which is a critical accessibility failure even if visually aligned. — Filter bar above the empty state
 - **activity--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) contrast: Insufficient color contrast for the description text 'Durable log of high-signal events...' (ratio 4:1, expected 4.5:1). — Below 'Agent Activity Timeline' heading
-  - (minor) layout: The 'Refresh' button in the filter bar is vertically misaligned relative to the 'Agent' and 'Event Type' select dropdowns. — Filter bar container
-  - (minor) clipping: The 'Discovery' tab in the workbench tab bar has a close icon (x) that appears slightly crowded against the right edge of the tab boundary. — Workbench tab bar
-- **activity--default--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **activity--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: The description text 'Durable log of high-signal events...' has insufficient contrast (4:1) against the dark background, making it difficult to read. — Below 'Agent Activity Timeline' header
+  - (minor) layout: The 'Refresh' button in the filter bar is vertically misaligned (appears slightly higher) relative to the 'Agent' and 'Event Type' dropdown selectors. — Filter bar container
+  - (minor) clipping: The 'build' version text in the bottom left sidebar is extremely small and partially obscured by the user avatar/status indicator. — Bottom left sidebar footer
+- **activity--default--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: The descriptive text 'Durable log of high-signal events...' has a contrast ratio of 4:1, which falls below the WCAG AA requirement of 4.5:1 for small text. — Below the 'Agent Activity Timeline' heading
+  - (minor) layout: The 'Refresh' button in the filter bar uses a warning/alert icon (triangle with exclamation) which typically denotes an error or caution state, rather than a standard 'sync' or 'refresh' action, potentially misleading users. — Filter bar, right side of the 'Event Type' dropdown
+  - (minor) clipping: The version/build info in the bottom left sidebar is extremely small and borders on unreadable, though technically not clipped. — Bottom left sidebar, under 'TESTER@VOX'
+- **activity--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: The description text 'Durable log of high-signal events...' has a contrast ratio of 4.34:1, which falls below the WCAG AA requirement of 4.5:1 for small text. — Below the 'Agent Activity Timeline' heading
+  - (minor) layout: The 'Refresh' button in the filter bar is vertically misaligned (appears slightly higher) relative to the 'Agent' and 'Event Type' select dropdowns. — Filter bar within the Agent Activity Timeline section
+  - (minor) clipping: The 'Discovery' breadcrumb and tab text are very close to the container borders, suggesting tight padding that may lead to clipping on smaller viewports. — Top navigation breadcrumbs and sub-tabs
 - **activity--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) contrast: Text 'Durable log of high-signal events emitted across agent orchestrations.' has insufficient color contrast (4:1) against the dark background, failing WCAG AA standards. — Sub-header text below 'Agent Activity Timeline'
-  - (minor) other: Select elements for 'Agent' and 'Event Type' lack accessible names (labels), which is a critical accessibility failure despite being visually present. — Filter dropdowns in the Agent Activity Timeline section
-  - (minor) layout: ARIA tablist contains invalid children (button[aria-label] for closing tabs), which can break screen reader navigation logic. — Workbench tab bar containing 'CHAT' and 'DISCOVERY'
+  - (minor) contrast: The descriptive text 'Durable log of high-signal events...' has a contrast ratio of 4:1, which falls below the WCAG AA requirement of 4.5:1 for small text. — Below the 'Agent Activity Timeline' heading
+  - (minor) other: Select elements for 'Agent' and 'Event Type' lack accessible names (labels), which is a critical accessibility failure even if visually they appear aligned with headers. — Filter bar within the Activity Timeline panel
+  - (minor) clipping: The 'Refresh' button icon (triangle/warning) appears slightly misaligned or cramped within the button container compared to standard padding. — Refresh button in the filter bar
 
 ## approvals
 
-- **approvals--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **approvals--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) contrast: Insufficient color contrast (4.1:1) for inactive mode buttons 'ACCEPT EDITS', 'ACCEPT ALL', and 'PLAN' against the dark background, making them difficult to read. — Pending Approvals header, mode selector group
-  - (minor) clipping: The 'Always allow' checkbox label and the 'Approve' button text appear slightly cramped within the row height, though not fully truncated. — Approvals table, Actions column
-  - (minor) layout: The 'Requested At' timestamp '775d ago' is very close to the 'Action Description' text, potentially leading to overlap if the description were longer. — Approvals table, row #AP-000001
-- **approvals--default--laptop--chromium** [chromium / laptop] status=cached score=Some(75) verdict=Some("fail")
-- **approvals--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Approvals' tab in the workbench tab bar contains a close button that is programmatically identified as an invalid child of a role='tablist', which can interfere with screen reader navigation. — Workbench tab bar, 'Approvals' tab
-  - (minor) contrast: The 'Always allow' checkbox label and the 'Requested At' timestamp text have very low visual weight/contrast against the dark UI. — Approvals table row #AP-000001
-  - (serious) contrast: Insufficient color contrast (4.1:1) for 'Accept Edits', 'Accept All', and 'Plan' mode buttons against the dark background, making them difficult to read. — Top right of the Pending Approvals panel, mode selection group
-- **approvals--default--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **approvals--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (4.1:1) for mode selection buttons 'Accept Edits', 'Accept All', and 'Plan' against the dark background, making them difficult to read. — Top right of the 'Pending Approvals' section
+  - (minor) clipping: The 'Always allow' checkbox label text is tightly packed and appears slightly clipped or vertically misaligned relative to the checkbox icon. — Actions column in the approvals table
+  - (minor) layout: The 'MESH' and 'MODEL' status indicators in the top bar have awkward line breaks/wrapping ('3 peers', 'auto-route') that suggest container constraints in the compact viewport. — Top status bar below the breadcrumbs
+- **approvals--default--compact--firefox** [firefox / compact] status=cached score=Some(88) verdict=Some("pass_with_notes")
+- **approvals--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (4.1:1) for inactive mode buttons 'ACCEPT EDITS', 'ACCEPT ALL', and 'PLAN' against the dark background, making them difficult to read. — Top right of the 'Pending Approvals' panel
+  - (minor) layout: The 'Always allow' checkbox and label in the actions column are slightly misaligned vertically relative to the 'Approve' and 'Reject' buttons. — Table row #AP-000001, Actions column
+- **approvals--default--laptop--firefox** [firefox / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **approvals--default--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (4.1:1) for 'Accept Edits', 'Accept All', and 'Plan' mode buttons in the top right of the approvals panel, making them difficult to read against the dark background. — Top right of the Pending Approvals panel, mode selector buttons
+  - (minor) clipping: The 'Always allow' checkbox label in the actions column is partially clipped or very tightly constrained by the 'Approve' button. — Pending Approvals table, Actions column for Request #AP-000001
 - **approvals--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **approvals--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (major) contrast: Insufficient color contrast (4.1:1) for 'Accept Edits', 'Accept All', and 'Plan' mode buttons against the dark background, failing WCAG AA standards. — Top right of the Pending Approvals panel, mode selection group
-  - (minor) clipping: The 'Always allow' checkbox label in the actions column is partially obscured or lacks sufficient padding relative to the checkbox icon. — Approvals table, Actions column for Request #AP-000001
-  - (minor) layout: ARIA required children violation: The tab list container for 'Open surfaces' contains a button element that is not a permitted direct child role (tab). — Workbench tab bar containing 'CHAT' and 'APPROVALS'
-- **approvals--empty--compact--chromium** [chromium / compact] status=cached score=Some(15) verdict=Some("fail")
-- **approvals--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(15) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications are displaying raw JavaScript stack traces/TypeErrors ('TypeError: can't access property "is_error", res is null' and 'session_id', s is null). — Right side of the main content area, stacked toast notifications
-  - (major) occlusion: Toast notifications are overlapping each other and the background text 'NO PENDING APPROVALS', creating a visual mess and unreadable content. — Center-right of the main content area
-  - (major) clipping: The 'MODE' toggle buttons (ASK, ACCEPT EDITS, ACCEPT ALL, PLAN) are being clipped by the toast notification container. — Top right of the 'Pending Approvals' section
-  - (minor) contrast: The 'MODE' toggle labels (ACCEPT EDITS, ACCEPT ALL, PLAN) have insufficient contrast against the dark background, making them difficult to read. — Mode selection bar next to 'Pending Approvals' header
-  - (minor) layout: The 'Approvals' tab in the workbench tab bar contains a close button that violates ARIA parent/child relationship rules for tablists. — Workbench tab bar, 'Approvals' tab
-- **approvals--empty--laptop--chromium** [chromium / laptop] status=cached score=Some(20) verdict=Some("fail")
-- **approvals--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(30) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications are displaying raw JavaScript execution errors (TypeError: can't access property 'is_error', res is null) and (TypeError: can't access property 'session_id', s is null). — Bottom right toast notification stack
-  - (major) contrast: The 'MODE' toggle buttons (ACCEPT EDITS, ACCEPT ALL, PLAN) have insufficient color contrast (4.1:1) making them difficult to read against the dark background. — Top right of the main content area, next to 'Pending Approvals'
-  - (minor) layout: The 'Approvals' tab in the workbench tab bar contains a close button that violates ARIA parent-child relationship rules for tablists. — Workbench tab bar, 'Approvals' tab
-- **approvals--empty--wide--chromium** [chromium / wide] status=cached score=Some(20) verdict=Some("fail")
-- **approvals--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(20) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications are displaying raw JavaScript execution errors (TypeError: can't access property 'is_error', res is null; TypeError: can't access property 'session_id', s is null). — Bottom right toast notification stack
-  - (major) contrast: The mode selection buttons (ACCEPT EDITS, ACCEPT ALL, PLAN) have insufficient color contrast (4.1:1) against the dark background, making them difficult to read. — Top right of the main content area, next to 'MODE'
-  - (minor) layout: ARIA role 'tablist' contains a 'button' child that is not permitted by the specification, potentially breaking screen reader navigation. — Workbench tab bar (Approvals tab close button)
+- **approvals--default--wide--firefox** [firefox / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **approvals--empty--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **approvals--empty--compact--firefox** [firefox / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **approvals--empty--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **approvals--empty--laptop--firefox** [firefox / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **approvals--empty--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (4.1:1) for mode selection buttons 'Accept Edits', 'Accept All', and 'Plan' against the dark background, making them difficult to read. — Top right of the main content area, under the 'MODE' label
+  - (minor) contrast: The 'OPENROUTER SPEND' value is represented by a very thin horizontal line/dash that lacks sufficient visual weight and contrast to be easily legible as a data point. — Header section, third panel from the left
+- **approvals--empty--wide--firefox** [firefox / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
 - **approvals--error--compact--chromium** [chromium / compact] status=cached score=Some(65) verdict=Some("fail")
-- **approvals--error--compact--firefox** [firefox / compact] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) occlusion: Multiple error toast notifications are stacked directly on top of each other and the main content area, occluding the 'NO PENDING APPROVALS' text and the 'ASK/ACCEPT' mode controls. — Center-right of the main content area
-  - (major) layout: The 'NO PENDING APPROVALS' text is being overlapped by a green checkmark icon and error toast panels, creating a messy, unreadable layout. — Center of the Approvals panel
-  - (major) error-leak: Raw mock error strings ('[mock-error] invoke_mcp_tool simulated IPC failure') are displayed to the user in the toast notifications. — Error toast notifications
-  - (minor) contrast: The mode selection buttons (ACCEPT EDITS, ACCEPT ALL, PLAN) have very low contrast against the background, making them difficult to read. — Top right of the Pending Approvals section
-  - (minor) clipping: The 'Approvals' tab in the workbench tab bar has a close 'x' that appears very close to the container boundary in this compact view. — Workbench tab bar
-- **approvals--error--laptop--chromium** [chromium / laptop] status=cached score=Some(40) verdict=Some("fail")
-- **approvals--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) error-leak: Raw mock error strings and internal implementation details ('[mock-error] invoke_mcp_tool simulated IPC failure') are exposed in the toast notifications. — Right-side toast notification stack
-  - (minor) contrast: Low contrast text for inactive mode buttons (ACCEPT EDITS, ACCEPT ALL, PLAN) against the dark background, making them difficult to read. — Top right of the Pending Approvals panel
-  - (minor) layout: The 'NO PENDING APPROVALS' empty state message is partially occluded or visually crowded by the stack of error toast notifications on the right. — Center-right of the main content area
-  - (minor) other: Duplicate error notifications for 'CHAT SESSIONS' appearing in the toast stack. — Bottom right toast stack
-- **approvals--error--wide--chromium** [chromium / wide] status=cached score=Some(65) verdict=Some("fail")
-- **approvals--error--wide--firefox** [firefox / wide] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) error-leak: Raw internal error messages including '[mock-error]' and 'simulated IPC failure' are visible in the toast notifications, which should be sanitized for end-users. — Bottom right toast notifications
-  - (minor) contrast: Insufficient color contrast (4.1:1) for 'Accept Edits', 'Accept All', and 'Plan' mode buttons against the dark background, making them difficult to read. — Top right of the main content area, mode selector
-  - (minor) layout: Duplicate error notifications for 'CHAT SESSIONS' appearing simultaneously in the toast stack. — Bottom right toast stack
-  - (minor) other: The 'Approvals' tab button in the workbench tab bar contains a close button that violates ARIA parent-child relationship rules for tablists. — Workbench tab bar, 'Approvals' tab
-- **approvals--row-focused--compact--chromium** [chromium / compact] status=cached score=Some(82) verdict=Some("pass_with_notes")
-- **approvals--row-focused--compact--firefox** [firefox / compact] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) contrast: Insufficient color contrast (4.1:1) for mode selection buttons 'ACCEPT EDITS', 'ACCEPT ALL', and 'PLAN' against the dark background, making them difficult to read. — Top right of the Pending Approvals panel
-  - (minor) clipping: The 'Always allow' checkbox label is tightly packed and the checkbox itself appears slightly misaligned with the text baseline in the actions column. — Table row #AP-000001, Actions column
-  - (minor) layout: The 'Approvals' tab in the workbench tab bar contains a close button that violates ARIA parent-child relationship rules for tablists, potentially impacting screen reader navigation. — Workbench tab bar, 'Approvals' tab
-  - (minor) layout: In the compact viewport, the header stats (Agents, Queue, Budget, Mesh, Model) are extremely dense with minimal horizontal spacing, pushing the limits of legibility. — Secondary header bar below the main console header
-- **approvals--row-focused--laptop--chromium** [chromium / laptop] status=cached score=Some(82) verdict=Some("pass_with_notes")
-- **approvals--row-focused--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Always allow' checkbox in the actions column is misaligned vertically relative to the 'Approve' and 'Reject' buttons. — Approvals table row #AP-000001, Actions column
-  - (minor) other: ARIA role 'tablist' contains a direct child button which is not permitted by the ARIA specification for that role. — Workbench tab bar containing 'CHAT' and 'APPROVALS'
-  - (serious) contrast: The mode toggle buttons ('ACCEPT EDITS', 'ACCEPT ALL', 'PLAN') have a contrast ratio of 4.1:1, which is below the WCAG AA requirement of 4.5:1 for small text. — Top right of the Pending Approvals panel
-- **approvals--row-focused--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **approvals--row-focused--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) layout: ARIA role 'tablist' contains a 'button' child which is not a valid child for that role according to accessibility standards. — Workbench tab bar containing 'CHAT' and 'APPROVALS'
-  - (minor) other: Stale data/Mock data artifact: 'Requested At' column shows '775d ago', which may indicate a lack of recent data or a placeholder value in a live-looking interface. — Approvals table, Requested At column
-  - (serious) contrast: Insufficient color contrast (4.1:1) for 'Accept Edits', 'Accept All', and 'Plan' mode buttons against the dark background, failing WCAG 2 AA (4.5:1). — Top right of the Pending Approvals panel, mode selector group
+- **approvals--error--compact--firefox** [firefox / compact] status=cached score=Some(45) verdict=Some("fail")
+- **approvals--error--laptop--chromium** [chromium / laptop] status=cached score=Some(75) verdict=Some("fail")
+- **approvals--error--laptop--firefox** [firefox / laptop] status=cached score=Some(75) verdict=Some("fail")
+- **approvals--error--wide--chromium** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
+- **approvals--error--wide--firefox** [firefox / wide] status=cached score=Some(75) verdict=Some("fail")
+- **approvals--row-focused--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (4.1:1) for inactive mode buttons 'Accept Edits', 'Accept All', and 'Plan' against the dark background, making them difficult to read. — Top right of the Pending Approvals panel
+  - (minor) clipping: The 'Always allow' checkbox label is tightly constrained and appears to be wrapping or slightly clipped by the action button container. — Actions column in the approvals table row
+  - (minor) layout: The 'MESH' and 'MODEL' status indicators in the sub-header have inconsistent vertical alignment and spacing compared to 'AGENTS' and 'QUEUE'. — Horizontal status bar below the main header
+- **approvals--row-focused--compact--firefox** [firefox / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **approvals--row-focused--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (4.1:1) for mode selection buttons 'Accept Edits', 'Accept All', and 'Plan' against the dark background, making them difficult to read. — Top right of the Pending Approvals panel
+  - (minor) clipping: The 'TESTER@VOX' user profile text at the bottom left is partially obscured or very close to the edge of the sidebar container, with the build version text appearing slightly cramped. — Bottom left sidebar footer
+  - (minor) layout: The 'COMMANDS' menu item in the sidebar has a gold border/highlight that appears disconnected from the active 'REVIEW' state, potentially indicating a focus/hover state conflict or inconsistent selection styling. — Left sidebar navigation
+- **approvals--row-focused--laptop--firefox** [firefox / laptop] status=cached score=Some(88) verdict=Some("pass_with_notes")
+- **approvals--row-focused--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (4.1:1) for mode selection buttons 'Accept Edits', 'Accept All', and 'Plan' against the dark background, making them difficult to read. — Top right of the Pending Approvals panel, mode toggle group
+  - (minor) clipping: The 'Always allow' checkbox label in the actions column is partially obscured or lacks sufficient padding relative to the 'Approve' button. — Table row #AP-000001, Actions column
+  - (minor) layout: The 'COMMANDS' sidebar item has a gold focus/active border that appears slightly misaligned or inconsistent with the 'REVIEW' active state indicator (vertical bar vs full box). — Left navigation sidebar
+- **approvals--row-focused--wide--firefox** [firefox / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
 
 ## browser
 
-- **browser--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **browser--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The placeholder text in the 'APP DIR' input field is truncated on the right side, ending abruptly with 'use th' instead of 'use the...'. — Right side of the 'APP DIR' input field
-  - (minor) layout: The 'APP DIR' label and its associated input field are misaligned vertically compared to the 'PREVIEW URL' field, creating an uneven layout in the form section. — Middle-right section of the Browser panel
-  - (minor) other: ARIA role violation: The tab bar container (role='tablist') contains a button child that is not a valid tab child role, as flagged by programmatic scan. — Workbench tab bar containing 'CHAT' and 'BROWSER' tabs
-- **browser--default--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **browser--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) blank: The browser preview area is largely empty, containing only the text 'ok', which suggests a failure to render the expected web content or a placeholder state that lacks meaningful feedback. — Main content area, bottom white panel
-  - (minor) layout: The 'Close Browser' button (identified in programmatic scan as a child of the tablist) is visually cramped or improperly nested within the 'BROWSER' tab, correlating with the ARIA required children violation. — Tab bar, 'BROWSER' tab
-- **browser--default--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **browser--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **browser--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (major) blank: The browser preview panel is almost entirely blank, rendering only the text 'ok' despite the application context suggesting a web app preview should be visible. — Main content area, white panel below 'START PREVIEW' button
-  - (minor) occlusion: The 'Close Browser' button (identified in axe-core findings) is incorrectly nested within a role='tablist' container, violating ARIA structure and potentially causing screen reader navigation issues. — Workbench tab bar, 'BROWSER' tab close icon
-  - (minor) contrast: The placeholder text 'path to a vox web app...' in the APP DIR input field has very low contrast against the dark input background, making it difficult to read. — APP DIR input field, right side of the form
+- **browser--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: Text in the 'APP DIR' input field is truncated mid-word ('...use th') despite available horizontal space in the container layout. — Right side input field under 'APP DIR' label
+  - (minor) layout: The 'MESH' and 'MODEL' data points in the top status bar have inconsistent vertical alignment and line-height compared to 'AGENTS' and 'QUEUE', causing a staggered visual rhythm. — Top status bar metrics
+- **browser--default--compact--firefox** [firefox / compact] status=reviewed score=Some(65) verdict=Some("fail")
+  - (critical) blank: The main preview iframe/panel is completely blank (white) despite the console indicating a connection failure to the local preview URL (127.0.0.1:3000). — Bottom half of the screen, preview container
+  - (major) clipping: Text in the 'APP DIR' input field is truncated with an ellipsis ('...th to a vox web app (leave blank to use th'), making the instruction unclear. — Right side, APP DIR input field
+  - (minor) layout: The 'BUDGET' value '$12.34/ $50.00' has awkward spacing/wrapping within the status bar. — Top status bar, BUDGET section
+- **browser--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: Large white blank region in the preview pane area where content is expected to render after initialization. — Bottom half of the main content area
+  - (minor) clipping: The 'BUDGET' text and value in the secondary header are very close to the 'MESH' label, suggesting potential layout crowding at this resolution. — Secondary horizontal navigation bar
+- **browser--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(10) verdict=Some("fail")
+  - (critical) blank: The primary preview panel is rendering a browser connection error (Firefox 'Unable to connect') instead of the expected application content. This correlates with the console errors regarding connection failure to 127.0.0.1:3000. — Main content area / Preview iframe
+  - (minor) clipping: The text 'path to a vox web app (leave blank to use the URL above)' is partially clipped at the bottom within its input field. — APP DIR input field
+- **browser--default--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: Large white blank panel occupies the bottom half of the screen where the browser preview or console output is expected. — Main content area below the 'Start Preview' controls
+  - (minor) contrast: Low contrast for secondary text labels such as 'APP DIR (PREVIEW SPAWN...)' and placeholder text in input fields against the dark background. — Form inputs section
+- **browser--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: Large empty white panel occupies the lower half of the viewport where a browser preview or terminal output is expected. — Main content area below the 'Start Preview' controls
+  - (minor) clipping: The text 'APP DIR (PREVIEW SPAWN — NEEDS DEV:SSR-UPSTREAM OR DEV SCRIPT)' is partially cut off or very close to the container edge, and the input placeholder text is vertically misaligned/cramped. — Right-side input field label and placeholder in the Browser configuration section
+- **browser--default--wide--firefox** [firefox / wide] status=reviewed score=Some(10) verdict=Some("fail")
+  - (critical) blank: The primary application preview area is failing to render the intended content, displaying a browser 'connection failure' error page instead of the expected web application interface. — Main content viewport (iframe/preview container)
+  - (major) error-leak: The UI is leaking a raw browser network error (Firefox connectionFailure) inside the application frame, indicating a failure to reach the local development server at 127.0.0.1:3000. — Center of the main preview panel
 
 ## catalog
 
-- **catalog--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **catalog--default--compact--chromium** [chromium / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MESH' and 'MODEL' labels in the status bar have awkward line-breaking/wrapping for their values ('3 peers' and 'auto-route'), causing vertical misalignment relative to other items in the same row. — Top status bar, right side of 'BUDGET'
+  - (minor) layout: The 'Command Catalog' section contains a large empty vertical column on the right side of the main content area, which appears underutilized in this compact viewport. — Main content area, right of command list
 - **catalog--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'SEARCH OR JUMP...' placeholder text in the top search bar is vertically misaligned and appears slightly clipped at the bottom of the characters. — Top header search input
-  - (minor) layout: The 'BUDGET' value '$12.34/ $50.00' has awkward line-breaking/stacking within the horizontal status bar, creating uneven vertical alignment compared to adjacent items like 'AGENTS' or 'MODEL'. — Secondary horizontal status bar, budget section
-  - (minor) clipping: The 'vox check' and 'vox build' list items in the Command Catalog appear to have very tight bottom padding, nearly clipping the 'RECOMMENDED' badges. — Main content area, Command Catalog list
-- **catalog--default--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MESH' and 'MODEL' labels in the status bar have their values ('3 peers', 'auto-route') slightly misaligned or cramped due to the compact viewport width, though not fully truncated. — Top status bar, right side
+  - (minor) blank: The right-hand panel of the Command Catalog section is entirely empty, which may be intentional for this state but appears as a large dead zone in the layout. — Main content area, right column
+  - (minor) other: Scrollable region lacks keyboard focusability, preventing keyboard-only users from scrolling the main content area. — Main viewport container
+- **catalog--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The budget text '$12.34/$50.00' has a horizontal strikethrough line that appears to be a rendering artifact or misaligned decoration rather than a deliberate 'deleted' state, as it cuts through the active budget metrics. — Sub-header status bar, budget section
+  - (minor) layout: The 'Command Catalog' list on the left has significant empty vertical space between items, and the right-hand detail pane is entirely blank except for a placeholder string, which may indicate a failure to auto-select the first item in the catalog. — Main content area, right-hand detail panel
 - **catalog--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Close Catalog' button (X) inside the Catalog tab is misaligned vertically relative to the tab text, appearing slightly elevated. — Workbench tab bar, Catalog tab
-  - (minor) contrast: The 'RECOMMENDED' labels under command names have low contrast against the dark background, potentially impacting legibility. — Command Catalog list, left column
-  - (minor) layout: The 'LIVE' indicator in the secondary header bar is slightly off-center within its pill container compared to the primary header's 'LIVE' indicator. — Secondary status bar, right side
-- **catalog--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **catalog--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The bottom-most command in the 'Command Catalog' list is partially cut off by the bottom edge of the viewport/container. — Bottom left of the main content area, under 'vox run'
+  - (minor) layout: The scrollable region containing the command catalog lacks keyboard focusability, which prevents keyboard-only users from scrolling the list to see hidden items. — Command Catalog list container
+- **catalog--default--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass_with_notes")
+  - (minor) other: Scrollable region 'surface-scroll-viewport' is not keyboard accessible, which may prevent users from navigating the command list using only a keyboard. — Main content area (Command Catalog list)
+- **catalog--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'COMMANDS' label in the left sidebar is slightly clipped on its left edge by the active state indicator bar. — Left sidebar, active menu item 'COMMANDS'
+  - (minor) layout: The 'Command Catalog' list on the left has significant empty vertical space at the bottom, while the right-hand detail pane remains empty with a placeholder message, creating an unbalanced visual weight. — Main content area, Command Catalog list
 - **catalog--default--wide--firefox** [firefox / wide] status=reviewed score=Some(90) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Close Catalog' button (X) is placed inside a container with role='tablist', which violates ARIA child role requirements as noted in programmatic findings. — Catalog tab in the workbench tab bar
-  - (minor) contrast: The 'RECOMMENDED' badges under command names have very low contrast (gold text on dark background), making them difficult to read. — Command Catalog list, left sidebar of the main content area
+  - (minor) contrast: The 'RECOMMENDED' badges under the command list items have very low contrast (gold text on dark background), making them difficult to read. — Left sidebar under 'Command Catalog' list items
+  - (minor) other: Axe-core reported a scrollable region that is not keyboard-focusable, which may prevent keyboard users from accessing the full list of commands if it overflows. — Main content area scroll viewport
 
 ## chat
 
-- **chat--composer-filled--compact--chromium** [chromium / compact] status=cached score=Some(82) verdict=Some("fail")
+- **chat--composer-filled--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (3.79:1) for secondary text labels like '/50.00' and 'Auto·' against the dark background, failing WCAG AA standards. — Bottom status bar within the composer dock
+  - (minor) clipping: The 'Auto' text in the bottom right status bar is partially clipped/crowded by the adjacent info icon. — Bottom right of the composer dock, status indicator
+  - (minor) layout: The 'peers' label under the MESH count is vertically misaligned/cramped compared to other top-bar metrics. — Top metrics bar, MESH section
 - **chat--composer-filled--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) contrast: Insufficient color contrast (3.68:1) for secondary text elements including the budget denominator '/50.00' and the 'Auto' status indicator, failing WCAG AA standards. — Bottom status bar within the composer dock
-  - (minor) clipping: The 'Auto' text in the bottom right status bar appears slightly crowded/clipped by the adjacent info icon in the compact viewport. — Bottom right of the composer dock
-- **chat--composer-filled--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **chat--composer-filled--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: Session titles in the sidebar (e.g., 'Session 1: ...') are aggressively truncated with ellipses even though there is significant vertical space within the tab container. — left sidebar, sessions list
-  - (minor) contrast: Low contrast text for secondary metrics like '/50.00' and 'Auto' labels in the bottom status bar, making them difficult to read against the dark background. — bottom composer toolbar, status indicators
-  - (minor) other: Invalid ARIA attribute usage: 'aria-pressed' is used on elements with 'role="tab"', which is not a supported attribute for that role according to W3C standards (should use aria-selected). — left sidebar, session tabs
-- **chat--composer-filled--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **chat--composer-filled--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: Session titles in the left sidebar are aggressively truncated with ellipses (e.g., 'Session 1: ...'), obscuring the context of the conversation history. — left sidebar, sessions list
-  - (minor) contrast: Insufficient color contrast for secondary metadata text such as '/50.00' and 'Auto' labels in the bottom status bar, making them difficult to read against the dark background. — bottom composer status bar
-  - (minor) layout: The 'RUN' button in the composer has a keyboard shortcut hint (Enter icon) that appears slightly misaligned/cramped within the button boundary. — bottom right of composer input
-- **chat--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (3.79:1) for secondary metadata text including budget denominators and 'Auto' labels, failing WCAG AA standards. — Bottom status bar of the composer and top header budget section
+  - (minor) clipping: The 'Auto' text in the bottom right status bar appears slightly crowded/clipped by the info icon. — Bottom right of the composer status bar
+  - (minor) layout: The 'RUN' button group in the composer has uneven internal spacing/alignment between the text and the secondary icon button. — Bottom right of the composer input area
+- **chat--composer-filled--laptop--chromium** [chromium / laptop] status=reviewed score=Some(82) verdict=Some("pass_with_notes")
+  - (minor) clipping: Session titles in the sidebar are heavily truncated with ellipses ('Session 1: ...') even though there is significant horizontal space available within the session card, making navigation difficult. — left sidebar, sessions list
+  - (minor) layout: The 'RUN' button in the composer is slightly misaligned vertically relative to the text input area's bottom edge. — bottom right of the chat composer
+  - (minor) other: Invalid ARIA attributes: 'aria-pressed' is used on elements with 'role=tab', which is not a supported attribute for that role according to programmatic scan. — sidebar session tabs
+  - (serious) contrast: The secondary text for budget limits ('/50.00') and status labels ('Auto·') has insufficient contrast against the dark background, failing WCAG AA standards. — bottom composer toolbar and top header stats
+- **chat--composer-filled--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("pass_with_notes")
+  - (major) clipping: Session titles in the sidebar are aggressively truncated with ellipses (e.g., 'Session 1: ...'), making it impossible to distinguish between different chat threads without hovering or clicking. — Left sidebar, Sessions list
+  - (minor) contrast: The text '/50.00' and 'Auto·' in the composer toolbar has insufficient contrast against the dark background, making it difficult to read. — Bottom composer toolbar, spend and mode indicators
+  - (minor) contrast: The 'Skill' label within the skill selector button has a contrast ratio of 4.12:1, which is below the WCAG AA requirement of 4.5:1. — Bottom composer toolbar, 'Skill auto' button
+  - (minor) other: Invalid ARIA attribute usage: 'aria-pressed' is applied to elements with 'role=tab', which is not a supported attribute for that role according to W3C standards. — Left sidebar, Session tab list
+- **chat--composer-filled--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The session titles in the left sidebar are heavily truncated with ellipses (e.g., 'Session 1: ...'), making it impossible to distinguish between different sessions without hovering or clicking. — Left sidebar, Sessions list
+  - (minor) contrast: Insufficient color contrast for secondary text elements including the spend limit denominator (/50.00) and the 'Auto' label in the composer footer. — Composer footer, status bar
+  - (minor) layout: The 'RUN' button in the composer is slightly misaligned vertically relative to the text input area's bottom edge. — Bottom right of the chat composer
+- **chat--composer-filled--wide--firefox** [firefox / wide] status=reviewed score=Some(75) verdict=Some("fail")
+  - (critical) other: Invalid ARIA attributes: 'aria-pressed' is used on elements with 'role="tab"', which is not a supported attribute for that role according to W3C standards. — Sidebar session tabs
+  - (major) clipping: Session titles in the left sidebar are severely truncated with ellipses (e.g., 'Session 1: ...'), hiding the primary identifying information for the chat history. — Left sidebar, Sessions list
+  - (minor) layout: The 'RUN' button in the composer is positioned very close to the text input border, creating a cramped visual appearance compared to other toolbar elements. — Bottom right of the chat composer input
+  - (serious) contrast: Insufficient color contrast for secondary text labels including '/50.00' spend limit and 'Skill' label, making them difficult to read against the dark background. — Bottom composer toolbar and top status bar
+- **chat--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'model: auto-route' pill in the chat history area is partially clipped/occluded by the right-hand container boundary or the chevron button. — middle right, chat history panel
+  - (minor) layout: The 'MESH' and 'MODEL' labels in the status bar have inconsistent vertical alignment and spacing compared to 'AGENTS' and 'QUEUE', with 'peers' and 'auto-route' appearing wrapped or dropped below the baseline. — top status bar
 - **chat--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) contrast: Insufficient color contrast for secondary text labels including budget limits (/50.00), 'Auto' status, and 'Skill' labels, making them difficult to read against the dark background. — Bottom control panel and top status bar
-  - (minor) clipping: The placeholder text 'Describe a task — e.g. ‘harden cryptographic...' is vertically clipped at the bottom, suggesting line-height or container height issues in the compact viewport. — Main chat input area
-  - (minor) layout: The 'model: auto-route' tag in the chat history area is positioned very close to the right edge with a double-arrow icon that appears slightly misaligned or cramped within its container. — Chat history header, right side
-- **chat--default--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (3.79:1) for secondary text labels including '/50.00' and 'Auto' against the dark background, failing WCAG AA standards. — Bottom input control bar, spend and mode indicators
+  - (minor) contrast: Insufficient color contrast (4.12:1) for 'Skill' label text within the brass-colored button component. — Bottom input control bar, 'Skill auto' button
+  - (minor) clipping: The placeholder text 'Describe a task — e.g. ‘harden cryptographic' is vertically clipped at the bottom, suggesting line-height or container height issues in the compact viewport. — Main chat input textarea
+- **chat--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(82) verdict=Some("pass_with_notes")
+  - (major) other: Critical ARIA attribute errors (aria-pressed on tab roles and invalid children in tablist) indicate a failure in the accessibility layer that may affect screen reader users' ability to interact with the session list. — Left sidebar, Session tab list
+  - (minor) clipping: Session titles in the sidebar are heavily truncated with ellipses ('Session 1: ...'), obscuring the actual content of the session names which is critical for navigation. — Left sidebar, Sessions list
+  - (minor) contrast: The secondary text for spend limits ('/50.00') and 'Auto' labels in the bottom status bar has insufficient contrast against the dark background, making it difficult to read. — Bottom control bar, spend and mode indicators
+  - (minor) layout: The 'model: auto-route' tag in the top right of the chat area appears slightly misaligned or floating awkwardly relative to the main chat container borders. — Top right of the central chat panel
 - **chat--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) clipping: The session list items (e.g., 'Session 1: ...') are aggressively truncated with ellipses, making the session titles unreadable even though there is significant unused horizontal space in the sidebar. — Left sidebar, Sessions list
-  - (major) clipping: The placeholder text in the main task input ('Describe a task — e.g. 'harden cryptographic...') is vertically clipped at the bottom, cutting off the descenders of the characters. — Bottom center, main input textarea
-  - (minor) contrast: The 'Skill' label and the '/50.00' spend limit text have insufficient contrast against the dark background, making them difficult to read. — Bottom toolbar and top header spend widget
-  - (minor) layout: The 'model: auto-route' badge in the top right of the chat area is partially overlapping the collapse arrow icon, suggesting a z-index or margin issue. — Top right of the central chat panel
-- **chat--default--wide--chromium** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
-- **chat--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (major) clipping: Session titles in the sidebar are severely truncated with ellipses (e.g., 'Session 1: ...'), hiding the actual content of the session name which is necessary for navigation. — left sidebar, sessions list
+  - (minor) contrast: Insufficient color contrast for secondary text labels such as '/50.00' and 'Auto·', making them difficult to read against the dark background. — bottom control bar, budget and mode indicators
+  - (minor) clipping: The placeholder text in the main input field ('Describe a task — e.g. ‘harden cryptographic...') is clipped at the bottom by the container boundary. — bottom center, main text input area
+  - (minor) layout: The 'model: auto-route' badge in the top right of the chat area appears slightly misaligned/floating awkwardly relative to the chat container borders. — top right of the central chat panel
+- **chat--default--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: Session titles in the left sidebar are heavily truncated with ellipses (e.g., 'Session 1: ...'), making it impossible to distinguish between different chat threads without hovering or clicking. — Left sidebar, Sessions list
+  - (minor) contrast: Low contrast text for secondary information such as '/50.00' and 'Auto' in the bottom status bar, as confirmed by programmatic scan (ratio ~3.8:1). — Bottom input area status bar
+  - (minor) clipping: The 'Skill auto' button text and the session spend text 'session $12.34 / $50.00' are very cramped in the bottom toolbar, nearly touching adjacent elements. — Bottom toolbar, center-right
+- **chat--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: Session titles in the left sidebar are aggressively truncated with ellipses (e.g., 'Session 1: ...'), making it impossible to distinguish between sessions without hovering or clicking. — Left sidebar, Sessions list
+  - (minor) contrast: The secondary text for budget limits ('/50.00') and the 'Auto' label in the bottom status bar have insufficient contrast against the dark background, as confirmed by programmatic findings. — Bottom input area status bar
+  - (minor) layout: The 'YOU' message bubble in the chat area is positioned at the very top right of the container with minimal padding, appearing slightly cramped against the border. — Main chat viewport, top right
+  - (minor) clipping: The text 'Session 14:...' at the bottom of the scrollable session list is partially obscured by the '+ New' button container. — Left sidebar, bottom of session list
 - **chat--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: Session titles in the left sidebar are aggressively truncated with ellipses (e.g., 'Session 1: ...'), hiding the primary identifying information for the chat history. — Left sidebar, Sessions list
-  - (minor) contrast: Low contrast on secondary metadata text such as '/50.00' and 'Auto' labels in the bottom control bar, making them difficult to read against the dark background. — Bottom input area, status bar
-  - (minor) layout: The 'RUN' button in the input area appears disabled or has very low prominence despite text being entered in the chat, which may be a state-sync issue. — Bottom right of the message input box
-- **chat--empty--compact--chromium** [chromium / compact] status=cached score=Some(20) verdict=Some("fail")
-- **chat--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(15) verdict=Some("fail")
-  - (critical) error-leak: Raw JavaScript TypeError stack/message ('TypeError: can't access property "session_id", s is null') is visible in multiple toast/notification overlays. — Center-right, floating notification cards
-  - (major) occlusion: Error notification cards are overlapping the central 'NO MESSAGES YET' empty state text and the loading spinner. — Center of the chat viewport
-  - (minor) clipping: The 'model: auto-route' badge on the right side of the chat header is partially clipped by the container boundary or an adjacent invisible element. — Top right of the chat content area
-- **chat--empty--laptop--chromium** [chromium / laptop] status=cached score=Some(20) verdict=Some("fail")
-- **chat--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(30) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right quadrant, overlaying the chat composer
-  - (major) occlusion: Error toast notifications are stacked and occluding the primary chat input field and action buttons. — Bottom right, chat composer area
-  - (minor) contrast: Insufficient color contrast for metadata text (e.g., '/50.00', 'Auto', 'Skill') against the dark background, making them difficult to read. — Bottom toolbar of the chat interface
-  - (minor) clipping: The text 'Describe a task — e.g. ‘harden cryptographic...' is partially occluded/clipped by the overlapping error toasts. — Chat input placeholder
-- **chat--empty--wide--chromium** [chromium / wide] status=cached score=Some(45) verdict=Some("fail")
-- **chat--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(30) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications are displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right corner, toast notification stack
-  - (major) occlusion: Toast notifications are overlapping and obscuring the 'RESOURCES' panel and its contents (QUEUE, MESH). — Bottom right quadrant
-  - (minor) contrast: Insufficient color contrast on secondary text elements including budget limits (/50.00) and 'Skill' labels, making them difficult to read against the dark background. — Chat input toolbar and top header stats
-  - (minor) clipping: The text 'Describe a task — e.g. 'harden cryptographic invariants'. / for' appears vertically clipped or poorly aligned within the input area. — Main chat input field
-- **chat--error--compact--chromium** [chromium / compact] status=cached score=Some(45) verdict=Some("fail")
-- **chat--error--compact--firefox** [firefox / compact] status=reviewed score=Some(25) verdict=Some("fail")
-  - (critical) occlusion: Multiple error toast notifications are stacked directly on top of each other and overlapping the central 'NO MESSAGES YET' empty state text and loading spinner. — Center-right of the main chat content area
-  - (major) error-leak: Raw internal error strings 'Error: [mock-error] chat_list_sessions simulated IPC failure' are exposed to the end user in the UI. — Error toast notifications
-  - (minor) clipping: The 'NO MESSAGES YET' text is being partially obscured by the error notification cards, making it difficult to read. — Center of the chat viewport
-- **chat--error--laptop--chromium** [chromium / laptop] status=cached score=Some(65) verdict=Some("fail")
+  - (minor) clipping: Session titles in the left sidebar are heavily truncated with ellipses (e.g., 'Session 1: ...'), making it impossible to distinguish between different chat threads without clicking them. — Left sidebar, Sessions list
+  - (minor) contrast: The secondary text in the bottom status bar (e.g., '/50.00' and 'Auto') has insufficient contrast against the dark background, as flagged by programmatic scan results. — Bottom input area, status bar
+  - (minor) clipping: The placeholder text in the main task input field ('Describe a task — e.g. ‘harden cryptographic invariants’. / for') appears vertically clipped or cut off at the bottom by the status bar container. — Center bottom, task input field
+- **chat--empty--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The bottom composer/input area is partially clipped by the viewport bottom edge, making the placeholder text 'Describe a task...' difficult to read and hiding the actual input field. — bottom center
+  - (minor) occlusion: The 'model: auto-route' pill on the right side of the chat area is partially overlapping with the collapse/expand chevron button (double arrows). — right side of main chat panel
+- **chat--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) occlusion: The 'model: auto-route' badge in the chat area is partially occluded by the right-side collapse/expand button (double chevron). — Top right of the main chat content area
+  - (minor) clipping: The bottom composer/input area is partially cut off by the viewport edge, making the input field and action buttons difficult to interact with. — Bottom center/right of the viewport
+- **chat--empty--laptop--chromium** [chromium / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'model: auto-route' pill in the top right of the chat area is partially clipped by the container edge or an overlapping invisible layer on its right side. — top right of main chat panel
+  - (minor) contrast: The 'SESSIONS' header and the collapse arrow in the sidebar have very low contrast against the dark background, making them difficult to read. — left sidebar, sessions panel
+- **chat--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (3.79:1) for secondary text elements including budget limits and 'Auto' labels against the dark background, failing WCAG AA standards. — Bottom composer toolbar and top status bar
+  - (minor) clipping: The placeholder text in the main chat input ('Describe a task — e.g. ‘harden cryptographic...') is vertically clipped at the bottom, suggesting line-height or container padding issues. — Main chat input area
+  - (minor) contrast: The 'Skill' label within the button has a contrast ratio of 4.12:1, which is below the required 4.5:1 for small text. — Skill selection button in the bottom toolbar
+- **chat--empty--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (3.79:1) for secondary text labels like '/50.00' and 'Auto' against the dark background, failing WCAG AA standards. — Bottom composer toolbar, status indicators
+  - (minor) contrast: Insufficient color contrast (4.12:1) for 'Skill' label text within the brass-colored button component. — Bottom composer toolbar, 'Skill auto' button
+  - (minor) clipping: The 'OpenRouter Spend' value is rendered as a single dash '—' which may indicate a data loading failure or lack of space for the currency value. — Top header, second panel from left
+- **chat--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (3.79:1) for secondary text labels like '/50.00' and 'Auto' against the dark background, making them difficult to read. — Bottom chat input toolbar and live spend indicator
+  - (minor) contrast: Insufficient color contrast (4.12:1) for the 'Skill' label within the brass-colored button component. — Bottom chat input toolbar, 'Skill auto' button
+  - (minor) clipping: The placeholder text 'Describe a task — e.g. ‘harden cryptographic invariants’. / for' appears to be slightly cut off or vertically misaligned at the bottom of the input area. — Main chat input textarea
+- **chat--error--compact--chromium** [chromium / compact] status=reviewed score=Some(45) verdict=Some("fail")
+  - (critical) occlusion: Multiple error toast notifications are stacked and occluding the central chat interface and loading spinner. — Center-right of the main content area
+  - (major) clipping: The background text 'NO MESSAGES' is clipped by the error toast notifications. — Center of the screen
+  - (major) error-leak: Raw mock error text 'Error: [mock-error] chat_list_sessions simulated IPC failure' is displayed directly to the user in multiple toast notifications. — Error toast notifications
+  - (minor) layout: The loading spinner is active simultaneously with multiple error states, indicating a possible state machine conflict where the UI fails to resolve the loading state after an error. — Center of the screen
+- **chat--error--compact--firefox** [firefox / compact] status=reviewed score=Some(35) verdict=Some("fail")
+  - (critical) occlusion: Multiple error toast notifications are stacked directly on top of each other and the central 'NO MESSAGES YET' empty state text, creating a significant z-index and legibility conflict. — Center-right of the chat viewport
+  - (major) error-leak: Raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') are exposed to the end-user in the UI notifications. — Error toast notifications
+  - (minor) layout: A loading spinner icon is overlapping the 'NO MESSAGES YET' text, suggesting a race condition between the loading state and the empty state/error state rendering. — Center of chat viewport
+- **chat--error--laptop--chromium** [chromium / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) blank: The 'SESSIONS' sidebar panel is completely empty despite the application state indicating an error condition that should likely be handled with an empty-state message or retry action. — Left-hand vertical panel under 'SESSIONS' header
+  - (major) occlusion: Multiple error toast notifications are stacked and occluding the main chat interface, including the prompt input area and the 'NO MESSAGES YET' placeholder text. — Bottom right quadrant of the main content area
+  - (minor) clipping: The text 'Describe a task in the compos...' is truncated by the overlapping error toast notifications. — Center of the main chat panel
+  - (minor) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are displayed directly to the user in the toast notifications. — Toast notifications on the right side
 - **chat--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) occlusion: Multiple error toast notifications are stacked directly on top of each other, partially obscuring the chat composer and each other's content. — Bottom right quadrant, over the composer area
-  - (major) error-leak: Raw mock error strings 'Error: [mock-error] chat_list_sessions simulated IPC failure' are visible to the user in the toast notifications. — Toast notifications in bottom right
-  - (major) blank: The 'SESSIONS' sidebar is completely empty despite the application being in an active state, likely due to the reported IPC failure. — Left sidebar panel
-  - (minor) contrast: Insufficient color contrast for secondary text labels like '/50.00' and 'Skill' tag, making them difficult to read against the dark background. — Bottom composer toolbar
-  - (minor) clipping: The text 'Describe a task...' in the composer is partially occluded by the overlapping error toasts. — Bottom center composer input
-- **chat--error--wide--chromium** [chromium / wide] status=cached score=Some(65) verdict=Some("fail")
+  - (critical) occlusion: Multiple error toast notifications are stacked directly on top of each other, partially obscuring the chat input area and each other's content. — Bottom right quadrant, over the input composer
+  - (major) error-leak: Raw internal error strings 'Error: [mock-error] chat_list_sessions simulated IPC failure' are displayed to the user in toast notifications. — Error toast notifications
+  - (minor) contrast: Insufficient color contrast for secondary metadata (Live spend /50.00 and 'Auto' labels) as identified by programmatic scan. — Bottom input bar and top status bar
+  - (minor) clipping: The 'Describe a task' placeholder text is being clipped/occluded by the overlapping error toast elements. — Input composer textarea
+- **chat--error--wide--chromium** [chromium / wide] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) error-leak: Multiple toast notifications displaying raw internal error messages: 'Error: [mock-error] chat_list_sessions simulated IPC failure'. — Bottom right corner toast stack
+  - (major) blank: The 'SESSIONS' sidebar is completely empty despite the application being in an active state, likely due to the reported IPC failure. — Left sidebar panel under 'SESSIONS'
+  - (minor) contrast: Insufficient color contrast for metadata text (e.g., '/50.00', 'Auto', 'Skill') against the dark background, making it difficult to read. — Bottom composer toolbar
+  - (minor) occlusion: The stack of error toast notifications is partially obscuring the 'RESOURCES' panel and its contents. — Bottom right quadrant
 - **chat--error--wide--firefox** [firefox / wide] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) occlusion: Multiple error toast notifications are stacked in the bottom right, occluding the 'RESOURCES' panel and its sub-sections (AGENTS, QUEUE, MESH). — bottom right corner
-  - (minor) error-leak: Error toasts display raw technical error strings: 'Error: [mock-error] chat_list_sessions simulated IPC failure'. — bottom right toast notifications
-  - (minor) contrast: Insufficient color contrast for secondary metadata text (e.g., '/50.00' and 'Auto') against the dark background, as flagged by automated audit. — chat input toolbar and status indicators
-  - (minor) clipping: The text 'Describe a task — e.g. ‘harden cryptographic invariants’. / for' appears to be vertically clipped or cut off at the bottom within the input area. — central chat input box
-- **chat--model-picker-open--compact--chromium** [chromium / compact] status=cached score=Some(70) verdict=Some("fail")
+  - (major) occlusion: Multiple error toast notifications are stacked and overlapping the right-hand 'Execution' and 'Resources' sidebar panels, obscuring content and controls. — Bottom right quadrant
+  - (minor) error-leak: Raw technical error strings 'Error: [mock-error] chat_list_sessions simulated IPC failure' are displayed directly to the user in the toast notifications. — Bottom right toast notifications
+  - (minor) contrast: Low contrast text on 'Skill' badge and secondary metadata (e.g., '/50.00') makes legibility difficult against the dark background. — Bottom chat input toolbar
+  - (minor) clipping: The 'Execution' panel header text is partially obscured by the stacking of the error notifications. — Right sidebar, middle section
+- **chat--model-picker-open--compact--chromium** [chromium / compact] status=reviewed score=Some(75) verdict=Some("fail")
+  - (critical) other: Invalid ARIA structure: 'ul' with role='listbox' contains 'li' elements which are not allowed children for that role, and 'option' roles are missing required parent roles. This breaks screen reader navigation for the model picker. — Model picker dropdown menu
+  - (major) clipping: The model picker dropdown menu is severely clipped by the right edge of the viewport, making the model names unreadable. — Right side of the chat interface, model selection dropdown
+  - (minor) clipping: Text within the model picker dropdown is truncated with ellipses (e.g., 'provider-1/model-f...'), which prevents users from distinguishing between different model versions or suffixes. — Model picker dropdown list items
 - **chat--model-picker-open--compact--firefox** [firefox / compact] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) clipping: The model picker dropdown menu is severely clipped on the right edge of the viewport, making the model names unreadable. — Right side of the screen, model selection popover
-  - (major) occlusion: The model picker dropdown overlaps and obscures the main chat input area and action buttons. — Bottom right quadrant
-  - (minor) contrast: Insufficient color contrast for the budget text ($12.34 / $50.00) and 'Skill' label, making them difficult to read against the dark background. — Bottom status bar and budget indicator in the header
-  - (minor) layout: The 'model: auto-route' label in the picker header is partially cut off by its own container boundary. — Top of the model picker popover
-- **chat--model-picker-open--laptop--chromium** [chromium / laptop] status=cached score=Some(75) verdict=Some("fail")
+  - (major) clipping: The model picker dropdown menu is severely clipped by the right edge of the viewport, making the model names unreadable. — right side of the chat interface, model selection popover
+  - (major) occlusion: The model picker dropdown is partially occluding the 'Skill auto' button and the bottom action bar, while also being clipped by the screen boundary. — bottom right quadrant
+  - (minor) contrast: Insufficient color contrast on the budget text ($12.34 / 50.00) and the 'Skill' label, making them difficult to read against the dark background. — bottom action bar and top status bar
+  - (minor) clipping: Text inside the model picker list items is truncated prematurely (e.g., 'provider-1/model-f...'), which is critical for identifying the specific model version. — model picker dropdown list
+- **chat--model-picker-open--laptop--chromium** [chromium / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) clipping: The model picker dropdown menu is severely clipped on the right edge of the viewport, cutting off model names and the scrollbar. — Right side of the screen, model selection popover
+  - (major) clipping: Session titles in the sidebar are aggressively truncated with ellipses even though there is significant unused vertical space in the list items. — Left sidebar, Sessions list
+  - (minor) contrast: Insufficient color contrast for the budget text '/50.00' and 'Auto' labels against the dark background, making them difficult to read. — Bottom status bar and top header metrics
+  - (minor) layout: The 'model: auto-route' label inside the dropdown is misaligned/overlapping with the close/collapse icon in the top right of the popover. — Top of the model picker dropdown
 - **chat--model-picker-open--laptop--firefox** [firefox / laptop] status=reviewed score=Some(72) verdict=Some("fail")
-  - (major) clipping: The model picker dropdown menu is severely clipped by the right edge of the viewport, making model names unreadable. — Right side of the screen, model selection popover
-  - (major) clipping: Session titles in the sidebar are aggressively truncated with ellipses (e.g., 'Session 1: ...'), losing all descriptive context. — Left sidebar, Sessions list
-  - (minor) layout: The 'model: auto-route' label and its associated collapse icon '<<' are overlapping/crowded at the top of the model picker. — Top right of the model picker popover
-  - (serious) contrast: Insufficient color contrast for secondary text like '/50.00' and 'Skill' label, failing WCAG 2 AA standards. — Bottom control bar and top spend indicator
-- **chat--model-picker-open--wide--chromium** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
-- **chat--model-picker-open--wide--firefox** [firefox / wide] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) clipping: The model picker dropdown menu is severely truncating model names with ellipses, making it impossible to distinguish between different versions or providers of the same model family. — Model picker dropdown (right side of chat area)
-  - (major) contrast: The 'Skill' label and the budget fraction '/50.00' have insufficient contrast against the dark background, making them difficult to read. — Bottom control bar and top header spend indicator
-  - (minor) clipping: Session titles in the left sidebar are aggressively truncated (e.g., 'Session 1: ...'), losing all descriptive context. — Left sidebar 'SESSIONS' list
-  - (minor) layout: The model picker dropdown is positioned such that it partially occludes the 'EXECUTION' header and right-side panel content. — Right side of the main chat interface
-- **chat--rails-overlay-open--compact--chromium** [chromium / compact] status=cached score=Some(75) verdict=Some("fail")
-- **chat--rails-overlay-open--compact--firefox** [firefox / compact] status=reviewed score=Some(35) verdict=Some("fail")
-  - (critical) occlusion: The 'SESSIONS' sidebar/overlay is severely overlapping and occluding the main chat input area and message history. The overlay appears to be stuck in a semi-transparent state over the primary workspace. — center-left and bottom-center
-  - (major) clipping: Session titles (e.g., 'Session 1: ...') are heavily truncated with ellipses, losing all context of the session content which is critical for navigation. — SESSIONS sidebar
-  - (major) layout: The bottom control bar (containing 'Intent', 'Run on Auto', 'Skill auto') is overlapping with the SESSIONS list items, creating a jumbled mess of text and controls. — bottom-left quadrant
-  - (minor) contrast: The budget text '/50.00' and 'Auto' labels have insufficient contrast against the dark background, making them difficult to read. — bottom control bar and top status bar
-- **chat--session-menu-open--compact--chromium** [chromium / compact] status=cached score=Some(65) verdict=Some("fail")
-- **chat--session-menu-open--compact--firefox** [firefox / compact] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) layout: Severe layout collapse in the compact viewport: the chat input area (containing 'Describe a task', 'Skill auto', etc.) is rendered directly on top of the 'Sessions' sidebar list, making both components unreadable and unusable. — Bottom-left quadrant, overlapping the Sessions list
-  - (major) occlusion: The session context menu ('Rename', 'Archive') is partially occluded by the overlapping chat input container and lacks sufficient visual separation from the background elements it covers. — Center-left, over Session 1/2
-  - (major) clipping: Session titles (e.g., 'Session 1: ...') are aggressively truncated with ellipses even though there is significant empty horizontal space in the main chat area, and the 'msgs' count is overlapping the session title text. — Sessions sidebar list
-  - (minor) contrast: Insufficient color contrast for secondary metadata such as '/50.00' and 'Auto' labels, as flagged by programmatic audit (3.68:1 vs 4.5:1 requirement). — Top budget bar and bottom status bar
-- **chat--session-menu-open--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **chat--session-menu-open--laptop--firefox** [firefox / laptop] status=reviewed score=Some(72) verdict=Some("fail")
-  - (major) occlusion: The session context menu (Rename/Archive) is overlapping the session list items, specifically obscuring the text of 'Session 2' and 'Session 3'. — Left sidebar, Sessions list, top area
-  - (minor) clipping: Session titles in the sidebar are aggressively truncated with ellipsis (e.g., 'Session 1: ...'), making it impossible to distinguish between sessions without hovering or opening them. — Left sidebar, Sessions list
-  - (minor) contrast: Text contrast for secondary metadata like '/50.00' and 'Auto·' is below WCAG AA standards (3.68:1), making it difficult to read against the dark background. — Bottom control bar and top header
-  - (minor) clipping: The placeholder text in the main task input field ('Describe a task — e.g. 'harden cryptographic...') is partially cut off at the bottom or right edge of its container. — Bottom center, main input area
-- **chat--session-menu-open--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **chat--session-menu-open--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: Session titles in the sidebar are heavily truncated with ellipses (e.g., 'Session 1: ...'), making it difficult to distinguish between sessions without hovering or clicking. — Left sidebar, Sessions list
-  - (minor) contrast: Text contrast for secondary metadata (e.g., '/50.00' spend limit and 'Auto' labels) is below WCAG AA standards, making it difficult to read against the dark background. — Bottom input bar and top status bar
-  - (minor) occlusion: The session context menu ('Rename', 'Archive') overlaps the session list items, which is expected for a popover but visually tight given the small font sizes. — Left sidebar, Session 1 context menu
+  - (major) clipping: The model picker dropdown menu is severely truncated on the right side, cutting off model names and the scrollbar/container edge. — Right side of the chat interface, model selection popover
+  - (major) clipping: Session titles in the left sidebar are aggressively truncated with ellipses (e.g., 'Session 1: ...'), making it impossible to distinguish between different chat contexts. — Left sidebar, Sessions list
+  - (minor) contrast: Insufficient color contrast for secondary metadata text (e.g., '/50.00' and 'Auto·') against the dark background, hindering legibility. — Bottom status bar and top header stats
+  - (minor) layout: The 'Skill auto' button text and 'Skill' label have poor vertical alignment and tight padding within the brass-colored control. — Bottom control bar
+- **chat--model-picker-open--wide--chromium** [chromium / wide] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) clipping: The model picker dropdown menu is severely truncating model names (e.g., 'provider-1/model-family-name-1-with-a-rathe...'), making it impossible for users to distinguish between models with long, similar prefixes. — Model picker dropdown menu, center-right of screen
+  - (major) contrast: The 'Live spend' ratio text ($12.34 / 50.00) and 'Auto' labels in the bottom status bar have insufficient contrast against the dark background, hindering legibility. — Bottom input area status bar
+  - (minor) clipping: Session titles in the left sidebar are truncated with ellipses (e.g., 'Session 1: ...'), hiding the context of the chat history. — Left sidebar, Sessions list
+  - (minor) occlusion: The model picker dropdown menu partially occludes the 'EXECUTION' header and 'Alt' model labels in the right-hand panel. — Right-center, overlapping the right sidebar
+- **chat--model-picker-open--wide--firefox** [firefox / wide] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) clipping: The model picker dropdown list items are aggressively truncated with ellipses, making it impossible to distinguish between different model versions or providers with long names. — Model picker dropdown menu (right side of chat area)
+  - (major) blank: The main chat content area is completely blank despite the sidebar indicating multiple active sessions with message counts. — Center chat panel
+  - (major) contrast: Insufficient color contrast for metadata text (e.g., '/50.00', 'Skill', 'Auto') against the dark background, confirmed by axe-core findings (3.79:1 and 4.12:1 vs 4.5:1 requirement). — Bottom status bar and top header stats
+  - (major) other: Invalid ARIA implementation: 'role=tab' elements are using 'aria-pressed' which is not a supported attribute for that role, and 'role=listbox' contains 'li' children instead of 'option' roles directly or via proper grouping. — Sidebar session tabs and Model picker list
+  - (minor) clipping: Session titles in the left sidebar are truncated (e.g., 'Session 1: ...') even though there is significant horizontal space available within the sidebar container. — Left sidebar 'SESSIONS' list
+- **chat--rails-overlay-open--compact--chromium** [chromium / compact] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) clipping: Extreme text truncation in the 'SESSIONS' rail. The session titles are reduced to just 'Session X: ...', hiding all meaningful context of the conversation topics. — Left-side overlay panel (Sessions rail)
+  - (minor) clipping: The 'model: auto-route' tag in the top right of the chat area is partially clipped by the container boundary or an invisible overflow mask. — Top right of the main chat content area
+  - (minor) layout: The 'SESSIONS' overlay panel is floating awkwardly over the main chat interface, partially obscuring the input prompt and message history without a clear backdrop or distinct separation from the content behind it. — Center-left overlay
+- **chat--rails-overlay-open--compact--firefox** [firefox / compact] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) clipping: The 'SESSIONS' sidebar (rails-overlay) is severely truncating session titles to just a few characters followed by an ellipsis (e.g., 'Session 1: ...'), making the navigation list nearly useless for distinguishing between items. — Left-side overlay panel under 'SESSIONS' header
+  - (major) occlusion: The 'SESSIONS' overlay panel is partially occluding the main chat input area and the 'Describe a task' placeholder text, hindering the primary interaction point of the screen. — Center-left, where the sidebar overlaps the main content area
+  - (minor) contrast: Insufficient color contrast on secondary metadata labels such as '/50.00' and 'Skill' text, as confirmed by programmatic findings (ratios ~3.79:1 and 4.12:1). — Bottom status bar and budget display
+  - (minor) layout: The 'model: auto-route' pill in the top right of the chat area is partially clipped by the container boundary or overlapping the collapse icon. — Top right of the main chat window
+- **chat--session-menu-open--compact--chromium** [chromium / compact] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) occlusion: The session context menu ('Rename', 'Archive') is positioned poorly, overlapping the session list items and obscuring the text of the active and adjacent session rows. — Session list sidebar, top-left of the chat interface
+  - (minor) clipping: Session titles in the sidebar are aggressively truncated with ellipses (e.g., 'Session 1: ...'), making it impossible to distinguish between sessions with similar starting text in this compact view. — Sidebar session list
+  - (minor) clipping: The '3 msgs' badge and the '...' action button are cramped within the session row, causing visual crowding and potential hit-target overlap. — Sidebar session list items
+- **chat--session-menu-open--compact--firefox** [firefox / compact] status=reviewed score=Some(72) verdict=Some("fail")
+  - (major) occlusion: The session action menu (Rename/Archive) is floating over the session list but is positioned poorly, partially obscuring the session titles and appearing disconnected from the trigger button (ellipsis). — Session list sidebar, top item
+  - (major) clipping: Session titles in the sidebar are aggressively truncated with ellipsis ('Session 1: ...') even though there is significant unused horizontal space within the session card, making the list difficult to navigate. — Sidebar session list
+  - (minor) contrast: The 'Archive' text in the open menu and the budget limit '/50.00' have insufficient contrast against their dark backgrounds, as confirmed by programmatic findings. — Session menu and bottom status bar
+  - (minor) layout: The '3 msgs' badge in the first session item is overlapping the ellipsis menu button area, creating a cluttered visual state. — Sidebar, first session item
+- **chat--session-menu-open--laptop--chromium** [chromium / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) clipping: Session titles in the sidebar are severely truncated with ellipsis (e.g., 'Session 1: ...'), hiding the actual content of the session name which is critical for navigation. — left sidebar, sessions list
+  - (major) contrast: Text contrast for secondary information (e.g., '/50.00' spend, 'Auto' label, and 'Skill' text) is below WCAG AA standards, making it difficult to read against the dark background. — bottom status bar and top header spend indicator
+  - (minor) occlusion: The session context menu ('Rename', 'Archive') is positioned such that it partially obscures the session title and the '...' trigger button itself. — left sidebar, Session 1 context menu
+  - (minor) layout: The 'msgs' count and the session title text are vertically misaligned/cramped within the session tab buttons. — left sidebar, session list items
+- **chat--session-menu-open--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) occlusion: The session context menu ('Rename', 'Archive') is overlapping and obscuring the session list items (Session 2, Session 3) directly beneath the active session. — Left sidebar, Sessions list, under Session 1
+  - (minor) clipping: Session titles in the sidebar are severely truncated with ellipses ('Session 1: ...'), losing all descriptive context of the session names. — Left sidebar, Sessions list
+  - (minor) contrast: Low contrast text for secondary labels like '/50.00' and 'Auto' in the bottom status bar, making them difficult to read against the dark background. — Bottom control bar
+  - (minor) layout: The 'model: auto-route' pill in the top right of the chat area is partially overlapping the container border/padding. — Top right of the main chat panel
+- **chat--session-menu-open--wide--chromium** [chromium / wide] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) clipping: Session titles in the left sidebar are severely truncated with ellipses (e.g., 'Session 1: ...'), hiding the primary identifying information for the chat history. — Left sidebar, Sessions list
+  - (major) contrast: Text elements like '/50.00' and 'Auto' in the bottom status bar, and 'Skill' in the skill selector, have insufficient contrast against the dark background, making them difficult to read. — Bottom input area and status bar
+  - (minor) occlusion: The session context menu ('Rename', 'Archive') is positioned such that it partially obscures the session metadata (message count) and the border of the session item. — Left sidebar, Session 1 item
+  - (minor) layout: The 'Archive' text in the session menu is colored red, which typically denotes a destructive action, but its alignment and padding within the menu container appear inconsistent with the 'Rename' item above it. — Session context menu
+- **chat--session-menu-open--wide--firefox** [firefox / wide] status=reviewed score=Some(82) verdict=Some("pass_with_notes")
+  - (minor) clipping: Session titles in the sidebar are heavily truncated with ellipses (e.g., 'Session 1: ...'), making it impossible to distinguish between sessions without hovering or clicking. — Left sidebar, Sessions list
+  - (minor) contrast: Low contrast text for secondary information like '/50.00' and 'Auto' in the bottom status bar, making it difficult to read against the dark background. — Bottom input area status bar
+  - (minor) occlusion: The session context menu ('Rename', 'Archive') partially overlaps the session list items, which is expected for a popover but the placement feels tight relative to the '...' trigger. — Left sidebar, Session 1 context menu
 
 ## coderabbit
 
-- **coderabbit--default--compact--chromium** [chromium / compact] status=cached score=Some(75) verdict=Some("fail")
+- **coderabbit--default--compact--chromium** [chromium / compact] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) contrast: Multiple labels (Scope, Modified since, Max files / PR, etc.) and instructional text have a contrast ratio of 2.97:1, which is significantly below the WCAG AA requirement of 4.5:1, making them difficult to read against the dark background. — Main content area, form labels and footer text
+  - (major) contrast: Input field text (e.g., '04/01/2026', '150') has a contrast ratio of 3.08:1 against the white background, failing accessibility standards. — Form input fields
+  - (minor) clipping: The 'token: ...' text in the upper right of the content area uses an ellipsis which may be truncating necessary information without a clear way to expand. — Top right of the CodeRabbit review section
+  - (minor) layout: The 'Plan sweep' and 'Run' actions are rendered as plain text links without clear button affordances, which may lead to poor discoverability in a dense UI. — Below the form inputs
 - **coderabbit--default--compact--firefox** [firefox / compact] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) contrast: Insufficient color contrast for form labels (Scope, Modified since, etc.) and placeholder text against the dark background, making them difficult to read. — Main content area, form labels and input fields
-  - (major) layout: In the compact viewport, the horizontal form layout for 'Scope', 'Modified since', etc., is cramped, leading to tight spacing between interactive elements. — Form input row
-  - (minor) layout: The 'Modified since' date input and other numeric inputs use a white background that clashes significantly with the dark theme aesthetic and creates harsh visual boundaries. — Form input row
-  - (minor) clipping: The 'token: ...' text in the top right of the content area is truncated with an ellipsis, which may hide necessary information without a clear way to reveal it. — Top right of the CodeRabbit review panel
-- **coderabbit--default--laptop--chromium** [chromium / laptop] status=cached score=Some(75) verdict=Some("fail")
-- **coderabbit--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) contrast: Multiple labels (Scope, Modified since, Max files / PR, etc.) and instructional text have a contrast ratio of 2.97:1, which is significantly below the WCAG AA requirement of 4.5:1, making them difficult to read against the dark background. — Main content area, form labels and help text
+  - (major) contrast: Input field values (date, numbers, text) have a contrast ratio of 3.08:1 against their white backgrounds, failing the 4.5:1 threshold for small text. — Form input fields
+  - (minor) layout: The 'token: ...' text is positioned very close to the right edge of the container, appearing slightly cramped in the compact viewport. — Top right of the CodeRabbit review section
+  - (minor) clipping: The 'Modified since' date input icon and text are tightly packed, with the calendar icon nearly touching the border, suggesting insufficient internal padding for the compact view. — Modified since date picker
+- **coderabbit--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(75) verdict=Some("fail")
   - (major) contrast: Label text ('Scope', 'Modified since', etc.) and placeholder text in input fields have extremely low contrast against the dark background, making them nearly unreadable. — Main content area, CodeRabbit review form labels and inputs
-  - (minor) clipping: The 'token: ...' text in the top right of the workspace panel is truncated with an ellipsis, potentially hiding necessary information. — Top right of the CodeRabbit review panel
-  - (minor) layout: The 'Plan sweep' and 'Run' buttons are unstyled text links that lack visual affordance as buttons and are poorly aligned with the input row. — Right side of the input form in the workspace panel
-  - (minor) contrast: The instructional text 'No plan yet — pick a date...' is very dark and fails accessibility standards for legibility on this background. — Below the input form in the workspace panel
-- **coderabbit--default--wide--chromium** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
-- **coderabbit--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(65) verdict=Some("fail")
+  - (major) contrast: The instructional text 'No plan yet — pick a date...' has insufficient contrast (2.97:1) against the dark background. — Below the configuration row in the main workspace
+  - (minor) layout: The 'Plan sweep' and 'Run' action buttons are poorly differentiated from the form fields, appearing as plain text without clear button affordances or consistent alignment with the input row. — Right side of the CodeRabbit review configuration row
+  - (minor) clipping: The 'token: ...' text in the top right of the workspace content area appears truncated or incomplete. — Top right of the CodeRabbit review panel
+- **coderabbit--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) contrast: Label text ('Scope', 'Modified since', etc.) and placeholder text in input fields have extremely low contrast against the dark background, making them nearly illegible. — Main content area, CodeRabbit review configuration form
+  - (minor) clipping: The 'token: ...' text in the top right of the workspace content area appears truncated or incomplete. — Top right of the CodeRabbit review panel
+  - (minor) layout: The 'Plan sweep' and 'Run' buttons are vertically misaligned relative to the input fields they follow, appearing slightly elevated. — Action row in the CodeRabbit review form
+  - (minor) contrast: Instructional text 'No plan yet — pick a date...' has insufficient contrast against the background. — Below the configuration form inputs
+- **coderabbit--default--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (major) contrast: Multiple UI labels (Scope, Modified since, Max files / PR, etc.) and input values have a contrast ratio of ~3:1, which is significantly below the WCAG AA requirement of 4.5:1 for small text against the dark background. — Main content area, CodeRabbit review configuration form
+  - (minor) layout: The 'Plan sweep' and 'Run' buttons are rendered as plain text without clear button affordances (borders or backgrounds), making them look like static text labels rather than primary actions. — Right side of the configuration form inputs
+  - (minor) clipping: The 'token: ...' text in the top right of the workspace panel appears truncated or incomplete. — Top right of the CodeRabbit review panel
+- **coderabbit--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) contrast: Critical accessibility failure in high-contrast mode: input fields (date, number, text) render with white backgrounds and light gray text (#D4D4D8), resulting in a contrast ratio of 1.47:1, making the values nearly invisible. — Main content area, form inputs for 'Modified since', 'Max files / PR', 'Top N', and 'Rank weights'
+  - (major) contrast: Label text and instructional text ('No plan yet...') use a dark gray (#5F5E5A) against a black background, failing the 4.5:1 contrast threshold required for readability in high-contrast themes. — Main content area, form labels and status message
+  - (minor) clipping: The 'token: ...' text in the top right of the workspace content area is truncated with an ellipsis, hiding potentially relevant information without a clear expansion mechanism. — Top right of the CodeRabbit review panel
 - **coderabbit--default--wide--firefox** [firefox / wide] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) contrast: The labels (Scope, Modified since, Max files / PR, etc.) and the instructional text 'No plan yet...' have extremely low contrast against the dark background, making them nearly unreadable. — Main content area, CodeRabbit review form labels and footer text
-  - (minor) contrast: The text inside the input fields (e.g., '04/01/2026', '150', '1,1,1') has insufficient contrast against the white input background. — Form input fields
-  - (minor) layout: The 'Plan sweep' and 'Run' buttons are rendered as plain text without clear button affordances (borders or backgrounds), making them look like static text labels rather than interactive controls. — Right side of the CodeRabbit review form
-  - (minor) other: ARIA role violation: The tab bar contains a close button that is not a valid child for a role='tablist' element, potentially breaking screen reader navigation. — Workbench tab bar (Coderabbit tab)
+  - (major) contrast: Insufficient color contrast (2.97:1) for form labels (Scope, Modified since, Max files / PR, etc.) and instructional text against the dark background, making them difficult to read. — Main content area, form control labels and help text
+  - (major) contrast: Insufficient color contrast (3.08:1) for text inside input fields (date, number, and text inputs) against white backgrounds, violating WCAG AA standards. — Main content area, input field values
+  - (minor) layout: The 'token: ...' text is floating in the upper right of the workspace panel without clear alignment to other header elements or the form below. — Top right of the CodeRabbit review panel
+  - (minor) clipping: The 'Full repo' checkbox and label are very tightly packed against the 'Modified since' input, with minimal horizontal gutter compared to other fields. — Form row, first two elements
 
 ## console
 
-- **console--default--compact--chromium** [chromium / compact] status=cached score=Some(45) verdict=Some("fail")
-- **console--default--compact--firefox** [firefox / compact] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) occlusion: The 'Discovery' panel and the terminal output are severely overlapping and occluding the agent status cards (agent-1 through agent-9). The agent cards are rendered behind the terminal text and the discovery sidebar, making them unreadable and inaccessible. — Center-right, below the secondary navigation bar
-  - (major) clipping: The agent status cards (e.g., agent-8, agent-9) are being clipped by the right edge of the viewport and the Discovery panel, with text like 'send to agent' and 'running' being cut off. — Middle right section
-  - (major) layout: The layout has collapsed in the compact viewport; the terminal console is floating over the agent grid instead of being positioned below or in a dedicated container, causing a z-index conflict. — Main content area
-  - (minor) other: ARIA role violation: The tab bar container (role='tablist') contains a close button that is not a valid child of a tablist according to accessibility standards. — Workbench tab bar, 'Console' tab close button
-- **console--default--laptop--chromium** [chromium / laptop] status=cached score=Some(65) verdict=Some("fail")
+- **console--default--compact--chromium** [chromium / compact] status=reviewed score=Some(45) verdict=Some("fail")
+  - (critical) layout: Agent status cards are severely collapsed and overlapping, causing text to stack vertically and horizontally in an unreadable manner. — Top of the main console content area, below the 'CONSOLE' tab
+  - (major) occlusion: Action buttons ('copy last block', 'send to agent') are overlapping the agent status labels, making both the labels and the buttons difficult to read/interact with. — Agent status grid, right side
+  - (minor) clipping: The 'DISCOVERY' panel on the right appears to be clipping into the main console text area or is positioned awkwardly over the terminal output. — Bottom right of the main content area
+- **console--default--compact--firefox** [firefox / compact] status=reviewed score=Some(35) verdict=Some("fail")
+  - (critical) layout: The agent status cards are severely overlapping and colliding horizontally, making the text 'agent-1' through 'agent-8' and their statuses unreadable. — Center-right, below the secondary navigation bar
+  - (major) occlusion: The 'Discovery' panel is floating over the main console output and the agent status row, obscuring content. — Bottom right quadrant
+  - (minor) clipping: The text 'agent-8' and 'agent-9' (partially visible) are clipped by the edge of the viewport/container. — Middle right edge
+- **console--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) layout: The agent status cards are severely collapsed and overlapping. Text labels like 'agent-1', 'agent-2', etc., are overlapping with status text ('queued', 'running'), and the cards are squashed horizontally, making them unreadable. — Top of the main console workspace area, below the 'CONSOLE' tab
+  - (major) occlusion: The 'copy last block' and 'send to agent' buttons are overlapping with the 'agent-9' card, causing a z-index/layout collision. — Right side of the agent status row
+  - (minor) clipping: The 'agent-9' text is partially clipped by the adjacent action buttons. — Right side of the agent status row
 - **console--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) occlusion: The 'copy last block' and 'send to agent' action buttons are overlapping and partially obscuring the 'agent-9' status card and the 'DISCOVERY' panel header. — Top right of the main console content area
-  - (major) layout: The agent status cards (agent-1 through agent-9) are severely compressed vertically, causing the status text (e.g., 'running', 'queued') to overlap with the agent names and the container boundaries. — Horizontal agent status bar below the tab bar
-  - (minor) clipping: The 'DISCOVERY' panel on the right appears to be clipped or improperly layered, with its left border cutting into the agent status row. — Right side panel
-  - (minor) layout: Axe-core reported invalid ARIA child (button inside tablist), which correlates to the 'Close Console' button being incorrectly placed within the tab navigation structure. — Console tab in the workbench tab bar
-- **console--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **console--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **console--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Close Console' button is incorrectly nested as a direct child of a role='tablist' container, violating ARIA structure requirements. — Console tab bar, right side of 'CONSOLE' tab
-  - (minor) contrast: Low contrast on secondary metadata text (e.g., 'queued', 'running' status labels under agent names) against the dark background. — Agent status row above terminal output
+  - (major) occlusion: The 'copy last block' and 'send to agent' action buttons are overlapping and occluding the agent status cards (agent-8 and agent-9), making the status information unreadable. — Top right of the main console content area
+  - (major) clipping: The agent status cards (agent-1 through agent-9) are vertically clipped, cutting off the bottom half of the status text (e.g., 'queued', 'running'). — Agent status row above the terminal output
+  - (minor) layout: The 'DISCOVERY' panel on the right appears to be floating or incorrectly positioned, overlapping the terminal background area without clear container boundaries. — Right side of the main workspace
+- **console--default--wide--chromium** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'copy last block' and 'send to agent' buttons on the right side of the agent status bar are partially clipped by the right-hand 'DISCOVERY' panel container. — top right of the main console content area
+  - (minor) layout: The agent status chips (agent-1 through agent-9) are tightly packed and appear to be pushing the action buttons into the sidebar area, suggesting a lack of responsive wrapping or overflow handling for the agent list. — agent status bar
+- **console--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+- **console--default--wide--firefox** [firefox / wide] status=reviewed score=Some(100) verdict=Some("pass")
 
 ## coverage
 
-- **coverage--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **coverage--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'MESH' value '3 peers' and 'MODEL' value 'auto-route' in the secondary header bar are very tightly packed, with the 'auto-route' text appearing slightly cramped against its container boundaries in the compact viewport. — Secondary header bar, right side (MESH/MODEL sections)
-  - (minor) layout: The 'Generic form: 0' pill has a different border/background style (solid blue-ish) compared to the other status pills (outlined), which may be an intentional state but lacks visual consistency with the 'Curated' and 'Live backend' pills. — Surface Coverage filter pills
-- **coverage--default--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **coverage--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Close Coverage' button (X) is incorrectly nested as a direct child of a role='tablist' container, violating ARIA structure rules. — Workbench tab bar, 'COVERAGE' tab
-  - (minor) contrast: The 'Unrepresented: 73' pill has very low contrast (grey text on dark background), making it difficult to read compared to the other status pills. — Surface Coverage filter bar
-  - (minor) clipping: The main content area (surface-scroll-viewport) is scrollable but lacks keyboard focusability, which may prevent keyboard-only users from scrolling the table content. — Main table viewport
-- **coverage--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **coverage--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **coverage--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'BUDGET' value '$12.34/$50.00' is struck through, which may be intentional for state but visually suggests a deletion or error in the data display context. — Top status bar, center
+  - (minor) layout: The 'MESH' and 'MODEL' labels in the secondary header have awkward vertical alignment/wrapping compared to 'AGENTS' and 'QUEUE', leading to inconsistent line heights. — Secondary header bar
+  - (minor) clipping: The 'COVERAGE' tab in the main content area has a close 'x' icon that is very tight against the right border, suggesting insufficient padding. — Tab bar above 'SURFACE COVERAGE' heading
+- **coverage--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MESH' and 'MODEL' labels in the secondary header bar are vertically misaligned with their corresponding values ('3 peers', 'auto-route'), and the 'auto-route' text appears slightly cramped within its container. — Secondary header bar, right side
+  - (minor) layout: The 'COVERAGE' tab in the main content area has a close 'x' icon that is very close to the right edge of the pill, suggesting insufficient padding for the compact viewport. — Tab bar above 'SURFACE COVERAGE' heading
+  - (minor) contrast: The 'Unrepresented' status tags in the table have very low contrast (grey text on dark grey background), making them difficult to read. — Main data table, 'Tier' column
+- **coverage--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The budget text '$12.34/$50.00' in the secondary header bar is struck through, which may be an intentional state but visually mimics a deletion or error in the data rendering. — Secondary header bar, center (Budget section)
+  - (minor) clipping: The 'COVERAGE' tab in the sidebar has a vertical gold indicator that appears slightly misaligned or cut off at the top compared to the 'SETTINGS' indicator above it. — Left sidebar, bottom 'SYSTEM' section
+- **coverage--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'build' version text in the bottom-left sidebar footer is partially clipped or very tightly constrained by the container edge. — bottom-left sidebar footer
+  - (minor) other: Scrollable region 'surface-scroll-viewport' is not keyboard accessible, which may prevent users from navigating the coverage table via keyboard. — main content area table
+- **coverage--default--wide--chromium** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) contrast: The 'Unrepresented: 73' and 'Live backend: 24' pill labels have low contrast (grey text on dark background), making them difficult to read compared to the active 'Generic form' and 'Curated' pills. — Surface Coverage filter bar
+  - (minor) other: Scrollable region accessibility issue: The main content viewport is scrollable but lacks keyboard focusability, which may prevent keyboard-only users from scrolling the table content. — div[data-testid="surface-scroll-viewport"]
+- **coverage--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'COVERAGE' tab label in the main content area has a close 'x' icon that is very close to the text, and the tab container appears slightly vertically cramped compared to the 'CHAT' tab. — Main content area, tab bar above 'SURFACE COVERAGE' heading
+  - (minor) layout: The 'LIVE' indicator in the top right header has a dropdown arrow that is slightly misaligned vertically relative to the 'LIVE' text pill. — Top right header utility bar
+  - (minor) contrast: The 'Unrepresented: 73' pill uses a dark grey background with white text which, while legible, has lower visual prominence than the interactive filters next to it, potentially obscuring its status as a filter/count. — Filter bar below 'SURFACE COVERAGE' title
 - **coverage--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'Coverage' tab in the workbench tab bar contains a close button (X) that appears slightly misaligned or cramped within the tab boundary, correlating with the axe-core finding regarding unallowed children in the tablist. — Workbench tab bar, 'Coverage' tab
-  - (minor) contrast: The 'Unrepresented' and 'Live backend' pill labels in the table rows have very low contrast against their dark backgrounds, making them difficult to read. — Main data table, 'Tier' column
+  - (minor) clipping: The 'COVERAGE' tab label in the sidebar is slightly vertically misaligned or clipped by its container's bottom padding/border compared to the 'SETTINGS' tab above it. — Bottom-left sidebar navigation
+  - (minor) contrast: The 'Unrepresented' and 'Live backend' pill labels in the table have very low contrast against their dark background, making them difficult to read. — Main data table, 'Tier' column
 
 ## dashboard
 
-- **dashboard--achievements-open--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **dashboard--achievements-open--compact--firefox** [firefox / compact] status=reviewed score=Some(15) verdict=Some("fail")
-  - (critical) occlusion: The 'ACHIEVEMENTS' modal/overlay is severely overlapping with the header and search bar, creating unreadable text collisions. — top center of the dashboard
-  - (critical) layout: Severe layout breakage within the Achievements card: 'Ascendant Centurio' stats (XP, peers, auto-route) are overlapping and vertically collapsed onto each other. — center right overlay
-  - (major) clipping: The 'SEARCH OR JUMP...' text and shortcut key indicator are being clipped and obscured by the Achievements title. — top center header
-  - (major) occlusion: A secondary 'LIVE' status badge and close icon are floating and overlapping the primary dashboard header elements. — top right of the main content area
-  - (minor) contrast: The 'Customize dashboard' text above the 'OPEN CHAT' button has extremely low contrast against the dark background. — middle right card
-- **dashboard--achievements-open--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **dashboard--achievements-open--laptop--firefox** [firefox / laptop] status=reviewed score=Some(35) verdict=Some("fail")
-  - (critical) occlusion: The 'Achievements' popover is severely overlapping the top header navigation, causing text collisions between 'ACHIEVEMENTS' and 'BUDGET SPEND' / '$0.00'. — Top right header area
-  - (major) occlusion: The 'OPEN CHAT' button is overlapping and partially obscured by the 'Customize dashboard' text/button, making both difficult to interact with. — Right side of 'Submit Tasks in Chat' card
-  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty except for a placeholder error message 'Workspace scan unavailable — the town cannot render.' — Bottom half of the dashboard
-  - (minor) layout: The 'LIVE' status indicator in the achievements popover is overlapping the '800 to next' XP text. — Achievements popover, right side of progress bar
-  - (minor) contrast: The vertical divider line splitting the screen into two different brightness levels creates significant legibility issues for text crossing the boundary. — Center vertical axis of the screen
-- **dashboard--achievements-open--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **dashboard--achievements-open--wide--firefox** [firefox / wide] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) occlusion: Severe z-index/layering failure: The 'ACHIEVEMENTS' panel is rendered with transparency or incorrect blending, causing it to overlap and ghost through the header elements (OpenRouter Spend, Search bar). — Top right quadrant, overlaying header
-  - (major) occlusion: The 'Customize dashboard' tooltip/popover is occluding the 'OPEN CHAT' button, making the primary call-to-action difficult to read and potentially interact with. — Right side, middle section of the dashboard
-  - (major) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is completely blank/black with a fallback message 'Workspace scan unavailable — the town cannot render.', indicating a failure to load primary visual content for this state. — Center large panel
-  - (minor) layout: The 'BUDGET SPENT' and 'MESH PEERS' cards have an empty/collapsed card between them, creating an inconsistent grid layout. — Middle row of metric cards
-  - (minor) clipping: The 'LIVE' indicator badge in the achievements panel is partially overlapping the '800 to next' text. — Top right achievements overlay
-- **dashboard--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **dashboard--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) occlusion: The 'Customize dashboard' tooltip or label is partially occluding the 'OPEN CHAT' button in the 'Submit Tasks in Chat' banner. — Right side of the 'Submit Tasks in Chat' blue banner
-  - (minor) clipping: The 'MESH PEERS' value '0' in the dashboard card is misaligned or clipped compared to the other metric cards (Active Agents, Queue Depth, Budget Spent). — Bottom right metric card 'MESH PEERS'
-  - (minor) layout: The 'DASHBOARD' tab in the workbench tab bar contains a close button that triggers an ARIA role violation (aria-required-children), indicating a structural mismatch between the tablist role and its interactive children. — Workbench tab bar, 'DASHBOARD' tab
-- **dashboard--default--laptop--chromium** [chromium / laptop] status=cached score=Some(75) verdict=Some("fail")
-- **dashboard--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+- **dashboard--achievements-open--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The Achievements panel contains a large empty region below the primary stat card where achievement list items or history are expected to render. — Right-side Achievements slide-out panel
+  - (minor) clipping: The 'BUDGET' text in the horizontal sub-navigation bar is truncated by the edge of the Achievements panel overlay. — Top-center sub-navigation bar, behind overlay
+- **dashboard--achievements-open--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The text 'ASCENDANT CENTURIO' appears to be truncated or missing the final 'N' (likely intended to be CENTURION) due to the container width or character limit. — Achievements modal, header of the gold progress card
+  - (minor) blank: Large empty region in the lower half of the Achievements modal where list items or historical data would typically be expected. — Achievements modal, center body area
+- **dashboard--achievements-open--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: Text 'Workspace scan unavailable' is horizontally truncated by the right edge of the container panel behind the Achievements overlay. — Center-right, Workspace Simulation Mini-Map panel
+  - (minor) clipping: The 'Submit Tasks in Chat' description text is cut off mid-sentence by the right edge of the dashboard container. — Top-center, Submit Tasks card
+- **dashboard--achievements-open--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The text 'Workspace scan unavailabl' is truncated at the edge of the container, missing the final 'e'. — Bottom center, Workspace Simulation Mini-Map panel
+  - (minor) clipping: The text 'MESH 3 pee' in the dashboard header is truncated, likely intended to be 'peers'. — Top center, secondary navigation bar
+  - (minor) clipping: The text 'The Loquela composer lives on the Chat surface — open it to describe wo' is truncated mid-word. — Center, 'Submit Tasks in Chat' card
+- **dashboard--achievements-open--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The text 'Workspace scan unavailable — the town cannot rend...' is truncated mid-sentence without an ellipsis, suggesting the container is too small for the error message. — Center-right, Workspace Simulation Mini-Map panel
+  - (minor) blank: The Achievements side panel contains a large empty region below the primary stats card, despite the header indicating 'Achievements' (plural) and level progress. — Right-side Achievements panel
+- **dashboard--achievements-open--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The text 'Workspace scan unavailable — the town cannot rend...' is truncated mid-sentence without an ellipsis, suggesting the container is too small for the error message. — Center-right of the 'WORKSPACE SIMULATION MINI-MAP' panel
+  - (minor) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is entirely black/empty except for a single line of error text, failing to render the expected visual data. — Main content area, middle section
+- **dashboard--default--compact--chromium** [chromium / compact] status=reviewed score=Some(78) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button, making the button text difficult to read and suggesting a z-index or positioning conflict. — Top right of the 'SUBMIT TASKS IN CHAT' card
+  - (major) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is completely black/empty, failing to render the expected simulation content or placeholder graphics. — Bottom half of the main content area
+  - (minor) clipping: The 'MESH PEERS' metric shows '0' in the card, but the summary bar above it indicates '3 peers', suggesting a data synchronization or rendering mismatch between the summary and the detail card. — Metric cards vs top summary bar
+  - (minor) clipping: The 'auto-route' text in the summary bar is wrapped awkwardly/tightly compared to other elements in the horizontal list. — Top summary bar, MODEL section
+- **dashboard--default--compact--firefox** [firefox / compact] status=reviewed score=Some(82) verdict=Some("fail")
+  - (major) occlusion: The 'Open Chat' button and its container are overlapping and obscuring the 'Customize dashboard' text link. — Top right of the 'Submit Tasks in Chat' banner
+  - (minor) clipping: The 'Mesh Peers' value in the summary card (0) appears vertically misaligned or partially clipped by the bottom of its internal container compared to other metric cards. — Bottom right metric card 'Mesh Peers'
+  - (minor) layout: The 'Mesh Peers' count in the top horizontal status bar shows '3 peers' while the dashboard metric card below shows '0', suggesting a data synchronization or rendering lag in the compact view. — Top status bar vs Bottom metric cards
+- **dashboard--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(75) verdict=Some("fail")
   - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and obscuring the 'OPEN CHAT' button text, making both difficult to read. — Top right of the 'SUBMIT TASKS IN CHAT' banner
-  - (major) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty and displaying a fallback error message: 'Workspace scan unavailable — the town cannot render.' — Bottom half of the main dashboard content area
-  - (minor) layout: The 'OPEN CHAT' button text appears vertically misaligned or cramped within its container due to the overlapping element. — Action button within the blue informational banner
-- **dashboard--default--wide--chromium** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
-- **dashboard--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
-- **dashboard--default--wide--firefox** [firefox / wide] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) occlusion: The 'OPEN CHAT' button is overlapping and partially obscuring the 'Customize dashboard' text label. — Top right of the 'Submit tasks in Chat' banner
-  - (major) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty with a placeholder error message 'Workspace scan unavailable — the town cannot render.' — Center of the dashboard
-  - (minor) clipping: The 'DASHBOARD' tab in the workbench tab bar contains a close button that is flagged by accessibility scans as an invalid child of a tablist, potentially causing screen reader navigation issues. — Workbench tab bar, 'DASHBOARD' tab
-  - (minor) contrast: The 'Customize dashboard' text has very low contrast against the dark background, making it difficult to read. — Top right of the 'Submit tasks in Chat' banner
-- **dashboard--empty--compact--chromium** [chromium / compact] status=cached score=Some(45) verdict=Some("fail")
-- **dashboard--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(20) verdict=Some("fail")
-  - (critical) error-leak: Raw JavaScript TypeError visible in UI: 'TypeError: can't access property "session_id", s is null'. — Right-side dashboard widgets (Budget Spent and Mesh Peers areas)
-  - (major) occlusion: Error message overlays and occludes multiple dashboard widgets (Budget Spent, Mesh Peers, and Workspace Simulation Mini-Map). — Lower right quadrant of the dashboard
-  - (major) layout: The 'Customize dashboard' button is overlapping the 'OPEN CHAT' button within the 'Submit Tasks in Chat' card. — Top right of the main content card
-  - (minor) other: Axe-core accessibility violation: Tablist contains an invalid child element (button[aria-label='Close Dashboard']) which breaks ARIA parent-child relationship requirements. — Workbench tab bar (Dashboard tab)
-- **dashboard--empty--laptop--chromium** [chromium / laptop] status=cached score=Some(35) verdict=Some("fail")
-- **dashboard--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(35) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications displaying raw JavaScript exceptions: 'TypeError: can't access property "session_id", s is null'. — Bottom right overlaying the Workspace Simulation Mini-Map
-  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and obscuring the 'OPEN CHAT' button text. — Right side of the 'Submit Tasks in Chat' banner
-  - (major) blank: The Workspace Simulation Mini-Map fails to render, showing a 'Workspace scan unavailable' message, likely linked to the session_id null errors. — Main content area, bottom panel
-  - (minor) clipping: The text 'the town cannot render' is partially obscured or clipped by the error toast notifications. — Center of the Workspace Simulation Mini-Map panel
-- **dashboard--empty--wide--chromium** [chromium / wide] status=cached score=Some(45) verdict=Some("fail")
-- **dashboard--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right overlay
-  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button text. — Top right of the main content area, within the 'Submit tasks in Chat' banner
-  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty with a placeholder message 'Workspace scan unavailable — the town cannot render', indicating a failure to load primary visual content. — Center of the dashboard
-  - (minor) clipping: The 'OPENROUTER SPEND' value is rendered as a single dash '—' which may indicate a data loading failure or missing fallback value. — Top header, second metric card
-- **dashboard--error--compact--chromium** [chromium / compact] status=cached score=Some(45) verdict=Some("fail")
-- **dashboard--error--compact--firefox** [firefox / compact] status=reviewed score=Some(35) verdict=Some("fail")
-  - (critical) occlusion: Multiple error overlays ('CHAT SESSIONS simulated IPC failure') are overlapping and obscuring the dashboard metric cards (Budget Spent, Mesh Peers) and the Workspace Simulation panel. — Bottom right quadrant of the main content area
-  - (major) layout: The 'Customize dashboard' button and 'OPEN CHAT' call-to-action are overlapping each other within the 'SUBMIT TASKS IN CHAT' banner. — Top right of the blue informational banner
-  - (major) error-leak: Raw mock error strings '[mock-error] chat_list_sessions' are displayed directly to the user, correlating with console errors regarding hopper_list unavailability. — Error overlay panels
-  - (minor) clipping: The 'BUDGET SPENT' card content is partially clipped/obscured by the overlapping error toast. — Third metric card from the left
-- **dashboard--error--laptop--chromium** [chromium / laptop] status=cached score=Some(45) verdict=Some("fail")
-- **dashboard--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) error-leak: Raw IPC failure error messages and mock-error strings are visible to the end user in the UI notifications. — Right-side notification stack within the Workspace Simulation Mini-Map panel
-  - (major) occlusion: The 'Open Chat' button is overlapping and partially obscured by the 'Customize dashboard' text/container, creating a z-index or layout conflict. — Top right of the 'Submit Tasks in Chat' banner
-  - (major) blank: The Workspace Simulation Mini-Map is failing to render content, displaying a 'Workspace scan unavailable' fallback message correlated with console errors. — Main content area, Workspace Simulation Mini-Map panel
-  - (minor) clipping: The text 'the town cannot render' is partially clipped or cut off by the notification overlay. — Center of the Workspace Simulation Mini-Map panel
-  - (minor) layout: The 'DASHBOARD' tab in the workbench tab bar contains a close button that violates ARIA parent-child relationships (as noted in programmatic findings), potentially breaking screen reader navigation. — Workbench tab bar, 'DASHBOARD' tab
-- **dashboard--error--wide--chromium** [chromium / wide] status=cached score=Some(45) verdict=Some("fail")
-- **dashboard--error--wide--firefox** [firefox / wide] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) occlusion: Two error toast notifications ('CHAT SESSIONS') are overlapping the bottom-right content of the 'Workspace Simulation Mini-Map' and the 'Resources' section. — Bottom right quadrant
-  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty except for an error message ('Workspace scan unavailable'), correlating with console errors regarding hopper_list unavailability. — Center, Workspace Simulation Mini-Map panel
-  - (minor) occlusion: The 'Customize dashboard' tooltip or label is partially overlapping the 'OPEN CHAT' button text. — Top right of the 'Submit tasks in Chat' banner
-  - (minor) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are visible to the user in the toast notifications. — Bottom right toast notifications
-  - (minor) clipping: The 'OPEN CHAT' button text appears vertically misaligned or slightly clipped by its container's top border. — Top right banner button
-- **dashboard--focus-visible--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **dashboard--focus-visible--compact--firefox** [firefox / compact] status=reviewed score=Some(82) verdict=Some("fail")
-  - (major) occlusion: The 'Open Chat' button and its container are overlapping and partially obscuring the 'Customize dashboard' text and the right edge of the 'Submit Tasks in Chat' card. — Top right of the main content card
-  - (minor) clipping: The 'Mesh Peers' value '0' in the dashboard metric card appears misaligned or partially clipped by the card's internal padding/border compared to other metric cards. — Bottom right metric card (Mesh Peers)
-  - (minor) layout: The 'Customize dashboard' text is floating without clear container alignment, likely due to the compact viewport forcing elements to wrap or overlap incorrectly. — Top right of the 'Submit Tasks in Chat' section
-- **dashboard--focus-visible--laptop--chromium** [chromium / laptop] status=cached score=Some(75) verdict=Some("fail")
-- **dashboard--focus-visible--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) occlusion: The 'OPEN CHAT' button is overlapping and partially obscuring the 'Customize dashboard' text/control in the top right of the 'SUBMIT TASKS IN CHAT' banner. — Top right of the blue 'SUBMIT TASKS IN CHAT' card
-  - (minor) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty with a placeholder error message 'Workspace scan unavailable — the town cannot render.' — Bottom half of the main dashboard content area
-  - (minor) clipping: The 'OPEN CHAT' button text appears vertically misaligned or slightly clipped within its container. — Button inside the 'SUBMIT TASKS IN CHAT' banner
-- **dashboard--focus-visible--wide--chromium** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
-- **dashboard--focus-visible--wide--firefox** [firefox / wide] status=reviewed score=Some(75) verdict=Some("fail")
+  - (minor) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel fails to render content, displaying a fallback message 'Workspace scan unavailable — the town cannot render.' — Bottom main content area
+  - (minor) clipping: The 'MESH PEERS' metric shows '0' in green, but the layout suggests a mismatch or potential data inconsistency compared to the 'MESH 3 peers' indicator in the sub-header above it. — Metric cards row vs sub-header
+- **dashboard--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button text. — Top right of the 'SUBMIT TASKS IN CHAT' banner
+  - (major) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty and displaying a fallback error message: 'Workspace scan unavailable — the town cannot render.' — Bottom main content area
+  - (minor) clipping: The 'MESH PEERS' metric shows '0' in green, but the layout suggests a mismatch or missing data compared to the top status bar which indicates '3 peers'. — Metric cards row, far right
+- **dashboard--default--wide--chromium** [chromium / wide] status=reviewed score=Some(82) verdict=Some("pass_with_notes")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and obscuring the 'OPEN CHAT' button text, making both difficult to read. — Top right of the 'Submit Tasks in Chat' banner
+  - (minor) blank: The 'Workspace Simulation Mini-Map' panel is empty with a placeholder message 'Workspace scan unavailable — the town cannot render.' — Center of the dashboard
+  - (minor) clipping: The 'OPENROUTER SPEND' and 'PENDING APPROVALS' sparkline charts appear to be slightly clipped by their container boundaries on the right side. — Top header metric cards
+- **dashboard--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(78) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' text is overlapping and occluding the 'OPEN CHAT' button, making both labels difficult to read and suggesting a z-index or layout container conflict. — Top right of the 'Submit Tasks in Chat' banner
+  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty with a placeholder error message 'Workspace scan unavailable — the town cannot render.', indicating a failure to load primary visual content for this dashboard state. — Center main content area
+  - (minor) clipping: The 'MESH' value in the secondary header shows '3 peers' while the 'MESH PEERS' metric card below shows '0', suggesting a data synchronization issue or clipping of updated state. — Sub-header vs Metric Card
+- **dashboard--default--wide--firefox** [firefox / wide] status=reviewed score=Some(82) verdict=Some("pass_with_notes")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and obscuring the 'OPEN CHAT' button text, making it difficult to read. — Top right of the 'Submit tasks in Chat' banner
+  - (minor) blank: The 'Workspace Simulation Mini-Map' panel is empty with a placeholder message 'Workspace scan unavailable — the town cannot render.' while other dashboard metrics are populated. — Center of the screen, large rectangular panel
+- **dashboard--empty--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) occlusion: The 'Customize dashboard' tooltip or label is partially overlapping the 'OPEN CHAT' button container, creating a cluttered visual stack. — Right side of the 'Submit Tasks in Chat' card
+  - (minor) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is completely black/empty despite the UI state suggesting an active dashboard view. — Bottom half of the main content area
+- **dashboard--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(82) verdict=Some("fail")
+  - (major) occlusion: The 'Open Chat' button and its container are overlapping and partially obscuring the 'Customize dashboard' text link. — Top right of the 'Submit Tasks in Chat' card
+  - (minor) clipping: The 'Budget' value in the secondary header is clipped/truncated as '$0.00/-', where the trailing characters are cut off by the container boundary. — Horizontal stats bar, Budget section
+  - (minor) layout: The '0' badge in the 'AGENTS' sidebar menu item is vertically misaligned (too high) relative to the menu text. — Left sidebar, AGENTS menu item
+- **dashboard--empty--laptop--chromium** [chromium / laptop] status=reviewed score=Some(82) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and obscuring the 'OPEN CHAT' button text, making both elements difficult to read. — top right of the 'Submit Tasks in Chat' card
+  - (minor) clipping: The 'OPENROUTER SPEND' progress bar/indicator appears vertically clipped or improperly aligned within its container. — top header, right of the search bar
+  - (minor) contrast: The 'Workspace scan unavailable' text has very low contrast against the dark background, impacting legibility. — center of the Workspace Simulation Mini-Map panel
+- **dashboard--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button text. — Top right of the 'SUBMIT TASKS IN CHAT' card
+  - (minor) clipping: The 'OPEN CHAT' button text appears vertically misaligned or clipped within its container, causing the bottom of the letters to look cut off. — Blue button inside the 'SUBMIT TASKS IN CHAT' card
+  - (minor) blank: The Workspace Simulation Mini-Map displays a 'scan unavailable' message, which may indicate a rendering failure in this specific state despite the 'empty' state setup. — Bottom main panel
+- **dashboard--empty--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button text. — Top right of the 'SUBMIT TASKS IN CHAT' banner
+  - (minor) clipping: The 'OPENROUTER SPEND' value is rendered as an em-dash or is clipped/missing actual numerical data despite the label being present. — Top header, third module from the left
+- **dashboard--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(82) verdict=Some("fail")
   - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button text, making both difficult to read. — Top right of the 'Submit tasks in Chat' banner
-  - (minor) blank: The 'Workspace Simulation Mini-Map' panel is empty with a placeholder message 'Workspace scan unavailable — the town cannot render', indicating a failure to load the primary visual component of this section. — Center of the dashboard
-  - (minor) contrast: The 'MESH PEERS' value '0' in the status card has very low contrast (dark green on dark grey), making it nearly invisible compared to other metrics. — Metric cards row, far right card
-  - (minor) layout: The 'DASHBOARD' tab in the workbench tab bar contains a close button that is flagged by automated tools as an invalid child of a role='tablist', causing accessibility tree corruption. — Workbench tab bar, 'DASHBOARD' item
-- **dashboard--hud-hidden--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **dashboard--hud-hidden--compact--firefox** [firefox / compact] status=reviewed score=Some(75) verdict=Some("fail")
-  - (critical) other: ARIA role 'tablist' contains a 'button' as a direct child, which is invalid per WCAG/ARIA standards (requires 'tab' roles). — Workbench tab bar containing 'Dashboard' tab
-  - (major) occlusion: The 'Open Chat' button container is overlapping and partially obscuring the 'Customize dashboard' text label. — Top right of the 'Submit Tasks in Chat' card
-  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty and displaying a fallback error message ('Workspace scan unavailable — the town cannot render.') instead of the expected graphical content. — Bottom half of the dashboard content area
-  - (minor) clipping: The 'Mesh Peers' metric value '0' appears slightly misaligned or clipped at the bottom relative to the other metric cards. — Bottom right metric card
-- **dashboard--hud-hidden--laptop--chromium** [chromium / laptop] status=cached score=Some(75) verdict=Some("fail")
+  - (minor) contrast: The 'Workspace scan unavailable' text in the mini-map panel has very low contrast against the dark background, impacting legibility. — Center of the Workspace Simulation Mini-Map panel
+  - (minor) blank: The 'OpenRouter Spend' metric in the top header displays a dash (—) instead of a value or a zero, which may indicate a data loading failure or unhandled empty state compared to other zero-filled metrics. — Top header, second metric column
+- **dashboard--error--compact--chromium** [chromium / compact] status=reviewed score=Some(45) verdict=Some("fail")
+  - (major) error-leak: Raw internal IPC error messages ('Error: [mock-error] chat_list_sessions simulated IPC failure') are displayed directly to the user in toast notifications. — Bottom right toast notifications
+  - (major) occlusion: Stacked toast notifications are overlapping each other and partially obscuring the 'Workspace Simulation Mini-Map' panel header. — Right side of the dashboard content area
+  - (minor) clipping: The 'Customize dashboard' text is partially clipped by the top edge of the 'Open Chat' button container. — Top right of the 'Submit Tasks in Chat' card
+  - (minor) blank: The 'Workspace Simulation Mini-Map' panel is completely black/empty, likely failing to render due to the reported IPC errors. — Bottom center/right main panel
+- **dashboard--error--compact--firefox** [firefox / compact] status=reviewed score=Some(25) verdict=Some("fail")
+  - (critical) occlusion: Multiple error toast/dialog overlays are stacked directly on top of the dashboard metric cards, making the 'Budget Spent' and 'Mesh Peers' data unreadable. — Bottom right quadrant, metrics grid
+  - (major) layout: The 'Chat Sessions' error panels are overlapping each other and the underlying grid containers, indicating a failure in the portal or toast positioning logic in compact view. — Right side, main content area
+  - (minor) error-leak: Raw error strings '[mock-error] chat_list_sessions simulated IPC failure' are displayed directly to the user. — Error overlay panels
+  - (minor) clipping: The 'Customize dashboard' button text is partially obscured by the 'OPEN CHAT' button overlay. — Top right of the 'Submit Tasks in Chat' card
+- **dashboard--error--laptop--chromium** [chromium / laptop] status=reviewed score=Some(45) verdict=Some("fail")
+  - (major) error-leak: Raw IPC failure error messages ('Error: [mock-error] chat_list_sessions simulated IPC failure') are displayed directly to the user in toast notifications. — Bottom right toast notifications
+  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty and displays a 'Workspace scan unavailable' message, correlating with the console IPC failures. — Center bottom main content area
+  - (minor) occlusion: The 'OPEN CHAT' button text is partially occluded by the 'Customize dashboard' tooltip/label overlay. — Top right of the 'Submit Tasks' card
+  - (minor) clipping: The text 'Workspace scan unavailable — the town ca...' is truncated/clipped by the edge of the container or the toast overlay. — Center of the Workspace Simulation Mini-Map
+- **dashboard--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(45) verdict=Some("fail")
+  - (major) occlusion: The 'OPEN CHAT' button is overlapping and partially obscured by the 'Customize dashboard' tooltip/label, making both hard to read. — Top right of the 'SUBMIT TASKS IN CHAT' banner
+  - (major) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty, displaying only a placeholder message 'Workspace scan unavailable — the town cannot render.' — Center bottom large panel
+  - (major) error-leak: Multiple toast notifications are visible showing raw IPC failure error messages: 'Error: [mock-error] chat_list_sessions simulated IPC failure'. — Right side of the Workspace Simulation panel
+  - (minor) clipping: The text 'the town cannot render.' in the mini-map area is partially occluded by an error toast icon. — Center bottom panel, right side of text
+- **dashboard--error--wide--chromium** [chromium / wide] status=reviewed score=Some(45) verdict=Some("fail")
+  - (critical) error-leak: Raw IPC failure error messages with internal mock-error strings are displayed in toast notifications, correlating with the console's hopper_list/chat_list failures. — Bottom right toast notifications
+  - (major) blank: The 'Workspace Simulation Mini-Map' panel is completely blank/black with a 'Workspace scan unavailable' message, indicating a failure to render core visual content. — Center screen, Mini-Map panel
+  - (major) occlusion: The 'Customize dashboard' tooltip or popover is overlapping and partially obscuring the 'OPEN CHAT' button. — Top right of the main content area, below the header
+  - (minor) clipping: The 'OPEN CHAT' button text appears vertically cramped or slightly clipped by its own container border. — Button inside the 'Submit Tasks in Chat' banner
+- **dashboard--error--wide--firefox** [firefox / wide] status=reviewed score=Some(45) verdict=Some("fail")
+  - (major) blank: The 'Workspace Simulation Mini-Map' panel is entirely blank except for a placeholder error message, indicating a failure to render the primary visual component of this view. — Center main content area
+  - (major) error-leak: Raw mock error text 'Error: [mock-error] chat_list_sessions simulated IPC failure' is visible in toast notifications, exposing internal implementation details to the UI. — Bottom right toast notifications
+  - (minor) occlusion: The 'Customize dashboard' tooltip or label is overlapping the 'OPEN CHAT' button, making the text difficult to read and the button partially obscured. — Top right of the 'Submit Tasks in Chat' banner
+  - (minor) layout: Duplicate toast notifications for 'CHAT SESSIONS' error appearing simultaneously in the same stack. — Bottom right
+- **dashboard--focus-visible--compact--chromium** [chromium / compact] status=reviewed score=Some(78) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button, making the button text difficult to read and creating a messy visual stack. — Right side of the 'SUBMIT TASKS IN CHAT' banner
+  - (minor) clipping: The 'MESH PEERS' metric card shows a value of '0' while the summary bar above indicates '3 peers', suggesting a data mismatch or clipping of the actual value in the card. — Metric cards row, far right
+  - (minor) layout: The 'MODEL' value 'auto-route' is hyphenated awkwardly across two lines despite available horizontal space in the summary bar. — Top summary bar, right side
+  - (minor) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel appears as a large empty black region, failing to render the expected graphical content. — Bottom half of the main content area
+- **dashboard--focus-visible--compact--firefox** [firefox / compact] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) occlusion: The 'Open Chat' button is overlapping and partially obscuring the 'Customize dashboard' text label. — Top right of the 'Submit Tasks in Chat' card
+  - (major) blank: The 'Workspace Simulation Mini-Map' panel is completely blank/black, failing to render the expected simulation content. — Bottom half of the main content area
+  - (minor) clipping: The 'Mesh Peers' metric in the summary bar shows '3 peers' while the corresponding dashboard card shows '0', suggesting a data synchronization or clipping issue in the card's value rendering. — Summary bar vs Mesh Peers card
+- **dashboard--focus-visible--laptop--chromium** [chromium / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) occlusion: The 'OPEN CHAT' button is overlapping and partially obscured by a 'Customize dashboard' tooltip or label, making the text illegible. — Top right of the 'SUBMIT TASKS IN CHAT' banner
+  - (minor) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty with a placeholder error message 'Workspace scan unavailable — the town cannot render.' — Bottom main content area
+  - (minor) layout: The 'COMPUTE' menu item in the sidebar has a focus ring/border that appears thicker or misaligned compared to the standard navigation state of 'AGENTS'. — Left sidebar, COMPUTE item
+- **dashboard--focus-visible--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and obscuring the 'OPEN CHAT' button text, making it unreadable. — Top right of the 'Submit Tasks in Chat' card
+  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty with a placeholder error message 'Workspace scan unavailable — the town cannot render.' — Bottom main content area
+  - (minor) clipping: The 'MESH PEERS' value '0' is colored green but appears slightly misaligned or clipped by the bottom border of its container compared to other metric cards. — Metric card row, far right
+- **dashboard--focus-visible--wide--chromium** [chromium / wide] status=reviewed score=Some(82) verdict=Some("pass_with_notes")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button text. — Top right of the 'SUBMIT TASKS IN CHAT' banner
+  - (minor) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty with a placeholder error message 'Workspace scan unavailable — the town cannot render.' — Center of the dashboard
+  - (minor) clipping: The 'COMPUTE' menu item in the sidebar has a focus ring that appears slightly clipped or inconsistent with the border-radius of the container. — Left sidebar, COMPUTE navigation item
+- **dashboard--focus-visible--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button text. — Top right of the 'Submit tasks in Chat' banner
+  - (minor) blank: The 'Workspace Simulation Mini-Map' panel is empty with a placeholder message 'Workspace scan unavailable — the town cannot render.' — Center of the dashboard
+- **dashboard--hud-hidden--compact--chromium** [chromium / compact] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button text. — top right of the main content card
+  - (major) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty and displaying a fallback error message: 'Workspace scan unavailable — the town cannot render.' — bottom half of the dashboard content area
+  - (minor) clipping: The 'MESH PEERS' value in the header stats bar is vertically misaligned and appears to be wrapping or clipped within the narrow horizontal container. — top header stats bar, mesh section
+- **dashboard--hud-hidden--compact--firefox** [firefox / compact] status=reviewed score=Some(78) verdict=Some("fail")
+  - (major) occlusion: The 'OPEN CHAT' button container is overlapping and partially obscuring the 'Customize dashboard' text label. — top right of the 'Submit Tasks in Chat' card
+  - (major) blank: The 'Workspace Simulation Mini-Map' panel is failing to render content, displaying a fallback error message 'Workspace scan unavailable — the town cannot render.' — bottom main content area
+  - (minor) clipping: The 'MESH PEERS' metric shows a value of '0' in the card, but the header summary bar indicates '3 peers', suggesting a data synchronization or rendering mismatch. — Mesh Peers card vs Header summary
+- **dashboard--hud-hidden--laptop--chromium** [chromium / laptop] status=reviewed score=Some(72) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button, creating a z-index or layout conflict. — Top right of the 'Submit Tasks in Chat' card
+  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty except for a placeholder error message ('Workspace scan unavailable — the town cannot render'), indicating a failure to load the primary visual component of this section. — Center large panel
+  - (minor) clipping: The 'BUDGET' value in the top status bar has a horizontal line striking through the text '$12.34/$50.00', which appears to be a rendering artifact or unintended CSS decoration. — Top status bar, budget section
 - **dashboard--hud-hidden--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) occlusion: A 'Customize dashboard' tooltip or popover is overlapping and partially obscuring the 'OPEN CHAT' button, creating a z-index conflict. — Top right of the 'Submit Tasks in Chat' banner
-  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty and displaying a fallback message ('Workspace scan unavailable — the town cannot render') instead of the expected visual data. — Center of the dashboard
-  - (minor) clipping: The 'MESH PEERS' metric shows '0' in the card, which contradicts the 'MESH 3 peers' status in the top header bar. — Dashboard metric cards vs Header status bar
-- **dashboard--hud-hidden--wide--chromium** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and obscuring the 'OPEN CHAT' button text. — Top right of the 'Submit Tasks in Chat' banner
+  - (major) blank: Workspace Simulation Mini-map panel is empty with a placeholder message 'Workspace scan unavailable — the town cannot render.' in a dashboard intended for dense data display. — Center large panel
+  - (minor) clipping: The 'Mesh Peers' metric shows '0' while the top status bar indicates '3 peers', suggesting a data synchronization or display logic error. — Mesh Peers card vs Top Status Bar
+- **dashboard--hud-hidden--wide--chromium** [chromium / wide] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button text. — Top right of the 'SUBMIT TASKS IN CHAT' banner
+  - (major) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty and displaying a fallback error message: 'Workspace scan unavailable — the town cannot render.' — Center of the dashboard
+  - (minor) clipping: The 'BUDGET' text in the top status bar has a horizontal line striking through the numerical values, which appears to be a rendering artifact or misaligned decoration. — Top status bar, budget section
 - **dashboard--hud-hidden--wide--firefox** [firefox / wide] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and obscuring the 'OPEN CHAT' button text, making it difficult to read. — top right of the 'Submit Tasks in Chat' banner
-  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty with a placeholder message 'Workspace scan unavailable — the town cannot render.', indicating a failure to load the primary visual component of this section. — center of the dashboard
-  - (minor) layout: The 'MESH PEERS' metric in the top row shows '0' while the global status bar at the very top indicates 'MESH 3 peers', suggesting a data synchronization or rendering inconsistency between components. — top metric cards vs global header
-- **dashboard--no-backend--wide--chromium** [chromium / wide] status=cached score=Some(30) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and obscuring the 'OPEN CHAT' button text, making it difficult to read. — Top right of the 'SUBMIT TASKS IN CHAT' banner
+  - (major) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty with a placeholder error message 'Workspace scan unavailable — the town cannot render.' — Center of the dashboard
+  - (minor) contrast: The 'no peers online' and 'documents indexed' subtext in the Resources cards has very low contrast against the dark background, impacting legibility. — Bottom Resources section cards
+- **dashboard--no-backend--wide--chromium** [chromium / wide] status=reviewed score=Some(45) verdict=Some("fail")
+  - (critical) blank: The 'Workspace Simulation Mini-Map' panel is completely blank (black) with a fallback message 'Workspace scan unavailable — the town cannot render', correlating with the 'vcs_town_status unavailable' console errors. — Center main content area
+  - (major) error-leak: Multiple 'Chat Sessions' toast notifications are visible with the generic message 'An unexpected error occurred', indicating unhandled backend failures. — Bottom right overlay
+  - (major) blank: The 'OpenRouter Spend' metric in the header shows a dash '—' instead of a value, and the 'Pending Approvals' shows 0 despite the backend being unavailable, which may be misleading. — Top header bar
+  - (minor) occlusion: The 'Customize dashboard' tooltip/label is overlapping the 'OPEN CHAT' button text, making both difficult to read. — Top right of the 'Submit Tasks in Chat' card
 - **dashboard--no-backend--wide--firefox** [firefox / wide] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) error-leak: Raw JavaScript execution errors (TypeError: can't access property "invoke") are visible in toast notifications, exposing internal implementation details (window.__TAURI_INTERNALS__). — Bottom right toast notifications
-  - (major) occlusion: The 'Customize dashboard' text is overlapping and partially obscured by the 'OPEN CHAT' button/banner. — Top right of the main content area, within the 'Submit tasks in Chat' card
-  - (major) blank: The 'Workspace Simulation Mini-Map' panel is entirely empty/black with a 'Workspace scan unavailable' message, correlating with the console errors regarding status unavailability. — Center of the dashboard
-  - (minor) clipping: The 'OPENROUTER SPEND' value is rendered as a single dash '—' which may indicate a data-load failure or clipping of a zero/null value. — Top header stats bar
-  - (minor) layout: The 'POLL' button in the sub-header appears misaligned or redundant relative to the secondary poll control in the top header. — Right side of the Agents/Queue/Budget sub-header
-- **dashboard--omnibar-open--compact--chromium** [chromium / compact] status=cached score=Some(92) verdict=Some("pass_with_notes")
+  - (major) occlusion: The 'Customize dashboard' text is overlapping and occluding the 'OPEN CHAT' button text, making both difficult to read. — Top right of the 'Submit tasks in Chat' banner
+  - (major) blank: The 'Workspace Simulation Mini-Map' panel is completely blank/black with a fallback message 'Workspace scan unavailable', correlating with the console errors regarding vcs_town_status. — Center dashboard area
+  - (major) error-leak: Multiple toast notifications for 'CHAT SESSIONS' displaying generic 'An unexpected error occurred' messages, correlating with hopper_list and fleet_status console errors. — Bottom right overlay
+  - (minor) clipping: The 'OPENROUTER SPEND' value is rendered as a single dash '—' which appears clipped or unpopulated compared to the label size. — Top header metric card
+- **dashboard--omnibar-open--compact--chromium** [chromium / compact] status=reviewed score=Some(90) verdict=Some("pass_with_notes")
+  - (minor) clipping: The placeholder text in the search input is truncated with an ellipsis ('docs...') despite there being significant horizontal space remaining within the input field container. — Omnibar search input
 - **dashboard--omnibar-open--compact--firefox** [firefox / compact] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) occlusion: The omnibar/command palette is semi-transparent, causing significant visual noise and legibility issues as the underlying dashboard text ('AGENTS', 'QUEUE', 'BUDGET') bleeds through the command list. — center, omnibar overlay
-  - (major) layout: Severe layout breakage within the omnibar results: 'CORPUS route' and 'CORPUS' labels are overlapping other text elements and the container border on the right side. — omnibar, right side of results list
-  - (minor) clipping: The 'Open Chat and focus the composer' subtext is partially obscured/clipped by the 'DASHBOARD' tab element underneath it due to transparency and z-index layering. — omnibar, bottom left of dropdown
-  - (minor) contrast: The 'Submit new task...' text has poor contrast against the busy background visible through the transparent modal. — omnibar, primary command text
-- **dashboard--omnibar-open--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **dashboard--omnibar-open--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) occlusion: The omnibar dropdown results are severely overlapping and colliding. The 'Submit new task...' text is superimposed over 'CHAT' and 'DASHBOARD' labels, making both layers of text unreadable. — Center-top, omnibar results area
-  - (major) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty with a placeholder error message 'Workspace scan unavailable — the town cannot render.', indicating a failure to load primary visual data. — Bottom half of the dashboard
-  - (minor) clipping: The 'DASHBOARD' tab label within the omnibar results is partially clipped by the container boundary or an adjacent element. — Omnibar dropdown, middle section
-  - (minor) layout: The 'CORPUS' badge/label appears twice in the omnibar results with inconsistent alignment, suggesting a layout calculation error in the list rendering. — Right side of omnibar dropdown
-- **dashboard--omnibar-open--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
+  - (major) occlusion: The 'Omnibar' modal is semi-transparent, causing significant visual noise and legibility issues as the underlying dashboard text (AGENTS, DASHBOARD, BUDGET) bleeds through the modal content. — Center screen, Omnibar overlay
+  - (major) layout: Text overlap/collision in the top right of the Omnibar results area where 'CORPUS route' and 'CORPUS' labels are overlapping with background dashboard elements and each other. — Omnibar, right-hand results section
+  - (minor) clipping: The 'Submit new task...' result item in the Omnibar appears to have its bottom border or container clipped by the 'CHAT DASHBOARD' tab element underneath it. — Omnibar, lower left results
+  - (minor) contrast: The secondary text 'Open Chat and focus the composer' inside the Omnibar has very low contrast against the dark, busy background. — Omnibar, result description
+- **dashboard--omnibar-open--laptop--chromium** [chromium / laptop] status=reviewed score=Some(100) verdict=Some("pass")
+- **dashboard--omnibar-open--laptop--firefox** [firefox / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) occlusion: The omnibar dropdown results are severely overlapping and colliding. The 'COMMANDS' header is overlapping with the 'AGENTS', 'QUEUE', and 'BUDGET' status indicators, making the text illegible. — Omnibar dropdown, upper-middle
+  - (major) occlusion: The 'Submit new task...' result item is overlapping with a 'DASHBOARD' tag and 'Open Chat and focus the composer' text, creating a stack of unreadable characters. — Omnibar dropdown, middle
+  - (minor) clipping: The 'CORPUS' pill in the omnibar results appears to be partially clipped or misaligned relative to the row it belongs to. — Omnibar dropdown, right side of results
+  - (minor) contrast: The text 'Workspace scan unavailable — the town cannot render.' has very low contrast against the dark background, making it difficult to read. — Workspace Simulation Mini-Map panel
+- **dashboard--omnibar-open--wide--chromium** [chromium / wide] status=reviewed score=Some(100) verdict=Some("pass")
 - **dashboard--omnibar-open--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The placeholder text in the omnibar search input is truncated with an ellipsis ('docs...') despite there being sufficient horizontal space within the highlighted input box to display more content. — Top center, Omnibar search input
-  - (minor) blank: The 'Workspace Simulation Mini-Map' panel is empty with a placeholder message 'Workspace scan unavailable — the town cannot render.' While this may be a state-dependent message, it results in a large blank region in the primary dashboard view. — Center, Workspace Simulation Mini-Map panel
-  - (minor) layout: The omnibar modal is positioned directly over the sub-navigation breadcrumbs and secondary header, causing significant visual occlusion of the underlying dashboard context. — Upper center, Omnibar overlay
-- **dashboard--sidebar-collapsed--compact--chromium** [chromium / compact] status=cached score=Some(65) verdict=Some("fail")
-- **dashboard--sidebar-collapsed--compact--firefox** [firefox / compact] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) occlusion: The 'Customize dashboard' button is overlapping and partially obscuring the 'OPEN CHAT' button, making both controls difficult to interact with and read. — Top right of the 'Submit tasks in Chat' banner
-  - (major) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty and displays a 'Workspace scan unavailable' error message, failing to render the primary visual content for this section. — Bottom half of the dashboard content area
-  - (minor) layout: The 'Mesh Peers' metric in the summary cards shows '0' while the global status bar above reports '3 peers', indicating a data synchronization or rendering inconsistency. — Summary cards vs Global status bar
-  - (minor) clipping: The 'DASHBOARD' tab in the workbench tab bar contains a close button that triggers an ARIA role violation (aria-required-children) because it is an invalid child of a tablist role. — Workbench tab bar, 'DASHBOARD' tab
-- **dashboard--sidebar-collapsed--laptop--chromium** [chromium / laptop] status=cached score=Some(75) verdict=Some("fail")
-- **dashboard--sidebar-collapsed--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button text. — Right side of the 'Submit Tasks in Chat' banner
-  - (major) clipping: The 'PENDING APPROVALS' text in the top header is severely truncated/clipped by the container boundary. — Top right header widget
-  - (minor) blank: The Workspace Simulation Mini-Map fails to render content, displaying a fallback message 'Workspace scan unavailable — the town cannot render.' — Bottom half of the dashboard
-  - (minor) layout: ARIA role mismatch in tab bar: a button element is incorrectly nested directly within a role='tablist' container without a role='tab' wrapper, violating accessibility structure. — Workbench tab bar / Dashboard tab
-- **dashboard--sidebar-collapsed--wide--chromium** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
+  - (minor) occlusion: The omnibar dropdown menu is partially occluding the 'AGENTS', 'QUEUE', 'BUDGET', and 'MESH' status text in the background dashboard layer, making that secondary information difficult to read while the search is active. — top center, behind omnibar
+  - (minor) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel displays a 'Workspace scan unavailable' message, resulting in a large empty black region in the center of the UI. — center, main content area
+- **dashboard--sidebar-collapsed--compact--chromium** [chromium / compact] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) occlusion: The 'OPEN CHAT' button is overlapping and partially obscuring the 'Customize dashboard' button/text, making both elements difficult to interact with and read. — Top right of the 'Submit Tasks in Chat' card
+  - (minor) clipping: The 'Customize dashboard' text is clipped by the right edge of its container/the 'OPEN CHAT' overlay. — Top right of the 'Submit Tasks in Chat' card
+  - (minor) blank: The 'WORKSPACE SIMULATION MINI-MAP' panel is empty with a placeholder message 'Workspace scan unavailable', which may indicate a data loading failure or unhandled state in this compact view. — Bottom main content area
+- **dashboard--sidebar-collapsed--compact--firefox** [firefox / compact] status=reviewed score=Some(72) verdict=Some("fail")
+  - (major) occlusion: The 'Open Chat' button is overlapping and partially obscuring the 'Customize dashboard' button/text, indicating a z-index or layout positioning conflict. — Top right of the 'Submit Tasks in Chat' banner
+  - (minor) clipping: The 'Open Chat' button text is vertically misaligned and appears clipped or poorly rendered within its container. — Inside the blue 'Open Chat' button
+  - (minor) clipping: The 'Customize dashboard' text is partially cut off by the right edge of its container/the 'Open Chat' overlay. — Top right of the 'Submit Tasks in Chat' banner
+- **dashboard--sidebar-collapsed--laptop--chromium** [chromium / laptop] status=reviewed score=Some(72) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button text, making both difficult to read. — top right of the 'Submit Tasks in Chat' banner
+  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty with a placeholder error message 'Workspace scan unavailable — the town cannot render.', indicating a failure to load the primary visual component of this view. — bottom half of the dashboard
+  - (minor) clipping: The 'PENDING APPROVALS' metric in the top header is horizontally clipped, showing only 'PENDI' and 'APPRO'. — top header, right side metric
+- **dashboard--sidebar-collapsed--laptop--firefox** [firefox / laptop] status=reviewed score=Some(78) verdict=Some("fail")
+  - (major) occlusion: The 'Customize dashboard' tooltip or popover is overlapping and partially obscuring the 'OPEN CHAT' button, creating a z-index conflict. — top right of the 'Submit Tasks in Chat' card
+  - (major) clipping: The 'PENDING APPROVALS' text in the top header is severely truncated/clipped horizontally, showing only 'PENDI' and 'APPRO'. — top header, right-most metric card
+  - (minor) clipping: The 'OPEN CHAT' button text appears vertically misaligned or clipped at the bottom within its container. — blue button inside the 'Submit Tasks in Chat' card
+  - (minor) contrast: The 'Customize dashboard' text has very low contrast against the dark background, making it difficult to read. — floating label above the OPEN CHAT button
+- **dashboard--sidebar-collapsed--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) occlusion: The 'Customize dashboard' text is overlapping and partially occluding the 'OPEN CHAT' button text. — Top right of the 'SUBMIT TASKS IN CHAT' banner
+  - (minor) blank: The Workspace Simulation Mini-map panel is empty with a placeholder message 'Workspace scan unavailable — the town cannot render.' — Center of the dashboard
 - **dashboard--sidebar-collapsed--wide--firefox** [firefox / wide] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) occlusion: The 'Customize dashboard' tooltip or label is overlapping and partially obscuring the 'OPEN CHAT' button text, making both difficult to read. — Top right of the 'Submit Tasks in Chat' banner
-  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty except for a placeholder error message: 'Workspace scan unavailable — the town cannot render.' — Center of the dashboard
-  - (minor) clipping: The 'MESH PEERS' metric shows '0' in the card but the header summary above indicates '3 peers', suggesting a data synchronization or rendering mismatch. — Metric cards vs header sub-navigation
-  - (minor) layout: ARIA role mismatch in the tab bar where a button is a direct child of a tablist, correlating with the 'aria-required-children' critical accessibility finding. — Workbench tab bar / Dashboard tab
+  - (major) blank: The 'Workspace Simulation Mini-Map' panel is empty with a placeholder message 'Workspace scan unavailable — the town cannot render', indicating a failure to load the primary visual component of this dashboard section. — Center main content area
+  - (minor) occlusion: The 'Customize dashboard' tooltip or label is overlapping the 'OPEN CHAT' button, making the button text difficult to read. — Top right of the 'Submit Tasks in Chat' banner
+  - (minor) clipping: The text 'the town cannot render' in the mini-map placeholder appears slightly cut off or poorly centered vertically within its container. — Workspace Simulation Mini-Map panel
 
 ## flow
 
-- **flow--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **flow--default--compact--firefox** [firefox / compact] status=reviewed score=Some(88) verdict=Some("pass_with_notes")
-  - (minor) clipping: The text inside the circular nodes in the 'Mind-Map' graph (e.g., 'Aquila', 'Bellona') is extremely small and partially illegible, appearing clipped by the node boundaries at this viewport size. — Bottom center, Mind-Map visualization area
-  - (minor) layout: The 'Close Flow' button (X) inside the active tab is misaligned with the tab text 'FLOW', sitting slightly higher than the baseline. — Tab bar, center-left
-  - (minor) other: ARIA role 'tablist' contains a direct child button which is not permitted by the ARIA specification, potentially causing screen reader navigation issues. — Workbench tab bar
-- **flow--default--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **flow--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(88) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Close Flow' button (X) inside the active tab is a direct child of a role='tablist' container without a valid tab role, causing an ARIA parent/child mismatch. — Workbench tab bar, 'FLOW' tab
-  - (minor) clipping: The bottom-most agent shard nodes in the 'MIND-MAP' are partially clipped by the container boundary. — Bottom edge of the Mind-Map visualization panel
-  - (minor) contrast: The secondary text within the agent shards (e.g., 'IDLE', 'PLAN', 'ROOT') has very low contrast against the dark node background, making it difficult to read. — Circular nodes within the Mind-Map graph
-- **flow--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **flow--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **flow--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Close Flow' button (identified in axe-core as an invalid child of role='tablist') is visually positioned inside the 'FLOW' tab but lacks sufficient padding/alignment with the text, making the hit target feel cramped. — Tab bar, FLOW tab
-  - (minor) contrast: The 'Topology of the active agent graph' sub-header text has very low contrast against the dark background, making it difficult to read. — Top left of the Mind-Map panel
-  - (minor) clipping: The 'Orchestrator' node label in the center of the graph is very close to the circular border, creating a tight visual tension that borders on clipping the descenders/ascenders of the font. — Center of the agent graph
+- **flow--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MESH' and 'MODEL' values in the sub-header are wrapping awkwardly or being clipped by the container height, resulting in '3 peers' and 'auto-route' appearing vertically stacked/misaligned compared to other metrics. — Sub-header bar, right side metrics
+  - (minor) clipping: The 'ORCHESTRATOR' card in the mind-map appears to have its bottom edge or content slightly clipped by the viewport/container boundary. — Main content area, right side floating card
+- **flow--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: Text within the circular agent nodes (e.g., 'Aquila', 'Bellona') is severely cramped and partially clipped by the node boundaries, making the status labels underneath nearly illegible. — Mind-Map / Agent Shards visualization area
+  - (minor) clipping: The 'FLOW' tab label in the sub-navigation has very tight padding on the right, nearly touching the 'x' close icon. — Sub-navigation bar below the main header
+- **flow--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'Orchestrator' node label in the mind-map graph is slightly clipped by the bottom of its circular container. — Center-bottom of the Mind-Map Agent Shards graph
+  - (minor) clipping: The bottom-most node in the graph is partially cut off by the container's bottom edge. — Bottom center of the Mind-Map panel
+- **flow--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) occlusion: The 'ORCHESTRATOR' detail popover card is partially occluding the 'Bellona' node and its connecting path in the mind-map visualization. — Center-right of the mind-map canvas
+  - (minor) clipping: The bottom-most node in the mind-map graph is partially clipped by the container boundary. — Bottom center of the mind-map panel
+- **flow--default--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) contrast: The secondary text labels within the mind-map nodes (e.g., 'IDLE', 'PLAN', 'REVIEW') have very low contrast against the dark node background, making them difficult to read. — Mind-map agent shards visualization area
+- **flow--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'ORCHESTRATOR' detail card in the top right of the mind-map area has a border that is very close to or slightly clipped by the container edge, though it appears to be a floating overlay. — top right of the mind-map panel
+  - (minor) contrast: The status text under node names (e.g., 'PLAN', 'IDLE', 'REVIEW') has very low contrast against the dark node background, making it difficult to read in high-contrast mode. — mind-map nodes
+- **flow--default--wide--firefox** [firefox / wide] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) clipping: The 'ORCHESTRATOR' card in the top right of the mind-map area has a very tight bottom margin, making the description text 'affinity policy.' appear dangerously close to the container edge. — Mind-map detail card, right side
 
 ## gamify
 
-- **gamify--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **gamify--default--compact--chromium** [chromium / compact] status=reviewed score=Some(88) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MESH' and 'MODEL' values in the sub-header bar are wrapping/stacking awkwardly, causing the text to nearly touch the borders of the container. — Sub-header status bar (AGENTS 9 ... LIVE)
+  - (minor) blank: The 'SIMULATION MAP' panel appears to be a large empty black void, which may indicate a failure to render the map canvas or data visualization. — Bottom half of the main content area
 - **gamify--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'auto-route' text in the secondary header bar is vertically cramped and appears slightly clipped by the container boundary. — Secondary header bar, MODEL section
-  - (minor) layout: The 'GAMIFY' tab in the workbench tab bar contains a close button that is causing ARIA validation failures (invalid child of tablist), which often indicates a structural DOM nesting error in the component. — Workbench tab bar below the secondary header
-  - (minor) blank: The 'SIMULATION MAP' panel appears as a large empty black void, which may be a rendering failure of the map asset or a missing empty state illustration. — Bottom main content area
-- **gamify--default--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'SIMULATION MAP' panel renders as a completely black/empty region despite the presence of a container border, suggesting a failure to load the visual asset or canvas content. — Bottom center, Simulation Map card
+  - (minor) clipping: The 'Gamify' tab label in the sub-navigation bar appears slightly vertically misaligned, with the bottom of the 'y' descender very close to the container edge. — Sub-navigation bar, Gamify tab
+- **gamify--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'SIMULATION MAP' panel is entirely black/empty, which may indicate a failure to load visual assets or data visualization components despite other data being present. — Bottom main content area
+  - (minor) clipping: The '800 to next' text is very close to the right edge of the progress bar container, appearing slightly cramped compared to the left-aligned '4200 XP'. — XP Progress Bar section
 - **gamify--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (major) blank: The 'SIMULATION MAP' panel is completely empty/black, which appears to be a failure to render the primary visual content for this section. — Bottom half of the main content area under the 'SIMULATION MAP' heading
-  - (minor) layout: ARIA role 'tablist' contains a 'button' child which is not a valid child role for a tablist, causing accessibility validation failure. — Workbench tab bar (Chat / Gamify tabs)
-  - (minor) clipping: The 'build' version text in the bottom left footer is partially obscured or very low contrast against the background, making it difficult to read. — Bottom left sidebar footer
-- **gamify--default--wide--chromium** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
-- **gamify--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (major) blank: The 'SIMULATION MAP' panel is completely empty/black, which appears to be a failure to render the primary content for this section given the dense data context of the rest of the UI. — Bottom main content area under 'SIMULATION MAP' heading
+  - (minor) clipping: The 'BUILD' version string in the bottom-left sidebar is partially cut off or lacks sufficient padding against the bottom edge of the viewport. — Bottom-left sidebar footer
+- **gamify--default--wide--chromium** [chromium / wide] status=reviewed score=Some(75) verdict=Some("pass_with_notes")
+  - (major) blank: The 'SIMULATION MAP' panel is entirely empty except for a placeholder error message: 'Workspace scan unavailable — the town cannot render.' — Main content area, bottom half of the screen
+  - (minor) contrast: The breadcrumb text 'SETTINGS > GAMIFY' and the secondary stats (e.g., '800 to next') have very low contrast against the dark background, making them difficult to read. — Top header area and XP progress bar section
+- **gamify--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'SIMULATION MAP' panel is entirely black with a placeholder message 'Workspace scan unavailable — the town cannot render.' — Bottom half of the main content area
+  - (minor) clipping: The 'GAMIFY' tab in the sub-navigation has a close 'x' icon that is very close to the right border, suggesting tight padding or slight clipping of the hit area. — Tab bar above 'GAMIFICATION' heading
 - **gamify--default--wide--firefox** [firefox / wide] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) blank: The 'Simulation Map' panel is entirely empty except for a placeholder error message ('Workspace scan unavailable — the town cannot render'), indicating a failure to load the primary visual component of this view. — Center-bottom large panel under 'SIMULATION MAP' header
-  - (minor) layout: The 'Gamify' tab button in the workbench tab bar contains a close button that is causing ARIA validation failures (invalid child of role='tablist'), which can interfere with screen reader navigation. — Workbench tab bar, 'Gamify' tab
-- **gamify--empty--compact--chromium** [chromium / compact] status=cached score=Some(30) verdict=Some("fail")
-- **gamify--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(30) verdict=Some("fail")
-  - (critical) error-leak: Raw JavaScript execution errors (TypeError: can't access property "session_id", s is null) are visible in multiple toast/notification overlays. — Bottom right quadrant, overlapping Simulation Map panel
-  - (major) blank: The 'Simulation Map' panel is entirely black/empty despite the surface being active. — Bottom main content area
-  - (minor) layout: Axe-core reports invalid ARIA parent-child relationship in the tab bar where a close button is an immediate child of a tablist role. — Tab bar containing 'CHAT' and 'GAMIFY' tabs
-- **gamify--empty--laptop--chromium** [chromium / laptop] status=cached score=Some(40) verdict=Some("fail")
-- **gamify--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(40) verdict=Some("fail")
-  - (critical) error-leak: Raw JavaScript execution errors (TypeError: can't access property "session_id", s is null) are displayed in toast notifications/popovers. — Bottom right overlay within the Simulation Map panel
-  - (major) blank: The 'Simulation Map' panel is empty with a fallback message 'Workspace scan unavailable — the town cannot render', indicating a failure to load primary visual content. — Main content area, Simulation Map section
-  - (minor) clipping: The 'Budget' value in the sub-header appears truncated or poorly formatted as '$0.00/-' with a trailing slash/dash that looks like a layout artifact. — Top sub-navigation bar, Budget section
-  - (minor) layout: ARIA role violation: The tab list contains a button child that is not permitted within a tablist role, which can break screen reader navigation. — Workbench tab bar (Chat/Gamify tabs)
-- **gamify--empty--wide--chromium** [chromium / wide] status=cached score=Some(30) verdict=Some("fail")
-- **gamify--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right corner
-  - (major) blank: The main simulation map area is empty with a fallback message 'Workspace scan unavailable — the town cannot render.', indicating a failure to load primary content. — Center main panel (Simulation Map)
-  - (minor) layout: ARIA role mismatch in tab bar: 'Close Gamify' button is a direct child of a role='tablist' container, which violates accessibility standards for required child roles (tabs). — Workbench tab bar, 'Gamify' tab
-  - (minor) blank: OpenRouter Spend widget shows a dash '—' instead of a value or zero, suggesting a data fetching or initialization failure. — Top header, second widget
-- **gamify--error--compact--chromium** [chromium / compact] status=cached score=Some(40) verdict=Some("fail")
+  - (major) blank: The 'SIMULATION MAP' panel is entirely blank except for a placeholder error message, indicating a failure to load the primary visual content for this view. — Center bottom, Simulation Map container
+  - (minor) error-leak: User-facing error message 'Workspace scan unavailable — the town cannot render.' suggests a state or data fetching failure in the production-like UI. — Simulation Map panel center
+- **gamify--empty--compact--chromium** [chromium / compact] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) blank: The 'Simulation Map' container is entirely black/empty, though this may be expected behavior for the 'empty' state setup. — Bottom right main content area
+- **gamify--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'GAMIFY' tab label in the sub-navigation bar is slightly vertically misaligned, with the bottom of the 'G' and 'Y' appearing very close to the container edge, suggesting tight padding or slight clipping in the compact viewport. — Sub-navigation bar, 'GAMIFY' tab
+  - (minor) blank: The 'SIMULATION MAP' container is entirely black/empty. While the state is 'empty', the lack of a placeholder graphic or 'No data' message within the map area specifically (unlike the 'No profile yet' section above) creates a visual void. — Bottom half of main content area, Simulation Map panel
+- **gamify--empty--laptop--chromium** [chromium / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+- **gamify--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) contrast: The text 'Workspace scan unavailable — the town cannot render.' and 'No profile yet.' has very low contrast against the dark background, making it difficult to read. — Simulation Map panel and Gamification profile panel
+  - (minor) clipping: The 'OpenRouter Spend' progress bar/indicator appears vertically misaligned or clipped, showing only a thin white line that doesn't clearly represent a value or container. — Top header, right of search bar
+- **gamify--empty--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) contrast: The 'OpenRouter Spend' value is represented by a very thin horizontal line/dash with low contrast against the dark background, making it difficult to discern if it is a placeholder or a loading state. — Top header, third module from left
+- **gamify--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'Simulation Map' area displays a placeholder error message 'Workspace scan unavailable — the town cannot render.' while in an empty state. — Center main content area under Simulation Map header
+  - (minor) clipping: The 'OpenRouter Spend' metric shows a dash '—' instead of a value, which may indicate a data fetching failure or uninitialized state despite the UI being loaded. — Top header, second metric block
+- **gamify--error--compact--chromium** [chromium / compact] status=reviewed score=Some(45) verdict=Some("fail")
+  - (major) error-leak: Raw internal IPC failure messages and mock-error strings are exposed directly to the user interface in toast notifications. — Right-side toast notification stack
+  - (major) occlusion: The toast notification stack is overlapping and obscuring the primary content area, including the 'Simulation Map' panel and potentially actionable UI elements. — Right-center viewport
+  - (minor) blank: The 'Simulation Map' container appears as a large empty black void without any placeholder or loading state, likely due to the reported IPC failures. — Main content area, bottom panel
 - **gamify--error--compact--firefox** [firefox / compact] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) occlusion: Multiple error toast notifications are stacked and overlapping, partially obscuring the 'Simulation Map' panel and the 'Chat Sessions' error details beneath them. — Right side of the main content area
-  - (major) blank: The 'Simulation Map' panel renders as a large empty black void without any placeholder or data, despite the surface being in an active state. — Bottom center of the main content area
-  - (minor) error-leak: Raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') are displayed directly to the user in the toast notifications. — Error toast notifications
-  - (minor) layout: The 'Gamify' tab in the workbench contains a close button that is flagged for invalid ARIA parent-child relationship (button inside a tablist without proper role wrapping). — Workbench tab bar
-- **gamify--error--laptop--chromium** [chromium / laptop] status=cached score=Some(30) verdict=Some("fail")
+  - (critical) error-leak: Raw error strings and mock-error messages are exposed directly to the user interface ('Error: [mock-error] chat_list_sessions simulated IPC failure'). — Right-side toast notifications / error overlays
+  - (major) occlusion: Multiple error toast notifications are stacked and overlapping, partially obscuring the 'Simulation Map' panel and each other. — Right-side content area
+  - (major) blank: The 'Simulation Map' container is completely empty/black, and the profile section shows 'No profile yet' despite the system being in a 'Live' state. — Main content body
+  - (minor) clipping: The 'Budget' value in the status bar appears to have a trailing slash/dash that is partially cut off or poorly formatted ('$0.00/-'). — Top status bar
+- **gamify--error--laptop--chromium** [chromium / laptop] status=reviewed score=Some(25) verdict=Some("fail")
+  - (critical) error-leak: Raw IPC failure error messages ('Error: [mock-error]...') are leaked directly into the UI toast notifications, exposing internal implementation details and stack-trace-like strings. — Right-side toast notification stack
+  - (major) blank: The 'Simulation Map' panel is completely empty/black with a failure message 'Workspace scan unavailable', correlating with the console IPC failures. — Main content area, Simulation Map section
+  - (major) blank: The Gamification profile section renders a placeholder 'No profile yet' instead of user data, indicating a failure to fetch or initialize the primary feature content. — Top center panel under Gamification header
+  - (minor) clipping: The 'OPENROUTER SPEND' value is represented by a dash or clipped line, failing to render a numerical value or a proper empty state. — Top header, right of search bar
 - **gamify--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) error-leak: Multiple raw error messages and mock-error strings are visible in the UI, including '[mock-error] chat_list_sessions simulated IPC failure' and 'get_ludus_profile simulated IPC failure'. — Right-side toast/notification stack within the Simulation Map panel
-  - (major) blank: The primary 'Simulation Map' area is a large empty black void with a failure message 'Workspace scan unavailable — the town cannot render.' — Center-bottom main content area
-  - (major) blank: The Gamification profile section is empty, displaying only 'No profile yet.' despite being in an active session state. — Top-middle panel under 'GAMIFICATION' header
-  - (minor) layout: Axe-core violation: The tab bar (role='tablist') contains a button child that is not a valid tab child role, breaking accessibility structure. — Workbench tab bar (Chat / Gamify tabs)
-- **gamify--error--wide--chromium** [chromium / wide] status=cached score=Some(40) verdict=Some("fail")
-- **gamify--error--wide--firefox** [firefox / wide] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) blank: The primary 'Simulation Map' viewport is completely black/empty, failing to render the expected graphical content. — Center-bottom large panel under 'Simulation Map' header
-  - (major) error-leak: Multiple toast notifications are visible containing raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') and 'Workspace scan unavailable' text. — Bottom right overlay and center of Simulation Map panel
-  - (minor) blank: The 'OpenRouter Spend' metric in the top header is missing data, showing only a dash. — Top header, second widget from left
-  - (minor) layout: The 'Gamification' section contains a placeholder 'No profile yet' which appears as an empty state for a core feature component. — Upper middle panel
+  - (major) error-leak: Raw mock error strings and IPC failure messages are exposed directly to the user in toast notifications. — Right-side notification stack (Chat Sessions, Ludus Load Failed)
+  - (major) blank: The Simulation Map panel is entirely blank except for a fallback error message, indicating a total failure of the primary visual component. — Simulation Map container
+  - (minor) blank: Empty state 'No profile yet.' appears in a large container where user data is expected. — Gamification profile section
+  - (minor) clipping: The 'OpenRouter Spend' value is represented by a horizontal line/dash that appears clipped or unrendered. — Top header, OpenRouter Spend widget
+- **gamify--error--wide--chromium** [chromium / wide] status=reviewed score=Some(30) verdict=Some("fail")
+  - (critical) blank: The main simulation map area is completely blank/black, failing to render the 'town' content as indicated by the placeholder text. — Simulation Map container
+  - (major) error-leak: Multiple toast notifications are displaying raw IPC failure error messages ('Error: [mock-error] chat_list_sessions simulated IPC failure') which correlates with the console logs. — Bottom right notification stack
+  - (major) blank: The profile section displays 'No profile yet.' instead of user data, likely due to the 'get_ludus_profile' IPC failure. — Top section under Gamification header
+  - (minor) contrast: The text 'Workspace scan unavailable — the town cannot render.' has low contrast against the dark background, making it difficult to read. — Center of Simulation Map
+- **gamify--error--wide--firefox** [firefox / wide] status=reviewed score=Some(30) verdict=Some("fail")
+  - (critical) blank: The primary 'Simulation Map' area is completely blank/black, failing to render the intended content. — Center main content area
+  - (major) error-leak: Multiple toast notifications are visible displaying raw mock-error messages ('[mock-error] chat_list_sessions simulated IPC failure'), correlating with the console errors. — Bottom right overlay
+  - (major) blank: Gamification profile section is empty with a placeholder 'No profile yet.' despite being in a functional state. — Top section of main panel
+  - (minor) contrast: The text 'Workspace scan unavailable — the town cannot render.' has very low contrast against the dark background, making it difficult to read. — Center of Simulation Map area
 
 ## harness
 
-- **harness--default--compact--chromium** [chromium / compact] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **harness--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'Search or Jump...' placeholder text in the top search bar is vertically misaligned and appears slightly clipped at the bottom of the characters. — Top header search input
-  - (minor) layout: The 'Harness' tab close button (X) is visually crowded against the right edge of the tab pill, lacking sufficient internal padding compared to the left side. — Workbench tab bar, Harness tab
-- **harness--default--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **harness--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Harness' tab in the workbench tab bar contains a button child that violates the ARIA tablist structure, potentially causing screen reader navigation issues. — Workbench tab bar, 'Harness' tab close button
-  - (minor) clipping: The 'LIVE' status indicator in the secondary toolbar (Agents/Queue row) appears slightly vertically misaligned or cramped within its pill container compared to the primary header version. — Secondary toolbar, right side
-- **harness--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **harness--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **harness--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Close Harness' button is incorrectly nested within a tablist role, causing an ARIA structural violation where a button is a direct child of a tablist instead of a tab. — Workbench tab bar, top left of the main content area
-  - (minor) contrast: The secondary footer text 'Workspace -> Quick Harness retained for deep links...' has very low contrast against the dark background, making it difficult to read. — Bottom center of the main content area
+- **harness--default--compact--chromium** [chromium / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'auto-route' text in the Model status pill is hyphenated and split across two lines, which appears to be a layout constraint issue in the compact viewport. — Top status bar, Model section
+  - (minor) layout: The '3 peers' text in the Mesh status pill is vertically stacked/wrapped awkwardly compared to other horizontal status items. — Top status bar, Mesh section
+- **harness--default--compact--firefox** [firefox / compact] status=reviewed score=Some(98) verdict=Some("pass")
+- **harness--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(100) verdict=Some("pass")
+- **harness--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(100) verdict=Some("pass")
+- **harness--default--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) contrast: The breadcrumb text 'WORKSPACE > HARNESS' and the footer text 'Workspace -> Quick Harness...' have very low contrast against the dark background, potentially impacting legibility. — Top left of main content area and bottom center of main content area
+- **harness--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(100) verdict=Some("pass")
+- **harness--default--wide--firefox** [firefox / wide] status=reviewed score=Some(100) verdict=Some("pass")
 
 ## memory
 
-- **memory--default--compact--chromium** [chromium / compact] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **memory--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) blank: The 'RECENT RECALLS' panel is entirely empty despite the interface indicating active indexed entries (2,126) and a 'default' state which usually implies populated mock data. — Bottom panel, 'RECENT RECALLS' section
-  - (minor) clipping: The 'RECALL' button text in the search bar has very tight vertical padding, nearly touching the top/bottom borders of its container. — Center search bar, right-aligned button
-- **memory--default--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **memory--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) blank: The 'Recent Recalls' and 'Citations' panels appear entirely empty despite the interface suggesting an active state with 2,126 indexed entries. — Main content area, bottom two panels
-  - (minor) clipping: The 'top' number input field has a misaligned or partially clipped border/background compared to the 'RECALL' button next to it. — Mnemosyne Memory search bar, right side
-  - (minor) other: Axe accessibility violation: The tab bar (role='tablist') contains a button as a direct child which is not a valid child role for a tablist (expected role='tab'). — Workbench tab bar (Chat / Memory x)
-- **memory--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **memory--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **memory--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: ARIA role 'tablist' contains an invalid child element (button[aria-label] for 'Close Memory') which violates expected parent-child relationships for screen readers. — Workbench tab bar, 'Memory' tab close button
-  - (minor) contrast: The 'top' numerical input and the 'RECALL' button text have low contrast against their dark grey backgrounds, making them difficult to read. — Mnemosyne Memory search bar right-side controls
-- **memory--empty--compact--chromium** [chromium / compact] status=cached score=Some(20) verdict=Some("fail")
-- **memory--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(40) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications are displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right quadrant, overlaying the Mnemosyne Memory and Recent Recalls panels
-  - (major) occlusion: Error toast notifications are overlapping primary UI controls and content areas, obscuring the 'RECALL' button and panel information. — Right side of the main content area
-  - (minor) clipping: The 'KNOWLEDGE > MEMORY' breadcrumb text appears slightly cramped against the top border of the content area in this compact viewport. — Top left of the main content pane
-- **memory--empty--laptop--chromium** [chromium / laptop] status=cached score=Some(40) verdict=Some("fail")
-- **memory--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) error-leak: Raw JavaScript execution errors (TypeError: can't access property "session_id", s is null) are displayed in the UI toast notifications. — Right side of the screen, overlaying the Recent Recalls panel
-  - (major) occlusion: Error toast notifications are stacked and partially overlapping each other, and they occlude the 'Recent Recalls' content area. — Bottom right quadrant
-  - (minor) clipping: The 'Budget' value in the sub-header shows '$0.00/-' where the slash and trailing character appear clipped or poorly formatted. — Top horizontal status bar, middle section
-  - (minor) layout: The 'Memory' tab in the workbench tab bar contains a close button that triggers an ARIA parent/child role mismatch (as noted in programmatic findings), which affects screen reader navigation. — Workbench tab bar, 'Memory' tab
-- **memory--empty--wide--chromium** [chromium / wide] status=cached score=Some(40) verdict=Some("fail")
-- **memory--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(40) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right corner overlay
-  - (major) blank: The 'OpenRouter Spend' metric in the header is rendering a null/empty state (indicated by a dash) despite being in a 'live' state. — Top header, center-right section
-  - (minor) layout: Axe-core critical violation: The tab bar (role='tablist') contains a button as a direct child, which is invalid ARIA structure for a tablist. — Workbench tab bar (Memory tab close button)
-- **memory--error--compact--chromium** [chromium / compact] status=cached score=Some(45) verdict=Some("fail")
+- **memory--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'RECENT RECALLS' panel is entirely empty despite the interface indicating active indexed entries and a 'default' state that usually implies populated mock data. — Bottom right panel
+  - (minor) layout: The 'MESH' and 'MODEL' labels in the status bar have vertically misaligned values ('3 peers' and 'auto-route') which appear to be wrapping or shifting due to the compact viewport width. — Top status bar, right side
+- **memory--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'RECENT RECALLS' panel is entirely empty despite the interface indicating active indexed entries and a 'default' state that usually implies mock data population. — Bottom right panel
+  - (minor) clipping: The 'top' number input field has vertical alignment issues where the increment/decrement arrows are slightly misaligned with the input box border. — Recall search bar, right side
+- **memory--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The text 'BUDGET $12.34/$50.00' in the secondary header bar has a strikethrough or horizontal line clipping through the numerical values, making them difficult to read. — Top sub-header, center-left (Budget section)
+  - (minor) blank: The 'RECENT RECALLS' and 'CITATIONS' panels are currently empty containers despite the UI indicating active corpora and indexed entries. — Lower half of the main content area
+- **memory--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'RECENT RECALLS' and 'CITATIONS' panels appear empty despite the interface indicating active indexed entries and a 'default' state with mock data expectations. — Lower half of the main content area
+  - (minor) clipping: The 'top 8' number input field has tight vertical padding, causing the numerical value to appear slightly crowded by the increment/decrement arrows. — Recall search bar, right side
+- **memory--default--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+- **memory--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'Memory' tab in the sub-navigation bar has a close 'x' icon that is very tightly packed against the text, appearing slightly clipped by the tab boundary. — Sub-navigation bar, 'MEMORY' tab
+  - (minor) blank: The 'RECENT RECALLS' panel is entirely empty despite the header indicating active corpora and indexed entries, which may suggest a missing empty-state illustration or data fetch delay not caught by programmatic scans. — Middle-left panel 'RECENT RECALLS'
+- **memory--default--wide--firefox** [firefox / wide] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) blank: The 'RECENT RECALLS' panel is entirely empty without a placeholder or 'no data' state, unlike the adjacent 'CITATIONS' panel which provides a clear empty state message. — Middle left panel under Mnemosyne header
+- **memory--empty--compact--chromium** [chromium / compact] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) blank: The 'RECENT RECALLS' section is entirely empty without a placeholder message (e.g., 'No recent recalls found'), though this is expected for an 'empty' state capture. — Bottom right panel
+- **memory--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'Recent Recalls' panel is entirely empty despite the interface suggesting an active state (Live status, active corpora). While the state is 'empty', the lack of a placeholder or empty-state message makes the panel look broken or uninitialized. — Bottom right panel under 'Recent Recalls' header
+  - (minor) contrast: The 'RECALL' button text has very low contrast against its dark background, making it difficult to read compared to other primary actions like 'Auto-recall'. — Right side of the search input bar in the Mnemosyne panel
+- **memory--empty--laptop--chromium** [chromium / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+- **memory--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) clipping: The 'OpenRouter Spend' progress bar/indicator appears to have a horizontal line that is slightly misaligned or clipped by its container boundary. — Top header, OpenRouter Spend widget
+- **memory--empty--wide--chromium** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'Recent Recalls' panel is entirely empty without a placeholder state or 'no data' message, unlike the 'Citations' panel which correctly handles the empty state. — Middle left panel (Recent Recalls)
+  - (minor) blank: The 'Memory Shards' panel is empty with no empty-state messaging or structural content, appearing as a hollow container. — Bottom panel (Memory Shards)
+- **memory--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) contrast: The 'OpenRouter Spend' value is represented by a very thin horizontal dash that has low visibility against the dark background, making it unclear if it is a placeholder or a rendering error. — Top header, center-right widget
+- **memory--error--compact--chromium** [chromium / compact] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) occlusion: Multiple error toast notifications are stacked and overlapping, significantly obscuring the primary 'Mnemosyne Memory' interface and search controls. — Center-right content area
+  - (minor) error-leak: Raw internal error strings ('[mock-error] chat_list_sessions simulated IPC failure') are exposed to the end-user in the UI notifications. — Toast notification text
+  - (minor) clipping: The search input placeholder text 'Recall... e.g. 'ed25519 invariants', 'checkpoint stall' is partially clipped by the overlapping error toasts. — Mnemosyne Memory search bar
 - **memory--error--compact--firefox** [firefox / compact] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) occlusion: Multiple error toast notifications are overlapping and obscuring primary UI controls, including the 'Recall' button and search input parameters. — Center-right of the Mnemosyne Memory panel
-  - (major) clipping: The search placeholder text 'Recall... e.g. 'ed25519 invariants', 'checkpoint stall'' is being clipped by the overlapping error toast and the 'top' parameter control. — Search input field in Mnemosyne Memory panel
-  - (major) blank: The 'RECENT RECALLS' section is entirely empty despite the interface being in an active 'error' state which usually implies data should be present or a specific empty-state graphic shown. — Bottom panel
-  - (minor) error-leak: Raw mock-error strings '[mock-error] chat_list_sessions simulated IPC failure' are visible to the user. — Error toast notifications
-  - (minor) layout: The 'CHAT SESSIONS' error toast appears twice with identical content, suggesting a redundant trigger or lack of toast de-duplication. — Right side of screen
-- **memory--error--laptop--chromium** [chromium / laptop] status=cached score=Some(65) verdict=Some("fail")
-- **memory--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications are displaying raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') which should be caught or formatted for the end user. — Right-side toast notification stack
-  - (major) blank: The 'Recent Recalls' and 'Citations' panels are completely empty despite the application being in an active state, indicating a failure to render fallback content or data loading issues. — Main content area, bottom two panels
-  - (minor) layout: The toast notification stack is overlapping the main content containers and their borders, creating visual clutter and potentially obscuring interactive elements in the panels behind them. — Right side of the viewport
-  - (minor) clipping: The close button (X) on the 'Memory' tab in the workbench tab bar is flagged by accessibility scans as an invalid child of a tablist, and visually appears cramped within the tab boundary. — Workbench tab bar, 'Memory' tab
-- **memory--error--wide--chromium** [chromium / wide] status=cached score=Some(65) verdict=Some("fail")
-- **memory--error--wide--firefox** [firefox / wide] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) occlusion: Multiple error toast notifications are stacked in the bottom right, partially overlapping each other and obscuring the 'Memory Shards' panel and footer information. — bottom right quadrant
-  - (major) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' and 'get_memory_status' are exposed to the end user in the UI toasts. — bottom right toast notifications
-  - (minor) blank: The 'Recent Recalls' and 'Memory Shards' panels are completely empty despite the interface being in an active 'Live' state, likely due to the reported IPC failures. — lower half of main content area
-  - (minor) clipping: The 'OpenRouter Spend' value is rendered as a single dash '—' which may indicate a data loading failure or clipping of a zero value. — top header, center-right
+  - (critical) occlusion: Multiple error toast notifications are stacked and overlapping, completely obscuring primary action buttons (Auto-recall, Reindex, Recall) and the search input field. — Right side of the Mnemosyne Memory panel
+  - (major) error-leak: Raw mock-error strings ('[mock-error] chat_list_sessions simulated IPC failure') are exposed directly to the user interface. — Error toast notifications
+  - (minor) clipping: The placeholder text in the search input is truncated ('...checkpoint stai...') despite available horizontal space within the input container. — Search input field in Mnemosyne Memory panel
+  - (minor) layout: The 'Recent Recalls' section appears as a blank panel with no 'empty state' messaging or content, despite the header being present. — Bottom panel of the main content area
+- **memory--error--laptop--chromium** [chromium / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) error-leak: Multiple toast notifications are displaying raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') which should be sanitized for user consumption. — Bottom right toast notification stack
+  - (major) blank: The 'Recent Recalls' and 'Citations' panels are completely empty despite the application being in an active 'Live' state, suggesting a failure to render fallback or empty-state messaging beyond the headers. — Center main content area
+  - (minor) occlusion: The toast notification stack is partially occluding the right-hand action buttons and borders of the underlying content cards. — Bottom right quadrant
+- **memory--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) occlusion: Multiple error toast notifications are overlapping each other in a stack, making the underlying content and the notifications themselves difficult to read. — Bottom right quadrant, floating over the main content area
+  - (major) blank: The 'Recent Recalls' and 'Citations' panels are completely empty despite the interface being in an active 'Live' state, suggesting a failure to render data or a silent error in the data fetch. — Center and bottom main content panels
+  - (minor) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are displayed directly to the user in the toast notifications. — Toast notifications in the right-hand side of the viewport
+- **memory--error--wide--chromium** [chromium / wide] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) occlusion: Multiple error toast notifications are stacked in the bottom right, occluding the 'Memory Shards' panel and potentially other UI elements behind them. — bottom right quadrant
+  - (major) error-leak: Raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') are displayed directly to the user in toast notifications. — bottom right toast notifications
+  - (minor) blank: The 'Recent Recalls' and 'Memory Shards' panels are completely empty despite the application being in an active state. — center left and bottom center panels
+  - (minor) clipping: The 'OpenRouter Spend' value is rendered as a long dash/blank line which appears disconnected from the label above it. — top header, second widget from left
+- **memory--error--wide--firefox** [firefox / wide] status=reviewed score=Some(45) verdict=Some("fail")
+  - (major) error-leak: Raw mock error strings and internal IPC failure messages are exposed to the user in toast notifications. — Bottom right toast notifications
+  - (major) occlusion: Multiple error toast notifications are stacked and overlapping, partially obscuring the 'Citations' panel and each other. — Bottom right quadrant
+  - (minor) blank: OpenRouter Spend widget displays a dash instead of a numerical value or zero, suggesting a data fetch failure without a proper empty state. — Top header, center-right widget
+  - (minor) clipping: The text 'Type a query or click a recent recall' is partially obscured by the overlapping error toast. — Citations panel center
 
 ## mens
 
-- **mens--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **mens--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'TRAINING' tab in the workbench tab bar contains a close button that violates ARIA parent-child relationships for a tablist, as flagged by programmatic audit. — Workbench tab bar, 'TRAINING' tab
-  - (minor) clipping: The 'MESH' and 'MODEL' labels in the secondary header are very tight against their values ('3 peers', 'auto-route'), with the 'peers' text appearing slightly cramped within the vertical alignment of the header row. — Secondary header stats bar
-  - (minor) blank: The 'MODEL REGISTRY' panel displays identical placeholder/status text ('training idle | 2 local models...') as the 'TRAINING STATUS' panel, suggesting a possible data mapping error or lack of specific content for the registry view. — Main content area, Model Registry panel
-- **mens--default--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **mens--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) other: ARIA role 'tablist' contains an invalid child element (button[aria-label] 'Close Training'), which violates accessibility standards for keyboard navigation and screen readers. — Workbench tab bar, 'TRAINING' tab close button
-  - (minor) layout: Redundant data rendering: 'Training Status', 'Model Registry', and 'GPU Probe' cards all display identical terminal output strings ('training idle | 2 local models | GPU: RTX 4090 (24GB)'), suggesting a data mapping error or placeholder leakage in the 'mens' surface. — Main content area cards
-- **mens--default--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **mens--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **mens--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) other: ARIA role 'tablist' contains a direct child button which is not a valid child role (tab), violating accessibility standards for screen readers. — Workbench tab bar (Training tab close button)
-  - (minor) blank: The 'Model Registry' and 'GPU Probe' panels display identical placeholder-like status text ('training idle | 2 local models...') which may indicate a lack of specific data binding for those distinct categories. — Main content area panels
+- **mens--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MODEL' value 'auto-route' in the sub-header stats bar is split across two lines ('auto-' and 'route'), which breaks the horizontal flow of the data row compared to other single-line metrics. — top sub-header stats bar, right side
+  - (minor) clipping: The 'MESH' value '3 peers' is vertically stacked/wrapped awkwardly within the horizontal stats bar, causing misalignment with the baseline of adjacent labels. — top sub-header stats bar, center-right
+  - (minor) layout: The 'Model Registry' section contains identical placeholder text ('training idle | 2 local models...') as the 'Training Status' section, suggesting a data binding error or redundant rendering of the same status string in different contexts. — Model Registry panel content
+- **mens--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MESH' and 'MODEL' labels in the secondary status bar are vertically misaligned or slightly clipped by the container boundary compared to 'AGENTS' and 'QUEUE'. — Secondary status bar, top right quadrant
+  - (minor) layout: The 'Model Registry' panel content appears to be a duplicate of the 'Training Status' panel content (identical GPU and idle strings), suggesting a data mapping error or placeholder repetition. — Main content area, bottom panel
+- **mens--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'build' text in the bottom-left user profile section is partially clipped/truncated by the container edge. — bottom-left sidebar footer
+  - (minor) layout: Redundant data rendering: 'Training Status', 'Model Registry', and 'GPU Probe' cards all display identical terminal output strings ('training idle | 2 local models | GPU: RTX 4090 (24GB)'), suggesting a possible data mapping error or placeholder logic. — main content area cards
+- **mens--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'Model Registry' and 'GPU Probe' panels appear to be displaying placeholder or duplicated data from the 'Training Status' panel, as the terminal output text is identical across all three distinct functional blocks ('training idle | 2 local models | GPU: RTX 4090 (24GB)'). — Main content area, right and bottom cards
+  - (minor) clipping: The build version text in the bottom left profile section is partially obscured or lacks sufficient padding against the bottom edge of the sidebar. — Bottom left sidebar, profile section
+- **mens--default--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'Training Status', 'Model Registry', and 'GPU Probe' cards all display identical placeholder-like terminal output ('training idle | 2 local models | GPU: RTX 4090 (24GB)') despite representing different telemetry categories. — Main content area, card terminal blocks
+  - (minor) contrast: The 'exit 0' and command text (e.g., 'vox mens status') in the terminal headers has low contrast against the dark background, potentially impacting legibility. — Card headers within the main content area
+- **mens--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) error-leak: Repetitive placeholder or logic error: 'GPU PROBE' and 'MODEL REGISTRY' cards display identical status text ('training idle | 2 local models | GPU: RTX 4090 (24GB)') as the 'TRAINING STATUS' card, which is likely a data mapping error for distinct telemetry categories. — Main content area, cards: Training Status, Model Registry, GPU Probe
+  - (minor) clipping: The 'TRAINING' tab in the sub-navigation bar has a close 'x' icon that is very close to the right border, suggesting tight padding/clipping risk in high-contrast mode. — Sub-navigation tab bar
+- **mens--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'TRAINING STATUS', 'MODEL REGISTRY', and 'GPU PROBE' cards all display identical placeholder-like terminal output ('training idle | 2 local models | GPU: RTX 4090 (24GB)'), suggesting data duplication or static mock content where unique telemetry is expected. — Main content area, three data cards
+  - (minor) contrast: The breadcrumb navigation 'COMPUTE > TRAINING' and the sub-header 'ML training & local models' have very low contrast against the dark background, potentially impacting legibility. — Top left of main content area
 
 ## mercatus
 
-- **mercatus--default--compact--chromium** [chromium / compact] status=cached score=Some(75) verdict=Some("fail")
+- **mercatus--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The main content area under 'MERCATUS — PRICE WATCH' is entirely empty, which may indicate a failure to load data or a missing component state, though the header elements are present. — center-right main content panel
+  - (minor) clipping: The 'MESH' and 'MODEL' values in the status bar ('3 peers', 'auto-route') are tightly packed and vertically misaligned compared to the labels, suggesting layout constraints in the compact viewport. — top status bar, right side
 - **mercatus--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) blank: The main content area under 'MERCATUS — PRICE WATCH' is entirely empty, despite the presence of a 'refresh' button and active status indicators, suggesting a failure to render data or a missing empty state message. — Main content panel, bottom right quadrant
-  - (minor) clipping: The 'refresh' button text is very tight within its container, appearing slightly vertically misaligned or cramped. — Header of the Price Watch section
-  - (minor) layout: The 'MERCATUS' tab in the workbench tab bar contains a close 'x' icon that is visually off-center relative to the text and tab padding. — Workbench tab bar
-- **mercatus--default--laptop--chromium** [chromium / laptop] status=cached score=Some(75) verdict=Some("fail")
-- **mercatus--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (major) blank: The main content area for 'MERCATUS — PRICE WATCH' is entirely empty/black, despite the header indicating active agents, a queue, and a budget. This suggests a failure to render the primary data panel. — Center-right main content area below the tab bar
-  - (minor) layout: ARIA role mismatch in the tab bar: a button element is a direct child of a role='tablist' container, which violates accessibility standards for child roles. — Workbench tab bar (MERCATUS tab close button)
-- **mercatus--default--wide--chromium** [chromium / wide] status=cached score=Some(65) verdict=Some("fail")
-- **mercatus--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(65) verdict=Some("fail")
-- **mercatus--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (major) blank: The main content area for 'MERCATUS — PRICE WATCH' is entirely empty, rendering no data or visualization despite the header indicating an active view. — Center main content panel
-  - (minor) layout: ARIA role violation: The tab bar contains a button element that is not a valid child of a 'tablist' role, which can cause screen reader navigation issues. — Workbench tab bar (MERCATUS tab close button)
+  - (minor) blank: The main content area under 'MERCATUS — PRICE WATCH' is entirely empty, despite the header indicating a specific data view (Price Watch) should be active. — Main content panel, bottom right quadrant
+  - (minor) clipping: The 'refresh' button text is vertically tight within its container, appearing slightly off-center/clipped at the bottom of the descenders. — Header of the main content area, next to 'PRICE WATCH'
+- **mercatus--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (critical) blank: The main content area for 'MERCATUS — PRICE WATCH' is entirely empty, failing to render the expected market data or price tracking information. — center main content panel
+  - (minor) clipping: The 'refresh' button next to the main header is vertically misaligned and appears slightly clipped or cramped within its container relative to the header text baseline. — top left of main content area
+- **mercatus--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) blank: The main content area for 'MERCATUS — PRICE WATCH' is completely empty, failing to render the expected market data or dashboard components despite the 'LIVE' status and active budget indicators. — Center/Bottom main content panel
+  - (minor) clipping: The 'refresh' button next to the 'MERCATUS — PRICE WATCH' header has extremely tight padding, causing the text to nearly touch the borders of the button container. — Main content header
+- **mercatus--default--wide--chromium** [chromium / wide] status=reviewed score=Some(65) verdict=Some("fail")
+  - (critical) blank: The main content area for 'MERCATUS — PRICE WATCH' is completely empty, showing only a black void where data or a dashboard should be rendered. — Center main content panel
+  - (minor) clipping: The 'refresh' button text is vertically misaligned or slightly clipped within its container border. — Top left of main content area, next to PRICE WATCH header
+- **mercatus--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(65) verdict=Some("fail")
+  - (critical) blank: The main content area for 'MERCATUS — PRICE WATCH' is entirely empty/black, failing to render the expected market data or price charts despite the header indicating an active state. — Center main content panel
+  - (minor) clipping: The 'refresh' button text is tightly constrained by its border, with minimal internal padding, bordering on vertical clipping. — Top left of main content area, next to header
+- **mercatus--default--wide--firefox** [firefox / wide] status=reviewed score=Some(40) verdict=Some("fail")
+  - (critical) blank: The main content area for 'MERCATUS — PRICE WATCH' is entirely empty, despite the header indicating active agents, queue, and budget data should be driving a visualization or list. — Center/Main content panel
+  - (minor) contrast: The 'refresh' button text has extremely low contrast against its background, making it nearly invisible. — Top left of main content area, next to PRICE WATCH header
 
 ## mesh
 
-- **mesh--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **mesh--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'MESH' tab in the workbench tab bar has a close button (X) that is very close to the text, and the tab container itself appears slightly cramped in the compact viewport. — Workbench tab bar, 'MESH' tab
-  - (minor) contrast: The 'source: -' and 'pending: -' labels in the Vox Populi Mesh header have very low contrast against the dark background, making them difficult to read. — Vox Populi Mesh header section
-  - (minor) layout: The 'MESH 3 peers' and 'MODEL auto-route' items in the secondary stats bar have inconsistent vertical alignment/spacing compared to the 'AGENTS' and 'QUEUE' items. — Secondary stats bar below breadcrumbs
-- **mesh--default--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **mesh--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) contrast: The 'source: -' and 'pending: -' labels in the Vox Populi Mesh header have very low contrast against the dark background, making them difficult to read. — Vox Populi Mesh header section
-  - (minor) layout: The 'Dispatch is disabled' warning box contains raw environment variable names (VOX_ORCHESTRATOR_MESH_CONTROL_URL) which, while informative for developers, borders on technical leakage for a standard UI. — Dispatch Job section warning box
-  - (minor) clipping: The 'Mesh' tab in the workbench tab bar contains a close button that axe-core identifies as an invalid child of a tablist role, suggesting a structural accessibility mismatch. — Workbench tab bar, 'Mesh' tab
-- **mesh--default--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **mesh--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **mesh--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) contrast: The 'DISPATCH' button text in the bottom left of the Dispatch Job panel has extremely low contrast against its background, making it nearly invisible. — Bottom left of the 'DISPATCH JOB' panel
-  - (minor) layout: The 'MESH' tab in the workbench tab bar contains a close button that violates ARIA parent-child relationship rules for tablists, as noted in programmatic findings. — Workbench tab bar, 'MESH' tab
-  - (minor) other: The 'TARGET NODE (OPTIONAL)' select element lacks an accessible name/label, hindering screen reader utility. — Dispatch Job panel, Target Node dropdown
+- **mesh--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'DISPATCH JOB' section at the bottom is cut off by the viewport edge, and the informational text below the header is partially obscured/truncated. — bottom of the main content area
+  - (minor) layout: The 'MESH 3 peers' and 'MODEL auto-route' items in the sub-header bar have inconsistent vertical alignment and spacing compared to the 'AGENTS', 'QUEUE', and 'BUDGET' items. — top sub-header bar
+  - (minor) contrast: The 'source: -' and 'pending: -' text in the Vox Populi Mesh card has very low contrast against the dark background, making it difficult to read. — Vox Populi Mesh card header
+- **mesh--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MESH' tab in the sub-navigation bar has a close 'x' icon that is very close to the right edge of the tab container, suggesting tight padding or slight truncation of the hit area. — Sub-navigation bar, 'MESH' tab
+  - (minor) contrast: The 'Search or Jump' placeholder text and the '⌘K' shortcut hint have low contrast against the dark input background, potentially impacting legibility. — Top header search bar
+  - (minor) layout: The 'DISPATCH JOB' panel at the bottom is partially cut off by the viewport edge, though this may be expected behavior for a scrollable area. — Bottom of viewport
+- **mesh--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: The 'source: -' and 'pending: -' text in the Vox Populi Mesh header has very low contrast against the dark background, making it difficult to read. — Vox Populi Mesh header bar, center-right
+  - (minor) clipping: The 'TARGET NODE (OPTIONAL)' select dropdown (identified in axe-core as missing a label) has its placeholder text 'Auto (control plane picks)' slightly vertically misaligned or cramped within the input height. — Dispatch Job section, Target Node dropdown
+  - (minor) layout: The 'BUDGET $12.34/$50.00' text in the sub-header has a strikethrough or horizontal line artifact passing through it that does not appear to be intentional status formatting. — Sub-header navigation bar, center
+- **mesh--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'build' version text in the bottom left sidebar is partially clipped or very close to the container edge, making '0.6.0+local (dev)' difficult to read. — bottom left sidebar, user profile section
+  - (minor) layout: The 'TARGET NODE (OPTIONAL)' select dropdown lacks an accessible label as identified by programmatic scan, which is a functional defect for screen readers despite appearing visually aligned. — Dispatch Job section, Target Node dropdown
+- **mesh--default--wide--chromium** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) contrast: The 'DISPATCH' button text has extremely low contrast against its background, making it nearly invisible and appearing disabled without clear visual state distinction. — bottom left of the main content area, within the Dispatch Job panel
+  - (minor) clipping: The 'TARGET NODE (OPTIONAL)' select dropdown (identified in axe-core as lacking a label) has its text 'Auto (control plane picks)' vertically cramped within the input box. — Dispatch Job panel, Target Node field
+- **mesh--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: The 'DISPATCH' button text has extremely low contrast against its background when disabled, making it nearly invisible in high-contrast mode. — Bottom left of the 'DISPATCH JOB' panel
+  - (minor) clipping: The 'TARGET NODE (OPTIONAL)' select element lacks a visible label or accessible name, as flagged by programmatic audit, which is a failure in high-contrast/accessibility contexts. — Form field under 'DISPATCH JOB' header
+  - (minor) blank: The 'HOST', 'GPU', 'TRUST', 'MODELS', and 'LAST SEEN' columns in the NODES table are entirely empty (containing only dashes) despite the nodes being 'ONLINE'. — NODES table center and right columns
+- **mesh--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) contrast: The 'DISPATCH' button text has very low contrast against its background when in a disabled state, making it nearly illegible. — Bottom left of the Dispatch Job panel
+  - (minor) clipping: The 'TARGET NODE (OPTIONAL)' select dropdown text 'Auto (control plane picks)' is very close to the container edge with minimal padding, though not fully truncated. — Dispatch Job panel, Target Node input
 
 ## models
 
-- **models--default--compact--chromium** [chromium / compact] status=cached score=Some(88) verdict=Some("pass_with_notes")
+- **models--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The text 'Mens Local Inferenc...' is truncated with an ellipsis in the Backend Availability card, obscuring the full provider name. — Bottom center panel, Backend Availability section
+  - (minor) layout: The '3 peers' text under the MESH heading is vertically misaligned/dropped compared to other metrics in the same row. — Top sub-header metrics bar
 - **models--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) clipping: The text 'Mens Local Inferenc...' is truncated with an ellipsis in the Backend Availability section, obscuring the full provider name. — Bottom center panel, Backend Availability grid
-  - (minor) layout: The 'Models' tab close button (X) is slightly misaligned vertically relative to the tab text. — Tab bar, 'MODELS' active tab
-- **models--default--laptop--chromium** [chromium / laptop] status=cached score=Some(88) verdict=Some("pass_with_notes")
+  - (minor) clipping: The text 'Mens Local Inferenc...' is truncated with an ellipsis in the Backend Availability grid, obscuring the full provider name. — Bottom center panel, Backend Availability section
+  - (minor) clipping: The 'LIVE' status indicator in the top right header appears slightly vertically misaligned/cramped within its pill container compared to the one in the sub-header. — Top right header
+- **models--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(88) verdict=Some("pass_with_notes")
+  - (minor) clipping: The text 'Mens Local Inference Cluste...' is truncated with an ellipsis, obscuring the full name of the backend provider. — Backend Availability section, middle card in the bottom row
+  - (minor) clipping: Model names in the 'HOSTED' section are truncated with ellipses ('provider-1/model-family-name-1-with-a-rather-long-suf...'), which may hide versioning or specific model identifiers. — Bottom 'HOSTED' section cards
 - **models--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(88) verdict=Some("pass_with_notes")
-  - (minor) clipping: Text truncation in the 'Backend Availability' card for 'Mens Local Inference Cluste...'. The text is cut off with an ellipsis despite available horizontal space in the grid cell. — Backend Availability section, middle row, second column
-  - (minor) clipping: Model identifiers in the 'HOSTED' section are truncated with ellipses ('provider-1/model-family-name-1-with-a-rather-long-suf...'), which may obscure versioning or specific model variants. — Bottom 'HOSTED' section cards
-  - (minor) layout: The 'Models' tab close button (X) is identified by automated scans as an invalid child of a role='tablist', which can cause screen reader navigation issues even if visually it appears correct. — Workbench tab bar, 'Models' tab
-- **models--default--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **models--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **models--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: Model names in the 'HOSTED' section cards are truncated with ellipses, hiding the specific model identifiers which are likely necessary for differentiation. — Bottom grid, 'HOSTED' section cards
-  - (minor) clipping: The text 'Mens Local Inference Cluster' is truncated with a double dash/ellipsis, cutting off the full name of the backend provider. — Backend Availability section, bottom left card
-  - (minor) layout: ARIA role mismatch: The 'Close Models' button is a direct child of a 'tablist' container, which violates ARIA structural requirements for tab components. — Workbench tab bar, 'MODELS' tab
-- **models--empty--compact--chromium** [chromium / compact] status=cached score=Some(20) verdict=Some("fail")
-- **models--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(20) verdict=Some("fail")
-  - (critical) error-leak: Raw JavaScript execution errors (TypeError: can't access property "session_id", s is null) are displayed in toast notifications. — Bottom right notifications
-  - (major) error-leak: UI contains 'undefined' placeholders in the Model Registry summary text ('undefined models', 'undefined routing arms'). — Model Registry panel subheader
-  - (minor) layout: The 'Models' tab in the workbench tab bar contains a close button that violates ARIA parent-child role requirements for tablists. — Workbench tab bar (Models tab)
-- **models--empty--laptop--chromium** [chromium / laptop] status=cached score=Some(20) verdict=Some("fail")
-- **models--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(20) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right corner
-  - (major) error-leak: UI copy contains 'undefined' placeholders instead of numerical data: 'undefined models · undefined routing arms'. — Model Registry card, top left content area
-  - (minor) other: ARIA role 'tablist' contains invalid child element (button) which violates accessibility standards for screen readers. — Workbench tab bar ('MODELS' tab close button)
-- **models--empty--wide--chromium** [chromium / wide] status=cached score=Some(15) verdict=Some("fail")
-- **models--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(30) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications displaying raw JavaScript TypeError: 'TypeError: can't access property "session_id", s is null'. — Bottom right corner
-  - (major) error-leak: UI copy contains 'undefined' placeholders: 'undefined models · undefined routing arms'. — Model Registry panel, sub-header text
-  - (major) blank: The main content area for the Model Registry is entirely empty despite the surface being active. — Main content panel
-  - (minor) other: ARIA role mismatch: tablist contains a button child which is not permitted by ARIA standards. — Workbench tab bar (Models tab close button)
-- **models--error--compact--chromium** [chromium / compact] status=cached score=Some(45) verdict=Some("fail")
+  - (minor) clipping: Text 'Mens Local Inference Cluste...' is truncated with an ellipsis, obscuring the full name of the backend provider. — Backend Availability section, middle card in the second row
+  - (minor) clipping: Model provider strings 'provider-1/model-family-name-1...' and 'provider-2/model-family-name-2...' are truncated, preventing the user from seeing the full model identifier. — Hosted section, bottom cards
+- **models--default--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: Model names in the 'HOSTED' section cards are truncated with ellipses, obscuring the specific model identifiers which are likely unique at the end of the string. — Bottom grid, 'HOSTED' section cards
+  - (minor) clipping: The text 'Mens Local Inference Cluster' is slightly clipped or truncated by its container boundary. — Backend Availability section, bottom left card
+- **models--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(88) verdict=Some("pass_with_notes")
+  - (minor) clipping: Model family names in the 'HOSTED' section cards are truncated with ellipses, obscuring the full identifier which is critical for distinguishing between similar model versions. — Bottom grid, 'HOSTED' section cards
+  - (minor) clipping: The text 'Mens Local Inference Cluster' is slightly clipped/crowded by the status indicator and container boundary. — Backend Availability section, first card in second row
+- **models--default--wide--firefox** [firefox / wide] status=reviewed score=Some(88) verdict=Some("pass_with_notes")
+  - (minor) clipping: Model names in the 'HOSTED' section cards are truncated with ellipses, making it impossible to distinguish between specific model versions within the same family. — Bottom grid, 'HOSTED' section cards
+  - (minor) clipping: The text 'Mens Local Inference Cluster' is truncated with a double dash/ellipsis, cutting off the full name of the backend provider. — Backend Availability section, bottom-left card
+- **models--empty--compact--chromium** [chromium / compact] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) error-leak: Raw 'undefined' text is visible in the UI summary line, indicating a failure to handle null/missing data in the empty state. — Model Registry card sub-header ('undefined models · undefined routing arms')
+  - (minor) blank: The main content area below the Model Registry header is completely empty despite the 'empty' state usually requiring a placeholder or empty-state illustration/call-to-action. — Main content panel below Model Registry
+- **models--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) error-leak: The string 'undefined' is rendered twice in the Model Registry summary text ('undefined models · undefined routing arms'). — Main content area, Model Registry card sub-header
+  - (minor) clipping: The 'Search or Jump...' placeholder text is vertically misaligned and appears slightly clipped or crowded within the input field. — Top header search bar
+- **models--empty--laptop--chromium** [chromium / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) error-leak: The string 'undefined' is leaked twice in the UI copy instead of numerical values or empty state placeholders. — Model Registry card subtext ('undefined models · undefined routing arms')
+  - (minor) clipping: The build version text at the bottom left is partially clipped or overlapping with the user avatar/status indicator. — Bottom left sidebar footer
+- **models--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) error-leak: The text 'undefined models' and 'undefined routing arms' is visible in the Model Registry card, indicating a failure to handle empty or loading states for data variables. — Main content area, Model Registry card subtitle
+  - (minor) clipping: The 'OpenRouter Spend' progress bar/indicator appears clipped or incomplete, showing only a single horizontal line segment without a container or clear scale. — Top header, right of search bar
+- **models--empty--wide--chromium** [chromium / wide] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) error-leak: The text 'undefined models · undefined routing arms' is visible in the Model Registry header, indicating a failure to handle empty or loading states for data variables. — Main content area, Model Registry panel subtitle
+  - (minor) blank: The 'OpenRouter Spend' metric displays an em-dash (—) instead of a zero or formatted currency value, suggesting a missing fallback for empty data. — Top navigation bar, second metric card
+  - (minor) contrast: The breadcrumb 'COMPUTE › MODELS' and the subtitle text in the Model Registry have very low contrast against the dark background, making them difficult to read. — Top left of main content area and Model Registry header
+- **models--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) error-leak: Raw 'undefined' strings are visible in the UI copy instead of formatted data or empty states. — Model Registry panel subtitle: 'undefined models · undefined routing arms'
+  - (minor) blank: The Model Registry panel is empty despite the header indicating an active 'auto-route' model, suggesting a failure to render the list or a missing empty-state illustration. — Main content area under Model Registry
+  - (minor) contrast: The 'OPENROUTER SPEND' value is represented by a single dash with very low contrast/visibility. — Top navigation bar, second module from left
+- **models--error--compact--chromium** [chromium / compact] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) occlusion: Multiple error toast notifications are stacked and occluding the main content area of the 'Model Registry' panel, making the underlying interface inaccessible. — Right side of the main content area
+  - (major) blank: The 'Model Registry' panel remains in a 'Loading routing summary...' state indefinitely with no data rendered, likely due to the reported IPC failures. — Center main panel
+  - (minor) error-leak: Raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') are displayed directly to the user in the toast notifications. — Error toast notifications
 - **models--error--compact--firefox** [firefox / compact] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) occlusion: Multiple error toast notifications are overlapping the main content area and each other, creating a stacked occlusion that obscures the 'Model Registry' panel and its status. — Right side of the main content area
-  - (major) clipping: The 'auto-route' text and its associated close 'x' icon are overlapping and clipping into the 'CHAT SESSIONS' error toast header. — Top-right of the first error toast notification
-  - (major) blank: The 'Model Registry' panel is stuck in a 'Loading routing summary...' state with no data rendered, likely due to the simulated IPC failures shown in the toasts. — Center-left main panel
-  - (minor) error-leak: Raw internal error strings '[mock-error]' and 'simulated IPC failure' are exposed directly to the user interface. — Inside all three error toast notifications
-  - (minor) layout: ARIA role violation: The tab list contains a button child that is not a valid tab child role, as flagged by programmatic scan. — Workbench tab bar / Models tab
-- **models--error--laptop--chromium** [chromium / laptop] status=cached score=Some(65) verdict=Some("fail")
-- **models--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) error-leak: Raw mock error strings and internal implementation details ('[mock-error]', 'simulated IPC failure') are visible to the user in toast notifications. — Bottom right toast notification stack
-  - (major) blank: The Model Registry panel is stuck in a 'Loading routing summary...' state with no content rendered, despite the system being in an error state that should likely be reflected in the main UI panel. — Center main panel (Model Registry)
-  - (minor) layout: Axe accessibility violation: The tab bar container (role='tablist') contains an invalid child element (button[aria-label='Close Models']), which breaks the expected ARIA parent-child relationship for screen readers. — Workbench tab bar, 'Models' tab close button
-- **models--error--wide--chromium** [chromium / wide] status=cached score=Some(45) verdict=Some("fail")
-- **models--error--wide--firefox** [firefox / wide] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) error-leak: Raw mock error strings and technical implementation details ('[mock-error]', 'simulated IPC failure') are exposed to the end-user in toast notifications. — Bottom right toast notifications
-  - (major) blank: The main content area for 'Model Registry' is empty except for a 'Loading routing summary...' placeholder, despite the system state indicating an error has occurred. — Center main panel
-  - (minor) layout: Multiple redundant error toasts for 'CHAT SESSIONS' are stacked, indicating a failure in toast deduplication or state management. — Bottom right notification stack
-  - (minor) contrast: The 'Loading routing summary...' text has very low contrast against the dark background, making it difficult to read. — Inside the Model Registry card
+  - (major) occlusion: The 'auto-route' active status text and its associated close icon are overlapping the top error notification card, causing a z-index collision. — top right of the notification stack / bottom right of the Model Registry header
+  - (major) blank: The 'Model Registry' panel is stuck in a 'Loading routing summary...' state with no content rendered, despite the error state being handled by external toast notifications. — center main content area
+  - (minor) error-leak: Raw internal error strings '[mock-error]' and technical implementation details 'simulated IPC failure' are exposed directly to the user interface. — notification toast messages
+  - (minor) clipping: The 'MODELS' tab in the sub-navigation appears slightly clipped or misaligned relative to the 'CHAT' label. — sub-navigation bar below the stats ribbon
+- **models--error--laptop--chromium** [chromium / laptop] status=reviewed score=Some(40) verdict=Some("fail")
+  - (critical) blank: The Model Registry panel is stuck in a 'Loading routing summary...' state with no data rendered, likely due to the reported IPC failures. — Center main content area
+  - (major) error-leak: Multiple toast notifications are displaying raw mock error strings ('[mock-error] list_model_cards simulated IPC failure') which should be sanitized for end-users. — Bottom right notification stack
+  - (minor) contrast: The 'OpenRouter Spend' value is represented by a very thin, low-contrast horizontal line that is difficult to distinguish from the background. — Top header, right of search bar
+- **models--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(45) verdict=Some("fail")
+  - (major) error-leak: Raw mock error strings and internal IPC failure messages are exposed to the user in toast notifications. — Bottom right toast notification stack
+  - (major) blank: The Model Registry panel remains in a 'Loading routing summary...' state with no data rendered, likely due to the reported IPC failures. — Center main content area
+  - (minor) clipping: The 'OpenRouter Spend' value is clipped or rendering as a single horizontal line/dash instead of a numerical value. — Top header, right of search bar
+- **models--error--wide--chromium** [chromium / wide] status=reviewed score=Some(45) verdict=Some("fail")
+  - (critical) blank: The main content area for 'Model Registry' is empty and stuck in a 'Loading routing summary...' state despite the system being in an error state. — Center main content panel
+  - (major) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' and 'list_model_cards' are exposed to the end user in toast notifications. — Bottom right toast notifications
+  - (minor) layout: Duplicate error notifications for 'CHAT SESSIONS' are rendered in the toast stack. — Bottom right notification stack
+  - (minor) contrast: The 'OPENROUTER SPEND' value is rendered as a single dash with very low contrast/visibility. — Top header, third widget from left
+- **models--error--wide--firefox** [firefox / wide] status=reviewed score=Some(45) verdict=Some("fail")
+  - (critical) blank: The main content area for 'Model Registry' is empty except for a 'Loading routing summary...' placeholder, despite the system being in an error state that should likely display a failure message or fallback data. — Center main panel
+  - (major) error-leak: Raw technical error strings including '[mock-error]' and 'simulated IPC failure' are exposed to the end-user in toast notifications. — Bottom right toast notifications
+  - (minor) layout: Duplicate error notifications for 'CHAT SESSIONS' are rendered, indicating a redundant trigger or lack of toast de-duplication. — Bottom right notification stack
+  - (minor) contrast: The 'OpenRouter Spend' value is rendered as a single dash '-' with very low contrast against the dark background, making it difficult to read. — Top header, second widget from left
 
 ## needs-you
 
-- **needs-you--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **needs-you--default--compact--chromium** [chromium / compact] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) blank: Conflicting UI state: An approval request for 'vox_run_shell' is visible, but the bottom of the panel displays a 'NOTHING NEEDS YOU' empty state message. — Main content area, center and bottom
+  - (minor) clipping: The '3 peers' text in the status bar is vertically misaligned and appears to be wrapping or clipped within its small allocated height. — Top status bar, MESH section
+  - (minor) clipping: The 'auto-route' text is hyphenated and wrapped awkwardly, suggesting the container is too narrow for the content at this viewport. — Top status bar, MODEL section
 - **needs-you--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'NOTHING NEEDS YOU' empty state placeholder is rendering simultaneously with an active 'vox_run_shell' approval card, creating a logical UI contradiction. — Main content area, bottom half
-  - (minor) clipping: The 'Search or Jump' text within the search input appears vertically misaligned or slightly clipped at the bottom of the container. — Top header search bar
-  - (minor) layout: Inconsistent vertical spacing between the 'APPROVALS' section header and the 'QUESTIONS & DOUBTS' section header relative to their content. — Main content body
-- **needs-you--default--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The text 'The agent is proceeding autonomously. Check back when' is truncated at the bottom of the viewport, suggesting the content container does not account for the full height of the instructional text in this compact view. — bottom center of main content area
+  - (minor) blank: The 'QUESTIONS & DOUBTS' section is empty despite the 'NEEDS YOU' state implying pending items, though this may be intentional if only 'APPROVALS' are pending. — middle of main content area
+- **needs-you--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The budget text '$12.34/$50.00' is being struck through by the horizontal separator line in the status bar. — Top status bar, budget section
+  - (minor) layout: Logical contradiction: The page title and a specific approval item ('vox_run_shell') are visible, but the empty state graphic/text 'NOTHING NEEDS YOU' is also rendered simultaneously below it. — Main content area
 - **needs-you--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'NOTHING NEEDS YOU' empty state message contradicts the presence of an active approval item ('vox_run_shell') in the list above it. — Main content area, center and top sections
-  - (minor) other: ARIA role 'tablist' contains a direct child 'button' which is not permitted by the specification; it expects 'tab' roles. — Workbench tab bar (Needs You tab close button)
-  - (minor) contrast: The 'REJECT' button text has very low contrast against the dark background, making it difficult to read compared to the 'APPROVE' button. — Approvals list item, right side
-- **needs-you--default--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **needs-you--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'Questions & Doubts' section is followed by a 'Nothing Needs You' empty state, despite an active approval request existing in the section immediately above. This creates a logical contradiction in the UI messaging. — Center main content area
+  - (minor) contrast: The secondary text 'The agent is proceeding autonomously...' and the section headers like 'APPROVALS' have very low contrast against the dark background, potentially impacting legibility. — Main content area
+- **needs-you--default--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'Questions & Doubts' section displays a 'NOTHING NEEDS YOU' empty state illustration and message, despite there being an active approval item ('vox_run_shell') visible in the section immediately above. This creates a logical contradiction in the UI state. — Center main content area
+  - (minor) contrast: The secondary text 'The agent is proceeding autonomously...' and the 'REJECT' button text have very low contrast against the dark background, making them difficult to read. — Center empty state and Approval card action buttons
+- **needs-you--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'QUESTIONS & DOUBTS' section displays a 'NOTHING NEEDS YOU' empty state despite the 'NEEDS YOU' tab and 'REVIEW' sidebar item indicating pending items (count of 1). — Center main content area
+  - (minor) clipping: The 'APPROVE' button text in the Approvals card has very tight vertical padding, nearly touching the top/bottom borders of the button container. — Top right of the 'vox_run_shell' approval card
 - **needs-you--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'NEEDS YOU' text in the main header area has a horizontal line (likely a section divider) striking through the bottom of the glyphs, making it look like a strikethrough decoration rather than a layout element. — Main content area, 'NEEDS YOU' heading
-  - (minor) other: Axe-core reports a critical ARIA violation where a button is a direct child of a tablist without a proper tab role, which correlates with the 'Close Needs You' button inside the tab bar. — Workbench tab bar, 'NEEDS YOU' tab close button
-  - (minor) contrast: The 'REJECT' button text has very low contrast against the dark background, making it difficult to read compared to the 'APPROVE' button. — Approvals card, action buttons
+  - (minor) blank: The 'Questions & Doubts' section contains a large empty area with a 'NOTHING NEEDS YOU' placeholder, despite the 'Approvals' section above it containing an active item ('vox_run_shell'). This creates a contradictory state where the page title is 'NEEDS YOU' and an approval is pending, but the primary center-stage graphic claims nothing needs attention. — Center content area under 'Questions & Doubts' header
+  - (minor) contrast: The 'REJECT' button text has very low contrast against the dark background, making it difficult to read compared to the 'APPROVE' button. — Right side of the vox_run_shell approval card
 
 ## oratio
 
-- **oratio--default--compact--chromium** [chromium / compact] status=cached score=Some(92) verdict=Some("pass_with_notes")
+- **oratio--default--compact--chromium** [chromium / compact] status=reviewed score=Some(88) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MODEL' value 'auto-route' is hyphenated and wrapped awkwardly within the status bar, suggesting insufficient horizontal space for the text string in this compact viewport. — Top status bar, right side
+  - (minor) clipping: The 'MESH' value '3 peers' is vertically stacked/wrapped tightly, causing the 'peers' text to sit very close to the bottom border of the container. — Top status bar, center-right
 - **oratio--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'VOICE' tab close button (X) is extremely close to the right edge of the tab container, suggesting tight padding or potential overflow in compact viewports. — Tab bar, VOICE tab
-  - (minor) layout: ARIA role mismatch: The tab bar contains a button element that is not a valid child of a role='tablist' according to programmatic scan, which can affect screen reader rendering of the tab structure. — Workbench tab bar
-- **oratio--default--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'VOICE' tab in the sub-navigation bar has a close icon (X) that appears slightly crowded against the right edge of the pill container. — Sub-navigation bar, 'VOICE' tab
+  - (minor) layout: In the status bar, the 'BUDGET' and 'MODEL' values use a multi-line layout that creates uneven vertical alignment compared to the single-line 'AGENTS' and 'QUEUE' metrics. — Top status bar metrics
+- **oratio--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(98) verdict=Some("pass")
 - **oratio--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Close Voice' button is incorrectly nested as a direct child of a tablist role, violating ARIA structure requirements as noted in programmatic findings. — Workbench tab bar, 'VOICE' tab element
-  - (minor) clipping: The 'VOICE' tab text is slightly off-center vertically within its pill container compared to the 'CHAT' tab. — Tab bar below the secondary header
-- **oratio--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **oratio--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **oratio--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Close Voice' button (X) inside the tab bar is identified by automated scans as an invalid child of a role='tablist', which can cause screen reader navigation issues even if visually it appears correct. — Workbench tab bar, 'VOICE' tab
-  - (minor) contrast: The secondary text 'Speech-to-code runtime' and the terminal-style command text 'exit 0 · vox oratio doctor' have very low contrast against the dark background, potentially impacting legibility. — Main content area, under VOX ORATIO header and inside Runtime Health/Backend Status cards
+  - (minor) contrast: The 'exit 0' and command text in the Runtime Health and Backend Status cards have low contrast against the dark background, potentially impacting legibility. — Main content area, green text within cards
+  - (minor) layout: The 'VOICE' tab in the sub-navigation has a close 'x' icon that appears slightly misaligned vertically relative to the text. — Sub-navigation bar, Voice tab
+- **oratio--default--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+- **oratio--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+- **oratio--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: Large empty region in the main content area below the Runtime Health and Backend Status cards, suggesting missing logs or data visualization for a 'wide' viewport. — Main content area, bottom half
+  - (minor) contrast: Low contrast for secondary text labels (e.g., 'ORATIO RUNTIME + CONFIGURATION DIAGNOSTICS') against the dark background, potentially impacting legibility. — Runtime Health and Backend Status card headers
 
 ## policies
 
-- **policies--default--compact--chromium** [chromium / compact] status=cached score=Some(92) verdict=Some("pass_with_notes")
+- **policies--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The text 'auto-route' in the top status bar is split across two lines awkwardly, suggesting a container width constraint in the compact viewport. — Top status bar, MODEL section
+  - (minor) clipping: The '3 peers' text in the MESH section of the status bar is vertically stacked/cramped compared to other horizontal metrics. — Top status bar, MESH section
 - **policies--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Close Policies' button (X icon) is nested directly within a role='tablist' container without a valid tab role, causing an ARIA parent/child mismatch. — Workbench tab bar, next to 'POLICIES' label
-  - (minor) contrast: The 'docs/src/reference/secrets-ssot.md' link text has low contrast against the dark background, making it difficult to read. — Right panel, bottom of 'CONTENTS' section
-- **policies--default--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'POLICIES' tab in the sub-navigation bar has a close 'x' icon that is very close to the text, suggesting tight padding/clipping in the compact viewport. — Sub-navigation bar, 'POLICIES' tab
+  - (minor) contrast: The breadcrumb 'REVIEW > POLICIES' and the 'WHAT IT DOES' header have low contrast against the dark background, potentially impacting legibility. — Top breadcrumb and right-hand detail panel
+- **policies--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'build' text in the bottom-left user profile section is partially clipped or misaligned relative to the version number below it. — bottom-left sidebar footer
+  - (minor) contrast: The 'docs/src/reference/secrets-ssot.md' link text has low contrast against the dark background, making it difficult to read. — right panel, center-bottom
 - **policies--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'Policies' tab close button (X) is slightly misaligned/cramped within the tab container, correlating with the axe-core finding regarding invalid child elements in the tablist. — Workbench tab bar, 'Policies' tab
-  - (minor) contrast: The 'docs/src/reference/secrets-ssot.md' link text has low contrast against the dark background, making it difficult to read. — Right panel, 'Contents' section
-- **policies--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **policies--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **policies--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: ARIA role 'tablist' contains a 'button' as a direct child instead of a 'tab' role, which violates accessibility standards for keyboard navigation and screen readers. — Workbench tab bar (CHAT / POLICIES x)
-  - (minor) clipping: The 'POLICIES' tab label in the workbench tab bar appears slightly off-center vertically relative to the 'CHAT' tab and the close 'x' button. — Workbench tab bar
-- **policies--empty--compact--chromium** [chromium / compact] status=cached score=Some(40) verdict=Some("fail")
-- **policies--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(20) verdict=Some("fail")
-  - (critical) error-leak: Raw JavaScript exception leakage: 'TypeError: can't access property "session_id", s is null' is displayed in multiple toast/alert notifications. — Right-hand content panel, Chat Session alerts
-  - (major) occlusion: The error notification cards are overlapping and occluding the 'select a policy' placeholder text and each other. — Right-hand content panel
-  - (minor) clipping: The 'Policies' tab in the workbench tab bar contains a close button that is flagged for invalid ARIA parent-child relationship (button inside role='tablist' without proper tab role wrapping). — Workbench tab bar, 'Policies' tab
-- **policies--empty--laptop--chromium** [chromium / laptop] status=cached score=Some(30) verdict=Some("fail")
-- **policies--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right quadrant, overlaying the main content area
-  - (major) occlusion: Error toast notifications are overlapping each other and obscuring the background 'select a policy' placeholder text. — Center-right content panel
-  - (minor) layout: The 'Policies' tab in the workbench tab bar contains a close button that is incorrectly nested within a role='tablist', causing an ARIA parent/child violation. — Workbench tab bar, 'Policies' tab
-  - (minor) blank: The main content area for the selected 'Policies' surface is empty except for error messages and a faint placeholder, despite the sidebar indicating an 'all clear' state. — Right-hand large panel
-- **policies--empty--wide--chromium** [chromium / wide] status=cached score=Some(20) verdict=Some("fail")
-- **policies--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(40) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right corner
-  - (major) blank: The main content area is a large empty black panel with only a 'select a policy' placeholder, despite the 'Policies' tab being active and indicating an 'all clear' state in the sidebar. — Center main content area
-  - (minor) layout: ARIA role mismatch in the tab bar where a button is an immediate child of a tablist without a tab role, correlating with axe-core findings. — Workbench tab bar (Policies tab close button)
-- **policies--error--compact--chromium** [chromium / compact] status=cached score=Some(65) verdict=Some("fail")
-- **policies--error--compact--firefox** [firefox / compact] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) layout: The 'select a policy' text is being overlapped and partially obscured by the error notification cards in the right-hand panel. — Right content panel, middle section
-  - (minor) error-leak: Raw mock error strings '[mock-error]' and technical implementation details 'simulated IPC failure' are exposed to the end-user UI. — Right panel error notifications
-  - (minor) clipping: The 'Policies' tab in the workbench tab bar contains a close button that violates ARIA child requirements for a tablist, as noted in programmatic findings. — Workbench tab bar, Policies tab
-- **policies--error--laptop--chromium** [chromium / laptop] status=cached score=Some(65) verdict=Some("fail")
-- **policies--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) error-leak: Raw internal error strings and mock-data failure messages ('[mock-error] policy_list simulated IPC failure') are exposed directly to the end-user in toast/notification components. — Right-hand content panel, stacked error notifications
-  - (major) occlusion: The 'POLICY CATALOG FAILED' error notification is overlapping and obscuring the 'select a policy' placeholder text. — Center-right of the main content area
-  - (minor) layout: Redundant error notifications: 'CHAT SESSIONS' error is duplicated twice in the stack. — Right-hand notification stack
-  - (minor) clipping: The 'Policies' tab in the workbench tab bar contains a close button that violates ARIA parent-child relationship rules (as noted in programmatic scan), potentially impacting screen reader navigation. — Workbench tab bar, 'POLICIES' tab
-- **policies--error--wide--chromium** [chromium / wide] status=cached score=Some(65) verdict=Some("fail")
-- **policies--error--wide--firefox** [firefox / wide] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) error-leak: Raw mock error strings and implementation details ('[mock-error]', 'simulated IPC failure') are visible to the user in toast notifications. — Bottom right toast notifications
-  - (minor) blank: The 'OpenRouter Spend' metric in the header displays a dash ('—') instead of a value or zero, despite the UI being in an active state. — Top header, second panel from left
-  - (minor) layout: The 'Policies' tab in the workbench tab bar contains a close button that violates ARIA parent-child relationship rules for tablists, as noted in programmatic findings. — Workbench tab bar, 'Policies' tab
+  - (minor) clipping: The 'POLICIES' tab in the main content area has a close 'x' icon that is slightly misaligned/cramped against the right edge of the tab pill. — Top left of main content area, tab bar
+  - (minor) contrast: The file path 'docs/src/reference/secrets-ssot.md' uses a dark gold/brown color that has low contrast against the dark grey background, potentially impacting legibility. — Right panel, middle section under code block
+- **policies--default--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+- **policies--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(100) verdict=Some("pass")
+- **policies--default--wide--firefox** [firefox / wide] status=reviewed score=Some(100) verdict=Some("pass")
+- **policies--empty--compact--chromium** [chromium / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'SEARCH OR JUMP...' placeholder text in the top search bar is vertically misaligned and appears slightly clipped at the bottom of the glyphs. — Top header search input
+  - (minor) contrast: The 'no git worktrees' text in the Policies panel has very low contrast against the dark background, making it difficult to read. — Left content panel under POLICIES header
+- **policies--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'SEARCH OR JUMP...' placeholder text in the top search bar is vertically misaligned and appears slightly clipped at the bottom of the characters. — Top header search input
+  - (minor) contrast: The 'no git worktrees' text in the Policies panel has very low contrast against the dark background, making it difficult to read. — Left content panel under 'POLICIES'
+- **policies--empty--laptop--chromium** [chromium / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+- **policies--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+- **policies--empty--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: The 'no git worktrees' text and the 'select a policy' placeholder text have very low contrast against the dark background, making them difficult to read. — Left sidebar panel and main content area
+  - (minor) blank: The 'OPENROUTER SPEND' widget in the header displays a dash ('—') instead of a value or a zero, which may indicate a data loading or formatting issue even in an empty state. — Top header, third widget from left
+- **policies--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'OpenRouter Spend' metric displays a dash (—) instead of a numerical value or zero, suggesting a data fetch failure or uninitialized state despite the 'Live' status indicator. — Top header, third panel from left
+  - (minor) contrast: The 'no git worktrees' text and the breadcrumb 'REVIEW > POLICIES' have very low contrast against the dark background, making them difficult to read. — Left sidebar panel and main content header
+- **policies--error--compact--chromium** [chromium / compact] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) occlusion: The error notification cards in the right-hand panel are overlapping and occluding the 'select a policy' text and the underlying container structure. — Right-hand side panel, bottom half
+  - (minor) error-leak: Raw technical error strings '[mock-error] chat_list_sessions simulated IPC failure' are exposed directly to the user interface. — Right-hand side panel, error notification cards
+  - (minor) blank: The 'POLICIES' panel renders with a 'no git worktrees' message and an 'all clear' status despite the application being in an 'error' state with multiple failures reported in the adjacent panel. — Center-left 'POLICIES' panel
+- **policies--error--compact--firefox** [firefox / compact] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) occlusion: The 'select a policy' placeholder text is being occluded/overlapped by the 'POLICY CATALOG FAILED' and 'CHAT SESSIONS' error cards, suggesting a z-order or layout flow issue in the right-hand panel. — Right content panel, center-right
+  - (minor) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are visible to the end user instead of a sanitized human-readable message. — Right content panel, error card bodies
+  - (minor) layout: The 'Policies' tab in the main content area has a close 'x' icon that is misaligned/cramped against the text, and the 'no git worktrees' text in the left sub-panel appears to be placeholder text leaking into a production-style UI. — Center content area, sub-panel headers
+- **policies--error--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The main content area for 'Policies' is largely empty, displaying only toast-style error notifications rather than a structured error state or empty state within the panel. — center-right main content panel
+  - (minor) error-leak: Raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') are visible to the user instead of human-readable error messages. — right-side error toast notifications
+- **policies--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) occlusion: Multiple error toast notifications are overlapping each other and the background text ('select a policy'), making the content unreadable. — Right-hand content panel
+  - (minor) error-leak: Raw mock error strings '[mock-error]' and technical implementation details 'simulated IPC failure' are exposed to the end-user. — Error toast notifications
+  - (minor) layout: The 'POLICIES' tab in the sub-navigation has a close 'x' icon that appears misaligned or cramped compared to standard tab styling. — Sub-navigation bar under breadcrumbs
+- **policies--error--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are visible in toast notifications. — bottom right toast notifications
+  - (minor) blank: The main content area is largely empty with only a 'select a policy' placeholder, despite the 'Policies' tab being active and 'all clear' status in the sidebar. — center main panel
+- **policies--error--wide--firefox** [firefox / wide] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) error-leak: Raw mock error strings and IPC failure messages are exposed to the user in toast notifications. — Bottom right toast notifications
+  - (major) blank: The main content area is empty except for a 'select a policy' prompt, despite the sidebar indicating 'all clear' and the system being in an error state. — Main content panel
+  - (minor) contrast: The 'Openrouter Spend' value is rendered as a single dash with very low contrast, making it difficult to read. — Top header, second module from left
+  - (minor) clipping: The text 'no git worktrees' in the sidebar appears misaligned or orphaned relative to the 'all clear' status indicator. — Left sidebar, Policies panel
 
 ## populi
 
-- **populi--default--compact--chromium** [chromium / compact] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **populi--default--compact--firefox** [firefox / compact] status=reviewed score=Some(88) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'SEARCH OR JUMP...' text in the search bar is vertically misaligned (too high) relative to the search icon and the keyboard shortcut hint. — Top header, search input field
-  - (minor) layout: In the secondary stats bar, the 'BUDGET' value '$12.34/ $50.00' is split across two lines, causing the row height to feel cramped compared to adjacent single-line items. — Secondary navigation bar, budget section
-  - (minor) clipping: The 'MESH' value '3 peers' is wrapping/stacking awkwardly, which may indicate a container width constraint in the compact viewport. — Secondary navigation bar, mesh section
-- **populi--default--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **populi--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'build' text in the bottom-left user profile section is partially clipped or orphaned from its version number due to tight vertical spacing. — Bottom-left sidebar, user profile section
-  - (minor) layout: The 'Nodes' tab in the workbench tab bar contains a close button that is flagged for invalid ARIA parent-child relationship (button inside tablist without proper role wrapping), which can affect screen reader navigation. — Workbench tab bar, 'Nodes' tab
-- **populi--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **populi--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **populi--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) other: ARIA role 'tablist' contains a direct child button which is not permitted by the ARIA specification for this role, potentially impacting screen reader navigation. — Workbench tab bar, 'Close Nodes' button
-  - (minor) blank: Large empty region below the Mesh Status and Local Snapshot cards where additional network data or node lists are expected in a dense dashboard. — Main content area, bottom half of screen
+- **populi--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MESH' and 'MODEL' labels in the secondary status bar are vertically misaligned and the values ('3 peers', 'auto-route') appear cramped or slightly clipped by the container boundaries in the compact viewport. — Secondary status bar, top right section below main header
+  - (minor) contrast: The breadcrumb text 'COMPUTE > NODES' and the sub-header 'Distributed mesh network' have very low contrast against the dark background, making them difficult to read. — Top-left of main content area
+- **populi--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'auto-route' text in the Model section of the status bar is hyphenated and wrapped awkwardly, suggesting the container width is insufficient for the content at this viewport. — Top status bar, Model section
+  - (minor) contrast: The 'exit 0' and command text ('vox populi status') have low contrast against the dark background, potentially impacting legibility. — Mesh Status and Local Snapshot terminal blocks
+- **populi--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) clipping: The bottom-left user profile section shows 'build 0.6.0+local (dev)' where the text is very close to the edge of the container, though not fully truncated. — bottom-left sidebar footer
+- **populi--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+- **populi--default--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+- **populi--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The text 'mesh: 2 nodes online | overlay healthy' is vertically cramped within its container, nearly touching the bottom border of the inner stroke. — MESH STATUS and LOCAL SNAPSHOT terminal output boxes
+  - (minor) layout: The 'REFRESH' button in the main content area is misaligned vertically relative to the 'VOX POPULI' header and subtext, appearing floating without a clear baseline anchor. — Top right of the main content panel
+- **populi--default--wide--firefox** [firefox / wide] status=reviewed score=Some(88) verdict=Some("pass_with_notes")
+  - (minor) blank: Large empty region below the Mesh Status and Local Snapshot cards suggests missing content or inefficient use of vertical space for a 'wide' viewport. — Main content area below the first row of cards
+  - (minor) clipping: The 'MESH: 2 nodes online | overlay healthy' text in the Local Snapshot card appears to be a duplicate of the Mesh Status card, potentially indicating a data binding error or placeholder text leakage. — Local Snapshot card content
 
 ## publications
 
-- **publications--default--compact--chromium** [chromium / compact] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **publications--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Publications' tab close button (X) is visually misaligned/cramped within the tab pill, and programmatic findings indicate it is an invalid child of the tablist role. — Workbench tab bar, 'Publications' tab
-  - (minor) contrast: The 'Refresh' button in the Publication Pipeline section has very low contrast (dark grey text on dark grey background), making it difficult to read. — Top right of the Publication Pipeline section
-  - (minor) clipping: The 'MESH' and 'MODEL' labels in the status bar have very tight vertical spacing with their values (e.g., '3 peers', 'auto-route'), leading to a cramped appearance that risks clipping on different font engines. — Horizontal status bar below breadcrumbs
-- **publications--default--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **publications--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'ORCID ATTRIBUTED' column in the Publication Pipeline is empty with a dashed placeholder, while other columns contain cards, creating a visual gap in the kanban-style layout. — Center of Publication Pipeline grid
-  - (minor) other: ARIA role mismatch: The tab bar contains a button as a direct child of a role='tablist', which violates accessibility standards for keyboard navigation and screen reader parsing. — Workbench tab bar (Publications tab close button)
-- **publications--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **publications--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **publications--default--compact--chromium** [chromium / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MESH' and 'MODEL' labels in the status bar have their values ('3 peers', 'auto-route') wrapping awkwardly or appearing vertically misaligned compared to the 'AGENTS' and 'QUEUE' labels. — Top status bar, right side of the secondary header
+  - (minor) layout: The 'ORCID ATTRIBUTED' column contains a dashed placeholder box that is vertically misaligned with the solid cards in adjacent columns. — Publication Pipeline board, third column
+- **publications--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'Refresh' button in the Publication Pipeline section is partially clipped by the right edge of the content container. — top right of the Publication Pipeline panel
+  - (minor) layout: The 'ORCID ATTRIBUTED' column contains a dashed placeholder that is vertically misaligned compared to the cards in adjacent columns. — Publication Pipeline grid, third column
+- **publications--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+- **publications--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+- **publications--default--wide--chromium** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'FAILED' column header and its associated card 'pub-10' are partially clipped by the right edge of the main content container, suggesting the Kanban board does not scale or scroll gracefully at this viewport width. — Right side of the Publication Pipeline board
+  - (minor) contrast: The secondary text 'paper' within the publication cards has very low contrast against the dark card background, making it difficult to read. — Publication cards in the pipeline
+- **publications--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'FAILED' column header at the far right of the Publication Pipeline is partially clipped by the viewport edge, suggesting the grid layout doesn't fully account for the container width in this view. — top right of the publication pipeline grid
+  - (minor) layout: The 'ORCID ATTRIBUTED' column contains a dashed placeholder box that is significantly shorter than the cards in adjacent columns, creating an uneven horizontal alignment across the pipeline row. — center of the publication pipeline grid
 - **publications--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'FAILED' column header is visible but the column content area appears to be pushed or clipped at the right edge of the viewport, making it unclear if cards are missing or just off-screen. — Rightmost column of the Publication Pipeline
-  - (minor) other: ARIA role 'tablist' contains a direct child 'button' which is not a valid child for that role according to programmatic scan, potentially breaking screen reader navigation for the tab bar. — Workbench tab bar (Chat / Publications tabs)
+  - (minor) clipping: The 'FAILED' column header at the far right of the Publication Pipeline is partially truncated by the container edge. — Publication Pipeline board, top right column header
+  - (minor) contrast: The 'ORCID ATTRIBUTED' column contains a dashed placeholder/empty state that has extremely low contrast against the dark background, making it difficult to perceive. — Publication Pipeline board, third column
 
 ## repository
 
-- **repository--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **repository--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Close Repository' button (X) inside the Repository tab is misaligned vertically, appearing slightly higher than the tab text baseline. — Workbench tab bar, Repository tab
-  - (minor) clipping: The 'Live isolation status' text is very close to the bottom edge of its container, suggesting potential clipping if the viewport were any smaller. — Multi-Agent Isolation panel
-  - (minor) other: ARIA role mismatch: The tab bar contains a button as a direct child of a role='tablist', which violates accessibility standards for keyboard navigation and screen readers. — Workbench tab bar
-- **repository--default--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **repository--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Repository' tab button contains a close (X) icon that is programmatically identified as an invalid child of a role='tablist' container, which can interfere with screen reader navigation of the tab bar. — Workbench tab bar, Repository tab
-  - (minor) contrast: The breadcrumb text 'WORKSPACE > REPOSITORY' and the secondary labels in the header (e.g., 'AGENTS', 'QUEUE') have very low contrast against the dark background, making them difficult to read. — Top header and sub-header area
-- **repository--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **repository--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
+- **repository--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) layout: The 'MESH' and 'MODEL' status items in the sub-header bar exhibit vertical misalignment and awkward line-breaking (e.g., '3 peers' and 'auto-route' wrapping/stacking) compared to the single-line items like 'AGENTS' and 'QUEUE'. — Sub-header status bar, top right quadrant
+  - (minor) contrast: The 'active: Shared Branch' text has very low contrast against the dark background, making it difficult to read. — Multi-Agent Isolation section, bottom right
+- **repository--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The bottom of the 'MULTI-AGENT ISOLATION' card is clipped by the viewport edge, cutting off the 'Per-agent overrides' section. — bottom right panel
+  - (minor) layout: The 'MESH' and 'MODEL' labels in the secondary header bar are slightly misaligned vertically relative to their values ('3 peers', 'auto-route'). — top horizontal status bar
+- **repository--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+- **repository--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+- **repository--default--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+- **repository--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'REPOSITORY' tab text is slightly vertically misaligned within its tab container, appearing too close to the top border compared to the 'CHAT' tab. — Tab bar above Repository Harness title
+  - (minor) layout: The 'active: Shared Branch' text is positioned very close to the 'Default strategy' dropdown, lacking sufficient horizontal padding for a clean layout. — Multi-Agent Isolation section
 - **repository--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The ARIA role 'tablist' contains a button child which is not a valid child of a tablist according to accessibility standards, potentially impacting screen reader navigation. — Workbench tab bar (Repository tab close button)
-  - (minor) contrast: The 'Live isolation status is loading...' text in orange has low contrast against the dark background, making it difficult to read. — Multi-Agent Isolation section
+  - (minor) contrast: The 'active: Shared Branch' text next to the dropdown has very low contrast against the dark background, making it difficult to read. — Multi-Agent Isolation section, strategy selector row
+  - (minor) blank: The 'Workspace status', 'Repo health check', 'vox check', and 'vox diff' panels appear as empty interactive containers with no data or status indicators populated. — Repository Harness section
 
 ## research
 
-- **research--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **research--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Research' tab button in the workbench tab bar contains a close button that violates ARIA parent-child relationship rules for tablists, as identified by programmatic scan. — Workbench tab bar, 'Research' tab
-  - (minor) contrast: Low contrast on status labels (completed, failed, active) within the Recent Sessions list, making them difficult to read against the dark background. — Recent Sessions list, right-aligned status text
-  - (minor) clipping: The 'auto-route' text in the header stats bar is tightly packed and appears slightly misaligned/cramped within its vertical space compared to other metrics. — Header stats bar, MODEL section
-- **research--default--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **research--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Close Research' button (X) inside the Research tab is incorrectly identified as a direct child of a role='tablist' without a proper role='tab' wrapper, causing an ARIA parent/child relationship violation. — Workbench tab bar, Research tab
-  - (minor) contrast: The 'Refresh' text and session status labels (completed, failed, active, orphaned) have very low contrast against the dark background, making them difficult to read. — Recent Sessions list, right-aligned labels
-- **research--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **research--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **research--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) other: ARIA role 'tablist' contains a 'button' as a direct child instead of a 'tab' role, violating accessibility structure requirements. — Workbench tab bar (Research tab close button area)
-  - (minor) contrast: Low contrast for secondary metadata text (e.g., 'Vox Axis - build 0.6.0+local (dev)') against the dark background, potentially impacting legibility. — Bottom left footer
+- **research--default--compact--chromium** [chromium / compact] status=reviewed score=Some(88) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MODEL' value 'auto-route' is hyphenated and split across two lines, causing the text to nearly touch the container boundaries and disrupting the horizontal flow of the status bar. — Top status bar, right side under 'MODEL'
+  - (minor) layout: The 'MESH' value '3 peers' is vertically stacked/wrapped in a way that breaks the alignment with other items in the horizontal status row. — Top status bar, center-right under 'MESH'
+- **research--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'Refresh' button in the Recent Sessions header is partially clipped by the right edge of the content container. — Right side of 'RECENT SESSIONS' header
+  - (minor) layout: The 'LIVE' status indicator in the secondary navigation bar is slightly misaligned vertically compared to the adjacent trophy icon and text labels. — Secondary navigation bar, right side
+- **research--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+- **research--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(100) verdict=Some("pass")
+- **research--default--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+- **research--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) clipping: The 'Run' button text has very tight vertical padding, appearing slightly off-center within its border, though not fully truncated. — Right side of the research input field
+- **research--default--wide--firefox** [firefox / wide] status=reviewed score=Some(100) verdict=Some("pass")
 
 ## runs
 
-- **runs--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **runs--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MODEL' value 'auto-route' is hyphenated/wrapped awkwardly within the status bar, suggesting insufficient horizontal space for the string in this compact viewport. — Top status bar, right side
+  - (minor) clipping: The 'MESH' value '3 peers' is wrapped onto two lines, breaking the horizontal alignment of the status bar items. — Top status bar, center-right
 - **runs--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'Budget' value '$12.34/ $50.00' is vertically cramped within the pill container, with the denominator text appearing very close to the bottom border. — Top sub-header stats bar, Budget section
-  - (minor) layout: The 'Review' tab in the main content area has a close 'x' icon that is slightly misaligned vertically relative to the tab text. — Main content area, tab bar below the stats pill
-  - (minor) clipping: The 'Review' menu item in the left sidebar has a notification badge '1' that is partially overlapping the right edge of the highlighted container background. — Left sidebar, Review menu item
-- **runs--default--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **runs--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'Review' tab button contains a close 'X' button as a direct child of a role='tablist' container, which violates ARIA structure and causes accessibility failures. — Workbench tab bar, 'Review' tab
-  - (minor) contrast: The metadata text under 'Latest Route Decision' (state=exploit...) has very low contrast against the dark background, making it difficult to read. — Latest Route Decision card
-- **runs--default--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **runs--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **runs--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) blank: The 'LATEST ROUTE DECISION' panel is largely empty despite containing metadata, suggesting a missing visualization or graph component. — Center-top large panel below the tab bar
-  - (minor) other: ARIA role mismatch: tablist contains a button that is not a tab, causing accessibility tree validation errors. — Workbench tab bar (Review tab close button)
-  - (minor) contrast: The 'state=exploit | intel=0.92...' metadata text has very low contrast against the dark background, making it difficult to read. — LATEST ROUTE DECISION panel, top left text
-- **runs--empty--compact--chromium** [chromium / compact] status=cached score=Some(30) verdict=Some("fail")
-- **runs--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(35) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications are displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right quadrant, floating toast overlays
-  - (major) occlusion: Toast notifications are overlapping each other, making the text of the bottom notification unreadable. — Bottom right quadrant
-  - (major) occlusion: Error toast notifications are partially covering the primary empty state illustration and text ('NO MODEL RUNS TRACKED YET'). — Center-right content area
-  - (minor) layout: The 'CHAT' and 'REVIEW' tabs in the workbench bar appear misaligned or have inconsistent spacing relative to the horizontal separator line. — Top center, below the status bar
-- **runs--empty--laptop--chromium** [chromium / laptop] status=cached score=Some(40) verdict=Some("fail")
-- **runs--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(30) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications are displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right corner, toast notification stack
-  - (minor) clipping: The 'OpenRouter Spend' progress bar/indicator is vertically clipped or improperly rendered, showing only a thin horizontal line segment. — Top header, right of the search bar
-  - (minor) layout: The 'Review' tab in the workbench tab bar contains a close button that violates ARIA parent/child relationship rules according to programmatic scan, potentially impacting screen reader navigation. — Main content area, tab bar below the stats row
-- **runs--empty--wide--chromium** [chromium / wide] status=cached score=Some(45) verdict=Some("fail")
-- **runs--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(40) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right toast notifications
-  - (minor) layout: ARIA role 'tablist' contains a 'button' child which is not a valid child for that role according to accessibility standards, correlating with axe-core findings. — Workbench tab bar (Chat/Review tabs)
-  - (minor) blank: OpenRouter Spend metric displays a dash '—' instead of a numerical value or zero, suggesting a data loading or initialization failure. — Top header, OpenRouter Spend section
-- **runs--error--compact--chromium** [chromium / compact] status=cached score=Some(45) verdict=Some("fail")
+  - (minor) clipping: The 'REVIEW' tab label in the main content area has its bottom border/glow clipped by the container boundary. — Center-left, tab bar below the secondary header
+  - (minor) layout: In the secondary header bar, the 'MESH' and 'MODEL' labels and values have inconsistent vertical alignment and cramped spacing compared to 'AGENTS' and 'QUEUE'. — Top horizontal status bar
+- **runs--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+- **runs--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(98) verdict=Some("pass")
+- **runs--default--wide--chromium** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'LATEST ROUTE DECISION' panel contains a large empty area below the text metadata, suggesting either missing visualization content or an oversized container for the current data. — Center main content area
+  - (minor) contrast: The secondary metadata text (state=exploit, intel=0.92, etc.) under 'opus-4-8' has very low contrast against the dark background, making it difficult to read. — Latest Route Decision panel
+- **runs--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(88) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'LATEST ROUTE DECISION' panel contains a large empty black region below the initial metadata, suggesting missing visualization or logs. — Center main content area
+  - (minor) clipping: The 'RUN DETAILS' text at the bottom right is very close to the container border, though not fully clipped, it lacks standard padding compared to other modules. — Bottom right panel
+- **runs--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'LATEST ROUTE DECISION' panel contains significant empty space despite the presence of model metadata, suggesting a missing visualization or incomplete data rendering. — Center main content area
+  - (minor) contrast: The secondary metadata text (state=exploit, intel=0.92, etc.) under 'opus-4-8' has very low contrast against the dark background, making it difficult to read. — LATEST ROUTE DECISION panel
+- **runs--empty--compact--chromium** [chromium / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) layout: The 'REVIEW' tab label in the main content area is partially overlapping the 'CHAT' label, suggesting a tight flex/grid container or lack of padding between tab elements in the compact viewport. — Main content area, tab navigation bar below the header
+  - (minor) clipping: The version string '0.6.0+local (dev)' at the bottom of the sidebar is very close to the edge of the container, risking truncation on slightly smaller viewports. — Bottom left sidebar, footer section
+- **runs--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) clipping: The 'Search or Jump...' placeholder text in the top search bar is vertically misaligned and appears slightly clipped at the bottom of the characters. — Top header search input
+- **runs--empty--laptop--chromium** [chromium / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'OpenRouter Spend' progress bar/indicator is partially clipped or rendered as a single horizontal line without clear scale or context, appearing visually incomplete. — Top header, right of search bar
+  - (minor) layout: The 'Recent Activity' heading is positioned at the very bottom of the viewport with no visible content or spacing beneath it, suggesting the container may be cutting off the start of a list. — Bottom left of main content area
+- **runs--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'OpenRouter Spend' progress bar/indicator is partially clipped or rendered with a very thin height that makes the value/status difficult to discern. — Top header, right of search bar
+  - (minor) clipping: The 'build' text in the bottom-left footer is slightly truncated or misaligned relative to the version number. — Bottom-left sidebar footer
+- **runs--empty--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) clipping: The 'OPENROUTER SPEND' value is represented by a dash '—' which appears slightly misaligned or potentially clipped by the container's bottom padding compared to the 'PENDING APPROVALS' value alignment. — Top header, second metric card from left
+- **runs--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(98) verdict=Some("pass")
+  - (minor) clipping: The 'OpenRouter Spend' value is rendered as an em-dash or underscore that appears slightly misaligned/clipped relative to the label above it. — Top header, third widget from left
+- **runs--error--compact--chromium** [chromium / compact] status=reviewed score=Some(45) verdict=Some("fail")
+  - (critical) error-leak: Multiple toast notifications displaying raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') are visible, indicating a failure to handle or mask internal error states for the UI. — Right side of the main content area
+  - (major) occlusion: The stack of error toast notifications is occluding the primary 'MODEL SCOREBOARD' content and the 'NO MODEL RUNS' empty state message. — Center-right of the main content panel
+  - (major) clipping: The 'NO MODEL RUNS' text and its supporting description are horizontally clipped/truncated by the right edge of the viewport or the toast container. — Center of the main content panel
+  - (minor) layout: The main content grid is identified as a scrollable region but lacks keyboard focusability, making it inaccessible for keyboard-only users. — Main content grid container
 - **runs--error--compact--firefox** [firefox / compact] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) occlusion: Multiple error toast notifications are stacked directly on top of the main content area, obscuring the 'NO MODEL RUNS TRACKED YET' text and the descriptive paragraph below it. — Center-right content area
-  - (major) layout: The 'RUNS LOAD FAILED' error toast has internal layout breakage where the error message text is overlapping with the toast's title and icon, making it illegible. — Bottom-most error toast in the stack
-  - (major) error-leak: Raw technical error strings '[mock-error] chat_list_sessions simulated IPC failure' and 'get_model_scoreboard' are exposed to the end user instead of human-readable messages. — Error toast notifications
-  - (minor) clipping: The 'REVIEW' tab in the sub-navigation bar has a close 'x' icon that is very close to the border, and the tab bar itself appears to have a redundant close button according to axe-core findings. — Workbench tab bar
-- **runs--error--laptop--chromium** [chromium / laptop] status=cached score=Some(65) verdict=Some("fail")
+  - (major) occlusion: Multiple error toast notifications are stacked directly on top of each other, causing text overlap and making the bottom-most error message unreadable. — bottom right quadrant of the main content area
+  - (major) occlusion: The 'RUNS LOAD FAILED' error toast is overlapping the 'NO MODEL RUNS TRACKED YET' empty state text and description. — center right of the main content area
+  - (minor) error-leak: Raw technical error strings ('[mock-error] chat_list_sessions simulated IPC failure') are exposed to the end user. — error toast notifications
+  - (minor) layout: The large warning icon for the empty state is partially obscured by the error toast stack. — center of the main content area
+- **runs--error--laptop--chromium** [chromium / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) occlusion: Multiple error toast notifications are stacked in the bottom right, occluding the 'NO MODEL RUNS TRACKED' empty state text and the 'RECENT ACTIVITY' section header. — Bottom right quadrant
+  - (minor) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are displayed directly to the user in the toast notifications. — Toast notifications, bottom right
+  - (minor) clipping: The text 'Scoreboard data accumulates dynamically once agents complete routing workflows.' is partially obscured by the toast notification stack. — Center-right, below 'NO MODEL RUNS TRACKED'
 - **runs--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) occlusion: Multiple error toast notifications are stacked in the bottom right, partially occluding the 'NO MODEL RUNS TRACKED YET' empty state text and the 'Scoreboard data accumulates...' description. — Bottom right quadrant / Center content area
-  - (major) error-leak: Raw mock error strings and technical implementation details ('[mock-error] chat_list_sessions simulated IPC failure') are exposed to the end user in the toast notifications. — Toast notifications, bottom right
-  - (minor) clipping: The 'OPENROUTER SPEND' value appears to be a horizontal line or a clipped zero, lacking clear numerical representation. — Top header, right of search bar
-  - (minor) layout: The 'REVIEW' tab in the workbench tab bar contains a close button that is flagged by accessibility scans as an invalid child of a tablist, potentially breaking keyboard navigation flow. — Workbench tab bar, 'REVIEW' tab
-- **runs--error--wide--chromium** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
-- **runs--error--wide--firefox** [firefox / wide] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) error-leak: Multiple toast notifications displaying raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') and technical implementation details. — bottom right toast stack
-  - (minor) blank: OpenRouter Spend widget displays a dash ('—') instead of a value or zero, indicating a failure to fetch or initialize data. — top header, center-right widget
-  - (minor) clipping: The 'Review' tab in the workbench tab bar contains a close button that is flagged by accessibility scans as an invalid child of a tablist, and visually the tab bar layout appears slightly cramped with the 'Chat' and 'Review' tabs. — workbench tab bar below the sub-header
+  - (major) occlusion: Multiple error toast notifications are stacked and occluding the primary content area, specifically covering the 'No model runs tracked yet' empty state text and instructions. — Center-right of the main content panel
+  - (major) error-leak: Raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') are exposed to the end-user in the toast notifications. — Toast notifications in the bottom right quadrant
+  - (minor) clipping: The 'OpenRouter Spend' progress bar or indicator appears to be clipped or improperly rendered, showing only a single horizontal line segment. — Top header, right of the search bar
+  - (minor) layout: The 'Review' tab in the sub-navigation has a close 'X' icon that is misaligned/crowded against the text. — Sub-navigation bar below the header
+- **runs--error--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) error-leak: Toast notifications in the bottom right display raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') which should be sanitized for end-users. — bottom right toast stack
+  - (minor) contrast: The 'OPENROUTER SPEND' value is rendered as a very thin horizontal line or dash with low visibility, making it unclear if it is a zero value or a loading state. — top header, second module from left
+- **runs--error--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) error-leak: Raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') are displayed in toast notifications, which should ideally be mapped to user-friendly messages. — Bottom right toast notifications
+  - (minor) blank: OpenRouter Spend metric displays an empty dash/null state despite the UI being in an active 'Live' state. — Top header, OpenRouter Spend widget
 
 ## scientia
 
-- **scientia--default--compact--chromium** [chromium / compact] status=cached score=Some(65) verdict=Some("fail")
-- **scientia--default--compact--firefox** [firefox / compact] status=reviewed score=Some(65) verdict=Some("fail")
-  - (critical) error-leak: Raw JavaScript exception 'SyntaxError: JSON.parse: unexpected character...' is visible within a UI toast/panel, indicating a failure to handle malformed data gracefully. — Bottom right, 'SCIENTIA COST' card
-  - (major) occlusion: The 'SCIENTIA COST' error toast is overlapping and obscuring the 'STALE' status indicator and potentially other content in the grid below it. — Bottom right quadrant, over the 'STALE' label
-  - (minor) clipping: The 'STALE' text appears to be partially clipped or obscured by the overlapping error card. — Bottom right, behind the error toast
-- **scientia--default--laptop--chromium** [chromium / laptop] status=cached score=Some(65) verdict=Some("fail")
-- **scientia--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) error-leak: Raw JavaScript SyntaxError ('JSON.parse: unexpected character...') is displayed in a toast notification, indicating a failure to handle API response data correctly. — Bottom right toast notification titled 'SCIENTIA COST'
-  - (major) occlusion: The error toast notification is partially occluding the 'TOP CANDIDATES' data table, specifically covering the status/evidence column. — Bottom right quadrant of the main content area
-  - (minor) clipping: The 'TOP CANDIDATES' list items at the bottom of the viewport appear to be cut off by the container edge without a clear scroll indicator or padding. — Bottom center of the main content panel
-- **scientia--default--wide--chromium** [chromium / wide] status=cached score=Some(65) verdict=Some("fail")
-- **scientia--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
+- **scientia--default--compact--chromium** [chromium / compact] status=reviewed score=Some(65) verdict=Some("fail")
+  - (critical) error-leak: Raw JavaScript SyntaxError visible in the UI: 'SyntaxError: Unexpected token 'o', "ok" is not valid JSON'. — Scientia Cost card, bottom right quadrant
+  - (minor) clipping: The 'MESH' and 'MODEL' labels in the sub-header are vertically misaligned and the text 'auto-route' is awkwardly wrapped/clipped. — Sub-header stats bar, top right
+  - (minor) clipping: The 'policy_governance' tag at the bottom is partially cut off by the container boundary. — Candidates by Class section, bottom left
+- **scientia--default--compact--firefox** [firefox / compact] status=reviewed score=Some(45) verdict=Some("fail")
+  - (critical) error-leak: Raw JavaScript SyntaxError (JSON.parse: unexpected character) is visible in a UI toast/panel, indicating a failure to handle malformed data or a failed API response. — Bottom right, 'SCIENTIA COST' card
+  - (major) occlusion: The 'SCIENTIA COST' error toast is overlapping and occluding the 'STALE' status indicator and the card content behind it. — Bottom right, grid section
+  - (minor) clipping: The text 'STALE' is partially occluded/clipped by the error message overlay. — Bottom right, third card in the second row
+- **scientia--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(45) verdict=Some("fail")
+  - (critical) error-leak: Raw JavaScript SyntaxError visible in UI toast notification: 'SyntaxError: Unexpected token 'o', "ok" is not valid JSON'. — Bottom right toast notification (SCIENTIA COST)
+  - (major) occlusion: The error toast notification is occluding the 'TOP CANDIDATES' data table and its status labels. — Bottom right quadrant
+  - (minor) clipping: Text in the 'CANDIDATES BY CLASS' tags is being clipped by the container edge, specifically the 'policy_governance' tag. — Middle section, horizontal tag list
+- **scientia--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) error-leak: Raw JavaScript SyntaxError visible in toast notification: 'SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data' — Bottom right toast notification (SCIENTIA COST)
+  - (minor) occlusion: The 'SCIENTIA COST' error toast is partially occluding the 'TOP CANDIDATES' list content and the 'evidence_incomplete' status labels. — Bottom right quadrant
+  - (minor) clipping: The bottom-most entry in the 'TOP CANDIDATES' list is vertically clipped by the container or viewport edge. — Bottom center of the main content area
+- **scientia--default--wide--chromium** [chromium / wide] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) error-leak: Raw SyntaxError visible in UI toast notification: 'Unexpected token 'o', "ok" is not valid JSON'. This indicates a failure to parse a backend response. — Bottom right toast notification (SCIENTIA COST)
+  - (minor) contrast: Low contrast text for secondary labels and breadcrumbs (e.g., 'KNOWLEDGE > FINDINGS') against the dark background, making them difficult to read. — Breadcrumb navigation and sub-labels under metric cards
+- **scientia--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) error-leak: Raw SyntaxError visible in UI toast notification: 'Unexpected token 'o', "ok" is not valid JSON'. This indicates a failed API response parsing. — Bottom right toast notification (SCIENTIA COST)
+  - (minor) clipping: The 'STALLS' card in the second row of the dashboard is significantly wider than the other cards in that row, causing an inconsistent grid layout. — Dashboard metrics grid, second row, third card
+  - (minor) layout: The 'KNOWLEDGE > FINDINGS' breadcrumb and the 'CHAT / FINDINGS' tabs appear to have redundant or overlapping navigation states, and the 'FINDINGS' tab has a close 'x' icon that seems to conflict with the primary view state. — Top sub-navigation and tab bar
 - **scientia--default--wide--firefox** [firefox / wide] status=reviewed score=Some(65) verdict=Some("fail")
-  - (critical) error-leak: Raw SyntaxError stack trace/message 'SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data' is visible in a toast/notification panel. — Bottom right notification overlay (SCIENTIA COST)
-  - (major) occlusion: The 'SCIENTIA COST' error notification is overlapping and obscuring the 'stuck' status text and potentially other data in the 'STALLED CANDIDATES' section. — Bottom right quadrant, overlapping the stalled candidates list
-  - (minor) clipping: The text '37d stuck' is partially obscured by the error notification box. — Right side of the 'STALLED CANDIDATES' row
+  - (critical) error-leak: Raw SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data is visible in a toast/notification panel. — Bottom right notification overlay (SCIENTIA COST)
+  - (major) occlusion: The 'SCIENTIA COST' error notification is overlapping and obscuring the '37d stuck' status text and potentially other content in the 'STALLED CANDIDATES' section. — Bottom right quadrant, above Archive Deposit Status
+  - (minor) clipping: The '37d stuck' text appears to be clipped or improperly wrapped behind the error notification. — Bottom right of the Stalled Candidates panel
 
 ## settings
 
-- **settings--default--compact--chromium** [chromium / compact] status=cached score=Some(75) verdict=Some("fail")
-- **settings--default--compact--firefox** [firefox / compact] status=reviewed score=Some(65) verdict=Some("fail")
-  - (critical) other: Multiple form inputs (range sliders) lack associated labels or ARIA attributes, making them inaccessible to screen readers. — Orchestrator settings panel sliders
-  - (major) clipping: The 'ORCHESTRATOR' menu item in the settings sidebar is horizontally clipped/truncated on the right side, cutting off the final 'R'. — Left sidebar navigation under 'Search settings...'
-  - (major) icon: Missing icons for 'LLM & PROVIDERS' and 'RUNTIME' menu items in the settings sub-navigation, appearing as blank spaces or dots, correlating with zero-size SVG audit findings. — Settings sub-navigation sidebar
-  - (minor) layout: The '50$' label for Global Budget Cap is inconsistently formatted compared to other numeric values (using suffix instead of prefix) and appears slightly misaligned with the slider track. — Orchestrator settings panel, Global Budget Cap row
-- **settings--default--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **settings--default--compact--chromium** [chromium / compact] status=reviewed score=Some(75) verdict=Some("fail")
+  - (critical) other: Multiple range input elements (sliders) lack accessible labels or ARIA attributes, preventing screen reader users from understanding the purpose of the controls. — main content, Orchestrator settings sliders
+  - (major) clipping: The 'ORCHESTRATOR' navigation label in the sidebar sub-menu is clipped/truncated by the container edge, making the text bleed out of its active state background. — left sidebar, settings sub-navigation
+  - (minor) icon: Missing or zero-size icons for 'LLM & PROVIDERS' and 'MODEL ROUTING' in the settings sub-menu, appearing as empty space or tiny dots compared to 'SCALING' and 'RUNTIME'. — left sidebar, settings sub-navigation
+  - (minor) layout: The 'Global Budget Cap' value displays as '50$' instead of '$50', which is inconsistent with the currency formatting used in the top header bar ($12.34/$50.00). — main content, Orchestrator panel, Global Budget Cap slider
+- **settings--default--compact--firefox** [firefox / compact] status=reviewed score=Some(72) verdict=Some("fail")
+  - (major) clipping: The text 'ORCHESTRATOR' in the settings sidebar is horizontally clipped/truncated by the container boundary. — Left sidebar, settings navigation menu
+  - (major) icon: Missing or zero-size icons for 'LLM & PROVIDERS' and 'MODEL ROUTING' in the sidebar navigation, appearing as empty space or tiny dots. — Left sidebar, settings navigation menu
+  - (minor) clipping: The 'Global Budget Cap' value '50$' is partially clipped at the right edge of the card. — Main content area, Orchestrator settings card
+  - (minor) layout: The 'BUDGET' value in the top status bar ($12.34 / $50.00) is vertically cramped, causing the numbers to nearly overlap. — Top status bar, budget section
+- **settings--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The currency symbol '$' is placed after the numerical value '50' (50$) in the Global Budget Cap setting, which is non-standard for USD and appears to be a formatting error or clipping of the intended '$50' string. — Orchestrator panel, Global Budget Cap (USD) row
+  - (minor) layout: The 'Settings' tab in the sub-navigation bar has an 'X' close icon that is slightly misaligned vertically relative to the text. — Top navigation bar, Settings tab
+  - (minor) other: Accessibility: Multiple range input sliders lack programmatic labels (aria-label or associated <label>), making them difficult for screen reader users to identify. — Orchestrator settings panel, all range sliders
 - **settings--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The currency symbol '$' is placed after the numerical value '50' (50$) in the Global Budget Cap setting, which is non-standard for USD and appears slightly cramped against the container edge. — Right side of 'GLOBAL BUDGET CAP (USD)' card
-  - (minor) contrast: The sub-text 'Hard cap before scheduler back-pressure' and similar descriptions under setting titles have low contrast against the dark background, making them difficult to read. — Orchestrator settings panel, secondary text
-  - (minor) layout: The 'Settings' tab in the workbench tab bar has a close 'x' icon that is slightly misaligned vertically relative to the text. — Workbench tab bar, 'SETTINGS' tab
-- **settings--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **settings--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (major) other: Multiple range input elements lack accessible labels (aria-label or associated <label>), making the sliders unusable for screen reader users. — Orchestrator settings sliders
+  - (minor) clipping: The currency symbol '$' is appended to the end of the value '50' (50$) instead of preceding it, and appears slightly cramped against the container edge. — Global Budget Cap (USD) slider value
+  - (minor) clipping: The 'BUDGET' value in the sub-header ($12.34/$50.00) is very close to the 'MESH' label, suggesting potential overlap if values were longer. — Sub-header status bar
+- **settings--default--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The currency symbol '$' is placed after the numerical value in '50$', which is non-standard for USD and may be a localization or formatting error. — Orchestrator settings, GLOBAL BUDGET CAP (USD) value
+  - (minor) contrast: The secondary descriptive text under setting titles (e.g., 'Hard cap before scheduler back-pressure') has very low contrast against the dark background, potentially impacting legibility. — Orchestrator settings panel, sub-labels
+  - (minor) layout: The 'LIVE' indicator in the top right header has a dropdown arrow that appears slightly misaligned vertically relative to the 'LIVE' text pill. — Top right header, status indicator
+- **settings--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The currency symbol '$' is appended after the numerical value (50$) in the Global Budget Cap setting, which is non-standard for USD and appears slightly crowded against the container edge. — Orchestrator panel, Global Budget Cap slider value
+  - (minor) layout: The 'Settings' header appears twice in close proximity (one in the breadcrumb/tab area and one as the main section title), creating redundant visual noise. — Top left of the main content area
+  - (minor) contrast: The secondary text/descriptions under setting titles (e.g., 'Hard cap before scheduler back-pressure') have very low contrast against the dark background, potentially impacting legibility in high-contrast mode. — Orchestrator settings list
 - **settings--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The currency symbol '$' is placed after the numerical value (50$) in the Global Budget Cap setting, which is unconventional for USD and may indicate a localization or formatting string error. — Orchestrator settings panel, Global Budget Cap row
-  - (minor) layout: The 'Settings' tab in the workbench tab bar contains a close 'x' icon that appears slightly misaligned vertically relative to the text. — Workbench tab bar, Settings tab
-  - (minor) contrast: The secondary descriptive text under setting titles (e.g., 'Hard cap before scheduler back-pressure') has very low contrast against the dark background, potentially impacting legibility. — Orchestrator settings panel, various rows
-- **settings--empty--compact--chromium** [chromium / compact] status=cached score=Some(0) verdict=Some("fail")
+  - (major) other: Multiple range input sliders lack accessible labels (confirmed by axe-core), which is a critical accessibility failure even if visually they appear aligned with text. — Orchestrator settings sliders
+  - (minor) clipping: The currency symbol '$' is placed after the numerical value (50$) in the Global Budget Cap setting, which is non-standard for USD and appears slightly clipped by the container edge. — Orchestrator settings panel, Global Budget Cap row
+  - (minor) contrast: The secondary descriptive text under setting titles (e.g., 'Hard cap before scheduler back-pressure') has very low contrast against the dark background, making it difficult to read. — Main settings content area
+- **settings--empty--compact--chromium** [chromium / compact] status=reviewed score=Some(0) verdict=Some("fail")
+  - (critical) error-leak: The Settings surface has crashed and is displaying a raw JavaScript TypeError: 'Cannot read properties of null (reading 'concurrency')' within an error boundary. — Center content area, Settings panel
+  - (major) blank: The main settings configuration area is empty due to a component render failure. — Main viewport below the breadcrumb/tab bar
 - **settings--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(0) verdict=Some("fail")
-  - (critical) blank: The main Settings panel has failed to render, replaced by a SurfaceErrorBoundary fallback UI. — Center content area
-  - (critical) error-leak: Raw JavaScript execution errors are visible to the user: 'can't access property "concurrency", cfg is null'. — Settings panel error boundary
-  - (major) error-leak: Multiple toast notifications are displaying raw TypeError stack trace snippets ('session_id', s is null) instead of user-friendly error messages. — Bottom right toast stack
-  - (minor) occlusion: Toast notifications are overlapping the error boundary's 'Retry' button and content area. — Center-right overlay
-  - (minor) layout: ARIA role violation: The tab bar contains a close button that is not a valid child of a 'tablist' role, as noted in programmatic findings. — Workbench tab bar / Settings tab
-- **settings--empty--laptop--chromium** [chromium / laptop] status=cached score=Some(0) verdict=Some("fail")
+  - (critical) error-leak: The Settings surface has crashed, triggering a SurfaceErrorBoundary. The UI is displaying a raw JavaScript error message: 'can't access property "concurrency", cfg is null'. — Main content area, Settings panel
+  - (major) blank: The settings configuration panel is completely empty except for the error boundary card, failing to render any functional controls. — Center viewport
+- **settings--empty--laptop--chromium** [chromium / laptop] status=reviewed score=Some(0) verdict=Some("fail")
+  - (critical) error-leak: The Settings surface has crashed and is displaying a raw JavaScript TypeError: 'Cannot read properties of null (reading 'concurrency')'. — Center content area, within the 'SETTINGS FAILED TO RENDER' error boundary card.
+  - (critical) blank: The entire settings configuration panel is empty/unrendered due to a component-level crash. — Main content area below the 'SETTINGS' tab.
 - **settings--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(0) verdict=Some("fail")
-  - (critical) error-leak: The Settings surface has crashed, displaying a raw JavaScript error: "can't access property 'concurrency', cfg is null". This correlates with the React Error Boundary console logs. — Center main content area (Settings panel)
-  - (major) error-leak: Multiple toast notifications are displaying raw TypeError strings: "TypeError: can't access property 'session_id', s is null". — Bottom right notification stack
-  - (minor) layout: ARIA role 'tablist' contains an invalid child element (button), which breaks screen reader navigation expectations for the tab bar. — Workbench tab bar (Chat / Settings tabs)
-- **settings--empty--wide--chromium** [chromium / wide] status=cached score=Some(0) verdict=Some("fail")
+  - (critical) error-leak: The Settings component has crashed and is displaying a raw JavaScript error message: 'can't access property "concurrency", cfg is null'. This correlates with the React Error Boundary stack trace in the console logs. — Center of the main content area, within the 'SETTINGS FAILED TO RENDER' error card.
+  - (major) blank: The settings panel is entirely empty of functional controls due to a component crash, failing to render the expected 'empty' state configuration. — Main content viewport below the navigation tabs.
+- **settings--empty--wide--chromium** [chromium / wide] status=reviewed score=Some(0) verdict=Some("fail")
+  - (critical) error-leak: The Settings surface has crashed and is displaying a raw JavaScript TypeError: 'Cannot read properties of null (reading 'concurrency')' within an error boundary card. — Center of the main content area
+  - (critical) blank: The entire settings panel is empty except for the error message, failing to render any configuration controls. — Main content area below the sub-header
 - **settings--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(0) verdict=Some("fail")
-  - (critical) error-leak: The Settings panel has crashed and is displaying a raw JavaScript TypeError: 'can't access property "concurrency", cfg is null'. — Center of the screen, within the Settings surface area
-  - (major) error-leak: Multiple toast notifications are displaying raw JavaScript TypeErrors: 'TypeError: can't access property "session_id", s is null'. — Bottom right corner
-  - (minor) layout: ARIA role 'tablist' contains a 'button' as a direct child which is invalid according to accessibility standards, correlating with programmatic axe findings. — Workbench tab bar (CHAT / SETTINGS x)
-- **settings--error--compact--chromium** [chromium / compact] status=cached score=Some(10) verdict=Some("fail")
+  - (critical) error-leak: The Settings surface has crashed, triggering a UI error boundary. Raw JavaScript error text is visible: "can't access property 'concurrency', cfg is null". — Center of main content area, within the 'SETTINGS FAILED TO RENDER' modal.
+  - (major) blank: The entire settings panel is empty due to a component crash, failing to render any configuration controls or data. — Main content area below the sub-header.
+- **settings--error--compact--chromium** [chromium / compact] status=reviewed score=Some(0) verdict=Some("fail")
+  - (critical) error-leak: The Settings surface has crashed, displaying a raw JavaScript TypeError: 'Cannot read properties of null (reading 'concurrency')'. — Center content area, Settings panel
+  - (major) occlusion: Multiple 'Chat Sessions' error toast notifications are overlapping the main error boundary and each other, cluttering the UI. — Bottom right quadrant
+  - (major) blank: The Settings view is entirely empty except for the error boundary, failing to render any configuration controls. — Main content area
+  - (minor) clipping: The error message 'Cannot read properties of null...' is partially obscured/clipped by the toast notifications appearing over it. — Center of screen
 - **settings--error--compact--firefox** [firefox / compact] status=reviewed score=Some(15) verdict=Some("fail")
-  - (critical) error-leak: Raw JavaScript execution error 'can't access property "concurrency", cfg is null' is displayed directly to the user in the main settings panel. — Center main content area (Settings panel)
-  - (major) occlusion: Multiple 'CHAT SESSIONS' error toast notifications are overlapping the primary 'SETTINGS FAILED TO RENDER' error boundary and its 'Retry' button, obstructing the recovery UI. — Center-right of the main content area
-  - (major) blank: The Settings surface has completely failed to render its functional components, leaving a large empty region with only error messages. — Main content area below the tab bar
-  - (minor) layout: Duplicate error notifications for 'CHAT SESSIONS' appearing simultaneously, indicating a failure in toast management or redundant error triggers. — Right side of the main content area
-- **settings--error--laptop--chromium** [chromium / laptop] status=cached score=Some(10) verdict=Some("fail")
+  - (critical) error-leak: The UI is displaying a raw JavaScript exception message: 'can't access property "concurrency", cfg is null'. This correlates with the console error stack trace provided. — Center content area, within the 'SETTINGS FAILED TO RENDER' error boundary
+  - (major) occlusion: Multiple 'CHAT SESSIONS' error toast notifications are overlapping the main error boundary and its 'Retry' button, obstructing user interaction. — Bottom right quadrant, overlapping the central error panel
+  - (major) blank: The main settings surface has failed to render any configuration controls, leaving a large empty region below the navigation tabs. — Main content area below the 'CHAT / SETTINGS' tab bar
+  - (minor) error-leak: Toast notifications are displaying raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') which should be user-friendly localized strings. — Toast notifications in the bottom right
+- **settings--error--laptop--chromium** [chromium / laptop] status=reviewed score=Some(0) verdict=Some("fail")
+  - (critical) blank: The main Settings panel has failed to render, replaced by a SurfaceErrorBoundary fallback due to a React runtime error. — Center content area
+  - (major) error-leak: Raw JavaScript TypeError ('Cannot read properties of null (reading 'concurrency')') is exposed to the user in the UI fallback component. — Center content area / Error Boundary
+  - (minor) error-leak: Multiple toast notifications are visible showing raw IPC failure messages ('[mock-error] chat_list_sessions simulated IPC failure'). — Bottom right notification stack
 - **settings--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(10) verdict=Some("fail")
-  - (critical) error-leak: The Settings panel has crashed and is displaying a raw JavaScript runtime error: 'can't access property "concurrency", cfg is null'. This correlates with the console stack trace for SettingsView. — Center main content area (Settings surface)
-  - (major) blank: The entire Settings surface is empty of functional controls due to a component-level crash, replaced by an error boundary card. — Main content area
-  - (minor) error-leak: Multiple toast notifications are displaying raw mock error strings: 'Error: [mock-error] chat_list_sessions simulated IPC failure'. — Bottom right overlay
-  - (minor) layout: ARIA violation: The tab bar contains a close button that is not a valid child of a 'tablist' role, breaking accessibility structure. — Workbench tab bar (Settings tab)
-- **settings--error--wide--chromium** [chromium / wide] status=cached score=Some(0) verdict=Some("fail")
+  - (critical) error-leak: The Settings surface has crashed and is displaying a raw JavaScript error message: "can't access property 'concurrency', cfg is null". This correlates with the React Error Boundary console logs. — Center main content area (Settings panel)
+  - (major) blank: The entire Settings view is replaced by an error state, resulting in a total loss of functionality for this module. — Main content area
+  - (major) error-leak: Multiple toast notifications are displaying raw mock error strings: "Error: [mock-error] chat_list_sessions simulated IPC failure". — Bottom right notification stack
+- **settings--error--wide--chromium** [chromium / wide] status=reviewed score=Some(0) verdict=Some("fail")
+  - (critical) error-leak: The Settings surface has crashed, displaying a raw JavaScript TypeError: 'Cannot read properties of null (reading 'concurrency')' within the UI. — Center screen, Settings panel error boundary
+  - (major) blank: The main settings content area is empty except for the error boundary card, failing to render any configuration controls. — Main content area
+  - (minor) error-leak: Multiple toast notifications are visible showing 'mock-error' and 'simulated IPC failure', indicating systemic data fetching issues. — Bottom right toast notifications
 - **settings--error--wide--firefox** [firefox / wide] status=reviewed score=Some(10) verdict=Some("fail")
-  - (critical) blank: The primary Settings panel has failed to render, replaced by a SurfaceErrorBoundary message: 'SETTINGS FAILED TO RENDER - can't access property "concurrency", cfg is null'. — Center content area
-  - (major) error-leak: Multiple toast notifications are displaying raw mock error messages: 'Error: [mock-error] chat_list_sessions simulated IPC failure'. — Bottom right corner
-  - (minor) layout: ARIA role 'tablist' contains an invalid child element (button[aria-label] for closing settings), which violates accessibility standards for tab navigation components. — Workbench tab bar (Settings tab)
-- **settings--search-filtered--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (critical) error-leak: The main settings panel has crashed, displaying a raw JavaScript error message: "can't access property 'concurrency', cfg is null". This correlates with the console stack trace provided. — Center screen, Settings surface
+  - (major) error-leak: Multiple toast notifications are visible displaying raw mock error text: "Error: [mock-error] chat_list_sessions simulated IPC failure". — Bottom right corner
+  - (minor) blank: The 'OpenRouter Spend' metric in the header is rendering a dash (—) instead of data, likely due to the same underlying state failure. — Top header, second module
+- **settings--search-filtered--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (major) other: Multiple range input elements lack accessible labels (aria-label or associated label tags), making the sliders difficult to identify for screen reader users. — Orchestrator settings sliders
+  - (minor) clipping: The currency symbol '$' is appended to the end of the value '50' (rendering as '50$') instead of the standard prefix, and it appears slightly cramped against the container edge. — Global Budget Cap (USD) slider value
+  - (minor) layout: The 'MESH' and 'MODEL' labels in the secondary header bar have inconsistent vertical alignment and spacing compared to 'AGENTS' and 'QUEUE', with '3 peers' and 'auto-route' appearing wrapped or multi-line in a way that breaks the horizontal rhythm. — Secondary header status bar
 - **settings--search-filtered--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The currency symbol '$' is placed after the numerical value '50' in the Global Budget Cap setting, which is unconventional for USD and appears slightly clipped or misaligned relative to the value. — Right panel, Global Budget Cap value display (50$)
-  - (minor) layout: The 'Settings' tab in the workbench tab bar has a close 'x' icon that is slightly misaligned vertically with the text. — Workbench tab bar, Settings tab
-  - (minor) contrast: The secondary text in the search results (e.g., 'ed25519 key status...') has very low contrast against the dark background, making it difficult to read in a compact viewport. — Left sidebar search results list
-- **settings--search-filtered--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The currency symbol '$' is appended to the end of the value '50' instead of prefixed, and appears slightly misaligned/clipped by the container edge. — Global Budget Cap (USD) value display
+  - (minor) layout: The search filter 'key' is active, but the 'Orchestrator' panel content shown on the right does not visibly contain the string 'key', suggesting a potential mismatch between search state and displayed results or missing highlighting. — Settings search results area
+  - (minor) contrast: The secondary text under 'Signing keys' and 'Keys & secrets' in the sidebar has very low contrast against the dark background, impacting legibility. — Left settings sub-navigation
+- **settings--search-filtered--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The currency symbol '$' is appended to the end of the value (50$) instead of the standard prefix, and in the header 'BUDGET $12.34/$50.00', the slash and second dollar sign are partially obscured by a strikethrough or alignment issue. — Main content area, Global Budget Cap setting and top status bar
+  - (minor) other: Form elements (range sliders) lack accessible labels as identified by programmatic scan, which is a critical accessibility failure despite being visually present. — Orchestrator settings panel, range inputs
+  - (minor) layout: The search input 'key' in the settings sidebar has a very thick, high-contrast border that appears slightly inconsistent with the rest of the UI's subtle aesthetic, potentially indicating a focus state that doesn't clear or an over-styled container. — Settings sidebar search box
 - **settings--search-filtered--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The currency symbol '$' is placed after the numerical value (50$) in the 'GLOBAL BUDGET CAP' field, which is non-standard for USD and may indicate a localization or formatting string error. — Right side of 'GLOBAL BUDGET CAP (USD)' card
-  - (minor) layout: The 'Settings' tab in the workbench tab bar has a close 'X' icon that appears slightly misaligned vertically relative to the text. — Workbench tab bar, 'SETTINGS' tab
-  - (minor) contrast: The secondary text under 'Signing keys' and 'Keys & secrets' in the sidebar search results has very low contrast against the dark background, making it difficult to read. — Left sidebar search results list
-- **settings--search-filtered--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (critical) other: Multiple range input elements (sliders) lack associated labels or ARIA attributes, creating a significant accessibility barrier for screen reader users. — Orchestrator settings sliders
+  - (major) contrast: The secondary text under 'Signing keys', 'Keys & secrets', and 'Keybinds' in the left settings sub-navigation has very low contrast against the dark background, making it difficult to read. — Settings sub-navigation sidebar
+  - (minor) clipping: The currency symbol '$' is appended to the end of the value '50$' instead of being prefixed or correctly formatted, and it appears slightly clipped by the container edge. — Orchestrator panel -> Global Budget Cap value
+  - (minor) layout: The 'BUDGET $12.34/$50.00' text in the top status bar has very tight letter spacing/kerning compared to adjacent elements, making the numbers appear squashed. — Top horizontal status bar
+- **settings--search-filtered--wide--chromium** [chromium / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) contrast: The secondary text under search results (e.g., 'ed25519 key status and rotation') has very low contrast against the dark background, making it difficult to read. — Left sidebar search results list
+  - (minor) other: Axe-core reports multiple range inputs (sliders) lack accessible labels, which is confirmed visually as the sliders only have adjacent text descriptions but no programmatic association. — Orchestrator settings panel, slider controls
 - **settings--search-filtered--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The unit label for Global Budget Cap is rendered as '50$' instead of '$50', and the '$' symbol appears slightly clipped or poorly aligned with the numeric value. — Orchestrator settings panel, second slider item
-  - (minor) contrast: The secondary descriptive text under setting titles (e.g., 'Hard cap before scheduler back-pressure') has very low contrast against the dark background, making it difficult to read. — Orchestrator settings panel, various list items
-  - (minor) layout: The search filter results in the left sidebar of the settings panel show 'Signing keys', 'Keys & secrets', and 'Keybinds', but the main content area remains on 'Orchestrator' settings, indicating a potential lack of visual synchronization between the search selection and the displayed panel. — Settings main content area vs left search results
-- **settings--section-keybinds--compact--chromium** [chromium / compact] status=cached score=Some(45) verdict=Some("fail")
+  - (major) other: Multiple range input elements lack accessible labels (aria-label or associated <label>), as confirmed by programmatic scan, preventing screen readers from identifying the purpose of the sliders. — Orchestrator panel sliders
+  - (minor) clipping: The currency symbol '$' is placed after the numerical value (50$) in the Global Budget Cap setting, which is non-standard for USD and appears slightly clipped/crowded against the container edge. — Orchestrator panel, Global Budget Cap row
+  - (minor) contrast: The secondary descriptive text under setting titles (e.g., 'Hard cap before scheduler back-pressure') has very low contrast against the dark background, making it difficult to read. — Orchestrator settings list
+- **settings--section-keybinds--compact--chromium** [chromium / compact] status=reviewed score=Some(65) verdict=Some("fail")
+  - (critical) blank: The main content area for the 'KEYBINDS' settings section is completely blank/empty, failing to render any keybinding controls or data. — Right-hand panel under the Settings tab
+  - (major) icon: Multiple icons in the settings sub-navigation (Mesh & Peers, Signing Keys, Keys & Secrets) are rendering as empty circles or zero-size placeholders, correlating with programmatic findings. — Settings sub-navigation sidebar
+  - (minor) clipping: The 'MODEL' value 'auto-route' is hyphenated and cramped within the status bar, suggesting layout pressure in the compact viewport. — Top status bar, right side
 - **settings--section-keybinds--compact--firefox** [firefox / compact] status=reviewed score=Some(45) verdict=Some("fail")
-  - (critical) blank: The main settings content area is completely blank/empty despite the 'KEYBINDS' section being active. No keybind list or configuration controls are rendered. — Right-hand panel of the settings surface
-  - (major) icon: Multiple icons in the settings sidebar (Mesh & Peers, Signing Keys, Keys & Secrets) are rendering as generic placeholder shapes or are missing internal glyph detail, correlating with zero-size SVG programmatic findings. — Settings sidebar navigation
-  - (minor) clipping: The 'GAMIFICATION' menu item at the bottom of the settings sidebar is vertically clipped by the container edge. — Bottom of settings sidebar
-  - (minor) layout: The 'Close Settings' button (X) inside the tab bar is flagged for invalid ARIA parent-child relationship, potentially impacting screen reader navigation within the tablist. — Settings tab in the workbench tab bar
-- **settings--section-keybinds--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **settings--section-keybinds--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The top row of keybind items (e.g., 'Open command palette') is partially obscured/clipped by the header/tab bar area of the settings panel. — Top of the Keybinds content area
-  - (minor) clipping: The 'Pause/resume selected agent' keybind shortcut text 'Mod+.' appears slightly cut off or tightly constrained within its badge. — Keybinds list, third row
-  - (minor) other: Axe-core reports a critical ARIA violation where a button is a direct child of a tablist, which violates the expected parent-child relationship for that role. — Workbench tab bar (Settings tab close button)
-- **settings--section-keybinds--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **settings--section-keybinds--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'Pause/resume selected agent' keybind shortcut text 'Mod+.' is partially clipped by the right edge of its container button. — Keybinds panel, third row, left column
-  - (minor) other: ARIA role violation: 'tablist' contains a 'button' element that is not a 'tab', which can cause issues with screen reader navigation. — Workbench tab bar (Settings tab close button)
+  - (critical) blank: The main content area for the 'KEYBINDS' section is completely blank, failing to render any of the expected configuration controls or data. — Right-side main panel
+  - (major) icon: Multiple icons in the settings sub-navigation (Mesh & Peers, Signing Keys, Keys & Secrets) are rendering as empty circles or zero-size glyphs, correlating with programmatic audit. — Settings sidebar menu
+  - (minor) clipping: The 'GAMIFICATION' menu item at the bottom of the settings sub-navigation is partially cut off by the container boundary. — Bottom of settings sidebar
+  - (minor) layout: The 'LIVE' status indicator and trophy icon in the secondary header are misaligned vertically relative to the 'MODEL' and 'MESH' text labels. — Secondary header / status bar
+- **settings--section-keybinds--laptop--chromium** [chromium / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'Pause/resume selected agent' keybind row is significantly narrower than the rows above it, creating an inconsistent grid alignment in the keybinds panel. — Main content area, Keybinds section, bottom-left row
+  - (minor) contrast: The 'Reset to defaults' button has very low contrast between the dark grey text and the dark button background, making it difficult to read. — Bottom of the Keybinds panel
+- **settings--section-keybinds--laptop--firefox** [firefox / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (critical) occlusion: A large dark rectangular overlay/panel is occluding the top half of the Keybinds settings content, cutting off several rows of keybind controls and labels. — Center-right main content area, top half of the settings panel
+  - (major) clipping: The top row of visible keybinds (e.g., 'Open command palette') is vertically clipped by the mysterious dark overlay. — Top of the visible keybinds list
+  - (minor) clipping: The 'Settings' tab label in the sub-navigation bar is partially obscured or clipped by the same layout layer issue. — Sub-navigation bar above the settings list
+- **settings--section-keybinds--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+- **settings--section-keybinds--wide--firefox** [firefox / wide] status=reviewed score=Some(98) verdict=Some("pass")
 
 ## skills
 
-- **skills--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **skills--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'auto-route' text in the Model status indicator is hyphenated and split across two lines, which appears to be a layout constraint issue in the compact viewport. — Top status bar, Model section
+  - (minor) clipping: The '3 peers' text in the Mesh status indicator is vertically stacked/wrapped awkwardly compared to other horizontal status items. — Top status bar, Mesh section
 - **skills--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) layout: The 'SKILLS' tab in the workbench tab bar has a close 'x' icon that is slightly misaligned vertically relative to the text, and the tab bar contains a button element that violates ARIA parent-child role requirements for a tablist. — Workbench tab bar, 'SKILLS' tab
-  - (minor) contrast: The 'No skills installed' and 'No plugins installed' placeholder text has low contrast against the dark panel background, potentially impacting legibility. — Skills & Plugins main content area
-- **skills--default--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **skills--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) layout: ARIA role 'tablist' contains a direct child 'button' which is not permitted by the ARIA specification; children should be 'tab' roles. — Workbench tab bar (Chat / Skills tabs)
-  - (minor) contrast: Low contrast for secondary text labels like 'SKILLS 0' and 'PLUGINS 0' against the dark background, making them difficult to read. — Main content area, section headers
-  - (minor) blank: Large empty regions in the 'Skills' and 'Plugins' panels. While technically a 'no data' state, the layout feels excessively sparse for a desktop view. — Center content panels
-- **skills--default--wide--chromium** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **skills--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **skills--default--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) other: ARIA role 'tablist' contains a direct child 'button' which is not permitted by the ARIA specification for that role; children should be 'tab' roles. — Workbench tab bar (Skills close button)
-  - (minor) contrast: The 'No skills installed' and 'No plugins installed' placeholder text has very low contrast against the dark card background, potentially impacting legibility. — Main content area panels
+  - (minor) clipping: The 'SKILLS' tab label in the breadcrumb/tab bar has a close 'x' icon that is very tight against the border, suggesting potential padding issues in compact viewports. — Main content area, tab bar below the status header
+  - (minor) contrast: The 'No skills installed' and 'No plugins installed' placeholder text has very low contrast against the dark card background, potentially impacting legibility. — Skills & Plugins main panel
+- **skills--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'Skills' and 'Plugins' sections are empty despite the header indicating 'Agents 9' and 'Queue 44', which usually implies active configuration in this context. — Main content area, Skills & Plugins card
+  - (minor) clipping: The 'build' text in the bottom-left footer is partially obscured or lacks sufficient vertical spacing relative to the version number. — Bottom-left sidebar footer
+- **skills--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'build' version text in the bottom left footer is partially clipped/truncated by the container edge. — bottom left sidebar footer
+  - (minor) contrast: The 'No skills installed' and 'No plugins installed' placeholder text has very low contrast against the dark card background, potentially impacting legibility. — main content area panels
+- **skills--default--wide--chromium** [chromium / wide] status=reviewed score=Some(100) verdict=Some("pass")
+- **skills--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+- **skills--default--wide--firefox** [firefox / wide] status=reviewed score=Some(100) verdict=Some("pass")
 
 ## sub-agents
 
-- **sub-agents--default--compact--chromium** [chromium / compact] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **sub-agents--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'SUB-AGENTS' tab text is vertically cramped within its container, appearing slightly clipped or poorly centered relative to the 'X' close button. — Main content area, tab bar
-  - (minor) blank: Large empty state with 'Select a sub-agent' message. While functional, the lack of a sidebar or list to select from in this view makes the UI appear broken or incomplete in the 'compact' viewport. — Main content body
-  - (minor) contrast: The 'AXIS OPERATOR CONSOLE' subtitle and breadcrumb text 'AGENTS > SUB-AGENTS' have very low contrast against the dark background, making them difficult to read. — Top header and sub-header area
-- **sub-agents--default--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **sub-agents--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) layout: ARIA role 'tablist' contains a 'button' child which is not a valid child for that role according to accessibility standards, potentially confusing screen readers. — Workbench tab bar containing 'SUB-AGENTS' tab
-  - (minor) blank: Large empty state area with 'Select a sub-agent' prompt; while functional, it creates a significant blank region in the primary content area. — Main content panel below the sub-header
-- **sub-agents--default--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **sub-agents--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+- **sub-agents--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'MESH' value '3 peers' is vertically misaligned and appears to be clipping into the bottom border of the status bar container. — Top status bar, MESH section
+  - (minor) clipping: The 'MODEL' value 'auto-route' is split across two lines with a hyphen, causing the text to exceed the vertical bounds of the horizontal status bar. — Top status bar, MODEL section
+- **sub-agents--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'SUB-AGENTS' tab text is very close to the 'X' close icon, suggesting tight padding or potential clipping in narrower viewports. — Main content area, tab bar
+  - (minor) layout: The 'MESH' and 'MODEL' labels in the secondary header bar have inconsistent vertical alignment/spacing compared to 'AGENTS' and 'QUEUE' labels. — Secondary header bar (stats bar)
+- **sub-agents--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) blank: Large empty region in the main content area below the 'Select a sub-agent' prompt, though this appears to be an empty state rather than a rendering failure. — Main content panel
+  - (minor) contrast: Low contrast for secondary text labels such as 'AXIS OPERATOR CONSOLE' and breadcrumbs against the dark background. — Header and breadcrumb navigation
+- **sub-agents--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) blank: Large empty state in the main content area with only a 'Select a sub-agent' prompt, though this appears to be the intended 'default' state for this view. — Main content panel
+  - (minor) contrast: Low contrast for secondary text labels (e.g., 'AGENTS > SUB-AGENTS' breadcrumbs and 'Select a sub-agent' placeholder) against the dark background. — Content area and breadcrumb navigation
+- **sub-agents--default--wide--chromium** [chromium / wide] status=reviewed score=Some(98) verdict=Some("pass")
+- **sub-agents--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: Large empty region below the 'Select a sub-agent' prompt. While technically a 'default' state, the lack of any placeholder or structural scaffolding for the sub-agent list results in a significant blank area. — Main content area below the sub-agents tab
+  - (minor) clipping: The 'SUB-AGENTS' text within the active tab appears slightly vertically misaligned or tight against the top border of the tab container. — Tab bar, active 'SUB-AGENTS' tab
 - **sub-agents--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) blank: The main content area for 'Sub-Agents' is largely empty, displaying only a 'Select a sub-agent' prompt despite the header indicating 9 agents and 44 in queue. While technically a state, it results in a high degree of negative space for a 'wide' viewport. — Center main panel
-  - (minor) layout: Axe-core critical violation: The tab bar (role='tablist') contains a button element as a direct child that is not a valid tab role, breaking ARIA parent/child relationship requirements. — Workbench tab bar, 'Close Sub-Agents' button
+  - (minor) blank: Large empty state in the main content area for 'Sub-Agents' view. While 'Select a sub-agent' is present, the lack of a sidebar or list to select from makes the UI appear broken or stalled in this state. — Main content body below the sub-navigation tabs
+  - (minor) contrast: Low contrast for secondary text elements such as 'Select a sub-agent' and breadcrumb navigation against the dark background. — Center screen and top-left breadcrumbs
 
 ## tasks
 
-- **tasks--composer-filled--compact--chromium** [chromium / compact] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **tasks--composer-filled--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'Add' button in the task composer is partially clipped at the bottom by the container padding/border. — Bottom right of the yellow-bordered task input area
-  - (minor) layout: The session tags (GUI-RICH-*) at the bottom are densely packed and some appear to have inconsistent horizontal spacing/alignment within the grid at this viewport width. — Bottom section of the main content area
-  - (minor) other: Axe-core reports critical accessibility failures regarding missing accessible names for multiple select elements (dropdowns) within the task list/table structure, though they are not visually broken. — Internal task table (programmatic finding)
-- **tasks--composer-filled--laptop--chromium** [chromium / laptop] status=cached score=Some(92) verdict=Some("pass_with_notes")
+- **tasks--composer-filled--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'Add' button in the task composer is partially clipped at the bottom by the container boundary. — Bottom right of the task input area
+  - (minor) layout: The session tags (GUI-RICH-X) are densely packed and some appear to have inconsistent vertical spacing or slight overlap with the container below the composer. — Grid of buttons below the task composer
+  - (minor) other: Axe-core reports multiple select elements missing accessible names. While not a visual rendering defect, it indicates a significant accessibility gap in the underlying table/list structure not fully visible in this view. — Implicitly within the task list/table structure
+- **tasks--composer-filled--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The bottom row of session tags (GUI-RICH-31 through GUI-RICH-39) is partially cut off at the bottom of the viewport, indicating the container does not fully accommodate the wrapped list in this compact view. — bottom of the main content area, session tag grid
+  - (minor) layout: The 'Add' button in the task composer is positioned inside the text input area's visual border, which may be intentional but creates a tight layout with the long draft text. — task composer input field, bottom right
+- **tasks--composer-filled--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The budget text '$12.34/$50.00' in the sub-header has a strikethrough or horizontal line cutting through the numbers, which may be intended as a progress bar background but visually interferes with legibility. — Sub-header, budget section
+  - (minor) clipping: The 'COMPLETED (8)' section at the bottom of the task list appears to have its content cut off or not rendering fully within the viewport, showing only the header and a sliver of text below. — Bottom of the main content area, Task table
 - **tasks--composer-filled--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
-  - (minor) clipping: The text in the task composer textarea is very close to the right border, suggesting potential padding issues or lack of wrapping margin at the end of long strings. — Task composer textarea
-  - (minor) layout: The 'Add' button inside the composer is slightly misaligned vertically relative to the bottom border of the input area, appearing somewhat cramped in the corner. — Bottom right of task composer
-- **tasks--composer-filled--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The text in the 'COMPLETED (8)' row at the bottom of the screen is partially cut off by the bottom edge of the viewport/container, making the content below it invisible. — Bottom of the Tasks table
+  - (minor) other: Accessibility: Numerous select elements in the task list (per programmatic scan) lack accessible names/labels, which is a critical WCAG failure even if not visually 'broken'. — Task list table (off-screen/scrolled)
+- **tasks--composer-filled--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The description text in the 'COMPLETED' task list is being cut off at the right edge of the container without an ellipsis, particularly visible in the first row with Cyrillic text. — Task list table, Description column
+  - (minor) clipping: The 'mesh' tag contains a very long hostname ('node-remote-very-long-hostname.example.internal') which is pushing close to the boundaries of its row context, though it hasn't fully broken the layout yet. — First row of COMPLETED tasks, mesh tag
+  - (minor) other: Axe-core reports multiple 'select-name' critical accessibility violations for the priority dropdowns, indicating they lack accessible labels for screen readers. — Priority column dropdowns in the task table
 - **tasks--composer-filled--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The description text in the first row of the 'Completed' tasks table is truncated mid-character/mid-word at the right edge of the container. — Main content area, first row of the tasks table, description column
-  - (minor) clipping: The 'mesh' tag in the first task row contains a very long hostname ('node-remote-very-long-hostname.example.internal') which is pushing against the boundaries of its pill container, though not fully escaping it. — First task row, metadata tags
-  - (minor) layout: The 'GUI-RICH-#' session filter buttons are wrapping into multiple rows, creating a dense and somewhat cluttered block that lacks vertical rhythm compared to the rest of the UI. — Center of screen, below the task composer
-- **tasks--default--compact--chromium** [chromium / compact] status=cached score=Some(92) verdict=Some("pass_with_notes")
-- **tasks--default--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'Tasks' tab close button (X) is very close to the text, and the tab bar has significant empty space while the content below is dense, suggesting potential layout inefficiencies in compact view. — Tab bar, 'TASKS' tab
-  - (minor) layout: The session filter buttons at the bottom are tightly packed with inconsistent horizontal spacing between rows, making the grid look slightly disorganized. — Bottom session filter section
-  - (minor) contrast: The 'Add a task...' placeholder text has low contrast against the dark textarea background, potentially impacting legibility. — Task input textarea
-- **tasks--default--laptop--chromium** [chromium / laptop] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (major) other: Axe-core reports multiple select elements (Priority dropdowns) lack accessible names (labels/aria-labels). — Priority column dropdowns
+  - (minor) clipping: The task description text in the first row of the 'COMPLETED' table is truncated with an ellipsis, cutting off the end of the long string. — Table row 1, Description column
+  - (minor) clipping: The task description text in the fourth visible row of the 'COMPLETED' table is cut off at the bottom edge of the container. — Table row 4, Description column
+  - (minor) contrast: The 'mesh' tag in the first table row contains very small, light blue text on a dark background, which may be difficult to read. — Table row 1, Description column, mesh tag
+- **tasks--default--compact--chromium** [chromium / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'BUDGET' value text '$12.34/$50.00' is very tight within its container, and the strike-through or separator line is visually cluttered with the slash. — Top status bar, center-right
+  - (minor) layout: The '3 peers' text under MESH is vertically misaligned compared to other labels in the same row, creating an uneven baseline. — Top status bar, MESH section
+  - (minor) clipping: The 'auto-route' text under MODEL is slightly cramped and appears to be pushing the limits of its allocated horizontal space. — Top status bar, MODEL section
+- **tasks--default--compact--firefox** [firefox / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The budget value '$12.34/ $50.00' is tightly packed and the slash is nearly touching the following dollar sign, which may lead to readability issues on smaller viewports. — Top status bar, BUDGET section
+  - (minor) other: Axe-core reports multiple select elements (likely hidden or in a non-visible table row) missing accessible names, which impacts screen reader users. — Task list area (programmatic finding)
+- **tasks--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The bottom of the 'Tasks' table content is cut off by the viewport edge, and there is no visible scrollbar for the table container itself, making the lower rows inaccessible. — bottom center of the screen, within the Tasks table
+  - (minor) layout: The 'Show blocked tasks' checkbox and label are positioned very close to the session filter tags, creating a cramped visual layout. — middle left, below the session filter tags
 - **tasks--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: The 'COMPLETED (8)' section at the bottom of the tasks table is partially cut off by the viewport edge, suggesting the table content may be overflowing its container without a visible scrollbar or sufficient padding. — bottom of the tasks table
-  - (minor) layout: The session filter tags (GUI-RICH-1, etc.) are densely packed and wrap in a way that creates uneven vertical spacing between rows of buttons. — middle section, below 'Add a task' input
-  - (minor) contrast: The 'Add a task...' placeholder text in the textarea has very low contrast against the dark background, making it difficult to read. — task input textarea
-- **tasks--default--wide--chromium** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
-- **tasks--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: The placeholder text 'Add a task...' in the textarea has very low contrast against the dark background, making it difficult to read. — Center main content area, task input field
+  - (minor) layout: The session tags (GUI-RICH-1, etc.) are densely packed with inconsistent horizontal spacing between rows, creating a cluttered visual appearance. — Middle of the page, below the task input area
+  - (minor) other: Accessibility: Numerous select elements in the task table (per programmatic scan) lack accessible names/labels, which is a critical WCAG failure although not a purely visual rendering defect. — Bottom task table (implied by programmatic scan of the 'tasks' surface)
+- **tasks--default--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The task description text in the 'COMPLETED' section is being cut off at the right edge of the container without an ellipsis, particularly visible in the first and fourth rows. — Main content area, Tasks table, Description column
+  - (minor) clipping: The 'mesh' tag contains a very long hostname ('node-remote-very-long-hostname.example.internal') that is causing the tag to be quite wide, though it currently fits, it risks layout breakage on narrower viewports. — First row of the Tasks table, metadata tags
+  - (minor) other: Accessibility: Numerous select elements (Priority dropdowns) lack accessible names, as confirmed by programmatic axe-core findings. — Tasks table, Priority column dropdowns
+- **tasks--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: Text in the task description column is being truncated or cut off at the right edge of the container without proper ellipsis or wrapping for long strings. — Task table rows, Description column
+  - (minor) layout: The 'Add a task...' textarea is completely empty and lacks any visual structure or height adjustment for the 'Add' button, creating a large dead space. — Task input area below session tags
+  - (minor) other: The programmatic scan identifies numerous 'select' elements (priority dropdowns) lacking accessible names, which is a significant accessibility defect in a high-contrast UI. — Priority dropdowns in the task list table
 - **tasks--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
-  - (minor) clipping: Text in the task description is truncated with an ellipsis, cutting off the end of the sentence ('...document the surface behavi'). — Task list, bottom row description
-  - (minor) clipping: The first task description contains repetitive text ('Refactor the international pipeline... Refactor the international pipeline...') which appears to be a data-entry or rendering duplication error. — Task list, first row description
-  - (minor) contrast: The 'Add a task...' placeholder text in the dark textarea has very low contrast against the dark background, making it difficult to read. — Task input area
+  - (minor) clipping: The task description text in the first row of the 'COMPLETED' section is truncated with an ellipsis, cutting off the end of the sentence. — Main content area, first row of the tasks table under 'DESCRIPTION'
+  - (minor) clipping: The task description text in the fourth visible row is cut off at the bottom edge of the container/viewport. — Bottom of the tasks table
+  - (minor) contrast: The 'mesh' tag containing 'node-remote-very-long-hostname.example.internal' has very low contrast (light blue text on a dark teal background), making it difficult to read. — First row of the tasks table, metadata tags
 
 ## vox-search
 
-- **vox-search--default--compact--chromium** [chromium / compact] status=cached score=Some(65) verdict=Some("fail")
+- **vox-search--default--compact--chromium** [chromium / compact] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) blank: The main content area under 'GRAPHIFY CORPUS HEALTH' is entirely empty, despite the UI indicating active state (LIVE) and specific search index context. — Center-bottom main content panel
+  - (minor) contrast: Insufficient color contrast (4:1) for 'Default:' label text against the dark background, making it difficult to read. — Right side, middle vertical alignment
+  - (minor) clipping: The 'auto-route' text in the status bar is awkwardly wrapped/split across two lines within a narrow container, breaking the horizontal flow of the status row. — Top status bar, 'MODEL' section
+  - (minor) layout: The '3 peers' text is vertically misaligned and cramped compared to other status bar items like 'AGENTS' or 'QUEUE'. — Top status bar, 'MESH' section
 - **vox-search--default--compact--firefox** [firefox / compact] status=reviewed score=Some(75) verdict=Some("fail")
-  - (major) blank: The main content area under 'Graphify Corpus Health' is completely empty, despite the UI indicating active state (Live) and specific data metrics (Agents, Queue, Budget) in the header. — Center-right main content panel
-  - (minor) contrast: The 'Default:' label and the breadcrumb text 'KNOWLEDGE > SEARCH INDEX' have very low contrast against the dark background, making them difficult to read. — Right side above content area and top left of main panel
-  - (minor) clipping: The 'Search Index' tab close button (X) is tightly packed and the tab bar structure is flagged for invalid ARIA child nesting, which often correlates with layout calculation issues in compact viewports. — Tab bar below the secondary header
-  - (minor) layout: The 'Default:' text on the right side appears orphaned and misaligned with any specific UI control or data visualization. — Middle right edge of the main panel
-- **vox-search--default--laptop--chromium** [chromium / laptop] status=cached score=Some(65) verdict=Some("fail")
-- **vox-search--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(65) verdict=Some("fail")
-  - (critical) blank: The main content area for 'SEARCH INDEX' is completely empty. While the header 'GRAPHIFY CORPUS HEALTH' is visible, no data, charts, or lists are rendered in the large central panel where dense mock data is expected. — Center main content area below the tab bar
-  - (major) contrast: The 'Default:' label and potentially other metadata in the main panel have extremely low contrast against the black background, making them nearly invisible. — Right side of the main content area, middle height
-  - (minor) layout: ARIA role mismatch in the tab bar where a button is incorrectly nested within a tablist without proper role delegation, as flagged by programmatic scan. — Workbench tab bar / Search Index tab close button
-- **vox-search--default--wide--chromium** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
-- **vox-search--default--wide--chromium--theme-high-contrast** [chromium / wide] status=cached score=Some(75) verdict=Some("fail")
-- **vox-search--default--wide--firefox** [firefox / wide] status=reviewed score=Some(65) verdict=Some("fail")
-  - (critical) blank: The main content area for 'GRAPHIFY CORPUS HEALTH' is entirely empty, rendering no data or visualization despite the dense header metrics suggesting an active state. — center main panel
-  - (major) contrast: Extremely low contrast on secondary labels (e.g., 'Default:', 'KNOWLEDGE > SEARCH INDEX') and the 'Search or Jump' placeholder text, making them nearly invisible against the dark background. — top navigation and right-side labels
-  - (minor) clipping: The 'Default:' label on the far right is partially cut off or orphaned without associated content. — middle right edge
-  - (minor) layout: ARIA role mismatch in the tab bar where a button is an immediate child of a tablist without a tab role, as flagged by programmatic scan. — workbench-tab-bar
-- **vox-search--empty--compact--chromium** [chromium / compact] status=cached score=Some(20) verdict=Some("fail")
-- **vox-search--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(20) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications are displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right quadrant, overlaying the main content area
-  - (major) blank: The main content area is stuck in a loading state ('Loading graphify status...') and fails to render the expected search interface or data. — Center of the main content panel
-  - (minor) layout: The 'Search Index' tab button contains a close icon (X) that is incorrectly identified as a direct child of a 'tablist' role, violating ARIA structure requirements. — Workbench tab bar, 'Search Index' tab
-- **vox-search--empty--laptop--chromium** [chromium / laptop] status=cached score=Some(20) verdict=Some("fail")
-- **vox-search--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(40) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications displaying raw JavaScript execution errors: 'TypeError: can't access property "session_id", s is null'. — Bottom right corner
-  - (major) blank: The main content area is stuck in a loading state ('Loading graphify status...') and fails to render the expected search index interface, likely due to the reported TypeErrors. — Center content area
-  - (minor) layout: ARIA role mismatch in tab bar: 'role="tablist"' contains a button that is not a valid child role (tab), as flagged by automated scan. — Workbench tab bar / Search Index tab
-- **vox-search--empty--wide--chromium** [chromium / wide] status=cached score=Some(20) verdict=Some("fail")
-- **vox-search--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(20) verdict=Some("fail")
-  - (critical) error-leak: Multiple toast notifications displaying raw JavaScript execution errors: "TypeError: can't access property 'session_id', s is null". — Bottom right corner
-  - (major) blank: The main content area is stuck on a 'Loading graphify status...' message with no actual data rendering, likely due to the reported JavaScript errors. — Center viewport
-  - (minor) other: ARIA role 'tablist' contains invalid children (button instead of tab), preventing correct screen reader navigation. — Workbench tab bar (Search Index tab)
-- **vox-search--error--compact--chromium** [chromium / compact] status=cached score=Some(65) verdict=Some("fail")
-- **vox-search--error--compact--firefox** [firefox / compact] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are displayed to the user in toast notifications. — Bottom right toast notifications
-  - (major) blank: The main content area is empty except for a 'Loading graphify status...' message, despite being in a 'Knowledge > Search Index' state. — Main content panel
-  - (minor) occlusion: Multiple identical error toasts are stacked, partially obscuring the background loading state and each other's context. — Bottom right quadrant
-  - (minor) layout: ARIA role 'tablist' contains a 'button' as a direct child which is invalid according to accessibility standards, potentially breaking screen reader navigation. — Workbench tab bar (Search Index tab)
-- **vox-search--error--laptop--chromium** [chromium / laptop] status=cached score=Some(65) verdict=Some("fail")
-- **vox-search--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are displayed in toast notifications, exposing internal implementation details to the user. — Bottom right toast notifications
-  - (major) blank: The main content area is empty except for a 'Loading graphify status...' message, indicating a hang or failure to render the search index interface. — Main content panel
-  - (minor) clipping: The version string '0.6.0+local (dev)' is partially clipped or very close to the bottom edge of the sidebar container. — Bottom left sidebar footer
-  - (minor) layout: Duplicate error toasts for the same failure ('CHAT SESSIONS') are stacked, cluttering the UI. — Bottom right
-- **vox-search--error--wide--chromium** [chromium / wide] status=cached score=Some(65) verdict=Some("fail")
-- **vox-search--error--wide--firefox** [firefox / wide] status=reviewed score=Some(65) verdict=Some("fail")
-  - (major) blank: The main content area is entirely blank except for a 'Loading graphify status...' message, despite the surface being in an 'error' state rather than a loading state. — Center viewport
-  - (major) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are visible in toast notifications. — Bottom right toast notifications
-  - (minor) layout: Duplicate error toast notifications for 'CHAT SESSIONS' are rendered simultaneously. — Bottom right
-  - (minor) clipping: The 'OPENROUTER SPEND' value is rendered as a single dash '—' which may indicate a failure to fetch data or a placeholder that hasn't resolved. — Top header, second panel
+  - (critical) blank: The main content area under 'GRAPHIFY CORPUS HEALTH' is completely empty, failing to render the expected search index data or dashboard visualizations. — Center and bottom right main panel
+  - (minor) contrast: Insufficient color contrast (4:1) for 'Default:' label text against the dark background, making it difficult to read. — Middle right, below the secondary navigation bar
+  - (minor) clipping: The 'MESH' and 'MODEL' values in the secondary header are tightly packed with potential for overlap if values increase in length. — Secondary header bar, right side
+- **vox-search--default--laptop--chromium** [chromium / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) blank: The main content area under 'GRAPHIFY CORPUS HEALTH' is entirely empty, despite the interface indicating an active 'SEARCH INDEX' tab and 'LIVE' status. No data, charts, or search results are rendered. — Center main content panel
+  - (minor) contrast: The 'Default:' label and associated metadata in the top right of the content area have insufficient contrast (4:1) against the dark background, making it difficult to read. — Right side, middle vertical height, below the header bar
+  - (minor) clipping: The 'Vox Axis build' version string at the bottom left is partially obscured or rendered at a very small, illegible scale compared to surrounding text. — Bottom left sidebar footer
+- **vox-search--default--laptop--firefox** [firefox / laptop] status=reviewed score=Some(75) verdict=Some("fail")
+  - (critical) blank: The main content area under 'GRAPHIFY CORPUS HEALTH' is entirely empty, despite the UI indicating active agents, a queue, and a search index state. This suggests a failure to render the primary data visualization or list. — Center main content panel
+  - (minor) contrast: The 'Default:' label and other metadata text in the main panel have insufficient contrast against the dark background, making them difficult to read. — Right side of the main content area, below the header
+  - (minor) clipping: The 'Default:' text appears to be cut off or orphaned on the far right edge without associated content. — Middle right edge of the main panel
+- **vox-search--default--wide--chromium** [chromium / wide] status=reviewed score=Some(75) verdict=Some("fail")
+  - (major) blank: The main content area for 'SEARCH INDEX' is entirely blank despite the UI indicating active agents, a queue, and a mesh network. No data or search interface is rendered. — Center main content panel
+  - (minor) contrast: Insufficient color contrast (4:1) for 'Default:' label text against the dark background, hindering legibility for low-vision users. — Right side, middle vertical alignment, text 'Default:'
+  - (minor) layout: The 'GRAPHIFY CORPUS HEALTH' header is orphaned at the top of a large empty container with no associated visualization or data. — Top left of the main content area
+- **vox-search--default--wide--chromium--theme-high-contrast** [chromium / wide] status=reviewed score=Some(75) verdict=Some("fail")
+  - (critical) blank: The main content area under 'GRAPHIFY CORPUS HEALTH' is completely empty, rendering a large black void where data visualization or search results are expected. — center-right main content panel
+  - (minor) contrast: The 'Default:' label in the top right of the content area has insufficient contrast (4.34:1) against the black background, failing WCAG AA standards for high-contrast mode. — top right of main content area
+  - (minor) clipping: The 'Default:' label text appears partially truncated or cut off on its right edge. — top right of main content area
+- **vox-search--default--wide--firefox** [firefox / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) contrast: Insufficient color contrast (4:1) for 'Default:' label text against the dark background, making it difficult to read. — Right side of the main content area, below the header
+  - (minor) blank: The 'GRAPHIFY CORPUS HEALTH' section and the main content area below the 'SEARCH INDEX' tab are entirely empty, which may indicate a failure to load data or a missing empty-state illustration. — Main content panel
+- **vox-search--empty--compact--chromium** [chromium / compact] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'build' text in the bottom-left footer is partially clipped or vertically misaligned relative to the version number. — bottom-left sidebar footer
+  - (minor) blank: Large empty region with 'Loading graphify status...' persistent state; while expected for 'empty' state, the lack of a skeleton loader or progress indicator in a compact viewport creates a high-vacancy feel. — main content area
+- **vox-search--empty--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'Search Index' tab label in the main content area appears vertically misaligned or slightly clipped by its container border. — Main content area, tab bar below the status header
+  - (minor) blank: Large empty region with 'Loading graphify status...' persistent message; while state is 'empty', the lack of a proper empty-state illustration or clear progress indicator makes the UI feel stalled. — Center viewport, main content panel
+- **vox-search--empty--laptop--chromium** [chromium / laptop] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The main content area is stuck on 'Loading graphify status...' with no visual progress indicator, suggesting a potential hang or slow data fetch in the 'empty' state. — Center main content panel
+  - (minor) contrast: The 'OPENROUTER SPEND' label and the horizontal line below it have very low contrast against the dark background, making them difficult to read. — Top header, right of search bar
+- **vox-search--empty--laptop--firefox** [firefox / laptop] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) clipping: The 'OPENROUTER SPEND' text in the header is partially clipped or vertically misaligned relative to its container and the progress bar below it. — Top header, right of search bar
+  - (minor) contrast: The 'Loading graphify status...' text has very low contrast against the dark background, making it difficult to read. — Center of the main content area
+- **vox-search--empty--wide--chromium** [chromium / wide] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) blank: The main content area is stuck on a 'Loading graphify status...' message, resulting in a large blank region despite the 'empty' state setup. — Center main content panel
+  - (minor) clipping: The 'OPENROUTER SPEND' value is rendered as a single dash '—', which may indicate a data fetching failure or missing placeholder logic in the header widget. — Top header, second widget from left
+- **vox-search--empty--wide--firefox** [firefox / wide] status=reviewed score=Some(92) verdict=Some("pass_with_notes")
+  - (minor) blank: The 'OPENROUTER SPEND' metric displays an em-dash instead of a numerical value or zero, suggesting a missing data point or uninitialized state. — Top header, third panel from left
+  - (minor) blank: The main content area is stuck on 'Loading graphify status...' despite the 'LIVE' status indicators, which may indicate a hang in the specific view component not caught by console error logs. — Center main content area
+- **vox-search--error--compact--chromium** [chromium / compact] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) occlusion: Toast notification cards are overlapping and occluding the 'Loading graph...' status text in the main content area. — bottom right quadrant
+  - (major) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are exposed to the end-user in the UI toast notifications. — bottom right toast notifications
+  - (minor) clipping: The text 'Loading graph...' appears to be clipped or partially occluded by the toast container, making the end of the word 'graph' difficult to read. — center right
+  - (minor) blank: The main 'SEARCH INDEX' panel is entirely empty despite the header and sub-header indicating an active view state. — main content body
+- **vox-search--error--compact--firefox** [firefox / compact] status=reviewed score=Some(85) verdict=Some("pass_with_notes")
+  - (minor) occlusion: The 'Loading graphify status...' text is partially obscured by the toast notification stack. — bottom right quadrant, center-aligned text
+  - (minor) error-leak: Toast notifications display raw mock error strings ('[mock-error] chat_list_sessions simulated IPC failure') which are intended for debugging rather than end-user consumption. — bottom right toast notifications
+- **vox-search--error--laptop--chromium** [chromium / laptop] status=reviewed score=Some(65) verdict=Some("fail")
+  - (major) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are exposed to the end-user in toast notifications. — Bottom right toast notifications
+  - (major) blank: The main content area is empty except for a 'Loading graphify status...' message, indicating a hang or failure to render the search index data. — Main content panel
+  - (minor) clipping: The 'OPENROUTER SPEND' section contains a horizontal line/bar that appears clipped or improperly rendered below the label. — Top header, right of search bar
+- **vox-search--error--laptop--firefox** [firefox / laptop] status=reviewed score=Some(45) verdict=Some("fail")
+  - (critical) blank: The main content area is entirely blank except for a 'Loading graphify status...' message, indicating a failure to render the primary interface components. — center main panel
+  - (major) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are visible in toast notifications, which should be sanitized for end-users. — bottom right toast notifications
+  - (minor) clipping: The 'BUDGET' value '$0.00/-' appears to have a trailing slash or character that is partially clipped or represents a malformed string. — top sub-header bar, center
+  - (minor) layout: Duplicate error toast notifications for the same event ('CHAT SESSIONS' IPC failure) suggest a logic error in notification handling. — bottom right
+- **vox-search--error--wide--chromium** [chromium / wide] status=reviewed score=Some(45) verdict=Some("fail")
+  - (critical) blank: The main content area for 'SEARCH INDEX' is entirely blank except for a 'Loading graphify status...' message, indicating a hang or failure to render the primary view. — center viewport
+  - (major) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are displayed in toast notifications, exposing internal implementation details/test states to the UI. — bottom right toast notifications
+  - (minor) blank: OpenRouter Spend metric is missing data, showing only a dash despite the system being in a 'LIVE' state. — top header, second panel from left
+- **vox-search--error--wide--firefox** [firefox / wide] status=reviewed score=Some(45) verdict=Some("fail")
+  - (critical) blank: Main content area is completely blank except for a 'Loading graphify status...' message, indicating a hang or failure to render the search index data. — Center viewport / Main content panel
+  - (major) error-leak: Raw mock error strings '[mock-error] chat_list_sessions simulated IPC failure' are visible in toast notifications, exposing internal implementation details/technical jargon to the user. — Bottom right toast notifications
+  - (minor) layout: Duplicate error toasts for 'CHAT SESSIONS' are rendered, suggesting redundant error handling or event firing. — Bottom right notification stack
+  - (minor) clipping: The 'OPENROUTER SPEND' value is rendered as a single dash '—' which may indicate a data fetch failure or missing fallback value in the header. — Top header, second widget from left
 
