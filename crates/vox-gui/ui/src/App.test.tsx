@@ -141,4 +141,69 @@ describe('App shell', () => {
     });
     expect(toastRegion.textContent).not.toMatch(/is_error|session_id|TypeError|undefined/i);
   });
+
+  // F-02 (audit, primary path): a null `execute_command` result used to be
+  // routed into the catch block via `throw`, silently firing a SECOND RPC
+  // (invoke_mcp_tool/vox_check) instead of just reporting that the primary
+  // call returned nothing. The guard must produce an honest toast directly
+  // and must NOT fire the fallback RPC.
+  it('null execute_command result produces an honest audit toast without triggering the MCP fallback (F-02)', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'execute_command') return Promise.resolve(null);
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/audit');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('execute_command', expect.anything()));
+    await waitFor(() => {
+      expect(screen.getByText('Audit unavailable')).toBeInTheDocument();
+      expect(screen.getByText('No response from the backend.')).toBeInTheDocument();
+    });
+    expect(invokeMock).not.toHaveBeenCalledWith('invoke_mcp_tool', { tool: 'vox_check', args: {} });
+  });
+
+  // F-02 (audit, MCP-fallback path): when execute_command throws and the
+  // invoke_mcp_tool fallback's result contains leak-pattern text, the raw
+  // res.result used to render directly into the toast body with no
+  // sanitization (unlike the rollback handler's equivalent branch).
+  it('a leak-pattern MCP fallback result is sanitized in the audit failure toast (F-02)', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'execute_command') return Promise.reject(new Error('execute_command unavailable'));
+      if (cmd === 'invoke_mcp_tool') {
+        return Promise.resolve({
+          tool: 'vox_check',
+          is_error: true,
+          result: 'failed to invoke __TAURI_INTERNALS__ command',
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/audit');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('invoke_mcp_tool', { tool: 'vox_check', args: {} }));
+    let toastRegion!: HTMLElement;
+    await waitFor(() => {
+      const title = screen.getByText('Audit failed');
+      toastRegion = title.closest('[role="status"]') as HTMLElement ?? title.parentElement!.parentElement!;
+    });
+    expect(toastRegion.textContent).not.toMatch(/__TAURI_INTERNALS__|\binvoke\b/);
+  });
 });

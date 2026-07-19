@@ -812,7 +812,10 @@ export default function App() {
             path: ['check'],
             args: { __argv: [] },
           });
-          if (!out) throw new Error('No response from the backend.');
+          if (!out) {
+            pushToast({ tone: 'warn', title: 'Audit unavailable', body: 'No response from the backend.', cause: 'backend-error' });
+            return;
+          }
           const text = [out.stdout, out.stderr].filter(Boolean).join('\n').trim();
           pushToast({
             tone: out.exit_code === 0 ? 'ok' : 'warn',
@@ -824,11 +827,12 @@ export default function App() {
           try {
             const res = await invoke<McpInvokeResult>('invoke_mcp_tool', { tool: 'vox_check', args: {} });
             const failed = !res || res.is_error;
+            const rawResult = res && typeof res.result === 'string' ? res.result : JSON.stringify(res?.result);
             const body = !res
               ? 'No response from the backend.'
-              : (typeof res.result === 'string'
-                ? res.result.slice(0, 400)
-                : JSON.stringify(res.result).slice(0, 400));
+              : failed
+                ? sanitizeErrorForToast(rawResult).slice(0, 400)
+                : rawResult.slice(0, 400);
             pushToast({
               tone: failed ? 'warn' : 'ok',
               title: failed ? 'Audit failed' : 'Audit complete',
