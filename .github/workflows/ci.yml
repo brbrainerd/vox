@@ -1660,7 +1660,7 @@ jobs:
       - name: GUI visual-audit sweep (Playwright)
         run: |
           cd crates/vox-gui/ui
-          pnpm exec playwright install chromium
+          pnpm exec playwright install chromium firefox
           pnpm exec playwright test --project=chromium --workers=4
 
       - name: Upload GUI visual-audit screenshots
@@ -1673,18 +1673,19 @@ jobs:
             crates/vox-gui/ui/playwright-report
           if-no-files-found: ignore
 
-      # Review-bundle capture (chromium-only in CI to bound cost; firefox is
-      # local/on-demand via scripts/frontend-review.vox). Advisory per F2.
-      - name: Review-bundle capture (chromium)
+      # Review-bundle capture, both browsers — Firefox-only defects (occlusion/
+      # layout) are otherwise invisible to CI (2026-07-18 review finding).
+      # Advisory per F2.
+      - name: Review-bundle capture (chromium + firefox)
         working-directory: crates/vox-gui/ui
         env:
           VOX_REVIEW_CAPTURE: "1"
-        run: pnpm exec playwright test e2e/review/capture.spec.ts --project=chromium --workers=2
+        run: pnpm exec playwright test e2e/review/capture.spec.ts --project=chromium --project=firefox-review --workers=2
         continue-on-error: true
       - name: Review-bundle AI defect analysis (advisory)
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --bundle crates/vox-gui/ui/review-bundle/latest --ai --max-reviews 40
+        run: cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --bundle crates/vox-gui/ui/review-bundle/latest --ai --max-reviews 60 --browsers chromium,firefox
         continue-on-error: true
 
       - name: Upload visual-review report + screens (always)
