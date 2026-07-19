@@ -469,7 +469,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
         cause: result.exit_code === 0 ? 'backend-ok' : 'backend-error',
       });
     } catch (err) {
-      setValidateOut(String(err));
+      setValidateOut(sanitizeErrorForToast(err));
       pushToast({ tone: 'warn', title: 'Validate failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);

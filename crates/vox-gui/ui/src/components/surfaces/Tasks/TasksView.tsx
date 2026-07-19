@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { useLudusStore } from '../../gamify/store';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -66,7 +67,7 @@ export function TasksView({
         setError(null);
       }
     } catch (e) {
-      if (mounted.current) setError(String(e));
+      if (mounted.current) setError(sanitizeErrorForToast(e));
     } finally {
       if (mounted.current) setLoading(false);
     }
@@ -141,7 +142,7 @@ export function TasksView({
         await fn();
         await refresh();
       } catch (e) {
-        setError(String(e));
+        setError(sanitizeErrorForToast(e));
       } finally {
         setBusy(false);
       }

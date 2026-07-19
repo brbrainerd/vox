@@ -424,7 +424,7 @@ class VoxTransport {
       return { exit_code: 0, stdout: JSON.stringify(models), stderr: '' };
     }
     if (name === 'vox_set_active_model' && args.model_id) {
-      await this.setActiveModel(String(args.model_id));
+      await this.setActiveModel(`${args.model_id}`);
       return { exit_code: 0, stdout: 'ok', stderr: '' };
     }
     if (name === 'vox_explain_model' && args.task) {

@@ -142,7 +142,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
       .catch((err) => {
         if (!cancelled) {
           setNovelty(null);
-          setNoveltyError(String(err));
+          setNoveltyError(sanitizeErrorForToast(err));
         }
       })
       .finally(() => {

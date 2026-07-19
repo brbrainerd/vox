@@ -42,7 +42,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
       setIsolationError(null);
     } catch (err) {
       setIsolation(null);
-      setIsolationError(String(err));
+      setIsolationError(sanitizeErrorForToast(err));
     }
   }, []);
 
@@ -70,7 +70,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
           { enabled: gamifyEnabled },
         );
       } catch (err) {
-        setIsolationError(String(err));
+        setIsolationError(sanitizeErrorForToast(err));
         pushToast({ tone: 'warn', title: 'Isolation strategy', body: sanitizeErrorForToast(err), cause: 'backend-error' });
         // Reconcile against authoritative daemon state after a failed write.
         void refetchIsolation();
@@ -102,7 +102,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
         );
       }
     } catch (err) {
-      setOutput(String(err));
+      setOutput(sanitizeErrorForToast(err));
       pushToast({ tone: 'warn', title: label, body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);

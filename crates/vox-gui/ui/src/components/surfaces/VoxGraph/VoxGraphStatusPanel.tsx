@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { voxTransport } from '../../../transport';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { useVoxGraphStatus, VOX_GRAPH_STATUS_QUERY_KEY } from '../../../hooks/useVoxGraphStatus';
 import { useLabel } from '../../../hooks/useLanguage';
 
@@ -41,7 +42,7 @@ function RebuildButton({ corpusId }: { corpusId: string }) {
       // Refresh freshness so the card flips fresh once the rebuild completes.
       await queryClient.invalidateQueries({ queryKey: VOX_GRAPH_STATUS_QUERY_KEY });
     } catch (e) {
-      setError(String((e as Error)?.message ?? e));
+      setError(sanitizeErrorForToast((e as Error)?.message ?? e));
     } finally {
       setBusy(false);
     }

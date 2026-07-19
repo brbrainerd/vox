@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { voxTransport } from '../../../transport';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 
 interface SourceMeta {
   enabled: boolean;
@@ -34,7 +35,7 @@ export function Mercatus() {
     setState('loading');
     voxTransport.mercatusLoadConfig()
       .then((c) => { setCfg(c as PriceWatchConfig); setState('ok'); })
-      .catch((e) => { setErr(String(e)); setState('error'); });
+      .catch((e) => { setErr(sanitizeErrorForToast(e)); setState('error'); });
   }, []);
 
   useEffect(() => { reload(); }, [reload]);

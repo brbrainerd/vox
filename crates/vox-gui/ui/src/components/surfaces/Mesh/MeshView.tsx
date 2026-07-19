@@ -143,7 +143,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
       });
       if (res?.is_error) {
         const msg = res?.result?.error ?? JSON.stringify(res?.result);
-        setDispatchResult(String(msg));
+        setDispatchResult(sanitizeErrorForToast(msg));
         pushToast({ tone: 'warn', title: 'Dispatch failed', body: sanitizeErrorForToast(msg), cause: 'backend-error' });
       } else {
         const r = res?.result ?? {};
@@ -167,7 +167,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
       }
       await refresh();
     } catch (err) {
-      setDispatchResult(String(err));
+      setDispatchResult(sanitizeErrorForToast(err));
       pushToast({ tone: 'warn', title: 'Dispatch failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setDispatching(false);

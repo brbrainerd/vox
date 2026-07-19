@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 
 /** Chat-surface model pick. The pick is lifted to App state and threaded into
  *  the chat submit payload as the `model_override` enqueue hint — the one
@@ -51,7 +52,7 @@ export function ChatModelPicker({
         setModels(Array.isArray(cards) ? cards : []);
         setStatuses(Array.isArray(providerStatuses) ? providerStatuses : []);
       } catch (e) {
-        setError(String(e));
+        setError(sanitizeErrorForToast(e));
       }
     }
   };

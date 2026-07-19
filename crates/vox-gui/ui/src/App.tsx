@@ -959,7 +959,7 @@ export default function App() {
 
   const handleCommandAction = useCallback((cmd: CommandPaletteAction) => {
     if ('type' in cmd && cmd.type === 'navigate' && cmd.viewKey) navigateTo(cmd.viewKey);
-    else if ('type' in cmd && cmd.type === 'agent' && 'id' in cmd) { navigateTo('flow'); setSelectedAgentId(String(cmd.id)); }
+    else if ('type' in cmd && cmd.type === 'agent' && 'id' in cmd) { navigateTo('flow'); setSelectedAgentId(`${cmd.id}`); }
     else if ('type' in cmd && cmd.type === 'command') navigateTo('catalog');
     else if ('type' in cmd && cmd.type === 'hit' && cmd.locator) {
       const viewKey = cmd.viewKey ?? viewKeyForLocator(cmd.locator);
