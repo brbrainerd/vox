@@ -1,8 +1,23 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
+import { useState } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { WorkbenchTabBar } from './WorkbenchTabBar';
+import { WorkbenchTabBar, type WorkbenchTabItem } from './WorkbenchTabBar';
+
+/** Controlled harness so arrow-key navigation actually moves `activeTab`. */
+function ControlledTabBar({
+  tabs,
+  initialActive,
+  onClose,
+}: {
+  tabs: WorkbenchTabItem[];
+  initialActive: string;
+  onClose: (id: string) => void;
+}) {
+  const [activeTab, setActiveTab] = useState(initialActive);
+  return <WorkbenchTabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} onClose={onClose} />;
+}
 
 describe('WorkbenchTabBar', () => {
   it('renders tabs with close affordances and marks active', () => {
@@ -99,5 +114,78 @@ describe('WorkbenchTabBar', () => {
     tab.focus();
     await userEvent.keyboard('{Delete}');
     expect(onClose).toHaveBeenCalledWith('console');
+  });
+
+  it('ArrowRight moves focus (and roving tabIndex) to the next tab, which becomes selectable and closable (F-07 keyboard regression fix)', async () => {
+    const onClose = vi.fn();
+    render(
+      <ControlledTabBar
+        tabs={[
+          { id: 'chat', label: 'Chat', pinned: true },
+          { id: 'console', label: 'Console' },
+        ]}
+        initialActive="chat"
+        onClose={onClose}
+      />,
+    );
+    const chatTab = screen.getByRole('tab', { name: /chat/i });
+    const consoleTab = screen.getByRole('tab', { name: /console/i });
+    chatTab.focus();
+    expect(chatTab).toHaveAttribute('tabIndex', '0');
+    expect(consoleTab).toHaveAttribute('tabIndex', '-1');
+
+    await userEvent.keyboard('{ArrowRight}');
+
+    // Focus moved to the second tab, it is now selected, and roving tabIndex followed.
+    expect(consoleTab).toHaveFocus();
+    expect(consoleTab).toHaveAttribute('aria-selected', 'true');
+    expect(consoleTab).toHaveAttribute('tabIndex', '0');
+    expect(chatTab).toHaveAttribute('tabIndex', '-1');
+
+    // The newly-focused tab is reachable and closable without ever using the mouse.
+    await userEvent.keyboard('{Delete}');
+    expect(onClose).toHaveBeenCalledWith('console');
+  });
+
+  it('ArrowLeft/Home/End wrap and jump between tabs', async () => {
+    render(
+      <ControlledTabBar
+        tabs={[
+          { id: 'chat', label: 'Chat', pinned: true },
+          { id: 'console', label: 'Console' },
+          { id: 'dashboard', label: 'Dashboard' },
+        ]}
+        initialActive="chat"
+        onClose={vi.fn()}
+      />,
+    );
+    const chatTab = screen.getByRole('tab', { name: /chat/i });
+    const dashboardTab = screen.getByRole('tab', { name: /dashboard/i });
+    chatTab.focus();
+
+    // ArrowLeft from the first tab wraps to the last tab.
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(dashboardTab).toHaveFocus();
+    expect(dashboardTab).toHaveAttribute('aria-selected', 'true');
+
+    await userEvent.keyboard('{Home}');
+    expect(chatTab).toHaveFocus();
+    expect(chatTab).toHaveAttribute('aria-selected', 'true');
+
+    await userEvent.keyboard('{End}');
+    expect(dashboardTab).toHaveFocus();
+    expect(dashboardTab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('exposes the Delete shortcut to AT via aria-keyshortcuts on the tab', () => {
+    render(
+      <WorkbenchTabBar
+        tabs={[{ id: 'console', label: 'Console' }]}
+        activeTab="console"
+        onSelect={() => {}}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByRole('tab', { name: /console/i })).toHaveAttribute('aria-keyshortcuts', 'Delete');
   });
 });
