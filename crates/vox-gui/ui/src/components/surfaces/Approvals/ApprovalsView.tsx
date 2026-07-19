@@ -118,7 +118,16 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
   const refresh = useCallback(async () => {
     try {
       const res = await voxTransport.invokeMcpTool('vox_pending_approvals', {});
-      setApprovals(parsePendingApprovals({ tool: 'vox_pending_approvals', is_error: !!res.is_error, result: res.result }));
+      // F-02 gap: a null/undefined resolution (e.g. no response from the
+      // backend) must not be dereferenced — treat it as a failed call
+      // rather than throwing a raw TypeError into the catch below.
+      setApprovals(
+        parsePendingApprovals({
+          tool: 'vox_pending_approvals',
+          is_error: !res || !!res.is_error,
+          result: res ? res.result : undefined,
+        })
+      );
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Approvals load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
@@ -151,7 +160,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
             // tool. It shows up as a NEW pending approval that `refresh()`
             // below will surface.
             const allowRes = await voxTransport.invokeMcpTool('vox_add_approval_allowlist_entry', { tool });
-            if (allowRes.is_error) {
+            if (!allowRes || allowRes.is_error) {
               pushToast({ tone: 'warn', title: 'Allowlist not saved', body: tool, cause: 'backend-error' });
             }
           } catch (err) {
@@ -160,8 +169,8 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
         }
 
         const res = await voxTransport.invokeMcpTool('vox_resolve_approval', { approval_id: approvalId, outcome });
-        const data = unwrapMcpEnvelope(res.result) as { resolved?: boolean } | null;
-        if (res.is_error || data?.resolved === false) {
+        const data = res ? (unwrapMcpEnvelope(res.result) as { resolved?: boolean } | null) : null;
+        if (!res || res.is_error || data?.resolved === false) {
           pushToast({ tone: 'warn', title: 'Resolve failed', body: `Could not ${outcome.replace('ed', '')} ${approvalId}`, cause: 'backend-error' });
         } else {
           pushToast({
