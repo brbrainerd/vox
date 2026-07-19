@@ -279,3 +279,42 @@ harness's out-of-scope list), and the Tauri-shell spot check (see above).
 All of the above is scoped for a **separate remediation plan** per this harness plan's
 "Out of scope" section — this document is the findings register that plan should consume,
 not a fix itself.
+
+## Remediation status (2026-07-19)
+
+Executed via [`docs/superpowers/plans/2026-07-18-axis-frontend-remediation.md`](../plans/2026-07-18-axis-frontend-remediation.md)
+(12 tasks, subagent-driven with two-stage review — spec compliance then code
+quality — after every implementation). All results below are re-derived from a
+fresh full-matrix harness run (413 cells, both browsers) after the last code
+change landed, not carried over from the original review.
+
+| Finding | Status | Evidence |
+|---|---|---|
+| CI wiring gap (Firefox invisible to CI) | **Fixed** | Task 1: `playwright install chromium firefox`, `--project=firefox-review` added to capture, `--browsers chromium,firefox` added to analysis, in `.github/workflows/ci.yml`'s `gui-playwright-smoke` job. |
+| F-01/F-04 (Firefox overlay occlusion/layout collapse) | **Fixed** | Task 2: `Glass.tsx`'s background token changed from a ~4%-alpha translucent tint (`bg-overlay-subtle`, base AND hover) to an opaque token (`bg-overlay-solid`/`bg-bg-elevated`), across both the main and travertine theme token files. Confirmed by two independent harness re-runs: the AchievementsDrawer's own defect description changed from *"rendered with transparency... stuck in a semi-transparent state"* (score 15–35) to *"is an opaque overlay... without a dimming backdrop"* (score 85, pass_with_notes); zero defects anywhere in the final 413-cell run mention transparency/blending/backdrop-compositing. |
+| F-02 (`session_id`/`is_error` null-deref TypeError leak) | **Fixed** | Task 5: guarded 4 sites in `App.tsx` (chat-session creation, MCP rollback, MCP audit ×2) with `!res ||`-style null checks, tested via toast-content assertions (not crash-freedom, since every deref was already caught). **Plus an unplanned gap found during Task 12's final verification**: `ApprovalsView.tsx` had 3 more unguarded sites sharing the identical pattern (never in Task 5's App.tsx-only scope) — `approvals--empty--*` cells leaked the exact `is_error`/`res is null` TypeError text across both browsers. Fixed (commit `14cf90d621`), re-verified: those cells now score 85 pass_with_notes with only unrelated minor contrast/clipping notes. Final full-matrix run: zero `session_id`/`is_error`-null leak defects anywhere. |
+| F-03 (`__TAURI_INTERNALS__`/raw IPC toast leak) | **Fixed** | Task 4: `sanitizeErrorForToast()` added to `src/lib/backendGuard.ts`; mechanically applied to all ~109 `body: String(err)` sites across 28 files (not just the 14 in `App.tsx`, which was only ~13% of the class) plus a follow-up pass covering 9 non-toast display-state sinks (`setX(String(err))` patterns) found by broadening the guard. A source-scan guard test (`toastBodyGuard.test.ts`) prevents regrowth. Final full-matrix run: zero `__TAURI_INTERNALS__` occurrences anywhere in 413 cells. |
+| F-05 (session-list clipping) | **Persists — separate, real, open finding** | Task 11 triage (deliberately no fix attempted, per plan): the original hypothesis that F-05 was a downstream symptom of F-01 is **refuted**. The clipping is present on *both* Chromium and Firefox at identical severity — aggressive `ellipsis` truncation of session titles despite available panel width in the `rails-overlay-open`/`session-menu-open` compact-viewport states. Needs its own follow-up task (likely a `max-width`/truncation CSS fix in the session-rail component). See `.remediation-notes/task11-f05-verdict.md` for full screenshots/evidence. |
+| F-06 (blank simulation viewport) | **Fixed** | Task 10, corrected premise: the `scanFailed` state was *already* handled and tested before this plan started — the actual gap was `!layout && !scanFailed` (scan pending, or resolved without a layout), which left the mounted `<canvas>` silently blank. Fixed with a loading-affordance overlay (canvas stays mounted for ref stability, hidden via `invisible`), tested by making the scan hang forever. |
+| F-07 (tablist `aria-required-children` violation) | **Fixed** | Task 6: `WorkbenchTabBar` restructured so the tab wrapper itself carries `role="tab"` (NOT `role="presentation"`, which would not have silenced the rule — axe looks through presentational wrappers). Close affordance became `aria-hidden` + pointer-only, closable via `Delete`; a code-quality review caught that the initial restructure's roving `tabIndex` removed keyboard access to background tabs entirely (a regression vs. the pre-fix state) — fixed with full Arrow/Home/End keyboard navigation plus `aria-keyshortcuts="Delete"` before landing. Full-matrix re-run: `aria-required-children` dropped from a peak of 51 (dashboard) to 0 everywhere except chat's 23, which trace to an **unrelated pre-existing bug** (the chat model-picker's `role="option"` elements are wrapped in `<li>` instead of being direct children of `role="listbox"`) — confirmed never in this task's scope, logged as follow-up debt. |
+| `page-has-heading-one` (axe) | **Fixed on chat + dashboard (scoped); debt elsewhere** | Task 7: sr-only `<h1>` added to both surfaces' roots, including a self-caught gap in Dashboard's loading-skeleton branch (which returns before the main-branch h1, so needed its own copy). Final run: 0 on chat/dashboard (was 39/39); 284 instances remain across the other 27 surfaces — explicitly out of scope for this plan, tracked below. |
+| `landmark-unique` (axe) | **Fixed, exceeded scope** | Task 8: labeled Sidebar's nav+aside, both chat rails' asides; removed an unlabeled per-message `role="region"` from `ModelBadge.tsx` (rendered once per chat message — the actual duplication source, not a phantom "second nav" as an early hypothesis assumed). Final run: 0 everywhere, including `settings` (baseline 19), which was outside the plan's literal scope but cleared as a side effect. |
+
+### Recorded debt (not fixed in this plan — explicit exclusions)
+
+- **`page-has-heading-one`** on 19 enumerated surfaces beyond chat/dashboard (full list: `ApprovalsView`, `CodeRabbitView`, `CoverageView`, `GamifyView`, `MemoryView`, `MeshView`, `ModelsView`, `PoliciesView`, `PublicationsView`, `RepositoryView`, `ResearchView`, `RunsView`, `ClaimsView`, `SkillsPluginsView`, `SubAgentsView`, `ActivitySurface`, `DiscoverySurface`, `NeedsYouSurface`, `ScientiaSurface`) — 284 total axe instances across all non-chat/dashboard surfaces.
+- **Chat model-picker `aria-required-children` violation** (`role="option"` wrapped in `<li>` instead of direct `role="listbox"` children) — 23 instances, pre-existing, never in Task 6's scope.
+- **F-05 session-title clipping** — confirmed real, cross-browser, needs its own fix (see table above).
+- **SESSIONS panel bottom-truncation** (`chat--rails-overlay-open--compact`, major clipping, both browsers) and **console DISCOVERY-panel structural overlap** (`console--default--compact`, major occlusion via layout/sizing — not transparency, both browsers score ~45) — surfaced incidentally by Task 3's verification run; pre-existing, cross-browser, never part of F-01/F-04's Firefox-transparency signature.
+- **Achievements panel missing a dimming scrim** behind the (now-correctly-opaque) overlay — cosmetic, minor.
+- Item 7 from the original recommended order (component/e2e test coverage for `mercatus`, `publications`, `vox-search`, and 21 un-specced surfaces) — untouched, as originally scoped out.
+- The Tauri-shell (`tauri-driver`) spot check — still not run; no such harness exists in this repo.
+- `color-contrast` (75 instances) and `heading-order` (58 instances) axe classes — visible in the same harness data, never in this plan's scope.
+
+### Process note
+
+Task 12's final verification sweep (re-running the full harness after all 11 other
+tasks landed) caught a real, unplanned gap — the `ApprovalsView.tsx` F-02 leak —
+that the original task scoping (App.tsx only) missed entirely. This is direct
+evidence the "verify with the same harness that found the bugs" methodology works
+as intended, not just as a formality.
