@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Pill } from '../../ui/Pill';
@@ -75,7 +76,7 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
       setIntentions(Array.isArray(cells) ? cells : []);
       setSel(prev => (prev && cells.some(c => c.id === prev) ? prev : cells[0]?.id));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Routing policies load failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Routing policies load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -107,7 +108,7 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
       });
       await refresh();
     } catch (err) {
-      pushToast({ tone: 'warn', title: `Routing ${direction} failed`, body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: `Routing ${direction} failed`, body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

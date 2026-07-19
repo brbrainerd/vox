@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { useLabel } from '../../../hooks/useLanguage';
@@ -61,7 +62,7 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
         setClaims(parsed.claims ?? []);
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Load claims failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Load claims failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       setClaims([]);
     } finally {
       setBusy(false);
@@ -83,7 +84,7 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
         await loadClaims();
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Extraction failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Extraction failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

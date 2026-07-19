@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { InputEditor } from './InputEditor';
 import { DiscoveryRail } from './DiscoveryRail';
 import { TerminalTab, type PendingLine } from './TerminalTab';
@@ -95,7 +96,7 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
     setComposing(false);
     sendToAgent(agentId, body)
       .then(() => pushToast({ tone: 'ok', title: 'Sent', body: `to agent ${agentId}`, cause: 'backend-ok' }))
-      .catch((e) => pushToast({ tone: 'warn', title: 'Send failed', body: String(e), cause: 'backend-error' }));
+      .catch((e) => pushToast({ tone: 'warn', title: 'Send failed', body: sanitizeErrorForToast(e), cause: 'backend-error' }));
   };
 
   return (

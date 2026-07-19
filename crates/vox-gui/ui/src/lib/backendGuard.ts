@@ -41,6 +41,22 @@ export class BackendUnavailableError extends Error {
   }
 }
 
+/**
+ * Toast bodies must never leak raw IPC internals (F-03: a caught rejection's
+ * String(err) rendering __TAURI_INTERNALS__ verbatim in a user-visible toast).
+ * Distinct from the unhandledrejection filter — this runs on *caught*
+ * exceptions the app chooses to display. \binvoke\b does not match
+ * invoke_mcp_tool (underscore is a word char); prose like "failed to invoke X"
+ * degrades to the generic message, which is acceptable.
+ */
+const LEAK_PATTERN = /__TAURI_INTERNALS__|\binvoke\b/;
+
+export function sanitizeErrorForToast(err: unknown): string {
+  if (err instanceof BackendUnavailableError) return err.message;
+  const text = String(err);
+  return LEAK_PATTERN.test(text) ? 'An unexpected error occurred.' : text;
+}
+
 const logged = new Set<string>();
 
 /**

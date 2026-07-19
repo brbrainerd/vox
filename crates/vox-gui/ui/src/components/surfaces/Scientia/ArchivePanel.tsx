@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { useLabel } from '../../../hooks/useLanguage';
 import {
@@ -65,7 +66,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
       setStatus(st);
     } catch (err) {
       if (token !== loadTokenRef.current) return;
-      pushToast({ tone: 'warn', title: 'Archive panel', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Archive panel', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       setReport(null);
       setStatus(null);
     } finally {
@@ -97,7 +98,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
         cause: 'backend-ok',
       });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Autofill failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Autofill failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setAutofilling(false);
     }

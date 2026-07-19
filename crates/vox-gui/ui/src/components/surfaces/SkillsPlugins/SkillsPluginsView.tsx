@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
@@ -80,7 +81,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       setSkills(Array.isArray(skillList) ? skillList : []);
       setPlugins(Array.isArray(pluginList) ? pluginList : []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Installed load failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Installed load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -93,7 +94,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       const data = unwrap(cat?.result);
       setCatalogPlugins(Array.isArray(data?.plugins) ? data.plugins : []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Marketplace load failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Marketplace load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -105,7 +106,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       const res = await callTool('vox_skill_discover');
       setDiscovered(mapDiscoveredSkills(unwrap(res?.result)));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Discovery failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Discovery failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -126,7 +127,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
         await refreshDiscovered();
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Add failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Add failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(null);
     }
@@ -144,7 +145,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
           await refreshDiscovered();
         }
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Remove failed', body: String(err), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: 'Remove failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       } finally {
         setBusy(null);
       }
@@ -169,7 +170,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       const hits = unwrap(res?.result);
       setSearchHits(Array.isArray(hits) ? hits : []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Skill search failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Skill search failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   }, [searchQuery, pushToast]);
 
@@ -185,7 +186,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
         }
         await refreshInstalled();
       } catch (err) {
-        pushToast({ tone: 'warn', title: `${okTitle} failed`, body: String(err), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: `${okTitle} failed`, body: sanitizeErrorForToast(err), cause: 'backend-error' });
       } finally {
         setBusy(null);
       }
@@ -202,7 +203,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
           setDetail({ kind: 'skill-info', id, ...data } as SkillDetail);
         }
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Info failed', body: String(err), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: 'Info failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       }
     },
     [pushToast],
@@ -217,7 +218,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
           setDetail({ kind: 'plugin-info', name: id, description: '', ...data } as SkillDetail);
         }
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Info failed', body: String(err), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: 'Info failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       }
     },
     [pushToast],
@@ -235,7 +236,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
           body: typeof data === 'string' ? data : JSON.stringify(data, null, 2),
         });
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Skill use failed', body: String(err), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: 'Skill use failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       }
     },
     [pushToast],

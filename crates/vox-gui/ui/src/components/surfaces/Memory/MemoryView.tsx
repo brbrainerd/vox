@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { useVirtualList } from '../../../hooks/useVirtualList';
 import { shardSparkColor } from '../../../lib/visualTokens';
 import { invoke } from '@tauri-apps/api/core';
@@ -190,7 +191,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   useEffect(() => {
     invoke<MemoryStatusPayload>('get_memory_status')
       .then(setMemStatus)
-      .catch((err) => pushToast({ tone: 'warn', title: 'Memory status unavailable', body: String(err) }));
+      .catch((err) => pushToast({ tone: 'warn', title: 'Memory status unavailable', body: sanitizeErrorForToast(err) }));
   }, [pushToast]);
 
   // Hydrate the persisted auto-recall preference on mount.
@@ -204,7 +205,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     setRecallOn((prev) => {
       const next = !prev;
       voxTransport.setGuiPreference('gui.memory.autoRecall', String(next))
-        .catch((err) => pushToast({ tone: 'warn', title: 'Could not persist auto-recall', body: String(err) }));
+        .catch((err) => pushToast({ tone: 'warn', title: 'Could not persist auto-recall', body: sanitizeErrorForToast(err) }));
       return next;
     });
   };
@@ -245,7 +246,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
         cmd: `vox_search_query • "${qq}"`,
       });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Recall backend error', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Recall backend error', body: sanitizeErrorForToast(err) });
     } finally {
       setRecalling(false);
       invoke<MemoryStatusPayload>('get_memory_status').then(setMemStatus).catch(() => {});
@@ -292,7 +293,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
       try {
         await voxTransport.openLocator(hit.locator);
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Could not open', body: String(err) });
+        pushToast({ tone: 'warn', title: 'Could not open', body: sanitizeErrorForToast(err) });
       }
     }
   };
@@ -329,7 +330,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
               onClick={() =>
                 invoke('mnemosyne_reindex')
                   .then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex' }))
-                  .catch((err) => pushToast({ tone: 'warn', title: 'Reindex failed', body: String(err) }))
+                  .catch((err) => pushToast({ tone: 'warn', title: 'Reindex failed', body: sanitizeErrorForToast(err) }))
               }
               className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1.5 font-mono text-[10px] text-text-muted hover:text-text-secondary"
             >

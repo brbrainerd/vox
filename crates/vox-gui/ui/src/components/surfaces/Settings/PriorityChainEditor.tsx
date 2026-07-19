@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { voxTransport } from '../../../transport';
 
 // --- SelectionPolicy JSON shape (mirrors vox_orchestrator::models::SelectionPolicy) ---
@@ -99,7 +100,7 @@ export function PriorityChainEditor({ pushToast }: Props) {
         setSteps(hydrated);
         lastConfirmed.current = hydrated;
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Could not load priority chain', body: String(err), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: 'Could not load priority chain', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       } finally {
         setLoading(false);
       }
@@ -126,7 +127,7 @@ export function PriorityChainEditor({ pushToast }: Props) {
     } catch (err) {
       if (id !== writeId.current) return; // stale failure; a newer write owns state
       setSteps(lastConfirmed.current);
-      pushToast({ tone: 'warn', title: 'Priority chain save failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Priority chain save failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 

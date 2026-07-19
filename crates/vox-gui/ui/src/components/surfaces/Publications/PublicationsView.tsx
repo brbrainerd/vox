@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { PUBLICATION_STAGES, groupByStage, PublicationManifest } from '../../../lib/pipeline';
@@ -42,7 +43,7 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
     try {
       setManifests(await invoke<PublicationManifest[]>('list_publication_manifests', { limit: 200 }));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Publications load failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Publications load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -150,7 +151,7 @@ function PublicationDetail({
       // A non-zero venue exit is expected when content_type isn't a known
       // finding class; leave venue null and show the "no routing" state.
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Publication detail', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Publication detail', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

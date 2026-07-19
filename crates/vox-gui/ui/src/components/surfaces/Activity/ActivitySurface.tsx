@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import { Icon } from '../../ui/Icons';
@@ -267,7 +268,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
       pushToast({
         tone: 'warn',
         title: 'Query Failed',
-        body: String(err),
+        body: sanitizeErrorForToast(err),
         cause: 'backend-error',
       });
     } finally {

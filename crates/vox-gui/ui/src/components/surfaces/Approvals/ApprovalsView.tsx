@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import { StatusPill } from '../../ui/StatusPill';
@@ -119,7 +120,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
       const res = await voxTransport.invokeMcpTool('vox_pending_approvals', {});
       setApprovals(parsePendingApprovals({ tool: 'vox_pending_approvals', is_error: !!res.is_error, result: res.result }));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Approvals load failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Approvals load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -154,7 +155,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
               pushToast({ tone: 'warn', title: 'Allowlist not saved', body: tool, cause: 'backend-error' });
             }
           } catch (err) {
-            pushToast({ tone: 'warn', title: 'Allowlist not saved', body: String(err), cause: 'backend-error' });
+            pushToast({ tone: 'warn', title: 'Allowlist not saved', body: sanitizeErrorForToast(err), cause: 'backend-error' });
           }
         }
 
@@ -183,7 +184,7 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
         });
         await refresh();
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Resolve failed', body: String(err), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: 'Resolve failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       } finally {
         setResolving(null);
       }

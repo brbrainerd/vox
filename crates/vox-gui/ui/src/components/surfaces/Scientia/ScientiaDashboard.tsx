@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { useLabel } from '../../../hooks/useLanguage';
@@ -76,11 +77,11 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
       try {
         setCost(await fetchCostRollup());
       } catch (costErr) {
-        pushToast({ tone: 'warn', title: 'Scientia cost', body: String(costErr), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: 'Scientia cost', body: sanitizeErrorForToast(costErr), cause: 'backend-error' });
         setCost(null);
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Scientia dashboard', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Scientia dashboard', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       setSnap(null);
     } finally {
       setLoading(false);

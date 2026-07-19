@@ -5,6 +5,7 @@ import {
   BackendUnavailableError,
   makeBackendUnavailableRejectionFilter,
   __resetBackendAvailabilityForTests,
+  sanitizeErrorForToast,
 } from './backendGuard';
 
 // Phase A test-setup.ts stubs __TAURI_INTERNALS__ globally for suites that mock
@@ -81,5 +82,22 @@ describe('makeBackendUnavailableRejectionFilter', () => {
     const ev = { reason: new TypeError('boom'), preventDefault: vi.fn() };
     filter(ev as unknown as PromiseRejectionEvent);
     expect(ev.preventDefault).not.toHaveBeenCalled();
+  });
+});
+
+describe('sanitizeErrorForToast', () => {
+  it('returns the honest message for BackendUnavailableError', () => {
+    const err = new BackendUnavailableError('chat_list_sessions');
+    expect(sanitizeErrorForToast(err)).toBe(err.message);
+  });
+
+  it('does not leak __TAURI_INTERNALS__ or raw invoke internals', () => {
+    const err = new TypeError(`can't access property "invoke", window.__TAURI_INTERNALS__ is undefined`);
+    expect(sanitizeErrorForToast(err)).not.toMatch(/__TAURI_INTERNALS__/);
+    expect(sanitizeErrorForToast(err)).not.toMatch(/invoke/);
+  });
+
+  it('passes through ordinary error text unchanged', () => {
+    expect(sanitizeErrorForToast(new Error('Network timeout'))).toBe('Error: Network timeout');
   });
 });

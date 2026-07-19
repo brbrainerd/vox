@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
@@ -57,7 +58,7 @@ export function PoliciesView({
         setRows(list);
         if (list.length) setSelectedId(prev => prev ?? list[0].id);
       })
-      .catch(err => pushToast({ tone: 'warn', title: 'Policy catalog failed', body: String(err) }));
+      .catch(err => pushToast({ tone: 'warn', title: 'Policy catalog failed', body: sanitizeErrorForToast(err) }));
     invoke<BranchInfo[]>('list_branches')
       .then(b => { setBranches(b); setSelectedBranches(b.filter(x => x.isCurrent).map(x => x.branch)); })
       .catch(() => setBranches([]));
@@ -82,7 +83,7 @@ export function PoliciesView({
     );
     invoke<PolicyDetail>('policy_show', { id: selectedId })
       .then(setDetail)
-      .catch(err => pushToast({ tone: 'warn', title: 'Detail failed', body: String(err) }));
+      .catch(err => pushToast({ tone: 'warn', title: 'Detail failed', body: sanitizeErrorForToast(err) }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
@@ -94,7 +95,7 @@ export function PoliciesView({
     if (!selectedId) return;
     invoke<PolicyDetail>('policy_show', { id: selectedId })
       .then(setDetail)
-      .catch(err => pushToast({ tone: 'warn', title: 'Detail failed', body: String(err) }));
+      .catch(err => pushToast({ tone: 'warn', title: 'Detail failed', body: sanitizeErrorForToast(err) }));
   };
 
   const toggleBranch = (b: string) =>

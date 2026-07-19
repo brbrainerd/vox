@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { listenScientiaQueue } from '../../../transport';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
@@ -78,7 +79,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
       for (const r of rows) detailCache.current.set(r.claim_id, r);
       setQueue(rows);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Review queue', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Review queue', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       setQueue([]);
     } finally {
       setLoading(false);
@@ -165,7 +166,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
         setReason('');
         await refresh();
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Review decision failed', body: String(err), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: 'Review decision failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       } finally {
         setBusy(false);
       }
@@ -186,7 +187,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
         cause: 'backend-ok',
       });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Nanopublish failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Nanopublish failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -203,7 +204,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
       }
     } catch (err) {
       setSuggestions([]);
-      pushToast({ tone: 'warn', title: 'Evidence assist unavailable', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Evidence assist unavailable', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

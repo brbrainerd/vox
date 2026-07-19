@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { codeRabbitPlan, codeRabbitReport, codeRabbitRunAsync, codeRabbitTokenPresent } from '../../../transport';
 import type { Toast } from '../../../types/tauri';
@@ -99,7 +100,7 @@ export function CodeRabbitView({ pushToast }: CodeRabbitViewProps): React.ReactE
       const m = await codeRabbitPlan<Manifest>({ since, cap, rankWeights: weights, top: topN, fullRepo });
       setManifest(m);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Plan failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Plan failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -112,7 +113,7 @@ export function CodeRabbitView({ pushToast }: CodeRabbitViewProps): React.ReactE
       pushToast({ tone: 'info', title: 'CodeRabbit sweep started', cause: 'backend-ok' });
     } catch (err) {
       setRunning(false);
-      pushToast({ tone: 'warn', title: 'Run failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Run failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   }, [since, cap, weights, topN, fullRepo, pushToast]);
 

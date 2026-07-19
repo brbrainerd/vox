@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { useLabel } from '../../../hooks/useLanguage';
 import { listenDiscoverySurfaced, listenScientiaQueue } from '../../../transport';
@@ -81,7 +82,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
       primedRef.current = true;
       setRows(next);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Discovery inbox', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Discovery inbox', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       setRows([]);
     } finally {
       setLoading(false);
@@ -159,7 +160,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
         setRows((prev) => prev.filter((r) => r.id !== id));
         seenStrongIds.current.delete(id);
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Acknowledge failed', body: String(err), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: 'Acknowledge failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       } finally {
         setBusyId(null);
       }

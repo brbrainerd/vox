@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { useLabel } from '../../../hooks/useLanguage';
 import {
@@ -254,7 +255,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
         { enabled: gamifyEnabled },
       );
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Preview failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Preview failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -267,7 +268,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       setPreview(status);
       pushToast({ tone: 'info', title: 'Preview stopped', cause: 'backend-ok' });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Stop failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Stop failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -286,7 +287,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       await refreshPages();
       await refreshPageInfo(result.page_id ?? null);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Open failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Open failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -302,7 +303,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       pushToast({ tone: 'info', title: 'Browser session closed', cause: 'backend-ok' });
       await refreshPages();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Close failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Close failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -318,7 +319,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
         await refreshPageInfo(payload.page_id);
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Screenshot failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Screenshot failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 
@@ -331,7 +332,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       await refreshPageInfo(selectedPageId);
       pushToast({ tone: 'ok', title: 'Attached session', body: selectedPageId, cause: 'backend-ok' });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Attach failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Attach failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -348,7 +349,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       await refreshPages();
       pushToast({ tone: 'info', title: 'Page closed', body: selectedPageId, cause: 'backend-ok' });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Close page failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Close page failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -359,7 +360,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     try {
       await invoke('browser_set_control_mode', { input: { mode: nextMode } });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Failed to set control mode', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Failed to set control mode', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       await refreshSessionStatus();
     }
   };
@@ -371,7 +372,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       await invoke('browser_navigate', { input: { action } });
       await refreshPageInfo(pageId);
     } catch (err) {
-      pushToast({ tone: 'warn', title: `Navigation ${action} failed`, body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: `Navigation ${action} failed`, body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -384,7 +385,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       await invoke('browser_goto_url', { input: { url: agentNavUrl.trim() } });
       await refreshPageInfo(pageId);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Goto failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Goto failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }
@@ -407,7 +408,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       await invoke('browser_click_xy', { input: mapped });
       await captureFrame();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Click failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Click failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 
@@ -420,7 +421,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       });
       await captureFrame();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Scroll failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Scroll failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 
@@ -469,7 +470,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       });
     } catch (err) {
       setValidateOut(String(err));
-      pushToast({ tone: 'warn', title: 'Validate failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Validate failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

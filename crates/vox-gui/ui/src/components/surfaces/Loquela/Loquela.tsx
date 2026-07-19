@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Glass } from '../../ui/Glass';
@@ -334,7 +335,7 @@ export function Loquela({
         setRecording(true);
         toast?.({ tone: 'info', title: 'Recording', body: 'Listening — tap the mic again to stop.', cmd: 'oratio.transcribe', cause: 'backend-ok' });
       } catch (e) {
-        toast?.({ tone: 'warn', title: 'Microphone unavailable', body: String(e), cmd: 'oratio.transcribe', cause: 'backend-error' });
+        toast?.({ tone: 'warn', title: 'Microphone unavailable', body: sanitizeErrorForToast(e), cmd: 'oratio.transcribe', cause: 'backend-error' });
       }
       return;
     }
@@ -352,7 +353,7 @@ export function Loquela({
         toast?.({ tone: 'info', title: 'No speech detected', body: 'The recording produced no transcript.', cmd: 'oratio.transcribe', cause: 'backend-ok' });
       }
     } catch (e) {
-      toast?.({ tone: 'warn', title: 'Transcription failed', body: String(e), cmd: 'oratio.transcribe', cause: 'backend-error' });
+      toast?.({ tone: 'warn', title: 'Transcription failed', body: sanitizeErrorForToast(e), cmd: 'oratio.transcribe', cause: 'backend-error' });
     } finally {
       setTranscribing(false);
     }

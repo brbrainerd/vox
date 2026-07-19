@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { IsolationPanel } from './IsolationPanel';
 import type { IsolationStatus, IsolationStrategy } from './isolationHelpers';
@@ -70,7 +71,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
         );
       } catch (err) {
         setIsolationError(String(err));
-        pushToast({ tone: 'warn', title: 'Isolation strategy', body: String(err), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: 'Isolation strategy', body: sanitizeErrorForToast(err), cause: 'backend-error' });
         // Reconcile against authoritative daemon state after a failed write.
         void refetchIsolation();
       } finally {
@@ -102,7 +103,7 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
       }
     } catch (err) {
       setOutput(String(err));
-      pushToast({ tone: 'warn', title: label, body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: label, body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
     }

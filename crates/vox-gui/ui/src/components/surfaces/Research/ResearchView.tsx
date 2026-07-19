@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { listenScientiaQueue } from '../../../transport';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
@@ -23,7 +24,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
     try {
       setSessions(await invoke<ResearchSession[]>('list_research_sessions', { limit: 25 }));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'History load failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'History load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   }, [pushToast]);
 
@@ -31,7 +32,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
     try {
       setDetail(await invoke<ResearchDetail>('get_research_session_detail', { sessionId: id }));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Session load failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Session load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   }, [pushToast]);
 
@@ -78,7 +79,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
       await loadHistory();
     } catch (err) {
       setRunning(false);
-      pushToast({ tone: 'warn', title: 'Research run failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Research run failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 

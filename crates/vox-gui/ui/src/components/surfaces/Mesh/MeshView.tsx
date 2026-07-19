@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
@@ -101,7 +102,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
       setNodes(Array.isArray(meta.nodes) ? meta.nodes : []);
       setQueue(queueRes?.result ?? {});
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Mesh refresh failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Mesh refresh failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -143,7 +144,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
       if (res?.is_error) {
         const msg = res?.result?.error ?? JSON.stringify(res?.result);
         setDispatchResult(String(msg));
-        pushToast({ tone: 'warn', title: 'Dispatch failed', body: String(msg), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: 'Dispatch failed', body: sanitizeErrorForToast(msg), cause: 'backend-error' });
       } else {
         const r = res?.result ?? {};
         const id = r.node_id ?? '(unknown node)';
@@ -167,7 +168,7 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
       await refresh();
     } catch (err) {
       setDispatchResult(String(err));
-      pushToast({ tone: 'warn', title: 'Dispatch failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Dispatch failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setDispatching(false);
     }

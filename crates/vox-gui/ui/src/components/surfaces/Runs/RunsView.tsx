@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
@@ -72,7 +73,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
       const summary = await invoke<any>('get_routing_summary_live');
       setDecision(summary?.decision_preview ?? null);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Runs load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Runs load failed', body: sanitizeErrorForToast(err) });
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { useLabel } from '../../../hooks/useLanguage';
 import { LudusSandbox } from '../../gamify/LudusSandbox';
 import { invoke } from '@tauri-apps/api/core';
@@ -84,7 +85,7 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
       setCompanions(comp ?? []);
       setQuests(q ?? []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Ludus load failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Ludus load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -103,7 +104,7 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
       await invoke('ack_ludus_notification', { notificationId: id });
       setNotes(curr => curr.filter(x => x.id !== id));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Ack failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Ack failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 

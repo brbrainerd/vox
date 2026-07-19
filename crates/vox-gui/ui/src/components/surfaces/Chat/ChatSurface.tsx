@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { chatRailVisibility } from './chatRailVisibility';
 import { invoke } from '@tauri-apps/api/core';
 import { type UnlistenFn } from '@tauri-apps/api/event';
@@ -122,7 +123,7 @@ export function ChatSurface({
         onSessionChange?.(list[0].session_id);
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Chat sessions', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Chat sessions', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   }, [activeId, onSessionChange, pushToast]);
 
@@ -180,7 +181,7 @@ export function ChatSurface({
       setSessions(prev => [s, ...prev]);
       onSessionChange?.(s.session_id);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'New session failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'New session failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 
@@ -189,7 +190,7 @@ export function ChatSurface({
       await invoke('chat_rename_session', { sessionId, title });
       await loadSessions();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Rename failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Rename failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 
@@ -201,7 +202,7 @@ export function ChatSurface({
       if (activeId === sessionId && remaining.length > 0) onSessionChange?.(remaining[0].session_id);
       await loadSessions();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Archive failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Archive failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 

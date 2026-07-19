@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
@@ -64,7 +65,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
       // `statuses.length` would then TypeError inside BackendAvailability).
       setProviderStatuses(Array.isArray(statuses) ? statuses : []);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Models load failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Models load failed', body: sanitizeErrorForToast(err) });
     } finally {
       setLoading(false);
     }
@@ -85,7 +86,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
       void recordGamifyGuiEvent('model_activated', { model_id: id }, { enabled: gamifyEnabled });
       pushToast({ tone: 'ok', title: 'Active model set', body: id });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Set active failed', body: String(err) });
+      pushToast({ tone: 'warn', title: 'Set active failed', body: sanitizeErrorForToast(err) });
     }
   };
 

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
@@ -69,7 +70,7 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
         setApprovals(prev => prev.filter(a => a.approval_id !== approvalId));
         await refresh();
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Resolve failed', body: String(err), cause: 'backend-error' });
+        pushToast({ tone: 'warn', title: 'Resolve failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       } finally {
         setResolving(null);
       }

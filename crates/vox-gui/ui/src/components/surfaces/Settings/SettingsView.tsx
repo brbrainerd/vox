@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { Glass } from '../../ui/Glass';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -169,7 +170,7 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
       for (const t of trustedList) map[t.nodeId] = t;
       setTrusted(map);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Mesh load failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Mesh load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -194,7 +195,7 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
       }
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Trust update failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Trust update failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(null);
     }
@@ -274,7 +275,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
     try {
       setKey(await invoke<SigningKeyDto>('signing_key_status'));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Could not load signing key', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Could not load signing key', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -305,7 +306,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
       }
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: `Key ${verb} failed`, body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: `Key ${verb} failed`, body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setRotating(false);
     }
@@ -422,7 +423,7 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
       setRows(next);
       if (st) setStatus(st);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Could not load secrets', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Could not load secrets', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -474,7 +475,7 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
       pushToast({ tone: 'ok', title: 'Auth store migrated', body: `${moved} entr${moved === 1 ? 'y' : 'ies'} moved to vault`, cause: 'backend-ok' });
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Migrate failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Migrate failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setImportBusy(false);
     }
@@ -490,7 +491,7 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
       }
     } catch (err) {
       setPreview(null);
-      pushToast({ tone: 'warn', title: 'Preview failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Preview failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setImportBusy(false);
     }
@@ -504,7 +505,7 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
       pushToast({ tone: 'ok', title: 'Secrets imported', body: `${res.count} value${res.count === 1 ? '' : 's'} stored in vault`, cause: 'backend-ok' });
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Import failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Import failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setImportBusy(false);
     }
@@ -522,7 +523,7 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
       void recordGamifyGuiEvent('secret_rotated', { key }, { enabled: gamifyEnabled });
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Save failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Save failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(null);
     }
@@ -535,7 +536,7 @@ function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast
       pushToast({ tone: 'ok', title: 'Secret removed', body: key, cause: 'backend-ok' });
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Remove failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Remove failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(null);
     }
@@ -741,7 +742,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
       setFields(next);
       setDrafts({});
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Could not load runtime config', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Could not load runtime config', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -773,7 +774,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
       }, 600);
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Save failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Save failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(null);
     }
@@ -786,7 +787,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
       pushToast({ tone: 'ok', title: 'Reset to default', body: f.label, cause: 'backend-ok' });
       await reload();
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Reset failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Reset failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(null);
     }
@@ -917,7 +918,7 @@ function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
         openrouterMaxConcurrent: next.openrouterMaxConcurrent,
         retryMaxAttempts: next.retryMaxAttempts,
       },
-    }).catch((err) => pushToast({ tone: 'warn', title: 'LLM save failed', body: String(err), cause: 'backend-error' }));
+    }).catch((err) => pushToast({ tone: 'warn', title: 'LLM save failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
   };
 
   return (
@@ -1070,7 +1071,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
         await invoke('set_orchestrator_config', { config: next });
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Save failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Save failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 
@@ -1152,7 +1153,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
     try {
       await invoke('set_gamify_settings', { enabled: next.enabled, mode: next.mode });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Gamify save failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Gamify save failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 
@@ -1180,7 +1181,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
         clearTimeout(savedToastTimer.current);
         savedToastTimer.current = null;
       }
-      pushToast({ tone: 'warn', title: 'Routing save failed', body: String(err), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Routing save failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   }, [routing, pushToast]);
 
