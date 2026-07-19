@@ -402,7 +402,7 @@ export default function App() {
           setActiveSessionId(sessions[0].session_id);
         } else {
           invoke<Session>('chat_create_session', { title: 'Chat' })
-            .then((s) => setActiveSessionId(s.session_id))
+            .then((s) => { if (s?.session_id) setActiveSessionId(s.session_id); })
             .catch((err) => pushToast({ tone: 'warn', title: 'Chat session', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
         }
       })
@@ -784,13 +784,16 @@ export default function App() {
       void (async () => {
         try {
           const res = await invoke<McpInvokeResult>('invoke_mcp_tool', { tool: 'vox_undo', args: {} });
+          const failed = !res || res.is_error;
           pushToast({
-            tone: res.is_error ? 'warn' : 'ok',
-            title: res.is_error ? 'Rollback failed' : 'Rollback complete',
-            body: res.is_error
-              ? (typeof res.result === 'string' ? res.result : JSON.stringify(res.result))
-              : 'Reverted to last durable checkpoint.',
-            cause: res.is_error ? 'backend-error' : 'backend-ok',
+            tone: failed ? 'warn' : 'ok',
+            title: failed ? 'Rollback failed' : 'Rollback complete',
+            body: !res
+              ? 'No response from the backend.'
+              : failed
+                ? sanitizeErrorForToast(typeof res.result === 'string' ? res.result : JSON.stringify(res.result))
+                : 'Reverted to last durable checkpoint.',
+            cause: failed ? 'backend-error' : 'backend-ok',
           });
         } catch (err) {
           pushToast({ tone: 'warn', title: 'Rollback failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
@@ -809,6 +812,7 @@ export default function App() {
             path: ['check'],
             args: { __argv: [] },
           });
+          if (!out) throw new Error('No response from the backend.');
           const text = [out.stdout, out.stderr].filter(Boolean).join('\n').trim();
           pushToast({
             tone: out.exit_code === 0 ? 'ok' : 'warn',
@@ -819,14 +823,17 @@ export default function App() {
         } catch {
           try {
             const res = await invoke<McpInvokeResult>('invoke_mcp_tool', { tool: 'vox_check', args: {} });
-            const body = typeof res.result === 'string'
-              ? res.result.slice(0, 400)
-              : JSON.stringify(res.result).slice(0, 400);
+            const failed = !res || res.is_error;
+            const body = !res
+              ? 'No response from the backend.'
+              : (typeof res.result === 'string'
+                ? res.result.slice(0, 400)
+                : JSON.stringify(res.result).slice(0, 400));
             pushToast({
-              tone: res.is_error ? 'warn' : 'ok',
-              title: res.is_error ? 'Audit failed' : 'Audit complete',
+              tone: failed ? 'warn' : 'ok',
+              title: failed ? 'Audit failed' : 'Audit complete',
               body: body || 'vox_check finished',
-              cause: res.is_error ? 'backend-error' : 'backend-ok',
+              cause: failed ? 'backend-error' : 'backend-ok',
             });
           } catch (err) {
             pushToast({ tone: 'warn', title: 'Audit unavailable', body: sanitizeErrorForToast(err), cause: 'backend-error' });
