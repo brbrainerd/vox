@@ -31,39 +31,41 @@ export function WorkbenchTabBar({ tabs, activeTab, onSelect, onClose }: Workbenc
         return (
           <div
             key={tab.id}
-            className={`group flex items-center gap-0.5 rounded-md pl-2 pr-1 py-1 transition ${
+            role="tab"
+            aria-selected={selected}
+            tabIndex={selected ? 0 : -1}
+            data-testid={`workbench-tab-${tab.id}`}
+            onClick={() => onSelect(tab.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') onSelect(tab.id);
+              if (e.key === 'Delete' && !tab.pinned) onClose(tab.id);
+            }}
+            className={`group flex cursor-pointer items-center gap-0.5 rounded-md pl-2 pr-1 py-1 transition ${
               selected
                 ? 'bg-overlay-subtle text-text-primary ring-1 ring-white/10'
                 : 'text-text-muted hover:bg-overlay-subtle hover:text-text-secondary'
             }`}
           >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              data-testid={`workbench-tab-${tab.id}`}
-              onClick={() => onSelect(tab.id)}
-              className="font-display text-[10px] uppercase tracking-[0.18em]"
-            >
+            <span className="font-display text-[10px] uppercase tracking-[0.18em]">
               {tab.label}
               {tab.badge != null && tab.badge > 0 ? (
                 <span className="ml-1.5 rounded-full bg-brass/20 px-1.5 text-[9px] text-brass">
                   {tab.badge}
                 </span>
               ) : null}
-            </button>
+            </span>
             {!tab.pinned ? (
-              <button
-                type="button"
-                aria-label={`Close ${tab.label}`}
+              <span
+                aria-hidden="true"
+                data-testid={`workbench-tab-close-${tab.id}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onClose(tab.id);
                 }}
-                className="flex size-5 items-center justify-center rounded opacity-60 transition hover:bg-white/10 hover:opacity-100"
+                className="flex size-5 cursor-pointer items-center justify-center rounded opacity-60 transition hover:bg-white/10 hover:opacity-100"
               >
-                <Icon.x className="size-3" aria-hidden="true" />
-              </button>
+                <Icon.x className="size-3" />
+              </span>
             ) : null}
           </div>
         );

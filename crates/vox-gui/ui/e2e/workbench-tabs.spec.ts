@@ -109,7 +109,7 @@ test.describe('Workbench tabs — tab bar interactions', () => {
 
     const tabBar = page.getByTestId('workbench-tab-bar');
     await expect(tabBar.getByTestId('workbench-tab-console')).toBeVisible();
-    await tabBar.getByRole('button', { name: 'Close Console' }).click();
+    await tabBar.getByTestId('workbench-tab-close-console').click();
     await expect(tabBar.getByTestId('workbench-tab-console')).toHaveCount(0);
   });
 
@@ -120,7 +120,7 @@ test.describe('Workbench tabs — tab bar interactions', () => {
 
     const tabBar = page.getByTestId('workbench-tab-bar');
     await expect(tabBar.getByTestId('workbench-tab-chat')).toBeVisible();
-    await expect(tabBar.getByRole('button', { name: 'Close Chat' })).toHaveCount(0);
+    await expect(tabBar.getByTestId('workbench-tab-close-chat')).toHaveCount(0);
   });
 
   test('help omnibar search opens doc reader tab', async ({ page }) => {
