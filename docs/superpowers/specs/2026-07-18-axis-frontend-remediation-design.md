@@ -13,6 +13,17 @@ remediation order. This spec turns that register into an implementable design.
 It does not re-derive the findings; it assumes the review's evidence is
 correct and focuses on root-causing and fixing each one.
 
+**Revision note (2026-07-18, adversarial audit):** this spec was audited by
+five parallel reviewers against the codebase after its first draft. The audit
+found and this revision fixes: a nonexistent `res.error` field, an ARIA fix
+(`role="presentation"`) that would not actually silence axe, a phantom
+"second nav" in the landmark analysis (real culprits: unlabeled `<aside>`s +
+repeated `role="region"`s), a stale F-06 premise (LudusSandbox already
+handles `scanFailed`; the uncovered state is `layout`-null-while-pending), an
+overclaimed F-03 scope (~95 `String(err)` toast sites live *outside*
+`App.tsx`), a Firefox-not-installed-in-CI gap, the `hover:bg-overlay-subtle`
+regression path in the Glass fix, and the travertine theme token gap.
+
 **Scope:** Items 1–6 of the review's recommended order. **Explicitly out of
 scope** (tracked as follow-up debt, not part of this effort):
 - Item 7 (new component/e2e test coverage for `mercatus`, `publications`,
@@ -21,231 +32,267 @@ scope** (tracked as follow-up debt, not part of this effort):
   having been run.
 - The `settings`/keybinds blank-content-pane candidate the review noted in
   passing (per-surface table) but did not triage.
+- `page-has-heading-one` on surfaces other than `chat`/`dashboard` (the two
+  highest-instance surfaces are fixed here; the rest are enumerated as debt).
 
-## Root-cause findings (from source inspection, this session)
-
-Before design, each finding was traced to an actual file/line so the plan
-below can cite exact edit sites rather than "find and fix somewhere":
+## Root-cause findings (from source inspection + adversarial audit)
 
 - **F-01/F-04 (Firefox overlay occlusion/layout collapse):** the shared
   `Glass` primitive ([`src/components/ui/Glass.tsx`](../../../crates/vox-gui/ui/src/components/ui/Glass.tsx))
   applies `bg-overlay-subtle` (`rgba(255,255,255,0.04)` —
-  [`src/styles/tokens.generated.css:51`](../../../crates/vox-gui/ui/src/styles/tokens.generated.css))
-  combined with `backdrop-blur-2xl` as its only background. Chromium and
-  Firefox composite a ~4%-alpha `backdrop-filter: blur()` layer differently;
-  Firefox lets content underneath bleed through at full opacity, Chromium
-  effectively darkens/opacifies it via the blur. Every occlusion cell in the
-  review traces to a `Glass`-based full-panel overlay: `AchievementsDrawer`
-  ([`src/components/gamify/AchievementsDrawer.tsx:38`](../../../crates/vox-gui/ui/src/components/gamify/AchievementsDrawer.tsx)),
-  the compact-viewport session/execution rail overlays in `ChatSurface`
-  ([`src/components/surfaces/Chat/ChatSurface.tsx:264,317`](../../../crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx)),
-  and Console's `DiscoveryRail`
-  ([`src/components/surfaces/Console/DiscoveryRail.tsx:99`](../../../crates/vox-gui/ui/src/components/surfaces/Console/DiscoveryRail.tsx)).
-  `Popover.tsx` is NOT affected — it already uses `bg-zinc-950/95` (95% opaque),
-  confirming the low-alpha background is specifically the defect.
-- **F-02 (shared null-deref TypeError toast):** two distinct null-deref call
-  sites in `App.tsx`, both feeding the same `pushToast(... body: String(err)
-  ...)` pattern:
-  - [`src/App.tsx:404`](../../../crates/vox-gui/ui/src/App.tsx) —
-    `.then((s) => setActiveSessionId(s.session_id))` on the
-    `chat_create_session` fallback path; if the backend/mock resolves the
-    session as `null` (the empty-mock case), this throws
-    `TypeError: Cannot read properties of null (reading 'session_id')` —
-    matches the review's minified `"session_id, s is null"` signature exactly.
-  - [`src/App.tsx:787-792,825-828`](../../../crates/vox-gui/ui/src/App.tsx) —
-    `res.is_error ? ... : ...` after an MCP tool call, where `res` itself
-    (not `res.is_error`) is null in the `error`-mock variant — matches
-    `"is_error, res is null"`.
-- **F-03 (`__TAURI_INTERNALS__` toast leak):** the same `String(err)` pattern
-  used at ~15 call sites in `App.tsx` (e.g. lines 405, 408, 667, 682, 757,
-  795, 831, 899, 910, 917, 924, 948, 1052) renders whatever the caught
-  exception's `.toString()` produces, unfiltered, as toast body text. When the
-  underlying error is a raw Tauri `TypeError`, its message contains
-  `__TAURI_INTERNALS__` verbatim. `src/lib/backendGuard.ts`'s
-  `BackendUnavailableError` already carries an honest, sanitized `.message`
-  for the no-backend case — the toast path just isn't using it.
-- **F-06 (blank simulation viewport):** `Dashboard.tsx:448-452` mounts
-  `<LudusSandbox />` inside a fixed `h-[250px]` container with no
-  loading/error/empty state of its own.
-  [`src/components/gamify/LudusSandbox.tsx`](../../../crates/vox-gui/ui/src/components/gamify/LudusSandbox.tsx)'s
-  canvas-draw effect silently bails (`if (!layout) return;` at line 92, and
-  similar guards at lines 118/155/165/176/184/221/244/271) whenever `layout`
-  is unset — which is exactly what happens when there's no backend/profile
-  data — leaving a blank `<canvas>` with zero user-facing affordance.
-- **F-07 (tablist ARIA violation):**
-  [`src/components/layout/WorkbenchTabBar.tsx:24-39`](../../../crates/vox-gui/ui/src/components/layout/WorkbenchTabBar.tsx) —
-  the `role="tablist"` container's direct children are plain `<div>` wrappers
-  (line 32), each containing a `<button role="tab">` plus a close `<button>`.
-  ARIA 1.2 requires `tablist`'s direct children to carry `role="tab"` (or
-  `role="presentation"`/`"none"` if intervening) — the wrapping `<div>` has
-  neither, which is exactly what axe's `aria-required-children` flags. This
-  also explains the highest-frequency axe violation across the whole review
-  (51 instances on dashboard alone): the same tab bar renders on every
-  surface via `AppShell`.
+  `tokens/semantic.json` → `tokens.generated.css`) combined with
+  `backdrop-blur-2xl` as its only background. Chromium and Firefox composite
+  a ~4%-alpha `backdrop-filter: blur()` layer differently; Firefox lets
+  content underneath bleed through at full opacity. Every occlusion cell in
+  the review traces to a `Glass`-based overlay: `AchievementsDrawer`
+  (`src/components/gamify/AchievementsDrawer.tsx:38`), the compact-viewport
+  session/execution rail overlays in `ChatSurface`
+  (`src/components/surfaces/Chat/ChatSurface.tsx:264,317`), and Console's
+  `DiscoveryRail` (`src/components/surfaces/Console/DiscoveryRail.tsx:99`).
+  `Popover.tsx` is NOT affected — it already uses `bg-zinc-950/95`.
+  **Audit additions:** (a) `Glass.tsx:37`'s `interactive &&
+  "hover:bg-overlay-subtle"` would reintroduce the translucent background on
+  hover — the fix must cover it too; (b) the travertine theme's Style
+  Dictionary build sources `semantic.travertine.json`, not `semantic.json`,
+  so the new token must be added to both (travertine gets a light-appropriate
+  opaque value) or that theme falls back to a dark `#11151a` on a light
+  background; (c) `<Glass as="button">` composes `bg-transparent` after the
+  base class, so button-rendered Glass stays transparent — intentional
+  (buttons are not overlay panels), documented, not fixed; (d) this change
+  makes **all 72 Glass call sites** opaque, not just the overlay ones — an
+  accepted global visual change (cards on `bg-surface` will render slightly
+  darker than their parent instead of lighter), to be eyeballed in the
+  harness output as part of verification.
+- **F-02 (shared null-deref TypeError toast):** the null-derefs are **caught**
+  exceptions — `.then` throws land in the adjacent `.catch`/`try-catch` and
+  surface as *leaky warn toasts*, not crashes. Any test for them must assert
+  on toast content, not on "does not throw" (App renders fine today with a
+  null-resolving mock; the existing `App.test.tsx` smoke test silently
+  exercises this exact path). Sites:
+  - `src/App.tsx:403-405` — `.then((s) => setActiveSessionId(s.session_id))`
+    on the `chat_create_session` fallback; null `s` → the review's
+    `"session_id, s is null"` toast.
+  - `src/App.tsx:785-793` (rollback) — `res.is_error` reads with no null
+    guard. The failure body is `typeof res.result === 'string' ? res.result
+    : JSON.stringify(res.result)`; **there is no `res.error` field**
+    (`McpInvokeResult` is `{ tool, is_error, result }` per
+    `src/lib/mcpToolResult.ts:6-9`) — the fix must preserve `res.result` as
+    the failure text when `res` is non-null, not discard it.
+  - `src/App.tsx:820-829` (audit) — the deref happens at **line 821-823**
+    (`typeof res.result === 'string' ...`), *before* the `pushToast`; a guard
+    only around `is_error` still throws. The throw is caught by the inner
+    `catch (err)` at 830 → 'Audit unavailable' toast with the TypeError
+    leaked. The same handler's first attempt derefs `out.exit_code`/`out.stdout`
+    (lines ~807-815) with no null guard — same class, fixed together.
+- **F-03 (`__TAURI_INTERNALS__` toast leak):** the `body: String(err)`
+  pattern exists at **14 sites in `App.tsx`** (405, 408, 667, 682, 757, 795,
+  831, 861, 899, 910, 917, 924, 948, 1052) **and ~95 more sites across ~27
+  other files** (`BrowserView.tsx` ×13, `SettingsView.tsx` ×17,
+  `SkillsPluginsView.tsx` ×10, `InlineApprovals.tsx` — which receives App's
+  `pushToast` as a prop and renders into the same toast stack — and others).
+  Fixing only `App.tsx` covers ~13% of the class. The fix is therefore
+  repo-wide mechanical replacement **plus a source-scan guard test** (same
+  pattern as `transportIpcGuard.test.ts`) forbidding `body: String(` under
+  `src/`, so the class cannot silently regrow. `BackendUnavailableError`
+  (`src/lib/backendGuard.ts`) already carries an honest message — the
+  sanitizer special-cases it. The leak pattern `\binvoke\b` does not match
+  `invoke_mcp_tool` (underscore is a word char); prose like "failed to
+  invoke X" degrades to the generic message — acceptable.
+- **F-06 (blank simulation viewport) — corrected premise:**
+  `LudusSandbox.tsx:298-303` **already renders** "Workspace scan unavailable
+  — the town cannot render." when `scanFailed`, and
+  `LudusSandbox.test.tsx` **already exists** and asserts it. The genuinely
+  uncovered state is `!layout && !scanFailed` — scan pending, or resolved
+  without producing a layout — which leaves the mounted canvas blank with no
+  affordance. The fix targets exactly that state.
+- **F-07 (tablist ARIA violation) — corrected fix:**
+  `src/components/layout/WorkbenchTabBar.tsx:32-68` — each `tablist` child is
+  a plain `<div>` wrapping a `role="tab"` button plus (non-pinned tabs) a
+  plain close `<button>`. **`role="presentation"` on the wrapper does NOT fix
+  this**: axe computes owned children by looking *through* presentational
+  and unroled wrappers, so the close button remains an owned non-`tab` child
+  of the tablist and the rule still fires (the wrapper is already looked
+  through today — that's why there are 51 violations). The correct fix is a
+  restructure: the wrapper `<div>` becomes the `role="tab"` element (taking
+  `aria-selected`, the `data-testid`, and the select handler), the inner
+  label button demotes to a `<span>`, and the close affordance becomes
+  presentational to AT (`aria-hidden`, `tabIndex={-1}` — still clickable
+  with a pointer) with keyboard close provided via `Delete` on the focused
+  tab (the ARIA-canonical pattern, since `role="tab"` has
+  children-presentational semantics that flatten nested interactive
+  elements anyway). The 4 unit-test and 3 e2e assertions that target
+  `getByRole('button', { name: 'Close X' })` / testid-on-the-inner-button
+  must be updated in the same change.
+- **`landmark-unique` — corrected analysis:** the layout has only **one**
+  unlabeled `<nav>` (`Sidebar.tsx:162`; `BreadcrumbBar.tsx:52` is already
+  labeled; `AppShell.tsx` renders no nav). The review's chat count of 29
+  comes from **unlabeled `<aside>` (complementary) landmarks** —
+  `Sidebar.tsx:134`, `ChatSessionRail.tsx:52/71`,
+  `ChatExecutionRail.tsx:96/115` — plus **repeated `role="region"`**
+  instances (`ModelBadge.tsx:48` per-message, `ChatExecutionRail.tsx:133,160`)
+  that duplicate accessible names once per message. Fix: distinct
+  `aria-label`s on the nav and the three asides; de-landmark (or uniquely
+  name) the repeated per-message regions — plain `role`-less containers are
+  correct for per-message chrome.
 
 ## Phase 1 — CI wiring (unblocks everything else)
 
-**Problem:** `.github/workflows/ci.yml`'s advisory `gui-playwright-smoke`
-capture step runs `--project=chromium` only; its analysis step passes no
-`--browsers` flag and silently defaults to chromium-only
-(`gui-visual-review.rs:28-30`). Every Firefox-only defect (F-01, F-04, F-05,
-and the Firefox instance of F-03) is therefore invisible to CI today.
+**Problem:** `.github/workflows/ci.yml`'s advisory review-bundle capture step
+runs `--project=chromium` only; the analysis step passes no `--browsers` flag
+and defaults to chromium-only. **Audit addition:** the job's only browser
+install is `pnpm exec playwright install chromium` (line ~1663) — adding the
+Firefox project without installing Firefox fails *silently* (the step is
+`continue-on-error: true`), recreating the exact invisibility being fixed.
 
-**Fix:** add `--project=firefox-review` to the capture step's Playwright
-invocation, and `--browsers chromium,firefox` to the analysis step's
-`gui-visual-review --bundle ... --ai` invocation. Mechanical, ~2 lines.
+**Fix (3 edits):** change the install line to
+`pnpm exec playwright install chromium firefox`; add
+`--project=firefox-review` to the capture invocation; add
+`--browsers chromium,firefox` to the analysis invocation (and raise
+`--max-reviews` 40→60 since the cell count roughly doubles). All steps stay
+advisory (`continue-on-error: true`).
 
 **Why first:** every fix in Phases 2–6 needs a Firefox-aware CI gate to keep
-it fixed. Landing this after the other phases means the whole effort could
-regress unnoticed the day someone touches an overlay component.
+it fixed.
 
 ## Phase 2 — F-01/F-04: Firefox overlay compositing
 
 **Approach (per user decision): opaque fallback background, not a
 root-cause investigation of Firefox's blur compositing.**
 
-Add a Firefox-safe solid background layer to `Glass` so its content is never
-see-through regardless of `backdrop-filter` support/compositing. Concretely:
-add a new CSS custom property (e.g. `--color-overlay-solid`, a fully-opaque
-near-match to the current dark theme background — sample the existing
-`bg-bg-base` token, not a new arbitrary color) and apply it as `Glass`'s
-background instead of `bg-overlay-subtle`, keeping `backdrop-blur-2xl` as a
-purely decorative enhancement layered on top (blur only affects what's
-*behind* an already-opaque layer, so this can't regress Chromium's current
-look — it removes translucency, which is the entire point).
+1. Add `overlay.solid` to `tokens/semantic.json` (`{color.basalt.850}` =
+   `#11151a`, opaque, one step lighter than `bg.base`) **and** to
+   `tokens/semantic.travertine.json` (a light-appropriate opaque value, e.g.
+   `{color.travertine.100}`-family) — the travertine build does not source
+   `semantic.json`. The high-contrast build sources `semantic.json` and
+   inherits automatically.
+2. Wire `'overlay-solid'` into `tailwind.config.js` alongside the existing
+   `overlay-subtle`/`overlay-hover` entries; `pnpm tokens:build` regenerates
+   all three generated CSS files.
+3. In `Glass.tsx`: base class `bg-overlay-subtle` → `bg-overlay-solid`, AND
+   the interactive branch's `hover:bg-overlay-subtle` → an opaque hover
+   (e.g. `hover:bg-bg-elevated`) — otherwise hovering any interactive Glass
+   reintroduces the translucent background Firefox mis-composites.
+   `backdrop-blur-2xl` stays as decoration; the `ring-overlay-subtle` inset
+   ring (1px decorative) stays; the `as="button"` transparent branch stays
+   (documented as intentional).
+4. Call-site check: no `<Glass>` call site overrides with
+   `bg-overlay-subtle`, but several override with other translucent
+   backgrounds (`DueNudge.tsx` `bg-zinc-950/65`, `FunGauge.tsx`/
+   `HudPanels.tsx` `bg-zinc-950/80`, `RunsView.tsx` `bg-black/30`) — these
+   win via twMerge and stay translucent. They are small HUD chips, not
+   full-panel overlays; leave them unless the harness re-run flags them.
 
-This single change in `Glass.tsx` covers `AchievementsDrawer`,
-`ChatSessionRail`/`ChatExecutionRail` (via `ChatSurface`'s overlay wrapper),
-and `DiscoveryRail`, because all three compose `Glass` rather than
-reimplementing their own background. No per-surface changes needed unless a
-surface overrides the background via `className` (grep for
-`bg-overlay-subtle` passed as an override `className` to `<Glass>` call
-sites as a verification step — the plan's task will do this explicitly).
-
-**Verification:** re-run the harness (`vox run scripts/frontend-review.vox`)
-scoped to `chat`, `dashboard`, `console` with `firefox-review`, and confirm
-the specific regression cells the review named
+**Verification:** re-run the harness scoped to `chat`, `dashboard`,
+`console` with `firefox-review` and confirm the named regression cells
 (`chat--rails-overlay-open--compact--firefox`,
-`dashboard--achievements-open--{compact,laptop,wide}--firefox`,
+`dashboard--achievements-open--*--firefox`,
 `console--default--compact--firefox`,
-`chat--session-menu-open--compact--firefox`) score clean with 0 occlusion
-defects.
+`chat--session-menu-open--compact--firefox`) show 0 occlusion/layout
+defects; also eyeball the dashboard-grid chromium captures for the accepted
+global elevation-cue change.
 
-## Phase 3 — F-03: `__TAURI_INTERNALS__` / raw-error toast leak
+## Phase 3 — F-03: raw-error toast leak, repo-wide
 
-**Fix:** add a `sanitizeErrorForToast(err: unknown): string` helper (natural
-home: `src/lib/backendGuard.ts`, alongside `BackendUnavailableError`, since
-it needs to special-case that type) that:
-1. Returns `err.message` directly if `err instanceof BackendUnavailableError`
-   (already honest).
-2. Otherwise returns `String(err)` **unless** the resulting string contains
-   `__TAURI_INTERNALS__`, `invoke`, or matches other raw-IPC-internal
-   patterns — in which case return a generic
-   `"An unexpected error occurred."` (or similarly honest but
-   non-leaking message).
-3. Replace all `body: String(err)` occurrences in `App.tsx`'s `pushToast`
-   calls with `body: sanitizeErrorForToast(err)`.
+1. `sanitizeErrorForToast(err: unknown): string` in
+   `src/lib/backendGuard.ts`: returns `err.message` for
+   `BackendUnavailableError`; otherwise `String(err)` unless it matches
+   `/__TAURI_INTERNALS__|\binvoke\b/`, in which case a generic honest
+   message.
+2. Mechanical replacement of **every** `body: String(err)` / `body:
+   String(e)` under `crates/vox-gui/ui/src` (~109 sites, 28 files) with
+   `sanitizeErrorForToast(...)` + the import.
+3. A source-scan guard test (`src/guards/toastBodyGuard.test.ts`, same
+   pattern as `transportIpcGuard.test.ts`) failing on any
+   `body: String(` occurrence under `src/`, so the class cannot regrow.
 
-This directly fixes the `dashboard--no-backend--wide--firefox` cell the
-review cited, and closes the whole class rather than one occurrence, since
-every `pushToast(..., body: String(err) ...)` call site shares the exposure.
+The only existing test asserting a raw error toast body
+(`CodeRabbitView.test.tsx:72`, asserts `'boom'`) passes unchanged —
+`'boom'` doesn't trip the pattern.
 
 ## Phase 4 — F-02: shared null-deref TypeError
 
-**Fix (per user decision: root-cause the null-check, not just sanitize):**
-1. `App.tsx:404` — guard the fallback session-creation path:
-   ```ts
-   invoke<Session>('chat_create_session', { title: 'Chat' })
-     .then((s) => { if (s?.session_id) setActiveSessionId(s.session_id); })
-     .catch((err) => pushToast({ tone: 'warn', title: 'Chat session', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
-   ```
-2. `App.tsx:787-792` and `825-828` — guard both `res.is_error` reads:
-   ```ts
-   const failed = !res || res.is_error;
-   pushToast({
-     tone: failed ? 'warn' : 'ok',
-     title: failed ? 'Rollback failed' : 'Rollback complete',
-     body: failed ? sanitizeErrorForToast(res?.error ?? 'Unknown error') : ...,
-     cause: failed ? 'backend-error' : 'backend-ok',
-   });
-   ```
-   (Exact shape depends on each call site's existing variable names — the
-   plan's tasks give the precise diff per site.)
+All three fixes must preserve real failure text and be tested via **toast
+content assertions** (the throws are caught — "does not throw" tests pass
+before the fix and prove nothing):
 
-Because Phase 3 lands first, these guarded paths get `sanitizeErrorForToast`
-for free on the remaining thrown-error branches.
-
-**Verification:** re-run the harness on the `empty`/`error` variant states
-for the ~9 affected surfaces named in the review (`chat`, `dashboard`,
-`gamify`, `runs`, `policies`, `vox-search`, `memory`, `models`, `approvals`)
-and confirm zero `session_id`/`is_error` null-deref defects remain.
+1. `App.tsx:403-405`: `.then((s) => { if (s?.session_id)
+   setActiveSessionId(s.session_id); })`. Test: with `chat_create_session`
+   mocked to resolve `null`, assert the 'Chat session' warn toast does NOT
+   appear (before the fix, the caught TypeError produces it).
+2. `App.tsx:785-793` (rollback): guard once —
+   `const failed = !res || res.is_error;` — and the failure body becomes
+   `!res ? 'Unknown error' : sanitizeErrorForToast(typeof res.result ===
+   'string' ? res.result : JSON.stringify(res.result))`, preserving the real
+   error text; success branch text unchanged.
+3. `App.tsx:807-829` (audit): guard **both** derefs — `out` (lines ~807-815)
+   and `res`/`res.result` (lines 820-829, the deref at 821 precedes the
+   pushToast) — with the same `failed` pattern.
 
 ## Phase 5 — F-07 + top axe classes
 
-1. **F-07:** in `WorkbenchTabBar.tsx`, give the per-tab wrapping `<div>`
-   (line 32) `role="presentation"` — this satisfies ARIA 1.2's allowance for
-   non-tab intervening elements inside a `tablist` without restructuring the
-   DOM or losing the close-button's independent focusability.
-2. **`page-has-heading-one`** (39 instances on `chat`/`dashboard`, 19-25 on
-   most others): audit each surface's root component for a semantic `<h1>`
-   — most already have a styled title `<span>`/`<div>` that should become an
-   `<h1>` (visually restyled via CSS, not a new visible heading) rather than
-   adding a redundant one.
-3. **`landmark-unique`**: audit for duplicate unlabeled `<nav>`/`<main>`
-   landmarks (likely the sidebar + workbench both rendering as unlabeled
-   `<nav>` — give each a distinct `aria-label`).
-
-Each of these three axe rules is single-shared-component or single-pattern,
-consistent with the review's assessment that they're not surface-specific.
-
-**Verification:** re-run `axe-core` via the harness's existing in-page audit
-(`e2e/review/audits.ts`) across all 31 surfaces and confirm the
-`aria-required-children`/`page-has-heading-one`/`landmark-unique` counts in
-`bundle-digest.md` drop to (near-)zero.
+1. **F-07:** restructure `WorkbenchTabBar` per the corrected analysis above
+   (wrapper becomes the tab; label demotes to span; close affordance
+   `aria-hidden`/`tabIndex={-1}` + `Delete`-key close; testid and
+   `aria-selected` move to the wrapper; update the 4 unit and 3 e2e
+   assertions that target the old structure). Component test asserts the
+   axe-relevant invariant directly: every direct child of the tablist has
+   `role="tab"`, and `within(tablist).queryAllByRole('button')` is empty
+   (testing-library's a11y-tree semantics approximate axe's owned-children
+   computation).
+2. **`page-has-heading-one`** (chat + dashboard only, per scope): neither
+   surface has any `<h1>`, and neither has a visible root title to promote
+   (`Dashboard.tsx`'s `<h2>The Stream</h2>` is a section heading). Both get
+   an `sr-only` `<h1>` as the first child of the surface root.
+   `SurfaceMiniRender`'s `aria-hidden="true"` frame keeps embedded mini
+   surfaces' h1s out of the a11y tree, so the dashboard stays at exactly one
+   accessible h1. (Latent caveat, documented in a code comment: if
+   `chatDocked` — currently hardcoded false at `App.tsx:1080` — is ever
+   enabled, a docked ChatSurface would add a second h1 to the page.)
+3. **`landmark-unique`:** distinct `aria-label`s on `Sidebar.tsx:162`'s nav
+   and the three asides (`Sidebar.tsx:134`, `ChatSessionRail`,
+   `ChatExecutionRail`); remove `role="region"` from per-message chrome
+   (`ModelBadge.tsx:48`) or give instances unique accessible names; same
+   for `ChatExecutionRail.tsx:133,160`. Tests live in the components' own
+   test files, NOT `AppShell.test.tsx` (which mocks Sidebar with an
+   already-labeled stub — a test there can never fail).
 
 ## Phase 6 — F-05/F-06 re-verify + fix
 
-1. **F-05 (chat rail clipping):** re-run the harness on
-   `chat--rails-overlay-open--compact--firefox` and
-   `chat--session-menu-open--compact--firefox` *after* Phase 2 lands, before
-   writing any new code — the review explicitly flagged this as likely a
-   symptom of F-01's broken layout. If it's gone, mark resolved; if not,
-   triage as a genuinely separate clipping bug at that point (do not
-   pre-guess a fix in this plan).
-2. **F-06 (blank simulation viewport):** in `LudusSandbox.tsx`, when the
-   canvas-draw effect's guard (`if (!layout) return;`) fires because there is
-   no `layout` to render, render a sibling fallback (a simple centered
-   "Simulation unavailable" message with the same honesty standard as
-   `BackendBanner`) instead of leaving a blank canvas. `Dashboard.tsx`'s
-   `LudusSandbox` mount doesn't need to change — the fix belongs entirely
-   inside the component that has the data.
+1. **F-05 (chat rail clipping):** re-run the harness on the two chat cells
+   *after* Phase 2 lands, before writing any code. If clipping is gone, mark
+   resolved; if not, triage as a separate bug — do not pre-guess a fix.
+2. **F-06 (blank simulation viewport) — corrected:** the `scanFailed` state
+   is already handled and tested. Fix the uncovered `!layout && !scanFailed`
+   state: render a centered "Simulation loading…"/"no workspace data yet"
+   fallback adjacent to the canvas (canvas hidden via conditional class
+   while `!layout`, kept mounted so refs stay valid). Extend the **existing**
+   `LudusSandbox.test.tsx` (which already mocks `../../transport`) — do not
+   create a new file.
 
 ## Testing approach
 
-- **Unit-testable fixes** (Phases 3, 4, 5's ARIA/heading changes, Phase 6's
-  `LudusSandbox` empty state) get component tests written TDD-first: a
-  failing test asserting the honest/guarded behavior, then the minimal fix.
-- **Visual/compositing fixes** (Phase 2, and Phase 6's F-05 re-verify) are
-  proven by the existing harness, not new Playwright specs — the harness's
-  durable regression states (`rails-overlay-open`, `achievements-open`,
-  `session-menu-open`, `no-backend`) already exist in
-  `e2e/review/states.ts` for exactly this purpose. Re-running
-  `frontend-review.vox` scoped to the affected surfaces after each fix *is*
-  the test.
-- **CI wiring (Phase 1)** is verified by confirming the changed `ci.yml`
-  lines produce Firefox entries in a manual CI-equivalent local run (already
-  proven possible — the Task 13 pipeline run this session used
-  `--browsers chromium,firefox` locally).
+- Unit-testable fixes (Phases 3, 4, 5, 6's F-06) are TDD, with the audit's
+  correction applied throughout: **tests must discriminate** (assert toast
+  content / a11y-tree queries), never "renders without throwing" — the bugs
+  here are caught exceptions and axe-tree violations, both invisible to
+  crash assertions.
+- Visual/compositing fixes (Phase 2, Phase 6's F-05) are proven by the
+  existing harness against its durable regression states. Local analysis
+  runs require `OPENROUTER_API_KEY` (Clavis) and write the digest to
+  `contracts/reports/gui-visual-review/bundle-digest.md` (NOT under
+  `review-bundle/`). Scoped capture runs **delete the whole prior bundle**
+  (`globalSetup` clears `review-bundle/latest` unconditionally when
+  `VOX_REVIEW_CAPTURE=1`) — final counts must come from a fresh full-matrix
+  run.
+- CI wiring (Phase 1) is verified by the presence of Firefox entries in the
+  next CI run's uploaded bundle artifact (the install fix is what makes this
+  possible at all).
 
 ## Non-goals
 
-- No new component/e2e test authorship for un-specced surfaces (tracked
-  separately as coverage debt per the review, item 7).
-- No Tauri-shell/`tauri-driver` harness — F-01 through F-07 remain
-  "confirmed-in-Firefox, presumed-absent-in-the-Tauri-shell" after this
-  effort, same caveat the review already recorded.
-- No `settings`/keybinds blank-pane investigation — noted as a candidate
-  finding, not triaged, in the source review; out of scope here.
-- No general contrast/color-token remediation for the 397 unenumerated minor
-  findings — those are batched separately per the review's own
-  recommendation (a design-token audit), not part of this plan.
+- No new component/e2e test authorship for un-specced surfaces (item 7 debt).
+- No Tauri-shell/`tauri-driver` harness.
+- No `settings`/keybinds blank-pane investigation.
+- No general contrast/color-token remediation for the 397 minor findings.
+- No `page-has-heading-one` fixes beyond chat/dashboard (remaining surfaces
+  enumerated as debt during execution).

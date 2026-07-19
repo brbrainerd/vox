@@ -3,36 +3,64 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Fix the six confirmed finding classes (F-01 through F-07, minus F-05 which
-self-resolves-or-triages) from the 2026-07-18 Axis frontend comprehensive review, plus
+re-verifies-or-triages) from the 2026-07-18 Axis frontend comprehensive review, plus
 the CI wiring gap that made the Firefox-only defects invisible.
 
-**Architecture:** Six independent phases, each gated on the prior only where the spec
-says so (Phase 1 first because everything else needs Firefox-aware CI to stay fixed;
-Phase 6's F-05 re-verify explicitly waits on Phase 2). Every visual/compositing fix is
-proven by re-running the existing `frontend-review.vox` harness against its own durable
-regression states — no new Playwright specs are written for those. Null-deref and ARIA
-fixes get conventional TDD component tests.
+**Architecture:** Twelve tasks in six phases. Phase 1 (CI) first because everything
+else needs Firefox-aware CI to stay fixed; Task 11's F-05 re-verify explicitly waits
+on Task 2. Visual/compositing fixes are proven by re-running the existing
+`frontend-review.vox` harness; caught-exception and ARIA fixes get discriminating TDD
+tests (toast-content and a11y-tree assertions — never "renders without throwing",
+because every F-02 throw is caught and surfaces as a toast, not a crash).
 
 **Tech Stack:** React + TypeScript (`crates/vox-gui/ui`), Vitest + Testing Library,
 Playwright (existing `e2e/review/` harness), Style Dictionary (`tokens/*.json` →
-`tokens.generated.css`), GitHub Actions.
+three generated CSS files), GitHub Actions.
 
 **Design doc:** [`docs/superpowers/specs/2026-07-18-axis-frontend-remediation-design.md`](../specs/2026-07-18-axis-frontend-remediation-design.md)
 
+**Global prerequisites for every harness-verification task (3, 9, 11, 12):**
+- `OPENROUTER_API_KEY` must be set locally (Clavis holds it) — the `--ai` analysis
+  cannot run without it.
+- The analysis digest is written to `contracts/reports/gui-visual-review/bundle-digest.md`
+  (NOT under `review-bundle/`), and is **overwritten by every analysis run**. A stale
+  committed digest exists at that path — always re-run analysis before grepping it.
+- `e2e/review/globalSetup.ts` **deletes the entire `review-bundle/latest/` directory**
+  on every capture run with `VOX_REVIEW_CAPTURE=1` — a `--grep`-scoped capture wipes
+  all other surfaces' entries. Scoped runs are fine for spot verification; any
+  full-matrix count comparison must come from a fresh unscoped run.
+
 ---
 
-### Task 1: CI wiring — make Firefox visible to CI
+### Task 1: CI wiring — make Firefox visible to CI (install + capture + analyze)
 
 **Files:**
-- Modify: `.github/workflows/ci.yml:1678-1688` (the `gui-playwright-smoke` job's
-  review-bundle capture + analysis steps)
+- Modify: `.github/workflows/ci.yml` (the `gui-playwright-smoke` job: the
+  `playwright install` line near 1663 and the review-bundle capture/analysis steps
+  near 1676-1688)
 
-- [ ] **Step 1: Read the current steps to confirm line numbers haven't drifted**
+- [ ] **Step 1: Confirm current line positions**
 
-Run: `grep -n "Review-bundle capture\|Review-bundle AI defect analysis" .github/workflows/ci.yml`
-Expected: two matches, a capture step and an analysis step, a few lines apart.
+Run: `grep -n "playwright install\|Review-bundle capture\|Review-bundle AI defect analysis" .github/workflows/ci.yml`
+Expected: an install line (`pnpm exec playwright install chromium`) plus the capture
+and analysis step names. (There are two `playwright install` occurrences in the file —
+edit the one inside the `gui-playwright-smoke` job, near line 1663.)
 
-- [ ] **Step 2: Add the Firefox project to the capture step and `--browsers` to the analysis step**
+- [ ] **Step 2: Install Firefox in CI**
+
+Change the `gui-playwright-smoke` job's install line from:
+```yaml
+        run: pnpm exec playwright install chromium
+```
+to:
+```yaml
+        run: pnpm exec playwright install chromium firefox
+```
+Without this, adding the Firefox project fails **silently** (the capture step is
+`continue-on-error: true`) — CI goes green with zero Firefox entries, recreating the
+exact invisibility this task exists to fix.
+
+- [ ] **Step 3: Add the Firefox project to capture and `--browsers` to analysis**
 
 Change:
 ```yaml
@@ -67,20 +95,16 @@ to:
         run: cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --bundle crates/vox-gui/ui/review-bundle/latest --ai --max-reviews 60 --browsers chromium,firefox
         continue-on-error: true
 ```
-(`--max-reviews` raised from 40 to 60 since the cell count roughly doubles with two
-browsers; still bounded, still advisory/`continue-on-error: true`.)
+(`--max-reviews` 40→60: cell count roughly doubles; still bounded, still advisory.
+`--browsers` takes a comma list and `--max-reviews` exists — verified against
+`src/bin/gui-visual-review.rs:27-30`.)
 
-- [ ] **Step 3: Validate the YAML**
-
-Run: `python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))" || pwsh -c "Get-Content .github/workflows/ci.yml | Out-Null"`
-Expected: no parse error. (If neither `python` nor a YAML linter is available, visually
-re-diff the block against the snippet above — no other lines should change.)
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Re-diff the block to confirm only these lines changed, then commit**
 
 ```bash
+git diff .github/workflows/ci.yml
 git add .github/workflows/ci.yml
-git commit -m "ci(gui): capture + review Firefox in the advisory review-bundle steps"
+git commit -m "ci(gui): install firefox + capture and review both browsers in the advisory review-bundle steps"
 ```
 
 ---
@@ -89,9 +113,11 @@ git commit -m "ci(gui): capture + review Firefox in the advisory review-bundle s
 
 **Files:**
 - Modify: `crates/vox-gui/ui/tokens/semantic.json`
+- Modify: `crates/vox-gui/ui/tokens/semantic.travertine.json`
 - Modify: `crates/vox-gui/ui/tailwind.config.js`
 - Modify: `crates/vox-gui/ui/src/components/ui/Glass.tsx`
-- Test: `crates/vox-gui/ui/src/components/ui/Glass.test.tsx`
+- Test: `crates/vox-gui/ui/src/components/ui/Glass.test.tsx` (existing file, has the
+  jsdom pragma)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -103,15 +129,21 @@ Add to `crates/vox-gui/ui/src/components/ui/Glass.test.tsx`:
     expect(el).toHaveClass('bg-overlay-solid');
     expect(el).not.toHaveClass('bg-overlay-subtle');
   });
+
+  it('interactive hover state stays opaque too (no translucent hover regression)', () => {
+    render(<Glass interactive data-testid="g">Clickable</Glass>);
+    const el = screen.getByTestId('g');
+    expect(el).not.toHaveClass('hover:bg-overlay-subtle');
+  });
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/ui/Glass.test.tsx`
-Expected: FAIL — `bg-overlay-solid` class not present (`Glass.tsx` still uses
-`bg-overlay-subtle`).
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/ui/Glass.test.tsx`
+Expected: FAIL — both new tests (base class is still `bg-overlay-subtle`, hover is
+still `hover:bg-overlay-subtle`).
 
-- [ ] **Step 3: Add the new token**
+- [ ] **Step 3: Add the token to BOTH semantic token files**
 
 In `crates/vox-gui/ui/tokens/semantic.json`, change:
 ```json
@@ -121,29 +153,42 @@ to:
 ```json
     "overlay": { "subtle": { "value": "rgba(255,255,255,0.04)" }, "hover": { "value": "rgba(255,255,255,0.07)" }, "solid": { "value": "{color.basalt.850}" } }
 ```
-(`basalt.850` = `#11151a`, already defined in `tokens/primitive.json:15` — a fully
-opaque shade one step lighter than `bg.base`/`basalt.900`, so overlay panels read as
-a distinct elevated surface rather than pure background.)
+(`basalt.850` = `#11151a`, opaque, one step lighter than `bg.base`/`basalt.900`.)
+
+Then in `crates/vox-gui/ui/tokens/semantic.travertine.json`, find its `overlay` block
+(it has its own — `subtle: rgba(0,0,0,0.04)`, `hover: rgba(0,0,0,0.07)`, black-based
+for the light theme) and add a light-appropriate opaque `"solid"` alongside, using an
+existing light primitive from `tokens/primitive.json` (a travertine/cream family value
+near the theme's surface color — read the primitive file and pick the closest opaque
+step above the travertine theme's `bg.surface`; do NOT reuse `basalt.850`, which is
+near-black on a light theme). The travertine Style Dictionary build sources
+`semantic.travertine.json` INSTEAD of `semantic.json`, so omitting this leaves that
+theme without the variable. (The high-contrast build sources `semantic.json` plus an
+override file, so it inherits automatically — no edit needed there.)
 
 - [ ] **Step 4: Wire the Tailwind class**
 
-In `crates/vox-gui/ui/tailwind.config.js`, find the `overlay-subtle`/`overlay-hover`
-color mapping (near line 15's "Semantic tokens" comment) and add the `solid` variant
-alongside it, e.g.:
+In `crates/vox-gui/ui/tailwind.config.js` (lines ~26-27), extend:
 ```js
         'overlay-subtle': 'var(--color-overlay-subtle)',
         'overlay-hover': 'var(--color-overlay-hover)',
+```
+with:
+```js
         'overlay-solid': 'var(--color-overlay-solid)',
 ```
-(match whatever the existing two lines' exact key names/quoting are — add the third
-following the same pattern.)
 
-- [ ] **Step 5: Regenerate the CSS and update `Glass.tsx`**
+- [ ] **Step 5: Regenerate the CSS and update `Glass.tsx` (base AND hover)**
 
 Run: `cd crates/vox-gui/ui && pnpm tokens:build`
-Expected: `src/styles/tokens.generated.css` gains a `--color-overlay-solid: #11151a;` line.
+Expected: `--color-overlay-solid` appears in ALL THREE generated files
+(`src/styles/tokens.generated.css`, `tokens.contrast.generated.css`,
+`tokens.travertine.generated.css`) — verify with
+`grep -l "color-overlay-solid" src/styles/*.generated.css` (expect 3 files).
 
-Then in `crates/vox-gui/ui/src/components/ui/Glass.tsx`, change:
+Then in `crates/vox-gui/ui/src/components/ui/Glass.tsx` make TWO changes:
+
+Line 34, change:
 ```tsx
         "relative border border-border-subtle bg-overlay-subtle backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-30px_rgba(0,0,0,0.9)]",
 ```
@@ -151,105 +196,126 @@ to:
 ```tsx
         "relative border border-border-subtle bg-overlay-solid backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-30px_rgba(0,0,0,0.9)]",
 ```
-(`backdrop-blur-2xl` stays — it's now a decorative blur over an already-opaque layer,
-which is visually inert but harmless, instead of being load-bearing for opacity.)
 
-- [ ] **Step 6: Check for background-overriding call sites**
+Line 37 (the `interactive &&` branch), change `hover:bg-overlay-subtle` to
+`hover:bg-bg-elevated` (opaque `basalt.700` — hovering must not reintroduce the
+translucent background Firefox mis-composites; this was the audit's hover-regression
+finding). Leave everything else in that branch unchanged.
 
-Run: `grep -rn "bg-overlay-subtle" crates/vox-gui/ui/src --include="*.tsx" | grep -v "hover:bg-overlay-subtle"`
-Expected: any remaining non-hover `bg-overlay-subtle` usages are either unrelated
-(buttons, badges — fine to leave translucent, they're not full-panel overlays) or a
-`<Glass className="...">` override that would now conflict. If any `<Glass>` call site
-passes `bg-overlay-subtle` in its own `className`, remove it there — `Glass`'s own
-default now supersedes it and Tailwind's `cn()` merge order would otherwise cause a
-conflicting-class warning, not a bug, but worth cleaning up if found.
+Deliberately UNCHANGED (do not "clean these up"):
+- Line 42's `ring-overlay-subtle` inset ring — 1px decorative, not a background.
+- Line 35's `isButton && "bg-transparent ..."` — `<Glass as="button">` stays
+  transparent by design; buttons are not overlay panels (twMerge resolves
+  `bg-overlay-solid` + later `bg-transparent` to transparent).
+
+- [ ] **Step 6: Check call-site background overrides**
+
+Run: `grep -rn "<Glass" crates/vox-gui/ui/src --include="*.tsx" -A2 | grep "bg-"`
+Known translucent overrides that WIN via twMerge and stay translucent:
+`DueNudge.tsx` (`bg-zinc-950/65`), `FunGauge.tsx`/`HudPanels.tsx` (`bg-zinc-950/80`),
+`RunsView.tsx:231` (`bg-black/30`). These are small HUD chips, not full-panel
+overlays — leave them. Note any NEW full-panel override the grep surfaces beyond
+these four; only a full-panel translucent override would need the same treatment.
 
 - [ ] **Step 7: Run test to verify it passes**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/ui/Glass.test.tsx`
-Expected: PASS (both the new test and the two pre-existing ones).
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/ui/Glass.test.tsx`
+Expected: PASS (both new tests plus the two pre-existing ones).
 
 - [ ] **Step 8: Run the full component test suite (regression check)**
 
-Run: `cd crates/vox-gui/ui && npx vitest run`
-Expected: all files pass (996+ tests) — no snapshot/class-assertion test elsewhere
-hardcodes `bg-overlay-subtle` on a `Glass`-based component. If one does, update that
-assertion to `bg-overlay-solid` (that test was asserting the old, buggy behavior).
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run`
+Expected: all files pass. (Verified: no existing test asserts `bg-overlay-subtle`.)
 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add crates/vox-gui/ui/tokens/semantic.json crates/vox-gui/ui/tailwind.config.js \
-  crates/vox-gui/ui/src/styles/tokens.generated.css crates/vox-gui/ui/src/components/ui/Glass.tsx \
-  crates/vox-gui/ui/src/components/ui/Glass.test.tsx
-git commit -m "fix(gui): Glass uses an opaque background instead of a low-alpha overlay tint
+git add crates/vox-gui/ui/tokens/semantic.json crates/vox-gui/ui/tokens/semantic.travertine.json \
+  crates/vox-gui/ui/tailwind.config.js crates/vox-gui/ui/src/styles/tokens.generated.css \
+  crates/vox-gui/ui/src/styles/tokens.contrast.generated.css crates/vox-gui/ui/src/styles/tokens.travertine.generated.css \
+  crates/vox-gui/ui/src/components/ui/Glass.tsx crates/vox-gui/ui/src/components/ui/Glass.test.tsx
+git commit -m "fix(gui): Glass uses an opaque background (base + hover) instead of a low-alpha overlay tint
 
 Firefox composites backdrop-blur over a ~4%-alpha background differently
 than Chromium, letting underlying content bleed through at full opacity
 (F-01/F-04: AchievementsDrawer, chat rail overlays, console DiscoveryRail).
-bg-overlay-solid is fully opaque; backdrop-blur-2xl is now purely
-decorative rather than load-bearing for translucency."
+bg-overlay-solid (basalt.850, opaque) replaces bg-overlay-subtle on the
+base AND the interactive hover state; travertine theme gets its own
+light-appropriate solid token. Accepted global change: all Glass panels
+are now opaque, trading translucent elevation cues for correctness."
 ```
 
 ---
 
-### Task 3: verify F-01/F-04 fixed via the harness (no new Playwright specs)
+### Task 3: verify F-01/F-04 fixed via the harness
 
-**Files:** none modified — this task only runs the existing harness and reads output.
+**Files:** none modified — verification only.
+**Prereq:** `OPENROUTER_API_KEY` set (see Global prerequisites).
 
-- [ ] **Step 1: Build a release `vox` if stale (needed by `frontend-review.vox`)**
+- [ ] **Step 1: Run the capture scoped to the affected surfaces, both browsers**
 
-Run: `ls -la target/release/vox.exe` — if missing or older than the latest commit,
-run `cargo build --release -p vox-cli --locked`.
-
-- [ ] **Step 2: Run the capture step scoped to the affected surfaces, both browsers**
-
-Run (from repo root):
 ```bash
 cd crates/vox-gui/ui
 VOX_REVIEW_CAPTURE=1 npx playwright test e2e/review/capture.spec.ts \
   --project=chromium --project=firefox-review --workers=2 \
   --grep "chat|dashboard|console"
 ```
-Expected: exit 0, new entries written under `review-bundle/latest/`.
+Expected: exit 0. NOTE: this DELETES all prior `review-bundle/latest/` entries
+(globalSetup clears the directory) — only chat/dashboard/console cells exist after.
+That is fine for this spot check; Task 12 re-runs the full matrix.
+(Title grep works because test titles are `` `${surface} -- ${state} -- ${viewport}` ``
+and the only registry viewKeys containing these substrings are exactly `chat`,
+`dashboard`, `console`.)
 
-- [ ] **Step 3: Run the analysis step**
+- [ ] **Step 2: Run the analysis**
 
-Run (from repo root): `./target/release/vox.exe`-equivalent —
 ```bash
 cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- \
   --bundle crates/vox-gui/ui/review-bundle/latest --ai --browsers chromium,firefox
 ```
+Expected: frontier drains (0 deferred; loop with repeated invocations if a
+`--max-reviews` bound is hit, same as the harness effort did).
 
-- [ ] **Step 4: Confirm the named regression cells are clean**
+- [ ] **Step 3: Confirm the named regression cells are clean**
 
-Run: `grep -A3 "chat--rails-overlay-open--compact--firefox\|dashboard--achievements-open\|console--default--compact--firefox\|chat--session-menu-open--compact--firefox" crates/vox-gui/ui/review-bundle/latest/bundle-digest.md`
-Expected: no `occlusion` or `layout` defects listed for these cells (scores should be
-comparable to their Chromium counterparts, e.g. 75+ rather than the review's recorded
-15-45).
+Run: `grep -A3 "rails-overlay-open--compact--firefox\|achievements-open\|console--default--compact--firefox\|session-menu-open--compact--firefox" contracts/reports/gui-visual-review/bundle-digest.md`
+(The digest path is `contracts/reports/gui-visual-review/bundle-digest.md` — the
+analysis run just overwrote it; never grep it before running Step 2.)
+Expected: no `occlusion` or `layout` defects for these cells; Firefox scores
+comparable to Chromium counterparts (75+, vs the review's recorded 15-45).
 
-If any cell still shows an occlusion/layout defect, stop and re-open Task 2 — do not
-proceed to Task 4 with a known-unfixed regression state.
+Also eyeball 2-3 chromium `dashboard--default` PNGs under
+`crates/vox-gui/ui/review-bundle/latest/` for the accepted global change (cards now
+opaque): confirm nothing looks broken, just less translucent.
 
-- [ ] **Step 5: No commit for this task** (verification only — the harness output
-  under `review-bundle/` is gitignored per the existing harness design).
+If any named cell still shows occlusion/layout defects, stop and re-open Task 2.
+
+- [ ] **Step 4: No commit** (bundle dir is gitignored; the digest/cache under
+  `contracts/` will be committed once, at Task 12, from the final full-matrix run —
+  not from this scoped run).
 
 ---
 
-### Task 4: sanitize toast error bodies — fix F-03
+### Task 4: sanitize toast error bodies repo-wide + guard — fix F-03
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/lib/backendGuard.ts`
-- Test: `crates/vox-gui/ui/src/lib/backendGuard.test.ts`
-- Modify: `crates/vox-gui/ui/src/App.tsx` (all `body: String(err)` / `body: String(e)`
-  call sites — see Step 5 for the exact list)
+- Test: `crates/vox-gui/ui/src/lib/backendGuard.test.ts` (existing file — extend it)
+- Create: `crates/vox-gui/ui/src/guards/toastBodyGuard.test.ts`
+- Modify: ALL files under `crates/vox-gui/ui/src` containing `body: String(` —
+  14 sites in `App.tsx` (lines 405, 408, 667, 682, 757, 795, 831, 861, 899, 910,
+  917, 924, 948, 1052) plus ~95 sites across ~27 other files (`BrowserView.tsx` ×13,
+  `SettingsView.tsx` ×17, `SkillsPluginsView.tsx` ×10, `MemoryView.tsx`,
+  `ChatSurface.tsx`, `ApprovalsView.tsx`, `DiscoveryReview.tsx`, `Loquela.tsx`,
+  `InlineApprovals.tsx`, and the rest surfaced by the Step 5 grep)
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing unit test**
 
-Add to `crates/vox-gui/ui/src/lib/backendGuard.test.ts`:
+`crates/vox-gui/ui/src/lib/backendGuard.test.ts` ALREADY imports
+`BackendUnavailableError` (line ~3-8). Add `sanitizeErrorForToast` to the EXISTING
+import list — do NOT add a second import statement (duplicate-identifier compile
+error). Then append:
 ```ts
-import { sanitizeErrorForToast, BackendUnavailableError } from './backendGuard';
-
 describe('sanitizeErrorForToast', () => {
   it('returns the honest message for BackendUnavailableError', () => {
     const err = new BackendUnavailableError('chat_list_sessions');
@@ -270,8 +336,9 @@ describe('sanitizeErrorForToast', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/lib/backendGuard.test.ts`
-Expected: FAIL — `sanitizeErrorForToast` is not exported.
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/lib/backendGuard.test.ts`
+Expected: FAIL — `sanitizeErrorForToast` is not exported (the file loads fine because
+the import merge in Step 1 was into the existing statement).
 
 - [ ] **Step 3: Implement `sanitizeErrorForToast`**
 
@@ -280,8 +347,10 @@ Add to `crates/vox-gui/ui/src/lib/backendGuard.ts` (after `BackendUnavailableErr
 /**
  * Toast bodies must never leak raw IPC internals (F-03: a caught rejection's
  * String(err) rendering __TAURI_INTERNALS__ verbatim in a user-visible toast).
- * This is distinct from the unhandledrejection filter above — it runs on
- * *caught* exceptions that the app itself chooses to display.
+ * Distinct from the unhandledrejection filter — this runs on *caught*
+ * exceptions the app chooses to display. \binvoke\b does not match
+ * invoke_mcp_tool (underscore is a word char); prose like "failed to invoke X"
+ * degrades to the generic message, which is acceptable.
  */
 const LEAK_PATTERN = /__TAURI_INTERNALS__|\binvoke\b/;
 
@@ -294,213 +363,259 @@ export function sanitizeErrorForToast(err: unknown): string {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/lib/backendGuard.test.ts`
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/lib/backendGuard.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Replace every `body: String(err)` / `body: String(e)` in `App.tsx`**
+- [ ] **Step 5: Write the failing guard test, then replace repo-wide**
 
-Run: `grep -n "body: String(err)\|body: String(e)" crates/vox-gui/ui/src/App.tsx`
-to get the current exact line list (expect ~15 matches: lines 405, 408, 667, 682, 757,
-795, 831, 899, 910, 917, 924, 948, 1052 per the design doc — re-confirm exact numbers
-since they may have shifted). For each match, replace `String(err)` with
-`sanitizeErrorForToast(err)` (or `String(e)` → `sanitizeErrorForToast(e)` matching
-whichever catch-variable name that call site uses). Add the import at the top of
-`App.tsx`:
+Create `crates/vox-gui/ui/src/guards/toastBodyGuard.test.ts`:
 ```ts
-import { sanitizeErrorForToast } from './lib/backendGuard';
+import { describe, it, expect } from 'vitest';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+
+/** F-03 guard: toast bodies must go through sanitizeErrorForToast, never raw
+ * String(err) — a raw Tauri TypeError's text contains __TAURI_INTERNALS__. */
+const SRC_ROOT = join(import.meta.dirname, '..');
+
+function* walk(dir: string): Generator<string> {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) yield* walk(p);
+    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.(ts|tsx)$/.test(name)) yield p;
+  }
+}
+
+describe('toast body sanitization containment', () => {
+  it('no raw `body: String(` anywhere under src/', () => {
+    const offenders: string[] = [];
+    for (const file of walk(SRC_ROOT)) {
+      const src = readFileSync(file, 'utf8');
+      if (/body:\s*String\(/.test(src)) offenders.push(file.replace(SRC_ROOT, 'src'));
+    }
+    expect(offenders, `use sanitizeErrorForToast instead: ${offenders.join(', ')}`).toEqual([]);
+  });
+});
 ```
 
-- [ ] **Step 6: Run the full component test suite**
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/guards/toastBodyGuard.test.ts`
+Expected: FAIL, listing ~28 files.
 
-Run: `cd crates/vox-gui/ui && npx vitest run`
-Expected: all tests pass — no existing test asserts a toast body equals a raw
-`String(err)` value for a case that would now be sanitized (if one does, it was
-asserting the leak; update it to expect the sanitized text instead).
+Then do the mechanical replacement across ALL listed files: every
+`body: String(err)` → `body: sanitizeErrorForToast(err)` (matching each site's
+actual catch-variable name — `err`, `e`, etc.), adding
+`import { sanitizeErrorForToast } from '<relative>/lib/backendGuard';` to each file
+(correct relative depth per file). Use per-file edits, not a blind sed — TSX import
+blocks vary.
+
+- [ ] **Step 6: Run guard + full suite**
+
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/guards/toastBodyGuard.test.ts && pnpm exec vitest run && npx tsc --noEmit`
+Expected: guard passes; full suite passes (the one existing raw-body assertion,
+`CodeRabbitView.test.tsx:72` asserting `'boom'`, still passes — `'boom'` doesn't trip
+LEAK_PATTERN); typecheck clean (catches any wrong relative import path).
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add crates/vox-gui/ui/src/lib/backendGuard.ts crates/vox-gui/ui/src/lib/backendGuard.test.ts \
-  crates/vox-gui/ui/src/App.tsx
-git commit -m "fix(gui): sanitize toast error bodies — no more raw __TAURI_INTERNALS__ leak (F-03)
+git add crates/vox-gui/ui/src
+git commit -m "fix(gui): sanitize ALL toast error bodies + guard test (F-03)
 
-sanitizeErrorForToast() special-cases BackendUnavailableError (already
-honest) and blocks any text matching __TAURI_INTERNALS__/invoke from
-reaching a user-visible toast, replacing the ~15 raw String(err) call
-sites in App.tsx's pushToast calls."
+sanitizeErrorForToast() special-cases BackendUnavailableError and blocks
+__TAURI_INTERNALS__/invoke text from user-visible toasts. Replaces ~109
+raw body: String(err) sites across 28 files (App.tsx was only ~13% of
+the class), and adds a source-scan guard (toastBodyGuard.test.ts) so the
+pattern cannot regrow."
 ```
 
 ---
 
-### Task 5: null-deref guards — fix F-02
+### Task 5: null-deref guards — fix F-02 (toast-content TDD, not crash TDD)
 
 **Files:**
-- Modify: `crates/vox-gui/ui/src/App.tsx` (the `chat_create_session` fallback around
-  line 403-405, and the two `res.is_error` reads around lines 787-792 and 825-828)
-- Test: `crates/vox-gui/ui/src/App.test.tsx`
+- Modify: `crates/vox-gui/ui/src/App.tsx` (three sites: the `chat_create_session`
+  fallback at ~403-405; the rollback handler at ~785-793; the audit handler's BOTH
+  derefs at ~807-815 (`out`) and ~820-829 (`res`, deref at 821 precedes the pushToast))
+- Test: `crates/vox-gui/ui/src/App.test.tsx` (existing file)
 
-- [ ] **Step 1: Write the failing test for the session-creation null-deref**
+**Test-harness facts (verified):** `App.test.tsx` mocks `@tauri-apps/api/core` with
+an inline `vi.fn().mockResolvedValue(null)` (no exported `mockInvoke` handle — use
+`vi.mocked((await import('@tauri-apps/api/core')).invoke)` or restructure the mock to
+expose a handle); all tests render via a `renderApp()` helper wrapping
+`LanguageProvider` + `QueryClientProvider` — bare `render(<App />)` fails. There is
+no `app-shell` testid anywhere. Every F-02 throw is CAUGHT (adjacent `.catch` /
+`try-catch`) and surfaces as a warn toast — tests MUST assert toast content; a
+"renders without throwing" test passes before the fix and proves nothing (the
+existing smoke test already exercises the null path silently).
 
-Add to `crates/vox-gui/ui/src/App.test.tsx` (adapt to whatever mock/render harness
-the existing file already uses — it already mocks `invoke` per the file's current
-setup):
+- [ ] **Step 1: Restructure the core mock to an accessible handle (test-infra only, no behavior change)**
+
+In `App.test.tsx`, convert the inline mock to the hoisted-handle pattern the repo
+uses elsewhere (see `ChatSurface.test.tsx`'s module-level `invokeMock` for the
+house style):
+```ts
+const invokeMock = vi.hoisted(() => vi.fn());
+vi.mock('@tauri-apps/api/core', () => ({ invoke: invokeMock }));
+```
+with a `beforeEach(() => { invokeMock.mockReset(); invokeMock.mockResolvedValue(null); })`
+preserving the existing default. Run the file's existing tests to confirm no
+regression: `pnpm exec vitest run src/App.test.tsx` → all pre-existing tests pass.
+
+- [ ] **Step 2: Write the failing session-null test (asserts on TOAST, not crash)**
+
 ```tsx
-  it('does not throw when chat_create_session resolves null (F-02)', async () => {
-    mockInvoke.mockImplementation((cmd: string) => {
+  it('null chat_create_session result produces no leaky "Chat session" toast (F-02)', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
-      if (cmd === 'chat_create_session') return Promise.resolve(null);
-      return Promise.resolve(null);
+      return Promise.resolve(null); // chat_create_session -> null
     });
-    render(<App />);
-    // Previously threw "Cannot read properties of null (reading 'session_id')"
-    // synchronously inside the .then — assert no uncaught error surfaces and
-    // the app still renders instead of crashing.
-    expect(await screen.findByTestId('app-shell')).toBeInTheDocument();
+    renderApp();
+    // Let the mount effect's promise chain settle.
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('chat_create_session', expect.anything()));
+    await waitFor(() => {
+      expect(screen.queryByText('Chat session')).toBeNull();
+    });
   });
 ```
-(Use whatever test-id/selector the existing `App.test.tsx` tests already rely on to
-assert a successful render — check the file first and match its pattern rather than
-inventing a new `data-testid`.)
+(Before the fix: null `s` → `s.session_id` throws inside `.then` → caught → a warn
+toast titled 'Chat session' with the TypeError text renders → `queryByText` finds it
+→ FAIL. After the fix: the guard skips silently → PASS.)
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 3: Run test to verify it fails**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/App.test.tsx`
-Expected: FAIL or an uncaught rejection logged — `s.session_id` throws when `s` is
-`null`.
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/App.test.tsx`
+Expected: FAIL — the 'Chat session' toast is present (rendered from the caught
+TypeError).
 
-- [ ] **Step 3: Fix the session-creation call site**
+- [ ] **Step 4: Fix the session-creation call site**
 
-In `crates/vox-gui/ui/src/App.tsx`, change:
+`App.tsx:403-405`, change:
 ```ts
             invoke<Session>('chat_create_session', { title: 'Chat' })
               .then((s) => setActiveSessionId(s.session_id))
-              .catch((err) => pushToast({ tone: 'warn', title: 'Chat session', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
 ```
 to:
 ```ts
             invoke<Session>('chat_create_session', { title: 'Chat' })
               .then((s) => { if (s?.session_id) setActiveSessionId(s.session_id); })
-              .catch((err) => pushToast({ tone: 'warn', title: 'Chat session', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
 ```
-(This task assumes Task 4 already landed, so the catch already uses
-`sanitizeErrorForToast` — if Task 4 has not landed yet, keep `String(err)` here and
-let Task 4 update it later; do not duplicate the change.)
+(The `.catch` on the next line already uses `sanitizeErrorForToast` after Task 4.)
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 5: Run test to verify it passes**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/App.test.tsx`
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/App.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing test for the `res.is_error` null-deref**
+- [ ] **Step 6: Read the rollback + audit handlers and identify their UI triggers**
 
-Add to `crates/vox-gui/ui/src/App.test.tsx`:
+Run: `sed -n '770,835p' crates/vox-gui/ui/src/App.tsx`
+Confirm: rollback failure body is currently
+`typeof res.result === 'string' ? res.result : JSON.stringify(res.result)` (there is
+NO `res.error` field — `McpInvokeResult` is `{ tool, is_error, result }` per
+`src/lib/mcpToolResult.ts:6-9`); the audit handler derefs `out.exit_code`/`out.stdout`
+around 807-815 and `res.result` at 821-823 BEFORE its pushToast. Identify the
+handler names and how `App.test.tsx` can drive them (they are invoked via the
+command/palette dispatch — find the dispatching action or exported callback and
+drive it the same way existing tests in the file drive interactions; if no existing
+test drives these handlers, drive them via the UI element that calls them, located
+by reading where the handlers are passed as props).
+
+- [ ] **Step 7: Write the failing rollback/audit null-res test (asserts toast BODY content)**
+
+Following the trigger mechanism identified in Step 6:
 ```tsx
-  it('does not throw when a rollback/audit MCP call resolves null res (F-02)', async () => {
-    // Exercise whichever user action in App.tsx drives the rollback/audit
-    // pushToast at lines ~787/825 — read the surrounding handler first to
-    // find its trigger (a button click or keyboard shortcut) and drive it
-    // via userEvent, mocking the underlying invoke/invokeMcpTool call to
-    // resolve `null` instead of a `{ is_error, ... }` object.
+  it('null MCP rollback/audit result produces an honest failure toast, not a TypeError leak (F-02)', async () => {
+    invokeMock.mockResolvedValue(null); // every backend call resolves null
+    renderApp();
+    // drive the rollback trigger identified in Step 6
+    // then:
+    await waitFor(() => {
+      const leak = screen.queryByText(/is_error|session_id|TypeError|null/i);
+      expect(leak).toBeNull();
+    });
   });
 ```
+Expected on run: FAIL — the caught TypeError's text (mentioning `is_error`/null)
+renders in the failure toast body.
 
-- [ ] **Step 6: Read the handlers around `App.tsx:787` and `App.tsx:825` to find their exact trigger and current variable names**
+- [ ] **Step 8: Fix all three remaining deref sites**
 
-Run: `sed -n '770,835p' crates/vox-gui/ui/src/App.tsx` and read the surrounding
-function to identify the handler name, its trigger (button/shortcut), and the exact
-variable holding the MCP response (`res` per the design doc, but confirm). Fill in
-Step 5's test body with the real trigger once identified — do not leave it a stub;
-this is a required step, not optional, before continuing.
-
-- [ ] **Step 7: Run test to verify it fails**
-
-Run: `cd crates/vox-gui/ui && npx vitest run src/App.test.tsx`
-Expected: FAIL — `res.is_error` throws when `res` is `null`.
-
-- [ ] **Step 8: Fix both `res.is_error` read sites**
-
-For each of the two sites (around lines 787-792 and 825-828), change the pattern from:
-```ts
-          pushToast({
-            tone: res.is_error ? 'warn' : 'ok',
-            title: res.is_error ? 'Rollback failed' : 'Rollback complete',
-            body: res.is_error ? sanitizeErrorForToast(...) : ...,
-            cause: res.is_error ? 'backend-error' : 'backend-ok',
-          });
-```
-to a pattern that null-guards once at the top:
+Rollback (`App.tsx:785-793`) — guard once, PRESERVE the real failure text:
 ```ts
           const failed = !res || res.is_error;
           pushToast({
             tone: failed ? 'warn' : 'ok',
             title: failed ? 'Rollback failed' : 'Rollback complete',
-            body: failed ? sanitizeErrorForToast('Unknown error') : ...,
+            body: !res
+              ? 'No response from the backend.'
+              : failed
+                ? sanitizeErrorForToast(typeof res.result === 'string' ? res.result : JSON.stringify(res.result))
+                : /* keep the existing success-branch text verbatim */,
             cause: failed ? 'backend-error' : 'backend-ok',
           });
 ```
-(Preserve each site's existing success-branch body/title text exactly — only the
-`res.is_error` reads become `failed`, and a leading `const failed = !res || res.is_error;`
-is added. Repeat for the "Audit" site with its own title text.)
+Audit (`App.tsx:807-829`) — guard BOTH derefs with the same pattern: `out` (`!out ||
+out.exit_code !== 0` style, preserving current semantics with a leading null check)
+and `res` (`const failed = !res || res.is_error;` BEFORE the line-821
+`typeof res.result` read, which becomes `!res ? 'No response from the backend.' :
+<existing expression>`). Keep every success-branch string verbatim; only add null
+guards and route failure text through `sanitizeErrorForToast`.
 
-- [ ] **Step 9: Run test to verify it passes**
+- [ ] **Step 9: Run tests to verify they pass, then the full suite**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/App.test.tsx`
-Expected: PASS.
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/App.test.tsx && pnpm exec vitest run`
+Expected: all pass.
 
-- [ ] **Step 10: Run the full component test suite**
+- [ ] **Step 10: Verify against the harness (empty/error states of the ~9 affected surfaces)**
 
-Run: `cd crates/vox-gui/ui && npx vitest run`
-Expected: all tests pass.
+Capture + analyze (same commands as Task 3 Steps 1-2) with
+`--grep "empty|error"` and no surface filter, then:
+`grep -i "session_id\|is_error" contracts/reports/gui-visual-review/bundle-digest.md`
+Expected: no null-deref defect descriptions remain. (Reminder: this scoped capture
+wiped the Task 3 bundle — fine; Task 12 re-runs the full matrix.)
 
-- [ ] **Step 11: Verify against the harness (the ~9 affected surfaces' empty/error states)**
-
-Run the same capture+analysis sequence as Task 3 Step 2-3, scoped this time with
-`--grep "empty|error"` across `chat|dashboard|gamify|runs|policies|vox-search|memory|models|approvals`.
-Confirm `session_id`/`is_error` null-deref defects no longer appear in
-`bundle-digest.md` for those cells.
-
-- [ ] **Step 12: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
 git add crates/vox-gui/ui/src/App.tsx crates/vox-gui/ui/src/App.test.tsx
-git commit -m "fix(gui): guard two null-deref sites feeding the shared toast error leak (F-02)
+git commit -m "fix(gui): guard the four null-deref sites feeding leaky warn toasts (F-02)
 
-chat_create_session's fallback .then and both res.is_error reads assumed
-a non-null resolution; the empty/error mock states resolve null, throwing
-'session_id, s is null' / 'is_error, res is null' TypeErrors across ~9
-surfaces via the shared pushToast(String(err)) path. One fix per site,
-not per surface."
+chat_create_session's .then, the rollback res.is_error read, and the
+audit handler's out.* and res.result derefs all assumed non-null
+resolutions; empty/error mock states resolve null, and the CAUGHT
+TypeErrors surfaced as raw toast bodies across ~9 surfaces. Tests assert
+toast content (queryByText), not 'does not throw' — the throws were
+always caught, so crash tests cannot discriminate."
 ```
 
 ---
 
-### Task 6: WorkbenchTabBar ARIA fix — F-07
+### Task 6: WorkbenchTabBar ARIA restructure — F-07
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/layout/WorkbenchTabBar.tsx`
-- Test: create `crates/vox-gui/ui/src/components/layout/WorkbenchTabBar.a11y.test.tsx`
-  (or extend an existing `WorkbenchTabBar.test.tsx` if one exists — check first)
+- Modify: `crates/vox-gui/ui/src/components/layout/WorkbenchTabBar.test.tsx`
+  (EXISTS — extend it, do not create an `.a11y.test.tsx`)
+- Modify: `crates/vox-gui/ui/e2e/workbench-tabs.spec.ts` (3 assertions target the
+  old structure)
 
-- [ ] **Step 1: Check for an existing test file**
+**Why a restructure, not `role="presentation"`:** axe's `aria-required-children`
+computes owned children by looking THROUGH presentational/unroled wrappers — the
+current unroled div is already looked through (that's why the rule fires today), and
+`role="presentation"` on it changes nothing: the close `<button>` remains an owned
+non-`tab` child. The correct pattern: the wrapper IS the tab; nested interactive
+elements are flattened by `tab`'s children-presentational semantics, so the close
+affordance must be presentational to AT with a keyboard alternative on the tab
+itself.
 
-Run: `ls crates/vox-gui/ui/src/components/layout/WorkbenchTabBar*.test.tsx 2>/dev/null || echo none`
+- [ ] **Step 1: Write the failing test (a11y-tree assertions that model axe's computation)**
 
-- [ ] **Step 2: Write the failing test**
-
-If a test file exists, add this case to it; otherwise create
-`crates/vox-gui/ui/src/components/layout/WorkbenchTabBar.a11y.test.tsx`:
+Add to the EXISTING `WorkbenchTabBar.test.tsx`:
 ```tsx
-// @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import React from 'react';
-import { WorkbenchTabBar } from './WorkbenchTabBar';
-
-describe('WorkbenchTabBar a11y', () => {
-  it('every direct child of the tablist is role=tab or role=presentation (aria-required-children)', () => {
+  it('tablist owns only tabs: every direct child is role=tab and no buttons exist in the a11y tree (F-07)', () => {
     render(
       <WorkbenchTabBar
-        tabs={[{ id: 'chat', label: 'Chat', pinned: true }, { id: 'dashboard', label: 'Dashboard' }]}
+        tabs={[{ id: 'chat', label: 'Chat', pinned: true }, { id: 'console', label: 'Console' }]}
         activeTab="chat"
         onSelect={() => {}}
         onClose={() => {}}
@@ -508,313 +623,392 @@ describe('WorkbenchTabBar a11y', () => {
     );
     const tablist = screen.getByRole('tablist');
     for (const child of Array.from(tablist.children)) {
-      const role = child.getAttribute('role');
-      expect(['tab', 'presentation', 'none']).toContain(role);
+      expect(child.getAttribute('role')).toBe('tab');
     }
+    // Buttons inside a tablist are what aria-required-children actually flags;
+    // testing-library's role queries respect aria-hidden, approximating axe.
+    expect(within(tablist).queryAllByRole('button')).toEqual([]);
   });
-});
+
+  it('Delete key on a focused tab closes it (keyboard replacement for the AT-hidden close affordance)', async () => {
+    const onClose = vi.fn();
+    render(
+      <WorkbenchTabBar
+        tabs={[{ id: 'chat', label: 'Chat', pinned: true }, { id: 'console', label: 'Console' }]}
+        activeTab="console"
+        onSelect={() => {}}
+        onClose={onClose}
+      />,
+    );
+    const tab = screen.getByRole('tab', { name: /console/i });
+    tab.focus();
+    await userEvent.keyboard('{Delete}');
+    expect(onClose).toHaveBeenCalledWith('console');
+  });
 ```
-(Match the prop shape to `WorkbenchTabBar`'s actual `WorkbenchTabBarProps` interface —
-read the component's top of file first if the prop names above don't match.)
+(Props verified against `WorkbenchTabBarProps` — `{ tabs: {id,label,badge?,pinned?}[],
+activeTab, onSelect, onClose }`. Import `within` from `@testing-library/react` and
+`userEvent` per the file's existing imports.)
 
-- [ ] **Step 3: Run test to verify it fails**
+- [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/layout/WorkbenchTabBar.a11y.test.tsx`
-Expected: FAIL — the wrapping `<div>` (no `role` attribute) is a direct `tablist` child.
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/layout/WorkbenchTabBar.test.tsx`
+Expected: FAIL — direct children are unroled divs; close buttons are in the tree;
+Delete does nothing.
 
-- [ ] **Step 4: Fix the wrapping div**
+- [ ] **Step 3: Restructure the component**
 
-In `crates/vox-gui/ui/src/components/layout/WorkbenchTabBar.tsx`, change:
+In `WorkbenchTabBar.tsx`, replace the per-tab block (lines ~32-68) with: the wrapper
+div becomes the tab —
 ```tsx
           <div
             key={tab.id}
-            className={`group flex items-center gap-0.5 rounded-md pl-2 pr-1 py-1 transition ${
+            role="tab"
+            aria-selected={selected}
+            tabIndex={selected ? 0 : -1}
+            data-testid={`workbench-tab-${tab.id}`}
+            onClick={() => onSelect(tab.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') onSelect(tab.id);
+              if (e.key === 'Delete' && !tab.pinned) onClose(tab.id);
+            }}
+            className={`group flex cursor-pointer items-center gap-0.5 rounded-md pl-2 pr-1 py-1 transition ${
+              selected
+                ? 'bg-overlay-subtle text-text-primary ring-1 ring-white/10'
+                : 'text-text-muted hover:bg-overlay-subtle hover:text-text-secondary'
+            }`}
+          >
+            <span className="font-display text-[10px] uppercase tracking-[0.18em]">
+              {tab.label}
+              {tab.badge != null && tab.badge > 0 ? (
+                <span className="ml-1.5 rounded-full bg-brass/20 px-1.5 text-[9px] text-brass">
+                  {tab.badge}
+                </span>
+              ) : null}
+            </span>
+            {!tab.pinned ? (
+              <span
+                aria-hidden="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose(tab.id);
+                }}
+                className="flex size-5 cursor-pointer items-center justify-center rounded opacity-60 transition hover:bg-white/10 hover:opacity-100"
+              >
+                <Icon.x className="size-3" />
+              </span>
+            ) : null}
+          </div>
 ```
-to:
-```tsx
-          <div
-            key={tab.id}
-            role="presentation"
-            className={`group flex items-center gap-0.5 rounded-md pl-2 pr-1 py-1 transition ${
-```
+Key moves: `role="tab"`/`aria-selected`/`data-testid`/select-handler to the wrapper;
+inner label `<button>` → `<span>`; close `<button>` → `aria-hidden` `<span>` (still
+pointer-clickable; AT users close via `Delete`); roving `tabIndex` so keyboard focus
+lands on the selected tab.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [ ] **Step 4: Update the existing unit tests that target the old structure**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/layout/WorkbenchTabBar.a11y.test.tsx`
-Expected: PASS.
+Run: `pnpm exec vitest run src/components/layout/WorkbenchTabBar.test.tsx` and fix
+the pre-existing assertions the restructure breaks: `getByRole('tab', { name })`
+still works (name now computed from the wrapper's content — note the accessible name
+may now include badge text, e.g. "Console 3"; use `{ name: /console/i }` regex
+matchers); `getByRole('button', { name: 'Close X' })` no longer matches — those
+assertions become pointer-click tests on the close element located via
+`container.querySelector` or a new `data-testid="workbench-tab-close-<id>"` added to
+the close span (add the testid — cleaner than querySelector).
 
-- [ ] **Step 6: Run the full component test suite**
+- [ ] **Step 5: Update the 3 e2e assertions in `e2e/workbench-tabs.spec.ts`**
 
-Run: `cd crates/vox-gui/ui && npx vitest run`
-Expected: all tests pass — `role="presentation"` doesn't change any existing
-`getByRole`/keyboard-nav test since those already target the inner `role="tab"`
-button, not the wrapper div.
+Run: `grep -n "Close \|aria-selected\|workbench-tab-" crates/vox-gui/ui/e2e/workbench-tabs.spec.ts`
+The `aria-selected`-on-testid assertion now targets the same element (testid moved
+WITH aria-selected to the wrapper — no change needed, verify). The
+`getByRole('button', { name: 'Close Console' })` locator(s) change to the new close
+testid: `page.getByTestId('workbench-tab-close-console')`.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Run unit + e2e to verify**
 
 ```bash
-git add crates/vox-gui/ui/src/components/layout/WorkbenchTabBar.tsx \
-  crates/vox-gui/ui/src/components/layout/WorkbenchTabBar.a11y.test.tsx
-git commit -m "fix(gui): WorkbenchTabBar tablist direct children need role=tab or presentation (F-07)
+cd crates/vox-gui/ui && pnpm exec vitest run src/components/layout/WorkbenchTabBar.test.tsx
+npx playwright test e2e/workbench-tabs.spec.ts --project=chromium
+```
+Expected: all pass.
 
-ARIA 1.2's aria-required-children fired because the per-tab wrapper div
-(holding the tab button + close button) had neither role. role=presentation
-on the wrapper satisfies the spec without restructuring the DOM; this is
-the highest-frequency axe violation in the review (51 instances on
-dashboard alone) since the same tab bar renders on every surface."
+- [ ] **Step 7: Run the full component suite, then commit**
+
+```bash
+cd crates/vox-gui/ui && pnpm exec vitest run
+git add crates/vox-gui/ui/src/components/layout/WorkbenchTabBar.tsx \
+  crates/vox-gui/ui/src/components/layout/WorkbenchTabBar.test.tsx \
+  crates/vox-gui/ui/e2e/workbench-tabs.spec.ts
+git commit -m "fix(gui): WorkbenchTabBar — wrapper becomes the tab; close affordance AT-hidden with Delete-key close (F-07)
+
+role=presentation on the wrapper would NOT fix aria-required-children:
+axe looks through presentational wrappers and still finds the close
+button as an owned non-tab child (exactly why the unroled div already
+violates today). Restructure per the canonical pattern: tab owns the
+label (children-presentational), close is aria-hidden + pointer-only,
+keyboard close via Delete on the focused tab. Highest-frequency axe
+violation in the review (51 instances on dashboard alone)."
 ```
 
 ---
 
-### Task 7: missing `<h1>` per surface root — axe `page-has-heading-one`
+### Task 7: sr-only `<h1>` for chat + dashboard — axe `page-has-heading-one`
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Dashboard/Dashboard.tsx`
-- (Extend to other flagged surfaces in Step 4 once the pattern from these two is
-  confirmed — do not guess at unread files' structure.)
+- Test: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx`
+  (exists; mocks `@tauri-apps/api/core` with a module-level `invokeMock` and renders
+  inline `<LanguageProvider><ChatSurface pushToast={...} .../></LanguageProvider>` —
+  there is NO `minimalRequiredProps` helper; `pushToast` is the only required prop)
+- Test: the Dashboard surface's existing test file (locate via
+  `ls crates/vox-gui/ui/src/components/surfaces/Dashboard/*.test.tsx` and extend the
+  one that renders the full Dashboard; if none renders the full Dashboard, add the
+  h1 test to a new `Dashboard.h1.test.tsx` following ChatSurface.test.tsx's mock
+  pattern)
 
-- [ ] **Step 1: Confirm the current heading element in `ChatSurface.tsx`**
+**Verified facts:** neither surface has ANY `<h1>`; neither has a visible root title
+to promote (`Dashboard.tsx`'s `<h2>The Stream</h2>` at line 220 is a section heading
+— promoting it would mislabel a section). The sr-only path is the correct one for
+both. `SurfaceMiniRender`'s `aria-hidden="true"` frame keeps embedded mini-surfaces'
+h1s out of the a11y tree, so dashboard stays at exactly one accessible h1.
 
-Run: `grep -n "text-\[10px\]\|uppercase tracking\|<h[1-6]\|useLabel('chat" crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx | head -10`
-to find the surface's current title element (likely a styled `<span>`/`<div>`, not a
-heading tag at all — that's the axe violation: zero `<h1>`s anywhere in the surface).
+- [ ] **Step 1: Write the failing ChatSurface test**
 
-- [ ] **Step 2: Write the failing test**
-
-In `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx` (or the
-nearest existing test file for this surface — check first), add:
+Add to `ChatSurface.test.tsx`, following its existing render pattern:
 ```tsx
-  it('has exactly one h1 for the surface root (axe page-has-heading-one)', () => {
-    render(<ChatSurface {...minimalRequiredProps} />);
-    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  it('has exactly one accessible h1 for the surface root (axe page-has-heading-one)', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={() => {}} activeSessionId="s1" />
+      </LanguageProvider>,
+    );
+    expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 ```
-(`minimalRequiredProps` — reuse whatever prop-building helper the file's other tests
-already use; do not fabricate new required props from scratch.)
+(`findAllByRole` — async-tolerant; the component fires `chat_list_sessions` on mount
+via the file's existing mock.)
 
-- [ ] **Step 3: Run test to verify it fails**
+- [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/surfaces/Chat/ChatSurface.test.tsx`
-Expected: FAIL — zero `h1` elements found.
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/surfaces/Chat/ChatSurface.test.tsx`
+Expected: FAIL — zero h1 elements.
 
-- [ ] **Step 4: Change the title element to `<h1>`, restyled to look identical**
+- [ ] **Step 3: Add the sr-only h1**
 
-Find the surface's title element (from Step 1) and change its tag to `h1` while
-keeping its existing className unchanged, e.g. if it was:
+In `ChatSurface.tsx`, as the first child of the component's outermost container:
 ```tsx
-<span className="font-display text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('chat-sessions')}</span>
+      {/* Axe page-has-heading-one: surfaces render inside a heading-less shell.
+          NOTE: if chatDocked (App.tsx, currently hardcoded false) is ever
+          enabled, a docked ChatSurface adds a second h1 to the page. */}
+      <h1 className="sr-only">Chat</h1>
 ```
-this is the *sessions rail* label, not the surface root title — locate the actual
-top-level surface title instead (likely near the surface's outermost return, probably
-undocumented as an `<h1>` anywhere). If `ChatSurface.tsx` genuinely has no visible
-title text at all (some surfaces render straight into content with the title living
-in the tab bar instead), add a visually-hidden `<h1>` instead of fabricating new
-visible chrome:
-```tsx
-<h1 className="sr-only">Chat</h1>
-```
-placed as the first child of the surface's outermost container. Prefer promoting an
-existing visible title element over adding a new `sr-only` one — only add `sr-only`
-if no visible title exists to promote.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/surfaces/Chat/ChatSurface.test.tsx`
+Run: `pnpm exec vitest run src/components/surfaces/Chat/ChatSurface.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 6: Repeat Steps 1-5 for `Dashboard.tsx`**
+- [ ] **Step 5: Repeat Steps 1-4 for `Dashboard.tsx`** (`<h1 className="sr-only">Dashboard</h1>`,
+  same first-child placement, same test shape in the Dashboard test file identified
+  above).
 
-Same pattern: find or add exactly one `<h1>` for the dashboard surface root.
-
-- [ ] **Step 7: Run the full component test suite**
-
-Run: `cd crates/vox-gui/ui && npx vitest run`
-Expected: all tests pass.
-
-- [ ] **Step 8: Commit**
+- [ ] **Step 6: Full suite + commit**
 
 ```bash
+cd crates/vox-gui/ui && pnpm exec vitest run
 git add crates/vox-gui/ui/src/components/surfaces/Chat crates/vox-gui/ui/src/components/surfaces/Dashboard
-git commit -m "fix(gui): add a single h1 per surface root for chat + dashboard (axe page-has-heading-one)
+git commit -m "fix(gui): sr-only h1 for chat + dashboard surface roots (axe page-has-heading-one)
 
-Highest-frequency axe instance after the tablist fix (39 on both chat
-and dashboard). Promotes the existing title element to h1 where one
-exists visibly; adds an sr-only h1 only where no visible title exists
-to promote."
+Neither surface had any h1 nor a visible root title to promote
+(Dashboard's 'The Stream' h2 is a section heading). SurfaceMiniRender's
+aria-hidden frame keeps embedded mini-surface h1s out of the a11y tree,
+so dashboard stays at exactly one accessible h1."
 ```
 
-- [ ] **Step 9: Flag remaining surfaces as follow-up debt, do not fix them all in this task**
+- [ ] **Step 7: Enumerate remaining surfaces as recorded debt (no fixes)**
 
-Run: `grep -rLn "role=\"heading\"\|<h1" crates/vox-gui/ui/src/components/surfaces/*/[A-Z]*.tsx` to
-list surface root files with no heading element at all (beyond chat/dashboard, already
-fixed). Record the list in the commit message body of Step 8 or as a code comment in
-this plan's tracking issue — **do not silently expand this task's scope to cover all
-31 surfaces**; the review named `chat`/`dashboard` as the two highest-instance-count
-surfaces, and the remaining ones are lower-priority coverage debt per the design doc's
-non-goals.
+Run: `grep -rLn "<h1" crates/vox-gui/ui/src/components/surfaces/*/[A-Z]*View.tsx crates/vox-gui/ui/src/components/surfaces/*/[A-Z]*Surface.tsx 2>/dev/null`
+Paste the resulting list into the Task 12 Step 8 remediation-status note as
+"page-has-heading-one debt (out of scope per spec)". Do NOT fix them here.
 
 ---
 
-### Task 8: `landmark-unique` — distinct labels for duplicate landmarks
+### Task 8: `landmark-unique` — label the real landmarks (nav + 3 asides + repeated regions)
 
 **Files:**
-- Modify: `crates/vox-gui/ui/src/components/layout/Sidebar.tsx`
-- Modify: `crates/vox-gui/ui/src/components/layout/AppShell.tsx`
+- Modify: `crates/vox-gui/ui/src/components/layout/Sidebar.tsx` (unlabeled `<nav>` at
+  ~162 AND unlabeled `<aside>` at ~134)
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSessionRail.tsx`
+  (`<aside>` at ~52 and ~71)
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatExecutionRail.tsx`
+  (`<aside>` at ~96/115; repeated `role="region"` at ~133/160)
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatAgentEventRow.tsx` /
+  `ModelBadge.tsx` (per-message `role="region"` at ModelBadge.tsx:48)
+- Test: `crates/vox-gui/ui/src/components/layout/Sidebar.branding.test.tsx` or a new
+  `Sidebar.landmarks.test.tsx`; `ChatSessionRail`/`ChatExecutionRail` component test
+  files (extend existing ones if present — check with `ls`)
 
-- [ ] **Step 1: Find the unlabeled/duplicate landmark elements**
+**Verified facts:** there is NO second nav to label (`AppShell.tsx` renders none;
+`BreadcrumbBar.tsx:52` is already labeled `"Breadcrumb"`). The review's chat count
+(29) comes from unlabeled asides + per-message `role="region"` duplicates. Do NOT
+put these tests in `AppShell.test.tsx` — it mocks Sidebar with an already-labeled
+stub, so a test there passes without any fix.
 
-Run: `grep -n "<nav\|<main\|role=\"navigation\"\|role=\"main\"" crates/vox-gui/ui/src/components/layout/Sidebar.tsx crates/vox-gui/ui/src/components/layout/AppShell.tsx`
+- [ ] **Step 1: Write the failing Sidebar test**
 
-- [ ] **Step 2: Write the failing test**
-
-In whichever of `Sidebar.test.tsx` / `AppShell.test.tsx` already exists, add:
+In a new `crates/vox-gui/ui/src/components/layout/Sidebar.landmarks.test.tsx`
+(reuse the render/mock pattern from the existing `Sidebar.branding.test.tsx` — read
+it first and copy its setup):
 ```tsx
-  it('nav landmarks have distinct accessible names (axe landmark-unique)', () => {
-    render(<AppShell>{/* minimal children per existing test setup */}</AppShell>);
-    const navs = screen.getAllByRole('navigation');
-    const names = navs.map((n) => n.getAttribute('aria-label'));
-    expect(new Set(names).size).toBe(names.length);
-    expect(names.every(Boolean)).toBe(true);
+  it('sidebar nav and aside landmarks carry aria-labels (axe landmark-unique)', () => {
+    renderSidebar(); // per the branding test's setup helper/pattern
+    expect(screen.getByRole('navigation')).toHaveAttribute('aria-label');
+    expect(screen.getByRole('complementary')).toHaveAttribute('aria-label');
   });
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [ ] **Step 2: Run to verify it fails, then label Sidebar's landmarks**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/layout/AppShell.test.tsx`
-Expected: FAIL — one or both `<nav>` elements lack an `aria-label`, or share the same
-one.
+Run: `pnpm exec vitest run src/components/layout/Sidebar.landmarks.test.tsx` → FAIL.
+Add `aria-label="Primary navigation"` to `Sidebar.tsx`'s `<nav>` (~162) and
+`aria-label="Sidebar"` to its `<aside>` (~134). Re-run → PASS.
 
-- [ ] **Step 4: Add distinct `aria-label`s**
+- [ ] **Step 3: Label the chat rails' asides**
 
-Add `aria-label="Primary navigation"` to the sidebar's `<nav>` (in `Sidebar.tsx`) and
-`aria-label="Workbench tabs"` (or similarly distinct, matching what it actually is) to
-whichever second `<nav>`/`role="navigation"` element `AppShell.tsx` renders — pick
-names that describe each landmark's actual content rather than generic placeholders.
+`ChatSessionRail.tsx` — both return branches' `<aside>` (collapsed ~52, expanded
+~71): `aria-label="Chat sessions"`. `ChatExecutionRail.tsx` — both branches (~96,
+~115): `aria-label="Execution rail"`. Extend each component's existing test file
+(check `ls crates/vox-gui/ui/src/components/surfaces/Chat/*.test.tsx`) with the same
+one-line `toHaveAttribute('aria-label')` assertion pattern as Step 1; where no test
+file exists for a rail, add the assertion to `ChatSurface.test.tsx` (which mounts
+both rails) instead of creating new files.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [ ] **Step 4: De-landmark the per-message regions**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/layout/AppShell.test.tsx`
-Expected: PASS.
+`ModelBadge.tsx:48` and `ChatExecutionRail.tsx:133,160`: read each site. If the
+`role="region"` conveys nothing a heading/label doesn't already (per-message chrome),
+remove the `role` attribute entirely; if it is genuinely a labeled region users
+navigate to, make its `aria-label` unique per instance (include the model/message
+identity). Default to removal — landmark-per-message is noise for AT users, which is
+exactly what `landmark-unique` flags.
 
-- [ ] **Step 6: Run the full component test suite**
-
-Run: `cd crates/vox-gui/ui && npx vitest run`
-Expected: all tests pass.
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 5: Full suite + commit**
 
 ```bash
-git add crates/vox-gui/ui/src/components/layout/Sidebar.tsx crates/vox-gui/ui/src/components/layout/AppShell.tsx
-git commit -m "fix(gui): distinct aria-labels for nav landmarks (axe landmark-unique)"
+cd crates/vox-gui/ui && pnpm exec vitest run
+git add crates/vox-gui/ui/src
+git commit -m "fix(gui): label the real duplicate landmarks — nav + 3 asides, de-landmark per-message regions (axe landmark-unique)
+
+There was no unlabeled second nav (BreadcrumbBar is labeled; AppShell
+renders none) — the review's chat count came from unlabeled asides
+(Sidebar, ChatSessionRail, ChatExecutionRail) and role=region repeated
+once per message (ModelBadge, ChatExecutionRail)."
 ```
 
 ---
 
-### Task 9: verify Phases 5's axe fixes via the harness
+### Task 9: verify the axe-class fixes via a full-matrix harness run
 
 **Files:** none modified — verification only.
+**Prereq:** `OPENROUTER_API_KEY`.
 
-- [ ] **Step 1: Run the capture + analysis sequence** (same as Task 3 Steps 1-3) across
-  all 31 surfaces (no `--grep` filter this time, since the axe rules are cross-surface).
+- [ ] **Step 1: FULL-matrix capture + analysis** (no `--grep` — the axe counts are
+  cross-surface, and prior scoped runs deleted earlier entries):
 
-- [ ] **Step 2: Confirm the axe counts dropped**
+```bash
+cd crates/vox-gui/ui
+VOX_REVIEW_CAPTURE=1 npx playwright test e2e/review/capture.spec.ts \
+  --project=chromium --project=firefox-review --workers=4
+cd ../../..
+cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- \
+  --bundle crates/vox-gui/ui/review-bundle/latest --ai --browsers chromium,firefox
+```
+(Loop the analysis invocation until 0 deferred, as the harness effort did.)
 
-Run: `grep -c "aria-required-children\|page-has-heading-one\|landmark-unique" crates/vox-gui/ui/review-bundle/latest/bundle-digest.md`
-Expected: substantially lower than the review's recorded baseline (`aria-required-children`:
-dashboard 51/settings 31/approvals 25/chat 23; `page-has-heading-one`: 39 on chat and
-dashboard — those two specifically should now be 0; `landmark-unique`: 29 on chat, 19 on
-settings). `page-has-heading-one` on surfaces *not* touched by Task 7 (only chat/dashboard
-were fixed) will still show violations — that's expected, not a regression; note it in the
-verification output, don't chase it in this task.
+- [ ] **Step 2: Confirm the axe counts dropped in the fresh digest**
 
-- [ ] **Step 3: No commit for this task.**
+Run: `grep -c "aria-required-children\|page-has-heading-one\|landmark-unique" contracts/reports/gui-visual-review/bundle-digest.md`
+Expected vs the review baseline:
+- `aria-required-children`: near-zero everywhere (the shared tab bar renders on every
+  surface, so Task 6's restructure applies globally).
+- `page-has-heading-one`: 0 on `chat` and `dashboard` specifically. Other surfaces
+  still violate — EXPECTED, recorded as debt by Task 7 Step 7, not a regression.
+- `landmark-unique`: 0 on `chat` (the asides + regions were the whole count) and
+  materially reduced elsewhere; if `settings` (baseline 19) still shows instances,
+  read which landmarks they are and record them in the Task 12 status note — only
+  chat-path landmarks were in scope.
+
+- [ ] **Step 3: No commit** (artifacts committed once at Task 12).
 
 ---
 
-### Task 10: `LudusSandbox` empty state — F-06
+### Task 10: `LudusSandbox` loading/no-data state — F-06 (corrected premise)
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/gamify/LudusSandbox.tsx`
-- Test: `crates/vox-gui/ui/src/components/gamify/LudusSandbox.mappers.test.ts` (existing
-  file — add a new test near the existing ones, or create
-  `LudusSandbox.test.tsx` if the existing file only covers pure mapper functions,
-  not the component itself — check first)
+- Test: `crates/vox-gui/ui/src/components/gamify/LudusSandbox.test.tsx` — **EXISTS**
+  (60-line suite mocking `../../transport`; already asserts the `scanFailed` state's
+  "scan unavailable" text). EXTEND it; do not create or clobber.
 
-- [ ] **Step 1: Confirm whether a component-level test file exists**
+**Verified facts:** `scanFailed` already renders "Workspace scan unavailable — the
+town cannot render." (`LudusSandbox.tsx:298-303`) and is already tested. The
+UNCOVERED state is `!layout && !scanFailed` — scan pending or resolved-empty — which
+leaves the mounted canvas blank (every draw effect early-returns on `!layout`).
 
-Run: `ls crates/vox-gui/ui/src/components/gamify/LudusSandbox.test.tsx 2>/dev/null || echo none`
-(the existing `.mappers.test.ts` tests pure functions, not the rendered component, per
-its name — a new file is likely needed).
+- [ ] **Step 1: Read the existing test file's transport-mock setup**
+
+Run: `cat crates/vox-gui/ui/src/components/gamify/LudusSandbox.test.tsx`
+Note how it mocks `workspaceTownScan` (resolve/reject shapes) — the new test reuses
+this mock, making the scan PEND (never resolve) or resolve with a shape that yields
+no layout.
 
 - [ ] **Step 2: Write the failing test**
 
-Create `crates/vox-gui/ui/src/components/gamify/LudusSandbox.test.tsx`:
+Add to the existing file, using its mock idiom:
 ```tsx
-// @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import React from 'react';
-import { LudusSandbox } from './LudusSandbox';
-
-describe('LudusSandbox', () => {
-  it('shows an explicit unavailable message instead of a blank canvas when there is no layout (F-06)', () => {
+  it('shows a loading/no-data affordance instead of a blank canvas while layout is unset (F-06)', async () => {
+    // Make the scan hang (pending forever): the component has neither layout
+    // nor scanFailed — the previously-blank state.
+    workspaceTownScanMock.mockImplementation(() => new Promise(() => {}));
     render(<LudusSandbox />);
-    // With no backend/profile data, `layout` never resolves — assert the
-    // fallback text renders rather than a silently-blank canvas.
-    expect(screen.getByText(/simulation unavailable/i)).toBeInTheDocument();
+    expect(await screen.findByText(/simulation loading|no workspace data/i)).toBeInTheDocument();
   });
-});
 ```
+(Adapt the mock name to the file's actual identifier from Step 1.)
 
 - [ ] **Step 3: Run test to verify it fails**
 
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/gamify/LudusSandbox.test.tsx`
-Expected: FAIL — no such text renders; the canvas is present but blank.
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/gamify/LudusSandbox.test.tsx`
+Expected: the NEW test fails (no such text; canvas mounted blank); the existing
+tests still pass.
 
-- [ ] **Step 4: Read the component's render return and `layout` state declaration**
+- [ ] **Step 4: Add the fallback for `!layout && !scanFailed`**
 
-Run: `grep -n "return (\|const \[layout\|useState.*layout" crates/vox-gui/ui/src/components/gamify/LudusSandbox.tsx | head -10`
-to find exactly where `layout` is declared and where the component's JSX return
-starts, so the fallback can be added without duplicating the canvas markup.
-
-- [ ] **Step 5: Add the fallback**
-
-In the component's render return, add a conditional sibling to the canvas (not a
-replacement — keep the canvas mounted so the draw effect's refs stay valid once data
-arrives):
+In `LudusSandbox.tsx`'s main return (after the `scanFailed` early-return at ~298),
+inside the wrapper div, add a sibling to the canvas:
 ```tsx
-      {!layout && (
-        <div className="flex h-full items-center justify-center text-xs text-text-muted">
-          Simulation unavailable — no workspace data yet.
-        </div>
-      )}
+        {!layout && (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-text-muted">
+            Simulation loading — no workspace data yet.
+          </div>
+        )}
 ```
-placed adjacent to (not wrapping) the existing `<canvas>` element, likely toggling the
-canvas's own visibility with a conditional className (e.g. `className={layout ? '' : 'hidden'}`
-on the canvas) so exactly one of the two is visible at a time.
+and hide the blank canvas while unset: add `${layout ? '' : 'invisible'}` to the
+canvas's className (keep it MOUNTED — the draw effects hold refs to it).
 
-- [ ] **Step 6: Run test to verify it passes**
-
-Run: `cd crates/vox-gui/ui && npx vitest run src/components/gamify/LudusSandbox.test.tsx`
-Expected: PASS.
-
-- [ ] **Step 7: Run the full component test suite**
-
-Run: `cd crates/vox-gui/ui && npx vitest run`
-Expected: all tests pass, including the existing `LudusSandbox.mappers.test.ts`.
-
-- [ ] **Step 8: Commit**
+- [ ] **Step 5: Run tests to verify all pass, then the full suite + commit**
 
 ```bash
+cd crates/vox-gui/ui && pnpm exec vitest run src/components/gamify/LudusSandbox.test.tsx && pnpm exec vitest run
 git add crates/vox-gui/ui/src/components/gamify/LudusSandbox.tsx \
   crates/vox-gui/ui/src/components/gamify/LudusSandbox.test.tsx
-git commit -m "fix(gui): LudusSandbox shows an explicit unavailable message instead of a blank canvas (F-06)
+git commit -m "fix(gui): LudusSandbox shows a loading affordance while layout is unset (F-06)
 
-The draw effect silently bailed (if (!layout) return) with zero
-user-facing affordance whenever there's no workspace data — exactly the
-no-backend/error-mock case the review's dashboard--no-backend--wide
-cell caught."
+scanFailed was already handled and tested; the uncovered state was
+scan-pending/resolved-empty, where every draw effect early-returns on
+!layout and the mounted canvas stays silently blank — the review's
+dashboard no-backend / gamify error cells."
 ```
 
 ---
@@ -822,87 +1016,101 @@ cell caught."
 ### Task 11: F-05 re-verify (clipping) — triage only, no pre-guessed fix
 
 **Files:** none modified until the verification result is known.
+**Prereq:** `OPENROUTER_API_KEY`. Requires Task 2 landed.
 
-- [ ] **Step 1: Run the capture + analysis sequence** (same pattern as Task 3) scoped to
-  `chat--rails-overlay-open--compact--firefox` and
-  `chat--session-menu-open--compact--firefox`, now that Task 2 (F-01 fix) has landed.
+- [ ] **Step 1: Scoped capture of the two chat interaction states, both browsers**
 
-- [ ] **Step 2: Read the resulting defect list for these two cells**
+```bash
+cd crates/vox-gui/ui
+VOX_REVIEW_CAPTURE=1 npx playwright test e2e/review/capture.spec.ts \
+  --project=chromium --project=firefox-review --workers=2 \
+  --grep "rails-overlay-open|session-menu-open"
+```
+(Grep matches TEST TITLES — `` `${surface} -- ${state} -- ${viewport}` `` with
+spaced separators and NO browser suffix. Cell ids like
+`chat--rails-overlay-open--compact--firefox` are bundle ids, not titles — grepping
+for them matches zero tests. This scoped run deletes the Task 9 bundle; Task 12
+re-runs the full matrix.)
 
-Run: `grep -B2 -A5 "rails-overlay-open--compact--firefox\|session-menu-open--compact--firefox" crates/vox-gui/ui/review-bundle/latest/bundle-digest.md`
+- [ ] **Step 2: Analyze, then read the two cells' defect lists**
 
-- [ ] **Step 3a: If no clipping defect remains** — mark F-05 resolved (self-resolved as
-  a symptom of F-01, matching the design doc's prediction). No further action, no
-  commit needed for this task.
+Run the analysis (Task 3 Step 2 command), then:
+`grep -B2 -A5 "rails-overlay-open--compact--firefox\|session-menu-open--compact--firefox" contracts/reports/gui-visual-review/bundle-digest.md`
 
-- [ ] **Step 3b: If a clipping defect still appears** — do not guess a fix here. Open a
-  new, narrowly-scoped follow-up task (outside this plan) describing the *actual*
-  remaining clipping behavior observed in the screenshot, since the design doc
-  explicitly deferred this decision pending re-verification. Stop this task at
-  triage; do not improvise a fix inline.
+- [ ] **Step 3a: If no clipping defect remains** — F-05 resolved (symptom of F-01, as
+  the review predicted). Record in the Task 12 status note. No commit.
+
+- [ ] **Step 3b: If clipping persists** — do NOT improvise a fix. Record the observed
+  behavior (from the actual PNG) in the Task 12 status note as a separate open
+  finding with its screenshot path, for its own follow-up triage.
 
 ---
 
-### Task 12: whole-effort verification sweep
+### Task 12: whole-effort verification sweep + artifacts + push
 
-**Files:** none modified — verification only.
+**Files:** verification + artifact commits.
+**Prereq:** `OPENROUTER_API_KEY`.
 
 - [ ] **Step 1: Full test suites**
 
-Run:
 ```bash
-cd crates/vox-gui/ui && npx vitest run && npx tsc --noEmit
+cd crates/vox-gui/ui && pnpm exec vitest run && npx tsc --noEmit
 ```
-Expected: all vitest tests pass, typecheck clean.
+Expected: all pass, typecheck clean.
 
-- [ ] **Step 2: Clippy + Rust tests (only if any Rust file changed — Tasks 1-11 are
-  frontend-only, so this step should be a no-op check, not a real gate)**
-
-Run: `cargo clippy -p vox-orchestrator-mcp --features gui-visual-review -- -D warnings`
-Expected: clean (no Rust source changed by this plan, so this should already pass
-unmodified).
-
-- [ ] **Step 3: Full Playwright sweep (chromium)**
+- [ ] **Step 2: Full Playwright sweep (chromium)**
 
 Run: `cd crates/vox-gui/ui && npx playwright test --project=chromium`
-Expected: same pass/skip counts as the pre-remediation baseline (113 passed / 223
-skipped — the skips are the env-gated review-capture matrix, not a regression), plus
-any specs touched by Tasks 6-10's component changes still passing.
+Expected: same shape as the pre-remediation baseline (113 passed / 223 skipped — the
+skips are the env-gated capture matrix; Tasks 2-10 added only vitest tests, no
+`e2e/*.spec.ts`, so counts hold except `workbench-tabs.spec.ts`'s updated assertions
+must pass).
 
-- [ ] **Step 4: Full review-bundle harness run, both browsers, all 31 surfaces**
+- [ ] **Step 3: FULL-matrix harness run** (capture unscoped + analysis, both browsers
+  — Task 9 Step 1's commands verbatim; prior scoped runs deleted earlier bundles).
 
-Run the capture + analysis sequence from Task 3 with no `--grep` filter, full matrix.
+- [ ] **Step 4: Confirm every finding's end state in the fresh digest**
 
-- [ ] **Step 5: Confirm the review's F-01 through F-07 findings are resolved (or
-  correctly triaged) in the fresh `bundle-digest.md`**
+- F-01/F-04: 0 occlusion/layout defects on the named cells.
+- F-02: `grep -i "session_id\|is_error" <digest>` → no null-deref defects.
+- F-03: `grep -i "TAURI_INTERNALS" <digest>` → nothing.
+- F-05: per Task 11's outcome.
+- F-06: no blank-viewport defects on `gamify`/`dashboard` cells.
+- F-07/axe: per Task 9 Step 2's criteria (including the expected residuals:
+  `page-has-heading-one` outside chat/dashboard; possibly `landmark-unique`
+  outside the chat path).
+(digest = `contracts/reports/gui-visual-review/bundle-digest.md`)
 
-- F-01/F-04: 0 occlusion/layout defects on the previously-named cells.
-- F-02: 0 `session_id`/`is_error` null-deref defects on the ~9 previously-affected
-  surfaces' empty/error states.
-- F-03: 0 `__TAURI_INTERNALS__`-or-similar-leak defects anywhere.
-- F-05: resolved-or-triaged per Task 11's outcome.
-- F-06: 0 blank-simulation-viewport defects on `gamify`/`dashboard`.
-- F-07 + axe classes: `aria-required-children` near-zero across all surfaces (the
-  shared tab-bar fix applies everywhere); `page-has-heading-one` zero specifically on
-  `chat`/`dashboard` (other surfaces remain open per Task 7 Step 9's explicit scope
-  note); `landmark-unique` zero.
+- [ ] **Step 5: Commit the analysis artifacts** (matching the harness effort's
+  precedent — these are tracked files under `contracts/` and a re-run leaves them
+  dirty otherwise):
+
+```bash
+git add contracts/reports/gui-visual-review/bundle-cache.v1.json \
+  contracts/reports/gui-visual-review/bundle-digest.md \
+  contracts/reports/gui-visual-review/bundle-report.v1.json
+git commit -m "chore(visual-review): post-remediation full-matrix run artifacts"
+```
 
 - [ ] **Step 6: Regenerate contracts with a freshly-built release `vox`**
 
-Run: `cargo build --release -p vox-cli --locked` (if stale), then
-`./target/release/vox.exe ci gui-surface-coverage --write` and
-`./target/release/vox.exe ci test-inventory --output contracts/reports/test-inventory.v1.json`.
-Commit any diff.
+`cargo build --release -p vox-cli --locked` (if stale — NEVER touch
+`~/.cargo/bin/vox.exe`), then:
+```bash
+./target/release/vox.exe ci gui-surface-coverage --write
+./target/release/vox.exe ci test-inventory --output contracts/reports/test-inventory.v1.json
+```
+Commit any diff (new test files change the inventory).
 
-- [ ] **Step 7: Push to main**
+- [ ] **Step 7: Append a "Remediation status" section to the source review**
 
-Follow the same admin-bypass direct-push pattern used for the harness-build effort
-(no PR) — confirm with `git log origin/main -1 --oneline` after.
+In `docs/superpowers/reviews/2026-07-18-axis-frontend-comprehensive-review.md`:
+per-finding fixed/open status, the F-05 triage outcome, the Task 7 Step 7
+heading-debt list, and any landmark residuals from Task 9 Step 2. Commit with
+Step 6's contract regen.
 
-- [ ] **Step 8: Write a short remediation-results note**
+- [ ] **Step 8: Push to main**
 
-Append a "Remediation status" section to the source review document
-(`docs/superpowers/reviews/2026-07-18-axis-frontend-comprehensive-review.md`)
-recording which findings are now fixed-and-verified vs. still-open (F-05 if triaged
-as a separate bug in Task 11, and any surfaces Task 7 didn't reach). Commit this
-alongside Step 6's contract regeneration.
+Direct push (admin bypass, no PR — house convention for verified work). Long
+timeout; pre-push hooks may run the audit gate. Confirm:
+`git log origin/main -1 --oneline`.
