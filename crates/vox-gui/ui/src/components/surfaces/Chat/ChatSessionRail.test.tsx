@@ -31,6 +31,20 @@ describe('ChatSessionRail', () => {
     expect(active.getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('labels the aside landmark (axe landmark-unique)', () => {
+    render(
+      <LanguageProvider>
+        <ChatSessionRail
+          sessions={sessions}
+          activeSessionId="s1"
+          onSessionChange={vi.fn()}
+          onCreateSession={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByRole('complementary')).toHaveAttribute('aria-label', 'Chat sessions');
+  });
+
   it('can collapse and expand the sessions rail', async () => {
     const user = userEvent.setup();
     render(

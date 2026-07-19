@@ -64,6 +64,19 @@ describe('ChatExecutionRail', () => {
     expect(screen.getByTestId('execution-rail-mesh')).toHaveTextContent('2 peers');
   });
 
+  it('labels the aside landmark (axe landmark-unique)', () => {
+    render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByRole('complementary')).toHaveAttribute('aria-label', 'Execution rail');
+  });
+
   it('shows OpenRouter cost segment when openrouterSpendUsd is provided', () => {
     render(
       <LanguageProvider>

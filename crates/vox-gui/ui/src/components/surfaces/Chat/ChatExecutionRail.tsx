@@ -93,7 +93,7 @@ export function ChatExecutionRail({
 
   if (collapsed) {
     return (
-      <aside className="shrink-0">
+      <aside aria-label="Execution rail" className="shrink-0">
         <Glass className="flex flex-col items-center gap-2 p-2">
           <button
             type="button"
@@ -112,7 +112,7 @@ export function ChatExecutionRail({
   }
 
   return (
-    <aside className="w-56 shrink-0">
+    <aside aria-label="Execution rail" className="w-56 shrink-0">
       <Glass className="flex h-full flex-col gap-3 p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('chat-execution')}</h2>

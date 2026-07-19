@@ -45,7 +45,6 @@ export function ModelBadge({
       </button>
       {open && (
         <div
-          role="region"
           className="absolute right-0 z-50 mt-1 w-64 rounded-md border border-white/10 bg-[#0b0b0e] p-2 text-[10px] text-zinc-300"
         >
           {provider && <div>provider: {provider}</div>}
