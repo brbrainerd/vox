@@ -5,6 +5,6 @@
     "border": { "subtle": { "value": "{color.basalt.700}" }, "strong": { "value": "#3a444b" } },
     "accent": { "default": { "value": "{color.gold.500}" }, "secondary": { "value": "{color.verdigris.400}" } },
     "status": { "pass": { "value": "{color.verdigris.300}" }, "fail": { "value": "#f0a59a" }, "warn": { "value": "{color.terracotta.400}" }, "info": { "value": "#bfdbfe" } },
-    "overlay": { "subtle": { "value": "rgba(255,255,255,0.04)" }, "hover": { "value": "rgba(255,255,255,0.07)" } }
+    "overlay": { "subtle": { "value": "rgba(255,255,255,0.04)" }, "hover": { "value": "rgba(255,255,255,0.07)" }, "solid": { "value": "{color.basalt.850}" } }
   }
 }

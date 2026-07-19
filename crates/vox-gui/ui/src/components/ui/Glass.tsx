@@ -31,10 +31,10 @@ export function Glass({
       {...buttonProps}
       {...rest}
       className={cn(
-        "relative border border-border-subtle bg-overlay-subtle backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-30px_rgba(0,0,0,0.9)]",
+        "relative border border-border-subtle bg-overlay-solid backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_24px_60px_-30px_rgba(0,0,0,0.9)]",
         isButton && "text-left bg-transparent border-0 p-0 outline-none w-full",
         SIZE_PADDING[size],
-        interactive && "hover:border-border-subtle hover:bg-overlay-subtle cursor-pointer transition-all duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brass/40",
+        interactive && "hover:border-border-subtle hover:bg-bg-elevated cursor-pointer transition-all duration-150 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brass/40",
         className
       )}
     >

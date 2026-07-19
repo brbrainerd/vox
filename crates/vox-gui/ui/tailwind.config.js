@@ -25,6 +25,7 @@ export default {
         'accent-secondary': 'var(--color-accent-secondary)',
         'overlay-subtle': 'var(--color-overlay-subtle)',
         'overlay-hover': 'var(--color-overlay-hover)',
+        'overlay-solid': 'var(--color-overlay-solid)',
       },
       fontFamily: {
         display: ['Cinzel', 'Georgia', 'serif'],

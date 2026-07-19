@@ -77,7 +77,8 @@ export const tokens = {
     },
     "overlay": {
       "subtle": "rgba(255,255,255,0.04)",
-      "hover": "rgba(255,255,255,0.07)"
+      "hover": "rgba(255,255,255,0.07)",
+      "solid": "#11151a"
     }
   },
   "space": {
