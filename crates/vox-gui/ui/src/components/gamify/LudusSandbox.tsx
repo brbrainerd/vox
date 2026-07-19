@@ -307,13 +307,18 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
       <canvas
         ref={canvasRef}
         data-testid="urbs-canvas"
-        className="absolute inset-0 cursor-grab active:cursor-grabbing"
+        className={`absolute inset-0 cursor-grab active:cursor-grabbing ${layout ? '' : 'invisible'}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onWheel={onWheel}
         onClick={onClick}
       />
+      {!layout && (
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-text-muted">
+          Simulation loading — no workspace data yet.
+        </div>
+      )}
       {/* Citizens overlay. Mounted from agentTasks — render-driving state; a
           ref mutation alone never re-renders, so a ref-derived roster would
           leave new citizens without DOM nodes. Positions are applied

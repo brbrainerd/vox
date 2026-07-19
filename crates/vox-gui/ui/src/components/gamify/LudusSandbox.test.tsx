@@ -56,4 +56,12 @@ describe('LudusSandbox (Vox Urbs shell)', () => {
     render(<LudusSandbox />);
     await waitFor(() => expect(screen.getByTestId('hud-value').textContent).toBe('—'));
   });
+
+  it('shows a loading/no-data affordance instead of a blank canvas while layout is unset (F-06)', async () => {
+    // Make the scan hang (pending forever): the component has neither layout
+    // nor scanFailed - the previously-blank state.
+    workspaceTownScan.mockImplementation(() => new Promise(() => {}));
+    render(<LudusSandbox />);
+    expect(await screen.findByText(/simulation loading|no workspace data/i)).toBeInTheDocument();
+  });
 });
