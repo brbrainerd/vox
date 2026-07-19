@@ -68,7 +68,7 @@ export function ChatSessionRail({
   }
 
   return (
-    <aside ref={railRef} aria-label="Chat sessions" className="w-44 shrink-0" data-testid="chat-session-rail">
+    <aside ref={railRef} aria-label="Chat sessions" className="w-64 shrink-0" data-testid="chat-session-rail">
       <Glass className="flex h-full max-h-[70vh] flex-col gap-2 p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('chat-sessions')}</h2>
@@ -124,6 +124,7 @@ export function ChatSessionRail({
                   role="tab"
                   aria-pressed={isActive}
                   aria-selected={isActive}
+                  title={s.title}
                   onClick={() => onSessionChange(s.session_id)}
                   className={`min-w-0 flex-1 justify-start rounded-lg border px-2.5 py-2 text-left text-xs ${
                     isActive
@@ -131,7 +132,7 @@ export function ChatSessionRail({
                       : 'border-border-subtle text-text-muted hover:text-text-secondary'
                   }`}
                 >
-                  <span className="block truncate">{s.title}</span>
+                  <span className="line-clamp-2 break-words">{s.title}</span>
                   {s.message_count > 0 ? (
                     <span className="mt-0.5 block font-mono text-[10px] text-text-muted">
                       {s.message_count} msg{s.message_count === 1 ? '' : 's'}

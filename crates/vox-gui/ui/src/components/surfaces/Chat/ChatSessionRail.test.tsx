@@ -31,6 +31,26 @@ describe('ChatSessionRail', () => {
     expect(active.getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('gives session titles enough width to avoid aggressive ellipsis truncation (F-05)', () => {
+    render(
+      <LanguageProvider>
+        <ChatSessionRail
+          sessions={sessions}
+          activeSessionId="s1"
+          onSessionChange={vi.fn()}
+          onCreateSession={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    const rail = screen.getByRole('complementary');
+    expect(rail).not.toHaveClass('w-44');
+    const title = screen.getByText('First');
+    expect(title).not.toHaveClass('truncate');
+    expect(title).toHaveClass('line-clamp-2');
+    // Full text is always discoverable via native tooltip, even when elided.
+    expect(screen.getByRole('tab', { name: /First/ })).toHaveAttribute('title', 'First');
+  });
+
   it('labels the aside landmark (axe landmark-unique)', () => {
     render(
       <LanguageProvider>
