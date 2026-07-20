@@ -1576,7 +1576,7 @@ pub fn spawn_agent_fleet_if_enabled_with_dispatcher(
     }
     let scheduler = Arc::new(Scheduler::new());
     tokio::spawn(async move {
-        let processor = Arc::new(match dispatcher {
+        let agentic = Arc::new(match dispatcher {
             Some(d) => {
                 AiTaskProcessor::with_tool_dispatcher(
                     orchestrator.event_bus.clone(),
@@ -1589,10 +1589,20 @@ pub fn spawn_agent_fleet_if_enabled_with_dispatcher(
                 AiTaskProcessor::new(orchestrator.event_bus.clone(), orchestrator.clone()).await
             }
         });
+        let chat = Arc::new(
+            crate::chat_processor::ChatTaskProcessor::new(
+                orchestrator.event_bus.clone(),
+                orchestrator.clone(),
+            )
+            .await,
+        );
+        let processor: Arc<dyn TaskProcessor> = Arc::new(
+            crate::routing_processor::RoutingTaskProcessor::new(agentic, chat),
+        );
         let fleet = AgentFleet::new(scheduler, orchestrator, processor);
         tracing::info!(
             target: "vox_orchestrator::runtime",
-            "AgentFleet loop running (AiTaskProcessor; MCP / orchestrator-d)"
+            "AgentFleet loop running (RoutingTaskProcessor: AiTaskProcessor + ChatTaskProcessor; MCP / orchestrator-d)"
         );
         fleet.run().await;
     });

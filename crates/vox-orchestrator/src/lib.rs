@@ -260,6 +260,14 @@ pub mod chat_processor;
 #[cfg(feature = "runtime")]
 pub use chat_processor::ChatTaskProcessor;
 
+/// Thin `TaskProcessor` that dispatches to `ChatTaskProcessor` or
+/// `AiTaskProcessor` based on `AgentTask::task_category` (see
+/// `runtime`'s `TaskProcessor` trait, which this implements).
+#[cfg(feature = "runtime")]
+pub mod routing_processor;
+#[cfg(feature = "runtime")]
+pub use routing_processor::RoutingTaskProcessor;
+
 /// LSP-facing helpers for ownership and diagnostics surfacing.
 #[cfg(feature = "lsp")]
 pub mod lsp;
