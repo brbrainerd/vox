@@ -292,6 +292,9 @@ pub struct TaskEnqueueHints {
     /// Drive Console risk label (`high`|`moderate`|`low`); parsed in [`AgentTask::apply_hints`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub risk: Option<String>,
+    /// When set, overrides [`AgentTask::grounding_check_enabled`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grounding_check_enabled: Option<bool>,
 }
 
 /// Attribution record for which model was actually used to execute a task.
@@ -697,6 +700,11 @@ pub struct AgentTask {
     /// `None` = no override; gating falls back to the neutral `Moderate` resolution.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub risk_posture: Option<crate::mode::RiskPosture>,
+    /// Opt-in, per-task toggle for the non-blocking post-reply grounding
+    /// check (chat gate policy). Defaults to `false`; only meaningful for
+    /// chat-origin tasks run by `ChatTaskProcessor`.
+    #[serde(default)]
+    pub grounding_check_enabled: bool,
 }
 
 impl AgentTask {
@@ -773,6 +781,7 @@ impl AgentTask {
             executor_node_id: None,
             clutch_profile: None,
             risk_posture: None,
+            grounding_check_enabled: false,
         }
     }
 
@@ -939,6 +948,9 @@ impl AgentTask {
             if let Some(posture) = crate::mode::RiskPosture::from_label(risk) {
                 self.risk_posture = Some(posture);
             }
+        }
+        if let Some(enabled) = h.grounding_check_enabled {
+            self.grounding_check_enabled = enabled;
         }
     }
 
@@ -1232,6 +1244,7 @@ mod tests {
             tenant_id: None,
             clutch: None,
             risk: None,
+            grounding_check_enabled: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");

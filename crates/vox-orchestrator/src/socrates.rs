@@ -460,6 +460,33 @@ pub fn spawn_socrates_research_poller(orch: std::sync::Arc<crate::Orchestrator>)
 mod tests {
     use super::*;
 
+    /// Direct coverage of `evaluate_socrates_gate`'s scoring for chat's
+    /// typical case: a reply with no citations at all against a
+    /// required-citation policy. Covers the scoring logic exercised by
+    /// `ChatTaskProcessor`'s opt-in post-reply grounding check
+    /// (`chat_processor.rs`), which cannot itself be driven through a live
+    /// (non-cancelled) `process()` call in tests (no-paid-LLM-calls
+    /// constraint).
+    #[test]
+    fn evaluate_socrates_gate_flags_low_confidence_for_zero_evidence_context() {
+        let ctx = SocratesTaskContext {
+            required_citations: 3,
+            evidence_count: 0,
+            contradiction_hints: 0,
+            citation_coverage: 0.0,
+            retrieval_tier: None,
+            retrieval_used_lexical_fallback: false,
+            ..Default::default()
+        };
+        let policy = ConfidencePolicy::default();
+        let outcome = evaluate_socrates_gate(&ctx, &policy, "some chat reply");
+        assert!(
+            outcome.confidence < 0.5,
+            "zero evidence against a required-citation policy must score low confidence, got {}",
+            outcome.confidence
+        );
+    }
+
     #[test]
     fn factual_under_cited_abstains() {
         let p = ConfidencePolicy::default();

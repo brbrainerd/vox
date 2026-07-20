@@ -110,7 +110,32 @@ impl TaskProcessor for ChatTaskProcessor {
             )
             .await;
 
-        // Step 6: success.
+        // Step 6.5: optional, non-blocking grounding check — never delays the
+        // reply (already streamed above), only emits a follow-up badge event.
+        if task.grounding_check_enabled {
+            let orchestrator = self.orchestrator.clone();
+            let event_bus = self.event_bus.clone();
+            let query = task.description.clone();
+            let reply = reply_text.clone();
+            let task_id = task.id;
+            tokio::spawn(async move {
+                let ctx = orchestrator.generate_goal_search_context(&query, &[]).await;
+                // `ConfidencePolicy` does not derive `Default` (verified against
+                // crates/vox-orchestrator-types/src/socrates_policy/policy_types.rs);
+                // use its documented workspace baseline instead.
+                let policy =
+                    vox_orchestrator_types::socrates_policy::ConfidencePolicy::workspace_default();
+                let outcome = crate::socrates::evaluate_socrates_gate(&ctx, &policy, &reply);
+                event_bus.emit(AgentEventKind::GroundingCheckCompleted {
+                    agent_id,
+                    task_id,
+                    confidence: outcome.confidence,
+                    flagged: outcome.confidence < 0.5,
+                });
+            });
+        }
+
+        // Step 7: success.
         Ok(task.id)
     }
 }
@@ -153,6 +178,81 @@ mod tests {
         assert!(
             result.unwrap_err().to_string().contains("interrupted"),
             "error should report interruption"
+        );
+    }
+
+    /// Grounding check disabled (the default) must never emit
+    /// `GroundingCheckCompleted`, even after a cancel-preset short-circuit
+    /// (which is the only path exercisable here without a live LLM call).
+    #[tokio::test]
+    async fn process_emits_no_grounding_check_when_disabled_on_the_task() {
+        let orchestrator = Arc::new(crate::orchestrator::Orchestrator::new(
+            crate::config::OrchestratorConfig::for_testing(),
+        ));
+        let event_bus = crate::events::EventBus::new(16);
+        let mut rx = event_bus.subscribe();
+        let processor = ChatTaskProcessor::new(event_bus, orchestrator.clone()).await;
+
+        let mut task = crate::types::AgentTask::new(
+            crate::types::TaskId(100),
+            "hello",
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        task.grounding_check_enabled = false;
+        let cancel = Arc::new(AtomicBool::new(true));
+        let _ = processor
+            .process(crate::types::AgentId(1), task, cancel)
+            .await;
+
+        let mut saw_grounding_event = false;
+        while let Ok(evt) = rx.try_recv() {
+            if matches!(evt.kind, AgentEventKind::GroundingCheckCompleted { .. }) {
+                saw_grounding_event = true;
+            }
+        }
+        assert!(
+            !saw_grounding_event,
+            "grounding check must not run when disabled"
+        );
+    }
+
+    /// Grounding-check-enabled combined with a preset-cancel flag must still
+    /// short-circuit before generation (and thus before the grounding-check
+    /// spawn) — this proves the new field doesn't itself trigger a network
+    /// call before generation starts. The check's actual scoring logic
+    /// (`evaluate_socrates_gate`) is covered directly in `socrates.rs`,
+    /// since this codebase's no-paid-LLM-calls-in-tests constraint makes it
+    /// impractical to drive a real (non-cancelled) run through
+    /// `ChatTaskProcessor::process` here.
+    #[tokio::test]
+    async fn process_with_grounding_enabled_and_cancel_preset_emits_nothing() {
+        let orchestrator = Arc::new(crate::orchestrator::Orchestrator::new(
+            crate::config::OrchestratorConfig::for_testing(),
+        ));
+        let event_bus = crate::events::EventBus::new(16);
+        let mut rx = event_bus.subscribe();
+        let processor = ChatTaskProcessor::new(event_bus, orchestrator.clone()).await;
+
+        let mut task = crate::types::AgentTask::new(
+            crate::types::TaskId(101),
+            "hello",
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        task.grounding_check_enabled = true;
+        let cancel = Arc::new(AtomicBool::new(true));
+        let _ = processor
+            .process(crate::types::AgentId(1), task, cancel)
+            .await;
+
+        let mut events = Vec::new();
+        while let Ok(evt) = rx.try_recv() {
+            events.push(evt);
+        }
+        assert!(
+            events.is_empty(),
+            "cancelled-before-generation must emit nothing, including no grounding event"
         );
     }
 }

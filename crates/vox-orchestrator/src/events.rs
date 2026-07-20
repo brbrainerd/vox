@@ -402,6 +402,15 @@ pub enum AgentEventKind {
         agent_id: AgentId,
         text: String,
     },
+    /// Opt-in, non-blocking post-reply grounding/hallucination check
+    /// (chat gate policy) completed for a chat task. Never delays the
+    /// reply — it is emitted after the reply has already streamed.
+    GroundingCheckCompleted {
+        agent_id: AgentId,
+        task_id: TaskId,
+        confidence: f64,
+        flagged: bool,
+    },
 
     /// Prompt injection / safety gate rejected input (MCP).
     InjectionDetected {
@@ -880,7 +889,8 @@ pub fn is_tier_a(kind: &AgentEventKind) -> bool {
         | AgentEventKind::MeshNodeBudget { .. }
         | AgentEventKind::MeshActionCommitted { .. }
         | AgentEventKind::PavPhaseChanged { .. }
-        | AgentEventKind::ToolCallDispatched { .. } => false,
+        | AgentEventKind::ToolCallDispatched { .. }
+        | AgentEventKind::GroundingCheckCompleted { .. } => false,
     }
 }
 
@@ -922,6 +932,7 @@ pub const TIER_B_KIND_NAMES: &[&str] = &[
     "CostTick", "FileDiagChanged", "MeshTopologyChanged", "TaskReprioritized",
     "HopperItemOverridden", "HopperItemCancelled", "MeshNodeBudget",
     "MeshActionCommitted", "PavPhaseChanged", "ToolCallDispatched",
+    "GroundingCheckCompleted",
 ];
 
 /// Returns `true` if `kind` is a **Tier B** event (broadcast-only, never

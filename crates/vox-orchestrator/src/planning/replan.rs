@@ -89,6 +89,7 @@ pub async fn enqueue_recovery_first_node(
                 tenant_id: tenant_id.clone(),
                 clutch: None,
                 risk: None,
+                grounding_check_enabled: None,
             });
         }
         let next_version = meta.plan_version.saturating_add(1);

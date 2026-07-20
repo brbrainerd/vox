@@ -529,6 +529,19 @@ pub async fn dispatch_request(
                     .get_or_insert_with(TaskEnqueueHints::default)
                     .task_category = Some(category);
             }
+            // Opt-in, per-session grounding-check toggle from the chat composer
+            // (see docs/superpowers/plans/2026-07-20-chat-flow-docking-redesign.md
+            // Phase D). Same null-safe idiom as `task_category` above.
+            let grounding_check_enabled = req
+                .params
+                .get("grounding_check_enabled")
+                .filter(|v| !v.is_null())
+                .and_then(|v| v.as_bool());
+            if let Some(enabled) = grounding_check_enabled {
+                enqueue_hints
+                    .get_or_insert_with(TaskEnqueueHints::default)
+                    .grounding_check_enabled = Some(enabled);
+            }
             let session_id = req
                 .params
                 .get("session_id")
