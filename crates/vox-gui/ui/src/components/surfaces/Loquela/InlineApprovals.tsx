@@ -51,8 +51,8 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
           tool: 'vox_resolve_approval',
           args: { approval_id: approvalId, outcome },
         });
-        const data = unwrapMcpEnvelope(res.result) as { resolved?: boolean } | null;
-        if (res.is_error || data?.resolved === false) {
+        const data = res ? (unwrapMcpEnvelope(res.result) as { resolved?: boolean } | null) : null;
+        if (!res || res.is_error || data?.resolved === false) {
           pushToast({
             tone: 'warn',
             title: 'Resolve failed',

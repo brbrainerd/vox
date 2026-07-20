@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 
 const invoke = vi.fn();
@@ -40,6 +41,22 @@ describe('InlineApprovals', () => {
     await waitFor(() => expect(screen.getByText('vox_write_file')).toBeDefined());
     for (const b of screen.getAllByRole('button')) {
       expect(b.getAttribute('type')).toBe('button');
+    }
+  });
+
+  it('a null resolve response produces an honest failure toast, not a leaked TypeError (F-02)', async () => {
+    const user = userEvent.setup();
+    const pushToast = vi.fn();
+    render(<InlineApprovals pushToast={pushToast} />);
+    await waitFor(() => expect(screen.getByText('vox_write_file')).toBeDefined());
+
+    invoke.mockResolvedValueOnce(null); // vox_resolve_approval -> null
+    await user.click(screen.getByRole('button', { name: /approve/i }));
+
+    await waitFor(() => expect(pushToast).toHaveBeenCalled());
+    const bodies = pushToast.mock.calls.map(c => String(c[0]?.body ?? ''));
+    for (const body of bodies) {
+      expect(body).not.toMatch(/TypeError|is_error|Cannot read properties/i);
     }
   });
 });
