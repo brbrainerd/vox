@@ -12,7 +12,7 @@ interface ChatTranscriptProps {
   agentStreamItems?: StreamItem[];
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+export function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const streaming = message.status === 'streaming' || message.status === 'pending';
@@ -49,6 +49,13 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       {message.role === 'assistant' && message.status === 'done' && message.modelId && (
         <div className="mt-1 flex justify-end">
           <ModelBadge model={message.modelId} />
+        </div>
+      )}
+      {message.role === 'assistant' && message.groundingFlagged && (
+        <div className="mt-1 flex justify-end">
+          <span className="rounded border border-amber-400/30 bg-amber-400/[0.08] px-1.5 py-0.5 font-mono text-[9px] text-amber-300">
+            low confidence — unverified
+          </span>
         </div>
       )}
     </div>

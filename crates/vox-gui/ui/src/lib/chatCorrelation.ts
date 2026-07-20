@@ -20,6 +20,9 @@ export interface ChatMessage {
   sessionId?: string;
   /** Model that produced this assistant message (from cost_incurred). */
   modelId?: string;
+  /** True when the opt-in post-reply grounding check flagged this reply as
+   *  low-confidence (from grounding_check_completed). */
+  groundingFlagged?: boolean;
   /** Wall-clock ms when the bubble was created (drives the pending watchdog). */
   createdAtMs?: number;
 }
@@ -224,6 +227,11 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           const error = typeof kind.error === 'string' ? kind.error : undefined;
           const next = mapAssistant(state, runId, (m) => ({ ...m, status: 'failed', error }));
           return evictAgentToTask(next, kind.agent_id);
+        }
+        case 'grounding_check_completed': {
+          const runId = state.taskToRun[String(kind.task_id)];
+          if (!kind.flagged) return state;
+          return mapAssistant(state, runId, (m) => ({ ...m, groundingFlagged: true }));
         }
         case 'tool_timed_out': {
           const tool = typeof kind.tool_key === 'string' ? kind.tool_key : 'tool';
