@@ -135,3 +135,25 @@ describe('model_override submit-payload wiring', () => {
     expect(appSrc).toMatch(/model_override:\s*chatModelOverride/);
   });
 });
+
+// Wiring guard: free-text chat submissions must be tagged `task_category:
+// 'chat'` so the daemon routes them through the one-shot chat fast path
+// instead of the 6-phase agentic pipeline — but NOT `/spawn`, which reuses
+// this exact submit path with `mode: 'act'` to dispatch a real sub-agent.
+describe('task_category submit-payload wiring', () => {
+  it("tags handleLoquelaSubmit's payload 'chat' only when mode !== 'act'", () => {
+    const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
+    expect(appSrc).toMatch(
+      /task_category:\s*payload\.mode === 'act' \? undefined : 'chat'/,
+    );
+  });
+
+  it("/spawn dispatches through handleLoquelaSubmit with mode: 'act', so it is excluded from the chat tag", () => {
+    const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
+    const spawnBlockMatch = appSrc.match(
+      /base === '\/spawn'\) \{\s*void handleLoquelaSubmit\(\{[^}]*\}\);/,
+    );
+    expect(spawnBlockMatch).not.toBeNull();
+    expect(spawnBlockMatch?.[0]).toMatch(/mode:\s*'act'/);
+  });
+});

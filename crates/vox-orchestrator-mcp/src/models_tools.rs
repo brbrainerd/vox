@@ -69,6 +69,7 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         TaskCategory::InterAgent => 2,
         TaskCategory::ToolOrchestration => 5,
         TaskCategory::Visus => 8,
+        TaskCategory::Chat => 2,
     };
     let resolution = McpChatModelResolution {
         allow_cheapest_fallback: true,

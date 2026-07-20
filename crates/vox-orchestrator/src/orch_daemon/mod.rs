@@ -506,13 +506,29 @@ pub async fn dispatch_request(
                 },
                 None => None,
             };
-            let enqueue_hints = match req.params.get("enqueue_hints") {
+            let mut enqueue_hints = match req.params.get("enqueue_hints") {
                 Some(v) => match serde_json::from_value::<TaskEnqueueHints>(v.clone()) {
                     Ok(h) => Some(h),
                     Err(e) => return response_err(&req.id, format!("invalid enqueue_hints: {e}")),
                 },
                 None => None,
             };
+            // Explicit top-level `task_category` hint from the chat composer (or
+            // any other caller). A typo/unknown value silently falls back to
+            // `TaskCategory::General` via the generated `FromStr` impl rather
+            // than erroring - safe-by-default here since it only affects
+            // routing, never crashes or produces a wrong-but-plausible category.
+            let task_category = req
+                .params
+                .get("task_category")
+                .filter(|v| !v.is_null())
+                .and_then(|x| x.as_str())
+                .and_then(|s| s.parse::<crate::TaskCategory>().ok());
+            if let Some(category) = task_category {
+                enqueue_hints
+                    .get_or_insert_with(TaskEnqueueHints::default)
+                    .task_category = Some(category);
+            }
             let session_id = req
                 .params
                 .get("session_id")
@@ -663,6 +679,7 @@ pub async fn dispatch_request(
                         "priority": t.priority,            // raw: "Urgent"|"Normal"|"Background"
                         "status": t.status,
                         "lifecycle": lifecycle,            // raw: "Completed"|"InProgress"|"Blocked"|"Queued"
+                        "category": t.task_category,       // raw: "General"|"Chat"|... (TaskCategory)
                         "agent_id": agent_id,
                         "session_id": t.session_id,
                         "estimated_complexity": t.estimated_complexity,
@@ -1235,6 +1252,37 @@ mod task_dispatch_tests {
             .find(|t| t["id"].as_u64() == Some(task_id))
             .unwrap();
         assert_eq!(t["priority"].as_str(), Some("Normal"));
+    }
+
+    #[tokio::test]
+    async fn submit_task_with_explicit_chat_category_routes_to_chat_processor_category() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+        orch.spawn_agent("a1").unwrap();
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({
+                    "description": "hi there",
+                    "task_category": "chat",
+                }),
+            ),
+        )
+        .await;
+        let task_id = result_value(&resp)["task_id"].as_u64().unwrap();
+        let list_resp = dispatch_request(
+            "rid",
+            orch,
+            &req(orch_daemon_method::LIST_TASKS, serde_json::json!({})),
+        )
+        .await;
+        let tasks = result_value(&list_resp)["tasks"].as_array().unwrap();
+        let t = tasks
+            .iter()
+            .find(|t| t["id"].as_u64() == Some(task_id))
+            .unwrap();
+        assert_eq!(t["category"].as_str(), Some("Chat"));
     }
 
     #[tokio::test]

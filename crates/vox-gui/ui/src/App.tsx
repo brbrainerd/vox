@@ -742,6 +742,14 @@ export default function App() {
             allow_duplicate: allowDuplicate,
             clutch: payload.clutch ?? null,
             risk: payload.risk ?? null,
+            // Tag free-text chat submissions so the daemon routes them
+            // through the one-shot chat fast path. NOT unconditional:
+            // `/spawn` (handleLoquelaSlash) reuses this same submit path
+            // with `mode: 'act'` to dispatch a real agentic sub-agent, so
+            // tagging it 'chat' here would silently break that dispatch.
+            // Omitted (undefined -> not sent) for 'act' submissions, letting
+            // the daemon fall back to its default category resolution.
+            task_category: payload.mode === 'act' ? undefined : 'chat',
           }
         },
         'gui.loquela.submit',

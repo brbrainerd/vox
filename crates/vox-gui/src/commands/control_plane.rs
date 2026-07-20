@@ -33,6 +33,11 @@ pub struct SubmitTaskInput {
     /// tasks.rs:241-243 → `AgentTask::model_override` via apply_hints
     /// tasks.rs:861-862 → `StreamRoute::UserModelOverride` runtime.rs:408-421).
     pub model_override: Option<String>,
+    /// Explicit task-category hint from the composer (e.g. `"chat"` for
+    /// free-text chat submissions). `None` falls back to the daemon's
+    /// default category resolution (agentic `/spawn` dispatch relies on
+    /// this by leaving the field unset).
+    pub task_category: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -77,6 +82,7 @@ fn submit_task_params(input: SubmitTaskInput) -> serde_json::Value {
         "model_hint": input.model_hint.filter(|s| !s.trim().is_empty()),
         "dry_run": input.dry_run,
         "active_skill": input.active_skill.filter(|s| !s.trim().is_empty()),
+        "task_category": input.task_category.filter(|s| !s.trim().is_empty()),
     });
     // Carry composer mode/tier/pick through as enqueue hints (tier →
     // model_preference; explicit pick → model_override). Only attach the key
@@ -515,6 +521,7 @@ mod submit_params_tests {
             clutch: None,
             risk: None,
             model_override: model_override.map(str::to_string),
+            task_category: None,
         }
     }
 
@@ -533,5 +540,19 @@ mod submit_params_tests {
         // No other hints set either ⇒ the enqueue_hints key is absent entirely
         // (the daemon rejects a null enqueue_hints).
         assert!(params.get("enqueue_hints").is_none());
+    }
+
+    #[test]
+    fn task_category_threads_through_to_daemon_params_when_set() {
+        let mut i = input(None);
+        i.task_category = Some("chat".into());
+        let params = submit_task_params(i);
+        assert_eq!(params["task_category"], "chat");
+    }
+
+    #[test]
+    fn task_category_is_null_when_omitted() {
+        let params = submit_task_params(input(None));
+        assert!(params["task_category"].is_null());
     }
 }
