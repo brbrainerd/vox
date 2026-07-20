@@ -30,6 +30,7 @@ pub mod mission_control;
 pub mod models;
 pub mod oratio;
 pub mod orchestrator;
+pub mod plan_panel;
 pub mod policy;
 pub mod preferences;
 pub mod process_util;

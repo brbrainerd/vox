@@ -214,6 +214,7 @@ async fn main() {
             commands::runs::list_gui_runs,
             commands::runs::get_gui_run,
             commands::mcp::invoke_mcp_tool,
+            commands::plan_panel::update_plan_node,
             commands::secrets::list_secret_status,
             commands::secrets::set_secret,
             commands::secrets::remove_secret,
