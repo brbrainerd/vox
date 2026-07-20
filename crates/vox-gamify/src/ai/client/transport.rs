@@ -394,6 +394,12 @@ impl FreeAiClient {
                 retry_after_secs: vox_http_client::parse_retry_after(resp.headers()),
             });
         }
+        if !resp.status().is_success() {
+            return Err(AiError::ProviderStatus {
+                provider: "pollinations".to_string(),
+                status: resp.status().as_u16(),
+            });
+        }
 
         let text = resp.text().await?;
         if text.trim().is_empty() {
@@ -419,6 +425,12 @@ impl FreeAiClient {
             return Err(AiError::RateLimited {
                 provider: "google".to_string(),
                 retry_after_secs: vox_http_client::parse_retry_after(resp.headers()),
+            });
+        }
+        if !resp.status().is_success() {
+            return Err(AiError::ProviderStatus {
+                provider: "google".to_string(),
+                status: resp.status().as_u16(),
             });
         }
 

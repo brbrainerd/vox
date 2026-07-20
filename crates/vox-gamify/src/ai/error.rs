@@ -25,4 +25,13 @@ pub enum AiError {
         /// Seconds until the rate limit expires, if provided by the server.
         retry_after_secs: Option<u64>,
     },
+    /// The provider returned a non-2xx HTTP status other than 429 (e.g. 402 quota
+    /// exhausted, 500 server error). The body is not valid generated text.
+    #[error("Provider {provider} returned HTTP {status}")]
+    ProviderStatus {
+        /// Name of the provider that returned the error status.
+        provider: String,
+        /// The HTTP status code.
+        status: u16,
+    },
 }
