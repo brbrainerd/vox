@@ -420,11 +420,16 @@ impl VoxDb {
 /// connection-local state and does **not** go through `ConcurrentGuard` at all (confirmed by
 /// reading `turso-0.6.1`'s source), so it is intentionally left un-guarded here — wrapping it
 /// would require holding the lock across the `execute` + `last_insert_rowid` pair (a call-site
-/// change) rather than per-call. In the current code this pairing happens inside a single
-/// function body without ever yielding to another task between the two calls in a way that would
-/// let a concurrent writer interleave on a single-threaded borrow of `self`, so it does not
-/// reproduce the reported bug; it is noted here as a narrower, pre-existing (not introduced by
-/// this change) correctness edge case for future hardening (e.g. `INSERT ... RETURNING`).
+/// change) rather than per-call. Callers that do this pairing (e.g.
+/// `codex_chat.rs::chat_ensure_workspace_conversation`) are *not* actually safe from this crate's
+/// concurrency bug class: on the multi-threaded Tokio runtime this crate runs under, a different
+/// task on a different OS thread can execute its own guarded `execute()` (acquiring and releasing
+/// the lock) between this caller's `execute()` and its `last_insert_rowid()` read, since nothing
+/// holds the lock across that gap — no explicit `.await` yield is required for that interleaving.
+/// This does not reproduce the `Misuse("concurrent use forbidden")` bug this type fixes (the two
+/// individual calls are each correctly guarded), but it can silently return the *other* task's
+/// row id. It is noted here as a narrower, pre-existing (not introduced by this change)
+/// correctness edge case for future hardening (e.g. `INSERT ... RETURNING`).
 #[derive(Clone)]
 pub struct GuardedConnection {
     inner: turso::Connection,
