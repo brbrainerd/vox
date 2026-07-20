@@ -154,6 +154,23 @@ describe('Loquela', () => {
     expect(screen.getByRole('button', { name: /structured intent/i }).getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('renders trailingSlot at the far right of the toolbar row, after mic/attach/link controls', () => {
+    renderLoquela({ trailingSlot: <button type="button">Model: auto</button> });
+    const slotButton = screen.getByRole('button', { name: /model: auto/i });
+    const micButton = screen.getByRole('button', { name: /voice input/i });
+    // Both live in the same toolbar row; the slot must come after the
+    // left-side attach/mic controls in DOM order (source order + ml-auto is
+    // what pushes it visually to the right).
+    expect(
+      micButton.compareDocumentPosition(slotButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('omits the trailing slot container entirely when trailingSlot is not provided', () => {
+    renderLoquela();
+    expect(screen.queryByRole('button', { name: /model:/i })).toBeNull();
+  });
+
   it('the Run button carries its own keyboard-shortcut hint, with no other disconnected shortcut hint elsewhere', () => {
     renderLoquela();
     const runButton = screen.getByRole('button', { name: /run/i });

@@ -300,16 +300,11 @@ export function ChatSurface({
                 />
               </div>
             ) : null}
+            {/* The model-route picker now renders inside the composer's own
+                toolbar row (Loquela's `trailingSlot`, wired in App.tsx),
+                right-aligned alongside the cost display, rather than as a
+                separate row below it. */}
             {composer}
-            {/* Model pill lives with the composer toolbar (not top-right where
-                it sat under the execution-rail toggle's absolute slot). The
-                picker's listbox opens upward. Rendered here rather than inside
-                Loquela's toolbar row because the composer arrives as an opaque
-                slot from App — plumbing the picker's props through it would
-                couple Loquela to chat-only state. */}
-            <div className="mt-1.5 flex justify-end px-1">
-              <ChatModelPicker activeModel={modelOverride ?? activeModel} onApplied={id => onModelOverrideChange?.(id)} />
-            </div>
           </div>
         ) : (
           <div className="mt-auto flex shrink-0 justify-end px-1">

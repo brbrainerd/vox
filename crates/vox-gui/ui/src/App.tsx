@@ -12,6 +12,7 @@ import { useWorkbenchTabs, isDocTab, docPathFromTab, isPinnedTab } from './hooks
 import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
+import { ChatModelPicker } from './components/surfaces/Chat/ChatModelPicker';
 import { Toasts, ToastItem } from './components/ui/Toasts';
 import { BackendBanner } from './components/ui/BackendBanner';
 import { userAppendInput } from './lib/composerSubmit';
@@ -1134,6 +1135,12 @@ export default function App() {
       skills={installedSkillEntries}
       toast={pushToast}
       agents={data.agents}
+      trailingSlot={
+        <ChatModelPicker
+          activeModel={chatModelOverride ?? activeModel}
+          onApplied={setChatModelOverride}
+        />
+      }
     />
   );
 

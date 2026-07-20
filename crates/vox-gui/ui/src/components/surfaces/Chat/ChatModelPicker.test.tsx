@@ -124,6 +124,19 @@ describe('ChatModelPicker', () => {
   });
 });
 
+// Wiring guard: the picker renders inside the composer's own toolbar row
+// (Loquela's `trailingSlot`), not as a separate row ChatSurface stacks below
+// the composer — reported live as overlapping the execution-rail toggle
+// before this move.
+describe('ChatModelPicker toolbar placement wiring', () => {
+  it('App.tsx passes ChatModelPicker as Loquela trailingSlot', () => {
+    const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
+    const loquelaBlockMatch = appSrc.match(/const loquelaComposer = \(\s*<Loquela[\s\S]*?\/>\s*\);/);
+    expect(loquelaBlockMatch).not.toBeNull();
+    expect(loquelaBlockMatch?.[0]).toMatch(/trailingSlot=\{\s*<ChatModelPicker/);
+  });
+});
+
 // Wiring guard (readFileSync idiom, mirroring Phase 1's ErrorBoundary.test.tsx):
 // the picked model must reach the submit payload App sends to the daemon.
 describe('model_override submit-payload wiring', () => {

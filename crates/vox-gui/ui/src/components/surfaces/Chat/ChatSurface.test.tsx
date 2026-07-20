@@ -141,7 +141,12 @@ describe('ChatSurface', () => {
     });
   });
 
-  it('renders the model pill inside the composer dock, not above the transcript', async () => {
+  it('does not render its own model pill when a composer slot is provided', async () => {
+    // The model-route picker used to be a second row ChatSurface rendered
+    // below the composer. It now lives inside the composer's own toolbar
+    // row (Loquela's `trailingSlot`, wired by App.tsx) — with a real
+    // Loquela this test's plain-div composer stub can't exercise that, but
+    // ChatSurface itself must no longer render a duplicate/stray picker.
     render(
       <LanguageProvider>
         <ChatSurface
@@ -151,10 +156,10 @@ describe('ChatSurface', () => {
         />
       </LanguageProvider>,
     );
-    const pill = await screen.findByRole('button', { name: /^model:/i });
-    // Lives with the composer (bottom toolbar area), where the execution-rail
-    // toggle's absolute top-right slot can no longer overlap it.
-    expect(pill.closest('[data-testid="chat-composer-dock"]')).not.toBeNull();
+    await waitFor(() => {
+      expect(screen.getByTestId('loquela-composer')).toBeDefined();
+    });
+    expect(screen.queryByRole('button', { name: /^model:/i })).toBeNull();
   });
 
   it('transcript fills the column (flex-1) instead of a max-h vh cap', async () => {

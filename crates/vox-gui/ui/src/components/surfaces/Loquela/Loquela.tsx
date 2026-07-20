@@ -119,6 +119,13 @@ interface LoquelaProps {
   currentTaskId?: number;
   /** Called when the user clicks Stop; should interrupt the active orchestrator task. */
   onInterrupt?: (taskId?: number) => void;
+  /**
+   * Rendered at the far right of the toolbar row, after the cost/budget
+   * display — e.g. the model-route picker. An opaque slot (like `composer`
+   * in ChatSurface) so Loquela doesn't need to know about chat-specific
+   * model state.
+   */
+  trailingSlot?: React.ReactNode;
 }
 
 export function Loquela({
@@ -137,6 +144,7 @@ export function Loquela({
   taskInProgress = false,
   currentTaskId,
   onInterrupt,
+  trailingSlot,
 }: LoquelaProps) {
   const embedded = useIsEmbeddedSurface();
   const [text, setText] = useState("");
@@ -668,18 +676,22 @@ export function Loquela({
           </div>
 
           
-          {(estCost != null || sessionBudget) && (
-            <span className="font-mono text-[9px] text-text-muted tabular-nums">
-              {estCost != null && (
-                <>~{tokens} tok · ~${estCost.toFixed(3)}</>
+          {(estCost != null || sessionBudget || trailingSlot != null) && (
+            <div className="ml-auto flex items-center gap-2">
+              {(estCost != null || sessionBudget) && (
+                <span className="font-mono text-[9px] text-text-muted tabular-nums">
+                  {estCost != null && (
+                    <>~{tokens} tok · ~${estCost.toFixed(3)}</>
+                  )}
+                  {estCost != null && sessionBudget && sessionBudget.cap > 0 && ' · '}
+                  {sessionBudget && sessionBudget.cap > 0 && (
+                    <>{formatSessionBudget(sessionBudget.spent, sessionBudget.cap)}</>
+                  )}
+                </span>
               )}
-              {estCost != null && sessionBudget && sessionBudget.cap > 0 && ' · '}
-              {sessionBudget && sessionBudget.cap > 0 && (
-                <>{formatSessionBudget(sessionBudget.spent, sessionBudget.cap)}</>
-              )}
-            </span>
+              {trailingSlot}
+            </div>
           )}
-
         </div>
       </Glass>
     </div>
