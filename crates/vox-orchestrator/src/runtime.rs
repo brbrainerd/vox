@@ -971,9 +971,9 @@ impl AgentFleet {
                     tracing::error!(
                         error = %e,
                         proc_name = %proc_name,
-                        "process registry poisoned during fleet sync; aborting sync_fleet"
+                        "process registry lookup failed for this agent during fleet sync; skipping it this tick"
                     );
-                    return;
+                    continue;
                 }
             };
             if !already_running {
