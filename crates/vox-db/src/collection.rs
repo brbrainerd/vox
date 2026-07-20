@@ -17,11 +17,11 @@
 use std::sync::Arc;
 
 use serde_json::Value;
-use turso::{Connection, params};
+use turso::params;
 
 use crate::sql_util::validate_identifier;
 
-use crate::DbCircuitBreaker;
+use crate::{DbCircuitBreaker, GuardedConnection};
 
 /// A handle to a schemaless document collection.
 ///
@@ -33,7 +33,7 @@ use crate::DbCircuitBreaker;
 /// - `delete` → `DELETE FROM <name> WHERE _id = ?1`
 pub struct Collection {
     name: String,
-    conn: Connection,
+    conn: GuardedConnection,
     breaker: Arc<DbCircuitBreaker>,
 }
 
@@ -56,7 +56,11 @@ pub enum CollectionError {
 
 impl Collection {
     /// Create a new collection handle. Does NOT create the underlying table.
-    pub fn new(name: impl Into<String>, conn: Connection, breaker: Arc<DbCircuitBreaker>) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        conn: GuardedConnection,
+        breaker: Arc<DbCircuitBreaker>,
+    ) -> Self {
         Self {
             name: name.into(),
             conn,

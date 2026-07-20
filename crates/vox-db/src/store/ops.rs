@@ -10,13 +10,16 @@
 use crate::store::types::StoreError;
 
 impl crate::VoxDb {
-    /// Borrow the underlying libSQL connection.
+    /// Borrow the underlying libSQL connection (wrapped in [`crate::GuardedConnection`], which
+    /// serializes concurrent `query`/`execute`/`execute_batch` calls to avoid
+    /// `turso::Error::Misuse("concurrent use forbidden")`; see its docs for why this is
+    /// necessary even though `turso::Connection` is itself `Clone`).
     ///
     /// Prefer typed `VoxDb` methods over calling SQL directly; use this only for
     /// one-off queries that do not belong to any domain module or for test verification.
     #[inline]
     #[must_use]
-    pub fn connection(&self) -> &turso::Connection {
+    pub fn connection(&self) -> &crate::GuardedConnection {
         &self.conn
     }
 

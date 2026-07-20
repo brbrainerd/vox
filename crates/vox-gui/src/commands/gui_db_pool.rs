@@ -46,6 +46,12 @@ pub fn map_db_err(e: impl std::fmt::Display) -> String {
         || s.contains("database is locked")
     {
         "Database busy — another process is writing. Retry in a moment.".into()
+    } else if s.contains("concurrent use forbidden") {
+        // Defense-in-depth: the primary fix serializes access inside `vox_db::GuardedConnection`
+        // so this should no longer be reachable from `VoxDb` methods. Keep this mapping in case
+        // some other unguarded connection path still surfaces the raw Turso error, so a future
+        // regression degrades to a retry hint instead of a scary raw Misuse string in the toast.
+        "Database busy — another process is writing. Retry in a moment.".into()
     } else {
         s
     }
@@ -61,5 +67,19 @@ mod tests {
         let a = pool.handle().unwrap();
         let b = pool.handle().unwrap();
         assert!(Arc::ptr_eq(&a, &b));
+    }
+
+    #[test]
+    fn map_db_err_gives_friendly_message_for_concurrent_use_forbidden() {
+        let raw = "Misuse(\"concurrent use forbidden\")";
+        let mapped = map_db_err(raw);
+        assert_eq!(
+            mapped,
+            "Database busy — another process is writing. Retry in a moment."
+        );
+        assert!(
+            !mapped.contains("concurrent use forbidden"),
+            "raw Turso Misuse string must not leak into the user-facing toast"
+        );
     }
 }

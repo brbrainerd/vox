@@ -345,11 +345,12 @@ pub enum ReadConsistency {
 /// Owns a single [`VoxDb`] (one Turso connection). Higher-level helpers (memory, learner,
 /// schema sync) delegate to that store; advanced callers use [`Self::store`] for direct access.
 ///
-/// **Concurrency:** one connection per `VoxDb` handle; not `Sync` across concurrent writers unless
-/// the underlying Turso client serializes access (typical for one handle per task).
+/// **Concurrency:** one connection per `VoxDb` handle; `Sync`/safe across concurrent callers
+/// because [`GuardedConnection`] serializes access to the shared `turso::Connection` (see its
+/// docs for why this is required even though `VoxDb`/`Connection` are `Clone`).
 #[derive(Clone)]
 pub struct VoxDb {
-    pub(crate) conn: turso::Connection,
+    pub(crate) conn: GuardedConnection,
     pub(crate) sync_db: Option<turso::sync::Database>,
     /// Keeps local `:memory:` / file databases alive while `conn` is in use (Turso drops
     /// in-memory catalogs when the owning [`turso::Database`] is released).
@@ -369,13 +370,202 @@ impl VoxDb {
         local_db: Option<std::sync::Arc<turso::Database>>,
     ) -> Self {
         Self {
-            conn,
+            conn: GuardedConnection::new(conn),
             sync_db,
             local_db,
             writer: None,
             breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
             sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         }
+    }
+}
+
+/// Serializes access to a shared `turso::Connection` to avoid
+/// `turso::Error::Misuse("concurrent use forbidden")`.
+///
+/// ## Root cause this fixes
+///
+/// `turso::Connection::clone()` does **not** create an independent connection: it clones an
+/// `Arc` to the same underlying `turso_sdk_kit::rsapi::TursoConnection`, which itself guards
+/// every `step()` (the primitive under `query`/`execute`/`execute_batch`/`prepare`) with an
+/// atomic [`ConcurrentGuard`]. Two async tasks that call into *any* clones of the same
+/// connection at literally the same instant (e.g. two Tauri GUI commands dispatched close
+/// together on a multi-threaded Tokio runtime, or a background poll racing a user action) can
+/// have their `step()` polls genuinely overlap on different OS threads, tripping that guard and
+/// returning `Err(Misuse("concurrent use forbidden"))`. Since `VoxDb` is `Clone` and is shared
+/// as one `Arc<VoxDb>` across all GUI commands (see `vox-gui/src/commands/gui_db_pool.rs`), this
+/// happened routinely under ordinary concurrent chat usage, and the resulting error surfaced to
+/// users as a "Message not saved" toast — the write silently never reached the database.
+///
+/// ## Fix
+///
+/// Hold a `tokio::sync::Mutex<()>` around each real network/IO-bearing call
+/// (`query`/`execute`/`execute_batch`/`pragma_update`) before delegating to the wrapped
+/// `turso::Connection`. The lock lives behind an `Arc` so every clone of a `GuardedConnection`
+/// (and every clone of the owning `VoxDb`) shares the *same* lock — matching the fact that they
+/// already share the same underlying Turso connection.
+///
+/// Implements [`std::ops::Deref`] to `turso::Connection` so call sites that need a raw
+/// `&turso::Connection` (e.g. [`crate::auto_migrate::AutoMigrator::new`], schema
+/// migrations run once at connect time) keep compiling unchanged via deref coercion. Method
+/// resolution prefers inherent methods on `GuardedConnection` over ones reached through `Deref`,
+/// so the ~400 existing call sites across this crate (and the many downstream crates that call
+/// `VoxDb::connection()`, e.g. `vox-gamify`, `vox-populi`, `vox-sql`, generated `vox-codegen`
+/// output) that do `conn.query(..)` / `conn.execute(..)` / `conn.execute_batch(..)` get the lock
+/// automatically without any call-site changes.
+///
+/// ## Known residual gap
+///
+/// `turso::Connection::last_insert_rowid()` is a synchronous, non-blocking read of
+/// connection-local state and does **not** go through `ConcurrentGuard` at all (confirmed by
+/// reading `turso-0.6.1`'s source), so it is intentionally left un-guarded here — wrapping it
+/// would require holding the lock across the `execute` + `last_insert_rowid` pair (a call-site
+/// change) rather than per-call. In the current code this pairing happens inside a single
+/// function body without ever yielding to another task between the two calls in a way that would
+/// let a concurrent writer interleave on a single-threaded borrow of `self`, so it does not
+/// reproduce the reported bug; it is noted here as a narrower, pre-existing (not introduced by
+/// this change) correctness edge case for future hardening (e.g. `INSERT ... RETURNING`).
+#[derive(Clone)]
+pub struct GuardedConnection {
+    inner: turso::Connection,
+    lock: std::sync::Arc<tokio::sync::Mutex<()>>,
+}
+
+impl GuardedConnection {
+    pub(crate) fn new(inner: turso::Connection) -> Self {
+        Self {
+            inner,
+            lock: std::sync::Arc::new(tokio::sync::Mutex::new(())),
+        }
+    }
+
+    /// Guarded [`turso::Connection::query`].
+    #[inline]
+    pub async fn query(
+        &self,
+        sql: impl AsRef<str>,
+        params: impl turso::IntoParams,
+    ) -> turso::Result<turso::Rows> {
+        let _guard = self.lock.lock().await;
+        self.inner.query(sql, params).await
+    }
+
+    /// Guarded [`turso::Connection::execute`].
+    #[inline]
+    pub async fn execute(
+        &self,
+        sql: impl AsRef<str>,
+        params: impl turso::IntoParams,
+    ) -> turso::Result<u64> {
+        let _guard = self.lock.lock().await;
+        self.inner.execute(sql, params).await
+    }
+
+    /// Guarded [`turso::Connection::execute_batch`].
+    #[inline]
+    pub async fn execute_batch(&self, sql: impl AsRef<str>) -> turso::Result<()> {
+        let _guard = self.lock.lock().await;
+        self.inner.execute_batch(sql).await
+    }
+
+    /// Guarded [`turso::Connection::pragma_update`].
+    #[inline]
+    pub async fn pragma_update<V: std::fmt::Display>(
+        &self,
+        pragma_name: &str,
+        pragma_value: V,
+    ) -> turso::Result<Vec<turso::Row>> {
+        let _guard = self.lock.lock().await;
+        self.inner.pragma_update(pragma_name, pragma_value).await
+    }
+}
+
+impl std::ops::Deref for GuardedConnection {
+    type Target = turso::Connection;
+
+    fn deref(&self) -> &turso::Connection {
+        &self.inner
+    }
+}
+
+#[cfg(test)]
+mod guarded_connection_tests {
+    /// Reproduces the reported data-loss bug: many concurrent tasks writing through clones of
+    /// the same `VoxDb` (as `gui_db_pool.rs` does with one shared `Arc<VoxDb>`) must ALL
+    /// succeed, never surface `turso::Error::Misuse("concurrent use forbidden")`.
+    ///
+    /// Before the `GuardedConnection` fix this test flakes/fails under `cargo test` (which uses
+    /// a multi-threaded Tokio test runtime by default) with exactly that Misuse error on at
+    /// least one of the concurrent branches.
+    #[cfg(feature = "local")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    async fn concurrent_writes_through_shared_voxdb_all_succeed() {
+        let db = crate::VoxDb::connect(crate::DbConfig::Memory)
+            .await
+            .expect("in-memory connect");
+        db.connection()
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS concurrency_probe (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    label TEXT NOT NULL
+                )",
+            )
+            .await
+            .expect("create probe table");
+
+        let db = std::sync::Arc::new(db);
+        let mut handles = Vec::new();
+        const N: usize = 64;
+        for i in 0..N {
+            let db = db.clone();
+            handles.push(tokio::spawn(async move {
+                // Mix `execute` and `query` (mirrors chat_append_message-style writes plus reads)
+                // to exercise both guarded methods concurrently.
+                let label = format!("task-{i}");
+                db.connection()
+                    .execute(
+                        "INSERT INTO concurrency_probe (label) VALUES (?1)",
+                        turso::params![label.clone()],
+                    )
+                    .await?;
+                let mut rows = db
+                    .connection()
+                    .query(
+                        "SELECT COUNT(*) FROM concurrency_probe WHERE label = ?1",
+                        turso::params![label],
+                    )
+                    .await?;
+                let _ = rows.next().await?;
+                Ok::<(), turso::Error>(())
+            }));
+        }
+
+        let mut misuse_errors = Vec::new();
+        for h in handles {
+            if let Err(e) = h.await.expect("task panicked") {
+                misuse_errors.push(e.to_string());
+            }
+        }
+        assert!(
+            misuse_errors.is_empty(),
+            "expected all {N} concurrent DB operations to succeed, got errors: {misuse_errors:?}"
+        );
+
+        let mut rows = db
+            .connection()
+            .query("SELECT COUNT(*) FROM concurrency_probe", ())
+            .await
+            .expect("count query");
+        let row = rows
+            .next()
+            .await
+            .expect("count row")
+            .expect("count row present");
+        let count: i64 = row.get(0).expect("count value");
+        assert_eq!(
+            count, N as i64,
+            "every concurrent insert must be durably persisted, not silently dropped"
+        );
     }
 }
 

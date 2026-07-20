@@ -115,7 +115,7 @@ impl VoxDbPool {
         };
 
         Ok(VoxDb {
-            conn,
+            conn: crate::GuardedConnection::new(conn),
             sync_db: sync_db_out,
             local_db: None,
             writer: self.writer.get().cloned(),
