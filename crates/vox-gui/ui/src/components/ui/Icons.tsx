@@ -138,6 +138,31 @@ export const Icon = {
       <path d="M14 3v6h6" />
     </svg>
   ),
+  message: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}>
+      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v10a1.5 1.5 0 0 1-1.5 1.5H9l-4.5 4v-4H5.5A1.5 1.5 0 0 1 4 15.5v-10Z" />
+      <path d="M8 9h8M8 12.5h5" />
+    </svg>
+  ),
+  book: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}>
+      <path d="M4 5.5C4 4.67 4.67 4 5.5 4H12v16H5.5A1.5 1.5 0 0 1 4 18.5v-13Z" />
+      <path d="M20 5.5c0-.83-.67-1.5-1.5-1.5H12v16h6.5a1.5 1.5 0 0 0 1.5-1.5v-13Z" />
+      <path d="M12 4v16" />
+    </svg>
+  ),
+  folder: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}>
+      <path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h4.6l1.8 2H18.5A1.5 1.5 0 0 1 20 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5v-10Z" />
+    </svg>
+  ),
+  terminal: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}>
+      <rect x="3" y="4" width="18" height="16" rx="1.5" />
+      <path d="M7 9l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12.5 15h4.5" strokeLinecap="round" />
+    </svg>
+  ),
   cpu: (p: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}>
       <rect x="6" y="6" width="12" height="12" rx="1.5" />

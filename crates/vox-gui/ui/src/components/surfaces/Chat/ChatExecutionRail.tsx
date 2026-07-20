@@ -112,7 +112,7 @@ export function ChatExecutionRail({
   }
 
   return (
-    <aside aria-label="Execution rail" className="w-56 shrink-0">
+    <aside aria-label="Execution rail" className="w-64 shrink-0">
       <Glass className="flex h-full flex-col gap-3 p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('chat-execution')}</h2>
@@ -143,7 +143,7 @@ export function ChatExecutionRail({
                   key={task.id}
                   className="rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-2"
                 >
-                  <p className="text-xs text-text-secondary leading-snug">{task.title}</p>
+                  <p className="text-xs text-text-secondary leading-snug truncate" title={task.title}>{task.title}</p>
                   {task.status && (
                     <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-text-muted">
                       {task.status}

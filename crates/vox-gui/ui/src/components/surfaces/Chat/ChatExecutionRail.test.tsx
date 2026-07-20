@@ -49,6 +49,22 @@ describe('ChatExecutionRail', () => {
     expect(screen.getByText(/running/i)).toBeInTheDocument();
   });
 
+  it('truncates a long task title to a single line rather than wrapping', () => {
+    const longTitle = 'Describe a task with a very long and detailed multi-clause description that would otherwise wrap across several lines in the rail';
+    render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[{ id: 't1', title: longTitle, status: 'running' }]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    const titleEl = screen.getByText(longTitle);
+    expect(titleEl.className).toContain('truncate');
+    expect(titleEl).toHaveAttribute('title', longTitle);
+  });
+
   it('shows resource strip with agents, queue depth, and mesh peers from props', () => {
     render(
       <LanguageProvider>
