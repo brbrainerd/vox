@@ -189,6 +189,12 @@ pub struct AiTaskProcessor {
     /// preserves the pre-existing breadcrumb-only behavior (e.g. in tests, or
     /// hosts that never wire an MCP `ServerState` in-process).
     tool_dispatcher: Option<Arc<dyn ToolDispatcher>>,
+    /// Compacts the phase-loop `notes` scratchpad before it is resent as
+    /// "Known notes" in each phase's prompt, so a long-running task's notes
+    /// stop growing raw and unbounded (mirrors `session/state.rs`'s
+    /// `compact_auto` use of the same engine over session history). A no-op
+    /// below the engine's configured trigger threshold.
+    compaction: crate::compaction::CompactionEngine,
 }
 
 // TaskPhase moved to types/tasks.rs
@@ -208,6 +214,9 @@ impl AiTaskProcessor {
             provider,
             model,
             tool_dispatcher: None,
+            compaction: crate::compaction::CompactionEngine::new(
+                crate::compaction::CompactionConfig::default(),
+            ),
         }
     }
 
@@ -315,6 +324,107 @@ impl AiTaskProcessor {
             }
         }
         Ok(phase_text)
+    }
+}
+
+/// Compact the phase-loop `notes` scratchpad through `engine` before it's
+/// resent as "Known notes" in the next phase's prompt. `notes` is built as
+/// `"[{phase}]\n{phase_out}"` blocks joined by `"\n\n"` — one `Turn` per
+/// phase block is the natural mapping, role `"assistant"` (all agent output;
+/// `compaction.rs`'s trim strategies only special-case role `"system"`, never
+/// `"user"`, so no "user turns protected from trimming" concern applies
+/// here). A no-op below the engine's configured trigger threshold, mirroring
+/// `session/state.rs::compact_auto`'s reassignment pattern (retained turns'
+/// content rejoined back into the working string) rather than merely
+/// computing a value that's never applied.
+///
+/// Phase notes are an internal scratchpad the task discards on completion
+/// (unlike session transcripts, which are user-facing history), so unlike
+/// `Session::compact_auto` this deliberately does NOT durably archive
+/// `dropped_turns` — losing them here is acceptable.
+///
+/// Known limitation (not fixed here): with 6 phases per task and unbounded
+/// individual `phase_out` size, a single very large phase output can itself
+/// exceed `CompactionConfig::tail_preserve_tokens` (default 8000) and get
+/// trimmed even though it's the most recent, most relevant turn. Not a
+/// regression — today's uncompacted behavior has no protection at all — but
+/// worth tuning later.
+fn compact_notes(engine: &crate::compaction::CompactionEngine, notes: &str) -> String {
+    if notes.is_empty() {
+        return notes.to_string();
+    }
+    let history_turns: Vec<crate::compaction::Turn> = notes
+        .split("\n\n")
+        .map(|block| crate::compaction::Turn::new("assistant", block))
+        .collect();
+    match engine.compact(&history_turns) {
+        Ok(result) if result.compacted => result
+            .retained_turns
+            .iter()
+            .map(|t| t.content.clone())
+            .collect::<Vec<_>>()
+            .join("\n\n"),
+        _ => notes.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod compact_notes_tests {
+    use super::compact_notes;
+    use crate::compaction::{CompactionConfig, CompactionEngine, CompactionStrategy};
+
+    /// Red-then-green proof for Task C1: with a small trigger threshold, a
+    /// `notes` scratchpad that's grown past it must come back shorter than
+    /// the raw concatenation would be. Before `compact_notes` was wired into
+    /// the phase loop, `notes` was resent raw and unbounded every phase.
+    #[test]
+    fn compact_notes_shrinks_once_over_trigger() {
+        let config = CompactionConfig {
+            max_context_tokens: 200,
+            reserved_tokens: 0,
+            compaction_threshold: 0.5, // trigger_at() == 100 tokens
+            min_viable_tokens: 10,
+            strategy: CompactionStrategy::Balanced,
+            head_preserve_tokens: 5,
+            tail_preserve_tokens: 20,
+            complexity_token_weight: 32,
+        };
+        let engine = CompactionEngine::new(config);
+
+        let notes = (0..50)
+            .map(|i| {
+                format!(
+                    "[phase{i}]\nsome moderately long phase output text accumulating tokens quickly across many phases"
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n");
+
+        let compacted = compact_notes(&engine, &notes);
+
+        assert!(
+            compacted.len() < notes.len(),
+            "compact_notes must shrink notes once past the configured trigger threshold \
+             (raw len={}, compacted len={})",
+            notes.len(),
+            compacted.len()
+        );
+    }
+
+    /// Below the trigger threshold, compaction must be a complete no-op —
+    /// short conversations/early phases are unaffected.
+    #[test]
+    fn compact_notes_is_noop_below_trigger() {
+        let engine = CompactionEngine::new(CompactionConfig::default());
+        let notes = "[inspect]\nshort note".to_string();
+        let compacted = compact_notes(&engine, &notes);
+        assert_eq!(compacted, notes);
+    }
+
+    #[test]
+    fn compact_notes_handles_empty() {
+        let engine = CompactionEngine::new(CompactionConfig::default());
+        assert_eq!(compact_notes(&engine, ""), "");
     }
 }
 
@@ -553,6 +663,11 @@ impl TaskProcessor for AiTaskProcessor {
                 agent_id,
                 phase,
             });
+
+            // Compact the accumulated scratchpad before it's resent as
+            // "Known notes" in this phase's prompt (Task C1) - a no-op below
+            // the engine's configured trigger threshold.
+            notes = compact_notes(&self.compaction, &notes);
 
             let phase_out = match self
                 .run_phase_stream(
