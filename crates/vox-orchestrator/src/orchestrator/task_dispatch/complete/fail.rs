@@ -482,3 +482,37 @@ impl Orchestrator {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::config::OrchestratorConfig;
+    use crate::orchestrator::Orchestrator;
+    use crate::types::FileAffinity;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn fail_task_after_abort_interrupted_task_does_not_silently_no_op() {
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let agent_id = orch.spawn_agent("a1").unwrap();
+        let task_id = orch
+            .submit_task_with_agent(
+                "task for abort-then-fail regression",
+                vec![FileAffinity::write("state_inv/b0_abort_then_fail.rs")],
+                None,
+                Some("a1".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+
+        orch.abort_interrupted_task(task_id, agent_id);
+        let result = orch.fail_task(task_id, "boom".into()).await;
+
+        assert!(
+            result.is_ok(),
+            "fail_task must not silently no-op after abort_interrupted_task already ran: {result:?}"
+        );
+    }
+}

@@ -380,7 +380,13 @@ impl crate::orchestrator::Orchestrator {
                 task_id
             );
         }
-        crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);
+        // NOTE: task_assignments is intentionally NOT removed here. Removing
+        // this task's agent_id -> task_id assignment is the job of whichever
+        // terminal-state call follows (fail_task / complete_task), which
+        // looks the agent_id up by task_id in this same map. Removing it here
+        // made fail_task_with_audit's subsequent lookup bail with
+        // TaskNotFound and silently no-op for every task that hit this path
+        // (see Task B0 in the orchestrator-chat-latency-reliability plan).
         crate::sync_lock::rw_write(&self.interrupt_flags).remove(&task_id);
         tracing::info!(
             "Aborted interrupted task {} on agent {} (local_interrupt)",
