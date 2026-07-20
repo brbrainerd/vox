@@ -22,12 +22,16 @@ import { type McpInvokeResult } from './lib/mcpToolResult';
 import {
   assistantMessagesReadyToPersist,
   assistantPersistContent,
+  chatReducer,
+  PENDING_TIMEOUT_MS,
 } from './lib/chatCorrelation';
 import {
   getSessionMessages,
   initialSessionChatStore,
   resolveSessionForEvent,
   sessionChatReducer,
+  type SessionChatAction,
+  type SessionChatStore,
 } from './lib/sessionChatStore';
 import { mapAgentEvent } from './lib/mapAgentEvent';
 import { contextRefsFromPayload } from './lib/loquelaContext';
@@ -190,6 +194,30 @@ function mapAlert(a: RawLudusAlert): LudusAlert {
   };
 }
 
+// ── Chat pending-bubble watchdog ─────────────────────────────────────────────
+// `pendingTimeout` is a store-level sweep (every session) layered on top of
+// sessionChatReducer; the per-bubble expiry logic lives in chatCorrelation's
+// chatReducer so it stays pure and unit-testable.
+type AppChatAction = SessionChatAction | { type: 'pendingTimeout'; nowMs: number };
+
+/** How often the watchdog sweeps for stale pending bubbles (a fraction of
+ *  PENDING_TIMEOUT_MS so expiry lands close to the 90s mark). */
+const PENDING_WATCHDOG_SWEEP_MS = Math.max(1_000, Math.floor(PENDING_TIMEOUT_MS / 18));
+
+function appChatReducer(store: SessionChatStore, action: AppChatAction): SessionChatStore {
+  if (action.type === 'pendingTimeout') {
+    let changed = false;
+    const sessions: SessionChatStore['sessions'] = {};
+    for (const [sid, state] of Object.entries(store.sessions)) {
+      const next = chatReducer(state, action);
+      if (next !== state) changed = true;
+      sessions[sid] = next;
+    }
+    return changed ? { ...store, sessions } : store;
+  }
+  return sessionChatReducer(store, action);
+}
+
 export default function App() {
   const [data, setData] = useState<DashboardData>(INITIAL_DATA);
   const [kpis, setKpis] = useState(INITIAL_KPIS);
@@ -258,7 +286,7 @@ export default function App() {
   }, [achievementToasts.handleGuiEventResult]);
 
   // ── B4-chat: pure-reducer transcript state for the Loquela composer ────────
-  const [chatStore, dispatchSessionChat] = useReducer(sessionChatReducer, initialSessionChatStore);
+  const [chatStore, dispatchSessionChat] = useReducer(appChatReducer, initialSessionChatStore);
   const chatStoreRef = useRef(chatStore);
   chatStoreRef.current = chatStore;
   const [sessionAgentStreams, setSessionAgentStreams] = useState<Record<string, StreamItem[]>>({});
@@ -479,6 +507,16 @@ export default function App() {
       cancelled = true;
       if (unlisten) unlisten();
     };
+  }, []);
+
+  // ── Pending-bubble honesty watchdog: nothing server-side ever expires a
+  // pending chat bubble, so sweep client-side and flip anything stuck in
+  // `pending` for PENDING_TIMEOUT_MS to an honest failure.
+  useEffect(() => {
+    const id = setInterval(() => {
+      dispatchSessionChat({ type: 'pendingTimeout', nowMs: Date.now() });
+    }, PENDING_WATCHDOG_SWEEP_MS);
+    return () => clearInterval(id);
   }, []);
 
   // T1.5: best-effort extraction of the orchestrator's numeric task_id from a

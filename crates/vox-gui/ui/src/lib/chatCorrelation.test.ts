@@ -5,6 +5,8 @@ import {
   chatReducer,
   initialChatState,
   messagesForSession,
+  PENDING_TIMEOUT_MESSAGE,
+  PENDING_TIMEOUT_MS,
   type ChatState,
 } from './chatCorrelation';
 
@@ -127,6 +129,65 @@ describe('chatReducer', () => {
   it('ignores cost_incurred for unknown agents', () => {
     const s = chatReducer(initialChatState, evt({ type: 'cost_incurred', agent_id: 99, provider: 'x', model: 'm' }));
     expect(s.messages).toHaveLength(0);
+  });
+});
+
+describe('pendingTimeout watchdog', () => {
+  it('flips a pending bubble older than the timeout to failed with an honest message', () => {
+    const t0 = 1_000_000;
+    let s = chatReducer(initialChatState, { type: 'submit', runId: 'R1', prompt: 'hi', nowMs: t0 });
+    s = chatReducer(s, { type: 'pendingTimeout', nowMs: t0 + PENDING_TIMEOUT_MS + 1 });
+    expect(assistant(s, 'R1')).toMatchObject({
+      status: 'failed',
+      error: PENDING_TIMEOUT_MESSAGE,
+    });
+  });
+
+  it('leaves a fresh pending bubble alone', () => {
+    const t0 = 1_000_000;
+    let s = chatReducer(initialChatState, { type: 'submit', runId: 'R1', prompt: 'hi', nowMs: t0 });
+    s = chatReducer(s, { type: 'pendingTimeout', nowMs: t0 + PENDING_TIMEOUT_MS - 1 });
+    expect(assistant(s, 'R1')?.status).toBe('pending');
+  });
+
+  it('does not touch streaming, done, or failed bubbles even when old', () => {
+    const t0 = 1_000_000;
+    // streaming
+    let s = chatReducer(initialChatState, { type: 'submit', runId: 'R1', prompt: 'a', nowMs: t0 });
+    s = chatReducer(s, { type: 'submitResolved', runId: 'R1', taskId: '7' });
+    s = chatReducer(s, evt({ type: 'task_started', task_id: 7, agent_id: 3 }));
+    s = chatReducer(s, evt({ type: 'token_streamed', agent_id: 3, text: 'x' }));
+    // done
+    s = chatReducer(s, { type: 'submit', runId: 'R2', prompt: 'b', nowMs: t0 });
+    s = chatReducer(s, { type: 'submitResolved', runId: 'R2', taskId: '8' });
+    s = chatReducer(s, evt({ type: 'task_completed', task_id: 8, agent_id: 4 }));
+    // failed (with its original error preserved)
+    s = chatReducer(s, { type: 'submit', runId: 'R3', prompt: 'c', nowMs: t0 });
+    s = chatReducer(s, { type: 'failRun', runId: 'R3', error: 'boom' });
+
+    s = chatReducer(s, { type: 'pendingTimeout', nowMs: t0 + PENDING_TIMEOUT_MS * 10 });
+    expect(assistant(s, 'R1')?.status).toBe('streaming');
+    expect(assistant(s, 'R2')?.status).toBe('done');
+    expect(assistant(s, 'R3')).toMatchObject({ status: 'failed', error: 'boom' });
+  });
+
+  it('returns the same state object when nothing times out (no spurious re-render)', () => {
+    const t0 = 1_000_000;
+    const s = chatReducer(initialChatState, { type: 'submit', runId: 'R1', prompt: 'hi', nowMs: t0 });
+    const after = chatReducer(s, { type: 'pendingTimeout', nowMs: t0 + 10 });
+    expect(after).toBe(s);
+  });
+
+  it('skips pending bubbles that predate createdAtMs stamping', () => {
+    // Legacy-shaped state: pending assistant without createdAtMs.
+    const s: ChatState = {
+      ...initialChatState,
+      messages: [
+        { id: 'a', role: 'assistant', text: '', status: 'pending', runId: 'R1' },
+      ],
+    };
+    const after = chatReducer(s, { type: 'pendingTimeout', nowMs: Number.MAX_SAFE_INTEGER });
+    expect(after.messages[0].status).toBe('pending');
   });
 });
 

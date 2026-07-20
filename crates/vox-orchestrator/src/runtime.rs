@@ -1014,6 +1014,63 @@ impl AgentFleet {
         drop(handles);
     }
 
+    /// Supervisor-tick nudge: send [`AgentCommand::ProcessQueue`] to every
+    /// agent that has queued work and is not already processing a task.
+    ///
+    /// This is the tick the `ProcessQueue` doc comment always claimed existed.
+    /// Without it, the ONLY notifies are sent at submit time
+    /// (`task_submit.rs` / `batch.rs`), and those are silently skipped when
+    /// the agent's actor handle does not exist yet — which is exactly the
+    /// case when routing spawned the agent during the same submit (the handle
+    /// is only registered by [`Self::sync_fleet`]'s next tick). The first
+    /// such task queued forever, and because `handle_command` drains exactly
+    /// one task per notify, every later submit's notify drained one OLDER
+    /// task: permanently one behind.
+    pub async fn nudge_queued_agents(&self) {
+        for agent_id in self.orchestrator.agent_ids() {
+            let should_nudge = match self.orchestrator.agent_queue(agent_id) {
+                Some(queue_lock) => {
+                    let queue = crate::sync_lock::rw_read(&*queue_lock);
+                    queue.len() > 0 && !queue.has_in_progress() && !queue.is_paused()
+                }
+                None => false,
+            };
+            if !should_nudge {
+                continue;
+            }
+            let handle = crate::sync_lock::rw_read(&*self.orchestrator.agent_handles)
+                .get(&agent_id)
+                .cloned();
+            let Some(handle) = handle else {
+                // Actor not created yet; sync_fleet will register it and the
+                // next tick nudges again.
+                continue;
+            };
+            let json = serde_json::to_string(&AgentCommand::ProcessQueue).unwrap_or_else(|e| {
+                tracing::warn!("serialize ProcessQueue: {e}");
+                "{}".to_string()
+            });
+            let env = vox_actor_runtime::mailbox::Envelope::Message(
+                vox_actor_runtime::mailbox::Message {
+                    from: vox_actor_runtime::Pid::new(),
+                    payload: MessagePayload::Json(json.into()),
+                },
+            );
+            match tokio::time::timeout(vox_config::timeouts::D_5S, handle.send(env)).await {
+                Ok(send_res) => {
+                    if let Err(e) = send_res {
+                        tracing::warn!(
+                            "fleet tick: ProcessQueue nudge to agent {agent_id} failed: {e:?}"
+                        );
+                    }
+                }
+                Err(_) => {
+                    tracing::warn!("fleet tick: ProcessQueue nudge to agent {agent_id} timed out")
+                }
+            }
+        }
+    }
+
     /// Check if agents need to be spawned or retired using ScalingService and profile limits.
     pub async fn check_scaling(&self) {
         // Reset spawn counter at the start of each scaling cycle so each tick
@@ -1137,6 +1194,10 @@ impl AgentFleet {
 
             // 2. Sync fleet (ensure all agents have actors)
             self.sync_fleet().await;
+
+            // 2b. Nudge agents with queued work (closes the spawn-at-submit
+            // notify race and the one-behind drain — see nudge_queued_agents).
+            self.nudge_queued_agents().await;
 
             // 3. Perform orchestrator maintenance (rebalance and tick)
             {

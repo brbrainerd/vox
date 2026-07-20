@@ -20,7 +20,18 @@ export interface ChatMessage {
   sessionId?: string;
   /** Model that produced this assistant message (from cost_incurred). */
   modelId?: string;
+  /** Wall-clock ms when the bubble was created (drives the pending watchdog). */
+  createdAtMs?: number;
 }
+
+/** How long an assistant bubble may sit in `pending` before the client-side
+ *  watchdog flips it to `failed`. Nothing server-side ever expires a pending
+ *  bubble, so without this a dropped/never-drained task "thinks" forever. */
+export const PENDING_TIMEOUT_MS = 90_000;
+
+/** Honest failure text for a watchdog-expired pending bubble. */
+export const PENDING_TIMEOUT_MESSAGE =
+  'No agent picked this up — the orchestrator may be overloaded or down.';
 
 /** A frame delivered over the `vox://agent-events` Tauri event. */
 export interface AgentEventFrame {
@@ -66,10 +77,13 @@ export function assistantPersistContent(message: ChatMessage): string {
 }
 
 export type ChatAction =
-  | { type: 'submit'; runId: string; prompt: string; sessionId?: string }
+  | { type: 'submit'; runId: string; prompt: string; sessionId?: string; nowMs?: number }
   | { type: 'submitResolved'; runId: string; taskId: string }
   | { type: 'failRun'; runId: string; error: string }
-  | { type: 'agentEvent'; event: AgentEventFrame };
+  | { type: 'agentEvent'; event: AgentEventFrame }
+  /** Watchdog sweep: flip bubbles stuck in `pending` since before
+   *  `nowMs - PENDING_TIMEOUT_MS` to `failed` (honest client-side expiry). */
+  | { type: 'pendingTimeout'; nowMs: number };
 
 /**
  * Messages belonging to `sessionId`. Pre-session messages (sessionId == null)
@@ -120,6 +134,7 @@ function evictAgentToTask(state: ChatState, agentId: unknown): ChatState {
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
     case 'submit': {
+      const createdAtMs = action.nowMs ?? Date.now();
       const user: ChatMessage = {
         id: `${action.runId}:user`,
         role: 'user',
@@ -127,6 +142,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         status: 'done',
         runId: action.runId,
         sessionId: action.sessionId,
+        createdAtMs,
       };
       const assistant: ChatMessage = {
         id: assistantId(action.runId),
@@ -135,8 +151,27 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         status: 'pending',
         runId: action.runId,
         sessionId: action.sessionId,
+        createdAtMs,
       };
       return { ...state, messages: [...state.messages, user, assistant] };
+    }
+
+    case 'pendingTimeout': {
+      const cutoff = action.nowMs - PENDING_TIMEOUT_MS;
+      let changed = false;
+      const messages = state.messages.map((m) => {
+        if (
+          m.role === 'assistant' &&
+          m.status === 'pending' &&
+          m.createdAtMs != null &&
+          m.createdAtMs <= cutoff
+        ) {
+          changed = true;
+          return { ...m, status: 'failed' as const, error: PENDING_TIMEOUT_MESSAGE };
+        }
+        return m;
+      });
+      return changed ? { ...state, messages } : state;
     }
 
     case 'submitResolved': {
