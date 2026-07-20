@@ -589,6 +589,7 @@ impl TaskProcessor for AiTaskProcessor {
                         task_id: task.id,
                         reason: reason.clone(),
                     });
+                    self.orchestrator.abort_interrupted_task(task.id, agent_id);
                     return Err(anyhow::anyhow!("Safety Halt: {}", reason));
                 }
                 crate::budget::DriftDecision::WarnUser {
