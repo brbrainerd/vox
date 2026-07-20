@@ -230,6 +230,9 @@ impl Orchestrator {
         let _capability_requirements = task.capability_requirements.clone();
         let _relay_thread_id_seed = task.thread_id.clone();
         let _relay_harness_spec_json_seed = task.harness_spec_json.clone();
+        // Captured before `task` is moved into `task_for_enqueue` below —
+        // see the pre-enqueue goal/CRAG skip further down this function.
+        let is_chat_task = task.task_category == crate::types::TaskCategory::Chat;
 
         let (policy_trust, scope_enforcement) = {
             let cfg = crate::sync_lock::rw_read(&*self.config);
@@ -1017,7 +1020,14 @@ impl Orchestrator {
             traces.insert(task_id, steps);
         }
 
-        if !retrieval_context_attached {
+        // Chat-category tasks are a single conversational turn, not a goal to
+        // decompose — the CRAG/autonomous-research pipeline below runs several
+        // search hops and LLM/embedding calls synchronously before the task is
+        // even enqueued, adding tens of seconds of latency before the fast
+        // ChatTaskProcessor path (see runtime.rs) ever starts. Skipping it here
+        // is the other half of the "chat thinks forever" fix — completion.rs
+        // fixed the post-dequeue gate loop, this fixes the pre-enqueue delay.
+        if !retrieval_context_attached && !is_chat_task {
             let attached_retrieval =
                 self.attach_session_retrieval_envelope_if_present(task_id, &session_id);
             if !attached_retrieval {
@@ -1290,6 +1300,73 @@ mod mesh_dispatch_policy_tests {
         assert!(
             task.executor_node_id.is_none(),
             "executor_node_id must be None until a node is assigned"
+        );
+    }
+}
+
+/// Reproduces a live latency bug: every submitted task — including
+/// Chat-category ones — ran `attach_goal_search_context_with_retrieval`
+/// synchronously before being enqueued, adding real (sometimes 60+ second)
+/// autonomous-research/CRAG latency before the fast `ChatTaskProcessor` path
+/// ever started. A chat reply doesn't need goal decomposition, so this is
+/// skipped for `TaskCategory::Chat` (see `is_chat_task` in
+/// `process_task_submission_logic`).
+#[cfg(test)]
+mod chat_skips_goal_search_context_tests {
+    use crate::orchestrator::{Orchestrator, OrchestratorConfig};
+    use crate::types::{TaskCategory, TaskEnqueueHints};
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn chat_category_task_never_gets_goal_search_context_attached() {
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let hints = TaskEnqueueHints {
+            task_category: Some(TaskCategory::Chat),
+            ..Default::default()
+        };
+        let task_id = orch
+            .submit_task_with_agent(
+                "Say hello in one word.",
+                vec![],
+                None,
+                None,
+                None,
+                Some(hints),
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+
+        let task = orch
+            .all_tasks()
+            .into_iter()
+            .find(|t| t.id == task_id)
+            .expect("submitted task must be queued");
+        assert!(
+            task.socrates.is_none(),
+            "chat-category task must skip goal/CRAG context attachment entirely"
+        );
+    }
+
+    /// Contrast case: a non-chat task still gets goal search context attached
+    /// (via the fast no-DB heuristic path in test config) — proves the skip
+    /// above is specific to `TaskCategory::Chat`, not a general regression.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn non_chat_task_still_gets_goal_search_context_attached() {
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let task_id = orch
+            .submit_task("Implement a new feature.", vec![], None, None, None)
+            .await
+            .unwrap();
+
+        let task = orch
+            .all_tasks()
+            .into_iter()
+            .find(|t| t.id == task_id)
+            .expect("submitted task must be queued");
+        assert!(
+            task.socrates.is_some(),
+            "non-chat task must still get goal/CRAG context attached"
         );
     }
 }
