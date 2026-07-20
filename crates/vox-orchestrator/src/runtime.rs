@@ -1031,7 +1031,10 @@ impl AgentFleet {
             let should_nudge = match self.orchestrator.agent_queue(agent_id) {
                 Some(queue_lock) => {
                     let queue = crate::sync_lock::rw_read(&*queue_lock);
-                    queue.len() > 0 && !queue.has_in_progress() && !queue.is_paused()
+                    // has_ready_task (not len>0): a queue holding only
+                    // dependency-blocked/Doubted tasks would otherwise be
+                    // nudged every tick forever, each a no-op dequeue.
+                    queue.has_ready_task() && !queue.has_in_progress()
                 }
                 None => false,
             };

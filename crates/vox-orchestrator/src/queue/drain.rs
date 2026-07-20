@@ -22,6 +22,19 @@ impl AgentQueue {
         Some(task)
     }
 
+    /// Would [`Self::dequeue`] return a task right now? Mirrors its exact
+    /// predicate (Queued + deps satisfied + not paused) without mutating.
+    /// Used by the fleet tick's nudge so agents whose queues hold only
+    /// dependency-blocked/Doubted tasks aren't sent a pointless
+    /// `ProcessQueue` every second forever.
+    pub fn has_ready_task(&self) -> bool {
+        !self.paused
+            && self.tasks.iter().any(|t| match &t.status {
+                TaskStatus::Queued => t.is_ready(&self.completed),
+                _ => false,
+            })
+    }
+
     /// Dequeue a task that is currently in Doubted status.
     pub fn dequeue_doubted(&mut self) -> Option<AgentTask> {
         if self.paused {
@@ -312,6 +325,32 @@ mod semcov_drain_tests {
         q.dequeue();
         assert!(!q.mark_complete(TaskId(999)));
         assert_eq!(q.completed_count(), 0);
+    }
+
+    // Catches: the fleet tick's nudge predicate treating a queue of only
+    // dependency-blocked tasks as nudgeable — which would send a pointless
+    // ProcessQueue every second forever (no-op dequeue churn).
+    #[test]
+    fn has_ready_task_mirrors_dequeue_readiness() {
+        let mut q = AgentQueue::new(AgentId(1), "a");
+        assert!(!q.has_ready_task(), "empty queue has nothing ready");
+
+        // Only a dependency-blocked task: not ready, must not report ready.
+        q.enqueue(task(2).depends_on(TaskId(1)));
+        assert!(!q.has_ready_task(), "blocked-only queue is not nudgeable");
+
+        // An unblocked task arrives: now ready.
+        q.enqueue(task(3));
+        assert!(q.has_ready_task());
+
+        // Paused queues are never ready (dequeue also refuses).
+        q.pause();
+        assert!(!q.has_ready_task());
+        q.resume();
+
+        // Draining the ready task leaves only the blocked one again.
+        assert_eq!(q.dequeue().expect("t3 ready").id, TaskId(3));
+        assert!(!q.has_ready_task());
     }
 
     // Catches: max_handoff_count ignoring queued tasks (or the in-progress task),
