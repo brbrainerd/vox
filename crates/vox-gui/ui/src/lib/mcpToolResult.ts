@@ -1,6 +1,17 @@
 /**
  * Parse envelopes returned by `invoke_mcp_tool` (B5).
  * Daemon tools wrap payloads as `{ success, data, error?, remediation? }`.
+ *
+ * All parsers here accept a null/undefined envelope (invokeMcpTool's
+ * Promise<{...}> signature is not truthful about non-nullability — it's a
+ * thin passthrough with no runtime check, F-02) and return a null-safe
+ * result INSTEAD OF throwing a raw TypeError. That result is per-function,
+ * not uniform: list-shaped parsers fall back to an empty list/null (there is
+ * a sensible "nothing here" value), while parseGraphifyStatus throws an
+ * honest Error (a search-index status has no meaningful empty state, so a
+ * throw preserving its existing is_error-throws contract is the right null
+ * response too). Callers still own UX-level fallback/empty-state rendering —
+ * this module only guarantees the parse layer never leaks a raw TypeError.
  */
 
 export interface McpInvokeResult {
