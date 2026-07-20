@@ -1181,6 +1181,10 @@ export default function App() {
     chatActiveModel: activeModel,
     chatModelOverride,
     onChatModelOverrideChange: setChatModelOverride,
+    // No orchestrator plan session is created from chat yet, so PlanPanel
+    // renders its honest empty state until a producer wires this up.
+    chatPlanSessionId: null,
+    chatPlanVersion: null,
     chatOpenrouterSpendUsd: openrouterSpendUsd,
     chatAgentStreamItems: activeChatAgentItems,
     onOpenAgentInFlow: (agentId: string) => {

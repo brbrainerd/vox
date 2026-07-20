@@ -14,6 +14,10 @@ import {
 } from './ChatExecutionRail';
 import { ChatSessionRail } from './ChatSessionRail';
 import { ChatModelPicker } from './ChatModelPicker';
+import { PlanPanel, type PlanNodeView } from './PlanPanel';
+import { listPlanNodes } from '../../../transport';
+import { useLocalStorage } from '../../../hooks/useLocalStorage';
+import { Glass } from '../../ui/Glass';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import type { AttentionBudgetSnapshot } from '../../../types/tauri';
 import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
@@ -51,6 +55,9 @@ interface ChatSurfaceProps {
   blockedTasks?: number;
   modelOverride?: string | null;
   onModelOverrideChange?: (id: string | null) => void;
+  /** Live plan-DAG identity for this session, if the current task has synthesized a plan. */
+  planSessionId?: string | null;
+  planVersion?: number | null;
 }
 
 export function ChatSurface({
@@ -74,10 +81,17 @@ export function ChatSurface({
   blockedTasks = 0,
   modelOverride,
   onModelOverrideChange,
+  planSessionId,
+  planVersion,
 }: ChatSurfaceProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
   const activeId = activeSessionId ?? '';
+  const [planNodes, setPlanNodes] = useState<PlanNodeView[]>([]);
+  const [planPanelCollapsed, setPlanPanelCollapsed] = useLocalStorage<boolean>(
+    'gui.chat.plan_panel_collapsed.v1',
+    false,
+  );
 
   // Responsive rails: measure the surface container (NOT the window) so the app
   // shell sidebar width is accounted for, then auto-hide rails when narrow.
@@ -130,6 +144,24 @@ export function ChatSurface({
   useEffect(() => {
     loadSessions();
   }, [loadSessions]);
+
+  useEffect(() => {
+    if (!planSessionId || planVersion == null) {
+      setPlanNodes([]);
+      return;
+    }
+    let cancelled = false;
+    listPlanNodes(planSessionId, planVersion)
+      .then((rows: PlanNodeView[]) => {
+        if (!cancelled) setPlanNodes(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setPlanNodes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [planSessionId, planVersion]);
 
   useEffect(() => {
     const sub = listenSecretaryProposed((payload) => {
@@ -334,6 +366,48 @@ export function ChatSurface({
           {executionRailNode}
         </div>
       ) : null}
+
+      {/* Plan panel: fourth panel in the plain flex row (dockview adoption is
+          Phase B / future work — see docs/superpowers/plans/2026-07-20-chat-flow-docking-redesign.md).
+          Positioned as a sibling strip after the execution rail, matching its
+          collapse/toggle/persistence pattern (ChatExecutionRail). */}
+      {planPanelCollapsed ? (
+        <aside aria-label="Plan panel" className="shrink-0">
+          <Glass className="flex flex-col items-center gap-2 p-2">
+            <button
+              type="button"
+              aria-label="Expand plan panel"
+              aria-expanded={false}
+              onClick={() => setPlanPanelCollapsed(false)}
+              className="rounded-lg border border-border-subtle p-2 text-text-muted hover:border-brass/40 hover:text-brass transition"
+            >
+              <span className="font-mono text-sm" aria-hidden="true">
+                »
+              </span>
+            </button>
+          </Glass>
+        </aside>
+      ) : (
+        <aside aria-label="Plan panel" className="w-64 shrink-0">
+          <Glass className="flex h-full flex-col gap-3 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">Plan</h2>
+              <button
+                type="button"
+                aria-label="Collapse plan panel"
+                aria-expanded={true}
+                onClick={() => setPlanPanelCollapsed(true)}
+                className="rounded p-1 text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+              >
+                <span className="font-mono text-xs" aria-hidden="true">
+                  «
+                </span>
+              </button>
+            </div>
+            <PlanPanel planSessionId={planSessionId} planVersion={planVersion} nodes={planNodes} />
+          </Glass>
+        </aside>
+      )}
 
       {secretaryToast && (
         <div className="absolute bottom-4 left-1/2 z-[60] w-[min(480px,90%)] -translate-x-1/2">

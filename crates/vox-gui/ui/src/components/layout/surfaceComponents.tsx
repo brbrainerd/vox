@@ -74,6 +74,8 @@ export interface SurfaceProps {
   attention?: AttentionInbox;
   chatModelOverride?: string | null;
   onChatModelOverrideChange?: (id: string | null) => void;
+  chatPlanSessionId?: string | null;
+  chatPlanVersion?: number | null;
 }
 
 export function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
@@ -202,6 +204,8 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           blockedTasks={props.attention?.blockedTasksCount}
           modelOverride={props.chatModelOverride}
           onModelOverrideChange={props.onChatModelOverrideChange}
+          planSessionId={props.chatPlanSessionId}
+          planVersion={props.chatPlanVersion}
         />
       );
     default:

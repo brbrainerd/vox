@@ -715,6 +715,54 @@ export function getContextBudget(sessionId?: string | null): Promise<ContextBudg
   return safeInvoke<ContextBudgetPayload>('get_context_budget', sessionId != null ? { sessionId } : {});
 }
 
+export type PlanNodeStatus =
+  | 'pending'
+  | 'queued'
+  | 'in_progress'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'superseded';
+
+export interface PlanNodeDto {
+  node_id: string;
+  description: string;
+  status: PlanNodeStatus;
+}
+
+export function listPlanNodes(planSessionId: string, planVersion: number): Promise<PlanNodeDto[]> {
+  return safeInvoke<PlanNodeDto[]>('list_plan_nodes', { planSessionId, planVersion });
+}
+
+export function updatePlanNode(
+  planSessionId: string,
+  planVersion: number,
+  nodeId: string,
+  description: string,
+): Promise<void> {
+  return safeInvoke<void>('update_plan_node', {
+    input: { plan_session_id: planSessionId, plan_version: planVersion, node_id: nodeId, description },
+  });
+}
+
+export function insertPlanNode(
+  planSessionId: string,
+  planVersion: number,
+  nodeId: string,
+  description: string,
+  dependsOn: string[] = [],
+): Promise<void> {
+  return safeInvoke<void>('insert_plan_node', {
+    input: {
+      plan_session_id: planSessionId,
+      plan_version: planVersion,
+      node_id: nodeId,
+      description,
+      depends_on: dependsOn,
+    },
+  });
+}
+
 export interface ActivityRowDto {
   id: number;
   ts_ms: number;
