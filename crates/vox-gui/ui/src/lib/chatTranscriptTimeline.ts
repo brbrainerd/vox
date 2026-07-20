@@ -146,14 +146,23 @@ export type TranscriptStatusRow = {
   elapsedMs: number;
 };
 
-export type ChatOnlyTimelineRow = TranscriptMessageRow | TranscriptStatusRow;
+export type TranscriptSummaryRow = {
+  kind: 'summary';
+  id: string;
+  atMs: number;
+  taskId: number;
+  costUsd: number;
+};
+
+export type ChatOnlyTimelineRow = TranscriptMessageRow | TranscriptStatusRow | TranscriptSummaryRow;
 
 const IN_FLIGHT_EVENT_TYPES = new Set(['task_started', 'task_phase_changed']);
 const TASK_END_EVENT_TYPES = new Set(['task_completed', 'task_failed']);
 
 /**
  * Chat-feed-only view of the timeline: real messages plus at most one live
- * status row per in-flight task (phase + elapsed time). Every raw agent
+ * status row per in-flight task (phase + elapsed time), plus an optional
+ * done-summary row once a task completes (verbosity-gated). Every raw agent
  * event (CHECKPOINT/TASK/PHASE/COST/TOKEN) that used to render as its own
  * row via `ChatAgentEventRow` is excluded here — full detail stays available
  * via `buildTranscriptTimeline` for the Flow panel.
@@ -161,10 +170,11 @@ const TASK_END_EVENT_TYPES = new Set(['task_completed', 'task_failed']);
 export function buildChatOnlyTimeline(
   messages: ChatMessage[],
   agentItems: StreamItem[],
-  options?: { messageStepMs?: number; nowMs?: number },
+  options?: { messageStepMs?: number; nowMs?: number; verbosity?: 'quiet' | 'normal' | 'verbose' },
 ): ChatOnlyTimelineRow[] {
   const messageStepMs = options?.messageStepMs ?? 1000;
   const nowMs = options?.nowMs ?? Date.now();
+  const verbosity = options?.verbosity ?? 'normal';
 
   const rows: ChatOnlyTimelineRow[] = messages.map((message, index) => ({
     kind: 'message' as const,
@@ -174,14 +184,25 @@ export function buildChatOnlyTimeline(
   }));
 
   // Track the latest in-flight task per taskId, in arrival order, and drop
-  // any task that has since completed/failed.
+  // any task that has since completed/failed. Also track each task's last
+  // known cost and whether it completed, for the optional summary row.
   const inFlight = new Map<number, { phase: string; startedAtMs: number }>();
+  const lastCostByTask = new Map<number, number>();
+  const completedTasks = new Set<number>();
+
   for (const item of agentItems) {
     const eventType = item.metadata?.eventType;
     const taskId = item.taskId ?? (item.metadata?.taskId as number | undefined);
     if (taskId == null) continue;
+
+    if (typeof eventType === 'string' && eventType === 'cost_incurred') {
+      const costUsd = item.metadata?.costUsd;
+      if (typeof costUsd === 'number') lastCostByTask.set(taskId, costUsd);
+      continue;
+    }
     if (typeof eventType === 'string' && TASK_END_EVENT_TYPES.has(eventType)) {
       inFlight.delete(taskId);
+      if (eventType === 'task_completed') completedTasks.add(taskId);
       continue;
     }
     if (typeof eventType === 'string' && IN_FLIGHT_EVENT_TYPES.has(eventType)) {
@@ -205,6 +226,14 @@ export function buildChatOnlyTimeline(
       phase,
       elapsedMs: Math.max(0, nowMs - startedAtMs),
     });
+  }
+
+  if (verbosity !== 'quiet') {
+    for (const taskId of completedTasks) {
+      const costUsd = lastCostByTask.get(taskId);
+      if (costUsd == null) continue;
+      rows.push({ kind: 'summary', id: `summary-${taskId}`, atMs: nowMs, taskId, costUsd });
+    }
   }
 
   return rows;

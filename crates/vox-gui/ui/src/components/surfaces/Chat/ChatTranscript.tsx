@@ -5,6 +5,7 @@ import type { StreamItem } from '../../../types/dashboard';
 import { buildChatOnlyTimeline } from '../../../lib/chatTranscriptTimeline';
 import { StatusLine } from './StatusLine';
 import { ModelBadge } from './ModelBadge';
+import { useChatVerbosity } from '../../../hooks/useChatVerbosity';
 
 interface ChatTranscriptProps {
   messages: ChatMessage[];
@@ -56,7 +57,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
 /** Merged chat bubbles + inline agent execution rows for the active session. */
 export function ChatTranscript({ messages, agentStreamItems }: ChatTranscriptProps) {
-  const timeline = buildChatOnlyTimeline(messages, agentStreamItems ?? []);
+  const [verbosity] = useChatVerbosity();
+  const timeline = buildChatOnlyTimeline(messages, agentStreamItems ?? [], { verbosity });
 
   if (timeline.length === 0) return null;
 
@@ -73,7 +75,14 @@ export function ChatTranscript({ messages, agentStreamItems }: ChatTranscriptPro
           if (row.kind === 'message') {
             return <MessageBubble key={row.id} message={row.message} />;
           }
-          return <StatusLine key={row.id} phase={row.phase} elapsedMs={row.elapsedMs} />;
+          if (row.kind === 'status') {
+            return <StatusLine key={row.id} phase={row.phase} elapsedMs={row.elapsedMs} />;
+          }
+          return (
+            <div key={row.id} className="self-start px-1 font-mono text-[10px] text-text-muted">
+              Done · ${row.costUsd.toFixed(4)}
+            </div>
+          );
         })}
       </div>
     </Glass>

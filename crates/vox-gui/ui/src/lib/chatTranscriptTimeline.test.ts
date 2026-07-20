@@ -149,4 +149,27 @@ describe('buildChatOnlyTimeline', () => {
     const rows = buildChatOnlyTimeline(messages, events);
     expect(rows.some((r) => r.kind === 'status')).toBe(false);
   });
+
+  it('normal verbosity adds a done-summary row after a task completes, using its cost_incurred data', () => {
+    const messages = [msg('m1', 'user'), msg('m2', 'assistant')];
+    const events = [
+      evt('1', 'TASK', 'task_started', { taskId: 7 }),
+      evt('2', 'COST', 'cost_incurred', { taskId: 7, costUsd: 0.003 }),
+      evt('3', 'TASK', 'task_completed', { taskId: 7 }),
+    ];
+    const rows = buildChatOnlyTimeline(messages, events, { verbosity: 'normal' });
+    const summary = rows.find((r) => r.kind === 'summary');
+    expect(summary).toMatchObject({ kind: 'summary', taskId: 7, costUsd: 0.003 });
+  });
+
+  it('quiet verbosity omits the summary row even after completion', () => {
+    const messages = [msg('m1', 'user'), msg('m2', 'assistant')];
+    const events = [
+      evt('1', 'TASK', 'task_started', { taskId: 7 }),
+      evt('2', 'COST', 'cost_incurred', { taskId: 7, costUsd: 0.003 }),
+      evt('3', 'TASK', 'task_completed', { taskId: 7 }),
+    ];
+    const rows = buildChatOnlyTimeline(messages, events, { verbosity: 'quiet' });
+    expect(rows.some((r) => r.kind === 'summary')).toBe(false);
+  });
 });
