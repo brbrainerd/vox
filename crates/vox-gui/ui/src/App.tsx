@@ -742,14 +742,17 @@ export default function App() {
             allow_duplicate: allowDuplicate,
             clutch: payload.clutch ?? null,
             risk: payload.risk ?? null,
-            // Tag free-text chat submissions so the daemon routes them
-            // through the one-shot chat fast path. NOT unconditional:
-            // `/spawn` (handleLoquelaSlash) reuses this same submit path
-            // with `mode: 'act'` to dispatch a real agentic sub-agent, so
-            // tagging it 'chat' here would silently break that dispatch.
-            // Omitted (undefined -> not sent) for 'act' submissions, letting
-            // the daemon fall back to its default category resolution.
-            task_category: payload.mode === 'act' ? undefined : 'chat',
+            // Forward whatever the call site set. Previously derived this
+            // from `payload.mode === 'act'`, which was silently always
+            // undefined in practice: Loquela's composer defaults its own
+            // internal `mode` state to "act" for every normal submission
+            // (see Loquela.tsx's `useState("act")`), not just for /spawn —
+            // so real chat messages typed into the composer were NEVER
+            // tagged 'chat' and always fell through to the full 6-phase
+            // agentic pipeline. task_category is now set explicitly at each
+            // real call site instead: 'chat' in Loquela's send() (the normal
+            // composer path), left unset for /spawn's direct dispatch.
+            task_category: payload.task_category ?? undefined,
           }
         },
         'gui.loquela.submit',
@@ -1275,7 +1278,7 @@ export default function App() {
         onSubmitTask={() => handleSubmitTaskAction(navigateTo, focusComposer)}
         onSendToChat={(query) => {
           navigateTo('chat');
-          handleLoquelaSubmit({ description: query, session_id: activeSessionId });
+          handleLoquelaSubmit({ description: query, session_id: activeSessionId, task_category: 'chat' });
         }}
         onOpenDoc={(path) => openDocTab(path)}
         agents={data.agents}

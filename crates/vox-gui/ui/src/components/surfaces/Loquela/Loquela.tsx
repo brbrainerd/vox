@@ -425,6 +425,11 @@ export function Loquela({
       clutch: control.clutch,
       risk: control.risk,
       context: chips.map(c => ({ kind: c.kind, ref: c.label })),
+      // The composer's own free-text submit path is always conversational —
+      // /spawn (a separate, direct dispatch built in App.tsx's
+      // handleLoquelaSlash) is the one real agentic path and does not set
+      // this field, so it falls back to the daemon's default routing.
+      task_category: 'chat',
     };
     onSubmit(payload);
     setHistory(h => [text.trim(), ...h].slice(0, COMPOSER_HISTORY_CAP));

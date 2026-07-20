@@ -139,21 +139,36 @@ describe('model_override submit-payload wiring', () => {
 // Wiring guard: free-text chat submissions must be tagged `task_category:
 // 'chat'` so the daemon routes them through the one-shot chat fast path
 // instead of the 6-phase agentic pipeline — but NOT `/spawn`, which reuses
-// this exact submit path with `mode: 'act'` to dispatch a real sub-agent.
+// this exact submit path to dispatch a real sub-agent.
+//
+// Historical note: this used to be derived in App.tsx from
+// `payload.mode === 'act'`, which was silently always false in practice —
+// Loquela's composer defaults its own internal `mode` state to "act" for
+// EVERY normal submission (see Loquela.tsx's `useState("act")`), not just
+// for /spawn, so real chat messages were never tagged 'chat' and always
+// fell through to the full agentic pipeline. task_category is now set
+// explicitly at each real call site instead, and App.tsx just forwards it.
 describe('task_category submit-payload wiring', () => {
-  it("tags handleLoquelaSubmit's payload 'chat' only when mode !== 'act'", () => {
+  it('App.tsx forwards payload.task_category verbatim, not derived from mode', () => {
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
-    expect(appSrc).toMatch(
-      /task_category:\s*payload\.mode === 'act' \? undefined : 'chat'/,
-    );
+    expect(appSrc).toMatch(/task_category:\s*payload\.task_category\s*\?\?\s*undefined/);
+    expect(appSrc).not.toMatch(/task_category:\s*payload\.mode/);
   });
 
-  it("/spawn dispatches through handleLoquelaSubmit with mode: 'act', so it is excluded from the chat tag", () => {
+  it("Loquela's composer send() tags every normal submission 'chat'", () => {
+    const loquelaSrc = readFileSync(
+      path.resolve(__dirname, '../Loquela/Loquela.tsx'),
+      'utf8',
+    );
+    expect(loquelaSrc).toMatch(/task_category:\s*'chat'/);
+  });
+
+  it("/spawn's direct dispatch payload does not set task_category, leaving it agentic", () => {
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
     const spawnBlockMatch = appSrc.match(
       /base === '\/spawn'\) \{\s*void handleLoquelaSubmit\(\{[^}]*\}\);/,
     );
     expect(spawnBlockMatch).not.toBeNull();
-    expect(spawnBlockMatch?.[0]).toMatch(/mode:\s*'act'/);
+    expect(spawnBlockMatch?.[0]).not.toMatch(/task_category/);
   });
 });
