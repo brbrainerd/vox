@@ -3,11 +3,11 @@
   "summary": {
     "workspace_crate_count": 126,
     "rust_files_scanned": 3829,
-    "cargo_unit_test_functions": 8426,
+    "cargo_unit_test_functions": 8430,
     "cargo_integration_test_functions": 2669,
     "cargo_bench_functions": 0,
     "cargo_ignored_test_functions": 142,
-    "cargo_test_functions_total": 11095,
+    "cargo_test_functions_total": 11099,
     "webir_related_ignored_tests": 3,
     "webir_ignored_tests_likely_retired_note": 0
   },
@@ -357,7 +357,7 @@
       "integration_rs_files": 19
     },
     "vox-gui": {
-      "unit_tests": 144,
+      "unit_tests": 147,
       "integration_tests": 4,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -501,7 +501,7 @@
       "integration_rs_files": 1
     },
     "vox-orchestrator": {
-      "unit_tests": 1018,
+      "unit_tests": 1019,
       "integration_tests": 168,
       "bench_tests": 0,
       "ignored_tests": 4,
@@ -1220,7 +1220,7 @@
   "test_file_patterns": {
     "sleep_sites": 164,
     "env_var_reads": 642,
-    "env_var_mutations": 811,
+    "env_var_mutations": 813,
     "command_new": 533,
     "serial_test": 69,
     "proptest_colon_colon": 9,

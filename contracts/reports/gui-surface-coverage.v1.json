@@ -1343,6 +1343,8 @@
     "resume_orchestrator_agent",
     "rotate_signing_key",
     "run_autofill",
+    "scientia_cost_rollup",
+    "scientia_dashboard_snapshot",
     "secrets_backend_status",
     "set_active_model",
     "set_gamify_settings",
