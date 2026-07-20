@@ -196,6 +196,42 @@ below 1s; any change to `resolve_route`'s agent-selection scoring.
   1026+ tests) plus the relevant frontend suite where Phase A's payload
   plumbing touches `crates/vox-gui/ui`.
 
+## Adversarial audit addendum (2026-07-20, post-approval)
+
+Four parallel reviewers independently re-verified this design and the
+implementation plan against the live codebase after initial approval. The
+Ground Truth section above was fully re-confirmed (all 19 file:line citations
+checked byte-exact, zero stale references). Two findings materially change
+the implementation plan and are recorded here as design-level facts, not just
+plan edits:
+
+- **A pre-existing, live bug independent of this design:** `abort_interrupted_task`
+  (`orchestrator/agent/lifecycle_ops.rs:383`) removes a task's
+  `task_assignments` entry as part of its cleanup; `fail_task_with_audit`
+  (`task_dispatch/complete/fail.rs:25-28`) re-derives `agent_id` from that
+  same map and silently bails with a swallowed `TaskNotFound` when it's
+  already gone. Every task that hits the EXISTING cancel or stream-error
+  phase-loop exit paths today is never actually recorded as failed — this
+  predates and is independent of Phase B's proposed fixes, but Phase B's
+  `HaltAgent`-parity fix would have inherited the exact same defect a third
+  time if landed without first closing this gap. The plan now fixes this as
+  Task B0, a hard prerequisite for Task B2.
+- **The chat fast-path's only real fleet-construction site** is
+  `spawn_agent_fleet_if_enabled_with_dispatcher`
+  (`runtime.rs:1247-1279`, called from `vox-orchestrator-d`'s `main`,
+  `vox_orchestrator_d.rs:267`) — NOT two sites as an earlier draft of this
+  design's Phase A guessed. `crates/vox-gui/src/commands/daemon.rs` adopts or
+  spawns the standalone `vox-orchestrator-d` process; it never constructs
+  `AgentFleet`/`AiTaskProcessor` in-process. Task A3's wiring step is scoped
+  to this one site only.
+
+See the implementation plan's per-task "Corrected by adversarial review"
+annotations for the full list of findings (compile-blocking test-sketch
+errors, a missing `LIST_TASKS` category field, a confirmed `/spawn` vs.
+chat-tagging conflict in the composer, a discarded-compaction-result bug in
+the original Phase C sketch, and a flaky timing-based test replaced with a
+deterministic concurrency proof).
+
 ## Non-goals (overall)
 
 - No change to the 6-phase pipeline's actual phase *content*/prompts for

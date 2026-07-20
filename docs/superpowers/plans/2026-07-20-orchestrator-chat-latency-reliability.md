@@ -2,16 +2,23 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give chat messages a fast, non-agentic reply path; fix 5 real reliability
-gaps found by a fresh orchestrator audit; wire an already-built compaction engine
-into the one place it's needed most.
+**Goal:** Give chat messages a fast, non-agentic reply path; fix 6 real reliability
+gaps found by a fresh orchestrator audit (5 from the original investigation, 1
+found by a subsequent adversarial review of this plan itself); wire an
+already-built compaction engine into the one place it's needed most.
 
 **Architecture:** Three independently landable phases (A: chat fast-path via a new
 `TaskCategory::Chat` + dedicated processor behind a thin dispatching wrapper; B:
-5 small reliability fixes; C: 2 latency fixes, one shared with Phase B). Every
-task is TDD'd, zero paid LLM calls in any new test (mirrors the `StubTaskProcessor`
-/ `chat_round_trip.rs` pattern already in the codebase from this session's earlier
-fix).
+6 reliability fixes, including one — Task B0 — that MUST land before Task B2
+since B2 would otherwise re-trigger the same bug B0 fixes; C: 2 latency fixes,
+one shared with Phase B). Every task is TDD'd, zero paid LLM calls in any new
+test (mirrors the `StubTaskProcessor` / `chat_round_trip.rs` pattern already in
+the codebase from this session's earlier fix). This plan was adversarially
+audited against the live codebase after initial approval (2026-07-20) by four
+parallel reviewers; every "Corrected by adversarial review" callout below
+records a real, verified gap between the original design and what actually
+compiles/runs against this repo — treat those sections as more load-bearing
+than the surrounding prose, not as optional polish.
 
 **Tech Stack:** Rust (`crates/vox-orchestrator`), TypeScript/React
 (`crates/vox-gui/ui`), Tauri commands (`crates/vox-gui/src/commands`).
@@ -25,6 +32,125 @@ the time you implement, re-locate by content match, not blind line offset.**
 ---
 
 ## Phase B — reliability hardening (do this first: small, independent, no schema changes)
+
+### Task B0: `fail_task` silently no-ops after `abort_interrupted_task` — fix this BEFORE B1/B2
+
+**Found by adversarial review, not the original investigation — this is a real,
+currently-live bug, more severe than B1/B2 individually, and blocks both of
+them from working as designed.**
+
+**Files:**
+- Modify: `crates/vox-orchestrator/src/orchestrator/agent/lifecycle_ops.rs`
+  (`abort_interrupted_task`, verified at `:340-391`, removes
+  `task_assignments` at `:383`)
+- Modify: `crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/fail.rs`
+  (`fail_task_with_audit`, looks up `agent_id` from `task_assignments` at
+  `:25-28` and returns `Err(OrchestratorError::TaskNotFound(task_id))` if
+  absent)
+- Modify: `crates/vox-orchestrator/src/runtime.rs` (the three phase-loop exit
+  arms: cancel `:533-536`, stream-error `:571-575`, and the `HaltAgent` arm
+  Task B2 below extends)
+- Test: new test(s) in whichever of the above files already has a
+  `#[cfg(test)]` module suited to it (`lifecycle_ops.rs` or `fail.rs`)
+
+**Verified bug:** `abort_interrupted_task` (`lifecycle_ops.rs:383`) does
+`crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);` as part
+of its cleanup. `runtime.rs`'s dispatcher always follows an `Err` return from
+the phase loop with a call to `fail_task` (`runtime.rs:877-887` per this
+session's earlier investigation). But `fail_task_with_audit` (`fail.rs:25-28`)
+re-derives `agent_id` by looking `task_id` up in that SAME `task_assignments`
+map — which `abort_interrupted_task` just emptied. The lookup returns `None`,
+`fail_task_with_audit` bails with `Err(OrchestratorError::TaskNotFound(task_id))`,
+and that error is only logged (`tracing::error!` at the dispatcher, swallowed,
+not propagated anywhere user-visible). **Net effect: every task that hits the
+existing cancel path or the existing stream-error path today already fails to
+be properly recorded as failed** — the task's terminal state, audit report,
+and any budget/oplog bookkeping `fail_task_with_audit` was supposed to do
+never happen. This is a pre-existing defect, not something Phase A/B/C
+introduces — it just happens to also be exactly why B1's `reset_drift()` (if
+inserted inside `fail_task_with_audit`, as originally planned below) would
+never actually run for the scenarios it's meant to protect, and why B2's
+planned `HaltAgent` fix would inherit the same silent-no-op.
+
+- [ ] **Step 1: Write the failing test proving the no-op**
+
+```rust
+#[tokio::test]
+async fn fail_task_after_abort_interrupted_task_does_not_silently_no_op() {
+    let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+    let agent_id = orch.spawn_agent("a1").unwrap();
+    // Adapt to submit_task_with_agent's REAL 8-parameter signature (read it
+    // fresh at task_dispatch/submit/task_submit.rs:106 before writing this -
+    // do not copy a guessed signature from elsewhere in this plan).
+    let task_id = /* submit a task on agent_id, get its TaskId */;
+    orch.abort_interrupted_task(task_id, agent_id);
+    let result = orch.fail_task(task_id, "boom".into()).await;
+    // Today this is Err(TaskNotFound) and the caller only logs it - assert
+    // it should instead succeed (or at minimum not silently vanish).
+    assert!(result.is_ok(), "fail_task must not silently no-op after abort_interrupted_task already ran: {result:?}");
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cargo test -p vox-orchestrator fail_task_after_abort_interrupted_task_does_not_silently_no_op`
+Expected: FAIL — confirms `fail_task` returns `Err(TaskNotFound)`.
+
+- [ ] **Step 3: Decide and implement the fix — read both functions fully first, this needs a real judgment call, not a guess**
+
+Two candidate fixes, in order of preference — **read `abort_interrupted_task`
+and `fail_task_with_audit` in FULL, including every other caller of both
+(`grep -rn "abort_interrupted_task\|fail_task_with_audit\|fail_task\b"
+crates/vox-orchestrator/src/`) before picking one**, since either could have
+side effects on callers this plan hasn't traced:
+
+  - **(a) Preferred if safe:** stop `abort_interrupted_task` from removing
+    `task_assignments` itself — that removal is `fail_task`'s job (marking a
+    task's terminal state), and `abort_interrupted_task`'s actual
+    responsibility (per its own code) is file-lock/scope/interrupt-flag
+    cleanup. If nothing else in the codebase relies on `task_assignments`
+    being empty immediately after `abort_interrupted_task` returns (check via
+    the grep above), delete the `task_assignments.remove()` line from
+    `lifecycle_ops.rs:383` and let the subsequent `fail_task` call remove it
+    as part of its own normal bookkeeping.
+  - **(b) Fallback if (a) has other dependents:** give `runtime.rs`'s
+    phase-loop exit arms an agent-id-aware failure path that doesn't
+    re-derive `agent_id` from `task_assignments` at all — e.g. a new
+    `fail_task_for_agent(task_id, agent_id, reason)` that skips the
+    now-redundant lookup (the caller already has `agent_id` in scope in all
+    three exit arms). This avoids touching `abort_interrupted_task`'s
+    contract for its OTHER callers (`lifecycle_ops.rs:112`, `:151`, `:300`
+    reference `task_assignments` too — read whether those are the same
+    function or different call sites before assuming (a) is universally
+    safe).
+
+- [ ] **Step 4: Run test to verify it passes, then the full suite**
+
+Run: `cargo test -p vox-orchestrator --lib`
+Expected: all pass. Pay special attention to any EXISTING test asserting on
+current cancel-path or stream-error-path behavior that this fix changes (a
+task that previously silently stayed "un-failed" now gets correctly marked
+failed — a test relying on the old, buggy behavior needs its assertion
+flipped, not preserved).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add crates/vox-orchestrator/src/orchestrator/agent/lifecycle_ops.rs \
+  crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/fail.rs \
+  crates/vox-orchestrator/src/runtime.rs
+git commit -m "fix(orchestrator): fail_task no longer silently no-ops after abort_interrupted_task
+
+abort_interrupted_task removed the task's task_assignments entry as
+part of its cleanup; fail_task_with_audit re-derives agent_id from
+that same map and bails with a swallowed TaskNotFound when it's
+already gone. Every task hitting the EXISTING cancel or stream-error
+phase-loop exit paths was silently never marked failed - found via
+adversarial review while designing the HaltAgent-parity fix (Task B2),
+which would have inherited the same defect."
+```
+
+---
 
 ### Task B1: reset drift state when a task completes or fails
 
@@ -59,6 +185,30 @@ pub fn budget_manager_handle(&self) -> std::sync::Arc<std::sync::RwLock<crate::b
 (fail.rs:25-28; success/mod.rs has the equivalent — read it to confirm the exact
 local variable name before editing, it may not be identically named).
 
+**Corrected by adversarial review — three compile-blocking errors in the
+original test sketch, now fixed:**
+1. `record_agent_iteration` is a method on `Orchestrator`
+   (`self.orchestrator.record_agent_iteration(...)` at `runtime.rs:579`, per
+   the design doc's Ground Truth section), **not** on `BudgetManager` —
+   `BudgetManager`'s own drift-recording method is `record_iteration_output`,
+   a different name/signature. Call it via `orch.record_agent_iteration(...)`,
+   not through a `budget_manager_handle()` guard.
+2. `submit_task_with_agent` takes **8** parameters, not 7 as the original
+   sketch assumed — read its real current signature
+   (`task_dispatch/submit/task_submit.rs:106`) before writing the call;
+   it's missing a `tenant_id`-shaped argument.
+3. It returns `Result<TaskId, _>` directly, not a tuple — do not `.0` into it;
+   `.unwrap()` alone gives the `TaskId`.
+4. **Prerequisite: Task B0 must land first.** `fail_task` currently no-ops
+   silently in scenarios reached via `abort_interrupted_task` (see Task B0)
+   — but the plain `orch.fail_task(task_id, reason)` call this test uses does
+   NOT go through `abort_interrupted_task` (that's only called from
+   `runtime.rs`'s phase-loop exit arms, not from a direct `fail_task` call on
+   a freshly-submitted, never-started task), so this specific test is safe to
+   write independent of B0. B0 is still a hard prerequisite for **Task B2**
+   (below), which fixes a phase-loop exit arm that DOES call
+   `abort_interrupted_task` before the dispatcher's `fail_task`.
+
 - [ ] **Step 1: Write the failing test**
 
 In `crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/fail.rs`'s test
@@ -70,33 +220,24 @@ crate, e.g. `queue/drain.rs`'s `semcov_drain_tests`):
 async fn fail_task_resets_drift_state_for_the_agent() {
     let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
     let agent_id = orch.spawn_agent("a1").unwrap();
-    // Manufacture a drift record directly through the budget manager, the
-    // same way runtime.rs's record_agent_iteration would after two
-    // fingerprint-matching phase outputs.
-    {
-        let bm = orch.budget_manager_handle();
-        let bm = crate::sync_lock::rw_write(&*bm);
-        bm.record_agent_iteration(agent_id, "same output", false); // 1st: drift_streak stays 0 (no prior match)
-        bm.record_agent_iteration(agent_id, "same output", false); // 2nd: matches -> drift_streak = 1
-    }
-    let task_id = orch.submit_task_with_agent(
-        "t1".into(), vec![], None, Some("a1".into()), None, None, None,
-    ).await.unwrap().0; // adapt to submit_task_with_agent's real signature/return
-    // fail it
+    // Manufacture a drift record the same way runtime.rs's phase loop does,
+    // via the Orchestrator method (NOT a BudgetManager method - see the
+    // correction above).
+    orch.record_agent_iteration(agent_id, "same output", false); // 1st: drift_streak stays 0 (no prior match)
+    orch.record_agent_iteration(agent_id, "same output", false); // 2nd: matches -> drift_streak = 1
+
+    // Read submit_task_with_agent's REAL current 8-parameter signature
+    // (task_dispatch/submit/task_submit.rs:106) before finalizing this call -
+    // do not copy a guessed arg list from elsewhere in this plan.
+    let task_id = orch.submit_task_with_agent(/* fill in from the real signature */).await.unwrap();
+
     orch.fail_task(task_id, "boom".into()).await.unwrap();
+
     // A fresh drift check for this agent must start clean, not inherit drift_streak.
-    let bm = orch.budget_manager_handle();
-    let bm = crate::sync_lock::rw_read(&*bm);
-    let decision = bm.record_agent_iteration(agent_id, "same output", false);
+    let decision = orch.record_agent_iteration(agent_id, "same output", false);
     assert!(matches!(decision, crate::budget::DriftDecision::Continue));
 }
 ```
-Read `record_agent_iteration`'s real signature (`budget/mod.rs`, the function
-containing the code shown in the design doc's "Ground truth" section, just above
-`reset_drift`) and `submit_task_with_agent`'s real signature/return type
-(`task_dispatch/submit/task_submit.rs:106+`) before finalizing this test — the
-sketch above captures the intent (drift state must not survive across a
-fail_task boundary), adapt exact argument shapes to what actually compiles.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -149,6 +290,13 @@ record from the prior task."
 ---
 
 ### Task B2: `HaltAgent` exit path gets the same cleanup as cancel/stream-error
+
+**Prerequisite: Task B0 must land first.** Without B0's fix, adding
+`abort_interrupted_task` to the `HaltAgent` arm (this task's whole point)
+would make the dispatcher's subsequent `fail_task` call silently no-op for
+EVERY drift-halted task, exactly the way it already silently no-ops for the
+cancel and stream-error paths today — landing this task before B0 would add
+a third instance of the same live bug instead of fixing anything.
 
 **Files:**
 - Modify: `crates/vox-orchestrator/src/runtime.rs`
@@ -431,13 +579,33 @@ complete_task/fail_task failure-logging pattern."
   instance if the orchestrator already holds one) before writing the phase-loop
   version, for consistency rather than inventing a second config source.
 
-- [ ] **Step 1: Read the exact `notes`-building code path**
+**Corrected by adversarial review — two critical gaps in the original sketch:**
+1. `AiTaskProcessor`'s real fields (`runtime.rs:180-192`:
+   `client/event_bus/orchestrator/provider/model/tool_dispatcher`) do **not**
+   include a `CompactionEngine`. Every real `compact()` call site in this
+   crate receives an externally-owned engine as a parameter
+   (`session/manager/mutations.rs:304`) — nothing constructs one for the
+   phase loop today. This task must ADD a `compaction: CompactionEngine`
+   field to `AiTaskProcessor` and construct it in `new`/`with_tool_dispatcher`,
+   not assume one already exists.
+2. The original sketch computed a compacted `notes_for_prompt` local but
+   never reassigned it back to the persistent `notes` string that keeps
+   accumulating at `:607-610`/`:660-661` — as written, compaction would be
+   silently discarded every phase and `notes` would keep growing exactly as
+   unbounded as before, defeating the entire point of this task. The fix
+   below reassigns `notes` itself, mirroring `session/state.rs:290`'s
+   reassignment pattern.
+
+- [ ] **Step 1: Read the exact `notes`-building code path AND `session/state.rs`'s reassignment pattern**
 
 Read `runtime.rs` lines 520-665 in full again immediately before editing (the
 line numbers above are from investigation, not a diff-safe anchor) to confirm
 exactly where `notes` is read for prompt-building (inside `run_phase_stream`'s
 call at `~540-566`, passing `notes.as_str()`) versus where it's mutated
-(`~607-610`, `~660-661`).
+(`~607-610`, `~660-661`). Also read `session/state.rs` around line 290 (the
+line immediately after its `:257` `compact()` call) to see EXACTLY how that
+call site takes `CompactionResult::retained_turns` and reassigns it back into
+the live working set — this is the pattern to mirror, not invent a new one.
 
 - [ ] **Step 2: Write the failing test**
 
@@ -463,32 +631,72 @@ version genuinely can't be tested in isolation otherwise.
 
 Expected: FAIL — the prompt contains the full raw history, uncompacted.
 
-- [ ] **Step 4: Convert `notes` accumulation to compact before each phase's prompt build**
+- [ ] **Step 3b: Add a `CompactionEngine` field to `AiTaskProcessor`**
 
-Sketch (adapt to whatever `Turn` construction/config-sourcing pattern Step 1's
-read of `session/state.rs:257` revealed):
+In `runtime.rs`'s `AiTaskProcessor` struct (`:180-192`), add a `compaction:
+crate::compaction::CompactionEngine` field. Construct it in both `new` and
+`with_tool_dispatcher` using `CompactionEngine::new(config)` — source `config`
+the same way `session/state.rs`'s caller does (read that call site's config
+provenance in Step 1; if it's a cheap `Default`-able config rather than
+something requiring disk/DB access, construct it directly; if it needs
+threading in from elsewhere, add it as a constructor parameter to both
+`AiTaskProcessor::new`/`with_tool_dispatcher` and update their call sites —
+this may interact with Task A3's fleet-construction wiring, since Task A3
+already touches these same constructors' call sites; sequence C1 and A3
+accordingly if implementing both, or note the merge point explicitly in
+whichever commit lands second).
+
+- [ ] **Step 4: Convert `notes` accumulation to compact before each phase's prompt build, AND reassign `notes` itself**
+
+Sketch (adapt to whatever `Turn` construction pattern Step 1's read of
+`session/state.rs:257-290` revealed, mirroring its reassignment exactly):
 ```rust
 // Before building this phase's prompt, compact the accumulated history if
-// it has grown past the configured trigger.
-let history_turns: Vec<crate::compaction::Turn> = /* map notes' per-phase
-    segments into Turn entries — one per completed phase's [phase_name]\n...
-    block, role "assistant" (or whatever session/state.rs's convention is) */;
-let compacted = compaction_engine.compact(&history_turns)?;
-let notes_for_prompt = /* re-flatten compacted.retained_turns back into the
-    "[Phase]\n..." string shape the prompt template expects */;
+// it has grown past the configured trigger. `notes` is built as
+// "[{phase}]\n{phase_out}" blocks joined by "\n\n" (runtime.rs:607-610) -
+// one Turn per phase block is the natural mapping, role "assistant" (this
+// is all agent-output; compaction.rs's trim strategies only special-case
+// role=="system", never "user" - confirmed safe by adversarial review, no
+// "user turns protected from trimming" concern applies here).
+if !notes.is_empty() {
+    let history_turns: Vec<crate::compaction::Turn> = notes
+        .split("\n\n")
+        .map(|block| crate::compaction::Turn::new("assistant", block))
+        .collect();
+    if let Ok(result) = self.compaction.compact(&history_turns) {
+        if result.compacted {
+            // REASSIGN notes itself - mirrors session/state.rs:280-289's
+            // exact pattern (self.turns = result.retained_turns...collect()).
+            // Without this reassignment, compaction has no effect: notes
+            // keeps accumulating raw and unbounded regardless of what
+            // compact() computed (this was the original sketch's bug).
+            notes = result
+                .retained_turns
+                .iter()
+                .map(|t| t.content.clone())
+                .collect::<Vec<_>>()
+                .join("\n\n");
+        }
+    }
+}
 ```
-The exact shape of "map notes into Turns and back" depends on how granular the
-existing `notes` string's internal structure is (it's built as
-`"[{phase}]\n{phase_out}"` blocks joined by `\n\n`, per `:607-610` — one Turn per
-phase block is the natural mapping). Do not lose the lossless-archival contract
-`compact()` documents (`compaction.rs:136-141`) — if any dropped turns need to
-be durably logged (matching how `session` persists `dropped_turns`), check
-whether that's necessary for phase-loop notes too or whether losing them is
-acceptable here (session transcripts are user-facing history; phase notes are
-an internal scratchpad the task discards after completion anyway — likely
-acceptable to NOT persist `dropped_turns` for this use, but confirm by reading
-how `session/state.rs` treats them, and make a deliberate choice either way,
-noting it in the commit).
+Do not lose the lossless-archival contract `compact()` documents
+(`compaction.rs:136-141`) without a deliberate decision — if any dropped
+turns should be durably logged (matching how `session` persists
+`dropped_turns`), check whether that's necessary for phase-loop notes too, or
+whether losing them is acceptable (session transcripts are user-facing
+history; phase notes are an internal scratchpad the task discards after
+completion anyway — likely acceptable to NOT persist `dropped_turns` here,
+but make the choice deliberately and note it in the commit, not by omission).
+
+**Known limitation, not blocking (flagged by adversarial review):** with 6
+phases per task and unbounded individual `phase_out` size, a single very
+large phase output can itself exceed `CompactionConfig`'s
+`tail_preserve_tokens` (default 8000 per the review) and get trimmed even
+though it's the most recent, most relevant turn. Not a regression (today's
+uncompacted behavior has no protection at all), but worth a code comment
+noting it as a known edge case for future tuning, not something this task
+needs to solve.
 
 - [ ] **Step 5: Run test to verify it passes, then the full suite**
 
@@ -527,26 +735,48 @@ body already shown in the design doc's Ground Truth section) — sends are
 sequential: `for agent_id in self.orchestrator.agent_ids() { ... match
 tokio::time::timeout(D_5S, handle.send(env)).await { ... } }`.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing test — deterministic, NOT timing-based**
 
-Construct a scenario with 2+ agents whose sends would each need the full 5s
-timeout to fail (e.g. mock/fake handles that never respond — check whether
-`vox_actor_runtime::mailbox`'s `Envelope`/handle types are fakeable in a unit
-test, or whether this needs a coarser integration-level timing assertion in
-`crates/vox-orchestrator/tests/`). Assert the TOTAL time `nudge_queued_agents`
-takes is close to ONE timeout window (e.g. `< 6s` for N=3 failing agents),
-not `N × 5s`.
+**Corrected by adversarial review:** a wall-clock assertion ("total time is
+close to one timeout window") is flaky by construction under CI scheduler
+noise, and can false-pass on a fast machine even if a regression accidentally
+reintroduces serial sends. Use a concurrency-counting proof instead: a fake
+handle whose `send()` increments an `AtomicUsize` on entry, sleeps briefly,
+records the peak concurrent value, then decrements on exit. Assert the
+recorded peak was `> 1` — this proves concurrent dispatch deterministically,
+with no dependency on absolute timing:
+```rust
+#[tokio::test]
+async fn nudge_sends_are_concurrent_not_serial() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let in_flight = Arc::new(AtomicUsize::new(0));
+    let peak = Arc::new(AtomicUsize::new(0));
+    // Construct 2+ agents with ready tasks and fake/stub handles that, on
+    // send(), do: in_flight.fetch_add(1); update peak via fetch_max-style
+    // CAS loop; tokio::time::sleep(short); in_flight.fetch_sub(1). Exact
+    // handle-faking mechanism depends on vox_actor_runtime::mailbox's real
+    // API - read it first (Step 0 below) to find the right seam; if handles
+    // aren't directly fakeable, this may need to be an integration test in
+    // crates/vox-orchestrator/tests/ using real (but artificially slow, via
+    // a test-only actor) agents instead of a unit-level fake.
+    // ... call fleet.nudge_queued_agents().await ...
+    assert!(peak.load(Ordering::SeqCst) > 1, "sends must overlap, not run one-at-a-time");
+}
+```
+
+- [ ] **Step 1b: Read `vox_actor_runtime::mailbox`'s handle/`Envelope` types first**
+
+Before finalizing Step 1's test, read the real handle type `nudge_queued_agents`
+sends through (`vox_actor_runtime::mailbox`) to determine whether it's
+directly fakeable in a unit test (implement a test double satisfying whatever
+trait/interface `handle.send(env)` requires) or whether proving concurrency
+needs an integration-level test with real actors instead. Adjust Step 1's
+exact construction to whichever is actually feasible.
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Expected: FAIL (or times out very slowly) under the current serial
-implementation — may need a shortened timeout constant in the test harness to
-keep this fast; check whether `D_5S` is overridable/injectable for tests, or
-scale the test's failure-simulation and assertion window accordingly (e.g. use
-a much shorter configured timeout in a test-specific fleet construction if the
-timeout is parameterized anywhere; if it's hardcoded to `vox_config::timeouts::D_5S`
-globally, this test may need to accept a proportionally longer real wall-clock
-run — note this tradeoff rather than skip the test).
+Expected: FAIL — the current serial `for` loop with sequential `.await`s
+never has more than 1 send in flight at once, so `peak` stays `1`.
 
 - [ ] **Step 3: Fan the sends out concurrently**
 
@@ -592,11 +822,9 @@ pub async fn nudge_queued_agents(&self) {
     join_all(sends).await;
 }
 ```
-Check whether `futures_util` (or `futures`) is already a `vox-orchestrator`
-dependency before adding it — this crate almost certainly already depends on
-`futures`/`futures_util` transitively via tokio's ecosystem; check `Cargo.toml`
-first and reuse whatever's already there rather than adding a new dependency if
-avoidable.
+**Confirmed by adversarial review:** `futures-util = { workspace = true }` is
+already present at `crates/vox-orchestrator/Cargo.toml:71` — no dependency
+edit needed, `use futures_util::future::join_all;` will resolve directly.
 
 - [ ] **Step 4: Run test to verify it passes, then the full suite**
 
@@ -682,14 +910,19 @@ prompt template (`runtime.rs:290-299`), which is built around "Known notes"
 phase accumulation that doesn't exist for a single call and would read
 incoherently to the model.
 
-- [ ] **Step 1: Read `AiTaskProcessor`'s client-usage pattern**
+- [ ] **Step 1: Use `FreeAiClient::generate_stream`, NOT `AiTaskProcessor`'s heavier call path**
 
-Read `runtime.rs:180-260` (the `AiTaskProcessor` struct + `new`/
-`with_tool_dispatcher` constructors + the start of `run_phase_stream`) to see
-exactly how `vox_gamify::ai::FreeAiClient` is constructed and invoked for a
-single generation call — `ChatTaskProcessor` should reuse the SAME client type
-and construction pattern (`FreeAiClient::auto_discover().await`), not invent a
-new LLM-calling mechanism.
+**Corrected by adversarial review:** `AiTaskProcessor::process` does
+routing/budget/model-registry work (`runtime.rs:180-442`) before ever calling
+its underlying generation method — none of that machinery belongs in a
+single-shot chat processor. `FreeAiClient` has a directly-reusable, simpler
+method for exactly this shape of call: `generate_stream(prompt)`
+(`crates/vox-gamify/src/ai/client/ctor.rs:291-302` — read its real signature
+before using it). `ChatTaskProcessor` should call this method directly
+instead of mirroring `AiTaskProcessor`'s full pattern. Still reuse
+`FreeAiClient::auto_discover().await` for construction (same as
+`AiTaskProcessor::new`, `runtime.rs:201`) — only the per-call generation path
+differs, not client construction.
 
 - [ ] **Step 2: Write the failing test**
 
@@ -755,14 +988,17 @@ impl ChatTaskProcessor {
 ```
 
 `process()`'s body is the one piece of this plan that genuinely cannot be
-written byte-exact without the implementer re-reading `AiTaskProcessor::
-run_phase_stream_with_bus`'s real streaming-call body (`runtime.rs:259-318+`)
-at implementation time — not because the logic is unclear, but because the
-exact `FreeAiClient` method name/signature, the exact `AgentEventKind` variant
-used per streamed chunk, and how `notes`/token accounting get recorded
-(`record_ai_usage`, called at the end of `AiTaskProcessor::process` per this
-plan's Ground Truth excerpt) all need to be copied verbatim from that function
-rather than re-derived. Concretely, `process()` must, in order:
+written byte-exact without the implementer re-reading two things at
+implementation time — not because the logic is unclear, but because exact
+signatures need to be copied verbatim rather than re-derived: (1)
+`FreeAiClient::generate_stream`'s real signature
+(`vox-gamify/src/ai/client/ctor.rs:291-302`, per this task's corrected Step
+1 — use this, NOT `AiTaskProcessor::run_phase_stream_with_bus`'s heavier
+routed-call path at `runtime.rs:259-318`), and (2) how `AiTaskProcessor::
+process` records usage at its tail (`record_ai_usage`, shown in this plan's
+Ground Truth excerpt) — mirror that call's shape for token/cost accounting,
+substituting this processor's single-call numbers. Concretely, `process()`
+must, in order:
 1. Check `cancel` and call `abort_interrupted_task` + return `Err` if set —
    identical to `AiTaskProcessor`'s cancel-path shape shown in this plan's
    Task B2 excerpt.
@@ -918,18 +1154,27 @@ Run: `cargo test -p vox-orchestrator routing_processor`
 
 - [ ] **Step 5: Wire it into fleet construction**
 
-Find every call site constructing `AgentFleet` with `Arc::new(AiTaskProcessor::...)`
-(grep as noted above). Change each to construct both processors and wrap in
-`RoutingTaskProcessor`:
+**Corrected by adversarial review: there is exactly ONE production call site,
+not two as originally guessed.** `crates/vox-gui/src/commands/daemon.rs`
+does **not** construct `AgentFleet`/`AiTaskProcessor` at all — the GUI's
+`PersistentDaemon` adopts/spawns the standalone `vox-orchestrator-d` process
+rather than embedding the fleet in-process. The one real construction site is
+`spawn_agent_fleet_if_enabled_with_dispatcher`
+(`crates/vox-orchestrator/src/runtime.rs:1247-1279`), called from
+`crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs:267`. Edit ONLY this
+site:
 ```rust
 let agentic = Arc::new(AiTaskProcessor::with_tool_dispatcher(...).await); // or ::new, per existing call
 let chat = Arc::new(ChatTaskProcessor::new(event_bus.clone(), orchestrator.clone()).await);
 let processor: Arc<dyn TaskProcessor> = Arc::new(RoutingTaskProcessor::new(agentic, chat));
 let fleet = AgentFleet::new(scheduler, orchestrator, processor);
 ```
-Read each real call site's exact existing variable names/construction order
-before editing — do not assume they're identical across `vox-orchestrator-d`'s
-main and `vox-gui`'s daemon.rs if both construct a fleet.
+Read `spawn_agent_fleet_if_enabled_with_dispatcher`'s real current body
+(`runtime.rs:1247-1279`) before editing — do not assume the sketch above
+matches its exact existing variable names/construction order. Also grep
+`AiTaskProcessor::new\|AiTaskProcessor::with_tool_dispatcher` across the whole
+repo one more time at implementation time (not just trusting this plan's
+claim) in case something changed between this audit and implementation.
 
 - [ ] **Step 6: Run the full orchestrator + vox-gui Rust suites**
 
@@ -1004,6 +1249,18 @@ Read, in order, the current real code at:
 6. `crates/vox-orchestrator/src/types/tasks.rs`'s `AgentTask::new` (already
    quoted in this plan's Ground Truth section, `:704-725`).
 
+- [ ] **Step 1b: Add `task_category` to the `LIST_TASKS` response — confirmed missing, blocks Step 2's test**
+
+**Found by adversarial review:** the `LIST_TASKS` handler
+(`orch_daemon/mod.rs:644-681`) does not serialize `task_category`/`category`
+in its response JSON today. Step 2's test below asserts on a `"category"`
+field that doesn't exist yet — this is a real, separate gap this task must
+close first, not an assumption to adapt around. Read the handler's response-
+building code (`orch_daemon/mod.rs:644-681`, the same block that already
+serializes `"priority"`/`"lifecycle"` per this plan's Ground Truth excerpt at
+`:656-660`) and add a `"category": t.task_category` (or however the existing
+fields are named/formatted — match the exact style) entry alongside them.
+
 - [ ] **Step 2: Write the failing backend test first**
 
 Following the `submit_task_treats_explicit_null_priority_and_file_manifest_as_omitted`
@@ -1053,10 +1310,18 @@ let task_category = req
     .get("task_category")
     .filter(|v| !v.is_null())
     .and_then(|x| x.as_str())
-    .and_then(|s| s.parse::<TaskCategory>().ok()); // TaskCategory::FromStr,
-      // generated by build.rs (Task A1) - confirm the exact generated
-      // signature/error type before assuming `.parse()` works this way.
+    .and_then(|s| s.parse::<TaskCategory>().ok());
 ```
+**Gotcha confirmed by adversarial review, not just a hedge to verify:** the
+generated `FromStr` impl's fallback arm is `_ => Ok(Self::General)`, never an
+`Err` (`build.rs:133-147`) — it does lowercase-match `"chat"` correctly, but
+`.parse().ok()` silently maps any TYPO (`"chta"`, `"Chat "` with whitespace,
+etc.) to `TaskCategory::General` rather than surfacing an error. This is
+safe-by-default for THIS use (a typo'd category silently falls back to
+agentic routing, not a crash or a wrong-but-plausible category), but it means
+a bug in the frontend's literal `'chat'` string would fail silently — always
+route-test this path with the harness's `chat_round_trip.rs` proof (Task A5)
+rather than trusting the parse alone.
 Thread `task_category` through to wherever `AgentTask` is actually constructed
 (Step 1.5/1.6's read tells you exactly where) — if `AgentTask::new`'s
 signature can't cleanly take a 5th param without breaking its many other call
@@ -1071,24 +1336,33 @@ session's earlier `dfe05437bf` fix, and match that precedent).
 
 Run: `cargo test -p vox-orchestrator submit_task_with_explicit_chat_category`
 
-- [ ] **Step 6: Thread the field through the GUI layers (frontend -> Tauri command)**
+- [ ] **Step 6: Thread the field through the GUI layers (frontend -> Tauri command) — NOT unconditionally**
 
-Add `task_category: 'chat'` (or the exact string `TaskCategory::FromStr`
-expects, confirmed in Step 4) to:
+**Corrected by adversarial review: this is a confirmed conflict, not a
+hypothetical to judge at implementation time.** `App.tsx`'s slash-command
+dispatch (`handleLoquelaSlash`, verified at `~:800-888`) — specifically
+`/spawn` — calls `handleLoquelaSubmit` with `{ ..., mode: 'act' }`, sharing
+the EXACT same code path as free-text chat. Tagging every submission through
+`handleLoquelaSubmit` as `'chat'` unconditionally would silently reroute
+`/spawn`'s sub-agent dispatch into the one-shot `ChatTaskProcessor`, breaking
+real agentic execution triggered from the composer. Add `task_category: 'chat'`
+to:
 - `ChatPayload` (or equivalent) in `types/tauri.ts`.
-- `handleLoquelaSubmit`'s payload construction in `App.tsx` — set it
-  unconditionally to `'chat'` for every submission through this handler
-  (confirmed in the design doc: nothing else needs to distinguish sub-cases
-  within `handleLoquelaSubmit` — slash commands and skill deploys going
-  through the SAME handler get `'chat'` too unless there's a reason found
-  during Step 1's read to special-case them; if slash-command dispatch
-  clearly wants agentic-not-chat routing for some commands, note that as a
-  found design wrinkle and handle it explicitly rather than silently
-  defaulting everything through this one handler to chat — read
-  `handleLoquelaSubmit`'s full body first to judge this).
+- `handleLoquelaSubmit`'s payload construction in `App.tsx` — set it to
+  `'chat'` ONLY when `mode !== 'act'` (confirmed conflict case) — e.g.
+  `task_category: mode === 'act' ? undefined : 'chat'` (omitted/undefined
+  falls through to the daemon's existing `TaskCategory::default()` /
+  description-marker-scan behavior for agentic submissions, unchanged). Read
+  `handleLoquelaSlash`'s FULL body (`~:800-888`) at implementation time to
+  confirm `/spawn` is the only `mode: 'act'` case and there isn't a second,
+  differently-shaped conflict this plan hasn't found — do not assume the
+  `mode !== 'act'` check alone is sufficient without that read.
 - `SubmitTaskInput` in `control_plane.rs` (new `Option<String>` field) and
   `submit_task_params`'s payload-building (pass it through to the daemon RPC
-  params as `"task_category"`).
+  params as `"task_category"` — the daemon's existing null-safe
+  `.filter(|v| !v.is_null())` parsing pattern already handles an
+  omitted/`None` value falling back to default category correctly, per this
+  session's earlier priority/file_manifest fix).
 
 - [ ] **Step 7: Write a frontend regression test**
 
