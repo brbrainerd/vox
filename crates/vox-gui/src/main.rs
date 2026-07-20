@@ -60,9 +60,17 @@ async fn main() {
             commands::browser::BrowserState::default(),
         ))
         .setup(|app| {
-            let pool = tauri::async_runtime::block_on(
-                commands::gui_db_pool::GuiDbPool::connect_workspace(),
-            );
+            // `.setup()` runs synchronously on a worker thread already inside
+            // the #[tokio::main] runtime (needed below so scientia's
+            // tokio::spawn calls have an ambient reactor) — block_on alone
+            // panics with "Cannot start a runtime from within a runtime".
+            // block_in_place is the sanctioned way to block synchronously
+            // from within a multi-thread runtime's worker thread.
+            let pool = tokio::task::block_in_place(|| {
+                tauri::async_runtime::block_on(
+                    commands::gui_db_pool::GuiDbPool::connect_workspace(),
+                )
+            });
             if let Ok(db) = pool.handle() {
                 commands::scientia::spawn_scientia_queue_stream(app.handle().clone(), db.clone());
                 commands::scientia::spawn_discovery_surfaced_stream(app.handle().clone(), db);
