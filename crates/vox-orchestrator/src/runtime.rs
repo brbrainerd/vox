@@ -1142,9 +1142,18 @@ impl AgentFleet {
     /// such task queued forever, and because `handle_command` drains exactly
     /// one task per notify, every later submit's notify drained one OLDER
     /// task: permanently one behind.
+    /// Fans sends out concurrently (Task C2) rather than one `agent_id` at a
+    /// time: a single wedged mailbox needing the full send-timeout used to
+    /// stall every later agent's nudge (and everything after this tick -
+    /// `check_scaling`/`sync_fleet`/rebalance) by up to
+    /// `N_agents * send-timeout`. Concurrent dispatch bounds this to one
+    /// timeout window regardless of how many agents are nudged this tick.
     pub async fn nudge_queued_agents(&self) {
-        for agent_id in self.orchestrator.agent_ids() {
-            let should_nudge = match self.orchestrator.agent_queue(agent_id) {
+        let candidates: Vec<AgentId> = self
+            .orchestrator
+            .agent_ids()
+            .into_iter()
+            .filter(|&agent_id| match self.orchestrator.agent_queue(agent_id) {
                 Some(queue_lock) => {
                     let queue = crate::sync_lock::rw_read(&*queue_lock);
                     // has_ready_task (not len>0): a queue holding only
@@ -1153,41 +1162,40 @@ impl AgentFleet {
                     queue.has_ready_task() && !queue.has_in_progress()
                 }
                 None => false,
-            };
-            if !should_nudge {
-                continue;
-            }
+            })
+            .collect();
+
+        let sends = candidates.into_iter().filter_map(|agent_id| {
             let handle = crate::sync_lock::rw_read(&*self.orchestrator.agent_handles)
                 .get(&agent_id)
                 .cloned();
-            let Some(handle) = handle else {
-                // Actor not created yet; sync_fleet will register it and the
-                // next tick nudges again.
-                continue;
-            };
-            let json = serde_json::to_string(&AgentCommand::ProcessQueue).unwrap_or_else(|e| {
-                tracing::warn!("serialize ProcessQueue: {e}");
-                "{}".to_string()
-            });
-            let env = vox_actor_runtime::mailbox::Envelope::Message(
-                vox_actor_runtime::mailbox::Message {
-                    from: vox_actor_runtime::Pid::new(),
-                    payload: MessagePayload::Json(json.into()),
-                },
-            );
-            match tokio::time::timeout(vox_config::timeouts::D_5S, handle.send(env)).await {
-                Ok(send_res) => {
-                    if let Err(e) = send_res {
-                        tracing::warn!(
-                            "fleet tick: ProcessQueue nudge to agent {agent_id} failed: {e:?}"
-                        );
-                    }
+            // Actor not created yet; sync_fleet will register it and the
+            // next tick nudges again.
+            let handle = handle?;
+            Some(async move {
+                let json = serde_json::to_string(&AgentCommand::ProcessQueue).unwrap_or_else(|e| {
+                    tracing::warn!("serialize ProcessQueue: {e}");
+                    "{}".to_string()
+                });
+                let env = vox_actor_runtime::mailbox::Envelope::Message(
+                    vox_actor_runtime::mailbox::Message {
+                        from: vox_actor_runtime::Pid::new(),
+                        payload: MessagePayload::Json(json.into()),
+                    },
+                );
+                match tokio::time::timeout(vox_config::timeouts::D_5S, handle.send(env)).await {
+                    Ok(Err(e)) => tracing::warn!(
+                        "fleet tick: ProcessQueue nudge to agent {agent_id} failed: {e:?}"
+                    ),
+                    Err(_) => tracing::warn!(
+                        "fleet tick: ProcessQueue nudge to agent {agent_id} timed out"
+                    ),
+                    Ok(Ok(())) => {}
                 }
-                Err(_) => {
-                    tracing::warn!("fleet tick: ProcessQueue nudge to agent {agent_id} timed out")
-                }
-            }
-        }
+            })
+        });
+
+        futures_util::future::join_all(sends).await;
     }
 
     /// Check if agents need to be spawned or retired using ScalingService and profile limits.
@@ -1731,6 +1739,91 @@ mod tests {
              agent's queue lock is likely still held when `heartbeat` tries \
              to read-lock the same Arc<RwLock<AgentQueue>>, reintroducing \
              the ProcessQueue/heartbeat lock-reentrancy deadlock"
+        );
+    }
+
+    /// Proof for Task C2: `nudge_queued_agents` must send to multiple wedged
+    /// agents concurrently, not one-at-a-time.
+    ///
+    /// `vox_actor_runtime::ProcessHandle` is a concrete struct (not a trait),
+    /// so a unit-level fake whose `send()` itself increments a counter isn't
+    /// directly pluggable (Step 1b's investigation). Instead this builds
+    /// real, deliberately-wedged mailboxes: each agent's mailbox is
+    /// constructed with capacity 1 and pre-filled with a dummy envelope, and
+    /// the receiver is kept alive but never drained — so any further send to
+    /// it blocks for the *entire* configured send-timeout
+    /// (`vox_config::timeouts::D_5S`), exactly the pathological "wedged
+    /// mailbox" scenario the design doc's motivation describes.
+    ///
+    /// With `N_AGENTS` such wedged agents, a serial per-agent `for` loop
+    /// must accumulate `N_AGENTS * D_5S` before returning (each send only
+    /// gives up after its own full timeout); concurrent dispatch bounds
+    /// total time to ~1 timeout window regardless of `N_AGENTS`. This is a
+    /// coarse threshold assertion, not a "close to one window" assertion:
+    /// 2 agents means serial floor is ~10s and concurrent ceiling is ~5s, so
+    /// asserting `elapsed < 8s` has multiple seconds of margin on both
+    /// sides — ordinary scheduler jitter cannot flip the result.
+    #[tokio::test]
+    async fn nudge_sends_are_concurrent_not_serial() {
+        let orchestrator = Arc::new(Orchestrator::new(
+            crate::config::OrchestratorConfig::for_testing(),
+        ));
+
+        const N_AGENTS: usize = 2;
+        // Keep every receiver alive for the whole test so the mailbox stays
+        // open-but-full (a dropped receiver would make further sends fail
+        // fast with a "channel closed" error instead of blocking).
+        let mut _rx_keepalive = Vec::with_capacity(N_AGENTS);
+
+        for i in 0..N_AGENTS {
+            let agent_id = orchestrator
+                .spawn_agent(&format!("t-c2-nudge-{i}"))
+                .expect("spawn agent");
+            orchestrator
+                .submit_task_with_agent(
+                    &format!("C2 concurrency repro {i}"),
+                    vec![],
+                    None,
+                    Some(format!("t-c2-nudge-{i}")),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await
+                .expect("submit task");
+
+            let (tx, rx) = vox_actor_runtime::mailbox::new_mailbox(1);
+            let dummy = vox_actor_runtime::mailbox::Envelope::Message(
+                vox_actor_runtime::mailbox::Message {
+                    from: vox_actor_runtime::Pid::new(),
+                    payload: MessagePayload::Json("{}".to_string().into()),
+                },
+            );
+            tx.send(dummy).await.expect("prefill the size-1 mailbox");
+
+            let handle = ProcessHandle {
+                pid: vox_actor_runtime::Pid::new(),
+                mailbox_tx: tx,
+                task: None,
+            };
+            orchestrator.register_agent_handle(agent_id, handle);
+            _rx_keepalive.push(rx);
+        }
+
+        let scheduler = Arc::new(Scheduler::new());
+        let processor: Arc<dyn TaskProcessor> = Arc::new(StubTaskProcessor);
+        let fleet = AgentFleet::new(scheduler, orchestrator.clone(), processor);
+
+        let start = std::time::Instant::now();
+        fleet.nudge_queued_agents().await;
+        let elapsed = start.elapsed();
+
+        assert!(
+            elapsed < std::time::Duration::from_secs(8),
+            "nudge_queued_agents took {elapsed:?} for {N_AGENTS} permanently-wedged agents \
+             (each requiring the full send-timeout) - expected ~1 timeout window from \
+             concurrent dispatch, not {N_AGENTS} windows from serial dispatch"
         );
     }
 
