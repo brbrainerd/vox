@@ -156,8 +156,20 @@ impl Orchestrator {
                 .await?;
         }
 
+        // Chat-category tasks are conversational replies, not code changes — the
+        // behavioral/research/approval/trust/harness/toestub/doc-integrity/Socrates
+        // gates below all validate code artifacts (tests passing, files written,
+        // scope compliance) that a chat reply never produces. Running them
+        // unconditionally made every chat task fail behavioral validation and
+        // loop forever through "auto-debug" re-queues, which is exactly the "no
+        // agent picked this up" timeout users hit — the reply was generated
+        // correctly (see `ChatTaskProcessor`) but completion never happened.
+        let is_chat_task = task_clone_opt
+            .as_ref()
+            .is_some_and(|t| t.task_category == crate::types::TaskCategory::Chat);
+
         let mut behavioral_failure = None;
-        if task_clone_opt.is_some() {
+        if task_clone_opt.is_some() && !is_chat_task {
             let require_behavioral =
                 crate::sync_lock::rw_read(&*self.config).behavioral_gate_on_complete;
             let gate = crate::gate::BehavioralGate::new(require_behavioral);
@@ -171,7 +183,7 @@ impl Orchestrator {
         // Holds info for a Review-tier DB write that must happen after the queue lock is dropped.
         let mut review_approval_pending: Option<(String, String, u64)> = None;
 
-        {
+        if !is_chat_task {
             let queue_lock = {
                 let agents = crate::sync_lock::rw_read(&*self.agents);
                 agents
@@ -365,8 +377,14 @@ impl Orchestrator {
             }
         }
 
-        // Socrates gate (needs await, so drop queue above)
-        let socrates_outcome = {
+        // Socrates gate (needs await, so drop queue above). Skipped for chat
+        // tasks along with the gate cascade above — see `is_chat_task` doc.
+        let socrates_outcome = if is_chat_task {
+            gates::GateOutcome {
+                requeue: None,
+                needs_review_approval: false,
+            }
+        } else {
             let (task_clone, max_socrates_iterations) = {
                 let agents = crate::sync_lock::rw_read(&*self.agents);
                 let queue_lock = agents
@@ -686,5 +704,49 @@ mod attribution_tests {
             .await
             .expect("complete with attribution");
         assert_eq!(orch.status().total_completed, 1);
+    }
+
+    /// Reproduces a live bug: a `Chat`-category task (no file writes, no tests to
+    /// run) hit the same behavioral/research/approval/trust/harness/toestub/
+    /// doc-integrity/Socrates gate cascade as a code-writing agentic task. The
+    /// behavioral gate's `check_behavior` fails for a task with no code changes,
+    /// so completion never succeeded — the task looped through "auto-debug"
+    /// re-queues forever and the caller (the GUI) timed out waiting for a
+    /// response that was already generated but never marked complete.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn chat_category_task_completes_without_running_code_gates() {
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let hints = crate::types::TaskEnqueueHints {
+            task_category: Some(crate::types::TaskCategory::Chat),
+            ..Default::default()
+        };
+        let task_id = orch
+            .submit_task_with_agent(
+                "Say hello in one word.",
+                vec![],
+                None,
+                None,
+                None,
+                Some(hints),
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+        let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
+        {
+            let queue_lock = orch.agent_queue(agent_id).unwrap();
+            let mut queue = queue_lock.write().unwrap();
+            queue.dequeue();
+        }
+
+        orch.complete_task(task_id)
+            .await
+            .expect("chat task must complete on first pass, not requeue through auto-debug");
+        assert_eq!(
+            orch.status().total_completed,
+            1,
+            "chat task must be marked complete rather than looping through gate requeues"
+        );
     }
 }
