@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildTranscriptTimeline,
+  buildChatOnlyTimeline,
   isTokenStreamEvent,
 } from './chatTranscriptTimeline';
 import type { ChatMessage } from './chatCorrelation';
@@ -91,5 +92,61 @@ describe('buildTranscriptTimeline', () => {
     if (taskRow?.kind === 'agent') {
       expect(taskRow.collapsed).toBe(false);
     }
+  });
+});
+
+function msg(id: string, role: ChatMessage['role'], status: ChatMessage['status'] = 'done'): ChatMessage {
+  return { id, role, text: 'hi', status } as ChatMessage;
+}
+
+function evt(id: string, tag: string, eventType: string, extra: Record<string, any> = {}): StreamItem {
+  return {
+    id,
+    kind: 'agent',
+    tag,
+    title: tag,
+    body: '',
+    ts: 'now',
+    metadata: { eventType, timestampMs: Number(id), ...extra },
+  };
+}
+
+describe('buildChatOnlyTimeline', () => {
+  it('excludes all raw agent event rows (CHECKPOINT/TASK/PHASE/COST/TOKEN) from the chat-only list', () => {
+    const messages = [msg('m1', 'user'), msg('m2', 'assistant')];
+    const events = [
+      evt('1', 'CHECKPOINT', 'snapshot_captured'),
+      evt('2', 'TASK', 'task_started'),
+      evt('3', 'PHASE', 'task_phase_changed'),
+      evt('4', 'COST', 'cost_incurred'),
+      evt('5', 'TOKEN', 'token_streamed'),
+    ];
+    const rows = buildChatOnlyTimeline(messages, events);
+    expect(rows.every((r) => r.kind === 'message' || r.kind === 'status')).toBe(true);
+  });
+
+  it('produces exactly one live status row while a task is in-flight, with phase and elapsed time', () => {
+    const messages = [msg('m1', 'user')];
+    const events = [
+      evt('1', 'TASK', 'task_started', { taskId: 7 }),
+      evt('2', 'PHASE', 'task_phase_changed', { taskId: 7, phase: 'Verify' }),
+    ];
+    const rows = buildChatOnlyTimeline(messages, events, { nowMs: 12_000 });
+    const statusRows = rows.filter((r) => r.kind === 'status');
+    expect(statusRows).toHaveLength(1);
+    expect(statusRows[0]).toMatchObject({ kind: 'status', phase: 'Verify', taskId: 7 });
+    // task_started's event id is '1', so its timestampMs (via Number(id)) is 1.
+    expect(statusRows[0].elapsedMs).toBe(12_000 - 1);
+  });
+
+  it('removes the status row once the task completes', () => {
+    const messages = [msg('m1', 'user'), msg('m2', 'assistant')];
+    const events = [
+      evt('1', 'TASK', 'task_started', { taskId: 7 }),
+      evt('2', 'PHASE', 'task_phase_changed', { taskId: 7, phase: 'Verify' }),
+      evt('3', 'TASK', 'task_completed', { taskId: 7 }),
+    ];
+    const rows = buildChatOnlyTimeline(messages, events);
+    expect(rows.some((r) => r.kind === 'status')).toBe(false);
   });
 });

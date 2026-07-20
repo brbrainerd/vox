@@ -136,3 +136,76 @@ export function buildTranscriptTimeline(
   flushTokens();
   return rows;
 }
+
+export type TranscriptStatusRow = {
+  kind: 'status';
+  id: string;
+  atMs: number;
+  taskId: number;
+  phase: string;
+  elapsedMs: number;
+};
+
+export type ChatOnlyTimelineRow = TranscriptMessageRow | TranscriptStatusRow;
+
+const IN_FLIGHT_EVENT_TYPES = new Set(['task_started', 'task_phase_changed']);
+const TASK_END_EVENT_TYPES = new Set(['task_completed', 'task_failed']);
+
+/**
+ * Chat-feed-only view of the timeline: real messages plus at most one live
+ * status row per in-flight task (phase + elapsed time). Every raw agent
+ * event (CHECKPOINT/TASK/PHASE/COST/TOKEN) that used to render as its own
+ * row via `ChatAgentEventRow` is excluded here — full detail stays available
+ * via `buildTranscriptTimeline` for the Flow panel.
+ */
+export function buildChatOnlyTimeline(
+  messages: ChatMessage[],
+  agentItems: StreamItem[],
+  options?: { messageStepMs?: number; nowMs?: number },
+): ChatOnlyTimelineRow[] {
+  const messageStepMs = options?.messageStepMs ?? 1000;
+  const nowMs = options?.nowMs ?? Date.now();
+
+  const rows: ChatOnlyTimelineRow[] = messages.map((message, index) => ({
+    kind: 'message' as const,
+    id: message.id,
+    atMs: index * messageStepMs,
+    message,
+  }));
+
+  // Track the latest in-flight task per taskId, in arrival order, and drop
+  // any task that has since completed/failed.
+  const inFlight = new Map<number, { phase: string; startedAtMs: number }>();
+  for (const item of agentItems) {
+    const eventType = item.metadata?.eventType;
+    const taskId = item.taskId ?? (item.metadata?.taskId as number | undefined);
+    if (taskId == null) continue;
+    if (typeof eventType === 'string' && TASK_END_EVENT_TYPES.has(eventType)) {
+      inFlight.delete(taskId);
+      continue;
+    }
+    if (typeof eventType === 'string' && IN_FLIGHT_EVENT_TYPES.has(eventType)) {
+      const ts = typeof item.metadata?.timestampMs === 'number' ? item.metadata.timestampMs : 0;
+      const existing = inFlight.get(taskId);
+      const startedAtMs = eventType === 'task_started' ? ts : (existing?.startedAtMs ?? ts);
+      const phase =
+        eventType === 'task_phase_changed' && typeof item.metadata?.phase === 'string'
+          ? item.metadata.phase
+          : (existing?.phase ?? 'Working');
+      inFlight.set(taskId, { phase, startedAtMs });
+    }
+  }
+
+  for (const [taskId, { phase, startedAtMs }] of inFlight) {
+    rows.push({
+      kind: 'status',
+      id: `status-${taskId}`,
+      atMs: nowMs,
+      taskId,
+      phase,
+      elapsedMs: Math.max(0, nowMs - startedAtMs),
+    });
+  }
+
+  return rows;
+}
