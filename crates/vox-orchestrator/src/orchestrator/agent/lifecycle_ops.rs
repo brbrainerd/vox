@@ -337,8 +337,17 @@ impl crate::orchestrator::Orchestrator {
     /// Mirrors the lock-release path of [`Self::cancel_task`]: it revokes
     /// the file lock, affinity, and scope-guard claims held by `agent_id` for the
     /// interrupted task's write files (unless another queued/running task still
-    /// claims them), drops the task assignment, and emits the
-    /// `orch.task.cancelled` event with `path = "local_interrupt"`.
+    /// claims them), and emits the `orch.task.cancelled` event with
+    /// `path = "local_interrupt"`.
+    ///
+    /// Does **not** remove the task's `task_assignments` entry — that is the
+    /// responsibility of the terminal-state call (`fail_task`/`complete_task`)
+    /// callers are expected to make immediately after this returns. Removing
+    /// it here used to make that follow-up `fail_task` call silently no-op
+    /// (it re-derives `agent_id` from `task_assignments` and swallows a
+    /// `TaskNotFound` if the entry is already gone) — every task hitting the
+    /// cancel/stream-error/`HaltAgent` phase-loop exits was never actually
+    /// recorded as failed until this was fixed.
     pub fn abort_interrupted_task(&self, task_id: TaskId, agent_id: AgentId) {
         // Best-effort lock release: locate the task's write files from the
         // agent's queue (in-progress or queued) and release any no-longer-claimed.
