@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  parseGraphifyStatus,
   parseMcpToolText,
   parsePendingApprovals,
   unwrapMcpEnvelope,
@@ -41,5 +42,22 @@ describe('mcpToolResult', () => {
       result: { success: true, data: 'diff --git a/foo b/foo\n' },
     });
     expect(text).toContain('diff --git');
+  });
+
+  // F-02: invokeMcpTool's Promise<{...}> signature lies about non-nullability
+  // - it's a thin passthrough to Tauri invoke() which can resolve null. These
+  // three helpers must not throw a raw TypeError when handed a null envelope.
+  it('parsePendingApprovals returns [] for a null envelope', () => {
+    expect(parsePendingApprovals(null as never)).toEqual([]);
+  });
+
+  it('parseGraphifyStatus throws an honest error for a null envelope', () => {
+    expect(() => parseGraphifyStatus(null as never)).toThrow(
+      'vox_search_status: no response from backend',
+    );
+  });
+
+  it('parseMcpToolText returns null for a null envelope', () => {
+    expect(parseMcpToolText(null as never)).toBeNull();
   });
 });

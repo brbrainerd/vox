@@ -41,4 +41,16 @@ describe('useVoxGraphStatus', () => {
     expect(mockInvokeMcpTool).toHaveBeenCalledWith('vox_search_status', {});
     expect(result.current.data?.default_corpus_id).toBe('repo-code-graph');
   });
+
+  // F-02: invokeMcpTool's Promise<{...}> signature lies about non-nullability
+  // (it's a thin passthrough to Tauri invoke(), which can resolve null). The
+  // hook must surface a clean error, not a raw TypeError from a null deref.
+  it('surfaces a clean error when invokeMcpTool resolves null', async () => {
+    mockInvokeMcpTool.mockResolvedValue(null);
+
+    const { result } = renderHook(() => useVoxGraphStatus(), { wrapper });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    expect(result.current.error?.message).toBe('vox_search_status: no response from backend');
+  });
 });

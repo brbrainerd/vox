@@ -24,7 +24,10 @@ export function unwrapMcpEnvelope(result: unknown): unknown {
   return result;
 }
 
-export function parsePendingApprovals(invokeResult: McpInvokeResult): PendingApprovalRow[] {
+export function parsePendingApprovals(
+  invokeResult: McpInvokeResult | null | undefined,
+): PendingApprovalRow[] {
+  if (!invokeResult) return [];
   const data = unwrapMcpEnvelope(invokeResult.result) as { approvals?: PendingApprovalRow[] } | null;
   const list = data?.approvals;
   return Array.isArray(list) ? list : [];
@@ -36,7 +39,12 @@ export interface GraphifyStatusPayload {
 }
 
 /** Parse the `vox_search_status` envelope into the panel's status shape. */
-export function parseGraphifyStatus(invokeResult: McpInvokeResult): GraphifyStatusPayload {
+export function parseGraphifyStatus(
+  invokeResult: McpInvokeResult | null | undefined,
+): GraphifyStatusPayload {
+  if (!invokeResult) {
+    throw new Error('vox_search_status: no response from backend');
+  }
   if (invokeResult.is_error) {
     throw new Error('vox_search_status reported an error');
   }
@@ -48,7 +56,8 @@ export function parseGraphifyStatus(invokeResult: McpInvokeResult): GraphifyStat
 }
 
 /** Extract string payload from `vox_git_diff` and similar text tools. */
-export function parseMcpToolText(invokeResult: McpInvokeResult): string | null {
+export function parseMcpToolText(invokeResult: McpInvokeResult | null | undefined): string | null {
+  if (!invokeResult) return null;
   const inner = invokeResult.result;
   if (typeof inner === 'string') return inner;
   if (inner && typeof inner === 'object') {
