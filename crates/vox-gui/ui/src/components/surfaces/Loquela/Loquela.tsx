@@ -469,7 +469,7 @@ export function Loquela({
           </div>
         )}
 
-        <div className="relative flex items-end gap-2">
+        <div className="relative flex items-center gap-2">
           <div className="relative flex-1">
             <textarea
               id="loquela-composer"
@@ -562,7 +562,7 @@ export function Loquela({
             >
               <Icon.send className="size-3.5" />
               {dryRun ? "Dry-run" : "Run"}
-              <kbd className="rounded border border-current px-1 text-[9px] opacity-75">↵</kbd>
+              <kbd className="rounded border border-current px-1 text-[9px] opacity-75">⌘↵</kbd>
             </button>
           )}
         </div>
@@ -675,9 +675,6 @@ export function Loquela({
             </span>
           )}
 
-          <div className="ml-auto flex items-center gap-2 font-mono text-[9px] text-zinc-500">
-            <kbd className="rounded border border-white/10 bg-white/5 px-1 py-0.5 tracking-widest text-zinc-400">⌘↵</kbd>
-          </div>
         </div>
       </Glass>
     </div>

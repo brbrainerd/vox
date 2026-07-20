@@ -153,4 +153,16 @@ describe('Loquela', () => {
     expect(screen.queryByLabelText('Goal')).toBeNull();
     expect(screen.getByRole('button', { name: /structured intent/i }).getAttribute('aria-expanded')).toBe('false');
   });
+
+  it('the Run button carries its own keyboard-shortcut hint, with no other disconnected shortcut hint elsewhere', () => {
+    renderLoquela();
+    const runButton = screen.getByRole('button', { name: /run/i });
+    expect(runButton).toHaveTextContent('⌘↵');
+    // Reproduces a live bug: a bare "⌘↵" kbd hint used to render alone at
+    // the end of the toolbar row, disconnected from any button — it must
+    // not exist anywhere outside the Run button now.
+    const allKbds = document.querySelectorAll('kbd');
+    const kbdsOutsideRunButton = Array.from(allKbds).filter((k) => !runButton.contains(k));
+    expect(kbdsOutsideRunButton.map((k) => k.textContent)).not.toContain('⌘↵');
+  });
 });
