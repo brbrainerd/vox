@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { sanitizeErrorForToast } from '../../lib/backendGuard';
 import type { Toast } from '../../types/tauri';
 
 interface ExecuteOutput {
@@ -50,7 +51,7 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
           });
           next[card.key] = { kind: 'ok', out };
         } catch (err) {
-          next[card.key] = { kind: 'error', message: String(err) };
+          next[card.key] = { kind: 'error', message: sanitizeErrorForToast(err) };
         }
       })
     );

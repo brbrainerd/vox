@@ -524,7 +524,7 @@ export default function App() {
           run_id: runId,
           success: false,
           completed_steps: 0,
-          error: String(err),
+          error: String(err), // gui-safe: sent to the backend as a run-completion record, never rendered to the user
         }).catch(() => {});
       }
       throw err;

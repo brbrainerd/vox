@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { CommandCatalog, CommandCatalogEntry, CommandCatalogArgument } from '../types/catalog';
 import { voxTransport } from '../transport';
+import { sanitizeErrorForToast } from '../lib/backendGuard';
 
 export interface ExecuteOutput {
     exit_code: number;
@@ -68,7 +69,7 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
             });
             setOutput({ success: true, data: res });
         } catch (err) {
-            setOutput({ error: String(err) });
+            setOutput({ error: sanitizeErrorForToast(err) });
         }
     };
 
