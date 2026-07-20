@@ -1106,6 +1106,19 @@ export default function App() {
   const inFlightTaskId = inFlightAssistant ? Number(inFlightAssistant.taskId) : undefined;
   const taskInProgress = inFlightTaskId != null && Number.isFinite(inFlightTaskId);
 
+  // "Current agent" for the composer's inline Resume button: chat messages
+  // carry a task id but no agent id, so there is no direct per-session agent
+  // link (unlike the Agents view, which acts on an explicitly selected
+  // Agent). As a minimal, documented derivation: when exactly one agent is
+  // paused fleet-wide, treat it as this session's paused agent — mirrors how
+  // taskInProgress/inFlightTaskId are derived from a single unambiguous
+  // signal rather than inventing new per-session agent tracking.
+  const pausedAgents = useMemo(
+    () => data.agents.filter((a) => a.phase === 'Paused'),
+    [data.agents],
+  );
+  const currentPausedAgent = pausedAgents.length === 1 ? pausedAgents[0] : undefined;
+
   const handleInterruptTask = useCallback(
     (taskId?: number) => {
       if (taskId == null || !Number.isFinite(taskId)) return;
@@ -1125,6 +1138,9 @@ export default function App() {
       taskInProgress={taskInProgress}
       currentTaskId={taskInProgress ? inFlightTaskId : undefined}
       onInterrupt={handleInterruptTask}
+      agentPaused={!!currentPausedAgent}
+      currentAgent={currentPausedAgent ?? null}
+      onResume={handleResume}
       sessionBudget={{
         spent: kpis.budgetBurn.value,
         cap: kpis.budgetBurn.cap,

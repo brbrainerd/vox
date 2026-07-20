@@ -171,6 +171,18 @@ describe('Loquela', () => {
     expect(screen.queryByRole('button', { name: /model:/i })).toBeNull();
   });
 
+  it('renders a Resume button when the current agent is paused, calling onResume with the agent', () => {
+    const onResume = vi.fn();
+    renderLoquela({
+      agentPaused: true,
+      currentAgent: { id: 'a1' } as any,
+      onResume,
+    });
+    const resumeBtn = screen.getByRole('button', { name: /resume/i });
+    fireEvent.click(resumeBtn);
+    expect(onResume).toHaveBeenCalledWith({ id: 'a1' });
+  });
+
   it('the Run button carries its own keyboard-shortcut hint, with no other disconnected shortcut hint elsewhere', () => {
     renderLoquela();
     const runButton = screen.getByRole('button', { name: /run/i });

@@ -119,6 +119,12 @@ interface LoquelaProps {
   currentTaskId?: number;
   /** Called when the user clicks Stop; should interrupt the active orchestrator task. */
   onInterrupt?: (taskId?: number) => void;
+  /** True when the current agent (not just the task) is paused. */
+  agentPaused?: boolean;
+  /** The agent to resume; only meaningful when agentPaused is true. */
+  currentAgent?: { id: string } | null;
+  /** Called when the user clicks Resume. */
+  onResume?: (agent: { id: string }) => void;
   /**
    * Rendered at the far right of the toolbar row, after the cost/budget
    * display — e.g. the model-route picker. An opaque slot (like `composer`
@@ -144,6 +150,9 @@ export function Loquela({
   taskInProgress = false,
   currentTaskId,
   onInterrupt,
+  agentPaused = false,
+  currentAgent,
+  onResume,
   trailingSlot,
 }: LoquelaProps) {
   const embedded = useIsEmbeddedSurface();
@@ -564,6 +573,16 @@ export function Loquela({
               <Icon.stop className="size-3.5" />
               <span className="font-display text-[11px] uppercase tracking-[0.18em]">Stop</span>
               <kbd className="rounded border border-current px-1 text-[9px] opacity-75">↵</kbd>
+            </button>
+          ) : agentPaused && currentAgent ? (
+            <button
+              type="button"
+              onClick={() => onResume?.(currentAgent)}
+              aria-label="Resume"
+              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/[0.12] px-3 text-rose-300 transition hover:bg-rose-400/[0.18]"
+            >
+              <Icon.play className="size-3.5" />
+              <span className="font-display text-[11px] uppercase tracking-[0.18em]">Resume</span>
             </button>
           ) : (
             <button
