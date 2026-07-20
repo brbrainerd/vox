@@ -560,7 +560,14 @@ mod compact_notes_tests {
             test covering the previously-swallowed case, plus a short note on why the \
             original code path was structured that way.\n\n";
         let long_phase_out = paragraph.repeat(20);
-        let phases = ["inspect", "localize", "hypothesize", "act", "verify", "decide"];
+        let phases = [
+            "inspect",
+            "localize",
+            "hypothesize",
+            "act",
+            "verify",
+            "decide",
+        ];
         let mut blocks: Vec<String> = phases
             .iter()
             .map(|p| format!("[{p}]\n{long_phase_out}"))

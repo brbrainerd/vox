@@ -39,8 +39,8 @@ mod tests {
     use super::*;
     use crate::runtime::TaskProcessor;
     use crate::types::{AgentId, AgentTask, TaskCategory, TaskId, TaskPriority};
-    use std::sync::atomic::AtomicBool;
     use std::sync::Arc;
+    use std::sync::atomic::AtomicBool;
 
     // Two counting stub processors distinguishable by which one got called.
     struct CountingProcessor(std::sync::atomic::AtomicUsize);

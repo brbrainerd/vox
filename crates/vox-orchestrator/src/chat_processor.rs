@@ -79,10 +79,8 @@ impl TaskProcessor for ChatTaskProcessor {
             match chunk_result {
                 Ok(text) => {
                     reply_text.push_str(&text);
-                    self.event_bus.emit(AgentEventKind::TokenStreamed {
-                        agent_id,
-                        text,
-                    });
+                    self.event_bus
+                        .emit(AgentEventKind::TokenStreamed { agent_id, text });
                 }
                 Err(e) => {
                     self.orchestrator.abort_interrupted_task(task.id, agent_id);
