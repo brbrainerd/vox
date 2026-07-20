@@ -20,6 +20,11 @@ describe('index.css global a11y rules', () => {
     expect(css).toContain('prefers-reduced-motion');
     expect(css).toContain('animation');
   });
+
+  it('sets color-scheme per theme so native controls (e.g. <select> option popups) match the app theme instead of defaulting to light-mode white-on-white', () => {
+    expect(css).toMatch(/:root\s*\{[^}]*color-scheme:\s*dark/);
+    expect(css).toMatch(/\[data-theme="travertine"\]\s*\{[^}]*color-scheme:\s*light/);
+  });
 });
 
 

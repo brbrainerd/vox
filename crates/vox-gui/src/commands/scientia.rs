@@ -106,6 +106,118 @@ pub async fn list_publication_manifests(
         .collect())
 }
 
+/// Assemble a `QueueSnapshot` (candidates, claims-pending, retraction queue,
+/// stall detection) from the shared [`GuiDbPool`] — the native-command
+/// equivalent of `vox scientia dashboard`, which the GUI previously shelled
+/// out to via `execute_command`. That path opened a SEPARATE, fresh
+/// `VoxDb::connect_default()` in a spawned subprocess while this app's own
+/// pool already held the DB file open, producing "Locking error ... os error
+/// 33 / SQLITE_BUSY" — the exact class of bug `GuiDbPool` exists to prevent
+/// (see its module doc comment), just not yet applied to this surface.
+#[tauri::command]
+pub async fn scientia_dashboard_snapshot(
+    pool: State<'_, GuiDbPool>,
+) -> Result<vox_scientia::dashboard::QueueSnapshot, String> {
+    use vox_scientia::dashboard::{
+        CandidateRow, ClaimsPendingSummary, DashboardInputs, ReplyWindowEntry, build_queue_snapshot,
+    };
+    let db = pool.handle()?;
+    let manifests = db
+        .list_publication_manifests(Some("scientia"), None, 200)
+        .await
+        .map_err(map_db_err)?;
+    // Manifests carry no confidence signal; sourced as 0.0 (honest unknown) —
+    // mirrors vox-cli's `scientia_phase_handlers::scientia_dashboard`.
+    let candidates: Vec<CandidateRow> = manifests
+        .iter()
+        .map(|m| CandidateRow {
+            candidate_id: m.publication_id.clone(),
+            candidate_class: m.content_type.clone(),
+            confidence: 0.0,
+            state: m.state.clone(),
+            created_at_ms: m.created_at_ms,
+            updated_at_ms: m.updated_at_ms,
+        })
+        .collect();
+    let retraction_queue = retraction_queue_from(&candidates);
+    let counts = db
+        .scientia_claims_pending_summary()
+        .await
+        .map_err(map_db_err)?;
+    let claims_pending = ClaimsPendingSummary {
+        verifiable: counts.verifiable.max(0) as u64,
+        abstained: counts.abstained.max(0) as u64,
+        extraction_running: counts.extraction_running.max(0) as u64,
+    };
+    let manifests_in_reply_window: Vec<ReplyWindowEntry> = Vec::new();
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let inputs = DashboardInputs {
+        candidates: &candidates,
+        claims_pending,
+        manifests_in_reply_window: &manifests_in_reply_window,
+        retraction_queue: &retraction_queue,
+        now_ms,
+    };
+    Ok(build_queue_snapshot(&inputs))
+}
+
+fn retraction_queue_from(candidates: &[vox_scientia::dashboard::CandidateRow]) -> Vec<String> {
+    candidates
+        .iter()
+        .filter(|c| c.state == "retracted")
+        .map(|c| c.candidate_id.clone())
+        .collect()
+}
+
+/// Native-command equivalent of `vox scientia cost`, for the same reason as
+/// [`scientia_dashboard_snapshot`] — avoids a second `VoxDb::connect_default()`
+/// contending with this app's own already-open pool.
+#[tauri::command]
+pub async fn scientia_cost_rollup(
+    pool: State<'_, GuiDbPool>,
+) -> Result<vox_scientia::dashboard::cost::CostRollup, String> {
+    use vox_scientia::dashboard::cost::{CostInputs, build_cost_rollup};
+    let db = pool.handle()?;
+    let (provider_rows, phase_rows, findings) = db
+        .scientia_cost_raw_this_quarter()
+        .await
+        .map_err(map_db_err)?;
+    let by_provider: Vec<(String, f64)> = provider_rows
+        .into_iter()
+        .map(|r| (r.provider, r.total_usd))
+        .collect();
+    let mut inputs = CostInputs {
+        extraction_usd: 0.0,
+        critic_usd: 0.0,
+        novelty_retrieval_usd: 0.0,
+        scholarly_submission_usd: 0.0,
+        by_provider,
+        findings_published_this_quarter: findings,
+    };
+    apply_phase_costs(
+        &mut inputs,
+        phase_rows.iter().map(|r| (r.phase.as_str(), r.total_usd)),
+    );
+    Ok(build_cost_rollup(&inputs))
+}
+
+/// Map `(pipeline_phase, usd)` rows onto the four `CostInputs` category
+/// fields. Mirrors `vox-cli`'s `scientia_phase_handlers::apply_phase_costs`.
+fn apply_phase_costs<'a>(
+    inputs: &mut vox_scientia::dashboard::cost::CostInputs,
+    phases: impl IntoIterator<Item = (&'a str, f64)>,
+) {
+    for (phase, usd) in phases {
+        match phase {
+            "extraction" => inputs.extraction_usd += usd,
+            "critic" => inputs.critic_usd += usd,
+            "novelty" => inputs.novelty_retrieval_usd += usd,
+            "scholarly" => inputs.scholarly_submission_usd += usd,
+            _ => { /* unknown phase: ignore (forward-compat) */ }
+        }
+    }
+}
+
 // ── Live Scientia-queue push bridge (F2) ─────────────────────────────────────
 
 /// Tauri event channel carrying a lightweight "the Scientia queue changed" ping
@@ -273,6 +385,43 @@ mod discovery_surfaced_tests {
             discovery_inbox_origin(&["perf_claim".into()]),
             "commit_watcher"
         );
+    }
+}
+
+#[cfg(test)]
+mod dashboard_snapshot_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn dashboard_snapshot_over_pool_succeeds_on_an_empty_db() {
+        // The pooled equivalent of vox-cli's own
+        // `dashboard_snapshot_empty_inputs_succeeds` regression test — proves
+        // this reads through GuiDbPool without erroring, which is the whole
+        // point of the fix (no fresh VoxDb::connect_default() to contend
+        // with the app's own already-open connection).
+        use tauri::Manager;
+        let app = tauri::test::mock_app();
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let pool = app.state::<GuiDbPool>();
+        let snap = scientia_dashboard_snapshot(pool)
+            .await
+            .expect("empty DB yields a zeroed snapshot, not an error");
+        assert_eq!(snap.candidates.total, 0);
+        assert_eq!(snap.claims_pending.verifiable, 0);
+        assert!(snap.retraction_queue.is_empty());
+    }
+
+    #[tokio::test]
+    async fn cost_rollup_over_pool_succeeds_on_an_empty_db() {
+        use tauri::Manager;
+        let app = tauri::test::mock_app();
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let pool = app.state::<GuiDbPool>();
+        let rollup = scientia_cost_rollup(pool)
+            .await
+            .expect("empty DB yields an all-zeros rollup, not an error");
+        assert_eq!(rollup.this_quarter.total_usd, 0.0);
+        assert!(rollup.by_provider.is_empty());
     }
 }
 

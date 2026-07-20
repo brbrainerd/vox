@@ -9,12 +9,6 @@ import type { CostRollup } from './costRollup';
 import { ArchiveStatusSummary } from './ArchiveStatusSummary';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 
-interface ExecuteOutput {
-  exit_code: number;
-  stdout: string;
-  stderr: string;
-}
-
 interface CandidateRow {
   candidate_id: string;
   candidate_class: string;
@@ -47,7 +41,10 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone?: stri
 
 /**
  * Phase H structured dashboard: assembles a QueueSnapshot from the live DB via
- * `vox scientia dashboard` (the shared execute_command path) and renders it.
+ * the native `scientia_dashboard_snapshot` command, which reads through this
+ * app's own already-open DB pool instead of shelling out to a `vox scientia
+ * dashboard` subprocess (which used to contend with this app's own
+ * connection for the same DB file lock — "Locking error ... os error 33").
  */
 export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
   const embedded = useIsEmbeddedSurface();
@@ -62,16 +59,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
     fetchingRef.current = true;
     setLoading(true);
     try {
-      const out = await invoke<ExecuteOutput>('execute_command', {
-        path: ['scientia', 'dashboard'],
-        args: { __argv: [] },
-      });
-      if (out.exit_code !== 0) {
-        pushToast({ tone: 'warn', title: 'Scientia dashboard', body: out.stderr || `exit ${out.exit_code}`, cause: 'backend-error' });
-        setSnap(null);
-      } else {
-        setSnap(JSON.parse(out.stdout) as QueueSnapshot);
-      }
+      setSnap(await invoke<QueueSnapshot>('scientia_dashboard_snapshot'));
       // Cost rollup is an independent producer (`vox scientia cost`); a failure
       // here must not blank the queue snapshot above.
       try {

@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import React from 'react';
 
-// The dashboard fetches a queue snapshot via execute_command and a cost rollup.
-// Resolve both so the component renders its populated state.
+// The dashboard fetches a queue snapshot + cost rollup via native commands
+// that read through the app's own DB pool (no more execute_command subprocess).
 const SNAP = {
   candidates: { total: 3, by_class: { perf: 2 }, top_5_by_confidence: [] },
   claims_pending: { verifiable: 1, abstained: 0, extraction_running: 0 },
@@ -12,16 +12,11 @@ const SNAP = {
   retraction_queue: [],
   stalls: [],
 };
-const invokeMock = vi.fn((cmd: string, args?: { path?: string[] }) => {
-  if (cmd === 'execute_command' && args?.path?.[1] === 'dashboard') {
-    return Promise.resolve({ exit_code: 0, stdout: JSON.stringify(SNAP), stderr: '' });
-  }
-  if (cmd === 'execute_command' && args?.path?.[1] === 'cost') {
-    return Promise.resolve({ exit_code: 0, stdout: JSON.stringify({
-      this_quarter: { total_usd: 0 }, by_provider: [], per_finding_average_usd: 0,
-    }), stderr: '' });
-  }
-  return Promise.resolve({ exit_code: 0, stdout: '{}', stderr: '' });
+const COST = { this_quarter: { total_usd: 0 }, by_provider: [], per_finding_average_usd: 0 };
+const invokeMock = vi.fn((cmd: string) => {
+  if (cmd === 'scientia_dashboard_snapshot') return Promise.resolve(SNAP);
+  if (cmd === 'scientia_cost_rollup') return Promise.resolve(COST);
+  return Promise.resolve({});
 });
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (cmd: string, args?: unknown) => invokeMock(cmd, args),

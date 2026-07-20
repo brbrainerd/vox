@@ -26,27 +26,15 @@ export interface CostRollup {
   by_provider: CostByProvider[];
 }
 
-interface ExecuteOutput {
-  exit_code: number;
-  stdout: string;
-  stderr: string;
-}
-
 /**
- * A6: fetch the Scientia cost rollup via the shared CLI bridge
- * (`execute_command(['scientia','cost'])`) and JSON.parse stdout. No HTTP
- * gateway dependency. Throws on a non-zero exit so the caller can surface a
- * toast.
+ * A6: fetch the Scientia cost rollup via the native `scientia_cost_rollup`
+ * command, which reads through this app's own already-open DB pool instead
+ * of shelling out to a `vox scientia cost` subprocess (which used to contend
+ * with this app's own connection for the same DB file lock). Throws on
+ * failure so the caller can surface a toast.
  */
 export async function fetchCostRollup(): Promise<CostRollup> {
-  const out = await invoke<ExecuteOutput>('execute_command', {
-    path: ['scientia', 'cost'],
-    args: { __argv: [] },
-  });
-  if (out.exit_code !== 0) {
-    throw new Error(out.stderr || `scientia cost exited ${out.exit_code}`);
-  }
-  return JSON.parse(out.stdout) as CostRollup;
+  return invoke<CostRollup>('scientia_cost_rollup');
 }
 
 function usd(n: number): string {

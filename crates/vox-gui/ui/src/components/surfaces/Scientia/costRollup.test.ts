@@ -29,24 +29,19 @@ describe('fetchCostRollup (A6)', () => {
     invokeMock.mockReset();
   });
 
-  it('invokes the execute_command bridge with the scientia cost path and parses stdout', async () => {
-    invokeMock.mockResolvedValue({
-      exit_code: 0,
-      stdout: JSON.stringify(SAMPLE),
-      stderr: '',
-    });
+  it('invokes the native scientia_cost_rollup command', async () => {
+    invokeMock.mockResolvedValue(SAMPLE);
 
     const rollup = await fetchCostRollup();
 
     expect(invokeMock).toHaveBeenCalledTimes(1);
-    const [cmd, payload] = invokeMock.mock.calls[0];
-    expect(cmd).toBe('execute_command');
-    expect(payload).toMatchObject({ path: ['scientia', 'cost'] });
+    const [cmd] = invokeMock.mock.calls[0];
+    expect(cmd).toBe('scientia_cost_rollup');
     expect(rollup).toEqual(SAMPLE);
   });
 
-  it('throws when the command exits non-zero', async () => {
-    invokeMock.mockResolvedValue({ exit_code: 1, stdout: '', stderr: 'boom' });
+  it('propagates a rejection from the command', async () => {
+    invokeMock.mockRejectedValue(new Error('boom'));
     await expect(fetchCostRollup()).rejects.toThrow(/boom/);
   });
 });

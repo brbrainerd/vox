@@ -242,6 +242,8 @@ async fn main() {
             commands::scientia::list_research_sessions,
             commands::scientia::get_research_session_detail,
             commands::scientia::list_publication_manifests,
+            commands::scientia::scientia_dashboard_snapshot,
+            commands::scientia::scientia_cost_rollup,
             commands::oratio::oratio_transcribe,
             commands::scientia_review::list_publication_review_queue,
             commands::scientia_review::record_publication_claim_review,

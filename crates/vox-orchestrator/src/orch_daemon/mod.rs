@@ -468,14 +468,21 @@ pub async fn dispatch_request(
             let Some(description) = req.params.get("description").and_then(|x| x.as_str()) else {
                 return response_err(&req.id, "params.description (string) required");
             };
-            let file_manifest = match req.params.get("file_manifest") {
+            // `.filter(|v| !v.is_null())` treats an explicit JSON `null` the
+            // same as an omitted key — callers that always serialize an
+            // `Option<T>` field (rather than skip it when `None`) send
+            // `"field": null`, which is `Some(&Value::Null)` from `.get()`,
+            // not `None`; without this, deserializing null into a non-Option
+            // target type fails with a confusing "invalid type: null,
+            // expected ..." error instead of using the default.
+            let file_manifest = match req.params.get("file_manifest").filter(|v| !v.is_null()) {
                 Some(v) => match serde_json::from_value::<Vec<FileAffinity>>(v.clone()) {
                     Ok(m) => m,
                     Err(e) => return response_err(&req.id, format!("invalid file_manifest: {e}")),
                 },
                 None => Vec::new(),
             };
-            let priority = match req.params.get("priority") {
+            let priority = match req.params.get("priority").filter(|v| !v.is_null()) {
                 Some(v) => match serde_json::from_value::<TaskPriority>(v.clone()) {
                     Ok(p) => Some(p),
                     Err(e) => return response_err(&req.id, format!("invalid priority: {e}")),
@@ -1188,6 +1195,46 @@ mod task_dispatch_tests {
         .await;
         let task_id = result_value(&resp)["task_id"].as_u64().unwrap();
         (orch, task_id)
+    }
+
+    #[tokio::test]
+    async fn submit_task_treats_explicit_null_priority_and_file_manifest_as_omitted() {
+        // Reproduces a live bug: a caller that always serializes optional
+        // fields sends `"priority": null` / `"file_manifest": null` rather
+        // than omitting the keys. Before the fix this returned "invalid
+        // priority: invalid type: null, expected string or map" instead of
+        // defaulting to Normal priority / an empty manifest.
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+        orch.spawn_agent("a1").unwrap();
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({
+                    "description": "explicit null optional fields",
+                    "priority": null,
+                    "file_manifest": null,
+                }),
+            ),
+        )
+        .await;
+        let task_id = result_value(&resp)["task_id"]
+            .as_u64()
+            .expect("submit succeeds instead of erroring on null priority/file_manifest");
+
+        let list_resp = dispatch_request(
+            "rid",
+            orch,
+            &req(orch_daemon_method::LIST_TASKS, serde_json::json!({})),
+        )
+        .await;
+        let tasks = result_value(&list_resp)["tasks"].as_array().unwrap();
+        let t = tasks
+            .iter()
+            .find(|t| t["id"].as_u64() == Some(task_id))
+            .unwrap();
+        assert_eq!(t["priority"].as_str(), Some("Normal"));
     }
 
     #[tokio::test]

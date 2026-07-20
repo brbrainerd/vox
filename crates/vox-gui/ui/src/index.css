@@ -7,8 +7,14 @@
 @tailwind utilities;
 
 @layer base {
-  :root { --brass: 201 162 74; }                         /* gold.500 → basalt scope */
-  [data-theme="travertine"] { --brass: 138 106 38; }     /* gold.700 → daylight */
+  /* Native controls (<select> option popups, etc.) render with browser/OS
+     UA styling that Tailwind classes on the element itself can't reach —
+     without this, Windows renders them in light mode regardless of the
+     app's own theme, and since `color` IS inherited onto <option> but the
+     native popup background is not, the result is white text on a white
+     background (not just a mismatched-but-legible light popup). */
+  :root { color-scheme: dark; --brass: 201 162 74; }     /* gold.500 → basalt scope */
+  [data-theme="travertine"] { color-scheme: light; --brass: 138 106 38; }     /* gold.700 → daylight */
 
   html, body, #root {
     height: 100%; margin: 0; overflow: hidden;
