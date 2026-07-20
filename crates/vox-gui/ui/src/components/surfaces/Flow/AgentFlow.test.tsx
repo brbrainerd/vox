@@ -42,4 +42,12 @@ describe('AgentFlow', () => {
     const bar = screen.getByRole('progressbar', { name: /progress/i });
     expect(bar.getAttribute('aria-valuenow')).toBe('50');
   });
+
+  it('renders the inspector without crashing when budget is null (chat-category tasks have no budget)', () => {
+    const noBudgetAgents: Agent[] = [
+      { ...agents[0], budget: null },
+    ];
+    render(<AgentFlow agents={noBudgetAgents} selectedId="a1" />);
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
 });

@@ -548,20 +548,20 @@ export default function App() {
     try {
       const result = await invoke<T>(command, payload);
       await invoke('finish_gui_run', {
-        run_id: runId,
+        runId: runId,
         success: true,
-        completed_steps: 1,
+        completedSteps: 1,
         error: null,
-        task_id: extractTaskId(result),
+        taskId: extractTaskId(result),
       });
       finished = true;
       return result;
     } catch (err) {
       if (!finished) {
         await invoke('finish_gui_run', {
-          run_id: runId,
+          runId: runId,
           success: false,
-          completed_steps: 0,
+          completedSteps: 0,
           error: String(err), // gui-safe: sent to the backend as a run-completion record, never rendered to the user
         }).catch(() => {});
       }

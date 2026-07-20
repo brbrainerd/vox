@@ -90,8 +90,8 @@ function AgentInspector({ node, agent }: { node: GraphNode; agent?: Agent }) {
           <div className="mt-3 text-[12px] text-text-secondary leading-relaxed">{agent.task}</div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
             {[
-              ['Cost',   `$${agent.cost.toFixed(2)}`],
-              ['Budget', `$${agent.budget.toFixed(2)}`],
+              ['Cost',   `$${(agent.cost ?? 0).toFixed(2)}`],
+              ['Budget', agent.budget != null ? `$${agent.budget.toFixed(2)}` : '—'],
               ['ETA',    agent.eta],
               ['Skill',  agent.skill ?? '—'],
             ].map(([label, value]) => (
