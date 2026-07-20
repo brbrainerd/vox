@@ -253,6 +253,13 @@ pub mod skill_runtime_inproc;
 #[cfg(feature = "runtime")]
 pub mod runtime;
 
+/// Single-call, non-phased `TaskProcessor` for chat-origin tasks (see
+/// `runtime`'s `TaskProcessor` trait, which this implements).
+#[cfg(feature = "runtime")]
+pub mod chat_processor;
+#[cfg(feature = "runtime")]
+pub use chat_processor::ChatTaskProcessor;
+
 /// LSP-facing helpers for ownership and diagnostics surfacing.
 #[cfg(feature = "lsp")]
 pub mod lsp;
