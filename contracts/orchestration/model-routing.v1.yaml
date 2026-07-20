@@ -67,6 +67,7 @@ task_categories:
   - ToolOrchestration
   - Visus
   - CodeEffortJudge
+  - Chat
 
 # VOX_AUTO_ROUTING_PRIORITY env var is the SSOT for weight distributions (efficiency, precision, etc).
 quality_weights:
