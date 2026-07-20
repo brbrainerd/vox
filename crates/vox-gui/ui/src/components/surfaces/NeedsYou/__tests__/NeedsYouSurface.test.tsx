@@ -69,6 +69,30 @@ describe('NeedsYouSurface', () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
+  it('an approval-resolve failure produces a sanitized toast, not a raw error leak (F-02/F-03)', async () => {
+    const pushToast = vi.fn();
+    const failingAttention = {
+      ...attention,
+      resolveApproval: vi.fn().mockRejectedValue(new TypeError(`can't access property "invoke", window.__TAURI_INTERNALS__ is undefined`)),
+    };
+    render(<LanguageProvider><NeedsYouSurface onOpenContext={() => {}} pushToast={pushToast} attention={failingAttention} /></LanguageProvider>);
+    fireEvent.click(await screen.findByRole('button', { name: /approve rm -rf build|^approve$/i }));
+    await waitFor(() => expect(pushToast).toHaveBeenCalled());
+    const bodies = pushToast.mock.calls.map(c => String(c[0]?.body ?? ''));
+    for (const body of bodies) {
+      expect(body).not.toMatch(/__TAURI_INTERNALS__|\binvoke\b/i);
+    }
+  });
+
+  it('a feedbackList failure sets a sanitized error message, not a raw leak (F-02/F-03)', async () => {
+    vi.spyOn(transport, 'feedbackList').mockRejectedValue(
+      new TypeError(`can't access property "invoke", window.__TAURI_INTERNALS__ is undefined`),
+    );
+    render(<LanguageProvider><NeedsYouSurface onOpenContext={() => {}} pushToast={() => {}} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText(/error loading feedback/i)).toBeTruthy());
+    expect(screen.queryByText(/__TAURI_INTERNALS__|\binvoke\b/i)).toBeNull();
+  });
+
   it('unlistens immediately when unmounted before listenFeedbackChanged resolves (leak guard)', async () => {
     const unlisten = vi.fn();
     let resolveListen!: (u: () => void) => void;

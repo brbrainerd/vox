@@ -72,4 +72,16 @@ describe('useAttentionInbox', () => {
     await expect(act(() => result.current.resolveApproval('A-1', 'approved'))).rejects.toThrow();
     expect(result.current.approvals).toHaveLength(1);
   });
+
+  it('resolveApproval throws an honest error (not a raw null-deref TypeError) when the MCP tool resolves null (F-02)', async () => {
+    vi.mocked(voxTransport.invokeMcpTool).mockImplementation((tool: string) =>
+      tool === 'vox_resolve_approval'
+        ? Promise.resolve(null)
+        : Promise.resolve({ tool, is_error: false, result: { approvals: [{ approval_id: 'A-1', tool: 'bash', summary: 's', requested_at_ms: 0 }] } }));
+    const { result } = renderHook(() => useAttentionInbox());
+    await waitFor(() => expect(result.current.approvals).toHaveLength(1));
+    await expect(act(() => result.current.resolveApproval('A-1', 'approved'))).rejects.toThrow(
+      /resolve failed/i,
+    );
+  });
 });

@@ -55,8 +55,8 @@ export function useAttentionInbox(): AttentionInbox {
 
   const resolveApproval = useCallback(async (approvalId: string, outcome: 'approved' | 'rejected') => {
     const res = await voxTransport.invokeMcpTool('vox_resolve_approval', { approval_id: approvalId, outcome });
-    const data = unwrapMcpEnvelope(res.result) as { resolved?: boolean } | null;
-    if (res.is_error || data?.resolved === false) {
+    const data = res ? (unwrapMcpEnvelope(res.result) as { resolved?: boolean } | null) : null;
+    if (!res || res.is_error || data?.resolved === false) {
       throw new Error(`resolve failed for ${approvalId}`);
     }
     setApprovals((prev) => prev.filter((a) => a.approval_id !== approvalId));

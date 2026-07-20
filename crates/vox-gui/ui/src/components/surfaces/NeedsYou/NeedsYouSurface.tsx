@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Glass } from '../../ui/Glass';
 import { EmptyState } from '../../ui/EmptyState';
 import { FeedbackCard } from './FeedbackCard';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { feedbackList, feedbackResolve, listenFeedbackChanged, type FeedbackRow } from '../../../transport';
 import { useLabel } from '../../../hooks/useLanguage';
 import type { Toast } from '../../../types/tauri';
@@ -30,7 +31,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention }: Props) 
       setWithheld(data.withheld);
       setError(null);
     } catch (e: any) {
-      setError(e.message || 'Failed to load feedback');
+      setError(sanitizeErrorForToast(e));
     } finally {
       setLoading(false);
     }
@@ -80,7 +81,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention }: Props) 
       }
       pushToast({ tone: 'ok', title: `Feedback ${id} resolved`, cause: 'backend-ok' });
     } catch (e: any) {
-      pushToast({ tone: 'warn', title: 'Failed to resolve feedback', body: e.message || String(e), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Failed to resolve feedback', body: sanitizeErrorForToast(e), cause: 'backend-error' });
     }
   };
 
@@ -95,7 +96,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention }: Props) 
         cause: 'backend-ok',
       });
     } catch (e: any) {
-      pushToast({ tone: 'warn', title: 'Resolve failed', body: e.message || String(e), cause: 'backend-error' });
+      pushToast({ tone: 'warn', title: 'Resolve failed', body: sanitizeErrorForToast(e), cause: 'backend-error' });
     }
   };
 
