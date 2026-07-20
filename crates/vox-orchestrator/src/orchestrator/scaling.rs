@@ -6,6 +6,15 @@
 
 use crate::types::AgentId;
 
+/// True when `description` is a task auto-continuation itself submitted
+/// (see [`Orchestrator::tick`]'s `[Auto-Continuation] {prompt}` format).
+/// Used to stop such a task from being treated as continuable pending work,
+/// which would otherwise let continuations trigger further continuations
+/// forever — see the doc comment at this function's call site in `tick`.
+pub(crate) fn is_continuation_task(description: &str) -> bool {
+    description.starts_with("[Auto-Continuation]")
+}
+
 impl crate::orchestrator::Orchestrator {
     /// Move one queued task from `from` to `to`, updating locks, affinity, scope, and task assignment.
     /// Returns `true` if the task was enqueued on `to`. If `to` is missing, re-queues on `from` and returns `false`.
@@ -312,7 +321,30 @@ impl crate::orchestrator::Orchestrator {
                         let queue = crate::sync_lock::rw_read(&**queue_lock);
                         let queued = queue.len();
                         let has_in_progress = queue.has_in_progress();
-                        let pending_total = queued + queue.in_progress_count();
+                        // An auto-continuation nudge is itself a real submitted
+                        // task ("[Auto-Continuation] ...", see the
+                        // submit_task_with_agent call below). Without this
+                        // guard, that task becoming the agent's current_task
+                        // makes it eligible to trigger *another* continuation
+                        // once it goes idle/stalls, forming a self-sustaining
+                        // loop that repeatedly re-runs the full agentic
+                        // pipeline (and its real LLM cost) with nothing new
+                        // for the user to see — confirmed live: a user's
+                        // single "test" chat message spawned a chain of
+                        // continuations-of-continuations every ~60-90s,
+                        // unbounded by anything except ContinuationEngine's
+                        // per-agent max count (which itself resets on
+                        // restart, since cooldown state isn't persisted).
+                        // Treat a continuation-originated current task as
+                        // "nothing to continue" rather than real pending work.
+                        let current_is_continuation = queue
+                            .current_task()
+                            .is_some_and(|t| is_continuation_task(&t.description));
+                        let pending_total = if current_is_continuation {
+                            0
+                        } else {
+                            queued + queue.in_progress_count()
+                        };
                         let stalled_in_progress_ms = queue
                             .current_task()
                             .and_then(|t| t.started_at_ms)
@@ -413,5 +445,41 @@ impl crate::orchestrator::Orchestrator {
         if let Err(e) = crate::services::news::NewsService::tick(self).await {
             tracing::error!("NewsService tick failed: {}", e);
         }
+    }
+}
+
+#[cfg(test)]
+mod continuation_loop_guard_tests {
+    use super::is_continuation_task;
+
+    /// Reproduces a live bug: a single "test" chat message spawned a chain
+    /// of "[Auto-Continuation] You have been idle for 60s..." tasks that
+    /// each triggered another continuation on themselves, repeating the
+    /// full agentic pipeline (with real LLM cost) roughly every 60-90s
+    /// indefinitely. `is_continuation_task` is the guard that stops a
+    /// continuation-originated task from being treated as further
+    /// continuable pending work.
+    #[test]
+    fn recognizes_auto_continuation_task_descriptions() {
+        assert!(is_continuation_task(
+            "[Auto-Continuation] You have been idle for 60s with 1 pending task(s). Please continue with the current task."
+        ));
+    }
+
+    #[test]
+    fn does_not_flag_ordinary_user_task_descriptions() {
+        assert!(!is_continuation_task("test"));
+        assert!(!is_continuation_task("Say hello in one word."));
+        assert!(!is_continuation_task("Fix the bug in auth.rs"));
+    }
+
+    #[test]
+    fn does_not_flag_a_task_that_merely_mentions_continuation_mid_text() {
+        // Only a literal continuation-originated prefix counts — a real
+        // user task that happens to discuss "auto-continuation" as a topic
+        // must not be silently excluded from the idle-nudge mechanism.
+        assert!(!is_continuation_task(
+            "Explain how [Auto-Continuation] works in this codebase"
+        ));
     }
 }
