@@ -312,11 +312,7 @@ export function ChatSurface({
             description="Describe a task in the composer below to start this session."
           />
         ) : (
-          <ChatTranscript
-            messages={messages}
-            agentStreamItems={agentStreamItems}
-            onOpenAgentInFlow={onOpenAgentInFlow}
-          />
+          <ChatTranscript messages={messages} agentStreamItems={agentStreamItems} />
         )}
         {composer != null ? (
           <div

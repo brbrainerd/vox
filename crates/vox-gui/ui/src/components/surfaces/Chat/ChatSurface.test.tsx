@@ -99,7 +99,7 @@ describe('ChatSurface', () => {
     expect(log.getAttribute('aria-live')).toBe('polite');
   });
 
-  it('renders an agent event row when agentStreamItems is provided', async () => {
+  it('renders a status line (not raw event rows) when a task is in-flight', async () => {
     render(
       <LanguageProvider>
         <ChatSurface
@@ -114,6 +114,7 @@ describe('ChatSurface', () => {
               title: 'TASK · task 7',
               body: 'agent agent-1',
               ts: '12:00',
+              taskId: 7,
               metadata: { eventType: 'task_started', agentId: 'agent-1', timestampMs: 1000 },
             },
           ]}
@@ -121,9 +122,9 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     await waitFor(() => {
-      expect(screen.getByTestId('chat-agent-event-row')).toBeDefined();
+      expect(screen.getByTestId('chat-status-line')).toBeDefined();
     });
-    expect(screen.getByText(/TASK · task 7/i)).toBeDefined();
+    expect(screen.queryByTestId('chat-agent-event-row')).toBeNull();
   });
 
   it('renders embedded composer when composer slot is provided', async () => {

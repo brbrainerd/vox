@@ -2,14 +2,13 @@ import React from 'react';
 import { Glass } from '../../ui/Glass';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import type { StreamItem } from '../../../types/dashboard';
-import { buildTranscriptTimeline } from '../../../lib/chatTranscriptTimeline';
-import { ChatAgentEventRow } from './ChatAgentEventRow';
+import { buildChatOnlyTimeline } from '../../../lib/chatTranscriptTimeline';
+import { StatusLine } from './StatusLine';
 import { ModelBadge } from './ModelBadge';
 
 interface ChatTranscriptProps {
   messages: ChatMessage[];
   agentStreamItems?: StreamItem[];
-  onOpenAgentInFlow?: (agentId: string) => void;
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {
@@ -56,33 +55,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 /** Merged chat bubbles + inline agent execution rows for the active session. */
-export function ChatTranscript({
-  messages,
-  agentStreamItems,
-  onOpenAgentInFlow,
-}: ChatTranscriptProps) {
-  const hasAgentItems = (agentStreamItems?.length ?? 0) > 0;
-
-  if (!hasAgentItems) {
-    if (messages.length === 0) return null;
-    return (
-      <Glass
-        role="log"
-        aria-live="polite"
-        aria-relevant="additions text"
-        aria-label="Chat transcript"
-        className="mb-3 min-h-0 flex-1 overflow-y-auto custom-scrollbar p-3"
-      >
-        <div className="mx-auto flex w-full max-w-[900px] flex-col gap-2">
-          {messages.map((m) => (
-            <MessageBubble key={m.id} message={m} />
-          ))}
-        </div>
-      </Glass>
-    );
-  }
-
-  const timeline = buildTranscriptTimeline(messages, agentStreamItems ?? []);
+export function ChatTranscript({ messages, agentStreamItems }: ChatTranscriptProps) {
+  const timeline = buildChatOnlyTimeline(messages, agentStreamItems ?? []);
 
   if (timeline.length === 0) return null;
 
@@ -94,18 +68,12 @@ export function ChatTranscript({
       aria-label="Chat transcript"
       className="mb-3 min-h-0 flex-1 overflow-y-auto custom-scrollbar p-3"
     >
-      <div className="flex flex-col gap-2">
+      <div className="mx-auto flex w-full max-w-[900px] flex-col gap-2">
         {timeline.map((row) => {
           if (row.kind === 'message') {
             return <MessageBubble key={row.id} message={row.message} />;
           }
-          return (
-            <ChatAgentEventRow
-              key={row.id}
-              row={row}
-              onOpenAgent={onOpenAgentInFlow}
-            />
-          );
+          return <StatusLine key={row.id} phase={row.phase} elapsedMs={row.elapsedMs} />;
         })}
       </div>
     </Glass>
