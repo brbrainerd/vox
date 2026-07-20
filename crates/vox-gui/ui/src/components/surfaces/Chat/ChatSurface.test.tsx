@@ -141,6 +141,33 @@ describe('ChatSurface', () => {
     });
   });
 
+  it('renders the model pill inside the composer dock, not above the transcript', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          activeSessionId="s1"
+          composer={<div data-testid="loquela-composer">composer</div>}
+        />
+      </LanguageProvider>,
+    );
+    const pill = await screen.findByRole('button', { name: /^model:/i });
+    // Lives with the composer (bottom toolbar area), where the execution-rail
+    // toggle's absolute top-right slot can no longer overlap it.
+    expect(pill.closest('[data-testid="chat-composer-dock"]')).not.toBeNull();
+  });
+
+  it('transcript fills the column (flex-1) instead of a max-h vh cap', async () => {
+    const messages: ChatMessage[] = [
+      { id: 'm1', role: 'user', text: 'hi', status: 'done' } as ChatMessage,
+    ];
+    render(<LanguageProvider><ChatSurface pushToast={noopToast} activeSessionId="s1" messages={messages} /></LanguageProvider>);
+    const log = await screen.findByRole('log', { name: /chat transcript/i });
+    expect(log.className).toContain('flex-1');
+    expect(log.className).toContain('min-h-0');
+    expect(log.className).not.toContain('max-h-[40vh]');
+  });
+
   it('shows SecretaryToast when secretary-proposed-task event fires', async () => {
     const onNavigate = vi.fn();
     render(<LanguageProvider><ChatSurface pushToast={noopToast} onNavigate={onNavigate} activeSessionId="s1" /></LanguageProvider>);

@@ -384,7 +384,6 @@ export function Loquela({
       setMode(internalMode);
       setText('');
       setSlashOpen(false);
-      const hint = LQ_MODES.find(m => m.id === internalMode)?.hint;
       taRef.current?.focus();
       return;
     }
@@ -461,8 +460,8 @@ export function Loquela({
   };
 
   return (
-    <div className="pointer-events-auto p-4" data-testid="loquela-composer">
-      <Glass className={`relative overflow-hidden px-3 py-2 transition ${focused ? "ring-1 ring-brass/30 shadow-[0_0_60px_-20px_rgb(var(--brass)_/_0.45)]" : ""}`}>
+    <div className="pointer-events-auto" data-testid="loquela-composer">
+      <Glass className={`relative px-3 py-2 transition ${focused ? "ring-1 ring-brass/30 shadow-[0_0_60px_-20px_rgb(var(--brass)_/_0.45)]" : ""}`}>
         {chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 pb-1.5">
             <span className="font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Context</span>
@@ -471,30 +470,6 @@ export function Loquela({
         )}
 
         <div className="relative flex items-end gap-2">
-          <button type="button" aria-label="Attach local file(s) to context" onClick={attachContext} title="Attach local file(s) to context (native picker)" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
-            <Icon.plus className="size-4" aria-hidden="true" />
-          </button>
-          <button type="button" aria-label="Attach a URL to context" onClick={attachUrl} title="Attach a URL to context" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
-            <Icon.link className="size-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label="Voice input"
-            onClick={toggleMic}
-            disabled={transcribing}
-            title={transcribing ? 'Transcribing…' : recording ? 'Stop recording & transcribe' : 'Voice input — record & transcribe'}
-            aria-pressed={recording}
-            className={`flex size-8 shrink-0 items-center justify-center rounded-md border transition ${
-              transcribing
-                ? 'border-border-subtle bg-overlay-subtle text-text-muted cursor-wait'
-                : recording
-                ? 'border-rose-400/50 bg-rose-400/15 text-rose-300 animate-pulse'
-                : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25'
-            }`}
-          >
-            <Icon.mic className="size-4" aria-hidden="true" />
-          </button>
-
           <div className="relative flex-1">
             <textarea
               id="loquela-composer"
@@ -511,7 +486,7 @@ export function Loquela({
             />
 
             {slashOpen && filteredSlash.length > 0 && (
-              <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-[360px] rounded-lg border border-border-subtle bg-bg-base/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
+              <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-[360px] max-w-[calc(100vw-2rem)] rounded-lg border border-border-subtle bg-bg-base/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
                 <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Slash commands</div>
                 {filteredSlash.map((s, i) => {
                   const IcoCmp = (Icon as any)[s.icon] || Icon.bolt;
@@ -528,7 +503,7 @@ export function Loquela({
             )}
 
             {showAtPopover && (
-              <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-[360px] max-h-[280px] overflow-y-auto rounded-lg border border-border-subtle bg-bg-base/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
+              <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-[360px] max-w-[calc(100vw-2rem)] max-h-[280px] overflow-y-auto rounded-lg border border-border-subtle bg-bg-base/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
                 {filteredAt.length > 0 && (
                   <>
                     <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Agents</div>
@@ -571,7 +546,7 @@ export function Loquela({
               type="button"
               onClick={() => onInterrupt?.(currentTaskId)}
               aria-label="Stop (Enter)"
-              className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/[0.12] px-3 text-rose-300 transition hover:bg-rose-400/[0.18]"
+              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/[0.12] px-3 text-rose-300 transition hover:bg-rose-400/[0.18]"
             >
               <Icon.stop className="size-3.5" />
               <span className="font-display text-[11px] uppercase tracking-[0.18em]">Stop</span>
@@ -583,7 +558,7 @@ export function Loquela({
               onClick={send}
               disabled={!canSend}
               aria-label="Run (Enter)"
-              className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}
+              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}
             >
               <Icon.send className="size-3.5" />
               {dryRun ? "Dry-run" : "Run"}
@@ -597,13 +572,39 @@ export function Loquela({
         )}
 
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-[10px]">
+          <div className="flex items-center gap-1.5">
+            <button type="button" aria-label="Attach local file(s) to context" onClick={attachContext} title="Attach local file(s) to context (native picker)" className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
+              <Icon.plus className="size-3.5" aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Attach a URL to context" onClick={attachUrl} title="Attach a URL to context" className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
+              <Icon.link className="size-3.5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label="Voice input"
+              onClick={toggleMic}
+              disabled={transcribing}
+              title={transcribing ? 'Transcribing…' : recording ? 'Stop recording & transcribe' : 'Voice input — record & transcribe'}
+              aria-pressed={recording}
+              className={`flex size-7 shrink-0 items-center justify-center rounded-md border transition ${
+                transcribing
+                  ? 'border-border-subtle bg-overlay-subtle text-text-muted cursor-wait'
+                  : recording
+                  ? 'border-rose-400/50 bg-rose-400/15 text-rose-300 animate-pulse'
+                  : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25'
+              }`}
+            >
+              <Icon.mic className="size-3.5" aria-hidden="true" />
+            </button>
+          </div>
+
+          <span className="h-5 w-px bg-white/10" aria-hidden="true" />
+
           <DriveConsole
             control={control}
             onControlChange={(n) => setControl(c => ({ ...c, ...n }))}
             spentUsd={sessionBudget?.spent ?? 0}
             budgetUsd={sessionBudget?.cap ?? 0}
-            model={tierObj.label.split(' · ')[0]}
-            auto={tier === 'auto'}
           />
 
           {typeof queueDepth === 'number' && queueDepth > 0 && (

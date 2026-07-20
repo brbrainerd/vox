@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { readFileSync } from 'node:fs';
@@ -50,6 +50,33 @@ describe('ChatModelPicker', () => {
     await user.click(screen.getByRole('button', { name: /model: anthropic/i }));
     await user.click(await screen.findByRole('option', { name: /auto-route/i }));
     expect(onApplied).toHaveBeenCalledWith(null);
+  });
+
+  it('opens the listbox upward (bottom-full) so it clears the bottom-docked composer', async () => {
+    const user = userEvent.setup();
+    render(<ChatModelPicker activeModel={null} />);
+    await user.click(screen.getByRole('button', { name: /model: auto-route/i }));
+    const listbox = await screen.findByRole('listbox', { name: /pick model/i });
+    expect(listbox.className).toContain('bottom-full');
+    expect(listbox.className).not.toContain('mt-1');
+  });
+
+  it('closes the listbox on Escape', async () => {
+    const user = userEvent.setup();
+    render(<ChatModelPicker activeModel={null} />);
+    await user.click(screen.getByRole('button', { name: /model: auto-route/i }));
+    await screen.findByRole('listbox', { name: /pick model/i });
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('listbox', { name: /pick model/i })).toBeNull();
+  });
+
+  it('closes the listbox on outside pointerdown', async () => {
+    const user = userEvent.setup();
+    render(<ChatModelPicker activeModel={null} />);
+    await user.click(screen.getByRole('button', { name: /model: auto-route/i }));
+    await screen.findByRole('listbox', { name: /pick model/i });
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('listbox', { name: /pick model/i })).toBeNull();
   });
 
   it('disables a model whose provider has no key configured, and refuses the pick on click', async () => {

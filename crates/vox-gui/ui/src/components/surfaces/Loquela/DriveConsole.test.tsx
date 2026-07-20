@@ -11,18 +11,46 @@ describe('DriveConsole', () => {
     spentUsd: 0.42,
     budgetUsd: 1.0,
     burnPerMin: 0.08,
-    model: 'flash',
-    auto: true,
   };
 
-  it('renders all four clutch detents, cost, risk, model', () => {
+  it('renders all four clutch detents, cost, risk — no model read-out segment', () => {
     render(<DriveConsole {...base} />);
     ['Free', 'Effic.', 'Bal.', 'Genius'].forEach(l =>
       expect(screen.getByRole('radio', { name: new RegExp(l, 'i') })).toBeTruthy()
     );
     expect(screen.getByText(/0\.42/)).toBeTruthy();
     expect(screen.getByText(/Moderate/i)).toBeTruthy();
-    expect(screen.getByText(/flash/i)).toBeTruthy();
+    // Segment ④ (redundant model read-out) was dropped.
+    expect(screen.queryByTitle(/active model/i)).toBeNull();
+  });
+
+  it('strip root does not clip the risk popover (no overflow-hidden)', () => {
+    const { container } = render(<DriveConsole {...base} />);
+    expect((container.firstChild as HTMLElement).className).not.toContain('overflow-hidden');
+  });
+
+  it('opens the risk popover anchored above the Risk trigger', () => {
+    render(<DriveConsole {...base} />);
+    fireEvent.click(screen.getByRole('button', { name: /risk: moderate/i }));
+    const dialog = screen.getByRole('dialog', { name: /acceptable risk/i });
+    expect(dialog.className).toContain('bottom-full');
+    // Anchored to a relative wrapper around the trigger, not the strip root.
+    expect((dialog.parentElement as HTMLElement).className).toContain('relative');
+  });
+
+  it('closes the risk popover on outside pointerdown', () => {
+    render(<DriveConsole {...base} />);
+    fireEvent.click(screen.getByRole('button', { name: /risk: moderate/i }));
+    expect(screen.getByRole('dialog', { name: /acceptable risk/i })).toBeTruthy();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('dialog', { name: /acceptable risk/i })).toBeNull();
+  });
+
+  it('keeps the risk popover open on pointerdown inside it', () => {
+    render(<DriveConsole {...base} />);
+    fireEvent.click(screen.getByRole('button', { name: /risk: moderate/i }));
+    fireEvent.pointerDown(screen.getByRole('dialog', { name: /acceptable risk/i }));
+    expect(screen.getByRole('dialog', { name: /acceptable risk/i })).toBeTruthy();
   });
 
   it('clutch detents are radios with aria-checked reflecting selection', () => {

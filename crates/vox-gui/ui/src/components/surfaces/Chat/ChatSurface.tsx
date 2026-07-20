@@ -266,14 +266,13 @@ export function ChatSurface({
       {!railVis.sessionRail && sessionOverlayOpen ? (
         <div
           data-testid="chat-session-rail-overlay"
-          className="absolute left-0 top-0 z-40 max-h-full"
+          className="absolute left-0 top-0 z-40 max-h-full overflow-y-auto"
         >
           {sessionRailNode}
         </div>
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <div className="mb-2 flex justify-end"><ChatModelPicker activeModel={modelOverride ?? activeModel} onApplied={id => onModelOverrideChange?.(id)} /></div>
         {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
           <EmptyState
             icon={<Icon.spark className="size-8 text-brass" aria-hidden="true" />}
@@ -288,7 +287,10 @@ export function ChatSurface({
           />
         )}
         {composer != null ? (
-          <div className="mt-auto shrink-0 border-t border-border-subtle pt-3">
+          <div
+            className="mt-auto shrink-0 border-t border-border-subtle pt-3"
+            data-testid="chat-composer-dock"
+          >
             {attention_budget ? (
               <div className="mb-2 px-1" data-testid="chat-attention-meter">
                 <AttentionBudgetMeter
@@ -299,8 +301,21 @@ export function ChatSurface({
               </div>
             ) : null}
             {composer}
+            {/* Model pill lives with the composer toolbar (not top-right where
+                it sat under the execution-rail toggle's absolute slot). The
+                picker's listbox opens upward. Rendered here rather than inside
+                Loquela's toolbar row because the composer arrives as an opaque
+                slot from App — plumbing the picker's props through it would
+                couple Loquela to chat-only state. */}
+            <div className="mt-1.5 flex justify-end px-1">
+              <ChatModelPicker activeModel={modelOverride ?? activeModel} onApplied={id => onModelOverrideChange?.(id)} />
+            </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="mt-auto flex shrink-0 justify-end px-1">
+            <ChatModelPicker activeModel={modelOverride ?? activeModel} onApplied={id => onModelOverrideChange?.(id)} />
+          </div>
+        )}
       </div>
 
       {executionRailNode != null && railVis.executionRail ? executionRailNode : null}
@@ -326,7 +341,7 @@ export function ChatSurface({
       ) : null}
 
       {secretaryToast && (
-        <div className="absolute bottom-4 left-1/2 z-50 w-[480px] -translate-x-1/2">
+        <div className="absolute bottom-4 left-1/2 z-[60] w-[min(480px,90%)] -translate-x-1/2">
           <SecretaryToast
             intent={secretaryToast.intent}
             itemId={secretaryToast.item_id}
@@ -340,7 +355,7 @@ export function ChatSurface({
       )}
 
       {routingOpen && (
-        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Routing">
+        <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Routing">
           <div className="absolute inset-0 bg-black/60" onClick={() => setRoutingOpen(false)} />
           <div className="absolute right-0 top-0 h-full w-[760px] max-w-full overflow-y-auto border-l border-border-subtle bg-bg-base shadow-2xl">
             <div className="flex items-center justify-between px-5 pt-4">

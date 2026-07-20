@@ -88,6 +88,27 @@ describe('Loquela', () => {
     expect(onSubmit).toHaveBeenCalled();
   });
 
+  it('composer root has no p-4 inset (aligns flush with the chat transcript)', () => {
+    renderLoquela();
+    const root = screen.getByTestId('loquela-composer');
+    expect(root.className).not.toContain('p-4');
+  });
+
+  it('Run button height matches the textarea min-height (h-9 vs min-h-[36px])', () => {
+    renderLoquela();
+    expect(screen.getByRole('button', { name: /run/i }).className).toContain('h-9');
+  });
+
+  it('secondary controls live in the toolbar row, not the input row', () => {
+    renderLoquela();
+    const ta = screen.getByLabelText('Task composer');
+    const inputRow = ta.parentElement?.parentElement as HTMLElement;
+    const attach = screen.getByRole('button', { name: /attach local file/i });
+    expect(inputRow.contains(attach)).toBe(false);
+    expect(inputRow.contains(screen.getByRole('button', { name: /voice input/i }))).toBe(false);
+    expect(inputRow.contains(screen.getByRole('button', { name: /run/i }))).toBe(true);
+  });
+
   it('intent panel is collapsed by default and toggles open', () => {
     renderLoquela();
     expect(screen.queryByLabelText('Goal')).toBeNull();

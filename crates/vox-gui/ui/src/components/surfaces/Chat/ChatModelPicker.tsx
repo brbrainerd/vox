@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 
@@ -39,6 +39,26 @@ export function ChatModelPicker({
   const [models, setModels] = useState<Array<{ id: string; provider?: string }>>([]);
   const [statuses, setStatuses] = useState<ProviderStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Escape + outside-click close (Escape pattern mirrors ChatSurface's routing
+  // drawer; outside-click mirrors ChatSessionRail's menu dismiss). Without
+  // these, only re-toggling or a selection closes the listbox.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [open]);
 
   const toggle = async () => {
     const next = !open;
@@ -64,7 +84,7 @@ export function ChatModelPicker({
   };
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
         type="button"
         aria-expanded={open}
@@ -77,7 +97,7 @@ export function ChatModelPicker({
         <ul
           role="listbox"
           aria-label="Pick model for this chat"
-          className="absolute z-50 mt-1 max-h-64 w-72 overflow-y-auto rounded-lg border border-border-subtle bg-bg-base p-1 custom-scrollbar"
+          className="absolute bottom-full left-0 z-50 mb-1 max-h-64 w-72 overflow-y-auto rounded-lg border border-border-subtle bg-bg-base p-1 custom-scrollbar"
         >
           <li key="auto-route">
             <button
