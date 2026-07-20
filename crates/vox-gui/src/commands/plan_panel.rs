@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use tauri::State;
-use vox_db::VoxDb;
+use vox_db::{PlanNodeRow, VoxDb};
 
 use crate::commands::gui_db_pool::{GuiDbPool, map_db_err};
 
@@ -57,6 +57,55 @@ pub async fn update_plan_node(
     Ok(())
 }
 
+#[derive(Debug, Deserialize)]
+pub struct InsertPlanNodeInput {
+    pub plan_session_id: String,
+    pub plan_version: i64,
+    pub node_id: String,
+    pub description: String,
+    pub depends_on: Vec<String>,
+}
+
+/// Insert a new intermediate step into the live plan. Joins the same
+/// dependency graph `enqueue_runnable_plan_nodes` walks — becomes runnable
+/// as soon as its `depends_on` entries complete, same as any agent-created
+/// node.
+#[tauri::command]
+pub async fn insert_plan_node(
+    pool: State<'_, GuiDbPool>,
+    input: InsertPlanNodeInput,
+) -> Result<(), String> {
+    let db = pool_db(&pool)?;
+    let deps_json = serde_json::to_string(&input.depends_on).map_err(|e| e.to_string())?;
+    db.upsert_plan_node(
+        &input.plan_session_id,
+        input.plan_version,
+        &input.node_id,
+        &input.description,
+        &deps_json,
+        "{}",
+        "pending",
+        None,
+    )
+    .await
+    .map_err(map_db_err)?;
+    Ok(())
+}
+
+/// Read-only fetch of the current plan-node rows for a session/version, so
+/// the GUI's plan panel can render the live DAG state.
+#[tauri::command]
+pub async fn list_plan_nodes(
+    pool: State<'_, GuiDbPool>,
+    plan_session_id: String,
+    plan_version: i64,
+) -> Result<Vec<PlanNodeRow>, String> {
+    let db = pool_db(&pool)?;
+    db.load_plan_nodes_with_status(&plan_session_id, plan_version)
+        .await
+        .map_err(map_db_err)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,5 +153,61 @@ mod tests {
         let rows = db.load_plan_nodes_with_status("ps1", 1).await.unwrap();
         let edited = rows.iter().find(|r| r.node_id == "n1").unwrap();
         assert_eq!(edited.description, "edited description");
+    }
+
+    #[tokio::test]
+    async fn insert_plan_node_adds_a_new_pending_node() {
+        let app = tauri::test::mock_app();
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let pool = app.state::<GuiDbPool>();
+        let db = pool.handle().unwrap();
+
+        db.create_plan_session("ps2", None, "test goal", "sequential")
+            .await
+            .unwrap();
+        db.append_plan_version("ps2", 1, None, None, None)
+            .await
+            .unwrap();
+
+        insert_plan_node(
+            pool,
+            InsertPlanNodeInput {
+                plan_session_id: "ps2".to_string(),
+                plan_version: 1,
+                node_id: "n-new".to_string(),
+                description: "a step the user added".to_string(),
+                depends_on: vec![],
+            },
+        )
+        .await
+        .unwrap();
+
+        let rows = db.load_plan_nodes_with_status("ps2", 1).await.unwrap();
+        let added = rows.iter().find(|r| r.node_id == "n-new").unwrap();
+        assert_eq!(added.description, "a step the user added");
+        assert_eq!(added.status, "pending");
+    }
+
+    #[tokio::test]
+    async fn list_plan_nodes_returns_the_current_rows() {
+        let app = tauri::test::mock_app();
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let pool = app.state::<GuiDbPool>();
+        let db = pool.handle().unwrap();
+
+        db.create_plan_session("ps3", None, "test goal", "sequential")
+            .await
+            .unwrap();
+        db.append_plan_version("ps3", 1, None, None, None)
+            .await
+            .unwrap();
+        db.upsert_plan_node("ps3", 1, "n1", "first step", "[]", "{}", "pending", None)
+            .await
+            .unwrap();
+
+        let rows = list_plan_nodes(pool, "ps3".to_string(), 1).await.unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].node_id, "n1");
+        assert_eq!(rows[0].description, "first step");
     }
 }
