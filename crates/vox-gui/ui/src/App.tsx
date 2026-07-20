@@ -1113,6 +1113,13 @@ export default function App() {
   // paused fleet-wide, treat it as this session's paused agent — mirrors how
   // taskInProgress/inFlightTaskId are derived from a single unambiguous
   // signal rather than inventing new per-session agent tracking.
+  // Known limitations (both from the lack of a real per-session agent id):
+  //   - 2+ agents paused fleet-wide: ambiguous, Resume is hidden everywhere.
+  //   - exactly 1 agent paused fleet-wide but unrelated to the session
+  //     currently open: Resume still shows here and would resume the wrong
+  //     agent. Low-risk today (chat is effectively single-session-at-a-time
+  //     in practice), but real — fix properly once messages/tasks carry a
+  //     real agent id.
   const pausedAgents = useMemo(
     () => data.agents.filter((a) => a.phase === 'Paused'),
     [data.agents],
