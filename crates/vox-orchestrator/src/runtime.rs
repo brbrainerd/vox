@@ -1182,7 +1182,15 @@ impl AgentFleet {
                 for id in agent_ids {
                     if let Ok(remaining) = self.orchestrator.retire_agent(id).await {
                         for task in remaining {
-                            let _ = self.orchestrator.submit_existing_task(task).await;
+                            let task_id = task.id;
+                            if let Err(e) = self.orchestrator.submit_existing_task(task).await {
+                                tracing::error!(
+                                    "failed to requeue task {} from retiring agent {}: {} (task is now untracked)",
+                                    task_id,
+                                    id,
+                                    e
+                                );
+                            }
                         }
                     }
                 }
