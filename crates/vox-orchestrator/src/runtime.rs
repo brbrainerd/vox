@@ -214,9 +214,7 @@ impl AiTaskProcessor {
             provider,
             model,
             tool_dispatcher: None,
-            compaction: crate::compaction::CompactionEngine::new(
-                crate::compaction::CompactionConfig::default(),
-            ),
+            compaction: crate::compaction::CompactionEngine::new(scratchpad_compaction_config()),
         }
     }
 
@@ -327,50 +325,93 @@ impl AiTaskProcessor {
     }
 }
 
+/// [`crate::compaction::CompactionConfig`] scoped for the phase-loop `notes`
+/// scratchpad (used to build [`AiTaskProcessor`]'s `compaction` engine).
+///
+/// `CompactionConfig::default()` (128K tokens / 0.80 threshold ⇒ trigger at
+/// ~102,400 tokens) is calibrated for a full model context window, not this
+/// internal scratchpad. A single task runs at most 6 phases plus a handful
+/// of tool-result blocks; realistic accumulated `notes` size is in the low
+/// thousands to tens of thousands of tokens (each `phase_out` is one LLM
+/// response for a single narrow phase prompt, not a whole conversation), so
+/// reusing the 128K default meant `compact_notes` almost never actually
+/// compacted anything in practice — a silent no-op for the common case it
+/// was meant to address (Task C1 review finding #2). Scope the budget to
+/// the scratchpad itself: 12K tokens (roughly two-to-three long phase
+/// outputs) with an 80% trigger fires compaction around ~9,600 tokens, and
+/// `tail_preserve_tokens` is sized to keep the most recent phase's full
+/// output intact rather than the 8K default tuned for a much larger window.
+/// Shared by production construction and the test below so the two can
+/// never drift apart.
+fn scratchpad_compaction_config() -> crate::compaction::CompactionConfig {
+    crate::compaction::CompactionConfig {
+        max_context_tokens: 12_000,
+        reserved_tokens: 1_000,
+        compaction_threshold: 0.80,
+        min_viable_tokens: 1_000,
+        strategy: crate::compaction::CompactionStrategy::Balanced,
+        head_preserve_tokens: 1_000,
+        tail_preserve_tokens: 4_000,
+        complexity_token_weight: 32,
+    }
+}
+
 /// Compact the phase-loop `notes` scratchpad through `engine` before it's
-/// resent as "Known notes" in the next phase's prompt. `notes` is built as
-/// `"[{phase}]\n{phase_out}"` blocks joined by `"\n\n"` — one `Turn` per
-/// phase block is the natural mapping, role `"assistant"` (all agent output;
-/// `compaction.rs`'s trim strategies only special-case role `"system"`, never
-/// `"user"`, so no "user turns protected from trimming" concern applies
-/// here). A no-op below the engine's configured trigger threshold, mirroring
+/// resent as "Known notes" in the next phase's prompt.
+///
+/// `blocks` is the phase loop's own structured record of what went into
+/// `notes` — one entry per `"[{phase}]\n{phase_out}"` block or
+/// `"[tool_result: ...]\n..."` block, in the order they were appended.
+/// **Do not** reconstruct this by delimiter-splitting a pre-joined `notes`
+/// string on `"\n\n"`: `phase_out` text (an LLM response) and tool-result
+/// JSON can themselves contain internal `"\n\n"`, so string-splitting can
+/// fragment a single phase's output into several pseudo-`Turn`s. The
+/// per-`Turn` trim logic in `compaction.rs` can then keep some fragments
+/// and drop others, splicing together a truncated fragment of one phase
+/// next to content from a different phase with no marker showing where the
+/// cut happened (Task C1 review finding #1). Building `Turn`s directly from
+/// the caller's own `(block)` list — one real `Turn` per actual phase/tool
+/// entry — makes that impossible: a block is kept or dropped whole.
+///
+/// Role is `"assistant"` for all entries (all agent output; `compaction.rs`'s
+/// trim strategies only special-case role `"system"`, never `"user"`, so no
+/// "user turns protected from trimming" concern applies here). A no-op below
+/// the engine's configured trigger threshold, mirroring
 /// `session/state.rs::compact_auto`'s reassignment pattern (retained turns'
-/// content rejoined back into the working string) rather than merely
-/// computing a value that's never applied.
+/// content rejoined back into the working representation) rather than
+/// merely computing a value that's never applied.
 ///
 /// Phase notes are an internal scratchpad the task discards on completion
 /// (unlike session transcripts, which are user-facing history), so unlike
 /// `Session::compact_auto` this deliberately does NOT durably archive
 /// `dropped_turns` — losing them here is acceptable.
 ///
-/// Known limitation (not fixed here): with 6 phases per task and unbounded
-/// individual `phase_out` size, a single very large phase output can itself
-/// exceed `CompactionConfig::tail_preserve_tokens` (default 8000) and get
-/// trimmed even though it's the most recent, most relevant turn. Not a
-/// regression — today's uncompacted behavior has no protection at all — but
-/// worth tuning later.
-fn compact_notes(engine: &crate::compaction::CompactionEngine, notes: &str) -> String {
-    if notes.is_empty() {
-        return notes.to_string();
+/// Known limitation (not fixed here): a single very large phase output can
+/// itself exceed `CompactionConfig::tail_preserve_tokens` and get trimmed
+/// even though it's the most recent, most relevant turn. Not a regression —
+/// today's uncompacted behavior has no protection at all — but worth tuning
+/// later.
+fn compact_notes(engine: &crate::compaction::CompactionEngine, blocks: &[String]) -> Vec<String> {
+    if blocks.is_empty() {
+        return Vec::new();
     }
-    let history_turns: Vec<crate::compaction::Turn> = notes
-        .split("\n\n")
-        .map(|block| crate::compaction::Turn::new("assistant", block))
+    let history_turns: Vec<crate::compaction::Turn> = blocks
+        .iter()
+        .map(|block| crate::compaction::Turn::new("assistant", block.as_str()))
         .collect();
     match engine.compact(&history_turns) {
         Ok(result) if result.compacted => result
             .retained_turns
-            .iter()
-            .map(|t| t.content.clone())
-            .collect::<Vec<_>>()
-            .join("\n\n"),
-        _ => notes.to_string(),
+            .into_iter()
+            .map(|t| t.content)
+            .collect(),
+        _ => blocks.to_vec(),
     }
 }
 
 #[cfg(test)]
 mod compact_notes_tests {
-    use super::compact_notes;
+    use super::{compact_notes, scratchpad_compaction_config};
     use crate::compaction::{CompactionConfig, CompactionEngine, CompactionStrategy};
 
     /// Red-then-green proof for Task C1: with a small trigger threshold, a
@@ -391,23 +432,22 @@ mod compact_notes_tests {
         };
         let engine = CompactionEngine::new(config);
 
-        let notes = (0..50)
+        let blocks: Vec<String> = (0..50)
             .map(|i| {
                 format!(
                     "[phase{i}]\nsome moderately long phase output text accumulating tokens quickly across many phases"
                 )
             })
-            .collect::<Vec<_>>()
-            .join("\n\n");
+            .collect();
+        let raw_len: usize = blocks.iter().map(|b| b.len()).sum();
 
-        let compacted = compact_notes(&engine, &notes);
+        let compacted = compact_notes(&engine, &blocks);
+        let compacted_len: usize = compacted.iter().map(|b| b.len()).sum();
 
         assert!(
-            compacted.len() < notes.len(),
+            compacted_len < raw_len,
             "compact_notes must shrink notes once past the configured trigger threshold \
-             (raw len={}, compacted len={})",
-            notes.len(),
-            compacted.len()
+             (raw len={raw_len}, compacted len={compacted_len})"
         );
     }
 
@@ -416,15 +456,157 @@ mod compact_notes_tests {
     #[test]
     fn compact_notes_is_noop_below_trigger() {
         let engine = CompactionEngine::new(CompactionConfig::default());
-        let notes = "[inspect]\nshort note".to_string();
-        let compacted = compact_notes(&engine, &notes);
-        assert_eq!(compacted, notes);
+        let blocks = vec!["[inspect]\nshort note".to_string()];
+        let compacted = compact_notes(&engine, &blocks);
+        assert_eq!(compacted, blocks);
     }
 
     #[test]
     fn compact_notes_handles_empty() {
         let engine = CompactionEngine::new(CompactionConfig::default());
-        assert_eq!(compact_notes(&engine, ""), "");
+        assert_eq!(compact_notes(&engine, &[]), Vec::<String>::new());
+    }
+
+    /// Red-then-green proof for Task C1 finding #1: phase output (or
+    /// tool-result JSON) can itself contain internal `"\n\n"` (e.g. a
+    /// multi-paragraph LLM response). `compact_notes` must build one `Turn`
+    /// per *caller-supplied block*, never by delimiter-splitting a
+    /// pre-joined string — a block is kept or dropped whole, so the
+    /// compacted output can never contain more blocks than went in, and any
+    /// surviving `[act]` block must be the complete original text, never a
+    /// spliced-together fragment.
+    #[test]
+    fn compact_notes_does_not_fragment_blocks_with_internal_blank_lines() {
+        let config = CompactionConfig {
+            max_context_tokens: 200,
+            reserved_tokens: 0,
+            compaction_threshold: 0.3, // trigger_at() == 60 tokens
+            min_viable_tokens: 5,
+            strategy: CompactionStrategy::Balanced,
+            head_preserve_tokens: 5,
+            tail_preserve_tokens: 20,
+            complexity_token_weight: 32,
+        };
+        let engine = CompactionEngine::new(config);
+
+        let multi_paragraph_phase_out = "Paragraph one of a single phase's response.\n\n\
+             Paragraph two continues the very same phase's output, not a new phase.\n\n\
+             Paragraph three finishes the same phase's output off with more detail.";
+        let blocks = vec![
+            "[inspect]\nfirst phase note".to_string(),
+            format!("[act]\n{multi_paragraph_phase_out}"),
+            "[verify]\nfinal short note".to_string(),
+        ];
+
+        let compacted = compact_notes(&engine, &blocks);
+
+        // A delimiter-split implementation would fragment the multi-paragraph
+        // [act] block into 3 extra pseudo-Turns (4 total from that one
+        // block), any subset of which could then be independently kept or
+        // dropped by the per-Turn trim logic — silently splicing a partial
+        // fragment of [act] next to [inspect]/[verify] content. Building
+        // Turns from the real block list forbids this: at most `blocks.len()`
+        // Turns can ever exist.
+        assert!(
+            compacted.len() <= blocks.len(),
+            "compacted block count ({}) must never exceed original block count ({}) — \
+             fragmentation would let per-fragment trimming splice partial phases together",
+            compacted.len(),
+            blocks.len()
+        );
+        for b in &compacted {
+            if b.starts_with("[act]") {
+                assert_eq!(
+                    b,
+                    &format!("[act]\n{multi_paragraph_phase_out}"),
+                    "a surviving [act] block must be the whole phase output, not a fragment"
+                );
+            }
+        }
+    }
+
+    /// Red-then-green proof for Task C1 finding #2: the scratchpad
+    /// compaction config must actually be reachable by a realistic
+    /// multi-phase task, not just by artificially tiny thresholds rigged
+    /// only for the other tests in this module.
+    #[test]
+    fn scratchpad_config_trigger_is_far_below_full_context_default() {
+        let scratchpad_trigger = scratchpad_compaction_config().trigger_at();
+        let full_context_trigger = CompactionConfig::default().trigger_at();
+        assert!(
+            scratchpad_trigger * 5 < full_context_trigger,
+            "scratchpad trigger ({scratchpad_trigger}) must be meaningfully smaller than \
+             the full-context default ({full_context_trigger}), or compact_notes remains a \
+             no-op for realistic per-task notes sizes"
+        );
+    }
+
+    /// Simulates a realistic multi-phase task: 6 phases plus 2 tool-result
+    /// blocks, each a plausible several-paragraph LLM response. Under the
+    /// old `CompactionConfig::default()` (trigger ~102,400 tokens) this
+    /// accumulated notes size never triggers compaction — the C1 fix was a
+    /// no-op for exactly the case it was meant to address. Under the new
+    /// scratchpad-scoped config it must actually compact.
+    #[test]
+    fn realistic_multi_phase_notes_trigger_compaction_under_scratchpad_config_but_not_default() {
+        // A plausible several-paragraph LLM response, repeated to a
+        // realistic full-phase-output length (LLM phase outputs routinely
+        // run several thousand tokens for Act/Verify-style phases).
+        let paragraph = "Investigated the reported failure by reading the relevant \
+            module and tracing the call path through the request handler.\n\n\
+            Found that the validation step silently swallows a specific error case, \
+            which explains the intermittent symptom reported by the user.\n\n\
+            Proposing a fix that surfaces the error explicitly and adds a regression \
+            test covering the previously-swallowed case, plus a short note on why the \
+            original code path was structured that way.\n\n";
+        let long_phase_out = paragraph.repeat(20);
+        let phases = ["inspect", "localize", "hypothesize", "act", "verify", "decide"];
+        let mut blocks: Vec<String> = phases
+            .iter()
+            .map(|p| format!("[{p}]\n{long_phase_out}"))
+            .collect();
+        blocks.push(format!("[tool_result: read_file]\n{long_phase_out}"));
+        blocks.push(format!("[tool_result: run_tests]\n{long_phase_out}"));
+
+        let total_tokens: usize = blocks
+            .iter()
+            .map(|b| CompactionEngine::estimate_tokens(b))
+            .sum();
+
+        let scratchpad_engine = CompactionEngine::new(scratchpad_compaction_config());
+        let default_engine = CompactionEngine::new(CompactionConfig::default());
+
+        assert!(
+            total_tokens > scratchpad_compaction_config().trigger_at(),
+            "test fixture must realistically exceed the scratchpad trigger \
+             (total_tokens={total_tokens}, scratchpad trigger={})",
+            scratchpad_compaction_config().trigger_at()
+        );
+        assert!(
+            total_tokens < CompactionConfig::default().trigger_at(),
+            "test fixture must stay well under the old full-context default trigger, \
+             proving the old default was a no-op here \
+             (total_tokens={total_tokens}, default trigger={})",
+            CompactionConfig::default().trigger_at()
+        );
+
+        let scratchpad_compacted = compact_notes(&scratchpad_engine, &blocks);
+        let default_compacted = compact_notes(&default_engine, &blocks);
+
+        let scratchpad_len: usize = scratchpad_compacted.iter().map(|b| b.len()).sum();
+        let default_len: usize = default_compacted.iter().map(|b| b.len()).sum();
+        let raw_len: usize = blocks.iter().map(|b| b.len()).sum();
+
+        assert!(
+            scratchpad_len < raw_len,
+            "scratchpad-scoped config must actually compact a realistic multi-phase notes size \
+             (raw_len={raw_len}, scratchpad_len={scratchpad_len})"
+        );
+        assert_eq!(
+            default_len, raw_len,
+            "sanity check: the old full-context default really was a no-op at this realistic size \
+             (default_len={default_len}, raw_len={raw_len})"
+        );
     }
 }
 
@@ -627,7 +809,14 @@ impl TaskProcessor for AiTaskProcessor {
         };
         let dispatch_start = std::time::Instant::now();
 
-        let mut notes = String::new();
+        // Structured record of what's gone into the scratchpad so far — one
+        // entry per phase output / tool-result block, in append order. This
+        // (not a pre-joined `notes` string) is what `compact_notes` builds
+        // its `Turn`s from, so a block containing internal `"\n\n"` can
+        // never get silently fragmented into multiple pseudo-Turns (Task C1
+        // review finding #1). `notes` (the joined string form the prompt
+        // actually wants) is recomputed from `notes_blocks` each iteration.
+        let mut notes_blocks: Vec<String> = Vec::new();
         let phases = [
             crate::types::TaskPhase::Inspect,
             crate::types::TaskPhase::Localize,
@@ -664,10 +853,12 @@ impl TaskProcessor for AiTaskProcessor {
                 phase,
             });
 
-            // Compact the accumulated scratchpad before it's resent as
-            // "Known notes" in this phase's prompt (Task C1) - a no-op below
-            // the engine's configured trigger threshold.
-            notes = compact_notes(&self.compaction, &notes);
+            // Compact the accumulated scratchpad's blocks before rejoining
+            // them as "Known notes" in this phase's prompt (Task C1) - a
+            // no-op below the engine's configured trigger threshold. Operates
+            // on the real per-phase block list, not a delimiter-split string.
+            notes_blocks = compact_notes(&self.compaction, &notes_blocks);
+            let notes = notes_blocks.join("\n\n");
 
             let phase_out = match self
                 .run_phase_stream(
@@ -720,10 +911,7 @@ impl TaskProcessor for AiTaskProcessor {
                 }
                 crate::budget::DriftDecision::Continue => {}
             }
-            if !notes.is_empty() {
-                notes.push_str("\n\n");
-            }
-            notes.push_str(&format!("[{}]\n{}", phase.as_str(), phase_out));
+            notes_blocks.push(format!("[{}]\n{}", phase.as_str(), phase_out));
             // Tool intent detection: an `@tool <name> [json args]` line in the
             // model's own phase output. Always logged as a breadcrumb; when a
             // `ToolDispatcher` is wired (T1.5 follow-up), also actually
@@ -773,12 +961,11 @@ impl TaskProcessor for AiTaskProcessor {
                             format!("[tool_result: {tool_name}]\nERROR: {e}")
                         }
                     };
-                    notes.push_str("\n\n");
-                    notes.push_str(&result_block);
+                    notes_blocks.push(result_block);
                 }
             }
         }
-        let full_text = notes;
+        let full_text = notes_blocks.join("\n\n");
         let latency_ms = dispatch_start.elapsed().as_millis() as u64;
 
         let input_tokens =
