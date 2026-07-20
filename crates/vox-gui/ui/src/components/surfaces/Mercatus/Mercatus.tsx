@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { voxTransport } from '../../../transport';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
+import { useLabel } from '../../../hooks/useLanguage';
 
 interface SourceMeta {
   enabled: boolean;
@@ -27,6 +28,7 @@ interface PriceWatchConfig {
 type LoadState = 'loading' | 'ok' | 'error';
 
 export function Mercatus() {
+  const navLabel = useLabel('mercatus');
   const [cfg, setCfg] = useState<PriceWatchConfig | null>(null);
   const [state, setState] = useState<LoadState>('loading');
   const [err, setErr] = useState('');
@@ -48,7 +50,7 @@ export function Mercatus() {
     <section className="space-y-4">
       <div className="flex items-baseline gap-3">
         <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">
-          Mercatus — Price Watch
+          {navLabel} — Price Watch
         </h2>
         <button
           type="button"
