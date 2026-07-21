@@ -672,7 +672,7 @@ export function ChatSurface({
 
   return (
     <div
-      className="relative flex h-full min-h-[60vh] gap-4"
+      className="relative flex h-full gap-4"
       data-testid="chat-surface-layout"
     >
       {/* Axe page-has-heading-one: surfaces render inside a heading-less shell.
@@ -680,8 +680,8 @@ export function ChatSurface({
           enabled, a docked ChatSurface adds a second h1 to the page. */}
       <h1 className="sr-only">Chat</h1>
 
-      <div className="min-w-0 flex-1">
-        <div className="relative mb-2 flex justify-end">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="relative mb-2 flex shrink-0 justify-end">
           <div className="relative">
             <button
               ref={panelsTriggerRef}
@@ -750,7 +750,7 @@ export function ChatSurface({
             ) : null}
           </div>
         </div>
-        <div ref={dockRootRef}>
+        <div ref={dockRootRef} className="min-h-0 flex-1">
         <DockWorkspaceShell
           storageKeyPrefix="gui.chat"
           components={CHAT_DOCK_COMPONENTS}

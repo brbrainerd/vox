@@ -110,7 +110,7 @@ export function DockWorkspaceShell({
   );
 
   return (
-    <div ref={outerRef} className="h-full min-h-[60vh] w-full">
+    <div ref={outerRef} className="h-full min-h-0 w-full">
       <div
         className="dockview-theme-vox w-full"
         style={{ height: pixelHeight != null ? `${pixelHeight}px` : '60vh' }}
