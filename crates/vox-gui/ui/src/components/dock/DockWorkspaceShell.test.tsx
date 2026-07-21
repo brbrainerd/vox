@@ -37,4 +37,21 @@ describe('DockWorkspaceShell', () => {
   it('two different storageKeyPrefix values persist to two different localStorage keys', () => {
     expect(layoutStorageKeyFor('gui.chat')).not.toBe(layoutStorageKeyFor('gui.other-host'));
   });
+
+  it('never persists panel params (live React nodes) — only geometry survives the round trip', async () => {
+    function Probe(props: { params: { node: React.ReactNode } }) {
+      return <div>{props.params.node}</div>;
+    }
+    const onReady = vi.fn((event) => {
+      event.api.addPanel({ id: 'probe', component: 'probe', params: { node: <span>live content</span> } });
+    });
+    render(<DockWorkspaceShell storageKeyPrefix="test.host2" onReady={onReady} components={{ probe: Probe }} />);
+
+    await new Promise((resolve) => setTimeout(resolve, 1200)); // past LAYOUT_PERSIST_DEBOUNCE_MS (1000ms)
+
+    const persisted = localStorage.getItem(layoutStorageKeyFor('test.host2'));
+    expect(persisted).not.toBeNull();
+    expect(persisted).not.toContain('"params"');
+    expect(persisted).toContain('probe');
+  }, 10000);
 });
