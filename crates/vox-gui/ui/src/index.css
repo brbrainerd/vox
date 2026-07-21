@@ -2,6 +2,8 @@
 @import './styles/tokens.generated.css';
 @import './styles/tokens.contrast.generated.css';
 @import './styles/tokens.travertine.generated.css';
+@import 'dockview/dist/styles/dockview.css';
+@import './styles/dockview-vox.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
