@@ -1,5 +1,5 @@
 // crates/vox-gui/ui/src/components/dock/DockWorkspaceShell.tsx
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DockviewReact,
   type DockviewReadyEvent,
@@ -44,6 +44,40 @@ export function DockWorkspaceShell({
 }: DockWorkspaceShellProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const storageKey = layoutStorageKeyFor(storageKeyPrefix);
+  // Two-div split, deliberate: `outerRef` keeps the existing percentage-based
+  // sizing (`h-full`, flex-stretched by its own parent) untouched — measuring
+  // it is safe and side-effect-free. `pixelHeight` is applied to the INNER
+  // div that actually wraps DockviewReact, converting that one box from a
+  // percentage height to a concrete pixel value.
+  //
+  // Why this is required, not cosmetic: dockview-react's own internal root
+  // node renders with `style="height: 100%"`. CSS percentage heights only
+  // resolve against an ancestor with a *definite* height — and empirically
+  // (confirmed live via CDP DOM inspection, not jsdom, which cannot detect
+  // this class of bug at all) a flex-item whose own height comes from
+  // `h-full`/flex-stretch does NOT count as definite far enough down this
+  // specific chain: dockview's internal `.dv-shell` computed 0x0 even though
+  // our own wrapper measured a real, correct, non-zero size one level up.
+  // `DockviewApi.layout(w, h)` does NOT fix this — it only feeds dockview's
+  // internal pane-arithmetic, not the DOM height cascade, so `.dv-shell`
+  // stayed 0x0 even after calling it. Giving the DockviewReact wrapper an
+  // explicit `px` height breaks the percentage chain at a definite value,
+  // which is the only reliable fix for this specific CSS interaction.
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const [pixelHeight, setPixelHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const el = outerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(entries => {
+      const h = entries[0]?.contentRect.height;
+      if (h && h > 0) setPixelHeight(h);
+    });
+    ro.observe(el);
+    const rect = el.getBoundingClientRect();
+    if (rect.height > 0) setPixelHeight(rect.height);
+    return () => ro.disconnect();
+  }, []);
 
   const handleReady = useCallback(
     (event: DockviewReadyEvent) => {
@@ -76,8 +110,13 @@ export function DockWorkspaceShell({
   );
 
   return (
-    <div className="dockview-theme-vox h-full min-h-[60vh] w-full">
-      <DockviewReact components={components} tabComponents={tabComponents} onReady={handleReady} />
+    <div ref={outerRef} className="h-full min-h-[60vh] w-full">
+      <div
+        className="dockview-theme-vox w-full"
+        style={{ height: pixelHeight != null ? `${pixelHeight}px` : '60vh' }}
+      >
+        <DockviewReact components={components} tabComponents={tabComponents} onReady={handleReady} />
+      </div>
     </div>
   );
 }
