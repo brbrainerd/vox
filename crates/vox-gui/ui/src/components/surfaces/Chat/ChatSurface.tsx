@@ -32,6 +32,7 @@ import { DiscoverySurface } from '../Discovery/DiscoverySurface';
 import { RepositoryView } from '../Repository/RepositoryView';
 import { Mercatus } from '../Mercatus/Mercatus';
 import { HarnessRedirect } from '../Harness/HarnessRedirect';
+import { getPermissionMode } from '../../../transport';
 
 
 
@@ -42,7 +43,7 @@ type CorePanelId = (typeof CORE_PANEL_IDS)[number];
 // branch in the refresh effect — only a guarded `.update()` if already
 // present — so they can only ever be (re)created via the Panels menu's Add
 // section, never resurrected on an unrelated re-render.
-const OPT_IN_PANEL_IDS = ['needs-you', 'voxgraph', 'activity', 'repository', 'mercatus', 'harness'] as const;
+const OPT_IN_PANEL_IDS = ['needs-you', 'voxgraph', 'activity', 'repository', 'mercatus', 'harness', 'approvals'] as const;
 type OptInPanelId = (typeof OPT_IN_PANEL_IDS)[number];
 
 interface ChatSession {
@@ -95,6 +96,35 @@ function HarnessDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>)
   return <div data-testid="chat-dock-harness" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
 }
 
+// Approvals' working table needs ~850-1000px (4 fixed columns sum to 710px
+// before the description column gets room). Condensed content:
+// pending-approval count + current permission mode.
+const APPROVALS_FULL_WIDTH_PX = 850; // from the audit: 4 fixed columns sum to 710px before the description column gets room
+
+export function ApprovalsDockPanel(props: IDockviewPanelProps<{ pendingApprovals: number; permissionMode: string; onNavigate?: (viewKey: string) => void }>) {
+  const [width, setWidth] = React.useState(props.api.width);
+  React.useEffect(() => {
+    const disposable = props.api.onDidDimensionsChange(() => setWidth(props.api.width));
+    return () => disposable.dispose();
+  }, [props.api]);
+
+  return (
+    <div data-testid="chat-dock-approvals" className="h-full overflow-y-auto p-2 text-xs">
+      <div className="mb-2">{props.params.pendingApprovals} pending · {props.params.permissionMode}</div>
+      {width >= APPROVALS_FULL_WIDTH_PX ? (
+        <a
+          role="link"
+          href="#"
+          onClick={e => { e.preventDefault(); props.params.onNavigate?.('approvals'); }}
+          className="text-brass hover:underline"
+        >
+          Open full view
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
 const CHAT_DOCK_COMPONENTS = {
   sessions: SessionsPanel,
   transcript: TranscriptPanel,
@@ -107,6 +137,7 @@ const CHAT_DOCK_COMPONENTS = {
   repository: RepositoryDockPanel,
   mercatus: MercatusDockPanel,
   harness: HarnessDockPanel,
+  approvals: ApprovalsDockPanel,
 };
 
 // Marker rendered inside the transcript panel's dockview tab element. Task
@@ -160,6 +191,8 @@ interface ChatSurfaceProps {
   /** Shared attention inbox (App owns polling) — sources the opt-in Needs You dock panel. */
   attention?: AttentionInbox;
   onOpenFeedbackContext?: (id: string) => void;
+  /** Pending-approval count — sources the opt-in Approvals dock panel's condensed badge (App.tsx: `attention.approvals.length`). */
+  pendingApprovals?: number;
 }
 
 export function ChatSurface({
@@ -190,6 +223,7 @@ export function ChatSurface({
   planVersion,
   attention,
   onOpenFeedbackContext,
+  pendingApprovals = 0,
 }: ChatSurfaceProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
@@ -436,6 +470,12 @@ export function ChatSurface({
 
   const harnessNode = <HarnessRedirect gamifyEnabled={gamifyEnabled} />;
 
+  const approvalsParams = {
+    pendingApprovals,
+    permissionMode: getPermissionMode() ?? 'ask',
+    onNavigate,
+  };
+
   const centerContent = (
     <>
       {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
@@ -490,6 +530,10 @@ export function ChatSurface({
     repository: { title: 'Repository', node: repositoryNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
     mercatus: { title: 'Mercatus', node: mercatusNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
     harness: { title: 'Harness', node: harnessNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    // `node` is unused for approvals — ApprovalsDockPanel takes structured
+    // params (pendingApprovals/permissionMode/onNavigate), never a rendered
+    // node, so it never mounts a second live <ApprovalsView> poll loop.
+    approvals: { title: 'Approvals', node: null, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
   };
 
   // Plain function, not useCallback: panelDefs is a fresh object every render.
@@ -501,7 +545,7 @@ export function ChatSurface({
       component: id,
       ...(id === 'transcript' ? { tabComponent: 'transcript' } : {}),
       title: def.title,
-      params: { node: def.node },
+      params: id === 'approvals' ? approvalsParams : { node: def.node },
       position: referencePanel ? { direction: 'right', referencePanel } : undefined,
     });
     closedPanelIds.current.delete(id);
@@ -579,6 +623,7 @@ export function ChatSurface({
     api.getPanel('repository')?.update({ params: { node: repositoryNode } });
     api.getPanel('mercatus')?.update({ params: { node: mercatusNode } });
     api.getPanel('harness')?.update({ params: { node: harnessNode } });
+    api.getPanel('approvals')?.update({ params: approvalsParams });
   });
 
   return (

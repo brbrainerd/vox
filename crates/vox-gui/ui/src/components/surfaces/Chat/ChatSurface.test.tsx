@@ -42,7 +42,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 const noopToast = () => {};
 
-import { ChatSurface } from './ChatSurface';
+import { ChatSurface, ApprovalsDockPanel } from './ChatSurface';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 
@@ -791,6 +791,43 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     expect(screen.queryByTestId('chat-dock-harness')).toBeNull();
+  });
+
+  it('Approvals panel shows a condensed pending-count badge when docked narrow', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} pendingApprovals={3} />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^approvals$/i }));
+    const panel = screen.getByTestId('chat-dock-approvals');
+    expect(panel).toHaveTextContent('3 pending');
+    // The full 4-column table must not render — condensed state renders
+    // ApprovalsDockPanel's own summary markup only, never <ApprovalsView>.
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+});
+
+describe('ApprovalsDockPanel width-driven toggle', () => {
+  it('switches to a full-view link, not an inline table, when the toggle mechanism decides it is wide enough', () => {
+    // dockview's own width isn't measurable in jsdom (no real layout engine),
+    // so this test exercises ApprovalsDockPanel directly with a mocked
+    // DockviewPanelApi rather than through the full ChatSurface dock — mirrors
+    // how other width-dependent behavior in this codebase is unit-tested at
+    // the component level when the full dockview integration can't produce
+    // real pixel measurements under jsdom.
+    const mockApi = { width: 900, onDidDimensionsChange: vi.fn(() => ({ dispose: vi.fn() })) } as any;
+    render(
+      <ApprovalsDockPanel
+        api={mockApi}
+        params={{ pendingApprovals: 3, permissionMode: 'Ask', onNavigate: vi.fn() }}
+      />,
+    );
+    expect(screen.getByRole('link', { name: /open full view/i })).toBeInTheDocument();
   });
 });
 
