@@ -30,6 +30,7 @@ import type { AttentionInbox } from '../../../hooks/useAttentionInbox';
 import { VoxGraphStatusPanel } from '../VoxGraph/VoxGraphStatusPanel';
 import { DiscoverySurface } from '../Discovery/DiscoverySurface';
 import { RepositoryView } from '../Repository/RepositoryView';
+import { Mercatus } from '../Mercatus/Mercatus';
 
 
 
@@ -40,7 +41,7 @@ type CorePanelId = (typeof CORE_PANEL_IDS)[number];
 // branch in the refresh effect — only a guarded `.update()` if already
 // present — so they can only ever be (re)created via the Panels menu's Add
 // section, never resurrected on an unrelated re-render.
-const OPT_IN_PANEL_IDS = ['needs-you', 'voxgraph', 'activity', 'repository'] as const;
+const OPT_IN_PANEL_IDS = ['needs-you', 'voxgraph', 'activity', 'repository', 'mercatus'] as const;
 type OptInPanelId = (typeof OPT_IN_PANEL_IDS)[number];
 
 interface ChatSession {
@@ -85,6 +86,10 @@ function RepositoryDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode 
   return <div data-testid="chat-dock-repository" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
 }
 
+function MercatusDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  return <div data-testid="chat-dock-mercatus" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
+}
+
 const CHAT_DOCK_COMPONENTS = {
   sessions: SessionsPanel,
   transcript: TranscriptPanel,
@@ -95,6 +100,7 @@ const CHAT_DOCK_COMPONENTS = {
   voxgraph: VoxGraphDockPanel,
   activity: ActivityDockPanel,
   repository: RepositoryDockPanel,
+  mercatus: MercatusDockPanel,
 };
 
 // Marker rendered inside the transcript panel's dockview tab element. Task
@@ -420,6 +426,8 @@ export function ChatSurface({
 
   const repositoryNode = <RepositoryView pushToast={pushToast} gamifyEnabled={gamifyEnabled} />;
 
+  const mercatusNode = <Mercatus />;
+
   const centerContent = (
     <>
       {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
@@ -472,6 +480,7 @@ export function ChatSurface({
     voxgraph: { title: 'VoxGraph', node: voxGraphNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
     activity: { title: 'Activity', node: activityNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
     repository: { title: 'Repository', node: repositoryNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    mercatus: { title: 'Mercatus', node: mercatusNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
   };
 
   // Plain function, not useCallback: panelDefs is a fresh object every render.
@@ -559,6 +568,7 @@ export function ChatSurface({
     api.getPanel('voxgraph')?.update({ params: { node: voxGraphNode } });
     api.getPanel('activity')?.update({ params: { node: activityNode } });
     api.getPanel('repository')?.update({ params: { node: repositoryNode } });
+    api.getPanel('mercatus')?.update({ params: { node: mercatusNode } });
   });
 
   return (

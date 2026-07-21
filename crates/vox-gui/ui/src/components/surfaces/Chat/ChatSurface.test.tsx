@@ -688,6 +688,58 @@ describe('ChatSurface', () => {
     );
     expect(screen.queryByTestId('chat-dock-repository')).toBeNull();
   });
+
+  it('mounts a Mercatus panel dockable from Chat via the Panels menu Add section', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^mercatus$/i }));
+    expect(screen.getByTestId('chat-dock-mercatus')).toBeInTheDocument();
+  });
+
+  it('the Mercatus panel does not resurrect on the next render after being closed', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^mercatus$/i }));
+    await screen.findByTestId('chat-dock-mercatus');
+
+    const tab = screen
+      .getAllByText('Mercatus')
+      .map(el => el.closest('.dv-default-tab'))
+      .find((el): el is HTMLElement => el !== null) as HTMLElement;
+    fireEvent.click(tab.querySelector('.dv-default-tab-action') as HTMLElement);
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-mercatus')).toBeNull());
+
+    // Force an unrelated re-render — opt-in panels have NO auto-create
+    // branch, so this must not bring it back (by construction, not by a
+    // closedPanelIds guard, since opt-in panels don't use one).
+    render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface
+            pushToast={vi.fn()}
+            onNavigate={vi.fn()}
+            messages={[{ id: 'm1', role: 'user', text: 'hi', status: 'done' } as any]}
+            composer={<div>composer</div>}
+          />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    expect(screen.queryByTestId('chat-dock-mercatus')).toBeNull();
+  });
 });
 
 describe('session hydration ownership (F18: redundant double hydrate per session switch)', () => {
