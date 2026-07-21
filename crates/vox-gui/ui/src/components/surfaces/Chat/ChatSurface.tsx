@@ -400,15 +400,22 @@ export function ChatSurface({
           components={CHAT_DOCK_COMPONENTS}
           onReady={(event) => {
             dockApiRef.current = event.api;
-            event.api.addPanel({ id: 'sessions', component: 'sessions', title: 'Sessions', params: { node: sessionRailNode } });
-            event.api.addPanel({
-              id: 'transcript',
-              component: 'transcript',
-              title: 'Chat',
-              params: { node: centerContent },
-              position: { direction: 'right', referencePanel: 'sessions' },
-            });
-            if (executionRailNode) {
+            // Guarded against duplicate-add: a restored dockview layout
+            // (ChatDockShell's localStorage persistence) already recreates
+            // these panels, so onReady must not re-add them.
+            if (!event.api.getPanel('sessions')) {
+              event.api.addPanel({ id: 'sessions', component: 'sessions', title: 'Sessions', params: { node: sessionRailNode } });
+            }
+            if (!event.api.getPanel('transcript')) {
+              event.api.addPanel({
+                id: 'transcript',
+                component: 'transcript',
+                title: 'Chat',
+                params: { node: centerContent },
+                position: { direction: 'right', referencePanel: 'sessions' },
+              });
+            }
+            if (executionRailNode && !event.api.getPanel('executionRail')) {
               event.api.addPanel({
                 id: 'executionRail',
                 component: 'executionRail',

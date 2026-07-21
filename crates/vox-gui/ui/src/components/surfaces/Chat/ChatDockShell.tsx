@@ -1,6 +1,12 @@
 // crates/vox-gui/ui/src/components/surfaces/Chat/ChatDockShell.tsx
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { DockviewReact, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview';
+import { LAYOUT_PERSIST_DEBOUNCE_MS } from '../../../config/constants';
+
+/** localStorage key for the persisted chat dockview layout. Exported so
+ * other modules (e.g. a future "reset layout" action) can reuse it without
+ * duplicating the string literal. */
+export const LAYOUT_STORAGE_KEY = 'gui.chat.dockview_layout.v1';
 
 interface ChatDockShellProps {
   components: Record<string, React.FunctionComponent<IDockviewPanelProps>>;
@@ -12,11 +18,49 @@ interface ChatDockShellProps {
  * Flow, and plan panels all dock/resize/hide within this container around
  * the central chat pane. Theming via the `dockview-theme-vox` class
  * (crates/vox-gui/ui/src/styles/dockview-vox.css), not the `theme` prop.
+ *
+ * Layout persistence: the dockview grid layout is serialized to
+ * localStorage (debounced) on every change, and restored on mount before
+ * the caller's `onReady` runs. Callers must guard their `addPanel` calls
+ * with `if (!event.api.getPanel(id))` so a restored layout doesn't get
+ * duplicate panels re-added.
  */
 export function ChatDockShell({ components, onReady }: ChatDockShellProps) {
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleReady = useCallback(
+    (event: DockviewReadyEvent) => {
+      const saved = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
+      if (saved) {
+        try {
+          event.api.fromJSON(JSON.parse(saved));
+        } catch (err) {
+          console.warn('failed to restore dockview layout, using default', err);
+        }
+      }
+
+      event.api.onDidLayoutChange(() => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+          try {
+            window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(event.api.toJSON()));
+          } catch (err) {
+            console.warn('failed to persist dockview layout', err);
+          }
+        }, LAYOUT_PERSIST_DEBOUNCE_MS);
+      });
+
+      // The caller's onReady is always invoked, even when a saved layout
+      // was restored — its addPanel calls must guard with
+      // `if (!event.api.getPanel(id))` so restored panels aren't duplicated.
+      onReady(event);
+    },
+    [onReady],
+  );
+
   return (
     <div className="dockview-theme-vox h-full min-h-[60vh] w-full">
-      <DockviewReact components={components} onReady={onReady} />
+      <DockviewReact components={components} onReady={handleReady} />
     </div>
   );
 }
