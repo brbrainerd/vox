@@ -15,6 +15,7 @@ import { ChatSessionRail } from './ChatSessionRail';
 import { ChatModelPicker } from './ChatModelPicker';
 import { PlanPanel, type PlanNodeView } from './PlanPanel';
 import { listPlanNodes } from '../../../transport';
+import { labelForNavKey } from '../../../lib/navigation';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import type { AttentionBudgetSnapshot } from '../../../types/tauri';
 import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
@@ -532,16 +533,21 @@ export function ChatSurface({
     executionRail: { title: 'Execution', params: { node: executionRailNode }, referenceChain: ['transcript'] },
     flow: { title: 'Flow', params: { node: flowNode }, referenceChain: ['executionRail', 'transcript'] },
     todos: { title: 'To-dos', params: { node: todosNode }, referenceChain: ['flow', 'executionRail', 'transcript'] },
-    'needs-you': { title: 'Needs You', params: { node: needsYouNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    voxgraph: { title: 'VoxGraph', params: { node: voxGraphNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    activity: { title: 'Activity', params: { node: activityNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    repository: { title: 'Repository', params: { node: repositoryNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    mercatus: { title: 'Mercatus', params: { node: mercatusNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    harness: { title: 'Harness', params: { node: harnessNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    'needs-you': { title: labelForNavKey('needs-you'), params: { node: needsYouNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    // Titles for surfaces that also exist as top-level app tabs come from
+    // labelForNavKey (src/lib/navigation.ts), the app-wide breadcrumb/label
+    // SSOT — not hand-typed guesses. voxgraph's real label is "Search
+    // Index" (not "VoxGraph") and activity's is "Discovery" (not
+    // "Activity"); using the SSOT directly prevents this drifting again.
+    voxgraph: { title: labelForNavKey('vox-search'), params: { node: voxGraphNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    activity: { title: labelForNavKey('activity'), params: { node: activityNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    repository: { title: labelForNavKey('repository'), params: { node: repositoryNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    mercatus: { title: labelForNavKey('mercatus'), params: { node: mercatusNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    harness: { title: labelForNavKey('harness'), params: { node: harnessNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
     // ApprovalsDockPanel takes structured params (pendingApprovals/
     // permissionMode/onNavigate), never a rendered node, so it never mounts
     // a second live <ApprovalsView> poll loop.
-    approvals: { title: 'Approvals', params: approvalsParams, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    approvals: { title: labelForNavKey('approvals'), params: approvalsParams, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
   };
 
   // Plain function, not useCallback: panelDefs is a fresh object every render.

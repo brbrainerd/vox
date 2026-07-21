@@ -543,7 +543,7 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^voxgraph$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^search index$/i }));
     expect(screen.getByTestId('chat-dock-voxgraph')).toBeInTheDocument();
   });
 
@@ -557,11 +557,11 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^voxgraph$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^search index$/i }));
     await screen.findByTestId('chat-dock-voxgraph');
 
     const tab = screen
-      .getAllByText('VoxGraph')
+      .getAllByText('Search Index')
       .map(el => el.closest('.dv-default-tab'))
       .find((el): el is HTMLElement => el !== null) as HTMLElement;
     fireEvent.click(tab.querySelector('.dv-default-tab-action') as HTMLElement);
@@ -595,7 +595,7 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^activity$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^discovery$/i }));
     expect(screen.getByTestId('chat-dock-activity')).toBeInTheDocument();
   });
 
@@ -609,11 +609,11 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^activity$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^discovery$/i }));
     await screen.findByTestId('chat-dock-activity');
 
     const tab = screen
-      .getAllByText('Activity')
+      .getAllByText('Discovery')
       .map(el => el.closest('.dv-default-tab'))
       .find((el): el is HTMLElement => el !== null) as HTMLElement;
     fireEvent.click(tab.querySelector('.dv-default-tab-action') as HTMLElement);
