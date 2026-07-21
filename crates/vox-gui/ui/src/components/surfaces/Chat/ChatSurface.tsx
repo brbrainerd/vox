@@ -393,7 +393,7 @@ export function ChatSurface({
 
   return (
     <div
-      className="relative flex min-h-[60vh] gap-4"
+      className="relative flex h-full min-h-[60vh] gap-4"
       data-testid="chat-surface-layout"
     >
       {/* Axe page-has-heading-one: surfaces render inside a heading-less shell.
