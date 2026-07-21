@@ -320,6 +320,59 @@ describe('ChatSurface', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
+  it('creates the Sessions panel with a fixed maximumWidth constraint so it can never dominate the row (dockview 6.6.1 has no responsive % constraint, only a fixed-pixel one)', async () => {
+    const { DockviewApi } = await import('dockview');
+    const addPanelSpy = vi.spyOn(DockviewApi.prototype, 'addPanel');
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={noopToast} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-sessions');
+    const sessionsCall = addPanelSpy.mock.calls.find(([opts]) => opts.id === 'sessions');
+    expect(sessionsCall).toBeDefined();
+    expect(sessionsCall![0].maximumWidth).toBe(280);
+    addPanelSpy.mockRestore();
+  });
+
+  it('creates the Chat transcript panel with a hard minimumWidth floor so it cannot be halved indefinitely by sibling panels', async () => {
+    const { DockviewApi } = await import('dockview');
+    const addPanelSpy = vi.spyOn(DockviewApi.prototype, 'addPanel');
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={noopToast} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-transcript');
+    const transcriptCall = addPanelSpy.mock.calls.find(([opts]) => opts.id === 'transcript');
+    expect(transcriptCall).toBeDefined();
+    expect(transcriptCall![0].minimumWidth).toBe(460);
+    expect(transcriptCall![0].maximumWidth).toBeUndefined();
+    addPanelSpy.mockRestore();
+  });
+
+  it('a 3rd+ opt-in panel stacks BELOW the most-recently-activated opt-in panel instead of splitting the row right again, so an opening row of opt-in panels does not get infinitely thinner', async () => {
+    const { DockviewApi } = await import('dockview');
+    const addPanelSpy = vi.spyOn(DockviewApi.prototype, 'addPanel');
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={noopToast} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+    await screen.findByTestId('chat-dock-mercatus');
+    fireEvent.click(screen.getByRole('checkbox', { name: /^harness$/i }));
+    await screen.findByTestId('chat-dock-harness');
+    fireEvent.click(screen.getByRole('checkbox', { name: /^repository$/i }));
+    await screen.findByTestId('chat-dock-repository');
+
+    const repositoryCall = addPanelSpy.mock.calls.find(([opts]) => opts.id === 'repository');
+    expect(repositoryCall).toBeDefined();
+    expect(repositoryCall![0].position).toEqual({ direction: 'below', referencePanel: 'harness' });
+    addPanelSpy.mockRestore();
+  });
+
   it('mounts a Flow panel dockable alongside chat, using the same agent data as the top-level Flow tab', async () => {
     render(
       <LanguageProvider>

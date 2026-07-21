@@ -41,6 +41,57 @@ import { getPermissionMode } from '../../../transport';
 const CORE_PANEL_IDS = ['sessions', 'transcript', 'executionRail', 'flow', 'todos'] as const;
 type CorePanelId = (typeof CORE_PANEL_IDS)[number];
 
+// Sessions is a navigation rail, not a work surface, and must never dominate
+// the row the way an unconstrained 50/50 dockview split otherwise lets it
+// (see the addPanel-sequence note above OPT_IN_PANEL_IDS: every panel added
+// after it without a size halves the *previous* panel's share, but Sessions
+// itself starts the chain, so it never shrinks on its own).
+//
+// dockview-core@6.6.1's real constraint mechanism, read from the shipped
+// type defs (not guessed):
+//   - `AddPanelOptions` = `... & Partial<Contraints>` — dockview-core
+//     dist/esm/dockview/options.d.ts:303, where `Contraints` (dockview's own
+//     spelling) is imported from gridview/gridviewPanel.d.ts:9-14:
+//     `{ minimumWidth?: number; maximumWidth?: number; minimumHeight?: number;
+//     maximumHeight?: number }` — plain pixel numbers, not percentages.
+//   - The same fields are settable post-creation via
+//     `panel.api.setConstraints({ minimumWidth, maximumWidth })` —
+//     dockview-core dist/esm/api/gridviewPanelApi.d.ts:22-23
+//     (`setConstraints(value: GridConstraintChangeEvent2): void`, where
+//     GridConstraintChangeEvent2 at gridviewPanelApi.d.ts:11-14 allows
+//     `FunctionOrValue<number>`, still resolving to a concrete pixel number
+//     at layout time — not a live "% of container" binding). DockviewPanelApi
+//     inherits this from GridviewPanelApi (dockview/dockviewPanelApi.d.ts:20).
+// There is no percentage/responsive constraint API in 6.6.1 — only a fixed
+// pixel cap. We approximate "roughly max 20% of the dock" with a fixed
+// `maximumWidth` tuned to a typical ~1400px-wide dock workspace (20% of
+// 1400 ≈ 280px). Tradeoff: on much wider windows this cap is a smaller
+// fraction than 20%; on much narrower windows it can exceed 20% — but
+// `minimumWidth` is intentionally left unset so Sessions can still shrink
+// further on narrow windows, and the fixed cap still prevents it from ever
+// growing to dominate on wide ones, which is the actual bug being fixed.
+const SESSIONS_MAX_WIDTH_PX = 280;
+const SESSIONS_INITIAL_WIDTH_PX = 220;
+
+// Chat transcript is the primary work surface. It gets a hard floor
+// (`minimumWidth`, same Contraints mechanism as above) so opening more
+// panels to its right can never squeeze it below a usable width, and no
+// `maximumWidth` so it keeps dockview's default fill/grow behavior for
+// whatever room the row leaves it.
+const TRANSCRIPT_MIN_WIDTH_PX = 460;
+
+// Passed straight into `addPanel`'s `Partial<Contraints>` fields (see above)
+// for every call site that creates these two panels — onReady's initial
+// create and addDefaultPanel's Panels-menu/Reset-layout create both funnel
+// through this single map so the constraint values live in exactly one
+// place.
+const PANEL_SIZE_CONSTRAINTS: Partial<
+  Record<string, { initialWidth?: number; maximumWidth?: number; minimumWidth?: number }>
+> = {
+  sessions: { initialWidth: SESSIONS_INITIAL_WIDTH_PX, maximumWidth: SESSIONS_MAX_WIDTH_PX },
+  transcript: { minimumWidth: TRANSCRIPT_MIN_WIDTH_PX },
+};
+
 // Tasks 2.2-2.6/3.1-3.8 append one id each. Opt-in panels get NO auto-create
 // branch in the refresh effect — only a guarded `.update()` if already
 // present — so they can only ever be (re)created via the Panels menu's Add
@@ -686,12 +737,24 @@ export function ChatSurface({
   // fixed referenceChain slot. Falls back to the anchor chain (the same
   // chain core panels use) only when no opt-in panel has been activated yet
   // this session — or when the last-activated one is no longer open.
+  // Once this many opt-in panels are already sharing the row, a further one
+  // stacks BELOW the most-recently-activated panel instead of splitting the
+  // row right again — otherwise every additional opt-in panel keeps halving
+  // an already-thin row indefinitely. 2 keeps the existing "positions after
+  // the most-recently-activated opt-in panel" behavior intact for the first
+  // couple of opt-ins (see the addPanel-position regression test) and only
+  // changes behavior once a 3rd (and beyond) opt-in panel opens.
+  const OPT_IN_ROW_STACK_THRESHOLD = 2;
+
   const positionForActivation = (
     api: DockviewApi,
     def: (typeof panelDefs)[ChatDockPanelId],
-  ): { direction: 'right'; referencePanel: string } | undefined => {
+  ): { direction: 'right' | 'below'; referencePanel: string } | undefined => {
     const last = activationOrderRef.current[activationOrderRef.current.length - 1];
-    if (last && api.getPanel(last)) return { direction: 'right', referencePanel: last };
+    if (last && api.getPanel(last)) {
+      const direction = activationOrderRef.current.length >= OPT_IN_ROW_STACK_THRESHOLD ? 'below' : 'right';
+      return { direction, referencePanel: last };
+    }
     const anchor = def.referenceChain.find(candidateId => api.getPanel(candidateId));
     return anchor ? { direction: 'right', referencePanel: anchor } : undefined;
   };
@@ -713,6 +776,7 @@ export function ChatSurface({
       title: def.title,
       params: def.params,
       position,
+      ...(PANEL_SIZE_CONSTRAINTS[id] ?? {}),
     });
     closedPanelIds.current.delete(id);
     if (isOptIn) {
@@ -939,7 +1003,13 @@ export function ChatSurface({
             // (ChatDockShell's localStorage persistence) already recreates
             // these panels, so onReady must not re-add them.
             if (!event.api.getPanel('sessions')) {
-              event.api.addPanel({ id: 'sessions', component: 'sessions', title: 'Sessions', params: panelDefs.sessions.params });
+              event.api.addPanel({
+                id: 'sessions',
+                component: 'sessions',
+                title: 'Sessions',
+                params: panelDefs.sessions.params,
+                ...PANEL_SIZE_CONSTRAINTS.sessions,
+              });
             }
             if (!event.api.getPanel('transcript')) {
               event.api.addPanel({
@@ -949,6 +1019,7 @@ export function ChatSurface({
                 title: 'Chat',
                 params: panelDefs.transcript.params,
                 position: { direction: 'right', referencePanel: 'sessions' },
+                ...PANEL_SIZE_CONSTRAINTS.transcript,
               });
             }
             if (executionRailNode && !event.api.getPanel('executionRail')) {
