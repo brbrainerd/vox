@@ -65,8 +65,17 @@ const CHAT_DOCK_COMPONENTS = {
   todos: TodosDockPanel,
 };
 
+// Marker rendered inside the transcript panel's dockview tab element. Task
+// 1.8 pinned the transcript panel by giving it this empty tab component,
+// which removes the visible tab/close chrome — but dockview-core 6.6.1 sets
+// `draggable = true` unconditionally on every tab's DOM element
+// (dockview-core/dist/esm/dockview/components/tab/tab.js), with no per-panel
+// API to disable it. The marker below gives the capture-phase `dragstart`
+// listener (see the `dockRootRef` effect in ChatSurface) a way to identify
+// "this drag started from the transcript panel's tab" purely from the DOM,
+// without a blanket `disableDnd` that would break dragging every other panel.
 function EmptyTab() {
-  return null;
+  return <span data-testid="chat-dock-transcript-tab-marker" style={{ display: 'none' }} />;
 }
 const CHAT_DOCK_TAB_COMPONENTS = { transcript: EmptyTab };
 
@@ -152,6 +161,31 @@ export function ChatSurface({
   const [routingOpen, setRoutingOpen] = useState(false);
   const [panelsMenuOpen, setPanelsMenuOpen] = useState(false);
   const panelsTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const dockRootRef = useRef<HTMLDivElement | null>(null);
+
+  // Task 1.8 follow-up: dockview-core sets `draggable = true` on every tab
+  // element unconditionally, regardless of the (empty) tab component the
+  // transcript panel uses to hide its chrome. There is no dockview API to
+  // disable dragging for a single panel. A capture-phase `dragstart`
+  // listener on the dock's own root container preventDefault()s only when
+  // the drag originated from within a `.dv-tab` that contains the
+  // transcript panel's marker element (rendered by `EmptyTab` above) — every
+  // other panel's tab is untouched.
+  useEffect(() => {
+    const root = dockRootRef.current;
+    if (!root) return;
+    const handleDragStart = (event: DragEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const tabEl = target.closest('.dv-tab');
+      if (!tabEl) return;
+      if (tabEl.querySelector('[data-testid="chat-dock-transcript-tab-marker"]')) {
+        event.preventDefault();
+      }
+    };
+    root.addEventListener('dragstart', handleDragStart, true);
+    return () => root.removeEventListener('dragstart', handleDragStart, true);
+  }, []);
 
   useEffect(() => {
     if (!routingOpen) return;
@@ -539,6 +573,7 @@ export function ChatSurface({
             ) : null}
           </div>
         </div>
+        <div ref={dockRootRef}>
         <DockWorkspaceShell
           storageKeyPrefix="gui.chat"
           components={CHAT_DOCK_COMPONENTS}
@@ -575,6 +610,7 @@ export function ChatSurface({
             }
           }}
         />
+        </div>
       </div>
 
       {secretaryToast && (

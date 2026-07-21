@@ -263,6 +263,61 @@ describe('ChatSurface', () => {
     expect(screen.queryByText('Chat', { selector: '.dv-default-tab-content' })).toBeNull();
   });
 
+  it('prevents a native dragstart originating from the transcript panel tab (EmptyTab hides chrome but dockview-core still sets draggable=true unconditionally)', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={vi.fn()}
+          activeSessionId="s1"
+          messages={[]}
+          agentStreamItems={[]}
+          composer={<div>composer</div>}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-transcript');
+    const transcriptTabMarker = await screen.findByTestId('chat-dock-transcript-tab-marker');
+    const transcriptTab = transcriptTabMarker.closest('.dv-tab') as HTMLElement;
+    expect(transcriptTab).not.toBeNull();
+
+    const event = new Event('dragstart', { bubbles: true, cancelable: true }) as DragEvent;
+    Object.defineProperty(event, 'dataTransfer', {
+      value: { setDragImage: vi.fn(), setData: vi.fn(), getData: vi.fn(), types: [], items: [], effectAllowed: '' },
+    });
+    act(() => {
+      transcriptTab.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('does not prevent dragstart from an unrelated panel tab (Flow) — the fix is scoped to the transcript panel only', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={vi.fn()}
+          activeSessionId="s1"
+          messages={[]}
+          agentStreamItems={[]}
+          composer={<div>composer</div>}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-flow');
+    const flowTab = screen.getByText('Flow').closest('.dv-tab') as HTMLElement;
+    expect(flowTab).not.toBeNull();
+
+    const event = new Event('dragstart', { bubbles: true, cancelable: true }) as DragEvent;
+    Object.defineProperty(event, 'dataTransfer', {
+      value: { setDragImage: vi.fn(), setData: vi.fn(), getData: vi.fn(), types: [], items: [], effectAllowed: '' },
+    });
+    act(() => {
+      flowTab.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it('mounts a Flow panel dockable alongside chat, using the same agent data as the top-level Flow tab', async () => {
     render(
       <LanguageProvider>
