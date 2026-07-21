@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
-import { chatRailVisibility } from './chatRailVisibility';
 import { invoke } from '@tauri-apps/api/core';
 import { type UnlistenFn } from '@tauri-apps/api/event';
 import { ChatTranscript } from './ChatTranscript';
@@ -24,6 +23,8 @@ import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
 import { SecretaryToast } from './SecretaryToast';
 import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } from '../../../transport';
 import { Matrix } from '../Matrix/Matrix';
+import { ChatDockShell } from './ChatDockShell';
+import type { DockviewApi, IDockviewPanelProps } from 'dockview';
 
 
 
@@ -32,6 +33,24 @@ interface ChatSession {
   title: string;
   message_count: number;
 }
+
+function SessionsPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  return <div data-testid="chat-dock-sessions" className="h-full overflow-y-auto">{props.params.node}</div>;
+}
+
+function TranscriptPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  return <div data-testid="chat-dock-transcript" className="flex h-full min-w-0 flex-col gap-4 p-2">{props.params.node}</div>;
+}
+
+function ExecutionRailPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  return <div data-testid="chat-dock-execution-rail" className="h-full overflow-y-auto">{props.params.node}</div>;
+}
+
+const CHAT_DOCK_COMPONENTS = {
+  sessions: SessionsPanel,
+  transcript: TranscriptPanel,
+  executionRail: ExecutionRailPanel,
+};
 
 interface ChatSurfaceProps {
   pushToast: (t: any) => void;
@@ -92,13 +111,12 @@ export function ChatSurface({
     'gui.chat.plan_panel_collapsed.v1',
     false,
   );
+  // dockview's `addPanel` captures `params` at call time — it does not track
+  // React re-renders. Keep a handle to the ready API so each panel's `node`
+  // param can be refreshed whenever the underlying content changes (new
+  // sessions loaded, transcript updated, execution rail data changed, etc).
+  const dockApiRef = useRef<DockviewApi | null>(null);
 
-  // Responsive rails: measure the surface container (NOT the window) so the app
-  // shell sidebar width is accounted for, then auto-hide rails when narrow.
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
-  const [sessionOverlayOpen, setSessionOverlayOpen] = useState(false);
-  const [executionOverlayOpen, setExecutionOverlayOpen] = useState(false);
   const [routingOpen, setRoutingOpen] = useState(false);
 
   useEffect(() => {
@@ -109,25 +127,6 @@ export function ChatSurface({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [routingOpen]);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect.width ?? el.clientWidth;
-      setContainerWidth(w);
-    });
-    ro.observe(el);
-    setContainerWidth(el.clientWidth);
-    return () => ro.disconnect();
-  }, []);
-
-  const railVis = chatRailVisibility(containerWidth);
-  // Close overlays automatically once the container is wide enough to show inline.
-  useEffect(() => {
-    if (railVis.sessionRail) setSessionOverlayOpen(false);
-    if (railVis.executionRail) setExecutionOverlayOpen(false);
-  }, [railVis.sessionRail, railVis.executionRail]);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -250,7 +249,6 @@ export function ChatSurface({
       activeSessionId={activeId}
       onSessionChange={id => {
         onSessionChange?.(id);
-        setSessionOverlayOpen(false);
       }}
       onCreateSession={() => void createSession()}
       onRenameSession={(id, t) => void renameSession(id, t)}
@@ -271,9 +269,73 @@ export function ChatSurface({
     />
   ) : null;
 
+  const centerContent = (
+    <>
+      {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
+        <EmptyState
+          icon={<Icon.spark className="size-8 text-brass" aria-hidden="true" />}
+          title="No messages yet"
+          description="Describe a task in the composer below to start this session."
+        />
+      ) : (
+        <ChatTranscript messages={messages} agentStreamItems={agentStreamItems} />
+      )}
+      {composer != null ? (
+        <div
+          className="mt-auto shrink-0 border-t border-border-subtle pt-3"
+          data-testid="chat-composer-dock"
+        >
+          {attention_budget ? (
+            <div className="mb-2 px-1" data-testid="chat-attention-meter">
+              <AttentionBudgetMeter
+                budget={attention_budget}
+                waitingQuestions={waitingQuestions}
+                blockedTasks={blockedTasks}
+              />
+            </div>
+          ) : null}
+          {/* The model-route picker now renders inside the composer's own
+              toolbar row (Loquela's `trailingSlot`, wired in App.tsx),
+              right-aligned alongside the cost display, rather than as a
+              separate row below it. */}
+          {composer}
+        </div>
+      ) : (
+        <div className="mt-auto flex shrink-0 justify-end px-1">
+          <ChatModelPicker activeModel={modelOverride ?? activeModel} onApplied={id => onModelOverrideChange?.(id)} />
+        </div>
+      )}
+    </>
+  );
+
+  // Refresh each panel's `node` param on every render so dockview reflects
+  // the latest sessions/transcript/execution-rail content (addPanel only
+  // captures params once, at panel-creation time).
+  useEffect(() => {
+    const api = dockApiRef.current;
+    if (!api) return;
+    api.getPanel('sessions')?.update({ params: { node: sessionRailNode } });
+    api.getPanel('transcript')?.update({ params: { node: centerContent } });
+    const executionPanel = api.getPanel('executionRail');
+    if (executionRailNode) {
+      if (executionPanel) {
+        executionPanel.update({ params: { node: executionRailNode } });
+      } else {
+        api.addPanel({
+          id: 'executionRail',
+          component: 'executionRail',
+          title: 'Execution',
+          params: { node: executionRailNode },
+          position: { direction: 'right', referencePanel: 'transcript' },
+        });
+      }
+    } else if (executionPanel) {
+      api.removePanel(executionPanel);
+    }
+  });
+
   return (
     <div
-      ref={containerRef}
       className="relative flex min-h-[60vh] gap-4"
       data-testid="chat-surface-layout"
     >
@@ -281,91 +343,36 @@ export function ChatSurface({
           NOTE: if chatDocked (App.tsx, currently hardcoded false) is ever
           enabled, a docked ChatSurface adds a second h1 to the page. */}
       <h1 className="sr-only">Chat</h1>
-      {railVis.sessionRail ? (
-        sessionRailNode
-      ) : (
-        <button
-          type="button"
-          data-testid="chat-session-rail-toggle"
-          aria-label="Show sessions rail"
-          aria-expanded={sessionOverlayOpen}
-          onClick={() => setSessionOverlayOpen(o => !o)}
-          className="absolute left-0 top-0 z-30 rounded-lg border border-border-subtle bg-overlay-subtle p-2 text-text-muted transition hover:border-brass/40 hover:text-brass"
-        >
-          <span className="font-mono text-sm" aria-hidden="true">»</span>
-        </button>
-      )}
-      {!railVis.sessionRail && sessionOverlayOpen ? (
-        <div
-          data-testid="chat-session-rail-overlay"
-          className="absolute left-0 top-0 z-40 max-h-full overflow-y-auto"
-        >
-          {sessionRailNode}
-        </div>
-      ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
-        {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
-          <EmptyState
-            icon={<Icon.spark className="size-8 text-brass" aria-hidden="true" />}
-            title="No messages yet"
-            description="Describe a task in the composer below to start this session."
-          />
-        ) : (
-          <ChatTranscript messages={messages} agentStreamItems={agentStreamItems} />
-        )}
-        {composer != null ? (
-          <div
-            className="mt-auto shrink-0 border-t border-border-subtle pt-3"
-            data-testid="chat-composer-dock"
-          >
-            {attention_budget ? (
-              <div className="mb-2 px-1" data-testid="chat-attention-meter">
-                <AttentionBudgetMeter
-                  budget={attention_budget}
-                  waitingQuestions={waitingQuestions}
-                  blockedTasks={blockedTasks}
-                />
-              </div>
-            ) : null}
-            {/* The model-route picker now renders inside the composer's own
-                toolbar row (Loquela's `trailingSlot`, wired in App.tsx),
-                right-aligned alongside the cost display, rather than as a
-                separate row below it. */}
-            {composer}
-          </div>
-        ) : (
-          <div className="mt-auto flex shrink-0 justify-end px-1">
-            <ChatModelPicker activeModel={modelOverride ?? activeModel} onApplied={id => onModelOverrideChange?.(id)} />
-          </div>
-        )}
+      <div className="min-w-0 flex-1">
+        <ChatDockShell
+          components={CHAT_DOCK_COMPONENTS}
+          onReady={(event) => {
+            dockApiRef.current = event.api;
+            event.api.addPanel({ id: 'sessions', component: 'sessions', title: 'Sessions', params: { node: sessionRailNode } });
+            event.api.addPanel({
+              id: 'transcript',
+              component: 'transcript',
+              title: 'Chat',
+              params: { node: centerContent },
+              position: { direction: 'right', referencePanel: 'sessions' },
+            });
+            if (executionRailNode) {
+              event.api.addPanel({
+                id: 'executionRail',
+                component: 'executionRail',
+                title: 'Execution',
+                params: { node: executionRailNode },
+                position: { direction: 'right', referencePanel: 'transcript' },
+              });
+            }
+          }}
+        />
       </div>
 
-      {executionRailNode != null && railVis.executionRail ? executionRailNode : null}
-      {executionRailNode != null && !railVis.executionRail ? (
-        <button
-          type="button"
-          data-testid="chat-execution-rail-toggle"
-          aria-label="Show execution rail"
-          aria-expanded={executionOverlayOpen}
-          onClick={() => setExecutionOverlayOpen(o => !o)}
-          className="absolute right-0 top-0 z-30 rounded-lg border border-border-subtle bg-overlay-subtle p-2 text-text-muted transition hover:border-brass/40 hover:text-brass"
-        >
-          <span className="font-mono text-sm" aria-hidden="true">«</span>
-        </button>
-      ) : null}
-      {executionRailNode != null && !railVis.executionRail && executionOverlayOpen ? (
-        <div
-          data-testid="chat-execution-rail-overlay"
-          className="absolute right-0 top-0 z-40 max-h-full"
-        >
-          {executionRailNode}
-        </div>
-      ) : null}
-
-      {/* Plan panel: fourth panel in the plain flex row (dockview adoption is
-          Phase B / future work — see docs/superpowers/plans/2026-07-20-chat-flow-docking-redesign.md).
-          Positioned as a sibling strip after the execution rail, matching its
+      {/* Plan panel: dockview adoption for this panel is future work — see
+          docs/superpowers/plans/2026-07-20-chat-flow-docking-redesign.md.
+          Positioned as a sibling strip alongside the dock shell, matching its
           collapse/toggle/persistence pattern (ChatExecutionRail). */}
       {planPanelCollapsed ? (
         <aside aria-label="Plan panel" className="shrink-0">

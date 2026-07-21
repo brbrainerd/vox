@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
-import React from 'react';
+import { describe, it, expect } from 'vitest';
 import {
   chatRailVisibility,
   CHAT_SESSION_RAIL_MIN_WIDTH,
@@ -38,81 +36,11 @@ describe('chatRailVisibility (pure helper)', () => {
   });
 });
 
-// ---- Component-level: narrow container collapses rails to a reveal toggle ----
-
-const invokeMock = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => invokeMock(...args),
-}));
-vi.mock('../../../transport', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../transport')>();
-  return {
-    ...actual,
-    listenSecretaryProposed: vi.fn(() => Promise.resolve(() => {})),
-  };
-});
-
-import { ChatSurface } from './ChatSurface';
-import { LanguageProvider } from '../../../hooks/useLanguage';
-
-/** Minimal ResizeObserver mock driven to a controllable width. */
-let lastRoCallback: ResizeObserverCallback | null = null;
-class MockResizeObserver {
-  constructor(cb: ResizeObserverCallback) {
-    lastRoCallback = cb;
-  }
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-
-function emitWidth(width: number) {
-  act(() => {
-    lastRoCallback?.(
-      [{ contentRect: { width } } as ResizeObserverEntry],
-      {} as ResizeObserver,
-    );
-  });
-}
-
-describe('ChatSurface responsive rails', () => {
-  beforeEach(() => {
-    lastRoCallback = null;
-    (globalThis as any).ResizeObserver = MockResizeObserver;
-    invokeMock.mockReset();
-    invokeMock.mockImplementation((cmd: string) => {
-      if (cmd === 'chat_list_sessions') {
-        return Promise.resolve([{ session_id: 's1', title: 'First', message_count: 2 }]);
-      }
-      return Promise.resolve(null);
-    });
-  });
-
-  it('shows the session toggle and reveals the rail as an overlay when narrow', async () => {
-    render(<LanguageProvider><ChatSurface pushToast={() => {}} activeSessionId="s1" onNavigate={() => {}} /></LanguageProvider>);
-    await screen.findByTestId('chat-surface-layout');
-
-    emitWidth(375);
-
-    const toggle = await screen.findByTestId('chat-session-rail-toggle');
-    expect(screen.queryByTestId('chat-session-rail-overlay')).toBeNull();
-
-    act(() => toggle.click());
-    await waitFor(() => {
-      expect(screen.getByTestId('chat-session-rail-overlay')).toBeInTheDocument();
-    });
-  });
-
-  it('keeps both rails inline (no toggles) at desktop width', async () => {
-    render(<LanguageProvider><ChatSurface pushToast={() => {}} activeSessionId="s1" onNavigate={() => {}} /></LanguageProvider>);
-    await screen.findByTestId('chat-surface-layout');
-
-    emitWidth(1400);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('chat-session-rail')).toBeInTheDocument();
-    });
-    expect(screen.queryByTestId('chat-session-rail-toggle')).toBeNull();
-    expect(screen.queryByTestId('chat-execution-rail-toggle')).toBeNull();
-  });
-});
+// Component-level "ChatSurface responsive rails" coverage (narrow-container
+// collapse-to-toggle-button behavior) was intentionally removed: ChatSurface
+// no longer uses this helper for layout — real dockview panels (Task B2,
+// see docs/superpowers/plans/2026-07-20-chat-flow-docking-redesign.md)
+// replaced the hand-rolled ResizeObserver + show/hide toggle mechanism.
+// dockview's own panel visibility/collapse/tab UI supersedes it. The pure
+// `chatRailVisibility` helper above is retained/tested standalone in case a
+// future consumer needs width-based breakpoint logic.

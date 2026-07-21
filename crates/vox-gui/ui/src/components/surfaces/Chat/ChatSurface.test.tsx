@@ -215,6 +215,25 @@ describe('ChatSurface', () => {
     });
     expect(screen.getByTestId('chat-attention-meter')).toBeDefined();
   });
+
+  it('mounts sessions, chat, and execution rail as dockview panels', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={vi.fn()}
+          activeSessionId="s1"
+          messages={[{ id: 'm1', role: 'user', text: 'hi', status: 'done' } as ChatMessage]}
+          composer={<div>composer</div>}
+        />
+      </LanguageProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-dock-sessions')).toBeInTheDocument();
+      expect(screen.getByTestId('chat-dock-transcript')).toBeInTheDocument();
+      expect(screen.getByTestId('chat-dock-execution-rail')).toBeInTheDocument();
+    });
+  });
 });
 
 describe('session hydration ownership (F18: redundant double hydrate per session switch)', () => {
