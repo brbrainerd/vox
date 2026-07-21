@@ -65,6 +65,11 @@ const CHAT_DOCK_COMPONENTS = {
   todos: TodosDockPanel,
 };
 
+function EmptyTab() {
+  return null;
+}
+const CHAT_DOCK_TAB_COMPONENTS = { transcript: EmptyTab };
+
 interface ChatSurfaceProps {
   pushToast: (t: any) => void;
   onNavigate?: (viewKey: string) => void;
@@ -388,6 +393,7 @@ export function ChatSurface({
     api.addPanel({
       id,
       component: id,
+      ...(id === 'transcript' ? { tabComponent: 'transcript' } : {}),
       title: def.title,
       params: { node: def.node },
       position: referencePanel ? { direction: 'right', referencePanel } : undefined,
@@ -536,6 +542,7 @@ export function ChatSurface({
         <DockWorkspaceShell
           storageKeyPrefix="gui.chat"
           components={CHAT_DOCK_COMPONENTS}
+          tabComponents={CHAT_DOCK_TAB_COMPONENTS}
           onReady={(event) => {
             dockApiRef.current = event.api;
             event.api.onDidRemovePanel(panel => {
@@ -551,6 +558,7 @@ export function ChatSurface({
               event.api.addPanel({
                 id: 'transcript',
                 component: 'transcript',
+                tabComponent: 'transcript',
                 title: 'Chat',
                 params: { node: centerContent },
                 position: { direction: 'right', referencePanel: 'sessions' },

@@ -253,6 +253,16 @@ describe('ChatSurface', () => {
     });
   });
 
+  it('the transcript panel has no visible tab strip (pinned, not a normal closable/draggable panel)', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={noopToast} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-transcript');
+    expect(screen.queryByText('Chat', { selector: '.dv-default-tab-content' })).toBeNull();
+  });
+
   it('mounts a Flow panel dockable alongside chat, using the same agent data as the top-level Flow tab', async () => {
     render(
       <LanguageProvider>
