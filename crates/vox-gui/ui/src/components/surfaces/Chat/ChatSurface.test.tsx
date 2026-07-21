@@ -43,7 +43,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 const noopToast = () => {};
 
-import { ChatSurface, ApprovalsDockPanel, MercatusDockPanel, RepositoryDockPanel, NeedsYouDockPanel } from './ChatSurface';
+import { ChatSurface, ApprovalsDockPanel, MercatusDockPanel, RepositoryDockPanel, NeedsYouDockPanel, VoxGraphDockPanel } from './ChatSurface';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 
@@ -1108,6 +1108,26 @@ describe('NeedsYouDockPanel width-driven toggle', () => {
     api.width = 270;
     act(() => onChange?.());
     expect(screen.getByTestId('needs-you-stub')).toHaveTextContent('full');
+  });
+});
+
+describe('VoxGraphDockPanel width-driven toggle', () => {
+  function StubVoxGraph({ condensed }: { condensed?: boolean }) {
+    return <div data-testid="voxgraph-stub">{condensed ? 'condensed' : 'full'}</div>;
+  }
+
+  it('passes condensed=true to its node below the audited threshold, condensed=false at/above it', () => {
+    let onChange: (() => void) | undefined;
+    const api = {
+      width: 200,
+      onDidDimensionsChange: vi.fn((cb: () => void) => { onChange = cb; return { dispose: vi.fn() }; }),
+    } as any;
+    render(<VoxGraphDockPanel api={api} params={{ node: <StubVoxGraph /> }} />);
+    expect(screen.getByTestId('voxgraph-stub')).toHaveTextContent('condensed');
+
+    api.width = 240;
+    act(() => onChange?.());
+    expect(screen.getByTestId('voxgraph-stub')).toHaveTextContent('full');
   });
 });
 

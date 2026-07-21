@@ -60,6 +60,22 @@ describe('VoxGraphStatusPanel', () => {
     expect(screen.getByText(/vox graphify rebuild --corpus repo-code-graph/)).toBeDefined();
   });
 
+  it('condensed prop renders only a fresh/total corpora summary, not the per-corpus cards', () => {
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        default_corpus_id: 'repo-code-graph',
+        corpora: [STALE_CORPUS, { ...STALE_CORPUS, corpus_id: 'other', is_fresh: true }],
+      },
+    });
+    renderWithClient(<VoxGraphStatusPanel condensed />);
+    // Same is_fresh flag each corpus card already renders (as its Fresh/Stale
+    // pill), rolled up into one "N/M fresh" line.
+    expect(screen.getByText(/1\/2 fresh/i)).toBeDefined();
+    expect(screen.queryByText('Stale')).toBeNull();
+  });
+
   it('renders a relative built time for fresh corpora', () => {
     mockUse.mockReturnValue({
       isLoading: false,
