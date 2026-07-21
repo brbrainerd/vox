@@ -6,7 +6,11 @@ import { LAYOUT_PERSIST_DEBOUNCE_MS } from '../../../config/constants';
 /** localStorage key for the persisted chat dockview layout. Exported so
  * other modules (e.g. a future "reset layout" action) can reuse it without
  * duplicating the string literal. */
-export const LAYOUT_STORAGE_KEY = 'gui.chat.dockview_layout.v1';
+// v2: bumped to invalidate any layout snapshot persisted by v1, which had
+// no guard against saving degenerate geometry captured before the webview's
+// first real paint (e.g. a near-zero-width container) — such a snapshot
+// would otherwise replay forever via fromJSON on every future launch.
+export const LAYOUT_STORAGE_KEY = 'gui.chat.dockview_layout.v2';
 
 interface ChatDockShellProps {
   components: Record<string, React.FunctionComponent<IDockviewPanelProps>>;
