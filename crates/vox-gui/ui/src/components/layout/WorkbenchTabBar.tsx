@@ -33,13 +33,14 @@ export function WorkbenchTabBar({ tabs, activeTab, onSelect, onClose }: Workbenc
   };
 
   return (
-    <div
-      role="tablist"
-      aria-label="Open surfaces"
-      className="mb-3 flex flex-wrap items-center gap-1 border-b border-border-subtle pb-2"
-      data-testid="workbench-tab-bar"
-    >
-      {tabs.map((tab, index) => {
+    <div className="mb-3 flex items-center gap-2 border-b border-border-subtle pb-2">
+      <div
+        role="tablist"
+        aria-label="Open surfaces"
+        className="flex flex-1 flex-wrap items-center gap-1"
+        data-testid="workbench-tab-bar"
+      >
+        {tabs.map((tab, index) => {
         const selected = activeTab === tab.id;
         return (
           <div
@@ -104,7 +105,15 @@ export function WorkbenchTabBar({ tabs, activeTab, onSelect, onClose }: Workbenc
             ) : null}
           </div>
         );
-      })}
+        })}
+      </div>
+      {/* Trailing right-aligned slot, kept outside the tablist so it never
+          appears as an aria-tab child (F-07: role=tablist must own only
+          role=tab children). Surfaces that need chrome inline with the tab
+          row (e.g. Chat's "Panels ▾" dock-visibility menu) portal into this
+          fixed DOM node instead of rendering their own separate row —
+          it exists whenever any tab is open, regardless of which is active. */}
+      <div id="workbench-tabbar-trailing-slot" data-testid="workbench-tabbar-trailing-slot" className="flex shrink-0 items-center" />
     </div>
   );
 }

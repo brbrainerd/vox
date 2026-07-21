@@ -399,6 +399,35 @@ describe('ChatSurface', () => {
     expect(screen.queryByLabelText('Expand plan panel')).toBeNull();
   });
 
+  it('portals the Panels trigger into the workbench tab bar\'s trailing slot when present, instead of rendering its own row (F: the button must sit inline with the top tab bar, not float in a separate row)', () => {
+    const slot = document.createElement('div');
+    slot.id = 'workbench-tabbar-trailing-slot';
+    document.body.appendChild(slot);
+    try {
+      render(
+        <LanguageProvider>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </LanguageProvider>,
+      );
+      const trigger = screen.getByRole('button', { name: /panels/i });
+      expect(slot.contains(trigger)).toBe(true);
+      // No leftover own-row wrapper duplicating the button outside the slot.
+      expect(screen.getAllByRole('button', { name: /panels/i })).toHaveLength(1);
+    } finally {
+      document.body.removeChild(slot);
+    }
+  });
+
+  it('falls back to rendering its own Panels trigger row when no workbench tab bar slot exists (standalone rendering, e.g. these tests)', () => {
+    expect(document.getElementById('workbench-tabbar-trailing-slot')).toBeNull();
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    expect(screen.getByRole('button', { name: /panels/i })).toBeInTheDocument();
+  });
+
   it('Panels button toggles a popover open and closed, with Escape and focus-return', () => {
     render(
       <LanguageProvider>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { type UnlistenFn } from '@tauri-apps/api/event';
@@ -272,6 +273,20 @@ export function ChatSurface({
   // could fire, making every checkbox in the popover unclickable.
   const panelsMenuRef = useRef<HTMLDivElement | null>(null);
   const dockRootRef = useRef<HTMLDivElement | null>(null);
+
+  // The Panels ▾ trigger used to render in its own shrink-0 row above the
+  // dock workspace, costing a full row of vertical height for one small
+  // control. WorkbenchTabBar (rendered by the app shell above ChatSurface,
+  // one level up the tree — not a descendant) now exposes a fixed DOM node
+  // (`#workbench-tabbar-trailing-slot`) as a portal target so the button can
+  // sit inline, right-aligned, with the top tab bar instead. Looked up on
+  // mount rather than assumed present so ChatSurface still renders correctly
+  // standalone (e.g. in tests that don't mount the app shell) — falling back
+  // to its own row in that case.
+  const [tabBarTrailingSlot, setTabBarTrailingSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setTabBarTrailingSlot(document.getElementById('workbench-tabbar-trailing-slot'));
+  }, []);
 
   // Task 1.8 follow-up: dockview-core sets `draggable = true` on every tab
   // element unconditionally, regardless of the (empty) tab component the
@@ -692,19 +707,8 @@ export function ChatSurface({
     api.getPanel('approvals')?.update({ params: panelDefs.approvals.params });
   });
 
-  return (
-    <div
-      className="relative flex h-full gap-4"
-      data-testid="chat-surface-layout"
-    >
-      {/* Axe page-has-heading-one: surfaces render inside a heading-less shell.
-          NOTE: if chatDocked (App.tsx, currently hardcoded false) is ever
-          enabled, a docked ChatSurface adds a second h1 to the page. */}
-      <h1 className="sr-only">Chat</h1>
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="relative mb-2 flex shrink-0 justify-end">
-          <div className="relative">
+  const panelsMenu = (
+    <div className="relative">
             <button
               ref={panelsTriggerRef}
               type="button"
@@ -791,8 +795,23 @@ export function ChatSurface({
                 </button>
               </div>
             ) : null}
-          </div>
-        </div>
+    </div>
+  );
+
+  return (
+    <div
+      className="relative flex h-full gap-4"
+      data-testid="chat-surface-layout"
+    >
+      {/* Axe page-has-heading-one: surfaces render inside a heading-less shell.
+          NOTE: if chatDocked (App.tsx, currently hardcoded false) is ever
+          enabled, a docked ChatSurface adds a second h1 to the page. */}
+      <h1 className="sr-only">Chat</h1>
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {tabBarTrailingSlot
+          ? createPortal(panelsMenu, tabBarTrailingSlot)
+          : <div className="relative mb-2 flex shrink-0 justify-end">{panelsMenu}</div>}
         <div ref={dockRootRef} className="min-h-0 flex-1">
         <DockWorkspaceShell
           storageKeyPrefix="gui.chat"
