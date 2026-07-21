@@ -86,8 +86,26 @@ function ActivityDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>
   return <div data-testid="chat-dock-activity" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
 }
 
-function RepositoryDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
-  return <div data-testid="chat-dock-repository" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
+// Repository's action-button grid + command output pane need real room per
+// the original audit (~260-300px); condensed content reuses the same
+// active-conflict count IsolationPanel's own "Active conflicts" section
+// already computes via conflictRows(status).
+const REPOSITORY_FULL_WIDTH_PX = 280;
+
+export function RepositoryDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  const [width, setWidth] = React.useState(props.api.width);
+  React.useEffect(() => {
+    const disposable = props.api.onDidDimensionsChange(() => setWidth(props.api.width));
+    return () => disposable.dispose();
+  }, [props.api]);
+  const condensed = width < REPOSITORY_FULL_WIDTH_PX;
+  return (
+    <div data-testid="chat-dock-repository" className="h-full overflow-y-auto p-2">
+      {React.isValidElement(props.params.node)
+        ? React.cloneElement(props.params.node as React.ReactElement<any>, { condensed })
+        : props.params.node}
+    </div>
+  );
 }
 
 // Mercatus's coverage matrix + source registry tables need real horizontal

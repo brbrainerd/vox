@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { IsolationPanel } from './IsolationPanel';
-import type { IsolationStatus, IsolationStrategy } from './isolationHelpers';
+import { conflictRows, type IsolationStatus, type IsolationStrategy } from './isolationHelpers';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useLabel } from '../../../hooks/useLanguage';
 import type { Toast } from '../../../types/tauri';
@@ -10,6 +10,7 @@ import type { Toast } from '../../../types/tauri';
 interface RepositoryViewProps {
   pushToast: (item: Toast) => void;
   gamifyEnabled?: boolean;
+  condensed?: boolean;
 }
 
 interface ExecuteOutput {
@@ -25,7 +26,7 @@ async function run(path: string[], argv: string[] = []): Promise<ExecuteOutput> 
   });
 }
 
-export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps) {
+export function RepositoryView({ pushToast, gamifyEnabled, condensed }: RepositoryViewProps) {
   const [output, setOutput] = useState('No command run yet.');
   const [busy, setBusy] = useState(false);
 
@@ -108,6 +109,16 @@ export function RepositoryView({ pushToast, gamifyEnabled }: RepositoryViewProps
       setBusy(false);
     }
   };
+
+  if (condensed) {
+    const conflictCount = conflictRows(isolation).length;
+    return (
+      <section className="space-y-2 text-[11px] text-text-muted">
+        <h2 className="font-display text-xs text-text-primary tracking-wider uppercase">{useLabel('repo-harness')}</h2>
+        <div>{conflictCount} active conflict{conflictCount === 1 ? '' : 's'}</div>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-4">
