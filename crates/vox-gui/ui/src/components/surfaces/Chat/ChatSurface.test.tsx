@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import React from 'react';
@@ -847,6 +848,34 @@ describe('ChatSurface', () => {
     expect(checkbox).toBeChecked();
     // Dropdown stays open — the trigger's aria-expanded must still be true.
     expect(screen.getByRole('button', { name: /panels/i }).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('clicking a Panels checkbox with a real pointer event sequence (mousedown+click, not just a synthetic click) toggles the panel and keeps the dropdown open (regression: outside-mousedown-closer treated the checkbox itself as "outside")', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: /panels/i }));
+    expect(screen.getByRole('button', { name: /panels/i }).getAttribute('aria-expanded')).toBe('true');
+
+    const checkbox = screen.getByRole('checkbox', { name: /^mercatus$/i });
+    expect(checkbox).not.toBeChecked();
+    // userEvent.click fires the full pointerdown/mousedown/pointerup/mouseup/click
+    // sequence, exactly like a real mouse click — unlike fireEvent.click, which
+    // only dispatches the bare 'click' event and never exercises the
+    // document-level 'mousedown' outside-close listener.
+    await user.click(checkbox);
+
+    // The dropdown must still be open — this is the live bug report: "I can't
+    // click on any of those checkboxes... it just closes the panel dropdown."
+    expect(screen.getByRole('button', { name: /panels/i }).getAttribute('aria-expanded')).toBe('true');
+    await screen.findByTestId('chat-dock-mercatus');
+    expect(checkbox).toBeChecked();
   });
 
   it('unchecking a panel closes it', async () => {

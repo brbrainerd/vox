@@ -264,6 +264,13 @@ export function ChatSurface({
   const [routingOpen, setRoutingOpen] = useState(false);
   const [panelsMenuOpen, setPanelsMenuOpen] = useState(false);
   const panelsTriggerRef = useRef<HTMLButtonElement | null>(null);
+  // The popover content itself (checkboxes, Reset layout) — separate from
+  // panelsTriggerRef, which only covers the trigger button. The outside-close
+  // listener below must treat clicks inside *either* as "inside": it
+  // previously checked only the trigger, so a mousedown on any checkbox (not
+  // contained by the trigger) closed the menu before the click's onChange
+  // could fire, making every checkbox in the popover unclickable.
+  const panelsMenuRef = useRef<HTMLDivElement | null>(null);
   const dockRootRef = useRef<HTMLDivElement | null>(null);
 
   // Task 1.8 follow-up: dockview-core sets `draggable = true` on every tab
@@ -314,7 +321,9 @@ export function ChatSurface({
   useEffect(() => {
     if (!panelsMenuOpen) return;
     const onPointerDown = (e: MouseEvent) => {
-      if (panelsTriggerRef.current?.contains(e.target as Node)) return;
+      const target = e.target as Node;
+      if (panelsTriggerRef.current?.contains(target)) return;
+      if (panelsMenuRef.current?.contains(target)) return;
       setPanelsMenuOpen(false);
     };
     document.addEventListener('mousedown', onPointerDown);
@@ -707,7 +716,10 @@ export function ChatSurface({
               <span className="font-mono text-xs">Panels ▾</span>
             </button>
             {panelsMenuOpen ? (
-              <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl">
+              <div
+                ref={panelsMenuRef}
+                className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl"
+              >
                 {[
                   ...CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null),
                   ...OPT_IN_PANEL_IDS,
