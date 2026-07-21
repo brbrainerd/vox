@@ -21,7 +21,7 @@ import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
 import { SecretaryToast } from './SecretaryToast';
 import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } from '../../../transport';
 import { Matrix } from '../Matrix/Matrix';
-import { DockWorkspaceShell } from '../../dock/DockWorkspaceShell';
+import { DockWorkspaceShell, layoutStorageKeyFor } from '../../dock/DockWorkspaceShell';
 import type { DockviewApi, IDockviewPanelProps } from 'dockview';
 import { AgentFlow } from '../Flow/AgentFlow';
 import type { Agent } from '../../../types/dashboard';
@@ -507,6 +507,28 @@ export function ChatSurface({
                 ) ? (
                   <div className="px-2 py-1.5 text-xs text-text-muted/60">All panels open</div>
                 ) : null}
+                <div className="my-1 border-t border-border-subtle" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.localStorage.removeItem(layoutStorageKeyFor('gui.chat'));
+                    const api = dockApiRef.current;
+                    if (api) {
+                      api.panels.forEach(p => api.removePanel(p)); // .panels is a fresh snapshot per access — safe to iterate while removePanel mutates the underlying model
+                      closedPanelIds.current.clear();
+                      // Only CORE_PANEL_IDS — opt-in panels (Phase 2/3) are intentionally
+                      // NOT recreated by Reset, even if they were open before the reset.
+                      CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null).forEach(id =>
+                        addDefaultPanel(api, id),
+                      );
+                    }
+                    setPanelsMenuOpen(false);
+                    panelsTriggerRef.current?.focus();
+                  }}
+                  className="block w-full rounded px-2 py-1.5 text-left text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
+                >
+                  Reset layout
+                </button>
               </div>
             ) : null}
           </div>

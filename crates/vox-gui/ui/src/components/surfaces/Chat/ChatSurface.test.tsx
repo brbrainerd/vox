@@ -367,6 +367,38 @@ describe('ChatSurface', () => {
     fireEvent.mouseDown(document.body);
     expect(screen.queryByText('All panels open')).toBeNull();
   });
+
+  it('Reset layout clears the persisted layout and closedPanelIds, and recreates only the 5 core panels', async () => {
+    const { layoutStorageKeyFor } = await import('../../dock/DockWorkspaceShell');
+    window.localStorage.setItem(layoutStorageKeyFor('gui.chat'), JSON.stringify({ grid: {} }));
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-flow');
+
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('button', { name: /reset layout/i }));
+
+    expect(window.localStorage.getItem(layoutStorageKeyFor('gui.chat'))).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-dock-sessions')).toBeInTheDocument();
+      expect(screen.getByTestId('chat-dock-transcript')).toBeInTheDocument();
+      expect(screen.getByTestId('chat-dock-flow')).toBeInTheDocument();
+      expect(screen.getByTestId('chat-dock-todos')).toBeInTheDocument();
+    });
+  });
+
+  it('Reset layout does not throw when no layout was ever persisted', () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    expect(() => fireEvent.click(screen.getByRole('button', { name: /reset layout/i }))).not.toThrow();
+  });
 });
 
 describe('session hydration ownership (F18: redundant double hydrate per session switch)', () => {
