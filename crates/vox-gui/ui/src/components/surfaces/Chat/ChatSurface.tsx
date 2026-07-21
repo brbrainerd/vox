@@ -241,6 +241,19 @@ export function ChatSurface({
   // explicitly asks for it back." Cleared per-id by the reopen/reset actions
   // (Tasks 4/5), not by this effect.
   const closedPanelIds = useRef<Set<string>>(new Set());
+  // Mirrors which dock panels are currently open, purely to drive the Panels
+  // menu's checkbox `checked` state. dockApiRef is a live ref, not React
+  // state — reading `!!dockApiRef.current?.getPanel(id)` directly at render
+  // time only stays correct if a render happens to observe it. Two calls to
+  // dockApiRef mutators (addPanel/removePanel) back-to-back with no React
+  // render in between never get reconciled onto the controlled checkbox's
+  // DOM node, and panels closed via a route other than the checkbox (tab-close
+  // action, Reset layout) never trigger a render at all, leaving a stale
+  // checked=true. This state is the single source of truth the checkboxes
+  // read from; it is kept in sync both by the onChange handler (synchronously,
+  // for the common case) and by dockview's own onDidAddPanel/onDidRemovePanel
+  // events (for external changes).
+  const [openPanelIds, setOpenPanelIds] = useState<Set<string>>(() => new Set());
   // Tracks the order opt-in panels were (most-recently) activated in, so a
   // newly-opened opt-in panel positions itself next to the last one the user
   // opened rather than always inserting at the same fixed referenceChain
@@ -699,7 +712,7 @@ export function ChatSurface({
                   ...CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null),
                   ...OPT_IN_PANEL_IDS,
                 ].map(id => {
-                  const isOpen = !!dockApiRef.current?.getPanel(id);
+                  const isOpen = openPanelIds.has(id);
                   return (
                     <label
                       key={id}
@@ -718,6 +731,19 @@ export function ChatSurface({
                           } else {
                             addDefaultPanel(api, id);
                           }
+                          // Synchronous, not reliant on dockview's own event
+                          // round-trip — so a second checkbox toggled
+                          // immediately after (no await in between) still
+                          // reads a correct, freshly-committed openPanelIds.
+                          setOpenPanelIds(prev => {
+                            const next = new Set(prev);
+                            if (panel) {
+                              next.delete(id);
+                            } else {
+                              next.add(id);
+                            }
+                            return next;
+                          });
                         }}
                       />
                       {panelDefs[id].title}
@@ -738,6 +764,11 @@ export function ChatSurface({
                       CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null).forEach(id =>
                         addDefaultPanel(api, id),
                       );
+                      // addDefaultPanel doesn't update openPanelIds itself (it's
+                      // also called from onReady, before openPanelIds even
+                      // exists as a concept) — resync explicitly from the
+                      // dockview API's actual panel set post-reset.
+                      setOpenPanelIds(new Set(api.panels.map(p => p.id)));
                     }
                     setPanelsMenuOpen(false);
                     panelsTriggerRef.current?.focus();
@@ -759,7 +790,32 @@ export function ChatSurface({
             dockApiRef.current = event.api;
             event.api.onDidRemovePanel(panel => {
               closedPanelIds.current.add(panel.id);
+              // Keeps the Panels menu checkbox in sync when a panel closes
+              // through a route other than its own checkbox — dragging a tab
+              // closed, the tab's native close action, or Reset layout's bulk
+              // removePanel loop above. None of those call setOpenPanelIds
+              // directly, so without this listener the checkbox would stay
+              // visibly checked after the panel is actually gone.
+              setOpenPanelIds(prev => {
+                if (!prev.has(panel.id)) return prev;
+                const next = new Set(prev);
+                next.delete(panel.id);
+                return next;
+              });
             });
+            event.api.onDidAddPanel(panel => {
+              // Symmetric case: a panel added by something other than the
+              // checkbox's own onChange (e.g. a restored layout from
+              // localStorage on mount, or the sessions/transcript/etc.
+              // auto-create branches below).
+              setOpenPanelIds(prev => {
+                if (prev.has(panel.id)) return prev;
+                const next = new Set(prev);
+                next.add(panel.id);
+                return next;
+              });
+            });
+            setOpenPanelIds(new Set(event.api.panels.map(p => p.id)));
             // Guarded against duplicate-add: a restored dockview layout
             // (ChatDockShell's localStorage persistence) already recreates
             // these panels, so onReady must not re-add them.

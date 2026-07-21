@@ -865,6 +865,96 @@ describe('ChatSurface', () => {
     await waitFor(() => expect(screen.queryByTestId('chat-dock-mercatus')).toBeNull());
   });
 
+  it('checking two panels back-to-back with no await between clicks keeps both checked (regression: checked read from a live ref at render time desyncs on rapid multi-toggle)', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { rerender } = render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+
+    // Force a React re-render in between the two toggles — the same thing a
+    // streamed token, a session poll, or any unrelated prop change does in
+    // the real app between two rapid clicks. No await/waitFor: this must
+    // happen before dockview's own event round-trip could settle. If
+    // `checked` were still computed by reading dockApiRef at render time,
+    // this reconciliation pass would stomp the DOM's checked state for
+    // Mercatus back to its stale (unchecked) last-rendered value.
+    rerender(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /^harness$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-dock-mercatus')).toBeInTheDocument();
+      expect(screen.getByTestId('chat-dock-harness')).toBeInTheDocument();
+    });
+
+    const mercatusCheckbox = screen.getByRole('checkbox', { name: /^mercatus$/i }) as HTMLInputElement;
+    const harnessCheckbox = screen.getByRole('checkbox', { name: /^harness$/i }) as HTMLInputElement;
+    expect(mercatusCheckbox.checked).toBe(true);
+    expect(harnessCheckbox.checked).toBe(true);
+  });
+
+  it('checking two panels with zero awaits between the clicks (exact reviewer repro) keeps both checked', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^harness$/i }));
+
+    expect(screen.getByTestId('chat-dock-mercatus')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-dock-harness')).toBeInTheDocument();
+
+    const mercatusCheckbox = screen.getByRole('checkbox', { name: /^mercatus$/i }) as HTMLInputElement;
+    const harnessCheckbox = screen.getByRole('checkbox', { name: /^harness$/i }) as HTMLInputElement;
+    expect(mercatusCheckbox.checked).toBe(true);
+    expect(harnessCheckbox.checked).toBe(true);
+  });
+
+  it('closing a panel externally (not via its checkbox) unchecks the corresponding Panels menu checkbox', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^mercatus$/i }));
+    await screen.findByTestId('chat-dock-mercatus');
+    expect(screen.getByRole('checkbox', { name: /^mercatus$/i })).toBeChecked();
+
+    // Close via the real dockview tab-close action (simulates dragging a tab
+    // out / clicking its native close X), not via the Panels checkbox.
+    const tab = screen
+      .getAllByText('Mercatus')
+      .map(el => el.closest('.dv-default-tab'))
+      .find((el): el is HTMLElement => el !== null) as HTMLElement;
+    fireEvent.click(tab.querySelector('.dv-default-tab-action') as HTMLElement);
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-mercatus')).toBeNull());
+
+    expect(screen.getByRole('checkbox', { name: /^mercatus$/i })).not.toBeChecked();
+  });
+
   it('Approvals panel shows a condensed pending-count badge when docked narrow', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
