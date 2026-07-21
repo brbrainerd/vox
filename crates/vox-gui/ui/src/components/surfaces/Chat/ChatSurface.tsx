@@ -449,20 +449,73 @@ export function ChatSurface({
   // the drag originated from within a `.dv-tab` that contains the
   // transcript panel's marker element (rendered by `EmptyTab` above) — every
   // other panel's tab is untouched.
+  //
+  // Task 1 (drag-and-drop-to-reorder fix) follow-up: DockWorkspaceShell now
+  // sets `dndStrategy="pointer"` on `<DockviewReact>` to work around a
+  // WebView2 HTML5-drag-and-drop reliability issue. Under that strategy
+  // dockview never sets `draggable = true` and never dispatches a native
+  // `dragstart` — every drag (mouse included) is driven by dockview-core's
+  // `PointerDragSource` (see `dnd/pointer/pointerDragSource.js`), which:
+  //   1. on `pointerdown` (bubble listener on the tab element itself) just
+  //      *arms* — this same `pointerdown` is also how dockview activates a
+  //      clicked tab (`tabs.js`'s `tab.onPointerDown` calls
+  //      `group.model.openPanel(panel)`), so it must NOT be suppressed or
+  //      clicking the transcript tab to activate it would break too;
+  //   2. only becomes a real drag once a subsequent `pointermove` (a
+  //      *bubble* listener PointerDragSource adds dynamically to `window`)
+  //      exceeds a small distance threshold.
+  // So instead of blocking step 1, this tracks the `pointerId` of a
+  // pointerdown that started on the transcript tab, then swallows just that
+  // pointer's `pointermove` events via a *capture-phase* listener on
+  // `window`. Capture-phase listeners on `window` always run before
+  // same-type bubble-phase listeners also registered on `window` (capture
+  // is window's first pass over the event; bubble is its last), so
+  // `stopImmediatePropagation()` here reliably runs before — and prevents —
+  // PointerDragSource's own move handler, starving the drag of the motion
+  // it needs to cross its arm threshold. Tab click-to-activate is
+  // unaffected since pointerdown itself is never touched.
   useEffect(() => {
     const root = dockRootRef.current;
     if (!root) return;
-    const handleDragStart = (event: DragEvent) => {
+    const isTranscriptTabEvent = (event: Event) => {
       const target = event.target;
-      if (!(target instanceof Element)) return;
+      if (!(target instanceof Element)) return false;
       const tabEl = target.closest('.dv-tab');
-      if (!tabEl) return;
-      if (tabEl.querySelector('[data-testid="chat-dock-transcript-tab-marker"]')) {
+      if (!tabEl) return false;
+      return Boolean(tabEl.querySelector('[data-testid="chat-dock-transcript-tab-marker"]'));
+    };
+    const handleDragStart = (event: DragEvent) => {
+      if (isTranscriptTabEvent(event)) {
+        event.preventDefault();
+      }
+    };
+    let suppressedPointerId: number | null = null;
+    const handlePointerDown = (event: PointerEvent) => {
+      suppressedPointerId = isTranscriptTabEvent(event) ? event.pointerId : null;
+    };
+    const clearSuppressed = (event: PointerEvent) => {
+      if (event.pointerId === suppressedPointerId) {
+        suppressedPointerId = null;
+      }
+    };
+    const handlePointerMove = (event: PointerEvent) => {
+      if (suppressedPointerId !== null && event.pointerId === suppressedPointerId) {
+        event.stopImmediatePropagation();
         event.preventDefault();
       }
     };
     root.addEventListener('dragstart', handleDragStart, true);
-    return () => root.removeEventListener('dragstart', handleDragStart, true);
+    root.addEventListener('pointerdown', handlePointerDown, true);
+    window.addEventListener('pointermove', handlePointerMove, true);
+    window.addEventListener('pointerup', clearSuppressed, true);
+    window.addEventListener('pointercancel', clearSuppressed, true);
+    return () => {
+      root.removeEventListener('dragstart', handleDragStart, true);
+      root.removeEventListener('pointerdown', handlePointerDown, true);
+      window.removeEventListener('pointermove', handlePointerMove, true);
+      window.removeEventListener('pointerup', clearSuppressed, true);
+      window.removeEventListener('pointercancel', clearSuppressed, true);
+    };
   }, []);
 
   useEffect(() => {

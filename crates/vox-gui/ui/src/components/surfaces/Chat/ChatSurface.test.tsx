@@ -293,7 +293,7 @@ describe('ChatSurface', () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
-  it('does not prevent dragstart from an unrelated panel tab (Flow) — the fix is scoped to the transcript panel only', async () => {
+  it('dragstart is preventDefault-ed dock-wide now that dndStrategy="pointer" disables the HTML5 backend entirely (dockview-core\'s own Html5DragSource does this, not app code) — the transcript-only *scoping* now lives in the pointermove-suppression logic covered below', async () => {
     render(
       <LanguageProvider>
         <ChatSurface
@@ -317,7 +317,131 @@ describe('ChatSurface', () => {
     act(() => {
       flowTab.dispatchEvent(event);
     });
-    expect(event.defaultPrevented).toBe(false);
+    // Task 1: with `dndStrategy="pointer"`, dockview-core's Html5DragSource
+    // is constructed with `disabled: true` for every tab (caps.html5 is
+    // false dock-wide) and preventDefault()s any dragstart unconditionally
+    // — see dockview-core's dnd/backend.js. This is no longer a
+    // transcript-specific signal, so this test only documents that fact;
+    // the real "only the transcript tab's drag is suppressed" guarantee is
+    // now exercised via pointermove (the event that actually arms a drag
+    // under the pointer backend) in the tests below.
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('does not suppress pointermove for a real, unrelated panel tab (Flow) — the pointer-drag suppression is scoped to the transcript panel only', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={vi.fn()}
+          activeSessionId="s1"
+          messages={[]}
+          agentStreamItems={[]}
+          composer={<div>composer</div>}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-flow');
+    const flowTab = screen.getByText('Flow').closest('.dv-tab') as HTMLElement;
+    expect(flowTab).not.toBeNull();
+
+    const pointerDown = new Event('pointerdown', { bubbles: true, cancelable: true }) as PointerEvent;
+    Object.defineProperty(pointerDown, 'pointerId', { value: 99 });
+    act(() => {
+      flowTab.dispatchEvent(pointerDown);
+    });
+
+    const pointerMove = new Event('pointermove', { bubbles: true, cancelable: true }) as PointerEvent;
+    Object.defineProperty(pointerMove, 'pointerId', { value: 99 });
+    act(() => {
+      window.dispatchEvent(pointerMove);
+    });
+    expect(pointerMove.defaultPrevented).toBe(false);
+  });
+
+  it('suppresses pointer-driven drag-arming for the transcript tab (dndStrategy="pointer" path) without blocking its own pointerdown / click-to-activate', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={vi.fn()}
+          activeSessionId="s1"
+          messages={[]}
+          agentStreamItems={[]}
+          composer={<div>composer</div>}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-transcript');
+    const transcriptTabMarker = await screen.findByTestId('chat-dock-transcript-tab-marker');
+    const transcriptTab = transcriptTabMarker.closest('.dv-tab') as HTMLElement;
+    expect(transcriptTab).not.toBeNull();
+
+    // pointerdown itself must NOT be suppressed — dockview-core also uses
+    // this exact event to activate the clicked tab, so preventing it would
+    // break tab switching, not just dragging.
+    const pointerDown = new Event('pointerdown', { bubbles: true, cancelable: true }) as PointerEvent;
+    Object.defineProperty(pointerDown, 'pointerId', { value: 42 });
+    act(() => {
+      transcriptTab.dispatchEvent(pointerDown);
+    });
+    expect(pointerDown.defaultPrevented).toBe(false);
+
+    // A subsequent pointermove for the *same* pointerId, dispatched on
+    // window (mirroring where dockview-core's PointerDragSource listens),
+    // must be suppressed so the drag never arms past its distance
+    // threshold.
+    const pointerMove = new Event('pointermove', { bubbles: true, cancelable: true }) as PointerEvent;
+    Object.defineProperty(pointerMove, 'pointerId', { value: 42 });
+    act(() => {
+      window.dispatchEvent(pointerMove);
+    });
+    expect(pointerMove.defaultPrevented).toBe(true);
+  });
+
+  it('does not suppress pointermove for an unrelated pointerId or after the transcript pointerdown\'s pointer has been released', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={vi.fn()}
+          activeSessionId="s1"
+          messages={[]}
+          agentStreamItems={[]}
+          composer={<div>composer</div>}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-transcript');
+    const transcriptTabMarker = await screen.findByTestId('chat-dock-transcript-tab-marker');
+    const transcriptTab = transcriptTabMarker.closest('.dv-tab') as HTMLElement;
+
+    const pointerDown = new Event('pointerdown', { bubbles: true, cancelable: true }) as PointerEvent;
+    Object.defineProperty(pointerDown, 'pointerId', { value: 7 });
+    act(() => {
+      transcriptTab.dispatchEvent(pointerDown);
+    });
+
+    // A different pointerId (e.g. a second concurrent pointer) is untouched.
+    const otherMove = new Event('pointermove', { bubbles: true, cancelable: true }) as PointerEvent;
+    Object.defineProperty(otherMove, 'pointerId', { value: 8 });
+    act(() => {
+      window.dispatchEvent(otherMove);
+    });
+    expect(otherMove.defaultPrevented).toBe(false);
+
+    // Once pointer 7 is released, its id is no longer tracked as suppressed.
+    const pointerUp = new Event('pointerup', { bubbles: true, cancelable: true }) as PointerEvent;
+    Object.defineProperty(pointerUp, 'pointerId', { value: 7 });
+    act(() => {
+      window.dispatchEvent(pointerUp);
+    });
+    const moveAfterUp = new Event('pointermove', { bubbles: true, cancelable: true }) as PointerEvent;
+    Object.defineProperty(moveAfterUp, 'pointerId', { value: 7 });
+    act(() => {
+      window.dispatchEvent(moveAfterUp);
+    });
+    expect(moveAfterUp.defaultPrevented).toBe(false);
   });
 
   it('creates the Sessions panel with a fixed maximumWidth constraint so it can never dominate the row (dockview 6.6.1 has no responsive % constraint, only a fixed-pixel one)', async () => {

@@ -115,7 +115,28 @@ export function DockWorkspaceShell({
         className="dockview-theme-vox w-full"
         style={{ height: pixelHeight != null ? `${pixelHeight}px` : '60vh' }}
       >
-        <DockviewReact components={components} tabComponents={tabComponents} onReady={handleReady} />
+        {/*
+          Tab drag-and-drop-to-reorder was reported broken in the live app
+          (Tauri/WebView2 on Windows) even though it works under jsdom-free
+          manual testing assumptions and has no app-level DnD-blocking code.
+          dockview-core's default `dndStrategy` ('auto') drives mouse drags
+          through native HTML5 drag-and-drop, which is exactly the class of
+          browser feature WebView2 has historically been unreliable with
+          (dockview-core's own `dndStrategy` docs call out "embedded
+          webviews" as an environment where HTML5 DnD is unreliable).
+          Forcing the `'pointer'` strategy makes every drag — including
+          mouse — go through dockview's pointer-event backend instead of
+          native HTML5 DnD, sidestepping the WebView2-specific limitation
+          entirely. Trade-off: cross-window HTML5 drag and the native drag
+          ghost image are unavailable in this mode, but Axis never relies on
+          either (single dockview root, no popout-drag flows).
+        */}
+        <DockviewReact
+          components={components}
+          tabComponents={tabComponents}
+          onReady={handleReady}
+          dndStrategy="pointer"
+        />
       </div>
     </div>
   );
