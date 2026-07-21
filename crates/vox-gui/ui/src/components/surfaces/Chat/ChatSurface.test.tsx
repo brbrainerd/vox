@@ -373,6 +373,18 @@ describe('ChatSurface', () => {
     addPanelSpy.mockRestore();
   });
 
+  it('the Panels menu checkboxes use the app brass/gold design tokens, matching every other checkbox in the codebase', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={noopToast} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    const checkbox = screen.getByRole('checkbox', { name: /^mercatus$/i });
+    expect(checkbox.className).toContain('text-brass');
+    expect(checkbox.className).not.toBe('');
+  });
+
   it('mounts a Flow panel dockable alongside chat, using the same agent data as the top-level Flow tab', async () => {
     render(
       <LanguageProvider>

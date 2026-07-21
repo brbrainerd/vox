@@ -888,6 +888,7 @@ export function ChatSurface({
                     >
                       <input
                         type="checkbox"
+                        className="rounded border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
                         checked={isOpen}
                         onChange={() => {
                           const api = dockApiRef.current;
