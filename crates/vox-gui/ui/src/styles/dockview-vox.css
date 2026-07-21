@@ -1,5 +1,10 @@
 .dockview-theme-vox {
-  --dv-background-color: rgba(9, 9, 11, 0.92);
+  /* Reference the real app background token directly (opaque, no separate
+     alpha) instead of a hand-tuned near-match — the previous rgba(9, 9, 11,
+     0.92) was close to but not identical to --color-bg-base (#0c0e10), and
+     the 0.92 alpha compositing differently over different layers created a
+     visible seam against the app chrome. */
+  --dv-background-color: var(--color-bg-base);
   --dv-group-view-background-color: transparent;
   --dv-tabs-and-actions-container-background-color: rgba(255, 255, 255, 0.02);
   --dv-activegroup-visiblepanel-tab-background-color: rgba(212, 175, 55, 0.08);
