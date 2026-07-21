@@ -24,7 +24,7 @@ import { SecretaryToast } from './SecretaryToast';
 import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } from '../../../transport';
 import { Matrix } from '../Matrix/Matrix';
 import { DockWorkspaceShell, layoutStorageKeyFor } from '../../dock/DockWorkspaceShell';
-import type { DockviewApi, IDockviewPanelProps } from 'dockview';
+import type { DockviewApi, IDockviewPanelProps, IDockviewPanelHeaderProps } from 'dockview';
 import { AgentFlow } from '../Flow/AgentFlow';
 import type { Agent } from '../../../types/dashboard';
 import { NeedsYouSurface } from '../NeedsYou/NeedsYouSurface';
@@ -290,8 +290,22 @@ const CHAT_DOCK_COMPONENTS = {
 // listener (see the `dockRootRef` effect in ChatSurface) a way to identify
 // "this drag started from the transcript panel's tab" purely from the DOM,
 // without a blanket `disableDnd` that would break dragging every other panel.
-function EmptyTab() {
-  return <span data-testid="chat-dock-transcript-tab-marker" style={{ display: 'none' }} />;
+// Renders a real, visible, non-interactive title (matching the default tab's
+// text styling) in place of dockview's own close/drag chrome — Task 1.8
+// suppressed that chrome entirely (see the comment block above) but left
+// nothing standing in for it, so the transcript's tab looked blank/broken.
+// The marker span (data-testid) is unchanged and still the thing the
+// dragstart-suppression listener below keys off of via `.dv-tab`
+// `querySelector`.
+function EmptyTab(props: IDockviewPanelHeaderProps) {
+  return (
+    <span
+      data-testid="chat-dock-transcript-tab-marker"
+      className="flex h-full items-center px-3 text-xs font-medium text-text-secondary"
+    >
+      {props.api.title ?? 'Chat'}
+    </span>
+  );
 }
 const CHAT_DOCK_TAB_COMPONENTS = { transcript: EmptyTab };
 

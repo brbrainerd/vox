@@ -385,6 +385,20 @@ describe('ChatSurface', () => {
     expect(checkbox.className).not.toBe('');
   });
 
+  it('the transcript tab renders a real, visible title in place of the suppressed default chrome', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={noopToast} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    const marker = await screen.findByTestId('chat-dock-transcript-tab-marker');
+    // The marker itself must carry a real, visible title now (Task 1.8 hid
+    // the default tab's chrome but never put a replacement label back,
+    // leaving the tab looking blank/broken).
+    expect(marker.textContent).toBe('Chat');
+    expect(marker).not.toHaveStyle({ display: 'none' });
+  });
+
   it('mounts a Flow panel dockable alongside chat, using the same agent data as the top-level Flow tab', async () => {
     render(
       <LanguageProvider>
