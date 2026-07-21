@@ -13,6 +13,8 @@ import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
 import { ChatModelPicker } from './components/surfaces/Chat/ChatModelPicker';
+import { GroundingCheckToggle } from './components/surfaces/Chat/GroundingCheckToggle';
+import { useGroundingCheck } from './hooks/useGroundingCheck';
 import { Toasts, ToastItem } from './components/ui/Toasts';
 import { BackendBanner } from './components/ui/BackendBanner';
 import { userAppendInput } from './lib/composerSubmit';
@@ -263,6 +265,7 @@ export default function App() {
   const [hudMode, setHudMode] = useLocalStorage<HudMode>(SHELL_PREFERENCE_KEYS.hudMode, 'full');
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [chatModelOverride, setChatModelOverride] = useState<string | null>(null);
+  const [groundingCheckEnabled, setGroundingCheckEnabled] = useGroundingCheck(activeSessionId);
   const {
     tasks: chatTasks,
     intents: chatIntents,
@@ -754,6 +757,7 @@ export default function App() {
             // real call site instead: 'chat' in Loquela's send() (the normal
             // composer path), left unset for /spawn's direct dispatch.
             task_category: payload.task_category ?? undefined,
+            grounding_check_enabled: payload.grounding_check_enabled ?? undefined,
           }
         },
         'gui.loquela.submit',
@@ -1140,7 +1144,7 @@ export default function App() {
     <Loquela
       chips={chips}
       setChips={setChips}
-      onSubmit={(p) => handleLoquelaSubmit({ ...p, session_id: activeSessionId, model_override: chatModelOverride })}
+      onSubmit={(p) => handleLoquelaSubmit({ ...p, session_id: activeSessionId, model_override: chatModelOverride, grounding_check_enabled: groundingCheckEnabled })}
       onSlashCommand={handleLoquelaSlash}
       taskInProgress={taskInProgress}
       currentTaskId={taskInProgress ? inFlightTaskId : undefined}
@@ -1159,10 +1163,16 @@ export default function App() {
       toast={pushToast}
       agents={data.agents}
       trailingSlot={
-        <ChatModelPicker
-          activeModel={chatModelOverride ?? activeModel}
-          onApplied={setChatModelOverride}
-        />
+        <>
+          <ChatModelPicker
+            activeModel={chatModelOverride ?? activeModel}
+            onApplied={setChatModelOverride}
+          />
+          <GroundingCheckToggle
+            enabled={groundingCheckEnabled}
+            onToggle={setGroundingCheckEnabled}
+          />
+        </>
       }
     />
   );
@@ -1203,6 +1213,7 @@ export default function App() {
     chatExecutionKpis,
     chatActiveModel: activeModel,
     chatModelOverride,
+    groundingCheckEnabled,
     onChatModelOverrideChange: setChatModelOverride,
     // No orchestrator plan session is created from chat yet, so PlanPanel
     // renders its honest empty state until a producer wires this up.

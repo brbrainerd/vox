@@ -133,7 +133,7 @@ describe('ChatModelPicker toolbar placement wiring', () => {
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
     const loquelaBlockMatch = appSrc.match(/const loquelaComposer = \(\s*<Loquela[\s\S]*?\/>\s*\);/);
     expect(loquelaBlockMatch).not.toBeNull();
-    expect(loquelaBlockMatch?.[0]).toMatch(/trailingSlot=\{\s*<ChatModelPicker/);
+    expect(loquelaBlockMatch?.[0]).toMatch(/trailingSlot=\{[\s\S]*?<ChatModelPicker/);
   });
 });
 

@@ -61,6 +61,12 @@ export interface ChatPayload {
    * default category resolution.
    */
   task_category?: string | null;
+  /**
+   * Opt-in, per-session grounding/hallucination-check toggle from the chat
+   * composer (see `hooks/useGroundingCheck.ts`). `undefined`/`null` leaves
+   * the daemon's default (off) in place.
+   */
+  grounding_check_enabled?: boolean | null;
 }
 
 export interface RoutingPriority {

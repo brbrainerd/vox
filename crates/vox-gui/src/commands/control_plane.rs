@@ -38,6 +38,11 @@ pub struct SubmitTaskInput {
     /// default category resolution (agentic `/spawn` dispatch relies on
     /// this by leaving the field unset).
     pub task_category: Option<String>,
+    /// Opt-in, per-session grounding/hallucination-check toggle from the chat
+    /// composer (see `hooks/useGroundingCheck.ts` and
+    /// docs/superpowers/plans/2026-07-20-chat-flow-docking-redesign.md Phase D).
+    /// `None`/absent leaves the daemon's default (off) in place.
+    pub grounding_check_enabled: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -83,6 +88,7 @@ fn submit_task_params(input: SubmitTaskInput) -> serde_json::Value {
         "dry_run": input.dry_run,
         "active_skill": input.active_skill.filter(|s| !s.trim().is_empty()),
         "task_category": input.task_category.filter(|s| !s.trim().is_empty()),
+        "grounding_check_enabled": input.grounding_check_enabled,
     });
     // Carry composer mode/tier/pick through as enqueue hints (tier →
     // model_preference; explicit pick → model_override). Only attach the key
@@ -522,6 +528,7 @@ mod submit_params_tests {
             risk: None,
             model_override: model_override.map(str::to_string),
             task_category: None,
+            grounding_check_enabled: None,
         }
     }
 
@@ -554,5 +561,19 @@ mod submit_params_tests {
     fn task_category_is_null_when_omitted() {
         let params = submit_task_params(input(None));
         assert!(params["task_category"].is_null());
+    }
+
+    #[test]
+    fn grounding_check_enabled_threads_through_to_daemon_params_when_set() {
+        let mut i = input(None);
+        i.grounding_check_enabled = Some(true);
+        let params = submit_task_params(i);
+        assert_eq!(params["grounding_check_enabled"], true);
+    }
+
+    #[test]
+    fn grounding_check_enabled_is_null_when_omitted() {
+        let params = submit_task_params(input(None));
+        assert!(params["grounding_check_enabled"].is_null());
     }
 }
