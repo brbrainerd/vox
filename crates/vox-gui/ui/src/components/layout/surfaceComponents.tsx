@@ -196,6 +196,9 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           openrouterSpendUsd={props.chatOpenrouterSpendUsd}
           agentStreamItems={props.chatAgentStreamItems}
           onOpenAgentInFlow={props.onOpenAgentInFlow}
+          flowAgents={props.data.agents}
+          flowSelectedAgentId={props.selectedAgentId}
+          onFlowSelectAgent={props.setSelectedAgentId}
           composer={props.chatComposer}
           focusedFeedbackId={props.focusedFeedbackId}
           gamifyEnabled={props.gamifyEnabled}

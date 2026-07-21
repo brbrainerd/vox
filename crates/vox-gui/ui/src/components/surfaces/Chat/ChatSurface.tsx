@@ -25,6 +25,8 @@ import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } 
 import { Matrix } from '../Matrix/Matrix';
 import { ChatDockShell } from './ChatDockShell';
 import type { DockviewApi, IDockviewPanelProps } from 'dockview';
+import { AgentFlow } from '../Flow/AgentFlow';
+import type { Agent } from '../../../types/dashboard';
 
 
 
@@ -46,10 +48,15 @@ function ExecutionRailPanel(props: IDockviewPanelProps<{ node: React.ReactNode }
   return <div data-testid="chat-dock-execution-rail" className="h-full overflow-y-auto">{props.params.node}</div>;
 }
 
+function FlowPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  return <div data-testid="chat-dock-flow" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
+}
+
 const CHAT_DOCK_COMPONENTS = {
   sessions: SessionsPanel,
   transcript: TranscriptPanel,
   executionRail: ExecutionRailPanel,
+  flow: FlowPanel,
 };
 
 interface ChatSurfaceProps {
@@ -65,6 +72,15 @@ interface ChatSurfaceProps {
   openrouterSpendUsd?: number | null;
   agentStreamItems?: StreamItem[];
   onOpenAgentInFlow?: (agentId: string) => void;
+  /**
+   * Same agent-graph data source that feeds the top-level Flow tab
+   * (`props.data.agents` in surfaceComponents.tsx `case 'flow'`) — reused
+   * here, not refetched, so the dockable Flow panel stays in sync with the
+   * real dashboard state.
+   */
+  flowAgents?: Agent[];
+  flowSelectedAgentId?: string;
+  onFlowSelectAgent?: (id: string) => void;
   /** Primary Loquela composer — embedded when global shell dock is hidden on Chat. */
   composer?: React.ReactNode;
   focusedFeedbackId?: string | null;
@@ -92,6 +108,9 @@ export function ChatSurface({
   openrouterSpendUsd,
   agentStreamItems,
   onOpenAgentInFlow,
+  flowAgents = [],
+  flowSelectedAgentId,
+  onFlowSelectAgent,
   composer,
   focusedFeedbackId,
   gamifyEnabled,
@@ -269,6 +288,14 @@ export function ChatSurface({
     />
   ) : null;
 
+  const flowNode = (
+    <AgentFlow
+      agents={flowAgents}
+      selectedId={flowSelectedAgentId}
+      onSelect={onFlowSelectAgent}
+    />
+  );
+
   const centerContent = (
     <>
       {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
@@ -331,6 +358,30 @@ export function ChatSurface({
       }
     } else if (executionPanel) {
       api.removePanel(executionPanel);
+    }
+    const flowPanel = api.getPanel('flow');
+    if (flowPanel) {
+      flowPanel.update({ params: { node: flowNode } });
+    } else {
+      api.addPanel({
+        id: 'flow',
+        component: 'flow',
+        title: 'Flow',
+        params: { node: flowNode },
+        // Note: the plan's original sketch tabbed Flow `within` the
+        // execution rail group. dockview-react only mounts the active tab's
+        // panel body, so that hid `chat-dock-execution-rail` from the DOM
+        // whenever Flow's tab was active — a regression against the B2 test
+        // asserting the execution rail is present without any tab
+        // interaction. Placing Flow as its own group (to the right of
+        // whichever panel is currently last) keeps all panels simultaneously
+        // present, matching how sessions/transcript/executionRail already
+        // coexist.
+        position: {
+          direction: 'right',
+          referencePanel: api.getPanel('executionRail') ? 'executionRail' : 'transcript',
+        },
+      });
     }
   });
 

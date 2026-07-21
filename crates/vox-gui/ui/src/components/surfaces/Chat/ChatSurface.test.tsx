@@ -234,6 +234,24 @@ describe('ChatSurface', () => {
       expect(screen.getByTestId('chat-dock-execution-rail')).toBeInTheDocument();
     });
   });
+
+  it('mounts a Flow panel dockable alongside chat, using the same agent data as the top-level Flow tab', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={vi.fn()}
+          activeSessionId="s1"
+          messages={[]}
+          agentStreamItems={[]}
+          composer={<div>composer</div>}
+        />
+      </LanguageProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-dock-flow')).toBeInTheDocument();
+    });
+  });
 });
 
 describe('session hydration ownership (F18: redundant double hydrate per session switch)', () => {
