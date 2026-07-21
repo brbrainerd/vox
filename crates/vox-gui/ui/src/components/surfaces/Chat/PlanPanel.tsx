@@ -86,8 +86,8 @@ export function PlanPanel({ planSessionId, planVersion, nodes }: PlanPanelProps)
     return (
       <div data-testid="plan-panel" className="p-2">
         <EmptyState
-          title="No active plan"
-          description="Start a task to see its plan here."
+          title="No to-dos yet"
+          description="Start a task to see its to-do list here."
         />
       </div>
     );
@@ -106,7 +106,7 @@ export function PlanPanel({ planSessionId, planVersion, nodes }: PlanPanelProps)
   return (
     <div className="flex flex-col gap-1 p-2" data-testid="plan-panel">
       {nodes.length === 0 ? (
-        <p className="text-[11px] text-text-muted">No plan steps yet.</p>
+        <p className="text-[11px] text-text-muted">Nothing to do yet.</p>
       ) : (
         nodes.map(n => (
           <PlanNodeRow key={n.node_id} node={n} planSessionId={sessionId} planVersion={version} />

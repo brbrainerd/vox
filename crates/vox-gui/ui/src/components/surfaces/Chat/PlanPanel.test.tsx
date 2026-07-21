@@ -64,6 +64,11 @@ describe('PlanPanel', () => {
 
   it('renders an honest empty state when there is no active plan', () => {
     render(<PlanPanel planSessionId={null} planVersion={null} nodes={[]} />);
-    expect(screen.getByText(/no active plan/i)).toBeInTheDocument();
+    expect(screen.getByText(/no to-dos yet/i)).toBeInTheDocument();
+  });
+
+  it('shows to-do-list-labeled zero-step copy, not "plan" language', () => {
+    render(<PlanPanel planSessionId="s1" planVersion={1} nodes={[]} />);
+    expect(screen.getByText('Nothing to do yet.')).toBeInTheDocument();
   });
 });

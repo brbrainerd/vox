@@ -15,8 +15,6 @@ import { ChatSessionRail } from './ChatSessionRail';
 import { ChatModelPicker } from './ChatModelPicker';
 import { PlanPanel, type PlanNodeView } from './PlanPanel';
 import { listPlanNodes } from '../../../transport';
-import { useLocalStorage } from '../../../hooks/useLocalStorage';
-import { Glass } from '../../ui/Glass';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import type { AttentionBudgetSnapshot } from '../../../types/tauri';
 import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
@@ -52,11 +50,16 @@ function FlowPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
   return <div data-testid="chat-dock-flow" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
 }
 
+function TodosDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  return <div data-testid="chat-dock-todos" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
+}
+
 const CHAT_DOCK_COMPONENTS = {
   sessions: SessionsPanel,
   transcript: TranscriptPanel,
   executionRail: ExecutionRailPanel,
   flow: FlowPanel,
+  todos: TodosDockPanel,
 };
 
 interface ChatSurfaceProps {
@@ -126,10 +129,6 @@ export function ChatSurface({
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
   const activeId = activeSessionId ?? '';
   const [planNodes, setPlanNodes] = useState<PlanNodeView[]>([]);
-  const [planPanelCollapsed, setPlanPanelCollapsed] = useLocalStorage<boolean>(
-    'gui.chat.plan_panel_collapsed.v1',
-    false,
-  );
   // dockview's `addPanel` captures `params` at call time — it does not track
   // React re-renders. Keep a handle to the ready API so each panel's `node`
   // param can be refreshed whenever the underlying content changes (new
@@ -302,6 +301,8 @@ export function ChatSurface({
     />
   );
 
+  const todosNode = <PlanPanel planSessionId={planSessionId} planVersion={planVersion} nodes={planNodes} />;
+
   const centerContent = (
     <>
       {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
@@ -389,6 +390,21 @@ export function ChatSurface({
         },
       });
     }
+    const todosPanel = api.getPanel('todos');
+    if (todosPanel) {
+      todosPanel.update({ params: { node: todosNode } });
+    } else if (!closedPanelIds.current.has('todos')) {
+      api.addPanel({
+        id: 'todos',
+        component: 'todos',
+        title: 'To-dos',
+        params: { node: todosNode },
+        position: {
+          direction: 'right',
+          referencePanel: api.getPanel('flow') ? 'flow' : api.getPanel('executionRail') ? 'executionRail' : 'transcript',
+        },
+      });
+    }
   });
 
   return (
@@ -437,48 +453,6 @@ export function ChatSurface({
           }}
         />
       </div>
-
-      {/* Plan panel: dockview adoption for this panel is future work — see
-          docs/superpowers/plans/2026-07-20-chat-flow-docking-redesign.md.
-          Positioned as a sibling strip alongside the dock shell, matching its
-          collapse/toggle/persistence pattern (ChatExecutionRail). */}
-      {planPanelCollapsed ? (
-        <aside aria-label="Plan panel" className="shrink-0">
-          <Glass className="flex flex-col items-center gap-2 p-2">
-            <button
-              type="button"
-              aria-label="Expand plan panel"
-              aria-expanded={false}
-              onClick={() => setPlanPanelCollapsed(false)}
-              className="rounded-lg border border-border-subtle p-2 text-text-muted hover:border-brass/40 hover:text-brass transition"
-            >
-              <span className="font-mono text-sm" aria-hidden="true">
-                »
-              </span>
-            </button>
-          </Glass>
-        </aside>
-      ) : (
-        <aside aria-label="Plan panel" className="w-64 shrink-0">
-          <Glass className="flex h-full flex-col gap-3 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">Plan</h2>
-              <button
-                type="button"
-                aria-label="Collapse plan panel"
-                aria-expanded={true}
-                onClick={() => setPlanPanelCollapsed(true)}
-                className="rounded p-1 text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
-              >
-                <span className="font-mono text-xs" aria-hidden="true">
-                  «
-                </span>
-              </button>
-            </div>
-            <PlanPanel planSessionId={planSessionId} planVersion={planVersion} nodes={planNodes} />
-          </Glass>
-        </aside>
-      )}
 
       {secretaryToast && (
         <div className="absolute bottom-4 left-1/2 z-[60] w-[min(480px,90%)] -translate-x-1/2">

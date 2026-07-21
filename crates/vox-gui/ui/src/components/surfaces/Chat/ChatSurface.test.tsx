@@ -317,6 +317,20 @@ describe('ChatSurface', () => {
     // undefined and immediately re-adds it, fighting the user's own close.
     expect(screen.queryByTestId('chat-dock-flow')).toBeNull();
   });
+
+  it('mounts the To-dos panel as a dockview panel, not a hand-rolled collapsible aside', () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>}
+          planSessionId="sess-1" planVersion={1}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByTestId('chat-dock-todos')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Collapse plan panel')).toBeNull();
+    expect(screen.queryByLabelText('Expand plan panel')).toBeNull();
+  });
 });
 
 describe('session hydration ownership (F18: redundant double hydrate per session switch)', () => {
