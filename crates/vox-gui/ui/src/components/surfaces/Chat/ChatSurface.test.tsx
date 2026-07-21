@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import React from 'react';
@@ -269,6 +269,53 @@ describe('ChatSurface', () => {
     await waitFor(() => {
       expect(screen.getByTestId('chat-dock-flow')).toBeInTheDocument();
     });
+  });
+
+  it('does not resurrect the Flow panel on the next render after the user closes it', async () => {
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={vi.fn()}
+          onNavigate={vi.fn()}
+          messages={[]}
+          composer={<div>composer</div>}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-flow');
+
+    // Close the way a user would: find the real dockview tab close action.
+    // NOTE: this app's ChatDockShell does not register a custom React tab
+    // component, so dockview falls back to dockview-core's vanilla
+    // `DefaultTab` (built via plain `document.createElement`, not the
+    // `dockview-react` `DockviewDefaultTab` component) — confirmed via
+    // screen.debug() against the actual rendered tree. That vanilla tab has
+    // no `data-testid` (only `dockview-react`'s version sets one); the class
+    // structure the plan documented is otherwise accurate: `.dv-default-tab`
+    // contains a `.dv-default-tab-content` and a sibling `.dv-default-tab-action`
+    // close target.
+    const flowTab = screen.getByText('Flow').closest('.dv-default-tab') as HTMLElement;
+    const closeBtn = flowTab.querySelector('.dv-default-tab-action') as HTMLElement;
+    fireEvent.click(closeBtn);
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-flow')).toBeNull());
+
+    // Force an unrelated re-render — the exact trigger a real close-fighting
+    // bug would react to (a streamed token, a session poll, anything that
+    // isn't the user reopening the panel).
+    rerender(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={vi.fn()}
+          onNavigate={vi.fn()}
+          messages={[{ id: 'm1', role: 'user', text: 'hello', status: 'done' } as any]}
+          composer={<div>composer</div>}
+        />
+      </LanguageProvider>,
+    );
+
+    // The bug: without a fix, the refresh effect sees getPanel('flow') is
+    // undefined and immediately re-adds it, fighting the user's own close.
+    expect(screen.queryByTestId('chat-dock-flow')).toBeNull();
   });
 });
 

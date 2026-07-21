@@ -135,6 +135,12 @@ export function ChatSurface({
   // param can be refreshed whenever the underlying content changes (new
   // sessions loaded, transcript updated, execution rail data changed, etc).
   const dockApiRef = useRef<DockviewApi | null>(null);
+  // Tracks panels removed (by the user's tab-close, or by the reset action
+  // below) so the refresh effect below can tell "not yet ready to create"
+  // apart from "the user closed this — leave it closed until something
+  // explicitly asks for it back." Cleared per-id by the reopen/reset actions
+  // (Tasks 4/5), not by this effect.
+  const closedPanelIds = useRef<Set<string>>(new Set());
 
   const [routingOpen, setRoutingOpen] = useState(false);
 
@@ -347,7 +353,7 @@ export function ChatSurface({
     if (executionRailNode) {
       if (executionPanel) {
         executionPanel.update({ params: { node: executionRailNode } });
-      } else {
+      } else if (!closedPanelIds.current.has('executionRail')) {
         api.addPanel({
           id: 'executionRail',
           component: 'executionRail',
@@ -362,7 +368,7 @@ export function ChatSurface({
     const flowPanel = api.getPanel('flow');
     if (flowPanel) {
       flowPanel.update({ params: { node: flowNode } });
-    } else {
+    } else if (!closedPanelIds.current.has('flow')) {
       api.addPanel({
         id: 'flow',
         component: 'flow',
@@ -400,6 +406,9 @@ export function ChatSurface({
           components={CHAT_DOCK_COMPONENTS}
           onReady={(event) => {
             dockApiRef.current = event.api;
+            event.api.onDidRemovePanel(panel => {
+              closedPanelIds.current.add(panel.id);
+            });
             // Guarded against duplicate-add: a restored dockview layout
             // (ChatDockShell's localStorage persistence) already recreates
             // these panels, so onReady must not re-add them.
