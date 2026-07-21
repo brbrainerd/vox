@@ -23,7 +23,7 @@ import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
 import { SecretaryToast } from './SecretaryToast';
 import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } from '../../../transport';
 import { Matrix } from '../Matrix/Matrix';
-import { ChatDockShell } from './ChatDockShell';
+import { DockWorkspaceShell } from '../../dock/DockWorkspaceShell';
 import type { DockviewApi, IDockviewPanelProps } from 'dockview';
 import { AgentFlow } from '../Flow/AgentFlow';
 import type { Agent } from '../../../types/dashboard';
@@ -402,7 +402,8 @@ export function ChatSurface({
       <h1 className="sr-only">Chat</h1>
 
       <div className="min-w-0 flex-1">
-        <ChatDockShell
+        <DockWorkspaceShell
+          storageKeyPrefix="gui.chat"
           components={CHAT_DOCK_COMPONENTS}
           onReady={(event) => {
             dockApiRef.current = event.api;
