@@ -43,7 +43,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 const noopToast = () => {};
 
-import { ChatSurface, ApprovalsDockPanel, MercatusDockPanel, RepositoryDockPanel } from './ChatSurface';
+import { ChatSurface, ApprovalsDockPanel, MercatusDockPanel, RepositoryDockPanel, NeedsYouDockPanel } from './ChatSurface';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 
@@ -1088,6 +1088,26 @@ describe('RepositoryDockPanel width-driven toggle', () => {
     api.width = 280;
     act(() => onChange?.());
     expect(screen.getByTestId('repository-stub')).toHaveTextContent('full');
+  });
+});
+
+describe('NeedsYouDockPanel width-driven toggle', () => {
+  function StubNeedsYou({ condensed }: { condensed?: boolean }) {
+    return <div data-testid="needs-you-stub">{condensed ? 'condensed' : 'full'}</div>;
+  }
+
+  it('passes condensed=true to its node below the audited threshold, condensed=false at/above it', () => {
+    let onChange: (() => void) | undefined;
+    const api = {
+      width: 200,
+      onDidDimensionsChange: vi.fn((cb: () => void) => { onChange = cb; return { dispose: vi.fn() }; }),
+    } as any;
+    render(<NeedsYouDockPanel api={api} params={{ node: <StubNeedsYou /> }} />);
+    expect(screen.getByTestId('needs-you-stub')).toHaveTextContent('condensed');
+
+    api.width = 270;
+    act(() => onChange?.());
+    expect(screen.getByTestId('needs-you-stub')).toHaveTextContent('full');
   });
 });
 

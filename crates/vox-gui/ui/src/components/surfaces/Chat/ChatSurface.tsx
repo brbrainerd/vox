@@ -74,8 +74,25 @@ function TodosDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
   return <div data-testid="chat-dock-todos" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
 }
 
-function NeedsYouDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
-  return <div data-testid="chat-dock-needs-you" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
+// Needs You's approval/question/withheld lists need real room per the
+// original audit (~260-280px); condensed content reuses the same
+// needsYou+withheld+approvals total NeedsYouSurface already tallies.
+const NEEDS_YOU_FULL_WIDTH_PX = 270;
+
+export function NeedsYouDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  const [width, setWidth] = React.useState(props.api.width);
+  React.useEffect(() => {
+    const disposable = props.api.onDidDimensionsChange(() => setWidth(props.api.width));
+    return () => disposable.dispose();
+  }, [props.api]);
+  const condensed = width < NEEDS_YOU_FULL_WIDTH_PX;
+  return (
+    <div data-testid="chat-dock-needs-you" className="h-full overflow-y-auto p-2">
+      {React.isValidElement(props.params.node)
+        ? React.cloneElement(props.params.node as React.ReactElement<any>, { condensed })
+        : props.params.node}
+    </div>
+  );
 }
 
 function VoxGraphDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {

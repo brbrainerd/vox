@@ -43,6 +43,13 @@ describe('NeedsYouSurface', () => {
     expect(screen.getByText(/Withheld by policy/i)).toBeTruthy();
   });
 
+  it('condensed prop renders only a total-count summary, not the item lists', async () => {
+    render(<LanguageProvider><NeedsYouSurface onOpenContext={() => {}} pushToast={() => {}} condensed /></LanguageProvider>);
+    // 1 needsYou + 1 withheld + 0 approvals from the beforeEach mock.
+    await waitFor(() => expect(screen.getByText(/2 need attention/i)).toBeTruthy());
+    expect(screen.queryByText('schema?')).toBeNull();
+  });
+
   it('empty state when nothing needs you', async () => {
     vi.spyOn(transport, 'feedbackList').mockResolvedValue({ needsYou: [], withheld: [] });
     render(<LanguageProvider><NeedsYouSurface onOpenContext={() => {}} pushToast={() => {}} /></LanguageProvider>);

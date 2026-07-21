@@ -15,9 +15,10 @@ interface Props {
   /** When provided, this surface sources its data from the shared inbox
    *  instead of self-fetching (App owns polling). See Task 6. */
   attention?: AttentionInbox;
+  condensed?: boolean;
 }
 
-export function NeedsYouSurface({ onOpenContext, pushToast, attention }: Props) {
+export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed }: Props) {
   const embedded = useIsEmbeddedSurface();
   const [needsYou, setNeedsYou] = useState<FeedbackRow[]>([]);
   const [withheld, setWithheld] = useState<FeedbackRow[]>([]);
@@ -99,6 +100,16 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention }: Props) 
       pushToast({ tone: 'warn', title: 'Resolve failed', body: sanitizeErrorForToast(e), cause: 'backend-error' });
     }
   };
+
+  if (condensed) {
+    const total = effectiveNeedsYou.length + effectiveWithheld.length + approvals.length;
+    return (
+      <div className="p-2 text-[11px] text-text-muted">
+        <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-text-primary">{useLabel('needs-you')}</div>
+        {loading ? <div className="animate-pulse">Loading…</div> : <div>{total} {total === 1 ? 'needs' : 'need'} attention</div>}
+      </div>
+    );
+  }
 
   if (loading && effectiveNeedsYou.length === 0 && effectiveWithheld.length === 0 && approvals.length === 0) {
     return (
