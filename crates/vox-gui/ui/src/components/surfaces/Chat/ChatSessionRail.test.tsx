@@ -65,8 +65,7 @@ describe('ChatSessionRail', () => {
     expect(screen.getByRole('complementary')).toHaveAttribute('aria-label', 'Chat sessions');
   });
 
-  it('can collapse and expand the sessions rail', async () => {
-    const user = userEvent.setup();
+  it('has no leftover per-panel collapse/expand chevron UI (panel visibility is controlled entirely by the dock Panels menu now)', () => {
     render(
       <LanguageProvider>
         <ChatSessionRail
@@ -77,34 +76,8 @@ describe('ChatSessionRail', () => {
         />
       </LanguageProvider>,
     );
-
-    expect(screen.getByRole('tablist', { name: /chat sessions/i })).toBeInTheDocument();
-    const collapse = screen.getByRole('button', { name: /collapse sessions rail/i });
-    expect(collapse.getAttribute('aria-expanded')).toBe('true');
-    await user.click(collapse);
-    expect(screen.queryByRole('tablist', { name: /chat sessions/i })).toBeNull();
-
-    const expand = screen.getByRole('button', { name: /expand sessions rail/i });
-    expect(expand.getAttribute('aria-expanded')).toBe('false');
-    await user.click(expand);
-    expect(screen.getByRole('tablist', { name: /chat sessions/i })).toBeInTheDocument();
-  });
-
-  it('persists collapsed state in localStorage', async () => {
-    const user = userEvent.setup();
-    render(
-      <LanguageProvider>
-        <ChatSessionRail
-          sessions={sessions}
-          activeSessionId="s1"
-          onSessionChange={vi.fn()}
-          onCreateSession={vi.fn()}
-        />
-      </LanguageProvider>,
-    );
-
-    await user.click(screen.getByRole('button', { name: /collapse sessions rail/i }));
-    expect(localStorage.getItem('gui.chat.sessions_collapsed.v1')).toBe('true');
+    expect(screen.queryByRole('button', { name: /collapse sessions rail/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /expand sessions rail/i })).toBeNull();
   });
 
   it('renames a session through the row menu', async () => {

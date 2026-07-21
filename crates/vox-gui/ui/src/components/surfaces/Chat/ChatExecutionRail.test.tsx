@@ -203,8 +203,7 @@ describe('ChatExecutionRail', () => {
     expect(screen.queryByRole('region', { name: /intent map/i })).toBeNull();
   });
 
-  it('can collapse and expand the rail panel', async () => {
-    const user = userEvent.setup();
+  it('has no leftover per-panel collapse/expand chevron UI (panel visibility is controlled entirely by the dock Panels menu now)', () => {
     render(
       <LanguageProvider>
         <ChatExecutionRail
@@ -214,33 +213,8 @@ describe('ChatExecutionRail', () => {
         />
       </LanguageProvider>,
     );
-
-    expect(screen.getByRole('region', { name: /active tasks/i })).toBeInTheDocument();
-    const collapse = screen.getByRole('button', { name: /collapse execution rail/i });
-    expect(collapse.getAttribute('aria-expanded')).toBe('true');
-    await user.click(collapse);
-    expect(screen.queryByRole('region', { name: /active tasks/i })).toBeNull();
-
-    const expand = screen.getByRole('button', { name: /expand execution rail/i });
-    expect(expand.getAttribute('aria-expanded')).toBe('false');
-    await user.click(expand);
-    expect(screen.getByRole('region', { name: /active tasks/i })).toBeInTheDocument();
-  });
-
-  it('persists collapsed state in localStorage', async () => {
-    const user = userEvent.setup();
-    render(
-      <LanguageProvider>
-        <ChatExecutionRail
-          tasks={[]}
-          kpis={sampleKpis}
-          onNavigate={vi.fn()}
-        />
-      </LanguageProvider>,
-    );
-
-    await user.click(screen.getByRole('button', { name: /collapse execution rail/i }));
-    expect(localStorage.getItem('gui.chat.execution_rail_collapsed.v1')).toBe('true');
+    expect(screen.queryByRole('button', { name: /collapse execution rail/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /expand execution rail/i })).toBeNull();
   });
 
   it('renders ContextWindowMeter after budget loads', async () => {

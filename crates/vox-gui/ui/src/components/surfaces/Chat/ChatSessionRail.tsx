@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Glass } from '../../ui/Glass';
 import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/Icons';
-import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import { useLabel } from '../../../hooks/useLanguage';
 
 export interface ChatSessionItem {
@@ -20,8 +19,6 @@ export interface ChatSessionRailProps {
   onArchiveSession?: (sessionId: string) => void;
 }
 
-const SESSIONS_COLLAPSED_KEY = 'gui.chat.sessions_collapsed.v1';
-
 export function ChatSessionRail({
   sessions,
   activeSessionId,
@@ -30,7 +27,6 @@ export function ChatSessionRail({
   onRenameSession,
   onArchiveSession,
 }: ChatSessionRailProps) {
-  const [collapsed, setCollapsed] = useLocalStorage<boolean>(SESSIONS_COLLAPSED_KEY, false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const railRef = useRef<HTMLElement>(null);
@@ -47,42 +43,11 @@ export function ChatSessionRail({
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [menuFor]);
 
-  if (collapsed) {
-    return (
-      <aside aria-label="Chat sessions" className="shrink-0" data-testid="chat-session-rail">
-        <Glass className="flex flex-col items-center gap-2 p-2">
-          <button
-            type="button"
-            aria-label="Expand sessions rail"
-            aria-expanded={false}
-            onClick={() => setCollapsed(false)}
-            className="rounded-lg border border-border-subtle p-2 text-text-muted transition hover:border-brass/40 hover:text-brass"
-          >
-            <span className="font-mono text-sm" aria-hidden="true">
-              »
-            </span>
-          </button>
-        </Glass>
-      </aside>
-    );
-  }
-
   return (
     <aside ref={railRef} aria-label="Chat sessions" className="w-64 shrink-0" data-testid="chat-session-rail">
       <Glass className="flex h-full max-h-[70vh] flex-col gap-2 p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('chat-sessions')}</h2>
-          <button
-            type="button"
-            aria-label="Collapse sessions rail"
-            aria-expanded={true}
-            onClick={() => setCollapsed(true)}
-            className="rounded p-1 text-text-muted transition hover:bg-overlay-subtle hover:text-text-secondary"
-          >
-            <span className="font-mono text-xs" aria-hidden="true">
-              «
-            </span>
-          </button>
         </div>
 
         <div
