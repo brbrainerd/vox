@@ -11,6 +11,15 @@
   --dv-tab-divider-color: rgba(255, 255, 255, 0.06);
   --dv-icon-hover-background-color: rgba(255, 255, 255, 0.06);
   --dv-floating-box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-color: rgb(113, 113, 122);
+  --dv-inactivegroup-hiddenpanel-tab-color: rgb(82, 82, 91);
+  --dv-paneview-active-outline-color: rgba(212, 175, 55, 0.4);
+  --dv-paneview-header-border-color: rgba(255, 255, 255, 0.06);
+  --dv-active-sash-color: rgba(212, 175, 55, 0.3);
+  --dv-scrollbar-background-color: rgba(255, 255, 255, 0.12);
+  --dv-tabs-container-scrollbar-color: rgba(255, 255, 255, 0.12);
 }
 
 .dockview-theme-vox .dv-tab {
@@ -18,4 +27,11 @@
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.dockview-theme-vox .dv-tabs-and-actions-container {
+  height: 22px;
+}
+.dockview-theme-vox .dv-tab {
+  font-size: 9px;
 }
