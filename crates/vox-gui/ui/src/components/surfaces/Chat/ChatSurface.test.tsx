@@ -740,6 +740,58 @@ describe('ChatSurface', () => {
     );
     expect(screen.queryByTestId('chat-dock-mercatus')).toBeNull();
   });
+
+  it('mounts a Harness panel dockable from Chat via the Panels menu Add section', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^harness$/i }));
+    expect(screen.getByTestId('chat-dock-harness')).toBeInTheDocument();
+  });
+
+  it('the Harness panel does not resurrect on the next render after being closed', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^harness$/i }));
+    await screen.findByTestId('chat-dock-harness');
+
+    const tab = screen
+      .getAllByText('Harness')
+      .map(el => el.closest('.dv-default-tab'))
+      .find((el): el is HTMLElement => el !== null) as HTMLElement;
+    fireEvent.click(tab.querySelector('.dv-default-tab-action') as HTMLElement);
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-harness')).toBeNull());
+
+    // Force an unrelated re-render — opt-in panels have NO auto-create
+    // branch, so this must not bring it back (by construction, not by a
+    // closedPanelIds guard, since opt-in panels don't use one).
+    render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface
+            pushToast={vi.fn()}
+            onNavigate={vi.fn()}
+            messages={[{ id: 'm1', role: 'user', text: 'hi', status: 'done' } as any]}
+            composer={<div>composer</div>}
+          />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    expect(screen.queryByTestId('chat-dock-harness')).toBeNull();
+  });
 });
 
 describe('session hydration ownership (F18: redundant double hydrate per session switch)', () => {
