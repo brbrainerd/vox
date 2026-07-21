@@ -464,6 +464,73 @@ describe('ChatSurface', () => {
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
     expect(() => fireEvent.click(screen.getByRole('button', { name: /reset layout/i }))).not.toThrow();
   });
+
+  it('mounts a Needs You panel dockable from Chat via the Panels menu Add section', () => {
+    const attention = {
+      approvals: [],
+      needsYou: [],
+      withheld: [],
+      blockedTasksCount: 0,
+      hopperTasks: [],
+      totalCount: 0,
+      refresh: vi.fn(),
+      resolveApproval: vi.fn(),
+      resolveFeedback: vi.fn(),
+    } as any;
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} attention={attention} />
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^needs you$/i }));
+    expect(screen.getByTestId('chat-dock-needs-you')).toBeInTheDocument();
+  });
+
+  it('the Needs You panel does not resurrect on the next render after being closed', async () => {
+    const attention = {
+      approvals: [],
+      needsYou: [],
+      withheld: [],
+      blockedTasksCount: 0,
+      hopperTasks: [],
+      totalCount: 0,
+      refresh: vi.fn(),
+      resolveApproval: vi.fn(),
+      resolveFeedback: vi.fn(),
+    } as any;
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} attention={attention} />
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^needs you$/i }));
+    await screen.findByTestId('chat-dock-needs-you');
+
+    const tab = screen
+      .getAllByText('Needs You')
+      .map(el => el.closest('.dv-default-tab'))
+      .find((el): el is HTMLElement => el !== null) as HTMLElement;
+    fireEvent.click(tab.querySelector('.dv-default-tab-action') as HTMLElement);
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-needs-you')).toBeNull());
+
+    // Force an unrelated re-render — opt-in panels have NO auto-create
+    // branch, so this must not bring it back (by construction, not by a
+    // closedPanelIds guard, since opt-in panels don't use one).
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={vi.fn()}
+          onNavigate={vi.fn()}
+          messages={[{ id: 'm1', role: 'user', text: 'hi', status: 'done' } as any]}
+          composer={<div>composer</div>}
+          attention={attention}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.queryByTestId('chat-dock-needs-you')).toBeNull();
+  });
 });
 
 describe('session hydration ownership (F18: redundant double hydrate per session switch)', () => {

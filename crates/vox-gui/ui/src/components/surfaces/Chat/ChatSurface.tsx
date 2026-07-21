@@ -25,11 +25,20 @@ import { DockWorkspaceShell, layoutStorageKeyFor } from '../../dock/DockWorkspac
 import type { DockviewApi, IDockviewPanelProps } from 'dockview';
 import { AgentFlow } from '../Flow/AgentFlow';
 import type { Agent } from '../../../types/dashboard';
+import { NeedsYouSurface } from '../NeedsYou/NeedsYouSurface';
+import type { AttentionInbox } from '../../../hooks/useAttentionInbox';
 
 
 
 const CORE_PANEL_IDS = ['sessions', 'transcript', 'executionRail', 'flow', 'todos'] as const;
 type CorePanelId = (typeof CORE_PANEL_IDS)[number];
+
+// Tasks 2.2-2.6/3.1-3.8 append one id each. Opt-in panels get NO auto-create
+// branch in the refresh effect — only a guarded `.update()` if already
+// present — so they can only ever be (re)created via the Panels menu's Add
+// section, never resurrected on an unrelated re-render.
+const OPT_IN_PANEL_IDS = ['needs-you'] as const;
+type OptInPanelId = (typeof OPT_IN_PANEL_IDS)[number];
 
 interface ChatSession {
   session_id: string;
@@ -57,12 +66,17 @@ function TodosDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
   return <div data-testid="chat-dock-todos" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
 }
 
+function NeedsYouDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  return <div data-testid="chat-dock-needs-you" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
+}
+
 const CHAT_DOCK_COMPONENTS = {
   sessions: SessionsPanel,
   transcript: TranscriptPanel,
   executionRail: ExecutionRailPanel,
   flow: FlowPanel,
   todos: TodosDockPanel,
+  'needs-you': NeedsYouDockPanel,
 };
 
 // Marker rendered inside the transcript panel's dockview tab element. Task
@@ -113,6 +127,9 @@ interface ChatSurfaceProps {
   /** Live plan-DAG identity for this session, if the current task has synthesized a plan. */
   planSessionId?: string | null;
   planVersion?: number | null;
+  /** Shared attention inbox (App owns polling) — sources the opt-in Needs You dock panel. */
+  attention?: AttentionInbox;
+  onOpenFeedbackContext?: (id: string) => void;
 }
 
 export function ChatSurface({
@@ -141,6 +158,8 @@ export function ChatSurface({
   onModelOverrideChange,
   planSessionId,
   planVersion,
+  attention,
+  onOpenFeedbackContext,
 }: ChatSurfaceProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
@@ -369,6 +388,14 @@ export function ChatSurface({
 
   const todosNode = <PlanPanel planSessionId={planSessionId} planVersion={planVersion} nodes={planNodes} />;
 
+  const needsYouNode = (
+    <NeedsYouSurface
+      onOpenContext={onOpenFeedbackContext ?? (() => {})}
+      pushToast={pushToast}
+      attention={attention}
+    />
+  );
+
   const centerContent = (
     <>
       {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
@@ -408,9 +435,8 @@ export function ChatSurface({
     </>
   );
 
-  // ChatDockPanelId is aliased to CorePanelId for now; Task 2.1 widens it to
-  // `CorePanelId | OptInPanelId` once opt-in panels exist.
-  type ChatDockPanelId = CorePanelId;
+  // Supersedes the Task 1.4 CorePanelId-only alias now that opt-in panels exist.
+  type ChatDockPanelId = CorePanelId | OptInPanelId;
 
   const panelDefs: Record<ChatDockPanelId, { title: string; node: React.ReactNode; referenceChain: ChatDockPanelId[] }> = {
     sessions: { title: 'Sessions', node: sessionRailNode, referenceChain: [] },
@@ -418,6 +444,7 @@ export function ChatSurface({
     executionRail: { title: 'Execution', node: executionRailNode, referenceChain: ['transcript'] },
     flow: { title: 'Flow', node: flowNode, referenceChain: ['executionRail', 'transcript'] },
     todos: { title: 'To-dos', node: todosNode, referenceChain: ['flow', 'executionRail', 'transcript'] },
+    'needs-you': { title: 'Needs You', node: needsYouNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
   };
 
   // Plain function, not useCallback: panelDefs is a fresh object every render.
@@ -498,6 +525,10 @@ export function ChatSurface({
         },
       });
     }
+    // Opt-in panels: update-only, no create branch. They can only be
+    // (re)created via the Panels menu's Add section (Step 4 below) — this is
+    // what makes the "resurrects after close" bug structurally impossible.
+    api.getPanel('needs-you')?.update({ params: { node: needsYouNode } });
   });
 
   return (
@@ -547,6 +578,23 @@ export function ChatSurface({
                 ) ? (
                   <div className="px-2 py-1.5 text-xs text-text-muted/60">All panels open</div>
                 ) : null}
+                <div className="my-1 border-t border-border-subtle" />
+                <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-text-muted/60">Add</div>
+                {OPT_IN_PANEL_IDS.filter(id => !dockApiRef.current?.getPanel(id)).map(id => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      const api = dockApiRef.current;
+                      if (api) addDefaultPanel(api, id);
+                      setPanelsMenuOpen(false);
+                      panelsTriggerRef.current?.focus();
+                    }}
+                    className="block w-full rounded px-2 py-1.5 text-left text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
+                  >
+                    {panelDefs[id].title}
+                  </button>
+                ))}
                 <div className="my-1 border-t border-border-subtle" />
                 <button
                   type="button"
