@@ -90,6 +90,24 @@ describe('ChatSurface', () => {
     });
   });
 
+  it('updates the transcript panel content when messages change (does not go stale after first render)', async () => {
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatSurface pushToast={noopToast} activeSessionId="s1" messages={[]} />
+      </LanguageProvider>,
+    );
+    rerender(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          activeSessionId="s1"
+          messages={[{ id: 'm1', role: 'user', text: 'hello', status: 'done' } as ChatMessage]}
+        />
+      </LanguageProvider>,
+    );
+    expect(await screen.findByText('hello')).toBeInTheDocument();
+  });
+
   it('exposes the transcript as a polite log region when messages exist', async () => {
     const messages: ChatMessage[] = [
       { id: 'm1', role: 'user', text: 'hi', status: 'done' } as ChatMessage,
