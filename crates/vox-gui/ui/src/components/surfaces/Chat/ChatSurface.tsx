@@ -27,6 +27,7 @@ import { AgentFlow } from '../Flow/AgentFlow';
 import type { Agent } from '../../../types/dashboard';
 import { NeedsYouSurface } from '../NeedsYou/NeedsYouSurface';
 import type { AttentionInbox } from '../../../hooks/useAttentionInbox';
+import { VoxGraphStatusPanel } from '../VoxGraph/VoxGraphStatusPanel';
 
 
 
@@ -37,7 +38,7 @@ type CorePanelId = (typeof CORE_PANEL_IDS)[number];
 // branch in the refresh effect — only a guarded `.update()` if already
 // present — so they can only ever be (re)created via the Panels menu's Add
 // section, never resurrected on an unrelated re-render.
-const OPT_IN_PANEL_IDS = ['needs-you'] as const;
+const OPT_IN_PANEL_IDS = ['needs-you', 'voxgraph'] as const;
 type OptInPanelId = (typeof OPT_IN_PANEL_IDS)[number];
 
 interface ChatSession {
@@ -70,6 +71,10 @@ function NeedsYouDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>
   return <div data-testid="chat-dock-needs-you" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
 }
 
+function VoxGraphDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  return <div data-testid="chat-dock-voxgraph" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
+}
+
 const CHAT_DOCK_COMPONENTS = {
   sessions: SessionsPanel,
   transcript: TranscriptPanel,
@@ -77,6 +82,7 @@ const CHAT_DOCK_COMPONENTS = {
   flow: FlowPanel,
   todos: TodosDockPanel,
   'needs-you': NeedsYouDockPanel,
+  voxgraph: VoxGraphDockPanel,
 };
 
 // Marker rendered inside the transcript panel's dockview tab element. Task
@@ -396,6 +402,8 @@ export function ChatSurface({
     />
   );
 
+  const voxGraphNode = <VoxGraphStatusPanel />;
+
   const centerContent = (
     <>
       {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
@@ -445,6 +453,7 @@ export function ChatSurface({
     flow: { title: 'Flow', node: flowNode, referenceChain: ['executionRail', 'transcript'] },
     todos: { title: 'To-dos', node: todosNode, referenceChain: ['flow', 'executionRail', 'transcript'] },
     'needs-you': { title: 'Needs You', node: needsYouNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    voxgraph: { title: 'VoxGraph', node: voxGraphNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
   };
 
   // Plain function, not useCallback: panelDefs is a fresh object every render.
@@ -529,6 +538,7 @@ export function ChatSurface({
     // (re)created via the Panels menu's Add section (Step 4 below) — this is
     // what makes the "resurrects after close" bug structurally impossible.
     api.getPanel('needs-you')?.update({ params: { node: needsYouNode } });
+    api.getPanel('voxgraph')?.update({ params: { node: voxGraphNode } });
   });
 
   return (
