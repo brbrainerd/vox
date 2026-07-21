@@ -115,6 +115,43 @@ impl Orchestrator {
         }
     }
 
+    /// Debit the pilot attention budget for a completed chat turn.
+    ///
+    /// [`crate::chat_processor::ChatTaskProcessor`] deliberately bypasses the
+    /// full agentic gate cascade (behavioral/approval/trust/etc.), which is
+    /// also the only place that historically debited `AttentionBudget` —
+    /// via MCP approval/questioning tool calls
+    /// (`vox-orchestrator-mcp/src/server_state.rs::record_attention_event`)
+    /// that chat tasks never reach. Left unaddressed, the GUI's
+    /// `AttentionBudgetMeter` (driven purely by `spent_ms`) stayed static no
+    /// matter how much chat activity happened. Mirrors the existing
+    /// Socrates goal-planning debit (`submit/goal.rs`'s
+    /// `add_questioning_attention_debit_ms` call): a low, fixed-complexity
+    /// NASA-TLX cost scaled by conversational tokens, applied without
+    /// requiring an approval event (chat turns are never approval-gated).
+    pub fn record_chat_attention(&self, input_tokens: u32, output_tokens: u32) {
+        let config = crate::sync_lock::rw_read(&*self.config);
+        let action = crate::attention::ActionDescriptor {
+            estimated_complexity: 1,
+            tokens_output: u64::from(output_tokens.saturating_add(input_tokens)),
+            priority: crate::types::TaskPriority::Normal,
+            write_file_count: 0,
+            external: false,
+            repeated_approve_count: 0,
+            concurrent_tasks: 0,
+        };
+        let base = config.attention_interrupt_cost_ms.max(1);
+        let cost_ms = crate::attention::compute_attention_cost_ms(
+            &action,
+            0.5,
+            base,
+            &config.attention_tlx_weights,
+        );
+        drop(config);
+        crate::sync_lock::rw_read(&*self.budget_manager)
+            .add_questioning_attention_debit_ms(cost_ms);
+    }
+
     /// Get a shared lock to an agent's queue.
     pub fn agent_queue(
         &self,

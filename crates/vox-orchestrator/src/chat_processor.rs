@@ -110,6 +110,14 @@ impl TaskProcessor for ChatTaskProcessor {
             )
             .await;
 
+        // Step 5.5: debit pilot attention for this chat turn. The gate
+        // cascade this processor skips is also the only path that debited
+        // `AttentionBudget` (see `record_chat_attention` doc comment), so
+        // without this the GUI's attention meter never moved for chat
+        // activity.
+        self.orchestrator
+            .record_chat_attention(input_tokens, output_tokens);
+
         // Step 6.5: optional, non-blocking grounding check — never delays the
         // reply (already streamed above), only emits a follow-up badge event.
         if task.grounding_check_enabled {
@@ -144,6 +152,40 @@ impl TaskProcessor for ChatTaskProcessor {
 mod tests {
     use super::*;
     use std::sync::atomic::AtomicBool;
+
+    /// Root-cause regression test for the "attention budget meter never
+    /// increments during chat activity" bug report. `ChatTaskProcessor`
+    /// deliberately skips the full agentic gate cascade (behavioral,
+    /// approval, trust, etc.), which is also the only place that ever
+    /// invoked `BudgetManager::record_attention` / debited attention (via
+    /// MCP approval/questioning tools — see
+    /// `vox-orchestrator-mcp/src/server_state.rs::record_attention_event`).
+    /// Since chat tasks never touch those MCP tools, nothing ever debited
+    /// `AttentionBudget::spent_ms` for chat activity, so the GUI's
+    /// `AttentionBudgetMeter` (driven purely by `spent_ms`) stayed static no
+    /// matter how much chat happened. `Orchestrator::record_chat_attention`
+    /// closes that gap by debiting attention for each chat turn, mirroring
+    /// the existing `add_questioning_attention_debit_ms` pattern already
+    /// used for Socrates goal-planning (`goal.rs`).
+    #[test]
+    fn record_chat_attention_increments_spent_ms() {
+        let orchestrator = crate::orchestrator::Orchestrator::new(
+            crate::config::OrchestratorConfig::for_testing(),
+        );
+        let before = crate::sync_lock::rw_read(&*orchestrator.budget_manager_handle())
+            .attention_snapshot()
+            .spent_ms;
+
+        orchestrator.record_chat_attention(50, 200);
+
+        let after = crate::sync_lock::rw_read(&*orchestrator.budget_manager_handle())
+            .attention_snapshot()
+            .spent_ms;
+        assert!(
+            after > before,
+            "chat turn must debit AttentionBudget.spent_ms so the GUI meter moves; before={before} after={after}"
+        );
+    }
 
     /// Cancel-preset abort path: identical in shape to
     /// `stub_processor_aborts_when_cancel_flag_preset` (runtime.rs) and to
