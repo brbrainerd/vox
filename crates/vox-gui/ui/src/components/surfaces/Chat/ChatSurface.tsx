@@ -116,8 +116,26 @@ export function VoxGraphDockPanel(props: IDockviewPanelProps<{ node: React.React
   );
 }
 
-function ActivityDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
-  return <div data-testid="chat-dock-activity" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
+// Discovery's four nested surfaces (Timeline/Inbox/Review/Archive) each need
+// real room per the original audit (~360px); condensed content reuses the
+// same active-preset state the tab strip already tracks, naming which
+// preset is selected instead of mounting its (wide) nested surface.
+const ACTIVITY_FULL_WIDTH_PX = 360;
+
+export function ActivityDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  const [width, setWidth] = React.useState(props.api.width);
+  React.useEffect(() => {
+    const disposable = props.api.onDidDimensionsChange(() => setWidth(props.api.width));
+    return () => disposable.dispose();
+  }, [props.api]);
+  const condensed = width < ACTIVITY_FULL_WIDTH_PX;
+  return (
+    <div data-testid="chat-dock-activity" className="h-full overflow-y-auto p-2">
+      {React.isValidElement(props.params.node)
+        ? React.cloneElement(props.params.node as React.ReactElement<any>, { condensed })
+        : props.params.node}
+    </div>
+  );
 }
 
 // Repository's action-button grid + command output pane need real room per

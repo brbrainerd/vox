@@ -43,7 +43,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 const noopToast = () => {};
 
-import { ChatSurface, ApprovalsDockPanel, MercatusDockPanel, RepositoryDockPanel, NeedsYouDockPanel, VoxGraphDockPanel } from './ChatSurface';
+import { ChatSurface, ApprovalsDockPanel, MercatusDockPanel, RepositoryDockPanel, NeedsYouDockPanel, VoxGraphDockPanel, ActivityDockPanel } from './ChatSurface';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 
@@ -1128,6 +1128,26 @@ describe('VoxGraphDockPanel width-driven toggle', () => {
     api.width = 240;
     act(() => onChange?.());
     expect(screen.getByTestId('voxgraph-stub')).toHaveTextContent('full');
+  });
+});
+
+describe('ActivityDockPanel width-driven toggle', () => {
+  function StubDiscovery({ condensed }: { condensed?: boolean }) {
+    return <div data-testid="activity-stub">{condensed ? 'condensed' : 'full'}</div>;
+  }
+
+  it('passes condensed=true to its node below the audited threshold, condensed=false at/above it', () => {
+    let onChange: (() => void) | undefined;
+    const api = {
+      width: 300,
+      onDidDimensionsChange: vi.fn((cb: () => void) => { onChange = cb; return { dispose: vi.fn() }; }),
+    } as any;
+    render(<ActivityDockPanel api={api} params={{ node: <StubDiscovery /> }} />);
+    expect(screen.getByTestId('activity-stub')).toHaveTextContent('condensed');
+
+    api.width = 360;
+    act(() => onChange?.());
+    expect(screen.getByTestId('activity-stub')).toHaveTextContent('full');
   });
 });
 
