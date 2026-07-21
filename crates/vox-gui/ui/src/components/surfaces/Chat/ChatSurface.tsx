@@ -28,6 +28,9 @@ import type { Agent } from '../../../types/dashboard';
 
 
 
+const CORE_PANEL_IDS = ['sessions', 'transcript', 'executionRail', 'flow', 'todos'] as const;
+type CorePanelId = (typeof CORE_PANEL_IDS)[number];
+
 interface ChatSession {
   session_id: string;
   title: string;
@@ -341,6 +344,32 @@ export function ChatSurface({
       )}
     </>
   );
+
+  // ChatDockPanelId is aliased to CorePanelId for now; Task 2.1 widens it to
+  // `CorePanelId | OptInPanelId` once opt-in panels exist.
+  type ChatDockPanelId = CorePanelId;
+
+  const panelDefs: Record<ChatDockPanelId, { title: string; node: React.ReactNode; referenceChain: ChatDockPanelId[] }> = {
+    sessions: { title: 'Sessions', node: sessionRailNode, referenceChain: [] },
+    transcript: { title: 'Chat', node: centerContent, referenceChain: ['sessions'] },
+    executionRail: { title: 'Execution', node: executionRailNode, referenceChain: ['transcript'] },
+    flow: { title: 'Flow', node: flowNode, referenceChain: ['executionRail', 'transcript'] },
+    todos: { title: 'To-dos', node: todosNode, referenceChain: ['flow', 'executionRail', 'transcript'] },
+  };
+
+  // Plain function, not useCallback: panelDefs is a fresh object every render.
+  const addDefaultPanel = (api: DockviewApi, id: ChatDockPanelId) => {
+    const def = panelDefs[id];
+    const referencePanel = def.referenceChain.find(candidateId => api.getPanel(candidateId));
+    api.addPanel({
+      id,
+      component: id,
+      title: def.title,
+      params: { node: def.node },
+      position: referencePanel ? { direction: 'right', referencePanel } : undefined,
+    });
+    closedPanelIds.current.delete(id);
+  };
 
   // Refresh each panel's `node` param on every render so dockview reflects
   // the latest sessions/transcript/execution-rail content (addPanel only
