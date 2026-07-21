@@ -518,22 +518,30 @@ export function ChatSurface({
   // Supersedes the Task 1.4 CorePanelId-only alias now that opt-in panels exist.
   type ChatDockPanelId = CorePanelId | OptInPanelId;
 
-  const panelDefs: Record<ChatDockPanelId, { title: string; node: React.ReactNode; referenceChain: ChatDockPanelId[] }> = {
-    sessions: { title: 'Sessions', node: sessionRailNode, referenceChain: [] },
-    transcript: { title: 'Chat', node: centerContent, referenceChain: ['sessions'] },
-    executionRail: { title: 'Execution', node: executionRailNode, referenceChain: ['transcript'] },
-    flow: { title: 'Flow', node: flowNode, referenceChain: ['executionRail', 'transcript'] },
-    todos: { title: 'To-dos', node: todosNode, referenceChain: ['flow', 'executionRail', 'transcript'] },
-    'needs-you': { title: 'Needs You', node: needsYouNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    voxgraph: { title: 'VoxGraph', node: voxGraphNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    activity: { title: 'Activity', node: activityNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    repository: { title: 'Repository', node: repositoryNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    mercatus: { title: 'Mercatus', node: mercatusNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    harness: { title: 'Harness', node: harnessNode, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    // `node` is unused for approvals — ApprovalsDockPanel takes structured
-    // params (pendingApprovals/permissionMode/onNavigate), never a rendered
-    // node, so it never mounts a second live <ApprovalsView> poll loop.
-    approvals: { title: 'Approvals', node: null, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+  // `params` is each panel's dock-component params bag, uniformly. Most
+  // panels just wrap a single React node (`{ node: someNode }`), matched by
+  // their DockPanel component reading `props.params.node` — but a panel is
+  // free to define whatever shape its own DockPanel component expects
+  // (Approvals passes structured `{ pendingApprovals, permissionMode,
+  // onNavigate }` instead). This is the single source of truth for "what
+  // params does panel X get" — addDefaultPanel and the refresh effect below
+  // both read it, so there is exactly one definition per panel, not two.
+  const panelDefs: Record<ChatDockPanelId, { title: string; params: Record<string, unknown>; referenceChain: ChatDockPanelId[] }> = {
+    sessions: { title: 'Sessions', params: { node: sessionRailNode }, referenceChain: [] },
+    transcript: { title: 'Chat', params: { node: centerContent }, referenceChain: ['sessions'] },
+    executionRail: { title: 'Execution', params: { node: executionRailNode }, referenceChain: ['transcript'] },
+    flow: { title: 'Flow', params: { node: flowNode }, referenceChain: ['executionRail', 'transcript'] },
+    todos: { title: 'To-dos', params: { node: todosNode }, referenceChain: ['flow', 'executionRail', 'transcript'] },
+    'needs-you': { title: 'Needs You', params: { node: needsYouNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    voxgraph: { title: 'VoxGraph', params: { node: voxGraphNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    activity: { title: 'Activity', params: { node: activityNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    repository: { title: 'Repository', params: { node: repositoryNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    mercatus: { title: 'Mercatus', params: { node: mercatusNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    harness: { title: 'Harness', params: { node: harnessNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    // ApprovalsDockPanel takes structured params (pendingApprovals/
+    // permissionMode/onNavigate), never a rendered node, so it never mounts
+    // a second live <ApprovalsView> poll loop.
+    approvals: { title: 'Approvals', params: approvalsParams, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
   };
 
   // Plain function, not useCallback: panelDefs is a fresh object every render.
@@ -545,7 +553,7 @@ export function ChatSurface({
       component: id,
       ...(id === 'transcript' ? { tabComponent: 'transcript' } : {}),
       title: def.title,
-      params: id === 'approvals' ? approvalsParams : { node: def.node },
+      params: def.params,
       position: referencePanel ? { direction: 'right', referencePanel } : undefined,
     });
     closedPanelIds.current.delete(id);
@@ -557,18 +565,18 @@ export function ChatSurface({
   useEffect(() => {
     const api = dockApiRef.current;
     if (!api) return;
-    api.getPanel('sessions')?.update({ params: { node: sessionRailNode } });
-    api.getPanel('transcript')?.update({ params: { node: centerContent } });
+    api.getPanel('sessions')?.update({ params: panelDefs.sessions.params });
+    api.getPanel('transcript')?.update({ params: panelDefs.transcript.params });
     const executionPanel = api.getPanel('executionRail');
     if (executionRailNode) {
       if (executionPanel) {
-        executionPanel.update({ params: { node: executionRailNode } });
+        executionPanel.update({ params: panelDefs.executionRail.params });
       } else if (!closedPanelIds.current.has('executionRail')) {
         api.addPanel({
           id: 'executionRail',
           component: 'executionRail',
           title: 'Execution',
-          params: { node: executionRailNode },
+          params: panelDefs.executionRail.params,
           position: { direction: 'right', referencePanel: 'transcript' },
         });
       }
@@ -577,13 +585,13 @@ export function ChatSurface({
     }
     const flowPanel = api.getPanel('flow');
     if (flowPanel) {
-      flowPanel.update({ params: { node: flowNode } });
+      flowPanel.update({ params: panelDefs.flow.params });
     } else if (!closedPanelIds.current.has('flow')) {
       api.addPanel({
         id: 'flow',
         component: 'flow',
         title: 'Flow',
-        params: { node: flowNode },
+        params: panelDefs.flow.params,
         // Note: the plan's original sketch tabbed Flow `within` the
         // execution rail group. dockview-react only mounts the active tab's
         // panel body, so that hid `chat-dock-execution-rail` from the DOM
@@ -601,13 +609,13 @@ export function ChatSurface({
     }
     const todosPanel = api.getPanel('todos');
     if (todosPanel) {
-      todosPanel.update({ params: { node: todosNode } });
+      todosPanel.update({ params: panelDefs.todos.params });
     } else if (!closedPanelIds.current.has('todos')) {
       api.addPanel({
         id: 'todos',
         component: 'todos',
         title: 'To-dos',
-        params: { node: todosNode },
+        params: panelDefs.todos.params,
         position: {
           direction: 'right',
           referencePanel: api.getPanel('flow') ? 'flow' : api.getPanel('executionRail') ? 'executionRail' : 'transcript',
@@ -617,13 +625,13 @@ export function ChatSurface({
     // Opt-in panels: update-only, no create branch. They can only be
     // (re)created via the Panels menu's Add section (Step 4 below) — this is
     // what makes the "resurrects after close" bug structurally impossible.
-    api.getPanel('needs-you')?.update({ params: { node: needsYouNode } });
-    api.getPanel('voxgraph')?.update({ params: { node: voxGraphNode } });
-    api.getPanel('activity')?.update({ params: { node: activityNode } });
-    api.getPanel('repository')?.update({ params: { node: repositoryNode } });
-    api.getPanel('mercatus')?.update({ params: { node: mercatusNode } });
-    api.getPanel('harness')?.update({ params: { node: harnessNode } });
-    api.getPanel('approvals')?.update({ params: approvalsParams });
+    api.getPanel('needs-you')?.update({ params: panelDefs['needs-you'].params });
+    api.getPanel('voxgraph')?.update({ params: panelDefs.voxgraph.params });
+    api.getPanel('activity')?.update({ params: panelDefs.activity.params });
+    api.getPanel('repository')?.update({ params: panelDefs.repository.params });
+    api.getPanel('mercatus')?.update({ params: panelDefs.mercatus.params });
+    api.getPanel('harness')?.update({ params: panelDefs.harness.params });
+    api.getPanel('approvals')?.update({ params: panelDefs.approvals.params });
   });
 
   return (
@@ -730,7 +738,7 @@ export function ChatSurface({
             // (ChatDockShell's localStorage persistence) already recreates
             // these panels, so onReady must not re-add them.
             if (!event.api.getPanel('sessions')) {
-              event.api.addPanel({ id: 'sessions', component: 'sessions', title: 'Sessions', params: { node: sessionRailNode } });
+              event.api.addPanel({ id: 'sessions', component: 'sessions', title: 'Sessions', params: panelDefs.sessions.params });
             }
             if (!event.api.getPanel('transcript')) {
               event.api.addPanel({
@@ -738,7 +746,7 @@ export function ChatSurface({
                 component: 'transcript',
                 tabComponent: 'transcript',
                 title: 'Chat',
-                params: { node: centerContent },
+                params: panelDefs.transcript.params,
                 position: { direction: 'right', referencePanel: 'sessions' },
               });
             }
@@ -747,7 +755,7 @@ export function ChatSurface({
                 id: 'executionRail',
                 component: 'executionRail',
                 title: 'Execution',
-                params: { node: executionRailNode },
+                params: panelDefs.executionRail.params,
                 position: { direction: 'right', referencePanel: 'transcript' },
               });
             }
