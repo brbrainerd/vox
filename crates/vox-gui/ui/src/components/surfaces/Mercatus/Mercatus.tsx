@@ -27,7 +27,7 @@ interface PriceWatchConfig {
 
 type LoadState = 'loading' | 'ok' | 'error';
 
-export function Mercatus() {
+export function Mercatus({ condensed }: { condensed?: boolean }) {
   const navLabel = useLabel('mercatus');
   const [cfg, setCfg] = useState<PriceWatchConfig | null>(null);
   const [state, setState] = useState<LoadState>('loading');
@@ -45,6 +45,17 @@ export function Mercatus() {
   const sources = cfg?._meta?.sources ?? {};
   const parts = cfg?.watchlist ?? [];
   const allSourceKeys = Object.keys(sources).filter(k => sources[k].enabled);
+
+  if (condensed) {
+    return (
+      <section className="space-y-2 text-[11px] text-text-muted">
+        <h2 className="font-display text-xs text-text-primary tracking-wider uppercase">{navLabel}</h2>
+        {state === 'loading' && <div className="animate-pulse">Loading…</div>}
+        {state === 'error' && <div className="text-red-400">{err}</div>}
+        {state === 'ok' && <div>{parts.length} parts · {allSourceKeys.length} enabled sources</div>}
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-4">

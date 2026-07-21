@@ -90,8 +90,26 @@ function RepositoryDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode 
   return <div data-testid="chat-dock-repository" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
 }
 
-function MercatusDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
-  return <div data-testid="chat-dock-mercatus" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
+// Mercatus's coverage matrix + source registry tables need real horizontal
+// room per the original audit (~320-360px); condensed content reuses the
+// "{parts.length} parts · {N} enabled sources" line Mercatus itself already
+// computes and shows in its full view.
+const MERCATUS_FULL_WIDTH_PX = 340;
+
+export function MercatusDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  const [width, setWidth] = React.useState(props.api.width);
+  React.useEffect(() => {
+    const disposable = props.api.onDidDimensionsChange(() => setWidth(props.api.width));
+    return () => disposable.dispose();
+  }, [props.api]);
+  const condensed = width < MERCATUS_FULL_WIDTH_PX;
+  return (
+    <div data-testid="chat-dock-mercatus" className="h-full overflow-y-auto p-2">
+      {React.isValidElement(props.params.node)
+        ? React.cloneElement(props.params.node as React.ReactElement<any>, { condensed })
+        : props.params.node}
+    </div>
+  );
 }
 
 function HarnessDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {

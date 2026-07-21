@@ -43,7 +43,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 const noopToast = () => {};
 
-import { ChatSurface, ApprovalsDockPanel } from './ChatSurface';
+import { ChatSurface, ApprovalsDockPanel, MercatusDockPanel } from './ChatSurface';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 
@@ -1048,6 +1048,26 @@ describe('ApprovalsDockPanel width-driven toggle', () => {
       />,
     );
     expect(screen.getByRole('link', { name: /open full view/i })).toBeInTheDocument();
+  });
+});
+
+describe('MercatusDockPanel width-driven toggle', () => {
+  function StubMercatus({ condensed }: { condensed?: boolean }) {
+    return <div data-testid="mercatus-stub">{condensed ? 'condensed' : 'full'}</div>;
+  }
+
+  it('passes condensed=true to its node below the audited threshold, condensed=false at/above it', () => {
+    let onChange: (() => void) | undefined;
+    const api = {
+      width: 300,
+      onDidDimensionsChange: vi.fn((cb: () => void) => { onChange = cb; return { dispose: vi.fn() }; }),
+    } as any;
+    render(<MercatusDockPanel api={api} params={{ node: <StubMercatus /> }} />);
+    expect(screen.getByTestId('mercatus-stub')).toHaveTextContent('condensed');
+
+    api.width = 340;
+    act(() => onChange?.());
+    expect(screen.getByTestId('mercatus-stub')).toHaveTextContent('full');
   });
 });
 
