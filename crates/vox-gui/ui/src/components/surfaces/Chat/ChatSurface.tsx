@@ -695,45 +695,35 @@ export function ChatSurface({
             </button>
             {panelsMenuOpen ? (
               <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl">
-                {CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null)
-                  .filter(id => closedPanelIds.current.has(id))
-                  .map(id => (
-                    <button
+                {[
+                  ...CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null),
+                  ...OPT_IN_PANEL_IDS,
+                ].map(id => {
+                  const isOpen = !!dockApiRef.current?.getPanel(id);
+                  return (
+                    <label
                       key={id}
-                      type="button"
-                      onClick={() => {
-                        const api = dockApiRef.current;
-                        if (api) addDefaultPanel(api, id);
-                        setPanelsMenuOpen(false);
-                        panelsTriggerRef.current?.focus();
-                      }}
-                      className="block w-full rounded px-2 py-1.5 text-left text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
+                      className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
                     >
+                      <input
+                        type="checkbox"
+                        checked={isOpen}
+                        onChange={() => {
+                          const api = dockApiRef.current;
+                          if (!api) return;
+                          const panel = api.getPanel(id);
+                          if (panel) {
+                            api.removePanel(panel);
+                            closedPanelIds.current.add(id); // core panels still need this guard
+                          } else {
+                            addDefaultPanel(api, id);
+                          }
+                        }}
+                      />
                       {panelDefs[id].title}
-                    </button>
-                  ))}
-                {CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null).every(
-                  id => !closedPanelIds.current.has(id),
-                ) ? (
-                  <div className="px-2 py-1.5 text-xs text-text-muted/60">All panels open</div>
-                ) : null}
-                <div className="my-1 border-t border-border-subtle" />
-                <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-text-muted/60">Add</div>
-                {OPT_IN_PANEL_IDS.filter(id => !dockApiRef.current?.getPanel(id)).map(id => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => {
-                      const api = dockApiRef.current;
-                      if (api) addDefaultPanel(api, id);
-                      setPanelsMenuOpen(false);
-                      panelsTriggerRef.current?.focus();
-                    }}
-                    className="block w-full rounded px-2 py-1.5 text-left text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
-                  >
-                    {panelDefs[id].title}
-                  </button>
-                ))}
+                    </label>
+                  );
+                })}
                 <div className="my-1 border-t border-border-subtle" />
                 <button
                   type="button"
