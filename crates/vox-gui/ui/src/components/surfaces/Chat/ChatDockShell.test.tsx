@@ -33,4 +33,34 @@ describe('ChatDockShell', () => {
 
     fromJSONSpy.mockRestore();
   });
+
+  it('never persists panel params (live React nodes) — only geometry survives the round trip', async () => {
+    // Reproduces the React error #31 crash: a panel's params.node is a live
+    // React element. JSON.stringify silently drops its `type` (a function)
+    // and `$$typeof` (a Symbol), leaving a garbled {key, ref, props} object
+    // that crashes on the next launch's first render if it's ever restored.
+    // Real timers (not fake) — dockview's layout-change notification is
+    // scheduled via requestAnimationFrame internally, which fake timers
+    // don't intercept by default; a short real wait past the debounce is
+    // simpler and non-flaky here.
+    function Probe(props: { params: { node: React.ReactNode } }) {
+      return <div>{props.params.node}</div>;
+    }
+    const onReady = vi.fn((event) => {
+      event.api.addPanel({
+        id: 'probe',
+        component: 'probe',
+        params: { node: <span>live content</span> },
+      });
+    });
+    render(<ChatDockShell onReady={onReady} components={{ probe: Probe }} />);
+
+    await new Promise((resolve) => setTimeout(resolve, 1200)); // past LAYOUT_PERSIST_DEBOUNCE_MS (1000ms)
+
+    const persisted = localStorage.getItem(LAYOUT_STORAGE_KEY);
+    expect(persisted).not.toBeNull();
+    expect(persisted).not.toContain('"params"');
+    // Sanity: geometry (the panel id) still made it through.
+    expect(persisted).toContain('probe');
+  }, 10000);
 });

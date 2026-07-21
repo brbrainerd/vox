@@ -6,11 +6,18 @@ import { LAYOUT_PERSIST_DEBOUNCE_MS } from '../../../config/constants';
 /** localStorage key for the persisted chat dockview layout. Exported so
  * other modules (e.g. a future "reset layout" action) can reuse it without
  * duplicating the string literal. */
-// v2: bumped to invalidate any layout snapshot persisted by v1, which had
-// no guard against saving degenerate geometry captured before the webview's
-// first real paint (e.g. a near-zero-width container) — such a snapshot
-// would otherwise replay forever via fromJSON on every future launch.
-export const LAYOUT_STORAGE_KEY = 'gui.chat.dockview_layout.v2';
+// v3: bumped again — v2 (and v1 before it) persisted each panel's `params`
+// verbatim as part of dockview's toJSON() grid tree, which for every panel
+// in this app is `{ node: <live React element> }`. JSON.stringify silently
+// drops a React element's `type` (a function) and `$$typeof` (a Symbol),
+// leaving a garbled `{key, ref, props}` plain object. Restoring that via
+// fromJSON on the next launch fed the garbage straight into a panel's
+// first render (`{props.params.node}`), before the refresh effect ever got
+// a chance to overwrite it with a real node — crashing with React error #31
+// on every subsequent launch, since the corrupted snapshot just re-persisted
+// itself. Panel params (any live React content) must never be persisted;
+// only geometry should be. See the params-stripping replacer below.
+export const LAYOUT_STORAGE_KEY = 'gui.chat.dockview_layout.v3';
 
 interface ChatDockShellProps {
   components: Record<string, React.FunctionComponent<IDockviewPanelProps>>;
@@ -47,7 +54,15 @@ export function ChatDockShell({ components, onReady }: ChatDockShellProps) {
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
           try {
-            window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(event.api.toJSON()));
+            // Strip every `params` field (each panel's live React node, per
+            // GroupviewPanelState) at any depth before persisting — only
+            // geometry should survive the round trip. See the
+            // LAYOUT_STORAGE_KEY comment above for why this is required,
+            // not optional.
+            const serialized = JSON.stringify(event.api.toJSON(), (key, value) =>
+              key === 'params' ? undefined : value,
+            );
+            window.localStorage.setItem(LAYOUT_STORAGE_KEY, serialized);
           } catch (err) {
             console.warn('failed to persist dockview layout', err);
           }
