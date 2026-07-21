@@ -241,6 +241,12 @@ export function ChatSurface({
   // explicitly asks for it back." Cleared per-id by the reopen/reset actions
   // (Tasks 4/5), not by this effect.
   const closedPanelIds = useRef<Set<string>>(new Set());
+  // Tracks the order opt-in panels were (most-recently) activated in, so a
+  // newly-opened opt-in panel positions itself next to the last one the user
+  // opened rather than always inserting at the same fixed referenceChain
+  // slot. Core panels keep their existing fixed-position behavior — this
+  // only affects OPT_IN_PANEL_IDS.
+  const activationOrderRef = useRef<string[]>([]);
 
   const [routingOpen, setRoutingOpen] = useState(false);
   const [panelsMenuOpen, setPanelsMenuOpen] = useState(false);
@@ -550,19 +556,43 @@ export function ChatSurface({
     approvals: { title: labelForNavKey('approvals'), params: approvalsParams, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
   };
 
+  // Positions a newly-activated opt-in panel next to whichever opt-in panel
+  // was activated immediately before it, instead of always inserting at a
+  // fixed referenceChain slot. Falls back to the anchor chain (the same
+  // chain core panels use) only when no opt-in panel has been activated yet
+  // this session — or when the last-activated one is no longer open.
+  const positionForActivation = (
+    api: DockviewApi,
+    def: (typeof panelDefs)[ChatDockPanelId],
+  ): { direction: 'right'; referencePanel: string } | undefined => {
+    const last = activationOrderRef.current[activationOrderRef.current.length - 1];
+    if (last && api.getPanel(last)) return { direction: 'right', referencePanel: last };
+    const anchor = def.referenceChain.find(candidateId => api.getPanel(candidateId));
+    return anchor ? { direction: 'right', referencePanel: anchor } : undefined;
+  };
+
   // Plain function, not useCallback: panelDefs is a fresh object every render.
   const addDefaultPanel = (api: DockviewApi, id: ChatDockPanelId) => {
     const def = panelDefs[id];
-    const referencePanel = def.referenceChain.find(candidateId => api.getPanel(candidateId));
+    const isOptIn = (OPT_IN_PANEL_IDS as readonly string[]).includes(id);
+    const position = isOptIn
+      ? positionForActivation(api, def)
+      : (() => {
+          const referencePanel = def.referenceChain.find(candidateId => api.getPanel(candidateId));
+          return referencePanel ? ({ direction: 'right', referencePanel } as const) : undefined;
+        })();
     api.addPanel({
       id,
       component: id,
       ...(id === 'transcript' ? { tabComponent: 'transcript' } : {}),
       title: def.title,
       params: def.params,
-      position: referencePanel ? { direction: 'right', referencePanel } : undefined,
+      position,
     });
     closedPanelIds.current.delete(id);
+    if (isOptIn) {
+      activationOrderRef.current = [...activationOrderRef.current.filter(existing => existing !== id), id];
+    }
   };
 
   // Refresh each panel's `node` param on every render so dockview reflects

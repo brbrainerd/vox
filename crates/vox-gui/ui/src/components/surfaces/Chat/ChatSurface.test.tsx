@@ -755,6 +755,44 @@ describe('ChatSurface', () => {
     expect(screen.getByTestId('chat-dock-harness')).toBeInTheDocument();
   });
 
+  it('positions a newly-activated opt-in panel after the most-recently-activated opt-in panel, not a fixed referenceChain slot', async () => {
+    // Real assertion mechanism: spy on DockviewApi.prototype.addPanel (the
+    // real dockview library runs in this jsdom suite — nothing about it is
+    // mocked) and inspect the `position.referencePanel` dockview actually
+    // received for Harness's addPanel call. The old fixed referenceChain for
+    // every opt-in panel was `['todos', 'flow', 'executionRail',
+    // 'transcript']`, and `todos` is always present in this test's default
+    // render — so a fixed-chain implementation would call addPanel with
+    // `referencePanel: 'todos'` for Harness regardless of what was opened
+    // before it. Activation-order positioning must instead reference
+    // 'mercatus', the panel activated immediately before Harness. Asserting
+    // "both panels exist" alone (as the plan's own Step 1 sketch left
+    // unresolved) would pass under either implementation and prove nothing
+    // about relative position — this asserts the actual argument dockview's
+    // API received, which only the new behavior can produce.
+    const { DockviewApi } = await import('dockview');
+    const addPanelSpy = vi.spyOn(DockviewApi.prototype, 'addPanel');
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <LanguageProvider>
+        <QueryClientProvider client={client}>
+          <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+        </QueryClientProvider>
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^mercatus$/i }));
+    await screen.findByTestId('chat-dock-mercatus');
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^harness$/i }));
+    await screen.findByTestId('chat-dock-harness');
+
+    const harnessCall = addPanelSpy.mock.calls.find(([opts]) => opts.id === 'harness');
+    expect(harnessCall).toBeDefined();
+    expect(harnessCall![0].position).toEqual({ direction: 'right', referencePanel: 'mercatus' });
+    addPanelSpy.mockRestore();
+  });
+
   it('the Harness panel does not resurrect on the next render after being closed', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
