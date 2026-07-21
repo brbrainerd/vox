@@ -145,6 +145,8 @@ export function ChatSurface({
   const closedPanelIds = useRef<Set<string>>(new Set());
 
   const [routingOpen, setRoutingOpen] = useState(false);
+  const [panelsMenuOpen, setPanelsMenuOpen] = useState(false);
+  const panelsTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!routingOpen) return;
@@ -154,6 +156,28 @@ export function ChatSurface({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [routingOpen]);
+
+  useEffect(() => {
+    if (!panelsMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPanelsMenuOpen(false);
+        panelsTriggerRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [panelsMenuOpen]);
+
+  useEffect(() => {
+    if (!panelsMenuOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (panelsTriggerRef.current?.contains(e.target as Node)) return;
+      setPanelsMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [panelsMenuOpen]);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -447,6 +471,46 @@ export function ChatSurface({
       <h1 className="sr-only">Chat</h1>
 
       <div className="min-w-0 flex-1">
+        <div className="relative mb-2 flex justify-end">
+          <div className="relative">
+            <button
+              ref={panelsTriggerRef}
+              type="button"
+              aria-label="Panels"
+              aria-expanded={panelsMenuOpen}
+              onClick={() => setPanelsMenuOpen(o => !o)}
+              className="rounded-lg border border-border-subtle bg-overlay-subtle p-2 text-text-muted transition hover:border-brass/40 hover:text-brass"
+            >
+              <span className="font-mono text-xs">Panels ▾</span>
+            </button>
+            {panelsMenuOpen ? (
+              <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl">
+                {CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null)
+                  .filter(id => closedPanelIds.current.has(id))
+                  .map(id => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        const api = dockApiRef.current;
+                        if (api) addDefaultPanel(api, id);
+                        setPanelsMenuOpen(false);
+                        panelsTriggerRef.current?.focus();
+                      }}
+                      className="block w-full rounded px-2 py-1.5 text-left text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
+                    >
+                      {panelDefs[id].title}
+                    </button>
+                  ))}
+                {CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null).every(
+                  id => !closedPanelIds.current.has(id),
+                ) ? (
+                  <div className="px-2 py-1.5 text-xs text-text-muted/60">All panels open</div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
         <DockWorkspaceShell
           storageKeyPrefix="gui.chat"
           components={CHAT_DOCK_COMPONENTS}

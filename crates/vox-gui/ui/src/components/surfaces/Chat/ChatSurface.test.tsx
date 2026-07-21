@@ -331,6 +331,42 @@ describe('ChatSurface', () => {
     expect(screen.queryByLabelText('Collapse plan panel')).toBeNull();
     expect(screen.queryByLabelText('Expand plan panel')).toBeNull();
   });
+
+  it('Panels button toggles a popover open and closed, with Escape and focus-return', () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    const trigger = screen.getByRole('button', { name: /panels/i });
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('Panels popover lists a closed core panel and reopens it on click; clicking outside closes it', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-flow');
+
+    const flowTab = screen.getByText('Flow').closest('.dv-default-tab') as HTMLElement;
+    fireEvent.click(flowTab.querySelector('.dv-default-tab-action') as HTMLElement);
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-flow')).toBeNull());
+
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^flow$/i }));
+    await waitFor(() => expect(screen.getByTestId('chat-dock-flow')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByText('All panels open')).toBeNull();
+  });
 });
 
 describe('session hydration ownership (F18: redundant double hydrate per session switch)', () => {
