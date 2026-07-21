@@ -1,23 +1,23 @@
 # Universal Dock Workspace Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Also required per `subagent-driven-development`: `superpowers:requesting-code-review` (two-stage review after every task) and `superpowers:finishing-a-development-branch` (after Phase 3).
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. `subagent-driven-development` itself requires four companion skills, all apply here: `superpowers:using-git-worktrees` (this plan is **already** running inside worktree `C:\Users\Owner\vox\.worktrees\axis-frontend-remediation`, branch `axis-frontend-remediation` — do NOT invoke `using-git-worktrees` to create a nested worktree, that's the failure mode it exists to prevent, not a step to repeat), `superpowers:writing-plans` (this document), two-stage spec-then-quality review per `subagent-driven-development`'s own process (not `requesting-code-review`, which is a different, single-pass flow), and `superpowers:finishing-a-development-branch` (after Phase 3). Also cite `superpowers:verification-before-completion` at every whole-effort verification task (1.9/2.7/3.9) and `superpowers:systematic-debugging` for any bug found during them.
 
-> **Supersedes an in-flight plan.** `docs/superpowers/plans/2026-07-20-dockview-panel-ux.md` has only its Task 1 landed (commit `1e689ed551` — the closed-panel-tracking fix). Its Tasks 2-6 (migrate Plan into dockview, extract a shared panel creator, add a reopen/reset Panels menu) are **absorbed into this plan's Phase 1** at the generalized-shell level and should be considered superseded, not executed separately — do not run that plan's remaining tasks; they'd duplicate Phase 1 below and conflict on the same files. `docs/superpowers/plans/2026-07-20-chat-flow-docking-redesign.md`'s Phase B (B1-B5) is fully landed; its B6 (visual pass) is a verification-only checklist with no code, independent of this plan — do it whenever convenient, it doesn't block or get superseded by anything here.
+> **Revision note (post-adversarial-audit, 3 parallel reviewers vs. the live codebase + skill files):** this revision fixes one plan-breaking defect (a single `DEFAULT_PANEL_IDS` array was being used for two incompatible jobs — "core panels the refresh effect auto-creates" and "Reset layout's target set" — meaning once Phase 2/3's 14 new panels were added to it, Reset would force-open all 19 panels every time, and the new panels would auto-resurrect on any re-render exactly like the original bug this whole effort started by fixing). Also fixes: a wrong file/line citation for `GroupOptions.locked` plus an overstated claim about what it does; Task 3.1's condensed/full toggle had no real implementation and a placeholder test — now built on a verified real API (`props.api.width`/`.height`, `onDidDimensionsChange`); a missing regression-test requirement; a documented but unaddressed duplicate-`<h1>` collision risk (`TasksView.tsx`); a double-polling risk when a surface's dock panel and its top-level tab are both mounted; a missing parallel-research recommendation for the 12 independent per-surface investigation steps; and several skill-citation corrections. See inline `**FIXED:**` markers below for exactly what changed and why.
 
-**Goal:** Generalize the chat-only dockview shell into a reusable `DockWorkspaceShell`, pin the chat transcript as a fixed non-closable center, rename the Plan panel to "To-dos," quiet the dockview chrome, add a Panels launcher (reopen/reset/add), and wire in the 14 app surfaces confirmed dockable by this session's full-codebase audit — while leaving Dashboard, Settings, Flow, Catalog, Browser, Console, Policies, and Runs untouched (confirmed structurally incompatible with docking).
+> **Supersedes an in-flight plan.** `docs/superpowers/plans/2026-07-20-dockview-panel-ux.md` has only its Task 1 landed (commit `1e689ed551` — the closed-panel-tracking fix). Its Tasks 2-6 are **absorbed into this plan's Phase 1** at the generalized-shell level — do not run them separately, they'd duplicate Phase 1 and conflict on the same files. `docs/superpowers/plans/2026-07-20-chat-flow-docking-redesign.md`'s Phase B (B1-B5) is fully landed; its B6 (visual pass) is independent, do it whenever convenient.
 
-**Architecture:** Phase 1 builds and hardens the generalized primitive using Chat as the only consumer (safest place to iterate — it's the surface already exercising this code). Phase 2 wires in the 6 surfaces confirmed as strong dockable candidates (narrow-friendly as-is). Phase 3 wires in the 8 condensed-capable surfaces, each needing a bespoke narrow/full toggle. Phase 2 and 3 each open with one fully-worked example task establishing the exact pattern, then a table-driven set of per-surface tasks that follow that pattern — this avoids repeating near-identical multi-hundred-line code blocks 14 times while keeping every task's specifics (component names, condensed content) concrete, not placeholder.
+**Goal:** Generalize the chat-only dockview shell into a reusable `DockWorkspaceShell`, pin the chat transcript as a fixed non-closable center, rename the Plan panel to "To-dos," quiet the dockview chrome, add a Panels launcher (reopen/reset/add), and wire in the 14 app surfaces confirmed dockable by this session's full-codebase audit as **opt-in, never-auto-opened** panels — distinct from the 5 core panels Reset restores — while leaving Dashboard, Settings, Flow, Catalog, Browser, Console, Policies, and Runs untouched.
 
-**Tech Stack:** React 19, TypeScript, dockview 6.6.1 (`DockviewReact`'s `tabComponents` prop — confirmed via `IDockviewReactProps.tabComponents?: Record<string, FC<IDockviewPanelHeaderProps>>` in the library's own `.d.ts`, distinct from the `components` prop already in use), Vitest + Testing Library.
+**Architecture:** Phase 1 builds and hardens the generalized primitive using Chat as the only consumer. Phase 2 wires in 6 strong dockable candidates. Phase 3 wires in 8 condensed-capable candidates, each with a real width/height-driven condensed/full toggle. **Core vs. opt-in split (new in this revision):** `CORE_PANEL_IDS` (sessions/transcript/executionRail/flow/todos) are auto-created on first mount and are Reset's target set, exactly as today. Every Phase 2/3 panel is `OPT_IN` — created *only* by an explicit Panels-menu click, never auto-created, never touched by Reset, and structurally cannot reproduce the original "refresh effect resurrects a closed panel" bug because it has no auto-create branch to guard in the first place.
+
+**Tech Stack:** React 19, TypeScript, dockview 6.6.1. `DockviewReact`'s `tabComponents` prop confirmed via `IDockviewReactProps.tabComponents?: Record<string, FC<IDockviewPanelHeaderProps>>` (`dockview.d.ts:9`). **FIXED:** a dock panel's own live rendered dimensions are available via `props.api.width`/`props.api.height` (both `readonly number`, `PanelApi` — `dockview-core/dist/esm/api/panelApi.d.ts:84-90`) and `props.api.onDidDimensionsChange` (`Event<PanelDimensionChangeEvent>`, same file line 17) — this is a real, always-on, reactive API, not something requiring investigation to discover; Task 3.1 below uses it directly. Vitest + Testing Library.
 
 **Ground truth confirmed for this plan (re-verify per the note above if time has passed and other work landed on these files):**
-- `crates/vox-gui/ui/src/components/surfaces/Chat/ChatDockShell.tsx` (85 lines) has layout persistence (params-stripped, `LAYOUT_STORAGE_KEY = 'gui.chat.dockview_layout.v3'`) and is otherwise a thin wrapper — this is the file being generalized into `DockWorkspaceShell`.
-- `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx` (517 lines): `CHAT_DOCK_COMPONENTS` (lines 55-60) currently has `sessions`/`transcript`/`executionRail`/`flow` — **no `plan` entry yet**, the Plan panel is still the old hand-rolled collapsible `<aside>` (search `planPanelCollapsed`). `closedPanelIds` (a `useRef<Set<string>>`) and its `onDidRemovePanel` listener already exist (landed by the superseded plan's Task 1) — reuse this, don't recreate it.
-- `crates/vox-gui/ui/src/components/surfaces/Chat/PlanPanel.tsx` (139 lines): props are exactly `planSessionId`, `planVersion`, `nodes` — internal names stay as-is (renaming them is pure churn); only user-visible copy changes ("No active plan" → "No to-dos yet", "Start a task to see its plan here." → "Start a task to see its to-do list here.", "No plan steps yet." → "Nothing to do yet.").
-- `crates/vox-gui/ui/src/styles/dockview-vox.css` (22 lines) sets `--dv-activegroup-visiblepanel-tab-background-color: rgba(212, 175, 55, 0.08)` (brass, low-opacity) already — the "blue" chrome the user saw is dockview's own **unthemed default** leaking through somewhere, not this file. Task 1.7 below investigates why.
-- `IDockviewReactProps.tabComponents?: Record<string, React.FunctionComponent<IDockviewPanelHeaderProps>>` confirmed in `node_modules/.pnpm/dockview@6.6.1_react@19.2.7/node_modules/dockview/dist/esm/dockview/dockview.d.ts:9` — a distinct prop from `components`, used to override a specific panel's tab renderer. This is the pin-chat mechanism.
-- No `alwaysShowTabs`/`hideTabsAndAction`-style single-panel-tab-suppression option was found in `dockview-core`'s `options.d.ts` (only `singleTabMode?: 'fullwidth' | 'default'`, which controls single-tab *styling*, not visibility). **Do not implement "tab row disappears when a group has 1 panel" as a promised feature — it's unverified.** Quiet chrome (Task 1.7) means visually smaller/lower-contrast, always present, not conditionally hidden.
-- The 22-surface audit (strong/condensed/excluded categorization, with per-surface natural/minimum dimensions and condensed-content specs) lives in this conversation's transcript and is summarized in the design spec `docs/superpowers/specs/2026-07-21-universal-dock-workspace-design.md` — Phase 2/3's tables below extract the load-bearing specifics from it directly, so implementers don't need to re-read the whole transcript.
+- `crates/vox-gui/ui/src/components/surfaces/Chat/ChatDockShell.tsx` (85 lines), `LAYOUT_STORAGE_KEY = 'gui.chat.dockview_layout.v3'`, `ChatSurface.tsx` (517 lines, `CHAT_DOCK_COMPONENTS` at lines 55-60 with `sessions`/`transcript`/`executionRail`/`flow`, no `plan`/`todos` entry yet), `closedPanelIds`/`onDidRemovePanel` already landed (lines 143, 409) — all independently re-verified byte-for-byte against the real files, unchanged from the prior draft.
+- `PlanPanel.tsx` (139 lines): props exactly `planSessionId`/`planVersion`/`nodes`; the three copy strings to change (`"No active plan"`, `"Start a task to see its plan here."`, `"No plan steps yet."`) all verified verbatim at lines 89/90/109. **FIXED:** `PlanPanel.test.tsx` (read in full) already contains an existing test at lines 65-68 asserting the *old* `"no active plan"` copy — Task 1.3 Step 1 below now explicitly updates it, not left to the final grep as a safety net.
+- `IDockviewReactProps.tabComponents` and `AddPanelOptions.tabComponent?: string` (`options.d.ts:288`) both confirmed. No `alwaysShowTabs`/`hideTabsAndAction` option exists anywhere in dockview-core (only `singleTabMode?: 'fullwidth' | 'default'`, styling not visibility) — quiet chrome (Task 1.7) means visually smaller/lower-contrast, always present, not conditionally hidden.
+- **FIXED — `GroupOptions.locked`, wrong citation corrected:** the prior draft cited `options.d.ts:118` — that's actually `DockviewOptions.locked?: boolean`, a whole-component option unrelated to any single group. The real group-level property is `CoreGroupOptions.locked?: DockviewGroupPanelLocked` in `dockview-core/dist/esm/dockview/dockviewGroupPanelModel.d.ts:28`, typed `DockviewGroupPanelLocked = boolean | 'no-drop-target'` (same file, line 91) — not a plain boolean. Its real doc comment (`dockviewGroupPanelApi.d.ts:32-37`): *"`true`: panels cannot be dropped into the group (center/tabs), but the group can still be split from its edges. `'no-drop-target'`: all drop zones are disabled."* **This describes preventing drop-INTO, not preventing drag-OUT** — Task 1.8 exists specifically to prevent the pinned transcript from being dragged *out*, which `locked` may not address at all. Access path is real (`panel.group.locked = true` via `IDockviewPanel.group: DockviewGroupPanel`, `dockviewPanel.d.ts:47`), but treat it as an unverified, possibly-inapplicable fallback, not a known-working one — Task 1.8 Step 5 below reflects this honestly.
+- The 22-surface audit lives in this conversation's transcript, summarized in `docs/superpowers/specs/2026-07-21-universal-dock-workspace-design.md`.
 
 ---
 
@@ -28,12 +28,9 @@
 **Files:**
 - Create: `crates/vox-gui/ui/src/components/dock/DockWorkspaceShell.tsx`
 - Create: `crates/vox-gui/ui/src/components/dock/DockWorkspaceShell.test.tsx`
-- Delete: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatDockShell.tsx` (after Task 1.2 repoints its one consumer)
-- Delete: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatDockShell.test.tsx` (its tests move to the new file)
+- Delete: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatDockShell.tsx` / `.test.tsx` (Task 1.2 repoints the consumer first)
 
 - [ ] **Step 1: Write the failing test**
-
-Copy `crates/vox-gui/ui/src/components/surfaces/Chat/ChatDockShell.test.tsx`'s three existing tests into a new file, updating only the import path and the one storage-key literal used by the "restores a previously serialized layout" test, plus add a new test proving the key is now parameterized:
 
 ```tsx
 // crates/vox-gui/ui/src/components/dock/DockWorkspaceShell.test.tsx
@@ -75,32 +72,15 @@ describe('DockWorkspaceShell', () => {
   it('two different storageKeyPrefix values persist to two different localStorage keys', () => {
     expect(layoutStorageKeyFor('gui.chat')).not.toBe(layoutStorageKeyFor('gui.other-host'));
   });
-
-  it('never persists panel params (live React nodes) — only geometry survives the round trip', async () => {
-    function Probe(props: { params: { node: React.ReactNode } }) {
-      return <div>{props.params.node}</div>;
-    }
-    const onReady = vi.fn((event) => {
-      event.api.addPanel({ id: 'probe', component: 'probe', params: { node: <span>live content</span> } });
-    });
-    render(<DockWorkspaceShell storageKeyPrefix="test.host2" onReady={onReady} components={{ probe: Probe }} />);
-
-    await new Promise((resolve) => setTimeout(resolve, 1200)); // past LAYOUT_PERSIST_DEBOUNCE_MS (1000ms)
-
-    const persisted = localStorage.getItem(layoutStorageKeyFor('test.host2'));
-    expect(persisted).not.toBeNull();
-    expect(persisted).not.toContain('"params"');
-    expect(persisted).toContain('probe');
-  }, 10000);
 });
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/dock/DockWorkspaceShell.test.tsx`
-Expected: FAIL — `./DockWorkspaceShell` doesn't exist yet.
+Expected: FAIL with "Cannot find module './DockWorkspaceShell'" (or equivalent) for all 3 tests — confirm it's this import error, not a typo elsewhere in the test file, before proceeding.
 
-- [ ] **Step 3: Create `DockWorkspaceShell`**
+- [ ] **Step 3: Create `DockWorkspaceShell`'s mount/restore/key-isolation behavior**
 
 ```tsx
 // crates/vox-gui/ui/src/components/dock/DockWorkspaceShell.tsx
@@ -116,45 +96,31 @@ import { LAYOUT_PERSIST_DEBOUNCE_MS } from '../../config/constants';
 /**
  * Per-host localStorage key for a persisted dockview layout. Each host view
  * (Chat today; any future host) gets its own independent persisted layout —
- * `storageKeyPrefix` scopes it. Exported so callers (e.g. a "reset layout"
- * action) can compute the same key without duplicating the format string.
+ * `storageKeyPrefix` scopes it.
+ *
+ * IMPORTANT for any future consumer of DockWorkspaceShell: this shell does
+ * NOT itself track which panels a user has explicitly closed (see
+ * ChatSurface.tsx's `closedPanelIds` ref + `onDidRemovePanel` listener — that
+ * mechanism stays host-local, it was NOT folded into this shell). If your
+ * host view has any auto-recreate-if-missing logic for its own panels (the
+ * way ChatSurface's refresh effect does for its 5 core panels), you MUST
+ * build the same closedPanelIds-style guard yourself, or you will
+ * reintroduce the exact bug this whole effort started by fixing: a refresh
+ * effect silently re-adding a panel the user just closed. See
+ * ChatSurface.test.tsx's "does not resurrect the Flow panel on the next
+ * render after the user closes it" test as the required template.
  */
 export function layoutStorageKeyFor(storageKeyPrefix: string): string {
-  // v3 versioning carried over from the chat-only predecessor
-  // (ChatDockShell): v1/v2 persisted each panel's `params` verbatim, which
-  // for every panel in this app is `{ node: <live React element> }`.
-  // JSON.stringify silently drops a React element's `type` (a function) and
-  // `$$typeof` (a Symbol), leaving a garbled `{key, ref, props}` object that
-  // crashed on restore (React error #31) before the refresh mechanism ever
-  // got a chance to overwrite it with a real node. Fixed by stripping
-  // `params` before every write (see the replacer below) — the versioned
-  // key format is kept for any future storage-shape change, not because v3
-  // itself is expected to break.
   return `${storageKeyPrefix}.dockview_layout.v3`;
 }
 
 interface DockWorkspaceShellProps {
-  /** Scopes this shell's persisted layout to one host view, e.g. `'gui.chat'`. */
   storageKeyPrefix: string;
   components: Record<string, React.FunctionComponent<IDockviewPanelProps>>;
-  /** Per-panel custom tab renderers, e.g. to hide a specific panel's tab
-   * strip/close button/drag handle entirely (see the transcript-pinning use
-   * in ChatSurface.tsx). Optional — omit for the default tab everywhere. */
   tabComponents?: Record<string, React.FunctionComponent<IDockviewPanelHeaderProps>>;
   onReady: (event: DockviewReadyEvent) => void;
 }
 
-/**
- * Reusable dockview shell for any host view's panel workspace. Theming via
- * the `dockview-theme-vox` class (crates/vox-gui/ui/src/styles/dockview-vox.css),
- * not the `theme` prop.
- *
- * Layout persistence: the dockview grid layout is serialized to
- * localStorage (debounced, params-stripped) on every change, and restored
- * on mount before the caller's `onReady` runs. Callers must guard their
- * `addPanel` calls with `if (!event.api.getPanel(id))` so a restored layout
- * doesn't get duplicate panels re-added.
- */
 export function DockWorkspaceShell({
   storageKeyPrefix,
   components,
@@ -205,45 +171,77 @@ export function DockWorkspaceShell({
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/dock/DockWorkspaceShell.test.tsx`
-Expected: PASS, all 4 tests.
+Expected: PASS, all 3 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add crates/vox-gui/ui/src/components/dock/DockWorkspaceShell.tsx crates/vox-gui/ui/src/components/dock/DockWorkspaceShell.test.tsx
-git commit -m "feat(gui): extract DockWorkspaceShell — reusable, per-host dockview shell generalized from ChatDockShell"
+git commit -m "feat(gui): extract DockWorkspaceShell (mount/restore/key-isolation) — reusable dockview shell generalized from ChatDockShell"
 ```
 
-Do not delete `ChatDockShell.tsx` yet — Task 1.2 repoints its consumer first, then deletes it in the same commit as that repoint (so the tree never has two shells with drifted behavior).
+- [ ] **Step 6: Write the failing test for params-stripped persistence**
+
+This is a separate behavior (debounced write + params-stripping) from Step 1-5's mount/restore — a distinct increment, not folded into the same red/green cycle:
+
+```tsx
+// Add to DockWorkspaceShell.test.tsx
+it('never persists panel params (live React nodes) — only geometry survives the round trip', async () => {
+  function Probe(props: { params: { node: React.ReactNode } }) {
+    return <div>{props.params.node}</div>;
+  }
+  const onReady = vi.fn((event) => {
+    event.api.addPanel({ id: 'probe', component: 'probe', params: { node: <span>live content</span> } });
+  });
+  render(<DockWorkspaceShell storageKeyPrefix="test.host2" onReady={onReady} components={{ probe: Probe }} />);
+
+  await new Promise((resolve) => setTimeout(resolve, 1200)); // past LAYOUT_PERSIST_DEBOUNCE_MS (1000ms)
+
+  const persisted = localStorage.getItem(layoutStorageKeyFor('test.host2'));
+  expect(persisted).not.toBeNull();
+  expect(persisted).not.toContain('"params"');
+  expect(persisted).toContain('probe');
+}, 10000);
+```
+
+- [ ] **Step 7: Run test to verify it passes (implementation already exists from Step 3)**
+
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/dock/DockWorkspaceShell.test.tsx`
+Expected: PASS, all 4 tests — Step 3's implementation already includes the params-stripping replacer, so this test should pass immediately; if it doesn't, that's a real gap in Step 3 to fix before committing.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add crates/vox-gui/ui/src/components/dock/DockWorkspaceShell.test.tsx
+git commit -m "test(gui): lock in DockWorkspaceShell's params-stripping persistence behavior"
+```
+
+Do not delete `ChatDockShell.tsx` yet — Task 1.2 repoints its consumer first, then deletes it in the same commit as that repoint.
 
 ### Task 1.2: Repoint `ChatSurface` onto `DockWorkspaceShell`, delete `ChatDockShell`
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`
-- Delete: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatDockShell.tsx`
-- Delete: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatDockShell.test.tsx`
+- Delete: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatDockShell.tsx` / `.test.tsx`
 
 - [ ] **Step 1: Confirm nothing else imports `ChatDockShell`**
 
 Run: `grep -rln "ChatDockShell" crates/vox-gui/ui/src --include=*.tsx --include=*.ts`
-Expected: only `ChatSurface.tsx` and the two files being deleted. If anything else appears, stop and investigate before deleting.
+Expected: only `ChatSurface.tsx` and the two files being deleted.
 
-- [ ] **Step 2: Update the import and call site in `ChatSurface.tsx`**
+- [ ] **Step 2: Update the import and call site**
 
-Replace:
 ```tsx
+// Replace
 import { ChatDockShell } from './ChatDockShell';
-```
-with:
-```tsx
+// With
 import { DockWorkspaceShell } from '../../dock/DockWorkspaceShell';
 ```
 
-Replace the `<ChatDockShell components={CHAT_DOCK_COMPONENTS} onReady={...} />` usage with:
 ```tsx
+// Replace <ChatDockShell components={CHAT_DOCK_COMPONENTS} onReady={...} /> with:
 <DockWorkspaceShell storageKeyPrefix="gui.chat" components={CHAT_DOCK_COMPONENTS} onReady={...} />
 ```
-(keep the existing `onReady` callback body unchanged for this task — later tasks in this phase modify it).
 
 - [ ] **Step 3: Delete the old shell files**
 
@@ -254,7 +252,7 @@ rm crates/vox-gui/ui/src/components/surfaces/Chat/ChatDockShell.tsx crates/vox-g
 - [ ] **Step 4: Run the full frontend suite**
 
 Run: `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit`
-Expected: 100% pass, zero regressions. `ChatSurface.test.tsx`'s existing dockview-panel tests must still pass unchanged (they assert on `chat-dock-*` testids, which don't depend on which shell component renders them).
+Expected: 100% pass, zero regressions.
 
 - [ ] **Step 5: Commit**
 
@@ -264,29 +262,33 @@ git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatDockShell.tsx crates/
 git commit -m "refactor(gui): ChatSurface uses the generalized DockWorkspaceShell, delete the chat-only predecessor"
 ```
 
-(The `git add` on the two deleted files stages their removal. Run `git status` first to confirm only `ChatSurface.tsx`'s modification plus those two deletions are staged — nothing else.)
+Run `git status` first — confirm only `ChatSurface.tsx`'s modification plus the two deletions are staged.
 
 ### Task 1.3: Migrate the Plan panel into the dock as "To-dos," delete the old collapse toggle
 
 **Files:**
-- Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`
-- Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/PlanPanel.tsx` (copy only)
-- Test: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx` (extend)
-- Test: `crates/vox-gui/ui/src/components/surfaces/Chat/PlanPanel.test.tsx` (extend, if it exists — check first)
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`, `PlanPanel.tsx` (copy only)
+- Test: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx`, `PlanPanel.test.tsx` (both extend)
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Update the existing stale test and write the new failing tests**
+
+**FIXED:** `PlanPanel.test.tsx` already has a test at lines 65-68 asserting the *old* copy — update it now, don't leave it to a final grep:
+
+```tsx
+// PlanPanel.test.tsx — UPDATE this existing test (was asserting /no active plan/i)
+it('renders an honest empty state when there is no active plan', () => {
+  render(<PlanPanel planSessionId={null} planVersion={null} nodes={[]} />);
+  expect(screen.getByText(/no to-dos yet/i)).toBeInTheDocument();
+});
+```
 
 ```tsx
 // Add to ChatSurface.test.tsx
 it('mounts the To-dos panel as a dockview panel, not a hand-rolled collapsible aside', () => {
   render(
     <ChatSurface
-      pushToast={vi.fn()}
-      onNavigate={vi.fn()}
-      messages={[]}
-      composer={<div>composer</div>}
-      planSessionId="sess-1"
-      planVersion={1}
+      pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>}
+      planSessionId="sess-1" planVersion={1}
     />,
   );
   expect(screen.getByTestId('chat-dock-todos')).toBeInTheDocument();
@@ -296,51 +298,36 @@ it('mounts the To-dos panel as a dockview panel, not a hand-rolled collapsible a
 ```
 
 ```tsx
-// Add to PlanPanel.test.tsx (check its current tests' render conventions first)
-it('shows to-do-list-labeled empty and zero-step copy, not "plan" language', () => {
+// Add to PlanPanel.test.tsx
+it('shows to-do-list-labeled zero-step copy, not "plan" language', () => {
   render(<PlanPanel planSessionId="s1" planVersion={1} nodes={[]} />);
   expect(screen.getByText('Nothing to do yet.')).toBeInTheDocument();
-});
-
-it('shows a to-do-list-labeled empty state when there is no active session', () => {
-  render(<PlanPanel planSessionId={null} planVersion={null} nodes={[]} />);
-  expect(screen.getByText('No to-dos yet')).toBeInTheDocument();
-  expect(screen.getByText('Start a task to see its to-do list here.')).toBeInTheDocument();
 });
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/surfaces/Chat/ChatSurface.test.tsx src/components/surfaces/Chat/PlanPanel.test.tsx`
-Expected: FAIL — no `chat-dock-todos` testid, and the old "No active plan"/"Start a task to see its plan here."/"No plan steps yet." copy doesn't match.
+Expected: FAIL — the updated existing test now looks for "no to-dos yet" (not yet in the code), the new `chat-dock-todos` testid doesn't exist, "Nothing to do yet." doesn't exist. Confirm these are the failure reasons, not a syntax error in the test edits.
 
 - [ ] **Step 3: Update `PlanPanel.tsx`'s user-visible copy**
 
-In `crates/vox-gui/ui/src/components/surfaces/Chat/PlanPanel.tsx`, change only the three literal strings (keep every prop/type/function name — `PlanPanel`, `PlanNodeView`, `planSessionId`, `planVersion` — unchanged, per the plan header's note that renaming those would be pure churn):
-
 ```tsx
-// Line ~89 area, inside the no-active-plan EmptyState:
-<EmptyState
-  title="No to-dos yet"
-  description="Start a task to see its to-do list here."
-/>
+// Line ~89 area
+<EmptyState title="No to-dos yet" description="Start a task to see its to-do list here." />
 ```
-
 ```tsx
-// Line ~109 area, the empty-nodes-list message:
+// Line ~109 area
 <p className="text-[11px] text-text-muted">Nothing to do yet.</p>
 ```
 
 - [ ] **Step 4: Add the `TodosDockPanel` component and register it**
-
-In `ChatSurface.tsx`, near the other panel components:
 
 ```tsx
 function TodosDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
   return <div data-testid="chat-dock-todos" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
 }
 ```
-
 ```tsx
 const CHAT_DOCK_COMPONENTS = {
   sessions: SessionsPanel,
@@ -353,13 +340,9 @@ const CHAT_DOCK_COMPONENTS = {
 
 - [ ] **Step 5: Build `todosNode` and add it to the refresh effect**
 
-Near `flowNode`:
-
 ```tsx
 const todosNode = <PlanPanel planSessionId={planSessionId} planVersion={planVersion} nodes={planNodes} />;
 ```
-
-In the refresh `useEffect`, mirror the existing `flow` branch exactly (including the `closedPanelIds` guard already landed there):
 
 ```tsx
 const todosPanel = api.getPanel('todos');
@@ -381,60 +364,36 @@ if (todosPanel) {
 
 - [ ] **Step 6: Delete the old Plan panel collapse-toggle code**
 
-Remove: the `planPanelCollapsed`/`setPlanPanelCollapsed` `useLocalStorage` declaration (search `gui.chat.plan_panel_collapsed.v1`), and the entire old `{planPanelCollapsed ? <aside>...</aside> : <aside>...</aside>}` JSX block. Remove the `Glass` import only if nothing else in the file still uses `<Glass>` (`grep -n "Glass" crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx` first).
+Remove the `planPanelCollapsed`/`useLocalStorage` declaration and the entire old `<aside>` JSX block. Remove the `Glass` import only if unused elsewhere (`grep -n "Glass" ChatSurface.tsx` first).
 
-- [ ] **Step 7: Run tests to verify they pass**
+- [ ] **Step 7: Run tests to verify they pass, then the full suite**
 
-Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/surfaces/Chat/ChatSurface.test.tsx src/components/surfaces/Chat/PlanPanel.test.tsx`
-Expected: PASS, all tests including pre-existing ones.
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit` — 100% pass. Grep for any other reference to `plan_panel_collapsed`/`"No active plan"`/`"No plan steps yet."` before committing.
 
-- [ ] **Step 8: Run the full frontend suite**
-
-Run: `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit`
-Expected: 100% pass. Grep for any other reference to `plan_panel_collapsed`/`Collapse plan panel`/`Expand plan panel`/`"No active plan"`/`"No plan steps yet."` before committing.
-
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx crates/vox-gui/ui/src/components/surfaces/Chat/PlanPanel.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx crates/vox-gui/ui/src/components/surfaces/Chat/PlanPanel.test.tsx
 git commit -m "feat(gui): migrate Plan panel into the dock as To-dos (relabeled, not renamed internally — avoids colliding with the existing global Tasks surface)"
 ```
 
-### Task 1.4: Extract a shared per-id panel creator with the real fallback chain
+### Task 1.4: Extract `CORE_PANEL_IDS` / `addDefaultPanel` — refactor, not new behavior
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`
-- Test: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx` (extend)
 
-Tasks 1.2-1.3 left near-duplicate `addPanel` shapes inline in the refresh effect (executionRail/flow/todos), each with its own reference-panel fallback. Extract one function so the Task 1.5 Panels menu and Task 1.6 reset action don't reimplement (and potentially diverge from) that fallback logic.
+**FIXED — this task is now framed honestly as a pure extraction, not padded with a fake test.** The prior draft's Task 1.4 had a "failing test" that never called the function it was extracting, skipped the RED-verification step entirely, and left real coverage to Task 1.5 anyway (its own comment admitted this: *"Task 1.5's Panels-menu test supersedes this"*). Per the TDD skill, a pure refactor that changes no observable behavior, done under the safety net of the full existing passing suite, doesn't need an artificial new failing test invented to satisfy the letter of red-green — Task 1.5's real, click-driven reopen test is what actually exercises `addDefaultPanel` for the first time, and is where its correctness is genuinely proven.
 
-- [ ] **Step 1: Write the failing test**
+**FIXED — `CORE_PANEL_IDS`, not `DEFAULT_PANEL_IDS`.** The name change reflects a real behavior split, not cosmetics: this array is the set the refresh effect auto-creates AND the set Task 1.6's "Reset layout" restores. Phase 2/3's 14 new panels are never added to it (see Task 2.1/3.1).
 
-```tsx
-it('recreates a closed panel via the shared per-id creator, preserving its reference-panel fallback', async () => {
-  render(
-    <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />,
-  );
-  await screen.findByTestId('chat-dock-flow');
-
-  const flowTab = screen.getByText('Flow').closest('.dv-default-tab') as HTMLElement;
-  fireEvent.click(flowTab.querySelector('.dv-default-tab-action') as HTMLElement);
-  await waitFor(() => expect(screen.queryByTestId('chat-dock-flow')).toBeNull());
-
-  // Exercised directly here; Task 1.5's Panels-menu test supersedes this
-  // with a real click-driven end-to-end version — don't keep both once
-  // Task 1.5 lands, fold this assertion into that task's test instead.
-});
-```
-
-- [ ] **Step 2: Add `DEFAULT_PANEL_IDS` and `addDefaultPanel`**
+- [ ] **Step 1: Extract `CORE_PANEL_IDS`, `panelDefs`, `addDefaultPanel`**
 
 ```tsx
-const DEFAULT_PANEL_IDS = ['sessions', 'transcript', 'executionRail', 'flow', 'todos'] as const;
-type ChatDockPanelId = (typeof DEFAULT_PANEL_IDS)[number];
+const CORE_PANEL_IDS = ['sessions', 'transcript', 'executionRail', 'flow', 'todos'] as const;
+type CorePanelId = (typeof CORE_PANEL_IDS)[number];
 ```
 
-Inside `ChatSurface`, after `todosNode` is built (so all five node variables are in scope):
+Inside `ChatSurface`, after `todosNode` is built:
 
 ```tsx
 const panelDefs: Record<ChatDockPanelId, { title: string; node: React.ReactNode; referenceChain: ChatDockPanelId[] }> = {
@@ -445,9 +404,7 @@ const panelDefs: Record<ChatDockPanelId, { title: string; node: React.ReactNode;
   todos: { title: 'To-dos', node: todosNode, referenceChain: ['flow', 'executionRail', 'transcript'] },
 };
 
-// Plain function, not useCallback: panelDefs is a fresh object every
-// render (it closes over freshly-built JSX), so a memoized wrapper would
-// never actually skip recomputation.
+// Plain function, not useCallback: panelDefs is a fresh object every render.
 const addDefaultPanel = (api: DockviewApi, id: ChatDockPanelId) => {
   const def = panelDefs[id];
   const referencePanel = def.referenceChain.find(candidateId => api.getPanel(candidateId));
@@ -462,18 +419,24 @@ const addDefaultPanel = (api: DockviewApi, id: ChatDockPanelId) => {
 };
 ```
 
-Note `executionRail`'s node can be `null` — never call `addDefaultPanel(api, 'executionRail')` when `executionRailNode == null` (Task 1.5/1.6 callers must filter it out, same as the refresh effect already does).
+Note: `panelDefs`'s type is `Record<ChatDockPanelId, ...>` where `ChatDockPanelId` is defined as `CorePanelId` for now — Task 2.1 widens it to `CorePanelId | OptInPanelId` once opt-in panels exist:
 
-- [ ] **Step 3: Run the full frontend suite**
+```tsx
+type ChatDockPanelId = CorePanelId;
+```
+
+`executionRail`'s node can be `null` — never call `addDefaultPanel(api, 'executionRail')` when `executionRailNode == null`.
+
+- [ ] **Step 2: Run the full frontend suite (regression safety net, not a new-behavior check)**
 
 Run: `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit`
-Expected: 100% pass. `addDefaultPanel` isn't called by any UI yet (Task 1.5 wires it in) — that's expected.
+Expected: 100% pass, identical count to before this task — this extraction changes no observable behavior yet (`addDefaultPanel` isn't called by any UI until Task 1.5).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx
-git commit -m "refactor(gui): extract addDefaultPanel with the real reference-panel fallback chain"
+git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx
+git commit -m "refactor(gui): extract CORE_PANEL_IDS + addDefaultPanel with the real reference-panel fallback chain"
 ```
 
 ### Task 1.5: Add the Panels launcher popover with a reopen action
@@ -482,7 +445,7 @@ git commit -m "refactor(gui): extract addDefaultPanel with the real reference-pa
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`
 - Test: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx` (extend)
 
-Plain popover, **not** `role="menu"` — that role obligates full keyboard-menu semantics (arrow-key nav, Home/End) that this codebase's one existing instance of the pattern (`ChatSessionRail.tsx`'s session-actions menu) doesn't implement; don't add a second broken instance. Split into two steps (trigger, then contents) since one step covering both is too large per the writing-plans granularity guidance.
+Plain popover, **not** `role="menu"` (this codebase's one existing instance of that pattern, `ChatSessionRail.tsx`'s session-actions menu, doesn't implement full keyboard semantics — don't add a second broken instance).
 
 - [ ] **Step 1: Write the failing test for the trigger**
 
@@ -491,19 +454,20 @@ it('Panels button toggles a popover open and closed, with Escape and focus-retur
   render(<ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />);
   const trigger = screen.getByRole('button', { name: /panels/i });
   expect(trigger.getAttribute('aria-expanded')).toBe('false');
-
   fireEvent.click(trigger);
   expect(trigger.getAttribute('aria-expanded')).toBe('true');
-
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(trigger.getAttribute('aria-expanded')).toBe('false');
   expect(document.activeElement).toBe(trigger);
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails, then add the trigger button**
+- [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/surfaces/Chat/ChatSurface.test.tsx` — expect FAIL (no "Panels" button yet).
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/surfaces/Chat/ChatSurface.test.tsx`
+Expected: FAIL — `screen.getByRole('button', { name: /panels/i })` throws (no such element).
+
+- [ ] **Step 3: Add the trigger button**
 
 ```tsx
 const [panelsMenuOpen, setPanelsMenuOpen] = useState(false);
@@ -532,8 +496,6 @@ useEffect(() => {
 }, [panelsMenuOpen]);
 ```
 
-Add the trigger in the JSX, near the top of `ChatSurface`'s root, before the `DockWorkspaceShell` wrapper:
-
 ```tsx
 <div className="relative">
   <button
@@ -547,19 +509,22 @@ Add the trigger in the JSX, near the top of `ChatSurface`'s root, before the `Do
     <span className="font-mono text-xs">Panels ▾</span>
   </button>
   {panelsMenuOpen ? (
-    <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl">
-      {/* Step 4 fills this in */}
+    <div className="absolute left-0 top-full z-50 mt-1 w-56 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl">
+      {/* Step 5 fills this in */}
     </div>
   ) : null}
 </div>
 ```
 
-Run the test again — Expected: PASS.
+- [ ] **Step 4: Run test to verify it passes**
 
-- [ ] **Step 3: Write the failing test for reopen + outside-click**
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/surfaces/Chat/ChatSurface.test.tsx`
+Expected: PASS.
+
+- [ ] **Step 5: Write the failing test for reopening a core panel + outside-click**
 
 ```tsx
-it('Panels popover lists a closed panel and reopens it on click; clicking outside closes it', async () => {
+it('Panels popover lists a closed core panel and reopens it on click; clicking outside closes it', async () => {
   render(<ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />);
   await screen.findByTestId('chat-dock-flow');
 
@@ -577,12 +542,10 @@ it('Panels popover lists a closed panel and reopens it on click; clicking outsid
 });
 ```
 
-- [ ] **Step 4: Run test to verify it fails, then fill in the popover contents**
-
-Replace the `{/* Step 4 fills this in */}` placeholder:
+- [ ] **Step 6: Run test to verify it fails, then fill in the popover contents**
 
 ```tsx
-{DEFAULT_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null)
+{CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null)
   .filter(id => closedPanelIds.current.has(id))
   .map(id => (
     <button
@@ -599,37 +562,38 @@ Replace the `{/* Step 4 fills this in */}` placeholder:
       {panelDefs[id].title}
     </button>
   ))}
-{DEFAULT_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null).every(
+{CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null).every(
   id => !closedPanelIds.current.has(id),
 ) ? (
   <div className="px-2 py-1.5 text-xs text-text-muted/60">All panels open</div>
 ) : null}
 ```
 
-Run the test again — Expected: PASS.
+(Task 2.1 extends this same block with an "Add panel" section listing opt-in surfaces — this task only handles the 5 core panels.)
 
-- [ ] **Step 5: Run the full frontend suite**
+- [ ] **Step 7: Run test to verify it passes, then the full suite**
 
-Run: `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit`
-Expected: 100% pass, zero regressions.
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit` — 100% pass, zero regressions.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx
-git commit -m "feat(gui): add Panels popover to reopen a closed dockview panel (plain buttons, not role=menu)"
+git commit -m "feat(gui): add Panels popover to reopen a closed core dockview panel (plain buttons, not role=menu)"
 ```
 
-### Task 1.6: Add "Reset layout" to the Panels popover
+### Task 1.6: Add "Reset layout" to the Panels popover — resets only `CORE_PANEL_IDS`
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`
 - Test: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx` (extend)
 
+**FIXED:** the prior draft's Reset handler iterated the same array Phase 2/3 kept adding opt-in surfaces to, so after Phase 3 it would have force-opened all 19 panels on every reset. Reset now explicitly only targets `CORE_PANEL_IDS` — opt-in panels a user had open get removed (clean slate) but are never recreated by Reset, matching the design spec's "returns to the curated 5-panel default."
+
 - [ ] **Step 1: Write the failing tests**
 
 ```tsx
-it('Reset layout clears the persisted layout, all closedPanelIds, and recreates the default panels', async () => {
+it('Reset layout clears the persisted layout and closedPanelIds, and recreates only the 5 core panels', async () => {
   const { layoutStorageKeyFor } = await import('../../dock/DockWorkspaceShell');
   window.localStorage.setItem(layoutStorageKeyFor('gui.chat'), JSON.stringify({ grid: {} }));
   render(<ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />);
@@ -656,15 +620,9 @@ it('Reset layout does not throw when no layout was ever persisted', () => {
 
 - [ ] **Step 2: Run tests to verify they fail, then add the reset action**
 
-Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/surfaces/Chat/ChatSurface.test.tsx` — expect FAIL (no "Reset layout" button yet).
-
-Add the import at the top of `ChatSurface.tsx`:
-
 ```tsx
 import { layoutStorageKeyFor } from '../../dock/DockWorkspaceShell';
 ```
-
-Add as a sibling to Task 1.5's popover contents, after a thin separator:
 
 ```tsx
 <div className="my-1 border-t border-border-subtle" />
@@ -676,7 +634,9 @@ Add as a sibling to Task 1.5's popover contents, after a thin separator:
     if (api) {
       api.panels.forEach(p => api.removePanel(p)); // .panels is a fresh snapshot per access — safe to iterate while removePanel mutates the underlying model
       closedPanelIds.current.clear();
-      DEFAULT_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null).forEach(id =>
+      // Only CORE_PANEL_IDS — opt-in panels (Phase 2/3) are intentionally
+      // NOT recreated by Reset, even if they were open before the reset.
+      CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null).forEach(id =>
         addDefaultPanel(api, id),
       );
     }
@@ -689,38 +649,33 @@ Add as a sibling to Task 1.5's popover contents, after a thin separator:
 </button>
 ```
 
-Run the tests again — Expected: PASS.
+- [ ] **Step 3: Run tests to verify they pass, then the full suite**
 
-- [ ] **Step 3: Run the full frontend suite**
-
-Run: `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit`
-Expected: 100% pass, zero regressions.
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit` — 100% pass.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx
-git commit -m "feat(gui): add Reset layout to the Panels popover"
+git commit -m "feat(gui): add Reset layout to the Panels popover, scoped to the 5 core panels only"
 ```
 
 ### Task 1.7: Quiet the dockview tab chrome
 
-**Files:**
-- Modify: `crates/vox-gui/ui/src/styles/dockview-vox.css`
+**Files:** Modify: `crates/vox-gui/ui/src/styles/dockview-vox.css`
 
 - [ ] **Step 1: Investigate the actual blue-chrome source**
 
-Run: `grep -n "activegroup\|inactivegroup\|tabs-and-actions" crates/vox-gui/ui/src/styles/dockview-vox.css` and separately `grep -n "^  --dv-" "node_modules/.pnpm/dockview-core@6.6.1/node_modules/dockview-core/dist/styles/dockview.css"` to see dockview's own un-themed default values for every `--dv-*` custom property. Compare against what `dockview-vox.css`'s `.dockview-theme-vox` block actually overrides (it currently sets 12 of them — check dockview's default CSS for how many total exist and whether any commonly-visible one, e.g. an inactive-group or hover-state color, is left un-overridden and defaulting to a blue-ish library default).
+Run: `grep -n "activegroup\|inactivegroup\|tabs-and-actions" crates/vox-gui/ui/src/styles/dockview-vox.css` and `grep -n "^  --dv-" "node_modules/.pnpm/dockview-core@6.6.1/node_modules/dockview-core/dist/styles/dockview.css"` — compare the full set of `--dv-*` custom properties dockview defines against the 12 `.dockview-theme-vox` currently overrides; find which ones are left at the library's un-themed default.
 
 - [ ] **Step 2: Add the missing overrides and shrink the tab strip**
 
-Based on Step 1's findings, extend `.dockview-theme-vox` in `crates/vox-gui/ui/src/styles/dockview-vox.css` with whatever `--dv-*` properties were found un-themed (there is no way to give the exact property names without Step 1's real output — this is why Step 1 is a required investigation, not skippable). At minimum, also add:
+Extend `.dockview-theme-vox` with whatever Step 1 found un-themed. At minimum also add:
 
 ```css
 .dockview-theme-vox .dv-tabs-and-actions-container {
-  height: 22px; /* default is taller; a quieter, VS-Code-rail-style strip */
+  height: 22px;
 }
-
 .dockview-theme-vox .dv-tab {
   font-size: 9px;
 }
@@ -728,12 +683,11 @@ Based on Step 1's findings, extend `.dockview-theme-vox` in `crates/vox-gui/ui/s
 
 - [ ] **Step 3: Run the full frontend suite**
 
-Run: `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit`
-Expected: 100% pass — this task is CSS-only, no test assertions change, but confirm nothing broke.
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit` — 100% pass (CSS-only, confirms nothing broke).
 
-- [ ] **Step 4: Rebuild and manually confirm the chrome reads as quiet, not blue**
+- [ ] **Step 4: Rebuild and manually confirm**
 
-Run `pnpm build` (in `crates/vox-gui/ui`) and `cargo build --release -p vox-gui` (from repo root), relaunch, open Chat, visually confirm no blue tab backgrounds remain and the tab strip is visibly slimmer than before. This is a real visual check, not a test — do not skip it.
+`pnpm build` + `cargo build --release -p vox-gui`, relaunch, open Chat, visually confirm no blue tab backgrounds remain and the strip is visibly slimmer.
 
 - [ ] **Step 5: Commit**
 
@@ -748,7 +702,7 @@ git commit -m "fix(gui): theme every dockview chrome color the library exposes, 
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`
 - Test: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx` (extend)
 
-This is an investigation-first task, like Task B3's AgentFlow data-source research earlier this session — `tabComponents` (Task 1.1's `DockWorkspaceShell` already threads this prop through) is confirmed to exist, but whether an empty tab component also blocks drag-out (not just hides the close button) hasn't been verified against this dockview version's real behavior.
+**FIXED:** Step 5's fallback now correctly cites `panel.group.locked` (not the wrong `DockviewOptions.locked` file/line from the prior draft) and is honest that `locked` prevents drop-*into* the group, with drag-*out* prevention unconfirmed — treat it as a real experiment, not a known-working fix.
 
 - [ ] **Step 1: Write the failing test for "no visible tab chrome on the transcript panel"**
 
@@ -756,9 +710,6 @@ This is an investigation-first task, like Task B3's AgentFlow data-source resear
 it('the transcript panel has no visible tab strip (pinned, not a normal closable/draggable panel)', async () => {
   render(<ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />);
   await screen.findByTestId('chat-dock-transcript');
-  // The default tab renderer always shows the literal title text ("Chat")
-  // inside a .dv-default-tab-content span — an empty custom tab component
-  // must not render that at all.
   expect(screen.queryByText('Chat', { selector: '.dv-default-tab-content' })).toBeNull();
 });
 ```
@@ -768,20 +719,14 @@ it('the transcript panel has no visible tab strip (pinned, not a normal closable
 Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/surfaces/Chat/ChatSurface.test.tsx`
 Expected: FAIL — the transcript panel currently uses the default tab renderer, which shows "Chat".
 
-- [ ] **Step 3: Add an empty tab component and wire it in via `tabComponents`**
+- [ ] **Step 3: Add an empty tab component and wire it in**
 
 ```tsx
-// Near the other panel components in ChatSurface.tsx
 function EmptyTab() {
   return null;
 }
-
-const CHAT_DOCK_TAB_COMPONENTS = {
-  transcript: EmptyTab,
-};
+const CHAT_DOCK_TAB_COMPONENTS = { transcript: EmptyTab };
 ```
-
-Pass it to `DockWorkspaceShell`:
 
 ```tsx
 <DockWorkspaceShell
@@ -791,8 +736,6 @@ Pass it to `DockWorkspaceShell`:
   onReady={...}
 />
 ```
-
-Add `tabComponent: 'transcript'` to the transcript panel's `addPanel` call in `onReady` (find `id: 'transcript'`):
 
 ```tsx
 event.api.addPanel({
@@ -807,17 +750,15 @@ event.api.addPanel({
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/surfaces/Chat/ChatSurface.test.tsx`
-Expected: PASS.
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/surfaces/Chat/ChatSurface.test.tsx` — Expected: PASS.
 
-- [ ] **Step 5: Manually verify drag-out is actually prevented, not just the visible chrome**
+- [ ] **Step 5: Manually verify drag-out is prevented, AND that other panels can still dock next to it**
 
-jsdom has no real drag-and-drop, so this cannot be a `vitest` assertion — rebuild (`pnpm build` + `cargo build --release -p vox-gui`), relaunch, and manually attempt to drag the area where the Chat panel's (now invisible) tab would be. **If the panel is still draggable** (e.g. dockview attaches drag listeners to the group's title-bar hit area regardless of tab content), that's a real finding — do not silently accept it. In that case, additionally consult dockview's `GroupOptions.locked` (confirmed to exist in `options.d.ts:118`, prevents drag in/out of the group entirely) and apply it to the transcript panel's group via `event.api.addGroup`/the panel's `.group.locked = true` after creation — write this fallback only if Step 5's manual check shows it's actually needed; don't add unverified code preemptively.
+jsdom has no real drag-and-drop — rebuild, relaunch, and manually try to drag the (now invisible) transcript tab area. **If it's still draggable**, that's a real finding, not silently acceptable. Per the corrected ground-truth note above, `panel.group.locked = true` (real property: `IDockviewPanel.group: DockviewGroupPanel`, `.locked` setter in `dockviewGroupPanel.d.ts:27`) only *documented* effect is blocking drop-into; whether it also blocks drag-out is unverified — try it and observe. **Critically, also verify the reverse**: with `locked` applied (if you applied it), drag a *different* open panel (e.g. Execution) to a new position adjacent to the transcript group and confirm the drop still succeeds — `locked`'s doc comment says drops *into* the group are blocked, but the group "can still be split from its edges," so this should work; confirm it actually does, since this is the exact interaction the whole "pin chat, dock everything else around it" premise depends on. If locking breaks that too, `locked` is the wrong tool and needs a different approach (report it, don't force a broken fix through).
 
 - [ ] **Step 6: Run the full frontend suite**
 
-Run: `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit`
-Expected: 100% pass, zero regressions.
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit` — 100% pass.
 
 - [ ] **Step 7: Commit**
 
@@ -826,178 +767,312 @@ git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx crates/vo
 git commit -m "feat(gui): pin the chat transcript panel — empty tab renderer, no close/drag chrome"
 ```
 
-If Step 5 required the `locked` fallback, include that change in this same commit with a note in the message explaining what Step 5 found.
+Include Step 5's findings (locked applied or not, and why) in the commit message.
 
 ### Task 1.9: Phase 1 whole-effort verification
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the full backend and frontend suites**
+Per `superpowers:verification-before-completion` — no completion claim without fresh evidence.
 
-Run `cargo test -p vox-orchestrator --lib` (expect no change — this phase touches no Rust code) and, in `crates/vox-gui/ui`: `npx tsc --noEmit` and `npx vitest run`. Read the actual output; don't summarize from memory of earlier task-level runs.
+- [ ] **Step 1: Run the full backend and frontend suites, read the real output**
+
+`cargo test -p vox-orchestrator --lib` (expect no change), `npx tsc --noEmit`, `npx vitest run` in `crates/vox-gui/ui`. Read the actual output; don't summarize from memory of earlier task-level runs.
 
 - [ ] **Step 2: Rebuild, relaunch, manually smoke-test**
 
-Rebuild (`pnpm build` + `cargo build --release -p vox-gui`), kill any running `vox-gui.exe`/`vox-orchestrator-d.exe`, relaunch. On the Chat tab: confirm the transcript has no visible tab and can't be dragged/closed; confirm Sessions/Execution/Flow/To-dos each show as real, closeable, draggable, resizable dockview panels with quiet (not blue) chrome; close one, reopen it via Panels▾; drag one to a new edge, then Reset layout and confirm it returns to default; restart the app and confirm the (non-reset) layout persisted.
+Confirm: transcript has no visible tab and can't be dragged/closed (and per Task 1.8 Step 5, other panels CAN still dock next to it); Sessions/Execution/Flow/To-dos are real closeable/draggable/resizable panels with quiet chrome; close one, reopen via Panels▾; drag one to a new edge, Reset layout, confirm it returns to the 5-panel default; restart the app, confirm the (non-reset) layout persisted.
 
-- [ ] **Step 3: Report and use `systematic-debugging` for any real bug found**
+- [ ] **Step 3: Report; use `systematic-debugging` for any real bug found**
 
-If smoke-testing surfaces a real bug, root-cause it with `superpowers:systematic-debugging` before writing its regression test and fix — don't same-turn-patch. Once clean, report the commit range for Phase 1.
+Root-cause any real bug via `superpowers:systematic-debugging` before writing its regression test and fix — no same-turn patches. Report the commit range for Phase 1.
 
 ---
 
-## Phase 2: Wire in the 6 strong dockable candidates
+## Phase 2: Wire in the 6 strong dockable candidates as opt-in panels
 
-Each of these surfaces was audited (this conversation's transcript) as narrow-tolerant secondary/glanceable content requiring no condensed/full toggle — the surface's own existing component renders fine at dock-panel width as-is.
+**FIXED — recommended parallel-research pass before the sequential implementation tasks below.** Tasks 2.2-2.6 (and Phase 3's 3.2-3.8) each open with an independent, read-only "find the real data source" step against a different target file — these have zero shared state and are the textbook case `superpowers:dispatching-parallel-agents` describes ("each problem can be understood without context from others"). Before starting Tasks 2.2-2.6's sequential implement/test/commit work, dispatch one research-only agent per remaining surface (5 agents for `voxgraph`/`activity`/`repository`/`mercatus`/`harness`) in parallel, each told: read `surfaceComponents.tsx`'s call site for that surface plus the target component file, and return (not write to any file) the real prop names/data source and a drafted panel-wrapper code sketch. Then run Tasks 2.2-2.6 sequentially as written, using each memo as the implementer's starting context instead of re-deriving it live — this does not conflict with `subagent-driven-development`'s "no parallel implementers" rule, since research/drafting agents make zero repo writes.
 
-### Task 2.1 (worked example): Wire `needs-you` in as a dockable panel
+Each of these surfaces was audited as narrow-tolerant secondary/glanceable content requiring no condensed/full toggle.
+
+### Task 2.1 (worked example): Wire `needs-you` in as an opt-in dockable panel
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`
 - Test: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx` (extend)
 
-`NeedsYouSurface` (`crates/vox-gui/ui/src/components/surfaces/NeedsYou/NeedsYouSurface.tsx`) is the audit's strongest candidate: an approval/notification inbox, already responsively collapsing rows below `sm`, core value is a single "N need you" count. Read its actual props before wiring (it's mounted today via `surfaceComponents.tsx`'s `case 'needs-you':` — check what data it's given there) so the dock-panel wrapper passes the same real props, not invented ones.
+**FIXED — three additions vs. the prior draft**: (1) `needs-you` is added to a new `OPT_IN_PANEL_IDS` array, never `CORE_PANEL_IDS` — it gets **no auto-create branch** in the refresh effect at all, only a guarded `.update()` if already present, which by construction cannot reproduce the original "resurrects after close" bug (there is no code path that recreates it once removed, except the explicit Panels-menu click). (2) A grep check for a duplicate `<h1>` in the target component before wiring it in (`NeedsYouSurface.tsx` doesn't have one, but the check itself must become the standard pattern every table-driven task inherits, since `TasksView.tsx` in Phase 3 does). (3) A real "stays closed across an unrelated re-render" test, proving point (1) rather than asserting it in prose.
 
-- [ ] **Step 1: Read the real prop source**
+- [ ] **Step 1: Read the real prop source and check for a duplicate `<h1>`**
 
-Run: `grep -n "NeedsYouSurface" crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx` and read the surrounding props passed at that call site — reuse that exact data source for the new dock-panel wrapper (mirrors how Task B3 reused the top-level Flow tab's `agents` data for the in-chat Flow panel, rather than inventing a second fetch).
+Run: `grep -n "NeedsYouSurface" crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx` and read the surrounding props at that call site. Also run: `grep -n "<h1" crates/vox-gui/ui/src/components/surfaces/NeedsYou/NeedsYouSurface.tsx` — if it renders its own unconditional `<h1>`, the dock-panel wrapper must not mount that part of it (ChatSurface.tsx already has its own `<h1 className="sr-only">Chat</h1>`; two `<h1>`s on one page is an axe `page-has-heading-one` violation this codebase has explicitly guarded against elsewhere).
 
-- [ ] **Step 2: Write the failing test**
+- [ ] **Step 2: Write the failing tests**
 
 ```tsx
-it('mounts a Needs You panel dockable from Chat, reusing the same data source as the top-level Needs You tab', () => {
+it('mounts a Needs You panel dockable from Chat via the Panels menu Add section', () => {
   render(
-    <ChatSurface
-      pushToast={vi.fn()}
-      onNavigate={vi.fn()}
-      messages={[]}
-      composer={<div>composer</div>}
-      needsYouCount={3}
-    />,
+    <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} needsYouCount={3} />,
   );
   fireEvent.click(screen.getByRole('button', { name: /panels/i }));
   fireEvent.click(screen.getByRole('button', { name: /^needs you$/i }));
   expect(screen.getByTestId('chat-dock-needs-you')).toBeInTheDocument();
 });
+
+it('the Needs You panel does not resurrect on the next render after being closed', async () => {
+  render(
+    <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} needsYouCount={3} />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+  fireEvent.click(screen.getByRole('button', { name: /^needs you$/i }));
+  await screen.findByTestId('chat-dock-needs-you');
+
+  const tab = screen.getByText('Needs You').closest('.dv-default-tab') as HTMLElement;
+  fireEvent.click(tab.querySelector('.dv-default-tab-action') as HTMLElement);
+  await waitFor(() => expect(screen.queryByTestId('chat-dock-needs-you')).toBeNull());
+
+  // Force an unrelated re-render — opt-in panels have NO auto-create
+  // branch, so this must not bring it back (by construction, not by a
+  // closedPanelIds guard, since opt-in panels don't use one).
+  const { rerender } = render(
+    <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[{ id: 'm1', role: 'user', text: 'hi', status: 'done' } as any]} composer={<div>composer</div>} needsYouCount={3} />,
+  );
+  expect(screen.queryByTestId('chat-dock-needs-you')).toBeNull();
+});
 ```
 
-(Adjust the prop names/shape to match whatever Step 1's real read reveals — this snippet assumes a `needsYouCount`-style summary prop pattern consistent with how `flowAgents`/`flowSelectedAgentId` were threaded into `ChatSurface` for the Flow panel in Task B3; if the real data source is structured differently, use the real shape, not this guess.)
+(Adjust prop names to Step 1's real findings — `needsYouCount` here mirrors the `flowAgents`-style threading pattern from Task B3; use the real shape if different.)
 
-- [ ] **Step 3: Run test to verify it fails, then wire it in**
+- [ ] **Step 3: Run tests to verify they fail, then wire it in**
 
-Add a `NeedsYouDockPanel` component, a `needs-you` entry in `CHAT_DOCK_COMPONENTS`, thread whatever props Step 1 found through `ChatSurface`'s own props (same pattern as `flowAgents`/`flowSelectedAgentId`/`onFlowSelectAgent` in Task B3), add it to `DEFAULT_PANEL_IDS`/`panelDefs`/the refresh effect's lazy-create branch — **not** to the initial always-created `onReady` set, since (like Flow/To-dos) it should start closed/not-present until a user opts in via the Panels menu, given it's a secondary surface, not core-always-visible like Sessions/Chat.
+Define the opt-in id list and widen `ChatDockPanelId` (both near `CORE_PANEL_IDS`):
 
-- [ ] **Step 4: Run test to verify it passes, then the full suite**
+```tsx
+const OPT_IN_PANEL_IDS = ['needs-you'] as const; // Tasks 2.2-2.6/3.1-3.8 append one id each
+type OptInPanelId = (typeof OPT_IN_PANEL_IDS)[number];
+type ChatDockPanelId = CorePanelId | OptInPanelId; // supersedes Task 1.4's CorePanelId-only alias
+```
 
-Run the target test, then `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit` — 100% pass, zero regressions.
+Add a `NeedsYouDockPanel` component + `'needs-you': NeedsYouDockPanel` entry in `CHAT_DOCK_COMPONENTS` (quote the key — it contains a hyphen). Thread whatever props Step 1 found through `ChatSurface`'s own props (mirroring `flowAgents`/`flowSelectedAgentId`/`onFlowSelectAgent` from Task B3). Add a `panelDefs['needs-you']` entry with its own `referenceChain` — for all opt-in panels in this plan, use the consistent chain `['todos', 'flow', 'executionRail', 'transcript']` (anchors new panels near the other secondary content, falls back toward the always-present transcript; a deliberate, shared choice so 14 independently-implemented tasks don't each invent a different, untested chain).
 
-- [ ] **Step 5: Commit**
+In the refresh effect, add **only an update branch, no create branch**:
+
+```tsx
+api.getPanel('needs-you')?.update({ params: { node: needsYouNode } });
+```
+
+Creating the panel happens *only* via the Panels-menu "Add" button (Step 4).
+
+- [ ] **Step 4: Add an "Add panel" section to the Panels popover for opt-in surfaces**
+
+Extend the popover contents built in Task 1.5 Step 6 with a second section:
+
+```tsx
+<div className="my-1 border-t border-border-subtle" />
+<div className="px-2 py-1 text-[10px] uppercase tracking-wide text-text-muted/60">Add</div>
+{OPT_IN_PANEL_IDS.filter(id => !dockApiRef.current?.getPanel(id)).map(id => (
+  <button
+    key={id}
+    type="button"
+    onClick={() => {
+      const api = dockApiRef.current;
+      if (api) addDefaultPanel(api, id);
+      setPanelsMenuOpen(false);
+      panelsTriggerRef.current?.focus();
+    }}
+    className="block w-full rounded px-2 py-1.5 text-left text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
+  >
+    {panelDefs[id].title}
+  </button>
+))}
+```
+
+- [ ] **Step 5: Run tests to verify they pass, then the full suite**
+
+Run the two target tests, then `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit` — 100% pass, zero regressions.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx
-git commit -m "feat(gui): wire Needs You as a dockable panel reachable from Chat"
+git commit -m "feat(gui): wire Needs You as an opt-in dockable panel reachable from Chat's Panels menu"
 ```
 
 ### Tasks 2.2 – 2.6: the remaining 5 strong candidates, same pattern as Task 2.1
 
-Each is its own task, its own commit, following Task 2.1's exact steps (read the real data source at its `surfaceComponents.tsx` call site, add a dock-panel wrapper + testid, wire into `CHAT_DOCK_COMPONENTS`/`DEFAULT_PANEL_IDS`/`panelDefs`/the lazy-create refresh branch, write a real test asserting the Panels-menu-launch → testid-appears flow, run full suite, commit). Do not batch multiple surfaces into one task/commit — each gets independent review.
+Each is its own task, its own commit, sequential (shared-file writes) but ideally preceded by the parallel research pass described above. Order per task: **(1) read real data source + check for a duplicate `<h1>` in the target component, (2) write the failing tests — both the mount-via-Panels-menu test AND the close-then-unrelated-rerender-stays-closed test, following Task 2.1's exact two-test shape, (3) run tests to verify they fail, (4) implement — add to `OPT_IN_PANEL_IDS`, `CHAT_DOCK_COMPONENTS` (quote hyphenated keys), `panelDefs` with the shared `['todos', 'flow', 'executionRail', 'transcript']` referenceChain, an update-only refresh-effect line, and an Add-menu entry (already generic from Task 2.1, no per-task change needed there), (5) run tests to verify they pass, then the full suite, (6) commit.** Do not batch multiple surfaces into one task/commit.
 
-| Task | Surface (`surfaceComponents.tsx` case) | Component | Panel id / testid | Condensed view needed? |
+| Task | Surface (`surfaceComponents.tsx` case) | Component | Panel id / testid | Duplicate `<h1>` check needed? |
 |---|---|---|---|---|
-| 2.2 | `vox-search` / `graphify` | `VoxGraphStatusPanel.tsx` | `voxgraph` / `chat-dock-voxgraph` | No — already responsive to 1-column below `md`, cards work as-is |
-| 2.3 | `activity` | `DiscoverySurface.tsx` | `activity` / `chat-dock-activity` | No — all 4 sub-views are single-column lists; the Review sub-view's fixed 460px inspector popover should be spot-checked at dock-panel width during this task's manual smoke step, but no code change is assumed necessary unless that check finds a real problem |
-| 2.4 | `repository` | `RepositoryView.tsx` | `repository` / `chat-dock-repository` | No — button grid + scrollable `<pre>` output + small isolation panel, narrow-safe as-is |
-| 2.5 | `mercatus` | `Mercatus.tsx` | `mercatus` / `chat-dock-mercatus` | No — already wrapped in `overflow-x-auto`, degrades gracefully |
-| 2.6 | `harness` | `HarnessRedirect.tsx` | `harness` / `chat-dock-harness` | No — trivial empty-state stub, works at any size |
+| 2.2 | `vox-search` / `graphify` | `VoxGraphStatusPanel.tsx` | `voxgraph` / `chat-dock-voxgraph` | Check — not yet verified |
+| 2.3 | `activity` | `DiscoverySurface.tsx` | `activity` / `chat-dock-activity` | Check — not yet verified; also spot-check the Review sub-view's fixed 460px inspector popover at dock-panel width |
+| 2.4 | `repository` | `RepositoryView.tsx` | `repository` / `chat-dock-repository` | Check — not yet verified |
+| 2.5 | `mercatus` | `Mercatus.tsx` | `mercatus` / `chat-dock-mercatus` | Check — not yet verified |
+| 2.6 | `harness` | `HarnessRedirect.tsx` | `harness` / `chat-dock-harness` | Check — not yet verified (unlikely, it's a near-empty stub) |
 
 ### Task 2.7: Phase 2 whole-effort verification
 
 **Files:** none (verification only)
 
-Same shape as Task 1.9: run backend+frontend suites with real output, rebuild+relaunch+manually smoke-test each of the 6 new panels (open via Panels▾, confirm content renders, confirm close/reopen/drag/resize all work), root-cause any real bug via `systematic-debugging` before fixing, report the commit range.
+Per `superpowers:verification-before-completion`. Run backend+frontend suites with real output. Rebuild+relaunch+manually smoke-test: open all 6 new panels together via Panels▾'s Add section (not one at a time — confirm the layout stays sane with several optional panels open simultaneously, not just each in isolation), confirm close/reopen/drag/resize all work, confirm Reset layout removes them without recreating them. Root-cause any real bug via `systematic-debugging` before fixing. Report the commit range.
 
 ---
 
 ## Phase 3: Wire in the 8 condensed-capable candidates
 
-Each of these needs a bespoke **condensed vs. full** toggle — the full view wants real width, but a narrow docked state should show a specific, evidence-based summary instead of squeezing the full UI. Task 3.1 is the worked example establishing the toggle pattern; the table gives every other surface's specific condensed content (sourced directly from this session's audit — not invented).
+Each needs a real condensed/full toggle. **FIXED — this is now built on a verified API, not left as an unresolved hedge**: `props.api.width`/`props.api.height` (confirmed real, `PanelApi`) plus `props.api.onDidDimensionsChange` give every dock panel component a live, reactive read of its own rendered size — no `ResizeObserver`, no navigate-away fallback needed as the default.
 
-### Task 3.1 (worked example): Wire `approvals` in with a condensed/full toggle
+### Task 3.1 (worked example): Wire `approvals` in with a real width-driven condensed/full toggle
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`
 - Test: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx` (extend)
 
-The audit found: Approvals' working table needs ~850-1000px (4 fixed-width columns sum to 710px before the flexible description column gets any room); a docked panel will essentially never be that wide. Condensed content: **pending-approval count + current permission mode** — both already exist as real state (`pendingApprovals` prop, already threaded through `App.tsx`/`AppShell.tsx` per the codebase's existing "Task tools" plumbing — verify the exact prop name at its current call site before using it, the same discipline as every prior data-source task this session).
+Approvals' working table needs ~850-1000px (4 fixed columns sum to 710px before the description column gets room). Condensed content: pending-approval count + current permission mode. **FIXED — double-polling avoidance**: `ApprovalsView.tsx` runs its own `setInterval` poll loop; the condensed state must use only the already-threaded `pendingApprovals` summary prop (confirmed real at `App.tsx:1271`), never mount a second live `ApprovalsView` instance — if a user opens both the top-level Approvals tab and this dock panel, only the full-view "Open full view" link (which navigates to the real tab, not an inline embed) avoids a second poll loop competing with the first.
 
-- [ ] **Step 1: Read the real prop source and the panel width dockview reports at runtime**
+- [ ] **Step 1: Read the real prop source, check for a duplicate `<h1>`**
 
-Run: `grep -n "pendingApprovals\|permission.*mode\|ApprovalsView" crates/vox-gui/ui/src/App.tsx crates/vox-gui/ui/src/components/layout/surfaceComponents.tsx` — confirm the exact prop/state names for pending-approval count and the current permission mode (Ask/Accept Edits/Accept All/Plan) before writing the condensed component. Also confirm dockview panel components can read their own rendered width — check `IDockviewPanelProps` for a `width`/`api.width` field (`node_modules/.pnpm/dockview-core@6.6.1/node_modules/dockview-core/dist/esm/panel/types.d.ts` or similar) so the toggle can be driven by real measured panel width, not a guess.
+Run: `grep -n "pendingApprovals\|permission.*mode" crates/vox-gui/ui/src/App.tsx` — confirm the exact prop/state names. Run: `grep -n "<h1" crates/vox-gui/ui/src/components/surfaces/Approvals/ApprovalsView.tsx`.
 
-- [ ] **Step 2: Write the failing test**
+- [ ] **Step 2: Write the failing tests**
 
 ```tsx
-it('Approvals panel shows a condensed pending-count badge, not the full table, when docked narrow', () => {
+it('Approvals panel shows a condensed pending-count badge when docked narrow', () => {
   render(
-    <ChatSurface
-      pushToast={vi.fn()}
-      onNavigate={vi.fn()}
-      messages={[]}
-      composer={<div>composer</div>}
-      pendingApprovals={3}
-    />,
+    <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} pendingApprovals={3} />,
   );
   fireEvent.click(screen.getByRole('button', { name: /panels/i }));
   fireEvent.click(screen.getByRole('button', { name: /^approvals$/i }));
   const panel = screen.getByTestId('chat-dock-approvals');
   expect(panel).toHaveTextContent('3 pending');
-  // The full 4-column DataTable must not render in the condensed state —
-  // assert on a testid/role specific to ApprovalsView's real table, found
-  // during Step 1's read, not guessed here.
+  // The full 4-column table must not render — condensed state renders
+  // ApprovalsDockPanel's own summary markup only, never <ApprovalsView>.
+  expect(screen.queryByRole('table')).toBeNull();
+});
+
+it('Approvals panel switches to a full-view link, not an inline table, when the toggle mechanism decides it is wide enough', () => {
+  // dockview's own width isn't measurable in jsdom (no real layout engine),
+  // so this test exercises ApprovalsDockPanel directly with a mocked
+  // DockviewPanelApi rather than through the full ChatSurface dock — mirrors
+  // how other width-dependent behavior in this codebase is unit-tested at
+  // the component level when the full dockview integration can't produce
+  // real pixel measurements under jsdom.
+  const mockApi = { width: 900, onDidDimensionsChange: vi.fn(() => ({ dispose: vi.fn() })) } as any;
+  render(
+    <ApprovalsDockPanel
+      api={mockApi}
+      params={{ pendingApprovals: 3, permissionMode: 'Ask', onNavigate: vi.fn() }}
+    />,
+  );
+  expect(screen.getByRole('link', { name: /open full view/i })).toBeInTheDocument();
 });
 ```
 
-- [ ] **Step 3: Run test to verify it fails, then implement the condensed wrapper**
+- [ ] **Step 3: Run tests to verify they fail, then implement**
 
-Build an `ApprovalsDockPanel` that renders a condensed summary (pending count + permission mode pill) by default, with a small "Open full view" affordance that either expands the panel's rendered content in place (if Step 1's width-detection API exists and is reliable) or — the safer, always-correct fallback if width detection proves unreliable in practice — a button that calls `onNavigate('approvals')` to jump to the real top-level Approvals tab for the full working table. **Prefer the navigate-to-full-tab fallback unless Step 1 finds a genuinely reliable in-panel width signal** — a docked panel silently trying and failing to render a 1000px-wide table in 300px of space is worse than a clear "open full view" link.
+```tsx
+const APPROVALS_FULL_WIDTH_PX = 850; // from the audit: 4 fixed columns sum to 710px before the description column gets room
 
-- [ ] **Step 4: Run test to verify it passes, then the full suite**
+function ApprovalsDockPanel(props: IDockviewPanelProps<{ pendingApprovals: number; permissionMode: string; onNavigate?: (viewKey: string) => void }>) {
+  const [width, setWidth] = React.useState(props.api.width);
+  React.useEffect(() => {
+    const disposable = props.api.onDidDimensionsChange(() => setWidth(props.api.width));
+    return () => disposable.dispose();
+  }, [props.api]);
 
-Run the target test, then `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit` — 100% pass, zero regressions.
+  return (
+    <div data-testid="chat-dock-approvals" className="h-full overflow-y-auto p-2 text-xs">
+      <div className="mb-2">{props.params.pendingApprovals} pending · {props.params.permissionMode}</div>
+      {width >= APPROVALS_FULL_WIDTH_PX ? (
+        <a
+          role="link"
+          href="#"
+          onClick={e => { e.preventDefault(); props.params.onNavigate?.('approvals'); }}
+          className="text-brass hover:underline"
+        >
+          Open full view
+        </a>
+      ) : null}
+    </div>
+  );
+}
+```
+
+Wire `approvals` into `OPT_IN_PANEL_IDS`, `CHAT_DOCK_COMPONENTS` (`approvals: ApprovalsDockPanel`), `panelDefs` (referenceChain `['todos', 'flow', 'executionRail', 'transcript']`, matching Phase 2's shared chain), the refresh effect's update-only line, and thread `pendingApprovals`/permission-mode/`onNavigate` through as `params`.
+
+- [ ] **Step 4: Run tests to verify they pass, then the full suite**
+
+Run the target tests, then `cd crates/vox-gui/ui && pnpm exec vitest run` and `npx tsc --noEmit` — 100% pass, zero regressions.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx
-git commit -m "feat(gui): wire Approvals as a dockable panel with a condensed pending-count view"
+git commit -m "feat(gui): wire Approvals as an opt-in dockable panel with a real width-driven condensed/full toggle"
 ```
 
 ### Tasks 3.2 – 3.8: the remaining 7 condensed-capable surfaces, same pattern as Task 3.1
 
-Each is its own task/commit. The condensed content specified below is the audit's actual finding for that surface — use it verbatim, don't invent a different summary.
+Same task shape as Task 3.1 (read source + h1 check, two failing tests including the resurrection-guard test from Phase 2's pattern, implement using `props.api.width`/`.height` with the per-surface threshold below, run+commit). **FIXED — every row now has an explicit numeric threshold** (from the audit) instead of silently inheriting Approvals' 850px, and Gamify is explicitly flagged as **height-driven**, not width-driven, since `props.api.height` exists for exactly this case.
 
-| Task | Surface | Component | Panel id / testid | Condensed content (from the audit) | Special note |
-|---|---|---|---|---|---|
-| 3.2 | `mesh` | `MeshView.tsx` | `mesh` / `chat-dock-mesh` | Node count + source + pending queue count (already exist as header summary chips — reuse them, don't re-derive) | Full 7-column node table + dispatch-form textarea only render above ~400px |
-| 3.3 | `tasks` (global task queue) | `TasksView.tsx` | `tasks` / `chat-dock-tasks` | Per-lifecycle counts: "N blocked · M queued · K in progress" (from the existing `groupBy` categories) | **Naming collision guard**: this is the global task queue, unrelated to the chat To-dos panel from Task 1.3 — do not reuse the `todos` id/title anywhere here |
-| 3.4 | `coderabbit` | `CodeRabbitView.tsx` | `coderabbit` / `chat-dock-coderabbit` | Token status (present/absent) + "Planned N PRs · M files" (existing summary line) | The 5-field control row should stack/collapse, not truncate, when condensed |
-| 3.5 | `skills` | `SkillsPluginsView.tsx` | `skills` / `chat-dock-skills` | "Skills: N · Plugins: M" install counts (the `Section` component's existing count badge) | Full 8/4 grid + marketplace search only render above ~700-750px |
-| 3.6 | `gamify` | `GamifyView.tsx` | `gamify` / `chat-dock-gamify` | HP/level/leaderboard rank from the profile HUD | **The `h-[560px]` `LudusSandbox` mini-map must never render in the condensed state** — hard-fixed dimension, structurally incompatible with a narrow dock |
-| 3.7 | `models` | `ModelsView.tsx` | `models` / `chat-dock-models` | Active model name + total model count (from the existing header stat bar) | Full 1/2/3-column card grid only useful above ~700-1000px |
-| 3.8 | `memory` | `MemoryView.tsx` | `memory` / `chat-dock-memory` | "{N} corpora active · {M} indexed entries" (existing header line) | Note the pre-existing `SHARD_COLS = 6` virtualizer bug found during the audit (row-height math assumes 6 columns regardless of actual responsive column count) is out of scope for this task — flag it as a follow-up, don't fix it here |
+| Task | Surface | Component | Panel id / testid | Condensed content | Toggle threshold | Special note |
+|---|---|---|---|---|---|---|
+| 3.2 | `mesh` | `MeshView.tsx` | `mesh` / `chat-dock-mesh` | Node count + source + pending queue count (existing header chips — reuse, don't re-derive) | `width >= 400` | `MeshView` runs its own poll loop — condensed state uses only the already-existing summary chips' data source, never mounts `<MeshView>` inline |
+| 3.3 | `tasks` (global queue) | `TasksView.tsx` | `tasks` / `chat-dock-tasks` | "N blocked · M queued · K in progress" (existing `groupBy` categories) | `width >= 420` | **Naming collision guard**: unrelated to the `todos` panel from Task 1.3 — never reuse that id/title. **`<h1>` collision confirmed**: `TasksView.tsx:303` renders an unconditional `<h1>Tasks</h1>` — the dock-panel wrapper must render only the count summary, never mount `<TasksView>`'s own root, so its `<h1>` never appears alongside `ChatSurface`'s own `<h1 className="sr-only">Chat</h1>` |
+| 3.4 | `coderabbit` | `CodeRabbitView.tsx` | `coderabbit` / `chat-dock-coderabbit` | Token status + "Planned N PRs · M files" | `width >= 640` | The 5-field control row should stack, not truncate, when condensed |
+| 3.5 | `skills` | `SkillsPluginsView.tsx` | `skills` / `chat-dock-skills` | "Skills: N · Plugins: M" | `width >= 700` | Full 8/4 grid + marketplace search only render above threshold |
+| 3.6 | `gamify` | `GamifyView.tsx` | `gamify` / `chat-dock-gamify` | HP/level/leaderboard rank | **`height >= 560`** (not width — `LudusSandbox`'s constraint is a fixed 560px height) | The `LudusSandbox` mini-map must never render below the height threshold — this is the one surface where the toggle must check `props.api.height`, not `.width` |
+| 3.7 | `models` | `ModelsView.tsx` | `models` / `chat-dock-models` | Active model name + total count | `width >= 700` | Full 1/2/3-column card grid only useful above threshold |
+| 3.8 | `memory` | `MemoryView.tsx` | `memory` / `chat-dock-memory` | "{N} corpora active · {M} indexed entries" | `width >= 550` | The pre-existing `SHARD_COLS = 6` virtualizer bug (row-height math ignores actual responsive column count) is out of scope here — flag as a follow-up, don't fix |
 
 ### Task 3.9: Phase 3 whole-effort verification
 
 **Files:** none (verification only)
 
-Same shape as Tasks 1.9/2.7: run backend+frontend suites with real output, rebuild+relaunch+manually smoke-test all 8 new panels at both a wide and a narrow docked width (confirming the condensed/full toggle actually engages), root-cause any real bug via `systematic-debugging`, report the commit range.
+Per `superpowers:verification-before-completion`.
 
-- [ ] **Step (final): Use `superpowers:finishing-a-development-branch`**
+- [ ] **Step 1: Run the full backend and frontend suites, read the real output**
 
-Once Phase 3 is clean, invoke `superpowers:finishing-a-development-branch` to decide how this whole effort (Phases 1-3) gets integrated — do not assume "commit and stop."
+- [ ] **Step 2: Add the persisted-layout backward-compatibility test**
+
+```tsx
+// Add to ChatSurface.test.tsx
+it('restores cleanly from a pre-Phase-3 persisted layout that only knows about the 5 core panels', async () => {
+  const { layoutStorageKeyFor } = await import('../../dock/DockWorkspaceShell');
+  const oldLayout = {
+    grid: {
+      root: { type: 'branch', data: [], size: 100 },
+      height: 100,
+      width: 100,
+      orientation: 'HORIZONTAL',
+    },
+  }; // shape doesn't need to be fully valid dockview JSON — this only proves the try/catch fallback engages cleanly, not a specific restored geometry
+  window.localStorage.setItem(layoutStorageKeyFor('gui.chat'), JSON.stringify(oldLayout));
+  expect(() =>
+    render(<ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />),
+  ).not.toThrow();
+});
+```
+
+Run: `cd crates/vox-gui/ui && pnpm exec vitest run src/components/surfaces/Chat/ChatSurface.test.tsx` — Expected: PASS (the existing `try/catch` in `DockWorkspaceShell.handleReady` already handles this; this test proves it, closing a gap the audit flagged as untested).
+
+- [ ] **Step 3: Rebuild, relaunch, manually smoke-test**
+
+Open several optional panels together (not one at a time) at both a wide and a narrow docked width, confirming each condensed/full toggle actually engages at its documented threshold — including Gamify's height-based one (resize the panel's height, not width, to confirm). Root-cause any real bug via `systematic-debugging`. Report the commit range.
+
+- [ ] **Step 4: Commit the backward-compat test**
+
+```bash
+git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx
+git commit -m "test(gui): lock in graceful restore from a pre-Phase-3 persisted layout"
+```
+
+- [ ] **Step 5: Use `superpowers:finishing-a-development-branch`**
+
+Once Phase 3 is clean, invoke it to decide how this whole effort (Phases 1-3) gets integrated — do not assume "commit and stop."
 
 ---
 
 ## Explicitly not in this plan
 
-Per the design spec: Dashboard/`DashboardGrid` unification, true external drag-from-sidebar-to-dock, double-click-splitter-to-reset, a native OS menu bar, and wiring Settings/Flow/Catalog/Browser/Console/Policies/Runs into any dock workspace. None of these get a task here — they're deferred, not forgotten; raise them as their own future spec if wanted.
+Dashboard/`DashboardGrid` unification, true external drag-from-sidebar-to-dock, double-click-splitter-to-reset, a native OS menu bar, and wiring Settings/Flow/Catalog/Browser/Console/Policies/Runs into any dock workspace. None of these get a task here — deferred, not forgotten.
