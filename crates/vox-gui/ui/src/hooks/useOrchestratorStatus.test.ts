@@ -61,7 +61,10 @@ describe('useOrchestratorStatus', () => {
     mockGetVersionMismatch.mockResolvedValue(null);
     const { result } = renderHook(() => useOrchestratorStatus(), { wrapper });
 
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+      expect(mockGetVersionMismatch).toHaveBeenCalled();
+    });
     expect(result.current.versionMismatch).toBeNull();
   });
 

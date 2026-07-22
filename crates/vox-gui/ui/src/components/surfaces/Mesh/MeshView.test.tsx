@@ -60,4 +60,20 @@ describe('MeshView', () => {
     const region = await screen.findByLabelText('Mesh nodes');
     expect(region.getAttribute('aria-live')).toBe('polite');
   });
+
+  it('surfaces a toast when vox_mesh_nodes reports a tool-level error, instead of silently showing empty', async () => {
+    invokeMock.mockImplementation((cmd: string, args?: any) => {
+      if (cmd === 'invoke_mcp_tool' && args?.tool === 'vox_mesh_nodes') {
+        return Promise.resolve({ tool: 'vox_mesh_nodes', is_error: true, result: { error: 'control plane unreachable' } });
+      }
+      return Promise.resolve(null);
+    });
+    const pushToast = vi.fn();
+    render(<MeshView pushToast={pushToast} />);
+    await waitFor(() =>
+      expect(pushToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Mesh refresh failed' }),
+      ),
+    );
+  });
 });

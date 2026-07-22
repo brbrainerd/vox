@@ -20,6 +20,11 @@ export interface NodesResult {
  */
 async function fetchMeshNodesResult(): Promise<NodesResult> {
   const res = await voxTransport.invokeMcpTool('vox_mesh_nodes', {});
+  if (res?.is_error) {
+    const msg =
+      (res.result as { error?: string } | undefined)?.error ?? 'Failed to fetch mesh nodes';
+    throw new Error(msg);
+  }
   const result = (res?.result ?? {}) as NodesResult;
   return { ...result, nodes: Array.isArray(result.nodes) ? result.nodes : [] };
 }
