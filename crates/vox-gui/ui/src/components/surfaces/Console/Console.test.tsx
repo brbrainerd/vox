@@ -22,6 +22,7 @@ vi.mock('../../../transport', () => ({
   sendToAgent: vi.fn().mockResolvedValue('msg-1'),
   voxTransport: {
     getOrchestratorStatusBin: vi.fn().mockResolvedValue(new Uint8Array([0x80])),
+    getOrchestratorVersionMismatch: vi.fn().mockResolvedValue(null),
   },
 }));
 vi.mock('@xterm/xterm', () => ({

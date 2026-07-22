@@ -17,6 +17,7 @@ import { GroundingCheckToggle } from './components/surfaces/Chat/GroundingCheckT
 import { useGroundingCheck } from './hooks/useGroundingCheck';
 import { Toasts, ToastItem } from './components/ui/Toasts';
 import { BackendBanner } from './components/ui/BackendBanner';
+import { VersionMismatchBanner } from './components/layout/VersionMismatchBanner';
 import { userAppendInput } from './lib/composerSubmit';
 import { Transcript } from './components/surfaces/Loquela/Transcript';
 import { DiffReview } from './components/surfaces/Loquela/DiffReview';
@@ -1230,6 +1231,7 @@ export default function App() {
     <>
       <div className="flex h-screen flex-col">
         <BackendBanner />
+        <VersionMismatchBanner mismatch={orchQuery.versionMismatch} />
         <AppShell
         activeView={activeView}
         onNavigate={(v) => navigateTo(v)}

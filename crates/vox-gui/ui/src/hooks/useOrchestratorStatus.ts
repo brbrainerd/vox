@@ -6,6 +6,12 @@ import type { OrchestratorStatus } from '../types/tauri';
 import { listenOrchStatus, voxTransport } from '../transport';
 import { useVoxQuery } from './useVoxQuery';
 
+/** Daemon-vs-GUI version mismatch, surfaced by `orchestrator_version_mismatch`. */
+export interface VersionMismatch {
+  daemon: string;
+  gui: string;
+}
+
 /** TanStack query result plus orchestrator-specific transport metadata. */
 export type OrchestratorStatusHookResult = UseQueryResult<OrchestratorStatus, Error> & {
   /**
@@ -18,6 +24,8 @@ export type OrchestratorStatusHookResult = UseQueryResult<OrchestratorStatus, Er
   usesPolling: boolean;
   /** The `listenOrchStatus` subscription failed (fetch may still succeed). */
   listenFailed: boolean;
+  /** Daemon/GUI version mismatch reported by the backend, or `null` if none. */
+  versionMismatch: VersionMismatch | null;
 };
 
 export interface OrchestratorStatusErrorFields {
@@ -89,6 +97,7 @@ export function useOrchestratorStatus(): OrchestratorStatusHookResult {
   const queryClient = useQueryClient();
   const [usesPolling, setUsesPolling] = useState(false);
   const [listenFailed, setListenFailed] = useState(false);
+  const [versionMismatch, setVersionMismatch] = useState<VersionMismatch | null>(null);
 
   const query = useVoxQuery<OrchestratorStatus>(
     ORCH_STATUS_QUERY_KEY,
@@ -139,7 +148,34 @@ export function useOrchestratorStatus(): OrchestratorStatusHookResult {
     };
   }, [queryClient]);
 
-  return { ...query, usesPolling, listenFailed };
+  // Poll the backend's cached daemon/GUI version-mismatch state (T2/Task 2).
+  // This mirrors the `PersistentDaemon.last_version_mismatch` cache updated
+  // as a side effect of the daemon connect path; a lightweight interval poll
+  // (rather than a dedicated event) is sufficient since a mismatch, once
+  // true, does not need sub-second freshness to be useful to the user.
+  useEffect(() => {
+    let cancelled = false;
+    const check = () => {
+      voxTransport
+        .getOrchestratorVersionMismatch()
+        .then((result) => {
+          if (cancelled) return;
+          setVersionMismatch(result ? { daemon: result[0], gui: result[1] } : null);
+        })
+        .catch(() => {
+          // Non-Tauri/browser preview context or command failure: leave
+          // versionMismatch as-is rather than surfacing a false warning.
+        });
+    };
+    check();
+    const id = setInterval(check, 5_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  return { ...query, usesPolling, listenFailed, versionMismatch };
 }
 
 /** Fires Appendix C gamify hook once per session on first successful status fetch. */

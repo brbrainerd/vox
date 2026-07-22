@@ -540,6 +540,11 @@ class VoxTransport {
     return safeInvoke<Uint8Array>('get_orchestrator_status_bin');
   }
 
+  /** Daemon/GUI version mismatch cached by `PersistentDaemon`, or `null` if none (Task 2). */
+  getOrchestratorVersionMismatch(): Promise<[string, string] | null> {
+    return safeInvoke<[string, string] | null>('orchestrator_version_mismatch');
+  }
+
   getIdentitySummary(): Promise<IdentitySummary> {
     return safeInvoke<IdentitySummary>('get_identity_summary');
   }

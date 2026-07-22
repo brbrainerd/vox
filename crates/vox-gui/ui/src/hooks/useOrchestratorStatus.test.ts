@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mockGetBin = vi.fn();
 const mockListen = vi.fn();
+const mockGetVersionMismatch = vi.fn();
 
 vi.mock('@msgpack/msgpack', () => ({
   decode: vi.fn(() => ({ agent_count: 2, agents: [], recent_events: [], alerts: [] })),
@@ -15,6 +16,7 @@ vi.mock('../transport', () => ({
   listenOrchStatus: (...args: unknown[]) => mockListen(...args),
   voxTransport: {
     getOrchestratorStatusBin: () => mockGetBin(),
+    getOrchestratorVersionMismatch: () => mockGetVersionMismatch(),
   },
 }));
 
@@ -43,6 +45,24 @@ describe('useOrchestratorStatus', () => {
     vi.clearAllMocks();
     mockGetBin.mockResolvedValue(new Uint8Array([0x80]));
     mockListen.mockResolvedValue(() => {});
+    mockGetVersionMismatch.mockResolvedValue(null);
+  });
+
+  it('exposes versionMismatch when the daemon reports a different version', async () => {
+    mockGetVersionMismatch.mockResolvedValue(['0.0.1-stale', '0.6.0']);
+    const { result } = renderHook(() => useOrchestratorStatus(), { wrapper });
+
+    await waitFor(() =>
+      expect(result.current.versionMismatch).toEqual({ daemon: '0.0.1-stale', gui: '0.6.0' }),
+    );
+  });
+
+  it('exposes null versionMismatch when the daemon reports no mismatch', async () => {
+    mockGetVersionMismatch.mockResolvedValue(null);
+    const { result } = renderHook(() => useOrchestratorStatus(), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.versionMismatch).toBeNull();
   });
 
   it('fetches cold-start status via transport and subscribes to live updates', async () => {
