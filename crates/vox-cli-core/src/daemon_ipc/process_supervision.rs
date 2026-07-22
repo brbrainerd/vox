@@ -407,7 +407,8 @@ mod stage_tests {
 
     #[test]
     fn resolve_or_stage_reports_none_version_hint_when_falling_back_with_no_probeable_binary() {
-        let tmp = std::env::temp_dir().join(format!("vox-test-version-hint-{}", std::process::id()));
+        let tmp =
+            std::env::temp_dir().join(format!("vox-test-version-hint-{}", std::process::id()));
         std::fs::create_dir_all(&tmp).unwrap();
         let nonexistent_src = tmp.join("does-not-exist-vox-orchestrator-d");
         let dest_dir = tmp.join("dest");
