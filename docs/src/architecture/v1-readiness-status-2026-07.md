@@ -9,7 +9,7 @@ training_eligible: false
 # v1.0 Readiness Status
 
 Audit of [`v1-foundation-criteria-research-2026.md`](./v1-foundation-criteria-research-2026.md)'s
-CR-F/CR-K/CR-U criteria as of 2026-07-22, alongside a concurrent effort promoting CR-U6's smoke
+CR-F/CR-K/CR-U criteria as of 2026-07-22, alongside a concurrent effort that promoted CR-U6's smoke
 test to a required CI gate
 ([docs/superpowers/plans/2026-07-22-orchestrator-reliability-and-bottom-bar.md](../../superpowers/plans/2026-07-22-orchestrator-reliability-and-bottom-bar.md)).
 
@@ -52,23 +52,25 @@ mechanism nor the gate exists.
 | CR-U3 | ⚠️ Built, Unverified | `crates/vox-gui/ui/e2e/*.spec.ts` (24 spec files) plus Playwright/vitest configs are real, hand-authored vox-gui frontend suites. They run in the `gui-playwright-smoke` CI job, which — despite its name suggesting the emitted codegen web app (the source doc's June characterization) — actually sweeps vox-gui's own registry-driven surfaces today. However that job only runs on `push` to main or with a `full-ci` label — not as a required PR gate. | Promote `gui-playwright-smoke` to a required PR check, or split out a PR-scoped subset. |
 | CR-U4 | ✅ Built & Verified | `crates/vox-gui/tauri.conf.json` now sets `bundle.icon` with real `.ico`/`.icns`/PNG assets and `bundle.externalBin`; no `targets`/`active` override needed since the defaults now produce installers. This closes the "no installers" gap from the source doc. | None found; revisit if a 4th target platform is added. |
 | CR-U5 | ⚠️ Built, Unverified / partially broken | `.github/workflows/release-gui.yml` does build and stage the `vox` CLI sidecar per platform before `tauri-apps/tauri-action@v1` bundles — that half of the gap is closed. But the Windows signing step (`azure/trusted-signing-action@v2`) still points `files-folder` at `./crates/vox-gui/src-tauri/target/release/bundle/msi`, and `crates/vox-gui/src-tauri` does not exist (config lives at `crates/vox-gui/tauri.conf.json` with `projectPath: ./crates/vox-gui`). The "nonexistent path" bug the source doc flagged is still present — signing will not resolve. | Fix the `files-folder` path in `release-gui.yml` to match the real Tauri project layout. |
-| CR-U6 | ⏳ In progress (this session) | `crates/vox-gui/tests/gui_relaunch_smoke.rs` exists and is a real launch+IPC smoke test, but no `.github/workflows/*.yml` currently references `gui_relaunch_smoke` — it is not yet wired as a required gate. A separate agent in this same plan session is concurrently promoting this test to a required CI gate; this audit cannot confirm from its own vantage point whether that landed. | Confirm CI wiring landed once the concurrent task in this plan completes. |
+| CR-U6 | ✅ Built & Verified | `crates/vox-gui/tests/gui_relaunch_smoke.rs` is a real launch+IPC smoke test and is no longer `#[ignore]`d. `.github/workflows/ci.yml` runs it as the `gui-orchestrator-relaunch-smoke` job, and the `ci-summary` job's `needs:` array (line 1479) includes `gui-orchestrator-relaunch-smoke`, so it is unconditional and required on every PR. | None — keep an eye on flakiness given it launches a real GUI process. |
 
 ## Summary
 
-3 of 19 criteria confirmed **Built & Verified** (CR-F6, CR-U1, CR-U4). 9 are **Built, Unverified**
-(CR-F1, CR-F2, CR-K2, CR-K3, CR-K4, CR-U3, CR-U5, plus CR-U6 pending the concurrent promotion
-effort) — real mechanisms exist but lack CI enforcement, full scope coverage, or a fixed
-configuration bug, making them candidates for the same kind of promotion-to-required-gate effort
-CR-U6 is undergoing right now. 7 are genuinely **Unbuilt** (CR-F3, CR-F4, CR-F5, CR-K1, CR-K5,
-CR-K6, CR-K7) with no mechanism or gate at all — candidates for new specs, not attempted in this
-audit.
+4 of 19 criteria confirmed **Built & Verified** (CR-F6, CR-U1, CR-U4, CR-U6 — CR-U6's
+`gui-orchestrator-relaunch-smoke` job landed in the `ci-summary` required-gate `needs:` array
+during this same plan session). 8 are **Built, Unverified**
+(CR-F1, CR-F2, CR-K2, CR-K3, CR-K4, CR-U3, CR-U5) — real mechanisms exist but lack CI enforcement,
+full scope coverage, or a fixed configuration bug, making them candidates for the same kind of
+promotion-to-required-gate effort CR-U6 just went through. 7 are genuinely **Unbuilt** (CR-F3,
+CR-F4, CR-F5, CR-K1, CR-K5, CR-K6, CR-K7) with no mechanism or gate at all — candidates for new
+specs, not attempted in this audit.
 
 This meaningfully **updates the stale prior claim** in project memory that "CR-F/K/U harnesses
 [are] UNBUILT" — that was accurate as a *summary* in early June 2026, but by 2026-07-22 the
 Foundation tier alone has two real, partially-wired gates (CR-F1, CR-F2, CR-F6) integrated into
-`vox-audit`'s `block_ga()` set, the GUI tier has closed three of its five 2026-06-05 gaps
-(CR-U1 drift-checking, CR-U4 installer config, and half of CR-U5's sidecar build step), and the
+`vox-audit`'s `block_ga()` set, the GUI tier has closed four of its five 2026-06-05 gaps
+(CR-U1 drift-checking, CR-U4 installer config, CR-U6 relaunch-smoke required gate, and half of
+CR-U5's sidecar build step), and the
 Distribution tier has moved from "1/103 crates publishable" to a declared 5-crate public set with
 real metadata — even though CI enforcement for that set still does not exist. The honest read is:
 **substantial unglamorous progress has landed since the June audit, but almost none of it is yet

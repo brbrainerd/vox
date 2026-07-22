@@ -2,17 +2,17 @@ import { test, expect } from '@playwright/test';
 import { installOperatorShellMock } from './lib/operatorShellMock';
 
 /**
- * StatusBar visibility on operator surfaces (Phase 1.4).
+ * BottomStatusBar visibility on operator surfaces (Phase 1.4).
  *
  * Run: pnpm exec playwright test e2e/status-bar-surfaces.spec.ts --project=chromium
  */
-test.describe('StatusBar on operator surfaces', () => {
+test.describe('BottomStatusBar on operator surfaces', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(installOperatorShellMock, { initialView: 'dashboard' });
   });
 
   async function expectStatusBarVisible(page: import('@playwright/test').Page) {
-    await expect(page.getByTestId('status-bar')).toBeVisible();
+    await expect(page.getByTestId('bottom-status-bar')).toBeVisible();
     await expect(page.getByRole('status', { name: /operator status/i })).toBeVisible();
   }
 
