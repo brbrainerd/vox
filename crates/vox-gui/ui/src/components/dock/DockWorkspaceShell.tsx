@@ -43,6 +43,7 @@ export function DockWorkspaceShell({
   onReady,
 }: DockWorkspaceShellProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const layoutChangeDisposableRef = useRef<{ dispose: () => void } | null>(null);
   const storageKey = layoutStorageKeyFor(storageKeyPrefix);
   // Two-div split, deliberate: `outerRef` keeps the existing percentage-based
   // sizing (`h-full`, flex-stretched by its own parent) untouched — measuring
@@ -90,7 +91,7 @@ export function DockWorkspaceShell({
         }
       }
 
-      event.api.onDidLayoutChange(() => {
+      const layoutChangeDisposable = event.api.onDidLayoutChange(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
           try {
@@ -103,11 +104,23 @@ export function DockWorkspaceShell({
           }
         }, LAYOUT_PERSIST_DEBOUNCE_MS);
       });
+      layoutChangeDisposableRef.current = layoutChangeDisposable;
 
       onReady(event);
     },
     [onReady, storageKey],
   );
+
+  useEffect(() => {
+    return () => {
+      layoutChangeDisposableRef.current?.dispose();
+      layoutChangeDisposableRef.current = null;
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div ref={outerRef} className="h-full min-h-0 w-full">
