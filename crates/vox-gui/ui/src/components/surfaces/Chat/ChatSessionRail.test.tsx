@@ -44,12 +44,16 @@ describe('ChatSessionRail', () => {
     );
     const rail = screen.getByRole('complementary');
     expect(rail).not.toHaveClass('w-44');
-    // Rows are now a single-line compact stack (2026-07-21 live-test redesign):
-    // titles truncate to one line instead of wrapping to two, since the row
-    // itself is now ~32-40px tall rather than a multi-line card.
+    // Rows use the compact left-gutter stack (2026-07-21 live-test redesign),
+    // but titles wrap to 2 lines rather than truncating to 1: a CDP
+    // measurement in the real w-64 rail (see
+    // .remediation-notes/task4-truncate-verdict.md) found realistic
+    // 30-40 char titles genuinely clip at 1 line but fit at 2, reproducing
+    // the original F-05 bug. line-clamp-2 restores the F-05 fix while
+    // keeping the compact gutter/badge/button styling from Task 4.
     const title = screen.getByText('First');
-    expect(title).toHaveClass('truncate');
-    expect(title).not.toHaveClass('line-clamp-2');
+    expect(title).toHaveClass('line-clamp-2');
+    expect(title).not.toHaveClass('truncate');
     // Full text is always discoverable via native tooltip, even when elided.
     expect(screen.getByRole('tab', { name: /First/ })).toHaveAttribute('title', 'First');
   });

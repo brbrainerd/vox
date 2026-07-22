@@ -92,15 +92,15 @@ export function ChatSessionRail({
                   title={s.title}
                   data-testid={`session-row-${s.session_id}`}
                   onClick={() => onSessionChange(s.session_id)}
-                  className={`flex h-8 min-w-0 flex-1 items-center gap-2 border-l-2 py-1 pl-2 pr-1.5 text-left text-xs ${
+                  className={`flex min-h-8 min-w-0 flex-1 items-start gap-2 border-l-2 py-1 pl-2 pr-1.5 text-left text-xs ${
                     isActive
                       ? 'border-brass bg-brass/10 text-brass'
                       : 'border-transparent text-text-muted hover:border-border-subtle hover:text-text-secondary'
                   }`}
                 >
-                  <span className="min-w-0 flex-1 truncate">{s.title}</span>
+                  <span className="min-w-0 flex-1 line-clamp-2 break-words">{s.title}</span>
                   {s.message_count > 0 ? (
-                    <span className="shrink-0 font-mono text-[10px] text-text-muted">{s.message_count}</span>
+                    <span className="shrink-0 pt-px font-mono text-[10px] text-text-muted">{s.message_count}</span>
                   ) : null}
                 </Button>
                 {(onRenameSession || onArchiveSession) && (
