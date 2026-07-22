@@ -58,12 +58,12 @@ mechanism nor the gate exists.
 
 4 of 19 criteria confirmed **Built & Verified** (CR-F6, CR-U1, CR-U4, CR-U6 — CR-U6's
 `gui-orchestrator-relaunch-smoke` job landed in the `ci-summary` required-gate `needs:` array
-during this same plan session). 8 are **Built, Unverified**
+during this same plan session). 7 are **Built, Unverified**
 (CR-F1, CR-F2, CR-K2, CR-K3, CR-K4, CR-U3, CR-U5) — real mechanisms exist but lack CI enforcement,
 full scope coverage, or a fixed configuration bug, making them candidates for the same kind of
-promotion-to-required-gate effort CR-U6 just went through. 7 are genuinely **Unbuilt** (CR-F3,
-CR-F4, CR-F5, CR-K1, CR-K5, CR-K6, CR-K7) with no mechanism or gate at all — candidates for new
-specs, not attempted in this audit.
+promotion-to-required-gate effort CR-U6 just went through. 8 are genuinely **Unbuilt** (CR-F3,
+CR-F4, CR-F5, CR-K1, CR-K5, CR-K6, CR-K7, CR-U2) with no mechanism or gate at all — candidates for
+new specs, not attempted in this audit.
 
 This meaningfully **updates the stale prior claim** in project memory that "CR-F/K/U harnesses
 [are] UNBUILT" — that was accurate as a *summary* in early June 2026, but by 2026-07-22 the

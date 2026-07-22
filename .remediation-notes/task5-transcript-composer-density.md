@@ -88,8 +88,8 @@ variant + `__summary`/`__toggle`/`__bar--compact` rules.
   bounding-box height dropped to 68px (screenshot: one-line "63% · 150/240M
   Focused ▾" row), with visibly more transcript content above the fold.
 
-## No commit yet
+## Commit
 
-Source changes are staged for a project commit
-(`feat(gui): compact the Chat transcript/composer panel for realistic
-conversation density`) alongside this note.
+Source changes landed in `df2a0544d3` (`feat(gui): compact the Chat
+transcript/composer panel for realistic conversation density`), alongside
+this note.

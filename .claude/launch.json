@@ -8,12 +8,6 @@
       "port": 1420
     },
     {
-      "name": "vox-gui-worktree",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "C:\\Users\\Owner\\vox\\.worktrees\\axis-frontend-remediation\\crates\\vox-gui\\ui", "dev", "--", "--port", "1421"],
-      "port": 1421
-    },
-    {
       "name": "ds-gallery",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8777", "--directory", "crates/vox-gui/ds"],
