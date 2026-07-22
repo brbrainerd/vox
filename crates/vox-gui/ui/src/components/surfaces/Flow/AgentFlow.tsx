@@ -146,8 +146,8 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
 
   return (
     <Glass className="relative overflow-hidden p-0">
-      <div className="flex items-center justify-between border-b border-border-subtle px-5 py-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-5 py-3">
+        <div className="min-w-0">
           <h2 className="font-display text-[16px] font-semibold tracking-tight text-text-primary">
             Mind-Map · Agent Shards
           </h2>
@@ -155,7 +155,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
             Topology of the active agent graph · click a shard to inspect
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Legend color="bg-cyan-400"   label="Planning" />
           <Legend color="bg-brass"      label="Executing" />
           <Legend color="bg-violet-400" label="Verifying" />
