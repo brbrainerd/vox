@@ -98,7 +98,9 @@ docker run -d --name vox-sccache-minio --restart always --memory=1g \
 #   mc mb vox/vox-sccache && mc anonymous set public vox/vox-sccache
 ```
 
-`--restart always` survives Docker Desktop restarts. The autoscaler probes
+`--restart always` survives Docker/WSL2 engine restarts (this host uses the
+WSL2-native Docker Engine, not Docker Desktop — see
+[runner-autoscaling.md](runner-autoscaling.md)). The autoscaler probes
 `127.0.0.1:9000` before each spawn; if MinIO is down, runner containers fall
 back to the per-host disk volume (`SCCACHE_DIR=/cache/sccache`) baked into the
 runner image — builds never fail because the cache is away.
