@@ -49,7 +49,7 @@ describe('useOrchestratorStatus', () => {
   });
 
   it('exposes versionMismatch when the daemon reports a different version', async () => {
-    mockGetVersionMismatch.mockResolvedValue(['0.0.1-stale', '0.6.0']);
+    mockGetVersionMismatch.mockResolvedValue({ daemonVersion: '0.0.1-stale', guiVersion: '0.6.0' });
     const { result } = renderHook(() => useOrchestratorStatus(), { wrapper });
 
     await waitFor(() =>

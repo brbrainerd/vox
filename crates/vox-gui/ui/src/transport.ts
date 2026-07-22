@@ -541,8 +541,10 @@ class VoxTransport {
   }
 
   /** Daemon/GUI version mismatch cached by `PersistentDaemon`, or `null` if none (Task 2). */
-  getOrchestratorVersionMismatch(): Promise<[string, string] | null> {
-    return safeInvoke<[string, string] | null>('orchestrator_version_mismatch');
+  getOrchestratorVersionMismatch(): Promise<{ daemonVersion: string; guiVersion: string } | null> {
+    return safeInvoke<[string, string] | null>('orchestrator_version_mismatch').then((result) =>
+      result ? { daemonVersion: result[0], guiVersion: result[1] } : null
+    );
   }
 
   getIdentitySummary(): Promise<IdentitySummary> {

@@ -5,8 +5,9 @@ export interface VersionMismatchBannerProps {
 }
 
 export function VersionMismatchBanner({ mismatch }: VersionMismatchBannerProps) {
-  const [dismissed, setDismissed] = useState(false);
-  if (!mismatch || dismissed) return null;
+  const [dismissedFor, setDismissedFor] = useState<string | null>(null);
+  const key = mismatch ? `${mismatch.daemon}|${mismatch.gui}` : null;
+  if (!mismatch || dismissedFor === key) return null;
   return (
     <div
       data-testid="version-mismatch-banner"
@@ -19,7 +20,7 @@ export function VersionMismatchBanner({ mismatch }: VersionMismatchBannerProps) 
       <button
         type="button"
         aria-label="Dismiss version mismatch warning"
-        onClick={() => setDismissed(true)}
+        onClick={() => setDismissedFor(key)}
         className="shrink-0 rounded px-1.5 py-0.5 text-amber-200/70 hover:bg-amber-400/10 hover:text-amber-200"
       >
         ✕

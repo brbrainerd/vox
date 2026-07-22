@@ -16,8 +16,26 @@ describe('VersionMismatchBanner', () => {
   });
 
   it('dismisses on click and stays dismissed', () => {
-    render(<VersionMismatchBanner mismatch={{ daemon: '0.5.9', gui: '0.6.0' }} />);
+    const { rerender } = render(
+      <VersionMismatchBanner mismatch={{ daemon: '0.5.9', gui: '0.6.0' }} />
+    );
     fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
     expect(screen.queryByTestId('version-mismatch-banner')).not.toBeInTheDocument();
+
+    // Re-rendering with the same mismatch keeps it dismissed.
+    rerender(<VersionMismatchBanner mismatch={{ daemon: '0.5.9', gui: '0.6.0' }} />);
+    expect(screen.queryByTestId('version-mismatch-banner')).not.toBeInTheDocument();
+  });
+
+  it('reappears when a new, different mismatch arrives after dismissal', () => {
+    const { rerender } = render(
+      <VersionMismatchBanner mismatch={{ daemon: '0.5.9', gui: '0.6.0' }} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+    expect(screen.queryByTestId('version-mismatch-banner')).not.toBeInTheDocument();
+
+    // Daemon restarts on a different version — a new mismatch — banner should reappear.
+    rerender(<VersionMismatchBanner mismatch={{ daemon: '0.5.8', gui: '0.6.0' }} />);
+    expect(screen.getByTestId('version-mismatch-banner')).toHaveTextContent('0.5.8');
   });
 });

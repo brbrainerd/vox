@@ -160,7 +160,7 @@ export function useOrchestratorStatus(): OrchestratorStatusHookResult {
         .getOrchestratorVersionMismatch()
         .then((result) => {
           if (cancelled) return;
-          setVersionMismatch(result ? { daemon: result[0], gui: result[1] } : null);
+          setVersionMismatch(result ? { daemon: result.daemonVersion, gui: result.guiVersion } : null);
         })
         .catch(() => {
           // Non-Tauri/browser preview context or command failure: leave
