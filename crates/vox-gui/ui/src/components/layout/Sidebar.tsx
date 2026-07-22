@@ -5,7 +5,7 @@ import { Icon } from '../ui/Icons';
 import { AxisMark } from '../ui/AxisMark';
 import { DashboardData } from '../../types/dashboard';
 import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
-import { TOP_LEVEL_VIEWS, resolveNavigation } from '../../lib/navigation';
+import { TOP_LEVEL_VIEWS, resolveNavigation, CHILD_ORDER_BY_PARENT, labelForNavKey } from '../../lib/navigation';
 import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens';
 import { useFreshness } from '../../hooks/useFreshness';
 import { useLang } from '../../hooks/useLanguage';
@@ -123,6 +123,14 @@ export function Sidebar({
 
   const visibleTopLevel = TOP_LEVEL_VIEWS.filter(k => k !== 'settings');
 
+  const [peekedParent, setPeekedParent] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPeekedParent(null);
+  }, [activeParent]);
+
+  const expandedParent = peekedParent ?? activeParent;
+
   useEffect(() => {
     activeRef.current?.scrollIntoView({ block: 'nearest' });
   }, [view]);
@@ -164,6 +172,8 @@ export function Sidebar({
             const label = navLabelFor(key, lang);
             const IconCmp = (Icon as Record<string, any>)[TOP_NAV_ICON[key] ?? 'file'] ?? Icon.file;
             const isActive = activeParent === key;
+            const isExpanded = expandedParent === key && mode === 'wide';
+            const children = CHILD_ORDER_BY_PARENT[key];
             const badge =
               key === 'agents' ? agentsCount
               : key === 'runs' && needsYouCount != null && needsYouCount > 0 ? needsYouCount
@@ -175,17 +185,52 @@ export function Sidebar({
                   : 'Review'
                 : undefined;
             return (
-              <NavItem
-                key={key}
-                innerRef={isActive ? activeRef : undefined}
-                collapsed={collapsed}
-                active={isActive}
-                onClick={() => onOpenParent(key)}
-                icon={<IconCmp className="size-4" />}
-                label={label}
-                badge={badge}
-                ariaLabel={navAriaLabel}
-              />
+              <React.Fragment key={key}>
+                <div className="flex items-center gap-0.5">
+                  <div className="flex-1 min-w-0">
+                    <NavItem
+                      innerRef={isActive ? activeRef : undefined}
+                      collapsed={collapsed}
+                      active={isActive}
+                      onClick={() => onOpenParent(key)}
+                      icon={<IconCmp className="size-4" />}
+                      label={label}
+                      badge={badge}
+                      ariaLabel={navAriaLabel}
+                    />
+                  </div>
+                  {children && mode === 'wide' && (
+                    <button
+                      type="button"
+                      aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${label}`}
+                      aria-expanded={isExpanded}
+                      onClick={() => setPeekedParent(isExpanded ? null : key)}
+                      className="flex size-6 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-overlay-hover hover:text-text-primary"
+                    >
+                      <Icon.chevR className={`size-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+                {isExpanded && children && (
+                  <div className="ml-4 flex flex-col gap-0.5 border-l border-border-subtle pl-2">
+                    {children.map(childKey => (
+                      <button
+                        key={childKey}
+                        type="button"
+                        onClick={() => onOpenTab(childKey)}
+                        aria-current={view === childKey ? 'page' : undefined}
+                        className={`w-full rounded-lg px-2 py-1.5 text-left font-display text-[11px] tracking-[0.1em] uppercase transition ${
+                          view === childKey
+                            ? 'bg-brass/10 text-brass'
+                            : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
+                        }`}
+                      >
+                        {labelForNavKey(childKey)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </React.Fragment>
             );
           })}
         </nav>

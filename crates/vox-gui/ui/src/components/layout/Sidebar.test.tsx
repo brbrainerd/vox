@@ -154,3 +154,46 @@ describe('Sidebar language labels', () => {
     expect(screen.getByRole('button', { name: 'Mercatus' })).toBeDefined();
   });
 });
+
+describe('Sidebar accordion (wide mode only)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Element.prototype.scrollIntoView = vi.fn();
+    window.localStorage.clear();
+  });
+
+  it('expands the parent containing the active view in wide mode', () => {
+    renderSidebar({ view: 'flow', mode: 'wide' });
+    expect(screen.getByRole('button', { name: /^flow$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^tasks$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^policies$/i })).not.toBeInTheDocument();
+  });
+
+  it('does not render a child tree in rail mode', () => {
+    renderSidebar({ view: 'flow', mode: 'rail' });
+    expect(screen.queryByRole('button', { name: /^tasks$/i })).not.toBeInTheDocument();
+  });
+
+  it('does not render a child tree in default mode either', () => {
+    renderSidebar({ view: 'flow', mode: 'default' });
+    expect(screen.queryByRole('button', { name: /^tasks$/i })).not.toBeInTheDocument();
+  });
+
+  it('clicking a child calls onOpenTab with that child key', () => {
+    const onOpenTab = vi.fn();
+    renderSidebar({ view: 'flow', mode: 'wide', onOpenTab });
+    fireEvent.click(screen.getByRole('button', { name: /^tasks$/i }));
+    expect(onOpenTab).toHaveBeenCalledWith('tasks');
+  });
+
+  it('the peek chevron expands a parent without navigating (does not call onOpenParent/onOpenTab)', () => {
+    const onOpenParent = vi.fn();
+    const onOpenTab = vi.fn();
+    renderSidebar({ view: 'flow', mode: 'wide', onOpenParent, onOpenTab });
+    fireEvent.click(screen.getByRole('button', { name: /expand knowledge/i }));
+    expect(onOpenParent).not.toHaveBeenCalled();
+    expect(onOpenTab).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /^memory$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^tasks$/i })).not.toBeInTheDocument();
+  });
+});
