@@ -224,7 +224,7 @@ function appChatReducer(store: SessionChatStore, action: AppChatAction): Session
 export default function App() {
   const [data, setData] = useState<DashboardData>(INITIAL_DATA);
   const [kpis, setKpis] = useState(INITIAL_KPIS);
-  const { activeView, navigateTo: openTab, navigateToParent: openParentFromHook } = useActiveView();
+  const { activeView, navigateTo: openTab } = useActiveView();
   const { activeDoc, openDoc: openDocTab, closeDoc: closeDocViewer } = useDocViewer();
   const [sidebarMode, setSidebarMode] = useLocalStorage<SidebarMode>(
     SHELL_PREFERENCE_KEYS.sidebarMode,
@@ -585,7 +585,9 @@ export default function App() {
     syncViewToLocation(child);
   }, [openTab]);
 
-  const openParentNav = openParentFromHook;
+  const openParentNav = useCallback((parentKey: string) => {
+    navigateTo(parentKey);
+  }, [navigateTo]);
 
   const [focusedFeedbackId, setFocusedFeedbackId] = useState<string | null>(null);
 

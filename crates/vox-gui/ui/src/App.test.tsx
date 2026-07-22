@@ -206,4 +206,25 @@ describe('App shell', () => {
     });
     expect(toastRegion.textContent).not.toMatch(/__TAURI_INTERNALS__|\binvoke\b/);
   });
+
+  // Regression (Task 5 nav-shell redesign, ee7903cf4b): openParentNav used to
+  // alias directly to useActiveView().navigateToParent, which only calls the
+  // hook's internal setActiveView — it never calls syncViewToLocation, so the
+  // URL hash went stale on every sidebar parent-group click (e.g. "Agents").
+  // A reload right after would silently revert the navigation. openParentNav
+  // must route through the local navigateTo wrapper so the hash stays in sync.
+  it('clicking a sidebar parent group syncs the URL hash (Task 5 regression)', async () => {
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const user = userEvent.setup();
+    let agentsNav: HTMLElement | undefined;
+    await waitFor(() => {
+      agentsNav = screen.getAllByRole('button').find(b => (b.textContent ?? '').startsWith('Agents'));
+      expect(agentsNav).toBeTruthy();
+    });
+    await user.click(agentsNav!);
+
+    await waitFor(() => expect(window.location.hash).toBe('#view=dashboard'));
+  });
 });
