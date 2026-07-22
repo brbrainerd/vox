@@ -3,7 +3,6 @@ import { sanitizeErrorForToast } from './lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { AppShell } from './components/layout/AppShell';
 import { SidebarMode } from './components/layout/Sidebar';
-import { type HudMode } from './components/layout/TopHud';
 import { renderSurfaceContent } from './components/layout/surfaceComponents';
 import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDiscoveryPresetForLegacyKey, labelForNavKey, DEFAULT_CHILD_BY_PARENT } from './lib/navigation';
 import { useActiveView } from './hooks/useActiveView';
@@ -55,6 +54,7 @@ import { useWorkspaceIdentity } from './hooks/useWorkspaceIdentity';
 import { useLlmSpend } from './hooks/useLlmSpend';
 import { useChatExecutionData } from './hooks/useChatExecutionData';
 import { useHudTilesConfig } from './hooks/useHudTilesConfig';
+import { useMeshNodes } from './hooks/useMeshNodes';
 import { useGamifySettings } from './hooks/useGamifySettings';
 import { useAchievementToasts } from './hooks/useAchievementToasts';
 import { recordGamifyGuiEvent, setGamifyGuiEventResultListener } from './lib/gamifyGuiEvents';
@@ -252,7 +252,12 @@ export default function App() {
   const orchUsesPolling = orchQuery.usesPolling;
   const { workspaceTitle } = useWorkspaceIdentity();
   const { totalUsd: openrouterSpendUsd } = useLlmSpend();
-  const { config: hudTilesConfig, setConfig: setHudTilesConfig, visibleTiles } = useHudTilesConfig();
+  const { config: hudTilesConfig, setConfig: setHudTilesConfig } = useHudTilesConfig();
+  // Slower than MeshView's own 5s poll — BottomStatusBar is mounted for the
+  // whole session on every view, so a one-line online/total summary doesn't
+  // need MeshView's fast cadence, which would add permanent steady-state
+  // load on the orchestrator daemon.
+  const meshNodes = useMeshNodes(20_000);
   const activeModel = useMemo(() => {
     const status = orchQuery.data as (OrchestratorStatus & { active_model?: string | null }) | undefined;
     return status?.active_model ?? null;
@@ -262,7 +267,6 @@ export default function App() {
     () => installedSkills.map(installedSkillToCatalogEntry),
     [installedSkills],
   );
-  const [hudMode, setHudMode] = useLocalStorage<HudMode>(SHELL_PREFERENCE_KEYS.hudMode, 'full');
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [chatModelOverride, setChatModelOverride] = useState<string | null>(null);
   const [groundingCheckEnabled, setGroundingCheckEnabled] = useGroundingCheck(activeSessionId);
@@ -1001,7 +1005,6 @@ export default function App() {
   const actionHandlers = useMemo(() => ({
     'open-palette': () => setIsCommandOpen(true),
     'toggle-sidebar': () => setSidebarMode(m => m === 'rail' ? 'default' : m === 'default' ? 'wide' : 'rail'),
-    'toggle-hud': () => setHudMode(m => m === 'full' ? 'slim' : m === 'slim' ? 'hidden' : 'full'),
     'pause-resume-agent': () => togglePauseSelectedRef.current(),
   }), []);
   useKeybinds(actionHandlers, bindings);
@@ -1247,23 +1250,22 @@ export default function App() {
         needsYouCount={attention.totalCount}
         pendingApprovals={attention.approvals.length}
         kpis={kpis}
-        onCommand={() => setIsCommandOpen(true)}
         onOpenCommandPalette={() => setIsCommandOpen(true)}
         lastOrchEventAt={lastOrchEventAt}
         orchUsesPolling={orchUsesPolling}
         liveFreshMs={LIVE_EVENT_FRESH_MS}
-        hudMode={hudMode}
-        setHudMode={setHudMode}
         surfaceKey={activeView}
         surfaceLabel={labelForNavKey(activeView)}
         chatDocked={chatDocked}
         chatDock={chatDock}
         workspaceTitle={workspaceTitle}
-        visibleTiles={visibleTiles}
         activeModel={activeModel}
         openrouterSpendUsd={openrouterSpendUsd}
         gamifyEnabled={gamifySettings.enabled}
         onOpenAchievements={openAchievements}
+        hudTilesConfig={hudTilesConfig}
+        onHudTilesChange={setHudTilesConfig}
+        meshNodes={meshNodes}
       >
         {mainSurface}
         </AppShell>

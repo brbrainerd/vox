@@ -1,15 +1,16 @@
 import React from 'react';
 import { Backdrop } from '../ui/Backdrop';
 import { Sidebar, type SidebarMode } from './Sidebar';
-import { TopHud, type HudMode } from './TopHud';
 import { SurfaceScrollHost } from './SurfaceScrollHost';
 import { BreadcrumbBar } from './BreadcrumbBar';
-import { StatusBar } from './StatusBar';
+import { BottomStatusBar } from './BottomStatusBar';
+import { Icon } from '../ui/Icons';
 import { SurfaceErrorBoundary } from '../ui/ErrorBoundary';
 import type { DashboardData } from '../../types/dashboard';
 import type { PolicyBadge } from './Sidebar';
-import type { HudTileKind } from '../../hooks/useHudTiles';
+import type { HudTilesConfig } from '../../hooks/useHudTiles';
 import type { Toast } from '../../types/tauri';
+import type { MeshNode } from '../surfaces/Mesh/MeshView';
 import { INITIAL_KPIS } from '../../data/initialState';
 
 type KpiState = typeof INITIAL_KPIS;
@@ -29,26 +30,24 @@ export interface AppShellProps {
   needsYouCount: number;
   pendingApprovals: number;
   kpis: KpiState;
-  onCommand: () => void;
-  onOpenCommandPalette?: () => void;
+  onOpenCommandPalette: () => void;
   lastOrchEventAt: number | null;
   orchUsesPolling: boolean;
   liveFreshMs: number;
-  hudMode: HudMode;
-  setHudMode: (mode: HudMode) => void;
   surfaceKey: string;
   surfaceLabel: string;
   /** When false, Loquela / transcript stack is omitted (Chat surface hosts composer). */
   chatDocked: boolean;
   chatDock?: React.ReactNode;
   children: React.ReactNode;
-  /** Workspace display name for TopHud (defaults to Operator in TopHud). */
   workspaceTitle?: string;
-  visibleTiles?: HudTileKind[];
   activeModel?: string | null;
   openrouterSpendUsd?: number | null;
   gamifyEnabled?: boolean;
   onOpenAchievements?: () => void;
+  hudTilesConfig: HudTilesConfig;
+  onHudTilesChange: (config: HudTilesConfig) => void;
+  meshNodes: MeshNode[] | undefined;
 }
 
 export function AppShell({
@@ -66,24 +65,22 @@ export function AppShell({
   needsYouCount,
   pendingApprovals,
   kpis,
-  onCommand,
   onOpenCommandPalette,
   lastOrchEventAt,
   orchUsesPolling,
   liveFreshMs,
-  hudMode,
-  setHudMode,
   surfaceKey,
   surfaceLabel,
   chatDocked,
   chatDock,
   children,
-  workspaceTitle,
-  visibleTiles,
   activeModel,
   openrouterSpendUsd,
   gamifyEnabled,
   onOpenAchievements,
+  hudTilesConfig,
+  onHudTilesChange,
+  meshNodes,
 }: AppShellProps) {
   const mainPaddingBottom = chatDocked ? 'pb-[180px]' : 'pb-5';
 
@@ -109,33 +106,32 @@ export function AppShell({
       />
 
       <main className="flex-1 flex flex-col min-w-0 relative">
-        <div className="p-4 pb-0">
-          <TopHud
-            kpis={kpis}
-            onCommand={onCommand}
-            onOpenCommandPalette={onOpenCommandPalette ?? onCommand}
-            lastOrchEventAt={lastOrchEventAt}
-            orchUsesPolling={orchUsesPolling}
-            liveFreshMs={liveFreshMs}
-            onNavigate={onNavigate}
-            hudMode={hudMode}
-            setHudMode={setHudMode}
-            workspaceTitle={workspaceTitle}
-            visibleTiles={visibleTiles}
-            activeModel={activeModel}
-            openrouterSpendUsd={openrouterSpendUsd}
-            pendingApprovals={pendingApprovals}
-          />
-          <BreadcrumbBar viewKey={activeView} onNavigate={onNavigate} gamifyEnabled={gamifyEnabled} />
-          <StatusBar
-            kpis={kpis}
-            lastOrchEventAt={lastOrchEventAt}
-            orchUsesPolling={orchUsesPolling}
-            liveFreshMs={liveFreshMs}
-            onNavigate={onNavigate}
-            gamifyEnabled={gamifyEnabled}
-            onOpenAchievements={onOpenAchievements}
-          />
+        <div className="p-4 pb-0 flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1 truncate">
+            <BreadcrumbBar viewKey={activeView} onNavigate={onNavigate} gamifyEnabled={gamifyEnabled} />
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {gamifyEnabled && onOpenAchievements && (
+              <button
+                type="button"
+                data-testid="achievements-trigger"
+                aria-label="Open achievements"
+                onClick={onOpenAchievements}
+                className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-amber-300/80 hover:bg-overlay-subtle hover:text-amber-200 transition"
+              >
+                <Icon.trophy className="size-3.5" aria-hidden="true" />
+              </button>
+            )}
+            <button
+              type="button"
+              data-testid="omnisearch-trigger"
+              onClick={onOpenCommandPalette}
+              className="inline-flex items-center gap-1.5 rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-xs text-text-muted hover:border-brass/40 hover:text-brass transition"
+            >
+              <span>Search or jump…</span>
+              <span className="rounded border border-border-subtle bg-overlay-subtle px-1 text-[9px] tracking-widest text-text-muted">⌘K</span>
+            </button>
+          </div>
         </div>
 
         <div className={`flex-1 min-h-0 flex flex-col overflow-hidden p-5 ${mainPaddingBottom}`}>
@@ -149,6 +145,22 @@ export function AppShell({
             {chatDock}
           </div>
         )}
+
+        <div className="px-4 pb-2">
+          <BottomStatusBar
+            kpis={kpis}
+            hudTilesConfig={hudTilesConfig}
+            onHudTilesChange={onHudTilesChange}
+            onNavigate={onNavigate}
+            lastOrchEventAt={lastOrchEventAt}
+            orchUsesPolling={orchUsesPolling}
+            liveFreshMs={liveFreshMs}
+            activeModel={activeModel}
+            openrouterSpendUsd={openrouterSpendUsd}
+            pendingApprovals={pendingApprovals}
+            meshNodes={meshNodes}
+          />
+        </div>
       </main>
     </div>
   );
