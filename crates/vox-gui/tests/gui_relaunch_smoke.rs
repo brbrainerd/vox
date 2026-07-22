@@ -15,8 +15,11 @@
 //! or display — it runs on the same bare CI runners as the WebIR lane (unlike the
 //! browser-gated Playwright lane). Rendering / input / a11y stay in Playwright.
 //!
-//! Gated behind `VOX_GUI_RELAUNCH_SMOKE=1` + `#[ignore]` because it requires a
-//! built `vox-orchestrator-d` binary (CI builds it before running this lane).
+//! Gated behind `VOX_GUI_RELAUNCH_SMOKE=1` (a local-dev opt-out convenience —
+//! no `#[ignore]`/`--ignored` involved) because it requires a built
+//! `vox-orchestrator-d` binary; the `gui-orchestrator-relaunch-smoke` CI job
+//! builds that binary and sets the env var, making this a required gate
+//! (CR-U6).
 
 use std::net::TcpListener;
 use std::process::{Child, Command, Stdio};
@@ -48,7 +51,6 @@ impl Drop for DaemonGuard {
 }
 
 #[tokio::test]
-#[ignore = "needs a built vox-orchestrator-d; set VOX_GUI_RELAUNCH_SMOKE=1"]
 async fn gui_relaunch_boots_daemon_and_core_surfaces_respond() {
     if !relaunch_smoke_enabled() {
         eprintln!("skipping gui relaunch smoke: set VOX_GUI_RELAUNCH_SMOKE=1");
@@ -74,20 +76,25 @@ async fn gui_relaunch_boots_daemon_and_core_surfaces_respond() {
         .unwrap_or_else(|e| panic!("failed to spawn daemon {}: {e}", bin.display()));
     let _guard = DaemonGuard(child);
 
-    let client = OrchDaemonClient::new(addr.clone());
-
-    // Poll the real ping RPC until the daemon is reachable (mirrors PersistentDaemon).
+    // `OrchDaemonClient::new` reads the daemon's well-known auth-token file
+    // once, at construction. The freshly-spawned daemon above may not have
+    // written its own (fresh) token yet, so constructing the client once,
+    // outside the poll loop, races the daemon's startup: a client built too
+    // early caches a missing/stale token and then never authenticates, no
+    // matter how long the loop retries. Re-resolve a fresh client each
+    // attempt so it keeps picking up the daemon's token once written.
     let deadline = Instant::now() + Duration::from_secs(20);
-    loop {
-        if client.ping().await.is_ok() {
-            break;
+    let client = loop {
+        let candidate = OrchDaemonClient::new(addr.clone());
+        if candidate.ping().await.is_ok() {
+            break candidate;
         }
         assert!(
             Instant::now() < deadline,
             "daemon never became reachable at {addr}"
         );
         tokio::time::sleep(Duration::from_millis(150)).await;
-    }
+    };
 
     // Core read RPCs respond.
     let _status = client
@@ -105,4 +112,14 @@ async fn gui_relaunch_boots_daemon_and_core_surfaces_respond() {
             "a freshly-relaunched daemon should report zero agents, got {arr:?}"
         );
     }
+
+    // The relaunched daemon's self-reported version matches this build's own
+    // workspace version — a real CI guard against ever shipping a
+    // version-reporting regression (e.g. a hardcoded stale version string).
+    let ping_response = client.ping().await.expect("ping should succeed");
+    assert_eq!(
+        ping_response.get("version").and_then(|v| v.as_str()),
+        Some(env!("CARGO_PKG_VERSION")),
+        "relaunched daemon's ping response version must match this build's workspace version"
+    );
 }

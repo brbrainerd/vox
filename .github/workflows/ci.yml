@@ -1442,11 +1442,41 @@ jobs:
   # Single required-status check for branch protection. Keep this job's `name:`
   # identical to the existing required check ("Check, Build, and Test (Rust)")
   # so branch-protection settings carry over without admin action.
+  gui-orchestrator-relaunch-smoke:
+    name: GUI/orchestrator relaunch smoke (CR-U6)
+    needs: setup
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cargo/git
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build vox-orchestrator-d
+        run: cargo build -p vox-orchestrator-d
+
+      - name: Build vox-gui (Rust crate only, no Tauri UI bundle)
+        run: cargo build -p vox-gui
+
+      - name: Relaunch smoke (CR-U6) — daemon relaunch + version parity
+        env:
+          VOX_GUI_RELAUNCH_SMOKE: "1"
+        run: cargo nextest run -p vox-gui --test gui_relaunch_smoke
+
   ci-summary:
     name: Check, Build, and Test (Rust)
     # gui-playwright-smoke is now a tiered (post-merge/`full-ci`) job, so it is
     # intentionally NOT a required-gate dependency.
-    needs: [guards-fast, lints, compiler-gates, tests, audits]
+    needs: [guards-fast, lints, compiler-gates, tests, audits, gui-orchestrator-relaunch-smoke]
     if: always()
     # Hosted so the SOLE branch-protection context is fleet-independent
     # (compute-placement.md Invariant 1). The 5 heavy needs stay self-hosted; this
@@ -1464,7 +1494,8 @@ jobs:
             "${{ needs.lints.result }}" \
             "${{ needs.compiler-gates.result }}" \
             "${{ needs.tests.result }}" \
-            "${{ needs.audits.result }}"; do
+            "${{ needs.audits.result }}" \
+            "${{ needs.gui-orchestrator-relaunch-smoke.result }}"; do
             if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then fail=1; fi
           done
           exit $fail
