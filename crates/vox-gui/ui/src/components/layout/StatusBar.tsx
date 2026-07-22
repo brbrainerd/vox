@@ -128,7 +128,7 @@ export function StatusBar({
           testId="status-bar-mesh"
           label="Mesh"
           value={`${kpis.mesh.peers} peers`}
-          onClick={() => onNavigate('compute')}
+          onClick={() => onNavigate('mesh')}
         />
         <span className="text-text-muted" aria-hidden="true">
           ·

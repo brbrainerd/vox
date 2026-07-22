@@ -195,7 +195,7 @@ export function TopHud({
             spark={kpis.mesh.spark}
             icon={<Icon.link className="size-4" />}
             sub={`${kpis.mesh.peers} peers online`}
-            onClick={() => onNavigate?.('compute')}
+            onClick={() => onNavigate?.('mesh')}
           />
         );
       case 'active_model':

@@ -113,7 +113,25 @@ describe('StatusBar', () => {
     expect(onNavigate).toHaveBeenCalledWith('models');
 
     await user.click(screen.getByTestId('status-bar-mesh'));
-    expect(onNavigate).toHaveBeenCalledWith('compute');
+    expect(onNavigate).toHaveBeenCalledWith('mesh');
+  });
+
+  it('mesh segment navigates to the real agents/mesh view, not the Compute section default', async () => {
+    const onNavigate = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <StatusBar
+        kpis={INITIAL_KPIS}
+        lastOrchEventAt={null}
+        orchUsesPolling={false}
+        liveFreshMs={30_000}
+        onNavigate={onNavigate}
+      />,
+    );
+
+    await user.click(screen.getByTestId('status-bar-mesh'));
+    expect(onNavigate).toHaveBeenCalledWith('mesh');
+    expect(onNavigate).not.toHaveBeenCalledWith('compute');
   });
 
   it('renders a fixed trailing slot for tab-row-adjacent chrome (e.g. Chat\'s Panels menu) to portal into, independent of the tab bar', () => {
