@@ -140,7 +140,7 @@ export function AppShell({
           />
         </div>
 
-        <div className={`flex-1 min-h-0 overflow-hidden p-5 ${mainPaddingBottom}`}>
+        <div className={`flex-1 min-h-0 flex flex-col overflow-hidden p-5 ${mainPaddingBottom}`}>
           {tabBar}
           <SurfaceErrorBoundary key={surfaceKey} surface={surfaceLabel}>
             <SurfaceScrollHost>{children}</SurfaceScrollHost>
