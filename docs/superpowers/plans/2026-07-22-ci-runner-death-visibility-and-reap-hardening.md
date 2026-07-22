@@ -55,7 +55,7 @@ fn corroborated_busy_false_on_empty_job_rows() {
 }
 ```
 
-Check `oom_watch::JobRow`'s field visibility first (re-read `oom_watch.rs` — if its fields are not `pub`, either make them `pub` there, or make `JobRow`/`find_matching_job` `pub(crate)` if not already, since `runner_scale.rs` needs to construct/read them in this test and in Task 3's real wiring). If `find_matching_job` is not currently `pub` or `pub(crate)`, widen its visibility to `pub(crate)` in `oom_watch.rs` in this step (a one-line change, still part of this step since the test needs it to compile).
+`oom_watch::JobRow` (struct + all 4 fields) and `find_matching_job` are already `pub` — confirmed by fidelity review against the real file, no visibility change needed for this test. (Two OTHER `oom_watch.rs` items — `fetch_recent_job_rows` and `post_pr_comment`, both currently private — DO need widening to `pub(crate)`, but not until Task 3/4 actually call them; don't widen them here, it'd be dead scope creep for this task.)
 
 - [ ] **Step 3: Run test to verify it fails**
 
@@ -167,16 +167,20 @@ git commit -m "feat(ci): eligible_for_scale_down_reap — require 2 consecutive 
 **Files:**
 - Modify: `crates/vox-cli/src/commands/ci/runner_scale.rs`
 
-Requires Tasks 1 and 2 landed. This task is integration wiring — no new pure logic, so it's verified via the crate's existing integration-style coverage plus a manual dry-run rather than a new unit test (there is no existing test harness in this file that mocks `gh`/`docker` IO for `run_scale` itself — its pure sub-functions are what's unit-tested, consistent with this file's own established split between "pure logic" and "IO" sections).
+Requires Tasks 1 and 2 landed.
+
+**Critical correctness requirement (found by adversarial review of this plan before implementation began — read this before writing any code):** a scale-down candidate that gets BLOCKED by the new hardening (corroborated-busy, or not yet 2-tick-eligible) must still end up in the same tracked-idle state the idle-timeout path consumes afterward. The naive approach — strip every name in `reap_set` out of `idle_runners` unconditionally (via the pre-existing `idle_runners.retain(|(name, _)| !reap_set.contains(name));` line), THEN loop over `reap_set` deciding per-name whether to actually call `reap()` — silently drops a blocked candidate's `idle_since` from `new_state` regardless of whether it was actually reaped, because the `retain()` already removed it from `idle_runners` before the per-name decision is made. Next tick, that runner looks freshly-idle again (no entry in `prev`), gets selected as a scale-down candidate again, gets blocked again by the SAME 2-tick check (since it's "first tick idle" again from the state's perspective) — forever, as long as it keeps being an excess candidate. This would silently defeat scale-to-zero for exactly the runners this hardening targets, with no error, no log line indicating anything is wrong (the runner just never gets reaped, indistinguishable from "everything is fine"). The fix (Step 3 below) is to only strip a name from `idle_runners` when it's ACTUALLY reaped, not merely selected as a candidate — a blocked candidate stays in `idle_runners` and flows into the idle-timeout loop like any other still-idle runner.
 
 - [ ] **Step 1: Read the file fresh**
 
 Re-open `runner_scale.rs`. Re-confirm the exact current shape of:
-- The scale-down block (`if total_keep > desired { ... }`, using `idle_runners`/`scale_down_reap_targets`/`reap`).
+- The scale-down block (`if total_keep > desired { ... }`, using `idle_runners`/`scale_down_reap_targets`/`reap`, and the `idle_runners.retain(...)` call that currently runs BEFORE the reap loop).
 - The idle-timeout block (`for (name, idle_since) in &idle_runners { if should_reap_idle(...) { reap(...) } ... }`).
-- Where `job_rows` would need to be fetched — this task needs ONE fresh `oom_watch::fetch_recent_job_rows()` call per tick, fetched once and shared across both reap-path checks (mirroring `oom_watch.rs`'s own "fetched once per tick, shared" pattern — re-read that function's doc comment for the exact rationale to replicate). Confirm `fetch_recent_job_rows` is `pub(crate)` in `oom_watch.rs` (widen visibility if it's currently private — this crate needs to call it from `runner_scale.rs`).
+- Confirm `fetch_recent_job_rows` and `post_pr_comment` are still private in `oom_watch.rs` (per Task 1's fidelity-checked note) — this task widens `fetch_recent_job_rows` to `pub(crate)` (it needs it; `post_pr_comment` stays private for now, Task 4 widens that one when it's actually needed).
 
-- [ ] **Step 2: Fetch job rows once per tick, only when there's a reap candidate**
+This task's own fetch below is intentionally NOT yet the single tick-wide shared fetch described in the design doc — Task 5 consolidates it later once the OOM/unexpected-exit call sites exist to share with. Implementing a working, self-contained version here first (TDD: correct in isolation, verified by the tests below) and then having a later task fold in the sharing is the incremental path; don't try to do both fetch-consolidation and reap-hardening-wiring in the same task.
+
+- [ ] **Step 2: Fetch job rows once per tick, only when there's a reap candidate, and refresh the scale lock around it**
 
 Immediately before the scale-down block, add:
 
@@ -186,6 +190,8 @@ Immediately before the scale-down block, add:
     // idle-classified runner that might be reaped — an empty fleet or a
     // fleet with no idle runners this tick has nothing to corroborate,
     // so this avoids an unconditional extra `gh api` call every single tick.
+    // (Task 5 later folds this into a single tick-wide fetch shared with the
+    // OOM/unexpected-exit scanners — this is a self-contained first version.)
     let job_rows_for_reap_check: Option<Vec<super::oom_watch::JobRow>> = if !idle_runners.is_empty() {
         match super::oom_watch::fetch_recent_job_rows() {
             Ok(rows) => Some(rows),
@@ -200,36 +206,62 @@ Immediately before the scale-down block, add:
     } else {
         None
     };
+    // This fetch can be a real multi-call gh api fan-out (see
+    // fetch_recent_job_rows's own doc comment) — refresh the scale lock's
+    // heartbeat immediately after it, the same way the OOM-visibility step
+    // already does around its own IO, so a slow tick here doesn't let a
+    // concurrent invocation see the lock as stale and steal it.
+    if let Some(lock) = _lock.as_ref() {
+        lock.refresh(now_secs());
+    }
 ```
 
-- [ ] **Step 3: Apply both checks in the scale-down block**
+- [ ] **Step 3: Apply both checks in the scale-down block — WITHOUT losing a blocked candidate's tracked state**
 
-Find the scale-down block (currently reaping every name in `reap_set` unconditionally). Change the reap loop to skip any name that's corroborated-busy OR not yet eligible per the 2-tick check:
+Find the scale-down block. It currently looks like (read the real current version — this is the shape from before this task's changes):
 
 ```rust
+        let reap_set: HashSet<String> = to_reap.into_iter().collect();
+        idle_runners.retain(|(name, _)| !reap_set.contains(name));
         for name in reap_set {
-            let corroborated_busy = job_rows_for_reap_check
-                .as_deref()
-                .is_some_and(|rows| is_corroborated_busy(&name, rows));
-            let two_tick_eligible = eligible_for_scale_down_reap(&name, &prev);
-            if corroborated_busy || !two_tick_eligible {
-                println!(
-                    "runner-scale: scale-down reap of {name} blocked (corroborated_busy={corroborated_busy}, \
-                     two_tick_eligible={two_tick_eligible}) — treating this tick's idle classification as \
-                     possibly stale rather than reaping"
-                );
-                continue;
-            }
             reap(&name, dry_run, "scale-down above desired");
             reaped_scale_down += 1;
         }
 ```
 
-(`reaped_scale_down` was previously incremented unconditionally in this loop — moving the increment inside the non-skipped branch, as shown, is the only behavioral change to that counter: it now reflects reaps that actually happened, not reap attempts.)
+Replace it with:
+
+```rust
+        let reap_set: HashSet<String> = to_reap.into_iter().collect();
+        let mut actually_reaped: HashSet<String> = HashSet::new();
+        for name in &reap_set {
+            let corroborated_busy = job_rows_for_reap_check
+                .as_deref()
+                .is_some_and(|rows| is_corroborated_busy(name, rows));
+            let two_tick_eligible = eligible_for_scale_down_reap(name, &prev);
+            if corroborated_busy || !two_tick_eligible {
+                println!(
+                    "runner-scale: scale-down reap of {name} blocked (corroborated_busy={corroborated_busy}, \
+                     two_tick_eligible={two_tick_eligible}) — leaving it idle-tracked rather than reaping \
+                     or silently dropping its state"
+                );
+                continue;
+            }
+            reap(name, dry_run, "scale-down above desired");
+            reaped_scale_down += 1;
+            actually_reaped.insert(name.clone());
+        }
+        // Only strip names that were ACTUALLY reaped -- a blocked candidate
+        // (see the println! above) stays in idle_runners and flows into the
+        // idle-timeout loop below like any other still-idle runner, so its
+        // idle_since is persisted into new_state instead of being silently
+        // dropped. See this task's header note for why this ordering matters.
+        idle_runners.retain(|(name, _)| !actually_reaped.contains(name));
+```
 
 - [ ] **Step 4: Apply the corroborating check in the idle-timeout block**
 
-Find the idle-timeout loop (`for (name, idle_since) in &idle_runners { if should_reap_idle(*idle_since, now, reap_secs) { reap(name, dry_run, "idle > reap grace (never assigned)"); reaped += 1; } ... }`). This path already has the multi-minute grace, so it does NOT need the 2-tick check (Task 2 was scoped specifically to the scale-down gap) — but it should still get the corroborating busy-check as defense-in-depth, since a runner idle for the full grace period could still theoretically be mid-registration-lag on a very slow job pickup:
+Find the idle-timeout loop (`for (name, idle_since) in &idle_runners { if should_reap_idle(*idle_since, now, reap_secs) { reap(name, dry_run, "idle > reap grace (never assigned)"); reaped += 1; } ... }`). This path already has the multi-minute grace, so it does NOT need the 2-tick check (Task 2 was scoped specifically to the scale-down gap) — but it should still get the corroborating busy-check as defense-in-depth, since a runner idle for the full grace period could still theoretically be mid-registration-lag on a very slow job pickup. Note this loop now also receives any candidate Step 3 blocked from scale-down (per Step 3's fix) — that's intended, it just means such a runner gets ANOTHER chance to be correctly classified here, using the same corroboration signal, rather than being silently dropped:
 
 ```rust
     for (name, idle_since) in &idle_runners {
@@ -259,24 +291,112 @@ Find the idle-timeout loop (`for (name, idle_since) in &idle_runners { if should
     }
 ```
 
-- [ ] **Step 5: Build and run the full test suite for this crate**
+- [ ] **Step 5: Write the integration test that specifically covers the bug this task's header describes**
+
+There is no existing test harness in this file that mocks `gh`/`docker` IO for `run_scale` as a whole — but the specific regression Step 3 fixes (a blocked candidate's state surviving into `new_state`) is testable as PURE LOGIC if the scale-down block's core decision is extracted into a small testable helper, rather than left fully inline. Add this helper near `scale_down_reap_targets`:
+
+```rust
+/// Given this tick's scale-down candidates and the two hardening signals,
+/// returns (names to actually reap, names blocked and therefore still
+/// idle-tracked). Pure — the actual `reap()` IO call and `println!` stay in
+/// `run_scale` itself, this function only makes the decision. Extracted
+/// specifically so the "a blocked candidate must not be lost" invariant
+/// (see Task 3's plan header) is unit-testable without mocking IO.
+pub fn partition_scale_down_candidates(
+    reap_set: &HashSet<String>,
+    job_rows: Option<&[super::oom_watch::JobRow]>,
+    prev: &HashMap<String, i64>,
+) -> (HashSet<String>, HashSet<String>) {
+    let mut to_reap = HashSet::new();
+    let mut blocked = HashSet::new();
+    for name in reap_set {
+        let corroborated_busy = job_rows.is_some_and(|rows| is_corroborated_busy(name, rows));
+        let two_tick_eligible = eligible_for_scale_down_reap(name, prev);
+        if corroborated_busy || !two_tick_eligible {
+            blocked.insert(name.clone());
+        } else {
+            to_reap.insert(name.clone());
+        }
+    }
+    (to_reap, blocked)
+}
+```
+
+Then simplify Step 3's inline block to call this helper instead of repeating its logic:
+
+```rust
+        let reap_set: HashSet<String> = to_reap.into_iter().collect();
+        let (actually_reaped, blocked) =
+            partition_scale_down_candidates(&reap_set, job_rows_for_reap_check.as_deref(), &prev);
+        for name in &blocked {
+            println!(
+                "runner-scale: scale-down reap of {name} blocked (corroborated busy or not yet \
+                 2-tick eligible) — leaving it idle-tracked rather than reaping or silently \
+                 dropping its state"
+            );
+        }
+        for name in &actually_reaped {
+            reap(name, dry_run, "scale-down above desired");
+            reaped_scale_down += 1;
+        }
+        idle_runners.retain(|(name, _)| !actually_reaped.contains(name));
+```
+
+Add the test (in the existing `mod tests` block):
+
+```rust
+#[test]
+fn blocked_scale_down_candidate_is_not_reaped_and_not_stripped_from_idle_tracking() {
+    // This is the exact regression adversarial review found in this plan
+    // before implementation: a candidate blocked by the hardening must NOT
+    // be silently dropped from the set that flows into idle-timeout tracking.
+    let mut reap_set = HashSet::new();
+    reap_set.insert("vox-runner-auto-blocked-0".to_string());
+    reap_set.insert("vox-runner-auto-clean-0".to_string());
+
+    // "blocked-0" is corroborated-busy via a fresh job row; "clean-0" has no
+    // matching job row and IS 2-tick-eligible, so it should actually reap.
+    let job_rows = vec![super::oom_watch::JobRow {
+        runner_name: "vox-runner-auto-blocked-0".to_string(),
+        job_name: "docs-quality".to_string(),
+        run_id: 1,
+        pr_number: 460,
+    }];
+    let mut prev = HashMap::new();
+    prev.insert("vox-runner-auto-clean-0".to_string(), 1_000);
+
+    let (to_reap, blocked) =
+        partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
+
+    assert!(to_reap.contains("vox-runner-auto-clean-0"));
+    assert!(!to_reap.contains("vox-runner-auto-blocked-0"));
+    assert!(blocked.contains("vox-runner-auto-blocked-0"));
+    assert!(!blocked.contains("vox-runner-auto-clean-0"));
+    // The critical assertion: the blocked name must be accounted for
+    // SOMEWHERE (to_reap ∪ blocked = reap_set), never silently dropped.
+    let accounted: HashSet<String> = to_reap.union(&blocked).cloned().collect();
+    assert_eq!(&accounted, &reap_set);
+}
+```
+
+- [ ] **Step 6: Build and run the full test suite for this crate**
 
 Run: `cargo build -p vox-cli 2>&1 | tail -30`
 Expected: compiles clean.
 
 Run: `cargo test -p vox-cli --lib 2>&1 | tail -60`
-Expected: all existing tests plus Task 1/2's new tests still pass (no regressions from the wiring change).
+Expected: all existing tests plus Task 1/2's new tests plus this task's `blocked_scale_down_candidate_is_not_reaped_and_not_stripped_from_idle_tracking` test still pass (no regressions from the wiring change).
 
-- [ ] **Step 6: Manual dry-run verification**
+- [ ] **Step 7: Manual dry-run verification**
 
 Run: `VOX_SKIP_FRESHNESS_CHECK=1 cargo run -p vox-cli -- ci runner-scale` (dry-run, default — no `--apply`)
 Expected: exits cleanly, prints the normal `runner-scale: dry_run=true ...` summary line with no panics. If any runner is currently idle-classified, confirm the new corroboration logic runs without erroring (even if `gh`/`docker` aren't fully set up in the environment this is run from, the `Err(e) => ... None` fallback in Step 2 must degrade gracefully, not panic — verify this specifically if `gh`/`docker` aren't available here).
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add crates/vox-cli/src/commands/ci/runner_scale.rs
-git commit -m "feat(ci): wire reap-hardening (corroborating busy-check + 2-tick scale-down gate) into run_scale"
+git commit -m "feat(ci): wire reap-hardening (corroborating busy-check + 2-tick scale-down gate) into run_scale, without losing blocked candidates' idle-tracked state"
 ```
 
 ---
@@ -291,7 +411,7 @@ This mirrors `oom_watch.rs`'s structure directly: a seen-list to avoid duplicate
 
 - [ ] **Step 1: Read the reference file fresh**
 
-Re-open `crates/vox-cli/src/commands/ci/oom_watch.rs` in full. This task's module should mirror: its module-level doc comment style, `OomEvent`-equivalent struct, `oom_seen_path`/`read_oom_seen`/`write_oom_seen`-equivalent persistence trio, `new_events`/`append_seen`-equivalent pure filtering, `JobRow`/`find_matching_job` (REUSED directly from `oom_watch.rs`, not redefined — import `super::oom_watch::{JobRow, find_matching_job, fetch_recent_job_rows}`), `oom_comment_body`-equivalent pure comment composer, `post_pr_comment`-equivalent poster (also reuse `oom_watch::post_pr_comment` directly rather than redefining — widen its visibility to `pub(crate)` in `oom_watch.rs` if not already), and `scan_and_report_oom_events`-equivalent tick entrypoint.
+Re-open `crates/vox-cli/src/commands/ci/oom_watch.rs` in full. This task's module should mirror: its module-level doc comment style, `OomEvent`-equivalent struct, `oom_seen_path`/`read_oom_seen`/`write_oom_seen`-equivalent persistence trio, `new_events`/`append_seen`-equivalent pure filtering, `JobRow`/`find_matching_job` (REUSED directly from `oom_watch.rs`, not redefined — `JobRow` and `find_matching_job` are already `pub`, confirmed by fidelity review, so no visibility change needed for those two; import `super::oom_watch::{JobRow, find_matching_job}`), `oom_comment_body`-equivalent pure comment composer, `post_pr_comment`-equivalent poster (also reuse `oom_watch::post_pr_comment` directly rather than redefining — this one IS currently private, widen it to `pub(crate)` in `oom_watch.rs` in this task), and `scan_and_report_oom_events`-equivalent tick entrypoint. `fetch_recent_job_rows` is also currently private but was already widened to `pub(crate)` by Task 3 — confirm that widening is present rather than re-doing it.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -398,33 +518,29 @@ pub fn newly_exited(prev_running: &HashSet<String>, curr_running: &HashSet<Strin
 
 /// Build the PR comment body for one detected unexpected exit. Pure.
 ///
-/// `near_miss_blocked` is `true` when Task 3's reap-hardening logged a
-/// blocked reap attempt for this same container name this same tick — real,
-/// concrete evidence pointing at GitHub's `busy` flag lagging as the likely
-/// cause. `false` means no such near-miss was observed this tick, which
-/// points instead toward an external cause (WSL2/Docker), not the
-/// autoscaler's own reap logic.
+/// Deliberately does NOT attempt a same-tick "here's why" diagnosis —
+/// adversarial review of this plan found that impossible to do honestly:
+/// the exited-container scan runs before any reap-hardening decision is made
+/// in the same tick (no near-miss evidence can exist yet), and even if it
+/// could, a BLOCKED reap by construction did not execute, so it can't be why
+/// a container died — that would be backwards causality. Both known
+/// hypotheses are stated neutrally instead.
 pub fn unexpected_exit_comment_body(
     container_name: &str,
     job_name: &str,
     run_id: u64,
     exit_code: i64,
-    near_miss_blocked: bool,
 ) -> String {
-    let likely_cause = if near_miss_blocked {
-        "The autoscaler's reap-hardening caught a related stale-busy-flag reap attempt on \
-         this same container this same tick, which may explain this — investigate GitHub \
-         Actions runners-API `busy` flag lag around this timestamp."
-    } else {
-        "No related near-miss was caught by the autoscaler's reap-hardening this tick — this \
-         points toward an external cause (WSL2/Docker), not the autoscaler's own reap logic."
-    };
     format!(
         "**CI runner exited unexpectedly** — job `{job_name}` (run `{run_id}`) did not \
          complete or get cancelled normally: its runner container `{container_name}` exited \
          (code `{exit_code}`) while the job was still `in_progress`. This was not a memcg \
          OOM-kill (see the separate OOM-visibility check).\n\n\
-         {likely_cause}\n\n\
+         Two known causes: (1) GitHub's runners-API `busy` flag briefly lagging a runner that \
+         just started a job, or (2) an external cause (WSL2 VM memory pressure, a Docker \
+         daemon hiccup) unrelated to the autoscaler's own decisions. This detector cannot \
+         distinguish between them from a single event; if this recurs, check whether it \
+         correlates with autoscaler reap activity around the same timestamp.\n\n\
          Auto-detected by the host-side runner autoscaler (`vox ci runner-scale`)."
     )
 }
@@ -456,18 +572,13 @@ pub fn inspect_exit_code(container_name: &str) -> Option<i64> {
 /// `already_oom_claimed`: container names the OOM scan already reported this
 /// same tick (passed in from `run_scale`, which calls both scanners in the
 /// same tick) — never double-report the same death under two framings.
-/// `job_rows`: the SAME fetch Task 3's reap-hardening already performs this
-/// tick when there's a reap candidate — pass it through rather than
-/// re-fetching. If no reap candidate existed this tick (so Task 3 didn't
-/// fetch it), this function fetches its own copy.
-/// `near_miss_names`: container names Task 3's reap-hardening logged a
-/// blocked reap attempt for this same tick (used for `near_miss_blocked` in
-/// the comment body).
+/// `job_rows`: the tick's shared jobs-API fetch (see Task 5, which fetches
+/// this ONCE per apply-tick and threads it to every consumer that needs it —
+/// this function never fetches its own copy).
 pub fn scan_and_report_unexpected_exits(
     curr_running: &HashSet<String>,
     already_oom_claimed: &HashSet<String>,
-    job_rows: Option<&[JobRow]>,
-    near_miss_names: &HashSet<String>,
+    job_rows: &[JobRow],
 ) -> Result<u32> {
     let prev_running = read_running_seen();
     let exited = newly_exited(&prev_running, curr_running);
@@ -487,15 +598,6 @@ pub fn scan_and_report_unexpected_exits(
         return Ok(0);
     }
 
-    let owned_job_rows;
-    let job_rows: &[JobRow] = match job_rows {
-        Some(rows) => rows,
-        None => {
-            owned_job_rows = super::oom_watch::fetch_recent_job_rows()?;
-            &owned_job_rows
-        }
-    };
-
     let mut reported = 0u32;
     let mut seen_so_far = seen;
     for name in fresh {
@@ -507,16 +609,14 @@ pub fn scan_and_report_unexpected_exits(
             continue;
         };
         let exit_code = inspect_exit_code(name).unwrap_or(-1);
-        let near_miss = near_miss_names.contains(name.as_str());
-        let body = unexpected_exit_comment_body(name, &job.job_name, job.run_id, exit_code, near_miss);
+        let body = unexpected_exit_comment_body(name, &job.job_name, job.run_id, exit_code);
         match post_pr_comment(job.pr_number, &body, false) {
             Ok(()) => {
                 reported += 1;
                 seen_so_far = append_seen(seen_so_far, std::slice::from_ref(name));
                 write_seen(&seen_so_far);
                 println!(
-                    "runner-scale: unexpected-exit reported for {name} (job={}, run={}, \
-                     exit_code={exit_code}, near_miss_blocked={near_miss})",
+                    "runner-scale: unexpected-exit reported for {name} (job={}, run={}, exit_code={exit_code})",
                     job.job_name, job.run_id
                 );
             }
@@ -558,20 +658,23 @@ mod tests {
     }
 
     #[test]
-    fn comment_body_names_job_container_exit_code_and_near_miss_state() {
-        let body = unexpected_exit_comment_body("vox-runner-auto-abc-0", "docs-quality", 999, 143, true);
+    fn comment_body_names_job_container_and_exit_code() {
+        let body = unexpected_exit_comment_body("vox-runner-auto-abc-0", "docs-quality", 999, 143);
         assert!(body.contains("docs-quality"));
         assert!(body.contains("vox-runner-auto-abc-0"));
         assert!(body.contains("999"));
         assert!(body.contains("143"));
-        assert!(body.contains("stale-busy-flag"));
     }
 
     #[test]
-    fn comment_body_points_to_external_cause_when_no_near_miss() {
-        let body = unexpected_exit_comment_body("vox-runner-auto-abc-0", "docs-quality", 999, 143, false);
+    fn comment_body_states_both_hypotheses_neutrally() {
+        let body = unexpected_exit_comment_body("vox-runner-auto-abc-0", "docs-quality", 999, 143);
+        // Both known causes are named, and neither is claimed as more likely
+        // than the other from a single event -- see this function's doc
+        // comment for why a same-tick diagnosis isn't attempted.
+        assert!(body.contains("busy") && body.contains("lag"));
         assert!(body.contains("external cause"));
-        assert!(!body.contains("stale-busy-flag"));
+        assert!(body.contains("cannot distinguish"));
     }
 }
 ```
@@ -580,9 +683,9 @@ mod tests {
 
 Open `crates/vox-cli/src/commands/ci/mod.rs`, find the `mod oom_watch;` (or `pub mod oom_watch;`) declaration, and add an identically-styled declaration for the new module (e.g. `mod unexpected_exit_watch;` — match whichever visibility `oom_watch`'s own declaration actually uses).
 
-- [ ] **Step 4: Widen visibility on reused `oom_watch` items if needed**
+- [ ] **Step 4: Widen `post_pr_comment`'s visibility**
 
-Re-check (from Step 1's read): `JobRow`'s fields, `find_matching_job`, `fetch_recent_job_rows`, and `post_pr_comment` must all be `pub(crate)` (or `pub`) in `oom_watch.rs` for this new module to use them. Widen any that are currently private, in `oom_watch.rs`.
+`JobRow`/`find_matching_job` are already `pub`; `fetch_recent_job_rows` was already widened to `pub(crate)` by Task 3 (confirm it's present). The one remaining item this task needs is `post_pr_comment`, currently private in `oom_watch.rs` — widen it to `pub(crate)` there.
 
 - [ ] **Step 5: Run tests to verify they fail, then pass**
 
@@ -605,64 +708,62 @@ git commit -m "feat(ci): add unexpected_exit_watch — detect and report a runne
 
 ---
 
-### Task 5: Wire the new detector into `run_scale`, with correct ordering
+### Task 5: Wire the new detector into `run_scale`, consolidate to a single shared job-rows fetch, correct ordering
 
 **Files:**
 - Modify: `crates/vox-cli/src/commands/ci/runner_scale.rs`
+- Modify: `crates/vox-cli/src/commands/ci/oom_watch.rs`
 
-Requires Tasks 3 and 4 landed. **Critical ordering constraint**: the new detector's exited-container scan must run BEFORE `run_scale`'s existing step 1 (`for name in managed_containers("exited") { deregister(&name); docker rm -f ... }`, ~line 852-859) — once that cleanup runs, `docker inspect` can no longer read the exited container's exit code.
+Requires Tasks 3 and 4 landed. Two constraints, both load-bearing:
+
+1. **Ordering**: the new detector's exited-container scan must run BEFORE `run_scale`'s existing step 1 (`for name in managed_containers("exited") { deregister(&name); docker rm -f ... }`, ~line 852-859) — once that cleanup runs, `docker inspect` can no longer read the exited container's exit code.
+2. **Single shared fetch**: adversarial review found the naive design (each of OOM-visibility, unexpected-exit-visibility, and Task 3's reap-hardening independently calling `fetch_recent_job_rows()`) could fan out to ~3 independent multi-call `gh api` sequences in a single tick — worst case coinciding exactly during an incident, the worst time for rate-limit exposure to spike. This task consolidates all three onto ONE fetch, done once near the top of the `apply` tick, threaded to every consumer.
 
 - [ ] **Step 1: Read the file fresh**
 
-Re-open `runner_scale.rs`. Re-confirm the exact current position of: the OOM-visibility call (§0.5, ~line 826-834, apply-only), and step 1's exited-container cleanup loop (~line 852-859). Also re-confirm what `managed_containers("running")` returns (a `Vec<String>` of names) and where it's first computed in this tick (currently at ~line 862, `let running: Vec<String> = managed_containers("running");` — this happens AFTER step 1's cleanup in the current code; this task needs a running-containers snapshot BEFORE cleanup too, so check whether calling `managed_containers("running")` an extra time earlier in the tick, before cleanup, is acceptable — it is: `managed_containers` is a read-only `docker ps -a --filter ...` call with no side effects, safe to call twice in one tick).
+Re-open `runner_scale.rs`. Re-confirm the exact current position of: the OOM-visibility call (§0.5, ~line 826-834, apply-only, including the `_lock.as_ref()` refresh calls immediately before/after it), step 1's exited-container cleanup loop (~line 852-859), and Task 3's `job_rows_for_reap_check` fetch (added earlier in this same plan's Task 3, immediately before the scale-down block). Also re-confirm what `managed_containers("running")` returns (a `Vec<String>` of names) and where it's first computed in this tick (currently at ~line 862, AFTER step 1's cleanup — this task needs a running-containers snapshot BEFORE cleanup too; `managed_containers` is read-only `docker ps -a --filter ...`, safe to call twice in one tick).
 
-- [ ] **Step 2: Track OOM-claimed container names this tick**
+- [ ] **Step 2: Change `scan_and_report_oom_events` to accept job rows as a parameter, and return which containers it claimed**
 
-The existing OOM-visibility call currently discards which containers it reported (only returns a count, `oom_reported: u32`, from `scan_and_report_oom_events`). This task needs the actual set of names to pass to the new detector's `already_oom_claimed` parameter.
+Read `oom_watch::scan_and_report_oom_events`'s current signature and body. Change its signature from `pub fn scan_and_report_oom_events(now: i64) -> Result<u32>` to `pub fn scan_and_report_oom_events(now: i64, job_rows: &[JobRow]) -> Result<(u32, HashSet<String>)>` — remove its internal `fetch_recent_job_rows()?` call (the caller now provides the rows), and thread a `HashSet<String>` of successfully-reported container names through its existing `for event in fresh { ... match post_pr_comment(...) { Ok(()) => { reported += 1; ... } ... } }` loop alongside the existing `reported` count (`container_name` is already an available local in that loop — insert it into the set in the same branch that increments `reported`). Update any of `oom_watch.rs`'s own tests that call `scan_and_report_oom_events` directly to pass a `job_rows` argument and match the new return shape (most of that file's tests call the smaller pure functions instead, so this is likely a small change — verify by reading the test file fresh).
 
-Read `oom_watch::scan_and_report_oom_events`'s current signature and body (`crates/vox-cli/src/commands/ci/oom_watch.rs`). Change its return type from `Result<u32>` to `Result<(u32, HashSet<String>)>`, returning the set of container names it successfully reported this tick alongside the existing count (thread this through the function's existing `for event in fresh { ... match post_pr_comment(...) { Ok(()) => { reported += 1; ... } ... } }` loop — collect `container_name` into a `HashSet<String>` alongside incrementing `reported`; `container_name` is already an available local in that loop). Update `oom_watch.rs`'s own tests for this function if any directly assert on its return type (check `full_pipeline_parses_correlates_and_composes_a_correct_comment` and any other test calling `scan_and_report_oom_events` directly — most of that file's tests call the smaller pure functions instead, so this is likely a small or zero-test-impact change, but verify).
+- [ ] **Step 3: Replace the OOM-visibility block with a shared-fetch version, and insert the unexpected-exit scan right after it**
 
-- [ ] **Step 3: Insert the new detector's scan before step 1's cleanup**
-
-In `run_scale`, immediately after the existing §0.5 OOM-visibility block (and its `if apply { ... }` guard) and BEFORE the comment `// 1. Remove exited managed containers`, insert:
+Replace the existing OOM-visibility block (`if apply { let oom_reported = ...; ... }`) with:
 
 ```rust
-    // 0.6. Unexpected-exit visibility: detect any managed container that
-    //      transitioned running->exited since the last tick while its
-    //      assigned job was still in_progress (not a normal ephemeral
-    //      job-complete exit, not already claimed by the OOM scan above).
-    //      MUST run before step 1's cleanup below removes exited containers
-    //      -- docker inspect can't read an exit code from a pruned container.
+    // 0.5/0.6. Shared jobs-API fetch, done ONCE per apply-tick and threaded
+    // to every consumer that needs it this tick (OOM-visibility,
+    // unexpected-exit-visibility, and Task 3's reap-hardening later in this
+    // same tick) -- consolidated here (rather than each consumer fetching
+    // its own copy) specifically to avoid fanning out to multiple
+    // independent multi-call gh api sequences in one tick, which adversarial
+    // review flagged as a real rate-limit risk concentrated exactly during
+    // incident conditions (a dying runner tends to trigger several of these
+    // checks in the same tick).
+    let mut oom_claimed_names: HashSet<String> = HashSet::new();
     let mut unexpected_exit_reported = 0u32;
+    let mut shared_job_rows: Option<Vec<super::oom_watch::JobRow>> = None;
     if apply {
-        let curr_running: HashSet<String> = managed_containers("running").into_iter().collect();
-        match super::unexpected_exit_watch::scan_and_report_unexpected_exits(
-            &curr_running,
-            &oom_claimed_names,
-            None,
-            &HashSet::new(), // near_miss_names: Task 3's reap-hardening runs later this same tick,
-                              // so no near-miss evidence exists yet at this point in the tick.
-                              // Acceptable per the design: the comment body's near-miss framing is a
-                              // best-effort diagnostic hint, not a hard requirement, and a genuine
-                              // stale-busy-flag reap would be BLOCKED (not executed) by Task 3's
-                              // hardening later this tick regardless -- so a container that died from
-                              // that exact cause wouldn't reach this unexpected-exit scan as "exited"
-                              // in the first place on the tick the hardening actually blocks it. This
-                              // parameter exists for a FUTURE tick's correlation, once persisted
-                              // near-miss history exists -- out of scope for this plan's first cut.
-        ) {
-            Ok(n) => unexpected_exit_reported = n,
-            Err(e) => eprintln!("runner-scale: unexpected-exit scan skipped (degraded): {e:#}"),
+        match super::oom_watch::fetch_recent_job_rows() {
+            Ok(rows) => shared_job_rows = Some(rows),
+            Err(e) => eprintln!(
+                "runner-scale: shared jobs-API fetch failed this tick (OOM-visibility, \
+                 unexpected-exit-visibility, and reap-hardening all degrade to their fallback \
+                 behavior this tick): {e:#}"
+            ),
+        }
+        // A real multi-call gh api sequence just ran -- refresh the lock's
+        // heartbeat immediately, same as every other IO-heavy step in this
+        // tick already does, so a slow fetch here can't let a concurrent
+        // invocation see the lock as stale and steal it.
+        if let Some(lock) = _lock.as_ref() {
+            lock.refresh(now_secs());
         }
     }
-```
 
-Adjust the OOM-visibility block just above this insertion to capture `oom_claimed_names` from Step 2's new return shape:
-
-```rust
-    let mut oom_claimed_names: HashSet<String> = HashSet::new();
-    if apply {
-        match super::oom_watch::scan_and_report_oom_events(now) {
+    if apply && let Some(rows) = shared_job_rows.as_deref() {
+        match super::oom_watch::scan_and_report_oom_events(now, rows) {
             Ok((oom_reported, claimed)) => {
                 oom_claimed_names = claimed;
                 if oom_reported > 0 {
@@ -671,33 +772,77 @@ Adjust the OOM-visibility block just above this insertion to capture `oom_claime
             }
             Err(e) => eprintln!("runner-scale: OOM-visibility scan skipped (degraded): {e:#}"),
         }
+
+        // Unexpected-exit visibility: detect any managed container that
+        // transitioned running->exited since the last tick while its
+        // assigned job was still in_progress (not a normal ephemeral
+        // job-complete exit, not already claimed by the OOM scan above).
+        // MUST run before step 1's cleanup below removes exited containers
+        // -- docker inspect can't read an exit code from a pruned container.
+        let curr_running: HashSet<String> = managed_containers("running").into_iter().collect();
+        match super::unexpected_exit_watch::scan_and_report_unexpected_exits(
+            &curr_running,
+            &oom_claimed_names,
+            rows,
+        ) {
+            Ok(n) => unexpected_exit_reported = n,
+            Err(e) => eprintln!("runner-scale: unexpected-exit scan skipped (degraded): {e:#}"),
+        }
     }
 ```
 
-(This replaces the existing `let oom_reported = super::oom_watch::scan_and_report_oom_events(now).unwrap_or_else(|e| { ...; 0 });` block — read it fresh first to match its exact current surrounding structure, including the `_lock.as_ref()` refresh calls immediately before/after it, which must be preserved unchanged.)
+(The `if apply && let Some(rows) = ... {` construct is a let-chain — if this crate's Rust edition/MSRV doesn't support let-chains yet, verify via `cargo build -p vox-cli` in Step 6 and fall back to nested `if apply { if let Some(rows) = ... { ... } }` if it doesn't compile; either is fine, this is a style choice not a design requirement.)
 
-- [ ] **Step 4: Fold the new count into the tick's summary line**
+- [ ] **Step 4: Reuse the shared fetch in Task 3's reap-hardening instead of its own separate fetch**
 
-Find the final `println!("runner-scale: dry_run={dry_run} queued_jobs={demand} ...")` summary (~line 988). Add `unexpected_exits_reported={unexpected_exit_reported}` to it, in a sensible position (e.g. right after the OOM count would appear, or at the end before the closing paren-content — match this line's existing comma-free space-separated `key=value` style).
+Task 3 added its own `job_rows_for_reap_check` fetch immediately before the scale-down block. Re-open that code (search for `job_rows_for_reap_check` in `runner_scale.rs`) and replace its independent `fetch_recent_job_rows()` call with a reference to `shared_job_rows` (already fetched earlier in this same tick per Step 3 above):
 
-- [ ] **Step 5: Build and test**
+```rust
+    // Reuses the tick's single shared jobs-API fetch (see the top of this
+    // tick's apply block) rather than fetching its own copy -- this is a
+    // deliberate simplification versus fetching again this-many-seconds
+    // later in the tick for a marginally fresher snapshot: one consistent
+    // snapshot for the whole tick is simpler to reason about and closes the
+    // multi-fetch rate-limit concern entirely, at the cost of the
+    // corroboration check working from a very-slightly-older snapshot than
+    // a dedicated second fetch would give it. Given the corroborating check
+    // was already documented (design doc §1a) as narrowing, not closing,
+    // the staleness window, this cost is acceptable.
+    //
+    // NOTE: shared_job_rows is only populated when apply=true (see Step 3
+    // above) -- in a dry-run tick, the corroborating-busy check below always
+    // sees None and degrades to using only the 2-tick eligibility check,
+    // which still runs and is still meaningful for a dry-run preview. This
+    // is a deliberate, disclosed dry-run behavior difference, not a bug.
+    let job_rows_for_reap_check: Option<&[super::oom_watch::JobRow]> = shared_job_rows.as_deref();
+```
+
+Remove the old standalone fetch block (the one Task 3 added with its own `match super::oom_watch::fetch_recent_job_rows() { ... }` and its own `if let Some(lock) = _lock.as_ref() { lock.refresh(now_secs()); }` call) entirely — both the fetch and its lock-refresh are now covered by Step 3's shared version, which runs earlier in the tick. Update `partition_scale_down_candidates`'s call site (from Task 3 Step 5) to pass `job_rows_for_reap_check` (now `Option<&[JobRow]>` directly, matching its existing parameter type) rather than `job_rows_for_reap_check.as_deref()` (the `.as_deref()` is no longer needed since the type is already `Option<&[...]>` — check the exact type Task 3 left it as and adjust whichever side needs the conversion; the net function signature `partition_scale_down_candidates(reap_set: &HashSet<String>, job_rows: Option<&[JobRow]>, prev: &HashMap<String, i64>)` from Task 3 doesn't change, only how its second argument gets constructed here does).
+
+- [ ] **Step 5: Fold the new count into the tick's summary line**
+
+Find the final `println!("runner-scale: dry_run={dry_run} queued_jobs={demand} ...")` summary (~line 988). Add `unexpected_exits_reported={unexpected_exit_reported}` to it, matching this line's existing comma-free space-separated `key=value` style.
+
+- [ ] **Step 6: Build and test**
 
 Run: `cargo build -p vox-cli 2>&1 | tail -40`
-Expected: compiles clean.
+Expected: compiles clean. If the let-chain syntax from Step 3 doesn't compile on this crate's Rust edition, fall back to nested `if let` as noted there.
 
 Run: `cargo test -p vox-cli --lib 2>&1 | tail -60`
-Expected: all tests (existing + Tasks 1, 2, 4's new ones) still pass.
+Expected: all tests (existing + Tasks 1, 2, 3, 4's new ones) still pass — including Task 3's `blocked_scale_down_candidate_is_not_reaped_and_not_stripped_from_idle_tracking` test, which must still pass unchanged since `partition_scale_down_candidates`'s own signature didn't change in this task, only its caller did.
 
-- [ ] **Step 6: Manual dry-run verification**
+- [ ] **Step 7: Manual dry-run verification**
 
-Run: `VOX_SKIP_FRESHNESS_CHECK=1 cargo run -p vox-cli -- ci runner-scale --apply`
-Expected: exits cleanly. Since this is `--apply`, it performs real IO (spawns/reaps runners for real) — only run this if you have a working `gh`/`docker` setup and understand it will mutate the real fleet; if unsure, skip this step and rely on Step 5's build+test coverage plus a later manual verification pass once this lands. Confirm the tick's summary line includes `unexpected_exits_reported=0` (or a real count if something genuinely happened during the run) with no panics.
+Run: `VOX_SKIP_FRESHNESS_CHECK=1 cargo run -p vox-cli -- ci runner-scale` (dry-run, default — no `--apply`)
+Expected: exits cleanly, `unexpected_exits_reported=0` in the summary (dry-run never calls the apply-gated block from Step 3, so this is always 0 in dry-run — expected, not a bug). No panics.
 
-- [ ] **Step 7: Commit**
+If you have a working `gh`/`docker` setup and understand it will mutate the real fleet, also run `VOX_SKIP_FRESHNESS_CHECK=1 cargo run -p vox-cli -- ci runner-scale --apply` and confirm the same summary line format with real counts, no panics. Skip this second run if unsure — Step 6's build+test coverage plus the dry-run pass above are sufficient to land this task; real-fleet verification can happen once this ships.
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add crates/vox-cli/src/commands/ci/runner_scale.rs crates/vox-cli/src/commands/ci/oom_watch.rs
-git commit -m "feat(ci): wire unexpected_exit_watch into run_scale, before exited-container cleanup"
+git commit -m "feat(ci): wire unexpected_exit_watch into run_scale with a single shared jobs-API fetch per tick"
 ```
 
 ---
@@ -777,8 +922,15 @@ git commit -m "chore(ci): fmt + clippy fixes"
 
 ## Self-Review
 
-**Spec coverage** — §1a (corroborating busy-check) → Tasks 1, 3. §1b (2-consecutive-tick requirement) → Task 2, 3 (refined during planning: implemented by reusing the existing `idle_since`/`read_state()` mechanism rather than adding new state, and scoped to the scale-down path specifically since the idle-timeout path already has an equivalent-or-stronger grace period — this is a deliberate, disclosed refinement of the spec's original framing, not a gap: the spec's own intent, "require 2 consecutive idle ticks before eligible for reap," is satisfied for the path that actually lacked it). §2 (new detector: detection/skip-if-OOM-claimed/reporting) → Task 4, 5. §3 (rich console output, both detectors) → Task 4 (new detector's own output, built in from the start) + Task 6 (OOM detector's output, added).
+**Spec coverage** — §1a (corroborating busy-check) → Tasks 1, 3, consolidated onto the shared fetch in Task 5. §1b (2-consecutive-tick requirement) → Task 2, 3 (implemented by reusing the existing `idle_since`/`read_state()` mechanism rather than adding new state, scoped to the scale-down path specifically since the idle-timeout path already has an equivalent-or-stronger grace period — a deliberate, disclosed refinement of the spec's original framing: the spec's own intent, "require 2 consecutive idle ticks before eligible for reap," is satisfied for the path that actually lacked it). §2 (new detector: detection/skip-if-OOM-claimed/reporting) → Task 4, 5. §3 (rich console output, both detectors) → Task 4 (new detector's own output, built in from the start) + Task 6 (OOM detector's output, added). §4 (`ScaleLock` heartbeat coverage, added to the design during adversarial review) → Task 3 Step 2 and Task 5 Step 3, both refresh the lock immediately after their respective fetches.
 
-**Placeholder scan** — every step shows real, complete code grounded in a fresh read of the actual current file contents (re-confirmed multiple times during planning, including line numbers for every insertion point). The one explicitly-deferred piece (near-miss correlation being empty on its first tick, Task 5 Step 3) is disclosed with a full paragraph explaining exactly why it's an acceptable first-cut limitation, not a silently-dropped requirement — matching this session's established practice for genuine, reasoned scope decisions.
+**Adversarial-review corrections applied to this plan before implementation began** (both a fidelity audit against the real codebase and a design-soundness critique — findings folded in above, not left as a separate addendum):
+- **Critical**: the original Task 3 wiring would have silently and permanently prevented scale-to-zero for any runner ever selected as a scale-down candidate and then blocked by the new hardening — the pre-existing `idle_runners.retain(...)` call stripped every candidate regardless of whether it was actually reaped, losing its `idle_since` state and causing it to be re-selected-and-re-blocked forever. Fixed: only actually-reaped names are stripped from `idle_runners`; blocked candidates fall through to the idle-timeout loop like any other still-idle runner (Task 3 Step 3), and a dedicated integration-style test (Task 3 Step 5, `blocked_scale_down_candidate_is_not_reaped_and_not_stripped_from_idle_tracking`) specifically guards against this regression recurring, since it's a wiring bug that no pure-function unit test would have caught in isolation.
+- **High**: the original "near-miss" diagnostic correlation (comment body naming a likely cause based on same-tick reap-hardening activity) was both structurally unreachable given the real tick ordering and causally backwards even when reachable (a *blocked* reap, by construction, did not execute, so it cannot explain a death). Removed entirely; the comment body now states both known hypotheses neutrally (Task 4's `unexpected_exit_comment_body`, no `near_miss_blocked` parameter).
+- **Medium-High**: the original design had each of three consumers (OOM scan, unexpected-exit scan, reap-hardening) independently calling `fetch_recent_job_rows()`, risking up to ~3 independent multi-call `gh api` fan-outs in a single tick, worst case concentrated exactly during incident conditions. Consolidated to one shared fetch per apply-tick, threaded to all three consumers (Task 5 Steps 3-4).
+- **Medium**: the original design's `ScaleLock` heartbeat wasn't refreshed around the new IO this design adds, widening the exact stale-lock double-execution race this session's own investigation encountered. Fixed: explicit `lock.refresh(now_secs())` calls added immediately after both the shared fetch (Task 5 Step 3) and (prior to consolidation) Task 3's original fetch.
+- **Medium**: the design's language around the corroborating busy-check was softened from "closes" to "narrows" the GitHub API staleness window, since the check itself has its own (smaller, bounded) staleness window rather than eliminating the problem outright.
+- **Medium**: added the integration-style test described above specifically because the two most severe findings (Critical, High) were both wiring/integration bugs that this plan's original pure-function-only test coverage would not have caught, despite touching a subsystem with a documented real-incident history.
+- **Minor (fidelity)**: corrected an overhedged premise in the original plan's Task 1/3/4 — `JobRow`/`find_matching_job`/`scan_and_report_oom_events` are already `pub` in `oom_watch.rs` (no widening needed); only `fetch_recent_job_rows` and `post_pr_comment` were actually private and needed widening to `pub(crate)`, which Tasks 3 and 4 now state precisely rather than as an open "check and widen if needed" for all four.
 
-**Type consistency** — `JobRow`/`find_matching_job`/`fetch_recent_job_rows`/`post_pr_comment` are defined once in `oom_watch.rs` and reused by name (not redefined) in `runner_scale.rs` (Task 3) and `unexpected_exit_watch.rs` (Task 4). `is_corroborated_busy` (Task 1) and `eligible_for_scale_down_reap` (Task 2) are each defined once and called by the same names in Task 3's wiring. `scan_and_report_oom_events`'s return-type change (`Result<u32>` → `Result<(u32, HashSet<String>)>`, Task 5 Step 2) is applied consistently at its one call site (Task 5 Step 3) in the same task that changes the signature, so there's no window where caller and callee disagree.
+**Type consistency** — `JobRow`/`find_matching_job`/`fetch_recent_job_rows`/`post_pr_comment` are defined once in `oom_watch.rs` and reused by name (not redefined) in `runner_scale.rs` (Task 3, 5) and `unexpected_exit_watch.rs` (Task 4). `is_corroborated_busy` (Task 1), `eligible_for_scale_down_reap` (Task 2), and `partition_scale_down_candidates` (Task 3) are each defined once and called by the same names throughout. `scan_and_report_oom_events`'s signature change (`fn(now: i64) -> Result<u32>` → `fn(now: i64, job_rows: &[JobRow]) -> Result<(u32, HashSet<String>)>`, Task 5 Step 2) is applied consistently at its one call site (Task 5 Step 3) in the same task that changes the signature. `scan_and_report_unexpected_exits`'s signature (Task 4: `curr_running, already_oom_claimed, job_rows: &[JobRow]`, no `near_miss_names`) matches its one call site (Task 5 Step 3) exactly.
