@@ -132,7 +132,10 @@ impl PersistentDaemon {
     pub async fn ensure_live(&self) -> Result<String, String> {
         let cached = self.resolved.read().await.clone();
         if let Some((addr, token)) = cached.clone() {
-            if let Ok(resp) = OrchDaemonClient::with_token(addr.clone(), token).ping().await {
+            if let Ok(resp) = OrchDaemonClient::with_token(addr.clone(), token)
+                .ping()
+                .await
+            {
                 if let Some(mismatch) = detect_version_mismatch(&resp) {
                     *self.last_version_mismatch.write().await = Some(mismatch);
                 }
@@ -206,8 +209,8 @@ impl PersistentDaemon {
             .unwrap_or_else(|| std::path::PathBuf::from("vox-orchestrator-d"));
         let (daemon_bin_result, version_hint) =
             resolve_or_stage_daemon_with_version_hint(&target_sibling, &bin_dir);
-        let daemon_bin = daemon_bin_result
-            .unwrap_or_else(|_| resolve_managed_binary_path("vox-orchestrator-d"));
+        let daemon_bin =
+            daemon_bin_result.unwrap_or_else(|_| resolve_managed_binary_path("vox-orchestrator-d"));
         if let Some(daemon_version) = version_hint
             && daemon_version != env!("CARGO_PKG_VERSION")
         {
