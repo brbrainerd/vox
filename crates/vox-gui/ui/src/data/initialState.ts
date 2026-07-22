@@ -4,7 +4,7 @@ import { DEFAULT_BUDGET_CAP_USD, type BudgetSource } from '../config/budget';
 export const INITIAL_DATA: DashboardData = {
   // Honest empty seeds — populated from the live orchestrator status (App.tsx
   // applyStatus / vox://orch-status). No fabricated peers or KPI values render
-  // before real data arrives; the Sidebar/TopHud show empty states until then.
+  // before real data arrives; the Sidebar/BottomStatusBar show empty states until then.
   peers: [],
   kpis: {
     budgetBurn: { label: "Budget Burn", value: 0, cap: DEFAULT_BUDGET_CAP_USD, spark: [0, 0, 0, 0, 0, 0, 0] },

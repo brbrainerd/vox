@@ -434,8 +434,8 @@ export function ChatSurface({
   // but that coupled the trigger's visibility to the tab bar's wrap state:
   // with many top-level tabs open the tablist wraps to multiple lines and
   // the trigger could end up on whichever line wrapped last, effectively
-  // "scrolled off"/unreachable. StatusBar (rendered by the app shell above
-  // ChatSurface, one level up the tree — not a descendant, and *not* inside
+  // "scrolled off"/unreachable. BottomStatusBar (rendered by the app shell
+  // above ChatSurface, one level up the tree — not a descendant, and *not* inside
   // the tab bar's own wrapping flex row) now exposes a fixed DOM node
   // (`#workbench-tabbar-trailing-slot`) as a portal target so the button
   // sits inline with persistent app chrome instead — a single-line, never-
