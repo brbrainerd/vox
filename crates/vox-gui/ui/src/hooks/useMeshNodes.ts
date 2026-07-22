@@ -13,6 +13,18 @@ export interface NodesResult {
 }
 
 /**
+ * Fetches and normalizes the `vox_mesh_nodes` MCP tool result. This is the
+ * single place that calls the tool and coerces `nodes` into an array — both
+ * `useMeshNodes` and `useMeshNodesFull` poll via this helper so the
+ * fetch/parse logic isn't duplicated between them.
+ */
+async function fetchMeshNodesResult(): Promise<NodesResult> {
+  const res = await voxTransport.invokeMcpTool('vox_mesh_nodes', {});
+  const result = (res?.result ?? {}) as NodesResult;
+  return { ...result, nodes: Array.isArray(result.nodes) ? result.nodes : [] };
+}
+
+/**
  * Polls the `vox_mesh_nodes` MCP tool for a bare node list, at a
  * caller-supplied cadence. Silent on error — leaves the prior value (or
  * undefined) in place rather than flashing an error, which suits an
@@ -28,10 +40,9 @@ export function useMeshNodes(cadenceMs: number): MeshNode[] | undefined {
 
     const refresh = async () => {
       try {
-        const res = await voxTransport.invokeMcpTool('vox_mesh_nodes', {});
+        const result = await fetchMeshNodesResult();
         if (cancelled) return;
-        const result = (res?.result ?? {}) as NodesResult;
-        setNodes(Array.isArray(result.nodes) ? result.nodes : []);
+        setNodes(result.nodes ?? []);
       } catch {
         // Silent — see doc comment above.
       }
@@ -82,10 +93,9 @@ export function useMeshNodesFull(
 
   const refresh = useCallback(async () => {
     try {
-      const res = await voxTransport.invokeMcpTool('vox_mesh_nodes', {});
-      const result = (res?.result ?? {}) as NodesResult;
+      const result = await fetchMeshNodesResult();
       setMeta(result);
-      setNodes(Array.isArray(result.nodes) ? result.nodes : []);
+      setNodes(result.nodes ?? []);
     } catch (err) {
       onError?.(err);
     } finally {
