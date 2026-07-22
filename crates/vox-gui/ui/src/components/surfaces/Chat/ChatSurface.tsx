@@ -748,6 +748,21 @@ export function ChatSurface({
                 budget={attention_budget}
                 waitingQuestions={waitingQuestions}
                 blockedTasks={blockedTasks}
+                // Realistic-content audit (Task 5, panels-density plan): a
+                // 32-message conversation left only ~2 messages visible
+                // above this card's ~110-120px fixed footprint. Default to
+                // the compact summary row once a session has real content
+                // (more than a couple of turns) — but never when something
+                // urgent needs the full card up front: near-cap spend,
+                // waiting questions, or blocked tasks.
+                defaultCollapsed={
+                  messages.length > 4 &&
+                  !waitingQuestions &&
+                  !blockedTasks &&
+                  (attention_budget.max_attention_ms > 0
+                    ? attention_budget.spent_ms / attention_budget.max_attention_ms
+                    : 1) < 0.8
+                }
               />
             </div>
           ) : null}
