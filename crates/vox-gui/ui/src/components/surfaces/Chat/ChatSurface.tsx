@@ -429,13 +429,19 @@ export function ChatSurface({
 
   // The Panels ▾ trigger used to render in its own shrink-0 row above the
   // dock workspace, costing a full row of vertical height for one small
-  // control. WorkbenchTabBar (rendered by the app shell above ChatSurface,
-  // one level up the tree — not a descendant) now exposes a fixed DOM node
-  // (`#workbench-tabbar-trailing-slot`) as a portal target so the button can
-  // sit inline, right-aligned, with the top tab bar instead. Looked up on
-  // mount rather than assumed present so ChatSurface still renders correctly
-  // standalone (e.g. in tests that don't mount the app shell) — falling back
-  // to its own row in that case.
+  // control. It was then portaled into WorkbenchTabBar's own trailing slot,
+  // but that coupled the trigger's visibility to the tab bar's wrap state:
+  // with many top-level tabs open the tablist wraps to multiple lines and
+  // the trigger could end up on whichever line wrapped last, effectively
+  // "scrolled off"/unreachable. StatusBar (rendered by the app shell above
+  // ChatSurface, one level up the tree — not a descendant, and *not* inside
+  // the tab bar's own wrapping flex row) now exposes a fixed DOM node
+  // (`#workbench-tabbar-trailing-slot`) as a portal target so the button
+  // sits inline with persistent app chrome instead — a single-line, never-
+  // wrapping row that exists independently of the tab bar (which is slated
+  // for eventual removal). Looked up on mount rather than assumed present so
+  // ChatSurface still renders correctly standalone (e.g. in tests that don't
+  // mount the app shell) — falling back to its own row in that case.
   const [tabBarTrailingSlot, setTabBarTrailingSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
     setTabBarTrailingSlot(document.getElementById('workbench-tabbar-trailing-slot'));

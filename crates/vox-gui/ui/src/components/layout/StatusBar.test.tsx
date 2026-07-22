@@ -115,4 +115,25 @@ describe('StatusBar', () => {
     await user.click(screen.getByTestId('status-bar-mesh'));
     expect(onNavigate).toHaveBeenCalledWith('compute');
   });
+
+  it('renders a fixed trailing slot for tab-row-adjacent chrome (e.g. Chat\'s Panels menu) to portal into, independent of the tab bar', () => {
+    render(
+      <StatusBar
+        kpis={INITIAL_KPIS}
+        lastOrchEventAt={null}
+        orchUsesPolling={false}
+        liveFreshMs={30_000}
+        onNavigate={vi.fn()}
+      />,
+    );
+    const slot = screen.getByTestId('workbench-tabbar-trailing-slot');
+    expect(slot).toBeInTheDocument();
+    expect(slot.id).toBe('workbench-tabbar-trailing-slot');
+    // StatusBar is a single, never-wrapping row rendered once in the app
+    // shell header — this slot must live here, not inside anything that can
+    // wrap to multiple lines (like WorkbenchTabBar's tablist), so content
+    // portaled in stays reachable regardless of how many tabs are open.
+    const bar = screen.getByRole('status', { name: /operator status/i });
+    expect(bar.contains(slot)).toBe(true);
+  });
 });

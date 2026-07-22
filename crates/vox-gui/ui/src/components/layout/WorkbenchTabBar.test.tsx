@@ -177,7 +177,7 @@ describe('WorkbenchTabBar', () => {
     expect(dashboardTab).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('renders a right-aligned trailing slot outside the tablist for tab-row-adjacent chrome (e.g. Chat\'s Panels menu) to portal into', () => {
+  it('does not render its own trailing slot for tab-row-adjacent chrome (moved to StatusBar so it is not coupled to tablist wrap state — see StatusBar.test.tsx)', () => {
     render(
       <WorkbenchTabBar
         tabs={[{ id: 'console', label: 'Console' }]}
@@ -186,12 +186,7 @@ describe('WorkbenchTabBar', () => {
         onClose={vi.fn()}
       />,
     );
-    const slot = screen.getByTestId('workbench-tabbar-trailing-slot');
-    expect(slot).toBeInTheDocument();
-    expect(slot.id).toBe('workbench-tabbar-trailing-slot');
-    // Must be a sibling of the tablist, not a child of it (F-07: tablist owns only tabs).
-    const tablist = screen.getByRole('tablist');
-    expect(tablist.contains(slot)).toBe(false);
+    expect(screen.queryByTestId('workbench-tabbar-trailing-slot')).not.toBeInTheDocument();
   });
 
   it('exposes the Delete shortcut to AT via aria-keyshortcuts on the tab', () => {

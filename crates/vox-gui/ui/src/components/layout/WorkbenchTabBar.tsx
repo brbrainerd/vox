@@ -107,13 +107,6 @@ export function WorkbenchTabBar({ tabs, activeTab, onSelect, onClose }: Workbenc
         );
         })}
       </div>
-      {/* Trailing right-aligned slot, kept outside the tablist so it never
-          appears as an aria-tab child (F-07: role=tablist must own only
-          role=tab children). Surfaces that need chrome inline with the tab
-          row (e.g. Chat's "Panels ▾" dock-visibility menu) portal into this
-          fixed DOM node instead of rendering their own separate row —
-          it exists whenever any tab is open, regardless of which is active. */}
-      <div id="workbench-tabbar-trailing-slot" data-testid="workbench-tabbar-trailing-slot" className="flex shrink-0 items-center" />
     </div>
   );
 }
