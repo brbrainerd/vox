@@ -11,19 +11,9 @@ import {
 } from '../../hooks/useHudTiles';
 import { INITIAL_KPIS } from '../../data/initialState';
 import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../lib/domIds';
+import type { MeshNode } from '../surfaces/Mesh/MeshView';
 
 type KpiState = typeof INITIAL_KPIS;
-
-/** One node row as summarized by the `vox_mesh_nodes` MCP tool (see MeshView.tsx). */
-export interface BottomStatusBarMeshNode {
-  id: string;
-  status: string;
-  host_triple?: string | null;
-  gpu_summary?: string | null;
-  trust_tier?: string | null;
-  advertised_models?: string[];
-  last_seen_unix_ms?: number;
-}
 
 export interface BottomStatusBarProps {
   kpis: KpiState;
@@ -36,7 +26,7 @@ export interface BottomStatusBarProps {
   activeModel?: string | null;
   openrouterSpendUsd?: number | null;
   pendingApprovals?: number | null;
-  meshNodes?: BottomStatusBarMeshNode[];
+  meshNodes?: MeshNode[];
 }
 
 function freshnessClasses(tone: 'live' | 'poll' | 'stale') {

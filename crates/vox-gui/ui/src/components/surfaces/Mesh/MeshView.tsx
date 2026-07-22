@@ -13,7 +13,7 @@ interface MeshViewProps {
 }
 
 /** One node row as summarized by the `vox_mesh_nodes` MCP tool. */
-interface MeshNode {
+export interface MeshNode {
   id: string;
   status: string;
   host_triple?: string | null;
