@@ -24,7 +24,26 @@ unconditionally rendered at that footprint regardless of whether the
 conversation above it was empty or long and active.
 
 Screenshot evidence (scratchpad, not committed):
-`task5-before-full.png` / `task5-before-transcript.png`.
+`task5-before-full.png` / `task5-before-transcript.png` (before, captured by
+temporarily reverting `AttentionBudgetMeter.tsx` to its pre-Task-5 state via
+`git show df2a0544d3^:...AttentionBudgetMeter.tsx`, then restoring the real
+fixed source afterward) and `task5-after-full.png` / `task5-after-transcript.png`
+(after, real current source).
+
+**Evidence-integrity correction (follow-up, same day):** the screenshots
+originally referenced under this heading were captured against the live Vite
+dev server *after* the fix had already landed in the working tree, so HMR
+picked up the new code and both "before" and "after" images actually showed
+the collapsed/compact card — the original `task5-before-full.png` was
+byte-identical (matching MD5) to the after screenshot, and no after
+screenshot existed at all. The pair above is a genuine re-capture: the
+pre-fix component was restored from git history, the dev server was allowed
+to HMR-reload it, screenshots were taken, and the real fixed source was then
+restored (verified identical to the committed version via `git diff` before
+resuming). The regenerated bounding-box measurement for the pre-fix card was
+~135px (vs. the ~131px estimate in the original note — consistent with the
+same finding, small delta from measurement/font-rendering variance across
+runs), and the post-fix card reproduced at 68px on a second independent run.
 
 ## Fix
 
@@ -57,8 +76,11 @@ variant + `__summary`/`__toggle`/`__bar--compact` rules.
   A third regression test (prop-transition-after-mount) and a fourth
   (user-toggle-wins-over-later-prop-changes) were added after the live
   verification below caught the mount-only-initializer bug; all 8 pass.
-- Full suite: `npx vitest run` — 232 files / 1152 tests passed.
-- `npx tsc --noEmit` — clean.
+- Full suite: `npx vitest run` — 232 files / 1154 tests passed (reverified
+  during the evidence-integrity follow-up; count had drifted from the
+  1152 originally reported here, consistent with other suite growth in this
+  plan — not a Task 5 regression).
+- `npx tsc --noEmit` — clean (reverified during the evidence-integrity follow-up).
 - Live verification (real Chromium, not jsdom): before the reactive-effect
   fix, the card stayed expanded in the live app despite `messages.length`
   being 32 (bounding-box height 131px) — confirming the mount-only-`useState`
