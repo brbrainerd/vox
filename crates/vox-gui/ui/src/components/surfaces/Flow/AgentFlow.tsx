@@ -156,7 +156,11 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Legend color="bg-cyan-400"   label="Planning" />
+          {/* Was bg-cyan-400 — the one blue swatch in a legend otherwise
+              built from the app's brass/violet/emerald accent palette.
+              Matches Pill.tsx PHASE_TONE.Planning, which now shares
+              Executing's brass tone. */}
+          <Legend color="bg-brass"      label="Planning" />
           <Legend color="bg-brass"      label="Executing" />
           <Legend color="bg-violet-400" label="Verifying" />
           <Legend color="bg-text-muted"   label="Paused" />
@@ -175,8 +179,12 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
         >
           <defs>
             <linearGradient id="ag-edge-grad" x1="0" x2="1">
+              {/* Was a brass→cyan400 gradient — the edge lines carried the
+                  same stray blue as the Planning/Active phase tones. Now a
+                  brass→brass (soft fade) gradient, consistent with the rest
+                  of the mind-map's accent color. */}
               <stop offset="0" stopColor="rgb(var(--brass) / 0.7)" />
-              <stop offset="1" stopColor={viz.cyan400} stopOpacity="0.7" />
+              <stop offset="1" stopColor="rgb(var(--brass) / 0.35)" />
             </linearGradient>
             <radialGradient id="ag-root-glow" cx="0.5" cy="0.5" r="0.5">
               <stop offset="0%"   stopColor={viz.white}    stopOpacity="0.9" />
