@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Glass } from '../../ui/Glass';
 import { Kpi } from '../../ui/Kpi';
-import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import { ContextWindowMeter } from './ContextWindowMeter';
 import { useLabel } from '../../../hooks/useLanguage';
 import { getContextBudget, type ContextBudgetPayload } from '../../../transport';
@@ -68,8 +67,6 @@ function Segment({
   );
 }
 
-const EXECUTION_RAIL_COLLAPSED_KEY = 'gui.chat.execution_rail_collapsed.v1';
-
 export function ChatExecutionRail({
   tasks,
   kpis,
@@ -80,7 +77,6 @@ export function ChatExecutionRail({
   sessionId,
   onOpenRouting,
 }: ChatExecutionRailProps) {
-  const [collapsed, setCollapsed] = useLocalStorage<boolean>(EXECUTION_RAIL_COLLAPSED_KEY, false);
   const [budget, setBudget] = useState<ContextBudgetPayload | null>(null);
 
   useEffect(() => {
@@ -91,42 +87,11 @@ export function ChatExecutionRail({
 
   const peerLabel = kpis.mesh.peers === 1 ? '1 peer' : `${kpis.mesh.peers} peers`;
 
-  if (collapsed) {
-    return (
-      <aside aria-label="Execution rail" className="shrink-0">
-        <Glass className="flex flex-col items-center gap-2 p-2">
-          <button
-            type="button"
-            aria-label="Expand execution rail"
-            aria-expanded={false}
-            onClick={() => setCollapsed(false)}
-            className="rounded-lg border border-border-subtle p-2 text-text-muted hover:border-brass/40 hover:text-brass transition"
-          >
-            <span className="font-mono text-sm" aria-hidden="true">
-              »
-            </span>
-          </button>
-        </Glass>
-      </aside>
-    );
-  }
-
   return (
-    <aside aria-label="Execution rail" className="w-64 shrink-0">
+    <aside aria-label="Execution rail" className="w-full min-w-0">
       <Glass className="flex h-full flex-col gap-3 p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('chat-execution')}</h2>
-          <button
-            type="button"
-            aria-label="Collapse execution rail"
-            aria-expanded={true}
-            onClick={() => setCollapsed(true)}
-            className="rounded p-1 text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
-          >
-            <span className="font-mono text-xs" aria-hidden="true">
-              «
-            </span>
-          </button>
         </div>
 
         <section

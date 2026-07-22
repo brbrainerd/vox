@@ -2,14 +2,12 @@ import React from 'react';
 import { useVoxQuery } from '../../../hooks/useVoxQuery';
 import { voxTransport } from '../../../transport';
 import { Button } from '../../ui/Button';
-import { docPathFromTab } from '../../../hooks/useWorkbenchTabs';
 
 interface DocReaderProps {
-  tabId: string;
+  path: string;
 }
 
-export function DocReader({ tabId }: DocReaderProps) {
-  const path = docPathFromTab(tabId);
+export function DocReader({ path }: DocReaderProps) {
   const q = useVoxQuery(['doc', path], () => voxTransport.readDocMarkdown(path), {
     enabled: path.length > 0,
   });

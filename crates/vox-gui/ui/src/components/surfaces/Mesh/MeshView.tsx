@@ -6,6 +6,7 @@ import { Icon } from '../../ui/Icons';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import type { Toast } from '../../../types/tauri';
+import { useMeshNodesFull } from '../../../hooks/useMeshNodes';
 
 interface MeshViewProps {
   pushToast: (item: Toast) => void;
@@ -13,7 +14,7 @@ interface MeshViewProps {
 }
 
 /** One node row as summarized by the `vox_mesh_nodes` MCP tool. */
-interface MeshNode {
+export interface MeshNode {
   id: string;
   status: string;
   host_triple?: string | null;
@@ -21,15 +22,6 @@ interface MeshNode {
   trust_tier?: string | null;
   advertised_models?: string[];
   last_seen_unix_ms?: number;
-}
-
-interface NodesResult {
-  source?: string;
-  control_url?: string;
-  control_plane_error?: string;
-  nodes?: MeshNode[];
-  queue_depth?: number | null;
-  node_count?: number;
 }
 
 interface QueueStatsResult {
@@ -73,10 +65,7 @@ function statusTone(status: string): string {
 
 export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
   const embedded = useIsEmbeddedSurface();
-  const [nodes, setNodes] = useState<MeshNode[]>([]);
-  const [nodesMeta, setNodesMeta] = useState<NodesResult>({});
   const [queue, setQueue] = useState<QueueStatsResult>({});
-  const [loading, setLoading] = useState(true);
 
   // Dispatch form state.
   const [targetNode, setTargetNode] = useState<string>('');
@@ -85,36 +74,42 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
   const [dispatching, setDispatching] = useState(false);
   const [dispatchResult, setDispatchResult] = useState<string>('');
 
-  const refresh = useCallback(async () => {
+  const onMeshNodesError = useCallback(
+    (err: unknown) => {
+      pushToast({ tone: 'warn', title: 'Mesh refresh failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    },
+    [pushToast],
+  );
+  const {
+    nodes,
+    meta: nodesMeta,
+    loading,
+    refresh: refreshNodes,
+  } = useMeshNodesFull(REFRESH_MS, { embedded, onError: onMeshNodesError });
+
+  const refreshQueue = useCallback(async () => {
     try {
-      const [nodesRes, queueRes] = await Promise.all([
-        invoke<McpEnvelope<NodesResult>>('invoke_mcp_tool', {
-          tool: 'vox_mesh_nodes',
-          args: {},
-        }),
-        invoke<McpEnvelope<QueueStatsResult>>('invoke_mcp_tool', {
-          tool: 'vox_mesh_queue_stats',
-          args: {},
-        }),
-      ]);
-      const meta = nodesRes?.result ?? {};
-      setNodesMeta(meta);
-      setNodes(Array.isArray(meta.nodes) ? meta.nodes : []);
+      const queueRes = await invoke<McpEnvelope<QueueStatsResult>>('invoke_mcp_tool', {
+        tool: 'vox_mesh_queue_stats',
+        args: {},
+      });
       setQueue(queueRes?.result ?? {});
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Mesh refresh failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-    } finally {
-      setLoading(false);
     }
   }, [pushToast]);
 
+  const refresh = useCallback(async () => {
+    await Promise.all([refreshNodes(), refreshQueue()]);
+  }, [refreshNodes, refreshQueue]);
+
   useEffect(() => {
-    refresh();
+    refreshQueue();
     // Embedded mini-render: one initial fetch only, no repeating poll.
     if (embedded) return;
-    const id = setInterval(refresh, REFRESH_MS);
+    const id = setInterval(refreshQueue, REFRESH_MS);
     return () => clearInterval(id);
-  }, [refresh, embedded]);
+  }, [refreshQueue, embedded]);
 
   // Dispatch availability: the local-registry source means no control plane is
   // reachable, so dispatch (a write) cannot succeed and should be disabled.

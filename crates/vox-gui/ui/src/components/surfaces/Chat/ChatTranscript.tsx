@@ -75,7 +75,7 @@ export function ChatTranscript({ messages, agentStreamItems }: ChatTranscriptPro
       aria-live="polite"
       aria-relevant="additions text"
       aria-label="Chat transcript"
-      className="mb-3 min-h-0 flex-1 overflow-y-auto custom-scrollbar p-3"
+      className="mb-3 min-h-0 flex-1 overflow-y-auto custom-scrollbar p-3 pb-6"
     >
       <div className="mx-auto flex w-full max-w-[900px] flex-col gap-2">
         {timeline.map((row) => {

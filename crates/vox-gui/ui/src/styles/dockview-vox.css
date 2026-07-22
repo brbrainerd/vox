@@ -1,5 +1,33 @@
-.dockview-theme-vox {
-  --dv-background-color: rgba(9, 9, 11, 0.92);
+/*
+ * Selector list, deliberate: dockview-core defaults its internal `.dv-shell`
+ * node to `theme_1.themeAbyss` (class `dockview-theme-abyss`) whenever no
+ * `theme` prop is passed to `DockviewReact` — confirmed live via CDP DOM
+ * inspection (not visible under jsdom/Vitest, which doesn't render dockview's
+ * real internal shell node). `.dv-shell` is a DESCENDANT of the outer
+ * `.dockview-theme-vox` wrapper div, not an ancestor, so `dockview-theme-abyss`
+ * — its own class living directly on `.dv-shell` — redeclares every one of
+ * these custom properties at that exact node, beating our ancestor-level
+ * declaration regardless of source order (same specificity, but a
+ * self-declaration always wins over an inherited one). The practical result:
+ * `--dv-tabs-and-actions-container-background-color` silently resolved to
+ * abyss's `#1c1c2a` instead of our near-invisible vox tint, painting a
+ * visibly lighter rectangle across the group header's void/drag area (the
+ * strip to the right of a tab, up to the group's own edge) — which, sitting
+ * right beside a short tab label with nothing to distinguish where the tab
+ * ends, read as "the tab stretched to fill the strip". Repeating the
+ * `.dv-shell` descendant selector here raises specificity to 0,2,0 (beating
+ * abyss's 0,1,0 on that same node) so our vox variables win there too,
+ * without touching the DockviewReact `theme` prop or dockview-core's option
+ * plumbing.
+ */
+.dockview-theme-vox,
+.dockview-theme-vox .dv-shell {
+  /* Reference the real app background token directly (opaque, no separate
+     alpha) instead of a hand-tuned near-match — the previous rgba(9, 9, 11,
+     0.92) was close to but not identical to --color-bg-base (#0c0e10), and
+     the 0.92 alpha compositing differently over different layers created a
+     visible seam against the app chrome. */
+  --dv-background-color: var(--color-bg-base);
   --dv-group-view-background-color: transparent;
   --dv-tabs-and-actions-container-background-color: rgba(255, 255, 255, 0.02);
   --dv-activegroup-visiblepanel-tab-background-color: rgba(212, 175, 55, 0.08);
@@ -11,6 +39,15 @@
   --dv-tab-divider-color: rgba(255, 255, 255, 0.06);
   --dv-icon-hover-background-color: rgba(255, 255, 255, 0.06);
   --dv-floating-box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-color: rgb(113, 113, 122);
+  --dv-inactivegroup-hiddenpanel-tab-color: rgb(82, 82, 91);
+  --dv-paneview-active-outline-color: rgba(212, 175, 55, 0.4);
+  --dv-paneview-header-border-color: rgba(255, 255, 255, 0.06);
+  --dv-active-sash-color: rgba(212, 175, 55, 0.3);
+  --dv-scrollbar-background-color: rgba(255, 255, 255, 0.12);
+  --dv-tabs-container-scrollbar-color: rgba(255, 255, 255, 0.12);
 }
 
 .dockview-theme-vox .dv-tab {
@@ -18,4 +55,11 @@
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.dockview-theme-vox .dv-tabs-and-actions-container {
+  height: 22px;
+}
+.dockview-theme-vox .dv-tab {
+  font-size: 9px;
 }

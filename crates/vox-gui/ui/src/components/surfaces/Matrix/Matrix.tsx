@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
-import { Pill } from '../../ui/Pill';
+import { Pill, PHASE_TONE } from '../../ui/Pill';
 import { phaseFill, phaseStroke } from '../../../lib/visualTokens';
 import { useLabel } from '../../../hooks/useLanguage';
 import { MATRIX_POLL_MS } from '../../../config/constants';
@@ -23,16 +23,10 @@ interface RoutingIntention {
 function HexCell({ intention, onSelect, selected }: { intention: RoutingIntention; onSelect: (id: string) => void; selected: boolean }) {
   const conf = intention.conf;
   const stroke = phaseStroke(intention.phase === 'Active' ? 'Active' : intention.phase);
-  const phaseText: Record<string, string> = {
-    Validated: 'text-emerald-300',
-    Active: 'text-cyan-300',
-    Doubted: 'text-amber-300',
-    Speculative: 'text-violet-300',
-  };
   const phaseTone = {
     stroke,
     fill: phaseFill(stroke, conf),
-    text: phaseText[intention.phase] ?? 'text-cyan-300',
+    text: (PHASE_TONE as Record<string, { text: string }>)[intention.phase]?.text ?? PHASE_TONE.Active.text,
     glow: stroke,
   };
 

@@ -59,7 +59,13 @@ interface ChipData {
 function Chip({ chip, onRemove }: { chip: ChipData; onRemove: (c: ChipData) => void }) {
   const iconKey = { file: "file", skill: "bolt", agent: "agent", branch: "git", url: "link", image: "image" }[chip.kind] || "file";
   const IconCmp = (Icon as any)[iconKey] || Icon.file;
-  const tone = chip.kind === "file"   ? "border-cyan-400/25 text-cyan-300 bg-cyan-400/[0.05]"
+  // "file" chips used to render as border-cyan-400/text-cyan-300 — the same
+  // stray blue reported against the mind-map's Planning/Active tones (see
+  // Pill.tsx, tokens.ts, visualTokens.ts). Recolored to amber, keeping this
+  // chip visually distinct from the brass "skill" chip while staying inside
+  // the app's existing warm accent family (amber is already used elsewhere
+  // for Doubted/low-confidence states) instead of reusing brass outright.
+  const tone = chip.kind === "file"   ? "border-amber-400/25 text-amber-300 bg-amber-400/[0.05]"
             : chip.kind === "skill"  ? "border-brass/30 text-brass bg-brass/[0.05]"
             : chip.kind === "agent"  ? "border-violet-400/25 text-violet-300 bg-violet-400/[0.05]"
             : chip.kind === "branch" ? "border-emerald-400/25 text-emerald-300 bg-emerald-400/[0.05]"
@@ -550,7 +556,8 @@ export function Loquela({
                     {fileSuggestions.map(p => (
                       <button type="button" key={p} onClick={() => insertAtFile(p)}
                               className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle">
-                        <Icon.file className="size-3 shrink-0 text-cyan-300" />
+                        {/* Matches the file chip's new amber tone above, not the old cyan. */}
+                        <Icon.file className="size-3 shrink-0 text-amber-300" />
                         <span className="truncate font-mono text-[10px] text-text-secondary">{p}</span>
                       </button>
                     ))}

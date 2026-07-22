@@ -51,15 +51,22 @@ describe('surface registry escape guard (B8)', () => {
     expect(escaped, `Decorator surfaces missing from SURFACE_REGISTRY: ${escaped}`).toEqual([]);
   });
 
-  it('DocReader is the only registry-exempt special tab render in App.tsx', () => {
+  it('App.tsx has no isDocTab-gated special tab render (DocReader moved to DocViewerDrawer)', () => {
+    // Historically DocReader was rendered as a `isDocTab(activeTab) ? <DocReader
+    // tabId={...} /> : renderSurfaceContent(...)` special case in App.tsx's main
+    // surface, exempted from the registry by name in this guard. The nav-shell
+    // redesign (useActiveView/useDocViewer) removed workbench tabs entirely:
+    // DocReader now renders exclusively inside DocViewerDrawer, always layered
+    // on top of whatever registry-driven surface is active — it never
+    // special-cases the main-surface render path at all, so there is nothing
+    // left for this guard to exempt. Assert the pattern is gone rather than
+    // deleting the test outright, so a regression (someone reintroducing an
+    // isDocTab ternary in App.tsx) is still caught.
     const app = readFileSync(join(SRC_ROOT, 'App.tsx'), 'utf8');
     const specialRenders = [...app.matchAll(/isDocTab\([^)]*\)\s*\?\s*<(\w+)/g)].map(
       (m) => m[1],
     );
-    // doc:* tabs are keyed by document path, not a surface viewKey — a new
-    // special tab TYPE must either register a surface or extend this guard
-    // with its own justification.
-    expect(specialRenders).toEqual(['DocReader']);
+    expect(specialRenders).toEqual([]);
   });
 
   it('allowlist entries stay minimal and still routed (no stale entries)', () => {

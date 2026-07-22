@@ -27,4 +27,16 @@ describe('Mercatus', () => {
     const expected = labelFor('mercatus', 'en');
     expect(screen.getByRole('heading', { name: new RegExp(expected) })).toBeInTheDocument();
   });
+
+  it('condensed prop renders only the parts/sources summary line, not the coverage table', async () => {
+    render(
+      <LanguageProvider>
+        <Mercatus condensed />
+      </LanguageProvider>,
+    );
+    // Same "N parts · N enabled sources" line the full view already shows,
+    // rendered on its own without the coverage matrix or source registry.
+    expect(await screen.findByText(/0 parts · 0 enabled sources/i)).toBeInTheDocument();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
 });

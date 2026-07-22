@@ -5,7 +5,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 import { invoke } from '@tauri-apps/api/core';
-import { voxTransport } from './transport';
+import { voxTransport, feedbackList, feedbackResolve } from './transport';
 
 const mockInvoke = invoke as ReturnType<typeof vi.fn>;
 
@@ -194,5 +194,62 @@ describe('VoxTransport new methods', () => {
     expect(mockInvoke).toHaveBeenCalledWith('list_orchestrator_tasks');
     expect(result).toHaveLength(1);
     expect(result[0]?.description).toBe('Ship feature');
+  });
+
+  // Root-cause regression test: `invoke_mcp_tool` (crates/vox-gui/src/commands/mcp.rs)
+  // is a Tauri command returning `Result<Value, String>` — Tauri's IPC delivers this
+  // to JS as an already-deserialized object `{ tool, is_error, result }`, never a JSON
+  // string. feedbackList/feedbackResolve used to call `JSON.parse(res)` on that object,
+  // which JS coerces to the literal string "[object Object]" before JSON.parse ever
+  // runs, producing `SyntaxError: "[object Object]" is not valid JSON` — exactly the
+  // error surfaced in the Needs You dock panel.
+  it('feedbackList does not JSON.parse the invoke_mcp_tool response object', async () => {
+    mockInvoke.mockResolvedValue({
+      tool: 'vox_feedback_list',
+      is_error: false,
+      result: {
+        success: true,
+        data: {
+          needs_you: [
+            {
+              id: 'fb-1',
+              kind: 'doubt',
+              prompt: 'Which approach?',
+              options: ['a', 'b'],
+              gates: [],
+              doubted_task_id: null,
+              surface: 'needs_you',
+              info_gain_bits: 1.5,
+            },
+          ],
+          withheld: [],
+        },
+      },
+    });
+    const result = await feedbackList();
+    expect(mockInvoke).toHaveBeenCalledWith('invoke_mcp_tool', {
+      tool: 'vox_feedback_list',
+      args: {},
+    });
+    expect(result.needsYou).toHaveLength(1);
+    expect(result.needsYou[0]?.feedbackId).toBe('fb-1');
+  });
+
+  it('feedbackList throws a readable error when the daemon reports failure', async () => {
+    mockInvoke.mockResolvedValue({
+      tool: 'vox_feedback_list',
+      is_error: true,
+      result: { success: false, error: 'daemon unreachable' },
+    });
+    await expect(feedbackList()).rejects.toThrow('daemon unreachable');
+  });
+
+  it('feedbackResolve does not JSON.parse the invoke_mcp_tool response object', async () => {
+    mockInvoke.mockResolvedValue({
+      tool: 'vox_resolve_feedback',
+      is_error: false,
+      result: { success: true, data: null },
+    });
+    await expect(feedbackResolve('fb-1', { approve: true })).resolves.toBeUndefined();
   });
 });

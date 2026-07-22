@@ -68,9 +68,26 @@ function RebuildButton({ corpusId }: { corpusId: string }) {
   );
 }
 
-export function VoxGraphStatusPanel() {
+export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {}) {
   const { data, isLoading, isError, error } = useVoxGraphStatus();
   const corpusHealthLabel = useLabel('vg-corpus-health');
+
+  if (condensed) {
+    if (isLoading) {
+      return <div className="p-2 text-[11px] text-zinc-400 animate-pulse">Loading…</div>;
+    }
+    if (isError) {
+      return <div className="p-2 text-[11px] text-red-400" role="alert">Graphify status unavailable</div>;
+    }
+    if (!data) return <div className="p-2 text-[11px] text-zinc-400">No graphify data</div>;
+    const freshCount = data.corpora.filter(c => c.is_fresh).length;
+    return (
+      <div className="p-2 text-[11px] text-zinc-400">
+        <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-200">{corpusHealthLabel}</div>
+        <div>{freshCount}/{data.corpora.length} fresh</div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

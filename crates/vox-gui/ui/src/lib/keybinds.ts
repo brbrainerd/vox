@@ -1,11 +1,10 @@
 export type ActionId =
-  | 'open-palette' | 'toggle-sidebar' | 'toggle-hud' | 'dispatch-intent'
+  | 'open-palette' | 'toggle-sidebar' | 'dispatch-intent'
   | 'pause-resume-agent';
 export interface ActionDef { id: ActionId; label: string }
 export const ACTION_REGISTRY: ActionDef[] = [
   { id: 'open-palette',  label: 'Open command palette' },
   { id: 'toggle-sidebar', label: 'Toggle sidebar width' },
-  { id: 'toggle-hud',    label: 'Cycle HUD display' },
   { id: 'dispatch-intent', label: 'Dispatch intent (in composer)' },
   { id: 'pause-resume-agent', label: 'Pause/resume selected agent' },
 ];
@@ -13,7 +12,6 @@ export type Bindings = Record<string, string>;
 export const DEFAULT_BINDINGS: Bindings = {
   'open-palette': 'Mod+K',
   'toggle-sidebar': 'Mod+B',
-  'toggle-hud': 'Mod+Shift+H',
   'dispatch-intent': 'Mod+Enter',
   'pause-resume-agent': 'Mod+.',
 };

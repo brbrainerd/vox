@@ -5,7 +5,7 @@ import { Icon } from '../ui/Icons';
 import { AxisMark } from '../ui/AxisMark';
 import { DashboardData } from '../../types/dashboard';
 import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
-import { TOP_LEVEL_VIEWS, resolveNavigation } from '../../lib/navigation';
+import { TOP_LEVEL_VIEWS, resolveNavigation, CHILD_ORDER_BY_PARENT, labelForNavKey } from '../../lib/navigation';
 import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens';
 import { useFreshness } from '../../hooks/useFreshness';
 import { useLang } from '../../hooks/useLanguage';
@@ -79,6 +79,7 @@ interface SidebarProps {
   lastOrchEventAt?: number | null;
   orchUsesPolling?: boolean;
   liveFreshMs?: number;
+  onOpenCommandPalette?: () => void;
 }
 
 export function Sidebar({
@@ -94,6 +95,7 @@ export function Sidebar({
   lastOrchEventAt = null,
   orchUsesPolling = false,
   liveFreshMs = 10_000,
+  onOpenCommandPalette,
 }: SidebarProps) {
   const w = SIDEBAR_WIDTHS[mode];
   const collapsed = mode === "rail";
@@ -123,6 +125,16 @@ export function Sidebar({
 
   const visibleTopLevel = TOP_LEVEL_VIEWS.filter(k => k !== 'settings');
 
+  // null = no override (show active parent's children).
+  // '' (empty string) = user explicitly collapsed the active parent.
+  const [peekedParent, setPeekedParent] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPeekedParent(null);
+  }, [activeParent]);
+
+  const expandedParent = peekedParent === '' ? null : peekedParent ?? activeParent;
+
   useEffect(() => {
     activeRef.current?.scrollIntoView({ block: 'nearest' });
   }, [view]);
@@ -131,7 +143,7 @@ export function Sidebar({
   const coverageEntry = SURFACE_REGISTRY.find(e => e.viewKey === 'coverage');
 
   return (
-    <aside aria-label="Sidebar" className="shrink-0 flex flex-col transition-[width] duration-200 ease-out h-screen overflow-hidden sticky top-0" style={{ width: w }}>
+    <aside aria-label="Sidebar" className="shrink-0 flex flex-col transition-[width] duration-200 ease-out h-full overflow-hidden sticky top-0" style={{ width: w }}>
       <Glass className="flex h-full flex-col p-3 rounded-none border-y-0 border-l-0">
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} pb-3 shrink-0`}>
           {collapsed && (
@@ -159,11 +171,36 @@ export function Sidebar({
           </div>
         </div>
 
+        {onOpenCommandPalette && (
+          <button
+            type="button"
+            data-testid="omnisearch-trigger"
+            onClick={onOpenCommandPalette}
+            title={collapsed ? 'Search or jump…' : undefined}
+            aria-label="Search or jump to…"
+            className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 mb-1 rounded-xl text-text-muted transition hover:bg-overlay-hover hover:text-text-secondary shrink-0`}
+          >
+            <span className="flex size-7 items-center justify-center rounded-lg shrink-0 bg-overlay-subtle ring-1 ring-border-subtle">
+              <Icon.search className="size-4" aria-hidden="true" />
+            </span>
+            {!collapsed && (
+              <>
+                <span className="flex-1 min-w-0 text-left font-display text-[12px] tracking-[0.12em] uppercase whitespace-nowrap overflow-hidden text-ellipsis">
+                  Search
+                </span>
+                <span className="rounded border border-border-subtle bg-overlay-subtle px-1 text-[9px] tracking-widest text-text-muted">⌘K</span>
+              </>
+            )}
+          </button>
+        )}
+
         <nav aria-label="Primary navigation" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col gap-0.5 -mr-1 pr-1">
           {visibleTopLevel.map(key => {
             const label = navLabelFor(key, lang);
             const IconCmp = (Icon as Record<string, any>)[TOP_NAV_ICON[key] ?? 'file'] ?? Icon.file;
             const isActive = activeParent === key;
+            const isExpanded = expandedParent === key && mode === 'wide';
+            const children = CHILD_ORDER_BY_PARENT[key];
             const badge =
               key === 'agents' ? agentsCount
               : key === 'runs' && needsYouCount != null && needsYouCount > 0 ? needsYouCount
@@ -175,17 +212,52 @@ export function Sidebar({
                   : 'Review'
                 : undefined;
             return (
-              <NavItem
-                key={key}
-                innerRef={isActive ? activeRef : undefined}
-                collapsed={collapsed}
-                active={isActive}
-                onClick={() => onOpenParent(key)}
-                icon={<IconCmp className="size-4" />}
-                label={label}
-                badge={badge}
-                ariaLabel={navAriaLabel}
-              />
+              <React.Fragment key={key}>
+                <div className="flex items-center gap-0.5">
+                  <div className="flex-1 min-w-0">
+                    <NavItem
+                      innerRef={isActive ? activeRef : undefined}
+                      collapsed={collapsed}
+                      active={isActive}
+                      onClick={() => onOpenParent(key)}
+                      icon={<IconCmp className="size-4" />}
+                      label={label}
+                      badge={badge}
+                      ariaLabel={navAriaLabel}
+                    />
+                  </div>
+                  {children && mode === 'wide' && (
+                    <button
+                      type="button"
+                      aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${label}`}
+                      aria-expanded={isExpanded}
+                      onClick={() => setPeekedParent(isExpanded ? '' : key)}
+                      className="flex size-6 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-overlay-hover hover:text-text-primary"
+                    >
+                      <Icon.chevR className={`size-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+                {isExpanded && children && (
+                  <div className="ml-4 flex flex-col gap-0.5 border-l border-border-subtle pl-2">
+                    {children.map(childKey => (
+                      <button
+                        key={childKey}
+                        type="button"
+                        onClick={() => onOpenTab(childKey)}
+                        aria-current={view === childKey ? 'page' : undefined}
+                        className={`w-full rounded-lg px-2 py-1.5 text-left font-display text-[11px] tracking-[0.1em] uppercase transition ${
+                          view === childKey
+                            ? 'bg-brass/10 text-brass'
+                            : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
+                        }`}
+                      >
+                        {labelForNavKey(childKey)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </React.Fragment>
             );
           })}
         </nav>

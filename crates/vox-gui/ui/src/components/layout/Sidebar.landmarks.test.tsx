@@ -42,4 +42,16 @@ describe('Axis sidebar — landmark uniqueness', () => {
     expect(screen.getByRole('navigation')).toHaveAttribute('aria-label');
     expect(screen.getByRole('complementary')).toHaveAttribute('aria-label');
   });
+
+  it('sidebar aside sizes itself off the real parent box (h-full), not a rigid 100vh (h-screen)', () => {
+    // Regression guard: h-screen is viewport-absolute and ignores any offset the
+    // aside's ancestor chain may have (e.g. BackendBanner pushing AppShell down
+    // in bare-browser preview mode), which clips the bottom of the sidebar by
+    // exactly that offset. h-full instead takes 100% of the actual parent box,
+    // so it always matches the space really available.
+    renderSidebar();
+    const aside = screen.getByRole('complementary');
+    expect(aside.className).toContain('h-full');
+    expect(aside.className).not.toContain('h-screen');
+  });
 });

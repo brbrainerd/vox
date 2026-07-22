@@ -54,4 +54,20 @@ describe('Matrix', () => {
     render(<LanguageProvider><Matrix pushToast={vi.fn()} /></LanguageProvider>);
     expect(await screen.findByText(/No routing policies active/i)).toBeTruthy();
   });
+
+  it('Active/Planning hex cell labels use brass text, never the old cyan', async () => {
+    invokeMock.mockImplementationOnce(() => Promise.resolve([
+      { id: 'a', parent: 'Routing', branch: 'Cost', phase: 'Active', conf: 0.6, note: 'x' },
+      { id: 'p', parent: 'Routing', branch: 'Speed', phase: 'Planning', conf: 0.4, note: 'y' },
+    ]));
+    render(<LanguageProvider><Matrix pushToast={vi.fn()} /></LanguageProvider>);
+    const activeCell = await screen.findByLabelText(/Cost routing axis/i);
+    const planningCell = await screen.findByLabelText(/Speed routing axis/i);
+    const activeLabel = activeCell.querySelector('.font-display.text-\\[13px\\]');
+    const planningLabel = planningCell.querySelector('.font-display.text-\\[13px\\]');
+    expect(activeLabel?.className).toContain('text-brass');
+    expect(activeLabel?.className).not.toContain('text-cyan-300');
+    expect(planningLabel?.className).toContain('text-brass');
+    expect(planningLabel?.className).not.toContain('text-cyan-300');
+  });
 });

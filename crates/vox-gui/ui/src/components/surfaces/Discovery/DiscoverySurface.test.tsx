@@ -39,6 +39,15 @@ describe('DiscoverySurface', () => {
     expect(screen.getByTestId('preset-archive')).toBeInTheDocument();
   });
 
+  it('condensed prop renders only the current preset label, not the preset tabs or nested surface', () => {
+    render(<DiscoverySurface pushToast={noopToast} condensed />);
+    // Reuses the same `preset` state the tab strip already tracks — just the
+    // active preset's own label, no tab strip and no mounted nested surface.
+    expect(screen.getByText('Timeline')).toBeInTheDocument();
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.queryByTestId('preset-timeline')).toBeNull();
+  });
+
   it('opens on the preset seeded by a legacy deep-link and consumes the seed', () => {
     window.localStorage.setItem(DISCOVERY_PRESET_SEED_KEY, 'review');
     render(<DiscoverySurface pushToast={noopToast} />);

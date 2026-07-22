@@ -115,6 +115,43 @@ impl Orchestrator {
         }
     }
 
+    /// Debit the pilot attention budget for a completed chat turn.
+    ///
+    /// [`crate::chat_processor::ChatTaskProcessor`] deliberately bypasses the
+    /// full agentic gate cascade (behavioral/approval/trust/etc.), which is
+    /// also the only place that historically debited `AttentionBudget` —
+    /// via MCP approval/questioning tool calls
+    /// (`vox-orchestrator-mcp/src/server_state.rs::record_attention_event`)
+    /// that chat tasks never reach. Left unaddressed, the GUI's
+    /// `AttentionBudgetMeter` (driven purely by `spent_ms`) stayed static no
+    /// matter how much chat activity happened. Mirrors the existing
+    /// Socrates goal-planning debit (`submit/goal.rs`'s
+    /// `add_questioning_attention_debit_ms` call): a low, fixed-complexity
+    /// NASA-TLX cost scaled by conversational tokens, applied without
+    /// requiring an approval event (chat turns are never approval-gated).
+    pub fn record_chat_attention(&self, input_tokens: u32, output_tokens: u32) {
+        let config = crate::sync_lock::rw_read(&*self.config);
+        let action = crate::attention::ActionDescriptor {
+            estimated_complexity: 1,
+            tokens_output: u64::from(output_tokens.saturating_add(input_tokens)),
+            priority: crate::types::TaskPriority::Normal,
+            write_file_count: 0,
+            external: false,
+            repeated_approve_count: 0,
+            concurrent_tasks: 0,
+        };
+        let base = config.attention_interrupt_cost_ms.max(1);
+        let cost_ms = crate::attention::compute_attention_cost_ms(
+            &action,
+            0.5,
+            base,
+            &config.attention_tlx_weights,
+        );
+        drop(config);
+        crate::sync_lock::rw_read(&*self.budget_manager)
+            .add_questioning_attention_debit_ms(cost_ms);
+    }
+
     /// Get a shared lock to an agent's queue.
     pub fn agent_queue(
         &self,
@@ -551,6 +588,58 @@ mod tests {
             orch.interruption_calibration()
                 .inline_assist_gain_offset_bits,
             -0.07
+        );
+    }
+
+    /// Colocated with `record_chat_attention` (see its doc comment on lock
+    /// order: config is read and dropped before the budget manager is
+    /// touched, mirroring `status()`'s `attention_snapshot()` read above).
+    /// `chat_processor.rs` already has a regression test asserting
+    /// `spent_ms` increases; this test instead pins the exact debited cost
+    /// by recomputing it via `compute_attention_cost_ms` with the same
+    /// `ActionDescriptor` shape `record_chat_attention` builds, so a change
+    /// to the cost formula or its inputs (e.g. dropping the
+    /// input+output token sum) is caught here even if it still leaves the
+    /// debit strictly positive.
+    #[test]
+    fn record_chat_attention_debits_exact_computed_cost() {
+        let orch = crate::Orchestrator::new(crate::config::OrchestratorConfig::for_testing());
+
+        let before = crate::sync_lock::rw_read(&*orch.budget_manager_handle())
+            .attention_snapshot()
+            .spent_ms;
+
+        let (input_tokens, output_tokens) = (30u32, 170u32);
+        orch.record_chat_attention(input_tokens, output_tokens);
+
+        let after = crate::sync_lock::rw_read(&*orch.budget_manager_handle())
+            .attention_snapshot()
+            .spent_ms;
+
+        let config = crate::sync_lock::rw_read(&orch.config);
+        let action = crate::attention::ActionDescriptor {
+            estimated_complexity: 1,
+            tokens_output: u64::from(output_tokens.saturating_add(input_tokens)),
+            priority: crate::types::TaskPriority::Normal,
+            write_file_count: 0,
+            external: false,
+            repeated_approve_count: 0,
+            concurrent_tasks: 0,
+        };
+        let base = config.attention_interrupt_cost_ms.max(1);
+        let expected_cost_ms = crate::attention::compute_attention_cost_ms(
+            &action,
+            0.5,
+            base,
+            &config.attention_tlx_weights,
+        );
+        drop(config);
+
+        assert_eq!(
+            after.saturating_sub(before),
+            expected_cost_ms,
+            "record_chat_attention must debit exactly the cost computed from a saturating \
+             input+output token sum, mirroring its own implementation"
         );
     }
 

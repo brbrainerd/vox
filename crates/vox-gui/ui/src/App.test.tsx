@@ -206,4 +206,48 @@ describe('App shell', () => {
     });
     expect(toastRegion.textContent).not.toMatch(/__TAURI_INTERNALS__|\binvoke\b/);
   });
+
+  // Regression (Task 5 nav-shell redesign, ee7903cf4b): openParentNav used to
+  // alias directly to useActiveView().navigateToParent, which only calls the
+  // hook's internal setActiveView — it never calls syncViewToLocation, so the
+  // URL hash went stale on every sidebar parent-group click (e.g. "Agents").
+  // A reload right after would silently revert the navigation. openParentNav
+  // must route through the local navigateTo wrapper so the hash stays in sync.
+  it('clicking a sidebar parent group syncs the URL hash (Task 5 regression)', async () => {
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const user = userEvent.setup();
+    let agentsNav: HTMLElement | undefined;
+    await waitFor(() => {
+      agentsNav = screen.getAllByRole('button').find(b => (b.textContent ?? '').startsWith('Agents'));
+      expect(agentsNav).toBeTruthy();
+    });
+    await user.click(agentsNav!);
+
+    await waitFor(() => expect(window.location.hash).toBe('#view=dashboard'));
+  });
+
+  // Second Task 5 regression, found by review of the fix above: openParentNav
+  // was changed to `navigateTo(parentKey)`, which passes the bare key straight
+  // into resolveNavigation. PARENT_CHILD_MAP has a self-referential entry for
+  // 'runs' (`runs: { parent: 'runs', child: 'runs' }`) that resolveNavigation
+  // matches BEFORE falling back to DEFAULT_CHILD_BY_PARENT, so clicking the
+  // "Runs" sidebar parent group opened the "Runs" child tab instead of the
+  // intended default "Approvals" (human's review queue first). openParentNav
+  // must pre-resolve via DEFAULT_CHILD_BY_PARENT before calling navigateTo.
+  it('clicking the "Runs" sidebar parent group (labelled "Review") opens Approvals, not Runs (Task 5 regression)', async () => {
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const user = userEvent.setup();
+    let runsNav: HTMLElement | undefined;
+    await waitFor(() => {
+      runsNav = screen.getAllByRole('button').find(b => (b.textContent ?? '').startsWith('Review'));
+      expect(runsNav).toBeTruthy();
+    });
+    await user.click(runsNav!);
+
+    await waitFor(() => expect(window.location.hash).toBe('#view=approvals'));
+  });
 });

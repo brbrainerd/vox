@@ -19,13 +19,18 @@ export const viz = {
 
 export type PhaseKey = 'Validated' | 'Active' | 'Doubted' | 'Speculative' | 'Executing' | 'Planning' | 'Verifying' | 'Paused' | 'Root';
 
+// Planning/Active previously rendered as cyan400 — a blue stroke that didn't
+// match the brass/gold accent language the rest of the app (Approvals,
+// Discovery, Repository) uses. Both now share Executing's brass stroke, same
+// change as tokens.ts's STATUS_TONE / Pill.tsx's PHASE_TONE (kept in sync by
+// hand across these three maps).
 const PHASE_STROKE: Record<string, string> = {
   Validated: viz.emerald400,
-  Active: viz.cyan400,
+  Active: 'rgb(var(--brass))',
   Doubted: viz.amber400,
   Speculative: viz.violet400,
   Executing: 'rgb(var(--brass))',
-  Planning: viz.cyan400,
+  Planning: 'rgb(var(--brass))',
   Verifying: viz.violet400,
   Paused: viz.zinc500,
   Root: viz.white,

@@ -540,6 +540,18 @@ class VoxTransport {
     return safeInvoke<Uint8Array>('get_orchestrator_status_bin');
   }
 
+  /**
+   * Daemon/GUI version mismatch cached by `PersistentDaemon`, or `null` if
+   * none. The Rust side serializes `VersionMismatch` as a named
+   * `{ daemonVersion, guiVersion }` object (not a positional tuple), so no
+   * index-based mapping is needed here — the wire shape already matches.
+   */
+  getOrchestratorVersionMismatch(): Promise<{ daemonVersion: string; guiVersion: string } | null> {
+    return safeInvoke<{ daemonVersion: string; guiVersion: string } | null>(
+      'orchestrator_version_mismatch'
+    );
+  }
+
   getIdentitySummary(): Promise<IdentitySummary> {
     return safeInvoke<IdentitySummary>('get_identity_summary');
   }
@@ -825,8 +837,19 @@ export function normalizeFeedback(raw: any): { needsYou: FeedbackRow[]; withheld
 }
 
 export async function feedbackList(): Promise<{ needsYou: FeedbackRow[]; withheld: FeedbackRow[] }> {
-  const res = await safeInvoke<string>('invoke_mcp_tool', { tool: 'vox_feedback_list', args: {} });
-  const parsed = JSON.parse(res);
+  // `invoke_mcp_tool` (crates/vox-gui/src/commands/mcp.rs) is a Tauri command
+  // returning `Result<Value, String>` — Tauri's IPC delivers this to JS as an
+  // already-deserialized object `{ tool, is_error, result }`, never a JSON
+  // string. `result` is the daemon's own `{ success, data, error? }` envelope
+  // (already a parsed object too). Do NOT JSON.parse either — both are
+  // objects. (Previously this called `JSON.parse(res)` on the object, which
+  // JS coerces to the literal string "[object Object]" before JSON.parse
+  // ever runs, throwing `SyntaxError: "[object Object]" is not valid JSON`.)
+  const res = await safeInvoke<{ result: { success: boolean; data?: unknown; error?: string } }>(
+    'invoke_mcp_tool',
+    { tool: 'vox_feedback_list', args: {} },
+  );
+  const parsed = res.result;
   if (!parsed.success) {
     throw new Error(parsed.error || 'Failed to list feedback');
   }
@@ -834,11 +857,11 @@ export async function feedbackList(): Promise<{ needsYou: FeedbackRow[]; withhel
 }
 
 export async function feedbackResolve(feedbackId: string, action: Record<string, unknown>): Promise<void> {
-  const res = await safeInvoke<string>('invoke_mcp_tool', {
+  const res = await safeInvoke<{ result: { success: boolean; error?: string } }>('invoke_mcp_tool', {
     tool: 'vox_resolve_feedback',
     args: { feedback_id: feedbackId, action }
   });
-  const parsed = JSON.parse(res);
+  const parsed = res.result;
   if (!parsed.success) {
     throw new Error(parsed.error || 'Failed to resolve feedback');
   }

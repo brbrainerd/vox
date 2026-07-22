@@ -31,6 +31,7 @@ function consumeSeed(): DiscoveryPreset {
 export interface DiscoverySurfaceProps {
   pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
+  condensed?: boolean;
 }
 
 /**
@@ -38,8 +39,21 @@ export interface DiscoverySurfaceProps {
  * activity clones: Timeline (activity_query), Inbox, Review, Archive
  * (gui-ia-blueprint §4 MERGE: archive-panel/discovery-inbox/discovery-review → activity).
  */
-export function DiscoverySurface({ pushToast, gamifyEnabled }: DiscoverySurfaceProps) {
+export function DiscoverySurface({ pushToast, gamifyEnabled, condensed }: DiscoverySurfaceProps) {
   const [preset, setPreset] = useState<DiscoveryPreset>(consumeSeed);
+
+  if (condensed) {
+    // Same `preset` state the tab strip already tracks — the four nested
+    // surfaces (Timeline/Inbox/Review/Archive) are each substantial widgets
+    // that don't fit narrow, so condensed just names which one is active.
+    const activeLabel = PRESETS.find(p => p.id === preset)?.label ?? preset;
+    return (
+      <div className="p-2 text-[11px] text-text-muted">
+        <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-text-primary">Discovery</div>
+        <div>{activeLabel}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-col">

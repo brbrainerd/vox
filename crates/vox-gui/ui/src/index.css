@@ -2,6 +2,8 @@
 @import './styles/tokens.generated.css';
 @import './styles/tokens.contrast.generated.css';
 @import './styles/tokens.travertine.generated.css';
+@import 'dockview/dist/styles/dockview.css';
+@import './styles/dockview-vox.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -117,11 +119,46 @@
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
 }
 
+/* Collapsed variant (Task 5, panels-density plan): a compact ~28px summary
+   row instead of the full ~110-120px card, so a long active conversation's
+   composer footer doesn't unconditionally cost that much vertical room. */
+.attention-budget-meter[data-collapsed="true"] {
+  padding: 0.5rem 0.75rem;
+}
+
 .attention-budget-meter header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.75rem;
+}
+
+.attention-budget-meter[data-collapsed="true"] header {
+  margin-bottom: 0.375rem;
+}
+
+.attention-budget-meter__summary {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: #a1a1aa;
+}
+
+.attention-budget-meter__toggle {
+  color: #71717a;
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 0.125rem 0.25rem;
+  border-radius: 4px;
+}
+
+.attention-budget-meter__toggle:hover {
+  color: #f4f4f5;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.attention-budget-meter__bar--compact {
+  height: 3px;
+  margin-bottom: 0;
 }
 
 .attention-budget-meter header span:first-child {

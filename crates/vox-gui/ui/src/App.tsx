@@ -3,12 +3,11 @@ import { sanitizeErrorForToast } from './lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { AppShell } from './components/layout/AppShell';
 import { SidebarMode } from './components/layout/Sidebar';
-import { type HudMode } from './components/layout/TopHud';
 import { renderSurfaceContent } from './components/layout/surfaceComponents';
-import { DocReader } from './components/surfaces/DocReader/DocReader';
-import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDiscoveryPresetForLegacyKey, labelForNavKey, tabLabelFor, DEFAULT_CHILD_BY_PARENT } from './lib/navigation';
-import { WorkbenchTabBar } from './components/layout/WorkbenchTabBar';
-import { useWorkbenchTabs, isDocTab, docPathFromTab, isPinnedTab } from './hooks/useWorkbenchTabs';
+import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDiscoveryPresetForLegacyKey, labelForNavKey, DEFAULT_CHILD_BY_PARENT } from './lib/navigation';
+import { useActiveView } from './hooks/useActiveView';
+import { useDocViewer } from './hooks/useDocViewer';
+import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
 import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
@@ -17,6 +16,7 @@ import { GroundingCheckToggle } from './components/surfaces/Chat/GroundingCheckT
 import { useGroundingCheck } from './hooks/useGroundingCheck';
 import { Toasts, ToastItem } from './components/ui/Toasts';
 import { BackendBanner } from './components/ui/BackendBanner';
+import { VersionMismatchBanner } from './components/layout/VersionMismatchBanner';
 import { userAppendInput } from './lib/composerSubmit';
 import { Transcript } from './components/surfaces/Loquela/Transcript';
 import { DiffReview } from './components/surfaces/Loquela/DiffReview';
@@ -50,10 +50,10 @@ import { SHELL_PREFERENCE_KEYS } from './lib/shellPersistence';
 import { usePersistedSparkWindow } from './hooks/useSparkWindow';
 import { useOrchestratorStatus, meshKpiFromStatus, useOrchestratorFirstConnectGamify } from './hooks/useOrchestratorStatus';
 import { useInstalledSkills } from './hooks/useInstalledSkills';
-import { useWorkspaceIdentity } from './hooks/useWorkspaceIdentity';
 import { useLlmSpend } from './hooks/useLlmSpend';
 import { useChatExecutionData } from './hooks/useChatExecutionData';
 import { useHudTilesConfig } from './hooks/useHudTilesConfig';
+import { useMeshNodes } from './hooks/useMeshNodes';
 import { useGamifySettings } from './hooks/useGamifySettings';
 import { useAchievementToasts } from './hooks/useAchievementToasts';
 import { recordGamifyGuiEvent, setGamifyGuiEventResultListener } from './lib/gamifyGuiEvents';
@@ -224,9 +224,8 @@ function appChatReducer(store: SessionChatStore, action: AppChatAction): Session
 export default function App() {
   const [data, setData] = useState<DashboardData>(INITIAL_DATA);
   const [kpis, setKpis] = useState(INITIAL_KPIS);
-  const workbench = useWorkbenchTabs();
-  const { openTab, openDocTab, closeTab, openTabs, activeTab, activeViewKey, docLabels } = workbench;
-  const activeView = (activeViewKey ?? 'dashboard') as View;
+  const { activeView, navigateTo: openTab } = useActiveView();
+  const { activeDoc, openDoc: openDocTab, closeDoc: closeDocViewer } = useDocViewer();
   const [sidebarMode, setSidebarMode] = useLocalStorage<SidebarMode>(
     SHELL_PREFERENCE_KEYS.sidebarMode,
     'default',
@@ -250,9 +249,13 @@ export default function App() {
   }, []);
   const orchQuery = useOrchestratorStatus();
   const orchUsesPolling = orchQuery.usesPolling;
-  const { workspaceTitle } = useWorkspaceIdentity();
   const { totalUsd: openrouterSpendUsd } = useLlmSpend();
-  const { config: hudTilesConfig, setConfig: setHudTilesConfig, visibleTiles } = useHudTilesConfig();
+  const { config: hudTilesConfig, setConfig: setHudTilesConfig } = useHudTilesConfig();
+  // Slower than MeshView's own 5s poll — BottomStatusBar is mounted for the
+  // whole session on every view, so a one-line online/total summary doesn't
+  // need MeshView's fast cadence, which would add permanent steady-state
+  // load on the orchestrator daemon.
+  const meshNodes = useMeshNodes(20_000);
   const activeModel = useMemo(() => {
     const status = orchQuery.data as (OrchestratorStatus & { active_model?: string | null }) | undefined;
     return status?.active_model ?? null;
@@ -262,7 +265,6 @@ export default function App() {
     () => installedSkills.map(installedSkillToCatalogEntry),
     [installedSkills],
   );
-  const [hudMode, setHudMode] = useLocalStorage<HudMode>(SHELL_PREFERENCE_KEYS.hudMode, 'full');
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [chatModelOverride, setChatModelOverride] = useState<string | null>(null);
   const [groundingCheckEnabled, setGroundingCheckEnabled] = useGroundingCheck(activeSessionId);
@@ -1001,7 +1003,6 @@ export default function App() {
   const actionHandlers = useMemo(() => ({
     'open-palette': () => setIsCommandOpen(true),
     'toggle-sidebar': () => setSidebarMode(m => m === 'rail' ? 'default' : m === 'default' ? 'wide' : 'rail'),
-    'toggle-hud': () => setHudMode(m => m === 'full' ? 'slim' : m === 'slim' ? 'hidden' : 'full'),
     'pause-resume-agent': () => togglePauseSelectedRef.current(),
   }), []);
   useKeybinds(actionHandlers, bindings);
@@ -1058,28 +1059,6 @@ export default function App() {
     }
   }, [data, installedSkillEntries, handlePause, handleResume, handleAckAlert, handleLoquelaSubmit, pushToast, navigateTo, focusComposer]);
 
-
-  const workbenchTabBar = (
-    <WorkbenchTabBar
-      tabs={openTabs.map((id) => ({
-        id,
-        label: isDocTab(id)
-          ? (docLabels[id] ?? docPathFromTab(id).split('/').pop()?.replace(/\.md$/i, '') ?? 'Doc')
-          : tabLabelFor(id),
-        badge: id === 'chat' && attention.totalCount > 0 ? attention.totalCount : undefined,
-        pinned: isPinnedTab(id),
-      }))}
-      activeTab={activeTab}
-      onSelect={(id) => {
-        if (isDocTab(id)) {
-          openDocTab(docPathFromTab(id));
-        } else {
-          navigateTo(id);
-        }
-      }}
-      onClose={closeTab}
-    />
-  );
 
   const chatExecutionKpis = useMemo(
     () => ({
@@ -1232,9 +1211,7 @@ export default function App() {
     attention,
   };
 
-  const mainSurface = isDocTab(activeTab ?? '')
-    ? <DocReader tabId={activeTab!} />
-    : renderSurfaceContent(activeView, surfaceProps);
+  const mainSurface = renderSurfaceContent(activeView, surfaceProps);
 
   const chatDock = (
     <>
@@ -1255,6 +1232,7 @@ export default function App() {
     <>
       <div className="flex h-screen flex-col">
         <BackendBanner />
+        <VersionMismatchBanner mismatch={orchQuery.versionMismatch} />
         <AppShell
         activeView={activeView}
         onNavigate={(v) => navigateTo(v)}
@@ -1270,24 +1248,21 @@ export default function App() {
         needsYouCount={attention.totalCount}
         pendingApprovals={attention.approvals.length}
         kpis={kpis}
-        onCommand={() => setIsCommandOpen(true)}
         onOpenCommandPalette={() => setIsCommandOpen(true)}
         lastOrchEventAt={lastOrchEventAt}
         orchUsesPolling={orchUsesPolling}
         liveFreshMs={LIVE_EVENT_FRESH_MS}
-        hudMode={hudMode}
-        setHudMode={setHudMode}
-        surfaceKey={activeTab ?? activeView}
-        surfaceLabel={isDocTab(activeTab ?? '') ? 'Doc' : labelForNavKey(activeView)}
+        surfaceKey={activeView}
+        surfaceLabel={labelForNavKey(activeView)}
         chatDocked={chatDocked}
         chatDock={chatDock}
-        tabBar={workbenchTabBar}
-        workspaceTitle={workspaceTitle}
-        visibleTiles={visibleTiles}
         activeModel={activeModel}
         openrouterSpendUsd={openrouterSpendUsd}
         gamifyEnabled={gamifySettings.enabled}
         onOpenAchievements={openAchievements}
+        hudTilesConfig={hudTilesConfig}
+        onHudTilesChange={setHudTilesConfig}
+        meshNodes={meshNodes}
       >
         {mainSurface}
         </AppShell>
@@ -1330,6 +1305,8 @@ export default function App() {
         skills={installedSkillEntries}
         gamifyEnabled={gamifySettings.enabled}
       />
+
+      <DocViewerDrawer doc={activeDoc} onClose={closeDocViewer} />
 
       <Toasts
         items={toasts}

@@ -16,7 +16,7 @@ use super::process_util::quiet_command;
 
 use tokio::sync::RwLock;
 use vox_cli_core::daemon_ipc::process_supervision::{
-    resolve_managed_binary_path, resolve_or_stage_daemon,
+    resolve_managed_binary_path, resolve_or_stage_daemon_with_version_hint,
 };
 use vox_config::timeouts::{D_5S, D_15S, D_100MS};
 use vox_orchestrator::orch_daemon::OrchDaemonClient;
@@ -74,6 +74,25 @@ pub struct PersistentDaemon {
     /// competing `vox-orchestrator-d` process — mirrors the dedup guarantee
     /// `tokio::sync::OnceCell::get_or_try_init` gave the pre-T3.1 design.
     reensure_lock: tokio::sync::Mutex<()>,
+    /// Last-detected mismatch between the daemon's self-reported version
+    /// (from a ping response, or from `resolve_or_stage_daemon_with_version_hint`'s
+    /// staged-binary hint) and this GUI binary's own version. `None` when no
+    /// mismatch has been observed (matching versions, or unknown — see
+    /// [`detect_version_mismatch`]'s doc on why "unknown" and "match" are not
+    /// distinguished here).
+    pub last_version_mismatch: tokio::sync::RwLock<Option<VersionMismatch>>,
+}
+
+/// A confirmed daemon/GUI version mismatch, named (not a positional tuple) so
+/// the wire format sent to the frontend is self-describing rather than
+/// relying on both sides independently agreeing which array index is which
+/// version. Serialized to `{ "daemonVersion": ..., "guiVersion": ... }` to
+/// match the frontend's existing field naming.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionMismatch {
+    pub daemon_version: String,
+    pub gui_version: String,
 }
 
 impl PersistentDaemon {
@@ -112,13 +131,14 @@ impl PersistentDaemon {
     /// address nobody is listening on anymore.
     pub async fn ensure_live(&self) -> Result<String, String> {
         let cached = self.resolved.read().await.clone();
-        if let Some((addr, token)) = cached.clone()
-            && OrchDaemonClient::with_token(addr.clone(), token)
+        if let Some((addr, token)) = cached.clone() {
+            if let Ok(resp) = OrchDaemonClient::with_token(addr.clone(), token)
                 .ping()
                 .await
-                .is_ok()
-        {
-            return Ok(addr);
+            {
+                *self.last_version_mismatch.write().await = detect_version_mismatch(&resp);
+                return Ok(addr);
+            }
         }
         // The cached entry (if any) failed its liveness ping — invalidate it
         // before calling `reensure` so its post-lock cache re-check does not
@@ -156,11 +176,11 @@ impl PersistentDaemon {
         // fresh daemon of our own (which self-heals once the bind
         // becomes available).
         if let Some(existing_token) = read_token_file()
-            && OrchDaemonClient::with_token(addr.clone(), existing_token.clone())
+            && let Ok(resp) = OrchDaemonClient::with_token(addr.clone(), existing_token.clone())
                 .ping()
                 .await
-                .is_ok()
         {
+            *self.last_version_mismatch.write().await = detect_version_mismatch(&resp);
             *self.resolved.write().await = Some((addr.clone(), existing_token));
             return Ok(addr);
         }
@@ -183,8 +203,18 @@ impl PersistentDaemon {
                 })
             })
             .unwrap_or_else(|| std::path::PathBuf::from("vox-orchestrator-d"));
-        let daemon_bin = resolve_or_stage_daemon(&target_sibling, &bin_dir)
-            .unwrap_or_else(|_| resolve_managed_binary_path("vox-orchestrator-d"));
+        let (daemon_bin_result, version_hint) =
+            resolve_or_stage_daemon_with_version_hint(&target_sibling, &bin_dir);
+        let daemon_bin =
+            daemon_bin_result.unwrap_or_else(|_| resolve_managed_binary_path("vox-orchestrator-d"));
+        if let Some(daemon_version) = version_hint
+            && daemon_version != env!("CARGO_PKG_VERSION")
+        {
+            *self.last_version_mismatch.write().await = Some(VersionMismatch {
+                daemon_version,
+                gui_version: env!("CARGO_PKG_VERSION").to_string(),
+            });
+        }
 
         // Generate a token ourselves and inject it into the child's
         // environment — this avoids a race with reading the token
@@ -209,11 +239,11 @@ impl PersistentDaemon {
         // deadline elapses.
         let deadline = std::time::Instant::now() + DAEMON_CONNECT_TIMEOUT;
         while std::time::Instant::now() < deadline {
-            if OrchDaemonClient::with_token(addr.clone(), spawned_token.clone())
+            if let Ok(resp) = OrchDaemonClient::with_token(addr.clone(), spawned_token.clone())
                 .ping()
                 .await
-                .is_ok()
             {
+                *self.last_version_mismatch.write().await = detect_version_mismatch(&resp);
                 *self.resolved.write().await = Some((addr.clone(), spawned_token));
                 return Ok(addr);
             }
@@ -262,6 +292,99 @@ impl PersistentDaemon {
                 }
             }
         });
+    }
+}
+
+/// Returns the last-detected daemon/GUI version mismatch, if any (T2/Task 2).
+/// `None` when versions match or no mismatch has been observed yet.
+#[tauri::command]
+pub async fn orchestrator_version_mismatch(
+    state: tauri::State<'_, std::sync::Arc<PersistentDaemon>>,
+) -> Result<Option<VersionMismatch>, String> {
+    Ok(state.last_version_mismatch.read().await.clone())
+}
+
+/// Compares the daemon's self-reported `version` (from its ping response)
+/// against this GUI binary's own compile-time version. Returns `None` when
+/// they match (or the daemon's response is missing the field — an older
+/// daemon binary pre-dating Task 1, treated as "unknown, don't warn" rather
+/// than "mismatch", since we can't distinguish an old-but-compatible daemon
+/// from a genuinely incompatible one without the field). Returns
+/// `Some(VersionMismatch { .. })` on a confirmed mismatch.
+pub fn detect_version_mismatch(ping_response: &serde_json::Value) -> Option<VersionMismatch> {
+    let daemon_version = ping_response.get("version")?.as_str()?.to_string();
+    let gui_version = env!("CARGO_PKG_VERSION").to_string();
+    if daemon_version != gui_version {
+        Some(VersionMismatch {
+            daemon_version,
+            gui_version,
+        })
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod version_mismatch_tests {
+    use super::*;
+
+    #[test]
+    fn no_mismatch_when_versions_match() {
+        let resp = serde_json::json!({"ok": true, "version": env!("CARGO_PKG_VERSION")});
+        assert_eq!(detect_version_mismatch(&resp), None);
+    }
+
+    #[test]
+    fn mismatch_detected_when_versions_differ() {
+        let resp = serde_json::json!({"ok": true, "version": "0.0.1-stale"});
+        let result = detect_version_mismatch(&resp);
+        assert_eq!(
+            result,
+            Some(VersionMismatch {
+                daemon_version: "0.0.1-stale".to_string(),
+                gui_version: env!("CARGO_PKG_VERSION").to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn no_mismatch_reported_when_version_field_missing() {
+        let resp = serde_json::json!({"ok": true});
+        assert_eq!(detect_version_mismatch(&resp), None);
+    }
+
+    #[tokio::test]
+    async fn cached_mismatch_field_clears_on_a_later_matching_ping() {
+        // Reproduces the exact assignment used at every ping-response call site
+        // in `PersistentDaemon::ensure_live`/`reensure`: the cached field must be
+        // unconditionally overwritten with the fresh detection result (not only
+        // written on `Some`), so a later matching ping clears a stale mismatch.
+        let cached = tokio::sync::RwLock::new(None::<VersionMismatch>);
+
+        let stale_resp = serde_json::json!({"ok": true, "version": "0.0.1-stale"});
+        *cached.write().await = detect_version_mismatch(&stale_resp);
+        assert!(cached.read().await.is_some(), "mismatch should be cached");
+
+        let matching_resp = serde_json::json!({"ok": true, "version": env!("CARGO_PKG_VERSION")});
+        *cached.write().await = detect_version_mismatch(&matching_resp);
+        assert_eq!(
+            *cached.read().await,
+            None,
+            "a later matching ping must clear the cached mismatch"
+        );
+    }
+
+    #[test]
+    fn version_mismatch_serializes_to_camel_case_named_fields() {
+        let mismatch = VersionMismatch {
+            daemon_version: "0.5.9".to_string(),
+            gui_version: "0.6.0".to_string(),
+        };
+        let json = serde_json::to_value(&mismatch).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({"daemonVersion": "0.5.9", "guiVersion": "0.6.0"})
+        );
     }
 }
 

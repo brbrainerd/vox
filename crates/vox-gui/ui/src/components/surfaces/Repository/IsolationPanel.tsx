@@ -112,7 +112,7 @@ export function IsolationPanel({ status, onSetDefault, busy, unavailableNote }: 
         ) : (
           <ul className="space-y-1 text-xs text-rose-300">
             {conflicts.map((c) => (
-              <li key={c.id} className="font-mono">
+              <li key={c.id} className="font-mono break-all">
                 {c.path} <span className="text-text-muted">— agents {c.sides.join(', ')}</span>
               </li>
             ))}

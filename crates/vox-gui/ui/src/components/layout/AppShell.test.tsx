@@ -6,22 +6,19 @@ import { AppShell } from './AppShell';
 import { INITIAL_KPIS } from '../../data/initialState';
 import type { DashboardData } from '../../types/dashboard';
 import { INITIAL_DATA } from '../../data/initialState';
+import { defaultHudTiles } from '../../hooks/useHudTiles';
 
 vi.mock('./Sidebar', () => ({
   Sidebar: () => <nav data-testid="sidebar" aria-label="Primary" />,
   SidebarMode: {},
 }));
 
-vi.mock('./TopHud', () => ({
-  TopHud: () => <header data-testid="top-hud" />,
-}));
-
 vi.mock('./BreadcrumbBar', () => ({
   BreadcrumbBar: () => <div data-testid="breadcrumb" />,
 }));
 
-vi.mock('./StatusBar', () => ({
-  StatusBar: () => <div data-testid="status-bar" role="status" aria-label="Operator status" />,
+vi.mock('./BottomStatusBar', () => ({
+  BottomStatusBar: () => <div data-testid="bottom-status-bar" role="status" aria-label="Operator status" />,
 }));
 
 vi.mock('./SurfaceScrollHost', () => ({
@@ -53,26 +50,27 @@ const baseProps = {
   needsYouCount: 0,
   pendingApprovals: 0,
   kpis: INITIAL_KPIS,
-  onCommand: vi.fn(),
+  onOpenCommandPalette: vi.fn(),
   lastOrchEventAt: null,
   orchUsesPolling: false,
   liveFreshMs: 30_000,
-  hudMode: 'full' as const,
-  setHudMode: vi.fn(),
   surfaceKey: 'dashboard',
   surfaceLabel: 'Dashboard',
+  hudTilesConfig: defaultHudTiles(),
+  onHudTilesChange: vi.fn(),
+  meshNodes: undefined,
 };
 
 describe('AppShell', () => {
-  it('renders sidebar, hud, status bar, and main children', () => {
+  it('renders sidebar, breadcrumb, status bar, and main children', () => {
     render(
       <AppShell {...baseProps} chatDocked={false}>
         <div data-testid="main-surface">surface</div>
       </AppShell>,
     );
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
-    expect(screen.getByTestId('top-hud')).toBeInTheDocument();
-    expect(screen.getByTestId('status-bar')).toBeInTheDocument();
+    expect(screen.getByTestId('breadcrumb')).toBeInTheDocument();
+    expect(screen.getByTestId('bottom-status-bar')).toBeInTheDocument();
     expect(screen.getByTestId('main-surface')).toBeInTheDocument();
   });
 

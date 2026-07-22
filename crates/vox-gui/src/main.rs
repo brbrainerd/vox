@@ -297,6 +297,7 @@ async fn main() {
             commands::mission_control::list_subagent_tree,
             commands::mission_control::list_mc_approvals,
             commands::mission_control::set_task_mesh_policy,
+            commands::daemon::orchestrator_version_mismatch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -316,11 +316,29 @@ pub fn stage_binary(src: &std::path::Path, dest_dir: &std::path::Path) -> std::i
 /// `dest_dir` (`~/.vox/bin`) first. Otherwise fall back to
 /// `resolve_managed_binary_path` which checks `~/.vox/bin` and PATH.
 pub fn resolve_or_stage_daemon(src: &Path, dest_dir: &Path) -> std::io::Result<PathBuf> {
+    resolve_or_stage_daemon_with_version_hint(src, dest_dir).0
+}
+
+/// Like `resolve_or_stage_daemon`, but when falling through to an
+/// already-staged (not freshly re-staged from a sibling) binary, also probes
+/// its reported `--version` so callers can warn on a stale/mismatched daemon
+/// BEFORE even attempting to launch it — the earliest possible signal for
+/// the "old staged binary paired with a new GUI build" bug class.
+pub fn resolve_or_stage_daemon_with_version_hint(
+    src: &Path,
+    dest_dir: &Path,
+) -> (std::io::Result<PathBuf>, Option<String>) {
     if src.exists() {
-        return stage_binary(src, dest_dir);
+        // Freshly re-staged from a live sibling — this IS the current build,
+        // no version hint needed (there's nothing to compare against yet;
+        // Task 2's ping-based check covers this case once the daemon is
+        // actually running).
+        return (stage_binary(src, dest_dir), None);
     }
     let name = src.file_name().and_then(|n| n.to_str()).unwrap_or_default();
-    Ok(resolve_managed_binary_path(name))
+    let resolved = resolve_managed_binary_path(name);
+    let version_hint = probe_binary_version(name);
+    (Ok(resolved), version_hint)
 }
 
 #[cfg(test)]
@@ -384,6 +402,19 @@ mod stage_tests {
         let staged2 = stage_binary(&src, &dst_dir).unwrap();
         assert_eq!(staged2, staged);
 
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn resolve_or_stage_reports_none_version_hint_when_falling_back_with_no_probeable_binary() {
+        let tmp =
+            std::env::temp_dir().join(format!("vox-test-version-hint-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let nonexistent_src = tmp.join("does-not-exist-vox-orchestrator-d");
+        let dest_dir = tmp.join("dest");
+        let (_path, version_hint) =
+            resolve_or_stage_daemon_with_version_hint(&nonexistent_src, &dest_dir);
+        assert_eq!(version_hint, None);
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

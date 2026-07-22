@@ -33,6 +33,14 @@ describe('RepositoryView', () => {
     expect(screen.getByText('Repository Harness')).toBeTruthy();
   });
 
+  it('condensed prop renders only an active-conflict count, not the action grid', async () => {
+    render(<LanguageProvider><RepositoryView pushToast={vi.fn()} condensed /></LanguageProvider>);
+    // Reuses the same conflictRows(status) count IsolationPanel's "Active
+    // conflicts" section already computes, rendered on its own.
+    await waitFor(() => expect(screen.getByText(/0 active conflicts/i)).toBeTruthy());
+    expect(screen.queryByText('Workspace status')).toBeNull();
+  });
+
   it('every action button carries an explicit type="button"', async () => {
     render(<LanguageProvider><RepositoryView pushToast={vi.fn()} /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText('Workspace status')).toBeTruthy());

@@ -50,4 +50,17 @@ describe('AgentFlow', () => {
     render(<AgentFlow agents={noBudgetAgents} selectedId="a1" />);
     expect(screen.getByText('—')).toBeInTheDocument();
   });
+
+  it('allows the header title to shrink and the legend row to wrap on narrow panels', () => {
+    render(<AgentFlow agents={agents} />);
+    const heading = screen.getByText('Mind-Map · Agent Shards');
+    const titleContainer = heading.parentElement;
+    expect(titleContainer?.className).toContain('min-w-0');
+
+    const headerRow = titleContainer?.parentElement;
+    expect(headerRow?.className).toContain('flex-wrap');
+
+    const legend = screen.getByText('Planning').closest('div')?.parentElement;
+    expect(legend?.className).toContain('flex-wrap');
+  });
 });

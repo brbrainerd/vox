@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Glass } from '../../ui/Glass';
 import { Button } from '../../ui/Button';
 import { Icon } from '../../ui/Icons';
-import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import { useLabel } from '../../../hooks/useLanguage';
 
 export interface ChatSessionItem {
@@ -20,8 +19,6 @@ export interface ChatSessionRailProps {
   onArchiveSession?: (sessionId: string) => void;
 }
 
-const SESSIONS_COLLAPSED_KEY = 'gui.chat.sessions_collapsed.v1';
-
 export function ChatSessionRail({
   sessions,
   activeSessionId,
@@ -30,7 +27,6 @@ export function ChatSessionRail({
   onRenameSession,
   onArchiveSession,
 }: ChatSessionRailProps) {
-  const [collapsed, setCollapsed] = useLocalStorage<boolean>(SESSIONS_COLLAPSED_KEY, false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const railRef = useRef<HTMLElement>(null);
@@ -47,48 +43,17 @@ export function ChatSessionRail({
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [menuFor]);
 
-  if (collapsed) {
-    return (
-      <aside aria-label="Chat sessions" className="shrink-0" data-testid="chat-session-rail">
-        <Glass className="flex flex-col items-center gap-2 p-2">
-          <button
-            type="button"
-            aria-label="Expand sessions rail"
-            aria-expanded={false}
-            onClick={() => setCollapsed(false)}
-            className="rounded-lg border border-border-subtle p-2 text-text-muted transition hover:border-brass/40 hover:text-brass"
-          >
-            <span className="font-mono text-sm" aria-hidden="true">
-              »
-            </span>
-          </button>
-        </Glass>
-      </aside>
-    );
-  }
-
   return (
-    <aside ref={railRef} aria-label="Chat sessions" className="w-64 shrink-0" data-testid="chat-session-rail">
+    <aside ref={railRef} aria-label="Chat sessions" className="h-full w-full min-w-0" data-testid="chat-session-rail">
       <Glass className="flex h-full max-h-[70vh] flex-col gap-2 p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('chat-sessions')}</h2>
-          <button
-            type="button"
-            aria-label="Collapse sessions rail"
-            aria-expanded={true}
-            onClick={() => setCollapsed(true)}
-            className="rounded p-1 text-text-muted transition hover:bg-overlay-subtle hover:text-text-secondary"
-          >
-            <span className="font-mono text-xs" aria-hidden="true">
-              «
-            </span>
-          </button>
         </div>
 
         <div
           role="tablist"
           aria-label="Chat sessions"
-          className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto custom-scrollbar"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto custom-scrollbar"
         >
           {sessions.map(s => {
             const isActive = s.session_id === activeSessionId;
@@ -119,24 +84,23 @@ export function ChatSessionRail({
               );
             }
             return (
-              <div key={s.session_id} className="relative flex items-stretch gap-1">
+              <div key={s.session_id} className="group relative flex items-stretch">
                 <Button
                   role="tab"
                   aria-pressed={isActive}
                   aria-selected={isActive}
                   title={s.title}
+                  data-testid={`session-row-${s.session_id}`}
                   onClick={() => onSessionChange(s.session_id)}
-                  className={`min-w-0 flex-1 justify-start rounded-lg border px-2.5 py-2 text-left text-xs ${
+                  className={`flex min-h-8 min-w-0 flex-1 items-start gap-2 border-l-2 py-1 pl-2 pr-1.5 text-left text-xs ${
                     isActive
-                      ? 'border-brass/40 bg-brass/10 text-brass'
-                      : 'border-border-subtle text-text-muted hover:text-text-secondary'
+                      ? 'border-brass bg-brass/10 text-brass'
+                      : 'border-transparent text-text-muted hover:border-border-subtle hover:text-text-secondary'
                   }`}
                 >
-                  <span className="line-clamp-2 break-words">{s.title}</span>
+                  <span className="min-w-0 flex-1 line-clamp-2 break-words">{s.title}</span>
                   {s.message_count > 0 ? (
-                    <span className="mt-0.5 block font-mono text-[10px] text-text-muted">
-                      {s.message_count} msg{s.message_count === 1 ? '' : 's'}
-                    </span>
+                    <span className="shrink-0 pt-px font-mono text-[10px] text-text-muted">{s.message_count}</span>
                   ) : null}
                 </Button>
                 {(onRenameSession || onArchiveSession) && (
