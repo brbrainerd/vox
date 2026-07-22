@@ -5,7 +5,7 @@ import { AppShell } from './components/layout/AppShell';
 import { SidebarMode } from './components/layout/Sidebar';
 import { type HudMode } from './components/layout/TopHud';
 import { renderSurfaceContent } from './components/layout/surfaceComponents';
-import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDiscoveryPresetForLegacyKey, labelForNavKey } from './lib/navigation';
+import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDiscoveryPresetForLegacyKey, labelForNavKey, DEFAULT_CHILD_BY_PARENT } from './lib/navigation';
 import { useActiveView } from './hooks/useActiveView';
 import { useDocViewer } from './hooks/useDocViewer';
 import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
@@ -586,7 +586,8 @@ export default function App() {
   }, [openTab]);
 
   const openParentNav = useCallback((parentKey: string) => {
-    navigateTo(parentKey);
+    const child = DEFAULT_CHILD_BY_PARENT[parentKey] ?? parentKey;
+    navigateTo(child);
   }, [navigateTo]);
 
   const [focusedFeedbackId, setFocusedFeedbackId] = useState<string | null>(null);
