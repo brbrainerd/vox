@@ -50,7 +50,6 @@ import { SHELL_PREFERENCE_KEYS } from './lib/shellPersistence';
 import { usePersistedSparkWindow } from './hooks/useSparkWindow';
 import { useOrchestratorStatus, meshKpiFromStatus, useOrchestratorFirstConnectGamify } from './hooks/useOrchestratorStatus';
 import { useInstalledSkills } from './hooks/useInstalledSkills';
-import { useWorkspaceIdentity } from './hooks/useWorkspaceIdentity';
 import { useLlmSpend } from './hooks/useLlmSpend';
 import { useChatExecutionData } from './hooks/useChatExecutionData';
 import { useHudTilesConfig } from './hooks/useHudTilesConfig';
@@ -250,7 +249,6 @@ export default function App() {
   }, []);
   const orchQuery = useOrchestratorStatus();
   const orchUsesPolling = orchQuery.usesPolling;
-  const { workspaceTitle } = useWorkspaceIdentity();
   const { totalUsd: openrouterSpendUsd } = useLlmSpend();
   const { config: hudTilesConfig, setConfig: setHudTilesConfig } = useHudTilesConfig();
   // Slower than MeshView's own 5s poll — BottomStatusBar is mounted for the
@@ -1258,7 +1256,6 @@ export default function App() {
         surfaceLabel={labelForNavKey(activeView)}
         chatDocked={chatDocked}
         chatDock={chatDock}
-        workspaceTitle={workspaceTitle}
         activeModel={activeModel}
         openrouterSpendUsd={openrouterSpendUsd}
         gamifyEnabled={gamifySettings.enabled}

@@ -39,7 +39,6 @@ export interface AppShellProps {
   chatDocked: boolean;
   chatDock?: React.ReactNode;
   children: React.ReactNode;
-  workspaceTitle?: string;
   activeModel?: string | null;
   openrouterSpendUsd?: number | null;
   gamifyEnabled?: boolean;
