@@ -5,10 +5,10 @@ import { AppShell } from './components/layout/AppShell';
 import { SidebarMode } from './components/layout/Sidebar';
 import { type HudMode } from './components/layout/TopHud';
 import { renderSurfaceContent } from './components/layout/surfaceComponents';
-import { DocReader } from './components/surfaces/DocReader/DocReader';
-import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDiscoveryPresetForLegacyKey, labelForNavKey, tabLabelFor, DEFAULT_CHILD_BY_PARENT } from './lib/navigation';
-import { WorkbenchTabBar } from './components/layout/WorkbenchTabBar';
-import { useWorkbenchTabs, isDocTab, docPathFromTab, isPinnedTab } from './hooks/useWorkbenchTabs';
+import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDiscoveryPresetForLegacyKey, labelForNavKey } from './lib/navigation';
+import { useActiveView } from './hooks/useActiveView';
+import { useDocViewer } from './hooks/useDocViewer';
+import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
 import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
@@ -224,9 +224,8 @@ function appChatReducer(store: SessionChatStore, action: AppChatAction): Session
 export default function App() {
   const [data, setData] = useState<DashboardData>(INITIAL_DATA);
   const [kpis, setKpis] = useState(INITIAL_KPIS);
-  const workbench = useWorkbenchTabs();
-  const { openTab, openDocTab, closeTab, openTabs, activeTab, activeViewKey, docLabels } = workbench;
-  const activeView = (activeViewKey ?? 'dashboard') as View;
+  const { activeView, navigateTo: openTab, navigateToParent: openParentFromHook } = useActiveView();
+  const { activeDoc, openDoc: openDocTab, closeDoc: closeDocViewer } = useDocViewer();
   const [sidebarMode, setSidebarMode] = useLocalStorage<SidebarMode>(
     SHELL_PREFERENCE_KEYS.sidebarMode,
     'default',
@@ -586,10 +585,7 @@ export default function App() {
     syncViewToLocation(child);
   }, [openTab]);
 
-  const openParentNav = useCallback((parentKey: string) => {
-    const child = DEFAULT_CHILD_BY_PARENT[parentKey] ?? parentKey;
-    navigateTo(child);
-  }, [navigateTo]);
+  const openParentNav = openParentFromHook;
 
   const [focusedFeedbackId, setFocusedFeedbackId] = useState<string | null>(null);
 
@@ -1059,28 +1055,6 @@ export default function App() {
   }, [data, installedSkillEntries, handlePause, handleResume, handleAckAlert, handleLoquelaSubmit, pushToast, navigateTo, focusComposer]);
 
 
-  const workbenchTabBar = (
-    <WorkbenchTabBar
-      tabs={openTabs.map((id) => ({
-        id,
-        label: isDocTab(id)
-          ? (docLabels[id] ?? docPathFromTab(id).split('/').pop()?.replace(/\.md$/i, '') ?? 'Doc')
-          : tabLabelFor(id),
-        badge: id === 'chat' && attention.totalCount > 0 ? attention.totalCount : undefined,
-        pinned: isPinnedTab(id),
-      }))}
-      activeTab={activeTab}
-      onSelect={(id) => {
-        if (isDocTab(id)) {
-          openDocTab(docPathFromTab(id));
-        } else {
-          navigateTo(id);
-        }
-      }}
-      onClose={closeTab}
-    />
-  );
-
   const chatExecutionKpis = useMemo(
     () => ({
       activeAgents: { value: kpis.activeAgents.value },
@@ -1232,9 +1206,7 @@ export default function App() {
     attention,
   };
 
-  const mainSurface = isDocTab(activeTab ?? '')
-    ? <DocReader tabId={activeTab!} />
-    : renderSurfaceContent(activeView, surfaceProps);
+  const mainSurface = renderSurfaceContent(activeView, surfaceProps);
 
   const chatDock = (
     <>
@@ -1277,11 +1249,10 @@ export default function App() {
         liveFreshMs={LIVE_EVENT_FRESH_MS}
         hudMode={hudMode}
         setHudMode={setHudMode}
-        surfaceKey={activeTab ?? activeView}
-        surfaceLabel={isDocTab(activeTab ?? '') ? 'Doc' : labelForNavKey(activeView)}
+        surfaceKey={activeView}
+        surfaceLabel={labelForNavKey(activeView)}
         chatDocked={chatDocked}
         chatDock={chatDock}
-        tabBar={workbenchTabBar}
         workspaceTitle={workspaceTitle}
         visibleTiles={visibleTiles}
         activeModel={activeModel}
@@ -1330,6 +1301,8 @@ export default function App() {
         skills={installedSkillEntries}
         gamifyEnabled={gamifySettings.enabled}
       />
+
+      <DocViewerDrawer doc={activeDoc} onClose={closeDocViewer} />
 
       <Toasts
         items={toasts}
