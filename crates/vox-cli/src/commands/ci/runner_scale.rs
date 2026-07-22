@@ -383,6 +383,15 @@ fn runner_rows() -> Result<Vec<RunnerRow>> {
     Ok(rows)
 }
 
+/// True when `runner_name` is assigned to an `in_progress` job per a fresh,
+/// independent jobs-API lookup — used to corroborate (or refute) the
+/// `runners` API's own `busy` flag before ever reaping a runner classified
+/// idle by that flag, since the flag is known to lag briefly behind a
+/// runner actually starting a job.
+pub fn is_corroborated_busy(runner_name: &str, job_rows: &[super::oom_watch::JobRow]) -> bool {
+    super::oom_watch::find_matching_job(job_rows, runner_name).is_some()
+}
+
 /// `{name: busy}` for managed runners GitHub currently sees online.
 fn managed_busy_map(rows: &[RunnerRow]) -> HashMap<String, bool> {
     rows.iter()
@@ -1142,6 +1151,33 @@ pub fn run_preflight() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn corroborated_busy_blocks_reap_when_job_rows_show_in_progress() {
+        let job_rows = vec![crate::commands::ci::oom_watch::JobRow {
+            runner_name: "vox-runner-auto-abc-0".to_string(),
+            job_name: "docs-quality".to_string(),
+            run_id: 123,
+            pr_number: 460,
+        }];
+        assert!(is_corroborated_busy("vox-runner-auto-abc-0", &job_rows));
+    }
+
+    #[test]
+    fn corroborated_busy_false_when_no_matching_job_row() {
+        let job_rows = vec![crate::commands::ci::oom_watch::JobRow {
+            runner_name: "vox-runner-auto-other-0".to_string(),
+            job_name: "docs-quality".to_string(),
+            run_id: 123,
+            pr_number: 460,
+        }];
+        assert!(!is_corroborated_busy("vox-runner-auto-abc-0", &job_rows));
+    }
+
+    #[test]
+    fn corroborated_busy_false_on_empty_job_rows() {
+        assert!(!is_corroborated_busy("vox-runner-auto-abc-0", &[]));
+    }
 
     #[test]
     fn desired_capped_at_max() {
