@@ -166,10 +166,16 @@ export function BottomStatusBar({
           />
         );
       case 'mesh_peers': {
+        // Keep the trailing "online" wording stable across both states so the
+        // segment doesn't visibly change shape once richer node data loads —
+        // before meshNodes arrives we don't know the online/offline split,
+        // so show the peer count as a single figure rather than switching
+        // from "N peers" to "X/Y online" (two different phrasings for what
+        // reads as the same kind of number).
         const onlineCount = meshNodes?.filter((n) => n.status === 'online').length ?? 0;
         const totalCount = meshNodes?.length ?? 0;
         const meshValue =
-          meshNodes == null ? `${kpis.mesh.peers} peers` : `${onlineCount}/${totalCount} online`;
+          meshNodes == null ? `${kpis.mesh.peers} online` : `${onlineCount}/${totalCount} online`;
         return (
           <Segment
             key={kind}

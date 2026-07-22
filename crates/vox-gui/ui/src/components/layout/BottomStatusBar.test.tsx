@@ -131,7 +131,7 @@ describe('BottomStatusBar', () => {
     expect(screen.getByTestId('bottom-status-bar-mesh')).toHaveTextContent('2/3 online');
   });
 
-  it('mesh segment falls back to bare peer count when meshNodes is not supplied', () => {
+  it('mesh segment falls back to a bare peer count, still worded "online", when meshNodes is not supplied', () => {
     render(
       <BottomStatusBar
         kpis={INITIAL_KPIS}
@@ -144,7 +144,7 @@ describe('BottomStatusBar', () => {
       />,
     );
     expect(screen.getByTestId('bottom-status-bar-mesh')).toHaveTextContent(
-      `${INITIAL_KPIS.mesh.peers} peers`,
+      `${INITIAL_KPIS.mesh.peers} online`,
     );
   });
 });

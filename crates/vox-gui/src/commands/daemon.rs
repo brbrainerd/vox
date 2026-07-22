@@ -80,7 +80,19 @@ pub struct PersistentDaemon {
     /// mismatch has been observed (matching versions, or unknown — see
     /// [`detect_version_mismatch`]'s doc on why "unknown" and "match" are not
     /// distinguished here).
-    pub last_version_mismatch: tokio::sync::RwLock<Option<(String, String)>>,
+    pub last_version_mismatch: tokio::sync::RwLock<Option<VersionMismatch>>,
+}
+
+/// A confirmed daemon/GUI version mismatch, named (not a positional tuple) so
+/// the wire format sent to the frontend is self-describing rather than
+/// relying on both sides independently agreeing which array index is which
+/// version. Serialized to `{ "daemonVersion": ..., "guiVersion": ... }` to
+/// match the frontend's existing field naming.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionMismatch {
+    pub daemon_version: String,
+    pub gui_version: String,
 }
 
 impl PersistentDaemon {
@@ -199,10 +211,10 @@ impl PersistentDaemon {
         if let Some(daemon_version) = version_hint
             && daemon_version != env!("CARGO_PKG_VERSION")
         {
-            *self.last_version_mismatch.write().await = Some((
+            *self.last_version_mismatch.write().await = Some(VersionMismatch {
                 daemon_version,
-                env!("CARGO_PKG_VERSION").to_string(),
-            ));
+                gui_version: env!("CARGO_PKG_VERSION").to_string(),
+            });
         }
 
         // Generate a token ourselves and inject it into the child's
@@ -291,7 +303,7 @@ impl PersistentDaemon {
 #[tauri::command]
 pub async fn orchestrator_version_mismatch(
     state: tauri::State<'_, std::sync::Arc<PersistentDaemon>>,
-) -> Result<Option<(String, String)>, String> {
+) -> Result<Option<VersionMismatch>, String> {
     Ok(state.last_version_mismatch.read().await.clone())
 }
 
@@ -301,12 +313,15 @@ pub async fn orchestrator_version_mismatch(
 /// daemon binary pre-dating Task 1, treated as "unknown, don't warn" rather
 /// than "mismatch", since we can't distinguish an old-but-compatible daemon
 /// from a genuinely incompatible one without the field). Returns
-/// `Some((daemon_version, gui_version))` on a confirmed mismatch.
-pub fn detect_version_mismatch(ping_response: &serde_json::Value) -> Option<(String, String)> {
+/// `Some(VersionMismatch { .. })` on a confirmed mismatch.
+pub fn detect_version_mismatch(ping_response: &serde_json::Value) -> Option<VersionMismatch> {
     let daemon_version = ping_response.get("version")?.as_str()?.to_string();
     let gui_version = env!("CARGO_PKG_VERSION").to_string();
     if daemon_version != gui_version {
-        Some((daemon_version, gui_version))
+        Some(VersionMismatch {
+            daemon_version,
+            gui_version,
+        })
     } else {
         None
     }
@@ -328,7 +343,10 @@ mod version_mismatch_tests {
         let result = detect_version_mismatch(&resp);
         assert_eq!(
             result,
-            Some(("0.0.1-stale".to_string(), env!("CARGO_PKG_VERSION").to_string()))
+            Some(VersionMismatch {
+                daemon_version: "0.0.1-stale".to_string(),
+                gui_version: env!("CARGO_PKG_VERSION").to_string(),
+            })
         );
     }
 
@@ -336,6 +354,19 @@ mod version_mismatch_tests {
     fn no_mismatch_reported_when_version_field_missing() {
         let resp = serde_json::json!({"ok": true});
         assert_eq!(detect_version_mismatch(&resp), None);
+    }
+
+    #[test]
+    fn version_mismatch_serializes_to_camel_case_named_fields() {
+        let mismatch = VersionMismatch {
+            daemon_version: "0.5.9".to_string(),
+            gui_version: "0.6.0".to_string(),
+        };
+        let json = serde_json::to_value(&mismatch).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({"daemonVersion": "0.5.9", "guiVersion": "0.6.0"})
+        );
     }
 }
 

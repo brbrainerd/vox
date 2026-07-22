@@ -1442,6 +1442,14 @@ jobs:
   # Single required-status check for branch protection. Keep this job's `name:`
   # identical to the existing required check ("Check, Build, and Test (Rust)")
   # so branch-protection settings carry over without admin action.
+  # Required (see ci-summary's `needs:` below). Spawns a real
+  # vox-orchestrator-d process and pings it over a real TCP loopback socket
+  # on a self-hosted runner — more prone to environmental flake (port/runner
+  # contention) than this file's other required jobs, which are pure
+  # build/lint checks. Accepted as required for now since the test already
+  # polls with a bounded deadline rather than a single fixed-delay check; if
+  # this proves flaky in practice on the self-hosted fleet, consider a
+  # burn-in period as an advisory (non-required) job before re-promoting.
   gui-orchestrator-relaunch-smoke:
     name: GUI/orchestrator relaunch smoke (CR-U6)
     needs: setup

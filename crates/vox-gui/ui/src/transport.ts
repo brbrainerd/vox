@@ -540,10 +540,15 @@ class VoxTransport {
     return safeInvoke<Uint8Array>('get_orchestrator_status_bin');
   }
 
-  /** Daemon/GUI version mismatch cached by `PersistentDaemon`, or `null` if none (Task 2). */
+  /**
+   * Daemon/GUI version mismatch cached by `PersistentDaemon`, or `null` if
+   * none. The Rust side serializes `VersionMismatch` as a named
+   * `{ daemonVersion, guiVersion }` object (not a positional tuple), so no
+   * index-based mapping is needed here — the wire shape already matches.
+   */
   getOrchestratorVersionMismatch(): Promise<{ daemonVersion: string; guiVersion: string } | null> {
-    return safeInvoke<[string, string] | null>('orchestrator_version_mismatch').then((result) =>
-      result ? { daemonVersion: result[0], guiVersion: result[1] } : null
+    return safeInvoke<{ daemonVersion: string; guiVersion: string } | null>(
+      'orchestrator_version_mismatch'
     );
   }
 
