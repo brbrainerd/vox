@@ -41,7 +41,6 @@ export interface AppShellProps {
   /** When false, Loquela / transcript stack is omitted (Chat surface hosts composer). */
   chatDocked: boolean;
   chatDock?: React.ReactNode;
-  tabBar?: React.ReactNode;
   children: React.ReactNode;
   /** Workspace display name for TopHud (defaults to Operator in TopHud). */
   workspaceTitle?: string;
@@ -78,7 +77,6 @@ export function AppShell({
   surfaceLabel,
   chatDocked,
   chatDock,
-  tabBar,
   children,
   workspaceTitle,
   visibleTiles,
@@ -141,7 +139,6 @@ export function AppShell({
         </div>
 
         <div className={`flex-1 min-h-0 flex flex-col overflow-hidden p-5 ${mainPaddingBottom}`}>
-          {tabBar}
           <SurfaceErrorBoundary key={surfaceKey} surface={surfaceLabel}>
             <SurfaceScrollHost>{children}</SurfaceScrollHost>
           </SurfaceErrorBoundary>
