@@ -71,4 +71,27 @@ describe('BottomStatusBar', () => {
     fireEvent.click(screen.getByText('Mesh').closest('button')!);
     expect(onNavigate).toHaveBeenCalledWith('mesh');
   });
+
+  it('the configure trigger opens a live-apply checkbox menu that stays open across toggles', () => {
+    const onHudTilesChange = vi.fn();
+    render(
+      <BottomStatusBar
+        kpis={INITIAL_KPIS}
+        hudTilesConfig={defaultHudTiles()}
+        onHudTilesChange={onHudTilesChange}
+        onNavigate={vi.fn()}
+        lastOrchEventAt={null}
+        orchUsesPolling={false}
+        liveFreshMs={10_000}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /configure/i }));
+    const meshCheckbox = screen.getByRole('checkbox', { name: /mesh peers/i });
+    expect(meshCheckbox).toBeChecked();
+    fireEvent.click(meshCheckbox);
+    expect(onHudTilesChange).toHaveBeenCalledTimes(1);
+    const budgetCheckbox = screen.getByRole('checkbox', { name: /budget burn/i });
+    fireEvent.click(budgetCheckbox);
+    expect(onHudTilesChange).toHaveBeenCalledTimes(2);
+  });
 });

@@ -1,8 +1,14 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Glass } from '../ui/Glass';
 import { formatBudgetCap } from '../../config/budget';
 import { useFreshness } from '../../hooks/useFreshness';
-import { resolveVisibleHudTiles, type HudTilesConfig, type HudTileKind } from '../../hooks/useHudTiles';
+import {
+  resolveVisibleHudTiles,
+  toggleHudTile,
+  HUD_TILE_LABELS,
+  type HudTilesConfig,
+  type HudTileKind,
+} from '../../hooks/useHudTiles';
 import { INITIAL_KPIS } from '../../data/initialState';
 
 type KpiState = typeof INITIAL_KPIS;
@@ -10,6 +16,7 @@ type KpiState = typeof INITIAL_KPIS;
 export interface BottomStatusBarProps {
   kpis: KpiState;
   hudTilesConfig: HudTilesConfig;
+  onHudTilesChange: (config: HudTilesConfig) => void;
   onNavigate: (view: string) => void;
   lastOrchEventAt: number | null;
   orchUsesPolling: boolean;
@@ -68,6 +75,7 @@ function Segment({
 export function BottomStatusBar({
   kpis,
   hudTilesConfig,
+  onHudTilesChange,
   onNavigate,
   lastOrchEventAt,
   orchUsesPolling,
@@ -82,6 +90,32 @@ export function BottomStatusBar({
   });
   const fresh = freshnessClasses(tone);
   const visible = resolveVisibleHudTiles(hudTilesConfig);
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      if (triggerRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener('mousedown', onOutside);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onOutside);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
 
   const budgetSource = kpis.budgetBurn?.source ?? 'fallback';
   const capDisplay = formatBudgetCap(
@@ -177,6 +211,41 @@ export function BottomStatusBar({
     >
       <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
         {visible.map((kind) => renderSegment(kind))}
+      </div>
+      <div className="relative shrink-0">
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-expanded={menuOpen}
+          aria-label="Configure status bar"
+          className="rounded px-1.5 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+        >
+          Configure ▾
+        </button>
+        {menuOpen ? (
+          <div
+            ref={menuRef}
+            className="absolute bottom-full right-0 z-50 mb-1 w-56 rounded-lg border border-border-subtle bg-bg-base p-2 shadow-2xl"
+          >
+            {hudTilesConfig.tiles.map((tile) => (
+              <label
+                key={tile.id}
+                className="flex items-center gap-2 rounded px-2 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
+              >
+                <input
+                  type="checkbox"
+                  checked={tile.enabled}
+                  onChange={(e) =>
+                    onHudTilesChange(toggleHudTile(hudTilesConfig, tile.id, e.target.checked))
+                  }
+                  className="rounded border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
+                />
+                {HUD_TILE_LABELS[tile.kind]}
+              </label>
+            ))}
+          </div>
+        ) : null}
       </div>
       <div
         data-testid="bottom-status-bar-freshness"
