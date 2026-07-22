@@ -53,7 +53,7 @@ export function ChatSessionRail({
         <div
           role="tablist"
           aria-label="Chat sessions"
-          className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto custom-scrollbar"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto custom-scrollbar"
         >
           {sessions.map(s => {
             const isActive = s.session_id === activeSessionId;
@@ -84,24 +84,23 @@ export function ChatSessionRail({
               );
             }
             return (
-              <div key={s.session_id} className="relative flex items-stretch gap-1">
+              <div key={s.session_id} className="group relative flex items-stretch">
                 <Button
                   role="tab"
                   aria-pressed={isActive}
                   aria-selected={isActive}
                   title={s.title}
+                  data-testid={`session-row-${s.session_id}`}
                   onClick={() => onSessionChange(s.session_id)}
-                  className={`min-w-0 flex-1 justify-start rounded-lg border px-2.5 py-2 text-left text-xs ${
+                  className={`flex h-8 min-w-0 flex-1 items-center gap-2 border-l-2 py-1 pl-2 pr-1.5 text-left text-xs ${
                     isActive
-                      ? 'border-brass/40 bg-brass/10 text-brass'
-                      : 'border-border-subtle text-text-muted hover:text-text-secondary'
+                      ? 'border-brass bg-brass/10 text-brass'
+                      : 'border-transparent text-text-muted hover:border-border-subtle hover:text-text-secondary'
                   }`}
                 >
-                  <span className="line-clamp-2 break-words">{s.title}</span>
+                  <span className="min-w-0 flex-1 truncate">{s.title}</span>
                   {s.message_count > 0 ? (
-                    <span className="mt-0.5 block font-mono text-[10px] text-text-muted">
-                      {s.message_count} msg{s.message_count === 1 ? '' : 's'}
-                    </span>
+                    <span className="shrink-0 font-mono text-[10px] text-text-muted">{s.message_count}</span>
                   ) : null}
                 </Button>
                 {(onRenameSession || onArchiveSession) && (
