@@ -14,11 +14,11 @@ vi.mock('../../../transport', () => ({
 import { voxTransport } from '../../../transport';
 import { DocReader } from './DocReader';
 
-function renderDocReader(tabId: string) {
+function renderDocReader(path: string) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <DocReader tabId={tabId} />
+      <DocReader path={path} />
     </QueryClientProvider>,
   );
 }
@@ -29,8 +29,8 @@ describe('DocReader', () => {
     vi.mocked(voxTransport.readDocMarkdown).mockResolvedValue('# Title\n\nBody text');
   });
 
-  it('loads and renders markdown for a doc tab id', async () => {
-    renderDocReader('doc:docs/src/reference/cli.md');
+  it('loads and renders markdown for a doc path', async () => {
+    renderDocReader('docs/src/reference/cli.md');
     await waitFor(() => {
       expect(screen.getByTestId('doc-reader')).toBeDefined();
       expect(screen.getByText(/Body text/)).toBeDefined();
