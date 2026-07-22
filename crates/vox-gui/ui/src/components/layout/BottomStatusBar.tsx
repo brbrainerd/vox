@@ -215,7 +215,7 @@ export function BottomStatusBar({
       data-testid="bottom-status-bar"
       role="status"
       aria-label="Operator status"
-      className="flex h-7 items-center gap-1 px-3 text-[10px] text-text-muted"
+      className="flex h-7 items-center gap-1 p-0 px-3 rounded-lg shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_8px_20px_-14px_rgba(0,0,0,0.85)] text-[10px] text-text-muted"
     >
       <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
         {visible.map((kind) => renderSegment(kind))}
