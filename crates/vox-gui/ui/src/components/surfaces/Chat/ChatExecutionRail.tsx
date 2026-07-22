@@ -88,7 +88,7 @@ export function ChatExecutionRail({
   const peerLabel = kpis.mesh.peers === 1 ? '1 peer' : `${kpis.mesh.peers} peers`;
 
   return (
-    <aside aria-label="Execution rail" className="w-64 shrink-0">
+    <aside aria-label="Execution rail" className="w-full min-w-0">
       <Glass className="flex h-full flex-col gap-3 p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('chat-execution')}</h2>

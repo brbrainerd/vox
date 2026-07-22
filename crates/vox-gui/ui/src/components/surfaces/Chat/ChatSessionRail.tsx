@@ -44,7 +44,7 @@ export function ChatSessionRail({
   }, [menuFor]);
 
   return (
-    <aside ref={railRef} aria-label="Chat sessions" className="w-64 shrink-0" data-testid="chat-session-rail">
+    <aside ref={railRef} aria-label="Chat sessions" className="w-full min-w-0" data-testid="chat-session-rail">
       <Glass className="flex h-full max-h-[70vh] flex-col gap-2 p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('chat-sessions')}</h2>
