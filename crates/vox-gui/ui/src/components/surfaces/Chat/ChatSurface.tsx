@@ -110,7 +110,7 @@ function SessionsPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
 }
 
 function TranscriptPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
-  return <div data-testid="chat-dock-transcript" className="flex h-full min-w-0 flex-col gap-4 p-2">{props.params.node}</div>;
+  return <div data-testid="chat-dock-transcript" className="flex h-full min-w-0 flex-col gap-4 overflow-y-auto p-2">{props.params.node}</div>;
 }
 
 function ExecutionRailPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
