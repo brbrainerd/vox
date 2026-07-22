@@ -72,6 +72,20 @@ describe('ChatSessionRail', () => {
     expect(screen.getByRole('complementary')).toHaveAttribute('aria-label', 'Chat sessions');
   });
 
+  it('gives the root aside a real height so it can fill and scroll within its dock panel (regression guard for cf677dce9a)', () => {
+    render(
+      <LanguageProvider>
+        <ChatSessionRail
+          sessions={sessions}
+          activeSessionId="s1"
+          onSessionChange={vi.fn()}
+          onCreateSession={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByRole('complementary').className).toContain('h-full');
+  });
+
   it('has no leftover per-panel collapse/expand chevron UI (panel visibility is controlled entirely by the dock Panels menu now)', () => {
     render(
       <LanguageProvider>

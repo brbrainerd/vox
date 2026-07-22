@@ -255,6 +255,16 @@ describe('ChatSurface', () => {
     });
   });
 
+  it('keeps overflow-y-auto on the transcript dock panel wrapper as a scroll fallback (regression guard for a93331b3ee)', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={noopToast} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    const transcriptPanel = await screen.findByTestId('chat-dock-transcript');
+    expect(transcriptPanel.className).toContain('overflow-y-auto');
+  });
+
   it('the transcript panel has no visible tab strip (pinned, not a normal closable/draggable panel)', async () => {
     render(
       <LanguageProvider>
