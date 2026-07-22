@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useLocalStorage } from './useLocalStorage';
-import { DEFAULT_CHILD_BY_PARENT, LEGACY_VIEW_ALIASES, resolveNavigation } from '../lib/navigation';
+import { LEGACY_VIEW_ALIASES, resolveNavigation } from '../lib/navigation';
 
 const STORAGE_KEY = 'vox_active_view.v2';
 const LEGACY_TABS_KEY = 'vox_workbench_tabs.v1';
@@ -49,13 +49,5 @@ export function useActiveView() {
     [setActiveView],
   );
 
-  const navigateToParent = useCallback(
-    (parentKey: string) => {
-      const child = DEFAULT_CHILD_BY_PARENT[parentKey] ?? parentKey;
-      navigateTo(child);
-    },
-    [navigateTo],
-  );
-
-  return { activeView, navigateTo, navigateToParent };
+  return { activeView, navigateTo };
 }
