@@ -365,8 +365,7 @@ mod version_mismatch_tests {
         *cached.write().await = detect_version_mismatch(&stale_resp);
         assert!(cached.read().await.is_some(), "mismatch should be cached");
 
-        let matching_resp =
-            serde_json::json!({"ok": true, "version": env!("CARGO_PKG_VERSION")});
+        let matching_resp = serde_json::json!({"ok": true, "version": env!("CARGO_PKG_VERSION")});
         *cached.write().await = detect_version_mismatch(&matching_resp);
         assert_eq!(
             *cached.read().await,
