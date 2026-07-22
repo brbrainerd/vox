@@ -1,21 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { voxTransport } from '../transport';
 import type { MeshNode } from '../components/surfaces/Mesh/MeshView';
 
-interface NodesResult {
+/** Shape of the `vox_mesh_nodes` MCP tool result. */
+export interface NodesResult {
+  source?: string;
+  control_url?: string;
+  control_plane_error?: string;
   nodes?: MeshNode[];
+  queue_depth?: number | null;
+  node_count?: number;
 }
 
 /**
  * Polls the `vox_mesh_nodes` MCP tool for a bare node list, at a
- * caller-supplied cadence. Kept intentionally separate from `MeshView.tsx`'s
- * own fetch (which also pulls queue stats, dispatch-availability metadata,
- * and supports an embedded one-shot mode) — that fetch is tangled with
- * MeshView-only state, so this hook duplicates the minimal polling logic
- * rather than forcing a refactor. Callers mounted for the whole session
- * (e.g. the always-mounted BottomStatusBar) should pass a slower cadence
- * than MeshView's own `REFRESH_MS` to avoid adding steady-state load on the
- * orchestrator daemon for a one-line summary figure.
+ * caller-supplied cadence. Silent on error — leaves the prior value (or
+ * undefined) in place rather than flashing an error, which suits an
+ * always-mounted, low-priority status tile (e.g. `BottomStatusBar`).
+ * Callers that need the full result (source/error metadata, loading state,
+ * an imperative refresh trigger) should use `useMeshNodesFull` instead.
  */
 export function useMeshNodes(cadenceMs: number): MeshNode[] | undefined {
   const [nodes, setNodes] = useState<MeshNode[] | undefined>(undefined);
@@ -30,8 +33,7 @@ export function useMeshNodes(cadenceMs: number): MeshNode[] | undefined {
         const result = (res?.result ?? {}) as NodesResult;
         setNodes(Array.isArray(result.nodes) ? result.nodes : []);
       } catch {
-        // Silent — leave prior value (or undefined) in place rather than
-        // flashing an error for an always-mounted, low-priority status tile.
+        // Silent — see doc comment above.
       }
     };
 
@@ -44,4 +46,60 @@ export function useMeshNodes(cadenceMs: number): MeshNode[] | undefined {
   }, [cadenceMs]);
 
   return nodes;
+}
+
+export interface MeshNodesFullResult {
+  nodes: MeshNode[];
+  meta: NodesResult;
+  loading: boolean;
+  /** Imperative re-fetch, for a manual "Refresh" action or post-mutation reload. */
+  refresh: () => Promise<void>;
+}
+
+export interface UseMeshNodesFullOptions {
+  /** When true, fetch once on mount and never start a repeating poll. */
+  embedded?: boolean;
+  onError?: (err: unknown) => void;
+}
+
+/**
+ * Like `useMeshNodes`, but exposes the full `vox_mesh_nodes` result
+ * (dispatch-availability source, control-plane error/url, queue depth),
+ * a loading flag distinguishing "never loaded" from "loaded but empty",
+ * and an imperative `refresh()` for manual/post-mutation reloads. Used by
+ * `MeshView`, which needs this richer surface; `BottomStatusBar` uses the
+ * plain `useMeshNodes` above since it only needs the node list.
+ */
+export function useMeshNodesFull(
+  cadenceMs: number,
+  opts?: UseMeshNodesFullOptions,
+): MeshNodesFullResult {
+  const embedded = opts?.embedded ?? false;
+  const onError = opts?.onError;
+  const [nodes, setNodes] = useState<MeshNode[]>([]);
+  const [meta, setMeta] = useState<NodesResult>({});
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await voxTransport.invokeMcpTool('vox_mesh_nodes', {});
+      const result = (res?.result ?? {}) as NodesResult;
+      setMeta(result);
+      setNodes(Array.isArray(result.nodes) ? result.nodes : []);
+    } catch (err) {
+      onError?.(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [onError]);
+
+  useEffect(() => {
+    refresh();
+    // Embedded mini-render: one initial fetch only, no repeating poll.
+    if (embedded) return;
+    const id = window.setInterval(refresh, cadenceMs);
+    return () => window.clearInterval(id);
+  }, [refresh, embedded, cadenceMs]);
+
+  return { nodes, meta, loading, refresh };
 }
