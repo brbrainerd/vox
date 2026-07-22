@@ -94,4 +94,19 @@ describe('BottomStatusBar', () => {
     fireEvent.click(budgetCheckbox);
     expect(onHudTilesChange).toHaveBeenCalledTimes(2);
   });
+
+  it('renders the workbench-tabbar-trailing-slot portal target', () => {
+    render(
+      <BottomStatusBar
+        kpis={INITIAL_KPIS}
+        hudTilesConfig={defaultHudTiles()}
+        onHudTilesChange={vi.fn()}
+        onNavigate={vi.fn()}
+        lastOrchEventAt={null}
+        orchUsesPolling={false}
+        liveFreshMs={10_000}
+      />,
+    );
+    expect(document.getElementById('workbench-tabbar-trailing-slot')).toBeInTheDocument();
+  });
 });

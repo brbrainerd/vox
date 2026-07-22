@@ -254,6 +254,24 @@ export function BottomStatusBar({
         <span className={`size-1.5 rounded-full ${fresh.dot}`} />
         <span className="uppercase tracking-[0.14em]">{fresh.label}</span>
       </div>
+
+      {/* Fixed home for surface-level chrome that needs to sit inline with
+          persistent app chrome rather than in the per-surface content area
+          (e.g. Chat's "Panels ▾" dock-visibility menu, portaled in here from
+          ChatSurface). BottomStatusBar is a single, non-wrapping row rendered
+          once in the app shell's footer — unlike WorkbenchTabBar's tablist,
+          it never grows to multiple lines as more tabs open, so anything
+          docked here stays put and reachable regardless of how many
+          top-level tabs are open or how the tab bar wraps. It's also
+          independent of the tab bar's own lifecycle: the tab bar is slated
+          for eventual removal, this slot is not. `shrink-0` (and the KPI
+          segments' own scroll region above) keeps it pinned at the right
+          edge even when the window itself is too narrow to fit everything. */}
+      <div
+        id="workbench-tabbar-trailing-slot"
+        data-testid="workbench-tabbar-trailing-slot"
+        className="ml-2 flex shrink-0 items-center"
+      />
     </Glass>
   );
 }
