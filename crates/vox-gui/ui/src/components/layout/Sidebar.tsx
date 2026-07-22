@@ -79,6 +79,7 @@ interface SidebarProps {
   lastOrchEventAt?: number | null;
   orchUsesPolling?: boolean;
   liveFreshMs?: number;
+  onOpenCommandPalette?: () => void;
 }
 
 export function Sidebar({
@@ -94,6 +95,7 @@ export function Sidebar({
   lastOrchEventAt = null,
   orchUsesPolling = false,
   liveFreshMs = 10_000,
+  onOpenCommandPalette,
 }: SidebarProps) {
   const w = SIDEBAR_WIDTHS[mode];
   const collapsed = mode === "rail";
@@ -166,6 +168,29 @@ export function Sidebar({
             </button>
           </div>
         </div>
+
+        {onOpenCommandPalette && (
+          <button
+            type="button"
+            data-testid="omnisearch-trigger"
+            onClick={onOpenCommandPalette}
+            title={collapsed ? 'Search or jump…' : undefined}
+            aria-label="Search or jump to…"
+            className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 mb-1 rounded-xl text-text-muted transition hover:bg-overlay-hover hover:text-text-secondary shrink-0`}
+          >
+            <span className="flex size-7 items-center justify-center rounded-lg shrink-0 bg-overlay-subtle ring-1 ring-border-subtle">
+              <Icon.search className="size-4" aria-hidden="true" />
+            </span>
+            {!collapsed && (
+              <>
+                <span className="flex-1 min-w-0 text-left font-display text-[12px] tracking-[0.12em] uppercase whitespace-nowrap overflow-hidden text-ellipsis">
+                  Search
+                </span>
+                <span className="rounded border border-border-subtle bg-overlay-subtle px-1 text-[9px] tracking-widest text-text-muted">⌘K</span>
+              </>
+            )}
+          </button>
+        )}
 
         <nav aria-label="Primary navigation" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col gap-0.5 -mr-1 pr-1">
           {visibleTopLevel.map(key => {

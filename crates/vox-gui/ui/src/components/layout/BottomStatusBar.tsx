@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Glass } from '../ui/Glass';
+import { Icon } from '../ui/Icons';
 import { formatBudgetCap } from '../../config/budget';
 import { useFreshness } from '../../hooks/useFreshness';
 import {
@@ -27,6 +28,8 @@ export interface BottomStatusBarProps {
   openrouterSpendUsd?: number | null;
   pendingApprovals?: number | null;
   meshNodes?: MeshNode[];
+  gamifyEnabled?: boolean;
+  onOpenAchievements?: () => void;
 }
 
 function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
@@ -87,6 +90,8 @@ export function BottomStatusBar({
   openrouterSpendUsd = null,
   pendingApprovals = null,
   meshNodes,
+  gamifyEnabled = false,
+  onOpenAchievements,
 }: BottomStatusBarProps) {
   const tone = useFreshness(lastOrchEventAt, {
     freshMs: liveFreshMs,
@@ -215,11 +220,22 @@ export function BottomStatusBar({
       data-testid="bottom-status-bar"
       role="status"
       aria-label="Operator status"
-      className="flex h-7 items-center gap-1 p-0 px-3 rounded-lg shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_8px_20px_-14px_rgba(0,0,0,0.85)] text-[10px] text-text-muted"
+      className="flex h-7 w-full items-center gap-1 p-0 px-3 rounded-none border-x-0 border-b-0 shadow-none text-[10px] text-text-muted"
     >
       <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
         {visible.map((kind) => renderSegment(kind))}
       </div>
+      {gamifyEnabled && onOpenAchievements && (
+        <button
+          type="button"
+          data-testid="achievements-trigger"
+          aria-label="Open achievements"
+          onClick={onOpenAchievements}
+          className="inline-flex shrink-0 items-center justify-center rounded px-1.5 py-0.5 text-amber-300/80 hover:bg-overlay-subtle hover:text-amber-200 transition"
+        >
+          <Icon.trophy className="size-3.5" aria-hidden="true" />
+        </button>
+      )}
       <div className="relative shrink-0">
         <button
           ref={triggerRef}
