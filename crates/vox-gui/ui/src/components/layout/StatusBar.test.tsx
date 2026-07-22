@@ -5,6 +5,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StatusBar } from './StatusBar';
 import { INITIAL_KPIS } from '../../data/initialState';
+import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../lib/domIds';
 
 describe('StatusBar', () => {
   afterEach(() => {
@@ -144,9 +145,9 @@ describe('StatusBar', () => {
         onNavigate={vi.fn()}
       />,
     );
-    const slot = screen.getByTestId('workbench-tabbar-trailing-slot');
+    const slot = screen.getByTestId(WORKBENCH_TABBAR_TRAILING_SLOT_ID);
     expect(slot).toBeInTheDocument();
-    expect(slot.id).toBe('workbench-tabbar-trailing-slot');
+    expect(slot.id).toBe(WORKBENCH_TABBAR_TRAILING_SLOT_ID);
     // StatusBar is a single, never-wrapping row rendered once in the app
     // shell header — this slot must live here, not inside anything that can
     // wrap to multiple lines (like WorkbenchTabBar's tablist), so content

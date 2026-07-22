@@ -4,6 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { BottomStatusBar } from './BottomStatusBar';
 import { defaultHudTiles } from '../../hooks/useHudTiles';
 import { INITIAL_KPIS } from '../../data/initialState';
+import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../lib/domIds';
 
 describe('BottomStatusBar', () => {
   it('renders every enabled tile as a compact one-line segment', () => {
@@ -107,6 +108,6 @@ describe('BottomStatusBar', () => {
         liveFreshMs={10_000}
       />,
     );
-    expect(document.getElementById('workbench-tabbar-trailing-slot')).toBeInTheDocument();
+    expect(document.getElementById(WORKBENCH_TABBAR_TRAILING_SLOT_ID)).toBeInTheDocument();
   });
 });

@@ -4,6 +4,7 @@ import { Icon } from '../ui/Icons';
 import { formatBudgetCap } from '../../config/budget';
 import { useFreshness } from '../../hooks/useFreshness';
 import { INITIAL_KPIS } from '../../data/initialState';
+import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../lib/domIds';
 
 type KpiState = typeof INITIAL_KPIS;
 
@@ -179,8 +180,8 @@ export function StatusBar({
           region above) keeps it pinned at the right edge even when the
           window itself is too narrow to fit everything. */}
       <div
-        id="workbench-tabbar-trailing-slot"
-        data-testid="workbench-tabbar-trailing-slot"
+        id={WORKBENCH_TABBAR_TRAILING_SLOT_ID}
+        data-testid={WORKBENCH_TABBAR_TRAILING_SLOT_ID}
         className="ml-2 flex shrink-0 items-center"
       />
     </Glass>

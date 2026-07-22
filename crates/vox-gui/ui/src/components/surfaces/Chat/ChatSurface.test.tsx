@@ -45,6 +45,7 @@ const noopToast = () => {};
 
 import { ChatSurface, ApprovalsDockPanel, MercatusDockPanel, RepositoryDockPanel, NeedsYouDockPanel, VoxGraphDockPanel, ActivityDockPanel } from './ChatSurface';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
+import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../../lib/domIds';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 
 
@@ -614,7 +615,7 @@ describe('ChatSurface', () => {
 
   it('portals the Panels trigger into the workbench tab bar\'s trailing slot when present, instead of rendering its own row (F: the button must sit inline with the top tab bar, not float in a separate row)', () => {
     const slot = document.createElement('div');
-    slot.id = 'workbench-tabbar-trailing-slot';
+    slot.id = WORKBENCH_TABBAR_TRAILING_SLOT_ID;
     document.body.appendChild(slot);
     try {
       render(
@@ -632,7 +633,7 @@ describe('ChatSurface', () => {
   });
 
   it('falls back to rendering its own Panels trigger row when no workbench tab bar slot exists (standalone rendering, e.g. these tests)', () => {
-    expect(document.getElementById('workbench-tabbar-trailing-slot')).toBeNull();
+    expect(document.getElementById(WORKBENCH_TABBAR_TRAILING_SLOT_ID)).toBeNull();
     render(
       <LanguageProvider>
         <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />

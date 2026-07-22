@@ -17,6 +17,7 @@ import { ChatModelPicker } from './ChatModelPicker';
 import { PlanPanel, type PlanNodeView } from './PlanPanel';
 import { listPlanNodes } from '../../../transport';
 import { labelForNavKey } from '../../../lib/navigation';
+import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../../lib/domIds';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import type { AttentionBudgetSnapshot } from '../../../types/tauri';
 import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
@@ -444,7 +445,7 @@ export function ChatSurface({
   // mount the app shell) — falling back to its own row in that case.
   const [tabBarTrailingSlot, setTabBarTrailingSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
-    setTabBarTrailingSlot(document.getElementById('workbench-tabbar-trailing-slot'));
+    setTabBarTrailingSlot(document.getElementById(WORKBENCH_TABBAR_TRAILING_SLOT_ID));
   }, []);
 
   // Task 1.8 follow-up: dockview-core sets `draggable = true` on every tab
