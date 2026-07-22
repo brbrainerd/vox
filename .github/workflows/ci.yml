@@ -1478,6 +1478,7 @@ jobs:
       - name: Relaunch smoke (CR-U6) — daemon relaunch + version parity
         env:
           VOX_GUI_RELAUNCH_SMOKE: "1"
+          VOX_ORCHESTRATOR_D_BIN: ${{ github.workspace }}/target/debug/vox-orchestrator-d
         run: cargo nextest run -p vox-gui --test gui_relaunch_smoke
 
   ci-summary:

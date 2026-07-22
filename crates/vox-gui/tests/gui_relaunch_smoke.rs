@@ -66,7 +66,14 @@ async fn gui_relaunch_boots_daemon_and_core_surfaces_respond() {
 
     // (2) Relaunch the real daemon binary exactly as PersistentDaemon::ensure does.
     let addr = free_loopback_addr();
-    let bin = resolve_managed_binary_path("vox-orchestrator-d");
+    // CI sets VOX_ORCHESTRATOR_D_BIN to the binary this job just built
+    // (`target/debug/vox-orchestrator-d`), so this test can never pick up a
+    // stale binary left over from a previous run via the sibling/`~/.vox/bin`/
+    // `PATH` fallback chain in `resolve_managed_binary_path`. Local dev without
+    // the env var falls back to that normal resolution.
+    let bin = std::env::var_os("VOX_ORCHESTRATOR_D_BIN")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| resolve_managed_binary_path("vox-orchestrator-d"));
 
     // Generate a token ourselves and inject it into the child's environment —
     // this is the same idiom `PersistentDaemon::ensure`

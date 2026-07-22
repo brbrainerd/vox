@@ -136,9 +136,7 @@ impl PersistentDaemon {
                 .ping()
                 .await
             {
-                if let Some(mismatch) = detect_version_mismatch(&resp) {
-                    *self.last_version_mismatch.write().await = Some(mismatch);
-                }
+                *self.last_version_mismatch.write().await = detect_version_mismatch(&resp);
                 return Ok(addr);
             }
         }
@@ -182,9 +180,7 @@ impl PersistentDaemon {
                 .ping()
                 .await
         {
-            if let Some(mismatch) = detect_version_mismatch(&resp) {
-                *self.last_version_mismatch.write().await = Some(mismatch);
-            }
+            *self.last_version_mismatch.write().await = detect_version_mismatch(&resp);
             *self.resolved.write().await = Some((addr.clone(), existing_token));
             return Ok(addr);
         }
@@ -247,9 +243,7 @@ impl PersistentDaemon {
                 .ping()
                 .await
             {
-                if let Some(mismatch) = detect_version_mismatch(&resp) {
-                    *self.last_version_mismatch.write().await = Some(mismatch);
-                }
+                *self.last_version_mismatch.write().await = detect_version_mismatch(&resp);
                 *self.resolved.write().await = Some((addr.clone(), spawned_token));
                 return Ok(addr);
             }
@@ -357,6 +351,28 @@ mod version_mismatch_tests {
     fn no_mismatch_reported_when_version_field_missing() {
         let resp = serde_json::json!({"ok": true});
         assert_eq!(detect_version_mismatch(&resp), None);
+    }
+
+    #[tokio::test]
+    async fn cached_mismatch_field_clears_on_a_later_matching_ping() {
+        // Reproduces the exact assignment used at every ping-response call site
+        // in `PersistentDaemon::ensure_live`/`reensure`: the cached field must be
+        // unconditionally overwritten with the fresh detection result (not only
+        // written on `Some`), so a later matching ping clears a stale mismatch.
+        let cached = tokio::sync::RwLock::new(None::<VersionMismatch>);
+
+        let stale_resp = serde_json::json!({"ok": true, "version": "0.0.1-stale"});
+        *cached.write().await = detect_version_mismatch(&stale_resp);
+        assert!(cached.read().await.is_some(), "mismatch should be cached");
+
+        let matching_resp =
+            serde_json::json!({"ok": true, "version": env!("CARGO_PKG_VERSION")});
+        *cached.write().await = detect_version_mismatch(&matching_resp);
+        assert_eq!(
+            *cached.read().await,
+            None,
+            "a later matching ping must clear the cached mismatch"
+        );
     }
 
     #[test]
