@@ -1,6 +1,6 @@
 # Orchestrator Reliability, Build Parity, and Bottom Status Bar Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Waves A and B below are mutually independent — REQUIRED SUB-SKILL for cross-wave dispatch: superpowers:dispatching-parallel-agents. Within Wave A, Tasks 1/3/6 are independent of each other and of Task 2; Task 2 depends on Task 1's wire-format change landing first. Within Wave B, Tasks 7 and 11 are independent leaf fixes; Tasks 8-10 and 12 have real sequential dependencies (see each task's header). Every task with a "Write the failing test" step follows superpowers:test-driven-development.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Waves A and B below are mutually independent — REQUIRED SUB-SKILL for cross-wave dispatch: superpowers:dispatching-parallel-agents. Within Wave A, Tasks 1/3/6 are independent of each other and of Task 2; Task 2 depends on Task 1's wire-format change landing first. Within Wave B, Task 7 is an independent leaf fix; Tasks 8-12 are strictly sequential (Task 8 must land before 9, 10, and 11; Task 12 requires all of 7-11) — see each task's header for the specific dependency. Every task with a "Write the failing test" step follows superpowers:test-driven-development.
 
 **Goal:** Implement all three specs from the 2026-07-22 brainstorming session — (1) promote the orchestrator-daemon relaunch smoke test to a required CI gate and audit v1.0 readiness against the foundation-criteria doc, (2) detect and soft-warn on a version mismatch between the running GUI and the orchestrator-daemon binary it's talking to, and (3) consolidate the top `TopHud`/`StatusBar` KPI strips into one configurable, VS-Code-style bottom status bar.
 
@@ -10,8 +10,8 @@
 
 **Execution structure:**
 - **Wave A** (Rust backend + CI, specs "orchestrator-launch-v1-readiness" and "build-version-parity"): Task 1 (ping response gains a `version` field) → Task 2 (GUI compares versions, soft-warns) is sequential on Task 1. Task 3 (wire `probe_binary_version` into the staging fallback) is independent of 1/2 — different code path (the pre-connect staging fallback vs. the post-connect ping check). Task 4 (promote CR-U6's smoke test + add the shared CI job) depends on Tasks 1 and 2 existing (the CI job's new version-assertion step needs the `version` field to assert against) but not on Task 3. Task 6 (v1.0 readiness audit) is pure documentation, independent of everything else in this plan — dispatch it any time.
-- **Wave B** (frontend, spec "bottom-status-bar"), fully independent of Wave A, dispatch in parallel with it: Task 7 (fix the `'compute'` dead-route bug) and Task 11 (richer mesh data source) are independent leaf fixes with no shared file. Task 8 (build `BottomStatusBar.tsx`, consolidating tile rendering) must land before Task 9 (add the configurability dropdown to it) and Task 10 (move the Panels ▾ portal target into it). Task 12 (wire `BottomStatusBar` into `AppShell.tsx`, retire `TopHud`/`StatusBar`) requires Tasks 7-11 all complete.
-- Recommended dispatch: parallel wave of {Task 1, Task 3, Task 6, Task 7, Task 11} → then {Task 2 (needs 1), Task 8 (needs 7 landed first since it touches the same tile-render logic, and 11 for the mesh data)} → then {Task 4 (needs 1+2), Task 9, Task 10 (need 8)} → then Task 12 (needs 7-11) → Task 5 folds into Task 4's CI job, not separate.
+- **Wave B** (frontend, spec "bottom-status-bar"), fully independent of Wave A, dispatch in parallel with it: Task 7 (retarget the mesh tile's navigation) is a true independent leaf fix, no shared file with anything else in Wave B. Task 8 (build `BottomStatusBar.tsx`, consolidating tile rendering) must land before Task 9 (configurability dropdown), Task 10 (Panels ▾ portal target), AND Task 11 (richer mesh data) — Task 11 edits the same `mesh_peers` case Task 8 introduces, so it is sequenced strictly after Task 8, not parallel with it (corrected from an earlier draft that wrongly hedged this as "independent in principle"). Task 12 (wire `BottomStatusBar` into `AppShell.tsx`, retire `TopHud`/`StatusBar`) requires Tasks 7-11 all complete.
+- Recommended dispatch: parallel wave of {Task 1, Task 3, Task 6, Task 7} → then {Task 2 (needs 1), Task 8 (needs 7 landed first since it touches the same tile-render logic)} → then {Task 4 (needs 1+2), Task 9, Task 10, Task 11 (all need 8)} → then Task 12 (needs 7-11) → Task 5 folds into Task 4's CI job, not separate.
 
 ---
 
@@ -37,6 +37,8 @@ orch_daemon_method::PING => response_result(
 
 Find `dispatch_request`'s test coverage (grep `dispatch_request` and `orch_daemon_method::PING` across `crates/vox-orchestrator/src/orch_daemon/` for an existing test harness that constructs a fake `Orchestrator` and calls `dispatch_request` — reuse that exact harness rather than building a new one). Add:
 
+Adversarial fidelity review confirmed two real inaccuracies in the naive test sketch: `DispatchRequest` actually has 5 fields (`id, method, params, auth_token, permission_mode`, per `crates/vox-foundation/src/protocol.rs:158-168`), not 3; and there is no `payload_as_result_value()` method anywhere — every existing test in this file (e.g. `isolation_dispatch_tests` at line 1058) uses a local `result_value()` helper that pattern-matches `DispatchPayload::Result { value }`. Use the real pattern:
+
 ```rust
 #[tokio::test]
 async fn ping_response_includes_the_running_binary_version() {
@@ -45,9 +47,15 @@ async fn ping_response_includes_the_running_binary_version() {
         id: "1".to_string(),
         method: orch_daemon_method::PING.to_string(),
         params: serde_json::json!({}),
+        auth_token: None,
+        permission_mode: None,
     };
     let resp = dispatch_request(&repository_id, orch, &req).await;
-    let value = resp.payload_as_result_value(); // adapt to however this test module already extracts the Ok payload from a DispatchResponse — check an existing test for the real accessor
+    // Reuse this file's own existing result_value() helper (defined near
+    // isolation_dispatch_tests, ~line 1058) rather than inventing a new
+    // accessor — it pattern-matches DispatchPayload::Result { value } and
+    // panics with a useful message on any other variant.
+    let value = result_value(&resp);
     assert_eq!(
         value.get("version").and_then(|v| v.as_str()),
         Some(env!("CARGO_PKG_VERSION")),
@@ -55,6 +63,8 @@ async fn ping_response_includes_the_running_binary_version() {
     );
 }
 ```
+
+(If `auth_token`/`permission_mode` have different real defaults than `None` — e.g. a non-`Option` type — read the struct definition fresh and adjust; the field *count* and the `result_value()` accessor are the two facts confirmed by direct source read, not the exact default values for every field.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -97,7 +107,8 @@ git commit -m "feat(orchestrator): ping response reports the running daemon's wo
 - Modify: `crates/vox-gui/src/commands/daemon.rs`
 - Test: `crates/vox-gui/src/commands/daemon.rs` (inline test module — read the file's existing tests first, likely already covering `PersistentDaemon::ensure`/`reensure`, to match conventions)
 - Modify: `crates/vox-gui/ui/src/hooks/useOrchestratorStatus.ts` (surface the mismatch to the frontend)
-- Modify: `crates/vox-gui/ui/src/lib/backendGuard.ts` or wherever `BackendBanner`'s state is sourced (read the actual current wiring first — this session's earlier work referenced `backendAvailable()`/`__TAURI_INTERNALS__` in this file; confirm whether banner state is driven from here or from `useOrchestratorStatus.ts` directly before deciding where the new mismatch flag lives)
+- Create: `crates/vox-gui/ui/src/components/layout/VersionMismatchBanner.tsx` (see Step 7 — a fidelity review confirmed no existing "offline/reconnecting banner" component exists to extend; this must be a new, small component)
+- Test: `crates/vox-gui/ui/src/components/layout/VersionMismatchBanner.test.tsx`
 - Test: `crates/vox-gui/ui/src/hooks/useOrchestratorStatus.test.ts` (or wherever its existing tests live)
 
 Requires Task 1 landed (the `version` field must exist in the ping response for this task's Rust-side comparison to have anything real to compare against).
@@ -198,17 +209,82 @@ Run the hook's test file before and after adding the `orchestrator_version_misma
 
 - [ ] **Step 7: Surface the mismatch as a visible banner**
 
-Find wherever `BackendBanner` (or the offline/reconnecting banner it's a sibling of) actually renders today (read `crates/vox-gui/ui/src/lib/backendGuard.ts` and its consumer component fresh — this session's earlier work referenced it but did not modify it, confirm its current render location before adding to it) and add a second banner variant (or extend the existing one) that shows when `versionMismatch` is set: `"GUI v{gui} / daemon v{daemon} — restart the daemon to update"`, dismissible, non-blocking (the app continues to function — this is the approved soft-warning choice, not a hard block).
+Fidelity review confirmed there is NO existing unified "offline/reconnecting banner" to extend: `backendGuard.ts`'s `backendAvailable()` feeds exactly one component, `BackendBanner.tsx`, and that component's job is narrowly "no Tauri backend at all" (bare-browser preview mode) — a different, unrelated condition from "a daemon is connected but running a mismatched version." `useOrchestratorStatus.ts`'s freshness state instead feeds a small pill (`Live`/`Poll`/`Offline`) inside `StatusBar.tsx`/`TopHud.tsx`, not a banner. Do not try to shoehorn this into either — build a small, new, dedicated component:
 
-- [ ] **Step 8: Run the full suite**
+```tsx
+// crates/vox-gui/ui/src/components/layout/VersionMismatchBanner.tsx
+import React, { useState } from 'react';
+
+export interface VersionMismatchBannerProps {
+  mismatch: { daemon: string; gui: string } | null;
+}
+
+export function VersionMismatchBanner({ mismatch }: VersionMismatchBannerProps) {
+  const [dismissed, setDismissed] = useState(false);
+  if (!mismatch || dismissed) return null;
+  return (
+    <div
+      data-testid="version-mismatch-banner"
+      role="alert"
+      className="flex items-center justify-between gap-3 border-b border-amber-400/30 bg-amber-400/[0.06] px-4 py-1.5 text-[11px] text-amber-200"
+    >
+      <span>
+        GUI v{mismatch.gui} / daemon v{mismatch.daemon} — restart the daemon to update.
+      </span>
+      <button
+        type="button"
+        aria-label="Dismiss version mismatch warning"
+        onClick={() => setDismissed(true)}
+        className="shrink-0 rounded px-1.5 py-0.5 text-amber-200/70 hover:bg-amber-400/10 hover:text-amber-200"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+```
+
+Mount it in `crates/vox-gui/ui/src/App.tsx`, as a sibling near the top of the render tree (alongside `<BackendBanner/>` if that's rendered from `App.tsx` — read the current render tree fresh to find the right spot; this is intentionally a peer of `BackendBanner`, not nested inside it, since the two conditions are independent and can theoretically both be true at once), fed by the new `versionMismatch` state from `useOrchestratorStatus()` (Step 5/6). Non-blocking — the app continues to function underneath it (the approved soft-warning choice, not a hard block).
+
+- [ ] **Step 8: Write a small test for `VersionMismatchBanner` itself, confirm RED then GREEN**
+
+```tsx
+// crates/vox-gui/ui/src/components/layout/VersionMismatchBanner.test.tsx
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { VersionMismatchBanner } from './VersionMismatchBanner';
+
+describe('VersionMismatchBanner', () => {
+  it('renders nothing when there is no mismatch', () => {
+    const { container } = render(<VersionMismatchBanner mismatch={null} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('shows both versions when mismatched', () => {
+    render(<VersionMismatchBanner mismatch={{ daemon: '0.5.9', gui: '0.6.0' }} />);
+    expect(screen.getByTestId('version-mismatch-banner')).toHaveTextContent('0.5.9');
+    expect(screen.getByTestId('version-mismatch-banner')).toHaveTextContent('0.6.0');
+  });
+
+  it('dismisses on click and stays dismissed', () => {
+    render(<VersionMismatchBanner mismatch={{ daemon: '0.5.9', gui: '0.6.0' }} />);
+    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+    expect(screen.queryByTestId('version-mismatch-banner')).not.toBeInTheDocument();
+  });
+});
+```
+
+Run: `cd crates/vox-gui/ui && npx vitest run src/components/layout/VersionMismatchBanner.test.tsx` — confirm FAIL (module doesn't exist) before Step 7's component is written, then PASS (3/3) after.
+
+- [ ] **Step 9: Run the full suite**
 
 Run: `cargo test -p vox-orchestrator -p vox-gui` and `cd crates/vox-gui/ui && npx vitest run && npx tsc --noEmit`.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add crates/vox-gui/src/commands/daemon.rs crates/vox-gui/src/main.rs crates/vox-gui/ui/src/hooks/useOrchestratorStatus.ts
-git commit -m "feat(gui): detect orchestrator-daemon version mismatch, soft-warn via banner"
+git add crates/vox-gui/src/commands/daemon.rs crates/vox-gui/src/main.rs crates/vox-gui/ui/src/hooks/useOrchestratorStatus.ts crates/vox-gui/ui/src/components/layout/VersionMismatchBanner.tsx crates/vox-gui/ui/src/components/layout/VersionMismatchBanner.test.tsx crates/vox-gui/ui/src/App.tsx
+git commit -m "feat(gui): detect orchestrator-daemon version mismatch, soft-warn via a new dismissible banner"
 ```
 
 ---
@@ -217,7 +293,7 @@ git commit -m "feat(gui): detect orchestrator-daemon version mismatch, soft-warn
 
 **Files:**
 - Modify: `crates/vox-cli-core/src/daemon_ipc/process_supervision.rs`
-- Test: `crates/vox-cli-core/src/daemon_ipc/process_supervision.rs` (existing `#[cfg(test)] mod tests` block, confirmed present at the bottom of this file while writing this plan)
+- Test: `crates/vox-cli-core/src/daemon_ipc/process_supervision.rs` — this file has TWO separate test modules at the bottom: `mod tests` (unrelated `process_is_running` smoke tests) and `mod stage_tests` (the one actually covering `resolve_or_stage_daemon`/`stage_binary`, e.g. `resolve_daemon_stages_and_avoids_target_path`, `stage_copies_when_dest_missing_or_older`) — the new test belongs in/beside `stage_tests`, not the generically-named `mod tests`.
 
 Independent of Tasks 1/2 — this is the *pre-connect* fallback (an old binary sitting in `~/.vox/bin` with no fresh sibling to re-stage from), a different code path from the *post-connect* ping-based check.
 
@@ -234,7 +310,7 @@ pub fn resolve_or_stage_daemon(src: &Path, dest_dir: &Path) -> std::io::Result<P
 }
 ```
 
-Add a test in this file's existing `#[cfg(test)] mod tests` block asserting the fallback branch (the one taken when `src` doesn't exist) logs/returns a probed version alongside the path, rather than silently returning a bare `PathBuf` with no version information at all:
+Add a test in/beside `mod stage_tests` asserting the fallback branch (the one taken when `src` doesn't exist) logs/returns a probed version alongside the path, rather than silently returning a bare `PathBuf` with no version information at all. Fidelity review confirmed this crate has NO `tempfile` dev-dependency — `mod stage_tests`'s own existing tests already establish the real convention (a manually-constructed, PID-suffixed temp dir under `std::env::temp_dir()`, cleaned up at the end); match that exact pattern rather than adding a new dependency:
 
 ```rust
 #[test]
@@ -243,16 +319,16 @@ fn resolve_or_stage_reports_none_version_hint_when_falling_back_with_no_probeabl
     // either (a clean test env), resolve_or_stage_daemon_with_version_hint
     // should still return a path (matching today's behavior) but a None
     // version hint, not panic or silently claim a version.
-    let tmp = tempfile::tempdir().unwrap();
-    let nonexistent_src = tmp.path().join("does-not-exist-vox-orchestrator-d");
-    let dest_dir = tmp.path().join("dest");
+    let tmp = std::env::temp_dir().join(format!("vox-test-version-hint-{}", std::process::id()));
+    std::fs::create_dir_all(&tmp).unwrap();
+    let nonexistent_src = tmp.join("does-not-exist-vox-orchestrator-d");
+    let dest_dir = tmp.join("dest");
     let (_path, version_hint) =
         resolve_or_stage_daemon_with_version_hint(&nonexistent_src, &dest_dir);
     assert_eq!(version_hint, None);
+    let _ = std::fs::remove_dir_all(&tmp);
 }
 ```
-
-(Use this crate's existing `tempfile` dev-dependency if already present — check `Cargo.toml`; if absent, use `std::env::temp_dir().join(format!("vox-test-{}", std::process::id()))` with manual cleanup instead of adding a new dependency, consistent with YAGNI.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -320,7 +396,7 @@ git commit -m "feat(daemon-ipc): probe staged daemon binary version in the stale
 - Modify: `crates/vox-gui/tests/gui_relaunch_smoke.rs`
 - Modify: `.github/workflows/ci.yml`
 
-Requires Tasks 1 and 2 landed (this task's new CI assertion step needs the `version` field and the mismatch-detection helper to exist).
+Requires Tasks 1 and 2 landed (this task's new CI assertion step needs the `version` field and the mismatch-detection helper to exist). Note per this plan's own build-version-parity spec's now-documented limitation (see that spec's "What this does not include"): this assertion only catches a REGRESSION in the version-reporting mechanism itself (e.g. someone hardcoding a stale string), not the more realistic "same version string, different underlying code" drift the spec's mechanism can't distinguish — that's a real, disclosed limitation of the whole version-string approach, not something this specific CI step can fix on its own.
 
 - [ ] **Step 1: Remove the `#[ignore]` gate, keep the env-var opt-out as a local-dev convenience**
 
@@ -356,16 +432,21 @@ Extend `gui_relaunch_boots_daemon_and_core_surfaces_respond` (the existing test 
 
 - [ ] **Step 3: Run the test locally to confirm it passes with a real daemon build**
 
-Run: `cargo build -p vox-orchestrator-d && VOX_GUI_RELAUNCH_SMOKE=1 cargo test -p vox-gui --test gui_relaunch_smoke -- --nocapture`
+Fidelity review confirmed this repo's real convention for running Rust tests in CI is `cargo nextest run`, not bare `cargo test` (every comparable job — `tests:`, `compiler-gates:`, `visualizer-ingest-smoke:`, `gui-playwright-smoke:` — uses it, e.g. `cargo nextest run -p vox-integration-tests --test playwright_golden_route_test --run-ignored ignored-only --no-capture`). Match that convention locally too, so the local-verification command is the same one CI will run:
+
+Run: `cargo build -p vox-orchestrator-d && VOX_GUI_RELAUNCH_SMOKE=1 cargo nextest run -p vox-gui --test gui_relaunch_smoke`
 Expected: PASS (both the original assertions and the new version-parity one).
 
-- [ ] **Step 4: Add the shared CI job**
+- [ ] **Step 4: Add the shared CI job, and firmly wire it into the required-checks aggregator**
 
-Read `.github/workflows/ci.yml` in full first (it's large — confirmed to `--exclude vox-gui` in most existing jobs per this session's earlier investigation) to match its existing job structure/naming conventions exactly. Add a new job (name suggestion: `gui-orchestrator-relaunch-smoke`, adjust to match this file's actual naming convention once read) that:
+Add a new job to `.github/workflows/ci.yml`, named `gui-orchestrator-relaunch-smoke` (matching this file's real kebab-case `-smoke`-suffixed convention, confirmed against `visualizer-ingest-smoke`/`docker-vox-image-smoke`/`gui-playwright-smoke`), that:
 1. Checks out the repo.
-2. Builds `vox-orchestrator-d` and `vox-gui` (just the Rust crate, not the Tauri frontend bundle — this test doesn't need the UI built) — e.g. `cargo build -p vox-orchestrator-d -p vox-gui` (confirm the exact build invocation this repo's other Rust CI jobs use, don't invent a different one).
-3. Runs `VOX_GUI_RELAUNCH_SMOKE=1 cargo test -p vox-gui --test gui_relaunch_smoke`.
-5. Is added to whatever "required checks" list/branch-protection config this repo uses for merge-blocking (check if `.github/workflows/ci.yml` itself defines a summary/gate job that aggregates required jobs — if so, add this new job to that list; if required-checks are configured outside this file, e.g. GitHub branch protection settings, flag this as a manual follow-up step for the human to apply, since it may not be file-based).
+2. Builds `vox-orchestrator-d` and `vox-gui` (the Rust crate only, not the Tauri frontend bundle — this test doesn't need the UI built).
+3. Runs `VOX_GUI_RELAUNCH_SMOKE=1 cargo nextest run -p vox-gui --test gui_relaunch_smoke` (the confirmed-real convention, not `cargo test`).
+
+Match the exact checkout/toolchain-setup steps used by an existing comparable job in this file (e.g. `tests:` or `compiler-gates:`) rather than inventing a different setup sequence — copy that job's preamble verbatim and adjust only the build/run steps.
+
+**Then — this is the step that actually makes CR-U6 "required," not merely "exists and is green":** fidelity review confirmed `.github/workflows/ci.yml` has a real, file-based required-checks aggregator, `ci-summary:` (line 1445), with `needs: [guards-fast, lints, compiler-gates, tests, audits]` (line 1449) and an explicit "All required jobs succeeded" gate step that fails unless every listed job succeeded or was skipped. This is NOT a "maybe elsewhere" situation — add `gui-orchestrator-relaunch-smoke` to that exact `needs:` array at that exact line. Skipping this step would leave every other part of Task 4 satisfied (job exists, test un-ignored, job passes) while CR-U6 remains just as unverified-in-practice as before promotion — a green job nobody's merge actually depends on is not a required gate. Do not leave this as a conditional/maybe step.
 
 - [ ] **Step 5: Commit**
 
@@ -432,18 +513,18 @@ git commit -m "docs: v1.0 readiness audit against foundation-criteria doc"
 
 ---
 
-### Task 7: Fix TopHud's mesh tile dead-route bug
+### Task 7: Point the mesh tile at the real mesh view, not the Compute section's default
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/layout/TopHud.tsx:198`
 - Test: `crates/vox-gui/ui/src/components/layout/TopHud.test.tsx` (read existing file first for conventions; if none exists, check `StatusBar.test.tsx` or `Sidebar.test.tsx` for this codebase's render-helper pattern)
 
-Independent leaf fix — read `TopHud.tsx` fresh before editing (confirmed current content while writing this plan, but Task 8/12 will heavily modify this file later in this same plan, so land this fix first and let Task 8 build on top of it, not the other way around).
+**Correction from an earlier draft of this plan**: this was originally described as a "dead-route bug" (claiming `'compute'` doesn't exist as a nav parent). Fidelity review found that claim is FALSE — `'compute'` is a real, working `TOP_LEVEL_VIEWS` entry (`crates/vox-gui/ui/src/lib/navigation.ts:99`) with `DEFAULT_CHILD_BY_PARENT.compute = 'models'` and a full child list (`models, mens, populi, oratio`). Clicking the mesh tile today genuinely navigates to a working "Compute" section (landing on Models) — it is not broken or dead. `StatusBar.tsx`'s own mesh segment has the identical `onNavigate('compute')`, so this is a pre-existing, consistent (if arguably misdirected) design choice across both components, not an isolated defect. The fix below is still worth making — a mesh-peers tile should plausibly land on the actual Mesh view rather than Compute's default (Models) — but it's a **destination improvement**, not a bug fix for something broken. Land it before Task 8, since Task 8 moves this same tile-rendering logic wholesale and should build on the corrected destination.
 
 - [ ] **Step 1: Write the failing test**
 
 ```tsx
-it('mesh tile navigates to the real agents/mesh view, not a nonexistent compute route', () => {
+it('mesh tile navigates to the real agents/mesh view, not the Compute section default', () => {
   const onNavigate = vi.fn();
   render(
     <TopHud
@@ -474,7 +555,7 @@ inside the `case 'mesh_peers':` branch of `renderTile`. Replace with:
 ```tsx
 onClick={() => onNavigate?.('mesh')}
 ```
-(`'mesh'` is the real child view key, resolving via `PARENT_CHILD_MAP`/`resolveNavigation` to `{parent: 'agents', child: 'mesh'}` — confirmed in `lib/navigation.ts` during this session's investigation; there is no `'compute'` top-level parent in this codebase.)
+(`'mesh'` is the real child view key, resolving via `PARENT_CHILD_MAP`/`resolveNavigation` to `{parent: 'agents', child: 'mesh'}` — confirmed in `lib/navigation.ts`. `'compute'` remains a perfectly valid destination for other purposes, e.g. `StatusBar.tsx`'s/`BottomStatusBar.tsx`'s own Model segment still legitimately navigates there — only the *mesh* tile's target is changing here.)
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -485,7 +566,7 @@ Expected: PASS, including all pre-existing tests in this file.
 
 ```bash
 git add crates/vox-gui/ui/src/components/layout/TopHud.tsx crates/vox-gui/ui/src/components/layout/TopHud.test.tsx
-git commit -m "fix(gui): mesh HUD tile navigates to the real agents/mesh view, not a nonexistent compute route"
+git commit -m "fix(gui): mesh HUD tile navigates to the real agents/mesh view instead of Compute's default"
 ```
 
 ---
@@ -570,7 +651,7 @@ Expected: FAIL — `Cannot find module './BottomStatusBar'`.
 
 - [ ] **Step 3: Write the component**
 
-Build `BottomStatusBar.tsx` by combining `StatusBar.tsx`'s compact `Segment` component/layout (one-line, `Glass` row, `h-7`) with `TopHud.tsx`'s full `HudTileKind` switch (all 7 kinds, not just the 5 `StatusBar` shows today — `STATUS_BAR_TILE_KINDS`'s carve-out filter is removed since there's no more separate `TopHud` to own the other two), filtered by `resolveVisibleHudTiles(hudTilesConfig)` instead of a static `visibleTiles` prop:
+Build `BottomStatusBar.tsx` by combining `StatusBar.tsx`'s compact `Segment` component/layout (one-line, `Glass` row, `h-7`) with `TopHud.tsx`'s full `HudTileKind` switch (all 7 kinds). Note precisely where the existing carve-out logic lives, since a prior draft of this task described it inaccurately: `TopHud.tsx` itself defines a local `STATUS_BAR_TILE_KINDS` set (its own file, lines 22-28) used only to filter its OWN rendering, excluding the 5 kinds `StatusBar.tsx` already shows elsewhere — `StatusBar.tsx` has no such constant and no import from `useHudTiles.ts` at all; its 5 segments are separate, hardcoded JSX. Since `BottomStatusBar.tsx` is a single component owning all 7 kinds, `TopHud.tsx`'s `STATUS_BAR_TILE_KINDS` carve-out has nothing left to exclude and is simply not needed in the new component (it dies along with `TopHud.tsx` itself in Task 12, not something to "port over"). Filter the new component by `resolveVisibleHudTiles(hudTilesConfig)` instead of either predecessor's own static approach:
 
 ```tsx
 // crates/vox-gui/ui/src/components/layout/BottomStatusBar.tsx
@@ -860,7 +941,7 @@ git commit -m "feat(gui): add workbench-tabbar-trailing-slot portal target to Bo
 - Modify: `crates/vox-gui/ui/src/components/layout/BottomStatusBar.test.tsx`
 - Read (not modified): `crates/vox-gui/ui/src/components/surfaces/Mesh/MeshView.tsx`
 
-Independent of Tasks 8-10's own landing order in principle (this task's logic could be written standalone), but since it modifies the same `mesh_peers` case in `BottomStatusBar.tsx` that Task 8 first introduces, land it after Task 8 to avoid a merge conflict on the same lines — dispatch it in the same wave as Task 8 but sequence the actual file edit after, or have whichever subagent lands second rebase onto the other's change.
+**Sequenced strictly after Task 8, not parallel with it** — an earlier draft of this plan hedged this as "independent in principle... or have whichever subagent lands second rebase onto the other's change," which design review correctly flagged as a false promise: this task edits the exact `case 'mesh_peers':` block Task 8 introduces in the same file, and asking an isolated subagent (per this plan's subagent-driven-development execution model) to detect a conflict and git-rebase mid-task is not a realistic part of that workflow's remit. Dispatch this task only after Task 8's commit has landed.
 
 - [ ] **Step 1: Read `MeshView.tsx`'s data-fetching fresh**
 
@@ -954,15 +1035,19 @@ Current header block (confirmed live in `AppShell.tsx` while writing this plan):
 Replace with (keeping `BreadcrumbBar` and the command-palette trigger — `TopHud`'s `omnisearch-trigger` button — since those aren't part of what's moving to the bottom; the command palette trigger needs a new small home in this header row, e.g. inline with `BreadcrumbBar`, since `TopHud` is what used to render it):
 
 ```tsx
-<div className="p-4 pb-0 flex items-center justify-between">
-  <BreadcrumbBar viewKey={activeView} onNavigate={onNavigate} gamifyEnabled={gamifyEnabled} />
-  <button type="button" data-testid="omnisearch-trigger" onClick={onOpenCommandPalette ?? onCommand}
-    className="inline-flex items-center gap-1.5 rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-xs text-text-muted hover:border-brass/40 hover:text-brass transition">
+<div className="p-4 pb-0 flex items-center justify-between gap-2">
+  <div className="min-w-0 flex-1 truncate">
+    <BreadcrumbBar viewKey={activeView} onNavigate={onNavigate} gamifyEnabled={gamifyEnabled} />
+  </div>
+  <button type="button" data-testid="omnisearch-trigger" onClick={onOpenCommandPalette}
+    className="shrink-0 inline-flex items-center gap-1.5 rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-xs text-text-muted hover:border-brass/40 hover:text-brass transition">
     <span>Search or jump…</span>
     <span className="rounded border border-border-subtle bg-overlay-subtle px-1 text-[9px] tracking-widest text-text-muted">⌘K</span>
   </button>
 </div>
 ```
+
+(Note the fix from an earlier draft: `onClick={onOpenCommandPalette}` alone, NOT `onOpenCommandPalette ?? onCommand` — fidelity review confirmed `App.tsx`'s `onCommand` prop has exactly one use site, `onCommand={() => setIsCommandOpen(true)}`, functionally identical to `onOpenCommandPalette`; the earlier draft's fallback referenced a prop this same task deletes from `AppShellProps`, which would not compile. Also note `min-w-0`/`truncate` added to the breadcrumb's wrapper and `shrink-0` on the search button — a fresh read of `BreadcrumbBar.tsx` found it has no such guard on its own container, so a deep breadcrumb path in a narrow window could otherwise crowd or push the search button off-screen; this wasn't previously verified.)
 
 Add `<BottomStatusBar>` as a new sibling at the BOTTOM of the shell's `<main>` (after the `chatDocked` block, so it's always the last thing rendered regardless of whether Chat's dock is showing):
 
@@ -989,11 +1074,11 @@ Add `<BottomStatusBar>` as a new sibling at the BOTTOM of the shell's `<main>` (
 </div>
 ```
 
-Update `AppShellProps` accordingly: remove `hudMode`/`setHudMode`/`onCommand`/`visibleTiles` (TopHud-specific, no longer needed — `onOpenCommandPalette` is kept for the relocated search trigger), add `hudTilesConfig: HudTilesConfig`, `onHudTilesChange: (c: HudTilesConfig) => void`, `meshNodes: MeshNode[] | undefined` (type name/shape matching whatever Task 11 actually defined).
+Update `AppShellProps` accordingly: remove `hudMode`/`setHudMode`/`onCommand`/`visibleTiles` (TopHud-specific, no longer needed — `onOpenCommandPalette` is kept for the relocated search trigger and is required, not optional, now that `onCommand` is gone), add `hudTilesConfig: HudTilesConfig`, `onHudTilesChange: (c: HudTilesConfig) => void`, `meshNodes: MeshNode[] | undefined` (type name/shape matching whatever Task 11 actually defined).
 
 - [ ] **Step 2: Update `App.tsx`'s `<AppShell>` call site**
 
-Remove the props no longer accepted (`hudMode`, `setHudMode`, `visibleTiles`, and `onCommand` IF it was only ever used for TopHud — check whether `onCommand` has another consumer in `App.tsx` before removing it entirely, it may still be needed elsewhere e.g. a keybind). Add `hudTilesConfig`/`onHudTilesChange` (already available in `App.tsx` via the existing `useHudTilesConfig()` call, confirmed present in this session's earlier investigation — just pass it through, don't re-derive it). Add `meshNodes` — wire it to whatever hook/state already backs `MeshView.tsx`'s data (if that's currently local to `MeshView.tsx` with no shared hook, extract a minimal `useMeshNodes()` hook so both `MeshView` and this new `AppShell` call site can share one polling loop rather than two independently-polling sources drifting out of sync, per this plan's spec's own explicit requirement).
+Remove the props no longer accepted (`hudMode`, `setHudMode`, `visibleTiles`, `onCommand`). Fidelity review confirmed `onCommand` in `App.tsx` has exactly one use site, `onCommand={() => setIsCommandOpen(true)}` passed to `<AppShell>` (line 1248), functionally identical to the already-present `onOpenCommandPalette` (line 1249) — safe to remove fully, no other consumer to preserve. Add `hudTilesConfig`/`onHudTilesChange` (already available in `App.tsx` via the existing `useHudTilesConfig()` call, confirmed present at `App.tsx:254` — just pass it through, don't re-derive it). Add `meshNodes` — wire it to whatever hook/state already backs `MeshView.tsx`'s data; if that's currently local to `MeshView.tsx` with no shared hook, extract a minimal `useMeshNodes(cadenceMs: number)` hook so both call sites share one data-fetching implementation while polling at DIFFERENT rates, not one shared rate. This matters beyond just avoiding data drift: `BottomStatusBar` is mounted unconditionally in `AppShell.tsx` on every view, for the whole session, whereas `MeshView` only polls while a user is actually looking at the Mesh surface — reusing `MeshView`'s existing 5s cadence unconditionally for the always-mounted bar would mean a permanent, session-long 5s poll of `vox_mesh_nodes`/`vox_mesh_queue_stats` regardless of what the user is doing, a real new steady-state load on the orchestrator daemon that a one-line summary figure doesn't need. Call `useMeshNodes(5_000)` from `MeshView.tsx` (unchanged cadence) and `useMeshNodes(20_000)` from this `AppShell.tsx` call site (a slower, "good enough for a glance" cadence) — same hook, same parsing logic, independently-parameterized polling intervals.
 
 - [ ] **Step 3: Run the full suite, fix any remaining reference**
 
@@ -1019,7 +1104,7 @@ Expected: PASS, clean.
 
 - [ ] **Step 6: Live CDP verification**
 
-Rebuild (`pnpm build` + `cargo build -p vox-gui`), launch with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222`, confirm: the bottom bar renders at the bottom of the window, one line, shows real KPI/mesh data; the Configure ▾ dropdown live-toggles tiles; the Chat surface's Panels ▾ trigger is reachable from its new home (was portaled into `StatusBar.tsx`, now portals into `BottomStatusBar.tsx` via the same DOM id); no duplicate `id="workbench-tabbar-trailing-slot"` warning in the console (confirming Task 10's noted sequencing risk was actually avoided). Screenshot the result.
+Rebuild (`pnpm build` + `cargo build -p vox-gui`), launch with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222`, confirm: the bottom bar renders at the bottom of the window, one line, shows real KPI/mesh data; the Configure ▾ dropdown live-toggles tiles; the Chat surface's Panels ▾ trigger is reachable from its new home (was portaled into `StatusBar.tsx`, now portals into `BottomStatusBar.tsx` via the same DOM id); no duplicate `id="workbench-tabbar-trailing-slot"` warning in the console (confirming Task 10's noted sequencing risk was actually avoided). **Also navigate to a view with the deepest available breadcrumb path (check `breadcrumbsForView` for the longest real chain) at a narrowed window width and confirm the search (⌘K) button doesn't get squeezed off-screen or overlap the breadcrumb** — this specific header-crowding scenario was flagged during design review as asserted-safe-but-unverified in the original design, so it needs a real check here, not an assumption. Screenshot the result.
 
 - [ ] **Step 7: Commit**
 
@@ -1032,10 +1117,24 @@ git commit -m "feat(gui): wire BottomStatusBar into AppShell, retire TopHud and 
 
 ## Self-Review
 
-**Spec coverage** — orchestrator-launch-v1-readiness: CR-U6 promotion → Task 4; broad v1.0 audit → Task 6. build-version-parity: ping reports version → Task 1; GUI detects+warns → Task 2; stale-staged-binary fallback probe → Task 3; CI parity assertion → folded into Task 4 (explicitly noted, not a gap). bottom-status-bar: mesh dead-route fix → Task 7; tile-system consolidation → Task 8; configurability menu → Task 9; Panels ▾ new home → Task 10; richer mesh data → Task 11; final wiring/retirement → Task 12.
+**Spec coverage** — orchestrator-launch-v1-readiness: CR-U6 promotion → Task 4; broad v1.0 audit → Task 6. build-version-parity: ping reports version → Task 1; GUI detects+warns → Task 2; stale-staged-binary fallback probe → Task 3; CI parity assertion → folded into Task 4 (explicitly noted, not a gap). bottom-status-bar: mesh tile destination fix → Task 7; tile-system consolidation → Task 8; configurability menu → Task 9; Panels ▾ new home → Task 10; richer mesh data → Task 11; final wiring/retirement → Task 12.
 
 **Placeholder scan** — every code step shows real, complete code grounded in files read fresh while writing this plan; the few remaining "read fresh and adapt" notes (e.g. Task 2 Step 1's exact `DispatchResponse` payload accessor, Task 11's exact `MeshNode` shape) are explicitly flagged as needing a live read rather than asserted as fact, consistent with this session's established practice for genuinely-unconfirmed details — these are disclosed uncertainties with a concrete resolution instruction, not vague "TBD"s.
 
 **Type consistency** — `HudTilesConfig`/`toggleHudTile`/`resolveVisibleHudTiles`/`HUD_TILE_LABELS` (all pre-existing, confirmed via a fresh read of `useHudTiles.ts`) are used with identical names/shapes across Tasks 8-12. `detect_version_mismatch`/`last_version_mismatch` (Task 2) and `resolve_or_stage_daemon_with_version_hint` (Task 3) are each defined once and reused by name in every later task that touches them (Task 3 explicitly reuses Task 2's `last_version_mismatch` field rather than introducing a second one — called out explicitly in Task 3's own text to prevent exactly the kind of drift this checklist item exists to catch).
 
 **Sequencing risk called out explicitly** — Task 10's note about the duplicate-DOM-id window between landing the new slot and removing the old one is flagged with a concrete mitigation (Task 12 removes `StatusBar.tsx`'s copy as its first step) rather than left as an implicit assumption.
+
+**Adversarial-review corrections applied in this revision** (both a fidelity audit against the real codebase and a design-soundness critique — findings folded in above, not left as a separate addendum):
+- Blocking: Task 1's test sketch used a nonexistent `DispatchResponse` accessor and a wrong `DispatchRequest` field count (5 real fields, not 3) — corrected to the real `result_value()` helper pattern used by every existing test in that file.
+- Blocking: Task 2 assumed an "offline/reconnecting banner" that doesn't exist as a unified component — corrected to build a small, new, dedicated `VersionMismatchBanner.tsx` instead of trying to extend the wrong existing component (`BackendBanner`, which handles an unrelated condition).
+- Blocking: Task 7's original framing ("dead-route bug," `'compute'` doesn't exist) was factually false — `'compute'` is a real, working route; corrected to frame this as a destination improvement, not a bug fix for something broken.
+- Blocking: Task 12's replacement header JSX referenced `onCommand` in the same step that deletes it from `AppShellProps` — wouldn't compile; corrected to use `onOpenCommandPalette` alone, confirmed as a safe, complete replacement (the only other consumer of `onCommand` was functionally identical).
+- Needs-correction: Task 4's local-verification and CI commands used `cargo test`; this repo's real convention (confirmed against multiple existing CI jobs) is `cargo nextest run` — corrected throughout.
+- Needs-correction (also the single highest-confidence design-critique finding): Task 4's required-checks wiring was hedged as "flag as a manual follow-up... if configured outside this file" — the aggregator (`ci-summary:`, `needs:` array) demonstrably exists in this exact file at a citable line; corrected to a firm, unconditional instruction, since skipping it would let the whole task's checkboxes pass while CR-U6 remains exactly as unverified-in-practice as before promotion.
+- Needs-correction: Task 3's test sketch used a `tempfile` dependency this crate doesn't have, and referred to a singular generic `mod tests` block when the real, relevant module is `mod stage_tests` — corrected to match this file's own established temp-dir pattern and module.
+- Needs-correction: Task 8's prose claimed a `STATUS_BAR_TILE_KINDS` filter lives in (and needs removing from) `StatusBar.tsx` — it actually lives in `TopHud.tsx`, filtering `TopHud`'s own rendering; corrected to describe accurately where it lives and why it's simply not needed in the new consolidated component, rather than something to "remove."
+- Design gap: `BottomStatusBar` is always-mounted (unlike `MeshView`, which only polls while viewed) — Task 11/12 now specify a shared `useMeshNodes(cadenceMs)` hook with two different cadences (5s for the focused view, 20s for the always-mounted bar) instead of one shared rate that would otherwise convert a sometimes-poll into a permanent session-long poll.
+- Design gap: the version-string comparison's real limitation (a coarse proxy that rarely fires for the actual "same version, different code" drift scenario this whole effort diagnosed) is now called out explicitly at Task 4's version-parity assertion, rather than presented as fully solving the problem.
+- Design gap: Task 8/11's false promise of parallelism ("rebase onto the other's change") is removed; Task 11 is now flatly sequenced after Task 8 in both its own header and the top-level Execution structure.
+- Design gap: Task 12's header-crowding risk (a deep breadcrumb path + narrow window squeezing the search button) was previously asserted safe with no evidence — now has `min-w-0`/`truncate`/`shrink-0` guards in the actual JSX and an explicit live-CDP check for the deepest real breadcrumb path at a narrowed width.

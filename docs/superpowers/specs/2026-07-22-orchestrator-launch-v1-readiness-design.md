@@ -42,3 +42,5 @@ Investigation found today's "one-daemon" invariant is enforced implicitly (TCP b
 ## Testing
 
 `gui_relaunch_smoke.rs` itself already tests the right thing; this spec's job is making it *run*, in CI, on every relevant PR — verified by confirming the new/extended CI job actually executes it (not just exists) and fails when the test is intentionally broken (a CI-config smoke test of the smoke test, run once during implementation, not kept as a permanent double-test).
+
+**"Required" means wired into the required-checks aggregator, not merely "a job that runs and passes"**: this repo has a real, file-based required-checks gate (`.github/workflows/ci.yml`'s `ci-summary:` job, which fails unless every job in its own `needs:` list succeeded). Adding a new job that builds and runs this test, without also adding that job's name to the aggregator's `needs:` list, would leave CR-U6 exactly as unverified-in-practice as it was before this effort — a green job nobody's merge depends on. Verification of this spec's core claim must include confirming that specific wiring, not just confirming the job's own pass/fail status in isolation.
