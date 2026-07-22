@@ -196,4 +196,11 @@ describe('Sidebar accordion (wide mode only)', () => {
     expect(screen.getByRole('button', { name: /^memory$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^tasks$/i })).not.toBeInTheDocument();
   });
+
+  it('clicking the active parent\'s own chevron collapses its default-expanded children', () => {
+    renderSidebar({ view: 'flow', mode: 'wide' });
+    expect(screen.getByRole('button', { name: /^tasks$/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /collapse agents/i }));
+    expect(screen.queryByRole('button', { name: /^tasks$/i })).not.toBeInTheDocument();
+  });
 });

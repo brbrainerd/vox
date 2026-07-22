@@ -125,13 +125,15 @@ export function Sidebar({
 
   const visibleTopLevel = TOP_LEVEL_VIEWS.filter(k => k !== 'settings');
 
+  // null = no override (show active parent's children).
+  // '' (empty string) = user explicitly collapsed the active parent.
   const [peekedParent, setPeekedParent] = useState<string | null>(null);
 
   useEffect(() => {
     setPeekedParent(null);
   }, [activeParent]);
 
-  const expandedParent = peekedParent ?? activeParent;
+  const expandedParent = peekedParent === '' ? null : peekedParent ?? activeParent;
 
   useEffect(() => {
     activeRef.current?.scrollIntoView({ block: 'nearest' });
@@ -229,7 +231,7 @@ export function Sidebar({
                       type="button"
                       aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${label}`}
                       aria-expanded={isExpanded}
-                      onClick={() => setPeekedParent(isExpanded ? null : key)}
+                      onClick={() => setPeekedParent(isExpanded ? '' : key)}
                       className="flex size-6 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-overlay-hover hover:text-text-primary"
                     >
                       <Icon.chevR className={`size-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} aria-hidden="true" />
