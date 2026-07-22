@@ -14,6 +14,17 @@ import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../lib/domIds';
 
 type KpiState = typeof INITIAL_KPIS;
 
+/** One node row as summarized by the `vox_mesh_nodes` MCP tool (see MeshView.tsx). */
+export interface BottomStatusBarMeshNode {
+  id: string;
+  status: string;
+  host_triple?: string | null;
+  gpu_summary?: string | null;
+  trust_tier?: string | null;
+  advertised_models?: string[];
+  last_seen_unix_ms?: number;
+}
+
 export interface BottomStatusBarProps {
   kpis: KpiState;
   hudTilesConfig: HudTilesConfig;
@@ -25,6 +36,7 @@ export interface BottomStatusBarProps {
   activeModel?: string | null;
   openrouterSpendUsd?: number | null;
   pendingApprovals?: number | null;
+  meshNodes?: BottomStatusBarMeshNode[];
 }
 
 function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
@@ -84,6 +96,7 @@ export function BottomStatusBar({
   activeModel = null,
   openrouterSpendUsd = null,
   pendingApprovals = null,
+  meshNodes,
 }: BottomStatusBarProps) {
   const tone = useFreshness(lastOrchEventAt, {
     freshMs: liveFreshMs,
@@ -157,17 +170,21 @@ export function BottomStatusBar({
             onClick={() => onNavigate('settings')}
           />
         );
-      case 'mesh_peers':
-        // Bare peer count for now — Task 11 upgrades this to online/total or queue-depth.
+      case 'mesh_peers': {
+        const onlineCount = meshNodes?.filter((n) => n.status === 'online').length ?? 0;
+        const totalCount = meshNodes?.length ?? 0;
+        const meshValue =
+          meshNodes == null ? `${kpis.mesh.peers} peers` : `${onlineCount}/${totalCount} online`;
         return (
           <Segment
             key={kind}
             testId="bottom-status-bar-mesh"
             label="Mesh"
-            value={`${kpis.mesh.peers} peers`}
+            value={meshValue}
             onClick={() => onNavigate('mesh')}
           />
         );
+      }
       case 'active_model':
         return (
           <Segment

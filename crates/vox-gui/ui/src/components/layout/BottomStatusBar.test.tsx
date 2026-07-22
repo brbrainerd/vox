@@ -110,4 +110,41 @@ describe('BottomStatusBar', () => {
     );
     expect(document.getElementById(WORKBENCH_TABBAR_TRAILING_SLOT_ID)).toBeInTheDocument();
   });
+
+  it('mesh segment shows online/total node count from real mesh data, not a bare peer count', () => {
+    render(
+      <BottomStatusBar
+        kpis={INITIAL_KPIS}
+        hudTilesConfig={defaultHudTiles()}
+        onHudTilesChange={vi.fn()}
+        onNavigate={vi.fn()}
+        lastOrchEventAt={null}
+        orchUsesPolling={false}
+        liveFreshMs={10_000}
+        meshNodes={[
+          { id: 'n1', status: 'online' },
+          { id: 'n2', status: 'online' },
+          { id: 'n3', status: 'quarantined' },
+        ]}
+      />,
+    );
+    expect(screen.getByTestId('bottom-status-bar-mesh')).toHaveTextContent('2/3 online');
+  });
+
+  it('mesh segment falls back to bare peer count when meshNodes is not supplied', () => {
+    render(
+      <BottomStatusBar
+        kpis={INITIAL_KPIS}
+        hudTilesConfig={defaultHudTiles()}
+        onHudTilesChange={vi.fn()}
+        onNavigate={vi.fn()}
+        lastOrchEventAt={null}
+        orchUsesPolling={false}
+        liveFreshMs={10_000}
+      />,
+    );
+    expect(screen.getByTestId('bottom-status-bar-mesh')).toHaveTextContent(
+      `${INITIAL_KPIS.mesh.peers} peers`,
+    );
+  });
 });
