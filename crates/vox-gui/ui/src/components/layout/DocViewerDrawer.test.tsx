@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DocViewerDrawer } from './DocViewerDrawer';
@@ -49,5 +50,40 @@ describe('DocViewerDrawer', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /close doc overlay/i }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves focus into the drawer on open', () => {
+    render(
+      <DocViewerDrawer doc={{ path: 'docs/foo.md', title: 'Foo Guide' }} onClose={vi.fn()} />,
+    );
+    expect(screen.getByRole('button', { name: 'Close doc' })).toHaveFocus();
+  });
+
+  it('restores focus to the trigger element after close', () => {
+    function Harness() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <div>
+          <button type="button" onClick={() => setOpen(true)}>
+            Open doc
+          </button>
+          <DocViewerDrawer
+            doc={open ? { path: 'docs/foo.md', title: 'Foo Guide' } : null}
+            onClose={() => setOpen(false)}
+          />
+        </div>
+      );
+    }
+
+    render(<Harness />);
+    const trigger = screen.getByRole('button', { name: 'Open doc' });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole('button', { name: 'Close doc' })).toHaveFocus();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close doc' }));
+
+    expect(trigger).toHaveFocus();
   });
 });
