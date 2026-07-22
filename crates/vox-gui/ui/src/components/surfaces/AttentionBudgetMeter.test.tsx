@@ -73,8 +73,11 @@ describe('AttentionBudgetMeter', () => {
     const { rerender } = render(<AttentionBudgetMeter budget={snap} defaultCollapsed />);
     await user.click(screen.getByRole('button', { name: /expand/i }));
     expect(screen.getByText(/Suppressed prompts/)).toBeInTheDocument();
-    // Caller still says "collapse" (e.g. re-render with the same computed
-    // default) — but the user already expanded it manually, so it must stay.
+    // Caller re-computes defaultCollapsed and it actually changes value
+    // (e.g. false -> true) — the user already expanded it manually, so it
+    // must stay expanded regardless.
+    rerender(<AttentionBudgetMeter budget={snap} defaultCollapsed={false} />);
+    expect(screen.getByText(/Suppressed prompts/)).toBeInTheDocument();
     rerender(<AttentionBudgetMeter budget={snap} defaultCollapsed />);
     expect(screen.getByText(/Suppressed prompts/)).toBeInTheDocument();
   });

@@ -744,7 +744,7 @@ describe('ChatSurface', () => {
       resolveApproval: vi.fn(),
       resolveFeedback: vi.fn(),
     } as any;
-    render(
+    const { rerender } = render(
       <LanguageProvider>
         <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} attention={attention} />
       </LanguageProvider>,
@@ -763,7 +763,7 @@ describe('ChatSurface', () => {
     // Force an unrelated re-render — opt-in panels have NO auto-create
     // branch, so this must not bring it back (by construction, not by a
     // closedPanelIds guard, since opt-in panels don't use one).
-    render(
+    rerender(
       <LanguageProvider>
         <ChatSurface
           pushToast={vi.fn()}
@@ -793,7 +793,7 @@ describe('ChatSurface', () => {
 
   it('the VoxGraph panel does not resurrect on the next render after being closed', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
+    const { rerender } = render(
       <LanguageProvider>
         <QueryClientProvider client={client}>
           <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
@@ -814,7 +814,7 @@ describe('ChatSurface', () => {
     // Force an unrelated re-render — opt-in panels have NO auto-create
     // branch, so this must not bring it back (by construction, not by a
     // closedPanelIds guard, since opt-in panels don't use one).
-    render(
+    rerender(
       <LanguageProvider>
         <QueryClientProvider client={client}>
           <ChatSurface
@@ -845,7 +845,7 @@ describe('ChatSurface', () => {
 
   it('the Activity panel does not resurrect on the next render after being closed', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
+    const { rerender } = render(
       <LanguageProvider>
         <QueryClientProvider client={client}>
           <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
@@ -866,7 +866,7 @@ describe('ChatSurface', () => {
     // Force an unrelated re-render — opt-in panels have NO auto-create
     // branch, so this must not bring it back (by construction, not by a
     // closedPanelIds guard, since opt-in panels don't use one).
-    render(
+    rerender(
       <LanguageProvider>
         <QueryClientProvider client={client}>
           <ChatSurface
@@ -897,7 +897,7 @@ describe('ChatSurface', () => {
 
   it('the Repository panel does not resurrect on the next render after being closed', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
+    const { rerender } = render(
       <LanguageProvider>
         <QueryClientProvider client={client}>
           <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
@@ -918,7 +918,7 @@ describe('ChatSurface', () => {
     // Force an unrelated re-render — opt-in panels have NO auto-create
     // branch, so this must not bring it back (by construction, not by a
     // closedPanelIds guard, since opt-in panels don't use one).
-    render(
+    rerender(
       <LanguageProvider>
         <QueryClientProvider client={client}>
           <ChatSurface
@@ -949,7 +949,7 @@ describe('ChatSurface', () => {
 
   it('the Mercatus panel does not resurrect on the next render after being closed', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
+    const { rerender } = render(
       <LanguageProvider>
         <QueryClientProvider client={client}>
           <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
@@ -970,7 +970,7 @@ describe('ChatSurface', () => {
     // Force an unrelated re-render — opt-in panels have NO auto-create
     // branch, so this must not bring it back (by construction, not by a
     // closedPanelIds guard, since opt-in panels don't use one).
-    render(
+    rerender(
       <LanguageProvider>
         <QueryClientProvider client={client}>
           <ChatSurface
@@ -1038,7 +1038,7 @@ describe('ChatSurface', () => {
 
   it('the Harness panel does not resurrect on the next render after being closed', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
+    const { rerender } = render(
       <LanguageProvider>
         <QueryClientProvider client={client}>
           <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
@@ -1059,7 +1059,7 @@ describe('ChatSurface', () => {
     // Force an unrelated re-render — opt-in panels have NO auto-create
     // branch, so this must not bring it back (by construction, not by a
     // closedPanelIds guard, since opt-in panels don't use one).
-    render(
+    rerender(
       <LanguageProvider>
         <QueryClientProvider client={client}>
           <ChatSurface
