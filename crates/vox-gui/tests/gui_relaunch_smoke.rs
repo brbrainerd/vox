@@ -67,8 +67,19 @@ async fn gui_relaunch_boots_daemon_and_core_surfaces_respond() {
     // (2) Relaunch the real daemon binary exactly as PersistentDaemon::ensure does.
     let addr = free_loopback_addr();
     let bin = resolve_managed_binary_path("vox-orchestrator-d");
+
+    // Generate a token ourselves and inject it into the child's environment —
+    // this is the same idiom `PersistentDaemon::ensure`
+    // (`crates/vox-gui/src/commands/daemon.rs`) and every other daemon-spawn
+    // test in this repo use (e.g. `orchestrator_daemon_accepts_correct_token`
+    // in `orchestrator_daemon_tcp.rs`, `stdio_daemon_routing_tests.rs`). It
+    // avoids a race with reading the daemon's token file before the daemon
+    // has written it: `OrchDaemonClient::with_token` lets the client
+    // authenticate immediately, with no dependency on file-write timing.
+    let spawned_token = uuid::Uuid::new_v4().to_string();
     let child = Command::new(&bin)
         .env("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr)
+        .env("VOX_ORCHESTRATOR_DAEMON_TOKEN", &spawned_token)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -76,25 +87,21 @@ async fn gui_relaunch_boots_daemon_and_core_surfaces_respond() {
         .unwrap_or_else(|e| panic!("failed to spawn daemon {}: {e}", bin.display()));
     let _guard = DaemonGuard(child);
 
-    // `OrchDaemonClient::new` reads the daemon's well-known auth-token file
-    // once, at construction. The freshly-spawned daemon above may not have
-    // written its own (fresh) token yet, so constructing the client once,
-    // outside the poll loop, races the daemon's startup: a client built too
-    // early caches a missing/stale token and then never authenticates, no
-    // matter how long the loop retries. Re-resolve a fresh client each
-    // attempt so it keeps picking up the daemon's token once written.
+    let client = OrchDaemonClient::with_token(addr.clone(), spawned_token);
+
+    // Poll until the daemon process is actually listening and answering —
+    // no token-file race is involved here, just normal process startup time.
     let deadline = Instant::now() + Duration::from_secs(20);
-    let client = loop {
-        let candidate = OrchDaemonClient::new(addr.clone());
-        if candidate.ping().await.is_ok() {
-            break candidate;
+    loop {
+        if client.ping().await.is_ok() {
+            break;
         }
         assert!(
             Instant::now() < deadline,
             "daemon never became reachable at {addr}"
         );
         tokio::time::sleep(Duration::from_millis(150)).await;
-    };
+    }
 
     // Core read RPCs respond.
     let _status = client
