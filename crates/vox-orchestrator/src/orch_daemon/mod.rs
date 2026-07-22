@@ -379,6 +379,7 @@ pub async fn dispatch_request(
                 "ok": true,
                 "repository_id": repository_id,
                 "protocol": "vox.orchestrator_daemon/v1",
+                "version": env!("CARGO_PKG_VERSION"),
             }),
         ),
         orch_daemon_method::WORKSPACE_JOURNEY => {
@@ -1183,6 +1184,23 @@ mod isolation_dispatch_tests {
         )
         .await;
         assert!(matches!(resp.payload, DispatchPayload::Error { .. }));
+    }
+
+    #[tokio::test]
+    async fn ping_response_includes_the_running_binary_version() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(orch_daemon_method::PING, serde_json::json!({})),
+        )
+        .await;
+        let value = result_value(&resp);
+        assert_eq!(
+            value.get("version").and_then(|v| v.as_str()),
+            Some(env!("CARGO_PKG_VERSION")),
+            "ping response must report the running daemon's own workspace version"
+        );
     }
 }
 
