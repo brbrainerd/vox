@@ -16,7 +16,6 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
-chrono = { workspace = true }
 vox-bounded-fs = { workspace = true }
 workspace-hack = { workspace = true }
 vox-compiler = { workspace = true }

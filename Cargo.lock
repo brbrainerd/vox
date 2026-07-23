@@ -15915,7 +15915,6 @@ name = "vox-doc-pipeline"
 version = "0.6.0"
 dependencies = [
  "anyhow",
- "chrono",
  "rayon",
  "serde_json",
  "vox-bounded-fs",
