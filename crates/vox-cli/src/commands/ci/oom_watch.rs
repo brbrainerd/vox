@@ -330,7 +330,7 @@ pub fn oom_comment_body(event: &OomEvent, job_name: &str, run_id: u64) -> String
 /// Post `body` as a comment on PR `pr_number`. No-op (prints instead) when
 /// `dry_run` — mirrors this command's existing `--apply`-gated mutation
 /// pattern (`reap`, `deregister` etc. in `runner_scale.rs`).
-fn post_pr_comment(pr_number: u64, body: &str, dry_run: bool) -> Result<()> {
+pub(crate) fn post_pr_comment(pr_number: u64, body: &str, dry_run: bool) -> Result<()> {
     if dry_run {
         println!("[dry-run] would comment on PR #{pr_number}:\n{body}");
         return Ok(());
