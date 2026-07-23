@@ -209,7 +209,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          existing=$(gh issue list --repo "${{ github.repository }}" --label docs-deploy-broken --state open --json number --jq '.[0].number')
+          gh label create docs-deploy-broken --color d73a4a --description "docs-deploy.yml is failing on main" --repo "${{ github.repository }}" 2>/dev/null || true
+          existing=$(gh issue list --repo "${{ github.repository }}" --label docs-deploy-broken --state open --json number --jq '.[0].number // empty')
           body="docs-deploy.yml failed on main. Latest failing run: ${RUN_URL}"
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --repo "${{ github.repository }}" --body "$body"
