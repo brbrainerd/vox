@@ -977,10 +977,14 @@ pub fn run_scale(apply: bool) -> Result<()> {
             &prev,
         );
         for name in &blocked {
+            let corroborated_busy = job_rows_for_reap_check
+                .as_deref()
+                .is_some_and(|rows| is_corroborated_busy(name, rows));
+            let two_tick_eligible = eligible_for_scale_down_reap(name, &prev);
             println!(
-                "runner-scale: scale-down reap of {name} blocked (corroborated busy or not yet \
-                 2-tick eligible) — leaving it idle-tracked rather than reaping or silently \
-                 dropping its state"
+                "runner-scale: scale-down reap of {name} blocked \
+                 (corroborated_busy={corroborated_busy}, two_tick_eligible={two_tick_eligible}) \
+                 — leaving it idle-tracked rather than reaping or silently dropping its state"
             );
         }
         for name in &actually_reaped {
@@ -1315,6 +1319,122 @@ mod tests {
         // SOMEWHERE (to_reap union blocked = reap_set), never silently dropped.
         let accounted: HashSet<String> = to_reap.union(&blocked).cloned().collect();
         assert_eq!(&accounted, &reap_set);
+    }
+
+    #[test]
+    fn partition_scale_down_candidates_empty_reap_set_returns_empty() {
+        let reap_set: HashSet<String> = HashSet::new();
+        let prev: HashMap<String, i64> = HashMap::new();
+
+        let (to_reap, blocked) = partition_scale_down_candidates(&reap_set, None, &prev);
+
+        assert!(to_reap.is_empty());
+        assert!(blocked.is_empty());
+    }
+
+    #[test]
+    fn partition_scale_down_candidates_none_job_rows_never_corroborated_busy() {
+        // job_rows = None models the fetch-skipped/degraded fallback path: the
+        // corroborated-busy signal must always evaluate false in that mode, so
+        // the outcome is driven purely by 2-tick eligibility.
+        let mut reap_set = HashSet::new();
+        reap_set.insert("vox-runner-auto-eligible-0".to_string());
+        reap_set.insert("vox-runner-auto-ineligible-0".to_string());
+
+        let mut prev = HashMap::new();
+        prev.insert("vox-runner-auto-eligible-0".to_string(), 1_000);
+        // "ineligible-0" deliberately absent from `prev`.
+
+        let (to_reap, blocked) = partition_scale_down_candidates(&reap_set, None, &prev);
+
+        assert!(to_reap.contains("vox-runner-auto-eligible-0"));
+        assert!(!blocked.contains("vox-runner-auto-eligible-0"));
+        assert!(blocked.contains("vox-runner-auto-ineligible-0"));
+        assert!(!to_reap.contains("vox-runner-auto-ineligible-0"));
+    }
+
+    #[test]
+    fn partition_scale_down_candidates_multiple_all_blocked() {
+        let mut reap_set = HashSet::new();
+        reap_set.insert("vox-runner-auto-a-0".to_string());
+        reap_set.insert("vox-runner-auto-b-0".to_string());
+        reap_set.insert("vox-runner-auto-c-0".to_string());
+
+        // All three corroborated-busy via job rows; none in `prev` either, so
+        // both signals would block them independently.
+        let job_rows = vec![
+            crate::commands::ci::oom_watch::JobRow {
+                runner_name: "vox-runner-auto-a-0".to_string(),
+                job_name: "docs-quality".to_string(),
+                run_id: 1,
+                pr_number: 460,
+            },
+            crate::commands::ci::oom_watch::JobRow {
+                runner_name: "vox-runner-auto-b-0".to_string(),
+                job_name: "unit-tests".to_string(),
+                run_id: 2,
+                pr_number: 460,
+            },
+            crate::commands::ci::oom_watch::JobRow {
+                runner_name: "vox-runner-auto-c-0".to_string(),
+                job_name: "clippy".to_string(),
+                run_id: 3,
+                pr_number: 460,
+            },
+        ];
+        let prev: HashMap<String, i64> = HashMap::new();
+
+        let (to_reap, blocked) =
+            partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
+
+        assert!(to_reap.is_empty());
+        assert_eq!(blocked, reap_set);
+    }
+
+    #[test]
+    fn partition_scale_down_candidates_multiple_all_clean() {
+        let mut reap_set = HashSet::new();
+        reap_set.insert("vox-runner-auto-a-0".to_string());
+        reap_set.insert("vox-runner-auto-b-0".to_string());
+        reap_set.insert("vox-runner-auto-c-0".to_string());
+
+        // No job rows match any of the names, and all are 2-tick eligible.
+        let job_rows: Vec<crate::commands::ci::oom_watch::JobRow> = Vec::new();
+        let mut prev = HashMap::new();
+        prev.insert("vox-runner-auto-a-0".to_string(), 1_000);
+        prev.insert("vox-runner-auto-b-0".to_string(), 1_100);
+        prev.insert("vox-runner-auto-c-0".to_string(), 1_200);
+
+        let (to_reap, blocked) =
+            partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
+
+        assert_eq!(to_reap, reap_set);
+        assert!(blocked.is_empty());
+    }
+
+    #[test]
+    fn partition_scale_down_candidates_busy_and_ineligible_still_blocked_once() {
+        // A name that is BOTH corroborated-busy AND not-yet-2-tick-eligible
+        // simultaneously must still land in `blocked` exactly once (OR logic),
+        // never double-counted or miscategorized into `to_reap`.
+        let mut reap_set = HashSet::new();
+        reap_set.insert("vox-runner-auto-both-0".to_string());
+
+        let job_rows = vec![crate::commands::ci::oom_watch::JobRow {
+            runner_name: "vox-runner-auto-both-0".to_string(),
+            job_name: "docs-quality".to_string(),
+            run_id: 1,
+            pr_number: 460,
+        }];
+        // Absent from `prev` => not 2-tick eligible either.
+        let prev: HashMap<String, i64> = HashMap::new();
+
+        let (to_reap, blocked) =
+            partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
+
+        assert!(!to_reap.contains("vox-runner-auto-both-0"));
+        assert_eq!(blocked.len(), 1);
+        assert!(blocked.contains("vox-runner-auto-both-0"));
     }
 
     #[test]
