@@ -40,8 +40,25 @@ fn write_seen(seen: &[String]) {
     if let Some(parent) = p.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    if let Ok(s) = serde_json::to_string_pretty(seen) {
-        let _ = std::fs::write(p, s);
+    match serde_json::to_string_pretty(seen) {
+        Ok(s) => {
+            if let Err(e) = std::fs::write(&p, s) {
+                eprintln!(
+                    "runner-scale: failed to write unexpected-exit seen-state to {}: {e:#} — a \
+                     duplicate PR comment may follow next tick since this event couldn't be \
+                     persisted as seen",
+                    p.display()
+                );
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "runner-scale: failed to serialize unexpected-exit seen-state for {}: {e:#} — a \
+                 duplicate PR comment may follow next tick since this event couldn't be \
+                 persisted as seen",
+                p.display()
+            );
+        }
     }
 }
 
@@ -78,8 +95,23 @@ fn write_running_seen(names: &HashSet<String>) {
     if let Some(parent) = p.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    if let Ok(s) = serde_json::to_string_pretty(names) {
-        let _ = std::fs::write(p, s);
+    match serde_json::to_string_pretty(names) {
+        Ok(s) => {
+            if let Err(e) = std::fs::write(&p, s) {
+                eprintln!(
+                    "runner-scale: failed to write running-container snapshot to {}: {e:#} — \
+                     next tick's running→exited diff may be computed against a stale snapshot",
+                    p.display()
+                );
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "runner-scale: failed to serialize running-container snapshot for {}: {e:#} — \
+                 next tick's running→exited diff may be computed against a stale snapshot",
+                p.display()
+            );
+        }
     }
 }
 
@@ -152,6 +184,14 @@ pub fn inspect_exit_code(container_name: &str) -> Option<i64> {
 /// same tick) — never double-report the same death under two framings.
 /// `job_rows`: the tick's shared jobs-API fetch — this function never
 /// fetches its own copy.
+/// Cap on how many fresh unexpected-exit events get correlated (and potentially posted) in
+/// a single tick. Mirrors `oom_watch::OOM_FAN_OUT_MAX`: a storm of exits (e.g. many runners
+/// dying at once from a Docker daemon restart) shouldn't fan out into dozens of sequential
+/// `gh api` calls inside one already-busy, time-boxed tick (the host's Task Scheduler entry
+/// kills the whole process past 2 minutes). Events past the cap are left unmarked-seen and
+/// simply get picked up on a later tick — nothing is dropped, just spread out.
+const UNEXPECTED_EXIT_FAN_OUT_MAX: usize = 5;
+
 pub fn scan_and_report_unexpected_exits(
     curr_running: &HashSet<String>,
     already_oom_claimed: &HashSet<String>,
@@ -170,6 +210,7 @@ pub fn scan_and_report_unexpected_exits(
         .iter()
         .filter(|name| !seen.iter().any(|s| s == *name))
         .filter(|name| !already_oom_claimed.contains(name.as_str()))
+        .take(UNEXPECTED_EXIT_FAN_OUT_MAX)
         .collect();
     if fresh.is_empty() {
         return Ok(0);
@@ -249,5 +290,34 @@ mod tests {
         assert!(body.contains("busy") && body.contains("lag"));
         assert!(body.contains("external cause"));
         assert!(body.contains("cannot distinguish"));
+    }
+
+    #[test]
+    fn full_pipeline_finds_correlates_and_composes_a_correct_comment() {
+        let prev_running: HashSet<String> = ["vox-runner-auto-abc123-0", "vox-runner-auto-zzz-9"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let curr_running: HashSet<String> = ["vox-runner-auto-zzz-9"].iter().map(|s| s.to_string()).collect();
+        let job_rows = vec![JobRow {
+            runner_name: "vox-runner-auto-abc123-0".to_string(),
+            job_name: "Lints (clippy + rustdoc)".to_string(),
+            run_id: 28861698905,
+            pr_number: 440,
+        }];
+
+        // 1. find: which container transitioned running -> exited.
+        let exited = newly_exited(&prev_running, &curr_running);
+        assert_eq!(exited, vec!["vox-runner-auto-abc123-0".to_string()]);
+
+        // 2. correlate: container name -> job row.
+        let matched = find_matching_job(&job_rows, &exited[0]).expect("job matched");
+        assert_eq!(matched.job_name, "Lints (clippy + rustdoc)");
+
+        // 3. compose: final comment body is correct.
+        let body = unexpected_exit_comment_body(&exited[0], &matched.job_name, matched.run_id, 137);
+        assert!(body.contains("Lints (clippy + rustdoc)"));
+        assert!(body.contains("28861698905"));
+        assert!(body.contains("vox-runner-auto-abc123-0"));
     }
 }
