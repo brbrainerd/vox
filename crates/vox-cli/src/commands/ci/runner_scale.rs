@@ -865,22 +865,72 @@ pub fn run_scale(apply: bool) -> Result<()> {
         lock.refresh(now_secs());
     }
 
-    // 0.5. OOM-visibility: detect any runner container hard-killed by its own
-    //      memory cgroup limit since the last tick, and comment on the affected
-    //      PR/run directly — the job itself can't self-report, since its whole
-    //      execution environment (the runner agent process) died with the
-    //      container. Apply-only: a read-only dry-run monitoring invocation must
-    //      stay cheap and side-effect-free (this file's own doc comment already
-    //      promises dry-run is "safe to run concurrently for monitoring"), which
-    //      this scan's dmesg/docker/gh IO chain would no longer be true of if it
-    //      ran unconditionally.
+    // 0.5/0.6. Shared jobs-API fetch, done ONCE per apply-tick and threaded
+    // to every consumer that needs it this tick (OOM-visibility,
+    // unexpected-exit-visibility, and Task 3's reap-hardening later in this
+    // same tick) -- consolidated here (rather than each consumer fetching
+    // its own copy) specifically to avoid fanning out to multiple
+    // independent multi-call gh api sequences in one tick, which adversarial
+    // review flagged as a real rate-limit risk concentrated exactly during
+    // incident conditions (a dying runner tends to trigger several of these
+    // checks in the same tick).
+    //
+    // Apply-only: a read-only dry-run monitoring invocation must stay cheap
+    // and side-effect-free (this file's own doc comment already promises
+    // dry-run is "safe to run concurrently for monitoring"), which these
+    // scans' dmesg/docker/gh IO chains would no longer be true of if they
+    // ran unconditionally.
+    let mut oom_claimed_names: HashSet<String> = HashSet::new();
+    let mut unexpected_exit_reported = 0u32;
+    let mut shared_job_rows: Option<Vec<super::oom_watch::JobRow>> = None;
     if apply {
-        let oom_reported = super::oom_watch::scan_and_report_oom_events(now).unwrap_or_else(|e| {
-            eprintln!("runner-scale: OOM-visibility scan skipped (degraded): {e:#}");
-            0
-        });
-        if oom_reported > 0 {
-            println!("runner-scale: reported {oom_reported} OOM-killed job(s) this tick");
+        match super::oom_watch::fetch_recent_job_rows() {
+            Ok(rows) => shared_job_rows = Some(rows),
+            Err(e) => eprintln!(
+                "runner-scale: shared jobs-API fetch failed this tick (OOM-visibility, \
+                 unexpected-exit-visibility, and reap-hardening all degrade to their fallback \
+                 behavior this tick): {e:#}"
+            ),
+        }
+        // A real multi-call gh api sequence just ran -- refresh the lock's
+        // heartbeat immediately, same as every other IO-heavy step in this
+        // tick already does, so a slow fetch here can't let a concurrent
+        // invocation see the lock as stale and steal it.
+        if let Some(lock) = _lock.as_ref() {
+            lock.refresh(now_secs());
+        }
+    }
+
+    if apply && let Some(rows) = shared_job_rows.as_deref() {
+        // OOM-visibility: detect any runner container hard-killed by its own
+        // memory cgroup limit since the last tick, and comment on the affected
+        // PR/run directly — the job itself can't self-report, since its whole
+        // execution environment (the runner agent process) died with the
+        // container.
+        match super::oom_watch::scan_and_report_oom_events(now, rows) {
+            Ok((oom_reported, claimed)) => {
+                oom_claimed_names = claimed;
+                if oom_reported > 0 {
+                    println!("runner-scale: reported {oom_reported} OOM-killed job(s) this tick");
+                }
+            }
+            Err(e) => eprintln!("runner-scale: OOM-visibility scan skipped (degraded): {e:#}"),
+        }
+
+        // Unexpected-exit visibility: detect any managed container that
+        // transitioned running->exited since the last tick while its
+        // assigned job was still in_progress (not a normal ephemeral
+        // job-complete exit, not already claimed by the OOM scan above).
+        // MUST run before step 1's cleanup below removes exited containers
+        // -- docker inspect can't read an exit code from a pruned container.
+        let curr_running: HashSet<String> = managed_containers("running").into_iter().collect();
+        match super::unexpected_exit_watch::scan_and_report_unexpected_exits(
+            &curr_running,
+            &oom_claimed_names,
+            rows,
+        ) {
+            Ok(n) => unexpected_exit_reported = n,
+            Err(e) => eprintln!("runner-scale: unexpected-exit scan skipped (degraded): {e:#}"),
         }
     }
 
@@ -930,36 +980,17 @@ pub fn run_scale(apply: bool) -> Result<()> {
     let desired = desired_runner_count(demand, max, warm);
     let total_keep = busy_count + idle_runners.len() as u32 + starting_count;
 
-    // Fetched once per tick and shared across both reap-hardening checks
-    // below (scale-down and idle-timeout), only when there's at least one
-    // idle-classified runner that might be reaped — an empty fleet or a
-    // fleet with no idle runners this tick has nothing to corroborate,
-    // so this avoids an unconditional extra `gh api` call every single tick.
-    // (A later task folds this into a single tick-wide fetch shared with the
-    // OOM/unexpected-exit scanners — this is a self-contained first version.)
-    let job_rows_for_reap_check: Option<Vec<super::oom_watch::JobRow>> = if !idle_runners.is_empty()
-    {
-        match super::oom_watch::fetch_recent_job_rows() {
-            Ok(rows) => Some(rows),
-            Err(e) => {
-                eprintln!(
-                    "runner-scale: reap-hardening jobs-API corroboration skipped (degraded, \
-                     falling back to runners-API busy flag alone this tick): {e:#}"
-                );
-                None
-            }
-        }
-    } else {
-        None
-    };
-    // This fetch can be a real multi-call gh api fan-out (see
-    // fetch_recent_job_rows's own doc comment) — refresh the scale lock's
-    // heartbeat immediately after it, the same way the OOM-visibility step
-    // already does around its own IO, so a slow tick here doesn't let a
-    // concurrent invocation see the lock as stale and steal it.
-    if let Some(lock) = _lock.as_ref() {
-        lock.refresh(now_secs());
-    }
+    // Reuses the tick's single shared jobs-API fetch (see the top of this
+    // tick's apply block) rather than fetching its own copy -- one
+    // consistent snapshot for the whole tick, and closes the multi-fetch
+    // rate-limit concern entirely.
+    //
+    // NOTE: shared_job_rows is only populated when apply=true -- in a
+    // dry-run tick, the corroborating-busy check below always sees None and
+    // degrades to using only the 2-tick eligibility check, which still runs
+    // and is still meaningful for a dry-run preview. This is a deliberate,
+    // disclosed dry-run behavior difference, not a bug.
+    let job_rows_for_reap_check: Option<&[super::oom_watch::JobRow]> = shared_job_rows.as_deref();
 
     let mut reaped_scale_down = 0u32;
     if total_keep > desired {
@@ -973,12 +1004,11 @@ pub fn run_scale(apply: bool) -> Result<()> {
         let reap_set: HashSet<String> = to_reap.into_iter().collect();
         let (actually_reaped, blocked) = partition_scale_down_candidates(
             &reap_set,
-            job_rows_for_reap_check.as_deref(),
+            job_rows_for_reap_check,
             &prev,
         );
         for name in &blocked {
             let corroborated_busy = job_rows_for_reap_check
-                .as_deref()
                 .is_some_and(|rows| is_corroborated_busy(name, rows));
             let two_tick_eligible = eligible_for_scale_down_reap(name, &prev);
             println!(
@@ -1005,7 +1035,6 @@ pub fn run_scale(apply: bool) -> Result<()> {
     for (name, idle_since) in &idle_runners {
         if should_reap_idle(*idle_since, now, reap_secs) {
             let corroborated_busy = job_rows_for_reap_check
-                .as_deref()
                 .is_some_and(|rows| is_corroborated_busy(name, rows));
             if corroborated_busy {
                 println!(
@@ -1107,6 +1136,7 @@ pub fn run_scale(apply: bool) -> Result<()> {
         "runner-scale: dry_run={dry_run} queued_jobs={demand} keep={keep} desired={desired} \
          spawned={spawn} reaped_scale_down={reaped_scale_down} reaped_idle={reaped} \
          pruned_phantom={pruned} cleaned_exited={dead} \
+         unexpected_exits_reported={unexpected_exit_reported} \
          (max={max}, warm={warm}, idle_reap={reap_secs}s, ephemeral)"
     );
     Ok(())

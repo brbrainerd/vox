@@ -15,7 +15,7 @@
 //! Top-level entrypoint: [`scan_and_report_oom_events`], called from the
 //! autoscaler's `--apply` tick in `runner_scale.rs`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, anyhow};
@@ -365,8 +365,15 @@ const OOM_FAN_OUT_MAX: usize = 5;
 /// successful post rather than batched at the end, so a process kill mid-tick (the
 /// host's Task Scheduler entry force-stops a tick past 2 minutes) can't cause the
 /// next tick to re-post a duplicate for an event that already succeeded. Returns the
-/// count of successfully reported events.
-pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
+/// count of successfully reported events, plus the set of container names that were
+/// successfully claimed/reported this tick (so callers can exclude them from other
+/// per-tick scans, e.g. unexpected-exit visibility, that would otherwise double-report
+/// the same dead container under a different cause).
+///
+/// `job_rows` is the tick's shared jobs-API snapshot, fetched once by the caller and
+/// threaded to every per-tick consumer that needs it — this function no longer fetches
+/// its own copy.
+pub fn scan_and_report_oom_events(now: i64, job_rows: &[JobRow]) -> Result<(u32, HashSet<String>)> {
     let dmesg_out = quiet_command("wsl")
         .args(["-e", "dmesg", "-T"])
         .output()
@@ -403,7 +410,7 @@ pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
         .take(OOM_FAN_OUT_MAX)
         .collect();
     if fresh.is_empty() {
-        return Ok(0);
+        return Ok((0, HashSet::new()));
     }
 
     // The cgroup id dmesg reports (oom_memcg=/docker/<id>) and the container id
@@ -413,12 +420,8 @@ pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
     let events_text = fetch_recent_container_events(now)?;
     let names = parse_container_names(&events_text);
 
-    // Fetched once per tick and shared across every fresh event below via
-    // find_matching_job, instead of each event independently re-fetching the
-    // same run/job listing — see fetch_recent_job_rows's doc comment.
-    let job_rows = fetch_recent_job_rows()?;
-
     let mut reported = 0u32;
+    let mut claimed: HashSet<String> = HashSet::new();
     let mut seen_so_far = seen;
     for event in fresh {
         let Some(container_name) = names.get(&event.cgroup_id) else {
@@ -435,7 +438,7 @@ pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
         // one dispatched job, then self-deregisters and exits — see the module doc
         // at the top of runner_scale.rs), so a container name is never reused across
         // two different jobs. There is no second job it could be misattributed to.
-        let Some(m) = find_matching_job(&job_rows, container_name) else {
+        let Some(m) = find_matching_job(job_rows, container_name) else {
             eprintln!(
                 "runner-scale: OOM on {container_name} — no PR-triggered job match found \
                  in recent runs; will retry next tick"
@@ -446,6 +449,7 @@ pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
         match post_pr_comment(m.pr_number, &body, false) {
             Ok(()) => {
                 reported += 1;
+                claimed.insert(container_name.clone());
                 // Persist immediately: only ever mark an event seen right after
                 // its post actually succeeded, and do it before moving on to
                 // the next event so a mid-loop process kill can't leave a
@@ -459,7 +463,7 @@ pub fn scan_and_report_oom_events(now: i64) -> Result<u32> {
         }
     }
 
-    Ok(reported)
+    Ok((reported, claimed))
 }
 
 #[cfg(test)]
