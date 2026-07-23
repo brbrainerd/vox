@@ -175,8 +175,7 @@ pub fn should_reap_idle(idle_since: Option<i64>, now: i64, timeout: i64) -> bool
 /// 2-consecutive-tick evidence `zombies_for_force_cancel` already requires
 /// for a different reap decision in this file, for the same reason: "a
 /// single ... sample is insufficient" (see that function's doc comment).
-/// Not yet wired into the reap path itself — see the implementation plan's
-/// Task 3, which gates the scale-down reap on this check.
+/// Wired into the scale-down reap path via `partition_scale_down_candidates`.
 pub fn eligible_for_scale_down_reap(runner_name: &str, prev: &HashMap<String, i64>) -> bool {
     prev.contains_key(runner_name)
 }
@@ -424,12 +423,11 @@ fn runner_rows() -> Result<Vec<RunnerRow>> {
 }
 
 /// True when `runner_name` is assigned to an `in_progress` job per a fresh,
-/// independent jobs-API lookup — intended to corroborate (or refute) the
-/// `runners` API's own `busy` flag before ever reaping a runner classified
-/// idle by that flag, since the flag is known to lag briefly behind a
-/// runner actually starting a job. Not yet wired into the reap path itself
-/// (see the implementation plan's Task 3, which gates both reap paths on
-/// this check) — this is the standalone, unit-tested pure-logic piece.
+/// independent jobs-API lookup — corroborates (or refutes) the `runners`
+/// API's own `busy` flag before ever reaping a runner classified idle by
+/// that flag, since the flag is known to lag briefly behind a runner
+/// actually starting a job. Wired into both reap paths (scale-down via
+/// `partition_scale_down_candidates`, idle-timeout inline).
 pub fn is_corroborated_busy(runner_name: &str, job_rows: &[super::oom_watch::JobRow]) -> bool {
     super::oom_watch::find_matching_job(job_rows, runner_name).is_some()
 }
