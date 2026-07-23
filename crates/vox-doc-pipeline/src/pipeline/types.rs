@@ -55,4 +55,6 @@ pub enum LintKind {
         git_tip: String,
         delta_days: i64,
     },
+    /// A hand-authored `last_updated:` key is present at all; the pipeline derives this from Git.
+    HandAuthoredLastUpdated,
 }

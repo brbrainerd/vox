@@ -486,6 +486,12 @@ fn lint_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintError>) {
             }
         } else if line.starts_with("training_rationale:") {
             saw_training_rationale = true;
+        } else if line.starts_with("last_updated:") {
+            errors.push(LintError {
+                file: path.to_owned(),
+                line: line_no,
+                kind: LintKind::HandAuthoredLastUpdated,
+            });
         }
     }
 
@@ -589,6 +595,33 @@ mod tests {
             errs.iter()
                 .any(|e| matches!(e.kind, LintKind::DuplicateFrontmatter { .. })),
             "expected duplicate frontmatter lint, got {errs:?}"
+        );
+    }
+
+    #[test]
+    fn hand_authored_last_updated_is_a_hard_error() {
+        let mut errs = Vec::new();
+        let md_path = Path::new("fixture.md");
+        let content = "---\ntitle: \"Fixture\"\ndescription: \"A fixture page for testing.\"\ncategory: \"Concepts\"\nlast_updated: \"2026-05-05\"\n---\n\nBody.\n";
+        lint_frontmatter(md_path, content, &mut errs);
+        assert!(
+            errs.iter()
+                .any(|e| matches!(e.kind, LintKind::HandAuthoredLastUpdated)),
+            "expected a HandAuthoredLastUpdated error, got: {errs:?}"
+        );
+    }
+
+    #[test]
+    fn frontmatter_without_last_updated_is_clean() {
+        let mut errs = Vec::new();
+        let md_path = Path::new("fixture.md");
+        let content = "---\ntitle: \"Fixture\"\ndescription: \"A fixture page for testing.\"\ncategory: \"Concepts\"\n---\n\nBody.\n";
+        lint_frontmatter(md_path, content, &mut errs);
+        assert!(
+            !errs
+                .iter()
+                .any(|e| matches!(e.kind, LintKind::HandAuthoredLastUpdated)),
+            "did not expect a HandAuthoredLastUpdated error, got: {errs:?}"
         );
     }
 

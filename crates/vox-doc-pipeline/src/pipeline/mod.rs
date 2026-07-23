@@ -57,6 +57,7 @@ fn workflow_for_kind(kind: &LintKind) -> &'static str {
             "make the ```vox block compile, or annotate it `// vox:skip` with a reason"
         }
         LintKind::LastUpdatedStale { .. } => "refresh the `last_updated:` frontmatter date",
+        LintKind::HandAuthoredLastUpdated => "remove the hand-authored last_updated key",
     }
 }
 
@@ -79,6 +80,7 @@ fn kind_label(kind: &LintKind) -> &'static str {
         LintKind::UnlabeledCodeFence { .. } => "unlabeled-code-fence",
         LintKind::DuplicateFrontmatter { .. } => "duplicate-frontmatter",
         LintKind::LastUpdatedStale { .. } => "last-updated-stale",
+        LintKind::HandAuthoredLastUpdated => "hand-authored-last-updated",
     }
 }
 
@@ -385,6 +387,12 @@ pub fn run() {
                         delta_days,
                     );
                 }
+                LintKind::HandAuthoredLastUpdated => {
+                    eprintln!(
+                        "  ERROR  {} — hand-authored `last_updated:` in frontmatter; the pipeline derives this from Git history (documentation-governance.md). Remove the key.",
+                        rel.display()
+                    );
+                }
             }
         }
 
@@ -403,6 +411,7 @@ pub fn run() {
                         | LintKind::BrokenIncludeAnchor { .. }
                         | LintKind::WholeFileIncludeHasTrainingHeader { .. }
                         | LintKind::MissingTrainingRationale
+                        | LintKind::HandAuthoredLastUpdated
                         | LintKind::DocTestFailed { .. }
                         | LintKind::DuplicateFrontmatter { .. }
                 )
