@@ -930,8 +930,7 @@ pub fn run_scale(apply: bool) -> Result<()> {
             // MUST run before step 1's cleanup below removes exited
             // containers -- docker inspect can't read an exit code from a
             // pruned container.
-            let curr_running: HashSet<String> =
-                managed_containers("running").into_iter().collect();
+            let curr_running: HashSet<String> = managed_containers("running").into_iter().collect();
             match super::unexpected_exit_watch::scan_and_report_unexpected_exits(
                 &curr_running,
                 &oom_claimed_names,
@@ -1013,14 +1012,11 @@ pub fn run_scale(apply: bool) -> Result<()> {
             .collect();
         let to_reap = scale_down_reap_targets(&idle_with_since, reap_budget);
         let reap_set: HashSet<String> = to_reap.into_iter().collect();
-        let (actually_reaped, blocked) = partition_scale_down_candidates(
-            &reap_set,
-            job_rows_for_reap_check,
-            &prev,
-        );
+        let (actually_reaped, blocked) =
+            partition_scale_down_candidates(&reap_set, job_rows_for_reap_check, &prev);
         for name in &blocked {
-            let corroborated_busy = job_rows_for_reap_check
-                .is_some_and(|rows| is_corroborated_busy(name, rows));
+            let corroborated_busy =
+                job_rows_for_reap_check.is_some_and(|rows| is_corroborated_busy(name, rows));
             let two_tick_eligible = eligible_for_scale_down_reap(name, &prev);
             println!(
                 "runner-scale: scale-down reap of {name} blocked \
@@ -1045,8 +1041,8 @@ pub fn run_scale(apply: bool) -> Result<()> {
     let mut reaped = 0u32;
     for (name, idle_since) in &idle_runners {
         if should_reap_idle(*idle_since, now, reap_secs) {
-            let corroborated_busy = job_rows_for_reap_check
-                .is_some_and(|rows| is_corroborated_busy(name, rows));
+            let corroborated_busy =
+                job_rows_for_reap_check.is_some_and(|rows| is_corroborated_busy(name, rows));
             if corroborated_busy {
                 println!(
                     "runner-scale: idle-timeout reap of {name} blocked (corroborated busy via \
@@ -1349,8 +1345,7 @@ mod tests {
         let mut prev = HashMap::new();
         prev.insert("vox-runner-auto-clean-0".to_string(), 1_000);
 
-        let (to_reap, blocked) =
-            partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
+        let (to_reap, blocked) = partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
 
         assert!(to_reap.contains("vox-runner-auto-clean-0"));
         assert!(!to_reap.contains("vox-runner-auto-blocked-0"));
@@ -1425,8 +1420,7 @@ mod tests {
         ];
         let prev: HashMap<String, i64> = HashMap::new();
 
-        let (to_reap, blocked) =
-            partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
+        let (to_reap, blocked) = partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
 
         assert!(to_reap.is_empty());
         assert_eq!(blocked, reap_set);
@@ -1446,8 +1440,7 @@ mod tests {
         prev.insert("vox-runner-auto-b-0".to_string(), 1_100);
         prev.insert("vox-runner-auto-c-0".to_string(), 1_200);
 
-        let (to_reap, blocked) =
-            partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
+        let (to_reap, blocked) = partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
 
         assert_eq!(to_reap, reap_set);
         assert!(blocked.is_empty());
@@ -1470,8 +1463,7 @@ mod tests {
         // Absent from `prev` => not 2-tick eligible either.
         let prev: HashMap<String, i64> = HashMap::new();
 
-        let (to_reap, blocked) =
-            partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
+        let (to_reap, blocked) = partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
 
         assert!(!to_reap.contains("vox-runner-auto-both-0"));
         assert_eq!(blocked.len(), 1);
@@ -1522,7 +1514,10 @@ mod tests {
         // Not yet eligible: a single sample is insufficient (mirrors
         // zombies_for_force_cancel's own 2-consecutive-tick rationale).
         let prev: HashMap<String, i64> = HashMap::new();
-        assert!(!eligible_for_scale_down_reap("vox-runner-auto-abc-0", &prev));
+        assert!(!eligible_for_scale_down_reap(
+            "vox-runner-auto-abc-0",
+            &prev
+        ));
     }
 
     #[test]

@@ -239,7 +239,9 @@ pub fn scan_and_report_unexpected_exits(
                 );
             }
             Err(e) => {
-                eprintln!("runner-scale: unexpected-exit comment post failed (will retry next tick): {e:#}")
+                eprintln!(
+                    "runner-scale: unexpected-exit comment post failed (will retry next tick): {e:#}"
+                )
             }
         }
     }
@@ -298,7 +300,10 @@ mod tests {
             .iter()
             .map(|s| s.to_string())
             .collect();
-        let curr_running: HashSet<String> = ["vox-runner-auto-zzz-9"].iter().map(|s| s.to_string()).collect();
+        let curr_running: HashSet<String> = ["vox-runner-auto-zzz-9"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         let job_rows = vec![JobRow {
             runner_name: "vox-runner-auto-abc123-0".to_string(),
             job_name: "Lints (clippy + rustdoc)".to_string(),
