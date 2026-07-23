@@ -1,0 +1,189 @@
+// ---
+// title: "Strip Hand-Authored last_updated Frontmatter"
+// description: "One-time repo-wide migration: remove the hand-authored `last_updated:` line from docs/src frontmatter, since the pipeline derives it from Git history (documentation-governance.md)."
+// category: "tooling"
+// status: "current"
+// training_eligible: false
+// ---
+//
+// Usage:
+//   DRY_RUN=1 vox run --mode interp scripts/docs/strip-last-updated-frontmatter.vox   # report only
+//   vox run --mode interp scripts/docs/strip-last-updated-frontmatter.vox             # apply
+//
+// See docs/superpowers/specs/2026-07-23-docs-homepage-maintainability-design.md
+// and AGENTS.md §Authored Markdown Frontmatter.
+
+// vox:caps fs env
+
+fn norm(p: str) to str {
+    return p.replace("\\", "/");
+}
+
+// ---------------------------------------------------------------------------
+// Return [start, end] inclusive line indices for the YAML frontmatter block
+// (the first `---` ... `---` pair). If the file doesn't open with `---`,
+// returns [-1, -1].
+// ---------------------------------------------------------------------------
+fn find_frontmatter_range(lines: list[str]) to list[int] {
+    let n = lines.len()
+    if n < 2 {
+        return [-1, -1]
+    }
+    let first = lines.get(0).unwrap_or("").trim()
+    if first != "---" {
+        return [-1, -1]
+    }
+    let mut i = 1
+    while i < n {
+        let t = lines.get(i).unwrap_or("").trim()
+        if t == "---" {
+            return [0, i]
+        }
+        i = i + 1
+    }
+    return [-1, -1]
+}
+
+// ---------------------------------------------------------------------------
+// Remove the `last_updated:` line from the frontmatter block, if present.
+// Returns the new content, or "" if no such line was found (no change needed).
+// ---------------------------------------------------------------------------
+fn remove_last_updated_line(content: str) to str {
+    let lines = content.split("\n")
+    let range = find_frontmatter_range(lines)
+    let fm_start = range.get(0).unwrap_or(-1)
+    let fm_end = range.get(1).unwrap_or(-1)
+    if fm_start < 0 {
+        return ""
+    }
+
+    let mut found_idx = -1
+    let mut i = fm_start + 1
+    while i < fm_end {
+        let trimmed = lines.get(i).unwrap_or("").trim()
+        if trimmed.starts_with("last_updated:") {
+            found_idx = i
+            i = fm_end
+        } else {
+            i = i + 1
+        }
+    }
+
+    if found_idx < 0 {
+        return ""
+    }
+
+    let n = lines.len()
+    let mut out = ""
+    let mut k = 0
+    let mut wrote_any = false
+    while k < n {
+        if k != found_idx {
+            if wrote_any {
+                out = out + "\n"
+            }
+            out = out + lines.get(k).unwrap_or("")
+            wrote_any = true
+        }
+        k = k + 1
+    }
+    return out
+}
+
+fn is_dry_run() to bool {
+    let opt = env.get("DRY_RUN");
+    if opt.is_some() {
+        return opt.unwrap() == "1";
+    }
+    return false;
+}
+
+// ---------------------------------------------------------------------------
+// Collect docs/src/**/*.md and docs/src/**/*.mdx into one list.
+// ---------------------------------------------------------------------------
+fn all_doc_files() to list[str] {
+    let mut out = [];
+    let md = fs.glob("docs/src/**/*.md");
+    if md.is_ok() {
+        let files = md.unwrap();
+        let mut i = 0;
+        while i < files.len() {
+            out = out.push(files.get(i).unwrap_or(""));
+            i = i + 1;
+        }
+    }
+    let mdx = fs.glob("docs/src/**/*.mdx");
+    if mdx.is_ok() {
+        let files = mdx.unwrap();
+        let mut i = 0;
+        while i < files.len() {
+            out = out.push(files.get(i).unwrap_or(""));
+            i = i + 1;
+        }
+    }
+    return out;
+}
+
+fn main() {
+    if not fs.exists("docs/src") {
+        print("Error: docs/src not found — run from the repo root.");
+        return;
+    }
+
+    let dry_run = is_dry_run();
+    if dry_run {
+        print("=== strip-last-updated-frontmatter.vox (DRY RUN — no files written) ===");
+    } else {
+        print("=== strip-last-updated-frontmatter.vox (APPLY — files will be modified) ===");
+    }
+
+    let all_files = all_doc_files();
+    let n_files = all_files.len();
+
+    let mut changed_count = 0;
+    let mut unchanged_count = 0;
+    let mut idx = 0;
+    while idx < n_files {
+        let f = all_files.get(idx).unwrap_or("");
+        idx = idx + 1;
+
+        if norm(f).contains("/archive/") {
+            continue;
+        }
+
+        let content_res = fs.read(f);
+        if content_res.is_err() {
+            print("  [warn] could not read: " + f);
+            continue;
+        }
+        let content = content_res.unwrap();
+
+        let new_content = remove_last_updated_line(content);
+        if new_content.len() == 0 {
+            unchanged_count = unchanged_count + 1;
+            continue;
+        }
+
+        if dry_run {
+            print("WOULD STRIP last_updated: " + norm(f));
+            changed_count = changed_count + 1;
+        } else {
+            let write_res = fs.write(f, new_content);
+            if write_res.is_ok() {
+                print("STRIPPED: " + norm(f));
+                changed_count = changed_count + 1;
+            } else {
+                print("  [err] write failed: " + f);
+            }
+        }
+    }
+
+    print("");
+    print("=== Summary ===");
+    if dry_run {
+        print("  would-change: " + str(changed_count));
+    } else {
+        print("  changed:      " + str(changed_count));
+    }
+    print("  unchanged:    " + str(unchanged_count));
+}
