@@ -4,7 +4,6 @@ description: "Sustaining doc/code/contract reality checks: taxonomy, machine-rea
 category: "Contributors"
 status: "current"
 sort_order: 11
-last_updated: "2026-05-11"
 training_eligible: true
 schema_type: "TechArticle"
 ---

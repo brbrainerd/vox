@@ -3,7 +3,6 @@ title: "TOESTUB contributor guide"
 description: "Rule-by-rule troubleshooting for TOESTUB CI failures, with fix patterns, suppression guidance, and false-positive notes."
 category: "Contributors"
 status: "current"
-last_updated: "2026-05-09"
 training_eligible: true
 training_rationale: "Practical fix patterns for every TOESTUB rule ID — high utility for human and AI contributors."
 

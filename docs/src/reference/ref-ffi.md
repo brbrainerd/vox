@@ -3,7 +3,6 @@ title: "Reference: FFI and interop"
 description: "Rust crate imports, extern declarations, and frontend bridge boundaries."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Single entrypoint for native and JS interop docs."
 schema_type: "TechArticle"

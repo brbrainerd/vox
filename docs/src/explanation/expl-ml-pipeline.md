@@ -2,7 +2,6 @@
 title: "Native ML Training Pipeline"
 description: "End-to-end Mens ML pipeline: corpus → native Candle+qlora-rs QLoRA via vox mens train; Burn scratch path legacy."
 category: "Concepts"
-last_updated: "2026-04-12"
 training_eligible: true
 
 schema_type: "TechArticle"

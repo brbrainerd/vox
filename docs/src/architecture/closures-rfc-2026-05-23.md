@@ -3,7 +3,6 @@ title: "RFC: Closures in Vox (Phase G — Bucket-A v0.6)"
 description: "Grammar, type rules, lowering, and corpus-impact analysis for first-class closures. The single highest-leverage Bucket-A feature per the 2026-05-23 stdlib-gap audit."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-23"
 training_eligible: false
 training_rationale: "RFC in design phase; promote to training_eligible once status reaches 'current' (after implementation lands and corpus stabilizes)."
 

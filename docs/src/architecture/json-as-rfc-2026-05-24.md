@@ -1,7 +1,6 @@
 ---
 title: "RFC: @json_as(MyType) — typed JSON deserialization decorator"
 description: "Schema-typed JSON parsing built atop the strict-Option Json surface; the 80→99% ergonomic close for known-schema JSON in Vox."
-last_updated: "2026-05-24"
 category: "Architecture SSOTs"
 status: approved
 ---

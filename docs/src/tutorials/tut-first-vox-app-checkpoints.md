@@ -3,7 +3,6 @@ title: "Tutorial: first .vox app (checkpoints)"
 description: "Checkpoints for a minimal compile/run path"
 category: "Tutorials"
 sort_order: 3
-last_updated: "2026-03-25"
 
 schema_type: "HowTo"
 ---

@@ -2,7 +2,6 @@
 title: "MENS curriculum — speech-to-code stages"
 description: "Suggested staged training mix for spoken input → Vox code."
 category: "Language Reference"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

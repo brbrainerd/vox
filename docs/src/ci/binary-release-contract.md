@@ -2,7 +2,6 @@
 title: "Binary release artifact contract"
 description: "SSOT for GitHub Release binary names, archive layout, checksum manifest, and supported host triples for `vox-bootstrap` and `vox ci release-build`."
 category: "CI & Quality"
-last_updated: "2026-03-25"
 training_eligible: true
 
 schema_type: "TechArticle"

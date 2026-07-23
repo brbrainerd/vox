@@ -2,7 +2,6 @@
 title: "Speech capture architecture (edge vs backend)"
 description: "Where audio is captured, how it reaches Oratio/MCP, and Docker-friendly deployment."
 category: "Language Reference"
-last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "TechArticle"

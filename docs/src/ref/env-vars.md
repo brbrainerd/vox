@@ -2,7 +2,6 @@
 title: "Environment variables (SSOT) (redirect)"
 description: "Canonical env var registry lives under docs/src/reference/env-vars.md"
 category: "Language Reference"
-last_updated: "2026-03-26"
 
 schema_type: "TechArticle"
 ---

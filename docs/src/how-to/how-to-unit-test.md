@@ -3,7 +3,6 @@ title: "How-To: Test Your Logic"
 description: "Write automated test cases using Vox."
 category: "How-To Guides"
 status: "current"
-last_updated: "2026-04-06"
 training_eligible: true
 
 schema_type: "HowTo"

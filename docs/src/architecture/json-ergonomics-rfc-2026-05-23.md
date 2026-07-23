@@ -3,7 +3,6 @@ title: "RFC: JSON ergonomics — strict-Option + pointer"
 description: "Vox's typed Json surface, why we diverge from serde_json::Value::Index, and the canonical traversal idioms."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-23"
 ---
 
 # RFC: JSON ergonomics — strict-Option + pointer

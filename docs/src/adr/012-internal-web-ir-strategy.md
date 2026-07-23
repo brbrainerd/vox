@@ -3,7 +3,6 @@ title: "ADR 012 — Internal Web IR strategy for Vox"
 description: "Official documentation for ADR 012 — Internal Web IR strategy for Vox for the Vox language. Detailed technical reference, architecture gu"
 category: "Architecture Decisions (ADRs)"
 status: "deprecated"
-last_updated: "2026-03-26"
 training_eligible: false
 
 schema_type: "TechArticle"

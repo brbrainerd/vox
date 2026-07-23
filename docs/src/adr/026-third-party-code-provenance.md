@@ -3,7 +3,6 @@ title: "ADR-026: Third-Party Code Provenance Policy"
 description: "Governs how Vox ingests, vendors, or studies external open-source code, with explicit AGPL guardrails."
 category: "Architecture Decisions (ADRs)"
 status: "current"
-last_updated: "2026-04-29"
 training_eligible: true
 ---
 # ADR 026: Third-Party Code Provenance Policy

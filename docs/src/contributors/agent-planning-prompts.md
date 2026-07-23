@@ -3,7 +3,6 @@ title: "Agent Planning Prompts"
 description: "Prompt-engineered system directives for chunked file writing to avoid LLM token exhaustion."
 category: "Contributors"
 status: "current"
-last_updated: "2026-04-18"
 training_eligible: true
 
 schema_type: "TechArticle"

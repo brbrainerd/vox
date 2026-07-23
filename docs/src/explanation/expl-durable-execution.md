@@ -2,7 +2,6 @@
 title: "Explanation: Durable Execution"
 description: "Official documentation for workflow durability in Vox's interpreted runtime, including journal semantics, replay limits, and idempotency guidance."
 category: "Concepts"
-last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"

@@ -3,7 +3,6 @@ title: "MENS Training — Architecture Pointer"
 description: "Pointer page: procedural detail lives in the reference section."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-04-26"
 training_eligible: false
 ---
 

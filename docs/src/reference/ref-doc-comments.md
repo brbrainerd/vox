@@ -3,7 +3,6 @@ title: "Reference: documentation comments"
 description: "How Vox sources relate to Markdown docs, doctests, and generated reference material."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Aligns contributors with AGENTS doctest policy and mdBook pipeline."
 schema_type: "TechArticle"

@@ -3,7 +3,6 @@ title: "Known Documentation Gaps & Backlog"
 description: "Living checklist of documentation gaps, backlog items, and recently completed doc work for contributors."
 category: "API Reference — Crates"
 status: current
-last_updated: "2026-05-08"
 
 schema_type: "TechArticle"
 ---

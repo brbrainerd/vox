@@ -3,7 +3,6 @@ title: "ADR 034 — Candle / QLoRA stack upgrades"
 description: "Decision record: defer Candle/peft/qlora/version-unification to a dedicated upgrade train with GPU CI."
 category: "Architecture Decisions (ADRs)"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "ADR text encodes stack-upgrade policy and risk gates for MENS/Populi GPU paths; useful for model grounding on dependency discipline."
 

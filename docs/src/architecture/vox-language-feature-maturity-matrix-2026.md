@@ -3,7 +3,6 @@ title: "Vox language feature maturity matrix (2026)"
 description: "Cross-cutting maturity table for language features: parse, HIR, typecheck, codegen, runtime, LSP, formatter, tests, and corpus exposure."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Makes partial implementations visible to prioritization and prevents overselling shipped semantics."
 sort_order: 9

@@ -3,7 +3,6 @@ title: "Human-In-The-Loop & Doubt"
 description: "User-facing reference explaining the Doubt control mechanism and human resolution flow."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-04-10"
 training_eligible: true
 
 schema_type: "TechArticle"

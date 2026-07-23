@@ -4,7 +4,6 @@ description: "Single baseline for how agent-facing retrieval works across vox-db
 category: "Architecture SSOTs"
 sort_order: 52
 status: "current"
-last_updated: "2026-05-05"
 training_eligible: true
 training_rationale: "Prevents drift between FTS, embeddings, policy knobs, and GUI wiring."
 schema_type: "TechArticle"

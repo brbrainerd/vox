@@ -2,7 +2,6 @@
 title: "Planning meta maintenance log"
 description: "Change log for Tier 1/2/3 planning-meta document updates."
 category: "Architecture SSOTs"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

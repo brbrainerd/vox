@@ -2,7 +2,6 @@
 title: "Contributing — Mens native training"
 description: "Onboarding for vox-populi tensor, vox mens train paths, and the golden corpus flywheel."
 category: "How-To Guides"
-last_updated: "2026-04-17"
 
 schema_type: "HowTo"
 ---

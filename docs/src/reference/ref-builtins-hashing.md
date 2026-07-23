@@ -2,7 +2,6 @@
 title: "Hashing & Identity Builtins"
 description: "Official documentation for Hashing & Identity Builtins for the Vox language. Detailed technical reference, architecture guides, and imple"
 category: "Language Reference"
-last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"

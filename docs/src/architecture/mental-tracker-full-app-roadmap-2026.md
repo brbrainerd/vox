@@ -2,7 +2,6 @@
 title: "Vox Mental-Health Tracker — Full-App Implementation Roadmap (2026)"
 description: "Staged roadmap for the Vox-generated React Native mental-health tracker: calendar via React interop, trauma-informed append-only schema, slider/bottom-sheet/in-app-toast VUV primitives, and the codegen changes to deliver them."
 category: "Architecture SSOTs"
-last_updated: "2026-05-30"
 training_eligible: false
 
 schema_type: "TechArticle"

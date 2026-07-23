@@ -5,7 +5,6 @@ category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation spec for a separate codebase (FableForge)."
-last_updated: "2026-04-23"
 ---
 
 # FFScript Mutation API Spec — T-041 through T-054

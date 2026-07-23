@@ -1,7 +1,6 @@
 ---
 title: "Handoff: state of the work (2026-05-25)"
 description: "Post-recovery audit. What landed since the 2026-05-24 lost-work handoff, what's still outstanding (project + task list + my prior claims), uncommitted staged work at risk of re-orphaning, and the corrections to my own thoroughness gaps."
-last_updated: "2026-05-25"
 category: "Architecture SSOTs"
 status: "current"
 ---

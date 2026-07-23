@@ -3,7 +3,6 @@ title: "Terminal Exec Policy SSOT (2026)"
 description: "Live SSOT for the PowerShell-first terminal execution policy: what the claim actually is, what evidence supports it, and what it does NOT claim."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-04-30"
 training_eligible: true
 training_rationale: "Stable policy SSOT referenced from AGENTS.md and contracts/terminal/exec-policy.v1.yaml."
 schema_type: "TechArticle"

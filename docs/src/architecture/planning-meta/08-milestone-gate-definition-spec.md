@@ -2,7 +2,6 @@
 title: "Milestone and gate definition spec"
 description: "Normative specification for defining milestones and gates with explicit pass/fail evidence, escalation rules, and stop conditions."
 category: "Architecture SSOTs"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

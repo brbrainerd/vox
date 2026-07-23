@@ -3,7 +3,6 @@ title: "Language LSP parity — findings (2026)"
 description: "Probe B: checklist-driven gaps between IDE features and compiler capabilities for Vox."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Surfaces stubbed or partial LSP paths called out in archetype coverage."
 sort_order: 101

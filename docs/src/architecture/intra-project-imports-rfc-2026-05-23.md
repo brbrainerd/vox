@@ -3,7 +3,6 @@ title: "RFC: Intra-project imports (Phase J)"
 description: "Cross-file `import \"./helpers.vox\"` + `pub fn` for sharing declarations within a single project. The minimum-viable module system for Vox."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-23"
 training_eligible: false
 training_rationale: "RFC in design phase; promote to training_eligible once status reaches 'current' after implementation lands."
 

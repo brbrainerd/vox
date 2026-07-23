@@ -3,7 +3,6 @@ title: "AI-First Gap Analysis: Language, CLI, and GUI (Journey-Spine)"
 description: "Adversarially audited gap analysis scoring Vox against an AI-as-author target state across the intent → authorship → verification → operation → comprehension journey. Every claim verified against the codebase by independent refuters (2026-07-02); produces three implementation plans plus three follow-on spec candidates."
 category: "Architecture SSOTs"
 status: "roadmap"
-last_updated: "2026-07-02"
 training_eligible: false
 authored: "2026-07-02"
 ---

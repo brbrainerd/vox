@@ -2,7 +2,6 @@
 title: "Planning critique and gap analysis"
 description: "Severity-ranked critique of prior Vox planning artifacts with root-cause analysis and explicit fix mapping into the planning corpus."
 category: "Architecture SSOTs"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

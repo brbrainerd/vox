@@ -2,7 +2,6 @@
 title: "How To: Train Mens on RTX 4080 Super"
 description: "Official documentation for How To: Train Mens on RTX 4080 Super for the Vox language. Detailed technical reference, architecture guides"
 category: "How-To Guides"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "HowTo"

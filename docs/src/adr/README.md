@@ -2,7 +2,6 @@
 title: "Architecture Decision Records (index)"
 description: "Entrypoint mirror for ADR cross-links used by CI doc gates."
 category: "Architecture Decisions (ADRs)"
-last_updated: "2026-04-07"
 
 schema_type: "TechArticle"
 ---

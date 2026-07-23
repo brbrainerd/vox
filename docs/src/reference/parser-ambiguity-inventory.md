@@ -2,7 +2,6 @@
 title: "Parser ambiguity and robustness inventory"
 description: "Known parse edge cases, error classes, and fixture locations for the canonical vox-compiler parser"
 category: "Language Reference"
-last_updated: "2026-03-25"
 training_eligible: true
 
 schema_type: "TechArticle"

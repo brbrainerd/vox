@@ -3,7 +3,6 @@ title: "Vox diagnostic UX taxonomy (research)"
 description: "Taxonomy for compiler and tooling diagnostics: stable IDs, severity, human vs LLM consumption, LSP mapping, and drift risks vs vox-code-audit."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Unifies diagnostic policy across compiler, LSP, CI, and MENS-facing outputs."
 sort_order: 7

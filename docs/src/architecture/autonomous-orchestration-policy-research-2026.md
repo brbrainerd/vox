@@ -3,7 +3,6 @@ title: "Autonomous Orchestration Policy — Decision-Rule Research for Agent-to-
 description: "Research synthesis of when an orchestrator can autonomously change models, switch modes, enter planning, invoke research (Socrates), spawn sub-agents, escalate to HITL, and recover from runaway loops. Maps the external state-of-the-art onto Vox's existing routing/policy surface and proposes decision-rule contracts for the gaps."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-08"
 authored: "2026-05-08"
 training_eligible: true
 training_rationale: "Cross-cutting policy reference for the orchestrator's autonomous behavior-switching surface. Sits between model-orchestration-ssot-audit-2026.md (routing mechanics), nextgen-orchestrator-research-2026.md (failure modes), orchestrator-companion-audit-findings-2026.md (non-routing surface), and ADR-005 (Socrates) / ADR-025 (multi-agent locks) / ADR-030 (state-machine SSoT). Names the specific decisions that should be rule-codified, what evidence sources exist for each rule, and the boundary between automatable and non-automatable behavior."

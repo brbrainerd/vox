@@ -2,7 +2,6 @@
 title: "Scientia publication failure playbook"
 description: "Deterministic remediation for common publication gate and syndication failures."
 category: "Language Reference"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

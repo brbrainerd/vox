@@ -3,7 +3,6 @@ title: "Vox as an LLM-Target Language — Audit & v1.0 Plan (2026)"
 description: "Codebase-grounded audit of Vox's readiness as a primary destination target for AI agents, with proposed v1.0 fidelity criteria (CR-L1..CR-L8) and a realistic sequencing plan onto existing phase work."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-15"
 training_eligible: false
 training_rationale: "Strategic audit and roadmap document; reflects May 2026 state, will be superseded by execution plans."
 ---

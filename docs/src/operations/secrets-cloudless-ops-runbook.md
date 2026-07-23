@@ -2,7 +2,6 @@
 title: "Secrets Cloudless Ops Runbook"
 description: "Operator procedures for Cloudless secret custody, backup/restore, rotation, and incident handling."
 category: "Operations"
-last_updated: "2026-05-08"
 training_eligible: true
 
 schema_type: "TechArticle"

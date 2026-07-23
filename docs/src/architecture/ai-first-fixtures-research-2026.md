@@ -3,7 +3,6 @@ title: "AI-First Language Fixtures — Research (2026)"
 description: "Evidence-grounded taxonomy and catalog for AI-first fixtures across Vox compiler, codegen, actor LLM runtime, orchestrator, MCP, ACI, and telemetry."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Teaches where @ai ships today, what is greenfield, and how future fixtures must compose with orchestration policy and contracts without new bare keywords."
 vox_relevance:

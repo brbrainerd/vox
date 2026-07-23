@@ -3,7 +3,6 @@ title: "Language migration friction — findings (2026)"
 description: "Probe E: map deprecated paths and codemods to docs; identify missing entrypoints and ADR vs AGENTS conflicts."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Reduces failed migrations for agents trained on stale snippets."
 sort_order: 104

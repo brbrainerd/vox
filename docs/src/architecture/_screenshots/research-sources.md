@@ -2,7 +2,6 @@
 title: "Mobile target research sources (2026-05-27)"
 description: "Collected research sources (May 2024 → May 2026) backing the mobile target evaluation — Tauri 2 mobile, React Native/Expo, Capacitor, and related platform documentation."
 category: "Architecture SSOTs"
-last_updated: "2026-05-27"
 ---
 
 # Mobile target research sources (2026-05-27)

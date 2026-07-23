@@ -3,7 +3,6 @@ title: "Reference: operator precedence"
 description: "Binary and postfix operator precedence for Vox expressions, sourced from the Pratt parser binding powers."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Prevents incorrect parentheses assumptions in generated and hand-written Vox."
 schema_type: "TechArticle"

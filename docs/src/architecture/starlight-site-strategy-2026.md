@@ -5,7 +5,6 @@ category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Strategic documentation on documentation portal architecture, AI discoverability, and user experience design for the Vox programming language."
-last_updated: "2026-04-22"
 ---
 
 # Vox Docs Portal: Astro Starlight Strategy 2026

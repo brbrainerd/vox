@@ -3,7 +3,6 @@ title: "Tauri Audit 2026"
 description: "Codebase audit of Tauri usage, capability coverage, build cost, and retirement candidates for Vox desktop/mobile GUI pipelines."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 ---
 # Tauri audit (2026-05-11)

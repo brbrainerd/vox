@@ -2,7 +2,6 @@
 title: "How-To: Publish Scientia findings"
 description: "Prepare, approve, and submit scientific findings from Vox Scientia using the publication manifest SSOT."
 category: "How-To Guides"
-last_updated: "2026-03-25"
 training_eligible: true
 
 schema_type: "HowTo"

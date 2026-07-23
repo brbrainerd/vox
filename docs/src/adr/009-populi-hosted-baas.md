@@ -2,7 +2,6 @@
 title: "ADR 009: Hosted mens / BaaS (future scope)"
 description: "Official documentation for ADR 009: Hosted mens / BaaS (future scope) for the Vox language. Detailed technical reference, architecture gu"
 category: "Architecture Decisions (ADRs)"
-last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"

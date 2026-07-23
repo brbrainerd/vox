@@ -3,7 +3,6 @@ title: "How-To: Model Complex Domain Logic"
 description: "Learn how to use Vox's expressive type system."
 category: "How-To Guides"
 status: "current"
-last_updated: "2026-04-06"
 training_eligible: true
 
 schema_type: "HowTo"

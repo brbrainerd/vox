@@ -3,7 +3,6 @@ title: "Post-Sprint Forward Plan (2026-05-25)"
 description: "Forward plan covering all crates / tracks NOT fixed in the F-* sprint that closed out P0–P4 of the crate-audit-and-plan. Defines scope, gate conditions, and acceptance criteria for every remaining item so a future session can execute without re-planning. Companion to free-by-default-and-residual-work-plan-2026.md (which is now fully executed except for F-A push) and crate-audit-and-plan-2026.md (the original 50-task audit)."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-25"
 training_eligible: true
 training_rationale: "Forward-looking plan with explicit gates; designed for LLM continuation in future sessions."
 sort_order: 36

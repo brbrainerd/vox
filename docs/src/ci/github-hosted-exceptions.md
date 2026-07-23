@@ -2,7 +2,6 @@
 title: "GitHub-hosted runner exceptions"
 description: "Registered exceptions for workflows that intentionally use GitHub-hosted runners instead of the local self-hosted fleet."
 category: "CI & Quality"
-last_updated: "2026-06-10"
 training_eligible: true
 
 schema_type: "TechArticle"

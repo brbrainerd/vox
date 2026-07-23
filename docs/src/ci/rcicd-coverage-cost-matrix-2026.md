@@ -3,7 +3,6 @@ title: "RCICD coverage and cost matrix (2026)"
 description: "Maps CI workflows and jobs to risk coverage, local equivalents, and optimization notes. Companion to runner-contract and local pre-push docs."
 category: "CI & Quality"
 status: "current"
-last_updated: "2026-06-03"
 training_eligible: true
 training_rationale: "Explains where CI spend goes and what belongs in GitHub Actions vs local gates."
 schema_type: "TechArticle"

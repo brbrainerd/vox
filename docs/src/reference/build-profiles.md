@@ -3,7 +3,6 @@ title: "Build profiles"
 description: "Named cargo build profiles for Vox: lean CLI, full desktop, and planned targets."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-06-18"
 ---
 
 # Build profiles

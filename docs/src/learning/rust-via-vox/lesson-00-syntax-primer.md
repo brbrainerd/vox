@@ -2,7 +2,6 @@
 title: "Rust via Vox — Lesson 0: Reading Rust Syntax"
 description: "The syntax primer Lesson 1 assumed: let bindings, the & borrow symbol, String vs &str, macros, format placeholders, closures, and return types."
 category: "Tutorials"
-last_updated: "2026-05-28"
 training_eligible: false
 ---
 

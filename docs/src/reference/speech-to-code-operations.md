@@ -2,7 +2,6 @@
 title: "Speech-to-code — operations, security, rollout"
 description: "Dashboards, privacy, canary, and release gates for spoken Vox codegen."
 category: "Language Reference"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

@@ -2,7 +2,6 @@
 title: "Unified orchestration — SSOT"
 description: "Official documentation for Unified orchestration — SSOT for the Vox language. Detailed technical reference, architecture guides, and impl"
 category: "Language Reference"
-last_updated: "2026-04-29"
 training_eligible: true
 
 schema_type: "TechArticle"

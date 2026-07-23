@@ -3,7 +3,6 @@ title: "Svelte-Mineable Features Implementation Plan (2026)"
 description: "Phased implementation plan for the Svelte 5/6-inspired Vox compiler and MCP improvements identified in the comparative research. Concrete file changes, scope estimates, ADR triggers, test strategies, and dependency ordering. Built on what Vox already ships, not greenfield."
 category: "Architecture SSOTs"
 status: "roadmap"
-last_updated: "2026-05-02"
 training_eligible: true
 training_rationale: "Implementation roadmap for compiler-level GUI debugging and AI codegen improvements; references concrete file paths a downstream session must touch."
 ---

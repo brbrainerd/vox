@@ -3,7 +3,6 @@ title: "Vox Feature Discoverability Audit (2026)"
 description: "Audit of CLI/GUI single-source-of-truth gaps, shell completion coverage, LSP capability parity, and discoverability improvements across the Vox toolchain."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-13"
 training_eligible: true
 training_rationale: "Captures systemic gaps in user-facing discoverability that affect both CLI and GUI surfaces."
 sort_order: 50

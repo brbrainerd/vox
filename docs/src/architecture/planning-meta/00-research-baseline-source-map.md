@@ -2,7 +2,6 @@
 title: "Research baseline and source-of-truth map"
 description: "Research appendix for planning-meta creation, including source classification and confidence tags."
 category: "Architecture SSOTs"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

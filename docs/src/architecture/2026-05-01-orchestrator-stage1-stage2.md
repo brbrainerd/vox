@@ -3,7 +3,6 @@ title: "Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Pla
 description: "Implementation plan for 7 P0/P1 fixes across the orchestrator gateway, runtime, grounding, and daemon surfaces. Covers FIX-K-03, FIX-K-05, FIX-K-06, FIX-B-02, FIX-E-01, FIX-H-03, FIX-O-03."
 category: "Architecture SSOTs"
 status: "roadmap"
-last_updated: "2026-05-01"
 training_eligible: false
 authored: "2026-05-01"
 ---

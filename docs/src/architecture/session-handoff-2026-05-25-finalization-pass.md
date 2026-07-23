@@ -1,7 +1,6 @@
 ---
 title: "Handoff: finalization pass (2026-05-25)"
 description: "Post-recovery audit + repair pass. Records what was broken, what was fixed in this session, and what remains before v0.6.0 can be tagged."
-last_updated: "2026-05-25"
 category: "Architecture SSOTs"
 status: "current"
 ---

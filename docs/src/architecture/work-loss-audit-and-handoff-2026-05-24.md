@@ -1,7 +1,6 @@
 ---
 title: "Work-loss audit + handoff (2026-05-24)"
 description: "Forensic audit of the parallel-agent 'lost work' reports. Single conclusion: no commits were destroyed; the unmerged work lives on its branches. Includes inventory of where each agent's work sits, why it looked missing from main, and the recovery plan."
-last_updated: "2026-05-24"
 category: "Architecture SSOTs"
 status: research
 ---

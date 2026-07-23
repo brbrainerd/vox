@@ -3,7 +3,6 @@ title: "Reference: literals"
 description: "Numeric, decimal, string, and character literal lexing rules for Vox source (UTF-8)."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Grounds tooling and docs in lexer truth."
 schema_type: "TechArticle"

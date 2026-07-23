@@ -3,7 +3,6 @@ title: "Explanation: The Vox Runtime"
 description: "Understand the inner workings of the Vox runtime—the engine that powers AI-native, stateful applications."
 category: "Concepts"
 status: "current"
-last_updated: "2026-04-06"
 training_eligible: true
 
 schema_type: "TechArticle"

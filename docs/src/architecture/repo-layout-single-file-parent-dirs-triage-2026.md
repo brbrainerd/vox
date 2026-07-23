@@ -3,7 +3,6 @@ title: "Single-file parent directories — triage list (2026)"
 description: "Machine-generated list of tracked paths whose immediate parent directory contains exactly one file; use for idiomatic vs merge decisions."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: false
 ---
 

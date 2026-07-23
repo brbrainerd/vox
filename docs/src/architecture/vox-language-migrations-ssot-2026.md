@@ -3,7 +3,6 @@ title: "Vox language migrations hub (research)"
 description: "Central index of breaking syntax migrations, codemods, and deprecation paths across compiler, React interop, and ID boundaries."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Reduces agent and contributor confusion when multiple phase plans mention overlapping migrations."
 sort_order: 8

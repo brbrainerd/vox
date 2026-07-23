@@ -1,7 +1,6 @@
 ---
 title: "Handoff: evening continuation (2026-05-28)"
 description: "Continuation of the morning audit. Captures completion of the 8-item action plan from the test-coverage / telemetry / discoverability audit, end-of-day state, and what is genuinely outstanding now."
-last_updated: "2026-05-28"
 category: "Architecture SSOTs"
 status: "current"
 ---

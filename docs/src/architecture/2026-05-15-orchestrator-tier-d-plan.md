@@ -3,7 +3,6 @@ title: "Tier D — Orchestrator core-extraction plan (2026-05-15)"
 description: "Assessment and implementation plan for extracting vox-orchestrator-core from vox-orchestrator. Post-A-12 (2026-05-24): 60,681 LoC with 13% headroom. dei_shim/ extracted to vox-dei-shim. C5 (orchestrator/ subdir) is the correct next wedge but Rule 13 has not fired."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-24"
 training_eligible: false
 ---
 

@@ -3,7 +3,6 @@ title: "Reference: Decorator Registry"
 description: "All available decorators and their technical effects."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-05-26"
 training_eligible: true
 
 schema_type: "TechArticle"

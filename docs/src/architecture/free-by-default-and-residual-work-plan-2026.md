@@ -3,7 +3,6 @@ title: "Free-by-Default & Residual Work Plan (post-audit 2026-05-24)"
 description: "Single-file forward plan after the 50-task crate audit closes out P0-P4. Captures the 'free/fast tier first-class' product directive, the model-routing YAML changes, the 180 free_only/is_free call sites that need audit, the dei_shim/selection re-activation, the D-7-rescope NodeRecord topology decision, the residual Tier-D plan, and the push-to-origin sequence. Designed so no further planning sessions are required to execute."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-24"
 training_eligible: true
 training_rationale: "Forward-looking plan with explicit gates and acceptance criteria; high-value for future LLM continuation."
 sort_order: 35

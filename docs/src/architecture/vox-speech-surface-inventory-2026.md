@@ -3,7 +3,6 @@ title: "Vox Speech Surface Inventory 2026"
 description: "Repository-audited inventory of microphone, speech capture, and speech-to-code entry points across editor, app, dashboard, CLI, MCP, HTTP, and streaming surfaces."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Maps user-visible speech surfaces to concrete code paths and test gaps for speech-to-code agents."
 ---

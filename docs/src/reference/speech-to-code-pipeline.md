@@ -2,7 +2,6 @@
 title: "Speech-to-code pipeline (Oratio → MCP → compiler → MENS)"
 description: "Architecture and contracts for spoken input to validated Vox code."
 category: "Language Reference"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

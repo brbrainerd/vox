@@ -3,7 +3,6 @@ title: "GUI IA Intent-First Reorg Implementation Plan"
 description: "Executes the ratified gui-ia-blueprint merges/cuts plus the intent-first nav reorder (Direct > Review > Agents > Knowledge): promotes needs-you/runs into a Review group, consolidates 4 activity clones into one Discovery surface, folds Matrix into the chat rail, de-Latinizes hollow labels, and keeps all legacy deep-links resolving."
 category: "Architecture SSOTs"
 status: "roadmap"
-last_updated: "2026-07-02"
 training_eligible: false
 authored: "2026-07-02"
 ---

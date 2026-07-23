@@ -4,7 +4,6 @@ description: "Visual design review for the Vox Tauri GUI. No code, no commits â€
 category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
-last_updated: "2026-06-17"
 training_rationale: "Captures the visual design intent for Vox GUI surfaces â€” high-value for any LLM doing follow-up implementation work, and the canonical place to start when bringing on a designer."
 ---
 

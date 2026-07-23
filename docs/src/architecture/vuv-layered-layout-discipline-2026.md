@@ -3,7 +3,6 @@ title: "VUV Layered Layout Discipline — making Z-fighting and tier inversion s
 description: "Design memo motivating GA-26: typed Z-tiers, partitioning containers, and Mark<T> typed jump targets. Adopts wlr-layer-shell's four-tier model and i3/Sway's tree-of-partitioning-containers discipline as the structural foundation for VUV view trees."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-06-12"
 training_eligible: true
 training_rationale: "Names a class of UI bugs (Z-fighting, accidental occlusion, tier inversion) that appear in every web app and proposes a compile-time prevention strategy grounded in Wayland-compositor practice. Useful as the canonical answer to 'why doesn't VUV expose z-index?'"
 ---

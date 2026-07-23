@@ -3,7 +3,6 @@ title: "Vox LSP capabilities matrix (research)"
 description: "Capability inventory for crates/vox-lsp: validation path, diagnostics mapping, and parity gaps vs vox check and IDE expectations."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Prevents duplicate or divergent editor behavior; anchors LSP work to compiler facts."
 sort_order: 6

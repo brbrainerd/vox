@@ -3,7 +3,6 @@ title: "WebIR / HIR split-brain inventory (2026)"
 description: "Concrete inventory of dual codegen paths, projection seams, Tauri hooks, and tests that guard against semantic drift between HIR and WebIR."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 schema_type: "TechArticle"
 ---

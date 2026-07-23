@@ -3,7 +3,6 @@ title: "How to author Vox views (VUV)"
 description: "Practical guide to writing UI in Vox using the view-call (VUV) authoring syntax. Covers primitives, typed style kwargs, conditionals, components, and escape hatches."
 category: "How-To Guides"
 status: "current"
-last_updated: "2026-05-03"
 training_eligible: true
 training_rationale: "Canonical authoring guide for VUV — what MENS should learn to emit."
 ---

@@ -2,7 +2,6 @@
 title: "Rust via Vox — Session 1 Notes: Ownership, Errors, Enums"
 description: "Consolidated revision notes from session 1: move/borrow/copy, references and &mut self, the ? operator and Result, iter vs into_iter, enums and match-as-expression, format!, .into(), and the review reflexes built from each."
 category: "Tutorials"
-last_updated: "2026-05-28"
 training_eligible: false
 ---
 

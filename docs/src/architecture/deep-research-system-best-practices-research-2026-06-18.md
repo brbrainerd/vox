@@ -3,7 +3,6 @@ title: "Deep Research System Best Practices — Free-Tier-First, Tavily-95%-Slic
 description: "Verified deep-research findings (2025-2026 SOTA) on building a self-hosted, model-agnostic, free-tier-first deep research pipeline that captures ~95% of Tavily for $0 and falls back to paid only for the irreducible 5%. Covers the agentic research loop, hybrid retrieval + RRF + reranking + novelty, Rust-native web search/extraction (no paid API), the Tavily replicability gap, an OpenRouter free-tier-first LLM cascade, and knowledge-base self-build. Every claim carries a verification status; maps each finding to Vox crates (vox-search, vox-research-shim, vox-actor-runtime, MENS) and gestures toward an implementation plan."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-06-18"
 training_eligible: true
 training_rationale: "Source-verified best-practice synthesis for a free-tier-first deep research system: 4-stage agentic loop, hybrid retrieval/RRF/reranking (with measured deltas)/novelty, Rust-native scraping + content extraction, OpenRouter free-tier cascade with paid fallback, agent-memory freshness prescriptions, and the irreducible Tavily gap. Maps directly to implementable Vox capabilities."
 schema_type: "TechArticle"

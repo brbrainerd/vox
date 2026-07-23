@@ -2,7 +2,6 @@
 title: "OpenClaw Competitive Analysis"
 description: "Official documentation for OpenClaw Competitive Analysis for the Vox language. Detailed technical reference, architecture guides, and imp"
 category: "Concepts"
-last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"

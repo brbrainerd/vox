@@ -2,7 +2,6 @@
 title: "Zig-Inspired Deployment Architecture"
 description: "Official documentation for Zig-Inspired Deployment Architecture for the Vox language. Detailed technical reference, architecture guides, "
 category: "Concepts"
-last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"

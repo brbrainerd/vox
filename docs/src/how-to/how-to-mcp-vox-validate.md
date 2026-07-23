@@ -3,7 +3,6 @@ title: "Point your AI coding assistant at the Vox MCP validator"
 description: "Wire Claude Desktop, Cursor, or any MCP client to vox_validate_source / vox_validate_file so AI-generated Vox code iterates against the real compiler with structured autofix suggestions, not against guesses."
 category: "How-To Guides"
 status: "current"
-last_updated: "2026-05-03"
 training_eligible: true
 ---
 

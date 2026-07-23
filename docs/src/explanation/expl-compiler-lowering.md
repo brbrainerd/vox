@@ -2,7 +2,6 @@
 title: "Explanation: Compiler Lowering Phases"
 description: "Official documentation for Explanation: Compiler Lowering Phases for the Vox language. Detailed technical reference, architecture guides,"
 category: "Concepts"
-last_updated: "2026-05-11"
 training_eligible: true
 
 schema_type: "TechArticle"

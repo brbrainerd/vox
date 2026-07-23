@@ -5,7 +5,6 @@ category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Research on documentation platforms."
-last_updated: "2026-04-22"
 authors: ["Bert Brainerd"]
 related:
   - docs/src/architecture/research-index.md

@@ -4,7 +4,6 @@ description: "Authority map, taxonomy, status vocabulary, and maintenance rules 
 category: "Contributors"
 status: "current"
 sort_order: 10
-last_updated: "2026-04-16"
 training_eligible: true
 training_rationale: "Defines how all docs are organized, which agents must understand to write compliant documentation."
 

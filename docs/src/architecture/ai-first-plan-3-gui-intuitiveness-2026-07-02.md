@@ -3,7 +3,6 @@ title: "GUI Intuitiveness Implementation Plan"
 description: "Honesty-debt burn-down (needs-you nav, SubAgents wired to the real list_subagent_tree command, dead controls hidden), one useAttentionInbox hook replacing three fragmented polls, and a structured intent panel in the composer serializing into the existing task payload."
 category: "Architecture SSOTs"
 status: "roadmap"
-last_updated: "2026-07-02"
 training_eligible: false
 authored: "2026-07-02"
 ---

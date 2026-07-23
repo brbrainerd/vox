@@ -2,7 +2,6 @@
 title: "Mens strategy inputs checklist"
 description: "Handoff checklist for the second-pass implementation-planning phase after VoxMens research groundwork."
 category: "Language Reference"
-last_updated: "2026-03-28"
 training_eligible: false
 
 schema_type: "TechArticle"

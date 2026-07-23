@@ -3,7 +3,6 @@ title: "Language formatter semantics — findings (2026)"
 description: "Probe C: risks where vox fmt / printer behavior interacts with diagnostics, spans, and semantic preservation."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Formatter can accidentally become an undeclared semantics gate."
 sort_order: 102

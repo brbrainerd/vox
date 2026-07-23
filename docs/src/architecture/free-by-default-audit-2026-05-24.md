@@ -3,7 +3,6 @@ title: "Free-by-Default Audit (2026-05-24)"
 description: "Post-implementation audit of the 89 free_only / is_free call sites after the F-F sprint landed ModelTier::Free + Fast and flipped CostPreference default to Economy. Documents what changed, watchlists, and three follow-up gaps (Balanced→Economy, exploration parity, RoutingProfile docs) — all closed in commit 7f2edd8e7e."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-25"
 training_eligible: true
 sort_order: 37
 ---

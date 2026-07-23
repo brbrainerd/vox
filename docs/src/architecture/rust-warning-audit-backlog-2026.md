@@ -3,7 +3,6 @@ title: "Rust Warning Audit & Remediation Backlog (2026-05-11)"
 description: "Closeout ledger from the May 2026 rustc / clippy / rustdoc audit — what was fixed, what is justifiably suppressed, what remains as scoped debt."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Defines warning-debt review cadence and per-crate ownership for the Rust toolchain in this workspace."
 ---

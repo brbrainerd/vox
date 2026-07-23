@@ -3,7 +3,6 @@ title: "Standard Library Built-ins"
 description: "Core execution environment capabilities exposed in Vox (std.* and built-ins)."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-05-23"
 training_eligible: true
 
 schema_type: "TechArticle"

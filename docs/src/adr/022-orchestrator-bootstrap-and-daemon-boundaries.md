@@ -2,7 +2,6 @@
 title: "ADR 022 — Orchestrator bootstrap factory and daemon boundaries"
 description: "Single factory for repo-scoped Orchestrator construction; relationship to vox-mcp, vox-orchestrator-d, and optional future orchestrator daemon."
 category: "Architecture Decisions (ADRs)"
-last_updated: "2026-04-01"
 training_eligible: true
 
 schema_type: "TechArticle"

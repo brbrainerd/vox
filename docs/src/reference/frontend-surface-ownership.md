@@ -3,7 +3,6 @@ title: "Frontend Surface Ownership"
 description: "Canonical ownership and lifecycle policy for Vox frontend surfaces."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-05-04"
 training_eligible: true
 training_rationale: "Defines canonical frontend ownership and lifecycle boundaries used for maintenance and CI."
 ---

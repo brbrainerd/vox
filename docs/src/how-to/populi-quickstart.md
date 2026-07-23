@@ -2,7 +2,6 @@
 title: "Populi Quickstart"
 description: "Run a local Vox mesh control plane and pair a worker node in minutes — no environment variables required."
 category: "How-To Guides"
-last_updated: "2026-05-01"
 training_eligible: true
 ---
 

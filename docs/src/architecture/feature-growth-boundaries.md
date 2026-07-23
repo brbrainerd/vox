@@ -3,7 +3,6 @@ title: "Feature growth and boundaries SSOT (2026)"
 description: "Governance for the Vox feature surface, crate sprawl limits, and the deterministic projection parity gate."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-04-21"
 training_eligible: true
 training_rationale: "Defines the limits of the Vox feature set and the parity gates used to enforce them."
 schema_type: "TechArticle"

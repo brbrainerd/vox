@@ -3,7 +3,6 @@ title: "Workspace dependency audit (2026-05)"
 description: "Evidence-driven dependency normalization: workspace pins, duplicate majors, and follow-up stacks."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 
 schema_type: "TechArticle"

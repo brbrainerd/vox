@@ -2,7 +2,6 @@
 title: "ADR 017: Populi lease-based authoritative remote execution"
 description: "Normative target model for single-owner lease semantics, A2A transport, and local fallback when promoting remote execution beyond best-effort relay."
 category: "Architecture Decisions (ADRs)"
-last_updated: "2026-05-01"
 training_eligible: true
 
 schema_type: "TechArticle"

@@ -4,7 +4,6 @@ description: "Learn how to build modern, reactive UIs in Vox using the view-call
 category: "Tutorials"
 status: "current"
 sort_order: 5
-last_updated: "2026-05-02"
 training_eligible: true
 
 schema_type: "HowTo"

@@ -3,7 +3,6 @@ title: "Reference: diagnostic ID policy"
 description: "Namespaces and backward-compatibility rules for compiler vs audit diagnostic identifiers."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Prevents duplicate IDs across vox-compiler and vox-code-audit."
 schema_type: "TechArticle"

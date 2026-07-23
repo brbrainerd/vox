@@ -3,7 +3,6 @@ title: "Migration: Vox 0.5 → 0.6"
 description: "Language-surface and stdlib changes between Vox 0.5 and 0.6, with mechanical migration recipes."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-05-26"
 training_eligible: true
 schema_type: "TechArticle"
 ---

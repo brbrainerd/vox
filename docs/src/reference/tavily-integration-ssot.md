@@ -3,7 +3,6 @@ title: "Tavily Integration SSOT"
 description: "Complete reference for integrating Tavily AI search API into the Vox RAG pipeline. Covers endpoints, Rust SDK, Secrets management, CRAG flow, safety posture, and cost model."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-04-10"
 see_also:
   - architecture/rag-and-research-architecture-2026.md
   - secrets-ssot.md

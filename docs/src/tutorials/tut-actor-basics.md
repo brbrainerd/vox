@@ -3,7 +3,6 @@ title: "Tutorial: Persistent Actors & State"
 description: "Master stateful concurrency in Vox. Learn to define, spawn, and persist actor state across system restarts."
 category: "Tutorials"
 sort_order: 4
-last_updated: "2026-04-26"
 training_eligible: true
 
 schema_type: "HowTo"

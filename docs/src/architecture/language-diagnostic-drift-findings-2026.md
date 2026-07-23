@@ -3,7 +3,6 @@ title: "Language diagnostic drift — findings (2026)"
 description: "Probe A: evidence and hypotheses for duplicate or conflicting diagnostics across vox-compiler, vox-lsp, vox-code-audit, and CI."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Documents unknown-unknown risk that agents receive conflicting fix guidance from different tools."
 sort_order: 100

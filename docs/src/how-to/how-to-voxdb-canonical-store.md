@@ -2,7 +2,6 @@
 title: "How to use the canonical VoxDB / Codex store"
 description: "Single source of truth for user-global vox.db, project-local store, and training telemetry fallback."
 category: "How-To Guides"
-last_updated: "2026-03-27"
 training_eligible: false
 
 schema_type: "HowTo"

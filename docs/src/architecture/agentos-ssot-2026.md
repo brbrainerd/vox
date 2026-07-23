@@ -3,7 +3,6 @@ title: "AgentOS & Agent-Computer Interface SSOT (2026)"
 description: "Single baseline for contract-first ACI envelopes, mutation classification, guardrails, checkpointing, and semantic retrieval bridges."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-10"
 training_eligible: true
 training_rationale: "Anchors AgentOS implementation to contracts and crate boundaries."
 schema_type: "TechArticle"

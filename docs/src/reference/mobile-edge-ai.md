@@ -2,7 +2,6 @@
 title: "Mobile and edge AI — SSOT"
 description: "Official documentation for Mobile and edge AI — SSOT for the Vox language. Detailed technical reference, architecture guides, and impleme"
 category: "Language Reference"
-last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"

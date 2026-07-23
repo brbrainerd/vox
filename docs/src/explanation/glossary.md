@@ -3,7 +3,6 @@ title: "Glossary: Vox Terminology"
 description: "Authoritative vocabulary for the Vox language, runtime, and AI orchestration ecosystem."
 category: "Concepts"
 status: "current"
-last_updated: "2026-04-06"
 training_eligible: true
 
 schema_type: "TechArticle"

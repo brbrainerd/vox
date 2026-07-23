@@ -2,7 +2,6 @@
 title: "Lesson 1 — Ownership in Practice: Reading Code Like a Reviewer"
 description: "Rust-via-Vox training lesson: recognize ownership mechanics (Copy/move/borrow/drop) in real function signatures, recursive types, and AI-generated code fast enough to do meaningful code review."
 category: "Tutorials"
-last_updated: "2026-05-30"
 training_eligible: false
 
 schema_type: "TechArticle"

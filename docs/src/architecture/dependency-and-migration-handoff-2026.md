@@ -3,7 +3,6 @@ title: "Dependency & Migration Handoff (2026)"
 description: "Codebase-verified handoff for the deferred 'good and healthy' migrations the crate-leaf-design track did not land: the latest-version dependency upgrades (rmcp, wasmtime, swc, cargo_metadata, sysinfo, typify, jsonschema, thiserror, candle), the nominative renames, the plugin-SDK / publish-clean / GUI-release work, and a cross-reference to the Turso-ownership backlog. Each item carries blast radius, what breaks, what to fix, and honest difficulty/agony ratings (implementation cost, not just file count)."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-06-05"
 training_eligible: true
 training_rationale: "Captures verified per-migration cost/breakage analysis so a future contributor can pick up the latest-version upgrades and deferred refactors without re-deriving the blast radius or hitting the same landmines."
 ---

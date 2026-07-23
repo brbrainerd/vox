@@ -2,7 +2,6 @@
 title: "Vox full-stack web UI — single source of truth"
 description: "Official documentation for Vox full-stack web UI — single source of truth for the Vox language. Detailed technical reference, architectur"
 category: "Language Reference"
-last_updated: "2026-04-07"
 training_eligible: true
 
 schema_type: "TechArticle"

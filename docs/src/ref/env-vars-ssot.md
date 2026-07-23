@@ -2,7 +2,6 @@
 title: "Environment variables SSOT filename (redirect)"
 description: "Legacy filename; body SSOT is docs/src/reference/env-vars.md"
 category: "Language Reference"
-last_updated: "2026-03-26"
 
 schema_type: "TechArticle"
 ---

@@ -3,7 +3,6 @@ title: "Agent Shell Fluency Eval Design (2026)"
 description: "Optional A/B eval design for testing whether agents produce more correct shell commands in PowerShell vs. Bash. NOT a shipped eval — design only."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-04-30"
 training_eligible: false
 training_rationale: "Eval design notes; not project policy or model output."
 schema_type: "TechArticle"

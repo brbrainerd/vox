@@ -2,7 +2,6 @@
 title: "Golden Examples Corpus"
 description: "How to use, maintain, and contribute to the machine-verified Golden Examples documentation corpus."
 category: "How-To Guides"
-last_updated: "2026-04-06"
 training_eligible: true
 
 schema_type: "HowTo"

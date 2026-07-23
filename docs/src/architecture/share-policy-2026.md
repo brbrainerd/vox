@@ -2,7 +2,6 @@
 title: "vox share — Abuse Policy and ToS Reference (2026)"
 description: "Terms of Service references, abuse contacts, takedown policy, and privacy notes for the vox share tunnel feature."
 category: "Architecture SSOTs"
-last_updated: "2026-05-09"
 status: "current"
 training_eligible: true
 

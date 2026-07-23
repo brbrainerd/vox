@@ -2,7 +2,6 @@
 title: "Mens measurement gap analysis"
 description: "KPI contract draft and metric-gap analysis for VoxMens `.vox` accuracy, error rate, repair cost, and speed."
 category: "Language Reference"
-last_updated: "2026-03-28"
 training_eligible: false
 
 schema_type: "TechArticle"

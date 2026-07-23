@@ -2,7 +2,6 @@
 title: "ADR 004: Codex over Arca over Turso"
 description: "Official documentation for ADR 004: Codex over Arca over Turso for the Vox language. Detailed technical reference, architecture guides, a"
 category: "Architecture Decisions (ADRs)"
-last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"

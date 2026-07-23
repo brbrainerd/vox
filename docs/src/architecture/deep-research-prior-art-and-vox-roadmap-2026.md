@@ -3,7 +3,6 @@ title: "Deep Research Prior Art and Vox Integration Roadmap (2026)"
 description: "Maps Gemini Deep Research, OpenClaw/SearchClaw/ScienceClaw, Anthropic Claude Research, Tavily, and adjacent agents to Vox’s `run_research` + `vox-search` stack; documents stubs, shipped surfaces, free-tier strategy, and a four-phase implementation roadmap including CLI/MCP exposure."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Maps external deep-research agent designs (Gemini, OpenClaw/Claw family, Tavily, Anthropic Claude Research) to Vox's run_research pipeline and vox-search backends; sequences the unblocking work."
 schema_type: "TechArticle"

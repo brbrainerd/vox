@@ -2,7 +2,6 @@
 title: "CI alternatives and local Docker-based mirroring"
 description: "Research on running GitHub Actions locally in Docker, alternatives to GitHub Actions (act, Earthly, Dagger, Forgejo, Gitea, Woodpecker, GitLab CI, BuildJet/Blacksmith/RunsOn), and how each integrates with the existing vox ci pre-push gate."
 category: "CI & Quality"
-last_updated: "2026-06-03"
 training_eligible: true
 schema_type: "TechArticle"
 ---

@@ -3,7 +3,6 @@ title: "Boilerplate Reduction — Gap Analysis Against Vox's Existing Backlog (2
 description: "Code-audited row-by-row reconciliation of the 25 categories in the boilerplate-reduction design brief against Vox's actual implementation state. Distinguishes Shipped / Spec'd-Not-Shipped / Partially Built / No-Spec-Yet / Out-of-Scope. Each graft (GA-01..GA-23) is filed as a self-contained Sonnet-4.6-followable task block with preconditions, files-to-read, files-to-modify, acceptance criteria, verification commands, and P-stack rubric."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-09"
 training_eligible: true
 training_rationale: "Reconciles outside-in framing with the inside-out backlog and with the actual code state. Verdicts are evidence-backed, not inferred. Useful as the authoritative answer to 'is this category shipped, spec'd, or unaddressed?' for each of the 25 industry-shaped categories."
 ---

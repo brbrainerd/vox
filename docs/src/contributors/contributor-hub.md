@@ -4,7 +4,6 @@ description: "Start here for contributor-facing Vox documentation, governance, i
 category: "Contributors"
 status: "current"
 sort_order: 0
-last_updated: "2026-04-12"
 training_eligible: true
 
 schema_type: "TechArticle"

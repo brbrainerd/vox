@@ -3,7 +3,6 @@ title: "Tauri Convergence Migration Plan (2026-Q2)"
 description: "Executable roadmap for converging Vox desktop and mobile application packaging on Tauri 2 while retiring Capacitor and Axum-as-app surfaces."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 ---
 

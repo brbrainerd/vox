@@ -2,7 +2,6 @@
 title: "Compiler Architecture"
 description: "Official documentation for Compiler Architecture for the Vox language. Detailed technical reference, architecture guides, and implementat"
 category: "Concepts"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

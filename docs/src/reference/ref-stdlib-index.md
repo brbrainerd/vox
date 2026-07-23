@@ -3,7 +3,6 @@ title: "Reference: standard library index"
 description: "Index of std.* surfaces with stability tiers and authority split between builtins and shell-tier stdlib."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "One navigation page for std.fs/process vs compiler builtins."
 schema_type: "TechArticle"

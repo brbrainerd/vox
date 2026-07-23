@@ -3,7 +3,6 @@ title: "Question gate standard for planning"
 description: "Normative rules governing when a planning request must trigger clarification before planning begins, versus when auto-expansion or inference is the correct response."
 category: "Architecture SSOTs"
 tier: 1
-last_updated: "2026-04-10"
 training_eligible: true
 
 schema_type: "TechArticle"

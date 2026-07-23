@@ -3,7 +3,6 @@ title: "Dependency consolidation plan (2026)"
 description: "Audit of every external tool, env var, and runtime dependency the repo expects; design for a unified Rust installer (vox doctor --install) extending the existing surface; phased migration that can merge cleanly back to main."
 category: "Architecture SSOTs"
 status: "roadmap"
-last_updated: "2026-05-09"
 training_eligible: true
 training_rationale: "Explains the SSOT design for installer policy, cross-platform dependency management, and the Rust-native approach to replacing shell-scripted toolchain setup."
 schema_type: "TechArticle"

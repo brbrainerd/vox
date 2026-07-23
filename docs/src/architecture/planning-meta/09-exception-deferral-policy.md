@@ -2,7 +2,6 @@
 title: "Exception and deferral policy"
 description: "Policy for planning exceptions and deferrals, including allowed classes, mandatory metadata, expiry, review cadence, and retirement workflow."
 category: "Architecture SSOTs"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

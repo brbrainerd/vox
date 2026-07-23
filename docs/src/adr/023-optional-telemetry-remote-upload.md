@@ -2,7 +2,6 @@
 title: "ADR 023: Optional telemetry remote upload"
 description: "Opt-in local spool and explicit upload; no default transmission; Clavis-backed secrets."
 category: "Architecture Decisions (ADRs)"
-last_updated: "2026-04-02"
 training_eligible: true
 
 schema_type: "TechArticle"

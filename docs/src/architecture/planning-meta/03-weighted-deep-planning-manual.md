@@ -2,7 +2,6 @@
 title: "Weighted deep planning manual"
 description: "Comprehensive planning reference with token-weighted depth guidance so high-risk areas receive proportionally more specification detail."
 category: "Architecture SSOTs"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

@@ -2,7 +2,6 @@
 title: "ADR 013 — OpenClaw WS-first native interop"
 description: "Official documentation for ADR 013 — OpenClaw WS-first native interop for the Vox language."
 category: "Architecture Decisions (ADRs)"
-last_updated: "2026-03-27"
 training_eligible: true
 
 schema_type: "TechArticle"

@@ -3,7 +3,6 @@ title: "Vox playground architecture (research)"
 description: "Target shape for a browser-local Vox playground vs today's REPL-oriented tooling; cites compiler pipeline, bounded execution, and Phase 4 monitor hooks."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Aligns future playground work with compiler tiers, telemetry trust, and deterministic eval hooks."
 sort_order: 10

@@ -2,7 +2,6 @@
 title: "Reference: Type System"
 description: "Deep dive into the Vox type system: ADTs, parametric types (list/Option/Result/Id), zero-null discipline, and bidirectional inference."
 category: "Language Reference"
-last_updated: "2026-05-11"
 training_eligible: true
 
 schema_type: "TechArticle"

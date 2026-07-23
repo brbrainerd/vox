@@ -2,7 +2,6 @@
 title: "How-To: Build AI Agents and MCP Tools"
 description: "Expand your Vox logic into reusable tools for AI assistants and define specialized agents using the Model Context Protocol (MCP)."
 category: "How-To Guides"
-last_updated: "2026-04-05"
 training_eligible: true
 
 schema_type: "HowTo"

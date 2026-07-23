@@ -3,7 +3,6 @@ title: "Agent instruction architecture"
 description: "How Vox layers AGENTS, tool-specific overlays, continuation prompts, and CI gates for durable agent behavior."
 category: "Contributors"
 status: "current"
-last_updated: "2026-04-02"
 training_eligible: true
 
 schema_type: "TechArticle"

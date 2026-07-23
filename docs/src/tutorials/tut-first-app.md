@@ -4,7 +4,6 @@ description: "Build a full-stack Task app end to end with Vox."
 category: "Tutorials"
 status: "current"
 sort_order: 2
-last_updated: "2026-04-06"
 training_eligible: true
 
 schema_type: "HowTo"

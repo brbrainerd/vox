@@ -3,7 +3,6 @@ title: "Documentation authority pointers"
 description: "CI-facing pointer index to canonical documentation authority pages. Keep behavior in reference docs; this page exists for stable guard paths."
 category: "CI & Quality"
 status: "current"
-last_updated: "2026-04-06"
 
 schema_type: "TechArticle"
 ---

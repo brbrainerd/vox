@@ -4,7 +4,6 @@ description: "How Vox pins Rust and JS dependencies, workspace inheritance, and 
 category: "Contributors"
 status: "current"
 sort_order: 12
-last_updated: "2026-05-11"
 training_eligible: true
 
 schema_type: "TechArticle"

@@ -2,7 +2,6 @@
 title: "Vox portability SSOT"
 description: "Normative portability contract for Docker/OCI-backed `.vox` deployment, source-of-truth boundaries, and conformance expectations."
 category: "Language Reference"
-last_updated: "2026-05-05"
 training_eligible: true
 
 schema_type: "TechArticle"

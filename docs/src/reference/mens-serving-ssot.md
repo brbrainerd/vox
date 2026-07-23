@@ -2,7 +2,6 @@
 title: "Mens local serving SSOT (Schola + orchestrator)"
 description: "Single operator story for serving Candle QLoRA training outputs: vox-schola HTTP, POPULI_URL, orchestrator mesh config, and external handoff."
 category: "Language Reference"
-last_updated: "2026-04-07"
 training_eligible: true
 
 schema_type: "TechArticle"

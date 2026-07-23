@@ -2,7 +2,6 @@
 title: "Populi work-type placement policy matrix"
 description: "Canonical matrix of allowed, gated, and out-of-scope work classes across local, trusted LAN, and overlay-WAN personal clusters."
 category: "Language Reference"
-last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"

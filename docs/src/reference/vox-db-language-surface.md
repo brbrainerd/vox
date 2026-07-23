@@ -2,7 +2,6 @@
 title: "Vox database language surface (canonical)"
 description: "Canonical @table, @query, @mutation, @server, and db.* operations for Turso/Codex — low-K syntax for LLM-authored code."
 category: "Language Reference"
-last_updated: "2026-03-25"
 training_eligible: true
 
 schema_type: "TechArticle"

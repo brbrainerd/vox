@@ -2,7 +2,6 @@
 title: "Populi remote execution rollout checklist"
 description: "Go/no-go criteria, kill-switch validation, and rollback steps before enabling authoritative or pilot remote execution beyond local defaults."
 category: "Operations"
-last_updated: "2026-03-29"
 training_eligible: true
 
 schema_type: "TechArticle"

@@ -2,7 +2,6 @@
 title: "Actors & Workflows"
 description: "Deep dive into Vox's primary concurrency primitives: stateful actor functions for message-passing and durable workflow functions for reliable orchestration."
 category: "Concepts"
-last_updated: "2026-04-26"
 status: "current"
 training_eligible: true
 

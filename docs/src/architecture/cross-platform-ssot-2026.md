@@ -3,7 +3,6 @@ title: "Cross-Platform Compatibility SSOT (2026)"
 description: "Canonical source of truth for Vox cross-platform compatibility invariants across macOS, Windows, and Linux."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-13"
 training_eligible: true
 ---
 

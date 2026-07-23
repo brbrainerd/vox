@@ -2,7 +2,6 @@
 title: "Docker image baselines (D05)"
 description: "How to record cold-start and health-check timing for Vox OCI images"
 category: "Language Reference"
-last_updated: "2026-03-25"
 
 schema_type: "TechArticle"
 ---

@@ -2,7 +2,6 @@
 title: "Mens laziness and accuracy audit"
 description: "Severity-ranked audit of the current VoxMens research implementation, focusing on LLM-style mistakes, drift, brittle heuristics, and durability risks."
 category: "Language Reference"
-last_updated: "2026-03-28"
 training_eligible: false
 
 schema_type: "TechArticle"

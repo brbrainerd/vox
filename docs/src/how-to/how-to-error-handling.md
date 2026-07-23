@@ -3,7 +3,6 @@ title: "How-To: Handle Errors Gracefully"
 description: "Learn the best practices for error management in Vox to build robust applications."
 category: "How-To Guides"
 status: "current"
-last_updated: "2026-04-06"
 training_eligible: true
 
 schema_type: "HowTo"

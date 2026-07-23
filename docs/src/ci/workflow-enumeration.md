@@ -2,7 +2,6 @@
 title: "Workflow enumeration (GitHub Actions)"
 description: "Official documentation for Workflow enumeration (GitHub Actions) for the Vox language. Detailed technical reference, architecture guides,"
 category: "CI & Quality"
-last_updated: "2026-06-03"
 training_eligible: true
 
 schema_type: "TechArticle"

@@ -1,7 +1,6 @@
 ---
 title: "Handoff: state audit (2026-05-28)"
 description: "Post-v0.6.0 state-of-the-repo audit. Captures what landed since the 05-25 finalization handoff (78 commits over three days), what's still outstanding from prior task lists, what's uncommitted in the working tree, and the recommended next-session priorities."
-last_updated: "2026-05-28"
 category: "Architecture SSOTs"
 status: "current"
 ---

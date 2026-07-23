@@ -3,7 +3,6 @@ title: "vox deploy CLI reference"
 description: "Ship a Vox app via container, compose, kubernetes, bare-metal, fly, or coolify targets configured in Vox.toml."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-05-24"
 schema_type: "TechArticle"
 ---
 

@@ -2,7 +2,6 @@
 title: "Master planning index"
 description: "Authoritative index for the planning-meta corpus, including hierarchy, read order, and ownership model."
 category: "Architecture SSOTs"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

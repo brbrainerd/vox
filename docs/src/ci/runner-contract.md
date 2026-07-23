@@ -2,7 +2,6 @@
 title: "CI runner contract"
 description: "Official documentation for CI runner contract for the Vox language. Detailed technical reference, architecture guides, and implementation"
 category: "CI & Quality"
-last_updated: "2026-06-03"
 training_eligible: true
 
 schema_type: "TechArticle"

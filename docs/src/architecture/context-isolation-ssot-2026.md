@@ -3,7 +3,6 @@ title: "Context isolation — SSOT"
 description: "Policy summary for multi-repo and agent context boundaries; links to archived deep research."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Surfaces non-archive B-canon for context isolation; trains agents on boundary rules."
 schema_type: "TechArticle"

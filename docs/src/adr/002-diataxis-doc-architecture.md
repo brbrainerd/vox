@@ -3,7 +3,6 @@ title: "ADR 002 — Diátaxis Three-Tier Documentation Architecture"
 description: "Grounded documentation architecture for Vox: mdBook front door, contributor surfaces, contracts, and status vocabulary."
 category: "Architecture Decisions (ADRs)"
 status: "current"
-last_updated: "2026-03-28"
 training_eligible: true
 
 schema_type: "TechArticle"

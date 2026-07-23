@@ -3,7 +3,6 @@ title: "Legacy / tombstone remediation ledger (2026)"
 description: "Machine-readable decisions for retired surfaces, schema lineage, and SSOT drift — actions, owners, sunsets."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Governance artifact for agents reducing maintenance burden on retired symbols."
 ---

@@ -2,7 +2,6 @@
 title: "Document maintenance protocol"
 description: "Lifecycle, versioning, ownership, and change-control protocol for maintaining the planning-meta corpus."
 category: "Architecture SSOTs"
-last_updated: "2026-03-26"
 training_eligible: true
 
 schema_type: "TechArticle"

@@ -3,7 +3,6 @@ title: "Mobile Phase 2 completion: cross-compile pipeline, iOS, mental-tracker E
 description: "Verified-state scoping for the three host-blocked mobile work items: wiring the Android cross-compile + uniffi-bindgen artifact pipeline into vox build --target=mobile, the iOS path, and upgrading apps/vox-mental-tracker from its Capacitor-era shell to the Expo target. Grounded in what exists on 2026-06-12; no stubs proposed."
 category: "Architecture SSOTs"
 status: experimental
-last_updated: "2026-06-12"
 authors: [vox-team]
 related:
   - mobile-rn-expo-implementation-spec-2026.md

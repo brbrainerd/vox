@@ -2,7 +2,6 @@
 title: "ADR 005: Socrates anti-hallucination SSOT"
 description: "Official documentation for ADR 005: Socrates anti-hallucination SSOT for the Vox language. Detailed technical reference, architecture gui"
 category: "Architecture Decisions (ADRs)"
-last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"

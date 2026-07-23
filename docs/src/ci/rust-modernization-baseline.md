@@ -2,7 +2,6 @@
 title: "Rust pattern modernization — Wave 0 baseline"
 description: "Official documentation for Rust pattern modernization — Wave 0 baseline for the Vox language. Detailed technical reference, architecture "
 category: "CI & Quality"
-last_updated: "2026-03-24"
 training_eligible: true
 
 schema_type: "TechArticle"

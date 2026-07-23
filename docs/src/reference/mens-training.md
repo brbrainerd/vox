@@ -2,7 +2,6 @@
 title: "Mens native training SSOT (Candle QLoRA–first; Burn LoRA deprecated in dispatch)"
 description: "Official documentation for Mens native fine-tuning: contract-first Candle QLoRA, legacy Burn paths, merge/serve matrix."
 category: "Language Reference"
-last_updated: "2026-03-27"
 training_eligible: true
 
 schema_type: "TechArticle"

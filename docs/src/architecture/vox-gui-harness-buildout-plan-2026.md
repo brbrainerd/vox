@@ -3,7 +3,6 @@ title: "Vox GUI Harness Build-Out Plan 2026"
 description: "Three-track plan to evolve the Tauri vox-gui from a CLI-derived dashboard into a full agentic code harness: stateful core, CLI-derived command surface, and design/UX. Successor to the 2026-05-28 GUI capability audit."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-30"
 training_eligible: false
 ---
 

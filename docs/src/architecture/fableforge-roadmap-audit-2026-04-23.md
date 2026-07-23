@@ -5,7 +5,6 @@ category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Project planning artifact for a separate codebase (FableForge, TypeScript/Convex)."
-last_updated: "2026-04-23"
 ---
 
 # FableForge Roadmap Audit — 2026-04-23

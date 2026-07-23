@@ -3,7 +3,6 @@ title: "Comprehensive Vox audit and improvement plan (April 2026, v2)"
 description: "Full-spectrum audit + ~90 prioritized improvements. Targets the 'premier LLM destination for web app code' thesis."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-04-18"
 training_eligible: true
 training_rationale: "Strategic audit context for engineering prioritization."
 schema_type: "TechArticle"
