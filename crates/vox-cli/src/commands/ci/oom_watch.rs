@@ -456,6 +456,10 @@ pub fn scan_and_report_oom_events(now: i64, job_rows: &[JobRow]) -> Result<(u32,
                 // successfully-posted event unrecorded.
                 seen_so_far = append_seen(seen_so_far, std::slice::from_ref(&event.raw_line));
                 write_oom_seen(&seen_so_far);
+                println!(
+                    "runner-scale: OOM-killed reported for {container_name} (process={}, job={}, run={})",
+                    event.process, m.job_name, m.run_id
+                );
             }
             Err(e) => {
                 eprintln!("runner-scale: OOM comment post failed (will retry next tick): {e:#}")
