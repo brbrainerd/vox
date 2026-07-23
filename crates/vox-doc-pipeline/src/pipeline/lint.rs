@@ -418,11 +418,17 @@ fn lint_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintError>) {
         } else if line.starts_with("training_rationale:") {
             saw_training_rationale = true;
         } else if line.starts_with("last_updated:") {
-            errors.push(LintError {
-                file: path.to_owned(),
-                line: line_no,
-                kind: LintKind::HandAuthoredLastUpdated,
-            });
+            let is_archive = path
+                .to_string_lossy()
+                .replace('\\', "/")
+                .contains("/archive/");
+            if !is_archive {
+                errors.push(LintError {
+                    file: path.to_owned(),
+                    line: line_no,
+                    kind: LintKind::HandAuthoredLastUpdated,
+                });
+            }
         }
     }
 
@@ -553,6 +559,20 @@ mod tests {
                 .iter()
                 .any(|e| matches!(e.kind, LintKind::HandAuthoredLastUpdated)),
             "did not expect a HandAuthoredLastUpdated error, got: {errs:?}"
+        );
+    }
+
+    #[test]
+    fn hand_authored_last_updated_is_exempt_under_archive() {
+        let mut errs = Vec::new();
+        let md_path = Path::new("docs/src/archive/old-doc.md");
+        let content = "---\ntitle: \"Fixture\"\ndescription: \"A fixture page for testing.\"\ncategory: \"Concepts\"\nlast_updated: \"2026-05-05\"\n---\n\nBody.\n";
+        lint_frontmatter(md_path, content, &mut errs);
+        assert!(
+            !errs
+                .iter()
+                .any(|e| matches!(e.kind, LintKind::HandAuthoredLastUpdated)),
+            "did not expect a HandAuthoredLastUpdated error under archive/, got: {errs:?}"
         );
     }
 
