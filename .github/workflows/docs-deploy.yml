@@ -192,3 +192,28 @@ jobs:
         env:
           BASE_URL: https://voxlang.org
 
+  # ── Failure visibility ─────────────────────────────────────────────────────
+  # docs-deploy.yml has no other failure signal anywhere (no if: failure()
+  # step, nothing watching it via workflow_run). Without this, a broken
+  # deploy fails silently and voxlang.org keeps serving a stale build.
+  notify-on-failure:
+    name: Notify on docs deploy failure
+    runs-on: ubuntu-latest
+    needs: [build-docs, deploy-pages, deploy-cloudflare, smoke-test]
+    if: failure()
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update a tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          existing=$(gh issue list --repo "${{ github.repository }}" --label docs-deploy-broken --state open --json number --jq '.[0].number')
+          body="docs-deploy.yml failed on main. Latest failing run: ${RUN_URL}"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "${{ github.repository }}" --body "$body"
+          else
+            gh issue create --repo "${{ github.repository }}" --title "docs-deploy is failing on main" --body "$body" --label docs-deploy-broken
+          fi
+
