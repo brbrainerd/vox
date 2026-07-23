@@ -867,8 +867,8 @@ pub fn run_scale(apply: bool) -> Result<()> {
 
     // 0.5/0.6. Shared jobs-API fetch, done ONCE per apply-tick and threaded
     // to every consumer that needs it this tick (OOM-visibility,
-    // unexpected-exit-visibility, and Task 3's reap-hardening later in this
-    // same tick) -- consolidated here (rather than each consumer fetching
+    // unexpected-exit-visibility, and the reap-hardening corroboration check
+    // later in this tick) -- consolidated here (rather than each consumer fetching
     // its own copy) specifically to avoid fanning out to multiple
     // independent multi-call gh api sequences in one tick, which adversarial
     // review flagged as a real rate-limit risk concentrated exactly during
@@ -899,38 +899,49 @@ pub fn run_scale(apply: bool) -> Result<()> {
         if let Some(lock) = _lock.as_ref() {
             lock.refresh(now_secs());
         }
-    }
 
-    if apply && let Some(rows) = shared_job_rows.as_deref() {
-        // OOM-visibility: detect any runner container hard-killed by its own
-        // memory cgroup limit since the last tick, and comment on the affected
-        // PR/run directly — the job itself can't self-report, since its whole
-        // execution environment (the runner agent process) died with the
-        // container.
-        match super::oom_watch::scan_and_report_oom_events(now, rows) {
-            Ok((oom_reported, claimed)) => {
-                oom_claimed_names = claimed;
-                if oom_reported > 0 {
-                    println!("runner-scale: reported {oom_reported} OOM-killed job(s) this tick");
+        // If this fetch fails, OOM/unexpected-exit visibility fully skips
+        // this tick (not just loses corroboration, unlike the
+        // reap-hardening check below) -- the event will be caught on the
+        // next tick with a working fetch, since neither scanner marks an
+        // event seen without successfully posting it.
+        if let Some(rows) = shared_job_rows.as_deref() {
+            // OOM-visibility: detect any runner container hard-killed by its
+            // own memory cgroup limit since the last tick, and comment on the
+            // affected PR/run directly — the job itself can't self-report,
+            // since its whole execution environment (the runner agent
+            // process) died with the container.
+            match super::oom_watch::scan_and_report_oom_events(now, rows) {
+                Ok((oom_reported, claimed)) => {
+                    oom_claimed_names = claimed;
+                    if oom_reported > 0 {
+                        println!(
+                            "runner-scale: reported {oom_reported} OOM-killed job(s) this tick"
+                        );
+                    }
+                }
+                Err(e) => eprintln!("runner-scale: OOM-visibility scan skipped (degraded): {e:#}"),
+            }
+
+            // Unexpected-exit visibility: detect any managed container that
+            // transitioned running->exited since the last tick while its
+            // assigned job was still in_progress (not a normal ephemeral
+            // job-complete exit, not already claimed by the OOM scan above).
+            // MUST run before step 1's cleanup below removes exited
+            // containers -- docker inspect can't read an exit code from a
+            // pruned container.
+            let curr_running: HashSet<String> =
+                managed_containers("running").into_iter().collect();
+            match super::unexpected_exit_watch::scan_and_report_unexpected_exits(
+                &curr_running,
+                &oom_claimed_names,
+                rows,
+            ) {
+                Ok(n) => unexpected_exit_reported = n,
+                Err(e) => {
+                    eprintln!("runner-scale: unexpected-exit scan skipped (degraded): {e:#}")
                 }
             }
-            Err(e) => eprintln!("runner-scale: OOM-visibility scan skipped (degraded): {e:#}"),
-        }
-
-        // Unexpected-exit visibility: detect any managed container that
-        // transitioned running->exited since the last tick while its
-        // assigned job was still in_progress (not a normal ephemeral
-        // job-complete exit, not already claimed by the OOM scan above).
-        // MUST run before step 1's cleanup below removes exited containers
-        // -- docker inspect can't read an exit code from a pruned container.
-        let curr_running: HashSet<String> = managed_containers("running").into_iter().collect();
-        match super::unexpected_exit_watch::scan_and_report_unexpected_exits(
-            &curr_running,
-            &oom_claimed_names,
-            rows,
-        ) {
-            Ok(n) => unexpected_exit_reported = n,
-            Err(e) => eprintln!("runner-scale: unexpected-exit scan skipped (degraded): {e:#}"),
         }
     }
 
