@@ -49,12 +49,6 @@ pub enum LintKind {
     DuplicateFrontmatter {
         second_block_start_line: usize,
     },
-    /// `last_updated` frontmatter disagrees with Git history by more than the policy window.
-    LastUpdatedStale {
-        declared: String,
-        git_tip: String,
-        delta_days: i64,
-    },
     /// A hand-authored `last_updated:` key is present at all; the pipeline derives this from Git.
     HandAuthoredLastUpdated,
 }

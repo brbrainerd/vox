@@ -8,9 +8,6 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-
-use chrono::NaiveDate;
 
 use super::types::{LintError, LintKind};
 
@@ -212,7 +209,6 @@ pub(crate) fn lint_file(path: &Path, content: &str, repo_root: &Path, errors: &m
     } else {
         lint_duplicate_frontmatter(path, content, errors);
         lint_frontmatter(path, content, errors);
-        lint_last_updated_vs_git(path, content, repo_root, errors);
     }
 
     if content.contains("Official documentation for ")
@@ -360,71 +356,6 @@ fn lint_duplicate_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintE
             });
             return;
         }
-    }
-}
-
-fn git_last_commit_date(repo_root: &Path, rel_file: &str) -> Option<NaiveDate> {
-    let out = // vox-arch-check: allow git-exec
-        Command::new("git")
-        .current_dir(repo_root)
-        .args(["log", "-1", "--format=%cs", "--", rel_file])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok()
-}
-
-fn lint_last_updated_vs_git(
-    path: &Path,
-    content: &str,
-    repo_root: &Path,
-    errors: &mut Vec<LintError>,
-) {
-    let Some(after_open) = content.strip_prefix("---") else {
-        return;
-    };
-    let Some(end) = after_open.find("---") else {
-        return;
-    };
-    let yaml = &after_open[..end];
-    let training = yaml.contains("\ntraining_eligible: true")
-        || yaml.contains("\ntraining_eligible: \"true\"");
-    if !training {
-        return;
-    }
-    let mut declared: Option<NaiveDate> = None;
-    for raw_line in yaml.lines() {
-        let line = raw_line.trim();
-        if let Some(value) = line.strip_prefix("last_updated:") {
-            let value = value.trim().trim_matches(|c| c == '"' || c == '\'');
-            declared = NaiveDate::parse_from_str(value, "%Y-%m-%d").ok();
-            break;
-        }
-    }
-    let Some(decl) = declared else {
-        return;
-    };
-    let Ok(rel) = path.strip_prefix(repo_root) else {
-        return;
-    };
-    let rel_str = rel.to_string_lossy().replace('\\', "/");
-    let Some(git_tip) = git_last_commit_date(repo_root, rel_str.trim_start_matches("./")) else {
-        return;
-    };
-    let delta = (decl - git_tip).num_days().abs();
-    if delta > 30 {
-        errors.push(LintError {
-            file: path.to_owned(),
-            line: 1,
-            kind: LintKind::LastUpdatedStale {
-                declared: decl.to_string(),
-                git_tip: git_tip.to_string(),
-                delta_days: delta,
-            },
-        });
     }
 }
 

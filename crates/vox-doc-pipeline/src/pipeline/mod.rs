@@ -56,7 +56,6 @@ fn workflow_for_kind(kind: &LintKind) -> &'static str {
         LintKind::DocTestFailed { .. } => {
             "make the ```vox block compile, or annotate it `// vox:skip` with a reason"
         }
-        LintKind::LastUpdatedStale { .. } => "refresh the `last_updated:` frontmatter date",
         LintKind::HandAuthoredLastUpdated => "remove the hand-authored last_updated key",
     }
 }
@@ -79,7 +78,6 @@ fn kind_label(kind: &LintKind) -> &'static str {
         LintKind::DocTestFailed { .. } => "doctest-failed",
         LintKind::UnlabeledCodeFence { .. } => "unlabeled-code-fence",
         LintKind::DuplicateFrontmatter { .. } => "duplicate-frontmatter",
-        LintKind::LastUpdatedStale { .. } => "last-updated-stale",
         LintKind::HandAuthoredLastUpdated => "hand-authored-last-updated",
     }
 }
@@ -372,19 +370,6 @@ pub fn run() {
                         "  ERROR  {}:{} — duplicate YAML frontmatter block (frontmatter/duplicate-block)",
                         rel.display(),
                         second_block_start_line,
-                    );
-                }
-                LintKind::LastUpdatedStale {
-                    declared,
-                    git_tip,
-                    delta_days,
-                } => {
-                    eprintln!(
-                        "  WARN   {} — frontmatter/last-updated-stale: last_updated={} vs git tip {} (Δ{} days)",
-                        rel.display(),
-                        declared,
-                        git_tip,
-                        delta_days,
                     );
                 }
                 LintKind::HandAuthoredLastUpdated => {
