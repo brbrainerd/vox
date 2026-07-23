@@ -166,6 +166,21 @@ pub fn should_reap_idle(idle_since: Option<i64>, now: i64, timeout: i64) -> bool
     }
 }
 
+/// True when `runner_name` was also idle-tracked as of the PRIOR tick's
+/// persisted state (`prev`, from `read_state()`) — i.e. this is at least the
+/// second consecutive tick it's been observed idle. The scale-down reap path
+/// (unlike the idle-timeout path, which already has a multi-minute grace via
+/// `should_reap_idle`) previously reaped on a single tick's snapshot with no
+/// history check at all; this closes that gap by requiring the same kind of
+/// 2-consecutive-tick evidence `zombies_for_force_cancel` already requires
+/// for a different reap decision in this file, for the same reason: "a
+/// single ... sample is insufficient" (see that function's doc comment).
+/// Not yet wired into the reap path itself — see the implementation plan's
+/// Task 3, which gates the scale-down reap on this check.
+pub fn eligible_for_scale_down_reap(runner_name: &str, prev: &HashMap<String, i64>) -> bool {
+    prev.contains_key(runner_name)
+}
+
 /// Pick up to `count` idle runner names to reap when `total_keep > desired`.
 /// Newest-idle runners go first (LIFO burst cleanup) so the longest-warm runner
 /// is kept for `VOX_RUNNER_WARM_POOL`.
@@ -1216,6 +1231,23 @@ mod tests {
         assert!(!should_reap_idle(Some(1000), 1000 + 299, 300)); // not yet
         assert!(should_reap_idle(Some(1000), 1000 + 300, 300)); // at timeout
         assert!(should_reap_idle(Some(1000), 1000 + 5000, 300)); // well past
+    }
+
+    #[test]
+    fn eligible_for_scale_down_reap_requires_prior_tick_idle_state() {
+        // Idle this tick (Some(_) idle_since from next_idle_since), but absent
+        // from prev — i.e. this is the FIRST tick it's been observed idle.
+        // Not yet eligible: a single sample is insufficient (mirrors
+        // zombies_for_force_cancel's own 2-consecutive-tick rationale).
+        let prev: HashMap<String, i64> = HashMap::new();
+        assert!(!eligible_for_scale_down_reap("vox-runner-auto-abc-0", &prev));
+    }
+
+    #[test]
+    fn eligible_for_scale_down_reap_true_when_idle_on_prior_tick_too() {
+        let mut prev: HashMap<String, i64> = HashMap::new();
+        prev.insert("vox-runner-auto-abc-0".to_string(), 1_000);
+        assert!(eligible_for_scale_down_reap("vox-runner-auto-abc-0", &prev));
     }
 
     #[test]
