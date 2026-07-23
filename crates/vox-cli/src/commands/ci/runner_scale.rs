@@ -197,6 +197,31 @@ pub fn scale_down_reap_targets(idle: &[(String, i64)], count: u32) -> Vec<String
         .collect()
 }
 
+/// Given this tick's scale-down candidates and the two hardening signals,
+/// returns (names to actually reap, names blocked and therefore still
+/// idle-tracked). Pure — the actual `reap()` IO call and `println!` stay in
+/// `run_scale` itself, this function only makes the decision. Extracted
+/// specifically so the "a blocked candidate must not be lost" invariant is
+/// unit-testable without mocking IO.
+pub fn partition_scale_down_candidates(
+    reap_set: &HashSet<String>,
+    job_rows: Option<&[super::oom_watch::JobRow]>,
+    prev: &HashMap<String, i64>,
+) -> (HashSet<String>, HashSet<String>) {
+    let mut to_reap = HashSet::new();
+    let mut blocked = HashSet::new();
+    for name in reap_set {
+        let corroborated_busy = job_rows.is_some_and(|rows| is_corroborated_busy(name, rows));
+        let two_tick_eligible = eligible_for_scale_down_reap(name, prev);
+        if corroborated_busy || !two_tick_eligible {
+            blocked.insert(name.clone());
+        } else {
+            to_reap.insert(name.clone());
+        }
+    }
+    (to_reap, blocked)
+}
+
 /// Count queued jobs whose label set the pool can serve. `label_lines` is one
 /// job per line, each line a comma-separated label list (jq output); a job
 /// matches when **every** label it requires is present on our runners.
@@ -905,6 +930,37 @@ pub fn run_scale(apply: bool) -> Result<()> {
     let desired = desired_runner_count(demand, max, warm);
     let total_keep = busy_count + idle_runners.len() as u32 + starting_count;
 
+    // Fetched once per tick and shared across both reap-hardening checks
+    // below (scale-down and idle-timeout), only when there's at least one
+    // idle-classified runner that might be reaped — an empty fleet or a
+    // fleet with no idle runners this tick has nothing to corroborate,
+    // so this avoids an unconditional extra `gh api` call every single tick.
+    // (A later task folds this into a single tick-wide fetch shared with the
+    // OOM/unexpected-exit scanners — this is a self-contained first version.)
+    let job_rows_for_reap_check: Option<Vec<super::oom_watch::JobRow>> = if !idle_runners.is_empty()
+    {
+        match super::oom_watch::fetch_recent_job_rows() {
+            Ok(rows) => Some(rows),
+            Err(e) => {
+                eprintln!(
+                    "runner-scale: reap-hardening jobs-API corroboration skipped (degraded, \
+                     falling back to runners-API busy flag alone this tick): {e:#}"
+                );
+                None
+            }
+        }
+    } else {
+        None
+    };
+    // This fetch can be a real multi-call gh api fan-out (see
+    // fetch_recent_job_rows's own doc comment) — refresh the scale lock's
+    // heartbeat immediately after it, the same way the OOM-visibility step
+    // already does around its own IO, so a slow tick here doesn't let a
+    // concurrent invocation see the lock as stale and steal it.
+    if let Some(lock) = _lock.as_ref() {
+        lock.refresh(now_secs());
+    }
+
     let mut reaped_scale_down = 0u32;
     if total_keep > desired {
         let excess = total_keep - desired;
@@ -915,11 +971,28 @@ pub fn run_scale(apply: bool) -> Result<()> {
             .collect();
         let to_reap = scale_down_reap_targets(&idle_with_since, reap_budget);
         let reap_set: HashSet<String> = to_reap.into_iter().collect();
-        idle_runners.retain(|(name, _)| !reap_set.contains(name));
-        for name in reap_set {
-            reap(&name, dry_run, "scale-down above desired");
+        let (actually_reaped, blocked) = partition_scale_down_candidates(
+            &reap_set,
+            job_rows_for_reap_check.as_deref(),
+            &prev,
+        );
+        for name in &blocked {
+            println!(
+                "runner-scale: scale-down reap of {name} blocked (corroborated busy or not yet \
+                 2-tick eligible) — leaving it idle-tracked rather than reaping or silently \
+                 dropping its state"
+            );
+        }
+        for name in &actually_reaped {
+            reap(name, dry_run, "scale-down above desired");
             reaped_scale_down += 1;
         }
+        // Only strip names that were ACTUALLY reaped -- a blocked candidate
+        // stays in idle_runners and flows into the idle-timeout loop below
+        // like any other still-idle runner, so its idle_since is persisted
+        // into new_state instead of being silently dropped. This is the fix
+        // for the critical bug described at the top of this task.
+        idle_runners.retain(|(name, _)| !actually_reaped.contains(name));
     }
 
     let mut new_state: HashMap<String, i64> = HashMap::new();
@@ -927,6 +1000,21 @@ pub fn run_scale(apply: bool) -> Result<()> {
     let mut reaped = 0u32;
     for (name, idle_since) in &idle_runners {
         if should_reap_idle(*idle_since, now, reap_secs) {
+            let corroborated_busy = job_rows_for_reap_check
+                .as_deref()
+                .is_some_and(|rows| is_corroborated_busy(name, rows));
+            if corroborated_busy {
+                println!(
+                    "runner-scale: idle-timeout reap of {name} blocked (corroborated busy via \
+                     jobs-API despite {reap_secs}s+ idle per runners-API) — treating as \
+                     possibly stale"
+                );
+                if let Some(s) = idle_since {
+                    new_state.insert(name.clone(), *s);
+                }
+                keep += 1;
+                continue;
+            }
             reap(name, dry_run, "idle > reap grace (never assigned)");
             reaped += 1;
         } else {
@@ -1194,6 +1282,39 @@ mod tests {
     #[test]
     fn corroborated_busy_false_on_empty_job_rows() {
         assert!(!is_corroborated_busy("vox-runner-auto-abc-0", &[]));
+    }
+
+    #[test]
+    fn blocked_scale_down_candidate_is_not_reaped_and_not_stripped_from_idle_tracking() {
+        // This is the exact regression adversarial review found in this plan
+        // before implementation: a candidate blocked by the hardening must NOT
+        // be silently dropped from the set that flows into idle-timeout tracking.
+        let mut reap_set = HashSet::new();
+        reap_set.insert("vox-runner-auto-blocked-0".to_string());
+        reap_set.insert("vox-runner-auto-clean-0".to_string());
+
+        // "blocked-0" is corroborated-busy via a fresh job row; "clean-0" has no
+        // matching job row and IS 2-tick-eligible, so it should actually reap.
+        let job_rows = vec![crate::commands::ci::oom_watch::JobRow {
+            runner_name: "vox-runner-auto-blocked-0".to_string(),
+            job_name: "docs-quality".to_string(),
+            run_id: 1,
+            pr_number: 460,
+        }];
+        let mut prev = HashMap::new();
+        prev.insert("vox-runner-auto-clean-0".to_string(), 1_000);
+
+        let (to_reap, blocked) =
+            partition_scale_down_candidates(&reap_set, Some(&job_rows), &prev);
+
+        assert!(to_reap.contains("vox-runner-auto-clean-0"));
+        assert!(!to_reap.contains("vox-runner-auto-blocked-0"));
+        assert!(blocked.contains("vox-runner-auto-blocked-0"));
+        assert!(!blocked.contains("vox-runner-auto-clean-0"));
+        // The critical assertion: the blocked name must be accounted for
+        // SOMEWHERE (to_reap union blocked = reap_set), never silently dropped.
+        let accounted: HashSet<String> = to_reap.union(&blocked).cloned().collect();
+        assert_eq!(&accounted, &reap_set);
     }
 
     #[test]

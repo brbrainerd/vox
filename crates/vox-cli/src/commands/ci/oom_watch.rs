@@ -228,7 +228,7 @@ const CORRELATE_RUNS_PER_STATUS: u32 = 20;
 /// that one run — it no longer aborts the whole scan, so a later run that
 /// actually holds the match still gets checked instead of the entire
 /// correlation being abandoned on the first transient error.
-fn fetch_recent_job_rows() -> Result<Vec<JobRow>> {
+pub(crate) fn fetch_recent_job_rows() -> Result<Vec<JobRow>> {
     let mut rows = Vec::new();
     for status in ["in_progress", "completed"] {
         let runs = gh_json(&[
