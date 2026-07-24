@@ -729,6 +729,139 @@ fn lint_readme_sync_paths(readme_path: &Path, mdx_path: &Path, errors: &mut Vec<
     lint_readme_sync_content(&readme, &mdx, mdx_path, SYNCED_BLOCKS, errors);
 }
 
+/// README.md's `tier_table` ANCHOR block still carries its own full copy of the
+/// stability matrix; docs/src/reference/stability.md is the canonical, full-detail
+/// home for the same content (linked from the condensed homepage summary — see
+/// `SYNCED_BLOCKS`'s doc comment). Nothing keeps these two in sync automatically,
+/// so this is a second, independent drift check with its own file pair, its own
+/// extraction (stability.md has no ANCHOR-style markers, so it's found by its
+/// fixed intro sentence instead), and its own link-scheme normalization (stability.md
+/// lives one directory deeper than index.mdx, so the same `docs/src/X/` prefixes
+/// resolve to different relative paths).
+const TIER_TABLE_BLOCK: &str = "tier_table";
+
+/// docs/src/reference/stability.md has no ANCHOR/SYNC markers of its own (it's a
+/// plain reference page, not built to be excerpted) — its table content is instead
+/// found by this fixed sentence, which opens both it and README's `tier_table`
+/// ANCHOR block. Content from here to end-of-file is what's comparable to README's
+/// ANCHOR block; everything before it (frontmatter, the `# Stability Matrix` H1,
+/// the "See also" cross-link line) has no README counterpart.
+const STABILITY_TABLE_MARKER: &str = "Vox is marching toward a production-hardened v1.0 release.";
+
+fn stability_doc_table(content: &str) -> Option<String> {
+    let idx = content.find(STABILITY_TABLE_MARKER)?;
+    Some(content[idx..].trim().to_string())
+}
+
+/// Apply the known, intentional README->stability.md link/markup transforms so the
+/// two blocks compare equal when they're genuinely in sync. Distinct from
+/// `normalize_for_compare` because stability.md sits one directory deeper
+/// (docs/src/reference/) than index.mdx (docs/src/) does, so the same
+/// `docs/src/X/`-prefixed README links resolve to different relative paths from
+/// each target file, plus stability.md wraps its table in an `## Stability Tiers`
+/// heading where README uses a bold `**Stability Tiers:**` line.
+fn normalize_for_stability_compare(s: &str) -> String {
+    let transformed = s
+        // Links to a sibling page in the same directory as stability.md itself
+        // (docs/src/reference/) collapse the whole prefix, not just swap it.
+        .replace("docs/src/reference/", "./")
+        // docs/src/adr/ and docs/src/architecture/ are siblings of docs/src/reference/,
+        // one level up from stability.md.
+        .replace("docs/src/adr/", "../adr/")
+        .replace("docs/src/architecture/", "../architecture/")
+        // stability.md is a standalone page with a real `##` heading; README's ANCHOR
+        // block uses a bold line instead since it's embedded in a larger page.
+        .replace("## Stability Tiers", "**Stability Tiers:**")
+        .replace(
+            "](CHANGELOG.md)",
+            "](https://github.com/vox-foundation/vox/blob/main/CHANGELOG.md)",
+        );
+    let transformed = rewrite_repo_relative_links(&transformed, "](crates/", 2, ')');
+    transformed.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Core comparison logic, separated from file I/O so it's directly unit-testable.
+fn lint_readme_stability_sync_content(
+    readme: &str,
+    stability: &str,
+    stability_path: &Path,
+    errors: &mut Vec<LintError>,
+) {
+    let Some(readme_block) = readme_anchor(readme, TIER_TABLE_BLOCK) else {
+        errors.push(LintError {
+            file: stability_path.to_owned(),
+            line: 1,
+            kind: LintKind::ReadmeStabilitySyncMissingAnchor {
+                block: TIER_TABLE_BLOCK.to_string(),
+            },
+        });
+        return;
+    };
+    let Some(stability_block) = stability_doc_table(stability) else {
+        errors.push(LintError {
+            file: stability_path.to_owned(),
+            line: 1,
+            kind: LintKind::ReadmeStabilitySyncMissingBlock {
+                block: TIER_TABLE_BLOCK.to_string(),
+            },
+        });
+        return;
+    };
+    if normalize_for_stability_compare(&readme_block)
+        != normalize_for_stability_compare(&stability_block)
+    {
+        errors.push(LintError {
+            file: stability_path.to_owned(),
+            line: 1,
+            kind: LintKind::ReadmeStabilitySyncDrift {
+                block: TIER_TABLE_BLOCK.to_string(),
+            },
+        });
+    }
+}
+
+/// Whole-repo check: compares README.md's `tier_table` ANCHOR block against
+/// docs/src/reference/stability.md. Called once per lint run (not per-file) from
+/// `mod.rs`, unconditionally (like `lint_readme_sync`) since it's two cheap file
+/// reads, not a directory walk.
+pub(crate) fn lint_readme_stability_sync(errors: &mut Vec<LintError>) {
+    lint_readme_stability_sync_paths(
+        Path::new("README.md"),
+        Path::new("docs/src/reference/stability.md"),
+        errors,
+    );
+}
+
+/// `lint_readme_stability_sync`'s logic, with the two source paths as parameters so
+/// it's directly unit-testable.
+fn lint_readme_stability_sync_paths(
+    readme_path: &Path,
+    stability_path: &Path,
+    errors: &mut Vec<LintError>,
+) {
+    let Ok(readme) = vox_bounded_fs::read_utf8_path_capped(readme_path) else {
+        errors.push(LintError {
+            file: readme_path.to_owned(),
+            line: 1,
+            kind: LintKind::ReadmeStabilitySyncSourceMissing {
+                path: readme_path.display().to_string(),
+            },
+        });
+        return;
+    };
+    let Ok(stability) = vox_bounded_fs::read_utf8_path_capped(stability_path) else {
+        errors.push(LintError {
+            file: stability_path.to_owned(),
+            line: 1,
+            kind: LintKind::ReadmeStabilitySyncSourceMissing {
+                path: stability_path.display().to_string(),
+            },
+        });
+        return;
+    };
+    lint_readme_stability_sync_content(&readme, &stability, stability_path, errors);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1046,6 +1179,114 @@ mod tests {
         assert!(
             errors.is_empty(),
             "expected no drift after the html-attribute crate-link transform, got: {errors:?}"
+        );
+    }
+
+    // --- README <-> docs/src/reference/stability.md drift check ---
+    //
+    // Separate from the readme_sync_* tests above: this compares README's `tier_table`
+    // ANCHOR block against docs/src/reference/stability.md's table content (a different
+    // file, with its own frontmatter/H1/"See also" preamble and its own link-scheme, since
+    // it lives one directory deeper than index.mdx).
+
+    #[test]
+    fn readme_stability_sync_detects_matching_block_after_known_transforms() {
+        let readme = "<!-- ANCHOR: tier_table -->\nVox is marching toward a production-hardened v1.0 release.\n\n| Feature Area | Status | Context & Maturity |\n|:---|:---|:---|\n| Database Engine | 🔵 Stable | [vox-db](crates/vox-db/) with Turso integration. |\n| Socrates Research | 🟡 Preview | [Socrates protocol](docs/src/reference/socrates-protocol.md) for fact-checking. |\n| Orchestrator Core | 🔵 Stable | See [Superpowers](docs/src/architecture/superpowers-ssot.md). |\n\n**Stability Tiers:**\n- 🔵 **Stable**: API locked.\n\nHistory: [`CHANGELOG.md`](CHANGELOG.md).\n<!-- ANCHOR_END: tier_table -->\n";
+        let stability = "---\ntitle: \"Stability Matrix\"\n---\n\n# Stability Matrix\n\nSee also: [v1.0 release criteria](../architecture/v1-release-criteria.md).\n\nVox is marching toward a production-hardened v1.0 release.\n\n| Feature Area | Status | Context & Maturity |\n|:---|:---|:---|\n| Database Engine | 🔵 Stable | [vox-db](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/) with Turso integration. |\n| Socrates Research | 🟡 Preview | [Socrates protocol](./socrates-protocol.md) for fact-checking. |\n| Orchestrator Core | 🔵 Stable | See [Superpowers](../architecture/superpowers-ssot.md). |\n\n## Stability Tiers\n\n- 🔵 **Stable**: API locked.\n\nHistory: [`CHANGELOG.md`](https://github.com/vox-foundation/vox/blob/main/CHANGELOG.md).\n";
+        let mut errors = Vec::new();
+        lint_readme_stability_sync_content(
+            readme,
+            stability,
+            Path::new("docs/src/reference/stability.md"),
+            &mut errors,
+        );
+        assert!(
+            errors.is_empty(),
+            "expected no drift after known transforms, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn readme_stability_sync_flags_real_drift() {
+        let readme = "<!-- ANCHOR: tier_table -->\nVox is marching toward a production-hardened v1.0 release.\n\n| Database Engine | 🔵 Stable |\n<!-- ANCHOR_END: tier_table -->\n";
+        let stability = "# Stability Matrix\n\nVox is marching toward a production-hardened v1.0 release.\n\n| Database Engine | 🟠 Emergent |\n";
+        let mut errors = Vec::new();
+        lint_readme_stability_sync_content(
+            readme,
+            stability,
+            Path::new("docs/src/reference/stability.md"),
+            &mut errors,
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                &e.kind,
+                LintKind::ReadmeStabilitySyncDrift { block } if block == "tier_table"
+            )),
+            "expected a ReadmeStabilitySyncDrift, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn readme_stability_sync_flags_missing_stability_block() {
+        let readme = "<!-- ANCHOR: tier_table -->\nVox is marching toward a production-hardened v1.0 release.\n<!-- ANCHOR_END: tier_table -->\n";
+        let stability = "# Stability Matrix\n\nno recognizable table marker here at all\n";
+        let mut errors = Vec::new();
+        lint_readme_stability_sync_content(
+            readme,
+            stability,
+            Path::new("docs/src/reference/stability.md"),
+            &mut errors,
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                &e.kind,
+                LintKind::ReadmeStabilitySyncMissingBlock { block } if block == "tier_table"
+            )),
+            "expected a ReadmeStabilitySyncMissingBlock, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn readme_stability_sync_flags_missing_readme_anchor() {
+        let readme = "no ANCHOR block here at all\n";
+        let stability =
+            "# Stability Matrix\n\nVox is marching toward a production-hardened v1.0 release.\n";
+        let mut errors = Vec::new();
+        lint_readme_stability_sync_content(
+            readme,
+            stability,
+            Path::new("docs/src/reference/stability.md"),
+            &mut errors,
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                &e.kind,
+                LintKind::ReadmeStabilitySyncMissingAnchor { block } if block == "tier_table"
+            )),
+            "expected a ReadmeStabilitySyncMissingAnchor, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn readme_stability_sync_flags_missing_source_file() {
+        let mut errors = Vec::new();
+        lint_readme_stability_sync_paths(
+            Path::new("this/path/does/not/exist/README.md"),
+            Path::new("docs/src/reference/stability.md"),
+            &mut errors,
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                &e.kind,
+                LintKind::ReadmeStabilitySyncSourceMissing { path } if path.contains("README.md")
+            )),
+            "expected a ReadmeStabilitySyncSourceMissing error for the unreadable README, got: {errors:?}"
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.file.to_string_lossy().contains("README.md")),
+            "error's `file` field should point at the actually-missing README, not stability.md, got: {errors:?}"
         );
     }
 }
