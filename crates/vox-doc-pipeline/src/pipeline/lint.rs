@@ -161,7 +161,10 @@ pub(crate) fn collect_lint_errors_target_with_root(
 /// Recursively collect lintable `.md` paths (skips `SUMMARY.md`, which is tool-generated).
 fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
     if target.is_file() {
-        if target.extension().map(|e| e == "md").unwrap_or(false)
+        if target
+            .extension()
+            .map(|e| e == "md" || e == "mdx")
+            .unwrap_or(false)
             && !target.to_str().unwrap_or_default().contains("SUMMARY.md")
         {
             out.push(target.to_path_buf());
@@ -176,7 +179,10 @@ fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
             let path = entry.path();
             if path.is_dir() {
                 gather_md_files(&path, out);
-            } else if path.extension().map(|e| e == "md").unwrap_or(false)
+            } else if path
+                .extension()
+                .map(|e| e == "md" || e == "mdx")
+                .unwrap_or(false)
                 && !path.to_str().unwrap_or_default().contains("SUMMARY.md")
             {
                 out.push(path);
@@ -313,7 +319,14 @@ fn yaml_introduces_second_frontmatter(lines: &[&str], dash_line_idx: usize) -> b
         if non_fence_seen > MAX_NON_FENCE_LINES {
             break;
         }
-        let t = line.trim();
+        // Real frontmatter keys sit at column 0. An indented match (e.g. a `title:`
+        // object-literal key nested inside a JSX prop's backtick template literal in
+        // .mdx — those aren't ``` fences, so the scan above doesn't skip them) is
+        // embedded content, not a second frontmatter block.
+        if line.starts_with(char::is_whitespace) {
+            continue;
+        }
+        let t = line.trim_end();
         if t.starts_with("title:")
             || t.starts_with("category:")
             || t.starts_with("description:")
@@ -619,6 +632,24 @@ mod tests {
     }
 
     #[test]
+    fn duplicate_frontmatter_ignores_indented_key_in_mdx_template_literal() {
+        let mut errs = Vec::new();
+        let mdx_path = Path::new("fixture.mdx");
+        let repo = Path::new(".");
+        // Regression: a JSX/MDX prop holding a backtick template literal isn't a ``` fence,
+        // so an indented object-literal key like `    title: str` inside it must not be
+        // mistaken for a second frontmatter block's `title:` key.
+        let content = "---\ntitle: Doc\ncategory: reference\n---\n\n## Section\n\n---\n\n<Playground code={`table Task {\n    title: str\n}`} />\n";
+        lint_file(mdx_path, content, repo, &mut errs);
+        assert!(
+            !errs
+                .iter()
+                .any(|e| matches!(e.kind, LintKind::DuplicateFrontmatter { .. })),
+            "expected no duplicate-frontmatter false positive from indented title: inside JSX template literal, got: {errs:?}"
+        );
+    }
+
+    #[test]
     fn suggest_maps_case_and_prefix_variants_to_canonical_category() {
         // The exact two wrong values that cost two push round-trips before this hint existed.
         assert_eq!(suggest("CI", VALID_CATEGORIES), Some("CI & Quality"));
@@ -697,5 +728,20 @@ mod tests {
         assert!(skip_unlabeled_code_fence_rel(
             "docs/src/archive/research-2026-q1/example.md"
         ));
+    }
+
+    #[test]
+    fn gather_md_files_includes_mdx() {
+        let tmp = std::env::temp_dir().join("vox_doc_pipeline_mdx_test");
+        let _ = std::fs::create_dir_all(&tmp);
+        let mdx_path = tmp.join("index.mdx");
+        std::fs::write(&mdx_path, "---\ntitle: \"x\"\n---\nbody").unwrap();
+        let mut out = Vec::new();
+        gather_md_files(&tmp, &mut out);
+        assert!(
+            out.iter().any(|p| p == &mdx_path),
+            "expected gather_md_files to include index.mdx, got: {out:?}"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
