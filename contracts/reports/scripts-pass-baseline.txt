@@ -31,7 +31,6 @@ scripts/migrations/2026-phase1-delete-repo-root-strays.vox
 scripts/migrations/2026-phase7-target-cleanup.vox
 scripts/orchestrator/model_discover.vox
 scripts/orchestrator/scoreboard_rollup.vox
-scripts/quality/archival-enforcer.vox
 scripts/quality/audit-dependency-layers.vox
 scripts/quality/audit-telemetry.vox
 scripts/quality/audit-workspace-health.vox
