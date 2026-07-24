@@ -37,6 +37,7 @@ Vox is marching toward a production-hardened v1.0 release. Surfaces are graded b
 | Distributed Mesh | 🟠 Emergent | Node discovery and workload routing functional across peers. |
 
 ## Stability Tiers
+
 - 🟢 **Production Candidate**: Hardened for 1.0; feature-complete and regression-free.
 - 🔵 **Stable**: API locked; high test coverage; used in core production internal loops.
 - 🟣 **Mature**: Core logic stable; focus on ergonomics, documentation, and performance.
