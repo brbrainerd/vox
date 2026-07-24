@@ -708,7 +708,7 @@ fn lint_readme_sync_paths(readme_path: &Path, mdx_path: &Path, errors: &mut Vec<
     // here (e.g. after one of the two files gets moved or renamed) would defeat that.
     let Ok(readme) = vox_bounded_fs::read_utf8_path_capped(readme_path) else {
         errors.push(LintError {
-            file: mdx_path.to_owned(),
+            file: readme_path.to_owned(),
             line: 1,
             kind: LintKind::ReadmeSyncSourceMissing {
                 path: readme_path.display().to_string(),
@@ -1018,6 +1018,12 @@ mod tests {
                 LintKind::ReadmeSyncSourceMissing { path } if path.contains("README.md")
             )),
             "expected a ReadmeSyncSourceMissing error for the unreadable README, got: {errors:?}"
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.file.to_string_lossy().contains("README.md")),
+            "error's `file` field should point at the actually-missing README, not index.mdx, got: {errors:?}"
         );
     }
 

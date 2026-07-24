@@ -132,10 +132,10 @@ For the landing-page "Who Vox is for" section.
 
 ## Footer block (license + community)
 
-Synced from README anchor `community_license`:
+Kept in sync with README's "Backing, license, contact" section by hand — there is no automated check for this block (unlike README's `why_vox` section, which `lint_readme_sync` does check). Re-copy from README before publishing marketing copy that uses it.
 
-> **License.** Apache 2.0 — commercial use permitted, patent rights granted, modifications allowed with attribution.
-> **Community.** Backed by [Open Collective](https://opencollective.com/vox-foundation) — every dollar raised and spent is public.
+> Funded via [Open Collective](https://opencollective.com/vox-foundation) — every transaction is public. Sponsorships fund developer grants, MENS training hardware, and academic bounties.
+> [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0): commercial use, patent grant, modification with attribution.
 
 Always prefer "Apache 2.0" over "open source" in marketing copy. Be specific.
 

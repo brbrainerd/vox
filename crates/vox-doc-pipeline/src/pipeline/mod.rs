@@ -268,12 +268,17 @@ pub fn run() {
     let mut lint_errors: Vec<LintError> = Vec::new();
     if lint_targets.is_empty() {
         collect_lint_errors(docs_src, &mut lint_errors);
-        lint::lint_readme_sync(&mut lint_errors);
     } else {
         for target in &lint_targets {
             collect_lint_errors_target(target, &mut lint_errors);
         }
     }
+    // Always run, even in scoped mode: it's two cheap file reads (README.md,
+    // index.mdx), not a directory walk, so there's no cost reason to gate it
+    // behind an unscoped run — and gating it was the reason the local
+    // (scoped-by-default) `vox ci pre-push` never caught README<->homepage
+    // drift, only CI did.
+    lint::lint_readme_sync(&mut lint_errors);
 
     if !lint_errors.is_empty() {
         eprintln!("\n── vox-doc-pipeline: doc lint errors ──────────────────────────────");

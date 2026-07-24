@@ -27,8 +27,13 @@ fn stale_days_threshold() to int {
     return 270;
 }
 
-// Returns days since the file's last git commit, or -1 if it couldn't be determined.
-fn days_since_last_commit(rel_path: str) to int {
+// Returns days between the file's last git commit and real wall-clock now,
+// or -1 if the commit date couldn't be determined. Takes `now_epoch_secs`
+// (computed once by the caller, not re-derived per file) so staleness is
+// measured against actual time rather than the checkout's HEAD commit —
+// a checkout that's behind the branch tip (stale clone, pinned/detached
+// HEAD) would otherwise silently under-report staleness for every file.
+fn days_since_last_commit(rel_path: str, now_epoch_secs: int) to int {
     let args = ["log", "-1", "--format=%ct", "--", rel_path];
     let proc = process.run("git", args);
     if proc is null {
@@ -44,15 +49,7 @@ fn days_since_last_commit(rel_path: str) to int {
     }
     let epoch = int(out);
 
-    let now_proc = process.run("git", ["log", "-1", "--format=%ct"]);
-    if now_proc is null {
-        return -1;
-    }
-    let now_res = now_proc.unwrap();
-    let now_out = now_res.stdout.trim();
-    let now_epoch = int(now_out);
-
-    let delta_secs = now_epoch - epoch;
+    let delta_secs = now_epoch_secs - epoch;
     return delta_secs / 86400;
 }
 
@@ -72,6 +69,7 @@ fn main() {
     }
     let all_files = glob_res.unwrap();
     let n = all_files.len();
+    let now_epoch_secs = std.time.now_ms() / 1000;
 
     let mut candidates = [];
     let mut checked = 0;
@@ -80,7 +78,7 @@ fn main() {
     while idx < n {
         let f = norm(all_files.get(idx).unwrap_or(""));
         idx = idx + 1;
-        let days = days_since_last_commit(f);
+        let days = days_since_last_commit(f, now_epoch_secs);
         if days < 0 {
             unknown = unknown + 1;
             continue;

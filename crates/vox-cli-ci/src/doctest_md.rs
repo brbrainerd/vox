@@ -4,9 +4,13 @@ use std::path::{Path, PathBuf};
 use vox_doc_pipeline::pipeline::doctest::check_doctests;
 use vox_doc_pipeline::pipeline::types::LintError;
 
+fn is_md_or_mdx(p: &Path) -> bool {
+    matches!(p.extension().and_then(|e| e.to_str()), Some("md") | Some("mdx"))
+}
+
 fn collect_md_files(target: &Path, out: &mut Vec<PathBuf>) {
     if target.is_file() {
-        if target.extension().and_then(|e| e.to_str()) == Some("md") {
+        if is_md_or_mdx(target) {
             out.push(target.to_path_buf());
         }
         return;
@@ -19,7 +23,7 @@ fn collect_md_files(target: &Path, out: &mut Vec<PathBuf>) {
             let p = entry.path();
             if p.is_dir() {
                 collect_md_files(&p, out);
-            } else if p.extension().and_then(|e| e.to_str()) == Some("md") {
+            } else if is_md_or_mdx(&p) {
                 out.push(p);
             }
         }
