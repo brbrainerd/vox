@@ -57,6 +57,13 @@ fn workflow_for_kind(kind: &LintKind) -> &'static str {
             "make the ```vox block compile, or annotate it `// vox:skip` with a reason"
         }
         LintKind::HandAuthoredLastUpdated => "remove the hand-authored last_updated key",
+        LintKind::ReadmeSyncDrift { .. } => {
+            "re-sync the block with README.md, or fix the ANCHOR if content genuinely changed"
+        }
+        LintKind::ReadmeSyncMissingBlock { .. } => {
+            "add the matching SYNC-FROM-README block to index.mdx"
+        }
+        LintKind::ReadmeSyncMissingAnchor { .. } => "add the matching ANCHOR block to README.md",
     }
 }
 
@@ -79,6 +86,9 @@ fn kind_label(kind: &LintKind) -> &'static str {
         LintKind::UnlabeledCodeFence { .. } => "unlabeled-code-fence",
         LintKind::DuplicateFrontmatter { .. } => "duplicate-frontmatter",
         LintKind::HandAuthoredLastUpdated => "hand-authored-last-updated",
+        LintKind::ReadmeSyncDrift { .. } => "readme-sync-drift",
+        LintKind::ReadmeSyncMissingBlock { .. } => "readme-sync-missing-block",
+        LintKind::ReadmeSyncMissingAnchor { .. } => "readme-sync-missing-anchor",
     }
 }
 
@@ -254,6 +264,7 @@ pub fn run() {
     let mut lint_errors: Vec<LintError> = Vec::new();
     if lint_targets.is_empty() {
         collect_lint_errors(docs_src, &mut lint_errors);
+        lint::lint_readme_sync(&mut lint_errors);
     } else {
         for target in &lint_targets {
             collect_lint_errors_target(target, &mut lint_errors);
@@ -378,6 +389,27 @@ pub fn run() {
                         rel.display()
                     );
                 }
+                LintKind::ReadmeSyncDrift { block } => {
+                    eprintln!(
+                        "  ERROR  {} — SYNC block '{}' has drifted from its README.md ANCHOR counterpart. Re-sync both, or fix the anchor if content genuinely changed.",
+                        rel.display(),
+                        block
+                    );
+                }
+                LintKind::ReadmeSyncMissingBlock { block } => {
+                    eprintln!(
+                        "  ERROR  {} — README.md has ANCHOR '{}' but index.mdx has no matching SYNC-FROM-README block.",
+                        rel.display(),
+                        block
+                    );
+                }
+                LintKind::ReadmeSyncMissingAnchor { block } => {
+                    eprintln!(
+                        "  ERROR  {} — index.mdx expects README.md ANCHOR '{}' but it's missing there.",
+                        rel.display(),
+                        block
+                    );
+                }
             }
         }
 
@@ -399,6 +431,9 @@ pub fn run() {
                         | LintKind::HandAuthoredLastUpdated
                         | LintKind::DocTestFailed { .. }
                         | LintKind::DuplicateFrontmatter { .. }
+                        | LintKind::ReadmeSyncDrift { .. }
+                        | LintKind::ReadmeSyncMissingBlock { .. }
+                        | LintKind::ReadmeSyncMissingAnchor { .. }
                 )
             })
             .count();

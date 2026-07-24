@@ -529,6 +529,153 @@ fn check_include_anchor(path: &Path, line: &str, line_no: usize, errors: &mut Ve
     }
 }
 
+/// README.md sections kept in sync with docs/src/index.mdx via matching
+/// `<!-- ANCHOR: name --> ... <!-- ANCHOR_END: name -->` (README) and
+/// `{/* SYNC-FROM-README: name */} ... {/* SYNC-END: name */}` (index.mdx) markers.
+const SYNCED_BLOCKS: &[&str] = &["why_vox", "how_vox", "tier_table"];
+
+fn extract_marked_block(content: &str, start_needle: &str, end_needle: &str) -> Option<String> {
+    let start_idx = content.find(start_needle)?;
+    let after_start = &content[start_idx + start_needle.len()..];
+    let end_idx = after_start.find(end_needle)?;
+    Some(after_start[..end_idx].trim().to_string())
+}
+
+fn readme_anchor(readme: &str, name: &str) -> Option<String> {
+    let start = format!("<!-- ANCHOR: {name} -->");
+    let end = format!("<!-- ANCHOR_END: {name} -->");
+    extract_marked_block(readme, &start, &end)
+}
+
+fn mdx_sync_block(mdx: &str, name: &str) -> Option<String> {
+    let start = format!("{{/* SYNC-FROM-README: {name} */}}");
+    let end = format!("{{/* SYNC-END: {name} */}}");
+    extract_marked_block(mdx, &start, &end)
+}
+
+/// Rewrite every occurrence of `needle` (a markdown-link opener like `"](crates/"`
+/// or an HTML-attribute opener like `"=\"crates/"`, always ending in the bare repo-
+/// relative prefix e.g. `crates/`) into its absolute GitHub URL form, choosing
+/// `tree/main/` for a directory target (path ends in `/`) or `blob/main/` for a
+/// file target (anything else) — README links to both crate directories and
+/// individual files (e.g. a single `.rs` or `.yaml`) under the same `crates/`
+/// prefix, and only the trailing slash distinguishes which GitHub URL shape is
+/// correct. `open_len` is the length of the needle's non-path prefix (`"]("`. or
+/// `"=\""` are both 2 bytes) and `terminator` is the character that closes the
+/// link/attribute (`)` or `"`).
+fn rewrite_repo_relative_links(s: &str, needle: &str, open_len: usize, terminator: char) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some(idx) = rest.find(needle) {
+        out.push_str(&rest[..idx + open_len]);
+        let after = &rest[idx + open_len..];
+        let Some(close_idx) = after.find(terminator) else {
+            out.push_str(after);
+            rest = "";
+            break;
+        };
+        let path = &after[..close_idx];
+        let github_prefix = if path.ends_with('/') {
+            "https://github.com/vox-foundation/vox/tree/main/"
+        } else {
+            "https://github.com/vox-foundation/vox/blob/main/"
+        };
+        out.push_str(github_prefix);
+        out.push_str(path);
+        rest = &after[close_idx..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Apply the known, intentional README->index.mdx link/markup transforms so the
+/// two blocks compare equal when they're genuinely in sync. Whitespace is also
+/// collapsed, since line-wrap differences between the two files carry no meaning.
+fn normalize_for_compare(s: &str) -> String {
+    let transformed = s
+        .replace("docs/src/assets/", "./assets/")
+        .replace("docs/src/reference/", "./reference/")
+        .replace("docs/src/how-to/", "./how-to/")
+        .replace("docs/src/architecture/", "./architecture/")
+        .replace("docs/src/adr/", "./adr/")
+        .replace("docs/src/explanation/", "./explanation/")
+        // index.mdx is valid JSX, so void HTML elements (<img>, <br>) must be
+        // self-closed there; README's plain Markdown doesn't require it. Fold
+        // both to the same (non-self-closed) shape rather than the other way
+        // around, since that's README's existing convention.
+        .replace(" />", ">")
+        // A bare top-level file link (e.g. `CHANGELOG.md`, relative to the repo
+        // root since README lives there) always becomes a `blob/main/` GitHub URL.
+        .replace(
+            "](CHANGELOG.md)",
+            "](https://github.com/vox-foundation/vox/blob/main/CHANGELOG.md)",
+        );
+    let transformed = rewrite_repo_relative_links(&transformed, "](crates/", 2, ')');
+    let transformed = rewrite_repo_relative_links(&transformed, "=\"crates/", 2, '"');
+    let transformed = rewrite_repo_relative_links(&transformed, "](examples/", 2, ')');
+    transformed.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Core comparison logic, separated from file I/O so it's directly unit-testable.
+fn lint_readme_sync_content(
+    readme: &str,
+    mdx: &str,
+    mdx_path: &Path,
+    blocks: &[&str],
+    errors: &mut Vec<LintError>,
+) {
+    for &name in blocks {
+        let Some(readme_block) = readme_anchor(readme, name) else {
+            errors.push(LintError {
+                file: mdx_path.to_owned(),
+                line: 1,
+                kind: LintKind::ReadmeSyncMissingAnchor {
+                    block: name.to_string(),
+                },
+            });
+            continue;
+        };
+        let Some(mdx_block) = mdx_sync_block(mdx, name) else {
+            errors.push(LintError {
+                file: mdx_path.to_owned(),
+                line: 1,
+                kind: LintKind::ReadmeSyncMissingBlock {
+                    block: name.to_string(),
+                },
+            });
+            continue;
+        };
+        if normalize_for_compare(&readme_block) != normalize_for_compare(&mdx_block) {
+            errors.push(LintError {
+                file: mdx_path.to_owned(),
+                line: 1,
+                kind: LintKind::ReadmeSyncDrift {
+                    block: name.to_string(),
+                },
+            });
+        }
+    }
+}
+
+/// Whole-repo check: compares README.md against docs/src/index.mdx. Called once
+/// per lint run (not per-file) from `mod.rs`. Reads plain repo-root-relative
+/// paths directly (matching this tool's own convention of assuming the process
+/// cwd is the repo root — see mod.rs's own `Path::new("docs/src")` with no
+/// root-joining) rather than taking a caller-supplied repo_root, since the
+/// natural helper for that (`repo_root_for_lint()`) is private to this module
+/// and mod.rs can't call it across module boundaries.
+pub(crate) fn lint_readme_sync(errors: &mut Vec<LintError>) {
+    let readme_path = Path::new("README.md");
+    let mdx_path = Path::new("docs/src/index.mdx");
+    let Ok(readme) = vox_bounded_fs::read_utf8_path_capped(readme_path) else {
+        return;
+    };
+    let Ok(mdx) = vox_bounded_fs::read_utf8_path_capped(mdx_path) else {
+        return;
+    };
+    lint_readme_sync_content(&readme, &mdx, mdx_path, SYNCED_BLOCKS, errors);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -743,5 +890,65 @@ mod tests {
             "expected gather_md_files to include index.mdx, got: {out:?}"
         );
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn readme_sync_detects_matching_block_after_known_transforms() {
+        let readme = "<!-- ANCHOR: demo -->\nSee [the crate](crates/vox-db/) and ![x](docs/src/assets/pic.png).\n<!-- ANCHOR_END: demo -->\n";
+        let mdx = "{/* SYNC-FROM-README: demo */}\nSee [the crate](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/) and ![x](./assets/pic.png).\n{/* SYNC-END: demo */}\n";
+        let mut errors = Vec::new();
+        lint_readme_sync_content(
+            readme,
+            mdx,
+            Path::new("docs/src/index.mdx"),
+            &["demo"],
+            &mut errors,
+        );
+        assert!(
+            errors.is_empty(),
+            "expected no drift after known transforms, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn readme_sync_flags_real_drift() {
+        let readme =
+            "<!-- ANCHOR: demo -->\nSee [the crate](crates/vox-db/).\n<!-- ANCHOR_END: demo -->\n";
+        let mdx = "{/* SYNC-FROM-README: demo */}\nSee [a totally different crate](https://github.com/vox-foundation/vox/tree/main/crates/vox-other/).\n{/* SYNC-END: demo */}\n";
+        let mut errors = Vec::new();
+        lint_readme_sync_content(
+            readme,
+            mdx,
+            Path::new("docs/src/index.mdx"),
+            &["demo"],
+            &mut errors,
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(&e.kind, LintKind::ReadmeSyncDrift { block } if block == "demo")),
+            "expected a ReadmeSyncDrift for 'demo', got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn readme_sync_flags_missing_mdx_block() {
+        let readme =
+            "<!-- ANCHOR: demo -->\nSee the crate.\n<!-- ANCHOR_END: demo -->\n";
+        let mdx = "no sync block here at all\n";
+        let mut errors = Vec::new();
+        lint_readme_sync_content(
+            readme,
+            mdx,
+            Path::new("docs/src/index.mdx"),
+            &["demo"],
+            &mut errors,
+        );
+        assert!(
+            errors.iter().any(
+                |e| matches!(&e.kind, LintKind::ReadmeSyncMissingBlock { block } if block == "demo")
+            ),
+            "expected a ReadmeSyncMissingBlock for 'demo', got: {errors:?}"
+        );
     }
 }

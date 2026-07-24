@@ -51,4 +51,17 @@ pub enum LintKind {
     },
     /// A hand-authored `last_updated:` key is present at all; the pipeline derives this from Git.
     HandAuthoredLastUpdated,
+    /// index.mdx's SYNC-FROM-README block content differs from README's matching ANCHOR block,
+    /// after known intentional link-scheme transforms are applied.
+    ReadmeSyncDrift {
+        block: String,
+    },
+    /// README.md has an ANCHOR block but index.mdx has no matching SYNC-FROM-README block.
+    ReadmeSyncMissingBlock {
+        block: String,
+    },
+    /// index.mdx expects a README.md ANCHOR block that doesn't exist there.
+    ReadmeSyncMissingAnchor {
+        block: String,
+    },
 }

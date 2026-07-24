@@ -120,42 +120,40 @@ The Vox AgentOS dynamically loads capabilities (Skills) through a stable ABI. Fi
 ### Pillar 1: One source of truth
 
 ```vox
-@table type Task {
+table Task {
     title: str
     done:  bool
     owner: str
 }
 ```
 
-The declaration is the [schema](crates/vox-db/), the [wire format](crates/vox-protocol/), and the typed client. `@index Task.by_owner on (owner)` lives next to it. [Migrations](crates/vox-db/) come from the diff against the previous schema.
+The declaration is the [schema](crates/vox-db/), the [wire format](crates/vox-protocol/), and the typed client. `index Task.by_owner on (owner)` lives next to it. [Migrations](crates/vox-db/) come from the diff against the previous schema.
 
 → [`@table` reference](docs/src/reference/ref-decorators.md) · [migration guide](docs/src/how-to/how-to-database.md)
 
 ### Pillar 2: Errors in the type system
 
 ```vox
-@query
-fn recent_tasks() to list[Task] {
-    return db.Task.where({ done: false }).limit(10)
+query recent_tasks() to list[Task] {
+    return db.Task.where({ done: false }).limit(10).unwrap()
 }
 
-@mutation
-fn add_task(title: str, owner: str) to Result[Id[Task]] {
+mutation add_task(title: str, owner: str) to Result[Id[Task]] {
     if title is "" {
         return Error("title required")
     }
 
-    return Ok(db.insert(Task, {
+    return db.Task.insert({
         title: title,
         done: false,
         owner: owner
-    }))
+    })
 }
 ```
 
 A `Result[T]` caller must handle both arms — no exceptions, no `null`, no implicit propagation. The compiler refuses to build code that drops `Error`. [`vox-lsp`](crates/vox-lsp/) surfaces the same diagnostics live in the editor.
 
-`@query`, `@mutation`, and `@server` are the three endpoint kinds. They replace the previous `@endpoint(kind: …)` form (deprecated 2026-05-23; auto-migrated by `vox fmt`).
+`query`, `mutation`, and `server` are the three endpoint kinds. They replace the previous `@endpoint(kind: …)` form (deprecated 2026-05-23; auto-migrated by `vox fmt`).
 
 → [decorator reference](docs/src/reference/ref-decorators.md)
 
@@ -183,20 +181,18 @@ routes {
 
 ### Pillar 4: Agents, MCP, and the orchestrator
 
-`@mcp.tool` and `@mcp.resource` expose typed functions to any [Model Context Protocol](https://modelcontextprotocol.io) client.<sup>[3](#ref3)</sup> The tool description, parameter schema, and return type are all derived from the function signature.
+`tool` and `resource` expose typed functions to any [Model Context Protocol](https://modelcontextprotocol.io) client.<sup>[3](#ref3)</sup> The tool description, parameter schema, and return type are all derived from the function signature.
 
 ```vox
-@mcp.tool "Process a checkout for the given amount"
-fn checkout(amount: int) to Result[str] {
+tool "Process a checkout for the given amount" checkout(amount: int) to Result[str] {
     if amount > 1000 {
         return Error("amount too large")
     }
     return Ok("tx_123")
 }
 
-@mcp.resource("vox://orders/recent", "Recent orders this hour")
-fn recent_orders() to list[Order] {
-    return db.Order.where({ created_at: hour_ago() })
+resource "vox://tasks/open" "Open tasks right now" open_tasks_resource() to list[Task] {
+    return db.Task.where({ done: false }).limit(10).unwrap()
 }
 ```
 
@@ -233,10 +229,10 @@ A few language-level decisions show up in almost every snippet:
 **Phonetic operators.** Vox spells comparisons and booleans as words: `is`, `isnt`, `and`, `or`, `not`. The bare `!=` form parses, but the lexer emits a diagnostic pointing at `isnt`. Words appear in language-model training data far more often than punctuation patterns — so a model is more likely to predict the word than the symbol, and a human reads it aloud unambiguously.
 
 ```vox
-fn classify(score: int, override: bool) to str {
+fn classify(score: int, override: bool, calibrated: bool) to str {
     if override is true { return "admin" }
     if score >= 90 and score isnt 100 { return "expert" }
-    if score < 50 or not is_calibrated() { return "novice" }
+    if score < 50 or not calibrated { return "novice" }
     return "regular"
 }
 ```
