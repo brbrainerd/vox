@@ -1,0 +1,110 @@
+// ---
+// title: "Architecture Docs Staleness Report"
+// description: "Lists docs/src/architecture/*.md files whose last Git commit is older than a threshold, for human review — does not move or modify any file."
+// category: "tooling"
+// status: "current"
+// training_eligible: false
+// ---
+//
+// Usage:
+//   vox run --mode interp scripts/docs/architecture-staleness-report.vox
+//   VOX_STALE_DAYS=180 vox run --mode interp scripts/docs/architecture-staleness-report.vox
+//
+// Output is a candidate list for a human to review before manually moving
+// anything into docs/src/archive/. This script never writes or moves files.
+
+// vox:caps fs env subprocess
+
+fn norm(p: str) to str {
+    return p.replace("\\", "/");
+}
+
+fn stale_days_threshold() to int {
+    let opt = env.get("VOX_STALE_DAYS");
+    if opt.is_some() {
+        return int(opt.unwrap());
+    }
+    return 270;
+}
+
+// Returns days since the file's last git commit, or -1 if it couldn't be determined.
+fn days_since_last_commit(rel_path: str) to int {
+    let args = ["log", "-1", "--format=%ct", "--", rel_path];
+    let proc = process.run("git", args);
+    if proc is null {
+        return -1;
+    }
+    let res = proc.unwrap();
+    if res.code != 0 {
+        return -1;
+    }
+    let out = res.stdout.trim();
+    if out.len() == 0 {
+        return -1;
+    }
+    let epoch = int(out);
+
+    let now_proc = process.run("git", ["log", "-1", "--format=%ct"]);
+    if now_proc is null {
+        return -1;
+    }
+    let now_res = now_proc.unwrap();
+    let now_out = now_res.stdout.trim();
+    let now_epoch = int(now_out);
+
+    let delta_secs = now_epoch - epoch;
+    return delta_secs / 86400;
+}
+
+fn main() {
+    if not fs.exists("docs/src/architecture") {
+        print("Error: docs/src/architecture not found — run from the repo root.");
+        return;
+    }
+
+    let threshold = stale_days_threshold();
+    print("=== architecture-staleness-report.vox (threshold: " + str(threshold) + " days, report only) ===");
+
+    let glob_res = fs.glob("docs/src/architecture/**/*.md");
+    if glob_res.is_err() {
+        print("Error: fs.glob failed for docs/src/architecture/**/*.md");
+        return;
+    }
+    let all_files = glob_res.unwrap();
+    let n = all_files.len();
+
+    let mut candidates = [];
+    let mut checked = 0;
+    let mut unknown = 0;
+    let mut idx = 0;
+    while idx < n {
+        let f = norm(all_files.get(idx).unwrap_or(""));
+        idx = idx + 1;
+        let days = days_since_last_commit(f);
+        if days < 0 {
+            unknown = unknown + 1;
+            continue;
+        }
+        checked = checked + 1;
+        if days >= threshold {
+            candidates = candidates.push(f + " (" + str(days) + " days)");
+        }
+    }
+
+    print("");
+    print("=== Summary ===");
+    print("  checked:            " + str(checked));
+    print("  unknown (no git history resolved): " + str(unknown));
+    print("  stale candidates:   " + str(len(candidates)));
+    print("");
+    if len(candidates) > 0 {
+        print("Candidates for manual archival review (docs/src/archive/):");
+        let mut i = 0;
+        while i < len(candidates) {
+            print("  - " + candidates.get(i).unwrap_or(""));
+            i = i + 1;
+        }
+        print("");
+        print("Review each by hand — this list is not authoritative and this script moves nothing.");
+    }
+}
