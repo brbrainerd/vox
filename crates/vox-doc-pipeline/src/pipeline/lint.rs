@@ -532,7 +532,14 @@ fn check_include_anchor(path: &Path, line: &str, line_no: usize, errors: &mut Ve
 /// README.md sections kept in sync with docs/src/index.mdx via matching
 /// `<!-- ANCHOR: name --> ... <!-- ANCHOR_END: name -->` (README) and
 /// `{/* SYNC-FROM-README: name */} ... {/* SYNC-END: name */}` (index.mdx) markers.
-const SYNCED_BLOCKS: &[&str] = &["why_vox", "how_vox", "tier_table"];
+///
+/// Only `why_vox` is still a true 1:1 sync target. `how_vox` and `tier_table`
+/// were condensed on the homepage (2026-07-23 redesign, see
+/// docs/superpowers/specs/2026-07-23-docs-homepage-maintainability-design.md)
+/// — their full-detail canonical homes are docs/src/explanation/expl-architecture.md
+/// and docs/src/reference/stability.md respectively, linked from the homepage,
+/// not duplicated on it.
+const SYNCED_BLOCKS: &[&str] = &["why_vox"];
 
 fn extract_marked_block(content: &str, start_needle: &str, end_needle: &str) -> Option<String> {
     let start_idx = content.find(start_needle)?;
@@ -593,15 +600,20 @@ fn rewrite_repo_relative_links(s: &str, needle: &str, open_len: usize, terminato
 /// collapsed, since line-wrap differences between the two files carry no meaning.
 fn normalize_for_compare(s: &str) -> String {
     let transformed = s
-        // Used by why_vox (its two figure images) as well as how_vox/tier_table.
+        // Used by why_vox (its two figure images).
         .replace("docs/src/assets/", "./assets/")
         // The following `docs/src/X/` -> `./X/` swaps, the CHANGELOG.md case, and the
-        // `examples/`/`crates/` rewrites below exist only because of how_vox/tier_table
+        // `examples/`/`crates/` rewrites below existed only for former how_vox/tier_table
         // content (decorator-reference links, ADR links, crate/example links, the
-        // changelog link in tier_table's footer, ...) — why_vox doesn't use any of them.
-        // Once SYNCED_BLOCKS drops to just `["why_vox"]` (a later task in this plan's
-        // homepage redesign, once how_vox/tier_table are condensed off the page), all of
-        // these become dead code and are safe to delete in that same change.
+        // changelog link in tier_table's footer, ...) — why_vox never used any of them.
+        // Now that SYNCED_BLOCKS is just `["why_vox"]` (how_vox/tier_table were condensed
+        // off the homepage in the 2026-07-23 redesign — their full detail now lives at
+        // docs/src/explanation/expl-architecture.md and docs/src/reference/stability.md,
+        // linked rather than duplicated), these rules are dead in production: no content
+        // any real lint_readme_sync() call sees exercises them. They're kept (rather than
+        // deleted) because the `readme_sync_*` unit tests below still exercise them
+        // directly via arbitrary test block names, to guard the general-purpose
+        // normalization logic in case SYNCED_BLOCKS ever grows again.
         .replace("docs/src/reference/", "./reference/")
         .replace("docs/src/how-to/", "./how-to/")
         .replace("docs/src/architecture/", "./architecture/")
@@ -613,16 +625,18 @@ fn normalize_for_compare(s: &str) -> String {
         // it doesn't inspect which tag it's touching — so it relies on neither
         // file's synced blocks ever using a *meaningfully* self-closing tag
         // (e.g. a real empty custom element) whose self-closing-ness carries
-        // content, not just markup-dialect noise. (Used by all three blocks.)
+        // content, not just markup-dialect noise. (Still used by why_vox today;
+        // was also used by how_vox/tier_table before they were condensed.)
         .replace(" />", ">")
         // A bare top-level file link (e.g. `CHANGELOG.md`, relative to the repo
         // root since README lives there) always becomes a `blob/main/` GitHub URL.
-        // tier_table-only — see the dead-code note above.
+        // Dead in production now (was tier_table-only) — see the dead-code note above.
         .replace(
             "](CHANGELOG.md)",
             "](https://github.com/vox-foundation/vox/blob/main/CHANGELOG.md)",
         );
-    // how_vox/tier_table-only (crate and example links) — see the dead-code note above.
+    // Dead in production now (was how_vox/tier_table-only, crate and example links) —
+    // see the dead-code note above.
     let transformed = rewrite_repo_relative_links(&transformed, "](crates/", 2, ')');
     let transformed = rewrite_repo_relative_links(&transformed, "=\"crates/", 2, '"');
     let transformed = rewrite_repo_relative_links(&transformed, "](examples/", 2, ')');
