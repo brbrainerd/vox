@@ -5,7 +5,10 @@ use vox_doc_pipeline::pipeline::doctest::check_doctests;
 use vox_doc_pipeline::pipeline::types::LintError;
 
 fn is_md_or_mdx(p: &Path) -> bool {
-    matches!(p.extension().and_then(|e| e.to_str()), Some("md") | Some("mdx"))
+    matches!(
+        p.extension().and_then(|e| e.to_str()),
+        Some("md") | Some("mdx")
+    )
 }
 
 fn collect_md_files(target: &Path, out: &mut Vec<PathBuf>) {
