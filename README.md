@@ -17,9 +17,6 @@
 
 ---
 
-<!-- Code examples in this file mirror examples/golden/*.vox -->
-<!-- Run: vox check examples/golden/*.vox to verify -->
-
 <div align="center">
   <blockquote>
     <p><em>"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!"</em></p>
