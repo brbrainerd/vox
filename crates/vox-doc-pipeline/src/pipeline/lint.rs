@@ -593,23 +593,36 @@ fn rewrite_repo_relative_links(s: &str, needle: &str, open_len: usize, terminato
 /// collapsed, since line-wrap differences between the two files carry no meaning.
 fn normalize_for_compare(s: &str) -> String {
     let transformed = s
+        // Used by why_vox (its two figure images) as well as how_vox/tier_table.
         .replace("docs/src/assets/", "./assets/")
+        // The following `docs/src/X/` -> `./X/` swaps, the CHANGELOG.md case, and the
+        // `examples/`/`crates/` rewrites below exist only because of how_vox/tier_table
+        // content (decorator-reference links, ADR links, crate/example links, the
+        // changelog link in tier_table's footer, ...) — why_vox doesn't use any of them.
+        // Once SYNCED_BLOCKS drops to just `["why_vox"]` (a later task in this plan's
+        // homepage redesign, once how_vox/tier_table are condensed off the page), all of
+        // these become dead code and are safe to delete in that same change.
         .replace("docs/src/reference/", "./reference/")
         .replace("docs/src/how-to/", "./how-to/")
         .replace("docs/src/architecture/", "./architecture/")
         .replace("docs/src/adr/", "./adr/")
         .replace("docs/src/explanation/", "./explanation/")
-        // index.mdx is valid JSX, so void HTML elements (<img>, <br>) must be
-        // self-closed there; README's plain Markdown doesn't require it. Fold
-        // both to the same (non-self-closed) shape rather than the other way
-        // around, since that's README's existing convention.
+        // index.mdx is valid JSX, so self-closing void elements there (<img />,
+        // <br />, ...) render the same content as README's plain-HTML, non-self-
+        // closed forms (<img>, <br>). This is a blanket `" />"` -> `">"` fold —
+        // it doesn't inspect which tag it's touching — so it relies on neither
+        // file's synced blocks ever using a *meaningfully* self-closing tag
+        // (e.g. a real empty custom element) whose self-closing-ness carries
+        // content, not just markup-dialect noise. (Used by all three blocks.)
         .replace(" />", ">")
         // A bare top-level file link (e.g. `CHANGELOG.md`, relative to the repo
         // root since README lives there) always becomes a `blob/main/` GitHub URL.
+        // tier_table-only — see the dead-code note above.
         .replace(
             "](CHANGELOG.md)",
             "](https://github.com/vox-foundation/vox/blob/main/CHANGELOG.md)",
         );
+    // how_vox/tier_table-only (crate and example links) — see the dead-code note above.
     let transformed = rewrite_repo_relative_links(&transformed, "](crates/", 2, ')');
     let transformed = rewrite_repo_relative_links(&transformed, "=\"crates/", 2, '"');
     let transformed = rewrite_repo_relative_links(&transformed, "](examples/", 2, ')');
@@ -665,12 +678,38 @@ fn lint_readme_sync_content(
 /// natural helper for that (`repo_root_for_lint()`) is private to this module
 /// and mod.rs can't call it across module boundaries.
 pub(crate) fn lint_readme_sync(errors: &mut Vec<LintError>) {
-    let readme_path = Path::new("README.md");
-    let mdx_path = Path::new("docs/src/index.mdx");
+    lint_readme_sync_paths(
+        Path::new("README.md"),
+        Path::new("docs/src/index.mdx"),
+        errors,
+    );
+}
+
+/// `lint_readme_sync`'s logic, with the two source paths as parameters so it's
+/// directly unit-testable (e.g. pointing `readme_path` at a nonexistent file to
+/// exercise the missing-source-file error without touching the real repo files).
+fn lint_readme_sync_paths(readme_path: &Path, mdx_path: &Path, errors: &mut Vec<LintError>) {
+    // A missing source file must be a loud lint error, not a quiet early return — the
+    // whole point of this check is to never let drift go unnoticed, and a silent no-op
+    // here (e.g. after one of the two files gets moved or renamed) would defeat that.
     let Ok(readme) = vox_bounded_fs::read_utf8_path_capped(readme_path) else {
+        errors.push(LintError {
+            file: mdx_path.to_owned(),
+            line: 1,
+            kind: LintKind::ReadmeSyncSourceMissing {
+                path: readme_path.display().to_string(),
+            },
+        });
         return;
     };
     let Ok(mdx) = vox_bounded_fs::read_utf8_path_capped(mdx_path) else {
+        errors.push(LintError {
+            file: mdx_path.to_owned(),
+            line: 1,
+            kind: LintKind::ReadmeSyncSourceMissing {
+                path: mdx_path.display().to_string(),
+            },
+        });
         return;
     };
     lint_readme_sync_content(&readme, &mdx, mdx_path, SYNCED_BLOCKS, errors);
@@ -933,8 +972,7 @@ mod tests {
 
     #[test]
     fn readme_sync_flags_missing_mdx_block() {
-        let readme =
-            "<!-- ANCHOR: demo -->\nSee the crate.\n<!-- ANCHOR_END: demo -->\n";
+        let readme = "<!-- ANCHOR: demo -->\nSee the crate.\n<!-- ANCHOR_END: demo -->\n";
         let mdx = "no sync block here at all\n";
         let mut errors = Vec::new();
         lint_readme_sync_content(
@@ -949,6 +987,45 @@ mod tests {
                 |e| matches!(&e.kind, LintKind::ReadmeSyncMissingBlock { block } if block == "demo")
             ),
             "expected a ReadmeSyncMissingBlock for 'demo', got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn readme_sync_flags_missing_source_file() {
+        let mut errors = Vec::new();
+        lint_readme_sync_paths(
+            Path::new("this/path/does/not/exist/README.md"),
+            Path::new("docs/src/index.mdx"),
+            &mut errors,
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                &e.kind,
+                LintKind::ReadmeSyncSourceMissing { path } if path.contains("README.md")
+            )),
+            "expected a ReadmeSyncSourceMissing error for the unreadable README, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn readme_sync_detects_matching_block_via_html_attribute_crate_link() {
+        // Exercises the `="crates/` rewrite branch specifically (as opposed to the
+        // markdown `](crates/` form covered by the other readme_sync_ tests) — this is
+        // the shape README's how_vox content actually uses for inline `<a href="...">`
+        // links, e.g. `<a href="crates/vox-workflow-runtime/">`.
+        let readme = "<!-- ANCHOR: demo -->\nSee <a href=\"crates/vox-db/\">vox-db</a>.\n<!-- ANCHOR_END: demo -->\n";
+        let mdx = "{/* SYNC-FROM-README: demo */}\nSee <a href=\"https://github.com/vox-foundation/vox/tree/main/crates/vox-db/\">vox-db</a>.\n{/* SYNC-END: demo */}\n";
+        let mut errors = Vec::new();
+        lint_readme_sync_content(
+            readme,
+            mdx,
+            Path::new("docs/src/index.mdx"),
+            &["demo"],
+            &mut errors,
+        );
+        assert!(
+            errors.is_empty(),
+            "expected no drift after the html-attribute crate-link transform, got: {errors:?}"
         );
     }
 }

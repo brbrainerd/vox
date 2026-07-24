@@ -64,6 +64,9 @@ fn workflow_for_kind(kind: &LintKind) -> &'static str {
             "add the matching SYNC-FROM-README block to index.mdx"
         }
         LintKind::ReadmeSyncMissingAnchor { .. } => "add the matching ANCHOR block to README.md",
+        LintKind::ReadmeSyncSourceMissing { .. } => {
+            "restore README.md and docs/src/index.mdx — the sync check can't run without both"
+        }
     }
 }
 
@@ -89,6 +92,7 @@ fn kind_label(kind: &LintKind) -> &'static str {
         LintKind::ReadmeSyncDrift { .. } => "readme-sync-drift",
         LintKind::ReadmeSyncMissingBlock { .. } => "readme-sync-missing-block",
         LintKind::ReadmeSyncMissingAnchor { .. } => "readme-sync-missing-anchor",
+        LintKind::ReadmeSyncSourceMissing { .. } => "readme-sync-source-missing",
     }
 }
 
@@ -410,6 +414,13 @@ pub fn run() {
                         block
                     );
                 }
+                LintKind::ReadmeSyncSourceMissing { path } => {
+                    eprintln!(
+                        "  ERROR  {} — README<->index.mdx sync check could not read '{}'. The file is missing or unreadable, so drift can no longer be detected.",
+                        rel.display(),
+                        path
+                    );
+                }
             }
         }
 
@@ -434,6 +445,7 @@ pub fn run() {
                         | LintKind::ReadmeSyncDrift { .. }
                         | LintKind::ReadmeSyncMissingBlock { .. }
                         | LintKind::ReadmeSyncMissingAnchor { .. }
+                        | LintKind::ReadmeSyncSourceMissing { .. }
                 )
             })
             .count();

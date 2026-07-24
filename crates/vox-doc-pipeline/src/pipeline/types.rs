@@ -64,4 +64,10 @@ pub enum LintKind {
     ReadmeSyncMissingAnchor {
         block: String,
     },
+    /// One of the two files the README<->index.mdx sync check compares (README.md or
+    /// docs/src/index.mdx) could not be read at all — e.g. moved or renamed. Without this,
+    /// a missing source file would silently disable the whole check instead of failing loud.
+    ReadmeSyncSourceMissing {
+        path: String,
+    },
 }
