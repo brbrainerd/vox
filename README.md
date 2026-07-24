@@ -337,16 +337,7 @@ Roadmap execution minimizes syntactic redundancy to stabilize the compiler primi
 
 ## Documentation
 
-Docs follow the **Diátaxis** framework.
-
-| Intent | Start here |
-|---|---|
-| Learning | [Getting Started](docs/src/tutorials/tut-getting-started.md) · [First full-stack app](docs/src/tutorials/tut-first-app.md) |
-| Task recipes | [How-To Guides](docs/src/how-to/) · [AI Agents & MCP](docs/src/how-to/how-to-ai-agents.md) |
-| Understanding | [Why Vox for AI](docs/src/explanation/why-vox-for-ai.md) · [Compiler architecture](docs/src/explanation/expl-architecture.md) |
-| Reference | [CLI](docs/src/reference/cli.md) · [Decorators](docs/src/reference/ref-decorators.md) |
-| Architecture | [Master index](docs/src/architecture/architecture-index.md) · [Contributor hub](docs/src/contributors/contributor-hub.md) |
-| Operations | [Deployment](docs/src/reference/deployment-compose.md) · [CI runner](docs/src/ci/runner-contract.md) |
+Full docs, organized by intent (tutorials, how-to guides, reference, architecture): **https://voxlang.org**
 
 ---
 
@@ -369,7 +360,6 @@ Rationale and the full detector inventory live in [`AGENTS.md`](AGENTS.md).
 
 ---
 
-<!-- ANCHOR: community_license -->
 ## Backing, license, contact
 
 Funded via [Open Collective](https://opencollective.com/vox-foundation) — every transaction is public. Sponsorships fund developer grants, MENS training hardware, and academic bounties.
@@ -377,7 +367,6 @@ Funded via [Open Collective](https://opencollective.com/vox-foundation) — ever
 [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0): commercial use, patent grant, modification with attribution. [`LICENSE`](https://github.com/vox-foundation/vox/blob/main/LICENSE).
 
 Discussion: [GitHub Discussions](https://github.com/vox-foundation/vox/discussions). Changelogs and ADRs: [RSS](https://voxlang.org/feed.xml).
-<!-- ANCHOR_END: community_license -->
 
 ---
 
