@@ -236,6 +236,16 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 
 - [Shiki, mdBook & Doc Platform Evaluation (2026-04-22)](shiki-mdbook-doc-platform-research-2026.md) — Quantified feature matrix across 7 doc platforms (mdBook, Zola, VitePress, Starlight, Docusaurus, MkDocs, Nextra). Identifies Shiki `^4.0.1` as already a dependency of `vox-vscode`; proposes eliminating `highlight-vox.js` grammar drift via a `mdbook-shiki-vox` preprocessor and a medium-term migration to Starlight. Covers LLM-friendly documentation formats, `llms.txt` standard, and AI-first documentation architecture principles.
 
+### Architecture-directory staleness triage backlog
+
+Not a new architecture doc — a process log for the recurring hand-triage backlog produced by `scripts/docs/architecture-staleness-report.vox` (report-only; it never moves or deletes files — see [Documentation Maintainability & Homepage Plan](../../superpowers/plans/2026-07-23-docs-homepage-maintainability.md) Task 12/13). Each entry below is a **candidate list for human review, not an audit and not a decision to archive anything.**
+
+- **2026-07-24 — first-ever run.** Threshold `VOX_STALE_DAYS=35` (the script's 90-day default returned 0 candidates: this repo's git history only goes back to 2026-02-17, and `docs/src/architecture/` specifically has no file untouched for longer than 40 days, so 270-day and 90-day thresholds are structurally incapable of flagging anything yet — checked 60 and 45 too, also 0, before dropping to 35). Result: **162 of 314 files (52%) flagged**, of which 125 cluster at exactly 40 days old — i.e. untouched since a single mid-June bulk landing, nothing since. The full 162-path list isn't reproduced here (would make this index unreadable); re-run for the current list:
+  ```bash
+  VOX_STALE_DAYS=35 vox run --mode interp scripts/docs/architecture-staleness-report.vox
+  ```
+  Next step (not done as part of this log entry): a human works the candidate list by hand — genuinely superseded docs move to `docs/src/archive/`, still-relevant ones get a real content touch or are left alone.
+
 ## User Interface & Dashboard
 
 - [Vox GUI Capability Audit (2026-05-28)](vox-gui-capability-audit-2026.md) — Reality audit of `crates/vox-gui`, CLI-driven discovery, Tauri/mobile compatibility, real vs scaffolded dashboard surfaces, and the path to a CLI-shaped code harness.
