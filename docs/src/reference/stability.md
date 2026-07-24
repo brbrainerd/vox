@@ -36,7 +36,7 @@ Vox is marching toward a production-hardened v1.0 release. Surfaces are graded b
 | Native GUI (Tauri) | 🟡 Preview | Tauri 2.0 integration with Dashboard, Agent Flow, and Superpowers catalog. |
 | Distributed Mesh | 🟠 Emergent | Node discovery and workload routing functional across peers. |
 
-**Stability Tiers:**
+## Stability Tiers
 - 🟢 **Production Candidate**: Hardened for 1.0; feature-complete and regression-free.
 - 🔵 **Stable**: API locked; high test coverage; used in core production internal loops.
 - 🟣 **Mature**: Core logic stable; focus on ergonomics, documentation, and performance.
