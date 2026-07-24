@@ -1,6 +1,7 @@
 //! Documentation linter for `docs/src/`. Checks frontmatter, code fences,
 //! training rationale, and embedded Vox doctests.
 
+pub mod anchors;
 pub mod doctest;
 mod lint;
 pub mod types;

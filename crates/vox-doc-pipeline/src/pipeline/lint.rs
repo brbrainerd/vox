@@ -9,6 +9,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::anchors::{extract_marked_block, readme_anchor};
 use super::types::{LintError, LintKind};
 
 // These must match the `sections` array in contracts/documentation/docs-sidebar-section-order.v1.json.
@@ -540,19 +541,6 @@ fn check_include_anchor(path: &Path, line: &str, line_no: usize, errors: &mut Ve
 /// and docs/src/reference/stability.md respectively, linked from the homepage,
 /// not duplicated on it.
 const SYNCED_BLOCKS: &[&str] = &["why_vox"];
-
-fn extract_marked_block(content: &str, start_needle: &str, end_needle: &str) -> Option<String> {
-    let start_idx = content.find(start_needle)?;
-    let after_start = &content[start_idx + start_needle.len()..];
-    let end_idx = after_start.find(end_needle)?;
-    Some(after_start[..end_idx].trim().to_string())
-}
-
-fn readme_anchor(readme: &str, name: &str) -> Option<String> {
-    let start = format!("<!-- ANCHOR: {name} -->");
-    let end = format!("<!-- ANCHOR_END: {name} -->");
-    extract_marked_block(readme, &start, &end)
-}
 
 fn mdx_sync_block(mdx: &str, name: &str) -> Option<String> {
     let start = format!("{{/* SYNC-FROM-README: {name} */}}");
