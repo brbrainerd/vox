@@ -8,8 +8,6 @@ schema_type: "TechArticle"
 ---
 # QLoRA Fine-tuning Data Strategy & SSoT
 
-last_updated: "2026-03-22"
-
 > [!IMPORTANT]
 > This document is the Single Source of Truth for Vox Mens's QLoRA data scaling requirements and continuous assimilation pipeline. DO NOT attempt to "pad" the pipeline with a stale `examples/` directory.
 
