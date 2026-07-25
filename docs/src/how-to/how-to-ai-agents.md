@@ -10,36 +10,38 @@ keywords: ["MCP tools Vox", "AI agents tutorial", "Model Context Protocol progra
 
 # How-To: Build AI Agents and MCP Tools
 
-Vox is an AI-native language, meaning it bridges the gap between high-level business logic and the Model Context Protocol (MCP) without glue code. Any Vox function can become an MCP tool with a single decorator.
+Vox is an AI-native language, meaning it bridges the gap between high-level business logic and the Model Context Protocol (MCP) without glue code. Any Vox function can become an MCP tool with a single keyword.
 
 ## 1. Creating MCP Tools
 
-Any Vox function can be exported as an MCP tool using the `@mcp.tool` decorator. 
+Any Vox function can be exported as an MCP tool using the `tool` keyword.
 
 ```vox
-{{#include ../../../examples/golden/ref_orchestrator.vox:mcp_tool}}
+tool "Calculate the sum of two integers" sum(a: int, b: int) to int {
+    return a + b
+}
 ```
 
 ### Comparison to other approaches:
 - **Type Safety**: If your function returns a `Result[T, E]`, Vox handles the MCP error response mapping for you.
-- **Zero Configuration**: No and manifests to maintain. The `@mcp.tool` decorator is the manifest.
+- **Zero Configuration**: No manifests to maintain. The `tool` declaration is the manifest.
 - **Auto-Discovery**: Tools are automatically discovered by the `vox-orchestrator` during development.
 
 ---
 
 ## 2. Defining Agent Roles
 
-Agents in Vox are not just prompts; they are scoped types that bundle specific tools and instructions. Use the `@agent` decorator to define an agent's identity.
-
 > [!NOTE]
-> The `agent` declaration is now a first-class HIR element in Vox v0.3, enabling static validation of toolsets and instructions.
+> The `agent` declaration is tombstoned — it is not in the active grammar. Define agent behavior as a plain function, and expose capabilities via `tool`/`resource` declarations for MCP discovery instead.
 
 ```vox
-{{#include ../../../examples/golden/ref_agents.vox:basic_agent}}
+fn assistant_greet(name: str) to str {
+    return "Hello " + name + ", how can I assist you today?"
+}
 ```
 
-### Agent Handoffs
-Agents can call other agents if you grant them the tool to do so. In Vox, an agent's `tools` list can include other agent identifiers.
+### Composing Agent Behavior
+Since there is no dedicated agent construct, "handoffs" between agent-like functions are just ordinary function calls or MCP tool invocations orchestrated by `vox-orchestrator`.
 
 ---
 
@@ -69,13 +71,12 @@ curl -X POST http://localhost:8080/api/tools/search_docs -d '{"query": "actors"}
 
 ## 5. Security and Bounds
 
-By default, an `@mcp.tool` has the same permissions as your compiled Vox binary. Use the `@require` decorator to add runtime guardrails:
+By default, a `tool` has the same permissions as your compiled Vox binary. Use the `@require` decorator to add runtime guardrails:
 
 ```vox
 // vox:skip
-@mcp.tool "Delete user data"
 @require(auth.is_admin(caller))
-@endpoint(kind: mutation) fn delete_data(id: int) to Result[Unit] {
+tool "Delete user data" delete_data(id: int) to Result[Unit] {
     db.delete(id)
     return Ok(())
 }

@@ -178,13 +178,12 @@ fn Spinner() to Element {
 > [!NOTE] 
 > **Planned.** Not yet supported by the parser. Use helper functions called within `@test` blocks instead.
 
-### `agent` (Keyword)
-Agents are defined using the `agent` keyword (not a decorator).
+### `agent` (Tombstoned)
+> [!NOTE]
+> The `agent` declaration is not in the active grammar (parser support tracked, not shipped). Use a plain function plus MCP `tool`/`resource` declarations instead — see [How-To: Build AI Agents and MCP Tools](../how-to/how-to-ai-agents.md).
 ```vox
-// vox:skip
-agent Assistant { 
-    instructions: "Help the user"
-    tools: [search_kb]
+fn assistant_greet(name: str) to str {
+    return "Hello " + name + ", how can I assist you today?"
 }
 ```
 ### `tool` (Keyword)
