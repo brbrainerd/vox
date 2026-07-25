@@ -22,7 +22,7 @@ This causes extreme friction when a single field changes, breaking APIs and forc
 
 ## The Vox Paradigm: No API Layer
 
-Vox enables you to declare this from one single source of truth. One `@table` definition compiles into the correct Rust struct and the SQLite bindings. One `@endpoint` function creates an Axum handler *and* the matching TypeScript serialization client (`vox-client.ts`). A `component` declaration then directly calls the server function as if it was native to the React client.
+Vox enables you to declare this from one single source of truth. One `table` definition compiles into the correct Rust struct and the SQLite bindings. One `server`/`query`/`mutation` function creates an Axum handler *and* the matching TypeScript serialization client (`vox-client.ts`). A `component` declaration then directly calls the server function as if it was native to the React client.
 
 You avoid writing boilerplate. State synchronization and type-checking happen safely across the entire vertical stack at compilation time.
 
@@ -35,14 +35,14 @@ Below is a complete, working React frontend and Rust backend in a single `.vox` 
 import react.use_state
 
 // 1. DDL & Struct defined once entirely.
-@table type Task {
+table Task {
     title:    str
     done:     bool
     owner:    str
 }
 
 // 2. Server mutation automatically generated. Typed args enforce contract.
-@endpoint(kind: server) fn complete_task(id: Id[Task]) to Result[Unit] {
+server complete_task(id: Id[Task]) to Result[Unit] {
     db.Task.update(id, { done: true })
     return Ok(())
 }

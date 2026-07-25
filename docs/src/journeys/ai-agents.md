@@ -24,7 +24,7 @@ In Vox, the chaos of generative models is bounded by the compiler's zero-null gu
 
 ## Core Snippet: Creating an Agent Tool
 
-By adding a single decorator—`@mcp.tool`— Vox parses the docstring, the types, and the return structure, turning your server function into a ready-to-execute schema for your LLM.
+By declaring a bare `tool`, Vox parses the docstring, the types, and the return structure, turning your function into a ready-to-execute schema for your LLM.
 
 ```vox
 // vox:skip
@@ -34,8 +34,8 @@ type SearchResult {
     NotFound { query: str }
 }
 
-@mcp.tool "Search the knowledge base for documents matching the query"
-fn search_knowledge(query: str, max_results: int) to SearchResult {
+tool "Search the knowledge base for documents matching the query"
+search_knowledge(query: str, max_results: int) to SearchResult {
     let hits = db.vector_search(query, max_results)
     if hits.len() == 0 {
         return NotFound { query: query }
@@ -43,8 +43,7 @@ fn search_knowledge(query: str, max_results: int) to SearchResult {
     return Found { text: hits[0].text, score: hits[0].score }
 }
 
-@endpoint(kind: server)
-fn get_answer(user_question: str) to Result[str] {
+server get_answer(user_question: str) to Result[str] {
     let answer = agent.query(user_question, { tools: [search_knowledge] })
     return Ok(answer)
 }
@@ -64,8 +63,8 @@ fn get_answer(user_question: str) to Result[str] {
 
 ## Maturity and limitations
 
-- **Maturity:** `beta` for decorator-shaped `@mcp.tool` examples — compiler and MCP registry paths evolve; treat snippets as orientation, not a guarantee every field matches shipped schemas.
-- **Limitation ids:** [L-001](../../../contracts/journeys/limitations.v1.yaml) (docs may oversell partial `@mcp` surfaces), [L-023](../../../contracts/journeys/limitations.v1.yaml) (MCP tool registry parity is ongoing maintenance).
+- **Maturity:** `beta` for `tool`-shaped examples — compiler and MCP registry paths evolve; treat snippets as orientation, not a guarantee every field matches shipped schemas.
+- **Limitation ids:** [L-001](../../../contracts/journeys/limitations.v1.yaml) (docs may oversell partial MCP surfaces), [L-023](../../../contracts/journeys/limitations.v1.yaml) (MCP tool registry parity is ongoing maintenance).
 
 ## Deep Dives
 

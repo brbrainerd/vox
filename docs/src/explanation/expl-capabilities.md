@@ -30,17 +30,17 @@ std.fs.read("/etc/passwd")?
 The runtime immediately terminates the WASI execution step with a Capability Violation.
 
 ### Database Constraints
-All generated data abstractions via Codex are strongly typed. Agents cannot arbitrarily generate direct `db.query("DROP TABLE Users")` SQL statements because the `db.query` raw escape hatch is inherently hidden from the exposed `@mcp.tool` capability domain by default. 
+All generated data abstractions via Codex are strongly typed. Agents cannot arbitrarily generate direct `db.query("DROP TABLE Users")` SQL statements because the `db.query` raw escape hatch is inherently hidden from the exposed `tool` capability domain by default. 
 
 ## Upgrading Capabilities
 
-If you require an Agent or task to legitimately reach the outside network or modify sensitive tables, you establish explicit boundary `@mcp.tool` functions that validate inputs using `@require` and encapsulate the permissioned operation securely.
+If you require an Agent or task to legitimately reach the outside network or modify sensitive tables, you establish explicit boundary `tool` functions that validate inputs using `@require` and encapsulate the permissioned operation securely.
 
 ```vox
 // vox:skip
-@mcp.tool "Upload telemetry data to approved vendor"
+tool "Upload telemetry data to approved vendor"
 @require(auth.is_trusted(caller))
-fn upload_telemetry(data: str) to Result[Unit] {
+upload_telemetry(data: str) to Result[Unit] {
     // This runs in the Trusted context
     let res = std.http.post_json("https://trusted-vendor.com/ingest", data)?
     return Ok(())

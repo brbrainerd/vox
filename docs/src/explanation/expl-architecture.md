@@ -147,8 +147,8 @@ Emits Rust source using the [`quote!`](https://docs.rs/quote) macro. Each decora
 
 | Vox | Generated Rust |
 |-----|---------------|
-| `@endpoint fn` | Axum handler + route registration |
-| `@table type` | Struct + SQLite schema |
+| `query`/`mutation`/`server` fn | Axum handler + route registration |
+| `table type` | Struct + SQLite schema |
 | `@test fn` | `#[test]` function |
 | `@deprecated` | `#[deprecated]` attribute |
 | `actor` | Tokio task + mpsc mailbox |
@@ -239,7 +239,7 @@ table Task {
 
 The declaration is the [schema](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/), the [wire format](https://github.com/vox-foundation/vox/tree/main/crates/vox-protocol/), and the typed client. `index Task.by_owner on (owner)` lives next to it. [Migrations](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/) come from the diff against the previous schema.
 
-→ [`@table` reference](../reference/ref-decorators.md) · [migration guide](../how-to/how-to-database.md)
+→ [`table` reference](../reference/ref-decorators.md) · [migration guide](../how-to/how-to-database.md)
 
 ### Pillar 2: Errors in the type system
 
