@@ -52,10 +52,8 @@ component Button(label: str) {
 ```
 
 ```vox
-// vox:skip
 // From examples/golden/ref_orchestrator.vox
-@mcp.tool "search: Search the knowledge base"
-fn search(query: str) to List[str] {
+tool "search: Search the knowledge base" search(query: str) to List[str] {
     return ["result 1", "result 2"]
 }
 ```
