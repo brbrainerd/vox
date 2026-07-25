@@ -1,6 +1,6 @@
 ---
 title: "Vox database language surface (canonical)"
-description: "Canonical @table, @query, @mutation, @server, and db.* operations for Turso/Codex — low-K syntax for LLM-authored code."
+description: "Canonical table, query, mutation, server, and db.* operations for Turso/Codex — low-K syntax for LLM-authored code."
 category: "Language Reference"
 training_eligible: true
 
@@ -13,16 +13,16 @@ This page is the **single** SSOT for how persistence appears in `.vox` source. O
 
 ## Declarations
 
-- **`@table type Name { field: Type ... }`** — Turso table + generated Rust row type. A surrogate **`_id`** column (integer primary key) is always added; do **not** add a separate column named `id` (the compiler warns; use another name for application ids).
-- **`@index Table.idx on (col1, col2)`** — B-tree index DDL.
-- **`@query fn name(...) to T { ... }`** — Read-oriented function; HTTP route **`GET /api/query/<name>`** with JSON-encoded query parameters (sorted keys). Compiler rejects `insert`/`delete`/raw `.query(...)` inside `@query`.
-- **`@mutation fn name(...) to T { ... }`** — Write-oriented function; **`POST /api/mutation/<name>`**.
-- **`@server fn name(...) to T { ... }`** — General RPC; **`POST /api/<name>`**.
+- **`table Name { field: Type ... }`** — Turso table + generated Rust row type. A surrogate **`_id`** column (integer primary key) is always added; do **not** add a separate column named `id` (the compiler warns; use another name for application ids). `@table` is a retired decorator alias — the compiler hard-errors on it.
+- **`index Table.idx on (col1, col2)`** — B-tree index DDL. `@index` is a retired decorator alias — the compiler hard-errors on it.
+- **`query name(...) to T { ... }`** — Read-oriented function; HTTP route **`GET /api/query/<name>`** with JSON-encoded query parameters (sorted keys). Compiler rejects `insert`/`delete`/raw `.query(...)` inside `query`.
+- **`mutation name(...) to T { ... }`** — Write-oriented function; **`POST /api/mutation/<name>`**.
+- **`server name(...) to T { ... }`** — General RPC; **`POST /api/<name>`**.
 - **HTTP routes** — Use `http get|post|put|delete "/path" to T { ... }` (optional named handler forms are not in the canonical grammar; see parser tests).
 
 ## `db` operations (HIR: `DbTableOp` + `FilterRecord` / `Count`)
 
-Inside functions, `db` is an implicit binding. Table handles are **`db.TableName`** (PascalCase matches `@table` type name).
+Inside functions, `db` is an implicit binding. Table handles are **`db.TableName`** (PascalCase matches `table` type name).
 
 | Method | Meaning | Safety |
 |--------|---------|--------|
@@ -45,7 +45,7 @@ Inside functions, `db` is an implicit binding. Table handles are **`db.TableName
 
 ## Nullable columns
 
-Use **`Option[T]`** in the `@table` field type for **NULL** SQL columns; other fields get **`NOT NULL`** in generated DDL.  
+Use **`Option[T]`** in the `table` field type for **NULL** SQL columns; other fields get **`NOT NULL`** in generated DDL.  
 `select(...)` projections may return partial rows; omitted fields are not auto-required.
 
 ## Deprecated / do not teach to models

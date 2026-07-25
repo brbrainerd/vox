@@ -16,36 +16,32 @@ Vox was built from the ground up to blur the lines between traditional applicati
 
 The Model Context Protocol establishes a standard way for AI assistants (like Claude Desktop, Cursor, or your own models) -> safely discover and interact with local data sources and tools.
 
-Vox seamlessly generates MCP servers from workspace logic and federates `@tool` declarations into the shipped `vox-mcp` orchestrator surface. See [MCP and Vox language exposure](../architecture/mcp-vox-language-exposure.md) for federation, collision rules, and parity gates.
+Vox seamlessly generates MCP servers from workspace logic and federates `tool` declarations into the shipped `vox-mcp` orchestrator surface. See [MCP and Vox language exposure](../architecture/mcp-vox-language-exposure.md) for federation, collision rules, and parity gates.
 
-### `@tool` (formerly `@mcp.tool`)
+### `tool` (Keyword)
 
-The `@tool` decorator tells the Vox compiler to expose a function on the workspace MCP surface. At orchestrator bind time, `WorkspaceMcpLoader` scans configured `.vox` globs, merges `AppContractModule.mcp_tools` into `vox-mcp` `tools/list`, and dispatches calls through the interpreter bridge.
+The bare `tool` keyword tells the Vox compiler to expose a function on the workspace MCP surface. At orchestrator bind time, `WorkspaceMcpLoader` scans configured `.vox` globs, merges `AppContractModule.mcp_tools` into `vox-mcp` `tools/list`, and dispatches calls through the interpreter bridge.
 
 ```vox
-// vox:skip
-@tool "Calculate the shipping cost including surge pricing"
-fn calculate_shipping(weight: float, zip_code: str) to float {
-    // Logic here
+tool "Calculate the shipping cost including surge pricing" calculate_shipping(weight: float, zip_code: str) to float {
+    return weight * 0.5
 }
 ```
 
-Legacy `@mcp.tool` still parses but emits `vox/decorator/mcp-tool-deprecated`; prefer `@tool`.
+The older `@tool` and `@mcp.tool` decorator forms still parse but emit `vox/decorator/mcp-tool-deprecated`; prefer the bare `tool` keyword.
 
 Behind the scenes, Vox:
 1. Derives the JSON Schema for the inputs (`weight` as a number, `zip_code` as a string).
 2. Registers the tool on the federated MCP surface (static catalog tools win on name collision).
 3. Maps Vox `Result` types directly to MCP error structures so the LLM knows *why* an operation failed without you writing serialization glue.
 
-### `@mcp.resource` / `@resource`
+### `resource` (Keyword)
 
-While tools are functions the LLM can call, resources are data the LLM can read. Workspace `@resource` URIs are federated alongside static resources; installed skills also expose SEP-2640 `skill://` resources.
+While tools are functions the LLM can call, resources are data the LLM can read. Workspace `resource` URIs are federated alongside static resources; installed skills also expose SEP-2640 `skill://` resources.
 
 ```vox
-// vox:skip
-@resource("vox://user/config", "The current user's profile configuration")
-fn get_user_profile() to str {
-    return db.query("SELECT context FROM config")
+resource "vox://user/config" "The current user's profile configuration" get_user_profile() to str {
+    return "profile context"
 }
 ```
 
@@ -55,11 +51,11 @@ The orchestrator registers federated URIs. When an LLM requests `vox://user/conf
 
 The **Distributed Execution Intelligence (DEI)** orchestrator (historically confused with older crate naming; canonical crate is `vox-orchestrator`) is the runtime engine that manages these agents and tools.
 
-When you run `vox run src/main.vox`, the orchestrator spins up, loads federated workspace `@tool` handlers via `WorkspaceMcpLoader`, and starts an MCP endpoint that defaults to Stdio for desktop clients or HTTP/SSE for distributed meshes. Call `vox_workspace_mcp_refresh` after editing workspace tools to rescan without restarting.
+When you run `vox run src/main.vox`, the orchestrator spins up, loads federated workspace `tool` handlers via `WorkspaceMcpLoader`, and starts an MCP endpoint that defaults to Stdio for desktop clients or HTTP/SSE for distributed meshes. Call `vox_workspace_mcp_refresh` after editing workspace tools to rescan without restarting.
 
 ### Agent-to-Agent (A2A) Messaging
 
-Agents are scoped types in Vox. While the syntax is still aspirational (`@agent type`), the DEI orchestrator fundamentally supports *Agent-to-Agent (A2A) messaging*. 
+The `agent { ... }` declaration is tombstoned and not in the active grammar — use a plain `fn` plus `tool`/`resource` declarations instead (see [How-To: Build AI Agents and MCP Tools](../how-to/how-to-ai-agents.md)). The DEI orchestrator fundamentally supports *Agent-to-Agent (A2A) messaging* at the tool level regardless of that surface syntax.
 
 One agent can be granted the tools of another agent, executing what is effectively a sub-agent handoff. Because tools are just compiled Vox functions, a handoff entails an in-memory or fast-WASI call rather than a network hop to a secondary Python server.
 
