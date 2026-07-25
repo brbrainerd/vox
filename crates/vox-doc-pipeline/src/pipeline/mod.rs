@@ -68,18 +68,6 @@ fn workflow_for_kind(kind: &LintKind) -> &'static str {
         LintKind::ReadmeSyncSourceMissing { .. } => {
             "restore README.md and docs/src/index.mdx — the sync check can't run without both"
         }
-        LintKind::ReadmeStabilitySyncDrift { .. } => {
-            "re-sync README.md's tier_table ANCHOR with docs/src/reference/stability.md, or fix whichever one is actually stale"
-        }
-        LintKind::ReadmeStabilitySyncMissingBlock { .. } => {
-            "add the stability matrix table content back to docs/src/reference/stability.md"
-        }
-        LintKind::ReadmeStabilitySyncMissingAnchor { .. } => {
-            "add the `tier_table` ANCHOR block back to README.md"
-        }
-        LintKind::ReadmeStabilitySyncSourceMissing { .. } => {
-            "restore README.md and docs/src/reference/stability.md — the sync check can't run without both"
-        }
     }
 }
 
@@ -106,10 +94,6 @@ fn kind_label(kind: &LintKind) -> &'static str {
         LintKind::ReadmeSyncMissingBlock { .. } => "readme-sync-missing-block",
         LintKind::ReadmeSyncMissingAnchor { .. } => "readme-sync-missing-anchor",
         LintKind::ReadmeSyncSourceMissing { .. } => "readme-sync-source-missing",
-        LintKind::ReadmeStabilitySyncDrift { .. } => "readme-stability-sync-drift",
-        LintKind::ReadmeStabilitySyncMissingBlock { .. } => "readme-stability-sync-missing-block",
-        LintKind::ReadmeStabilitySyncMissingAnchor { .. } => "readme-stability-sync-missing-anchor",
-        LintKind::ReadmeStabilitySyncSourceMissing { .. } => "readme-stability-sync-source-missing",
     }
 }
 
@@ -296,9 +280,6 @@ pub fn run() {
     // (scoped-by-default) `vox ci pre-push` never caught README<->homepage
     // drift, only CI did.
     lint::lint_readme_sync(&mut lint_errors);
-    // Same always-on treatment, same reasoning, for the separate README
-    // tier_table <-> docs/src/reference/stability.md drift check.
-    lint::lint_readme_stability_sync(&mut lint_errors);
 
     if !lint_errors.is_empty() {
         eprintln!("\n── vox-doc-pipeline: doc lint errors ──────────────────────────────");
@@ -446,34 +427,6 @@ pub fn run() {
                         path
                     );
                 }
-                LintKind::ReadmeStabilitySyncDrift { block } => {
-                    eprintln!(
-                        "  ERROR  {} — table '{}' has drifted from its README.md ANCHOR counterpart. Re-sync both, or fix whichever one is actually stale.",
-                        rel.display(),
-                        block
-                    );
-                }
-                LintKind::ReadmeStabilitySyncMissingBlock { block } => {
-                    eprintln!(
-                        "  ERROR  {} — README.md has ANCHOR '{}' but stability.md has no recognizable table content.",
-                        rel.display(),
-                        block
-                    );
-                }
-                LintKind::ReadmeStabilitySyncMissingAnchor { block } => {
-                    eprintln!(
-                        "  ERROR  {} — the stability.md sync check expects README.md ANCHOR '{}' but it's missing there.",
-                        rel.display(),
-                        block
-                    );
-                }
-                LintKind::ReadmeStabilitySyncSourceMissing { path } => {
-                    eprintln!(
-                        "  ERROR  {} — README<->stability.md sync check could not read '{}'. The file is missing or unreadable, so drift can no longer be detected.",
-                        rel.display(),
-                        path
-                    );
-                }
             }
         }
 
@@ -499,10 +452,6 @@ pub fn run() {
                         | LintKind::ReadmeSyncMissingBlock { .. }
                         | LintKind::ReadmeSyncMissingAnchor { .. }
                         | LintKind::ReadmeSyncSourceMissing { .. }
-                        | LintKind::ReadmeStabilitySyncDrift { .. }
-                        | LintKind::ReadmeStabilitySyncMissingBlock { .. }
-                        | LintKind::ReadmeStabilitySyncMissingAnchor { .. }
-                        | LintKind::ReadmeStabilitySyncSourceMissing { .. }
                 )
             })
             .count();

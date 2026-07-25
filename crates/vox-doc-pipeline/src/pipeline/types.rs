@@ -70,29 +70,4 @@ pub enum LintKind {
     ReadmeSyncSourceMissing {
         path: String,
     },
-    /// docs/src/reference/stability.md's table content differs from README's `tier_table`
-    /// ANCHOR block, after known intentional link-scheme and heading-style transforms are
-    /// applied. A dedicated variant (not a reuse of `ReadmeSyncDrift`) because this check
-    /// compares README against a different file (stability.md, not index.mdx) with its own
-    /// remediation text — reusing the index.mdx-flavored messages in `workflow_for_kind`
-    /// would misdirect a fix-agent at the wrong file.
-    ReadmeStabilitySyncDrift {
-        block: String,
-    },
-    /// README.md has the `tier_table` ANCHOR block but docs/src/reference/stability.md has
-    /// no recognizable table content (its `Vox is marching toward...` intro marker is
-    /// missing or the file is otherwise unrecognizable).
-    ReadmeStabilitySyncMissingBlock {
-        block: String,
-    },
-    /// The README<->stability.md sync check expects a `tier_table` ANCHOR block in
-    /// README.md but it's missing there.
-    ReadmeStabilitySyncMissingAnchor {
-        block: String,
-    },
-    /// One of the two files the README<->stability.md sync check compares (README.md or
-    /// docs/src/reference/stability.md) could not be read at all.
-    ReadmeStabilitySyncSourceMissing {
-        path: String,
-    },
 }

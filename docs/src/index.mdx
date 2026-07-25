@@ -1,23 +1,6 @@
 ---
 title: "Vox: The AI-Native Programming Language"
 description: "One language. Database schema, type-safe server, and live browser UI — designed first as a target for LLMs, and for the developers who work alongside them."
-template: splash
-hero:
-  title: "The Language That Speaks First to LLMs"
-  tagline: "One .vox file. Auto-generated database, server, and browser UI — with zero nulls, no boilerplate, and a built-in AI training pipeline."
-  actions:
-    - text: Get Started
-      link: /tutorials/tut-getting-started/
-      variant: primary
-      icon: right-arrow
-    - text: Syntax Reference
-      link: /reference/ref-syntax/
-      variant: secondary
-    - text: GitHub
-      link: https://github.com/vox-foundation/vox
-      variant: minimal
-      icon: external
-pagefind: false
 sort_order: 0
 category: "Getting Started"
 status: "current"
@@ -25,6 +8,16 @@ training_eligible: true
 ---
 
 import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
+
+<div style="text-align: center; padding: 1.5rem 0 0.5rem;">
+  <h1 style="font-size: 2.25rem; line-height: 1.15; margin-bottom: 0.75rem;">The Language That Speaks First to LLMs</h1>
+  <p style="font-size: 1.15rem; color: var(--sl-color-gray-2); max-width: 42rem; margin: 0 auto 1.5rem;">One <code>.vox</code> file. Auto-generated database, server, and browser UI — with zero nulls, no boilerplate, and a built-in AI training pipeline.</p>
+  <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+    <a href="/tutorials/tut-getting-started/" style="background: var(--sl-color-accent); color: var(--sl-color-black); padding: 0.6rem 1.25rem; border-radius: 6px; font-weight: 600; text-decoration: none;">Get Started →</a>
+    <a href="/reference/ref-syntax/" style="border: 1px solid var(--sl-color-gray-5); padding: 0.6rem 1.25rem; border-radius: 6px; text-decoration: none;">Syntax Reference</a>
+    <a href="https://github.com/vox-foundation/vox" style="padding: 0.6rem 1.25rem; border-radius: 6px; text-decoration: none; color: var(--sl-color-gray-2);">GitHub ↗</a>
+  </div>
+</div>
 
 > *"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time?"*
 > — Nathaniel Hawthorne, *The House of the Seven Gables* (1851)
