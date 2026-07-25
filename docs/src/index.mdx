@@ -19,26 +19,6 @@ import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
   </div>
 </div>
 
-> *"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time?"*
-> — Nathaniel Hawthorne, *The House of the Seven Gables* (1851)
-
----
-
-## Try it live
-
-Write and execute Vox code directly from the browser.
-
-<VoxPlayground initialCode={`// Compile-time safety, zero nulls.
-table Task {
-    title: str
-    done: bool
-}
-
-fn main() {
-    print("Welcome to Vox.")
-    print("Type-safe execution environment online.")
-}`} />
-
 ---
 
 {/* SYNC-FROM-README: why_vox */}
@@ -56,6 +36,28 @@ Mainstream languages predate LLMs by decades. They tolerate implicit state — n
 
 Vox is what falls out when you design the language *after* the model: collapse the duplications, push errors into the type system, draw the browser/server boundary in one place, and build durability and tool exposure into the grammar instead of layering them on top.
 {/* SYNC-END: why_vox */}
+
+> *"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time?"*
+> — Nathaniel Hawthorne, *The House of the Seven Gables* (1851)
+
+---
+
+## Try it live
+
+Write and execute Vox code directly from the browser — no install required.
+
+<VoxPlayground initialCode={`// Compile-time safety, zero nulls.
+table Task {
+    title: str
+    done: bool
+}
+
+fn main() {
+    print("Welcome to Vox.")
+    print("Type-safe execution environment online.")
+}`} />
+
+---
 
 {/* condensed pillar grid — full detail: /explanation/expl-architecture/ */}
 ## How Vox works
@@ -96,37 +98,6 @@ table Task {
 ```
 
 → Full five-pillar walkthrough, with all code samples: [Compiler Architecture](/explanation/expl-architecture/)
-
----
-
-## The Language at a Glance
-
-```vox
-// vox:skip — recap excerpt; redeclares Task with different fields than the
-// Pillar 1 sample above, which would collide if compiled in the same unit.
-// One declaration → schema + API + typed client
-table Task {
-    title:    str
-    done:     bool
-    priority: int
-    owner:    str
-}
-
-// Compile-enforced: every caller handles both branches
-server get_task(id: Id[Task]) to Result[Task] {
-    let row = db.Task.find(id)
-    match row {
-        Some(t) => Ok(t)
-        None    => Error("not found")
-    }
-}
-
-// Expose to AI agents via Model Context Protocol
-tool "Complete a task by ID" complete_task(id: Id[Task]) to Result[Unit] {
-    db.Task.delete(id)
-    return Ok(Unit)
-}
-```
 
 ---
 
