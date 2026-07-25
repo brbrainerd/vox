@@ -13,13 +13,13 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 
 ## Backend & Logic
 
-### `@server` / `@query` / `@mutation`
+### `server` / `query` / `mutation`
 
-Bare-form endpoint decorators introduced in Phase B (audit doc §11.2, 2026-05-23) and made canonical in v0.6.0. All three produce the same `Decl::Endpoint` AST node; they differ in execution semantics:
+Bare keywords (not decorators) introduced in Phase B (audit doc §11.2, 2026-05-23) and made canonical in v0.6.0. All three produce the same `Decl::Endpoint` AST node; they differ in execution semantics:
 
-- **`@server`** — general-purpose server function. Generates an Axum handler and a typed TS client.
-- **`@query`** — read-only operation. Optimized for concurrent reads; cannot perform mutations.
-- **`@mutation`** — write operation. Wraps execution in a database transaction.
+- **`server`** — general-purpose server function. Generates an Axum handler and a typed TS client.
+- **`query`** — read-only operation. Optimized for concurrent reads; cannot perform mutations.
+- **`mutation`** — write operation. Wraps execution in a database transaction.
 
 - **Effect**: Generates a Rust Axum handler and a TypeScript client.
 - **Usage**:
@@ -40,7 +40,7 @@ mutation reset() to bool {
 #### Retired: `@endpoint(kind: ...)` (v0.6.0)
 
 The `@endpoint(kind: server|query|mutation)` form was retired in v0.6.0 per
-[`vox-stdlib-gap-audit-2026-05-23.md` §Phase H step 18](../architecture/vox-stdlib-gap-audit-2026-05-23.md). The lexer no longer recognizes `@endpoint`; the parser reports it as an unknown token at the top level. The `retired/decorator-usage` lint surfaces a friendlier `Severity::Error` finding with a `@server` / `@query` / `@mutation` migration suggestion before the parser sees it.
+[`vox-stdlib-gap-audit-2026-05-23.md` §Phase H step 18](../architecture/vox-stdlib-gap-audit-2026-05-23.md). The lexer no longer recognizes `@endpoint`; the parser reports it as an unknown token at the top level. The `retired/decorator-usage` lint surfaces a friendlier `Severity::Error` finding with a `server` / `query` / `mutation` migration suggestion before the parser sees it.
 
 Migration is mechanical:
 
@@ -112,21 +112,22 @@ fn process_order(order_id: String) -> String {
 
 ## Data Modeling
 
-### `@table`
+### `table` (Keyword)
+Tables are declared with the bare `table` keyword (not a decorator); `@table` was retired in v0.6.0.
 - **Goal**: Defines a persistent database table.
 - **Effect**: Generates Rust migrations and typed query interfaces.
 - **Usage**:
 ```vox
-// vox:skip
 table MyRecord {
     id: str
 }
 ```
 
-### `@index`
+### `index` (Keyword)
+Indexes are declared with the bare `index` keyword (not a decorator); `@index` was retired in v0.6.0.
 - **Goal**: Creates a database index.
 - **Effect**: Generates SQL for fast lookup on specified properties.
-- **Usage**: `@index MyRecord.by_id on (id)`
+- **Usage**: `index MyRecord.by_id on (id)`
 
 ### `@require`
 - **Goal**: Adds runtime validation guards.
@@ -186,18 +187,24 @@ agent Assistant {
     tools: [search_kb]
 }
 ```
-### `@mcp.tool`
+### `tool` (Keyword)
+Tools are declared with the bare `tool` keyword (not a decorator). `@tool` and the older dotted `@mcp.tool` are both deprecated aliases that emit a `vox/decorator/mcp-tool-deprecated` warning.
 - **Goal**: Exports a function as an MCP tool.
 - **Effect**: Registered with the MCP server for discovery by AI agents.
-
+- **Usage**:
 ```vox
-{{#include ../../../examples/golden/ref_orchestrator.vox:mcp_tool}}
+tool "Calculate the sum of two integers" sum(a: int, b: int) to int {
+    return a + b
+}
 ```
 
-### `@mcp.resource`
+### `resource` (Keyword)
+Resources are declared with the bare `resource` keyword (not a decorator). `@resource` and the older dotted `@mcp.resource` are both deprecated aliases.
 - **Goal**: Exposes dynamic readable content to MCP.
 - **Effect**: Registers a resource URI endpoint via `getResources`.
-
+- **Usage**:
 ```vox
-{{#include ../../../examples/golden/ref_orchestrator.vox:mcp_resource}}
+resource "notes://recent" "Recent system notes" get_recent_notes() to str {
+    return "This is a note from the system."
+}
 ```
