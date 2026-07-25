@@ -14,15 +14,18 @@ Vox utilizes a unified storage paradigm known as Codex, which compiles into type
 
 ## Defining a Table
 
-Any type struct adorned with the `@table` decorator becomes a persistent database entity.
+Any type struct declared with the `table` keyword becomes a persistent database entity.
 
 ```vox
-{{#include ../../../examples/golden/getting_started.vox:data_model}}
+table Note {
+    title: str
+    content: str
+}
 ```
 
 ### Indexing for Performance
 
-To speed up lookups on large datasets, use the `@index` syntax. Vox determines the optimal storage engine (B-Tree or Hash) and generates the SQL automatically.
+To speed up lookups on large datasets, use the `index` keyword. Vox determines the optimal storage engine (B-Tree or Hash) and generates the SQL automatically.
 
 ```vox
 // vox:skip
@@ -43,7 +46,7 @@ index User.by_team on (team_id, email)
 
 ## Basic CRUD Accessors
 
-The built-in `db` module uses code-generation to inject statically typed accessors for all your `@table` types.
+The built-in `db` module uses code-generation to inject statically typed accessors for all your `table` types.
 
 - **Create**:
   ```vox
@@ -103,20 +106,19 @@ let feed = db.Task
             .all()
 ```
 
-## Guarding Reads/Writes with `@endpoint(kind: query)` and `@endpoint(kind: mutation)`
+## Guarding Reads/Writes with `query` and `mutation`
 
-For security, you should rarely expose `db.*` calls directly to UI islands or agents. Instead, wrap your database interactions in `@endpoint(kind: query)` (read-only) and `@endpoint(kind: mutation)` (write-enabled) functions.
+For security, you should rarely expose `db.*` calls directly to UI islands or agents. Instead, wrap your database interactions in `query` (read-only) and `mutation` (write-enabled) functions.
 
-The compiler verifies that an `@endpoint(kind: query)` function does not contain `.insert`, `.update`, or `.delete` operations.
+The compiler verifies that a `query` function does not contain `.insert`, `.update`, or `.delete` operations.
 
-### Transactional Integrity with `@endpoint(kind: mutation)`
+### Transactional Integrity with `mutation`
 
-Every function marked with `@endpoint(kind: mutation)` is automatically wrapped in a database transaction. If the function returns an `Error` or panics, the transaction is rolled back.
+Every function declared with `mutation` is automatically wrapped in a database transaction. If the function returns an `Error` or panics, the transaction is rolled back.
 
 ```vox
 // vox:skip
-@endpoint(kind: mutation)
-fn transfer_funds(from: Id[Account], to: Id[Account], amount: int) to Result[Unit] {
+mutation transfer_funds(from: Id[Account], to: Id[Account], amount: int) to Result[Unit] {
     let mut sender = db.Account.find(from)?
     let mut receiver = db.Account.find(to)?
     
