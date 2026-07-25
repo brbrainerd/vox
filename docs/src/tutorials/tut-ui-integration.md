@@ -83,7 +83,7 @@ component MaybeBanner(show: bool) {
 
 ## 4. Binding to backend logic
 
-The true power of Vox is technical unification. UI event handlers can call `@endpoint(kind: mutation)` or `@endpoint(kind: server)` functions directly. Use snake_case event kwargs (`on_click`, `on_change`, `on_submit`); the compiler renames to React's camelCase at emit.
+The true power of Vox is technical unification. UI event handlers can call bare `mutation` or `server` functions directly. Use snake_case event kwargs (`on_click`, `on_change`, `on_submit`); the compiler renames to React's camelCase at emit.
 
 ```vox
 // vox:skip

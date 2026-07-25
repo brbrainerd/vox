@@ -25,7 +25,7 @@ schema_type: "TechArticle"
 | **Typeck / codegen** | Builtin **`Speech`**, **`Speech.transcribe(path) → Result[str]`** → `vox_oratio::transcribe_path` + refined text. |
 | **Corpus mix** | `record_format: asr_refine` + schema **`mens/schemas/asr_refine_pairs.schema.json`**. |
 | **LSP** | Hover for **`Speech`**; **`transcribe`** only when the line looks like **`Speech.transcribe`** (`builtin_hover_markdown_in_line`). |
-| **TS codegen** | **`Speech.transcribe`** → **throw** (points at `examples/oratio/codexAudioTranscribe.ts` + `@endpoint(kind: server)` / HTTP). |
+| **TS codegen** | **`Speech.transcribe`** → **throw** (points at `examples/oratio/codexAudioTranscribe.ts` + bare `server` / HTTP). |
 | **TS example** | **`examples/oratio/codexAudioTranscribe.ts`** — `fetch` for `/api/audio/status` and `/api/audio/transcribe`. |
 
 ## Who / when

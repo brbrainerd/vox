@@ -128,7 +128,7 @@ let result = add_task("Hi")  // inferred from add_task signature
 Explicit types are **required** on:
 1. Function parameters
 2. Function return types
-3. `@table` and `type` definitions
+3. `table` and `type` definitions
 
 ---
 
@@ -149,7 +149,7 @@ A collection of key-value pairs.
 ## 9. Next Steps
 
 - **[Language Guide](./ref-syntax.md)** — General syntax overview.
-- **[Decorator Registry](./ref-decorators.md)** — How types interact with `@table` and `@endpoint`.
+- **[Decorator Registry](./ref-decorators.md)** — How types interact with `table`, `query`, `mutation`, and `server`.
 - **[Functions](./ref-syntax.md)** — Detailed function signature reference.
 - **[Literals](./ref-literals.md)** — Numeric and string literal rules.
 - **[Diagnostic ID policy](./ref-diagnostic-id-policy.md)** — Stable compiler vs audit identifiers.

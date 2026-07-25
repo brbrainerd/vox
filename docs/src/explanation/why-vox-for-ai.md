@@ -23,14 +23,9 @@ In Python, the feedback loop is **runtime failure**. The model has to run the co
 ## 2. The Vox Solution: Compiler-Enforced Reality
 Vox is designed so that the **compiler** acts as the guardrail for the LLM.
 
-### @table: The Database is the Source of Truth
-In Vox, you don't write SQL strings or use a loose ORM. You define your schema with `@table`.
+### `table`: The Database is the Source of Truth
+In Vox, you don't write SQL strings or use a loose ORM. You define your schema with the bare `table` keyword (the older `@table` decorator form is a retired hard parse error).
 ```vox
-{{#include ../../../examples/golden/ref_types.vox:scalar}}
-```
-
-```vox
-// vox:skip
 table User {
     email: str
     points: int

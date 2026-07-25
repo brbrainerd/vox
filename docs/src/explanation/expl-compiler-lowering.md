@@ -22,7 +22,7 @@ The **parser** converts the raw `.vox` file into a tree of declarations. This ph
 
 The **Lowering** phase begins by transforming the AST into the HIR.
 - **Symbol Resolution**: Linking variable names to their definitions.
-- **Decorator Processing**: Expanding decorators like `@endpoint(kind: server)` into their underlying architectural primitives (handlers, endpoints, clients).
+- **Decorator Processing**: Lowering bare keywords like `server` into their underlying architectural primitives (handlers, endpoints, clients).
 - **Type Inference**: Deducing types for all expressions.
 
 ## 3. HIR to WebIR and LIR (Low-level intermediate layers)

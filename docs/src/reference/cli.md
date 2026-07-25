@@ -383,7 +383,7 @@ Emits the **client** (Library) artifact set only: `vox-client.ts`, `openapi.json
 
 ### `vox emit openapi <file>`
 
-Emits a **standalone OpenAPI 3.1 JSON spec** from the `@query`/`@mutation`/`@server` endpoints in a single Vox source file — no TypeScript, no npm directory. Conforms to the [wire-format-v1 SSOT](../architecture/wire-format-v1-ssot.md):
+Emits a **standalone OpenAPI 3.1 JSON spec** from the `query`/`mutation`/`server` endpoints in a single Vox source file — no TypeScript, no npm directory. Conforms to the [wire-format-v1 SSOT](../architecture/wire-format-v1-ssot.md):
 - `Decimal` / `BigInt` → `type: string`
 - `DateTime` → `type: string, format: date-time`
 - `Option<T>` → property absent from `required`

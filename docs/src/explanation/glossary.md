@@ -44,10 +44,9 @@ The ability of a program (specifically a **Workflow**) to persist its state and 
 The semantic representation of Vox source code used for type checking and initial lowering phases.
 
 ### MCP (Model Context Protocol)
-An open standard that enables AI models to safely interact with local data and tools. Vox provides first-class support for exporting functions as MCP tools via `@mcp.tool`.
+An open standard that enables AI models to safely interact with local data and tools. Vox provides first-class support for exporting functions as MCP tools via the bare `tool` keyword (the older `@tool` / `@mcp.tool` decorator forms still parse but emit a `vox/decorator/mcp-tool-deprecated` warning).
 ```vox
-@mcp.tool "Search KB"
-fn search_kb(topic: str) to str { return "ok" }
+tool "Search KB" search_kb(topic: str) to str { return "ok" }
 ```
 
 ### Mens

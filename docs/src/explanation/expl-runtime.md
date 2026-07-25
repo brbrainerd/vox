@@ -41,7 +41,7 @@ When Vox code spans actors and sends messages, the compiler lowers these operati
 
 Vox achieves "Technical Unification" by abstracting the boundary between frontend and backend.
 
-- **RPC-as-Function**: Calling an `@endpoint` fn from a `component` looks like a local function call but is actually a type-safe API call generated into the UI layer via `vox-client.ts`.
+- **RPC-as-Function**: Calling a `query`/`mutation`/`server` fn from a `component` looks like a local function call but is actually a type-safe API call generated into the UI layer via `vox-client.ts`.
 - **State Synchronization**: Backend state updates interact directly with the client code through standard HTTP routes built on top of Axum, managed under the hood by the compiler's output.
 
 ## 4. Workflows and Journaling

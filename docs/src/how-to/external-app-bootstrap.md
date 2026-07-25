@@ -35,7 +35,7 @@ Pick one pattern:
 
 | Pattern | When to use | Trade-off |
 |--------|----------------|-----------|
-| **A. Git submodule + workspace path** | You control both repos; want full `@table` + Turso/libSQL today | You vendor/link the Vox tree; larger checkout |
+| **A. Git submodule + workspace path** | You control both repos; want full `table` + Turso/libSQL today | You vendor/link the Vox tree; larger checkout |
 | **B. HTTP API only** | App stores nothing in-process SQLite; backend runs in your deployment | Requires a server (not suitable for strict offline-only mobile clients) |
 | **C. Wait for / contribute `vox-db-client` extraction** | You need a minimal published crate without `vox-compiler` in the graph | Not available yet; track **`docs/src/architecture/data-storage-ssot-2026.md`** |
 

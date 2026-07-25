@@ -70,5 +70,5 @@ routes {
 
 The compiler lowers each `component` to a plain TSX file under the generated `app/`
 directory. An external React frontend imports the components directly, and calls server
-endpoints declared with `@endpoint` through the generated `vox-client.ts`. There is no
+endpoints declared with `query`/`mutation`/`server` through the generated `vox-client.ts`. There is no
 island-mount harness. See [architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).

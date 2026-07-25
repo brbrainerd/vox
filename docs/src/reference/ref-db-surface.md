@@ -14,7 +14,7 @@ Vox provides a built-in typed surface targeting the unified storage layer (Codex
 
 ## Standard Table Fetch & Mutations
 
-When you declare an `@table type Model`, the compiler auto-instantiates a `db.Model` handler namespace holding explicit data actions. 
+When you declare a `table Model`, the compiler auto-instantiates a `db.Model` handler namespace holding explicit data actions. 
 
 - `db.Model.all() -> list[Model]`  
   *Retrieve every matched record in a table.*

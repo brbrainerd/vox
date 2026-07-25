@@ -52,7 +52,7 @@ In current repo language, **Mens** refers to the model-training lane and local m
 A **workflow** is an overarching orchestrator that tracks progress durably across steps, whereas an **activity** is an individual, retryable unit of work that performs side effects (like an API call). Workflows run activities but are not meant to contain side effects directly.
 
 ### What about `@island`?
-`@island` was retired on 2026-05-03. Vox now compiles `component` declarations to plain React/TSX and `@endpoint` declarations to a generated `vox-client.ts`; an external React app imports the components or calls the endpoints over RPC. See [external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md). Sources containing `@island` will be a hard parser error.
+`@island` was retired on 2026-05-03. Vox now compiles `component` declarations to plain React/TSX and `query`/`mutation`/`server` declarations to a generated `vox-client.ts`; an external React app imports the components or calls the endpoints over RPC. See [external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md). Sources containing `@island` will be a hard parser error.
 
 ### What is `Codex` and how does it relate to SQLite?
 **Codex** is the logical data environment — the unified data and knowledge store in Vox that application code interacts with. It acts as a high-level facade over **Arca**, which handles the actual physical storage (SQLite/Turso layer under the hood).

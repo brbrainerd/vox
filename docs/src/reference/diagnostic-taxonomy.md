@@ -18,7 +18,7 @@ Structured diagnostics (`vox_compiler::typeck::Diagnostic`) carry a **`category`
 | **`typecheck`** | Default: inference, unification, undefined names, arity, match exhaustiveness, etc. |
 | **`hir_invariant`** | Structural checks from [`validate_module`](../../../crates/vox-compiler/src/hir/validate.rs) after lowering (empty names, empty route paths, …). |
 | **`runtime_contract`** | Host / deploy / embedding guards (when reported via the same pipeline). |
-| **`lint`** | AST-level declaration lints (`@index` / `@search_index`), hook style warnings, and policy diagnostics. Severity can be `warning` or `error` (for example, `db.Table.query(clause)` now reports a lint-category error). |
+| **`lint`** | AST-level declaration lints (`index` / `@search_index`), hook style warnings, and policy diagnostics. Severity can be `warning` or `error` (for example, `db.Table.query(clause)` now reports a lint-category error). |
 
 CLI JSON diagnostics (`vox check --json`, shared `pipeline`) include a `category` field per row when using the structured diagnostic path.
 
