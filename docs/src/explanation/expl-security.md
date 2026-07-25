@@ -30,9 +30,9 @@ Input validation is not an afterthought; it is a structural precondition. The `@
 
 ```vox
 // vox:skip
-@mcp.tool "Delete user data"
+tool "Delete user data"
 @require(auth.is_admin(caller))
-@endpoint(kind: mutation) fn delete_data(id: Id[User]) to Result[Unit] {
+mutation delete_data(id: Id[User]) to Result[Unit] {
     db.User.delete(id)
     return Ok(())
 }

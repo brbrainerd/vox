@@ -24,7 +24,7 @@ OpenClaw is an open-source autonomous AI agent platform (large public GitHub foo
 |---|---|---|
 | **Core** | TypeScript agent runtime + gateway server | Rust compiler pipeline (Lexer→Parser→HIR→Typeck→Codegen) |
 | **Agent Model** | Single autonomous agent, multi-channel | Multi-agent orchestrator with named roles |
-| **Extensibility** | Skills (.md), Plugins (TS modules), Webhooks | MCP tools (Rust), `@mcp.tool` language decorators |
+| **Extensibility** | Skills (.md), Plugins (TS modules), Webhooks | MCP tools (Rust), bare `tool` language keyword |
 | **Memory** | File-first (daily logs + MEMORY.md), BM25+vector search | `ContextStore` (in-memory HashMap with TTL), `VoxDb` (SQLite/Turso) |
 | **Communication** | Chat platforms → Gateway → Agent | A2A MessageBus (unicast/broadcast/multicast), Handoff Payloads |
 | **Orchestration** | Single-agent with session isolation | File-affinity routing, scope guards, file locks, budget, heartbeat |
@@ -46,7 +46,7 @@ VoxDb wraps CodeStore with 25+ typed entry kinds, multi-backend (local SQLite, T
 Achievements, companions with moods, daily quests, bug battles, leaderboards, cost tracking, ASCII sprites — all in MCP response envelopes.
 
 ### 5. Language-Native MCP
-`@mcp.tool` decorator compiles directly to MCP tool definitions from syntax. No glue code.
+The bare `tool` keyword compiles directly to MCP tool definitions from syntax. No glue code.
 
 ### 6. Actor-Based Runtime
 Process spawning, supervisors, schedulers, subscription system, and feedback loops. **Durable execution** in Vox is primarily a **workflow** story today (interpreted `vox mens workflow …` step replay with a run id), not a guarantee that every spawned process is automatically crash-resumable; orchestration and Codex surfaces add their own persistence semantics separately.
