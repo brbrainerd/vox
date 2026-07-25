@@ -24,18 +24,28 @@ vox init --kind application
 
 ## 2. Define the Data Model
 
-Open `src/main.vox`. We'll start by defining what a "Task" is. Using the `@table` decorator, we create a persistent database table.
+Open `src/main.vox`. We'll start by defining what a "Task" is. Using the `table` keyword, we create a persistent database table.
 
 ```vox
-{{#include ../../../examples/golden/getting_started.vox:data_model}}
+table Task {
+    title: str
+    done: bool
+}
 ```
 
 ## 3. Implement Server Logic
 
-Next, we add `@endpoint(kind: mutation)` and `@endpoint(kind: query)` functions to interact with the database.
+Next, we add `mutation` and `query` functions to interact with the database.
 
 ```vox
-{{#include ../../../examples/golden/getting_started.vox:logic}}
+query get_tasks() to int {
+    return len(db.Task.all())
+}
+
+mutation create_task(title: str) to Result[str] {
+    db.Task.insert({ title: title, done: false })?
+    return Ok("created")
+}
 ```
 
 ## 4. Build the UI
@@ -43,7 +53,9 @@ Next, we add `@endpoint(kind: mutation)` and `@endpoint(kind: query)` functions 
 Now, we'll create the frontend using a `component` declaration. Vox components use a JSX-like syntax and compile to plain React/TSX components consumed by the external frontend.
 
 ```vox
-{{#include ../../../examples/golden/getting_started.vox:ui}}
+component TaskList() {
+    view: text() { "Hello Vox" }
+}
 ```
 
 ## 5. Wiring It Together
