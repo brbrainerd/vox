@@ -8,6 +8,7 @@ on:
       - 'docs-astro/**'
       - 'crates/vox-doc-pipeline/**'
       - 'examples/**'
+  workflow_dispatch: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
