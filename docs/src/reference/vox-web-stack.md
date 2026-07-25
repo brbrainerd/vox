@@ -56,9 +56,9 @@ Vox does **not** ship HTML-fragment UIs or classless CSS microframeworks as firs
 
 ## Typed web API client and HTTP verbs
 
-- **`vox-client.ts`** is emitted when the module has any `@query`, `@mutation`, or `@server` declarations.
-- **`@query`** uses **`GET`** against `/api/query/<name>` with **deterministic JSON-in-query** encoding (sorted keys; each argument value is JSON-serialized then URL-encoded). This matches the generated Axum handlers.
-- **`@mutation`** and **`@server`** use **`POST`** with a JSON body — same shapes as Axum.
+- **`vox-client.ts`** is emitted when the module has any `query`, `mutation`, or `server` declarations.
+- **`query`** uses **`GET`** against `/api/query/<name>` with **deterministic JSON-in-query** encoding (sorted keys; each argument value is JSON-serialized then URL-encoded). This matches the generated Axum handlers.
+- **`mutation`** and **`server`** use **`POST`** with a JSON body — same shapes as Axum.
 
 Normative detail: [vox-codegen-ts.md](../reference/cli.md) (transport section) and [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md).
 
@@ -116,7 +116,7 @@ For **dense, interactive tables** (sorting, filtering, column visibility, virtua
 
 ## Related docs
 
-- [vox-codegen-ts.md](../reference/cli.md) — `routes.manifest.ts`, `vox-client.ts` transport (**GET** `@query` / **POST** `@mutation` and `@server`).
+- [vox-codegen-ts.md](../reference/cli.md) — `routes.manifest.ts`, `vox-client.ts` transport (**GET** `query` / **POST** `mutation` and `server`).
 - [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md) — build outputs, Express `server.ts` opt-in, containers.
 - [`cli.md`](cli.md) — CLI including `vox populi` (feature `populi`).
 - [TanStack SSR with Axum](../how-to/tanstack-ssr-with-axum.md) — dev topology during SSR adoption.

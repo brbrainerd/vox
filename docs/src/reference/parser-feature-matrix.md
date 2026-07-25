@@ -18,10 +18,10 @@ schema_type: "TechArticle"
 - `type`, `pub type`
 - `import`
 - `component` (UI component declaration; emits React/TSX)
-- `@server`, `@query`, `@mutation`
+- `server`, `query`, `mutation` (bare keywords)
 - `@loading`
-- `@table`, `@index`
-- `@mcp.tool`
+- `table`, `index` (bare keywords)
+- `tool` (bare keyword); legacy `@mcp.tool` / `@tool` still parse but emit `vox/decorator/mcp-tool-deprecated`
 - `@test`
 - `@v0`
 - `actor`, `workflow`, `activity`
@@ -32,7 +32,7 @@ schema_type: "TechArticle"
 
 ## Retired (hard parser error)
 - `@island` — retired 2026-05-03; use `component` instead
-- `@endpoint(kind: server|query|mutation)` — retired; use `@server` / `@query` / `@mutation`
+- `@endpoint(kind: server|query|mutation)` — retired; use bare `server` / `query` / `mutation`
 
 ## Explicitly out of parser scope (current)
 - `@page`

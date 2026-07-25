@@ -229,20 +229,17 @@ Once the logic works, the inventory must persist. Most architectures demand an O
 In Vox, the struct *is* the schema.
 
 ```vox
-// vox:skip
 table InventoryStack {
     kind: str
     qty: int
     max_stack: int
 }
 
-@endpoint(kind: query)
-fn stack_count(kind: str) to int {
+query stack_count(kind: str) to int {
     return len(db.InventoryStack.filter({ kind: kind }))
 }
 
-@endpoint(kind: mutation)
-fn seed_stack(kind: str, qty: int, max_stack: int) to Result[str] {
+mutation seed_stack(kind: str, qty: int, max_stack: int) to Result[str] {
     if qty < 0 {
         return Error("invalid stack shape")
     }
@@ -306,9 +303,7 @@ If a local AI Agent model wants to propose a stash merge, you would typically wr
 In Vox, the compiler parses the function's strict type signature and generates the Model Context Protocol (MCP) tool dynamically.
 
 ```vox
-// vox:skip
-@mcp.tool "propose_merge: Propose a stack merge and return primary+overflow"
-fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) to str {
+tool "propose_merge: Propose a stack merge and return primary+overflow" propose_merge(kind: str, current: int, incoming: int, max_stack: int) to str {
     let total = current + incoming
     if total <= max_stack {
         return kind + ":" + str(total) + "+0"
@@ -384,10 +379,10 @@ To ease the transition across language patterns, here is how the core engineerin
 | Null safety | `nullptr` (unchecked) | `Option<T>` | `None` (unchecked) | `Option[T]` (no null) |
 | Sum types / ADTs | `std::variant` | `enum` | `Union[A, B]` (type hints) | `type Foo = \| A \| B` |
 | Concurrency | threads + mutexes | `Arc<Mutex<T>>` | `threading` / `asyncio` | `actor` + `workflow` |
-| Persistence | ORM / raw SQL | Diesel, SQLx | SQLAlchemy / Django ORM | `@table` |
+| Persistence | ORM / raw SQL | Diesel, SQLx | SQLAlchemy / Django ORM | `table` |
 | Durable execution | manual retry logic | `tokio-retry` + custom | `celery` / `prefect` | `workflow` + `activity` |
 | Secret management | env vars / vaults | `dotenv` / custom | `os.environ` / `boto3` | `vox-secrets` (SSOT) |
-| AI agent surface | custom HTTP + JSON Schema | custom HTTP + JSON Schema | FastAPI + Pydantic | `@mcp.tool` |
+| AI agent surface | custom HTTP + JSON Schema | custom HTTP + JSON Schema | FastAPI + Pydantic | `tool` |
 | Test syntax | `gtest`, `catch2` | `#[test]` | `pytest` | `@test` |
 | Type-checked schema | manual | Serde+derive | Pydantic | compiler-integrated |
 | LLM hallucination guard | none | partial (compile-time types) | none | full (compiler-integrated) |
