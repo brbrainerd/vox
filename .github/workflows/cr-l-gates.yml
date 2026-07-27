@@ -67,6 +67,18 @@ jobs:
       - name: Build vox-cli
         run: cargo build -p vox-cli --bin vox
 
+      - name: Build CR-L product-gate binaries (cr-a1/a2/a4/d3/e1/e2/p1/p2)
+        # `vox audit --gate all --strict-block-ga` resolves these as sibling
+        # binaries next to `vox` itself (crates/vox-audit/src/ga.rs
+        # product_binary_gates: same target/ dir, current_exe()'s parent) --
+        # they're feature-gated behind vox-audit's `ci-gates` feature and were
+        # never built here, so every one of the 8 product-binary gates
+        # silently reported exit_code=-1 ("binary not found") regardless of
+        # whether the underlying check actually passed (found live 2026-07-27:
+        # cr-d3 passes 100% when run directly, but this workflow's snapshot
+        # showed it as unmet/-1 because the binary plain didn't exist).
+        run: cargo build -p vox-audit --bins --features ci-gates
+
       - name: Run audit umbrella (strict)
         id: umbrella
         # CR-L gates that require an LLM panel (CR-L0/L1/L2/L3/L4) operate
