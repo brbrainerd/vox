@@ -12,6 +12,9 @@
 // vox new web                         — scaffold from opinionated presets
 // vox play                            — scaffold and immediately run a temp project
 // vox script scripts/hello.vox       — execute a standalone Vox script
+// vox repl                            — interactive Vox expression read-eval-print loop
+// vox term                            — headless-capable ratatui terminal UI (block-model shell + agent strip)
+// vox wasm module.wasm                — raw precompiled WASI module execution
 // vox add my-dep                      — add a dependency to Vox.toml
 // vox remove my-dep                   — remove a dependency
 // vox update                          — refresh vox.lock from local PM index
@@ -22,5 +25,5 @@
 // vox emit client                     — emit focused codegen artifacts
 
 fn cli_tour_build_and_project() to str {
-  return "vox build / check / compile / dev / fmt / run / test / init / new / play / script / add / remove / update / lock / sync / upgrade / fabrica / emit"
+  return "vox build / check / compile / dev / fmt / run / test / init / new / play / script / repl / term / wasm / add / remove / update / lock / sync / upgrade / fabrica / emit"
 }

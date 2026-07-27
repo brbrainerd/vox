@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "criterion": "CR-E1",
+  "measured_at": "2026-07-27T18:22:50.927950400+00:00",
+  "fixture": "hello_world",
+  "iterations": 200,
+  "warmup": 20,
+  "samples_ms": {
+    "min": 0.3665,
+    "p50": 0.45380000000000004,
+    "p95": 0.68141,
+    "p99": 0.8112399999999997,
+    "max": 0.8754000000000001
+  },
+  "budget_ms": 50.0,
+  "threshold": {
+    "target_p99_ms": 50.0,
+    "met": true
+  }
+}

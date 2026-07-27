@@ -11,7 +11,7 @@ on:
     paths:
       - 'examples/golden/**'
       - 'crates/vox-compiler/**'
-      - 'crates/vox-cli/src/commands/corpus/**'
+      - 'crates/vox-ml-cli/src/commands/corpus/**'
       - 'crates/vox-cli/src/training/**'
       - 'scripts/ci/**'
       - 'contracts/eval/**'
@@ -84,9 +84,20 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Build Vox Compiler
-        run: cargo build -p vox-cli --release --quiet
+        # `vox mens ...` / `vox train ...` delegate to a separate `vox-ml-cli`
+        # binary via `Command::new("vox-ml-cli")` (PATH lookup, no sibling-dir
+        # fallback — crates/vox-cli/src/main.rs) — build it here too, or every
+        # `mens corpus ...` call below fails with "vox-ml-cli is not installed
+        # or not in PATH" (found live: this whole job was actually failing on
+        # an even earlier bug, `vox corpus ...` instead of `vox mens corpus
+        # ...` — that masked this one, since the command was rejected before
+        # ever reaching the vox-ml-cli delegation code path).
+        run: cargo build -p vox-cli -p vox-ml-cli --release --quiet
         env:
           RUSTC_WRAPPER: sccache
+
+      - name: Put target/release on PATH (for the vox -> vox-ml-cli delegation above)
+        run: echo "$GITHUB_WORKSPACE/target/release" >> "$GITHUB_PATH"
 
       - name: Detect grammar drift
         id: grammar_drift
@@ -98,10 +109,10 @@ jobs:
           mkdir -p target/dogfood
 
           # W0-01: Extract AST/records from golden files
-          "$VOX_BIN" corpus extract examples/golden/ -o target/dogfood/vox_corpus_extract_raw.jsonl 2>/dev/null || true
-          
+          "$VOX_BIN" mens corpus extract examples/golden/ -o target/dogfood/vox_corpus_extract_raw.jsonl 2>/dev/null || true
+
           # W0-01: Convert raw records to ChatML instruction pairs
-          "$VOX_BIN" corpus pairs target/dogfood/vox_corpus_extract_raw.jsonl -o target/dogfood/vox_corpus_extract.jsonl
+          "$VOX_BIN" mens corpus pairs target/dogfood/vox_corpus_extract_raw.jsonl -o target/dogfood/vox_corpus_extract.jsonl
 
       - name: Extract training corpus (incremental)
         run: |
@@ -109,20 +120,24 @@ jobs:
           mkdir -p populi/data target/dogfood
 
           # Incremental: existing populi/data/validated.jsonl is preserved by extract
-          "$VOX_BIN" corpus extract docs/ -o populi/data/validated.jsonl 2>/dev/null || true
+          "$VOX_BIN" mens corpus extract docs/ -o populi/data/validated.jsonl 2>/dev/null || true
 
           LINES=$(wc -l < populi/data/validated.jsonl 2>/dev/null || echo 0)
           echo "Corpus has $LINES validated records."
 
       - name: Validate corpus
         run: |
-          ./target/release/vox corpus validate populi/data/validated.jsonl --no-recheck \
+          # `corpus validate` was renamed `corpus validate-batch` and takes
+          # `--input`, not a positional path (found live: the old positional
+          # form silently landed as an unrecognized-flag error under the
+          # renamed command).
+          ./target/release/vox mens corpus validate-batch --input populi/data/validated.jsonl --no-recheck \
             -o populi/data/validated.jsonl
 
       - name: Generate training pairs (canonical)
         run: |
           # Single pairs run with all docs dirs; deterministic merge+dedup
-          ./target/release/vox corpus pairs populi/data/validated.jsonl \
+          ./target/release/vox mens corpus pairs populi/data/validated.jsonl \
             -o target/dogfood/train.jsonl \
             --docs docs/src/ \
             --docs docs/src/research/ \
@@ -132,11 +147,11 @@ jobs:
 
       - name: Auto-generate system prompt
         run: |
-          ./target/release/vox corpus prompt -o scripts/vox_system_prompt.txt
+          ./target/release/vox mens corpus prompt -o scripts/vox_system_prompt.txt
 
       - name: Run native eval on training corpus
         run: |
-          ./target/release/vox corpus eval target/dogfood/train.jsonl -o target/dogfood/eval_results.json --print-summary 2>/dev/null || true
+          ./target/release/vox mens corpus eval target/dogfood/train.jsonl -o target/dogfood/eval_results.json --print-summary 2>/dev/null || true
 
 
       - name: Count generated pairs
@@ -232,7 +247,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build Vox Compiler
-        run: cargo build -p vox-cli --release --quiet
+        # `vox train --native` delegates to `vox-ml-cli` the same way `vox
+        # mens ...` does (see the identical comment in the `extract` job
+        # above) — build and PATH it here too.
+        run: cargo build -p vox-cli -p vox-ml-cli --release --quiet
+
+      - name: Put target/release on PATH (for the vox -> vox-ml-cli delegation above)
+        run: echo "$GITHUB_WORKSPACE/target/release" >> "$GITHUB_PATH"
 
       - name: Reject legacy Python training path
         if: github.event.inputs.native_train == 'false'

@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "measured_at": "2026-07-27T18:15:56.140153700+00:00",
+  "strict_block_ga": true,
+  "foundation_red": false,
+  "ga_met": false,
+  "exit_code": 1,
+  "gates": [
+    {
+      "thing": "behavioral-goldens",
+      "tier": "foundation",
+      "met": true,
+      "blocked_by_foundation": false,
+      "exit_code": 0,
+      "external_infra": false
+    },
+    {
+      "thing": "regression-budget",
+      "tier": "foundation",
+      "met": true,
+      "blocked_by_foundation": false,
+      "exit_code": 0,
+      "external_infra": false
+    },
+    {
+      "thing": "spec-to-app",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": 2,
+      "external_infra": false
+    },
+    {
+      "thing": "humaneval",
+      "tier": "product",
+      "met": true,
+      "blocked_by_foundation": false,
+      "exit_code": 0,
+      "external_infra": false
+    },
+    {
+      "thing": "mens-on-distribution",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": 2,
+      "external_infra": false
+    },
+    {
+      "thing": "repair-corpus",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": 2,
+      "external_infra": false
+    },
+    {
+      "thing": "plan-fidelity",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": 2,
+      "external_infra": false
+    },
+    {
+      "thing": "aci-default",
+      "tier": "product",
+      "met": true,
+      "blocked_by_foundation": false,
+      "exit_code": 0,
+      "external_infra": false
+    },
+    {
+      "thing": "retirement",
+      "tier": "product",
+      "met": true,
+      "blocked_by_foundation": false,
+      "exit_code": 0,
+      "external_infra": false
+    },
+    {
+      "thing": "deploy",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": 2,
+      "external_infra": false
+    },
+    {
+      "thing": "corpus-feedback",
+      "tier": "product",
+      "met": true,
+      "blocked_by_foundation": false,
+      "exit_code": 0,
+      "external_infra": false
+    },
+    {
+      "thing": "stdlib-coverage",
+      "tier": "tooling",
+      "met": true,
+      "blocked_by_foundation": false,
+      "exit_code": 0,
+      "external_infra": false
+    },
+    {
+      "thing": "cr-a1",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": -1,
+      "external_infra": false
+    },
+    {
+      "thing": "cr-a2",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": -1,
+      "external_infra": false
+    },
+    {
+      "thing": "cr-a4",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": -1,
+      "external_infra": false
+    },
+    {
+      "thing": "cr-d3",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": -1,
+      "external_infra": false
+    },
+    {
+      "thing": "cr-e1",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": -1,
+      "external_infra": false
+    },
+    {
+      "thing": "cr-e2",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": -1,
+      "external_infra": false
+    },
+    {
+      "thing": "cr-p1",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": -1,
+      "external_infra": true
+    },
+    {
+      "thing": "cr-p2",
+      "tier": "product",
+      "met": false,
+      "blocked_by_foundation": false,
+      "exit_code": -1,
+      "external_infra": true
+    }
+  ]
+}

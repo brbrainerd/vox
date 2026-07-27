@@ -5,6 +5,7 @@
 // vox login                           — sign in: configure cloud vault URL + token + Clavis
 // vox logout                          — sign out: clear vault credentials + login.toml
 // vox config get key                  — manage global config + preferences
+// vox policy list                     — view the unified policy catalog (CI gates, language rules, audits)
 // vox plan create "ship X"            — agentic planning: create / replan / bypass
 // vox workflow                        — workflow introspection: dry-run schedule preview
 // vox stop                            — emergency stop the orchestrator (MCP / daemon)
@@ -23,5 +24,5 @@
 // vox ci sync-ignore-files            — CI guards (manifest / SSOT / feature matrix)
 
 fn cli_tour_orchestration_and_meta() to str {
-  return "vox auth / login / logout / config / plan / workflow / stop / mcp / lsp / shell / commands / completions / ext / fabrica / emit / diag / drift-check / telemetry / ci"
+  return "vox auth / login / logout / config / policy / plan / workflow / stop / mcp / lsp / shell / commands / completions / ext / fabrica / emit / diag / drift-check / telemetry / ci"
 }

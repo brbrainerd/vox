@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "fixtures": {
     "auth_patterns": {
       "tokens": 219,

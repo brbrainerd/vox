@@ -29,6 +29,7 @@
 //! `out_of_scope_for_v1_0` so the next reader knows.
 
 use serde_json::json;
+use std::path::Path;
 
 // 2026-05-21: flipped to true once parity reached 100% per honest plan
 // §5.7 ("begins with enforce:false, flipped to true once parity reaches
@@ -97,7 +98,7 @@ fn main() {
         if ext == "json" && !json_parses(&body) {
             malformed_json.push(rel.clone());
         }
-        if has_schema_version(&body, ext) {
+        if has_schema_version(&body, ext) || has_sibling_json_schema(p) {
             with_schema_version.push(rel);
         } else {
             without_schema_version.push(rel);
@@ -185,6 +186,36 @@ fn main() {
 /// This matches the spirit of CR-A2 ("non-null, machine-verified
 /// schemas") without forcing the canonical name on already-versioned
 /// schemas that follow upstream standards.
+/// Alternate compliance signal for a contract whose own top-level shape
+/// structurally cannot carry an inline `schema_version` key. Some
+/// contracts are deserialized directly as a flat `HashMap<String, T>` by
+/// their consumer (e.g. `finding-class-defaults.v1.yaml` ->
+/// `vox_scientia::class_routing::defaults` reads the whole file as
+/// `HashMap<String, ClassPolicy>`); adding a sibling `schema_version: 1`
+/// key there would deserialize as a bogus `ClassPolicy` and break the
+/// consumer at runtime, so inline versioning is off the table for these.
+///
+/// CR-A2's actual goal is "non-null, machine-verified schemas" (module
+/// doc above) — a real, checked-in JSON Schema file governing the shape
+/// satisfies that as directly as an inline version marker does. If
+/// `<name>.schema.json` exists next to `<name>.v<N>.{yaml,yml,json}` (or
+/// `<name>.{yaml,yml,json}` with no version suffix), treat the contract
+/// as schema-verified via that sibling rather than flagging it.
+fn has_sibling_json_schema(path: &Path) -> bool {
+    let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+        return false;
+    };
+    // Strip a trailing `.v<N>` version suffix so `foo.v1` and `foo` both
+    // resolve to a sibling `foo.schema.json`.
+    let base = match stem.rsplit_once(".v") {
+        Some((b, suffix)) if suffix.chars().all(|c| c.is_ascii_digit()) && !suffix.is_empty() => {
+            b
+        }
+        _ => stem,
+    };
+    path.with_file_name(format!("{base}.schema.json")).is_file()
+}
+
 fn has_schema_version(body: &str, ext: &str) -> bool {
     match ext {
         "json" => {
@@ -302,12 +333,17 @@ fn json_parses(body: &str) -> bool {
 ///     post-repair criterion data
 ///   - `*/openclaw/discovery/*.json` — JSON-RPC discovery message samples
 ///   - `*/openclaw/protocol/*.json` — JSON-RPC protocol message samples
+///   - `*/fixtures/*` — single-instance sample data under any `fixtures/`
+///     directory (e.g. `orchestration/fixtures/dispatch-events/*.json`,
+///     `scientia/fixtures/findings/*.json`)
 ///   - `*.fixtures.json` / `*.fixture.json` — fixture data files
 ///   - `*.example.*` — example payloads
 ///   - `*.test-corpus.*` — corpus samples for a test
 ///
-/// The contract these conform to (e.g. an OpenClaw protocol schema)
-/// lives in a sibling `.schema.json` / `.v1.yaml` that IS in scope.
+/// The contract these conform to (e.g. an OpenClaw protocol schema, or
+/// `dispatch-events.v1.schema.json` / `finding-candidate.v1.schema.json`
+/// for the `fixtures/` directories above) lives in a sibling
+/// `.schema.json` / `.v1.yaml` that IS in scope.
 fn is_data_not_contract(rel_path: &str) -> bool {
     let lower = rel_path.to_ascii_lowercase();
     if lower.contains("/repair-corpus/projects/") && lower.ends_with("/expected.json") {
@@ -317,6 +353,9 @@ fn is_data_not_contract(rel_path: &str) -> bool {
         return true;
     }
     if lower.contains("/openclaw/protocol/") && lower.ends_with(".json") {
+        return true;
+    }
+    if lower.contains("/fixtures/") {
         return true;
     }
     if lower.ends_with(".fixtures.json") || lower.ends_with(".fixture.json") {
@@ -436,6 +475,36 @@ mod tests {
         ));
         assert!(is_data_not_contract(
             "contracts/terminal/exec-policy.test-corpus.yaml"
+        ));
+    }
+
+    #[test]
+    fn sibling_json_schema_detected_for_versioned_stem() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("foo.schema.json"), "{}").unwrap();
+        assert!(has_sibling_json_schema(&dir.path().join("foo.v1.yaml")));
+    }
+
+    #[test]
+    fn sibling_json_schema_detected_for_unversioned_stem() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("foo.schema.json"), "{}").unwrap();
+        assert!(has_sibling_json_schema(&dir.path().join("foo.yaml")));
+    }
+
+    #[test]
+    fn sibling_json_schema_missing_returns_false() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(!has_sibling_json_schema(&dir.path().join("foo.v1.yaml")));
+    }
+
+    #[test]
+    fn data_not_contract_excludes_fixtures_directories() {
+        assert!(is_data_not_contract(
+            "contracts/orchestration/fixtures/dispatch-events/hopper_admit.json"
+        ));
+        assert!(is_data_not_contract(
+            "contracts/scientia/fixtures/findings/RA1234567890abcdef.v1.json"
         ));
     }
 
