@@ -298,10 +298,68 @@ pub(crate) fn quiet_command(program: &str) -> Command {
     cmd
 }
 
+/// Timeout for a single `gh`/`docker` child invocation. `Command::output()`
+/// has no built-in timeout -- a hung child (network stall, a `gh` call
+/// blocking on something unexpected) blocked the entire reconcile tick
+/// indefinitely, with no recovery until manually killed (found live
+/// 2026-07-27: two full hangs in ~15 min, reproduced identically from an
+/// interactive shell -- not specific to running under Task Scheduler).
+const SUBPROCESS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45);
+
+/// Run `cmd` to completion, killing it if it exceeds [`SUBPROCESS_TIMEOUT`].
+///
+/// Drains stdout/stderr on background threads WHILE polling for exit, not
+/// after: a naive `try_wait()`-then-read-pipes-once-exited design deadlocks
+/// itself on output that exceeds the OS pipe buffer (64KB on Windows) --
+/// the child blocks writing to a full, undrained pipe and never exits.
+fn output_with_timeout(mut cmd: Command) -> std::io::Result<std::process::Output> {
+    use std::io::Read;
+    let mut child = cmd
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+    let mut stdout_pipe = child.stdout.take().expect("stdout is piped above");
+    let mut stderr_pipe = child.stderr.take().expect("stderr is piped above");
+    let stdout_handle = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stdout_pipe.read_to_end(&mut buf);
+        buf
+    });
+    let stderr_handle = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stderr_pipe.read_to_end(&mut buf);
+        buf
+    });
+
+    let start = std::time::Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
+        }
+        if start.elapsed() >= SUBPROCESS_TIMEOUT {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                format!("child process timed out after {SUBPROCESS_TIMEOUT:?}"),
+            ));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    };
+
+    let stdout = stdout_handle.join().unwrap_or_default();
+    let stderr = stderr_handle.join().unwrap_or_default();
+    Ok(std::process::Output {
+        status,
+        stdout,
+        stderr,
+    })
+}
+
 pub(crate) fn gh_json(args: &[&str]) -> Result<String> {
-    let out = quiet_command("gh")
-        .args(args)
-        .output()
+    let mut cmd = quiet_command("gh");
+    cmd.args(args).stdin(std::process::Stdio::null());
+    let out = output_with_timeout(cmd)
         .context("run gh (is the GitHub CLI installed and authenticated?)")?;
     if !out.status.success() {
         return Err(anyhow!(
@@ -314,10 +372,9 @@ pub(crate) fn gh_json(args: &[&str]) -> Result<String> {
 }
 
 fn docker(args: &[&str]) -> Result<String> {
-    let out = quiet_command("docker")
-        .args(args)
-        .output()
-        .context("run docker (is the daemon up?)")?;
+    let mut cmd = quiet_command("docker");
+    cmd.args(args).stdin(std::process::Stdio::null());
+    let out = output_with_timeout(cmd).context("run docker (is the daemon up?)")?;
     if !out.status.success() {
         return Err(anyhow!(
             "docker {:?} failed: {}",
