@@ -62,7 +62,15 @@ jobs:
           key: ${{ runner.os }}-cargo-cr-l-gates-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install system deps (dbus/GTK required by wry/keyring on Linux)
-        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+        # `|| true` on update only: this shared self-hosted runner has other
+        # jobs' apt sources registered (e.g. deb.nodesource.com for Node
+        # setup), and a transient failure fetching ANY configured repo's
+        # metadata fails the whole `apt-get update` even though every
+        # package this step installs comes from the official Ubuntu
+        # archive. Found live 2026-07-27: nodesource 403'd, and the block
+        # this caused (every downstream step in the job skipped) hid the
+        # fix for the CR-L product-gate binaries never being built.
+        run: sudo apt-get update -y || true; sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
       - name: Build vox-cli
         run: cargo build -p vox-cli --bin vox
@@ -141,7 +149,15 @@ jobs:
           key: ${{ runner.os }}-cargo-arch-check-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install system deps (dbus/GTK required by wry/keyring on Linux)
-        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+        # `|| true` on update only: this shared self-hosted runner has other
+        # jobs' apt sources registered (e.g. deb.nodesource.com for Node
+        # setup), and a transient failure fetching ANY configured repo's
+        # metadata fails the whole `apt-get update` even though every
+        # package this step installs comes from the official Ubuntu
+        # archive. Found live 2026-07-27: nodesource 403'd, and the block
+        # this caused (every downstream step in the job skipped) hid the
+        # fix for the CR-L product-gate binaries never being built.
+        run: sudo apt-get update -y || true; sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
       # Warn-only until the block-GA gates are met by real measurements
       # (per the honest plan §10 acceptance). Adding `--strict-evidence`
