@@ -358,69 +358,13 @@ impl<'a> Checker<'a> {
         let mut state_idx = 0usize;
         let mut derived_idx = 0usize;
         for m in &c.members {
-            match m {
-                crate::hir::HirReactiveMember::State(s) => {
-                    let init_ty = self.check_expr(&s.init, None);
-                    if let Some((_, decl_ty)) = state_vars.get(state_idx) {
-                        // `any` is an escape hatch — skip unification and accept
-                        // any initializer value (mirrors TypeScript `any` semantics).
-                        let resolved_decl = self.uf.resolve(decl_ty);
-                        let is_any = matches!(&resolved_decl, Ty::Named(n) if n == "any");
-                        if !is_any {
-                            if let Err(msg) = self.uf.unify(&init_ty, decl_ty) {
-                                self.diags.push(
-                                    Diagnostic::error(
-                                        format!(
-                                            "Type mismatch in `state {}` initializer: {msg}",
-                                            s.name
-                                        ),
-                                        s.span,
-                                        self.source,
-                                    )
-                                    .with_code(
-                                        crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH,
-                                    ),
-                                );
-                            }
-                        }
-                    }
-                    state_idx += 1;
-                }
-                crate::hir::HirReactiveMember::Derived(d) => {
-                    let expr_ty = self.check_expr(&d.expr, None);
-                    if let Some((_, decl_ty)) = derived_vars.get(derived_idx) {
-                        if let Err(msg) = self.uf.unify(&expr_ty, decl_ty) {
-                            self.diags.push(
-                                Diagnostic::error(
-                                    format!(
-                                        "Type mismatch in `derived {}` expression: {msg}",
-                                        d.name
-                                    ),
-                                    d.span,
-                                    self.source,
-                                )
-                                .with_code(crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH),
-                            );
-                        }
-                    }
-                    derived_idx += 1;
-                }
-                crate::hir::HirReactiveMember::Effect(e) => {
-                    let _ = self.check_expr(&e.body, None);
-                }
-                crate::hir::HirReactiveMember::OnMount(om) => {
-                    let _ = self.check_expr(&om.body, None);
-                }
-                crate::hir::HirReactiveMember::OnCleanup(oc) => {
-                    let _ = self.check_expr(&oc.body, None);
-                }
-                crate::hir::HirReactiveMember::OnStream(os) => {
-                    let _ = self.check_expr(&os.body, None);
-                }
-                crate::hir::HirReactiveMember::Stmt(stmt) => {
-                    let _ = self.check_stmt(stmt);
-                }
-            }
+            self.check_reactive_member(
+                m,
+                &state_vars,
+                &mut state_idx,
+                &derived_vars,
+                &mut derived_idx,
+            );
         }
 
         if let Some(view) = &c.view {
@@ -428,6 +372,78 @@ impl<'a> Checker<'a> {
         }
 
         self.env.pop_scope();
+    }
+
+    /// Per-member type-check pass of [`Self::check_reactive_component`]'s
+    /// second loop over `c.members`, extracted verbatim (CR-A1 complexity
+    /// budget: this pulled `check_reactive_component` from 17 to under the
+    /// budget of 15 by moving the match's decision points out of it).
+    fn check_reactive_member(
+        &mut self,
+        m: &crate::hir::HirReactiveMember,
+        state_vars: &[(String, Ty)],
+        state_idx: &mut usize,
+        derived_vars: &[(String, Ty)],
+        derived_idx: &mut usize,
+    ) {
+        match m {
+            crate::hir::HirReactiveMember::State(s) => {
+                let init_ty = self.check_expr(&s.init, None);
+                if let Some((_, decl_ty)) = state_vars.get(*state_idx) {
+                    // `any` is an escape hatch — skip unification and accept
+                    // any initializer value (mirrors TypeScript `any` semantics).
+                    let resolved_decl = self.uf.resolve(decl_ty);
+                    let is_any = matches!(&resolved_decl, Ty::Named(n) if n == "any");
+                    if !is_any {
+                        if let Err(msg) = self.uf.unify(&init_ty, decl_ty) {
+                            self.diags.push(
+                                Diagnostic::error(
+                                    format!(
+                                        "Type mismatch in `state {}` initializer: {msg}",
+                                        s.name
+                                    ),
+                                    s.span,
+                                    self.source,
+                                )
+                                .with_code(crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH),
+                            );
+                        }
+                    }
+                }
+                *state_idx += 1;
+            }
+            crate::hir::HirReactiveMember::Derived(d) => {
+                let expr_ty = self.check_expr(&d.expr, None);
+                if let Some((_, decl_ty)) = derived_vars.get(*derived_idx) {
+                    if let Err(msg) = self.uf.unify(&expr_ty, decl_ty) {
+                        self.diags.push(
+                            Diagnostic::error(
+                                format!("Type mismatch in `derived {}` expression: {msg}", d.name),
+                                d.span,
+                                self.source,
+                            )
+                            .with_code(crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH),
+                        );
+                    }
+                }
+                *derived_idx += 1;
+            }
+            crate::hir::HirReactiveMember::Effect(e) => {
+                let _ = self.check_expr(&e.body, None);
+            }
+            crate::hir::HirReactiveMember::OnMount(om) => {
+                let _ = self.check_expr(&om.body, None);
+            }
+            crate::hir::HirReactiveMember::OnCleanup(oc) => {
+                let _ = self.check_expr(&oc.body, None);
+            }
+            crate::hir::HirReactiveMember::OnStream(os) => {
+                let _ = self.check_expr(&os.body, None);
+            }
+            crate::hir::HirReactiveMember::Stmt(stmt) => {
+                let _ = self.check_stmt(stmt);
+            }
+        }
     }
 
     fn enforce_query_read_only(&mut self, sf: &HirEndpointFn) {

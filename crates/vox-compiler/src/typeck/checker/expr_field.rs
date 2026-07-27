@@ -91,22 +91,7 @@ impl<'a> Checker<'a> {
                     .lookup(n)
                     .is_some_and(|b| b.kind == BindingKind::Table) =>
             {
-                let table_ty = self.env.lookup(n).unwrap().ty.clone();
-                if let Ty::Table(_, fields, _) | Ty::Collection(_, fields) = table_ty {
-                    if let Some((_, ft)) = fields.iter().find(|(fn_, _)| fn_ == field) {
-                        ft.clone()
-                    } else {
-                        self.diags.push(Diagnostic::error(
-                            format!("Field '{field}' not found on table type {n}"),
-                            span,
-                            self.source,
-                        ));
-                        Ty::Error
-                    }
-                } else {
-                    // Should not happen: Table binding has non-Table type.
-                    Ty::Error
-                }
+                self.check_table_binding_field_access(n, field, span)
             }
             Ty::Database => {
                 // CR-A1: collapse two identical error-emit branches into one.
@@ -165,6 +150,33 @@ impl<'a> Checker<'a> {
             }
         }
     }
+    /// Field access on a `Table`-kind binding (`table Foo { f: T }` used as
+    /// a parameter type). CR-A1: extracted from `check_expr_field_access` —
+    /// the nested `if let ... else` here contributed 2 DPs to the caller.
+    fn check_table_binding_field_access(
+        &mut self,
+        table_name: &str,
+        field: &str,
+        span: Span,
+    ) -> Ty {
+        let table_ty = self.env.lookup(table_name).unwrap().ty.clone();
+        let (Ty::Table(_, fields, _) | Ty::Collection(_, fields)) = table_ty else {
+            // Should not happen: Table binding has non-Table type.
+            return Ty::Error;
+        };
+        match fields.iter().find(|(fn_, _)| fn_ == field) {
+            Some((_, ft)) => ft.clone(),
+            None => {
+                self.diags.push(Diagnostic::error(
+                    format!("Field '{field}' not found on table type {table_name}"),
+                    span,
+                    self.source,
+                ));
+                Ty::Error
+            }
+        }
+    }
+
     /// Check field access on a named type that exposes exactly one `Str` field.
     ///
     /// CR-A1: extracted from `check_expr_field_access` — each inline
