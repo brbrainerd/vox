@@ -210,6 +210,28 @@ Before adding one:
 - No reusable workflow template exists yet — each nightly is a hand-rolled
   YAML file; copy an existing one (`bench-nightly.yml` is a reasonable
   starting point) rather than starting from scratch.
+- **Evaluated and declined (2026-07-27):** extracting a shared `workflow_call`
+  reusable workflow or composite action for the common
+  checkout/toolchain/cache/timeout/`runs-on` prologue. Read all three
+  nightlies (`mutation-nightly.yml`, `bench-nightly.yml`,
+  `qwen35-native-nightly.yml`) in full first. The truly shared block is only
+  ~10-12 lines (checkout + `dtolnay/rust-toolchain@stable` + optional
+  `actions/cache@v5`), and even that isn't uniform: cache keys differ per job
+  (`cargo-mutants` vs `cargo-bench`), the Qwen3.5 job has no cache step at
+  all, and the toolchain step there adds `components: rustfmt, clippy` that
+  the others don't. Meanwhile each job's unique body dominates the file —
+  mutation testing's `taiki-e/install-action` + `cargo mutants` invocation,
+  bench's two `cargo bench` runs plus a bespoke bencher-output-parsing
+  threshold gate plus two artifact uploads, and the Qwen job's four distinct
+  build/corpus-prep/train/upload steps. A composite action would save at most
+  ~10 lines per file while adding a fourth file to keep in sync, an extra
+  level of indirection when reading "what does this job actually do," and a
+  place for the per-job cache-key/component differences to get silently
+  flattened. Net: boilerplate reduction is marginal and the abstraction cost
+  is real, so keep the three nightlies hand-rolled. Revisit only if a fourth
+  near-identical nightly is added (rule-of-three) or if the shared prologue
+  itself needs a coordinated fix (e.g. bumping `actions/cache` across all
+  three) more than once.
 - `ci-health-watchdog.yml`'s nightly-health check auto-discovers any workflow
   file with a `schedule:` trigger, so a new nightly job is covered by the
   failure-alerting from its first scheduled run — no watchdog edit needed.

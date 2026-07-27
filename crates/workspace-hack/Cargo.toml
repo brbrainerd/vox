@@ -151,6 +151,35 @@ sqlx = { version = "0.9", default-features = false, features = ["mysql", "postgr
 stable_deref_trait = { version = "1" }
 subtle = { version = "2" }
 syn-f595c2ba2a3f28df = { package = "syn", version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
+# NOTE(2026-07-27 CI infra investigation, see commit 11e6398eb8): the "test"
+# feature here is NOT invented by hakari — it comes solely from vox-gui's
+# [dev-dependencies] `tauri = { workspace = true, features = ["test"] }`
+# (crates/vox-gui/Cargo.toml). cargo unifies dev-dependency features into the
+# same build graph as every other workspace member in a single invocation
+# (e.g. `cargo test --workspace` / `cargo mutants -p <any-crate>` still walks
+# the full workspace metadata), and hakari's whole purpose is to make that
+# already-happening unification deterministic/cacheable via workspace-hack.
+# Because workspace-hack is a [dependencies] (not dev/build) edge of every
+# member crate, this means `tauri[test]` — and transitively gdk-sys/gtk-sys/
+# webkit2gtk-sys/soup3-sys/libappindicator-sys/alsa-sys pkg-config system
+# libraries — get pulled into the build closure of every non-GUI crate too
+# (e.g. vox-compiler, which has zero GTK/Tauri code of its own).
+#
+# We already final-exclude `tauri-build`/`tauri-utils` below (see
+# [package.metadata.hakari].final-excludes) because those are purely
+# build-time crates unique to Tauri's codegen; `tauri` itself cannot get the
+# same treatment because it's a real runtime dependency of vox-gui's non-test
+# build too, so excluding it would break hakari's unification for vox-gui.
+# There is no Cargo/hakari mechanism today to namespace "this feature only
+# applies when building vox-gui's tests" without splitting workspace-hack
+# per-crate (defeats its purpose) or removing vox-gui from the unified
+# workspace-hack traversal (loses unification benefit entirely for vox-gui).
+#
+# Accepted mitigation: infra/ci-runner/Dockerfile installs the required apt
+# packages (libgtk-3-dev, libwebkit2gtk-4.1-dev, libsoup-3.0-dev,
+# libappindicator3-dev, libdbus-1-dev, libasound2-dev) so CI runners can
+# compile these regardless of which crate is being tested. Do not try to
+# "fix" this again without first re-reading this comment.
 tauri = { version = "2", features = ["test"] }
 textwrap = { version = "0.16", default-features = false, features = ["smawk", "unicode-linebreak", "unicode-width"] }
 thiserror = { version = "2" }
@@ -324,6 +353,9 @@ sqlx = { version = "0.9", default-features = false, features = ["mysql", "postgr
 stable_deref_trait = { version = "1" }
 subtle = { version = "2" }
 syn-f595c2ba2a3f28df = { package = "syn", version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
+# Same "test" feature as the other platform section above — see the long
+# comment near the first `tauri = ...` entry in this file for why it's here
+# and why it can't be scoped away.
 tauri = { version = "2", features = ["test"] }
 textwrap = { version = "0.16", default-features = false, features = ["smawk", "unicode-linebreak", "unicode-width"] }
 thiserror = { version = "2" }
