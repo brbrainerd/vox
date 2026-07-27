@@ -53,6 +53,10 @@ jobs:
   extract:
     name: Extract & Validate Training Corpus
     runs-on: [self-hosted, linux, x64]
+    # Missing until 2026-07-27 (found in the same audit that fixed the
+    # nightly workflows' missing timeouts) — GitHub's 360-min default lets
+    # a hang squat a scarce self-hosted runner slot for hours.
+    timeout-minutes: 60
     env:
       # Abstract VCS_SHA: use github.sha on GitHub Actions.
       # On Forgejo: set VCS_SHA: ${{ gitea.sha }}
@@ -119,8 +123,12 @@ jobs:
           VOX_BIN="./target/release/vox"
           mkdir -p populi/data target/dogfood
 
-          # Incremental: existing populi/data/validated.jsonl is preserved by extract
-          "$VOX_BIN" mens corpus extract docs/ -o populi/data/validated.jsonl 2>/dev/null || true
+          # Incremental: existing populi/data/validated.jsonl is preserved by extract-docs.
+          # `extract` (not `extract-docs`) only reads .vox files -- there are none directly
+          # under docs/, so it silently produced nothing here (masked by `|| true`, found
+          # live: this step showed green while every downstream step failed on a missing
+          # input file). `extract-docs` is the .md-aware extractor.
+          "$VOX_BIN" mens corpus extract-docs docs/ -o populi/data/validated.jsonl 2>/dev/null || true
 
           LINES=$(wc -l < populi/data/validated.jsonl 2>/dev/null || echo 0)
           echo "Corpus has $LINES validated records."
@@ -222,6 +230,9 @@ jobs:
       github.event_name == 'workflow_dispatch'
     # Portable note: On Forgejo Actions, workflow_dispatch and event.inputs work identically.
     runs-on: [self-hosted, linux, x64, gpu]
+    # Missing until 2026-07-27 (see the `extract` job's timeout comment) --
+    # generous bound for real GPU fine-tuning, still finite.
+    timeout-minutes: 180
     env:
       VCS_SHA: ${{ github.sha }}
     steps:
