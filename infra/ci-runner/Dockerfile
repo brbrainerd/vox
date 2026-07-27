@@ -13,13 +13,17 @@
 #   - Rust 1.96.0   → root Dockerfile (`rust:1.96.0-slim-bookworm`) / rust-toolchain.toml / contracts SSOT
 #   - Node 24       → docs-quality.yml `node-version: 24`
 #   - pnpm 9        → ci.yml `pnpm/action-setup@v6` version 9
-#   - Runner 2.335.1 → matches the version GitHub forces via self-update on cold
+#   - Runner 2.336.0 → matches the version GitHub forces via self-update on cold
 #     start; keep this current or every ephemeral runner re-downloads on boot,
 #     defeating "ready to take a job immediately" (see `Downloading N runner` in
-#     the container's startup log to check for drift).
+#     the container's startup log to check for drift). A stale pin here doesn't
+#     just cost a slow cold start: the runner starts the job on the old version,
+#     downloads the update mid-job, then exits to apply it — and since this
+#     container has no restart loop, the exit kills the job (2026-07-27 incident:
+#     3 nightly workflows failed for days from exactly this).
 
 ARG RUST_VERSION=1.96.0
-ARG RUNNER_VERSION=2.335.1
+ARG RUNNER_VERSION=2.336.0
 
 FROM ubuntu:24.04
 
