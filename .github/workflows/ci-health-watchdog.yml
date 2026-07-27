@@ -156,12 +156,26 @@ jobs:
       #     no watchdog edit required when future jobs are added. De-dupes on its own durable
       #     variable (CI_NIGHTLY_HEALTH_STATE), independent of the fleet-health state above, so
       #     the two alert channels don't mask or reset each other.
+      #
+      #     Excludes this file and ci-health-deadman.yml (also `schedule:`-triggered): they're
+      #     meta CI-health infra with their own dedicated alerting (the push above, and the
+      #     dead-man's switch below) — including them here would mean this workflow partly
+      #     monitors itself, e.g. a single transient failure on the watchdog's own 10-min cron
+      #     firing a "Nightly CI workflow failing" alert about the watchdog, not a real nightly
+      #     job (found in review before this ever shipped).
+      #
+      #     `grep 'schedule:'` (unanchored, not `^\s*schedule:`) so a workflow using flow-style
+      #     YAML (`on: { schedule: [...] }`) is still discovered — an anchored match would
+      #     silently skip it, quietly breaking the "no watchdog edit needed" guarantee above.
       - name: Check nightly-workflow health
         run: |
           set -euo pipefail
           bad=""
           for f in .github/workflows/*.yml; do
-            grep -q '^\s*schedule:' "$f" || continue
+            case "$(basename "$f")" in
+              ci-health-watchdog.yml|ci-health-deadman.yml) continue ;;
+            esac
+            grep -q 'schedule:' "$f" || continue
             name=$(grep -m1 '^name:' "$f" | sed 's/^name:\s*//; s/^"//; s/"$//')
             [ -n "$name" ] || name=$(basename "$f")
             conclusion=$(gh run list --workflow "$(basename "$f")" --event schedule --limit 1 \

@@ -24,28 +24,46 @@ REM reasoning (`runner-scale: scale-down reap of X blocked (...)`, `[reap] X
 REM (idle > reap grace)`, etc.) was vanishing silently — the only reason a
 REM 2026-07-27 incident (containers dying ~15s after spawn, before any reap
 REM path's own eligibility gates should allow it) couldn't be root-caused
-REM after the fact. Capture it. Rotate at ~5MB so a runaway tick can't grow
-REM this unbounded; one prior generation is kept for cross-rotation context.
+REM after the fact. Capture it.
 REM
-REM Write to a per-invocation temp file, THEN best-effort-merge into the
-REM shared log, rather than redirecting `vox` straight into the shared log.
-REM A prior version of this script did the direct redirect and, when the
-REM shared log was transiently locked (antivirus scan, a concurrent manual
-REM debug invocation, Windows Search indexing), cmd.exe's failure to open
-REM that redirect aborted the WHOLE script before `vox` ever ran — silently
-REM stalling the entire reconcile loop for the tick, not just its logging
-REM (2026-07-27 incident: found via a stuck nightly re-run and `Last Result:
-REM 1` from schtasks). `%RANDOM%` makes the temp path collision-proof enough
-REM that this can never happen to the actual reconcile again.
-set LOG=C:\Users\Owner\vox\.ci-runner-logs\runner-scale.log
-set TMPLOG=C:\Users\Owner\vox\.ci-runner-logs\runner-scale.%RANDOM%.tmp
-if not exist "C:\Users\Owner\vox\.ci-runner-logs" mkdir "C:\Users\Owner\vox\.ci-runner-logs"
-for %%F in ("%LOG%") do if %%~zF GTR 5242880 (move /y "%LOG%" "%LOG%.old" >nul 2>&1)
+REM One file per tick (LOGDIR\runner-scale.<timestamp>.<RANDOM>.log), not one
+REM shared appended log. Two earlier designs both failed under real lock
+REM contention (found live this session, both via a stuck nightly re-run):
+REM   1. `vox ... >> shared-log` directly: a lock on the shared log aborted
+REM      the WHOLE script before `vox` ever ran, stalling the entire
+REM      reconcile, not just its logging.
+REM   2. `vox ... >> tmp-file`, then best-effort `type tmp >> shared-log`:
+REM      survived (1), but cmd.exe does not reliably set ERRORLEVEL when a
+REM      redirect's target is locked (the failure happens at shell-level
+REM      redirect setup, before the command it's attached to even runs) — so
+REM      `if errorlevel 1` after the merge silently didn't detect it, the
+REM      "successful" branch ran, and the tick's output was lost anyway.
+REM Writing straight to a fresh, guaranteed-unique-enough path sidesteps
+REM shared-write contention entirely — nothing else is ever writing to THIS
+REM tick's file, so there's nothing to lock. `%RANDOM%` on top of the
+REM timestamp is redundant insurance, not the sole uniqueness guarantee.
+set LOGDIR=C:\Users\Owner\vox\.ci-runner-logs
+if not exist "%LOGDIR%" mkdir "%LOGDIR%"
+set TICKSTAMP=%date:~-4%%date:~4,2%%date:~7,2%-%time:~0,2%%time:~3,2%%time:~6,2%
+set TICKSTAMP=%TICKSTAMP: =0%
+set TICKLOG=%LOGDIR%\runner-scale.%TICKSTAMP%.%RANDOM%.log
 
-echo [%date% %time%] tick start > "%TMPLOG%"
-vox ci runner-scale --apply >> "%TMPLOG%" 2>&1
+echo [%date% %time%] tick start > "%TICKLOG%"
+vox ci runner-scale --apply >> "%TICKLOG%" 2>&1
+set VOX_EXIT=%errorlevel%
 
-REM Best-effort merge; a lock here is now harmless (last thing the script
-REM does), unlike the direct-redirect version above.
-type "%TMPLOG%" >> "%LOG%" 2>nul
-del "%TMPLOG%" >nul 2>&1
+REM Best-effort prune to the newest 500 tick files (~1.7 days at the 2-min
+REM schedule interval) so this directory doesn't grow unbounded. A prune
+REM failure (one file locked, e.g. someone has it open for inspection) only
+REM leaves that one file past its turn — it never touches the tick log just
+REM written above, so a lock here can never lose this tick's diagnostics.
+for /f "skip=500 delims=" %%F in ('dir /b /o-d "%LOGDIR%\runner-scale.*.log" 2^>nul') do del "%LOGDIR%\%%F" >nul 2>&1
+
+REM `for /f "skip=N"` leaves ERRORLEVEL 1 when fewer than N lines exist to
+REM skip past (found live: this made schtasks report every tick as failed
+REM until 500 tick-log files accumulate — a purely cosmetic prune-loop
+REM artifact, not a real failure, but one that poisons the `Last Result`
+REM health signal this whole investigation relied on). Report the ACTUAL
+REM vox exit code captured above, not whatever the prune loop happened to
+REM leave in ERRORLEVEL — a real vox failure must still surface.
+exit /b %VOX_EXIT%
