@@ -208,9 +208,7 @@ fn has_sibling_json_schema(path: &Path) -> bool {
     // Strip a trailing `.v<N>` version suffix so `foo.v1` and `foo` both
     // resolve to a sibling `foo.schema.json`.
     let base = match stem.rsplit_once(".v") {
-        Some((b, suffix)) if suffix.chars().all(|c| c.is_ascii_digit()) && !suffix.is_empty() => {
-            b
-        }
+        Some((b, suffix)) if suffix.chars().all(|c| c.is_ascii_digit()) && !suffix.is_empty() => b,
         _ => stem,
     };
     path.with_file_name(format!("{base}.schema.json")).is_file()
