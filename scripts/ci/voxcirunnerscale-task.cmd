@@ -26,9 +26,26 @@ REM 2026-07-27 incident (containers dying ~15s after spawn, before any reap
 REM path's own eligibility gates should allow it) couldn't be root-caused
 REM after the fact. Capture it. Rotate at ~5MB so a runaway tick can't grow
 REM this unbounded; one prior generation is kept for cross-rotation context.
+REM
+REM Write to a per-invocation temp file, THEN best-effort-merge into the
+REM shared log, rather than redirecting `vox` straight into the shared log.
+REM A prior version of this script did the direct redirect and, when the
+REM shared log was transiently locked (antivirus scan, a concurrent manual
+REM debug invocation, Windows Search indexing), cmd.exe's failure to open
+REM that redirect aborted the WHOLE script before `vox` ever ran — silently
+REM stalling the entire reconcile loop for the tick, not just its logging
+REM (2026-07-27 incident: found via a stuck nightly re-run and `Last Result:
+REM 1` from schtasks). `%RANDOM%` makes the temp path collision-proof enough
+REM that this can never happen to the actual reconcile again.
 set LOG=C:\Users\Owner\vox\.ci-runner-logs\runner-scale.log
+set TMPLOG=C:\Users\Owner\vox\.ci-runner-logs\runner-scale.%RANDOM%.tmp
 if not exist "C:\Users\Owner\vox\.ci-runner-logs" mkdir "C:\Users\Owner\vox\.ci-runner-logs"
-for %%F in ("%LOG%") do if %%~zF GTR 5242880 move /y "%LOG%" "%LOG%.old" >nul 2>&1
+for %%F in ("%LOG%") do if %%~zF GTR 5242880 (move /y "%LOG%" "%LOG%.old" >nul 2>&1)
 
-echo [%date% %time%] tick start >> "%LOG%"
-vox ci runner-scale --apply >> "%LOG%" 2>&1
+echo [%date% %time%] tick start > "%TMPLOG%"
+vox ci runner-scale --apply >> "%TMPLOG%" 2>&1
+
+REM Best-effort merge; a lock here is now harmless (last thing the script
+REM does), unlike the direct-redirect version above.
+type "%TMPLOG%" >> "%LOG%" 2>nul
+del "%TMPLOG%" >nul 2>&1
