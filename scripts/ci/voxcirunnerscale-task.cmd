@@ -7,9 +7,16 @@ REM
 REM Skip the freshness guard so the task survives a stale installed vox binary
 REM (main advances faster than reinstalls). Set up 2026-07-02.
 set VOX_SKIP_FRESHNESS_CHECK=1
-REM Cap runners at 4 (was 6): six concurrent heavy jobs OOM-kill rustdoc/clippy
-REM on the 31GB WSL VM (sccache 'Compiler killed by signal 9'). Set 2026-07-17.
-set VOX_RUNNER_MAX=4
+REM Cap runners at 2. History: capped at 4 (was 6) on 2026-07-17 because six
+REM concurrent heavy jobs OOM-killed rustdoc/clippy on the 31GB WSL VM at the
+REM per-runner memory budget then in effect (5000m). That budget was later
+REM raised to 14000m (crates/vox-cli/src/commands/ci/runner_scale.rs
+REM MEM_PER_RUNNER, see docs/src/ci/runner-autoscaling.md) after a real build
+REM measured peaking at ~12GB RSS — but this cap was never re-checked against
+REM the new budget: 4 x 14000m = 56GB blows well past the 32GB WSL ceiling.
+REM 2 x 14000m = 28GB fits with headroom for Windows; this is what the docs'
+REM own sizing math already assumes. Fixed 2026-07-27.
+set VOX_RUNNER_MAX=2
 cd /d C:\Users\Owner\vox
 
 REM Task Scheduler discards stdout/stderr by default, so every tick's reap

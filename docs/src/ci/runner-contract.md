@@ -32,6 +32,34 @@ Upstream JavaScript actions in this repo (for example **`actions/checkout@v6`**,
 
 If a runner is too old, jobs fail early when invoking Node 24–based actions, or GitHub emits deprecation notices for obsolete Node runtimes—see GitHub’s [Actions runner changelog](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/) for the Node 20 deprecation timeline.
 
+## Operator host hygiene (avoid self-inflicted flakiness)
+
+The self-hosted fleet runs on the operator's own WSL2 VM (see
+`runner-autoscaling.md`), which means the operator's own concurrent activity
+on that machine is part of the CI environment, not separate from it:
+
+- **Don't run a heavy `docker build` (or similar CPU/network/IO-heavy
+  operation) on the runner's WSL2 distro while ephemeral runners may be
+  active.** A 2026-07-27 incident saw two nightly jobs fail with terminal
+  crates.io download errors (`curl failed`, connection reset / SSL EOF)
+  during a window when the operator was rebuilding the
+  `vox-ci-runner-local` image on the same WSL2 VM — the shared network stack
+  got saturated enough that cargo's default retry budget (bumped to
+  `net.retry = 6` in the repo-root `.cargo/config.toml` after this incident)
+  couldn't fully absorb it. If you need to rebuild the runner image, prefer
+  a quiet window (`VOX_RUNNER_MAX=0` briefly, or just watch `docker ps` for
+  an empty `vox-runner-auto-*` pool first).
+- **Keep `infra/ci-runner/Dockerfile`'s `RUNNER_VERSION` current** with
+  whatever GitHub is currently force-upgrading runners to. A stale pin means
+  every fresh ephemeral runner starts a job on the old version, downloads
+  the update mid-job, then exits to apply it — and since the container has
+  no restart loop, that exit kills the job outright (this caused a
+  multi-day silent outage across all 3 nightlies, fixed 2026-07-27; see
+  commit `11e6398eb8`). Check the `Current runner version: '…'` log line
+  against [actions/runner releases](https://github.com/actions/runner/releases)
+  periodically, or just watch for `Downloading N runner` at container
+  startup — a fresh spawn shouldn't need to.
+
 ## Local-first CI (required policy, ENFORCED)
 
 **Default:** heavy CI/CD jobs run on the **local self-hosted fleet** (Docker ephemeral runners on the operator host, autoscaled via `vox ci runner-scale`) for **speed and feedback latency** — not cost (vox is a public repo, so GitHub-hosted minutes are free). Jobs stay hosted **only** for neutral-infra resilience: the **required gate aggregator** (`ci-summary`) and the deploy critical path run hosted so the merge gate and deploys survive the workstation being off (compute-placement.md Invariants 1 & 4).

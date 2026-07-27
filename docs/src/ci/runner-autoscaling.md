@@ -185,6 +185,35 @@ when no critical CI is mid-flight.
 > fallback — from Git Bash set `MSYS_NO_PATHCONV=1` first, or POSIX paths get
 > mangled.
 
+## Adding a new nightly (or other scheduled) workflow
+
+A new `schedule:`-triggered workflow shares the SAME demand pool as every
+other nightly job and all PR/merge-queue CI — `runner_scale.rs`'s
+`query_queued_job_demand` sums queued+in-progress jobs across the whole repo
+with no per-workflow reservation, capped at `VOX_RUNNER_MAX` (currently 2;
+see the capacity math above — do not raise this without also lowering
+`MEM_PER_RUNNER` in `runner_scale.rs`, or you will overcommit the WSL2 memory
+ceiling; a 2026-07-27 incident found the cap had drifted to 4 without that
+check, risking a 56GB request against a 32GB budget).
+
+Before adding one:
+- Give the job an explicit `timeout-minutes` — GitHub's 360-min default lets
+  a hang squat a scarce runner slot for hours, starving the other nightlies
+  (two of the three existing nightlies were missing this until 2026-07-27).
+- Pick a cron time — existing nightlies run at 03:17, 05:17, and 06:20 UTC;
+  avoid clustering more jobs into that same window, since they'd all compete
+  for the same 2-runner pool.
+- A GPU-requiring job (labels including `gpu`, like `qwen35-native-nightly.yml`)
+  draws from a wholly separate capacity pool — see `runner-contract.md` — so
+  its demand doesn't compete with `linux`/`docker`-labeled jobs, but does
+  compete with any other `gpu`-labeled job.
+- No reusable workflow template exists yet — each nightly is a hand-rolled
+  YAML file; copy an existing one (`bench-nightly.yml` is a reasonable
+  starting point) rather than starting from scratch.
+- `ci-health-watchdog.yml`'s nightly-health check auto-discovers any workflow
+  file with a `schedule:` trigger, so a new nightly job is covered by the
+  failure-alerting from its first scheduled run — no watchdog edit needed.
+
 ## Cross-refs
 - Runner contract: [`runner-contract.md`](runner-contract.md).
 - Hosted fallback: `.github/workflows/ci-fallback-hosted.yml` (**manual only** via

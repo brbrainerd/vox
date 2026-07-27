@@ -11,6 +11,8 @@
 #   - secret SSOT_AUTOREGEN_TOKEN: PAT with repo Administration r/w (runner DELETE) + Actions:write.
 #   - secret CI_HEALTH_HEARTBEAT_UUID: a healthchecks.io ping uuid (dead-man's switch).
 #   - variable CI_HEALTH_STATE   : seed with "healthy" (durable de-dupe state).
+#   - variable CI_NIGHTLY_HEALTH_STATE: self-initializes on first run (falls back to
+#     "healthy" if unset) — seeding it is optional, unlike CI_HEALTH_STATE above.
 # Verify the PAT can DELETE a runner + `gh workflow run` once before trusting self-heal.
 
 name: CI Health Watchdog
@@ -144,6 +146,40 @@ jobs:
           name: watchdog-audit-${{ github.run_id }}
           path: watchdog-audit.jsonl
           retention-days: 90
+
+      # --- C1: nightly-workflow health — separate from fleet health above. A healthy fleet
+      #     says nothing about whether each SCHEDULED workflow's latest run actually succeeded;
+      #     that blind spot let 3 nightly workflows (Mutation, Benchmarks, Qwen3.5 Native) fail
+      #     silently for days (2026-07-27 incident) with nobody noticing until a human happened
+      #     to check. Auto-discovers every workflow with a `schedule:` trigger by grepping
+      #     checked-out YAML (not hardcoded) so a newly added nightly job is covered for free —
+      #     no watchdog edit required when future jobs are added. De-dupes on its own durable
+      #     variable (CI_NIGHTLY_HEALTH_STATE), independent of the fleet-health state above, so
+      #     the two alert channels don't mask or reset each other.
+      - name: Check nightly-workflow health
+        run: |
+          set -euo pipefail
+          bad=""
+          for f in .github/workflows/*.yml; do
+            grep -q '^\s*schedule:' "$f" || continue
+            name=$(grep -m1 '^name:' "$f" | sed 's/^name:\s*//; s/^"//; s/"$//')
+            [ -n "$name" ] || name=$(basename "$f")
+            conclusion=$(gh run list --workflow "$(basename "$f")" --event schedule --limit 1 \
+              --json conclusion --jq '.[0].conclusion // "none"' 2>/dev/null || echo "error")
+            echo "nightly-health: $name -> $conclusion"
+            if [ "$conclusion" != "success" ] && [ "$conclusion" != "none" ]; then
+              bad="${bad}${name} (${conclusion}); "
+            fi
+          done
+          echo "## Nightly workflow health" >> "$GITHUB_STEP_SUMMARY"
+          echo "${bad:-all scheduled workflows green}" >> "$GITHUB_STEP_SUMMARY"
+          prev=$(gh variable get CI_NIGHTLY_HEALTH_STATE 2>/dev/null || echo healthy)
+          now=$([ -n "$bad" ] && echo unhealthy || echo healthy)
+          if [ "$now" = unhealthy ] && [ "$prev" != unhealthy ]; then
+            curl -fsS -H "Title: Nightly CI workflow failing" -H "Priority: default" \
+              -d "$bad" "$PUSH_URL"
+          fi
+          gh variable set CI_NIGHTLY_HEALTH_STATE --body "$now"
 
       # --- B4: dead-man's switch is GitHub-native (no external account / no heartbeat secret):
       #     a separate cron `.github/workflows/ci-health-deadman.yml` watches THIS workflow's

@@ -42,10 +42,25 @@ ENV DEBIAN_FRONTEND=noninteractive \
     SCCACHE_DIR=/cache/sccache
 
 # System packages matching the self-hosted fleet baseline + runner deps.
+#
+# The GTK/WebKit/dbus/alsa -dev packages below aren't used by most crates
+# directly — they satisfy `tauri = { features = ["test"] }` in
+# crates/workspace-hack/Cargo.toml, which every workspace member (including
+# CLI-only crates like vox-compiler) depends on for shared feature
+# unification. That pulls gdk-sys/gtk-sys/webkit2gtk-sys/etc. into ANY
+# workspace crate's build closure, even ones with zero GUI code — e.g.
+# `cargo mutants -p vox-compiler` needs libgtk-3-dev purely as a side effect
+# (2026-07-27 incident; see also the follow-up to fix workspace-hack itself
+# so non-GUI crates stop paying this cost). libgtk-3-dev alone provides
+# gdk-3.0/gdk-x11-3.0/gtk+-3.0/atk/gdk-pixbuf-2.0/pango/glib-2.0/gio-2.0/
+# gobject-2.0's .pc files — no separate libgdk/libglib/libpango/libatk
+# packages needed.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential pkg-config libssl-dev libsqlite3-dev \
     curl git ca-certificates jq ripgrep bash sudo libicu74 \
     libglib2.0-dev \
+    libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev \
+    libappindicator3-dev libdbus-1-dev libasound2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Rust toolchain (pinned).

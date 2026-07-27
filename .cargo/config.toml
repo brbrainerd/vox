@@ -16,6 +16,15 @@ vox-schola-dev       = "run -p vox-schola --"
 jobs = 24
 rustdocflags = ["-D", "warnings"]
 
+# Bumped from cargo's default of 2 after a self-hosted nightly CI runner hit
+# terminal registry-download failures (connection reset / SSL EOF, 2026-07-27)
+# during a sustained network disruption on the host — a bigger retry budget
+# is a cheap way to ride out a longer blip. Root cause was self-inflicted
+# (a concurrent `docker build` saturating the runner's WSL2 network stack),
+# not a recurring registry issue — see docs/src/ci/runner-contract.md.
+[net]
+retry = 6
+
 # ---------------------------------------------------------------------------
 # Linux: optional faster linker (lld)
 # ---------------------------------------------------------------------------
