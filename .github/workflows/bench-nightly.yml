@@ -43,6 +43,7 @@ jobs:
 
       - name: Run compiler_pipeline benchmarks (CR-E1 proxy)
         run: |
+          mkdir -p target
           cargo bench -p vox-compiler --bench compiler_pipeline -- \
             --output-format bencher 2>&1 | tee target/bench-compiler-pipeline.txt
 
@@ -50,6 +51,7 @@ jobs:
         env:
           VOX_EXAMPLES_STRICT_PARSE: "1"
         run: |
+          mkdir -p target
           cargo bench -p vox-compiler --bench golden_examples -- \
             --output-format bencher 2>&1 | tee target/bench-golden-examples.txt
 
