@@ -48,4 +48,14 @@ jobs:
           tool: cargo-mutants
 
       - name: Run mutants (package vox-compiler)
-        run: cargo mutants -p vox-compiler --no-times --jobs 4
+        # emission_ladder_test shells out to rustc to compile generated code
+        # per case (~293s for the whole file locally) -- fine once in normal
+        # `cargo test`, but cargo-mutants re-runs the test command for every
+        # candidate mutant. At 4453 mutants that dominant cost alone is ~90h
+        # sequential and blows through any reasonable job timeout (confirmed:
+        # 2026-07-28 run hit the 120m cap after clearing baseline+installs,
+        # having barely started). Excluded here only from the mutants inner
+        # loop; the real `cargo test` gate still runs it every time.
+        run: |
+          cargo mutants -p vox-compiler --no-times --jobs 4 \
+            -- -E 'not binary(emission_ladder_test)'
