@@ -56,6 +56,10 @@ jobs:
         # 2026-07-28 run hit the 120m cap after clearing baseline+installs,
         # having barely started). Excluded here only from the mutants inner
         # loop; the real `cargo test` gate still runs it every time.
+        # Runner has 24 cores; --jobs 4 was leaving most of them idle. 2026-07-28
+        # measurement: 40/4453 mutants completed in 120m at --jobs 4 (~9 days to
+        # finish at that rate). Bumping to 12 to use the box without starving it
+        # entirely (each job spawns its own rustc/test process tree).
         run: |
-          cargo mutants -p vox-compiler --no-times --jobs 4 \
+          cargo mutants -p vox-compiler --no-times --jobs 12 \
             -- -E 'not binary(emission_ladder_test)'
