@@ -23,7 +23,12 @@ jobs:
   criterion-bench:
     name: criterion (vox-compiler, CR-E1)
     runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 30
+    # 60m gives a cold-cache run (compiling both bench suites from scratch)
+    # enough headroom to finish and save the cargo cache; every prior run had
+    # failed fast at step 5 (see fix above), so the cache post-step never ran
+    # and this has likely never been warm. Once one run completes, later runs
+    # should be well under 30m from cache hits.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
 
