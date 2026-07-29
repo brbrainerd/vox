@@ -452,6 +452,22 @@ mod minimal_repro_tests {
     }
 
     #[test]
+    fn span_end_col_advances_by_span_length() {
+        // "xxxx" starts at byte offset 4 (after "let "), so start_col is 5
+        // (1-based). The span is 4 chars wide with no newline inside, so
+        // end_col must be start_col + 4 = 9. A `col += 1` -> `col *= 1`
+        // mutation in the end-column loop would leave end_col stuck at
+        // start_col (5) instead of advancing.
+        let source = "let xxxx = 1;";
+        let start = source.find("xxxx").unwrap();
+        let end = start + "xxxx".len();
+        let payload =
+            VoxCompilerDiagnosticPayload::from_diagnostic(&diag_at(start, end), "f.vox", source);
+        assert_eq!(payload.span.start_col, 5);
+        assert_eq!(payload.span.end_col, 9);
+    }
+
+    #[test]
     fn minimal_repro_empty_source_is_none() {
         let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag_at(0, 0), "f.vox", "");
         assert!(payload.minimal_repro.is_none());
