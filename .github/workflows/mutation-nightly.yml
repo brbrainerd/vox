@@ -48,22 +48,28 @@ jobs:
           tool: cargo-mutants
 
       - name: Run mutants (package vox-compiler)
+        # Full-crate mutation testing (4453 mutants as of 2026-07-28) does not
+        # fit in a single 120m nightly run at observed throughput (~40
+        # mutants/120m at --jobs 4; confirmed --jobs 12 is WORSE -- 25/4453 --
+        # because each mutant job runs its own fully-parallel rustc build and
+        # 12 concurrent jobs oversubscribe the 24-core runner). Rather than
+        # fight per-mutant throughput, shard the corpus with cargo-mutants'
+        # native --shard k/n and rotate k by day-of-year, so the schedule
+        # cycles through every mutant over ~128 days with zero new runner
+        # capacity. n=128 measured ~35 mutants/shard (2026-07-28) -- comfortably
+        # inside the 120m budget. Re-measure `--list --shard 0/128 | wc -l`
+        # occasionally as the crate grows and bump 128 up if a shard creeps
+        # past ~50 mutants.
+        #
         # emission_ladder_test shells out to rustc to compile generated code
         # per case (~293s for the whole file locally) -- fine once in normal
         # `cargo test`, but cargo-mutants re-runs the test command for every
-        # candidate mutant. At 4453 mutants that dominant cost alone is ~90h
-        # sequential and blows through any reasonable job timeout (confirmed:
-        # 2026-07-28 run hit the 120m cap after clearing baseline+installs,
-        # having barely started). Excluded here only from the mutants inner
-        # loop; the real `cargo test` gate still runs it every time.
-        # 2026-07-28: tried bumping --jobs 4->12 to use more of the runner's 24
-        # cores. Measured WORSE throughput (25/4453 mutants in 120m vs 40/4453
-        # at --jobs 4) -- each mutant job runs its own fully-parallel rustc
-        # build, so 12 concurrent jobs oversubscribe the CPU and thrash rather
-        # than help. Reverted to 4. At either setting, full-crate mutation
-        # testing of vox-compiler (4453 mutants, ~9 days at observed rate) does
-        # not fit in a single nightly run -- needs sharding or a narrower
-        # mutants.toml scope, not job-count tuning.
+        # candidate mutant, so it's excluded from the mutants inner loop only;
+        # the real `cargo test` gate still runs it every time.
         run: |
+          SHARD_TOTAL=128
+          SHARD_INDEX=$(( 10#$(date -u +%j) % SHARD_TOTAL ))
+          echo "Mutation shard: ${SHARD_INDEX}/${SHARD_TOTAL} (day-of-year $(date -u +%j))" | tee -a "$GITHUB_STEP_SUMMARY"
           cargo mutants -p vox-compiler --no-times --jobs 4 \
+            --shard "${SHARD_INDEX}/${SHARD_TOTAL}" \
             -- -E 'not binary(emission_ladder_test)'
