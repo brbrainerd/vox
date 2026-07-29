@@ -19,6 +19,14 @@ jobs:
   test-setup:
     name: Clean Room Setup + Idempotency
     runs-on: ${{ matrix.os }}
+    # Backstop for a hang GitHub's own default (360m) doesn't catch fast enough
+    # (2026-07-29 incident: the windows-latest Idempotency step ran past 2h
+    # with no job-level timeout at all, squatting a runner slot). 90m gives
+    # room for a genuinely cold clean-room Windows build (measured: first run
+    # alone took 57m) plus the second run, while still bounding a real hang.
+    # The Linux-only `timeout 600s` wrapper below stays as a tighter
+    # inner guard where it's available; this is the guard for every OS.
+    timeout-minutes: 90
     strategy:
       # Run all three OSes to completion — a failure on one must not cancel the
       # others (that previously hid per-OS clean-room failures behind a single
