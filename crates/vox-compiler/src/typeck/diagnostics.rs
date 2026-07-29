@@ -24,6 +24,47 @@ pub fn msg_record_size_mismatch(expected: usize, found: usize) -> String {
     format!("Record size mismatch: expected {expected}, found {found}")
 }
 
+#[cfg(test)]
+mod msg_formatter_tests {
+    use super::*;
+
+    // These formatters are the SSOT for arity/size-mismatch messages shown
+    // to users and LLM consumers; asserting exact wording (not just
+    // non-emptiness) catches both "return a constant string" and
+    // "swap expected/found" mutations.
+    #[test]
+    fn msg_arg_count_mismatch_wording() {
+        assert_eq!(
+            msg_arg_count_mismatch(2, 3),
+            "Argument count mismatch: expected 2 arguments, found 3"
+        );
+    }
+
+    #[test]
+    fn msg_tuple_size_mismatch_wording() {
+        assert_eq!(
+            msg_tuple_size_mismatch(2, 3),
+            "Tuple size mismatch: expected 2, found 3"
+        );
+    }
+
+    #[test]
+    fn msg_function_arity_mismatch_wording() {
+        assert_eq!(
+            msg_function_arity_mismatch(2, 3),
+            "Function arity mismatch: expected 2, found 3"
+        );
+    }
+
+    #[test]
+    fn msg_record_size_mismatch_wording() {
+        assert_eq!(
+            msg_record_size_mismatch(2, 3),
+            "Record size mismatch: expected 2, found 3"
+        );
+    }
+}
+
 /// Type checking diagnostic severity (distinct from lint / TOESTUB severities).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TypeckSeverity {
@@ -491,6 +532,25 @@ mod minimal_repro_tests {
         assert_eq!(mr.local_span.start_line, 4);
         assert_eq!(mr.local_span.end_line, 5);
     }
+
+    #[test]
+    fn resolve_line_col_multi_char_span_on_second_line() {
+        // Span covering "xxxx" on line 2, so start_line != 1 and both
+        // start_col/end_col are non-trivial -- catches the `<` -> `<=`
+        // boundary mutation in the find_map skip-ahead as well as the
+        // `col += 1` -> `col *= 1` accumulation mutation in the second loop
+        // (same class of bug already fixed in `compute` inside
+        // `from_diagnostic`, but this is an independent implementation).
+        let source = "line1\nlet xxxx = 1;\nline3\n";
+        let start = source.find("xxxx").unwrap();
+        let end = start + "xxxx".len();
+        let (start_line, start_col, end_line, end_col) =
+            resolve_line_col(Span::new(start, end), source);
+        assert_eq!(start_line, 2);
+        assert_eq!(start_col, 5);
+        assert_eq!(end_line, 2);
+        assert_eq!(end_col, 9);
+    }
 }
 
 /// A structured diagnostic emitted by the type checker and related frontend passes.
@@ -717,6 +777,74 @@ impl Diagnostic {
         let from = start_line.saturating_sub(1);
         let to = (start_line + 2).min(lines.len());
         lines[from..to].join("\n")
+    }
+}
+
+#[cfg(test)]
+mod line_col_and_context_tests {
+    use super::*;
+
+    fn diag_at(start: usize, end: usize) -> Diagnostic {
+        Diagnostic {
+            severity: TypeckSeverity::Error,
+            message: "test".into(),
+            span: Span::new(start, end),
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![],
+            category: DiagnosticCategory::default(),
+            code: Some("E0001".into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        }
+    }
+
+    #[test]
+    fn with_line_col_multi_char_span_on_second_line() {
+        // Non-trivial line/col on both ends catches the `==` -> `!=` break
+        // condition and both `+= 1` -> `*= 1` accumulation mutations in
+        // `with_line_col`'s independent `compute` closure.
+        let source = "line1\nlet xxxx = 1;\nline3\n";
+        let start = source.find("xxxx").unwrap();
+        let end = start + "xxxx".len();
+        let diag = diag_at(start, end).with_line_col(source);
+        let lc = diag.line_col.expect("line_col computed");
+        assert_eq!(lc.line_start, 2);
+        assert_eq!(lc.col_start, 5);
+        assert_eq!(lc.line_end, 2);
+        assert_eq!(lc.col_end, 9);
+    }
+
+    #[test]
+    fn capture_context_returns_line_before_and_after() {
+        // Span points inside "ccc" (the middle line): capture_context should
+        // return exactly the 1-before/1-after window "bbb\nccc\nddd". Pins
+        // the `>=`/`<`/`&&` line-boundary detection and the `+` offset
+        // arithmetic in the scan loop, plus the `+` in the window-end
+        // computation -- a String::new()/"xyzzy" return-value mutation also
+        // fails this exact-content assertion trivially.
+        let source = "aaa\nbbb\nccc\nddd\neee\n";
+        let start = source.find("ccc").unwrap() + 1; // mid-way into "ccc"
+        let context = Diagnostic::capture_context(source, Span::new(start, start + 1));
+        assert_eq!(context, "bbb\nccc\nddd");
+    }
+
+    #[test]
+    fn capture_context_clips_at_start_of_file() {
+        let source = "aaa\nbbb\nccc\n";
+        let context = Diagnostic::capture_context(source, Span::new(0, 1));
+        assert_eq!(context, "aaa\nbbb");
+    }
+
+    #[test]
+    fn capture_context_clips_at_end_of_file() {
+        let source = "aaa\nbbb\nccc\n";
+        let start = source.find("ccc").unwrap();
+        let context = Diagnostic::capture_context(source, Span::new(start, start + 1));
+        assert_eq!(context, "bbb\nccc");
     }
 }
 
