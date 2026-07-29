@@ -66,10 +66,40 @@ jobs:
         # `cargo test`, but cargo-mutants re-runs the test command for every
         # candidate mutant, so it's excluded from the mutants inner loop only;
         # the real `cargo test` gate still runs it every time.
+        # A slow-but-alive run and a genuine hang look identical from outside:
+        # `gh run view --log` returns nothing for in-progress jobs (a GitHub
+        # API limitation, not fixable here), and cargo-mutants itself only
+        # prints one line per COMPLETED mutant -- with each mutant requiring
+        # a full from-scratch rebuild of vox-compiler (no incremental cache
+        # across mutants), that can be silent for 3+ minutes at a time even
+        # when healthy. 2026-07-29: had to `docker exec` into the runner and
+        # inspect `ps aux` by hand to confirm a run marked "failure" by a
+        # transient runner-network blip was actually still compiling fine.
+        # Run cargo-mutants in the background and emit a heartbeat every 5m
+        # with elapsed time + mutants completed so far, so that's visible in
+        # the live log without needing to do that again.
         run: |
           SHARD_TOTAL=128
           SHARD_INDEX=$(( 10#$(date -u +%j) % SHARD_TOTAL ))
           echo "Mutation shard: ${SHARD_INDEX}/${SHARD_TOTAL} (day-of-year $(date -u +%j))" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          LOG=mutants-run.log
           cargo mutants -p vox-compiler --no-times --jobs 4 \
             --shard "${SHARD_INDEX}/${SHARD_TOTAL}" \
-            -- -E 'not binary(emission_ladder_test)'
+            -- -E 'not binary(emission_ladder_test)' \
+            > "$LOG" 2>&1 &
+          MUTANTS_PID=$!
+
+          START_TS=$(date +%s)
+          while kill -0 "$MUTANTS_PID" 2>/dev/null; do
+            sleep 300
+            ELAPSED_MIN=$(( ($(date +%s) - START_TS) / 60 ))
+            DONE=$(grep -cE "^(MISSED|CAUGHT|TIMEOUT|UNVIABLE)" "$LOG" 2>/dev/null)
+            TOTAL=$(grep -oP '(?<=Found )[0-9]+(?= mutants)' "$LOG" | head -1)
+            echo "heartbeat: ${ELAPSED_MIN}m elapsed, ${DONE}/${TOTAL:-?} mutants tested so far (still running)"
+          done
+
+          wait "$MUTANTS_PID"
+          EXIT=$?
+          cat "$LOG"
+          exit "$EXIT"
