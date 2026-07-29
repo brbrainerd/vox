@@ -19,6 +19,7 @@ jobs:
     # Moved off self-hosted (runner-remediation Task 9) — lychee is a pure
     # network job; local exclude-paths become harmless no-ops on a clean clone.
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - name: Link Checker

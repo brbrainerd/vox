@@ -16,7 +16,8 @@ env:
 jobs:
   visus-audit:
     runs-on: windows-latest
-    
+    timeout-minutes: 60
+
     steps:
     - uses: actions/checkout@v7
     

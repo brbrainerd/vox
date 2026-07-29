@@ -24,6 +24,7 @@ jobs:
   build-docs:
     name: Build Documentation
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
@@ -102,6 +103,7 @@ jobs:
     name: Deploy to GitHub Pages
     needs: build-docs
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -117,6 +119,7 @@ jobs:
     name: Deploy to Cloudflare Pages
     needs: build-docs
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
@@ -170,6 +173,7 @@ jobs:
     name: Smoke test live site
     needs: deploy-cloudflare
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -200,6 +204,7 @@ jobs:
   notify-on-failure:
     name: Notify on docs deploy failure
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [build-docs, deploy-pages, deploy-cloudflare, smoke-test]
     if: failure()
     permissions:

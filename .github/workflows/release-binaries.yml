@@ -16,6 +16,7 @@ jobs:
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ fromJson(matrix.runs_on) }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -172,6 +173,7 @@ jobs:
   publish:
     name: Publish GitHub release
     runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 20
     needs: build
     steps:
       - uses: actions/checkout@v7

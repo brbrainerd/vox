@@ -27,6 +27,7 @@ permissions:
 jobs:
   timings:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Measure job run-times and warn on jobs over budget
         env:

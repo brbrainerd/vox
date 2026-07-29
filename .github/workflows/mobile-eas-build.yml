@@ -39,6 +39,7 @@ jobs:
     # Tier: heavy (self-hosted). merge_group + 'full-ci' label only.
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -101,6 +102,7 @@ jobs:
   eas-build:
     name: EAS cloud build (Android APK)
     runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 20
     needs: bundle
     # NOTE: the `secrets` context is NOT allowed in a job-level `if:` (GitHub
     # rejects the workflow), so gate on the event here and check EXPO_TOKEN in a

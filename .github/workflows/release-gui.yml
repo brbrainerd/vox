@@ -18,6 +18,7 @@ jobs:
   build-tauri:
     name: Build Tauri GUI
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:

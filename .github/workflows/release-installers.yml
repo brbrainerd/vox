@@ -11,6 +11,7 @@ env:
 jobs:
   test-voxup-installer:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -51,6 +52,7 @@ jobs:
           ./target/release/voxup update
   build-windows-msi:
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust
@@ -66,6 +68,7 @@ jobs:
 
   build-linux-deb:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust
@@ -81,6 +84,7 @@ jobs:
 
   publish-macos-brew:
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: Build Release
@@ -96,6 +100,7 @@ jobs:
 
   test-bootstrap-unix:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -136,6 +141,7 @@ jobs:
 
   test-bootstrap-windows:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 

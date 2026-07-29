@@ -24,6 +24,7 @@ jobs:
     # Tier: heavy (self-hosted). merge_group + 'full-ci' label only; skip routine PR pushes.
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 120
     # Hard gate: mutation survivors on vox-compiler or vox-codegen mean tests
     # exist but don't catch the mutations — the test suite is decorative, not
     # protective.  AGENTS.md §Test-First Policy notes that r_test (test pass

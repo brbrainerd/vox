@@ -21,6 +21,7 @@ permissions:
 jobs:
   assess-logic:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       REPO: vox-foundation/vox
       GH_TOKEN: stub

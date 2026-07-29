@@ -21,6 +21,7 @@ concurrency:
 jobs:
   ts-noemit:
     runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)

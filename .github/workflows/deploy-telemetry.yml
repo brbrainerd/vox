@@ -41,6 +41,7 @@ jobs:
     # Only deploy if the image build succeeded (or on manual dispatch).
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
@@ -81,6 +82,7 @@ jobs:
     needs: [deploy-coolify]
     if: ${{ always() && needs.deploy-coolify.result == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Wait for container to settle
         run: sleep 15
@@ -124,6 +126,7 @@ jobs:
     needs: [deploy-coolify, health-check]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Write deployment summary
         run: |

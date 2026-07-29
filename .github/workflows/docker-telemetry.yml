@@ -31,6 +31,7 @@ jobs:
   build-and-push:
     name: Build vox-telemetry-server image
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 

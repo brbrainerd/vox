@@ -22,6 +22,7 @@ jobs:
   build-bundles:
     name: ${{ matrix.bundle }} @ ${{ matrix.target }}
     runs-on: ${{ fromJson(matrix.runs_on) }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:

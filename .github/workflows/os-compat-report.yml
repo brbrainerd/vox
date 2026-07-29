@@ -14,6 +14,7 @@ jobs:
   scan:
     name: OS compatibility scan
     runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
