@@ -11,10 +11,9 @@ export function VersionMismatchBanner({ mismatch }: VersionMismatchBannerProps) 
   return (
     <div
       data-testid="version-mismatch-banner"
-      role="alert"
       className="flex items-center justify-between gap-3 border-b border-amber-400/30 bg-amber-400/[0.06] px-4 py-1.5 text-[11px] text-amber-200"
     >
-      <span>
+      <span role="alert">
         GUI v{mismatch.gui} / daemon v{mismatch.daemon} — restart the daemon to update.
       </span>
       <button
