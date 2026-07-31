@@ -319,19 +319,29 @@ CREATE INDEX IF NOT EXISTS idx_agent_operations_tool ON agent_operations(tool_na
 
 -- Candidate skills discovered by the skill-mining pipeline (code_miner /
 -- op_miner in vox-skill-discovery), persisted so a mining run is no longer
--- fire-and-forget stdout output. Task 3.3 (promotion gate / dedup /
--- shadow-period state machine) reads and advances `status`; nothing else
--- writes it yet.
+-- fire-and-forget stdout output. `status` is the coarse review outcome
+-- (pending/reviewed/promoted/rejected, see ops_skill_candidates.rs); once a
+-- candidate reaches `promoted` its `lifecycle_state` (Task 3.3) tracks the
+-- provisional -> confirmed -> deprecated shadow-period state machine,
+-- mirroring `vox_orchestrator::models::autonomic::ModelConfidence`.
+-- `source_hash` binds a promoted skill's identity to the trajectory it was
+-- derived from (Keccak/blake3 of `raw_json`), so a later mining run that
+-- produces a materially different trajectory under the same
+-- `candidate_name` can be detected and forced back through verification
+-- instead of silently overwriting the confirmed skill (Task 3.3 gate 8).
 CREATE TABLE IF NOT EXISTS skill_candidates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     candidate_name TEXT NOT NULL,
     source TEXT NOT NULL,
     raw_json TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
+    lifecycle_state TEXT NOT NULL DEFAULT 'provisional',
+    source_hash TEXT,
     created_at_ms INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_skill_candidates_status ON skill_candidates(status, created_at_ms);
+CREATE INDEX IF NOT EXISTS idx_skill_candidates_name ON skill_candidates(candidate_name);
 
 CREATE TABLE IF NOT EXISTS cost_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

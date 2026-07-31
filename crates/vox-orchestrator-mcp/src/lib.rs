@@ -24,6 +24,7 @@ pub mod hitl_rehydrate;
 pub mod params;
 pub mod pending_approvals;
 pub mod server_state;
+pub mod skill_promotion;
 
 /// T0.3: persisted per-repo "always allow this tool" allowlist (tier 3 of the
 /// dangerous-tool gate's precedence order).

@@ -4,9 +4,9 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 82
-  # Keccak-256 of baseline_sql() — updated for 82: skill_candidates table (Task 3.2, harness parity plan).
-  repository_baseline_digest_hex: "0x1ca6617dfa5d459bf42a0c7a27faf645fb4a363a6e87951da76e6267ab7396bb"
+  repository_baseline_integer: 83
+  # Keccak-256 of baseline_sql() — updated for 83: skill_candidates.lifecycle_state + source_hash (Task 3.3, harness parity plan).
+  repository_baseline_digest_hex: "0xdbf45bc6173a1fbb98f3c845700ace3ad0b885a91dc0b54b67838d632ae24c7b"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.
