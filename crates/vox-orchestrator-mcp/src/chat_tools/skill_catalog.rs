@@ -53,16 +53,14 @@ pub(crate) fn render_skill_catalog(entries: &[CatalogEntry], max: usize) -> Stri
         return String::new();
     }
     let mut sorted: Vec<&CatalogEntry> = entries.iter().collect();
-    sorted.sort_by(|a, b| {
-        match (a.reliability, b.reliability) {
-            (Some(ra), Some(rb)) => rb
-                .partial_cmp(&ra)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| a.name.cmp(&b.name)),
-            (Some(_), None) => std::cmp::Ordering::Less,
-            (None, Some(_)) => std::cmp::Ordering::Greater,
-            (None, None) => a.name.cmp(&b.name),
-        }
+    sorted.sort_by(|a, b| match (a.reliability, b.reliability) {
+        (Some(ra), Some(rb)) => rb
+            .partial_cmp(&ra)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.name.cmp(&b.name)),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => a.name.cmp(&b.name),
     });
     if sorted.len() > max {
         let dropped: Vec<&str> = sorted[max..].iter().map(|e| e.name.as_str()).collect();
@@ -190,10 +188,7 @@ mod tests {
 
     #[test]
     fn reliability_tiebreak_is_alphabetical() {
-        let txt = render_skill_catalog(
-            &[sr("zeta", "z", 0.5), sr("alpha", "a", 0.5)],
-            64,
-        );
+        let txt = render_skill_catalog(&[sr("zeta", "z", 0.5), sr("alpha", "a", 0.5)], 64);
         let a = txt.find("alpha").unwrap();
         let z = txt.find("zeta").unwrap();
         assert!(a < z, "equal reliability breaks alphabetically");
@@ -205,10 +200,7 @@ mod tests {
         // tight cap, the no-data skill should be the one dropped, not silent
         // — the drop is also observable via render_skill_catalog's tracing
         // (exercised indirectly here: capacity 1 keeps only the scored skill).
-        let txt = render_skill_catalog(
-            &[sr("kept", "has data", 0.7), s("dropped", "no data")],
-            1,
-        );
+        let txt = render_skill_catalog(&[sr("kept", "has data", 0.7), s("dropped", "no data")], 1);
         assert!(txt.contains("kept"));
         assert!(!txt.contains("dropped"));
     }
@@ -223,7 +215,10 @@ mod tests {
         ];
         let first = render_skill_catalog(&entries, 64);
         let second = render_skill_catalog(&entries, 64);
-        assert_eq!(first, second, "cache-stability: identical input -> identical output");
+        assert_eq!(
+            first, second,
+            "cache-stability: identical input -> identical output"
+        );
     }
 
     #[test]

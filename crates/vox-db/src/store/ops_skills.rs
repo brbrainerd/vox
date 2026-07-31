@@ -22,20 +22,25 @@ impl crate::VoxDb {
     pub async fn list_skill_reliability(
         &self,
     ) -> Result<std::collections::HashMap<String, f64>, StoreError> {
-        let mut rows = self
-            .conn
-            .query(
-                "SELECT entity_id, reliability FROM reliability_scores WHERE entity_type = 'skill'",
-                (),
-            )
-            .await?;
-        let mut out = std::collections::HashMap::new();
-        while let Some(row) = rows.next().await? {
-            let id: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-            let r: f64 = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
-            out.insert(id, r);
-        }
-        Ok(out)
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT entity_id, reliability FROM reliability_scores WHERE entity_type = 'skill'",
+                        (),
+                    )
+                    .await?;
+                let mut out = std::collections::HashMap::new();
+                while let Some(row) = rows.next().await? {
+                    let id: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                    let r: f64 = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+                    out.insert(id, r);
+                }
+                Ok(out)
+            })
+            .await
     }
 
     /// Read `reliability` for one `skill_id`, or `None` if no row exists yet.

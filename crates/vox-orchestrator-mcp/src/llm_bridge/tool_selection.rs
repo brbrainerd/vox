@@ -62,17 +62,28 @@ pub struct TurnContext {
     pub active_skill_id: Option<String>,
     /// Hard cap on the number of tools returned. See [`DEFAULT_MAX_TOOLS`].
     pub max_tools: usize,
+    /// Tool-name prefixes to exclude from the candidate set entirely, applied
+    /// BEFORE the `max_tools` cap (unlike a post-hoc filter, this guarantees
+    /// excluded tools never consume a cap slot). Callers that must never offer
+    /// a given family of tools — e.g. the agent loop excluding `vox_chat_*` to
+    /// prevent unbounded re-entrant recursion into `run_agent_turn` — should
+    /// list those prefixes here rather than filtering the already-capped
+    /// result, which can silently shrink the effective tool count below
+    /// `max_tools` and can drop a genuinely useful tool that only lost its cap
+    /// slot to an excluded one. Empty by default (no exclusion).
+    pub exclude_name_prefixes: Vec<&'static str>,
 }
 
 impl Default for TurnContext {
     /// A plain chat turn: `ai` + `app` lanes, no active skill, default cap,
-    /// no permission restriction.
+    /// no permission restriction, no name-prefix exclusions.
     fn default() -> Self {
         Self {
             permission_mode: None,
             lanes: vec!["ai", "app"],
             active_skill_id: None,
             max_tools: DEFAULT_MAX_TOOLS,
+            exclude_name_prefixes: Vec::new(),
         }
     }
 }
@@ -98,10 +109,17 @@ impl TurnContext {
 ///    denies for `ctx.active_skill_id` (skill-infrastructure tools such as
 ///    `vox_skill_list`/`vox_chat_*` are never denied by that function, so
 ///    they always survive this step regardless of the active skill).
-/// 4. Cap — truncates to the first `ctx.max_tools` survivors, in registry
+/// 4. Name-prefix exclusion — drops any tool whose name starts with one of
+///    `ctx.exclude_name_prefixes` (no-op if empty).
+/// 5. Cap — truncates to the first `ctx.max_tools` survivors, in registry
 ///    order.
 ///
-/// Step 4 is deliberately a plain truncation, not a relevance ranking.
+/// The exclusion filter runs BEFORE the cap so that excluded tools never
+/// consume a cap slot: capping first and filtering after would both shrink
+/// the effective tool count below `max_tools` and could bump a genuinely
+/// usable tool out of the offered set for no benefit.
+///
+/// Step 5 is deliberately a plain truncation, not a relevance ranking.
 /// Building a scoring/prioritization system is out of scope for this task;
 /// a future task may want to sort by relevance before truncating.
 #[must_use]
@@ -115,12 +133,13 @@ pub fn select_tools_for_turn(
         .filter(|entry| !ctx.is_read_only() || entry.http_read_role_eligible)
         .filter(|entry| ctx.lane_allowed(entry.product_lane))
         .filter(|entry| {
-            check_skill_tool_permission(
-                skill_registry,
-                ctx.active_skill_id.as_deref(),
-                entry.name,
-            )
-            .is_none()
+            check_skill_tool_permission(skill_registry, ctx.active_skill_id.as_deref(), entry.name)
+                .is_none()
+        })
+        .filter(|entry| {
+            !ctx.exclude_name_prefixes
+                .iter()
+                .any(|prefix| entry.name.starts_with(prefix))
         })
         .take(ctx.max_tools)
         .collect()
@@ -168,6 +187,7 @@ mod tests {
             lanes: vec![],
             active_skill_id: None,
             max_tools: TOOL_REGISTRY.len(),
+            exclude_name_prefixes: vec![],
         };
         let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
         assert!(!selected.is_empty());
@@ -183,14 +203,11 @@ mod tests {
             lanes: allowed.iter().copied().collect(),
             active_skill_id: None,
             max_tools: TOOL_REGISTRY.len(),
+            exclude_name_prefixes: vec![],
         };
         let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
         assert!(!selected.is_empty());
-        assert!(
-            selected
-                .iter()
-                .all(|t| allowed.contains(t.product_lane))
-        );
+        assert!(selected.iter().all(|t| allowed.contains(t.product_lane)));
         // Sanity: the registry does contain tools outside {data, interop}
         // (e.g. ai/app/platform/workflow lanes), so this filter is doing real work.
         assert!(
@@ -209,6 +226,7 @@ mod tests {
             lanes: vec![],
             active_skill_id: None,
             max_tools: TOOL_REGISTRY.len(),
+            exclude_name_prefixes: vec![],
         };
         let ctx_with_skill = TurnContext {
             active_skill_id: Some("narrow-skill".to_string()),
@@ -228,6 +246,7 @@ mod tests {
             lanes: vec![],
             active_skill_id: Some("narrow-skill".to_string()),
             max_tools: TOOL_REGISTRY.len(),
+            exclude_name_prefixes: vec![],
         };
         let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
         let selected_names: HashSet<&str> = selected.iter().map(|t| t.name).collect();
@@ -247,5 +266,61 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Regression: an excluded prefix (e.g. `vox_chat_*` in the agent loop) must
+    /// not consume a cap slot. Before the fix, excluding `vox_chat_*` happened
+    /// AFTER `select_tools_for_turn`'s `.take(max_tools)`, so any `vox_chat_*`
+    /// entries within the first `max_tools` registry-order entries would occupy a
+    /// slot and then be discarded by the caller's post-filter — leaving turns
+    /// with fewer than `max_tools` usable tools and potentially pushing a
+    /// genuinely useful tool just past the cap boundary out of reach. Now the
+    /// exclusion runs inside `select_tools_for_turn`, before the cap, so the
+    /// full `max_tools` budget is always spent on genuinely-usable tools (up to
+    /// however many survive every other filter).
+    #[test]
+    fn excluded_prefix_does_not_consume_a_cap_slot() {
+        let reg = new_registry_arc();
+
+        // Sanity: the real registry does contain vox_chat_* entries within
+        // registry order, so this test exercises the bug it targets.
+        assert!(
+            TOOL_REGISTRY
+                .iter()
+                .any(|t| t.name.starts_with("vox_chat_")),
+            "test assumption: TOOL_REGISTRY must contain at least one vox_chat_* tool"
+        );
+
+        // A small cap chosen so that, in plain registry order without exclusion,
+        // at least one vox_chat_* tool would land inside the cap window (proving
+        // the old post-filter bug would have shrunk the result below the cap).
+        let small_cap = TOOL_REGISTRY
+            .iter()
+            .position(|t| t.name.starts_with("vox_chat_"))
+            .map(|idx| idx + 1)
+            .unwrap_or(TOOL_REGISTRY.len())
+            .max(1);
+
+        let ctx = TurnContext {
+            permission_mode: None,
+            lanes: vec![],
+            active_skill_id: None,
+            max_tools: small_cap,
+            exclude_name_prefixes: vec!["vox_chat_"],
+        };
+        let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
+
+        assert!(
+            selected.iter().all(|t| !t.name.starts_with("vox_chat_")),
+            "excluded vox_chat_* tools must never appear in the result"
+        );
+        assert_eq!(
+            selected.len(),
+            small_cap,
+            "the cap slot vacated by an excluded tool must be backfilled by the \
+             next genuinely-usable tool, not left empty — got {} of {small_cap} \
+             expected usable tools",
+            selected.len()
+        );
     }
 }

@@ -20,8 +20,8 @@
 //! straight through to `handle_tool_call_with_mode` exactly as that function already
 //! requires (an authenticated transport-layer value, never LLM-composed).
 
-use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig, LlmToolDef, llm_chat};
 use vox_actor_runtime::ActivityOptions;
+use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig, LlmToolDef, llm_chat};
 use vox_mcp_registry::TOOL_REGISTRY;
 use vox_orchestrator::models::{ModelSpec, ProviderType};
 
@@ -176,21 +176,30 @@ pub(crate) async fn run_agent_turn(
         lanes: vec!["ai", "app"],
         active_skill_id,
         max_tools: DEFAULT_MAX_TOOLS,
+        // Never offer chat-turn-entry tools (`vox_chat_*`, e.g. `vox_chat_message`)
+        // as callable tools inside an agent turn. `select_tools_for_turn`'s
+        // general-purpose skill-permission filter
+        // (`skill_permissions::is_skill_infrastructure_tool`) deliberately
+        // whitelists `vox_chat_*` through *skill* restrictions — that's correct for
+        // other, non-recursive callers, so this exclusion is supplied here at the
+        // `run_agent_turn` call site rather than being hardcoded in
+        // `tool_selection.rs`. Without it, a model could dispatch
+        // `vox_chat_message` via `handle_tool_call_with_mode`, which re-enters
+        // `chat_message -> try_run_agent_turn -> run_agent_turn` — each re-entrant
+        // call gets its own fresh `max_iterations` budget, so
+        // `DEFAULT_MAX_ITERATIONS` alone would not bound the recursion depth.
+        //
+        // This is applied INSIDE `select_tools_for_turn`, before the `max_tools`
+        // cap, so a `vox_chat_*` entry sitting within the first `DEFAULT_MAX_TOOLS`
+        // registry-order entries no longer consumes a cap slot only to be
+        // discarded afterward (which used to leave turns with fewer than
+        // `DEFAULT_MAX_TOOLS` usable tools and could push a genuinely useful tool
+        // just past the cap boundary out of reach).
+        exclude_name_prefixes: vec!["vox_chat_"],
     };
     let selected = select_tools_for_turn(TOOL_REGISTRY, &state.skill_registry, &turn_ctx);
-    // Never offer chat-turn-entry tools (`vox_chat_*`, e.g. `vox_chat_message`) as
-    // callable tools inside an agent turn. `select_tools_for_turn`'s general-purpose
-    // skill-permission filter (`skill_permissions::is_skill_infrastructure_tool`)
-    // deliberately whitelists `vox_chat_*` through *skill* restrictions — that's
-    // correct for other, non-recursive callers, so this exclusion belongs here at
-    // the `run_agent_turn` call site, not in `tool_selection.rs`. Without it, a
-    // model could dispatch `vox_chat_message` via `handle_tool_call_with_mode`,
-    // which re-enters `chat_message -> try_run_agent_turn -> run_agent_turn` —
-    // each re-entrant call gets its own fresh `max_iterations` budget, so
-    // `DEFAULT_MAX_ITERATIONS` alone would not bound the recursion depth.
     let tool_defs: Vec<LlmToolDef> = selected
         .iter()
-        .filter(|entry| !entry.name.starts_with("vox_chat_"))
         .map(|entry| LlmToolDef {
             name: entry.name.to_string(),
             description: Some(entry.description.to_string()),
@@ -406,9 +415,10 @@ mod tests {
     async fn no_tool_calls_returns_immediately_with_final_text() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(plain_response_body(
-                "hello, no tools needed here",
-            )))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(plain_response_body("hello, no tools needed here")),
+            )
             .expect(1)
             .mount(&server)
             .await;
@@ -480,9 +490,7 @@ mod tests {
         assert_eq!(requests.len(), 2, "expected exactly two model round-trips");
         let second_body: serde_json::Value =
             serde_json::from_slice(&requests[1].body).expect("second request body is JSON");
-        let msgs = second_body["messages"]
-            .as_array()
-            .expect("messages array");
+        let msgs = second_body["messages"].as_array().expect("messages array");
         let tool_msg = msgs
             .iter()
             .find(|m| m["role"] == "tool")
@@ -539,12 +547,10 @@ mod tests {
             "sanity check: the turn should still offer some non-chat tools"
         );
         assert!(
-            tools
-                .iter()
-                .all(|t| {
-                    let name = t["function"]["name"].as_str().unwrap_or_default();
-                    !name.starts_with("vox_chat_")
-                }),
+            tools.iter().all(|t| {
+                let name = t["function"]["name"].as_str().unwrap_or_default();
+                !name.starts_with("vox_chat_")
+            }),
             "no vox_chat_* tool (e.g. vox_chat_message) may ever be offered inside \
              run_agent_turn — doing so would allow unbounded re-entrant recursion; \
              tools sent: {tools:?}"

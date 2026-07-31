@@ -154,10 +154,16 @@ pub struct GateResult {
 
 impl GateResult {
     fn pass(reason: impl Into<String>) -> Self {
-        Self { passed: true, reason: reason.into() }
+        Self {
+            passed: true,
+            reason: reason.into(),
+        }
     }
     fn fail(reason: impl Into<String>) -> Self {
-        Self { passed: false, reason: reason.into() }
+        Self {
+            passed: false,
+            reason: reason.into(),
+        }
     }
 }
 
@@ -291,7 +297,9 @@ impl VerificationOutcome {
     #[must_use]
     pub fn reason(&self) -> &str {
         match self {
-            Self::Approved { reason } | Self::Rejected { reason } | Self::VerificationError { reason } => reason,
+            Self::Approved { reason }
+            | Self::Rejected { reason }
+            | Self::VerificationError { reason } => reason,
         }
     }
 }
@@ -347,10 +355,17 @@ pub fn build_verification_prompt(draft: &CandidateSkillDraft) -> String {
 /// with `config`, gated by the same `VOX_INFERENCE_PRIVACY=local_only` hard
 /// filter as inference routing elsewhere (Task 2.2) — `is_local_provider`
 /// should be `vox_orchestrator::route_policy::is_local_http_provider(&model.provider_type)`
-/// for the model backing `config`. Callers MUST perform that check before
-/// calling this (kept as a plain bool parameter rather than importing
-/// `ModelSpec` here to avoid this module depending on model-selection
-/// internals it doesn't otherwise need).
+/// for the model backing `config`, and `privacy_local_only` MUST be derived
+/// from the same source [`crate::llm_bridge::local_health::privacy_allows`]
+/// uses internally (`VOX_INFERENCE_PRIVACY=local_only`, read via that
+/// module's private `inference_privacy_mode()`) — never a separately/ad-hoc
+/// computed value. Kept as plain bool parameters (rather than importing
+/// `ModelSpec` here) so this module doesn't depend on model-selection
+/// internals it doesn't otherwise need, and so the gate stays unit-testable
+/// without a real `ModelSpec`/env setup. There is no production call site for
+/// this function yet; when one is wired up, prefer
+/// [`llm_chat_judge_for_model`] below, which computes both booleans from the
+/// canonical `local_health` functions for you and cannot drift from them.
 pub async fn llm_chat_judge(
     prompt: String,
     config: vox_actor_runtime::llm::LlmConfig,
@@ -385,6 +400,37 @@ pub async fn llm_chat_judge(
     };
     let normalized = outcome.content.trim().to_ascii_uppercase();
     Ok(normalized.starts_with("PASS"))
+}
+
+/// Thin real-wiring wrapper around [`llm_chat_judge`] for the (not-yet-added)
+/// production call site: computes `is_local_provider` and
+/// `privacy_local_only` directly from the canonical, already-tested
+/// `local_health` predicates — [`crate::llm_bridge::local_health::privacy_allows`]
+/// and `vox_orchestrator::route_policy::is_local_http_provider` — instead of
+/// requiring the caller to independently derive them (the drift risk the
+/// bare-bool `llm_chat_judge` signature otherwise leaves open). `model` must
+/// be the [`vox_orchestrator::models::ModelSpec`] backing `config`.
+///
+/// `llm_chat_judge` itself is kept generic-over-bools (not folded into this
+/// wrapper) so it stays trivially unit-testable without constructing a real
+/// `ModelSpec`; this wrapper is the one production callers should reach for.
+pub async fn llm_chat_judge_for_model(
+    prompt: String,
+    config: vox_actor_runtime::llm::LlmConfig,
+    model: &vox_orchestrator::models::ModelSpec,
+) -> Result<bool, String> {
+    let is_local_provider =
+        vox_orchestrator::route_policy::is_local_http_provider(&model.provider_type);
+    let privacy_local_only = crate::llm_bridge::local_health::inference_privacy_mode()
+        .trim()
+        .eq_ignore_ascii_case("local_only");
+    debug_assert_eq!(
+        crate::llm_bridge::local_health::privacy_allows(model),
+        !privacy_local_only || is_local_provider,
+        "privacy_local_only/is_local_provider must agree with the canonical privacy_allows() \
+         predicate"
+    );
+    llm_chat_judge(prompt, config, is_local_provider, privacy_local_only).await
 }
 
 /// Gate 8: provenance binding + re-verify-on-change. Hashes `raw_json` with
@@ -591,10 +637,12 @@ mod tests {
             description: "d".to_string(),
             source_body: "s".to_string(),
         };
-        let result =
-            gate_independent_verification(&draft, |_| async move { Ok(false) }).await;
+        let result = gate_independent_verification(&draft, |_| async move { Ok(false) }).await;
         assert!(!result.passed());
-        assert!(!result.is_transient(), "a judge rejection is permanent, not transient");
+        assert!(
+            !result.is_transient(),
+            "a judge rejection is permanent, not transient"
+        );
         assert!(matches!(result, VerificationOutcome::Rejected { .. }));
     }
 
@@ -608,13 +656,18 @@ mod tests {
             description: "d".to_string(),
             source_body: "s".to_string(),
         };
-        let result = gate_independent_verification(&draft, |_| async move {
-            Err("timeout".to_string())
-        })
-        .await;
+        let result =
+            gate_independent_verification(&draft, |_| async move { Err("timeout".to_string()) })
+                .await;
         assert!(!result.passed());
-        assert!(result.is_transient(), "an infra failure must be marked transient");
-        assert!(matches!(result, VerificationOutcome::VerificationError { .. }));
+        assert!(
+            result.is_transient(),
+            "an infra failure must be marked transient"
+        );
+        assert!(matches!(
+            result,
+            VerificationOutcome::VerificationError { .. }
+        ));
         assert!(result.reason().contains("timeout"));
     }
 
@@ -624,8 +677,12 @@ mod tests {
         // VerificationError must never compare equal to each other even
         // when their `passed()` bit matches, and `is_transient()` must only
         // be true for VerificationError.
-        let rejected = VerificationOutcome::Rejected { reason: "r".to_string() };
-        let error = VerificationOutcome::VerificationError { reason: "r".to_string() };
+        let rejected = VerificationOutcome::Rejected {
+            reason: "r".to_string(),
+        };
+        let error = VerificationOutcome::VerificationError {
+            reason: "r".to_string(),
+        };
         assert_ne!(rejected, error);
         assert!(!rejected.passed() && !rejected.is_transient());
         assert!(!error.passed() && error.is_transient());
@@ -643,7 +700,11 @@ mod tests {
 
     #[test]
     fn lifecycle_roundtrips_through_as_str_and_parse() {
-        for l in [Lifecycle::Provisional, Lifecycle::Confirmed, Lifecycle::Deprecated] {
+        for l in [
+            Lifecycle::Provisional,
+            Lifecycle::Confirmed,
+            Lifecycle::Deprecated,
+        ] {
             assert_eq!(Lifecycle::parse(l.as_str()), l);
         }
     }

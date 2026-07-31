@@ -346,7 +346,10 @@ mod tests {
 
         assert_eq!(db.count_skill_candidates_by_name("dup").await.unwrap(), 2);
         assert_eq!(db.count_skill_candidates_by_name("other").await.unwrap(), 1);
-        assert_eq!(db.count_skill_candidates_by_name("missing").await.unwrap(), 0);
+        assert_eq!(
+            db.count_skill_candidates_by_name("missing").await.unwrap(),
+            0
+        );
     }
 
     #[tokio::test]
@@ -368,7 +371,11 @@ mod tests {
             .await
             .expect("lifecycle update");
 
-        let row = db.get_skill_candidate(id).await.unwrap().expect("row exists");
+        let row = db
+            .get_skill_candidate(id)
+            .await
+            .unwrap()
+            .expect("row exists");
         assert_eq!(row.status, "promoted");
         assert_eq!(row.lifecycle_state, "confirmed");
         assert_eq!(row.source_hash.as_deref(), Some("abc123"));
@@ -378,7 +385,11 @@ mod tests {
         db.update_skill_candidate_lifecycle(id, "deprecated", None)
             .await
             .expect("lifecycle update 2");
-        let row = db.get_skill_candidate(id).await.unwrap().expect("row exists");
+        let row = db
+            .get_skill_candidate(id)
+            .await
+            .unwrap()
+            .expect("row exists");
         assert_eq!(row.lifecycle_state, "deprecated");
         assert_eq!(row.source_hash.as_deref(), Some("abc123"));
     }

@@ -92,7 +92,7 @@ fn set_test_privacy_override(v: Option<&str>) {
         .unwrap_or_else(|e| e.into_inner()) = v.map(str::to_string);
 }
 
-fn inference_privacy_mode() -> String {
+pub(crate) fn inference_privacy_mode() -> String {
     #[cfg(test)]
     if let Some(v) = TEST_PRIVACY_OVERRIDE
         .lock()
@@ -124,7 +124,10 @@ fn inference_privacy_mode() -> String {
 /// override may only tighten to `local_only`, never loosen an already-set
 /// `local_only` back to `any`), mirroring OpenRouter's `zdr` semantics.
 pub(crate) fn privacy_allows(m: &ModelSpec) -> bool {
-    if inference_privacy_mode().trim().eq_ignore_ascii_case("local_only") {
+    if inference_privacy_mode()
+        .trim()
+        .eq_ignore_ascii_case("local_only")
+    {
         return vox_orchestrator::route_policy::is_local_http_provider(&m.provider_type);
     }
     true
@@ -243,7 +246,10 @@ mod tests {
             ProviderType::PopuliMesh
         )));
         assert!(privacy_allows(&gate_spec("vox-m", ProviderType::VoxLocal)));
-        assert!(!privacy_allows(&gate_spec("or-m", ProviderType::OpenRouter)));
+        assert!(!privacy_allows(&gate_spec(
+            "or-m",
+            ProviderType::OpenRouter
+        )));
         assert!(!privacy_allows(&gate_spec(
             "anthropic-m",
             ProviderType::Anthropic

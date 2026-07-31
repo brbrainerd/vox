@@ -401,6 +401,12 @@ CREATE TABLE IF NOT EXISTS endpoint_reliability (
     UNIQUE(endpoint_url, model_id)
 );
 
+-- Superseded by `reliability_scores` (entity_type = 'skill') as of schema v51
+-- (see `store/open.rs` migration notes and `store/ops_skills.rs`). Nothing
+-- writes to this legacy table anymore; it is kept only so existing databases
+-- don't lose historical rows on upgrade. Do NOT add new reads/writes against
+-- this table — use `ops_skills::list_skill_reliability`/`get_skill_reliability`
+-- (which read `reliability_scores`) instead.
 CREATE TABLE IF NOT EXISTS skill_reliability (
     skill_id           TEXT NOT NULL PRIMARY KEY,
     reliability        REAL NOT NULL DEFAULT 0.5,

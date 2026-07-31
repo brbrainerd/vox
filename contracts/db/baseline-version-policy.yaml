@@ -7,8 +7,10 @@ policy:
   repository_baseline_integer: 84
   # Keccak-256 of baseline_sql() — updated for 83: skill_candidates.lifecycle_state + source_hash (Task 3.3, harness parity plan);
   # re-updated for a comment fix (source_hash is blake3-only, not Keccak/blake3 — code-review finding on cd3f7e8736);
-  # re-updated for skill_identities table (Task 3.4, harness parity plan — skill namespace/identity FCFS uniqueness).
-  repository_baseline_digest_hex: "0xd80b7556f45e64af5a007a9f21c11b8e666443fb79a8620ee207cb0a9dc2466b"
+  # re-updated for skill_identities table (Task 3.4, harness parity plan — skill namespace/identity FCFS uniqueness);
+  # re-updated for a superseded-by-reliability_scores doc comment on the legacy skill_reliability table
+  # (final holistic branch review finding: CLI report was still reading the dead table).
+  repository_baseline_digest_hex: "0x967e81d1a8c7d54a1f7f47e1a5f9679bc7c1685acd8b5c7470c58d84fd8b1b7c"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.
