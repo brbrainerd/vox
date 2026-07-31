@@ -1,3 +1,4 @@
+mod conversation;
 mod history;
 mod hydrate;
 pub(crate) mod mentions;

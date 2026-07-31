@@ -2,6 +2,7 @@ use serde_json::Value;
 
 use super::super::params::{ANTI_LAZINESS_RIDER, ChatMessageParams, ChatTranscriptEntry};
 use super::super::{build_system_prompt_with_skill, now_ts, ts_to_date_str};
+use super::conversation::{load_conversation, trim_persisted_history};
 use super::hydrate::context_history_or_hydrate;
 use super::mentions::{chat_grounding_score, resolve_mentions};
 use crate::chat_model_resolve::resolve_chat_llm_model;
@@ -76,8 +77,25 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         );
     }
 
+    // Resolve session id early (before the rest of the function needs it) so we can
+    // load this session's prior conversation turns and thread them into the request —
+    // see Task 1.1 / Finding F25: history was persisted and returned for display but
+    // never actually sent to the model.
+    let (session_id, implicit_session_default) =
+        normalize_chat_session_id(params.session_id.as_deref());
+    let prior_conversation = load_conversation(state, session_id.as_str()).await;
+
     // 2a. Build context preamble from editor state
     let mut context_parts = Vec::new();
+
+    if !prior_conversation.is_empty() {
+        let transcript = prior_conversation
+            .iter()
+            .map(|m| format!("{}: {}", m.role, m.content))
+            .collect::<Vec<_>>()
+            .join("\n");
+        context_parts.push(format!("[CONVERSATION HISTORY]:\n{transcript}"));
+    }
 
     if let Some(active_file) = &params.active_file {
         let line_info = params
@@ -299,8 +317,6 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // 3. Call LLM with cognitive-profile aware routing.
     // When cognitive_profile is set we use mcp_infer_completion() with an explicit
     // resolution template — the same pattern already used by inline_edit() and ghost_text().
-    let (session_id, implicit_session_default) =
-        normalize_chat_session_id(params.session_id.as_deref());
     let thread_id_for_envelope = params.thread_id.clone();
     let journey_id = params
         .journey_id
@@ -544,11 +560,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         context_history_or_hydrate(state, history_key.as_str(), session_id.as_str()).await;
     history.push(user_msg.clone());
     history.push(asst_msg.clone());
-    // Keep last 100 messages per session to bound memory usage.
-    if history.len() > 100 {
-        let trim_to = history.len() - 100;
-        history.drain(0..trim_to);
-    }
+    // Bound the *persisted/display* transcript independently of the token-aware
+    // budget applied to what gets sent to the model (see `conversation.rs` /
+    // Task 1.1): this cap exists only to bound storage/GUI-transcript size.
+    trim_persisted_history(&mut history);
 
     match serde_json::to_string(&history) {
         Ok(history_json) => {
