@@ -1,3 +1,4 @@
+mod agent_loop;
 mod conversation;
 mod history;
 mod hydrate;

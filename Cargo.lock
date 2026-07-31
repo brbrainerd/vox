@@ -16709,6 +16709,7 @@ dependencies = [
  "vox-telemetry",
  "walkdir",
  "which 8.0.4",
+ "wiremock",
  "workspace-hack",
  "xxhash-rust",
 ]

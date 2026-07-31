@@ -147,6 +147,7 @@ vox-plugin-api = { workspace = true }
 tower = { workspace = true, features = ["util"] }
 serial_test.workspace = true
 jsonschema.workspace = true
+wiremock.workspace = true
 
 [lints.rust]
 unsafe_code = "warn"
