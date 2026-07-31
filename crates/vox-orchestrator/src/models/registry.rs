@@ -819,10 +819,18 @@ impl ModelRegistry {
     }
 
     /// Return all models matching the criteria, sorted by the effective score (priority order).
+    ///
+    /// `complexity` (1-10) must flow through to the same [`super::scoring::auto_score_model`]
+    /// used by the canonical [`super::select::select`] path — this is the function
+    /// `vox model explain` renders, and it must rank higher-complexity/precision-favoring
+    /// tasks differently from trivial ones (F3a fix: previously this sorted purely by
+    /// ascending `cost_per_1k`, completely ignoring `complexity` and the caller's task
+    /// signal, which made `explain` byte-identical across trivial and hard tasks).
     pub fn explain_selection(
         &self,
         _task_type: TaskCategory,
         strength: crate::models::StrengthTag,
+        complexity: u8,
         preference: crate::config::CostPreference,
     ) -> Vec<ModelSpec> {
         let mut candidates: Vec<ModelSpec> = self
@@ -841,31 +849,26 @@ impl ModelRegistry {
             .collect();
 
         candidates.sort_by(|a, b| {
-            let get_effective_cost = |m: &ModelSpec| {
-                if let Some(score) = self.scoreboard.get(&m.id) {
-                    if score.n_calls >= 3 {
-                        return m.cost_per_1k * (2.0 - score.quality_score.min(2.0));
-                    }
-                }
-                m.cost_per_1k
-            };
-
-            let cost_a = get_effective_cost(a);
-            let cost_b = get_effective_cost(b);
-
-            cost_a.total_cmp(&cost_b).then_with(|| {
-                let a_sr = self
-                    .scoreboard
-                    .get(&a.id)
-                    .map(|s| s.success_rate)
-                    .unwrap_or(0.5);
-                let b_sr = self
-                    .scoreboard
-                    .get(&b.id)
-                    .map(|s| s.success_rate)
-                    .unwrap_or(0.5);
-                b_sr.total_cmp(&a_sr).then_with(|| a.id.cmp(&b.id))
-            })
+            let score_a = super::scoring::auto_score_model(
+                a,
+                complexity,
+                false,
+                None,
+                preference,
+                None,
+                self.scoreboard.get(&a.id),
+            );
+            let score_b = super::scoring::auto_score_model(
+                b,
+                complexity,
+                false,
+                None,
+                preference,
+                None,
+                self.scoreboard.get(&b.id),
+            );
+            // Descending: highest score first.
+            score_b.total_cmp(&score_a).then_with(|| a.id.cmp(&b.id))
         });
 
         candidates

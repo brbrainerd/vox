@@ -331,6 +331,187 @@ mod registry_filter_tests {
     }
 }
 
+/// F3a bisection: `vox model explain` (backed by `ModelRegistry::explain_selection`)
+/// returned byte-identical top-5 rankings for "hi" and a hard concurrency task.
+/// Root cause: `explain_selection` sorted candidates purely by ascending
+/// `cost_per_1k` and never consulted `complexity` at all (the signature didn't
+/// even accept it) — a completely separate, simplistic ranking path from the
+/// canonical `models::scoring::auto_score_model` / `select()` pipeline that
+/// every *other* selection call site uses. These tests assert the ranking
+/// actually changes when complexity changes, using the same scorer.
+#[cfg(test)]
+mod explain_selection_complexity_tests {
+    use crate::config::CostPreference;
+    use crate::models::generated::StrengthTag;
+    use crate::models::spec::PricingSource;
+    use crate::models::{ModelRegistry, ModelSpec, ProviderType};
+    use crate::types::TaskCategory;
+
+    /// A cheap, low-capability model: wins when efficiency is weighted heavily
+    /// (trivial/low-complexity tasks), loses when precision dominates.
+    fn cheap_model() -> ModelSpec {
+        ModelSpec {
+            id: "cheap-model".into(),
+            canonical_slug: "cheap-model".into(),
+            provider: "test".into(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens: 1,
+            cost_per_1k: 0.0005,
+            cost_per_1k_input: 0.0005,
+            cost_per_1k_output: 0.0005,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![StrengthTag::Generalist],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    /// An expensive, high-capability model: loses on efficiency but wins on
+    /// precision/quality once complexity pushes the precision weight up.
+    fn expensive_model() -> ModelSpec {
+        ModelSpec {
+            id: "expensive-model".into(),
+            canonical_slug: "expensive-model".into(),
+            provider: "test".into(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens: 10_000_000,
+            cost_per_1k: 0.19,
+            cost_per_1k_input: 0.19,
+            cost_per_1k_output: 0.19,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![StrengthTag::Generalist],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    #[test]
+    fn explain_selection_ranking_changes_between_trivial_and_hard_complexity() {
+        let mut r = ModelRegistry::default();
+        r.register(cheap_model());
+        r.register(expensive_model());
+
+        let trivial = r.explain_selection(
+            TaskCategory::CodeGen,
+            StrengthTag::Generalist,
+            1, // trivial complexity
+            CostPreference::Performance,
+        );
+        let hard = r.explain_selection(
+            TaskCategory::CodeGen,
+            StrengthTag::Generalist,
+            9, // hard complexity
+            CostPreference::Performance,
+        );
+
+        assert_eq!(trivial.len(), 2);
+        assert_eq!(hard.len(), 2);
+        assert_ne!(
+            trivial[0].id, hard[0].id,
+            "top-ranked model must differ between trivial and hard complexity \
+             (both returned {:?}) — the scorer is not responding to its inputs",
+            trivial[0].id
+        );
+        assert_eq!(
+            trivial[0].id, "cheap-model",
+            "at trivial complexity, efficiency-weighted scoring should favor the cheap model"
+        );
+        assert_eq!(
+            hard[0].id, "expensive-model",
+            "at hard complexity, precision-weighted scoring should favor the capable model"
+        );
+    }
+
+    /// Acceptance test (Task 0.1): rank at least 5 distinct task descriptions
+    /// spanning trivial -> hard against the *real* builtin catalog (the same
+    /// data `vox model explain` reads) and assert the selection actually
+    /// varies with the caller's complexity/category, instead of the previous
+    /// byte-identical top-5 for "hi" and a hard concurrency-design task.
+    #[test]
+    fn explain_selection_varies_across_five_real_world_task_descriptions() {
+        let r = ModelRegistry::new();
+
+        // (description, category, complexity) — mirrors how `vox model explain`
+        // maps a task description + flags onto a category/complexity pair.
+        let cases: [(&str, TaskCategory, u8); 5] = [
+            ("hi", TaskCategory::General, 1),
+            (
+                "refactor this rust function to remove the unwrap",
+                TaskCategory::CodeGen,
+                4,
+            ),
+            (
+                "write a one-line regex to trim whitespace",
+                TaskCategory::CodeGen,
+                2,
+            ),
+            (
+                "design and implement a lock-free concurrent hashmap in Rust with hazard pointers",
+                TaskCategory::CodeGen,
+                7,
+            ),
+            (
+                "design and implement a lock-free concurrent hashmap in Rust with hazard pointers",
+                TaskCategory::CodeGen,
+                9,
+            ),
+        ];
+
+        let mut top_ids = Vec::new();
+        let mut top5_lists = Vec::new();
+        for (description, category, complexity) in cases {
+            let strength = crate::models::spec::task_category_strength(category);
+            let candidates = r.explain_selection(
+                category,
+                strength,
+                complexity,
+                CostPreference::Performance,
+            );
+            assert!(
+                !candidates.is_empty(),
+                "expected at least one candidate for {description:?}"
+            );
+            top_ids.push(candidates[0].id.clone());
+            top5_lists.push(
+                candidates
+                    .iter()
+                    .take(5)
+                    .map(|m| m.id.clone())
+                    .collect::<Vec<_>>(),
+            );
+        }
+
+        // The core F3a regression: not every case may land on a different top-1
+        // (some trivial/low-complexity descriptions can legitimately tie), but
+        // the ranking must NOT be byte-identical across the full trivial->hard
+        // span the way the bug produced.
+        let all_top5_identical = top5_lists.windows(2).all(|w| w[0] == w[1]);
+        assert!(
+            !all_top5_identical,
+            "top-5 rankings must not be byte-identical across all 5 task descriptions \
+             spanning trivial->hard; got {top5_lists:?}"
+        );
+        // Specifically: the trivial "hi" case and the hard concurrency case
+        // (complexity=9) must differ — this is the exact F3a repro pair.
+        assert_ne!(
+            top5_lists[0], top5_lists[4],
+            "trivial 'hi' (complexity=1) and hard concurrency task (complexity=9) \
+             must not produce byte-identical top-5 rankings (F3a regression); got {:?}",
+            top5_lists[0]
+        );
+    }
+}
+
 #[cfg(test)]
 mod scoreboard_latency_injection_tests {
     use crate::models::scoring::latency_score;
