@@ -234,9 +234,13 @@ pub fn is_context_exceeded_error(_status_code: u16, body: &str) -> bool {
         "please reduce the length of the messages",
         "reduce the length of the messages",
         "too many tokens",
-        "token limit",
         "exceeds the model's maximum",
         "exceeds model's context",
+        // Gemini-style: "input token count (35000) exceeds the maximum number of
+        // tokens allowed (32000)" — specific enough to avoid billing/quota false
+        // positives (unlike a bare "token limit", which was dropped: see
+        // `context_exceeded_does_not_misclassify_billing_quota_message`).
+        "exceeds the maximum number of tokens",
         // HuggingFace (router + dedicated inference endpoints)
         "input validation error",
         "input length exceeds",
@@ -369,6 +373,8 @@ mod tests {
             (500u16, r#"{"error":"prompt exceeds the available context window (4096)"}"#),
             // Generic gateway phrasing, different status code entirely (413)
             (413u16, r#"{"message":"input is too long for requested model"}"#),
+            // Gemini-style
+            (400u16, r#"{"error":{"message":"input token count (35000) exceeds the maximum number of tokens allowed (32000)."}}"#),
         ];
         for (code, body) in cases {
             assert!(
@@ -394,6 +400,21 @@ mod tests {
                 "did not expect context-exceeded for body: {body}"
             );
         }
+    }
+
+    #[test]
+    fn context_exceeded_does_not_misclassify_billing_quota_message() {
+        // Regression: a bare "token limit" phrase used to match this billing/quota
+        // message too, even though it has nothing to do with the model's context
+        // window. Dropped "token limit" from the phrase list in favor of the more
+        // specific overflow phrasings (context_length_exceeded, maximum context
+        // length, exceeds the maximum number of tokens, etc.) which don't fire here.
+        let body = "You have exceeded your monthly token limit for this API key. \
+                     Please upgrade your plan.";
+        assert!(
+            !is_context_exceeded_error(429, body),
+            "billing/quota message must not be classified as context-exceeded: {body}"
+        );
     }
 
     #[test]
