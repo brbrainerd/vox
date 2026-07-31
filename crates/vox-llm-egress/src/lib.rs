@@ -68,6 +68,35 @@ pub struct ToolDef {
     pub parameters: serde_json::Value,
 }
 
+/// A single tool invocation the model requested, parsed from the OpenAI-compatible
+/// `message.tool_calls` wire shape: `{"id": "...", "type": "function", "function":
+/// {"name": "...", "arguments": "<json-encoded string>"}}`.
+///
+/// This crate defines its own minimal type here rather than reusing
+/// `vox_openai::chat_completion::ChatCompletionToolCall` (which this crate already
+/// depends on for other reasons) for two reasons: (1) that type has no `id` field, which
+/// a future tool-dispatch loop needs to correlate a call with its result message, and
+/// (2) `chat_once` parses the whole response body as a raw `serde_json::Value` rather
+/// than through `vox_openai`'s typed `ChatCompletionResponse` — pulling in a typed
+/// sub-struct for just this one field would be inconsistent with the rest of this file.
+/// A future consolidation task may want to unify these; not done here to keep this
+/// change to pure additive plumbing.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct EgressToolCall {
+    /// Provider-assigned id for this tool call (used to correlate a subsequent
+    /// tool-result message back to this invocation).
+    pub id: String,
+    /// Tool/function name requested.
+    pub name: String,
+    /// Parsed JSON arguments. The wire format sends `function.arguments` as a
+    /// JSON-encoded **string**, not a nested object; we eagerly parse it here so
+    /// callers receive a `serde_json::Value` directly. If the string fails to parse
+    /// as JSON (malformed provider output), this falls back to `Value::Null` rather
+    /// than failing the whole response — deciding how to handle empty/invalid
+    /// arguments is left to the tool-dispatch loop (a separate task).
+    pub arguments: serde_json::Value,
+}
+
 /// Per-call generation parameters.
 #[derive(Clone, Debug, Default)]
 pub struct ChatParams<'a> {
@@ -93,6 +122,11 @@ pub struct EgressChatResponse {
     /// apply their own cost-per-1k estimate.
     pub cost_usd: Option<f64>,
     pub latency_ms: u64,
+    /// Tool calls the model requested (`message.tool_calls`), when tools were passed
+    /// in the request and the model chose to invoke one or more. `None` for the common
+    /// case of a plain text response (no tools requested, or the model answered in
+    /// text instead of calling a tool).
+    pub tool_calls: Option<Vec<EgressToolCall>>,
 }
 
 /// Structured egress failure so callers map to their own error types.

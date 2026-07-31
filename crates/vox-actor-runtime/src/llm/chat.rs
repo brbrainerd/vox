@@ -101,6 +101,7 @@ pub async fn llm_chat(
                         completion_tokens: resp.completion_tokens,
                         model: resp.model,
                         cost_usd,
+                        tool_calls: resp.tool_calls,
                     }))
                 }
                 Err(e) => {

@@ -297,6 +297,13 @@ pub struct LlmResponse {
     /// per-phase spend without re-deriving it.
     #[serde(default)]
     pub cost_usd: Option<f64>,
+    /// Tool calls the model requested, threaded through from
+    /// `vox_llm_egress::EgressChatResponse::tool_calls` (reused directly rather than
+    /// duplicated here, since this crate already depends on `vox-llm-egress`).
+    /// `#[serde(default)]` so legacy payloads without this field deserialize to `None`,
+    /// mirroring the `cost_usd` addition above.
+    #[serde(default)]
+    pub tool_calls: Option<Vec<vox_llm_egress::EgressToolCall>>,
 }
 
 #[cfg(test)]
@@ -315,6 +322,7 @@ mod tests {
             completion_tokens: 5,
             model: "test-model".into(),
             cost_usd: Some(0.0123),
+            tool_calls: None,
         };
         let json = serde_json::to_string(&resp).expect("serialize");
         let back: LlmResponse = serde_json::from_str(&json).expect("deserialize");
@@ -325,6 +333,35 @@ mod tests {
         let legacy = r#"{"content":"x","prompt_tokens":1,"completion_tokens":1,"model":"m"}"#;
         let legacy_resp: LlmResponse = serde_json::from_str(legacy).expect("legacy deserialize");
         assert_eq!(legacy_resp.cost_usd, None);
+        assert_eq!(legacy_resp.tool_calls, None);
+    }
+
+    #[test]
+    fn llm_response_carries_and_roundtrips_tool_calls() {
+        let resp = LlmResponse {
+            content: String::new(),
+            prompt_tokens: 10,
+            completion_tokens: 5,
+            model: "test-model".into(),
+            cost_usd: None,
+            tool_calls: Some(vec![vox_llm_egress::EgressToolCall {
+                id: "call_1".into(),
+                name: "get_weather".into(),
+                arguments: serde_json::json!({"city": "Paris"}),
+            }]),
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: LlmResponse = serde_json::from_str(&json).expect("deserialize");
+        let calls = back.tool_calls.expect("tool_calls must roundtrip");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "call_1");
+        assert_eq!(calls[0].name, "get_weather");
+        assert_eq!(calls[0].arguments, serde_json::json!({"city": "Paris"}));
+
+        // Back-compat: legacy payloads without tool_calls deserialize to None.
+        let legacy = r#"{"content":"x","prompt_tokens":1,"completion_tokens":1,"model":"m"}"#;
+        let legacy_resp: LlmResponse = serde_json::from_str(legacy).expect("legacy deserialize");
+        assert_eq!(legacy_resp.tool_calls, None);
     }
 
     // (OpenAI tool/tool_choice serialization is now owned + tested by `vox-llm-egress`

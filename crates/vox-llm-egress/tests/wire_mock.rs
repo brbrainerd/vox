@@ -48,6 +48,86 @@ async fn chat_once_sends_bearer_headers_and_parses_usage() {
     assert_eq!(out.prompt_tokens, 5);
     assert_eq!(out.completion_tokens, 2);
     assert_eq!(out.model, "test/model");
+    assert_eq!(
+        out.tool_calls, None,
+        "response with no tool_calls field must parse as None (no regression for \
+         existing non-tool callers like ghost_text/inline_edit/plan)"
+    );
+}
+
+#[tokio::test]
+async fn chat_once_parses_tool_calls() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "model": "test/model",
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": "call_abc123",
+                        "type": "function",
+                        "function": {
+                            "name": "get_weather",
+                            "arguments": "{\"city\":\"Paris\"}"
+                        }
+                    }]
+                }
+            }],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 2}
+        })))
+        .mount(&server)
+        .await;
+
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let out = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .expect("ok");
+    let calls = out.tool_calls.expect("tool_calls must be populated");
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].id, "call_abc123");
+    assert_eq!(calls[0].name, "get_weather");
+    assert_eq!(calls[0].arguments, serde_json::json!({"city": "Paris"}));
+}
+
+#[tokio::test]
+async fn tool_calls_entry_missing_name_is_dropped() {
+    // Locks in the intentional behavior documented at the `?` in `parse_tool_calls`:
+    // an entry with no `function.name` is unnamed/unactionable and is silently
+    // dropped rather than surfaced as a partial/garbage call. Here it's the only
+    // entry, so `tool_calls` ends up `None`; a well-formed sibling entry would
+    // still be kept (this is a per-entry filter, not an all-or-nothing one).
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "model": "test/model",
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": "call_no_name",
+                        "type": "function",
+                        "function": {
+                            "arguments": "{}"
+                        }
+                    }]
+                }
+            }],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+        })))
+        .mount(&server)
+        .await;
+
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let out = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .expect("ok");
+    assert_eq!(
+        out.tool_calls, None,
+        "entry with no function.name must be dropped, leaving no tool_calls"
+    );
 }
 
 #[tokio::test]
