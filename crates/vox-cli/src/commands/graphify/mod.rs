@@ -444,8 +444,6 @@ fn regenerate_crate_graph(repo_root: &std::path::Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Project a corpus's graph nodes into Turso and stamp lexical_ingest_sha256.
-/// Shared by `graphify ingest` and `graphify crate-map --ingest`.
 /// `vox graph query <query>` — lexical search over a corpus graph, printed to stdout.
 ///
 /// Reuses the same pure [`lexical_search_graph`] scorer that
@@ -463,13 +461,7 @@ fn run_graphify_query(
     json: bool,
 ) -> anyhow::Result<()> {
     let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
-    let corpus_id = match corpus {
-        Some(id) => {
-            corpus_by_id(&reg, &id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
-            id
-        }
-        None => reg.default_corpus_id.clone(),
-    };
+    let corpus_id = corpus.unwrap_or_else(|| reg.default_corpus_id.clone());
     let corpus = corpus_by_id(&reg, &corpus_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
     let graph_path = repo_root.join(&corpus.graph_path);
     let raw = std::fs::read_to_string(&graph_path)
@@ -490,6 +482,8 @@ fn run_graphify_query(
     Ok(())
 }
 
+/// Project a corpus's graph nodes into Turso and stamp lexical_ingest_sha256.
+/// Shared by `graphify ingest` and `graphify crate-map --ingest`.
 async fn run_graphify_ingest(
     repo_root: &std::path::Path,
     corpus: Option<String>,

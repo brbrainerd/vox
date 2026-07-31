@@ -52,15 +52,19 @@ pub async fn run(args: ChatArgs) -> Result<()> {
     config.telemetry_task_category = Some("cli-chat".to_string());
 
     let opts = ActivityOptions::new();
-    let outcome = llm_chat(&opts, messages, config).await;
+    // `llm_chat` returns a durable-activity `ActivityResult<Result<LlmResponse, String>>`;
+    // flatten the activity-level outcome (Ok/Failed/Cancelled) and the chat-level
+    // `Result` into a single `Result<LlmResponse, String>` before mapping to `anyhow`.
+    // Same flattening `model/eval.rs::eval_one_model` does — no shared combinator exists
+    // on `ActivityResult` yet to call instead.
+    let chat_result: Result<vox_actor_runtime::llm::LlmResponse, String> =
+        match llm_chat(&opts, messages, config).await {
+            vox_actor_runtime::ActivityResult::Ok(inner) => inner,
+            vox_actor_runtime::ActivityResult::Failed(e) => Err(e.to_string()),
+            vox_actor_runtime::ActivityResult::Cancelled => Err("activity cancelled".to_string()),
+        };
 
-    let flattened: Result<vox_actor_runtime::llm::LlmResponse, String> = match outcome {
-        vox_actor_runtime::ActivityResult::Ok(inner) => inner,
-        vox_actor_runtime::ActivityResult::Failed(e) => Err(e.to_string()),
-        vox_actor_runtime::ActivityResult::Cancelled => Err("activity cancelled".to_string()),
-    };
-
-    let response = flattened
+    let response = chat_result
         .map_err(|e| anyhow::anyhow!(e))
         .context("vox chat: llm_chat failed")?;
     println!("{}", response.content);
