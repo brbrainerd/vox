@@ -24,10 +24,15 @@
 //!
 //! A golden task that genuinely needs a live model call to be meaningful may
 //! still be added, but MUST be gated so the core gate stays hermetic — see
-//! `live_model_smoke_task` below for the pattern (checked at runtime against
-//! `VOX_HARNESS_EVAL_LIVE=1`, absent by default, and reported as a skip
-//! rather than a failure when unset so `vox harness eval`'s exit code stays
-//! meaningful without a live provider key).
+//! `live_model_smoke_task` below for the pattern. A task can declare a
+//! `skip_if` predicate (checked once, before sampling); when it returns
+//! `Some(reason)` the task is reported as **SKIPPED** — a status distinct
+//! from PASS/FAIL that is excluded from the pass^k gate determination
+//! entirely, so a disabled/not-yet-implemented task can never masquerade as
+//! a real pass. `live_model_smoke_task` is currently a stub gated this way
+//! (`VOX_HARNESS_EVAL_LIVE` unset -> always SKIPPED); setting the env var
+//! does not fake a PASS, it surfaces "not implemented" as its own failure
+//! reason so the stub can never be silently miscounted as green.
 
 use anyhow::{Result, bail};
 use clap::Parser;
@@ -35,11 +40,17 @@ use owo_colors::OwoColorize;
 
 use crate::commands::model::eval::{FixtureResult, score_eval};
 
+/// Upper bound on `--samples`. A typo'd large value (e.g. an extra zero)
+/// would otherwise silently run every golden task that many times with no
+/// feedback until it finally finished; reject early instead.
+const MAX_SAMPLES: usize = 100;
+
 /// `vox harness eval` arguments.
 #[derive(Parser)]
 pub struct EvalArgs {
-    /// Number of independent samples per golden task. pass^k requires ALL
-    /// samples to pass for the task to count as passing (not pass@1).
+    /// Number of independent samples per golden task (1..=100). pass^k
+    /// requires ALL samples to pass for the task to count as passing (not
+    /// pass@1).
     #[arg(long, default_value_t = 3)]
     pub samples: usize,
     /// Run only the golden task with this exact name (repeatable filtering
@@ -48,10 +59,14 @@ pub struct EvalArgs {
     pub task: Option<String>,
 }
 
-/// One golden task: a name and a deterministic, hermetic check function.
+/// One golden task: a name, a deterministic check function, and an optional
+/// gate that turns the whole task into a SKIP (checked once, before any
+/// sampling) rather than running it. `skip_if` returns `Some(reason)` when
+/// the task should be skipped.
 struct GoldenTask {
     name: &'static str,
     run: fn() -> Result<()>,
+    skip_if: Option<fn() -> Option<String>>,
 }
 
 /// The built-in golden task set. See the module docs for how to add one.
@@ -60,18 +75,22 @@ fn golden_tasks() -> Vec<GoldenTask> {
         GoldenTask {
             name: "model-eval-score-fold-exact",
             run: model_eval_score_fold_exact,
+            skip_if: None,
         },
         GoldenTask {
             name: "cli-harness-eval-arg-parsing",
             run: cli_harness_eval_arg_parsing,
+            skip_if: None,
         },
         GoldenTask {
             name: "temp-workspace-file-roundtrip",
             run: temp_workspace_file_roundtrip,
+            skip_if: None,
         },
         GoldenTask {
             name: "live-model-smoke",
             run: live_model_smoke_task,
+            skip_if: Some(live_model_smoke_skip_reason),
         },
     ]
 }
@@ -171,39 +190,77 @@ fn now_nanos() -> u128 {
 }
 
 /// Golden task 4 (extension-point example): a task that would need a live
-/// model call to be meaningful. Gated behind `VOX_HARNESS_EVAL_LIVE=1` so the
-/// CORE gate (the other three tasks) stays hermetic; unset, this reports a
-/// skip (`Ok(())`) rather than a failure so `vox harness eval`'s exit code
-/// stays meaningful without a live provider key configured.
+/// model call to be meaningful. Gated behind `VOX_HARNESS_EVAL_LIVE=1` via
+/// [`live_model_smoke_skip_reason`] so the CORE gate (the other three tasks)
+/// stays hermetic: with the env var unset, `run()` never even calls this
+/// function — the task is reported as SKIPPED, a status excluded from the
+/// pass^k gate. With the env var set it still is NOT implemented; it
+/// deliberately returns `Err` (never a silent/free `Ok`) so a stub can never
+/// be miscounted as a real PASS. Implementing the live call for real is the
+/// documented extension point — mirror `model::eval::eval_one_model`'s use of
+/// `vox_actor_runtime::llm::llm_chat` when that work is picked up.
 fn live_model_smoke_task() -> Result<()> {
-    if std::env::var("VOX_HARNESS_EVAL_LIVE").as_deref() != Ok("1") {
-        return Ok(()); // skipped, not failed — see module docs.
-    }
-    // A real implementation would call `vox_actor_runtime::llm::llm_chat`
-    // here and assert on the response, mirroring `model::eval::eval_one_model`.
-    // Left as the documented extension point; not implemented in this pass.
-    Ok(())
+    bail!(
+        "live-model-smoke is not implemented yet (VOX_HARNESS_EVAL_LIVE=1 opts in to running \
+         it, but the live-model call itself is still a documented extension point, not a stub \
+         that reports PASS for free)"
+    );
 }
 
-/// Per-sample outcome for one golden task.
+/// `skip_if` for `live-model-smoke`: skipped unless the caller explicitly
+/// opted in with `VOX_HARNESS_EVAL_LIVE=1`.
+fn live_model_smoke_skip_reason() -> Option<String> {
+    if std::env::var("VOX_HARNESS_EVAL_LIVE").as_deref() == Ok("1") {
+        None
+    } else {
+        Some("VOX_HARNESS_EVAL_LIVE not set to \"1\"".to_string())
+    }
+}
+
+/// Result of running (or skipping) one golden task.
+enum TaskStatus {
+    /// All samples ran and all passed (pass^k).
+    Passed { passes: usize, samples: usize },
+    /// All samples ran but at least one failed.
+    Failed {
+        passes: usize,
+        samples: usize,
+        first_failure: String,
+    },
+    /// The task's `skip_if` predicate opted it out before any sample ran.
+    /// Excluded entirely from the pass^k gate determination — a skipped
+    /// task can never count toward, or against, the gate passing.
+    Skipped { reason: String },
+}
+
+/// One named task's [`TaskStatus`].
 struct TaskOutcome {
     name: &'static str,
-    passes: usize,
-    samples: usize,
-    /// Reason for the first observed failure, if any.
-    first_failure: Option<String>,
+    status: TaskStatus,
 }
 
 impl TaskOutcome {
     /// pass^k: all samples must pass for the task to count as passing.
+    /// A skipped task is neither passing nor failing the gate.
     fn passed_pow_k(&self) -> bool {
-        self.passes == self.samples
+        matches!(self.status, TaskStatus::Passed { .. })
+    }
+
+    fn is_skipped(&self) -> bool {
+        matches!(self.status, TaskStatus::Skipped { .. })
     }
 }
 
 pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
     if args.samples == 0 {
         bail!("--samples must be at least 1");
+    }
+    if args.samples > MAX_SAMPLES {
+        bail!(
+            "--samples {} exceeds the maximum of {MAX_SAMPLES}; this cap exists so a typo'd \
+             large value can't trigger a silent long-running hang",
+            args.samples
+        );
     }
 
     let tasks: Vec<GoldenTask> = golden_tasks()
@@ -227,6 +284,16 @@ pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
 
     let mut outcomes = Vec::with_capacity(tasks.len());
     for task in &tasks {
+        if let Some(skip_reason) = task.skip_if.and_then(|f| f()) {
+            outcomes.push(TaskOutcome {
+                name: task.name,
+                status: TaskStatus::Skipped {
+                    reason: skip_reason,
+                },
+            });
+            continue;
+        }
+
         let mut passes = 0;
         let mut first_failure = None;
         for _ in 0..args.samples {
@@ -236,50 +303,85 @@ pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
                 Err(_) => {}
             }
         }
+        let status = if passes == args.samples {
+            TaskStatus::Passed {
+                passes,
+                samples: args.samples,
+            }
+        } else {
+            TaskStatus::Failed {
+                passes,
+                samples: args.samples,
+                first_failure: first_failure.unwrap_or_default(),
+            }
+        };
         outcomes.push(TaskOutcome {
             name: task.name,
-            passes,
-            samples: args.samples,
-            first_failure,
+            status,
         });
     }
 
-    let mut all_passed = true;
+    let mut any_failed = false;
     for outcome in &outcomes {
-        let ok = outcome.passed_pow_k();
-        all_passed &= ok;
-        let status = if ok {
-            "PASS".green().to_string()
-        } else {
-            "FAIL".red().to_string()
-        };
-        println!(
-            "  [{status}] {} — {}/{} samples passed",
-            outcome.name, outcome.passes, outcome.samples
-        );
-        if let (false, Some(reason)) = (ok, &outcome.first_failure) {
-            println!("         first failure: {}", reason.dimmed());
+        match &outcome.status {
+            TaskStatus::Passed { passes, samples } => {
+                println!(
+                    "  [{}] {} — {passes}/{samples} samples passed",
+                    "PASS".green(),
+                    outcome.name
+                );
+            }
+            TaskStatus::Failed {
+                passes,
+                samples,
+                first_failure,
+            } => {
+                any_failed = true;
+                println!(
+                    "  [{}] {} — {passes}/{samples} samples passed",
+                    "FAIL".red(),
+                    outcome.name
+                );
+                println!("         first failure: {}", first_failure.dimmed());
+            }
+            TaskStatus::Skipped { reason } => {
+                println!(
+                    "  [{}] {} — {}",
+                    "SKIP".yellow(),
+                    outcome.name,
+                    reason.dimmed()
+                );
+            }
         }
     }
 
     let passed_tasks = outcomes.iter().filter(|o| o.passed_pow_k()).count();
+    let skipped_tasks = outcomes.iter().filter(|o| o.is_skipped()).count();
+    let gated_tasks = outcomes.len() - skipped_tasks;
+    let gate_passed = !any_failed;
+
     println!(
-        "\n{} {}/{} golden task(s) passed pass^{} gate.",
-        if all_passed {
+        "\n{} {}/{} golden task(s) passed pass^{} gate{}.",
+        if gate_passed {
             "PASS".green().bold().to_string()
         } else {
             "FAIL".red().bold().to_string()
         },
         passed_tasks,
-        outcomes.len(),
-        args.samples
+        gated_tasks,
+        args.samples,
+        if skipped_tasks > 0 {
+            format!(" ({skipped_tasks} skipped, not counted toward the gate)")
+        } else {
+            String::new()
+        }
     );
 
-    if !all_passed {
+    if !gate_passed {
         bail!(
             "harness eval gate failed: {}/{} golden tasks did not achieve pass^{}",
-            outcomes.len() - passed_tasks,
-            outcomes.len(),
+            gated_tasks - passed_tasks,
+            gated_tasks,
             args.samples
         );
     }
@@ -290,6 +392,12 @@ pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    /// Serializes the handful of tests that read/write `VOX_HARNESS_EVAL_LIVE`
+    /// (a process-global) so they cannot race each other under cargo's
+    /// default parallel test execution.
+    static LIVE_ENV_VAR_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn model_eval_score_fold_exact_is_deterministic() {
@@ -309,43 +417,104 @@ mod tests {
     }
 
     #[test]
-    fn live_model_smoke_task_skips_without_env_var() {
-        // Does not touch the env var at all: absence (the default, and CI's
-        // state) must resolve to a skip (`Ok`), not a failure.
-        if std::env::var("VOX_HARNESS_EVAL_LIVE").as_deref() != Ok("1") {
-            assert!(live_model_smoke_task().is_ok());
+    fn live_model_smoke_skip_reason_is_some_without_env_var() {
+        let _guard = LIVE_ENV_VAR_LOCK.lock().unwrap();
+        // SAFETY: guarded by LIVE_ENV_VAR_LOCK; no other test touches this
+        // var without holding the same lock.
+        unsafe {
+            std::env::remove_var("VOX_HARNESS_EVAL_LIVE");
         }
+        // Absence (the default, and CI's state) must resolve to a skip
+        // reason, so `run()` never even calls the (currently unimplemented)
+        // live-model task body.
+        assert!(live_model_smoke_skip_reason().is_some());
+    }
+
+    #[test]
+    fn live_model_smoke_task_errors_rather_than_silently_passing() {
+        // Even if something ever called the task body directly (bypassing
+        // skip_if), it must never report a free PASS for an unimplemented
+        // check — see the no-stubs rule this task was flagged against.
+        assert!(live_model_smoke_task().is_err());
     }
 
     #[test]
     fn task_outcome_pass_pow_k_requires_all_samples_to_pass() {
         let all_pass = TaskOutcome {
             name: "t",
-            passes: 3,
-            samples: 3,
-            first_failure: None,
+            status: TaskStatus::Passed {
+                passes: 3,
+                samples: 3,
+            },
         };
         assert!(all_pass.passed_pow_k());
+        assert!(!all_pass.is_skipped());
 
         let one_fail = TaskOutcome {
             name: "t",
-            passes: 2,
-            samples: 3,
-            first_failure: Some("boom".to_string()),
+            status: TaskStatus::Failed {
+                passes: 2,
+                samples: 3,
+                first_failure: "boom".to_string(),
+            },
         };
         assert!(
             !one_fail.passed_pow_k(),
             "pass^k must fail the task if even one sample failed"
         );
+        assert!(!one_fail.is_skipped());
+    }
+
+    #[test]
+    fn task_outcome_skipped_counts_as_neither_pass_nor_gate_failure() {
+        let skipped = TaskOutcome {
+            name: "t",
+            status: TaskStatus::Skipped {
+                reason: "disabled".to_string(),
+            },
+        };
+        assert!(!skipped.passed_pow_k());
+        assert!(skipped.is_skipped());
     }
 
     #[tokio::test]
     async fn run_all_golden_tasks_succeeds_with_default_samples() {
+        let _guard = LIVE_ENV_VAR_LOCK.lock().unwrap();
+        // SAFETY: guarded by LIVE_ENV_VAR_LOCK.
+        unsafe {
+            std::env::remove_var("VOX_HARNESS_EVAL_LIVE");
+        }
+        // live-model-smoke is SKIPPED by default (VOX_HARNESS_EVAL_LIVE
+        // unset) and therefore excluded from the gate, so the other three
+        // hermetic tasks passing is sufficient for the gate to pass.
         let args = EvalArgs {
             samples: 3,
             task: None,
         };
         assert!(run(args).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn run_fails_the_gate_when_live_task_is_forced_to_run_unimplemented() {
+        let _guard = LIVE_ENV_VAR_LOCK.lock().unwrap();
+        // SAFETY: guarded by LIVE_ENV_VAR_LOCK; no other test touches this
+        // var without holding the same lock.
+        unsafe {
+            std::env::set_var("VOX_HARNESS_EVAL_LIVE", "1");
+        }
+        let args = EvalArgs {
+            samples: 1,
+            task: Some("live-model-smoke".to_string()),
+        };
+        let result = run(args).await;
+        // SAFETY: see above.
+        unsafe {
+            std::env::remove_var("VOX_HARNESS_EVAL_LIVE");
+        }
+        assert!(
+            result.is_err(),
+            "forcing the unimplemented live task to actually run must fail the gate, not pass it for free"
+        );
     }
 
     #[tokio::test]
@@ -355,6 +524,24 @@ mod tests {
             task: None,
         };
         assert!(run(args).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn run_rejects_samples_above_max() {
+        let args = EvalArgs {
+            samples: MAX_SAMPLES + 1,
+            task: None,
+        };
+        assert!(run(args).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn run_accepts_samples_at_max() {
+        let args = EvalArgs {
+            samples: MAX_SAMPLES,
+            task: Some("temp-workspace-file-roundtrip".to_string()),
+        };
+        assert!(run(args).await.is_ok());
     }
 
     #[tokio::test]
