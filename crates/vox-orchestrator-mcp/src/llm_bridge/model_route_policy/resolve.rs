@@ -234,6 +234,10 @@ fn resolve_mcp_chat_model_sync_inner(
         routing_policy.provider_filter_allows(m)
             && provider_allowed_by_route_policy(m)
             && crate::llm_bridge::local_health::local_candidate_allowed(m)
+            // F7: VOX_INFERENCE_PRIVACY hard filter — unrelated to
+            // VOX_MESH_EXEC_POLICY (mesh task placement); see
+            // `local_health::privacy_allows` doc comment.
+            && crate::llm_bridge::local_health::privacy_allows(m)
     };
 
     let mut required_capabilities: Vec<vox_orchestrator::models::Capability> = {

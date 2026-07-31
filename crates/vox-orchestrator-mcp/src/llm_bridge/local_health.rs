@@ -78,6 +78,58 @@ pub(crate) fn local_candidate_allowed(m: &ModelSpec) -> bool {
     local_gate_allows(&m.provider_type, local_backend_health())
 }
 
+/// Test-only seam for `VOX_INFERENCE_PRIVACY`, mirroring
+/// `TEST_HEALTH_OVERRIDE` above — avoids mutating the real process env (which
+/// is racy under parallel `cargo test`) while still exercising the real
+/// decision logic in `privacy_allows`.
+#[cfg(test)]
+static TEST_PRIVACY_OVERRIDE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+#[cfg(test)]
+fn set_test_privacy_override(v: Option<&str>) {
+    *TEST_PRIVACY_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = v.map(str::to_string);
+}
+
+fn inference_privacy_mode() -> String {
+    #[cfg(test)]
+    if let Some(v) = TEST_PRIVACY_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+    {
+        return v;
+    }
+    std::env::var("VOX_INFERENCE_PRIVACY").unwrap_or_else(|_| "any".to_string())
+}
+
+/// Hard privacy filter consulted by the resolver's `routing_allows`, keyed
+/// off `VOX_INFERENCE_PRIVACY` (`any` [default] | `local_only`).
+///
+/// This is UNRELATED to `VOX_MESH_EXEC_POLICY`: that key governs whether a
+/// mesh *task* may be relayed for execution on another physical node
+/// (task placement), while `VOX_INFERENCE_PRIVACY` governs whether a *model*
+/// running on a remote cloud provider may ever be selected for an inference
+/// call (F7). A user relying on `VOX_MESH_EXEC_POLICY=local_only` to keep
+/// prompts off the network gets no such protection — this is the actual
+/// control for that.
+///
+/// A hard filter, not a ranking hint: when `local_only`, non-local-provider
+/// models are excluded from candidates entirely (see
+/// `route_policy::is_local_http_provider` for the local/cloud split reused
+/// here), never merely deprioritized. There is currently no per-request
+/// override surface on the chat params path; if one is ever added, it MUST
+/// be ANDed with this account/session-level setting (one-way ratchet: an
+/// override may only tighten to `local_only`, never loosen an already-set
+/// `local_only` back to `any`), mirroring OpenRouter's `zdr` semantics.
+pub(crate) fn privacy_allows(m: &ModelSpec) -> bool {
+    if inference_privacy_mode().trim().eq_ignore_ascii_case("local_only") {
+        return vox_orchestrator::route_policy::is_local_http_provider(&m.provider_type);
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,5 +219,45 @@ mod tests {
             "ollama-m",
             ProviderType::Ollama
         )));
+    }
+
+    // Both `any` and `local_only` cases live in one test (rather than two
+    // separate `#[test]` fns) because `TEST_PRIVACY_OVERRIDE` is shared
+    // process-global state: under `cargo test`'s default parallel threading,
+    // two tests setting/clearing it independently would race and flake.
+    #[test]
+    fn privacy_allows_any_passes_all_local_only_excludes_cloud_hard() {
+        set_test_privacy_override(Some("any"));
+        assert!(privacy_allows(&gate_spec("ollama-m", ProviderType::Ollama)));
+        assert!(privacy_allows(&gate_spec("vox-m", ProviderType::VoxLocal)));
+        assert!(privacy_allows(&gate_spec("or-m", ProviderType::OpenRouter)));
+        assert!(privacy_allows(&gate_spec(
+            "anthropic-m",
+            ProviderType::Anthropic
+        )));
+
+        set_test_privacy_override(Some("local_only"));
+        assert!(privacy_allows(&gate_spec("ollama-m", ProviderType::Ollama)));
+        assert!(privacy_allows(&gate_spec(
+            "mesh-m",
+            ProviderType::PopuliMesh
+        )));
+        assert!(privacy_allows(&gate_spec("vox-m", ProviderType::VoxLocal)));
+        assert!(!privacy_allows(&gate_spec("or-m", ProviderType::OpenRouter)));
+        assert!(!privacy_allows(&gate_spec(
+            "anthropic-m",
+            ProviderType::Anthropic
+        )));
+
+        // No override set: falls through to the real env read. In a unit-test
+        // process VOX_INFERENCE_PRIVACY is normally unset, so this proves the
+        // documented default ("any") when the key is absent entirely. (Kept
+        // in this same test, not a separate `#[test]` fn, so the override
+        // clear above and this real-env check can't race against another
+        // thread's override mutation.)
+        set_test_privacy_override(None);
+        if std::env::var("VOX_INFERENCE_PRIVACY").is_err() {
+            assert!(privacy_allows(&gate_spec("or-m", ProviderType::OpenRouter)));
+        }
     }
 }

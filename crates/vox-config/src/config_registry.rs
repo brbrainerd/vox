@@ -599,7 +599,28 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         secret: false,
         status: Status::Active,
         label: "Mesh Exec Policy",
-        hint: "Execution policy for mesh tasks (local_only, prefer_remote, remote_only).",
+        hint: "Execution policy for mesh TASK PLACEMENT across mesh nodes only \
+            (local_only, prefer_remote, remote_only) — NOT an LLM inference privacy \
+            control. Setting this to local_only does not stop cloud model calls; see \
+            VOX_INFERENCE_PRIVACY for that.",
+    },
+    ConfigKey {
+        key: "VOX_INFERENCE_PRIVACY",
+        kind: ConfigKind::String,
+        default: DefaultValue::Literal("any"),
+        bound: None,
+        group: Group::Security,
+        class: ConfigClass::UserPreference,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Inference Privacy",
+        hint: "Hard filter on which models may be selected for chat/inference calls \
+            (any [default] | local_only). local_only excludes every cloud-provider \
+            model from candidates, genuinely, not just as a ranking preference. This \
+            is UNRELATED to VOX_MESH_EXEC_POLICY, which governs mesh task placement \
+            across physical nodes, not inference privacy — do not confuse the two.",
     },
     ConfigKey {
         key: "VOX_MESH_NODE_ID",
