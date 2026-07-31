@@ -837,7 +837,28 @@ impl ModelRegistry {
             .models
             .values()
             .filter(|m| {
-                if preference == crate::config::CostPreference::Performance && m.is_free {
+                // Task 2.1b: `Performance` preference historically excluded every
+                // free model outright, at any complexity — including trivial
+                // low-complexity tasks where a free local (e.g. Ollama) model is
+                // plausibly the *right* choice and should at least be scored and
+                // shown, not silently dropped pre-scoring. Gate the exclusion by
+                // complexity: below `COMPLEXITY_HIGH_CUTOFF` free models remain
+                // eligible for `explain_selection`'s ranking (still subject to
+                // `auto_score_model`'s normal scoring, including the regression
+                // guard against a free model winning purely on cost). At/above
+                // the cutoff the original "Performance never means free" rule
+                // is preserved unchanged.
+                //
+                // This mirrors `best_for_with_filter`'s existing low-complexity
+                // preference-downgrade logic (see `effective_pref` above), but is
+                // deliberately scoped to `explain_selection` only —
+                // `best_for_internal` (real production routing) doesn't thread
+                // `complexity` through this filter today and changing that is out
+                // of scope for this fix.
+                if preference == crate::config::CostPreference::Performance
+                    && m.is_free
+                    && complexity >= super::scoring::COMPLEXITY_HIGH_CUTOFF
+                {
                     return false;
                 }
                 if !crate::route_policy::route_policy_allows_model(m) {

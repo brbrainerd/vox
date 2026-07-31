@@ -8,7 +8,7 @@ const QUALITY_PAID_COMPONENT: f64 = 0.95;
 const QUALITY_TOKEN_WEIGHT: f64 = 0.6;
 const QUALITY_PAID_WEIGHT: f64 = 0.4;
 const EFFICIENCY_COST_SCALER: f64 = 100.0;
-const COMPLEXITY_HIGH_CUTOFF: u8 = 8;
+pub(super) const COMPLEXITY_HIGH_CUTOFF: u8 = 8;
 const COMPLEXITY_LOW_CUTOFF: u8 = 3;
 const COMPLEXITY_PRECISION_BONUS: u8 = 10;
 const COMPLEXITY_EFFICIENCY_BONUS: u8 = 10;
@@ -31,6 +31,10 @@ const DEEPSEEK_OFFPEAK_V3_BONUS: f64 = 0.07;
 /// Routing score bonus for DeepSeek R1 during off-peak pricing window.
 /// DeepSeek R1 is 75% cheaper UTC 16:30–00:30; stronger bonus reflects the larger discount.
 const DEEPSEEK_OFFPEAK_R1_BONUS: f64 = 0.12;
+/// Small flat scoring bonus for any zero-cost model (not just PopuliMesh).
+/// Kept small and complexity-independent on purpose: at high complexity
+/// `w.precision` already outweighs this, so a capable paid model still wins.
+const ZERO_COST_BASE_BONUS: f64 = 0.1;
 
 /// Blend telemetry scoreboard signals using contract `quality_weights`.
 #[must_use]
@@ -307,6 +311,19 @@ pub fn auto_score_model(
     let mut w = base_routing_weights();
     if complexity >= COMPLEXITY_HIGH_CUTOFF {
         w.precision = w.precision.saturating_add(COMPLEXITY_PRECISION_BONUS);
+        // Symmetric counterpart to the low-complexity efficiency/latency boost
+        // below: a flat, complexity-independent `w.efficiency` gives free
+        // models (efficiency_score == 1.0) a structural advantage that
+        // `w.precision`'s boost alone can't reliably overcome (verified: even
+        // with the precision boost, a small free 8B-class model beat a
+        // frontier paid model by ~6% under default weights). Since the
+        // zero-cost bonus below is already gated off at this complexity band
+        // (see `ZERO_COST_BASE_BONUS` below), the residual advantage comes
+        // from `efficiency_score`/`w.efficiency` itself, not the bonus — so
+        // trimming efficiency's weight here, mirroring the existing boost at
+        // low complexity, is the correct place to fix it. Guarded against
+        // `free_local_model_does_not_win_high_complexity`.
+        w.efficiency = w.efficiency.saturating_sub(COMPLEXITY_EFFICIENCY_BONUS);
     } else if complexity <= COMPLEXITY_LOW_CUTOFF {
         w.efficiency = w.efficiency.saturating_add(COMPLEXITY_EFFICIENCY_BONUS);
         w.latency = w.latency.saturating_add(COMPLEXITY_LATENCY_BONUS);
@@ -381,8 +398,24 @@ pub fn auto_score_model(
         } else if *m.id == *"mens/vox-language-model" {
             0.25
         } else {
-            0.1 // Base bonus for zero cost
+            ZERO_COST_BASE_BONUS
         }
+    } else if m.is_free && complexity < COMPLEXITY_HIGH_CUTOFF {
+        // Any other zero-cost provider (e.g. local Ollama models) earns the
+        // same small base bonus PopuliMesh gets for being free — the mesh-only
+        // tiers above (0.8 prefer_mesh / 0.25 the mesh flagship) stay
+        // PopuliMesh-specific, since those reflect an explicit mesh-preference
+        // policy or a specific first-party model, not "any free model".
+        //
+        // Complexity-gated (not applied at/above COMPLEXITY_HIGH_CUTOFF): even
+        // with this bonus at zero, `efficiency_score`'s max-value-for-free
+        // behavior plus Ollama's optimistic default `latency_score` fallback
+        // already give local models a structural edge that a flat additive
+        // bonus would only worsen at high complexity. Restricting the bonus to
+        // low/mid complexity keeps it purely a "make local competitive when it
+        // plausibly should win" nudge, never a contributor to it winning hard
+        // tasks. See `free_local_model_does_not_win_high_complexity` below.
+        ZERO_COST_BASE_BONUS
     } else {
         0.0
     };
@@ -532,6 +565,126 @@ mod tests {
             None,
         );
         assert!(score <= RATE_LIMITED_SCORE_FLOOR, "rate-limited -> floor");
+    }
+
+    /// Task 2.1b root cause 1: Ollama discovery hardcoded `max_tokens: 4096`
+    /// for every model regardless of real context length, which crushed
+    /// `quality_score`'s token component (log10(4096)/7 vs log10(40000)/7).
+    /// This proves fixing the discovered `max_tokens` actually moves the
+    /// metric the routing decision depends on.
+    #[test]
+    fn quality_score_rewards_real_context_length_over_fake_fallback() {
+        let mut fake_fallback = make_spec(ProviderType::Ollama, 0.0, true);
+        fake_fallback.max_tokens = 4096;
+
+        let mut real_context = make_spec(ProviderType::Ollama, 0.0, true);
+        real_context.max_tokens = 40_000;
+
+        let low = quality_score(&fake_fallback);
+        let high = quality_score(&real_context);
+        assert!(
+            high > low + 0.05,
+            "40000-token model should score meaningfully higher than the \
+             4096 fallback (low={low}, high={high})"
+        );
+    }
+
+    /// Task 2.1b root cause 2: the zero-cost bonus was gated on
+    /// `provider_type == PopuliMesh`, so an equally-free Ollama model got no
+    /// bonus at all. At low complexity (where efficiency/latency dominate and
+    /// quality gaps are small) a free Ollama model should now score close to
+    /// a similarly-capable free PopuliMesh model, proving parity was reached
+    /// without a hardcoded provider check.
+    #[test]
+    fn free_ollama_model_competitive_with_free_mesh_model_at_low_complexity() {
+        unsafe {
+            std::env::set_var("VOX_ROUTING_PREFER_MESH", "false");
+        }
+
+        let mut ollama = make_spec(ProviderType::Ollama, 0.0, true);
+        ollama.id = "qwen3:8b".into();
+        ollama.canonical_slug = "ollama/qwen3:8b".into();
+        ollama.max_tokens = 40_000;
+
+        let mut mesh = make_spec(ProviderType::PopuliMesh, 0.0, true);
+        mesh.id = "populi/other-model".into();
+        mesh.canonical_slug = "populi/other-model".into();
+        mesh.max_tokens = 40_000;
+
+        let low_complexity = 1;
+        let ollama_score = auto_score_model(
+            &ollama,
+            low_complexity,
+            false,
+            None,
+            CostPreference::Economy,
+            None,
+            None,
+        );
+        let mesh_score = auto_score_model(
+            &mesh,
+            low_complexity,
+            false,
+            None,
+            CostPreference::Economy,
+            None,
+            None,
+        );
+
+        assert!(
+            (ollama_score - mesh_score).abs() < 0.05,
+            "free Ollama model should be competitive with a similarly-capable \
+             free non-flagship PopuliMesh model at low complexity \
+             (ollama={ollama_score}, mesh={mesh_score})"
+        );
+    }
+
+    /// Critical regression guard for the LiteLLM "free always wins" trap
+    /// flagged during Task 2.1b planning: at high complexity, a small free
+    /// local (Ollama) model must NOT outscore a large, capable paid model.
+    /// `w.precision`'s complexity-scaled weight plus the paid model's far
+    /// higher `quality_score` (bigger context, non-free component) must
+    /// dominate the flat +0.1 zero-cost bonus.
+    #[test]
+    fn free_local_model_does_not_win_high_complexity() {
+        let mut small_local = make_spec(ProviderType::Ollama, 0.0, true);
+        small_local.id = "qwen3:8b".into();
+        small_local.canonical_slug = "ollama/qwen3:8b".into();
+        small_local.max_tokens = 40_000; // real context, post-fix
+
+        let mut frontier_paid = make_spec(ProviderType::Anthropic, 0.045, false);
+        frontier_paid.id = "anthropic/claude-frontier".into();
+        frontier_paid.canonical_slug = "anthropic/claude-frontier".into();
+        frontier_paid.max_tokens = 200_000;
+        frontier_paid.cost_per_1k_input = 0.03;
+        frontier_paid.cost_per_1k_output = 0.06;
+
+        let high_complexity = COMPLEXITY_HIGH_CUTOFF;
+        let local_score = auto_score_model(
+            &small_local,
+            high_complexity,
+            false,
+            None,
+            CostPreference::Performance,
+            None,
+            None,
+        );
+        let paid_score = auto_score_model(
+            &frontier_paid,
+            high_complexity,
+            false,
+            None,
+            CostPreference::Performance,
+            None,
+            None,
+        );
+
+        assert!(
+            paid_score > local_score,
+            "a frontier paid model must outscore a small free local model at \
+             high complexity (local={local_score}, paid={paid_score}) — a \
+             regression here reproduces the LiteLLM zero-cost trap"
+        );
     }
 }
 

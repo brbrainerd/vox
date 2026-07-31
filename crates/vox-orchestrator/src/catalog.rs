@@ -308,6 +308,38 @@ impl OllamaCatalog {
             base_url,
         }
     }
+
+    /// Queries Ollama's `/api/show` endpoint for a specific model's real
+    /// context length. `/api/tags` (used by `refresh`) does not return this,
+    /// so we need a follow-up call per model. Returns `None` (rather than an
+    /// error) on any failure — timeout, non-2xx, missing/unparseable field —
+    /// so a single bad model never fails the whole discovery pass; the
+    /// caller falls back to the 4096 default in that case.
+    async fn fetch_context_length(&self, model_name: &str) -> Option<u64> {
+        let url = format!("{}/api/show", self.base_url.trim_end_matches('/'));
+        let res = self
+            .client
+            .post(&url)
+            .timeout(vox_config::timeouts::D_5S)
+            .json(&serde_json::json!({ "name": model_name }))
+            .send()
+            .await
+            .ok()?;
+        if !res.status().is_success() {
+            return None;
+        }
+        let body: serde_json::Value = res.json().await.ok()?;
+        // Real shape observed from a running Ollama instance:
+        // { ..., "model_info": { "<family>.context_length": 40960, ... }, ... }
+        // The key name is family-prefixed (e.g. "qwen3.context_length"), so
+        // scan model_info's entries for the first key ending in
+        // ".context_length" rather than hardcoding a family name.
+        let model_info = body.get("model_info")?.as_object()?;
+        model_info
+            .iter()
+            .find(|(k, _)| k.ends_with(".context_length"))
+            .and_then(|(_, v)| v.as_u64())
+    }
 }
 
 #[async_trait::async_trait]
@@ -341,12 +373,13 @@ impl ModelCatalog for OllamaCatalog {
         let resp: OllamaTagsResponse = res.json().await?;
         let mut specs = Vec::new();
         for m in resp.models {
+            let max_tokens = self.fetch_context_length(&m.name).await.unwrap_or(4096);
             specs.push(ModelSpec {
                 id: m.name.clone(),
                 canonical_slug: format!("ollama/{}", m.name),
                 provider: "ollama".to_string(),
                 provider_type: ProviderType::Ollama,
-                max_tokens: 4096, // Default fallback
+                max_tokens,
                 cost_per_1k: 0.0,
                 cost_per_1k_input: 0.0,
                 cost_per_1k_output: 0.0,
