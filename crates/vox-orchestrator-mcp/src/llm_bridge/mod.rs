@@ -13,6 +13,7 @@ mod provider_adapter;
 mod provider_auth;
 mod provider_endpoints;
 mod providers;
+pub mod tool_selection;
 
 /// Single agent id for MCP-hosted LLM usage accounting (not per-tool agents).
 pub(crate) const MCP_GLOBAL_LLM_AGENT: AgentId = AgentId(0);
