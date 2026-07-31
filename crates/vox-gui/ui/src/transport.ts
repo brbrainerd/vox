@@ -174,13 +174,21 @@ export function listenPreviewAvailable(
   return safeListen<PreviewAvailablePayload>(PREVIEW_AVAILABLE_EVENT, (event) => onPreview(event.payload));
 }
 
-/** Tauri event name emitted when the secretary auto-submits a task from chat. */
+/**
+ * Tauri event name emitted when the secretary detects actionable intent in a
+ * chat message and proposes a task. Propose-only (Task 0.2): no task exists
+ * yet at this point — the frontend must call `secretary_confirm_task` to
+ * actually submit it.
+ */
 export const SECRETARY_PROPOSED_EVENT = 'vox://secretary-proposed-task';
 
 export interface SecretaryProposedPayload {
+  /** Client-side proposal id — NOT a hopper/task id, no task has been submitted yet. */
   item_id: string;
   intent: string;
   confidence_pct: number;
+  /** Chat session id, passed back to `secretary_confirm_task` on confirm. */
+  session_id: string;
 }
 
 /**

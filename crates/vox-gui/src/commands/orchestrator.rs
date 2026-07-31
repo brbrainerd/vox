@@ -173,19 +173,28 @@ pub fn emit_tasks_changed<R: tauri::Runtime>(app_handle: &tauri::AppHandle<R>) {
     let _ = app_handle.emit(TASKS_CHANGED_EVENT, ());
 }
 
-/// Tauri event emitted when the secretary auto-submits a task from chat.
-/// Payload: `SecretaryProposedPayload`.
+/// Tauri event emitted when the secretary detects actionable intent in a
+/// chat message and *proposes* a task. Task 0.2 (harness parity plan): the
+/// secretary is propose-only — this event does not mean a task exists yet.
+/// The frontend must call `secretary_confirm_task` (passing back
+/// `session_id`/`intent`) to actually submit it. Payload: `SecretaryProposedPayload`.
 pub const SECRETARY_PROPOSED_EVENT: &str = "vox://secretary-proposed-task";
 
 /// Payload for the [`SECRETARY_PROPOSED_EVENT`] Tauri event.
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct SecretaryProposedPayload {
-    /// Hopper item ID assigned to the submitted task.
+    /// Client-side proposal id (NOT a hopper/task id — no task has been
+    /// submitted yet). Only used to correlate the toast with a confirm/dismiss
+    /// action in the frontend.
     pub item_id: String,
-    /// Cleaned intent text that was submitted as the task description.
+    /// Cleaned intent text that would be submitted as the task description
+    /// if the user confirms.
     pub intent: String,
     /// Classifier confidence 0–100 (for UI display only; not a guarantee).
     pub confidence_pct: u8,
+    /// Chat session id the message came from — passed back to
+    /// `secretary_confirm_task` on confirm.
+    pub session_id: String,
 }
 
 /// Emit [`SECRETARY_PROPOSED_EVENT`] to all webview windows.
@@ -983,10 +992,12 @@ mod secretary_tests {
             item_id: "abc123".to_string(),
             intent: "Fix the auth bug in login module".to_string(),
             confidence_pct: 85,
+            session_id: "session-1".to_string(),
         };
         let json = serde_json::to_value(&payload).expect("serialize");
         assert_eq!(json["item_id"], "abc123");
         assert_eq!(json["confidence_pct"], 85);
+        assert_eq!(json["session_id"], "session-1");
     }
 }
 

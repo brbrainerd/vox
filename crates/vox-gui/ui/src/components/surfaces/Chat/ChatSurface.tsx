@@ -646,6 +646,24 @@ export function ChatSurface({
     }
   };
 
+  /**
+   * Submit a secretary-proposed task (Task 0.2: propose-only). This is the
+   * ONLY path by which a secretary classification becomes a live orchestrator
+   * task — invoked exclusively from the "Add task" button on `SecretaryToast`.
+   */
+  const confirmSecretaryTask = async (payload: SecretaryProposedPayload) => {
+    setSecretaryToast(null);
+    try {
+      await invoke('secretary_confirm_task', {
+        sessionId: payload.session_id,
+        intent: payload.intent,
+      });
+      onNavigate?.('tasks');
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Add task failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    }
+  };
+
   const renameSession = async (sessionId: string, title: string) => {
     try {
       await invoke('chat_rename_session', { sessionId, title });
@@ -1132,10 +1150,7 @@ export function ChatSurface({
             intent={secretaryToast.intent}
             itemId={secretaryToast.item_id}
             onDismiss={() => setSecretaryToast(null)}
-            onViewTask={() => {
-              setSecretaryToast(null);
-              onNavigate?.('tasks');
-            }}
+            onConfirm={() => confirmSecretaryTask(secretaryToast)}
           />
         </div>
       )}

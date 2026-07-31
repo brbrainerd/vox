@@ -139,7 +139,11 @@ pub async fn chat_append_message<R: tauri::Runtime>(
     app_handle: tauri::AppHandle<R>,
     input: ChatAppendInput,
     pool: State<'_, GuiDbPool>,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    // No longer used to dispatch a task directly (Task 0.2: propose-only —
+    // see `secretary_confirm_task` for the daemon call). Kept in the
+    // signature so the Tauri command's argument shape (and existing test
+    // call sites) don't need to change.
+    _daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<i64, String> {
     if input.session_id.trim().is_empty() {
         return Err("session_id must not be empty".to_string());
@@ -170,72 +174,78 @@ pub async fn chat_append_message<R: tauri::Runtime>(
         .await
         .map_err(map_db_err)?;
 
-    // Secretary: detect actionable intent in user messages and submit it to the
-    // orchestrator daemon task graph (SUBMIT_TASK) — NOT the SQLite hopper that
-    // the Tasks surface lists (store unification is Phase 2, fork F1).
-    // Fire-and-forget — errors here must never fail the chat message save.
+    // Secretary: detect actionable intent in user messages and *propose* it
+    // to the user — it must NOT auto-submit to the orchestrator daemon task
+    // graph (SUBMIT_TASK). Task 0.2 (harness parity plan): the secretary used
+    // to fire SUBMIT_TASK itself here, silently turning any ≥10-word message
+    // containing an action verb into a live task. That is now client-side
+    // gated: this only emits the proposal toast; the actual SUBMIT_TASK call
+    // happens in `secretary_confirm_task`, invoked when the user explicitly
+    // clicks "confirm" on the toast (see `SecretaryToast.tsx`).
     if let Some(classified) =
         secretary_candidate(&input.role, &input.content, input.already_submitted)
     {
-        let session_id = input.session_id.clone();
-        let app_handle_clone = app_handle.clone();
-        let daemon: Arc<PersistentDaemon> = daemon.inner().clone();
-        tokio::spawn(async move {
-            use vox_foundation::protocol::orch_daemon_method;
-            use vox_orchestrator::orch_daemon::OrchDaemonClient;
-
-            let params = serde_json::json!({
-                "description": classified.intent,
-                "file_manifest": [],
-                "priority": null,
-                "session_id": session_id,
-                "allow_duplicate": false,
-                "model_hint": null,
-                "dry_run": null,
-                "active_skill": null,
-            });
-            let submit_result = async {
-                let addr = daemon.ensure().await?;
-                let client = match daemon.token().await {
-                    Some(token) => OrchDaemonClient::with_token(addr, token),
-                    None => OrchDaemonClient::new(addr),
-                };
-                client
-                    .call(orch_daemon_method::SUBMIT_TASK, params)
-                    .await
-                    .map_err(|e| e.to_string())
-            }
-            .await;
-            match submit_result {
-                Ok(raw) => {
-                    if let Some(item_id) = submitted_task_id(&raw) {
-                        crate::commands::orchestrator::emit_secretary_proposed(
-                            &app_handle_clone,
-                            crate::commands::orchestrator::SecretaryProposedPayload {
-                                item_id,
-                                intent: classified.intent,
-                                confidence_pct: classified.confidence_pct,
-                            },
-                        );
-                        // Also ping the tasks list so it refreshes immediately.
-                        crate::commands::orchestrator::emit_tasks_changed(&app_handle_clone);
-                    } else {
-                        // Daemon deduped (task_id null, duplicate_of set): nothing new
-                        // was enqueued, so no toast and no tasks-changed ping.
-                        tracing::debug!(
-                            "secretary: daemon deduped near-duplicate; suppressing toast"
-                        );
-                    }
-                }
-                Err(e) => {
-                    // Daemon unavailable or rejected — log and move on.
-                    tracing::debug!("secretary: failed to submit task: {e}");
-                }
-            }
-        });
+        // `item_id` here is a client-side proposal id (not a hopper/task id —
+        // no task exists yet). `secretary_confirm_task` is keyed on it so the
+        // eventual daemon submission uses the exact same session_id/intent
+        // the user was shown in the toast.
+        let proposal_id = uuid::Uuid::new_v4().to_string();
+        crate::commands::orchestrator::emit_secretary_proposed(
+            &app_handle,
+            crate::commands::orchestrator::SecretaryProposedPayload {
+                item_id: proposal_id,
+                intent: classified.intent,
+                confidence_pct: classified.confidence_pct,
+                session_id: input.session_id.clone(),
+            },
+        );
     }
 
     Ok(msg_id)
+}
+
+/// Submit a secretary-proposed task to the orchestrator daemon (SUBMIT_TASK),
+/// only ever called from the frontend when the user explicitly clicks
+/// "confirm" on the `SecretaryToast` — this is the sole path by which a
+/// secretary classification becomes a live task (Task 0.2: auto-dispatch →
+/// propose-only).
+#[tauri::command]
+pub async fn secretary_confirm_task<R: tauri::Runtime>(
+    app_handle: tauri::AppHandle<R>,
+    session_id: String,
+    intent: String,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<Option<String>, String> {
+    use vox_foundation::protocol::orch_daemon_method;
+    use vox_orchestrator::orch_daemon::OrchDaemonClient;
+
+    let params = serde_json::json!({
+        "description": intent,
+        "file_manifest": [],
+        "priority": null,
+        "session_id": session_id,
+        "allow_duplicate": false,
+        "model_hint": null,
+        "dry_run": null,
+        "active_skill": null,
+    });
+    let addr = daemon.ensure().await.map_err(|e| e.to_string())?;
+    let client = match daemon.token().await {
+        Some(token) => OrchDaemonClient::with_token(addr, token),
+        None => OrchDaemonClient::new(addr),
+    };
+    let raw = client
+        .call(orch_daemon_method::SUBMIT_TASK, params)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let task_id = submitted_task_id(&raw);
+    if task_id.is_some() {
+        // Only ping the tasks list when something new was actually enqueued —
+        // a deduped submission (task_id null, duplicate_of set) changed nothing.
+        crate::commands::orchestrator::emit_tasks_changed(&app_handle);
+    }
+    Ok(task_id)
 }
 
 #[tauri::command]
@@ -337,6 +347,42 @@ mod tests {
         let msgs = db.chat_get_gui_messages(session_id, 10).await.expect("get");
         assert_eq!(msgs.len(), 1);
         assert_eq!(msgs[0].2, "hello");
+    }
+
+    /// Task 0.2 regression: a classified message must NOT trigger a
+    /// `SUBMIT_TASK` daemon round-trip from `chat_append_message` — it only
+    /// emits the proposal event. Before this fix, an actionable message
+    /// spawned a task that called `daemon.ensure()` (which spawns/connects to
+    /// the real orchestrator daemon binary and can take seconds). Bounding
+    /// the call in a short timeout proves no such daemon interaction happens
+    /// on this path anymore.
+    #[tokio::test]
+    async fn chat_append_message_does_not_auto_dispatch_to_daemon() {
+        use tauri::Manager;
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(PersistentDaemon::default()));
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let input = ChatAppendInput {
+            session_id: "propose-only-session".to_string(),
+            role: "user".to_string(),
+            // Actionable per the classifier (>=10 words, whole-word verb).
+            content: "please fix the broken authentication flow in the login \
+                      page it keeps failing"
+                .to_string(),
+            task_id: None,
+            model_id: None,
+            already_submitted: false,
+        };
+        let daemon = app.state::<Arc<PersistentDaemon>>();
+        let pool = app.state::<GuiDbPool>();
+        let result = tokio::time::timeout(
+            std::time::Duration::from_millis(500),
+            chat_append_message(app.handle().clone(), input, pool, daemon),
+        )
+        .await
+        .expect("chat_append_message must not block on the orchestrator daemon")
+        .expect("append should succeed");
+        assert!(result > 0);
     }
 
     #[test]

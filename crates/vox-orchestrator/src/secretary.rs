@@ -28,8 +28,16 @@ pub fn classify(role: &str, content: &str) -> Option<ClassifyResult> {
         return None;
     }
 
-    let lower = content.to_lowercase();
-    let matched_verb = ACTION_VERBS.iter().find(|&&v| lower.contains(v))?;
+    // Word-boundary match (not substring): tokenize into lowercased
+    // alphanumeric words with their byte offset, then require an *exact*
+    // token match against ACTION_VERBS. This avoids matching "add" inside
+    // "address", "fix" inside "prefix"/"fixed", "build" inside "building",
+    // etc. (finding F2).
+    let tokens = word_tokens_with_pos(content);
+    let verb_pos = tokens
+        .iter()
+        .find(|(w, _)| ACTION_VERBS.contains(&w.as_str()))
+        .map(|(_, pos)| *pos)?;
 
     // Trim to 200 chars, strip leading/trailing whitespace.
     let intent = content
@@ -40,13 +48,42 @@ pub fn classify(role: &str, content: &str) -> Option<ClassifyResult> {
         .to_string();
 
     // Confidence is higher when the verb appears early in the message.
-    let verb_pos = lower.find(matched_verb).unwrap_or(usize::MAX);
     let confidence_pct = if verb_pos < 20 { 85 } else { 60 };
 
     Some(ClassifyResult {
         intent,
         confidence_pct,
     })
+}
+
+/// Tokenize `content` into lowercased alphanumeric words, each paired with
+/// its starting byte offset in the original string. Punctuation, whitespace,
+/// and other separators split words; this is what lets `classify` compare
+/// whole words instead of doing a raw substring search.
+fn word_tokens_with_pos(content: &str) -> Vec<(String, usize)> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut start = 0usize;
+    for (i, c) in content.char_indices() {
+        // Apostrophes are kept inside a word (e.g. "don't") but do not start
+        // one, so punctuation-only runs never produce an empty "word".
+        if c.is_alphanumeric() || (c == '\'' && !current.is_empty()) {
+            if current.is_empty() {
+                start = i;
+            }
+            for lc in c.to_lowercase() {
+                current.push(lc);
+            }
+        } else {
+            if !current.is_empty() {
+                tokens.push((std::mem::take(&mut current), start));
+            }
+        }
+    }
+    if !current.is_empty() {
+        tokens.push((current, start));
+    }
+    tokens
 }
 
 /// Action verbs that signal the user wants something done.
@@ -139,6 +176,50 @@ mod tests {
         );
         let result = classify("user", &long).unwrap();
         assert!(result.intent.len() <= 200);
+    }
+
+    // --- F2 regression: word-boundary matching, not substring `contains()` ---
+
+    #[test]
+    fn does_not_substring_match_add_inside_address_or_fix_inside_prefix() {
+        // "address" contains "add"; "prefix" contains "fix"; "building"
+        // contains "build". None of these are the standalone verbs.
+        let msg = "this address needs some prefix handling before we can \
+                   start building anything here";
+        assert!(
+            classify("user", msg).is_none(),
+            "substring matches inside unrelated words must not classify as actionable"
+        );
+    }
+
+    #[test]
+    fn does_not_substring_match_fix_inside_past_tense_fixed() {
+        // Directly from the finding: "I already fixed it" — "fixed" contains
+        // "fix" as a substring but is not the standalone verb "fix".
+        let msg = "I already fixed it and nothing else needs changing here \
+                   today thanks so much";
+        assert!(
+            classify("user", msg).is_none(),
+            "'fixed' must not substring-match the verb 'fix'"
+        );
+    }
+
+    #[test]
+    fn word_boundary_still_detects_genuine_actionable_message() {
+        // A real, actionable message using a whole-word verb must still
+        // classify as Some — the fix must not become over-strict.
+        let msg = "please add a retry loop to this function it currently \
+                   fails silently on timeout";
+        let result = classify("user", msg);
+        assert!(result.is_some(), "genuine whole-word verb match must still fire");
+        assert!(result.unwrap().intent.contains("add"));
+    }
+
+    #[test]
+    fn word_tokens_with_pos_splits_on_punctuation_and_keeps_apostrophes() {
+        let tokens = word_tokens_with_pos("Don't fix, address-the bug!");
+        let words: Vec<&str> = tokens.iter().map(|(w, _)| w.as_str()).collect();
+        assert_eq!(words, vec!["don't", "fix", "address", "the", "bug"]);
     }
 
     #[test]
