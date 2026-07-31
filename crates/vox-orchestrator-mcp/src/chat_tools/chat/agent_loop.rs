@@ -729,4 +729,83 @@ mod tests {
             "tools array must be non-empty — a real chat message must offer real tools"
         );
     }
+
+    /// Regression test: `params.temperature`/`params.top_p` must reach the wire
+    /// request on the mapped (`run_agent_turn`) path exactly as they already do on
+    /// the `call_llm` fallback path — `try_run_agent_turn` must not silently drop
+    /// a caller's sampling overrides for the providers this task newly wires up.
+    #[tokio::test]
+    #[allow(unsafe_code)] // env var mutation under a process-wide lock, like existing env tests
+    #[allow(clippy::await_holding_lock)] // see chat_message_default_path_sends_tools_bearing_request
+    async fn chat_message_default_path_honors_temperature_and_top_p() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("no tools needed")),
+            )
+            .mount(&server)
+            .await;
+
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let state = test_state();
+        let model_id = "test-openrouter-model-temp";
+        {
+            let handle = state.orchestrator.models_handle();
+            let mut registry = handle.write().expect("models registry lock");
+            registry.register(model_spec(ProviderType::OpenRouter, model_id));
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        let params: crate::chat_tools::params::ChatMessageParams = serde_json::from_value(
+            serde_json::json!({ "prompt": "hello there", "temperature": 0.11, "top_p": 0.42 }),
+        )
+        .expect("chat message params");
+
+        let response_json = super::super::message::chat_message(&state, params).await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        assert!(
+            !response_json.contains("\"error\""),
+            "chat_message should succeed via the mapped agent-loop path: {response_json}"
+        );
+
+        let requests = server.received_requests().await.expect("received requests");
+        let body = requests
+            .iter()
+            .find_map(|r| {
+                let v: serde_json::Value = serde_json::from_slice(&r.body).ok()?;
+                v.get("messages")?.as_array()?;
+                Some(v)
+            })
+            .expect("no request with a JSON `messages` body was received");
+        assert_eq!(
+            body.get("temperature").and_then(serde_json::Value::as_f64),
+            Some(0.11_f64),
+            "params.temperature must reach the wire request on the mapped path: {body}"
+        );
+        assert_eq!(
+            body.get("top_p").and_then(serde_json::Value::as_f64),
+            Some(0.42_f64),
+            "params.top_p must reach the wire request on the mapped path: {body}"
+        );
+    }
 }

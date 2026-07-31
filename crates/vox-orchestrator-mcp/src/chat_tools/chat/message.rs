@@ -42,7 +42,9 @@ const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend
 /// `resolve_mcp_chat_model_with_rationale`, which `call_llm` uses internally via
 /// `mcp_infer_completion` — both delegate to the same
 /// `resolve_mcp_chat_model_sync_inner`) — only what happens *after* a model is
-/// chosen differs.
+/// chosen differs. `temperature`/`top_p` are `params.temperature`/`params.top_p`
+/// straight from the request, applied to the mapped `LlmConfig` exactly as the
+/// `call_llm` fallback applies them via `temperature_override`/`top_p_override`.
 async fn try_run_agent_turn(
     state: &ServerState,
     system_prompt: &str,
@@ -50,6 +52,8 @@ async fn try_run_agent_turn(
     session_id: &str,
     active_skill_id: Option<String>,
     has_attachment: bool,
+    temperature: Option<f32>,
+    top_p: Option<f32>,
 ) -> Option<Result<(String, String, u64), String>> {
     if has_attachment {
         return None;
@@ -84,7 +88,14 @@ async fn try_run_agent_turn(
         Err(_) => return None,
     };
 
-    let llm_config = super::agent_loop::model_spec_to_llm_config(&model)?;
+    let mut llm_config = super::agent_loop::model_spec_to_llm_config(&model)?;
+    // Thread sampling overrides through on the mapped path exactly as the
+    // `call_llm` fallback already does (via `temperature_override`/`top_p_override`
+    // -> `mcp_infer_completion`) — without this, a caller's temperature/top_p would
+    // be silently dropped for every provider this task newly routes through
+    // `run_agent_turn` (OpenRouter/Ollama).
+    llm_config.temperature = temperature;
+    llm_config.top_p = top_p;
 
     // `Box::pin`: `run_agent_turn` dispatches tool calls through
     // `handle_tool_call_with_mode`, which (for the `vox_chat_message` tool
@@ -604,6 +615,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             session_id.as_str(),
             params.skill.clone(),
             params.attachment_manifest.is_some(),
+            params.temperature,
+            params.top_p,
         )
         .await
         {

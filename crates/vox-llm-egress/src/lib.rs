@@ -124,6 +124,7 @@ pub struct EgressToolCall {
 #[derive(Clone, Debug, Default)]
 pub struct ChatParams<'a> {
     pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
     pub max_tokens: Option<u64>,
     pub response_format: Option<&'a serde_json::Value>,
     pub tools: Option<&'a [ToolDef]>,

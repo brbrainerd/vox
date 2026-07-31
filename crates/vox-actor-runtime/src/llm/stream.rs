@@ -50,6 +50,7 @@ pub async fn llm_stream(
     });
     let params = vox_llm_egress::ChatParams {
         temperature: config.temperature,
+        top_p: config.top_p,
         max_tokens: config.max_tokens,
         response_format: config.response_format.as_ref(),
         tools: wire_tools.as_deref(),

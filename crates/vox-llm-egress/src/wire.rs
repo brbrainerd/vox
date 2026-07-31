@@ -98,6 +98,8 @@ struct OpenAiChatRequest<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    top_p: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     max_tokens: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     response_format: Option<&'a serde_json::Value>,
@@ -130,6 +132,7 @@ fn build_request<'a>(
         model: &req.model,
         messages: messages.iter().map(WireMessage::from).collect(),
         temperature: params.temperature,
+        top_p: params.top_p,
         max_tokens: params.max_tokens,
         response_format: params.response_format,
         tools,
