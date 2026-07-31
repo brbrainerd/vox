@@ -73,6 +73,7 @@ mod ops_questioning;
 mod ops_retention;
 mod ops_review;
 mod ops_scientia;
+mod ops_skills;
 mod ops_user_identity;
 
 pub use ops_discovery_inbox::DiscoveryInboxRow;
