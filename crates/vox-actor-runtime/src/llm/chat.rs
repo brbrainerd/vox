@@ -35,11 +35,19 @@ pub async fn llm_chat(
                 Ok(r) => r,
                 Err(e) => return Ok(Err(e)),
             };
+            // `tool_calls`/`tool_call_id`/`name` pass straight through unchanged:
+            // `LlmChatMessage::tool_calls` already reuses `vox_llm_egress::EgressToolCall`
+            // (no JSON-string/Value conversion needed at this layer — that conversion is
+            // the wire layer's job, in `vox_llm_egress::wire::build_request`, since it's
+            // the one place with a concrete outbound wire format to target).
             let wire_msgs: Vec<vox_llm_egress::ChatMessage> = messages
                 .iter()
                 .map(|m| vox_llm_egress::ChatMessage {
                     role: m.role.clone(),
                     content: m.content.clone(),
+                    tool_calls: m.tool_calls.clone(),
+                    tool_call_id: m.tool_call_id.clone(),
+                    name: m.name.clone(),
                 })
                 .collect();
             let wire_tools: Option<Vec<vox_llm_egress::ToolDef>> =

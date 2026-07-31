@@ -66,10 +66,12 @@ async fn synthesized_plan_nodes(
                         let sys_msg = vox_actor_runtime::llm::LlmChatMessage {
                             role: "system".into(),
                             content: sys.into(),
+                            ..Default::default()
                         };
                         let user_msg = vox_actor_runtime::llm::LlmChatMessage {
                             role: "user".into(),
                             content: user.into(),
+                            ..Default::default()
                         };
                         let cfg_clone = llm_cfg.clone();
                         async move {

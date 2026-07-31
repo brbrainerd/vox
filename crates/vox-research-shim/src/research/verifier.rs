@@ -150,15 +150,15 @@ pub async fn verify_claims_with_config(
                     content: "Classify whether retrieved evidence supports the claim. \
                         Output only JSON: {\"verdict\":\"Supported|Contradicted|Contested|Unverified\",\
                         \"confidence\":0.0,\"supporting_indices\":[0],\"contradicting_indices\":[1]}."
-                        .to_string(),
-                },
+                        .to_string(), ..Default::default()
+},
                 LlmChatMessage {
                     role: "user".to_string(),
                     content: format!(
                         "Original question: {query}\n\nClaim: {}\n\nEvidence:\n{evidence}",
                         claim.text
-                    ),
-                },
+                    ), ..Default::default()
+},
             ];
             match chat_with_cascade(&opts, messages, candidates, None).await {
                 Ok(response) => {

@@ -47,10 +47,12 @@ pub async fn decompose_query_with_config(
                     "Decompose the user's research question into 3-{max_subqueries} precise web/local retrieval subqueries. \
                      Output only valid JSON with schema: {{\"subqueries\": [\"...\"]}}."
                 ),
+                ..Default::default()
             },
             LlmChatMessage {
                 role: "user".to_string(),
                 content: query.query.clone(),
+                ..Default::default()
             },
         ];
         let opts = ActivityOptions::new().with_timeout_secs(30);

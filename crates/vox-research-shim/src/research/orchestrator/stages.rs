@@ -446,7 +446,11 @@ async fn chat_stage(
     }
     let messages = messages
         .into_iter()
-        .map(|(role, content)| LlmChatMessage { role, content })
+        .map(|(role, content)| LlmChatMessage {
+            role,
+            content,
+            ..Default::default()
+        })
         .collect();
     let opts = ActivityOptions::new().with_timeout_secs(45);
     chat_with_cascade(&opts, messages, candidates, None)

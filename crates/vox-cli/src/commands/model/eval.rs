@@ -320,6 +320,7 @@ async fn eval_one_model(model_id: &str) -> Result<Vec<FixtureResult>, String> {
         let messages = vec![LlmChatMessage {
             role: "user".to_string(),
             content: fixture.prompt.to_string(),
+            ..Default::default()
         }];
 
         let started = std::time::Instant::now();

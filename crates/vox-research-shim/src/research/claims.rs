@@ -122,10 +122,12 @@ pub async fn extract_claims_with_model(
                     Output only valid JSON. Use either {\"claims\": [...]} or a bare array. \
                     Each claim object must include text, is_numeric, is_recent, is_named_event."
                     .to_string(),
+                ..Default::default()
             },
             LlmChatMessage {
                 role: "user".to_string(),
                 content: query.to_string(),
+                ..Default::default()
             },
         ];
         let opts = ActivityOptions::new().with_timeout_secs(30);

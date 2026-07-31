@@ -17,12 +17,28 @@ pub struct LlmToolDef {
 }
 
 /// Message format for the LLM chat API wire protocol (OpenAI-compatible).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// Mirrors `vox_llm_egress::ChatMessage`'s additive tool-calling fields (Task 1.3b):
+/// `tool_calls` on an assistant message, `tool_call_id`/`name` on a `role: "tool"`
+/// result message. All `skip_serializing_if = "Option::is_none"` so existing plain
+/// `{role, content}` callers are unaffected.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LlmChatMessage {
     /// Chat role string (`system`, `user`, `assistant`, …).
     pub role: String,
     /// Message body text.
     pub content: String,
+    /// Set on an assistant message that requested tool calls. Reuses
+    /// `vox_llm_egress::EgressToolCall` directly (this crate already depends on
+    /// vox-llm-egress) rather than duplicating the type.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<vox_llm_egress::EgressToolCall>>,
+    /// Set on a `role: "tool"` result message: the id of the call this result answers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+    /// Optionally set on a `role: "tool"` result message alongside `tool_call_id`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 /// Deprecated alias kept for callers within this crate during the rename.

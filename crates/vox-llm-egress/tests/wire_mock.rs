@@ -1,7 +1,7 @@
 use futures::StreamExt;
 use vox_llm_egress::{
-    ChatMessage, ChatParams, EgressError, EgressRequest, ToolDef, chat_once, embed_once,
-    stream_once,
+    ChatMessage, ChatParams, EgressError, EgressRequest, EgressToolCall, ToolDef, chat_once,
+    embed_once, stream_once,
 };
 use wiremock::matchers::{body_partial_json, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -40,6 +40,9 @@ async fn chat_once_sends_bearer_headers_and_parses_usage() {
     let msgs = vec![ChatMessage {
         role: "user".into(),
         content: "yo".into(),
+        tool_calls: None,
+        tool_call_id: None,
+        name: None,
     }];
     let out = chat_once(&r, &msgs, &ChatParams::default())
         .await
@@ -181,6 +184,67 @@ async fn chat_once_serializes_tools() {
         .await
         .expect("tools request must match + succeed");
     assert_eq!(out.content, "ok");
+}
+
+/// Task 1.3b: a full assistant-tool_calls + tool-result turn must reach the wire with
+/// `function.arguments` re-serialized as a JSON **string** (the inverse of
+/// `EgressToolCall::arguments`'s eagerly-parsed `Value`), and the tool-result message's
+/// `tool_call_id` correlating back to the call.
+#[tokio::test]
+async fn chat_once_serializes_assistant_tool_calls_and_tool_result_message() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(body_partial_json(serde_json::json!({
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [{
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {"name": "get_weather", "arguments": "{\"city\":\"Paris\"}"}
+                    }]
+                },
+                {
+                    "role": "tool",
+                    "content": "72F and sunny",
+                    "tool_call_id": "call_1",
+                    "name": "get_weather"
+                }
+            ]
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "choices": [{"message": {"content": "It's 72F and sunny in Paris."}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+        })))
+        .mount(&server)
+        .await;
+
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let msgs = vec![
+        ChatMessage {
+            role: "assistant".into(),
+            content: String::new(),
+            tool_calls: Some(vec![EgressToolCall {
+                id: "call_1".into(),
+                name: "get_weather".into(),
+                arguments: serde_json::json!({"city": "Paris"}),
+            }]),
+            tool_call_id: None,
+            name: None,
+        },
+        ChatMessage {
+            role: "tool".into(),
+            content: "72F and sunny".into(),
+            tool_calls: None,
+            tool_call_id: Some("call_1".into()),
+            name: Some("get_weather".into()),
+        },
+    ];
+    let out = chat_once(&r, &msgs, &ChatParams::default())
+        .await
+        .expect("request must match the mock's exact tool-call wire shape");
+    assert_eq!(out.content, "It's 72F and sunny in Paris.");
 }
 
 #[tokio::test]

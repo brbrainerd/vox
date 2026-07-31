@@ -98,6 +98,7 @@ fn transcript_entry_to_llm_message(entry: &ChatTranscriptEntry) -> LlmChatMessag
     LlmChatMessage {
         role: entry.role.clone(),
         content: entry.content.clone(),
+        ..Default::default()
     }
 }
 
@@ -108,10 +109,16 @@ fn transcript_entry_to_llm_message(entry: &ChatTranscriptEntry) -> LlmChatMessag
 /// Reads via the same `context_history_or_hydrate` used for the GUI's full transcript
 /// (so this never sees a truncated view due to display bounds), then applies the
 /// token-aware budget independently.
-pub(crate) async fn load_conversation(state: &ServerState, session_id: &str) -> Vec<LlmChatMessage> {
+pub(crate) async fn load_conversation(
+    state: &ServerState,
+    session_id: &str,
+) -> Vec<LlmChatMessage> {
     let history_key = format!("chat_history:{session_id}");
     let history = context_history_or_hydrate(state, history_key.as_str(), session_id).await;
-    let messages: Vec<LlmChatMessage> = history.iter().map(transcript_entry_to_llm_message).collect();
+    let messages: Vec<LlmChatMessage> = history
+        .iter()
+        .map(transcript_entry_to_llm_message)
+        .collect();
     bound_messages_by_tokens(messages, ConversationBudget::default())
 }
 
@@ -146,27 +153,43 @@ mod tests {
             LlmChatMessage {
                 role: "user".into(),
                 content: "a".repeat(40),
+                ..Default::default()
             },
             LlmChatMessage {
                 role: "assistant".into(),
                 content: "b".repeat(40),
+                ..Default::default()
             },
             LlmChatMessage {
                 role: "user".into(),
                 content: "c".repeat(40),
+                ..Default::default()
             },
             LlmChatMessage {
                 role: "assistant".into(),
                 content: "d".repeat(40),
+                ..Default::default()
             },
         ];
         // Budget only large enough for the last two messages (~20 tokens).
         let budget = ConversationBudget { max_tokens: 20 };
         let kept = bound_messages_by_tokens(messages, budget);
 
-        assert_eq!(kept.len(), 2, "expected only the most recent 2 messages to fit");
-        assert_eq!(kept[0].content, "c".repeat(40), "oldest kept must be the 3rd message");
-        assert_eq!(kept[1].content, "d".repeat(40), "newest message must be last, in order");
+        assert_eq!(
+            kept.len(),
+            2,
+            "expected only the most recent 2 messages to fit"
+        );
+        assert_eq!(
+            kept[0].content,
+            "c".repeat(40),
+            "oldest kept must be the 3rd message"
+        );
+        assert_eq!(
+            kept[1].content,
+            "d".repeat(40),
+            "newest message must be last, in order"
+        );
     }
 
     #[test]
@@ -174,10 +197,15 @@ mod tests {
         let messages = vec![LlmChatMessage {
             role: "user".into(),
             content: "x".repeat(10_000),
+            ..Default::default()
         }];
         let budget = ConversationBudget { max_tokens: 1 };
         let kept = bound_messages_by_tokens(messages, budget);
-        assert_eq!(kept.len(), 1, "a single oversized message must still be kept");
+        assert_eq!(
+            kept.len(),
+            1,
+            "a single oversized message must still be kept"
+        );
     }
 
     #[test]
@@ -219,8 +247,7 @@ mod tests {
             let groups = AffinityGroupRegistry::new(vec![]);
             let session_cfg = SessionConfig {
                 persist: false,
-                sessions_dir: std::env::temp_dir()
-                    .join("vox-mcp-conversation-test-sessions"),
+                sessions_dir: std::env::temp_dir().join("vox-mcp-conversation-test-sessions"),
                 ..SessionConfig::default()
             };
             let session_manager = SessionManager::new(session_cfg).expect("session manager");

@@ -34,6 +34,9 @@ pub async fn llm_stream(
         .map(|m| vox_llm_egress::ChatMessage {
             role: m.role.clone(),
             content: m.content.clone(),
+            tool_calls: m.tool_calls.clone(),
+            tool_call_id: m.tool_call_id.clone(),
+            name: m.name.clone(),
         })
         .collect();
     let wire_tools: Option<Vec<vox_llm_egress::ToolDef>> = config.tools.as_ref().map(|ts| {

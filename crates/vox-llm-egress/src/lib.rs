@@ -54,10 +54,33 @@ impl std::fmt::Debug for EgressRequest {
 }
 
 /// One chat message on the wire (OpenAI-compatible).
+///
+/// The three trailing fields are additive plumbing for a full tool-calling turn (Task
+/// 1.3b): an assistant message MAY carry `tool_calls` (the calls it requested), and a
+/// `role: "tool"` result message carries `tool_call_id` (and optionally `name`) to
+/// correlate the result back to the specific call. All three are
+/// `skip_serializing_if = "Option::is_none"` so every existing plain `{role, content}`
+/// caller (ghost_text, inline_edit, plan, eval, judge, route, …) continues to serialize
+/// an unchanged wire payload — no `tool_calls`/`tool_call_id`/`name` keys at all, not
+/// even `null`, when left `None`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub role: String,
     pub content: String,
+    /// Set on an assistant message that requested tool calls. Reuses
+    /// [`EgressToolCall`] (the inbound/parsed shape from Task 1.3a); `build_request`
+    /// re-serializes `arguments` back to a JSON **string** for the outbound wire
+    /// format (the inverse of the inbound parse), since `EgressToolCall::arguments` is
+    /// eagerly parsed to `serde_json::Value` for callers' convenience.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<EgressToolCall>>,
+    /// Set on a `role: "tool"` result message: the id of the call this result answers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+    /// Optionally set on a `role: "tool"` result message: some OpenAI-compatible APIs
+    /// expect the tool's name alongside `tool_call_id`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 /// Tool definition passed through to the provider.
@@ -184,6 +207,72 @@ mod tests {
     fn estimate_cost_is_tokens_over_1k_times_rate() {
         assert!((estimate_cost(700, 300, 2.0) - 2.0).abs() < 1e-9); // 1000/1000 * 2.0
         assert_eq!(estimate_cost(0, 0, 5.0), 0.0);
+    }
+
+    #[test]
+    fn plain_text_message_serializes_with_no_tool_keys() {
+        // Old-style plain-text construction (pre-1.3b shape): tool fields left `None`.
+        let msg = ChatMessage {
+            role: "user".into(),
+            content: "hello".into(),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+        };
+        let json = serde_json::to_value(&msg).expect("serialize");
+        let obj = json.as_object().expect("object");
+        assert_eq!(obj.len(), 2, "only role+content must be present: {obj:?}");
+        assert!(obj.contains_key("role"));
+        assert!(obj.contains_key("content"));
+        assert!(!obj.contains_key("tool_calls"));
+        assert!(!obj.contains_key("tool_call_id"));
+        assert!(!obj.contains_key("name"));
+    }
+
+    #[test]
+    fn assistant_message_carries_tool_calls_with_parsed_value_arguments() {
+        // `ChatMessage::tool_calls` carries `EgressToolCall` directly, so at THIS type's
+        // own serialization boundary `arguments` is still the parsed `serde_json::Value`
+        // (matching 1.3a's inbound shape) — the JSON-string conversion for the actual
+        // outbound wire happens one layer down, in `vox_llm_egress::wire::build_request`
+        // (via its private `WireToolCall`), exercised by
+        // `chat_once_serializes_assistant_tool_calls_and_tool_result_message` in
+        // `tests/wire_mock.rs`. This test locks in that `ChatMessage` itself is a
+        // faithful passthrough (no premature/duplicate re-encoding at this layer).
+        let msg = ChatMessage {
+            role: "assistant".into(),
+            content: String::new(),
+            tool_calls: Some(vec![EgressToolCall {
+                id: "call_1".into(),
+                name: "get_weather".into(),
+                arguments: serde_json::json!({"city": "Paris"}),
+            }]),
+            tool_call_id: None,
+            name: None,
+        };
+        let json = serde_json::to_value(&msg).expect("serialize");
+        let calls = json["tool_calls"].as_array().expect("tool_calls array");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0]["id"], "call_1");
+        assert_eq!(calls[0]["name"], "get_weather");
+        assert_eq!(calls[0]["arguments"], serde_json::json!({"city": "Paris"}));
+    }
+
+    #[test]
+    fn tool_result_message_serializes_tool_call_id_and_name() {
+        let msg = ChatMessage {
+            role: "tool".into(),
+            content: "72F and sunny".into(),
+            tool_calls: None,
+            tool_call_id: Some("call_1".into()),
+            name: Some("get_weather".into()),
+        };
+        let json = serde_json::to_value(&msg).expect("serialize");
+        assert_eq!(json["role"], "tool");
+        assert_eq!(json["content"], "72F and sunny");
+        assert_eq!(json["tool_call_id"], "call_1");
+        assert_eq!(json["name"], "get_weather");
+        assert!(json.get("tool_calls").is_none());
     }
 
     #[test]

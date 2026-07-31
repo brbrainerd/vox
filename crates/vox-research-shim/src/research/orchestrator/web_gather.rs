@@ -73,10 +73,12 @@ pub(super) async fn try_llm_query_expansion(
             content: "You are a research gap analyst. Generate precise follow-up search \
                       queries to fill knowledge gaps. Output only valid JSON."
                 .to_string(),
+            ..Default::default()
         },
         LlmChatMessage {
             role: "user".to_string(),
             content: user_msg,
+            ..Default::default()
         },
     ];
 
