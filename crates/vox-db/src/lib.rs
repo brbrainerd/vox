@@ -251,8 +251,8 @@ pub use store::{
     ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
     GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, GrpoStepRow, HopperInboxRow,
     KnowledgeNodeSummary, LearnedPatternEntry, LocalTrainRow, LogExecutionParams,
-    LogInteractionParams, MemoryEntry, PackageSearchResult, PlanNodeRow, PlanSessionRow,
-    PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
+    LogInteractionParams, MemoryEntry, NewSkillCandidate, PackageSearchResult, PlanNodeRow,
+    PlanSessionRow, PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
     PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
     PublicationExternalRevisionUpsertParams, PublicationManifestParams, PublicationManifestRow,
     PublicationMediaAssetParams, PublicationMediaAssetRow, PublicationStatusEventRow,
@@ -261,10 +261,10 @@ pub use store::{
     QuestionSessionCreateParams, QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow,
     RegisterAgentParams, RegressionRow, ReviewEntry, SaveMemoryParams, SaveSnippetParams,
     ScheduledEntry, ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry,
-    SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport,
-    SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair, TrustRollupEntry,
-    TypedStreamEventEntry, UpsertAccountSecretCiphertextParams, UserEntry, WarningRow,
-    WorkflowExecutionRow,
+    SkillCandidateRow, SkillExecutionParams, SkillExecutionRow, SkillManifestEntry,
+    SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair,
+    TrustRollupEntry, TypedStreamEventEntry, UpsertAccountSecretCiphertextParams, UserEntry,
+    WarningRow, WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
 pub use syntax_k_telemetry::SyntaxKEventMeta;

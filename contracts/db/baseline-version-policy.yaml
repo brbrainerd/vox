@@ -4,9 +4,9 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 81
-  # Keccak-256 of baseline_sql() — updated for 81: T1.6 checkpoint_blobs table (coordination.sql).
-  repository_baseline_digest_hex: "0xaa25054fb28c219e9cfa03830d1a9c89c4fe43a6357202ce17d56e9938711661"
+  repository_baseline_integer: 82
+  # Keccak-256 of baseline_sql() — updated for 82: skill_candidates table (Task 3.2, harness parity plan).
+  repository_baseline_digest_hex: "0x1ca6617dfa5d459bf42a0c7a27faf645fb4a363a6e87951da76e6267ab7396bb"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

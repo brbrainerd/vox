@@ -317,6 +317,22 @@ CREATE TABLE IF NOT EXISTS agent_operations (
 CREATE INDEX IF NOT EXISTS idx_agent_operations_session ON agent_operations(session_id, ts_ms);
 CREATE INDEX IF NOT EXISTS idx_agent_operations_tool ON agent_operations(tool_name);
 
+-- Candidate skills discovered by the skill-mining pipeline (code_miner /
+-- op_miner in vox-skill-discovery), persisted so a mining run is no longer
+-- fire-and-forget stdout output. Task 3.3 (promotion gate / dedup /
+-- shadow-period state machine) reads and advances `status`; nothing else
+-- writes it yet.
+CREATE TABLE IF NOT EXISTS skill_candidates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    candidate_name TEXT NOT NULL,
+    source TEXT NOT NULL,
+    raw_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_skill_candidates_status ON skill_candidates(status, created_at_ms);
+
 CREATE TABLE IF NOT EXISTS cost_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     agent_id TEXT NOT NULL,
