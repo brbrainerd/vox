@@ -7,8 +7,13 @@ use vox_actor_runtime::route_capability_policy::{
     RouteCapabilityPolicySnapshot, exclusion_reason_for_llm_lane,
 };
 
+/// True for providers that run without a paid cloud credential (local inference over HTTP).
+/// Canonical home for this predicate — reuse it rather than re-deriving the variant list
+/// elsewhere (e.g. `vox-cli`'s `model list` command), so a future local provider only needs
+/// updating in one place.
 #[inline]
-fn is_local_http_provider(provider_type: &ProviderType) -> bool {
+#[must_use]
+pub fn is_local_http_provider(provider_type: &ProviderType) -> bool {
     matches!(
         provider_type,
         ProviderType::Ollama | ProviderType::PopuliMesh | ProviderType::VoxLocal
