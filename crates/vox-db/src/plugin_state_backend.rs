@@ -44,4 +44,20 @@ impl PluginStateBackend for crate::VoxDb {
             })
             .collect())
     }
+
+    async fn claim_skill_identity(
+        &self,
+        identity: &str,
+        owner: &str,
+    ) -> Result<(), PluginStateError> {
+        crate::VoxDb::claim_skill_identity(self, identity, owner)
+            .await
+            .map_err(|e| PluginStateError::new(e.to_string()))
+    }
+
+    async fn get_skill_reliability(&self, skill_id: &str) -> Result<Option<f64>, PluginStateError> {
+        crate::VoxDb::get_skill_reliability(self, skill_id)
+            .await
+            .map_err(|e| PluginStateError::new(e.to_string()))
+    }
 }

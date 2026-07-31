@@ -487,6 +487,23 @@ CREATE INDEX IF NOT EXISTS idx_artifacts_name ON artifacts(name);
 CREATE INDEX IF NOT EXISTS idx_artifact_reviews_target ON artifact_reviews(artifact_id);
 CREATE INDEX IF NOT EXISTS idx_agents_name ON agents(name);
 CREATE INDEX IF NOT EXISTS idx_skill_manifests_id ON skill_manifests(id);
+
+-- First-come-first-served namespace/identity claims for skills (Task 3.4,
+-- harness parity plan). identity is the canonical <namespace>/<name>
+-- string parsed/validated by vox_plugin_types::skill_identity::SkillIdentity
+-- (e.g. local/my-skill or io.github.alice/my-skill). The PRIMARY KEY is
+-- the uniqueness constraint: once an identity is claimed, a second distinct
+-- owner cannot claim it (see claim_skill_identity in
+-- store/ops_skill_identity.rs), preventing namespace squatting. owner is
+-- presently the skill manifest's free-text author field, NOT a
+-- cryptographically verified identity -- this codebase has no GitHub
+-- OAuth/OIDC or other identity-proof mechanism (documented deferred gap;
+-- see skill_identity.rs module docs).
+CREATE TABLE IF NOT EXISTS skill_identities (
+    identity TEXT PRIMARY KEY,
+    owner TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 CREATE INDEX IF NOT EXISTS idx_skill_executions_skill ON skill_executions(skill_id, version);
 CREATE INDEX IF NOT EXISTS idx_skill_executions_status ON skill_executions(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_skill_executions_agent ON skill_executions(agent_id);

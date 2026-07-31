@@ -8,6 +8,7 @@
 //! (skill manifest + state-backend trait) for backwards compatibility.
 
 pub mod plugin_manifest;
+pub mod skill_identity;
 pub mod skill_manifest;
 pub mod state_backend;
 pub mod target;

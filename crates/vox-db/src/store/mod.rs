@@ -74,6 +74,7 @@ mod ops_retention;
 mod ops_review;
 mod ops_scientia;
 mod ops_skill_candidates;
+mod ops_skill_identity;
 mod ops_skills;
 mod ops_user_identity;
 

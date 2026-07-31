@@ -48,4 +48,23 @@ pub trait PluginStateBackend: Send + Sync {
 
     /// List all stored skill manifests.
     async fn list_skill_manifests(&self) -> Result<Vec<PluginStateSkillEntry>, PluginStateError>;
+
+    /// Claim `identity` (a `vox_plugin_types::skill_identity::SkillIdentity`
+    /// display string, e.g. `"local/my-skill"` or
+    /// `"io.github.alice/my-skill"`) for `owner`, first-come-first-served
+    /// (Task 3.4). Re-claiming by the same owner is a no-op; claiming an
+    /// identity already owned by someone else is an error — see
+    /// `vox_db::VoxDb::claim_skill_identity` for the anti-squatting
+    /// semantics this enforces.
+    async fn claim_skill_identity(
+        &self,
+        identity: &str,
+        owner: &str,
+    ) -> Result<(), PluginStateError>;
+
+    /// Read the recorded reliability score (`reliability_scores`,
+    /// `entity_type = 'skill'`) for `skill_id`, or `None` if no observation
+    /// has ever been recorded. Used to gate externally-sourced skill
+    /// installs (Task 3.4 design point 3).
+    async fn get_skill_reliability(&self, skill_id: &str) -> Result<Option<f64>, PluginStateError>;
 }

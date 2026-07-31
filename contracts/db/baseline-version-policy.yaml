@@ -6,8 +6,9 @@ policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
   repository_baseline_integer: 83
   # Keccak-256 of baseline_sql() — updated for 83: skill_candidates.lifecycle_state + source_hash (Task 3.3, harness parity plan);
-  # re-updated for a comment fix (source_hash is blake3-only, not Keccak/blake3 — code-review finding on cd3f7e8736).
-  repository_baseline_digest_hex: "0xb9aece9a807611289293d8a3a8cb4115185bcb8e38654157dd63f98c4df50823"
+  # re-updated for a comment fix (source_hash is blake3-only, not Keccak/blake3 — code-review finding on cd3f7e8736);
+  # re-updated for skill_identities table (Task 3.4, harness parity plan — skill namespace/identity FCFS uniqueness).
+  repository_baseline_digest_hex: "0xd80b7556f45e64af5a007a9f21c11b8e666443fb79a8620ee207cb0a9dc2466b"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.
