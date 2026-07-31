@@ -5,8 +5,9 @@ use chrono::Utc;
 use clap::Subcommand;
 use vox_config::graphify::{
     CorpusStatus, GraphifyCorporaRegistry, GraphifyCorpus, GraphifyError, GraphifyKnowledgeNode,
-    GraphifyManifest, assess_corpus_status, load_all_corpora, load_graphify_corpora,
-    project_graph_nodes_for_ingest, upsert_registered_corpus, write_manifest,
+    GraphifyManifest, assess_corpus_status, lexical_search_graph, load_all_corpora,
+    load_graphify_corpora, project_graph_nodes_for_ingest, upsert_registered_corpus,
+    write_manifest,
 };
 
 /// Returns the cache directory for a corpus: `<repo_root>/.vox/cache/vox-graph/<corpus_id>`.
@@ -30,6 +31,21 @@ pub enum GraphifyCmd {
         /// Exit non-zero when any reported corpus is stale.
         #[arg(long)]
         strict: bool,
+        /// Emit JSON instead of human-readable lines.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Lexical search over a corpus graph (`vox graph query`; same lexical scorer as the
+    /// `vox_graphify_search` MCP tool, minus MCP-only concerns like DB persistence).
+    Query {
+        /// The search query string.
+        query: String,
+        /// Corpus id (default: registry `default_corpus_id`).
+        #[arg(long)]
+        corpus: Option<String>,
+        /// Maximum number of hits to print.
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
         /// Emit JSON instead of human-readable lines.
         #[arg(long)]
         json: bool,
@@ -430,6 +446,50 @@ fn regenerate_crate_graph(repo_root: &std::path::Path) -> anyhow::Result<()> {
 
 /// Project a corpus's graph nodes into Turso and stamp lexical_ingest_sha256.
 /// Shared by `graphify ingest` and `graphify crate-map --ingest`.
+/// `vox graph query <query>` — lexical search over a corpus graph, printed to stdout.
+///
+/// Reuses the same pure [`lexical_search_graph`] scorer that
+/// `crates/vox-orchestrator-mcp/src/graph_tools.rs::graphify_search` (the
+/// `vox_graphify_search` MCP tool) calls, so results are identical modulo the
+/// MCP-only concerns this CLI path intentionally skips: no `ServerState`/DB
+/// handle is available here, so results are never persisted to
+/// `knowledge_nodes`, and no `corpus_health` freshness block is attached (run
+/// `vox graph status` separately for that).
+fn run_graphify_query(
+    repo_root: &std::path::Path,
+    query: &str,
+    corpus: Option<String>,
+    limit: usize,
+    json: bool,
+) -> anyhow::Result<()> {
+    let reg = load_all_corpora(repo_root).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let corpus_id = match corpus {
+        Some(id) => {
+            corpus_by_id(&reg, &id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            id
+        }
+        None => reg.default_corpus_id.clone(),
+    };
+    let corpus = corpus_by_id(&reg, &corpus_id).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let graph_path = repo_root.join(&corpus.graph_path);
+    let raw = std::fs::read_to_string(&graph_path)
+        .with_context(|| format!("read graph {}", graph_path.display()))?;
+    let graph: serde_json::Value = serde_json::from_str(&raw)
+        .with_context(|| format!("parse graph JSON {}", graph_path.display()))?;
+    let hits = lexical_search_graph(&graph, &corpus_id, query, limit);
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&hits)?);
+    } else if hits.is_empty() {
+        println!("no matches for {query:?} in corpus {corpus_id}");
+    } else {
+        for hit in &hits {
+            println!("{:>3}  {}  ({})", hit.score, hit.label, hit.node_id);
+        }
+    }
+    Ok(())
+}
+
 async fn run_graphify_ingest(
     repo_root: &std::path::Path,
     corpus: Option<String>,
@@ -681,6 +741,14 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
             if strict && statuses.iter().any(|s| !s.is_fresh) {
                 anyhow::bail!("one or more graphify corpora are stale");
             }
+        }
+        GraphifyCmd::Query {
+            query,
+            corpus,
+            limit,
+            json,
+        } => {
+            run_graphify_query(repo_root, &query, corpus, limit, json)?;
         }
         GraphifyCmd::Ingest { corpus, dry_run } => {
             run_graphify_ingest(repo_root, corpus, dry_run).await?;

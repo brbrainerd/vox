@@ -14,6 +14,9 @@ pub mod add_component;
 /// Quality-gate umbrella command (`vox audit`); reads `contracts/ci/check-targets.v1.yaml`.
 pub mod audit;
 
+/// `vox chat <message>` — send one message through the shared `llm_chat` facade.
+pub mod chat;
+
 /// `vox audit effort` — AI-judged audit of recent commits (F1).
 pub mod audit_effort;
 

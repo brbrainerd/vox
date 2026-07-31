@@ -583,6 +583,13 @@ pub enum Cli {
         cmd: commands::harness::HarnessCmd,
     },
 
+    /// Send one message through the harness's chat pipeline and print the reply (`vox chat`).
+    Chat {
+        /// Arguments.
+        #[command(flatten)]
+        args: commands::chat::ChatArgs,
+    },
+
     /// Workspace drift and pattern-repetition linter.
     #[command(name = "drift-check")]
     DriftCheck {

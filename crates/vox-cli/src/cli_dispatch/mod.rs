@@ -422,6 +422,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Harness { cmd } => {
             crate::commands::harness::run(cmd).await?;
         }
+        Cli::Chat { args } => {
+            crate::commands::chat::run(args).await?;
+        }
         #[cfg(feature = "script-wasi")]
         Cli::Wasm { cmd } => {
             crate::commands::wasm::run(cmd)?;
