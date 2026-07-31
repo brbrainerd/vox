@@ -176,6 +176,86 @@ impl std::fmt::Display for EgressError {
 }
 impl std::error::Error for EgressError {}
 
+impl EgressError {
+    /// True when this error's underlying HTTP response body looks like a
+    /// provider-reported "prompt exceeded the model's context window" failure. See
+    /// [`is_context_exceeded_error`] for the matching rules and their caveats. Only
+    /// [`EgressError::Status`] carries a response body, so every other variant is
+    /// `false` (a rate-limit, transport failure, or JSON-decode failure is never a
+    /// context-overflow condition).
+    #[must_use]
+    pub fn is_context_exceeded(&self) -> bool {
+        match self {
+            EgressError::Status { code, body } => is_context_exceeded_error(*code, body),
+            EgressError::RateLimited { .. } | EgressError::Http(_) | EgressError::Decode(_) => {
+                false
+            }
+        }
+    }
+}
+
+/// Best-effort classifier for "the provider rejected this request because the prompt
+/// (plus requested completion) exceeded the model's context window."
+///
+/// Vox routes chat through 5 provider lanes (see `ChatProviderRouteKind` in
+/// `vox_actor_runtime::model_resolution`) — OpenRouter, a generic OpenAI-compatible
+/// endpoint, HuggingFace Router, HuggingFace Dedicated, and Ollama — and each reports
+/// context overflow with different HTTP-body phrasing. This mirrors the pattern
+/// LiteLLM uses to normalize the same class of provider-specific error strings into a
+/// single `ContextWindowExceededError` (see
+/// `docs/src/architecture/multi-provider-local-cloud-routing-research-2026-07-30.md`).
+///
+/// # Matching approach
+///
+/// This does a case-insensitive substring match of `body` against a curated phrase
+/// list covering common OpenAI-compatible, OpenRouter, HuggingFace, and Ollama
+/// overflow phrasings. It is deliberately **not status-code-gated**: providers use a
+/// mix of 400, 413, and even 422 for this condition (and proxies like OpenRouter may
+/// relay a wrapped upstream body under its own status), so gating on a fixed status
+/// code would silently miss real cases. The tradeoff is the inverse risk — a body that
+/// happens to contain one of these phrases for an unrelated reason would be
+/// misclassified — but that is judged unlikely for a technical error string.
+///
+/// # Completeness caveat
+///
+/// This is a **best-effort, non-exhaustive** phrase list, not a guaranteed-complete
+/// provider taxonomy. Provider error text changes over time and new providers may
+/// phrase this differently again. Extend the phrase list as new provider phrasings are
+/// observed in the wild; do not treat a `false` result as proof the request wasn't a
+/// context-overflow failure.
+#[must_use]
+pub fn is_context_exceeded_error(_status_code: u16, body: &str) -> bool {
+    const CONTEXT_OVERFLOW_PHRASES: &[&str] = &[
+        // OpenAI / OpenAI-compatible (most OpenRouter upstreams relay this verbatim)
+        "maximum context length",
+        "context_length_exceeded",
+        "context length exceeded",
+        "context window",
+        "please reduce the length of the messages",
+        "reduce the length of the messages",
+        "too many tokens",
+        "token limit",
+        "exceeds the model's maximum",
+        "exceeds model's context",
+        // HuggingFace (router + dedicated inference endpoints)
+        "input validation error",
+        "input length exceeds",
+        "inputs tokens + max_new_tokens must be",
+        "prompt is too long",
+        // Ollama (local)
+        "exceeds the available context",
+        "context size exceeded",
+        // Generic phrasing seen across several OpenAI-compatible gateways
+        "input is too long",
+        "message is too long",
+        "prompt exceeds",
+    ];
+    let lower = body.to_ascii_lowercase();
+    CONTEXT_OVERFLOW_PHRASES
+        .iter()
+        .any(|phrase| lower.contains(phrase))
+}
+
 /// Streaming item type for [`stream_once`].
 pub type ChatStream = Pin<Box<dyn Stream<Item = Result<String, EgressError>> + Send>>;
 
@@ -274,6 +354,73 @@ mod tests {
         assert_eq!(json["tool_call_id"], "call_1");
         assert_eq!(json["name"], "get_weather");
         assert!(json.get("tool_calls").is_none());
+    }
+
+    #[test]
+    fn context_exceeded_detects_known_provider_phrasings() {
+        let cases = [
+            // OpenAI-compatible / OpenRouter
+            (400u16, r#"{"error":{"message":"This model's maximum context length is 4096 tokens. However, your messages resulted in 5000 tokens.","type":"invalid_request_error","code":"context_length_exceeded"}}"#),
+            (400u16, r#"{"error":{"message":"Please reduce the length of the messages."}}"#),
+            // HuggingFace router / dedicated
+            (422u16, r#"{"error":"Input validation error: `inputs` tokens + `max_new_tokens` must be <= 4096. Given: 5000 `inputs` tokens and 512 `max_new_tokens`"}"#),
+            (400u16, r#"{"error":"Input length exceeds the model's maximum context length"}"#),
+            // Ollama
+            (500u16, r#"{"error":"prompt exceeds the available context window (4096)"}"#),
+            // Generic gateway phrasing, different status code entirely (413)
+            (413u16, r#"{"message":"input is too long for requested model"}"#),
+        ];
+        for (code, body) in cases {
+            assert!(
+                is_context_exceeded_error(code, body),
+                "expected context-exceeded for body: {body}"
+            );
+        }
+    }
+
+    #[test]
+    fn context_exceeded_does_not_misclassify_unrelated_errors() {
+        let cases = [
+            (429u16, r#"{"error":{"message":"Rate limit exceeded, please try again later."}}"#),
+            (401u16, r#"{"error":{"message":"Invalid API key provided."}}"#),
+            (403u16, r#"{"error":{"message":"You do not have access to this model."}}"#),
+            (500u16, r#"{"error":{"message":"Internal server error, please try again."}}"#),
+            (400u16, r#"{"error":{"message":"Invalid value for 'temperature': must be between 0 and 2."}}"#),
+            (402u16, r#"{"error":{"message":"Insufficient credits."}}"#),
+        ];
+        for (code, body) in cases {
+            assert!(
+                !is_context_exceeded_error(code, body),
+                "did not expect context-exceeded for body: {body}"
+            );
+        }
+    }
+
+    #[test]
+    fn is_context_exceeded_error_is_case_insensitive() {
+        assert!(is_context_exceeded_error(
+            400,
+            "MAXIMUM CONTEXT LENGTH IS 4096 TOKENS"
+        ));
+    }
+
+    #[test]
+    fn egress_error_is_context_exceeded_method_matches_status_body() {
+        let overflow = EgressError::Status {
+            code: 400,
+            body: "context_length_exceeded: too many tokens".into(),
+        };
+        assert!(overflow.is_context_exceeded());
+
+        let other_status = EgressError::Status {
+            code: 401,
+            body: "invalid api key".into(),
+        };
+        assert!(!other_status.is_context_exceeded());
+
+        assert!(!EgressError::RateLimited { retry_after: None }.is_context_exceeded());
+        assert!(!EgressError::Http("connection reset".into()).is_context_exceeded());
+        assert!(!EgressError::Decode("unexpected eof".into()).is_context_exceeded());
     }
 
     #[test]

@@ -287,6 +287,53 @@ async fn chat_once_maps_non_2xx_to_status_error() {
 }
 
 #[tokio::test]
+async fn chat_once_context_overflow_status_is_detectable_via_is_context_exceeded() {
+    // Reproduces a realistic OpenAI-compatible 400 body for "prompt too long", the
+    // way an OpenRouter/OpenAI-compatible upstream reports it. Proves the Task 2.3
+    // classifier works end-to-end off a real `chat_once` error, not just a
+    // hand-constructed `EgressError`.
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+            "error": {
+                "message": "This model's maximum context length is 4096 tokens. However, your messages resulted in 5000 tokens.",
+                "type": "invalid_request_error",
+                "code": "context_length_exceeded"
+            }
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let err = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(err, EgressError::Status { code: 400, .. }),
+        "got {err:?}"
+    );
+    assert!(
+        err.is_context_exceeded(),
+        "expected context-overflow body to be classified as context-exceeded, got {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn chat_once_unrelated_400_is_not_context_exceeded() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+            "error": {"message": "Invalid value for 'temperature': must be between 0 and 2."}
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let err = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .unwrap_err();
+    assert!(!err.is_context_exceeded(), "got {err:?}");
+}
+
+#[tokio::test]
 async fn stream_once_assembles_sse_deltas() {
     let server = MockServer::start().await;
     let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\n\n\
