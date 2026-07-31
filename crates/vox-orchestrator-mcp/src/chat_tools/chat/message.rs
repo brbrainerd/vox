@@ -25,6 +25,96 @@ use vox_orchestrator::session_context_envelope_key;
 const REM_CHAT_CANONICAL: &str = "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
 const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
 
+/// Task 1.3d (F24 wiring): attempt the tool-calling agent loop
+/// ([`super::agent_loop::run_agent_turn`]) for the default (non-`cognitive_profile`)
+/// `vox_chat_message` path.
+///
+/// Returns:
+/// - `None` when this turn should fall back to the existing `call_llm` pipeline
+///   unchanged — either because `has_attachment` is `true` (the mapper does not
+///   handle vision/attachment content) or because the resolved model's
+///   [`vox_orchestrator::models::ProviderType`] isn't one of the simple shapes
+///   [`super::agent_loop::model_spec_to_llm_config`] covers (OpenRouter, Ollama).
+/// - `Some(Ok(..))` / `Some(Err(..))` when the agent loop actually ran.
+///
+/// Model *selection* is unchanged: this still calls
+/// `crate::llm_bridge::resolve_mcp_chat_model` (the rationale-dropping sibling of
+/// `resolve_mcp_chat_model_with_rationale`, which `call_llm` uses internally via
+/// `mcp_infer_completion` — both delegate to the same
+/// `resolve_mcp_chat_model_sync_inner`) — only what happens *after* a model is
+/// chosen differs.
+async fn try_run_agent_turn(
+    state: &ServerState,
+    system_prompt: &str,
+    user_prompt: &str,
+    session_id: &str,
+    active_skill_id: Option<String>,
+    has_attachment: bool,
+) -> Option<Result<(String, String, u64), String>> {
+    if has_attachment {
+        return None;
+    }
+
+    let pref = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(e) => return Some(Err(e.to_string())),
+    };
+    let context_fill_ratio =
+        crate::llm_bridge::mcp_global_llm_context_fill_ratio(&state.orchestrator);
+    let resolution_template = McpChatModelResolution {
+        allow_cheapest_fallback: true,
+        context_fill_ratio,
+        ..Default::default()
+    };
+    let (model, _is_free) = match crate::llm_bridge::resolve_mcp_chat_model(
+        state,
+        user_prompt,
+        pref.as_deref(),
+        resolution_template,
+        Some(session_id),
+    )
+    .await
+    {
+        Ok(c) => c,
+        // Model resolution failing here is not this function's problem to report —
+        // let the existing `call_llm` path attempt (and correctly surface) it.
+        Err(_) => return None,
+    };
+
+    let llm_config = super::agent_loop::model_spec_to_llm_config(&model)?;
+
+    // `Box::pin`: `run_agent_turn` dispatches tool calls through
+    // `handle_tool_call_with_mode`, which (for the `vox_chat_message` tool
+    // specifically) can call back into `chat_message` -> `try_run_agent_turn` ->
+    // `run_agent_turn` — a real mutual-recursion cycle the compiler must be able
+    // to size, hence the heap indirection here rather than a plain `.await`.
+    match Box::pin(super::agent_loop::run_agent_turn(
+        state,
+        vec![], // history is already folded into `user_prompt` as text (see Task 1.1
+        // context_parts above) — passing it again here would duplicate it.
+        system_prompt.to_string(),
+        user_prompt.to_string(),
+        None, // permission_mode: `ChatMessageParams` carries no transport-authenticated
+        // permission mode; `handle_tool_call_with_mode`'s fail-safe default (Ask)
+        // applies, matching every other MCP call path that doesn't have one.
+        active_skill_id,
+        llm_config,
+        super::agent_loop::DEFAULT_MAX_ITERATIONS,
+    ))
+    .await
+    {
+        Ok(outcome) => Some(Ok((
+            outcome.final_text,
+            outcome.model_used,
+            outcome.total_tokens,
+        ))),
+        Err(e) => Some(Err(e)),
+    }
+}
+
 /// Handle a user chat message. Resolves @mentions, injects context from the editor,
 /// calls the best available LLM, persists to session history, and returns the updated history.
 ///
@@ -479,25 +569,51 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 }
             }
         }
-        None => match call_llm(
+        // Default (no cognitive_profile) chat path: Task 1.3d (F24 wiring). Attempt
+        // the tool-calling agent loop (Task 1.3c) whenever the resolved model maps
+        // to a simple provider shape and no multimodal attachment is present (the
+        // mapper does not handle vision/attachment content — see
+        // `super::agent_loop::model_spec_to_llm_config`). Otherwise fall back to
+        // the existing `call_llm` -> `mcp_infer_completion` pipeline unchanged,
+        // which still handles every other provider plus vision/budget/fallback.
+        None => match try_run_agent_turn(
             state,
             &system_prompt,
             &user_prompt,
-            Some(session_id.as_str()),
-            params.temperature,
-            params.top_p,
-            params.attachment_manifest.clone(),
+            session_id.as_str(),
+            params.skill.clone(),
+            params.attachment_manifest.is_some(),
         )
         .await
         {
-            Ok(r) => r,
-            Err(e) => {
+            Some(Ok(r)) => r,
+            Some(Err(e)) => {
                 return ToolResult::<String>::err_with_remediation(
                     format!("LLM error: {e}"),
                     REM_LLM_COMPLETION,
                 )
                 .to_json();
             }
+            None => match call_llm(
+                state,
+                &system_prompt,
+                &user_prompt,
+                Some(session_id.as_str()),
+                params.temperature,
+                params.top_p,
+                params.attachment_manifest.clone(),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => {
+                    return ToolResult::<String>::err_with_remediation(
+                        format!("LLM error: {e}"),
+                        REM_LLM_COMPLETION,
+                    )
+                    .to_json();
+                }
+            },
         },
     };
 

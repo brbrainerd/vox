@@ -23,10 +23,77 @@
 use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig, LlmToolDef, llm_chat};
 use vox_actor_runtime::ActivityOptions;
 use vox_mcp_registry::TOOL_REGISTRY;
+use vox_orchestrator::models::{ModelSpec, ProviderType};
 
 use crate::input_schemas::tool_input_schema;
 use crate::llm_bridge::tool_selection::{DEFAULT_MAX_TOOLS, TurnContext, select_tools_for_turn};
 use crate::server_state::ServerState;
+
+/// Narrow `ModelSpec -> LlmConfig` mapper (Task 1.3d, F24 wiring).
+///
+/// Deliberately covers only the two simplest, most common provider shapes:
+///
+/// - [`ProviderType::OpenRouter`]: Vox's de-facto default provider for the vast
+///   majority of catalog models. Maps to [`LlmConfig::openrouter`], which already
+///   resolves the API key from `vox_secrets::SecretId::OpenRouterApiKey` — no
+///   fallback/vision/budget logic required.
+/// - [`ProviderType::Ollama`]: local inference with a fixed, well-known URL shape
+///   (`$OLLAMA_URL/v1/chat/completions`), mirroring the existing
+///   `ModelRegistry::get_llm_config` conversion for the same provider type
+///   (`crates/vox-orchestrator/src/models/registry.rs`).
+///
+/// Returns `None` for every other [`ProviderType`] (`GoogleDirect`,
+/// `HuggingFaceRouter`, `VoxLocal`, `PopuliMesh`, `Anthropic`, `Mistral`,
+/// `DeepSeek`, `SambaNova`, `Groq`, `Cerebras`, `Custom`) — those require the
+/// provider-specific fallback chains, dedicated-endpoint resolution, or
+/// unreachable-provider handling that only
+/// `crate::llm_bridge::infer::mcp_infer_completion` implements, and this mapper
+/// deliberately does not attempt to replicate that pipeline. Callers must fall
+/// back to `mcp_infer_completion` when this returns `None`.
+#[must_use]
+pub(crate) fn model_spec_to_llm_config(spec: &ModelSpec) -> Option<LlmConfig> {
+    match spec.provider_type {
+        ProviderType::OpenRouter => Some(LlmConfig::openrouter(spec.id.clone())),
+        ProviderType::Ollama => {
+            let base_url = vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaUrl)
+                .expose()
+                .filter(|s: &&str| !s.trim().is_empty())
+                .map(|u: &str| format!("{}/v1/chat/completions", u.trim_end_matches('/')))?;
+            Some(LlmConfig {
+                provider: "ollama".to_string(),
+                model: spec.id.clone(),
+                cost_per_1k: None,
+                base_url: Some(base_url),
+                api_key: None,
+                temperature: None,
+                top_p: None,
+                max_tokens: Some(spec.max_tokens),
+                response_format: None,
+                tools: None,
+                tool_choice: None,
+                timeout_ms: None,
+                telemetry_session_id: None,
+                telemetry_user_id: None,
+                telemetry_task_category: None,
+                telemetry_strength_tag: None,
+                telemetry_trace_id: None,
+                telemetry_attempt_number: None,
+                telemetry_skip_interaction: true,
+            })
+        }
+        ProviderType::GoogleDirect
+        | ProviderType::HuggingFaceRouter
+        | ProviderType::VoxLocal
+        | ProviderType::PopuliMesh
+        | ProviderType::Anthropic
+        | ProviderType::Mistral
+        | ProviderType::DeepSeek
+        | ProviderType::SambaNova
+        | ProviderType::Groq
+        | ProviderType::Cerebras
+        | ProviderType::Custom(_) => None,
+    }
+}
 
 /// Hard bound on the number of model round-trips within a single `run_agent_turn`
 /// call. Each iteration is: one `llm_chat` call, plus (if it requested tools) one
@@ -35,17 +102,13 @@ use crate::server_state::ServerState;
 /// then answer" turn is 2-3 iterations) while guaranteeing the loop cannot spin
 /// forever if a model pathologically keeps requesting tools — this is a safety
 /// bound, not a tuning knob callers are expected to raise routinely.
-#[allow(dead_code)]
 pub(crate) const DEFAULT_MAX_ITERATIONS: usize = 8;
 
 /// Result of running one agent turn to completion (or to the iteration bound).
 ///
-/// Not yet called from `vox_chat_message`'s live entrypoint (see the Task 1.3c
-/// report / `message.rs` for why: wiring it in would require rebuilding
-/// `message.rs`'s model-resolution/fallback-candidate logic, which is explicitly
-/// out of scope for this task) — `#[allow(dead_code)]` reflects that this is a
-/// deliberately-unwired-but-complete, independently-tested unit, not an oversight.
-#[allow(dead_code)]
+/// Called from `vox_chat_message`'s live entrypoint (`message.rs`) for the subset
+/// of provider/model choices [`model_spec_to_llm_config`] can map without the
+/// full `mcp_infer_completion` fallback pipeline (Task 1.3d, F24).
 #[derive(Debug, Clone)]
 pub struct AgentTurnOutcome {
     /// The final assistant-facing text. When the iteration bound is hit before the
@@ -64,6 +127,10 @@ pub struct AgentTurnOutcome {
     /// caller-supplied `max_iterations`) was reached while the model was still
     /// requesting tools, rather than because the model returned a final answer.
     pub hit_iteration_limit: bool,
+    /// Sum of `prompt_tokens + completion_tokens` reported by the wire response
+    /// across every `llm_chat` round-trip made during this turn (for transcript
+    /// bookkeeping — `message.rs` records this alongside the persisted turn).
+    pub total_tokens: u64,
 }
 
 /// Run one user turn of the tool-calling agent loop to completion.
@@ -80,7 +147,7 @@ pub struct AgentTurnOutcome {
 /// soon as a response has no tool_calls (returns its `content` as the final
 /// answer), or after `max_iterations` model round-trips (whichever comes first —
 /// see [`DEFAULT_MAX_ITERATIONS`] for why this bound must be real and finite).
-#[allow(dead_code, clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_agent_turn(
     state: &ServerState,
     prior_conversation: Vec<LlmChatMessage>,
@@ -123,6 +190,7 @@ pub(crate) async fn run_agent_turn(
     let activity_options = ActivityOptions::new();
     let mut model_used = String::new();
     let mut tool_calls_made = 0usize;
+    let mut total_tokens = 0u64;
 
     for iteration in 0..max_iterations {
         let mut config = llm_config_template.clone();
@@ -141,6 +209,7 @@ pub(crate) async fn run_agent_turn(
             }
         };
         model_used = resp.model.clone();
+        total_tokens += u64::from(resp.prompt_tokens) + u64::from(resp.completion_tokens);
 
         match resp.tool_calls {
             Some(calls) if !calls.is_empty() => {
@@ -179,6 +248,7 @@ pub(crate) async fn run_agent_turn(
                         model_used,
                         tool_calls_made,
                         hit_iteration_limit: true,
+                        total_tokens,
                     });
                 }
                 // Otherwise loop: ask the model again with the tool results appended.
@@ -189,6 +259,7 @@ pub(crate) async fn run_agent_turn(
                     model_used,
                     tool_calls_made,
                     hit_iteration_limit: false,
+                    total_tokens,
                 });
             }
         }
@@ -203,6 +274,7 @@ pub(crate) async fn run_agent_turn(
         model_used,
         tool_calls_made,
         hit_iteration_limit: true,
+        total_tokens,
     })
 }
 
@@ -448,6 +520,128 @@ mod tests {
             requests.len(),
             max_iterations,
             "loop must make exactly max_iterations model round-trips, not hang"
+        );
+    }
+
+    fn model_spec(provider_type: vox_orchestrator::models::ProviderType, id: &str) -> ModelSpec {
+        ModelSpec {
+            id: id.to_string(),
+            canonical_slug: id.to_string(),
+            provider: "test".to_string(),
+            provider_type,
+            max_tokens: 8192,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            observed_cost_per_1k: None,
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: vox_orchestrator::models::spec::PricingSource::Bootstrap,
+            is_free: false,
+            strengths: Vec::new(),
+            capabilities: vox_orchestrator::models::ModelCapabilities::default(),
+            supported_parameters: Vec::new(),
+        }
+    }
+
+    /// Task 1.3d mapper test: an OpenRouter-routed [`ModelSpec`] must convert to a
+    /// working [`LlmConfig`] (this is the case `message.rs` now routes through
+    /// `run_agent_turn` instead of `mcp_infer_completion`).
+    #[test]
+    fn model_spec_to_llm_config_maps_openrouter() {
+        let spec = model_spec(ProviderType::OpenRouter, "openrouter/some-model");
+        let cfg = model_spec_to_llm_config(&spec).expect("openrouter must map");
+        assert_eq!(cfg.provider, "openrouter");
+        assert_eq!(cfg.model, "openrouter/some-model");
+    }
+
+    /// Deliberately-unhandled case: `ProviderType::GoogleDirect` requires the
+    /// `apply_gemini_policy`/direct-Gemini-endpoint handling that lives in
+    /// `mcp_infer_completion`'s provider-adapter dispatch, not a narrow mapper —
+    /// so this must return `None` and let the caller fall back to that pipeline.
+    #[test]
+    fn model_spec_to_llm_config_returns_none_for_google_direct() {
+        let spec = model_spec(ProviderType::GoogleDirect, "gemini-2.0-flash");
+        assert!(model_spec_to_llm_config(&spec).is_none());
+    }
+
+    static CHAT_MESSAGE_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Task 1.3d end-to-end proof that F24 is fixed for the mapped-provider case:
+    /// calling the real, live `vox_chat_message` handler (`chat_message`, exactly
+    /// what the MCP server dispatches to) for an OpenRouter-routed model results in
+    /// an actual HTTP request that carries a non-empty `tools` array — i.e. a real
+    /// chat message now causes a real tool-bearing request, closing the gap
+    /// Finding F24 named ("no code path in Vox ever passes tools to a model").
+    #[tokio::test]
+    #[allow(unsafe_code)] // env var mutation under a process-wide lock, like existing env tests
+    async fn chat_message_default_path_sends_tools_bearing_request() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("no tools needed")),
+            )
+            .mount(&server)
+            .await;
+
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let state = test_state();
+        let model_id = "test-openrouter-model";
+        {
+            let handle = state.orchestrator.models_handle();
+            let mut registry = handle.write().expect("models registry lock");
+            registry.register(model_spec(ProviderType::OpenRouter, model_id));
+        }
+        // Sticky override: deterministically select the model we just registered,
+        // bypassing scorer heuristics that are out of scope for this test.
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        let params: crate::chat_tools::params::ChatMessageParams =
+            serde_json::from_value(serde_json::json!({ "prompt": "hello there" }))
+                .expect("chat message params");
+
+        let response_json = super::super::message::chat_message(&state, params).await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        assert!(
+            !response_json.contains("\"error\""),
+            "chat_message should succeed via the mapped agent-loop path: {response_json}"
+        );
+
+        let requests = server.received_requests().await.expect("received requests");
+        assert!(
+            !requests.is_empty(),
+            "vox_chat_message must have made at least one HTTP request to the model"
+        );
+        let body: serde_json::Value =
+            serde_json::from_slice(&requests[0].body).expect("request body is JSON");
+        let tools = body
+            .get("tools")
+            .and_then(|t| t.as_array())
+            .expect("real vox_chat_message call must send a non-null `tools` array — F24");
+        assert!(
+            !tools.is_empty(),
+            "tools array must be non-empty — a real chat message must offer real tools"
         );
     }
 }
