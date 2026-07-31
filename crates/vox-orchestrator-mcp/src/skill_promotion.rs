@@ -61,8 +61,13 @@
 //!   network call; [`llm_chat_judge`] is the real production judge wired to
 //!   `vox_actor_runtime::llm::llm_chat`, gated by the same
 //!   `VOX_INFERENCE_PRIVACY` hard filter used elsewhere (Task 2.2) via
-//!   `vox_orchestrator::route_policy::is_local_http_provider`. Known
-//!   limitation: `skill_candidates` does not record which model produced the
+//!   `vox_orchestrator::route_policy::is_local_http_provider`. Returns a
+//!   3-way [`VerificationOutcome`] (`Approved`/`Rejected`/
+//!   `VerificationError`), not a plain pass/fail — a judge *rejection* is a
+//!   permanent verdict, while a failed verification *call* (timeout,
+//!   unreachable model, privacy denial) is transient and should leave the
+//!   candidate `pending` for retry rather than kill it. Known limitation:
+//!   `skill_candidates` does not record which model produced the
 //!   mined trajectory (the miners are static analyzers, not model calls —
 //!   there is no "generating model" to diff against), so "verification by a
 //!   *different* model" reduces to "verification by *a* model the operator
@@ -245,23 +250,78 @@ pub fn gate_no_known_counterexamples(_row: &SkillCandidateRow) -> GateResult {
     )
 }
 
+/// Outcome of gate 4's independent verification. Distinct from [`GateResult`]
+/// on purpose: a plain pass/fail bool would conflate "the judge looked at
+/// this and rejected it" (a real, permanent verdict — the candidate should
+/// move to `rejected`) with "the verification call itself failed" (a
+/// transient infra problem — timeout, unreachable model, privacy filter
+/// denial — that says nothing about the candidate's merit and should leave
+/// it `pending` for retry, not kill it). Collapsing these into one
+/// `!passed` would make a future dispatcher permanently reject good
+/// candidates whenever the judge model was briefly down.
+#[derive(Debug, Clone, PartialEq)]
+pub enum VerificationOutcome {
+    /// The judge model reviewed the candidate and approved it.
+    Approved { reason: String },
+    /// The judge model reviewed the candidate and rejected it. Permanent —
+    /// a caller should treat this like any other failed gate.
+    Rejected { reason: String },
+    /// The verification call itself did not complete (transport error,
+    /// timeout, privacy filter denial, malformed response, etc). No verdict
+    /// was reached; a caller should leave the candidate `pending` and retry
+    /// rather than reject it.
+    VerificationError { reason: String },
+}
+
+impl VerificationOutcome {
+    /// True only for [`Self::Approved`] — mirrors `GateResult::passed` for
+    /// callers that just want "did this gate clear".
+    #[must_use]
+    pub fn passed(&self) -> bool {
+        matches!(self, Self::Approved { .. })
+    }
+
+    /// True for [`Self::VerificationError`] — signals "retry me", as opposed
+    /// to a permanent judge rejection.
+    #[must_use]
+    pub fn is_transient(&self) -> bool {
+        matches!(self, Self::VerificationError { .. })
+    }
+
+    #[must_use]
+    pub fn reason(&self) -> &str {
+        match self {
+            Self::Approved { reason } | Self::Rejected { reason } | Self::VerificationError { reason } => reason,
+        }
+    }
+}
+
 /// Gate 4: independent verification by a judge. Generic over an async
 /// closure so this is unit-testable without a network call; see
-/// [`llm_chat_judge`] for the production wiring. Returns the judge's
-/// pass/fail plus its raw text for audit.
+/// [`llm_chat_judge`] for the production wiring. `judge` returns `Ok(true)`
+/// for approval, `Ok(false)` for an explicit rejection verdict, and `Err` for
+/// a failed verification *call* (no verdict reached) — see
+/// [`VerificationOutcome`] for why these three are kept distinct.
 pub async fn gate_independent_verification<F, Fut>(
     draft: &CandidateSkillDraft,
     judge: F,
-) -> GateResult
+) -> VerificationOutcome
 where
     F: FnOnce(String) -> Fut,
     Fut: std::future::Future<Output = Result<bool, String>>,
 {
     let prompt = build_verification_prompt(draft);
     match judge(prompt).await {
-        Ok(true) => GateResult::pass("judge model approved the candidate as a genuine, generalizable, safe skill"),
-        Ok(false) => GateResult::fail("judge model rejected the candidate"),
-        Err(e) => GateResult::fail(format!("verification call failed: {e}")),
+        Ok(true) => VerificationOutcome::Approved {
+            reason: "judge model approved the candidate as a genuine, generalizable, safe skill"
+                .to_string(),
+        },
+        Ok(false) => VerificationOutcome::Rejected {
+            reason: "judge model rejected the candidate".to_string(),
+        },
+        Err(e) => VerificationOutcome::VerificationError {
+            reason: format!("verification call failed: {e}"),
+        },
     }
 }
 
@@ -506,7 +566,7 @@ mod tests {
     // --- gate 4: independent verification (fake judge, no network) ---
 
     #[tokio::test]
-    async fn gate_independent_verification_passes_when_judge_approves() {
+    async fn gate_independent_verification_approves_when_judge_approves() {
         let draft = CandidateSkillDraft {
             name: "n".to_string(),
             description: "d".to_string(),
@@ -517,11 +577,15 @@ mod tests {
             Ok(true)
         })
         .await;
-        assert!(result.passed);
+        assert!(result.passed());
+        assert!(!result.is_transient());
+        assert!(matches!(result, VerificationOutcome::Approved { .. }));
     }
 
+    /// A judge that reviewed the candidate and explicitly rejected it: a
+    /// permanent verdict, distinct from a failed verification call.
     #[tokio::test]
-    async fn gate_independent_verification_fails_when_judge_rejects() {
+    async fn gate_independent_verification_rejects_when_judge_disapproves() {
         let draft = CandidateSkillDraft {
             name: "n".to_string(),
             description: "d".to_string(),
@@ -529,11 +593,16 @@ mod tests {
         };
         let result =
             gate_independent_verification(&draft, |_| async move { Ok(false) }).await;
-        assert!(!result.passed);
+        assert!(!result.passed());
+        assert!(!result.is_transient(), "a judge rejection is permanent, not transient");
+        assert!(matches!(result, VerificationOutcome::Rejected { .. }));
     }
 
+    /// The verification *call itself* fails (timeout/unreachable/etc) — no
+    /// verdict was reached, so this must be distinguishable from a judge
+    /// rejection: a future dispatcher should retry, not permanently reject.
     #[tokio::test]
-    async fn gate_independent_verification_fails_when_judge_errors() {
+    async fn gate_independent_verification_is_transient_when_call_errors() {
         let draft = CandidateSkillDraft {
             name: "n".to_string(),
             description: "d".to_string(),
@@ -543,8 +612,23 @@ mod tests {
             Err("timeout".to_string())
         })
         .await;
-        assert!(!result.passed);
-        assert!(result.reason.contains("timeout"));
+        assert!(!result.passed());
+        assert!(result.is_transient(), "an infra failure must be marked transient");
+        assert!(matches!(result, VerificationOutcome::VerificationError { .. }));
+        assert!(result.reason().contains("timeout"));
+    }
+
+    #[test]
+    fn verification_outcome_variants_are_distinguishable_not_collapsed() {
+        // Regression guard for the code-review finding: Approved/Rejected/
+        // VerificationError must never compare equal to each other even
+        // when their `passed()` bit matches, and `is_transient()` must only
+        // be true for VerificationError.
+        let rejected = VerificationOutcome::Rejected { reason: "r".to_string() };
+        let error = VerificationOutcome::VerificationError { reason: "r".to_string() };
+        assert_ne!(rejected, error);
+        assert!(!rejected.passed() && !rejected.is_transient());
+        assert!(!error.passed() && error.is_transient());
     }
 
     #[tokio::test]

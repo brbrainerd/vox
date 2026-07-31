@@ -325,7 +325,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_operations_tool ON agent_operations(tool_na
 -- provisional -> confirmed -> deprecated shadow-period state machine,
 -- mirroring `vox_orchestrator::models::autonomic::ModelConfidence`.
 -- `source_hash` binds a promoted skill's identity to the trajectory it was
--- derived from (Keccak/blake3 of `raw_json`), so a later mining run that
+-- derived from (blake3 of `raw_json`), so a later mining run that
 -- produces a materially different trajectory under the same
 -- `candidate_name` can be detected and forced back through verification
 -- instead of silently overwriting the confirmed skill (Task 3.3 gate 8).
