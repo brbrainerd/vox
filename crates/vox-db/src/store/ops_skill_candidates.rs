@@ -83,29 +83,34 @@ impl VoxDb {
     pub async fn list_pending_skill_candidates(
         &self,
     ) -> Result<Vec<SkillCandidateRow>, StoreError> {
-        let mut rows = self
-            .conn
-            .query(
-                "SELECT id, candidate_name, source, raw_json, status, created_at_ms
-                 FROM skill_candidates
-                 WHERE status = 'pending'
-                 ORDER BY created_at_ms DESC, id DESC",
-                (),
-            )
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT id, candidate_name, source, raw_json, status, created_at_ms
+                         FROM skill_candidates
+                         WHERE status = 'pending'
+                         ORDER BY created_at_ms DESC, id DESC",
+                        (),
+                    )
+                    .await
+                    .map_err(StoreError::Turso)?;
+                let mut out = Vec::new();
+                while let Some(row) = rows.next().await.map_err(StoreError::Turso)? {
+                    out.push(SkillCandidateRow {
+                        id: row.get(0).map_err(StoreError::Turso)?,
+                        candidate_name: row.get(1).map_err(StoreError::Turso)?,
+                        source: row.get(2).map_err(StoreError::Turso)?,
+                        raw_json: row.get(3).map_err(StoreError::Turso)?,
+                        status: row.get(4).map_err(StoreError::Turso)?,
+                        created_at_ms: row.get(5).map_err(StoreError::Turso)?,
+                    });
+                }
+                Ok::<Vec<SkillCandidateRow>, StoreError>(out)
+            })
             .await
-            .map_err(StoreError::Turso)?;
-        let mut out = Vec::new();
-        while let Some(row) = rows.next().await.map_err(StoreError::Turso)? {
-            out.push(SkillCandidateRow {
-                id: row.get(0).map_err(StoreError::Turso)?,
-                candidate_name: row.get(1).map_err(StoreError::Turso)?,
-                source: row.get(2).map_err(StoreError::Turso)?,
-                raw_json: row.get(3).map_err(StoreError::Turso)?,
-                status: row.get(4).map_err(StoreError::Turso)?,
-                created_at_ms: row.get(5).map_err(StoreError::Turso)?,
-            });
-        }
-        Ok(out)
     }
 }
 
