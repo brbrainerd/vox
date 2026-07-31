@@ -15,6 +15,7 @@ import { ChatModelPicker } from './components/surfaces/Chat/ChatModelPicker';
 import { GroundingCheckToggle } from './components/surfaces/Chat/GroundingCheckToggle';
 import { useGroundingCheck } from './hooks/useGroundingCheck';
 import { Toasts, ToastItem } from './components/ui/Toasts';
+import { coalesceToast } from './lib/toastQueue';
 import { BackendBanner } from './components/ui/BackendBanner';
 import { VersionMismatchBanner } from './components/layout/VersionMismatchBanner';
 import { userAppendInput } from './lib/composerSubmit';
@@ -308,11 +309,27 @@ export default function App() {
   const meshWindow       = usePersistedSparkWindow('kpi.mesh', typeof kpis.mesh.value === 'number' ? kpis.mesh.value : kpis.mesh.peers);
 
   // ── Toast helper ─────────────────────────────────────────────────────────
+  // Same-group toasts (see Toast.groupKey, defaults to title) coalesce into a
+  // single entry with a count rather than pushing separate entries; once at
+  // capacity, distinct-group arrivals fold into an "N more notifications"
+  // overflow toast instead of silently dropping an unseen one. See
+  // src/lib/toastQueue.ts.
+  const toastTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const pushToast = useCallback((t: Toast) => {
     const id = nextId('toast');
-    const MAX_TOASTS = 3;
-    setToasts(curr => [...curr, { ...t, id }].slice(-MAX_TOASTS));
-    setTimeout(() => setToasts(curr => curr.filter(x => x.id !== id)), 5000);
+    setToasts(curr => {
+      const { items, touchedId } = coalesceToast(curr, t, id);
+      const prevTimer = toastTimers.current.get(touchedId);
+      if (prevTimer) clearTimeout(prevTimer);
+      toastTimers.current.set(
+        touchedId,
+        setTimeout(() => {
+          setToasts(c => c.filter(x => x.id !== touchedId));
+          toastTimers.current.delete(touchedId);
+        }, 5000),
+      );
+      return items;
+    });
   }, []);
 
   const openAchievements = useCallback(() => {
