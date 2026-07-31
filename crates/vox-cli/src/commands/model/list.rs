@@ -2,7 +2,12 @@
 
 use anyhow::anyhow;
 use clap::Parser;
-use vox_orchestrator::models::{Capability, ModelRegistry};
+use vox_orchestrator::models::{Capability, ModelRegistry, ModelSpec, ProviderType};
+
+/// Default row cap. Chosen to comfortably exceed the current catalog size (~381 models as of
+/// 2026-07) so that a plain `vox model list` never silently truncates the output. Explicit
+/// `--limit` always wins.
+const DEFAULT_LIMIT: usize = 1000;
 
 #[derive(Parser)]
 pub struct ListArgs {
@@ -10,8 +15,31 @@ pub struct ListArgs {
     #[arg(long)]
     pub capability: Option<String>,
     /// Maximum rows to print.
-    #[arg(long, default_value_t = 100)]
+    #[arg(long, default_value_t = DEFAULT_LIMIT)]
     pub limit: usize,
+    /// Only show models runnable on this machine without any cloud credentials
+    /// (Ollama / VoxLocal / PopuliMesh providers).
+    #[arg(long)]
+    pub local_only: bool,
+    /// Only show models with `is_free == true` (no per-token cost).
+    #[arg(long)]
+    pub free_only: bool,
+}
+
+/// True for providers that run without a paid cloud credential (local inference).
+fn is_local_provider(p: &ProviderType) -> bool {
+    matches!(
+        p,
+        ProviderType::Ollama | ProviderType::VoxLocal | ProviderType::PopuliMesh
+    )
+}
+
+/// Default list ordering: local/free models first (so they're never buried past a row limit),
+/// then alphabetical by id within each group. This directly addresses the bug where alphabetical
+/// sort + a modest default `--limit` silently hid every local Ollama model (their ids sort late,
+/// e.g. `qwen3:8b`, `vox-mens-v1:latest`).
+fn default_sort_key(m: &ModelSpec) -> (bool, bool, &str) {
+    (!is_local_provider(&m.provider_type), !m.is_free, m.id.as_str())
 }
 
 pub async fn run(args: ListArgs) -> anyhow::Result<()> {
@@ -24,7 +52,13 @@ pub async fn run(args: ListArgs) -> anyhow::Result<()> {
     if let Some(c) = cap {
         models.retain(|m| m.capabilities.supports(c));
     }
-    models.sort_by(|a, b| a.id.cmp(&b.id));
+    if args.local_only {
+        models.retain(|m| is_local_provider(&m.provider_type));
+    }
+    if args.free_only {
+        models.retain(|m| m.is_free);
+    }
+    models.sort_by(|a, b| default_sort_key(a).cmp(&default_sort_key(b)));
     for m in models.into_iter().take(args.limit) {
         println!("{}", m.id);
     }
@@ -44,5 +78,83 @@ fn parse_capability(raw: &str) -> anyhow::Result<Capability> {
         other => Err(anyhow!(
             "unknown capability {other:?}; try supports_tool_use, supports_reasoning, …"
         )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vox_orchestrator::models::PricingSource;
+
+    fn make_spec(id: &str, provider_type: ProviderType, is_free: bool) -> ModelSpec {
+        ModelSpec {
+            id: id.to_string(),
+            canonical_slug: String::new(),
+            provider: "test".to_string(),
+            provider_type,
+            max_tokens: 4096,
+            cost_per_1k: if is_free { 0.0 } else { 1.0 },
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free,
+            observed_cost_per_1k: None,
+            strengths: vec![],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    /// Reproduces the original bug scenario: >100 catalog entries, alphabetically sorted, with a
+    /// free/local model (`qwen3:8b`) whose id sorts well past position 100. Confirms the new
+    /// default sort surfaces it near the top instead of past the default limit.
+    #[test]
+    fn default_sort_surfaces_local_model_despite_late_alphabetical_id() {
+        let mut models: Vec<ModelSpec> = (0..150)
+            .map(|i| make_spec(&format!("cloud-model-{i:03}"), ProviderType::OpenRouter, false))
+            .collect();
+        // "qwen3:8b" sorts after all 150 "cloud-model-*" ids alphabetically.
+        models.push(make_spec("qwen3:8b", ProviderType::Ollama, true));
+        models.push(make_spec("vox-mens-v1:latest", ProviderType::PopuliMesh, true));
+
+        // Old behavior: plain alphabetical sort + limit(100) would drop both local models.
+        let mut alpha_sorted = models.clone();
+        alpha_sorted.sort_by(|a, b| a.id.cmp(&b.id));
+        let old_result: Vec<&str> = alpha_sorted.iter().take(100).map(|m| m.id.as_str()).collect();
+        assert!(
+            !old_result.contains(&"qwen3:8b"),
+            "sanity check: old alphabetical+limit(100) should reproduce the bug"
+        );
+
+        // New behavior: local/free-first sort surfaces them well within any reasonable limit.
+        let mut new_sorted = models.clone();
+        new_sorted.sort_by(|a, b| default_sort_key(a).cmp(&default_sort_key(b)));
+        let new_top: Vec<&str> = new_sorted.iter().take(100).map(|m| m.id.as_str()).collect();
+        assert!(new_top.contains(&"qwen3:8b"), "qwen3:8b must survive the default limit");
+        assert!(
+            new_top.contains(&"vox-mens-v1:latest"),
+            "vox-mens-v1:latest must survive the default limit"
+        );
+
+        // And with the new DEFAULT_LIMIT (1000), everything survives regardless of sort order.
+        assert!(new_sorted.len() <= DEFAULT_LIMIT);
+    }
+
+    #[test]
+    fn local_only_flag_filters_to_local_providers() {
+        let models = vec![
+            make_spec("cloud-a", ProviderType::OpenRouter, false),
+            make_spec("qwen3:8b", ProviderType::Ollama, true),
+            make_spec("mesh-model", ProviderType::PopuliMesh, true),
+        ];
+        let local: Vec<&str> = models
+            .iter()
+            .filter(|m| is_local_provider(&m.provider_type))
+            .map(|m| m.id.as_str())
+            .collect();
+        assert_eq!(local, vec!["qwen3:8b", "mesh-model"]);
     }
 }
