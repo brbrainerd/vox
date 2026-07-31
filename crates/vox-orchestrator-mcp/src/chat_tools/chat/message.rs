@@ -106,11 +106,32 @@ async fn try_run_agent_turn(
     ))
     .await
     {
-        Ok(outcome) => Some(Ok((
-            outcome.final_text,
-            outcome.model_used,
-            outcome.total_tokens,
-        ))),
+        Ok(outcome) => {
+            tracing::info!(
+                target: "vox_mcp::agent_loop",
+                tool_calls_made = outcome.tool_calls_made,
+                hit_iteration_limit = outcome.hit_iteration_limit,
+                model = %outcome.model_used,
+                "vox_chat_message agent-loop turn completed"
+            );
+            let final_text = if outcome.hit_iteration_limit {
+                tracing::warn!(
+                    target: "vox_mcp::agent_loop",
+                    tool_calls_made = outcome.tool_calls_made,
+                    max_iterations = super::agent_loop::DEFAULT_MAX_ITERATIONS,
+                    "vox_chat_message agent-loop turn hit the iteration bound before the \
+                     model returned a final answer"
+                );
+                format!(
+                    "{}\n\n[Note: this response was cut off after {} tool-use round-trips \
+                     without reaching a final answer.]",
+                    outcome.final_text, outcome.tool_calls_made
+                )
+            } else {
+                outcome.final_text
+            };
+            Some(Ok((final_text, outcome.model_used, outcome.total_tokens)))
+        }
         Err(e) => Some(Err(e)),
     }
 }

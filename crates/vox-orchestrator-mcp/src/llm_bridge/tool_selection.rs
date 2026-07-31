@@ -83,7 +83,7 @@ impl TurnContext {
     }
 
     fn lane_allowed(&self, lane: &str) -> bool {
-        self.lanes.is_empty() || self.lanes.iter().any(|l| *l == lane)
+        self.lanes.is_empty() || self.lanes.contains(&lane)
     }
 }
 

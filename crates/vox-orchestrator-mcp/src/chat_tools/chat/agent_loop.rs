@@ -178,8 +178,19 @@ pub(crate) async fn run_agent_turn(
         max_tools: DEFAULT_MAX_TOOLS,
     };
     let selected = select_tools_for_turn(TOOL_REGISTRY, &state.skill_registry, &turn_ctx);
+    // Never offer chat-turn-entry tools (`vox_chat_*`, e.g. `vox_chat_message`) as
+    // callable tools inside an agent turn. `select_tools_for_turn`'s general-purpose
+    // skill-permission filter (`skill_permissions::is_skill_infrastructure_tool`)
+    // deliberately whitelists `vox_chat_*` through *skill* restrictions — that's
+    // correct for other, non-recursive callers, so this exclusion belongs here at
+    // the `run_agent_turn` call site, not in `tool_selection.rs`. Without it, a
+    // model could dispatch `vox_chat_message` via `handle_tool_call_with_mode`,
+    // which re-enters `chat_message -> try_run_agent_turn -> run_agent_turn` —
+    // each re-entrant call gets its own fresh `max_iterations` budget, so
+    // `DEFAULT_MAX_ITERATIONS` alone would not bound the recursion depth.
     let tool_defs: Vec<LlmToolDef> = selected
         .iter()
+        .filter(|entry| !entry.name.starts_with("vox_chat_"))
         .map(|entry| LlmToolDef {
             name: entry.name.to_string(),
             description: Some(entry.description.to_string()),
@@ -480,6 +491,66 @@ mod tests {
         assert_eq!(tool_msg["name"], "vox_git_status");
     }
 
+    /// Recursion-safety regression: `vox_chat_message` (and any other `vox_chat_*`
+    /// tool) must never appear in the `tools` array sent to the model from within
+    /// `run_agent_turn`. `select_tools_for_turn`'s general-purpose skill-permission
+    /// filter (`skill_permissions::is_skill_infrastructure_tool`) whitelists
+    /// `vox_chat_*` through *skill* restrictions — correct for other, non-recursive
+    /// callers — so without an explicit exclusion here, a model could be offered
+    /// `vox_chat_message` as a callable tool, dispatch it via
+    /// `handle_tool_call_with_mode`, and re-enter `chat_message ->
+    /// try_run_agent_turn -> run_agent_turn`, where each re-entrant call gets its
+    /// own fresh `max_iterations` budget (no real recursion-depth bound).
+    #[tokio::test]
+    async fn vox_chat_message_is_never_offered_as_a_tool() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("no tools needed")),
+            )
+            .mount(&server)
+            .await;
+
+        let state = test_state();
+        let config = test_config(format!("{}/chat/completions", server.uri()));
+        run_agent_turn(
+            &state,
+            vec![],
+            "system prompt".to_string(),
+            "hi".to_string(),
+            None,
+            None,
+            config,
+            DEFAULT_MAX_ITERATIONS,
+        )
+        .await
+        .expect("run_agent_turn should succeed");
+
+        let requests = server.received_requests().await.expect("received requests");
+        assert_eq!(requests.len(), 1);
+        let body: serde_json::Value =
+            serde_json::from_slice(&requests[0].body).expect("request body is JSON");
+        let tools = body
+            .get("tools")
+            .and_then(|t| t.as_array())
+            .expect("tools array must be present");
+        assert!(
+            !tools.is_empty(),
+            "sanity check: the turn should still offer some non-chat tools"
+        );
+        assert!(
+            tools
+                .iter()
+                .all(|t| {
+                    let name = t["function"]["name"].as_str().unwrap_or_default();
+                    !name.starts_with("vox_chat_")
+                }),
+            "no vox_chat_* tool (e.g. vox_chat_message) may ever be offered inside \
+             run_agent_turn — doing so would allow unbounded re-entrant recursion; \
+             tools sent: {tools:?}"
+        );
+    }
+
     /// If the model always returns tool_calls, the loop must still terminate at
     /// `max_iterations` rather than looping forever — the hard safety bound
     /// described on [`DEFAULT_MAX_ITERATIONS`] must be real.
@@ -576,6 +647,10 @@ mod tests {
     /// Finding F24 named ("no code path in Vox ever passes tools to a model").
     #[tokio::test]
     #[allow(unsafe_code)] // env var mutation under a process-wide lock, like existing env tests
+    #[allow(clippy::await_holding_lock)] // intentional: the std Mutex must stay held for the
+    // entire test body to serialize access to the process-global OPENROUTER_BASE_URL /
+    // OPENROUTER_API_KEY env vars against any other test that might touch them; this test
+    // never runs concurrently with itself, so there's no deadlock risk from the held guard.
     async fn chat_message_default_path_sends_tools_bearing_request() {
         let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
         let server = MockServer::start().await;
@@ -633,8 +708,18 @@ mod tests {
             !requests.is_empty(),
             "vox_chat_message must have made at least one HTTP request to the model"
         );
-        let body: serde_json::Value =
-            serde_json::from_slice(&requests[0].body).expect("request body is JSON");
+        // Find the actual chat-completion POST body (parses to JSON with a
+        // `messages` array) rather than assuming it's `requests[0]` — the mock
+        // server may also record unrelated inbound requests (e.g. from other
+        // concurrently-running tests / background probes) with empty bodies.
+        let body = requests
+            .iter()
+            .find_map(|r| {
+                let v: serde_json::Value = serde_json::from_slice(&r.body).ok()?;
+                v.get("messages")?.as_array()?;
+                Some(v)
+            })
+            .expect("no request with a JSON `messages` body was received");
         let tools = body
             .get("tools")
             .and_then(|t| t.as_array())
