@@ -7,6 +7,27 @@ use turso::params;
 
 use crate::store::types::StoreError;
 
+/// Build the friendly "already claimed" conflict error shared by the
+/// non-racy read-then-write path and the PK-violation recovery path.
+fn conflict_error(identity: &str, existing_owner: &str, requested_owner: &str) -> StoreError {
+    StoreError::Db(format!(
+        "skill identity '{identity}' is already claimed by owner '{existing_owner}' \
+         (requested by '{requested_owner}')"
+    ))
+}
+
+/// Best-effort classification of a `turso::Error` as a PRIMARY KEY / UNIQUE
+/// constraint violation. `turso` doesn't expose a typed SQLite error-code
+/// variant we can match on here, so this falls back to a substring check on
+/// the stringified error (SQLite's own wording: "UNIQUE constraint failed").
+/// A false negative (an unrecognized wording) just means the caller
+/// surfaces the raw `turso::Error` instead of the friendly conflict
+/// message — degrades to the pre-existing behavior, not a panic.
+fn is_unique_violation(err: &turso::Error) -> bool {
+    let msg = err.to_string().to_ascii_lowercase();
+    msg.contains("unique constraint") || msg.contains("primary key constraint")
+}
+
 impl crate::VoxDb {
     /// Claim `identity` for `owner`, first-come-first-served.
     ///
@@ -21,10 +42,13 @@ impl crate::VoxDb {
     /// Not transactionally atomic against a concurrent claim of the same
     /// identity between the read and the write (same read-then-write
     /// pattern used elsewhere in this module, e.g. `get_skill_reliability`
-    /// callers) — acceptable for a single-writer local Codex DB; a
-    /// multi-writer deployment would need `INSERT ... ON CONFLICT DO
-    /// NOTHING` plus a follow-up read, which turso's SQLite dialect
-    /// supports if this becomes a real race in practice.
+    /// callers) — acceptable for a single-writer local Codex DB. The
+    /// `identity` column's PRIMARY KEY constraint is still the real
+    /// uniqueness guarantee: if a concurrent writer wins the race between
+    /// our `SELECT` and `INSERT`, the `INSERT` fails with a PK violation,
+    /// which is caught below and turned into the same friendly conflict
+    /// error rather than surfacing a raw `turso`/SQLite error to the
+    /// caller.
     pub async fn claim_skill_identity(
         &self,
         identity: &str,
@@ -46,18 +70,45 @@ impl crate::VoxDb {
                     let existing_owner: String =
                         row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
                     if existing_owner != owner {
-                        return Err(StoreError::Db(format!(
-                            "skill identity '{identity}' is already claimed by owner '{existing_owner}' \
-                             (requested by '{owner}')"
-                        )));
+                        return Err(conflict_error(&identity, &existing_owner, &owner));
                     }
                     return Ok(());
                 }
-                conn.execute(
-                    "INSERT INTO skill_identities (identity, owner) VALUES (?1, ?2)",
-                    params![identity.as_str(), owner.as_str()],
-                )
-                .await?;
+                if let Err(e) = conn
+                    .execute(
+                        "INSERT INTO skill_identities (identity, owner) VALUES (?1, ?2)",
+                        params![identity.as_str(), owner.as_str()],
+                    )
+                    .await
+                {
+                    if !is_unique_violation(&e) {
+                        return Err(StoreError::Turso(e));
+                    }
+                    // Lost the race: someone else claimed `identity` between
+                    // our SELECT and this INSERT. Re-read to report *who*
+                    // holds it now, same shape as the non-racy path above.
+                    let mut rows = conn
+                        .query(
+                            "SELECT owner FROM skill_identities WHERE identity = ?1 LIMIT 1",
+                            params![identity.as_str()],
+                        )
+                        .await?;
+                    return match rows.next().await? {
+                        Some(row) => {
+                            let existing_owner: String =
+                                row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                            if existing_owner == owner {
+                                Ok(())
+                            } else {
+                                Err(conflict_error(&identity, &existing_owner, &owner))
+                            }
+                        }
+                        // Row vanished between the failed INSERT and this
+                        // re-read (e.g. concurrent delete) — surface the raw
+                        // constraint failure rather than guessing an owner.
+                        None => Err(StoreError::Turso(e)),
+                    };
+                }
                 Ok::<(), StoreError>(())
             })
             .await
@@ -137,5 +188,36 @@ mod tests {
             .expect_err("squat attempt must be rejected");
         let msg = err.to_string();
         assert!(msg.contains("already claimed"), "unexpected message: {msg}");
+    }
+
+    /// Simulates the genuine race the PK-violation fallback exists for: two
+    /// callers both see `identity` as unclaimed (their `SELECT`s race ahead
+    /// of either `INSERT`), so one of the two `INSERT`s hits the PRIMARY KEY
+    /// constraint. That must surface as the same friendly "already claimed"
+    /// conflict, not a raw `turso`/SQLite error.
+    #[tokio::test]
+    async fn concurrent_claim_race_degrades_to_friendly_conflict() {
+        let db = std::sync::Arc::new(test_db().await);
+        let db_a = db.clone();
+        let db_b = db.clone();
+        let (a, b) = tokio::join!(
+            db_a.claim_skill_identity("io.github.alice/racey", "alice"),
+            db_b.claim_skill_identity("io.github.alice/racey", "bob"),
+        );
+
+        // Exactly one of the two distinct-owner claims must win; the loser
+        // must be the friendly conflict error, never a raw StoreError::Turso.
+        let results = [a, b];
+        let oks = results.iter().filter(|r| r.is_ok()).count();
+        assert_eq!(oks, 1, "exactly one racing claim should win: {results:?}");
+        for r in &results {
+            if let Err(e) = r {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("already claimed"),
+                    "race loser must get the friendly conflict message, got: {msg}"
+                );
+            }
+        }
     }
 }

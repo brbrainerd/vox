@@ -4,7 +4,7 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 83
+  repository_baseline_integer: 84
   # Keccak-256 of baseline_sql() — updated for 83: skill_candidates.lifecycle_state + source_hash (Task 3.3, harness parity plan);
   # re-updated for a comment fix (source_hash is blake3-only, not Keccak/blake3 — code-review finding on cd3f7e8736);
   # re-updated for skill_identities table (Task 3.4, harness parity plan — skill namespace/identity FCFS uniqueness).

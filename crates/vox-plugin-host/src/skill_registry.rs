@@ -241,6 +241,17 @@ impl SkillRegistry {
                 }
             }
 
+            // NOTE: `owner` is the free-text `manifest.author` field, which has
+            // no verified relationship to the `io.github.<user>` segment of
+            // `identity` — nothing here checks that the installer actually
+            // controls that GitHub account. Anyone can set `author = "alice"`
+            // and claim `io.github.alice/<name>` today. This is the
+            // explicitly-scoped "gameable free-text owner" allowance
+            // documented in `vox_plugin_types::skill_identity` (no GitHub
+            // OAuth/OIDC or other identity-proof mechanism exists in this
+            // codebase yet); the uniqueness guarantee this call provides is
+            // real (first writer wins, no silent overwrite), the *identity*
+            // guarantee is not.
             let owner = if bundle.manifest.author.is_empty() {
                 "unknown".to_string()
             } else {
