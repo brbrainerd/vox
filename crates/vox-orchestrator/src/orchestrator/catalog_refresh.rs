@@ -265,6 +265,21 @@ async fn register_supplemental_catalogs(
         HuggingFaceCatalog, MensCatalog, ModelCatalog, OllamaCatalog, PopuliMeshCatalog,
     };
 
+    // Probe NVML once per refresh cycle (Task 2.6) and cache the result for
+    // this pass's scoring — never per scoring call. NVML is blocking FFI, so
+    // run it on the blocking pool rather than the async worker thread; any
+    // failure (including no NVIDIA GPU present) degrades to "no signal"
+    // inside `refresh_free_vram_hint_from_nvml` itself.
+    if let Err(e) =
+        tokio::task::spawn_blocking(crate::models::refresh_free_vram_hint_from_nvml).await
+    {
+        tracing::debug!(
+            target: "vox.orchestrator.catalog_refresh",
+            error = %e,
+            "NVML probe task panicked/was cancelled; VRAM-fit signal left as-is"
+        );
+    }
+
     let mut ollama_count = 0usize;
     let ollama_url = vox_config::local_ollama_populi_base_url();
     if let Ok(models) = OllamaCatalog::new(ollama_url).refresh().await {

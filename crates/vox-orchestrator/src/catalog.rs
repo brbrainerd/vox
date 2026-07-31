@@ -292,6 +292,22 @@ mod tests {
         assert!(strengths.contains(&StrengthTag::Debugging));
     }
 }
+/// Parses Ollama's `details.parameter_size` field (e.g. `"8.2B"`, `"70M"`,
+/// `"1.5B"`) into billions of parameters. Returns `None` for anything that
+/// doesn't parse — an unknown/future unit suffix, empty string, etc. — so
+/// callers never get a silently-wrong number; absence flows through as "no
+/// VRAM signal" (`param_count_b: None`), not a guessed default.
+fn parse_ollama_parameter_size(raw: &str) -> Option<f32> {
+    let s = raw.trim();
+    if let Some(digits) = s.strip_suffix('B').or_else(|| s.strip_suffix('b')) {
+        return digits.trim().parse::<f32>().ok();
+    }
+    if let Some(digits) = s.strip_suffix('M').or_else(|| s.strip_suffix('m')) {
+        return digits.trim().parse::<f32>().ok().map(|m| m / 1000.0);
+    }
+    None
+}
+
 /// A catalog that pulls available models from local Ollama/Populi.
 pub struct OllamaCatalog {
     client: reqwest::Client,
@@ -361,12 +377,10 @@ impl ModelCatalog for OllamaCatalog {
         #[derive(serde::Deserialize)]
         struct OllamaModelData {
             name: String,
-            #[allow(dead_code)]
             details: Option<OllamaModelDetails>,
         }
         #[derive(serde::Deserialize)]
         struct OllamaModelDetails {
-            #[allow(dead_code)]
             parameter_size: Option<String>,
         }
 
@@ -374,6 +388,11 @@ impl ModelCatalog for OllamaCatalog {
         let mut specs = Vec::new();
         for m in resp.models {
             let max_tokens = self.fetch_context_length(&m.name).await.unwrap_or(4096);
+            let param_count_b = m
+                .details
+                .as_ref()
+                .and_then(|d| d.parameter_size.as_deref())
+                .and_then(parse_ollama_parameter_size);
             specs.push(ModelSpec {
                 id: m.name.clone(),
                 canonical_slug: format!("ollama/{}", m.name),
@@ -387,6 +406,7 @@ impl ModelCatalog for OllamaCatalog {
                 strengths: vec![StrengthTag::Generalist],
                 capabilities: ModelCapabilities {
                     tier: crate::models::ModelTier::Local,
+                    param_count_b,
                     ..Default::default()
                 },
                 supported_parameters: vec![],

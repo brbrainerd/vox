@@ -35,6 +35,25 @@ const DEEPSEEK_OFFPEAK_R1_BONUS: f64 = 0.12;
 /// Kept small and complexity-independent on purpose: at high complexity
 /// `w.precision` already outweighs this, so a capable paid model still wins.
 const ZERO_COST_BASE_BONUS: f64 = 0.1;
+/// Small advisory penalty applied when [`super::vram::estimate_vram_fit`]
+/// reports [`super::vram::VramFit::Exceeds`] for a candidate (Task 2.6).
+///
+/// Deliberately small and, deliberately, *not* zero: at high complexity the
+/// zero-cost bonus above is already gated off (see `ZERO_COST_BASE_BONUS`
+/// usage below), so this penalty is the only VRAM-fit signal left there and
+/// must still move the score in the "less suitable" direction on its own —
+/// it must never depend on canceling out the zero-cost bonus to have an
+/// effect. At low/mid complexity, where the zero-cost bonus is active, this
+/// penalty is kept smaller in magnitude than `ZERO_COST_BASE_BONUS` (half of
+/// it) so a free-but-`Exceeds` local model nets a *smaller* bonus than a
+/// free-and-fitting one, rather than the two flattening to a wash — see
+/// `zero_cost_bonus_and_vram_penalty_compound_not_cancel` below.
+///
+/// Advisory only, per the module docs on [`super::vram`]: this is a ranking
+/// deprioritization, never exclusion — the underlying VRAM estimate can be
+/// wrong (unusual setups, other GPU-using processes, unmodeled
+/// quantizations).
+const VRAM_EXCEEDS_PENALTY: f64 = -0.05;
 
 /// Blend telemetry scoreboard signals using contract `quality_weights`.
 #[must_use]
@@ -461,7 +480,26 @@ pub fn auto_score_model(
 
     let routing_cfg = vox_config::load_model_routing_config();
     let telemetry_boost = scoreboard_feedback_boost(m, scoreboard, &routing_cfg.quality_weights);
-    (score / total_w) + fim_bias + mens_bonus + off_peak_bonus + telemetry_boost
+    let vram_penalty = vram_score_delta(m, super::vram::free_vram_mb_hint());
+
+    (score / total_w) + fim_bias + mens_bonus + off_peak_bonus + telemetry_boost + vram_penalty
+}
+
+/// Advisory VRAM-fit contribution to the score (Task 2.6): a small
+/// deprioritization when [`super::vram::estimate_vram_fit`] reports
+/// [`super::vram::VramFit::Exceeds`], zero otherwise. `Unknown` (no NVML/GPU,
+/// or no parameter-count data for `m`) is a true no-op — see the
+/// `super::vram` module docs. Split out from [`auto_score_model`] as a pure
+/// function so it's directly unit-testable without mutating the process-wide
+/// free-VRAM cache.
+#[must_use]
+fn vram_score_delta(m: &ModelSpec, free_vram_mb: Option<u64>) -> f64 {
+    match super::vram::estimate_vram_fit(m, free_vram_mb) {
+        super::vram::VramFit::Exceeds => VRAM_EXCEEDS_PENALTY,
+        super::vram::VramFit::Comfortable
+        | super::vram::VramFit::Tight
+        | super::vram::VramFit::Unknown => 0.0,
+    }
 }
 
 #[cfg(test)]
@@ -684,6 +722,140 @@ mod tests {
             "a frontier paid model must outscore a small free local model at \
              high complexity (local={local_score}, paid={paid_score}) — a \
              regression here reproduces the LiteLLM zero-cost trap"
+        );
+    }
+
+    /// Task 2.6: `vram_score_delta` (the pure function `auto_score_model`
+    /// delegates to) must apply the small fixed penalty for `Exceeds` and be
+    /// a true no-op for `Unknown` — tested directly, without touching the
+    /// process-global free-VRAM cache, so this test can't race others.
+    #[test]
+    fn vram_score_delta_penalizes_exceeds_and_noops_on_unknown() {
+        let mut huge_local = make_spec(ProviderType::Ollama, 0.0, true);
+        huge_local.capabilities.param_count_b = Some(70.0); // ~33 GiB @ Q4 assumption
+
+        // Tiny free VRAM -> Exceeds -> the fixed penalty applies.
+        assert_eq!(
+            vram_score_delta(&huge_local, Some(1_000)),
+            VRAM_EXCEEDS_PENALTY
+        );
+
+        // No parameter-count data at all -> Unknown -> zero, regardless of free VRAM.
+        let mut no_param_data = make_spec(ProviderType::Ollama, 0.0, true);
+        no_param_data.capabilities.param_count_b = None;
+        assert_eq!(vram_score_delta(&no_param_data, Some(1_000)), 0.0);
+
+        // No free-VRAM signal at all (no NVML/GPU) -> Unknown -> zero, even
+        // though the model itself is "huge" and would otherwise Exceed.
+        assert_eq!(vram_score_delta(&huge_local, None), 0.0);
+
+        // Plenty of VRAM -> Comfortable -> zero (only Exceeds is penalized).
+        let mut small_local = make_spec(ProviderType::Ollama, 0.0, true);
+        small_local.capabilities.param_count_b = Some(1.0);
+        assert_eq!(vram_score_delta(&small_local, Some(20_000)), 0.0);
+    }
+
+    /// Task 2.6: `VramFit::Unknown` must be a *true* no-op end-to-end through
+    /// `auto_score_model`, not merely mathematically zero in isolation. Two
+    /// models differing ONLY in whether they carry `param_count_b` (i.e.
+    /// whether a VRAM-fit signal exists at all) must score identically when
+    /// no free-VRAM hint is available — proving the signal genuinely behaves
+    /// as "doesn't exist for this session" rather than defaulting to fits/
+    /// doesn't-fit. Uses the crate's real global hint accessor
+    /// (`free_vram_mb_hint`), which defaults to `None` absent an explicit
+    /// `set_free_vram_mb_hint` call — this test makes none, so it can't race
+    /// other tests over that global.
+    #[test]
+    fn vram_unknown_signal_is_true_noop_through_auto_score_model() {
+        let mut baseline = make_spec(ProviderType::Ollama, 0.0, true);
+        baseline.id = "qwen3:8b".into();
+        baseline.canonical_slug = "ollama/qwen3:8b".into();
+        baseline.max_tokens = 40_000;
+        baseline.capabilities.param_count_b = None; // no signal
+
+        let mut with_param_data = baseline.clone();
+        with_param_data.capabilities.param_count_b = Some(8.0); // signal exists, but no free-VRAM hint -> Unknown
+
+        let complexity = 5;
+        let baseline_score = auto_score_model(
+            &baseline,
+            complexity,
+            false,
+            None,
+            CostPreference::Economy,
+            None,
+            None,
+        );
+        let with_param_score = auto_score_model(
+            &with_param_data,
+            complexity,
+            false,
+            None,
+            CostPreference::Economy,
+            None,
+            None,
+        );
+        assert_eq!(
+            baseline_score, with_param_score,
+            "with no free-VRAM hint available, adding param_count_b data must \
+             not change the score at all (Unknown is a true no-op)"
+        );
+    }
+
+    /// Task 2.6: a zero-cost local model that ALSO estimates to `Exceeds`
+    /// VRAM must not "average out to neutral" against the zero-cost bonus —
+    /// the two effects must compound in the same "less suitable" direction.
+    /// Verified two ways: (1) the VRAM penalty is strictly smaller in
+    /// magnitude than the zero-cost bonus, so it can only shrink the net
+    /// bonus, never flip its sign or exceed it; (2) at the complexity-9
+    /// zero-cost-trap guard band (where the bonus is already gated to zero),
+    /// the VRAM penalty still fires on its own and does not get canceled by
+    /// anything — it strictly lowers the score relative to an
+    /// otherwise-identical model with no VRAM-fit signal.
+    #[test]
+    fn zero_cost_bonus_and_vram_penalty_compound_not_cancel() {
+        assert!(
+            VRAM_EXCEEDS_PENALTY.abs() < ZERO_COST_BASE_BONUS,
+            "the VRAM penalty must not be large enough to flip the zero-cost \
+             bonus negative on its own (it should shrink the net bonus, not \
+             invert it)"
+        );
+
+        // At the complexity-9 guard band the zero-cost bonus is gated off, so
+        // the only remaining VRAM-related term is the penalty itself. Compare
+        // an Exceeds-signaled huge local model against an otherwise-identical
+        // model with no VRAM signal (Unknown, via no param data) — the former
+        // must score strictly lower, proving the penalty has independent
+        // effect rather than needing the (already-zero) bonus to cancel.
+        let mut huge_local_no_signal = make_spec(ProviderType::Ollama, 0.0, true);
+        huge_local_no_signal.id = "qwen3:70b".into();
+        huge_local_no_signal.canonical_slug = "ollama/qwen3:70b".into();
+        huge_local_no_signal.max_tokens = 40_000;
+        huge_local_no_signal.capabilities.param_count_b = None;
+
+        let high_complexity = COMPLEXITY_HIGH_CUTOFF;
+        let score_no_signal = auto_score_model(
+            &huge_local_no_signal,
+            high_complexity,
+            false,
+            None,
+            CostPreference::Performance,
+            None,
+            None,
+        );
+
+        // vram_score_delta is exercised directly here (not through the global
+        // hint) to avoid any cross-test race, but it demonstrates exactly the
+        // term `auto_score_model` would add if the free-VRAM hint were set to
+        // a small value for this huge model.
+        let mut huge_local_with_signal = huge_local_no_signal.clone();
+        huge_local_with_signal.capabilities.param_count_b = Some(70.0);
+        let delta = vram_score_delta(&huge_local_with_signal, Some(1_000));
+        assert_eq!(delta, VRAM_EXCEEDS_PENALTY);
+        assert!(
+            score_no_signal + delta < score_no_signal,
+            "applying the Exceeds penalty on top of the no-signal score must \
+             strictly lower it — it must never cancel out to neutral"
         );
     }
 }

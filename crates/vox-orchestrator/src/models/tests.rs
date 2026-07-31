@@ -471,12 +471,8 @@ mod explain_selection_complexity_tests {
         let mut top5_lists = Vec::new();
         for (description, category, complexity) in cases {
             let strength = crate::models::spec::task_category_strength(category);
-            let candidates = r.explain_selection(
-                category,
-                strength,
-                complexity,
-                CostPreference::Performance,
-            );
+            let candidates =
+                r.explain_selection(category, strength, complexity, CostPreference::Performance);
             assert!(
                 !candidates.is_empty(),
                 "expected at least one candidate for {description:?}"

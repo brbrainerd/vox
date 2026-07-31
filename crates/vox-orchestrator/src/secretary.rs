@@ -211,7 +211,10 @@ mod tests {
         let msg = "please add a retry loop to this function it currently \
                    fails silently on timeout";
         let result = classify("user", msg);
-        assert!(result.is_some(), "genuine whole-word verb match must still fire");
+        assert!(
+            result.is_some(),
+            "genuine whole-word verb match must still fire"
+        );
         assert!(result.unwrap().intent.contains("add"));
     }
 

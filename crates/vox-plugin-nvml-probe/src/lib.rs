@@ -5,7 +5,12 @@
 //! (probe_summary_json + device_metrics_json). The host obtains the
 //! HardwareProbe interface via `VoxPlugin::as_hardware_probe()`.
 
-mod probe;
+// `pub` so first-party crates (e.g. vox-orchestrator's model scoring) can call
+// `device_metrics()`/`probe_summary()` directly as a plain rlib function,
+// without going through the dylib `VoxPlugin`/`HardwareProbe` ABI. The plugin
+// ABI remains the path for out-of-process/dynamically-loaded consumers; this
+// is an additional, simpler in-process path for same-workspace callers.
+pub mod probe;
 
 use abi_stable::erased_types::TD_Opaque;
 use vox_plugin_api::extensions::hardware_probe::{HardwareProbe, HardwareProbe_TO};

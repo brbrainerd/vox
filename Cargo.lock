@@ -16567,6 +16567,7 @@ dependencies = [
  "vox-orchestrator-queue",
  "vox-orchestrator-types",
  "vox-package",
+ "vox-plugin-nvml-probe",
  "vox-populi",
  "vox-publisher",
  "vox-repository",

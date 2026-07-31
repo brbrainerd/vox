@@ -95,6 +95,10 @@ vox-orchestrator-types.workspace = true
 vox-orchestrator-queue.workspace = true
 vox-config.workspace = true
 vox-repository.workspace = true
+# In-process VRAM telemetry for the advisory VRAM-fit scoring signal (Task 2.6).
+# Same-workspace rlib call (not the dylib plugin ABI) — see
+# `vox-plugin-nvml-probe/src/lib.rs` module doc.
+vox-plugin-nvml-probe = { workspace = true }
 vox-populi = { path = "../vox-populi", optional = true, default-features = false }
 vox-publisher = { workspace = true, optional = true, default-features = false }
 async-trait = { workspace = true }

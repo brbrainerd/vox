@@ -12,6 +12,7 @@ pub mod select;
 pub mod spec;
 #[cfg(test)]
 mod tests;
+pub mod vram;
 
 pub use generated::{
     Capability, CapabilityFlags, ModelTier, PromptIntent, StrengthTag, TaskCategory,
@@ -32,3 +33,4 @@ pub use spec::{
     ModelCapabilities, ModelConfig, ModelRouteBackend, ModelSpec, PricingSource, ProviderType,
     route_backend_for_model, task_category_premium_key, task_category_strength,
 };
+pub use vram::{VramFit, estimate_vram_fit, free_vram_mb_hint, refresh_free_vram_hint_from_nvml};
