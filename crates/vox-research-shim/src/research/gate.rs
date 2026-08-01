@@ -1,8 +1,8 @@
-//! Confidence gate + routing-tier selector. Phase 0a STUB — produces a flat
-//! score derived purely from citation count; no claim-level scoring.
-//!
-//! Phase 2 wires this to the symbolic-verifier strategies and the prereg
-//! enforcement layer. See:
+//! Confidence gate + routing-tier selector. `score_with_config` fuses four
+//! weighted signals — citation coverage, claim-support ratio, source
+//! diversity, and a guarded retrieval floor — not a flat citation-count
+//! score. See:
+//!   docs/src/architecture/deep-research-verification-2026-08-01.md
 //!   docs/src/architecture/scientia-self-publication-finalization-plan-2026.md §5.
 
 use serde::{Deserialize, Serialize};
@@ -76,10 +76,16 @@ impl ConfidenceSignal {
     }
 }
 
-/// Score a gate input. Phase 0a stub — flat function of citation count.
+/// Score a gate input by fusing four weighted signals: `citation_score`
+/// (0.35, citation count vs. `min_citations_for_full_score`),
+/// `claim_support_score` (0.30, the verifier's supported-claim ratio),
+/// `diversity_score` (0.20, distinct-domain count vs.
+/// `min_domains_for_full_score`), and a fixed `retrieval_score` (0.15,
+/// reachable only because `no_retrieval_hits` is guarded above — see
+/// `docs/src/architecture/deep-research-verification-2026-08-01.md`).
 ///
-/// Phase 2 replaces this with a fusion of symbolic-verifier strengths,
-/// claim-evidence coverage, and contradiction ratio.
+/// Phase 2 extends this with symbolic-verifier strategy weights and
+/// contradiction-ratio penalties.
 #[must_use]
 pub fn score_with_config(input: &GateInput<'_>, config: &GateConfig) -> ConfidenceSignal {
     if input.no_retrieval_hits {
