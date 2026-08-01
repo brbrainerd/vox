@@ -230,9 +230,39 @@ describe('ChatSurface', () => {
       expect(invokeMock).toHaveBeenCalledWith('secretary_confirm_task', {
         sessionId: mockSecretaryPayload.session_id,
         intent: mockSecretaryPayload.intent,
+        activeSkill: null,
       });
     });
     expect(onNavigate).toHaveBeenCalledWith('tasks');
+  });
+
+  it('passes activeSkillId through to secretary_confirm_task', async () => {
+    const onNavigate = vi.fn();
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={onNavigate}
+          activeSessionId="s1"
+          activeSkillId="code-review"
+        />
+      </LanguageProvider>,
+    );
+    await waitFor(() => expect(getSecretaryEventHandler()).not.toBeNull());
+    act(() => {
+      getSecretaryEventHandler()!({ payload: mockSecretaryPayload });
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('secretary-toast-intent')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /confirm and add task/i }));
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('secretary_confirm_task', {
+        sessionId: mockSecretaryPayload.session_id,
+        intent: mockSecretaryPayload.intent,
+        activeSkill: 'code-review',
+      });
+    });
   });
 
   it('shows AttentionBudgetMeter above composer when budget present', async () => {

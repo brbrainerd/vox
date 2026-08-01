@@ -209,17 +209,12 @@ pub async fn chat_append_message<R: tauri::Runtime>(
 /// "confirm" on the `SecretaryToast` — this is the sole path by which a
 /// secretary classification becomes a live task (Task 0.2: auto-dispatch →
 /// propose-only).
-#[tauri::command]
-pub async fn secretary_confirm_task<R: tauri::Runtime>(
-    app_handle: tauri::AppHandle<R>,
-    session_id: String,
-    intent: String,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
-) -> Result<Option<String>, String> {
-    use vox_foundation::protocol::orch_daemon_method;
-    use vox_orchestrator::orch_daemon::OrchDaemonClient;
-
-    let params = serde_json::json!({
+fn build_submit_task_params(
+    session_id: &str,
+    intent: &str,
+    active_skill: Option<&str>,
+) -> serde_json::Value {
+    serde_json::json!({
         "description": intent,
         "file_manifest": [],
         "priority": null,
@@ -227,8 +222,22 @@ pub async fn secretary_confirm_task<R: tauri::Runtime>(
         "allow_duplicate": false,
         "model_hint": null,
         "dry_run": null,
-        "active_skill": null,
-    });
+        "active_skill": active_skill,
+    })
+}
+
+#[tauri::command]
+pub async fn secretary_confirm_task<R: tauri::Runtime>(
+    app_handle: tauri::AppHandle<R>,
+    session_id: String,
+    intent: String,
+    active_skill: Option<String>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<Option<String>, String> {
+    use vox_foundation::protocol::orch_daemon_method;
+    use vox_orchestrator::orch_daemon::OrchDaemonClient;
+
+    let params = build_submit_task_params(&session_id, &intent, active_skill.as_deref());
     let addr = daemon.ensure().await.map_err(|e| e.to_string())?;
     let client = match daemon.token().await {
         Some(token) => OrchDaemonClient::with_token(addr, token),
@@ -658,5 +667,17 @@ mod tests {
         assert_eq!(dto.content, "Hello!");
         assert_eq!(dto.model_id.as_deref(), Some("openrouter/auto"));
         assert!(!dto.created_at.is_empty(), "created_at must not be blank");
+    }
+
+    #[test]
+    fn secretary_confirm_task_params_include_active_skill_when_provided() {
+        let params = build_submit_task_params("sess-1", "do the thing", Some("code-review"));
+        assert_eq!(params["active_skill"], serde_json::json!("code-review"));
+    }
+
+    #[test]
+    fn secretary_confirm_task_params_active_skill_null_when_absent() {
+        let params = build_submit_task_params("sess-1", "do the thing", None);
+        assert_eq!(params["active_skill"], serde_json::Value::Null);
     }
 }

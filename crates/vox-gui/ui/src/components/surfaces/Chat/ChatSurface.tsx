@@ -349,6 +349,8 @@ interface ChatSurfaceProps {
   onOpenFeedbackContext?: (id: string) => void;
   /** Pending-approval count — sources the opt-in Approvals dock panel's condensed badge (App.tsx: `attention.approvals.length`). */
   pendingApprovals?: number;
+  /** Currently pinned skill id (App.tsx `activeSkill`), threaded into secretary task submission. */
+  activeSkillId?: string | null;
 }
 
 export function ChatSurface({
@@ -380,6 +382,7 @@ export function ChatSurface({
   attention,
   onOpenFeedbackContext,
   pendingApprovals = 0,
+  activeSkillId,
 }: ChatSurfaceProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
@@ -657,6 +660,7 @@ export function ChatSurface({
       await invoke('secretary_confirm_task', {
         sessionId: payload.session_id,
         intent: payload.intent,
+        activeSkill: activeSkillId ?? null,
       });
       onNavigate?.('tasks');
     } catch (err) {

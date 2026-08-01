@@ -1280,6 +1280,7 @@ export default function App() {
     // renders its honest empty state until a producer wires this up.
     chatPlanSessionId: null,
     chatPlanVersion: null,
+    chatActiveSkillId: activeSkill?.id ?? null,
     chatOpenrouterSpendUsd: openrouterSpendUsd,
     chatAgentStreamItems: activeChatAgentItems,
     onOpenAgentInFlow: (agentId: string) => {

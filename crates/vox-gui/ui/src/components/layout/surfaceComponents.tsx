@@ -76,6 +76,7 @@ export interface SurfaceProps {
   onChatModelOverrideChange?: (id: string | null) => void;
   chatPlanSessionId?: string | null;
   chatPlanVersion?: number | null;
+  chatActiveSkillId?: string | null;
 }
 
 export function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
@@ -209,6 +210,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           onModelOverrideChange={props.onChatModelOverrideChange}
           planSessionId={props.chatPlanSessionId}
           planVersion={props.chatPlanVersion}
+          activeSkillId={props.chatActiveSkillId}
         />
       );
     default:
