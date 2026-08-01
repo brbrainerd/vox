@@ -1,19 +1,7 @@
-import { invoke } from '@tauri-apps/api/core';
+import { chatSendMessage as transportChatSendMessage } from '../transport';
+import type { ChatSendInput, ChatMessageDto } from '../transport';
 
-export interface ChatSendInput {
-  session_id: string;
-  content: string;
-  active_skill?: string | null;
-}
-
-export interface ChatMessageDto {
-  id: number;
-  role: string;
-  content: string;
-  created_at: string;
-  task_id: string | null;
-  model_id?: string;
-}
+export type { ChatSendInput, ChatMessageDto } from '../transport';
 
 export interface ParsedChatReply {
   id: string;
@@ -40,6 +28,6 @@ export function parseSendReply(dto: ChatMessageDto): ParsedChatReply {
  * should catch and settle the pending bubble as failed.
  */
 export async function sendChatMessage(input: ChatSendInput): Promise<ParsedChatReply> {
-  const dto = await invoke<ChatMessageDto>('chat_send_message', { input });
+  const dto = await transportChatSendMessage(input);
   return parseSendReply(dto);
 }

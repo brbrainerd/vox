@@ -904,6 +904,36 @@ export function hopperMarkDone(itemId: string): Promise<HopperTaskDto> {
 }
 
 // ---------------------------------------------------------------------------
+// Chat send transport wrapper.
+// ---------------------------------------------------------------------------
+
+export interface ChatSendInput {
+  session_id: string;
+  content: string;
+  active_skill?: string | null;
+}
+
+/** Mirrors Rust `ChatMessageDto` returned by `chat_send_message`. */
+export interface ChatMessageDto {
+  id: number;
+  role: string;
+  content: string;
+  created_at: string;
+  task_id: string | null;
+  model_id?: string;
+}
+
+/**
+ * Calls the real agent loop for a plain chat message; the reply is already
+ * persisted server-side by `chat_send_message` (with a real, non-blank
+ * `created_at`). Throws on failure — see `lib/chatSend.ts` for the
+ * higher-level `sendChatMessage` wrapper consumed by `App.tsx`.
+ */
+export function chatSendMessage(input: ChatSendInput): Promise<ChatMessageDto> {
+  return safeInvoke<ChatMessageDto>('chat_send_message', { input });
+}
+
+// ---------------------------------------------------------------------------
 // CodeRabbit sweep transport wrappers.
 // ---------------------------------------------------------------------------
 
