@@ -115,13 +115,27 @@ fn agreement_rate(verdicts: &[Verdict]) -> f64 {
     max_count as f64 / verdicts.len() as f64
 }
 
-/// Most common verdict among `verdicts`. Ties broken by first-seen order
-/// (stable, deterministic given the resample loop's fixed call order).
+/// Picks the verdict with the most support among `verdicts`. When every
+/// verdict is distinct (no genuine majority — e.g. a 3-way split), returns
+/// `Verdict::Contested` rather than arbitrarily picking one disagreeing
+/// sample, since `agreement_rate` alone can't distinguish "one dissenter"
+/// from "no consensus at all" without this.
+///
+/// Note: this "max_count == 1 implies full disagreement" check is only
+/// exhaustive for `RESAMPLE_COUNT == 3` (the only tie shape possible with 3
+/// samples is 3 distinct verdicts). If `RESAMPLE_COUNT` changes, revisit
+/// this logic for other tie shapes (e.g. two 2-way ties among 4 samples).
 fn majority_verdict(verdicts: &[Verdict]) -> Verdict {
     use std::collections::HashMap;
     let mut counts: HashMap<Verdict, usize> = HashMap::new();
     for v in verdicts {
         *counts.entry(*v).or_insert(0) += 1;
+    }
+    let max_count = counts.values().copied().max().unwrap_or(0);
+    let distinct_leaders = counts.values().filter(|&&c| c == max_count).count();
+    if max_count == 1 && distinct_leaders > 1 {
+        // Full disagreement — every sample got exactly one vote.
+        return Verdict::Contested;
     }
     *verdicts
         .iter()
@@ -180,72 +194,85 @@ pub async fn verify_claims_with_config(
         for claim in claims {
             // Resample the same claim/evidence pair RESAMPLE_COUNT times,
             // relying on the cascade's existing nonzero verification
-            // temperature to produce genuine variation across samples.
-            let mut sampled: Vec<ClaimVerdict> = Vec::with_capacity(RESAMPLE_COUNT);
-            for _ in 0..RESAMPLE_COUNT {
-                let mut candidates = cascade_with_optional_manual(
-                    ResearchStage::Verification,
-                    &input,
-                    endpoint,
-                    api_key,
-                    Some(input.openrouter_model.as_str()),
-                );
-                for candidate in &mut candidates {
-                    candidate.max_tokens = Some(500);
-                    candidate.response_format = Some(serde_json::json!({"type": "json_object"}));
-                }
-                let messages = vec![
-                    LlmChatMessage {
-                        role: "system".to_string(),
-                        content: "Classify whether retrieved evidence supports the claim. \
+            // temperature to produce genuine variation across samples. The
+            // samples are independent (no shared mutable state), so run
+            // them concurrently rather than sequentially.
+            let sample_futures = (0..RESAMPLE_COUNT).map(|_| {
+                let opts = &opts;
+                let input = &input;
+                let evidence = &evidence;
+                async move {
+                    let mut candidates = cascade_with_optional_manual(
+                        ResearchStage::Verification,
+                        input,
+                        endpoint,
+                        api_key,
+                        Some(input.openrouter_model.as_str()),
+                    );
+                    for candidate in &mut candidates {
+                        candidate.max_tokens = Some(500);
+                        candidate.response_format =
+                            Some(serde_json::json!({"type": "json_object"}));
+                    }
+                    let messages = vec![
+                        LlmChatMessage {
+                            role: "system".to_string(),
+                            content: "Classify whether retrieved evidence supports the claim. \
                             Output only JSON: {\"verdict\":\"Supported|Contradicted|Contested|Unverified\",\
                             \"confidence\":0.0,\"supporting_indices\":[0],\"contradicting_indices\":[1]}."
-                            .to_string(), ..Default::default()
-    },
-                    LlmChatMessage {
-                        role: "user".to_string(),
-                        content: format!(
-                            "Original question: {query}\n\nClaim: {}\n\nEvidence:\n{evidence}",
-                            claim.text
-                        ), ..Default::default()
-    },
-                ];
-                match chat_with_cascade(&opts, messages, candidates, None).await {
-                    Ok(response) => {
-                        match parse_verifier_response(
-                            &response.content,
-                            claim.clone(),
-                            evidence_hits,
-                            abstain_threshold,
-                        ) {
-                            Ok(verdict) => sampled.push(verdict),
-                            Err(e) => {
-                                tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier response invalid");
-                                sampled.push(unverified(claim.clone()));
+                                .to_string(), ..Default::default()
+                        },
+                        LlmChatMessage {
+                            role: "user".to_string(),
+                            content: format!(
+                                "Original question: {query}\n\nClaim: {}\n\nEvidence:\n{evidence}",
+                                claim.text
+                            ), ..Default::default()
+                        },
+                    ];
+                    match chat_with_cascade(opts, messages, candidates, None).await {
+                        Ok(response) => {
+                            match parse_verifier_response(
+                                &response.content,
+                                claim.clone(),
+                                evidence_hits,
+                                abstain_threshold,
+                            ) {
+                                Ok(verdict) => verdict,
+                                Err(e) => {
+                                    tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier response invalid");
+                                    unverified(claim.clone())
+                                }
                             }
                         }
-                    }
-                    Err(e) => {
-                        tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier cascade failed");
-                        sampled.push(unverified(claim.clone()));
+                        Err(e) => {
+                            tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier cascade failed");
+                            unverified(claim.clone())
+                        }
                     }
                 }
-            }
+            });
+            let sampled: Vec<ClaimVerdict> = futures::future::join_all(sample_futures).await;
 
             let sampled_verdicts: Vec<Verdict> = sampled.iter().map(|v| v.verdict).collect();
             let final_verdict = majority_verdict(&sampled_verdicts);
             let self_consistency = agreement_rate(&sampled_verdicts);
-            // Among the samples matching the majority verdict, keep the one
+            // Among the samples matching the final verdict, keep the one
             // with the highest self-reported confidence for the other
             // fields (confidence/supporting/contradicting/evidence_spans).
+            // When `majority_verdict` forced `Contested` on full
+            // disagreement, no sample truly represents the group; prefer a
+            // sample that itself said `Contested` if one exists, otherwise
+            // fall back to the highest-confidence sample overall.
+            let has_matching_sample = sampled.iter().any(|v| v.verdict == final_verdict);
             let mut chosen = sampled
                 .into_iter()
-                .filter(|v| v.verdict == final_verdict)
+                .filter(|v| !has_matching_sample || v.verdict == final_verdict)
                 .fold(None::<ClaimVerdict>, |best, cand| match &best {
                     Some(b) if b.confidence >= cand.confidence => best,
                     _ => Some(cand),
                 })
-                .expect("at least one sample matches the majority verdict");
+                .expect("sampled is non-empty");
             chosen.self_consistency = self_consistency;
             verdicts.push(chosen);
         }
@@ -458,5 +485,17 @@ mod tests {
     fn agreement_rate_is_zero_for_empty_input() {
         let verdicts: Vec<Verdict> = vec![];
         assert_eq!(agreement_rate(&verdicts), 0.0);
+    }
+
+    #[test]
+    fn majority_verdict_forces_contested_on_full_disagreement() {
+        let verdicts = vec![Verdict::Supported, Verdict::Contradicted, Verdict::Contested];
+        assert_eq!(majority_verdict(&verdicts), Verdict::Contested);
+    }
+
+    #[test]
+    fn majority_verdict_picks_genuine_majority() {
+        let verdicts = vec![Verdict::Supported, Verdict::Supported, Verdict::Contradicted];
+        assert_eq!(majority_verdict(&verdicts), Verdict::Supported);
     }
 }
