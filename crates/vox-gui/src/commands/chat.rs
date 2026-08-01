@@ -366,6 +366,20 @@ fn parse_chat_message_envelope(envelope: &serde_json::Value) -> Result<ParsedCha
 /// (not blank) `created_at`. Split out from `chat_send_message` so this half
 /// of the flow — the part that doesn't need a live daemon — is independently
 /// unit-testable against the in-memory test DB.
+///
+/// This writes into the GUI-only conversation returned by
+/// `VoxDb::chat_ensure_gui_session(session_id, ..)`, keyed by `session_id`
+/// alone. That store is display-only, for rendering the transcript in this
+/// GUI's chat panel — it is NOT what feeds the model's context. This is
+/// intentionally separate from, and independent of, the "workspace"
+/// conversation that `vox_chat_message` itself persists into inside
+/// `vox-orchestrator-mcp`'s `chat_tools::chat::message` handler, via
+/// `VoxDb::chat_ensure_workspace_conversation(repository_id, session_id, ..)`
+/// (keyed by `(repository_id, session_id)`), which is what actually backs
+/// `chat_history:{session_id}` and is threaded into future model context.
+/// Both writes happen on every `chat_send_message` call — that duplication
+/// is correct, not a bug: do not remove either write thinking it duplicates
+/// the other.
 async fn persist_assistant_reply(
     db: &VoxDb,
     conv_id: i64,
@@ -400,6 +414,14 @@ async fn persist_assistant_reply(
 /// daemon-call shape exactly (same file, a few lines above) rather than going
 /// through the generic `invoke_mcp_tool` command, whose extra
 /// `{"tool","is_error","result"}` wrapper this function does not need.
+///
+/// Note on persistence: the `vox_chat_message` call below already persists
+/// the user+assistant turn server-side into a "workspace" conversation (see
+/// `persist_assistant_reply`'s doc comment for the exact tables/keys). The
+/// `persist_assistant_reply` call after it writes the same assistant reply
+/// again, but into a separate GUI-only "display" conversation. Both writes
+/// are intentional and target different, non-converging stores — see
+/// `persist_assistant_reply` for why.
 #[tauri::command]
 pub async fn chat_send_message<R: tauri::Runtime>(
     _app_handle: tauri::AppHandle<R>,
