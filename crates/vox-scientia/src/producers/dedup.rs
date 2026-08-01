@@ -20,10 +20,20 @@ use super::novelty_lexical::lexical_similarity;
 
 /// Findings whose title-hint text is at least this lexically similar to a
 /// previously-accepted finding are treated as near-duplicates and dropped.
+///
+/// Lowered from an initially-considered 0.85: a real reworded-restatement
+/// pair ("...post-hoc citation audit" vs "...post hoc citation audit")
+/// measures ≈0.846 Jaccard on 4-gram shingles, which would fall just under
+/// 0.85 and go undetected. 0.8 catches that case with a comfortable margin
+/// above the "clearly different text" range (well under 0.1 in testing).
 const LEXICAL_DUPLICATE_THRESHOLD: f64 = 0.8;
 
 /// Extract the `title_hint` text (if any) from a `FindingCandidateProposed`
-/// event's optional `finding_candidate` JSON payload.
+/// event's optional `finding_candidate` JSON payload. A present-but-`null`
+/// `title_hint` (a valid serialization of `FindingCandidateV1`'s
+/// `Option<String>` field) is intentionally treated the same as an absent
+/// field — `.as_str()` returns `None` for `Value::Null`, so this falls
+/// through to the exact-`finding_id`-only dedup path below, not a bug.
 fn title_hint_text(finding_candidate: &Option<serde_json::Value>) -> Option<String> {
     finding_candidate
         .as_ref()?
@@ -52,6 +62,10 @@ pub fn dedup_finding_candidates(events: Vec<ResearchEvent>) -> Vec<ResearchEvent
                 }
 
                 if let Some(text) = title_hint_text(finding_candidate) {
+                    // O(n^2) in accepted findings per dedup pass; fine at
+                    // expected per-run finding-candidate volume (tens, not
+                    // thousands) — revisit with an LSH/bucketing index if
+                    // that assumption ever changes.
                     let is_near_duplicate = accepted_texts
                         .iter()
                         .any(|prior| lexical_similarity(prior, &text) >= LEXICAL_DUPLICATE_THRESHOLD);
