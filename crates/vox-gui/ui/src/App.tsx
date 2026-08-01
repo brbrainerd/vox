@@ -700,7 +700,14 @@ export default function App() {
     if (!sessionId) return;
     try {
       const rows = await invoke<
-        Array<{ id: number; role: string; content: string; task_id?: string; model_id?: string }>
+        Array<{
+          id: number;
+          role: string;
+          content: string;
+          task_id?: string;
+          model_id?: string;
+          latency_ms?: number;
+        }>
       >('chat_get_messages', { sessionId, limit: 500 });
       dispatchSessionChat({
         type: 'hydrate',
@@ -713,6 +720,7 @@ export default function App() {
           runId: r.task_id ?? `persist-${r.id}`,
           taskId: r.task_id ?? undefined,
           modelId: r.model_id ?? undefined,
+          latencyMs: r.latency_ms ?? undefined,
         })),
       });
     } catch {
