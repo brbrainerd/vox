@@ -714,6 +714,9 @@ fn select_via_premium_alias(
     if !supports_intent_constraints(&model, intent) {
         return None;
     }
+    if !ModelRegistry::key_is_present_for(&model) {
+        return None;
+    }
     let effective_axes = intent.axes.to_routing_priority(intent.prefer_local);
     Some(SelectionOutcome {
         model_id: model.id.clone(),
@@ -741,7 +744,7 @@ fn select_via_scorer(
         intent.task,
         intent.complexity,
         cost_pref,
-        |m| supports_intent_constraints(m, &intent_clone),
+        |m| supports_intent_constraints(m, &intent_clone) && ModelRegistry::key_is_present_for(m),
         None,
     )?;
     drop(_axes_guard);
@@ -1339,6 +1342,31 @@ mod tests {
                 Some(v) => std::env::set_var("ANTHROPIC_API_KEY", v),
                 None => std::env::remove_var("ANTHROPIC_API_KEY"),
             }
+        }
+    }
+
+    #[test]
+    #[serial]
+    #[allow(unsafe_code)]
+    fn select_via_scorer_excludes_keyless_provider() {
+        unsafe {
+            std::env::remove_var("ANTHROPIC_API_KEY");
+            std::env::remove_var("VOX_ANTHROPIC_API_KEY");
+        }
+        let mut registry = ModelRegistry::default();
+        registry.register(key_gate_spec(
+            "anthropic-direct-scorer-test",
+            ProviderType::Anthropic,
+        ));
+        registry.register(key_gate_spec("ollama-scorer-test", ProviderType::Ollama));
+
+        let intent = SelectionIntent::research();
+        let outcome = select_via_scorer(&intent, &registry);
+        if let Some(o) = outcome {
+            assert_ne!(
+                o.model_id, "anthropic-direct-scorer-test",
+                "select_via_scorer returned a keyless-provider candidate"
+            );
         }
     }
 }
