@@ -16,6 +16,7 @@ pub mod embeddings;
 pub mod evaluation;
 pub mod execution;
 pub mod ingest;
+pub mod llm_query_expansion;
 mod memory_cache;
 pub mod memory_hybrid;
 pub mod novelty;

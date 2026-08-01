@@ -40,104 +40,6 @@ fn research_hit_from_hybrid(hit: HybridSearchHit) -> ResearchHit {
     }
 }
 
-/// Attempt LLM-driven CRAG query expansion. Returns `None` on any failure.
-pub(super) async fn try_llm_query_expansion(
-    original_query: &str,
-    top_snippets: &[String],
-    config: &super::config::ResearchConfig,
-) -> Option<Vec<String>> {
-    use vox_actor_runtime::ActivityOptions;
-    use vox_actor_runtime::llm::LlmChatMessage;
-    use vox_actor_runtime::llm::cascade::{
-        ResearchStage, cascade_with_optional_manual, chat_with_cascade,
-    };
-    use vox_actor_runtime::model_resolution::RouteResolutionInput;
-
-    let snippets_text = top_snippets
-        .iter()
-        .take(5)
-        .enumerate()
-        .map(|(i, s)| format!("{}. {}", i + 1, s.chars().take(300).collect::<String>()))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    let user_msg = format!(
-        "Research question: {original_query}\n\nEvidence so far:\n{snippets_text}\n\n\
-        Identify 2-4 specific follow-up search queries covering the most important missing \
-        aspects. Output ONLY valid JSON:\n{{\"followup_queries\": [\"query 1\", \"query 2\"]}}"
-    );
-
-    let messages = vec![
-        LlmChatMessage {
-            role: "system".to_string(),
-            content: "You are a research gap analyst. Generate precise follow-up search \
-                      queries to fill knowledge gaps. Output only valid JSON."
-                .to_string(),
-            ..Default::default()
-        },
-        LlmChatMessage {
-            role: "user".to_string(),
-            content: user_msg,
-            ..Default::default()
-        },
-    ];
-
-    let candidates = cascade_with_optional_manual(
-        ResearchStage::Planner,
-        &RouteResolutionInput::default(),
-        config.llm_endpoint.as_deref(),
-        config.api_key.as_deref(),
-        Some(&config.planner_model),
-    );
-
-    let opts = ActivityOptions::default();
-    let Ok(response) =
-        chat_with_cascade(&opts, messages, candidates, Some(ResearchStage::Planner)).await
-    else {
-        tracing::warn!("LLM query expansion cascade failed to generate chat completion");
-        return None;
-    };
-
-    let text = response.content.trim();
-    let Some(start) = text.find('{') else {
-        tracing::warn!(raw_response = %text, "LLM query expansion response did not contain '{{'");
-        return None;
-    };
-    let Some(end) = text.rfind('}') else {
-        tracing::warn!(raw_response = %text, "LLM query expansion response did not contain '}}'");
-        return None;
-    };
-    if start > end {
-        tracing::warn!(start, end, "LLM query expansion brace indices are invalid");
-        return None;
-    }
-    let json_str = &text[start..=end];
-
-    #[derive(serde::Deserialize)]
-    struct Expansion {
-        followup_queries: Vec<String>,
-    }
-    let parsed: Expansion = match serde_json::from_str(json_str) {
-        Ok(p) => p,
-        Err(err) => {
-            tracing::warn!(error = %err, json = %json_str, "LLM query expansion JSON parsing failed");
-            return None;
-        }
-    };
-    let queries: Vec<String> = parsed
-        .followup_queries
-        .into_iter()
-        .filter(|q| !q.trim().is_empty())
-        .collect();
-
-    if queries.is_empty() {
-        tracing::warn!("LLM query expansion returned empty list of queries");
-        None
-    } else {
-        Some(queries)
-    }
-}
-
 fn research_hits_from_search_execution(execution: SearchExecution) -> Vec<ResearchHit> {
     let mut out = Vec::new();
     append_local_lines(&mut out, "memory", "vox://memory", execution.memory_lines);
@@ -335,7 +237,14 @@ pub(super) async fn gather_web_hits_for_plan(
 
         let hybrids: Vec<HybridSearchHit> = all_hits.iter().map(hybrid_from_research).collect();
         let top_snippets: Vec<String> = all_hits.iter().map(|h| h.snippet.clone()).collect();
-        let llm_queries = try_llm_query_expansion(&query.query, &top_snippets, config).await;
+        let llm_queries = vox_search::llm_query_expansion::try_llm_query_expansion(
+            &query.query,
+            &top_snippets,
+            config.llm_endpoint.as_deref(),
+            config.api_key.as_deref(),
+            Some(&config.planner_model),
+        )
+        .await;
         let refined = CragRouter::expand_queries_with_llm_or_heuristic(
             &query.query,
             &hybrids,
