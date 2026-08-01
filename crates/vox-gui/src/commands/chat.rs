@@ -204,11 +204,7 @@ pub async fn chat_append_message<R: tauri::Runtime>(
     Ok(msg_id)
 }
 
-/// Submit a secretary-proposed task to the orchestrator daemon (SUBMIT_TASK),
-/// only ever called from the frontend when the user explicitly clicks
-/// "confirm" on the `SecretaryToast` — this is the sole path by which a
-/// secretary classification becomes a live task (Task 0.2: auto-dispatch →
-/// propose-only).
+/// Build the SUBMIT_TASK RPC params for a secretary-confirmed task.
 fn build_submit_task_params(
     session_id: &str,
     intent: &str,
@@ -226,6 +222,11 @@ fn build_submit_task_params(
     })
 }
 
+/// Submit a secretary-proposed task to the orchestrator daemon (SUBMIT_TASK),
+/// only ever called from the frontend when the user explicitly clicks
+/// "confirm" on the `SecretaryToast` — this is the sole path by which a
+/// secretary classification becomes a live task (Task 0.2: auto-dispatch →
+/// propose-only).
 #[tauri::command]
 pub async fn secretary_confirm_task<R: tauri::Runtime>(
     app_handle: tauri::AppHandle<R>,
