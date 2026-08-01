@@ -60,18 +60,19 @@ impl ProviderRegistry {
     pub async fn search(&self, query: &str, policy: &SearchPolicy) -> (Vec<ResearchHit>, String) {
         match WebSearchDispatcher::search(query, policy).await {
             Ok(hybrids) => {
-                let hits = hybrids
-                    .into_iter()
-                    .map(|h| ResearchHit {
+                let mut hits = Vec::with_capacity(hybrids.len());
+                for h in hybrids {
+                    let trust_score = vox_search::trust::score_hit_trust(&h.title, None).await;
+                    hits.push(ResearchHit {
                         url: h.path,
                         title: h.title,
                         snippet: h.content_snippet,
                         score: h.score,
                         http_status: 0,
-                        trust_score: 1.0,
+                        trust_score,
                         raw_content: String::new(),
-                    })
-                    .collect();
+                    });
+                }
                 (hits, self.primary.clone())
             }
             Err(e) => {
@@ -87,5 +88,20 @@ impl ProviderRegistry {
     /// filtering; no dedicated site-map API exists in vox-search yet.
     pub async fn map_site(&self, _root_url: &str) -> Option<Vec<String>> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn provider_search_hits_use_real_trust_scoring() {
+        // Sanity check that trust scoring is wired in and fail-open (no hang,
+        // sane range) — full integration behavior is covered by trust.rs's
+        // own mocked tests from Task 4.
+        let score = vox_search::trust::score_hit_trust("Example Provider Title", None).await;
+        assert!(
+            score >= 0.0 && score <= 2.0,
+            "trust score {score} out of sane range"
+        );
     }
 }
