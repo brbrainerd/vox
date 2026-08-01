@@ -275,6 +275,25 @@ impl VoxDb {
             .await
     }
 
+    /// Returns the `created_at` timestamp SQLite assigned to a message row,
+    /// immediately after insert — used by callers (like `chat_send_message`)
+    /// that need to return a DTO with a real, not-yet-reloaded timestamp.
+    pub async fn chat_message_created_at(&self, message_id: i64) -> Result<String, StoreError> {
+        let mut rows = self
+            .connection()
+            .query(
+                "SELECT created_at FROM conversation_messages WHERE id = ?1",
+                params![message_id],
+            )
+            .await?;
+        match rows.next().await? {
+            Some(row) => row.get(0).map_err(|e| StoreError::Db(e.to_string())),
+            None => Err(StoreError::Db(format!(
+                "conversation_messages row {message_id} not found"
+            ))),
+        }
+    }
+
     /// Record a tool invocation for an assistant message (V12+). Returns tool-call row `id`.
     pub async fn chat_insert_tool_call(
         &self,

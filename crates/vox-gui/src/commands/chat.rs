@@ -304,6 +304,131 @@ fn submitted_task_id(raw: &serde_json::Value) -> Option<String> {
         .map(|v| v.to_string())
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ChatSendInput {
+    pub session_id: String,
+    pub content: String,
+    #[serde(default)]
+    pub active_skill: Option<String>,
+}
+
+/// Extracts `(content, model_id)` from a `vox_chat_message` `ToolResult`
+/// envelope (`{"success", "data": {"message": {..., "content"}, "model_used"}}`
+/// or `{"success": false, "error"}`) as returned directly by
+/// `OrchDaemonClient::call(TOOL_CALL, ...)`.
+fn parse_chat_message_envelope(
+    envelope: &serde_json::Value,
+) -> Result<(String, Option<String>), String> {
+    let success = envelope
+        .get("success")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if !success {
+        let err = envelope
+            .get("error")
+            .and_then(|v| v.as_str())
+            .unwrap_or("vox_chat_message failed with no error detail")
+            .to_string();
+        return Err(err);
+    }
+    let data = envelope
+        .get("data")
+        .ok_or_else(|| "vox_chat_message succeeded with no data".to_string())?;
+    let content = data
+        .get("message")
+        .and_then(|m| m.get("content"))
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| "vox_chat_message response missing message.content".to_string())?
+        .to_string();
+    let model_id = data
+        .get("model_used")
+        .and_then(|m| m.as_str())
+        .map(str::to_string);
+    Ok((content, model_id))
+}
+
+/// Persists an already-parsed assistant reply and returns a DTO with a real
+/// (not blank) `created_at`. Split out from `chat_send_message` so this half
+/// of the flow — the part that doesn't need a live daemon — is independently
+/// unit-testable against the in-memory test DB.
+async fn persist_assistant_reply(
+    db: &VoxDb,
+    conv_id: i64,
+    session_id: &str,
+    content: &str,
+    model_id: Option<&str>,
+) -> Result<ChatMessageDto, String> {
+    let payload = model_id.map(|m| serde_json::json!({ "model_id": m }).to_string());
+    let msg_id = db
+        .chat_append_message(conv_id, "assistant", content, payload.as_deref())
+        .await
+        .map_err(map_db_err)?;
+    let created_at = db
+        .chat_message_created_at(msg_id)
+        .await
+        .map_err(map_db_err)?;
+    let _ = session_id; // reserved: kept as a parameter for a future per-session cache invalidation hook, not used yet
+    Ok(ChatMessageDto {
+        id: msg_id,
+        role: "assistant".to_string(),
+        content: content.to_string(),
+        created_at,
+        task_id: None,
+        model_id: model_id.map(str::to_string),
+    })
+}
+
+/// Synchronous chat reply: calls the real agent loop (`vox_chat_message` via
+/// the daemon's `orch.tool_call`) and persists the assistant's reply via
+/// `persist_assistant_reply`. Unlike `secretary_confirm_task` (which submits
+/// a background work-order task via `SUBMIT_TASK`), this returns a
+/// model-authored reply directly for immediate transcript rendering — the
+/// synchronous chat path this GUI never had. Mirrors `secretary_confirm_task`'s
+/// daemon-call shape exactly (same file, a few lines above) rather than going
+/// through the generic `invoke_mcp_tool` command, whose extra
+/// `{"tool","is_error","result"}` wrapper this function does not need.
+#[tauri::command]
+pub async fn chat_send_message<R: tauri::Runtime>(
+    _app_handle: tauri::AppHandle<R>,
+    input: ChatSendInput,
+    pool: State<'_, GuiDbPool>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<ChatMessageDto, String> {
+    if input.session_id.trim().is_empty() {
+        return Err("session_id must not be empty".to_string());
+    }
+    if input.content.trim().is_empty() {
+        return Err("content must not be empty".to_string());
+    }
+    let addr = daemon.ensure().await?;
+    let client = match daemon.token().await {
+        Some(token) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, token),
+        None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
+    };
+    let mut args = serde_json::json!({
+        "prompt": input.content,
+        "session_id": input.session_id,
+    });
+    if let Some(skill) = input.active_skill.as_ref() {
+        args["active_skill"] = serde_json::Value::String(skill.clone());
+    }
+    let envelope = client
+        .call(
+            vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
+            serde_json::json!({ "name": "vox_chat_message", "args": args }),
+        )
+        .await
+        .map_err(|e| format!("vox_chat_message failed: {e}"))?;
+    let (content, model_id) = parse_chat_message_envelope(&envelope)?;
+
+    let db = pool_db(&pool)?;
+    let conv_id = db
+        .chat_ensure_gui_session(&input.session_id, "Chat")
+        .await
+        .map_err(map_db_err)?;
+    persist_assistant_reply(&db, conv_id, &input.session_id, &content, model_id.as_deref()).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -468,5 +593,67 @@ mod tests {
         )
         .expect("older frontends omit the field");
         assert!(!input.already_submitted);
+    }
+
+    #[tokio::test]
+    async fn chat_send_message_rejects_empty_session_id() {
+        use tauri::Manager;
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(PersistentDaemon::default()));
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let daemon = app.state::<Arc<PersistentDaemon>>();
+        let pool = app.state::<GuiDbPool>();
+        let result = chat_send_message(
+            app.handle().clone(),
+            ChatSendInput {
+                session_id: String::new(),
+                content: "hello".to_string(),
+                active_skill: None,
+            },
+            pool,
+            daemon,
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("session_id"));
+    }
+
+    #[test]
+    fn parse_chat_message_envelope_extracts_content_and_model() {
+        let envelope = serde_json::json!({
+            "success": true,
+            "data": {
+                "message": {"id": "m1", "role": "assistant", "content": "Hi there"},
+                "model_used": "openrouter/auto",
+                "tokens": 42
+            }
+        });
+        let (content, model_id) = parse_chat_message_envelope(&envelope).expect("parse ok");
+        assert_eq!(content, "Hi there");
+        assert_eq!(model_id.as_deref(), Some("openrouter/auto"));
+    }
+
+    #[test]
+    fn parse_chat_message_envelope_reports_tool_error() {
+        let envelope = serde_json::json!({"success": false, "error": "model unavailable"});
+        let err = parse_chat_message_envelope(&envelope).unwrap_err();
+        assert_eq!(err, "model unavailable");
+    }
+
+    #[tokio::test]
+    async fn persist_assistant_reply_writes_row_and_returns_real_created_at() {
+        let pool = GuiDbPool::connect_memory().await.expect("memory pool");
+        let db = pool.handle().expect("db handle");
+        let conv_id = db
+            .chat_ensure_gui_session("sess-persist", "Chat")
+            .await
+            .expect("ensure session");
+        let dto = persist_assistant_reply(&db, conv_id, "sess-persist", "Hello!", Some("openrouter/auto"))
+            .await
+            .expect("persist ok");
+        assert_eq!(dto.role, "assistant");
+        assert_eq!(dto.content, "Hello!");
+        assert_eq!(dto.model_id.as_deref(), Some("openrouter/auto"));
+        assert!(!dto.created_at.is_empty(), "created_at must not be blank");
     }
 }
