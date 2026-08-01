@@ -312,13 +312,18 @@ pub struct ChatSendInput {
     pub active_skill: Option<String>,
 }
 
-/// Extracts `(content, model_id)` from a `vox_chat_message` `ToolResult`
+/// Parsed reply extracted from a `vox_chat_message` `ToolResult` envelope.
+#[derive(Debug)]
+struct ParsedChatReply {
+    content: String,
+    model_id: Option<String>,
+}
+
+/// Extracts a [`ParsedChatReply`] from a `vox_chat_message` `ToolResult`
 /// envelope (`{"success", "data": {"message": {..., "content"}, "model_used"}}`
 /// or `{"success": false, "error"}`) as returned directly by
 /// `OrchDaemonClient::call(TOOL_CALL, ...)`.
-fn parse_chat_message_envelope(
-    envelope: &serde_json::Value,
-) -> Result<(String, Option<String>), String> {
+fn parse_chat_message_envelope(envelope: &serde_json::Value) -> Result<ParsedChatReply, String> {
     let success = envelope
         .get("success")
         .and_then(|v| v.as_bool())
@@ -344,7 +349,7 @@ fn parse_chat_message_envelope(
         .get("model_used")
         .and_then(|m| m.as_str())
         .map(str::to_string);
-    Ok((content, model_id))
+    Ok(ParsedChatReply { content, model_id })
 }
 
 /// Persists an already-parsed assistant reply and returns a DTO with a real
@@ -354,7 +359,6 @@ fn parse_chat_message_envelope(
 async fn persist_assistant_reply(
     db: &VoxDb,
     conv_id: i64,
-    session_id: &str,
     content: &str,
     model_id: Option<&str>,
 ) -> Result<ChatMessageDto, String> {
@@ -367,7 +371,6 @@ async fn persist_assistant_reply(
         .chat_message_created_at(msg_id)
         .await
         .map_err(map_db_err)?;
-    let _ = session_id; // reserved: kept as a parameter for a future per-session cache invalidation hook, not used yet
     Ok(ChatMessageDto {
         id: msg_id,
         role: "assistant".to_string(),
@@ -418,15 +421,15 @@ pub async fn chat_send_message<R: tauri::Runtime>(
             serde_json::json!({ "name": "vox_chat_message", "args": args }),
         )
         .await
-        .map_err(|e| format!("vox_chat_message failed: {e}"))?;
-    let (content, model_id) = parse_chat_message_envelope(&envelope)?;
+        .map_err(|e| e.to_string())?;
+    let reply = parse_chat_message_envelope(&envelope)?;
 
     let db = pool_db(&pool)?;
     let conv_id = db
         .chat_ensure_gui_session(&input.session_id, "Chat")
         .await
         .map_err(map_db_err)?;
-    persist_assistant_reply(&db, conv_id, &input.session_id, &content, model_id.as_deref()).await
+    persist_assistant_reply(&db, conv_id, &reply.content, reply.model_id.as_deref()).await
 }
 
 #[cfg(test)]
@@ -628,9 +631,9 @@ mod tests {
                 "tokens": 42
             }
         });
-        let (content, model_id) = parse_chat_message_envelope(&envelope).expect("parse ok");
-        assert_eq!(content, "Hi there");
-        assert_eq!(model_id.as_deref(), Some("openrouter/auto"));
+        let reply = parse_chat_message_envelope(&envelope).expect("parse ok");
+        assert_eq!(reply.content, "Hi there");
+        assert_eq!(reply.model_id.as_deref(), Some("openrouter/auto"));
     }
 
     #[test]
@@ -648,7 +651,7 @@ mod tests {
             .chat_ensure_gui_session("sess-persist", "Chat")
             .await
             .expect("ensure session");
-        let dto = persist_assistant_reply(&db, conv_id, "sess-persist", "Hello!", Some("openrouter/auto"))
+        let dto = persist_assistant_reply(&db, conv_id, "Hello!", Some("openrouter/auto"))
             .await
             .expect("persist ok");
         assert_eq!(dto.role, "assistant");
