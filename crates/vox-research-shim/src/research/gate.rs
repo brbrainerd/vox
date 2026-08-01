@@ -61,10 +61,12 @@ impl ConfidenceSignal {
         } else if self.score >= light {
             RoutingTier::Light
         } else if self.score < f32::EPSILON {
-            // PHASE_0a_STUB: exact-zero check is valid only while score_with_config
-            // produces an integer-derived float (citation_count / 5.0). Phase 2
-            // multi-signal fusion may produce non-zero scores with no retrieval hits;
-            // replace with `input.no_retrieval_hits` passed through the call chain.
+            // NOTE: score_with_config already returns exactly 0.0 when
+            // input.no_retrieval_hits is true (see the early return at the
+            // top of that function), so this exact-zero check is a correct,
+            // durable proxy for "no retrieval hits" today — it is not a
+            // stub pending replacement. If score_with_config's early-return
+            // behavior ever changes, this comment must be revisited.
             // No evidence at all → cheapest tier (don't burn cycles on deep
             // research with nothing to verify against).
             RoutingTier::Direct

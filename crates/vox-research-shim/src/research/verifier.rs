@@ -96,8 +96,12 @@ pub struct ClaimVerdict {
 
 /// Verify a batch of claims against retrieved evidence.
 ///
-/// **PHASE_0a_STUB**: returns `Vec::new()`. Phase 1 wires this to
-/// `vox-claim-extractor`'s MiniCheck-backed verifier.
+/// Verifies claims against evidence via an LLM cascade (behind the `runtime`
+/// feature; without it, degrades to blanket `Unverified`). See Task 7 of
+/// `docs/superpowers/plans/2026-08-01-deep-research-trust-novelty-core.md`
+/// for the planned self-consistency resampling addition, and this file's
+/// module-level SciFact-taxonomy note above for the still-open Verdict
+/// naming reconciliation.
 pub async fn verify_claims_with_config(
     claims: &[Claim],
     query: &str,
