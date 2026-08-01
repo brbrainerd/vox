@@ -763,6 +763,19 @@ export default function App() {
           content: payload.description,
           active_skill: payload.active_skill ?? activeSkill?.id ?? null,
         });
+        // chat_send_message already persisted this exact reply server-side
+        // (that's the point of the synchronous path — see chatSend.ts). Mark
+        // it as already-persisted BEFORE dispatching, so the "persist
+        // assistant transcript rows" effect below (which sweeps
+        // chatStore.sessions for status 'done'/'failed' messages not yet in
+        // persistedAssistantIdsRef) doesn't re-persist it via
+        // chat_append_message and double the row on reload.
+        let persisted = persistedAssistantIdsRef.current.get(sessionId);
+        if (!persisted) {
+          persisted = new Set();
+          persistedAssistantIdsRef.current.set(sessionId, persisted);
+        }
+        persisted.add(reply.id);
         dispatchSessionChat({
           type: 'chatReplySettled',
           sessionId,
@@ -775,6 +788,9 @@ export default function App() {
               text: reply.text,
               status: 'done',
               runId: tempId,
+              // No real task_id for a synchronous chat reply (there is no
+              // background task to correlate against) — left unset
+              // intentionally, unlike background-task-path bubbles.
               modelId: reply.modelId,
             },
           },

@@ -246,6 +246,55 @@ describe('App shell', () => {
     });
   });
 
+  // Code-review follow-up (8448c477a1): chat_send_message already persists
+  // the assistant reply server-side. The pre-existing "persist assistant
+  // transcript rows" effect sweeps chatStore.sessions for any 'done'/'failed'
+  // assistant message not yet in persistedAssistantIdsRef and calls
+  // chat_append_message for it — with no awareness of the synchronous chat
+  // path, it would re-persist the same reply a second time. The fix
+  // pre-seeds persistedAssistantIdsRef with the settled message's id before
+  // dispatching chatReplySettled, so the sweep effect treats it as
+  // already-persisted.
+  it('a plain chat reply is not re-persisted by the assistant-transcript sweep effect', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_send_message') {
+        return Promise.resolve({
+          id: 99,
+          role: 'assistant',
+          content: 'no duplicates please',
+          created_at: '2026-07-31T00:00:00Z',
+          task_id: null,
+          model_id: 'openrouter/auto',
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, 'dedupe check');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText('no duplicates please')).toBeInTheDocument();
+    });
+    // Give the persistence effect (which runs on the next chatStore-driven
+    // render) a chance to fire before asserting it did NOT double-persist.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(
+      invokeMock.mock.calls.filter(
+        ([cmd, args]: [string, any]) =>
+          cmd === 'chat_append_message' && args?.input?.content === 'no duplicates please',
+      ),
+    ).toHaveLength(0);
+  });
+
   // Regression (Task 5 nav-shell redesign, ee7903cf4b): openParentNav used to
   // alias directly to useActiveView().navigateToParent, which only calls the
   // hook's internal setActiveView — it never calls syncViewToLocation, so the
