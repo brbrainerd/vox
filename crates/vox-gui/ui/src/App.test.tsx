@@ -207,6 +207,36 @@ describe('App shell', () => {
     expect(toastRegion.textContent).not.toMatch(/__TAURI_INTERNALS__|\binvoke\b/);
   });
 
+  // Fix Task 2 (chat-harness audit): /spawn dispatches via submit_orchestrator_task
+  // with no explicit session_id, which used to default to activeSessionId — making
+  // it look like part of the ongoing chat session in the GUI transcript while the
+  // orchestrator's own chat_history:{session_id} context store (only written to by
+  // vox_chat_message) never learns this happened. /spawn must use its own,
+  // clearly-separate session id instead of borrowing the active chat session's.
+  it('/spawn does not reuse the active chat session id', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'chat-session-abc' });
+      if (cmd === 'submit_orchestrator_task') return Promise.resolve({ task_id: '1', duplicate_of: null });
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/spawn');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+    );
+    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'submit_orchestrator_task');
+    expect(submitCall![1].input.session_id).not.toBe('chat-session-abc');
+  });
+
   // Plan Task 2 (gui-chat-agent-loop-wiring): a plain chat send (Loquela's
   // normal Enter-to-send path, which tags task_category: 'chat') must go
   // through the synchronous chat_send_message command, not the background

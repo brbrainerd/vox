@@ -85,6 +85,12 @@ import {
 } from './config/constants';
 import { budgetStateFromStatus, DEFAULT_BUDGET_CAP_USD } from './config/budget';
 import { nextId, nextGuiRunId } from './lib/ids';
+
+// Session id for background dispatches (/spawn, Deploy skill) that must not
+// borrow the active chat session's identity — see call sites below.
+function newBackgroundSessionId(): string {
+  return `bg-task-${nextGuiRunId()}`;
+}
 import { slashCommandBase } from './lib/slashRouter';
 import { viewKeyForLocator } from './lib/locatorNavigation';
 import { AchievementsDrawer } from './components/gamify/AchievementsDrawer';
@@ -932,6 +938,11 @@ export default function App() {
       void handleLoquelaSubmit({
         description: 'Spawn a sub-agent on the current branch to pursue this task in parallel.',
         mode: 'act',
+        // Own session id (not activeSessionId): submit_orchestrator_task never
+        // writes to the orchestrator's chat_history context store, only
+        // vox_chat_message does, so borrowing the chat session id here would
+        // silently desync that store from the GUI transcript.
+        session_id: newBackgroundSessionId(),
       });
       return true;
     }
@@ -1146,7 +1157,14 @@ export default function App() {
       if (s) {
         const deployId = s.capability_id ?? s.command;
         setDeployedSet(prev => new Set([...prev, deployId]));
-        handleLoquelaSubmit({ description: `Deploy skill: ${s.command}`, active_skill: deployId });
+        // See /spawn handler above: own session id so this background
+        // dispatch doesn't silently borrow the active chat session's
+        // identity in the orchestrator's chat_history store.
+        handleLoquelaSubmit({
+          description: `Deploy skill: ${s.command}`,
+          active_skill: deployId,
+          session_id: newBackgroundSessionId(),
+        });
       }
     } else if ('codename' in cmd) {
       navigateTo('flow');
