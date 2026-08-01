@@ -178,6 +178,13 @@ pub fn decide(
         })
         .or_else(|| {
             // Scoped fallback through registry scorer constrained to candidate set.
+            // Intentionally inherits `intent.allow_free_in_performance_mode` here
+            // rather than hardcoding `false`: this is still the same caller-supplied
+            // intent, so a research intent's free-tier preference should still apply
+            // to its own fallback path. Every non-research SelectionIntent constructor
+            // hardcodes this field `false`, so decide()'s fallback stays inert for
+            // chat/coding/etc. traffic today — this is a deliberate, not incidental,
+            // consequence of threading the flag through by intent rather than by caller.
             let model = registry.best_for_with_filter(
                 intent.task,
                 intent.complexity,
