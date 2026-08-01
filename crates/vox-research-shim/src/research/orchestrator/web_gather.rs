@@ -136,6 +136,8 @@ fn host_matches_site_scope(url: &str, site_scope: &str) -> bool {
     host == scope.as_str() || host.ends_with(&format!(".{}", scope))
 }
 
+const NOVELTY_MIN_SCORE: f64 = 0.15; // matches vox-search's SearchPolicy::novelty_min_score default
+
 async fn search_one_subquery(
     subquery: &str,
     policy: &SearchPolicy,
@@ -143,6 +145,7 @@ async fn search_one_subquery(
     site_scope: Option<&str>,
     seen_urls: &mut HashSet<String>,
     all_hits: &mut Vec<ResearchHit>,
+    novelty_scorer: &mut vox_search::novelty::NoveltyScorer,
 ) -> (usize, usize) {
     let (mut hits, _) = registry.search(subquery, policy).await;
     if let Some(scope) = site_scope {
@@ -151,10 +154,17 @@ async fn search_one_subquery(
     let attempted = hits.len().max(1);
     let mut accepted = 0usize;
     for hit in hits {
-        if seen_urls.insert(hit.url.clone()) {
-            all_hits.push(hit);
-            accepted += 1;
+        if !seen_urls.insert(hit.url.clone()) {
+            continue;
         }
+        let novelty = novelty_scorer.score(&hit.snippet);
+        if novelty < NOVELTY_MIN_SCORE {
+            tracing::debug!(url = %hit.url, novelty, "dropping low-novelty hit");
+            continue;
+        }
+        novelty_scorer.accept(&hit.snippet);
+        all_hits.push(hit);
+        accepted += 1;
     }
     (attempted, accepted)
 }
@@ -189,6 +199,7 @@ pub(super) async fn gather_web_hits_for_plan(
     let mut seen_urls: HashSet<String> = HashSet::new();
     let mut subqueries_with_hits = 0usize;
     let mut total_sources_attempted = 0usize;
+    let mut novelty_scorer = vox_search::novelty::NoveltyScorer::new();
 
     // Optional Tavily /research tier (VOX_TAVILY_RESEARCH=1).
     for row in vox_search::tavily_research::try_tavily_research_hits(&query.query).await {
@@ -203,10 +214,17 @@ pub(super) async fn gather_web_hits_for_plan(
             ],
             potential_contradiction: false,
         });
-        if seen_urls.insert(rh.url.clone()) {
-            all_hits.push(rh);
-            total_sources_attempted += 1;
+        if !seen_urls.insert(rh.url.clone()) {
+            continue;
         }
+        let novelty = novelty_scorer.score(&rh.snippet);
+        if novelty < NOVELTY_MIN_SCORE {
+            tracing::debug!(url = %rh.url, novelty, "dropping low-novelty tavily hit");
+            continue;
+        }
+        novelty_scorer.accept(&rh.snippet);
+        all_hits.push(rh);
+        total_sources_attempted += 1;
     }
 
     for sq in &plan.subqueries {
@@ -217,6 +235,7 @@ pub(super) async fn gather_web_hits_for_plan(
             site_scope,
             &mut seen_urls,
             &mut all_hits,
+            &mut novelty_scorer,
         )
         .await;
         total_sources_attempted += att;
@@ -263,6 +282,7 @@ pub(super) async fn gather_web_hits_for_plan(
                 site_scope,
                 &mut seen_urls,
                 &mut all_hits,
+                &mut novelty_scorer,
             )
             .await;
             total_sources_attempted += att;
@@ -345,6 +365,19 @@ mod tests {
     use super::{gather_local_hits_for_plan, host_matches_site_scope};
     use crate::research::types::{ResearchPlan, ResearchQuery, ResearchScope};
     use vox_search::{SearchPolicy, SearchRuntimeContext};
+
+    #[test]
+    fn novelty_scorer_rejects_near_duplicate_snippets() {
+        use vox_search::novelty::NoveltyScorer;
+        let mut scorer = NoveltyScorer::new();
+        let original = "The confidence gate fuses citation score, claim support, and domain diversity.";
+        assert!(scorer.score(original) >= 0.99);
+        scorer.accept(original);
+
+        let near_duplicate = "The confidence gate fuses citation score, claim support, and domain diversity signals.";
+        // Should score low (mostly-seen shingles) since it's a near-restatement.
+        assert!(scorer.score(near_duplicate) < 0.5);
+    }
 
     #[test]
     fn site_scope_filters_subdomains() {
