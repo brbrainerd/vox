@@ -19,6 +19,7 @@ impl TrustScorer {
         Self {
             http: vox_http_client::client_builder()
                 .timeout(vox_config::timeouts::D_30S)
+                .user_agent("VoxResearchBot/1.0 (+https://vox.dev/research-bot)")
                 .build()
                 .expect("reqwest client"),
             crossref_base: CROSSREF_BASE.to_string(),
@@ -31,6 +32,7 @@ impl TrustScorer {
         Self {
             http: vox_http_client::client_builder()
                 .timeout(vox_config::timeouts::D_30S)
+                .user_agent("VoxResearchBot/1.0 (+https://vox.dev/research-bot)")
                 .build()
                 .expect("reqwest client"),
             crossref_base: crossref_base.into(),
@@ -57,7 +59,11 @@ impl TrustScorer {
             update_type: String,
         }
 
-        let url = format!("{}/works/{}", self.crossref_base.trim_end_matches('/'), doi);
+        let url = format!(
+            "{}/works/{}",
+            self.crossref_base.trim_end_matches('/'),
+            urlencoding::encode(doi)
+        );
         let resp = self.http.get(&url).send().await.ok()?;
         if !resp.status().is_success() {
             return None;
@@ -98,7 +104,7 @@ impl TrustScorer {
         let url = format!(
             "{}/works?search={}&per-page=1",
             self.openalex_base.trim_end_matches('/'),
-            urlencoding_lite(title)
+            urlencoding::encode(title)
         );
         let Ok(resp) = self.http.get(&url).send().await else {
             return 1.0;
@@ -132,21 +138,6 @@ impl Default for TrustScorer {
     fn default() -> Self {
         Self::new()
     }
-}
-
-/// Minimal query-param percent-encoding (spaces, common punctuation) without
-/// pulling in a new dependency — sufficient for search-term titles.
-fn urlencoding_lite(s: &str) -> String {
-    s.chars()
-        .map(|c| match c {
-            ' ' => "%20".to_string(),
-            '&' => "%26".to_string(),
-            '?' => "%3F".to_string(),
-            '#' => "%23".to_string(),
-            c if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' => c.to_string(),
-            c => format!("%{:02X}", c as u32),
-        })
-        .collect()
 }
 
 /// Computes a combined trust score for a hit: 1.0 baseline, halved on
