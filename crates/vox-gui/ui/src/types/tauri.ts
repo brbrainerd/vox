@@ -60,11 +60,16 @@ export interface ChatPayload {
   /** Explicit model pick for this submit; maps to the model_override enqueue hint. */
   model_override?: string | null;
   /**
-   * Explicit task-category hint. Set to `'chat'` for free-text chat composer
-   * submissions so the daemon routes them through the one-shot chat fast
-   * path instead of the 6-phase agentic pipeline. Left `undefined` for
-   * agentic submissions (e.g. `/spawn`) so the daemon falls back to its
-   * default category resolution.
+   * Explicit task-category hint. `'chat'` short-circuits CLIENT-SIDE
+   * (App.tsx::handleLoquelaSubmit) to the synchronous chat_send_message
+   * command, before submit_orchestrator_task is ever called -- this is not
+   * daemon-side routing, the daemon never sees a `'chat'`-tagged submission
+   * from this path. Set by the composer's "Quick chat" send-mode toggle
+   * (Loquela.tsx's `executionMode`), the default. Left `undefined` for the
+   * "Background task" toggle position and for other agentic submissions
+   * (e.g. `/spawn`, skill deploy), which take the normal
+   * submit_orchestrator_task -> AiTaskProcessor dispatch path so the daemon
+   * falls back to its default category resolution.
    */
   task_category?: string | null;
   /**

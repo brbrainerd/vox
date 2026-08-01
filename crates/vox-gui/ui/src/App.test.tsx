@@ -324,6 +324,76 @@ describe('App shell', () => {
     });
   });
 
+  // Fix Task 4 (gui-axis-chat-harness-fixes): a visible toggle in the composer
+  // now lets the user choose "Quick chat" (the default, unchanged behavior
+  // above) vs "Background task" — which reuses the same working
+  // submit_orchestrator_task -> AiTaskProcessor pipeline /spawn already uses,
+  // rather than the now-deleted ChatTaskProcessor.
+  it('background-task mode calls submit_orchestrator_task, not chat_send_message', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_append_message') return Promise.resolve(1);
+      if (cmd === 'submit_orchestrator_task') {
+        return Promise.resolve({ task_id: '1', duplicate_of: null });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+
+    const modeButton = await screen.findByRole('button', { name: /choose send mode/i });
+    await user.click(modeButton);
+    const backgroundOption = await screen.findByRole('button', { name: /set send mode: background task/i });
+    await user.click(backgroundOption);
+
+    await user.click(composer);
+    await user.type(composer, 'do this in the background');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+    );
+    expect(invokeMock).not.toHaveBeenCalledWith('chat_send_message', expect.anything());
+  });
+
+  it('quick-chat mode (the toggle default) still calls chat_send_message, not submit_orchestrator_task', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_send_message') {
+        return Promise.resolve({
+          id: 43,
+          role: 'assistant',
+          content: 'default mode reply',
+          created_at: '2026-08-01T00:00:00Z',
+          task_id: null,
+          model_id: 'openrouter/auto',
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    // Do NOT touch the mode toggle -- default should remain 'chat'.
+    await user.click(composer);
+    await user.type(composer, 'hello again');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+    );
+    expect(invokeMock).not.toHaveBeenCalledWith('submit_orchestrator_task', expect.anything());
+  });
+
   // Code-review follow-up (8448c477a1): chat_send_message already persists
   // the assistant reply server-side. The pre-existing "persist assistant
   // transcript rows" effect sweeps chatStore.sessions for any 'done'/'failed'

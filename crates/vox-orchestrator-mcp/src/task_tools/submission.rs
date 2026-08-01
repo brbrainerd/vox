@@ -26,6 +26,7 @@ pub fn task_category_from_mcp_str(raw: &str) -> Option<TaskCategory> {
         "planning" | "plan" => Some(TaskCategory::Planning),
         "codegen" | "code_gen" | "implementation" => Some(TaskCategory::CodeGen),
         "review" => Some(TaskCategory::Review),
+        "chat" => Some(TaskCategory::Chat),
         _ => {
             tracing::debug!(%raw, "submit_task: unknown task_category; ignoring");
             None
@@ -830,5 +831,27 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                 };
             ToolResult::<SubmitTaskResponse>::err_with_remediation(msg, remediation).to_json()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Fix Task 4 (gui-axis-chat-harness-fixes): `TaskCategory::Chat` already
+    // exists and is used elsewhere in production dispatch code
+    // (routing_processor.rs); this parser alone had no arm for it, so an MCP
+    // tool caller (an agent/subagent submitting a task programmatically)
+    // could never explicitly request TaskCategory::Chat via `vox_task_submit`.
+    #[test]
+    fn task_category_from_mcp_str_recognizes_chat() {
+        assert_eq!(task_category_from_mcp_str("chat"), Some(TaskCategory::Chat));
+    }
+
+    #[test]
+    fn task_category_from_mcp_str_still_recognizes_existing_categories() {
+        assert_eq!(task_category_from_mcp_str("codegen"), Some(TaskCategory::CodeGen));
+        assert_eq!(task_category_from_mcp_str("review"), Some(TaskCategory::Review));
+        assert_eq!(task_category_from_mcp_str("bogus"), None);
     }
 }

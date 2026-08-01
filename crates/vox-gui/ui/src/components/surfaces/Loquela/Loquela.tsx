@@ -170,6 +170,15 @@ export function Loquela({
 
   const [skillOpen, setSkillOpen] = useState(false);
   const [tierOpen,  setTierOpen]  = useState(false);
+  // Fix Task 4 (gui-axis-chat-harness-fixes): explicit, user-visible choice
+  // between the synchronous "quick chat" reply path (chat_send_message) and
+  // dispatching this as a background task (submit_orchestrator_task, the
+  // same working pipeline /spawn already uses). Previously this distinction
+  // was invisible -- every composer send silently tagged task_category:
+  // 'chat', so a user had no way to deliberately ask for a background task
+  // from the composer itself.
+  const [executionMode, setExecutionMode] = useState<'chat' | 'task'>('chat');
+  const [modeOpen, setModeOpen] = useState(false);
   const [slashOpen, setSlashOpen] = useState(false);
   const [atOpen,    setAtOpen]    = useState(false);
   const [fileSuggestions, setFileSuggestions] = useState<string[]>([]);
@@ -448,11 +457,12 @@ export function Loquela({
       clutch: control.clutch,
       risk: control.risk,
       context: chips.map(c => ({ kind: c.kind, ref: c.label })),
-      // The composer's own free-text submit path is always conversational —
-      // /spawn (a separate, direct dispatch built in App.tsx's
-      // handleLoquelaSlash) is the one real agentic path and does not set
-      // this field, so it falls back to the daemon's default routing.
-      task_category: 'chat',
+      // 'chat' short-circuits client-side (App.tsx::handleLoquelaSubmit) to
+      // the synchronous chat_send_message path before submit_orchestrator_task
+      // is ever called. Any other value -- including undefined, the
+      // "Background task" toggle position -- takes the normal background-task
+      // dispatch path, exactly like /spawn's direct dispatch does today.
+      task_category: executionMode === 'chat' ? 'chat' : undefined,
     };
     onSubmit(payload);
     setHistory(h => [text.trim(), ...h].slice(0, COMPOSER_HISTORY_CAP));
@@ -701,7 +711,28 @@ export function Loquela({
             </Popover>
           </div>
 
-          
+          <div className="relative">
+            <button type="button" aria-expanded={modeOpen} aria-label="Choose send mode" onClick={() => { setModeOpen(o => !o); setTierOpen(false); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
+              <Icon.bolt className="size-3" /><span>{executionMode === 'chat' ? 'Quick chat' : 'Background task'}</span>
+              <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
+            </button>
+            <Popover open={modeOpen}>
+              <button type="button" aria-label="Set send mode: Quick chat" onClick={() => { setExecutionMode('chat'); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === 'chat' ? "bg-overlay-subtle" : ""}`}>
+                <div className="flex-1">
+                  <div className="text-[11px] text-text-primary">Quick chat</div>
+                  <div className="font-mono text-[9px] text-text-muted">Synchronous reply, no background task</div>
+                </div>
+              </button>
+              <button type="button" aria-label="Set send mode: Background task" onClick={() => { setExecutionMode('task'); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === 'task' ? "bg-overlay-subtle" : ""}`}>
+                <div className="flex-1">
+                  <div className="text-[11px] text-text-primary">Background task</div>
+                  <div className="font-mono text-[9px] text-text-muted">Dispatch as an autonomous task, not blocking</div>
+                </div>
+              </button>
+            </Popover>
+          </div>
+
+
           {(estCost != null || sessionBudget || trailingSlot != null) && (
             <div className="ml-auto flex items-center gap-2">
               {(estCost != null || sessionBudget) && (

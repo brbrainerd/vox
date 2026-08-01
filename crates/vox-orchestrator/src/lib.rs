@@ -253,16 +253,14 @@ pub mod skill_runtime_inproc;
 #[cfg(feature = "runtime")]
 pub mod runtime;
 
-/// Single-call, non-phased `TaskProcessor` for chat-origin tasks (see
-/// `runtime`'s `TaskProcessor` trait, which this implements).
-#[cfg(feature = "runtime")]
-pub mod chat_processor;
-#[cfg(feature = "runtime")]
-pub use chat_processor::ChatTaskProcessor;
-
-/// Thin `TaskProcessor` that dispatches to `ChatTaskProcessor` or
-/// `AiTaskProcessor` based on `AgentTask::task_category` (see
-/// `runtime`'s `TaskProcessor` trait, which this implements).
+/// Generic `TaskProcessor` wrapper that dispatches by `AgentTask::task_category`
+/// (see `runtime`'s `TaskProcessor` trait, which this implements). Not
+/// hardcoded to any specific processor type -- `runtime.rs` currently
+/// constructs it with the same `AiTaskProcessor` instance in both slots
+/// (Fix Task 4, gui-axis-chat-harness-fixes: the previous dedicated chat-only
+/// `ChatTaskProcessor` was deleted -- it had no tool-calling loop, never read
+/// `active_skill`, and nothing produces `TaskCategory::Chat` in a way that
+/// expects that special handling anymore).
 #[cfg(feature = "runtime")]
 pub mod routing_processor;
 #[cfg(feature = "runtime")]
