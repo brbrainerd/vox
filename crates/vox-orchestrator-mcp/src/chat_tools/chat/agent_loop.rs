@@ -29,6 +29,16 @@ use crate::input_schemas::tool_input_schema;
 use crate::llm_bridge::tool_selection::{DEFAULT_MAX_TOOLS, TurnContext, select_tools_for_turn};
 use crate::server_state::ServerState;
 
+/// Serializes test-only access to the process-global `OPENROUTER_BASE_URL` /
+/// `OPENROUTER_API_KEY` env vars. Any `#[cfg(test)]` module in this crate that
+/// mutates those vars (to point them at a `wiremock` server) must lock this —
+/// a per-file lock is not enough, since `cargo test` runs test binaries'
+/// tests concurrently across modules and a private per-module lock does not
+/// serialize against a sibling module's private lock, letting two tests
+/// stomp each other's env var value mid-request.
+#[cfg(test)]
+pub(crate) static CHAT_MESSAGE_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Narrow `ModelSpec -> LlmConfig` mapper (Task 1.3d, F24 wiring).
 ///
 /// Deliberately covers only the two simplest, most common provider shapes:
@@ -793,8 +803,6 @@ mod tests {
         let spec = model_spec(ProviderType::GoogleDirect, "gemini-2.0-flash");
         assert!(model_spec_to_llm_config(&spec).is_none());
     }
-
-    static CHAT_MESSAGE_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     /// Task 1.3d end-to-end proof that F24 is fixed for the mapped-provider case:
     /// calling the real, live `vox_chat_message` handler (`chat_message`, exactly

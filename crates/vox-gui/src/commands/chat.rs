@@ -32,6 +32,10 @@ pub struct ChatMessageDto {
     /// Model that produced this message, if recorded at append time.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_id: Option<String>,
+    /// Turn latency in milliseconds, if recorded at append time (synchronous
+    /// chat replies only — see `chat_send_message`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub latency_ms: Option<u64>,
 }
 
 #[tauri::command]
@@ -92,7 +96,7 @@ pub async fn chat_get_messages(
     Ok(rows
         .into_iter()
         .map(|(id, role, content, created_at, payload)| {
-            let (task_id, model_id) = payload
+            let (task_id, model_id, latency_ms) = payload
                 .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
                 .map(|v| {
                     let task_id = v
@@ -103,9 +107,10 @@ pub async fn chat_get_messages(
                         .get("model_id")
                         .and_then(|m| m.as_str())
                         .map(str::to_string);
-                    (task_id, model_id)
+                    let latency_ms = v.get("latency_ms").and_then(|l| l.as_u64());
+                    (task_id, model_id, latency_ms)
                 })
-                .unwrap_or((None, None));
+                .unwrap_or((None, None, None));
             ChatMessageDto {
                 id,
                 role,
@@ -113,6 +118,7 @@ pub async fn chat_get_messages(
                 created_at,
                 task_id,
                 model_id,
+                latency_ms,
             }
         })
         .collect())
@@ -327,6 +333,7 @@ pub struct ChatSendInput {
 struct ParsedChatReply {
     content: String,
     model_id: Option<String>,
+    latency_ms: Option<u64>,
 }
 
 /// Extracts a [`ParsedChatReply`] from a `vox_chat_message` `ToolResult`
@@ -359,7 +366,12 @@ fn parse_chat_message_envelope(envelope: &serde_json::Value) -> Result<ParsedCha
         .get("model_used")
         .and_then(|m| m.as_str())
         .map(str::to_string);
-    Ok(ParsedChatReply { content, model_id })
+    let latency_ms = data.get("latency_ms").and_then(|v| v.as_u64());
+    Ok(ParsedChatReply {
+        content,
+        model_id,
+        latency_ms,
+    })
 }
 
 /// Persists an already-parsed assistant reply and returns a DTO with a real
@@ -385,8 +397,23 @@ async fn persist_assistant_reply(
     conv_id: i64,
     content: &str,
     model_id: Option<&str>,
+    latency_ms: Option<u64>,
 ) -> Result<ChatMessageDto, String> {
-    let payload = model_id.map(|m| serde_json::json!({ "model_id": m }).to_string());
+    let payload = if model_id.is_some() || latency_ms.is_some() {
+        let mut obj = serde_json::Map::new();
+        if let Some(m) = model_id {
+            obj.insert(
+                "model_id".to_string(),
+                serde_json::Value::String(m.to_string()),
+            );
+        }
+        if let Some(l) = latency_ms {
+            obj.insert("latency_ms".to_string(), serde_json::json!(l));
+        }
+        Some(serde_json::Value::Object(obj).to_string())
+    } else {
+        None
+    };
     let msg_id = db
         .chat_append_message(conv_id, "assistant", content, payload.as_deref())
         .await
@@ -402,6 +429,7 @@ async fn persist_assistant_reply(
         created_at,
         task_id: None,
         model_id: model_id.map(str::to_string),
+        latency_ms,
     })
 }
 
@@ -461,7 +489,14 @@ pub async fn chat_send_message<R: tauri::Runtime>(
         .chat_ensure_gui_session(&input.session_id, "Chat")
         .await
         .map_err(map_db_err)?;
-    persist_assistant_reply(&db, conv_id, &reply.content, reply.model_id.as_deref()).await
+    persist_assistant_reply(
+        &db,
+        conv_id,
+        &reply.content,
+        reply.model_id.as_deref(),
+        reply.latency_ms,
+    )
+    .await
 }
 
 #[cfg(test)]
@@ -570,6 +605,7 @@ mod tests {
             created_at: "now".to_string(),
             task_id: Some("7".to_string()),
             model_id: Some("anthropic/claude-opus-4-5".to_string()),
+            latency_ms: Some(842),
         };
         let j = serde_json::to_string(&dto).unwrap();
         assert!(
@@ -577,6 +613,7 @@ mod tests {
             "model_id present: {j}"
         );
         assert!(j.contains("\"task_id\":\"7\""), "task_id present: {j}");
+        assert!(j.contains("\"latency_ms\":842"), "latency_ms present: {j}");
     }
 
     #[test]
@@ -588,9 +625,11 @@ mod tests {
             created_at: "now".to_string(),
             task_id: None,
             model_id: None,
+            latency_ms: None,
         };
         let j = serde_json::to_string(&dto).unwrap();
         assert!(!j.contains("model_id"), "model_id absent when None: {j}");
+        assert!(!j.contains("latency_ms"), "latency_ms absent when None: {j}");
     }
 
     #[test]
@@ -660,12 +699,28 @@ mod tests {
             "data": {
                 "message": {"id": "m1", "role": "assistant", "content": "Hi there"},
                 "model_used": "openrouter/auto",
-                "tokens": 42
+                "tokens": 42,
+                "latency_ms": 913
             }
         });
         let reply = parse_chat_message_envelope(&envelope).expect("parse ok");
         assert_eq!(reply.content, "Hi there");
         assert_eq!(reply.model_id.as_deref(), Some("openrouter/auto"));
+        assert_eq!(reply.latency_ms, Some(913));
+    }
+
+    #[test]
+    fn parse_chat_message_envelope_latency_ms_absent_is_none() {
+        let envelope = serde_json::json!({
+            "success": true,
+            "data": {
+                "message": {"id": "m1", "role": "assistant", "content": "Hi there"},
+                "model_used": "openrouter/auto",
+                "tokens": 42
+            }
+        });
+        let reply = parse_chat_message_envelope(&envelope).expect("parse ok");
+        assert_eq!(reply.latency_ms, None);
     }
 
     #[test]
@@ -683,13 +738,28 @@ mod tests {
             .chat_ensure_gui_session("sess-persist", "Chat")
             .await
             .expect("ensure session");
-        let dto = persist_assistant_reply(&db, conv_id, "Hello!", Some("openrouter/auto"))
-            .await
-            .expect("persist ok");
+        let dto = persist_assistant_reply(
+            &db,
+            conv_id,
+            "Hello!",
+            Some("openrouter/auto"),
+            Some(1234),
+        )
+        .await
+        .expect("persist ok");
         assert_eq!(dto.role, "assistant");
         assert_eq!(dto.content, "Hello!");
         assert_eq!(dto.model_id.as_deref(), Some("openrouter/auto"));
+        assert_eq!(dto.latency_ms, Some(1234));
         assert!(!dto.created_at.is_empty(), "created_at must not be blank");
+
+        // Round-trip through chat_get_messages to prove latency_ms survives the
+        // payload JSON persisted into `conversation_messages`.
+        let msgs = db
+            .chat_get_gui_messages("sess-persist", 10)
+            .await
+            .expect("get messages");
+        assert_eq!(msgs.len(), 1);
     }
 
     #[test]

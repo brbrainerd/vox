@@ -807,6 +807,7 @@ export default function App() {
               // background task to correlate against) — left unset
               // intentionally, unlike background-task-path bubbles.
               modelId: reply.modelId,
+              latencyMs: reply.latencyMs,
             },
           },
         });

@@ -20,6 +20,9 @@ export interface ChatMessage {
   sessionId?: string;
   /** Model that produced this assistant message (from cost_incurred). */
   modelId?: string;
+  /** Turn latency in milliseconds, when reported by the reply (synchronous
+   *  chat path only — see `lib/chatSend.ts`'s `ParsedChatReply`). */
+  latencyMs?: number;
   /** True when the opt-in post-reply grounding check flagged this reply as
    *  low-confidence (from grounding_check_completed). */
   groundingFlagged?: boolean;

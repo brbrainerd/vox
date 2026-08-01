@@ -921,6 +921,7 @@ export interface ChatMessageDto {
   created_at: string;
   task_id: string | null;
   model_id?: string;
+  latency_ms?: number;
 }
 
 /**

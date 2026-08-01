@@ -987,10 +987,178 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         "history": history,
         "model_used": model_used,
         "tokens": tokens,
+        "latency_ms": llm_started.elapsed().as_millis() as u64,
         "session_id": session_id,
         "socrates": soc,
         "retrieval": retrieval_evidence,
     });
 
     ToolResult::ok(result).to_json()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+    use vox_orchestrator::models::{ModelCapabilities, ModelSpec, ProviderType};
+    use vox_orchestrator::models::spec::PricingSource;
+    use vox_orchestrator::{
+        AffinityGroupRegistry, Orchestrator, OrchestratorConfig, SessionConfig, SessionManager,
+    };
+    use vox_repository::{RepoCapabilities, RepositoryContext};
+    use vox_skills::new_registry_arc;
+    use wiremock::matchers::method;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    use super::chat_message;
+    use crate::chat_tools::params::ChatMessageParams;
+    use crate::server_state::ServerState;
+
+    // Shared with `agent_loop::tests` — see that lock's doc comment: a private
+    // per-module lock does not serialize against a sibling module's private
+    // lock, so both modules that mutate `OPENROUTER_BASE_URL`/`OPENROUTER_API_KEY`
+    // must hold the same crate-wide lock.
+    use super::super::agent_loop::CHAT_MESSAGE_ENV_LOCK;
+
+    fn test_state() -> ServerState {
+        let cfg = OrchestratorConfig::for_testing();
+        let orch_cfg = cfg.clone();
+        let groups = AffinityGroupRegistry::new(vec![]);
+        let session_cfg = SessionConfig {
+            persist: false,
+            sessions_dir: std::env::temp_dir().join("vox-mcp-message-test-sessions"),
+            ..SessionConfig::default()
+        };
+        let session_manager = SessionManager::new(session_cfg).expect("session manager");
+        let repository = RepositoryContext {
+            root: PathBuf::from("."),
+            git_root: None,
+            repository_id: "message-test".into(),
+            origin_url: None,
+            capabilities: RepoCapabilities {
+                vox_project: false,
+                cargo_workspace: false,
+                cargo_package: false,
+                node_workspace: false,
+                python_project: false,
+                go_module: false,
+                git: false,
+            },
+            has_vox_agents_dir: false,
+            vox_toml: None,
+        };
+        ServerState::hermetic_stub(
+            cfg,
+            repository,
+            Arc::new(Orchestrator::with_groups(orch_cfg, groups)),
+            Arc::new(Mutex::new(session_manager)),
+            new_registry_arc(),
+        )
+    }
+
+    fn model_spec(provider_type: ProviderType, id: &str) -> ModelSpec {
+        ModelSpec {
+            id: id.to_string(),
+            canonical_slug: id.to_string(),
+            provider: "test".to_string(),
+            provider_type,
+            max_tokens: 8192,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            observed_cost_per_1k: None,
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Bootstrap,
+            is_free: false,
+            strengths: Vec::new(),
+            capabilities: ModelCapabilities::default(),
+            supported_parameters: Vec::new(),
+        }
+    }
+
+    fn plain_response_body(content: &str) -> serde_json::Value {
+        serde_json::json!({
+            "id": "chatcmpl-test",
+            "model": "test-model",
+            "choices": [{
+                "index": 0,
+                "message": {"role": "assistant", "content": content},
+                "finish_reason": "stop",
+            }],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+        })
+    }
+
+    /// Fix Task 6: the turn's elapsed time is already computed (`llm_started.elapsed()`)
+    /// but was never threaded into the envelope `data` object the GUI's `ModelBadge`
+    /// reads. Mirrors `agent_loop::tests::chat_message_default_path_sends_tools_bearing_request`'s
+    /// wiremock harness to drive a real, successful `chat_message` call and assert the
+    /// returned envelope's `data.latency_ms` field is present.
+    #[tokio::test]
+    #[allow(unsafe_code)] // env var mutation under a process-wide lock, like agent_loop's test
+    #[allow(clippy::await_holding_lock)]
+    async fn chat_message_envelope_includes_latency_ms() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("no tools needed")),
+            )
+            .mount(&server)
+            .await;
+
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let state = test_state();
+        let model_id = "test-openrouter-model-latency";
+        {
+            let handle = state.orchestrator.models_handle();
+            let mut registry = handle.write().expect("models registry lock");
+            registry.register(model_spec(ProviderType::OpenRouter, model_id));
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        let params: ChatMessageParams =
+            serde_json::from_value(serde_json::json!({ "prompt": "hello there" }))
+                .expect("chat message params");
+
+        let response_json = chat_message(&state, params).await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&response_json).expect("chat_message must return valid JSON");
+        assert_eq!(
+            parsed["success"], true,
+            "chat_message should succeed via the mapped agent-loop path: {response_json}"
+        );
+        let data = &parsed["data"];
+        assert!(
+            data["model_used"].as_str().is_some(),
+            "sanity check: envelope should carry a model_used string: {response_json}"
+        );
+        assert!(
+            data.get("latency_ms").and_then(|v| v.as_u64()).is_some(),
+            "chat_message envelope `data` must carry a `latency_ms` field for ModelBadge: {response_json}"
+        );
+    }
 }

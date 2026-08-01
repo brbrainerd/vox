@@ -8,6 +8,7 @@ export interface ParsedChatReply {
   role: 'assistant';
   text: string;
   modelId?: string;
+  latencyMs?: number;
   createdAt: string;
 }
 
@@ -17,6 +18,7 @@ export function parseSendReply(dto: ChatMessageDto): ParsedChatReply {
     role: 'assistant',
     text: dto.content,
     modelId: dto.model_id,
+    latencyMs: dto.latency_ms,
     createdAt: dto.created_at,
   };
 }
