@@ -760,6 +760,10 @@ mod tests {
             .await
             .expect("get messages");
         assert_eq!(msgs.len(), 1);
+        let payload: serde_json::Value =
+            serde_json::from_str(msgs[0].4.as_deref().expect("payload_json present"))
+                .expect("payload is valid JSON");
+        assert_eq!(payload["latency_ms"], serde_json::json!(1234));
     }
 
     #[test]
