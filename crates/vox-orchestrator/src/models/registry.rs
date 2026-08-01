@@ -1066,8 +1066,25 @@ impl ModelRegistry {
         preference: CostPreference,
     ) -> Option<vox_actor_runtime::llm::LlmConfig> {
         self.best_for(task_type, complexity, preference)
-            .map(|spec| {
-                let mut cfg = match spec.provider_type {
+            .map(|spec| llm_config_for_spec(&spec, task_type))
+    }
+}
+
+/// Converts an already-selected [`ModelSpec`] into a dispatchable
+/// [`vox_actor_runtime::llm::LlmConfig`]. Shared by [`ModelRegistry::get_llm_config`]
+/// (which selects via [`ModelRegistry::best_for`]) and by callers that resolve a
+/// spec through the key-gated [`super::select::decide`] path instead (e.g.
+/// `vox-research-shim`, which depends on both this crate and
+/// `vox-actor-runtime` and therefore can bridge the gap that
+/// `vox_actor_runtime::llm::cascade` itself cannot, since that crate must not
+/// depend on `vox-orchestrator`).
+#[cfg(feature = "runtime")]
+pub fn llm_config_for_spec(
+    spec: &ModelSpec,
+    task_type: TaskCategory,
+) -> vox_actor_runtime::llm::LlmConfig {
+    {
+        let mut cfg = match spec.provider_type {
                     ProviderType::OpenRouter => {
                         vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone())
                     }
@@ -1153,13 +1170,12 @@ impl ModelRegistry {
                             Some(task_category_strength(task_type).to_string());
                         cfg
                     }
-                };
-                cfg.max_tokens = Some(spec.max_tokens);
-                // Propagate catalog cost so chat.rs can estimate spend without a DB lookup.
-                if spec.cost_per_1k > 0.0 {
-                    cfg.cost_per_1k = Some(spec.cost_per_1k);
-                }
-                cfg
-            })
+        };
+        cfg.max_tokens = Some(spec.max_tokens);
+        // Propagate catalog cost so chat.rs can estimate spend without a DB lookup.
+        if spec.cost_per_1k > 0.0 {
+            cfg.cost_per_1k = Some(spec.cost_per_1k);
+        }
+        cfg
     }
 }
