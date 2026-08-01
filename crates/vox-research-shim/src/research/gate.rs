@@ -10,7 +10,9 @@ use serde::{Deserialize, Serialize};
 use super::claims::Claim;
 use super::types::RoutingTier;
 
-/// Gate config. Phase 0a — placeholders for Phase 2 calibration knobs.
+/// Gate config. Both fields are live calibration knobs actively read by
+/// `score_with_config` (not placeholders) — see that function's doc for
+/// how each is used.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GateConfig {
     pub min_citations_for_full_score: Option<usize>,
