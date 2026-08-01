@@ -13,7 +13,6 @@ import {
   type ChatExecutionTask,
 } from './ChatExecutionRail';
 import { ChatSessionRail } from './ChatSessionRail';
-import { ChatModelPicker } from './ChatModelPicker';
 import { PlanPanel, type PlanNodeView } from './PlanPanel';
 import { listPlanNodes } from '../../../transport';
 import { labelForNavKey } from '../../../lib/navigation';
@@ -801,11 +800,7 @@ export function ChatSurface({
               separate row below it. */}
           {composer}
         </div>
-      ) : (
-        <div className="mt-auto flex shrink-0 justify-end px-1">
-          <ChatModelPicker activeModel={modelOverride ?? activeModel} onApplied={id => onModelOverrideChange?.(id)} />
-        </div>
-      )}
+      ) : null}
     </>
   );
 
