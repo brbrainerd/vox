@@ -141,10 +141,6 @@ impl Default for TrustScorer {
     }
 }
 
-/// Computes a combined trust score for a hit: 1.0 baseline, halved on
-/// confirmed retraction, scaled by venue reputation otherwise. Never fails
-/// — any lookup error yields the neutral 1.0 baseline. `doi` is optional
-/// since most web hits won't resolve to one.
 static SHARED_SCORER: OnceLock<TrustScorer> = OnceLock::new();
 
 /// Returns a process-wide shared `TrustScorer`, constructed once on first
@@ -154,6 +150,10 @@ fn shared_scorer() -> &'static TrustScorer {
     SHARED_SCORER.get_or_init(TrustScorer::new)
 }
 
+/// Computes a combined trust score for a hit: 1.0 baseline, halved on
+/// confirmed retraction, scaled by venue reputation otherwise. Never fails
+/// — any lookup error yields the neutral 1.0 baseline. `doi` is optional
+/// since most web hits won't resolve to one.
 pub async fn score_hit_trust(title: &str, doi: Option<&str>) -> f64 {
     let scorer = shared_scorer();
     if let Some(doi) = doi
