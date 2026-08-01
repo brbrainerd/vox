@@ -38,6 +38,7 @@ import {
   type SessionChatStore,
 } from './lib/sessionChatStore';
 import { mapAgentEvent } from './lib/mapAgentEvent';
+import { sendChatMessage } from './lib/chatSend';
 import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
@@ -743,6 +744,54 @@ export default function App() {
       input: userAppendInput(sessionId, payload.description),
     }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
     recordGamifyGuiEvent('chat_message_sent', { session_id: sessionId }, { enabled: gamifySettings.enabled });
+
+    // Plain chat sends go through the synchronous chat_send_message path
+    // (real agent-loop reply, no background task to poll) instead of the
+    // submit_orchestrator_task dispatch loop below, which is for every
+    // other task_category.
+    if (payload.task_category === 'chat') {
+      const tempId = nextGuiRunId();
+      dispatchSessionChat({
+        type: 'chatPending',
+        sessionId,
+        tempId,
+        userText: String(payload.description ?? ''),
+      });
+      try {
+        const reply = await sendChatMessage({
+          session_id: sessionId,
+          content: payload.description,
+          active_skill: payload.active_skill ?? activeSkill?.id ?? null,
+        });
+        dispatchSessionChat({
+          type: 'chatReplySettled',
+          sessionId,
+          tempId,
+          result: {
+            ok: true,
+            message: {
+              id: reply.id,
+              role: 'assistant',
+              text: reply.text,
+              status: 'done',
+              runId: tempId,
+              modelId: reply.modelId,
+            },
+          },
+        });
+      } catch (err) {
+        const errorText = sanitizeErrorForToast(err);
+        dispatchSessionChat({
+          type: 'chatReplySettled',
+          sessionId,
+          tempId,
+          result: { ok: false, error: errorText },
+        });
+        pushToast({ tone: 'warn', title: 'Chat reply failed', body: errorText, cause: 'backend-error' });
+      }
+      return;
+    }
+
     const contextFiles = contextRefsFromPayload(payload);
 
     // One submit attempt. `allowDuplicate=false` lets the daemon refuse a

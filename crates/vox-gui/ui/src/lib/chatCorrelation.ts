@@ -86,7 +86,23 @@ export type ChatAction =
   | { type: 'agentEvent'; event: AgentEventFrame }
   /** Watchdog sweep: flip bubbles stuck in `pending` since before
    *  `nowMs - PENDING_TIMEOUT_MS` to `failed` (honest client-side expiry). */
-  | { type: 'pendingTimeout'; nowMs: number };
+  | { type: 'pendingTimeout'; nowMs: number }
+  /** Plain chat send via `chat_send_message` (synchronous agent-loop reply,
+   *  not the `submit`/`submitResolved`/`agentEvent` background-task
+   *  correlation path). Adds the user bubble + a pending assistant bubble
+   *  keyed by `tempId` rather than a `runId`/`taskId` pair, since there is
+   *  no background task to correlate against. */
+  | { type: 'chatPending'; sessionId: string; tempId: string; userText: string; nowMs?: number }
+  /** Replaces the `chatPending` bubble identified by `tempId` with the real
+   *  persisted reply (on success) or marks it failed (on error). */
+  | {
+      type: 'chatReplySettled';
+      sessionId: string;
+      tempId: string;
+      result:
+        | { ok: true; message: ChatMessage }
+        | { ok: false; error: string };
+    };
 
 /**
  * Messages belonging to `sessionId`. Pre-session messages (sessionId == null)
@@ -173,6 +189,42 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           return { ...m, status: 'failed' as const, error: PENDING_TIMEOUT_MESSAGE };
         }
         return m;
+      });
+      return changed ? { ...state, messages } : state;
+    }
+
+    case 'chatPending': {
+      const createdAtMs = action.nowMs ?? Date.now();
+      const user: ChatMessage = {
+        id: `${action.tempId}:user`,
+        role: 'user',
+        text: action.userText,
+        status: 'done',
+        runId: action.tempId,
+        sessionId: action.sessionId,
+        createdAtMs,
+      };
+      const pending: ChatMessage = {
+        id: action.tempId,
+        role: 'assistant',
+        text: '',
+        status: 'pending',
+        runId: action.tempId,
+        sessionId: action.sessionId,
+        createdAtMs,
+      };
+      return { ...state, messages: [...state.messages, user, pending] };
+    }
+
+    case 'chatReplySettled': {
+      let changed = false;
+      const messages = state.messages.map((m) => {
+        if (m.id !== action.tempId) return m;
+        changed = true;
+        if (action.result.ok) {
+          return { ...action.result.message, sessionId: action.sessionId };
+        }
+        return { ...m, status: 'failed' as const, error: action.result.error };
       });
       return changed ? { ...state, messages } : state;
     }

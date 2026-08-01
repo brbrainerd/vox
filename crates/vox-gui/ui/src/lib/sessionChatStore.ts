@@ -44,7 +44,16 @@ export type SessionChatAction =
   | { type: 'submitResolved'; sessionId: string; runId: string; taskId: string }
   | { type: 'failRun'; sessionId: string; runId: string; error: string }
   | { type: 'agentEvent'; event: AgentEventFrame }
-  | { type: 'hydrate'; sessionId: string; messages: ChatMessage[] };
+  | { type: 'hydrate'; sessionId: string; messages: ChatMessage[] }
+  | { type: 'chatPending'; sessionId: string; tempId: string; userText: string }
+  | {
+      type: 'chatReplySettled';
+      sessionId: string;
+      tempId: string;
+      result:
+        | { ok: true; message: ChatMessage }
+        | { ok: false; error: string };
+    };
 
 function ensureSession(store: SessionChatStore, sessionId: string): ChatState {
   return store.sessions[sessionId] ?? initialChatState;
@@ -183,6 +192,30 @@ export function sessionChatReducer(store: SessionChatStore, action: SessionChatA
       const prev = ensureSession(base, sessionId);
       const next = chatReducer(prev, { type: 'agentEvent', event: action.event });
       return withSession(base, sessionId, next);
+    }
+
+    case 'chatPending': {
+      const sid = action.sessionId;
+      const prev = ensureSession(store, sid);
+      const next = chatReducer(prev, {
+        type: 'chatPending',
+        sessionId: sid,
+        tempId: action.tempId,
+        userText: action.userText,
+      });
+      return withSession(store, sid, next);
+    }
+
+    case 'chatReplySettled': {
+      const sid = action.sessionId;
+      const prev = ensureSession(store, sid);
+      const next = chatReducer(prev, {
+        type: 'chatReplySettled',
+        sessionId: sid,
+        tempId: action.tempId,
+        result: action.result,
+      });
+      return withSession(store, sid, next);
     }
 
     case 'hydrate': {

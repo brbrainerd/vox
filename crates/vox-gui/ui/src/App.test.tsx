@@ -207,6 +207,45 @@ describe('App shell', () => {
     expect(toastRegion.textContent).not.toMatch(/__TAURI_INTERNALS__|\binvoke\b/);
   });
 
+  // Plan Task 2 (gui-chat-agent-loop-wiring): a plain chat send (Loquela's
+  // normal Enter-to-send path, which tags task_category: 'chat') must go
+  // through the synchronous chat_send_message command, not the background
+  // submit_orchestrator_task dispatch loop used by every other category.
+  it('a plain chat send calls chat_send_message and not submit_orchestrator_task', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_send_message') {
+        return Promise.resolve({
+          id: 42,
+          role: 'assistant',
+          content: 'hello back',
+          created_at: '2026-07-31T00:00:00Z',
+          task_id: null,
+          model_id: 'openrouter/auto',
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, 'hello there');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+    );
+    expect(invokeMock).not.toHaveBeenCalledWith('submit_orchestrator_task', expect.anything());
+    await waitFor(() => {
+      expect(screen.getByText('hello back')).toBeInTheDocument();
+    });
+  });
+
   // Regression (Task 5 nav-shell redesign, ee7903cf4b): openParentNav used to
   // alias directly to useActiveView().navigateToParent, which only calls the
   // hook's internal setActiveView — it never calls syncViewToLocation, so the
