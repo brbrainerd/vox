@@ -299,6 +299,11 @@ export default function App() {
   chatStoreRef.current = chatStore;
   const [sessionAgentStreams, setSessionAgentStreams] = useState<Record<string, StreamItem[]>>({});
   const persistedAssistantIdsRef = useRef<Map<string, Set<string>>>(new Map());
+  // Fix Task 1 (gui-chat-harness-fixes): guards the synchronous chat_send_message
+  // path against overlapping sends for the same session (e.g. a fast double-Enter
+  // while a prior reply is still in flight), which used to spawn two independent
+  // tempId lifecycles that could settle out of order with no user-visible sign.
+  const chatSendInFlightRef = useRef<Set<string>>(new Set());
   const activeChatMessages = getSessionMessages(chatStore, activeSessionId);
   const activeChatAgentItems = sessionAgentStreams[activeSessionId] ?? [];
 
@@ -750,6 +755,16 @@ export default function App() {
     // submit_orchestrator_task dispatch loop below, which is for every
     // other task_category.
     if (payload.task_category === 'chat') {
+      if (chatSendInFlightRef.current.has(sessionId)) {
+        pushToast({
+          tone: 'warn',
+          title: 'Please wait',
+          body: 'A reply is still in progress for this chat.',
+          cause: 'validation',
+        });
+        return;
+      }
+      chatSendInFlightRef.current.add(sessionId);
       const tempId = nextGuiRunId();
       dispatchSessionChat({
         type: 'chatPending',
@@ -804,6 +819,8 @@ export default function App() {
           result: { ok: false, error: errorText },
         });
         pushToast({ tone: 'warn', title: 'Chat reply failed', body: errorText, cause: 'backend-error' });
+      } finally {
+        chatSendInFlightRef.current.delete(sessionId);
       }
       return;
     }

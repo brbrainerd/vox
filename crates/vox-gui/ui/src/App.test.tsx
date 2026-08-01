@@ -295,6 +295,47 @@ describe('App shell', () => {
     ).toHaveLength(0);
   });
 
+  // Fix Task 1 (gui-chat-harness-fixes): nothing prevented a user from
+  // pressing Enter a second time while a prior chat_send_message() call was
+  // still pending — two independent tempIds each got their own
+  // chatPending/chatReplySettled lifecycle, settling out of order with no
+  // user-visible indication. A send-lock keyed by sessionId must block the
+  // second send while the first is still in flight.
+  it('does not send a second chat message while the first is still pending', async () => {
+    let resolveFirst!: (value: unknown) => void;
+    const pending = new Promise((resolve) => { resolveFirst = resolve; });
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_append_message') return Promise.resolve(1);
+      if (cmd === 'chat_send_message') return pending;
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+
+    await user.click(composer);
+    await user.type(composer, 'first message');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+    );
+
+    await user.click(composer);
+    await user.type(composer, 'second message');
+    await user.keyboard('{Enter}');
+
+    const chatSendCalls = invokeMock.mock.calls.filter(([cmd]: [string]) => cmd === 'chat_send_message');
+    expect(chatSendCalls.length).toBe(1);
+
+    resolveFirst({ id: 1, role: 'assistant', content: 'reply', created_at: '2026-07-31T00:00:00Z', task_id: null, model_id: 'openrouter/auto' });
+  });
+
   // Regression (Task 5 nav-shell redesign, ee7903cf4b): openParentNav used to
   // alias directly to useActiveView().navigateToParent, which only calls the
   // hook's internal setActiveView — it never calls syncViewToLocation, so the
