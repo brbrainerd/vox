@@ -8,6 +8,57 @@
 
 **Tech Stack:** Rust (Tauri backend, `vox-cli`, `vox-orchestrator-mcp`), TypeScript/React (Tauri frontend), `axum`+`reqwest` (already workspace deps) for the loopback listener and token exchange, `open` (new dependency) for launching the system browser, `rand`+`sha2`+`base64` (already workspace deps) for PKCE.
 
+**Revision note (this version):** A second adversarial audit round (4 parallel reviewers: live web-verification of the OAuth/axum/crate claims, a code-audit re-checking every task against the actual current source, a TDD-completeness + parallelization structure analysis, and a spec-completeness pass) found and fixed: (1) Task 4 originally wired the budget guard into `vox-gui`'s `chat_send_message`, which is a thin RPC proxy — it never resolves a model in-process, so the guard would have silently protected nothing; it's now wired at the real server-side chokepoint in `vox-orchestrator-mcp`, matching what the design spec specified all along. (2) The design spec's promised `RateLimited` error class was never actually wired into the live dispatch path, only into an on-demand `vox doctor` diagnostic — new Task 12b closes that. (3) Three compile-breaking bugs (Task 10's CLI parse test, Task 11's `Ok(())` match against a `Result<PathBuf,_>`, Task 8's nonexistent `Cargo.toml` `members` list) are fixed. (4) OpenRouter's OAuth docs don't document a `state` parameter being echoed back on the callback — Task 9's callback handler no longer requires it, only validates it when present. (5) A "Parallelization & Phase Gates" section is added below per the real file-dependency graph, since the tasks are numbered sequentially but most are not actually sequential dependencies.
+
+---
+
+## Parallelization & Phase Gates
+
+The task numbering below (1–19, plus 11b and 12b inserted where they logically belong) is a readable narrative order, not a strict execution order. Tasks that touch disjoint files with no logical dependency can be assigned to concurrent subagents. Tasks that touch the same file must be serialized relative to each other regardless of logical dependency, to avoid merge conflicts.
+
+**Independent of everything — can start immediately, in parallel:** Tasks 1, 3, 6, 8, 13, 14, 17.
+
+**Hot files touched by more than one task (serialize within each group, in any order that respects the logical dependencies listed below):**
+- `SettingsView.tsx`: Tasks 7 (conditionally), 13, 16, 19
+- `ModelsView.tsx`: Tasks 17, 18
+- `llm_routing.rs`: Tasks 6, 12
+- The `model_route_policy` chokepoint module in `vox-orchestrator-mcp`: Tasks 3/4 (budget), 12b (rate-limit) — these three should land as one reviewed sequence even though 12b has no *logical* dependency on 3/4, since all three touch the same handler function.
+
+**Logical dependencies:**
+- 2 ← 1 · 4 ← 1, 3 · 5 ← 4 · 7 ← 2 · 9 ← 8 · 10 ← 9 · 11 ← 9 · 11b ← 11 · 12b ← 11b (hard: the wizard's verify step needs it) and file-lock with 4/12 (no logical dependency on those) · 15 ← 13, 14, 11b (hard: Task 15's `verifying` screen calls `verify_openrouter_key`) (soft: 2, 11 for full end-to-end value) · 16 ← 14 · 18 ← 17
+
+**Suggested parallel batches** (assuming subagent-driven-development with one subagent per task in a batch):
+
+- **Batch 1** (7 concurrent): 1, 3, 6, 8, 13, 14, 17
+- **Batch 2** (6 concurrent, after Batch 1 clears): 2 (needs 1) · 4 (needs 1,3) · 9 (needs 8) · 12 (needs 6, file-lock) · 16 (needs 14) · 18 (needs 17)
+- **Batch 3** (5 concurrent): 7 (needs 2) · 5 (needs 4) · 10 (needs 9) · 11 (needs 9) · 19 (needs 16, file-lock)
+- **Batch 4** (2 concurrent): 11b (needs 11) · 12b (needs 4, file-lock with 4/12; logically independent of 11b)
+- **Batch 5** (1 task, needs 13, 14, 11b; full end-to-end value also wants 2, 11, 12b): 15
+
+The critical path is `8 → 9 → 11 → 11b → 15` (Phase 2 crate → OpenRouter driver → Tauri command → verification command → wizard), tied with `1 → 3 → 4 → 5` (budget field → guard logic → wiring → UI) — everything else is slack a parallel batch absorbs. Phase 1 (budget) and Phase 2 (OAuth) share zero files and can run fully in parallel from day one; only Phase 3 (the wizard) genuinely has to wait, since it consumes both — and specifically waits on 11b now, not just 11, since Task 15's "verifying" screen (added in the second audit round) depends on it directly.
+
+**Phase gates:**
+
+*Gate: Phase 1 complete (Tasks 1, 2, 3, 4, 5, 6, 7)*
+- HARD: `cargo test -p vox-config -p vox-llm-config -p vox-orchestrator-mcp -p vox-gui -p vox-cli` all green
+- HARD: `cargo clippy -p vox-config -p vox-llm-config -p vox-orchestrator-mcp -p vox-gui -p vox-cli -- -D warnings` clean
+- HARD: the GUI vitest/Playwright specs for Task 5 (Chat toast) and Task 7 (Settings budget field) both green
+- SOFT: manual dev-build check that a real over-budget chat message produces the distinct "Budget limit reached" toast, not just the mocked unit test
+
+*Gate: Phase 2 complete (Tasks 8, 9, 10, 11, 11b, 12, 12b)*
+- HARD: `cargo test -p vox-oauth-pkce -p vox-cli -p vox-gui -p vox-orchestrator-mcp` all green
+- HARD: `cargo clippy -p vox-oauth-pkce -p vox-cli -p vox-gui -p vox-orchestrator-mcp -- -D warnings` clean
+- HARD: the `wiremock`-based `exchange_code_at` test passes (the only real behavioral coverage of the token exchange)
+- SOFT, per-OS, does **not** block other batches: a manual `vox secrets login --oauth --provider openrouter` smoke test succeeds on the developer's current OS. Repeating this on all three OSes is required before flipping the feature flag on for real users (see the Final regression pass), but a single-OS pass is enough to unblock Phase 3 GUI work, since that only needs the Tauri command to exist and be callable.
+- HARD (new, given the `state`-param finding): before this gate is considered green, empirically confirm against a real OpenRouter callback whether `state` is actually echoed back — if it is not, Task 9's lenient handling is correct as written; if it is, tighten the check back to required. Do not skip this — it's the highest-confidence-but-still-unverified claim in the whole plan.
+
+*Sub-gates within Phase 3 (Tasks 13–20, the largest phase):*
+- **Sub-gate A** (Tasks 13+14 done): HARD — vitest green for `useOnboardingGate.test.ts`; `KeysSecretsSection` export compiles. Unlocks Task 15.
+- **Sub-gate B** (before Task 15's app-shell mount ships to real users): HARD — Tasks 11 and 11b both exist and Phase 2's gate above is green, otherwise "Get a free key" is a dead button (11 missing) or gets stuck on the "verifying" screen forever (11b missing) in production, even though Playwright's mocks let Task 15's own tests pass without either.
+- **Sub-gate C** (Settings-chain integrity, Tasks 7/13/16/19): HARD — full `settings.spec.ts` run after the *last* of these four lands, not just each task's own new assertions.
+- **Sub-gate D** (Models-chain integrity, Tasks 17/18): HARD — full `ModelsView` spec file green after Task 18 (already in the plan's Task 18 Step 5 — treat it as a formal gate, not an optional nicety).
+- **Final plan-wide gate**: HARD — the "Final regression pass" section at the end of this document. SOFT — the manual OAuth smoke test repeated on macOS and Linux (not just the one OS covered by Phase 2's soft gate) before the feature flag is enabled for real users; this blocks *rollout*, not any other batch of work.
+
 ---
 
 ## Phase 1 — Budget enforcement
@@ -75,22 +126,38 @@ git commit -m "feat(vox-config): add budget_warn_threshold_pct field"
 - Modify: `crates/vox-llm-config/src/keys.rs` (the `vc_key!` table, after the `per_session_budget_usd` entry — currently around line 139)
 - Test: `crates/vox-llm-config` — find the existing test asserting the key table matches `VoxConfig`'s fields (search for a test named something like `gui_fields_matches_voxconfig` or similar parity test) and confirm it now covers the new key without modification (it should, since it likely iterates the table generically)
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Confirm no generic parity test exists (verified — it doesn't)**
 
-First find the existing parity test — run:
-
+Run:
 ```bash
-grep -rn "fn.*parity\|fn.*matches_voxconfig\|LLM_CONFIG_KEYS" crates/vox-llm-config/src/keys.rs | head -20
+grep -rn "fn.*parity\|fn.*matches_voxconfig\|LLM_CONFIG_KEYS" crates/vox-llm-config/src/keys.rs crates/vox-llm-config/src/lib.rs | head -20
 ```
 
-If a generic parity test already exists (it iterates `LLM_CONFIG_KEYS` and checks each against `VoxConfig`), it will already fail once you add the new field to `VoxConfig` (Task 1) without adding a matching registry entry — that's your failing test, no new test needed. Confirm this by running:
+An earlier audit already confirmed no generic test iterating `LLM_CONFIG_KEYS` against `VoxConfig` exists in this crate — do not assume Task 1 alone made anything fail here. Re-run this grep anyway (the codebase may have changed since); if it genuinely still finds nothing, proceed to Step 2. If it *does* find a real parity test now, treat that as the discovered failing test instead and skip Step 2's new-test authoring.
 
-Run: `cargo test -p vox-llm-config -- --nocapture`
-Expected: FAIL (parity test reports `budget_warn_threshold_pct` present on `VoxConfig` but missing from `LLM_CONFIG_KEYS`, or equivalent)
+- [ ] **Step 2: Write the failing test**
 
-If no such generic parity test exists, add one modeled on the existing entries — write it before proceeding, asserting `LLM_CONFIG_KEYS.iter().any(|k| k.env == "budget_warn_threshold_pct")`.
+Add to `crates/vox-llm-config/src/keys.rs` (or wherever the crate's existing `#[cfg(test)]` module lives):
 
-- [ ] **Step 2: Add the registry entry**
+```rust
+#[cfg(test)]
+mod budget_warn_threshold_registry_tests {
+    use super::LLM_CONFIG_KEYS;
+
+    #[test]
+    fn budget_warn_threshold_pct_is_registered() {
+        assert!(
+            LLM_CONFIG_KEYS.iter().any(|k| k.env == "budget_warn_threshold_pct"),
+            "budget_warn_threshold_pct must be registered in LLM_CONFIG_KEYS"
+        );
+    }
+}
+```
+
+Run: `cargo test -p vox-llm-config budget_warn_threshold_pct_is_registered -- --nocapture`
+Expected: FAIL — the registry entry doesn't exist yet
+
+- [ ] **Step 3: Add the registry entry**
 
 In `crates/vox-llm-config/src/keys.rs`, add after the `per_session_budget_usd` line:
 
@@ -98,12 +165,12 @@ In `crates/vox-llm-config/src/keys.rs`, add after the `per_session_budget_usd` l
     vc_key!("budget_warn_threshold_pct", Float, General, "Budget warn threshold", "Warn when spend crosses this fraction of a budget cap (0.0-1.0)"),
 ```
 
-- [ ] **Step 3: Run test to verify it passes**
+- [ ] **Step 4: Run test to verify it passes**
 
 Run: `cargo test -p vox-llm-config -- --nocapture`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add crates/vox-llm-config/src/keys.rs
@@ -113,13 +180,13 @@ git commit -m "feat(vox-llm-config): register budget_warn_threshold_pct in SSOT"
 ### Task 3: `budget_guard` module — the core check logic
 
 **Files:**
-- Create: `crates/vox-orchestrator-mcp/src/llm_bridge/budget_guard.rs`
-- Modify: `crates/vox-orchestrator-mcp/src/llm_bridge/mod.rs` (add `pub mod budget_guard;`)
-- Test: `crates/vox-orchestrator-mcp/src/llm_bridge/budget_guard.rs` (inline `#[cfg(test)]`)
+- Create: `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/budget_guard.rs` (note the location: **inside** `model_route_policy/`, sibling to `resolve.rs` — this is the module the design spec specifies, and it matters: `model_route_policy/resolve.rs:368` is the actual chokepoint every chat/agent dispatch resolves through, confirmed by a live-code audit. An earlier draft of this task placed the file one directory up, in `llm_bridge/` directly, which would have made Task 4's wiring target the wrong call site — don't repeat that.)
+- Modify: `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/mod.rs` (add `pub mod budget_guard;` — confirm this file exists first with `ls crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/`; if `model_route_policy` isn't a submodule with its own `mod.rs` but is instead declared inline in the parent `llm_bridge/mod.rs`, add the `pub mod budget_guard;` line there instead, nested under whatever declares `model_route_policy`)
+- Test: `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/budget_guard.rs` (inline `#[cfg(test)]`)
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the test against a stub, and watch it fail for a real reason**
 
-Create `crates/vox-orchestrator-mcp/src/llm_bridge/budget_guard.rs`:
+First create a stub so the test can fail on assertion, not just on a missing-file compile error (this is the fix for a documented TDD gap: an earlier draft of this task wrote the implementation and its tests in the same step, which meant the tests only ever failed on "module doesn't exist yet," never on genuinely wrong behavior). Create `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/budget_guard.rs` with only:
 
 ```rust
 //! Budget enforcement guard, run before LLM dispatch. Warn-then-block on
@@ -153,51 +220,48 @@ pub struct BudgetWarning {
     pub spent_usd: f64,
 }
 
-/// Check `spend` against `daily_budget_usd`/`per_session_budget_usd` and
-/// `budget_warn_threshold_pct`. Returns `Ok(Some(warning))` at the warn
-/// threshold, `Ok(None)` under it, `Err(Exceeded)` at or over either cap.
-/// Daily is checked before session (arbitrary but deterministic ordering —
-/// callers only need to know *that* a cap tripped, not which one first, since
-/// both block dispatch identically).
 pub fn check(
-    spend: &amp;LlmSpendSummary,
-    daily_budget_usd: f64,
-    per_session_budget_usd: f64,
-    warn_threshold_pct: f32,
+    _spend: &amp;LlmSpendSummary,
+    _daily_budget_usd: f64,
+    _per_session_budget_usd: f64,
+    _warn_threshold_pct: f32,
 ) -&gt; Result&lt;Option&lt;BudgetWarning&gt;, BudgetGuardError&gt; {
-    if spend.day_usd &gt;= daily_budget_usd {
-        return Err(BudgetGuardError::Exceeded {
-            scope: BudgetScope::Daily,
-            cap_usd: daily_budget_usd,
-            spent_usd: spend.day_usd,
-        });
-    }
-    if spend.session_usd &gt;= per_session_budget_usd {
-        return Err(BudgetGuardError::Exceeded {
-            scope: BudgetScope::Session,
-            cap_usd: per_session_budget_usd,
-            spent_usd: spend.session_usd,
-        });
-    }
+    unimplemented!("Task 3 Step 3 implements this")
+}
+```
 
-    let warn_at_daily = daily_budget_usd * f64::from(warn_threshold_pct);
-    if spend.day_usd &gt;= warn_at_daily {
-        return Ok(Some(BudgetWarning {
-            scope: BudgetScope::Daily,
-            cap_usd: daily_budget_usd,
-            spent_usd: spend.day_usd,
-        }));
-    }
-    let warn_at_session = per_session_budget_usd * f64::from(warn_threshold_pct);
-    if spend.session_usd &gt;= warn_at_session {
-        return Ok(Some(BudgetWarning {
-            scope: BudgetScope::Session,
-            cap_usd: per_session_budget_usd,
-            spent_usd: spend.session_usd,
-        }));
-    }
+Add `pub mod budget_guard;` per the Files note above, then add the test module below to the same file:
 
-    Ok(None)
+```rust
+//! Budget enforcement guard, run before LLM dispatch. Warn-then-block on
+//! `VoxConfig`'s `daily_budget_usd`/`per_session_budget_usd` caps, using the
+//! recorded-spend SSOT (`VoxDb::llm_spend_summary`) — not a new spend tracker.
+
+use vox_db::LlmSpendSummary;
+
+/// Which cap tripped, for user-facing messaging.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BudgetScope {
+    Daily,
+    Session,
+}
+
+#[derive(Debug, thiserror::Error, Clone, PartialEq)]
+pub enum BudgetGuardError {
+    #[error("{scope:?} budget of ${cap_usd:.2} exceeded (spent ${spent_usd:.2})")]
+    Exceeded {
+        scope: BudgetScope,
+        cap_usd: f64,
+        spent_usd: f64,
+    },
+}
+
+/// Non-blocking warning surfaced at the configured threshold, before the cap itself blocks.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BudgetWarning {
+    pub scope: BudgetScope,
+    pub cap_usd: f64,
+    pub spent_usd: f64,
 }
 
 #[cfg(test)]
@@ -266,82 +330,118 @@ mod tests {
 }
 ```
 
-Add `pub mod budget_guard;` to `crates/vox-orchestrator-mcp/src/llm_bridge/mod.rs` (find the existing `pub mod` list in that file and add this line alphabetically among the others).
-
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run test to verify it fails for the right reason**
 
 Run: `cargo test -p vox-orchestrator-mcp budget_guard -- --nocapture`
-Expected: FAIL — either a compile error (module not yet wired, if `mod.rs` edit is done in a separate sub-step) or, once wired, all 5 tests should actually PASS immediately since this is pure logic with no external dependency. If Step 1 was done correctly this test module is self-contained and should go green as soon as it compiles — there is no separate "make it pass" step needed beyond getting it to compile. Treat "compiles and all 5 pass" as the success criterion for this task.
+Expected: FAIL — panics with `not implemented: Task 3 Step 3 implements this` (the stub's `unimplemented!()`), not a compile error. This confirms the tests actually exercise `check()`'s behavior rather than merely requiring the module to exist.
 
-- [ ] **Step 3: Run test to verify it passes**
+- [ ] **Step 3: Replace the stub with the real implementation**
+
+Replace the stub `check` function body (delete the `unimplemented!()` version) with:
+
+```rust
+/// Check `spend` against `daily_budget_usd`/`per_session_budget_usd` and
+/// `budget_warn_threshold_pct`. Returns `Ok(Some(warning))` at the warn
+/// threshold, `Ok(None)` under it, `Err(Exceeded)` at or over either cap.
+/// Daily is checked before session (arbitrary but deterministic ordering —
+/// callers only need to know *that* a cap tripped, not which one first, since
+/// both block dispatch identically).
+pub fn check(
+    spend: &amp;LlmSpendSummary,
+    daily_budget_usd: f64,
+    per_session_budget_usd: f64,
+    warn_threshold_pct: f32,
+) -&gt; Result&lt;Option&lt;BudgetWarning&gt;, BudgetGuardError&gt; {
+    if spend.day_usd &gt;= daily_budget_usd {
+        return Err(BudgetGuardError::Exceeded {
+            scope: BudgetScope::Daily,
+            cap_usd: daily_budget_usd,
+            spent_usd: spend.day_usd,
+        });
+    }
+    if spend.session_usd &gt;= per_session_budget_usd {
+        return Err(BudgetGuardError::Exceeded {
+            scope: BudgetScope::Session,
+            cap_usd: per_session_budget_usd,
+            spent_usd: spend.session_usd,
+        });
+    }
+
+    let warn_at_daily = daily_budget_usd * f64::from(warn_threshold_pct);
+    if spend.day_usd &gt;= warn_at_daily {
+        return Ok(Some(BudgetWarning {
+            scope: BudgetScope::Daily,
+            cap_usd: daily_budget_usd,
+            spent_usd: spend.day_usd,
+        }));
+    }
+    let warn_at_session = per_session_budget_usd * f64::from(warn_threshold_pct);
+    if spend.session_usd &gt;= warn_at_session {
+        return Ok(Some(BudgetWarning {
+            scope: BudgetScope::Session,
+            cap_usd: per_session_budget_usd,
+            spent_usd: spend.session_usd,
+        }));
+    }
+
+    Ok(None)
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
 
 Run: `cargo test -p vox-orchestrator-mcp budget_guard -- --nocapture`
 Expected: PASS (5 tests: `under_threshold_returns_none`, `at_warn_threshold_returns_warning`, `at_daily_cap_returns_exceeded`, `at_session_cap_returns_exceeded_even_if_daily_ok`, `warn_threshold_of_one_disables_warning`)
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add crates/vox-orchestrator-mcp/src/llm_bridge/budget_guard.rs crates/vox-orchestrator-mcp/src/llm_bridge/mod.rs
+git add crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/budget_guard.rs crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/mod.rs
 git commit -m "feat(vox-orchestrator-mcp): add budget_guard warn-then-block logic"
 ```
 
-### Task 4: Wire `budget_guard` into GUI dispatch (Tauri command boundary)
+### Task 4: Wire `budget_guard` into the real dispatch chokepoint (server-side, not the GUI RPC proxy)
+
+**⚠️ Correction from the second audit round**: an earlier draft of this task targeted `crates/vox-gui/src/commands/chat.rs`, on the assumption that's where the GUI "dispatches" a chat message. A live-code audit found that's wrong: `chat_send_message` in `vox-gui` is a thin RPC proxy — it calls out to a **separate orchestrator daemon process** (`client.call(TOOL_CALL, json!({"name": "vox_chat_message", ...}))`) and never resolves a model in-process. Wiring the guard there would have silently protected nothing; every real dispatch happens server-side. The design spec had this right from the start (§1.2: *"a new `budget_guard` module in `.../model_route_policy/`... runs immediately before dispatch"*) — this task now matches it.
 
 **Files:**
-- Modify: `crates/vox-gui/src/commands/user_config.rs:304-334` (the existing `get_llm_spend` command already fetches `LlmSpendSummary` + `VoxConfig` caps — reuse this exact data-fetch pattern)
-- Modify: `crates/vox-gui/src/commands/models.rs` or wherever the GUI's chat-dispatch entry point lives (search: `grep -rn "resolve_mcp_chat_model\|fn chat_send\|fn dispatch" crates/vox-gui/src/commands/chat.rs` — this file was listed in the commands directory but not read yet; find the actual dispatch call site first)
-- Test: same file as the modified dispatch command, inline `#[cfg(test)]` or existing test module
+- Modify: `crates/vox-orchestrator-mcp/src/chat_model_resolve.rs` (the function `resolve_chat_llm_model` — confirmed via live-code audit to be the actual entry point the orchestrator's chat-tool handler calls before dispatch; read it first, its exact signature isn't pre-verified in this plan)
+- Test: same file, inline `#[cfg(test)]` or existing test module for `chat_model_resolve.rs`
 
-- [ ] **Step 1: Locate the exact dispatch call site**
+- [ ] **Step 1: Read the real entry point before writing anything**
 
 Run:
 ```bash
-grep -rn "resolve_mcp_chat_model\|resolve_chat_llm_model" crates/vox-gui/src/commands/
+sed -n '1,80p' crates/vox-orchestrator-mcp/src/chat_model_resolve.rs
+grep -n "fn resolve_chat_llm_model" -A 20 crates/vox-orchestrator-mcp/src/chat_model_resolve.rs
 ```
 
-This finds every place the GUI backend resolves a model before dispatch — that's where `budget_guard::check` must run first. There may be more than one call site (e.g. `chat.rs` for interactive chat, `harness.rs` for agent runs) — apply the same wiring to each.
+Confirm: the function's exact signature (parameters — does it already receive a session id, or does that need threading in from its own caller?), whether it's `async` (it must be, to call `budget_guard::check` which needs an async DB read), and — importantly — whether this module or its caller already holds a pooled/cached DB handle you should reuse rather than opening a fresh `VoxDb::connect_canonical()` per call (the earlier vox-gui-targeted draft of this task copied a fresh-connect pattern from `get_llm_spend`, which is fine for an occasional Settings poll but wasteful on every single chat dispatch — check for a pooled pattern in this crate first, e.g. `grep -rn "DbPool\|connect_canonical" crates/vox-orchestrator-mcp/src/` and prefer whatever's already idiomatic here).
 
 - [ ] **Step 2: Write the failing test**
 
-For the primary call site found in Step 1 (most likely `crates/vox-gui/src/commands/chat.rs`), add a test asserting the command returns an error when spend already exceeds the cap. Since this requires a `VoxDb` connection, follow the existing async-test pattern already used by `get_llm_spend`'s neighbors in `user_config.rs` (search that file for `#[tokio::test]` to find the established fixture pattern) rather than inventing a new one — read that pattern first, then write an analogous test here:
-
-```bash
-grep -n "#\[tokio::test\]" -A 15 crates/vox-gui/src/commands/user_config.rs
-```
-
-Use whatever `VoxDb::connect`/in-memory fixture pattern that search reveals to write:
+Add a test in `chat_model_resolve.rs` (or its existing test module) asserting `resolve_chat_llm_model` returns an error containing "budget" (case-insensitive) when spend already exceeds the configured cap — using the exact async-test/DB-fixture pattern already established elsewhere in this crate (search for `#[tokio::test]` in this file or its neighbors first; do not invent a new fixture pattern):
 
 ```rust
 #[tokio::test]
-async fn dispatch_refuses_when_daily_budget_exceeded() {
+async fn resolve_refuses_when_daily_budget_exceeded() {
     // Arrange: a VoxConfig with daily_budget_usd = 0.01 and a spend summary
     // showing $0.01+ already spent today (use the same DB fixture pattern
-    // found in user_config.rs's existing async tests).
-    // Act: call the chat-dispatch command.
+    // found elsewhere in this crate's existing async tests, per Step 1).
+    // Act: call resolve_chat_llm_model with any valid prompt/args.
     // Assert: it returns Err(_) containing "budget" (case-insensitive) rather
-    // than proceeding to resolve_mcp_chat_model.
+    // than proceeding to resolve_mcp_chat_model / a real model resolution.
 }
 ```
 
 - [ ] **Step 3: Run test to verify it fails**
 
-Run: `cargo test -p vox-gui --bins dispatch_refuses_when_daily_budget_exceeded -- --nocapture`
-Expected: FAIL (command currently dispatches unconditionally)
+Run: `cargo test -p vox-orchestrator-mcp resolve_refuses_when_daily_budget_exceeded -- --nocapture`
+Expected: FAIL (the function currently dispatches unconditionally)
 
 - [ ] **Step 4: Wire the guard**
 
-In the dispatch command found in Step 1, immediately before the existing `resolve_mcp_chat_model`/`resolve_mcp_chat_model_sync` call, insert:
-
-```rust
-    let spend_cfg = vox_config::VoxConfig::load();
-    let spend = vox_db::VoxDb::connect_canonical()
-        .await
-        .ok()
-        .then(|| async {})
-        .is_some(); // placeholder removed below — see full block
-```
-
-Replace that scaffold with the real block (matches `get_llm_spend`'s exact pattern from `user_config.rs:304-334`):
+At the top of `resolve_chat_llm_model` (before it delegates to `resolve_mcp_chat_model`/`resolve_mcp_chat_model_with_rationale`), insert:
 
 ```rust
     let cfg = vox_config::VoxConfig::load();
@@ -352,7 +452,7 @@ Replace that scaffold with the real block (matches `get_llm_spend`'s exact patte
             .unwrap_or_default(),
         Err(_) =&gt; Default::default(),
     };
-    if let Err(e) = vox_orchestrator_mcp::llm_bridge::budget_guard::check(
+    if let Err(e) = crate::llm_bridge::model_route_policy::budget_guard::check(
         &amp;spend,
         cfg.daily_budget_usd,
         cfg.per_session_budget_usd,
@@ -362,23 +462,23 @@ Replace that scaffold with the real block (matches `get_llm_spend`'s exact patte
     }
 ```
 
-(Adjust `session_id` to whatever variable name the surrounding function already uses for its session identifier — check the function signature found in Step 1.)
+Adjust the exact `session_id`/DB-access expression to match whatever Step 1 actually found (a parameter name, and — if a pooled handle already exists in scope — use that instead of `VoxDb::connect_canonical()`). Adjust the module path prefix (`crate::llm_bridge::...`) if `chat_model_resolve.rs` isn't itself inside the `llm_bridge` module tree — confirm via its own `use`/`mod` declarations at the top of the file.
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `cargo test -p vox-gui --bins dispatch_refuses_when_daily_budget_exceeded -- --nocapture`
+Run: `cargo test -p vox-orchestrator-mcp resolve_refuses_when_daily_budget_exceeded -- --nocapture`
 Expected: PASS
 
-- [ ] **Step 6: Verify existing dispatch tests still pass (regression gate)**
+- [ ] **Step 6: Verify existing tests still pass (regression gate)**
 
-Run: `cargo test -p vox-gui --bins`
-Expected: all pre-existing tests in this crate still PASS — this task must not break normal (under-budget) dispatch.
+Run: `cargo test -p vox-orchestrator-mcp`
+Expected: all pre-existing tests in this crate still PASS — this task must not break normal (under-budget) dispatch. Since this is now the single shared chokepoint for GUI, CLI, and MCP-tool chat dispatch, a regression here is more consequential than a GUI-only change would have been — treat this gate as non-optional.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add crates/vox-gui/src/commands/
-git commit -m "feat(vox-gui): wire budget_guard into chat dispatch"
+git add crates/vox-orchestrator-mcp/src/chat_model_resolve.rs
+git commit -m "feat(vox-orchestrator-mcp): wire budget_guard into the shared chat dispatch chokepoint"
 ```
 
 ### Task 5: Surface `BudgetWarning` and `BudgetGuardError::Exceeded` distinctly in the GUI
@@ -414,7 +514,12 @@ In the dispatch-error catch block, check whether the error string starts with `"
 Same command as Step 3.
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Run the full Chat surface spec (regression gate)**
+
+Run the project's Playwright/vitest command scoped to every existing spec for the Chat surface (not just this new assertion) — the modified catch block is shared error-handling for *every* dispatch error, not just budget ones, so this task must not change behavior for any other error class.
+Expected: all pre-existing Chat-surface tests still PASS
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add crates/vox-gui/ui/src/components/surfaces/Chat/
@@ -546,11 +651,11 @@ git commit -m "test(vox-gui-ui): confirm budget_warn_threshold_pct surfaces in S
 - Create: `crates/vox-oauth-pkce/Cargo.toml`
 - Create: `crates/vox-oauth-pkce/src/lib.rs`
 - Create: `crates/vox-oauth-pkce/src/pkce.rs`
-- Modify: root `Cargo.toml` (add `"crates/vox-oauth-pkce"` to the workspace `members` list, and register the new crate as a workspace dependency if the workspace uses a central `[workspace.dependencies]` table — check the existing pattern for a recently-added small crate like `vox-llm-egress` first)
+- Modify: root `Cargo.toml` (register the new crate in `[workspace.dependencies]` — **not** the `members` list; this workspace's root `Cargo.toml:3` declares `members = ["crates/*", "crates/workspace-hack"]`, a two-entry glob, so any new directory under `crates/` is picked up automatically. An earlier draft of this task assumed an explicit per-crate `members` list to edit — verified against the real file that no such list exists here; don't add one, just confirm the crate is on the correct relative path and move on to `[workspace.dependencies]`.)
 - Modify: `docs/src/architecture/where-things-live.md` (add a row per `AGENTS.md`'s requirement: "consult this before adding code... add the row in the same PR")
 - Test: `crates/vox-oauth-pkce/src/pkce.rs` inline
 
-- [ ] **Step 1: Check the workspace-registration pattern for a recent small crate**
+- [ ] **Step 1: Check the `[workspace.dependencies]` entry format for a recent small crate**
 
 Run:
 ```bash
@@ -683,7 +788,7 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros", "test-util"
 workspace = true
 ```
 
-Add `"crates/vox-oauth-pkce",` to the `members` list in the root `Cargo.toml` (alphabetically, near `vox-oauth-*`/`vox-openai` if present — otherwise near other single-purpose small crates), and add `vox-oauth-pkce = { path = "crates/vox-oauth-pkce" }` to `[workspace.dependencies]` if that table exists (mirror the `vox-llm-egress` entry format found in Step 1).
+Add `vox-oauth-pkce = { path = "crates/vox-oauth-pkce" }` to `[workspace.dependencies]` in the root `Cargo.toml`, matching the exact `vox-llm-egress` entry format found in Step 1 (alphabetically among the other `vox-*` entries). No `members` list edit is needed — the glob already covers it (see the Files note above).
 
 - [ ] **Step 3: Run test to verify it fails**
 
@@ -709,6 +814,11 @@ git commit -m "feat(vox-oauth-pkce): add crate scaffold + PKCE verifier/challeng
 **Files:**
 - Create: `crates/vox-oauth-pkce/src/openrouter.rs`
 - Test: same file, inline
+
+**⚠️ Corrections from the second audit round** (web-verified against OpenRouter's live docs and axum's real behavior, not assumed):
+1. **OpenRouter's OAuth docs do not document a `state` parameter being echoed back on the callback.** The original draft of `callback_handler` *required* a matching `state` and rejected the callback otherwise — as written, that would make every real login fail with a false CSRF-mismatch error, since OpenRouter likely never sends `state` back at all. The code below now only rejects on an explicit *mismatch* (a `state` present but wrong), never on *absence* — the PKCE `code_verifier` check at token-exchange time remains the real security boundary regardless. **This still needs empirical confirmation** (see the Phase 2 gate in "Parallelization & Phase Gates" above) — if a real OpenRouter callback turns out to include a correct `state`, tighten this back to required.
+2. **`server.abort()` immediately after the callback is a known-risky pattern** for exactly this "loopback OAuth callback" use case (a real GitHub issue describes the browser seeing a connection-reset instead of the success page when the serving task is killed mid-flush). The code below uses axum's `with_graceful_shutdown`, triggered by the handler itself only after it has built its response, and awaits the server task's actual completion (bounded by a short timeout) instead of aborting it.
+3. **`open::that()`'s failure carried no way to recover** — the auth URL was a local variable, never surfaced to the caller. `OAuthError::BrowserOpen` now carries the URL alongside the underlying error, so a caller (CLI or wizard) can show it as a clickable/copyable fallback link instead of a dead end.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -738,8 +848,12 @@ const CALLBACK_TIMEOUT: Duration = Duration::from_secs(120);
 pub enum OAuthError {
     #[error("failed to bind loopback listener: {0}")]
     Bind(std::io::Error),
-    #[error("failed to open system browser: {0}")]
-    BrowserOpen(String),
+    #[error("failed to open system browser for {url}: {source}")]
+    BrowserOpen {
+        url: String,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("timed out waiting for OAuth callback ({0:?})")]
     TimedOut(Duration),
     #[error("callback state mismatch (possible CSRF)")]
@@ -769,19 +883,40 @@ struct ExchangeResponse {
 struct CallbackState {
     expected_state: String,
     tx: std::sync::Mutex&lt;Option&lt;oneshot::Sender&lt;Result&lt;String, OAuthError&gt;&gt;&gt;&gt;,
+    shutdown_tx: std::sync::Mutex&lt;Option&lt;oneshot::Sender&lt;()&gt;&gt;&gt;,
 }
 
 async fn callback_handler(
     State(state): State&lt;Arc&lt;CallbackState&gt;&gt;,
     Query(q): Query&lt;CallbackQuery&gt;,
 ) -&gt; Html&lt;&amp;'static str&gt; {
-    let result = match (q.code, q.state) {
-        (Some(code), Some(got_state)) if got_state == state.expected_state =&gt; Ok(code),
-        (Some(_), Some(_)) =&gt; Err(OAuthError::StateMismatch),
-        _ =&gt; Err(OAuthError::TokenExchange("missing code/state in callback".into())),
+    // OpenRouter's documented OAuth contract does not mention a `state`
+    // parameter being echoed back on the callback (verified against their
+    // live docs during the second audit round) — reject only on an explicit
+    // MISMATCH (state present but wrong), never on absence, or every real
+    // login would fail a check OpenRouter never promised to honor. The PKCE
+    // code_verifier check at token-exchange time is the real security
+    // boundary either way. If empirical testing later shows OpenRouter DOES
+    // echo `state`, tighten this back to required-and-matching.
+    let result = match q.code {
+        None =&gt; Err(OAuthError::TokenExchange("missing code in callback".into())),
+        Some(code) =&gt; match q.state {
+            Some(got_state) if got_state != state.expected_state =&gt; Err(OAuthError::StateMismatch),
+            _ =&gt; Ok(code),
+        },
     };
     if let Some(tx) = state.tx.lock().expect("callback state mutex poisoned").take() {
         let _ = tx.send(result);
+    }
+    // Signal graceful shutdown only now, after the response above has been
+    // constructed — axum flushes it to the client before the connection
+    // closes. This intentionally avoids a raw task abort() (see the Task 9
+    // header note): aborting immediately after receiving the callback is a
+    // documented failure mode for this exact "one-shot loopback server"
+    // pattern, where the browser can see a connection-reset instead of the
+    // success page.
+    if let Some(shutdown_tx) = state.shutdown_tx.lock().expect("shutdown state mutex poisoned").take() {
+        let _ = shutdown_tx.send(());
     }
     Html("&lt;html&gt;&lt;body&gt;You can close this tab and return to Vox.&lt;/body&gt;&lt;/html&gt;")
 }
@@ -799,9 +934,11 @@ pub async fn run_openrouter_flow() -&gt; Result&lt;String, OAuthError&gt; {
     let port = listener.local_addr().map_err(OAuthError::Bind)?.port();
 
     let (tx, rx) = oneshot::channel();
+    let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let callback_state = Arc::new(CallbackState {
         expected_state: state_value.clone(),
         tx: std::sync::Mutex::new(Some(tx)),
+        shutdown_tx: std::sync::Mutex::new(Some(shutdown_tx)),
     });
 
     let app = Router::new()
@@ -809,7 +946,11 @@ pub async fn run_openrouter_flow() -&gt; Result&lt;String, OAuthError&gt; {
         .with_state(callback_state);
 
     let server = tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
+        let _ = axum::serve(listener, app)
+            .with_graceful_shutdown(async move {
+                let _ = shutdown_rx.await;
+            })
+            .await;
     });
 
     let callback_url = format!("http://127.0.0.1:{port}/callback");
@@ -820,14 +961,20 @@ pub async fn run_openrouter_flow() -&gt; Result&lt;String, OAuthError&gt; {
         state_value,
     );
 
-    open::that(&amp;auth_url).map_err(|e| OAuthError::BrowserOpen(e.to_string()))?;
+    open::that(&amp;auth_url).map_err(|e| OAuthError::BrowserOpen {
+        url: auth_url.clone(),
+        source: e,
+    })?;
 
     let code = tokio::time::timeout(CALLBACK_TIMEOUT, rx)
         .await
         .map_err(|_| OAuthError::TimedOut(CALLBACK_TIMEOUT))?
         .map_err(|_| OAuthError::TokenExchange("callback channel closed unexpectedly".into()))??;
 
-    server.abort();
+    // Wait for the server task's graceful shutdown to actually finish
+    // (bounded — near-instant once shutdown_tx fired above) rather than
+    // aborting it out from under an in-flight response.
+    let _ = tokio::time::timeout(Duration::from_secs(5), server).await;
 
     exchange_code(&amp;code, &amp;verifier).await
 }
@@ -872,13 +1019,19 @@ mod tests {
         );
     }
 
+    fn test_state(expected_state: &amp;str, tx: oneshot::Sender&lt;Result&lt;String, OAuthError&gt;&gt;) -&gt; Arc&lt;CallbackState&gt; {
+        let (shutdown_tx, _shutdown_rx) = oneshot::channel();
+        Arc::new(CallbackState {
+            expected_state: expected_state.to_string(),
+            tx: std::sync::Mutex::new(Some(tx)),
+            shutdown_tx: std::sync::Mutex::new(Some(shutdown_tx)),
+        })
+    }
+
     #[tokio::test]
     async fn callback_handler_rejects_state_mismatch() {
         let (tx, rx) = oneshot::channel();
-        let state = Arc::new(CallbackState {
-            expected_state: "expected-123".to_string(),
-            tx: std::sync::Mutex::new(Some(tx)),
-        });
+        let state = test_state("expected-123", tx);
         let query = Query(CallbackQuery {
             code: Some("some-code".to_string()),
             state: Some("wrong-state".to_string()),
@@ -891,10 +1044,7 @@ mod tests {
     #[tokio::test]
     async fn callback_handler_accepts_matching_state() {
         let (tx, rx) = oneshot::channel();
-        let state = Arc::new(CallbackState {
-            expected_state: "expected-123".to_string(),
-            tx: std::sync::Mutex::new(Some(tx)),
-        });
+        let state = test_state("expected-123", tx);
         let query = Query(CallbackQuery {
             code: Some("real-code".to_string()),
             state: Some("expected-123".to_string()),
@@ -903,18 +1053,52 @@ mod tests {
         let result = rx.await.expect("tx sent");
         assert_eq!(result.unwrap(), "real-code");
     }
+
+    #[tokio::test]
+    async fn callback_handler_accepts_missing_state_param() {
+        // Regression test for the state-leniency fix: OpenRouter's OAuth
+        // docs don't document echoing `state` back, so absence must not be
+        // treated as a failure — only an explicit wrong value should be.
+        let (tx, rx) = oneshot::channel();
+        let state = test_state("expected-123", tx);
+        let query = Query(CallbackQuery {
+            code: Some("real-code".to_string()),
+            state: None,
+        });
+        let _ = callback_handler(State(state), query).await;
+        let result = rx.await.expect("tx sent");
+        assert_eq!(result.unwrap(), "real-code");
+    }
+
+    #[tokio::test]
+    async fn callback_handler_signals_shutdown_after_responding() {
+        let (tx, rx) = oneshot::channel();
+        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        let state = Arc::new(CallbackState {
+            expected_state: "expected-123".to_string(),
+            tx: std::sync::Mutex::new(Some(tx)),
+            shutdown_tx: std::sync::Mutex::new(Some(shutdown_tx)),
+        });
+        let query = Query(CallbackQuery {
+            code: Some("real-code".to_string()),
+            state: Some("expected-123".to_string()),
+        });
+        let _ = callback_handler(State(state), query).await;
+        let _ = rx.await.expect("tx sent");
+        shutdown_rx.await.expect("shutdown signal sent after response was built");
+    }
 }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cargo test -p vox-oauth-pkce -- --nocapture`
-Expected: FAIL initially on any typo/signature mismatch against the actual `axum`/`reqwest` versions pinned in this workspace — if `axum::serve` or the `Query`/`State` extractor APIs differ from what's shown here (workspace pins `axum = "0.8"` per the earlier audit — this code targets that API shape), fix signature mismatches against the compiler's actual errors rather than the snippet above; the snippet is written against axum 0.8's `axum::serve(listener, app)` + extractor pattern, which is current as of this workspace's pin.
+Expected: FAIL initially on any typo/signature mismatch against the actual `axum`/`reqwest` versions pinned in this workspace — if `axum::serve`, `.with_graceful_shutdown`, or the `Query`/`State` extractor APIs differ from what's shown here (workspace pins `axum = "0.8"` per the earlier audit — this code targets that API shape, and `axum::serve`/`with_graceful_shutdown`/`Query`/`State`/`Router::with_state` were all independently web-verified as current for 0.8), fix signature mismatches against the compiler's actual errors rather than the snippet above.
 
 - [ ] **Step 3: Run test to verify it passes**
 
 Run: `cargo test -p vox-oauth-pkce -- --nocapture`
-Expected: PASS (6 tests total across `pkce.rs` and `openrouter.rs`: 4 + `urlencoding_escapes_colon_and_slash` + `callback_handler_rejects_state_mismatch` + `callback_handler_accepts_matching_state` = actually 7; count what actually runs and confirm all green, don't hardcode an expected count blindly)
+Expected: PASS — all tests across `pkce.rs` and `openrouter.rs` (`urlencoding_escapes_colon_and_slash`, `callback_handler_rejects_state_mismatch`, `callback_handler_accepts_matching_state`, `callback_handler_accepts_missing_state_param`, `callback_handler_signals_shutdown_after_responding`, plus `pkce.rs`'s 4). Don't hardcode an expected total count in the actual run — just confirm everything present is green.
 
 Note: `run_openrouter_flow()` itself (the full end-to-end function) is **not** covered by these tests — it requires a live browser and a real OpenRouter round-trip, which is out of scope for unit tests. It gets integration coverage in Task 10/11 via the CLI/GUI commands that call it, mocked at the HTTP-client boundary if this workspace has an established `reqwest` mocking convention (check for `wiremock` in `Cargo.toml` — the vox-llm-egress crate's tests were noted as using `wiremock` per project history; replicate that pattern for `exchange_code` specifically, as a follow-up test, rather than trying to mock the loopback+browser parts).
 
@@ -970,35 +1154,42 @@ In `crates/vox-cli/Cargo.toml`, add to `[dependencies]`: `vox-oauth-pkce = { wor
 
 - [ ] **Step 2: Write the failing test**
 
-Add to `crates/vox-cli/src/commands/secrets.rs` (find or create the test module):
+**⚠️ Correction from the second audit round**: `SecretsCmd` only derives `#[derive(Subcommand, Debug)]` (`secrets.rs:126-127`), not `clap::Parser` — `SecretsCmd::try_parse_from(...)` is a `Parser`-trait method and will **not compile** on a `Subcommand`-only type. `SecretsCmd` is used flattened into the top-level CLI struct: `crates/vox-cli/src/lib.rs:172-177` has `Secrets { #[command(subcommand)] cmd: commands::secrets::SecretsCmd }` inside the top-level `Commands` enum. The test below parses through that real top-level type instead.
+
+First confirm the exact top-level `Parser` struct name and how it wraps `Commands`:
+
+```bash
+grep -n "derive(Parser\|struct.*Cli\|enum Commands" crates/vox-cli/src/lib.rs | head -10
+```
+
+Add to `crates/vox-cli/src/commands/secrets.rs` (find or create the test module), substituting the real top-level struct/field names found above for the placeholders `Cli`/`.command`:
 
 ```rust
 #[cfg(test)]
 mod oauth_login_cli_tests {
-    use super::*;
+    use clap::Parser;
 
     #[test]
     fn oauth_flag_parses_on_login_subcommand() {
-        // Parse `vox secrets login --oauth --provider openrouter` via the
-        // crate's existing clap-parsing test helper (search this file/module
-        // for how other subcommand parse tests are structured — likely
-        // `SecretsCmd::try_parse_from([...])` or similar via `clap::Parser`).
-        let cmd = SecretsCmd::try_parse_from([
-            "secrets", "login", "--oauth", "--provider", "openrouter",
+        // Parse through the REAL top-level CLI struct (SecretsCmd itself only
+        // derives Subcommand, not Parser — it cannot be parsed standalone).
+        // Substitute the actual struct/enum/field names confirmed via the
+        // grep above; this is illustrative, not copy-paste-exact, since this
+        // plan doesn't have the top-level type's real name verified.
+        let cli = crate::Cli::try_parse_from([
+            "vox", "secrets", "login", "--oauth", "--provider", "openrouter",
         ])
         .expect("parses");
-        match cmd {
-            SecretsCmd::Login { oauth, provider, .. } =&gt; {
+        match cli.command {
+            crate::Commands::Secrets { cmd: super::SecretsCmd::Login { oauth, provider, .. } } =&gt; {
                 assert!(oauth);
                 assert_eq!(provider.as_deref(), Some("openrouter"));
             }
-            _ =&gt; panic!("expected Login variant"),
+            _ =&gt; panic!("expected Commands::Secrets{{ cmd: SecretsCmd::Login }}"),
         }
     }
 }
 ```
-
-(This test's exact parsing helper may need adjusting once you check how `SecretsCmd` derives `clap::Subcommand` — it already does, per the `#[derive(Subcommand, Debug)]` on the enum, so `SecretsCmd::try_parse_from` should work directly if `SecretsCmd` is `#[derive(Parser)]`-compatible at the top level, or you may need to wrap it in whatever top-level CLI struct the crate's existing arg-parsing tests use — check `crates/vox-cli/src/main.rs` or `crates/vox-cli/src/cli.rs` for the existing pattern before finalizing this test's exact shape.)
 
 - [ ] **Step 3: Run test to verify it fails**
 
@@ -1077,7 +1268,14 @@ git commit -m "feat(vox-cli): add vox secrets login --oauth --provider openroute
 
 In `crates/vox-gui/Cargo.toml`, add `vox-oauth-pkce = { workspace = true }` to `[dependencies]`.
 
-- [ ] **Step 2: Write the failing test**
+**⚠️ Corrections from the second audit round:**
+1. `vox_secrets::set_registry_token` returns `Result&lt;std::path::PathBuf, SecretError&gt;` (verified against `crates/vox-secrets/src/lib.rs:433-438`), **not** `Result&lt;(), SecretError&gt;`. The original draft's `Ok(()) =&gt; ...` match arm would not compile. Fixed below.
+2. The design spec's original wording said this flow should persist via `vox_secrets::set_secret(SecretId::OpenRouterApiKey, value, SecretKind::OAuthRefreshToken)` — that function/kind pairing isn't actually how `OPENROUTER_API_KEY` is stored today; the real, already-wired path (confirmed via the existing GUI `set_secret` command's own implementation) is `set_registry_token("openrouter", ...)`. This task uses the real path, and the design spec should be treated as superseded on this specific point — `set_registry_token` is correct, not a workaround.
+3. The DTO now carries the auth URL on `BrowserOpen` failure (Task 9's fix), so the wizard can offer a copyable fallback link instead of a dead end.
+4. The command now takes an `AppHandle` so it can refocus the Vox window after a successful callback — a browser tab saying "you can close this" with no nudge back to the app is a real, if minor, UX gap.
+5. The store/error-mapping logic is split into small, independently unit-testable pure functions (`map_store_result`, `map_flow_error`) rather than being buried inline in the async command — the original draft's only test covered DTO JSON serialization, never the actual new behavior (secret storage, error mapping). These two functions now get real coverage; only the top-level async orchestration (which needs a live browser + OpenRouter round-trip) remains outside unit-test scope, same acknowledged limitation as `run_openrouter_flow()` itself in Task 9.
+
+- [ ] **Step 2: Write the failing tests**
 
 Create `crates/vox-gui/src/commands/oauth.rs`:
 
@@ -1085,13 +1283,46 @@ Create `crates/vox-gui/src/commands/oauth.rs`:
 //! Tauri commands for in-app OAuth key provisioning (free-tier onboarding).
 
 use serde::Serialize;
-use tauri::command;
+use tauri::{command, AppHandle, Manager};
+use vox_oauth_pkce::openrouter::OAuthError;
+use vox_secrets::SecretError;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OAuthLoginResultDto {
     pub success: bool,
     pub error: Option&lt;String&gt;,
+    /// Set only when the browser failed to open automatically — lets the
+    /// caller show a copyable/clickable fallback link instead of dead-ending.
+    pub fallback_url: Option&lt;String&gt;,
+}
+
+/// Map the OAuth flow's own error into the DTO's error/fallback_url pair.
+/// Pure, no I/O — independently testable without a live browser.
+fn map_flow_error(e: &amp;OAuthError) -&gt; (String, Option&lt;String&gt;) {
+    match e {
+        OAuthError::BrowserOpen { url, .. } =&gt; (e.to_string(), Some(url.clone())),
+        _ =&gt; (e.to_string(), None),
+    }
+}
+
+/// Map `set_registry_token`'s real return type (`Result&lt;PathBuf, SecretError&gt;`
+/// — not `Result&lt;(), _&gt;`, a bug in an earlier draft of this task) into the
+/// DTO. Pure, no I/O beyond what the caller already did — independently
+/// testable with a pre-computed `Result`.
+fn map_store_result(result: Result&lt;std::path::PathBuf, SecretError&gt;) -&gt; OAuthLoginResultDto {
+    match result {
+        Ok(_path) =&gt; OAuthLoginResultDto {
+            success: true,
+            error: None,
+            fallback_url: None,
+        },
+        Err(e) =&gt; OAuthLoginResultDto {
+            success: false,
+            error: Some(format!("failed to store key: {e}")),
+            fallback_url: None,
+        },
+    }
 }
 
 /// Run the OpenRouter loopback OAuth flow and persist the resulting key via
@@ -1099,22 +1330,25 @@ pub struct OAuthLoginResultDto {
 /// (`vox_secrets::set_registry_token("openrouter", ...)`), so the GUI's
 /// `list_secret_status`/`vox doctor` see it identically to a manually-entered key.
 #[command]
-pub async fn oauth_login_openrouter() -&gt; OAuthLoginResultDto {
+pub async fn oauth_login_openrouter(app: AppHandle) -&gt; OAuthLoginResultDto {
     match vox_oauth_pkce::openrouter::run_openrouter_flow().await {
-        Ok(key) =&gt; match vox_secrets::set_registry_token("openrouter", &amp;key, None) {
-            Ok(()) =&gt; OAuthLoginResultDto {
-                success: true,
-                error: None,
-            },
-            Err(e) =&gt; OAuthLoginResultDto {
+        Ok(key) =&gt; {
+            let result = map_store_result(vox_secrets::set_registry_token("openrouter", &amp;key, None));
+            if result.success {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_focus();
+                }
+            }
+            result
+        }
+        Err(e) =&gt; {
+            let (error, fallback_url) = map_flow_error(&amp;e);
+            OAuthLoginResultDto {
                 success: false,
-                error: Some(format!("failed to store key: {e}")),
-            },
-        },
-        Err(e) =&gt; OAuthLoginResultDto {
-            success: false,
-            error: Some(e.to_string()),
-        },
+                error: Some(error),
+                fallback_url,
+            }
+        }
     }
 }
 
@@ -1127,34 +1361,72 @@ mod tests {
         let dto = OAuthLoginResultDto {
             success: false,
             error: Some("timed out".to_string()),
+            fallback_url: None,
         };
         let json = serde_json::to_string(&amp;dto).expect("serializes");
         assert!(json.contains("\"success\":false"));
         assert!(json.contains("\"error\":\"timed out\""));
+    }
+
+    #[test]
+    fn map_store_result_ok_path_is_success() {
+        // The real bug this test guards against: an earlier draft matched
+        // `Ok(())` against `set_registry_token`'s actual `Result&lt;PathBuf,_&gt;`
+        // return type, which does not compile. This asserts the PathBuf
+        // case is handled, not discarded/mismatched.
+        let dto = map_store_result(Ok(std::path::PathBuf::from("/fake/path")));
+        assert!(dto.success);
+        assert!(dto.error.is_none());
+    }
+
+    #[test]
+    fn map_store_result_err_is_failure_with_message() {
+        let dto = map_store_result(Err(SecretError::Io("disk full".to_string())));
+        assert!(!dto.success);
+        assert!(dto.error.unwrap().contains("disk full"));
+    }
+
+    #[test]
+    fn map_flow_error_browser_open_carries_fallback_url() {
+        let err = OAuthError::BrowserOpen {
+            url: "https://openrouter.ai/auth?callback_url=...".to_string(),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "no browser"),
+        };
+        let (_, fallback_url) = map_flow_error(&amp;err);
+        assert_eq!(fallback_url.as_deref(), Some("https://openrouter.ai/auth?callback_url=..."));
+    }
+
+    #[test]
+    fn map_flow_error_timeout_has_no_fallback_url() {
+        let err = OAuthError::TimedOut(std::time::Duration::from_secs(120));
+        let (_, fallback_url) = map_flow_error(&amp;err);
+        assert!(fallback_url.is_none());
     }
 }
 ```
 
 Add `pub mod oauth;` to `crates/vox-gui/src/commands/mod.rs` (alphabetically among the existing `pub mod` lines).
 
-- [ ] **Step 3: Run test to verify it fails**
+(Confirm `SecretError`'s exact variant names before finalizing `map_store_result_err_is_failure_with_message` — this plan cites `SecretError::Io(String)` from `crates/vox-secrets/src/errors.rs:4-15`, verified during the first research round; re-check that file if it's drifted.)
 
-Run: `cargo test -p vox-gui result_dto_serializes_camel_case -- --nocapture`
-Expected: FAIL (compile error — `vox-oauth-pkce`/`vox_secrets::set_registry_token` not yet resolvable if the dependency add in Step 1 wasn't done first, or module not registered). Confirm Step 1 and the `mod.rs` edit are both done, then re-check — this specific unit test itself doesn't touch either dependency's real behavior, only serialization, so it should compile and pass as soon as the file exists and compiles.
+- [ ] **Step 3: Run tests to verify they fail**
 
-- [ ] **Step 4: Run test to verify it passes**
+Run: `cargo test -p vox-gui oauth:: -- --nocapture`
+Expected: FAIL — either a compile error (dependency/module wiring from Step 1 not yet done — confirm that first) or, once it compiles, `map_store_result_ok_path_is_success` and `map_flow_error_browser_open_carries_fallback_url` are the two tests that actually exercise new logic (as opposed to `result_dto_serializes_camel_case`, which is a thin serialization check) — make sure those two specifically are asserting real behavior, not vacuously passing.
 
-Run: `cargo test -p vox-gui result_dto_serializes_camel_case -- --nocapture`
-Expected: PASS
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `cargo test -p vox-gui oauth:: -- --nocapture`
+Expected: PASS (5 tests)
 
 - [ ] **Step 5: Register in `generate_handler!`**
 
 In `crates/vox-gui/src/main.rs`, add `commands::oauth::oauth_login_openrouter,` immediately after the existing `commands::secrets::*` block (around line 227 per the earlier audit).
 
-- [ ] **Step 6: Full build check**
+- [ ] **Step 6: Full build check + regression gate**
 
-Run: `cargo check -p vox-gui`
-Expected: compiles clean (this validates the `generate_handler!` registration syntax, which isn't otherwise unit-testable)
+Run: `cargo check -p vox-gui` (validates the `generate_handler!` registration syntax, which isn't otherwise unit-testable), then `cargo test -p vox-gui` (regression gate — this task edits `main.rs`'s shared handler-registration list and `commands/mod.rs`'s shared module list, both touched by every other GUI command; an earlier draft of this task stopped at `cargo check`, which wouldn't have caught a regression in existing tests).
+Expected: both clean/green
 
 - [ ] **Step 7: Commit**
 
@@ -1163,7 +1435,73 @@ git add crates/vox-gui/src/commands/oauth.rs crates/vox-gui/src/commands/mod.rs 
 git commit -m "feat(vox-gui): add oauth_login_openrouter Tauri command"
 ```
 
-### Task 12: `vox doctor` — distinguish `NoCredential` vs `RateLimited` (investigative task)
+### Task 11b: `verify_openrouter_key` Tauri command — real verification, not just "a string got stored"
+
+**Why this task exists**: a gap found in the second audit round — the wizard's "confirmation" screen (Task 15) originally said "You're set up" purely because `oauth_login_openrouter` returned `success: true`, which per Task 11 only means the PKCE exchange returned *some* key string and `set_registry_token` wrote it without erroring. A malformed, immediately-revoked, or provider-side-broken key would still show "you're set up," and the user's very next real chat message would fail with no connection back to "the wizard said this was fine." This task adds a real, minimal connectivity check between "key stored" and "confirmation shown."
+
+**Files:**
+- Create/modify: `crates/vox-gui/src/commands/oauth.rs` (new command in the same file as Task 11)
+- Test: same file, inline
+
+- [ ] **Step 1: Confirm the actual lightweight verification endpoint before writing any code**
+
+Do not guess at an OpenRouter endpoint path — confirm one against OpenRouter's live API docs (`https://openrouter.ai/docs/api-reference/...` — check their reference for a cheap, read-only, key-scoped endpoint, e.g. a "get current key info / credits" GET request that requires auth but doesn't consume a real completion). This plan deliberately does not hardcode a guessed path here, following the same discipline Task 9's OAuth endpoints were held to (web-verified before being written into code, not assumed).
+
+- [ ] **Step 2: Write the failing test**
+
+Once Step 1 confirms the real endpoint, add (using the same `wiremock` pattern already established in Task 9):
+
+```rust
+#[cfg(test)]
+mod verify_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn verify_returns_true_on_200() {
+        let server = wiremock::MockServer::start().await;
+        // Mount a mock at the endpoint confirmed in Step 1, respond 200.
+        // let result = verify_key_at(&amp;server.uri(), "fake-key").await;
+        // assert!(result);
+    }
+
+    #[tokio::test]
+    async fn verify_returns_false_on_401() {
+        let server = wiremock::MockServer::start().await;
+        // Mount a mock at the endpoint confirmed in Step 1, respond 401.
+        // let result = verify_key_at(&amp;server.uri(), "fake-key").await;
+        // assert!(!result);
+    }
+}
+```
+
+(The commented-out bodies are placeholders for the *test call site only*, filled in once Step 1's real endpoint and this task's real function name are settled — this is not the "no placeholders" violation the plan otherwise forbids, since the surrounding structure and assertions are concrete and the only unknown is an external fact Step 1 resolves first.)
+
+Run the scoped test.
+Expected: FAIL — `verify_key_at` doesn't exist yet
+
+- [ ] **Step 3: Implement the command**
+
+Add a `verify_key_at(base_url: &amp;str, key: &amp;str) -&gt; bool` (testable against a mock base URL, same pattern as Task 9's `exchange_code`/`exchange_code_at` split) plus a public `#[command] pub async fn verify_openrouter_key() -&gt; bool` that resolves the stored key via `vox_secrets::resolve_secret(SecretId::OpenRouterApiKey)` and calls `verify_key_at` with the real endpoint from Step 1.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Same command as Step 2.
+Expected: PASS
+
+- [ ] **Step 5: Register in `generate_handler!` and re-run the Task 11 regression gate**
+
+Same registration pattern as Task 11 Step 5, then re-run `cargo test -p vox-gui` (this file now has two commands in it — a regression here affects both).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add crates/vox-gui/src/commands/oauth.rs crates/vox-gui/src/main.rs
+git commit -m "feat(vox-gui): add verify_openrouter_key command for real post-OAuth verification"
+```
+
+### Task 12: `vox doctor` — distinguish `NoCredential` vs `RateLimited` (on-demand diagnostic only — see Task 12b for the live-path fix)
+
+**Scope note**: this task only improves what `vox doctor` reports when a user manually runs it. It does **not**, by itself, fix what a real user experiences mid-chat when the free tier's rate limit hits — that's Task 12b, and it's the more important of the two per the design spec's own risk register (risk #3, rated Critical). Do not treat this task as having closed that risk on its own.
 
 **Files:**
 - Modify: `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/llm_routing.rs`
@@ -1176,24 +1514,27 @@ Run:
 grep -rn "429\|RateLimited\|retry_after" crates/vox-llm-egress/src/throttle.rs crates/vox-llm-egress/src/lib.rs
 ```
 
-Read the matched error type/variant definitions. This determines whether "rate limited" is already a distinguishable error today (likely yes, given the retry-after-header handling noted in project history) or whether it collapses into a generic HTTP-error string by the time it reaches `resolve.rs`'s callers.
+Read the matched error type/variant definitions. This determines whether "rate limited" is already a distinguishable error today (likely yes, given the retry-after-header handling noted in project history) or whether it collapses into a generic HTTP-error string by the time it reaches callers.
 
 - [ ] **Step 2: Write a test capturing current behavior**
 
-Before changing anything, write a test (in whichever egress test file already covers throttle behavior — search `crates/vox-llm-egress/src` for existing `#[cfg(test)]` throttle tests) that asserts what error type/string a 429 response currently produces, using this crate's existing `wiremock` test pattern (confirmed present per Task 9). This test should PASS immediately (it documents current behavior, it's not a new feature yet) — its purpose is to lock in the exact error shape before Task 12's remaining steps depend on it.
+Before changing anything, write a test (in whichever egress test file already covers throttle behavior — search `crates/vox-llm-egress/src` for existing `#[cfg(test)]` throttle tests) that asserts what error type/string a 429 response currently produces, using this crate's existing `wiremock` test pattern (confirmed present per Task 9). This test should PASS immediately (it documents current behavior, it's not a new feature yet) — its purpose is to lock in the exact error shape before this task's remaining steps, and Task 12b, depend on it.
 
 - [ ] **Step 3: Run the behavior-capture test**
 
 Run: `cargo test -p vox-llm-egress -- --nocapture` (scoped to the new test)
 Expected: PASS (this confirms your understanding of the current error shape is correct before proceeding)
 
-- [ ] **Step 4: Add a `RateLimited`-detection helper at the doctor/CLI boundary**
+- [ ] **Step 4: Write the failing test for the new doctor behavior — BEFORE implementing it**
 
-Based on what Step 1-3 revealed about the actual error shape, add a small helper in `llm_routing.rs` (or wherever is appropriate given the real error type found) that checks a resolved error for the rate-limit signal and returns a distinct `Check` with name `"LLM routing (rate limit)"` and a message like `"OpenRouter free tier limit reached — resets at &lt;time if available&gt;, add your own key or wait"` instead of the generic FAIL. The exact implementation depends entirely on Step 1's findings — do not write this code blind; let the discovered error type drive the match arm.
+**⚠️ Ordering correction from the second audit round**: an earlier draft of this task implemented the detection helper first and only wrote its test afterward — real test-after, not TDD. Write the test first this time. Based on Step 1-3's findings, add a test to `llm_routing.rs` (analogous to Task 6's `reports_budget_caps_in_detail_string`) asserting the doctor check produces a distinct rate-limit-shaped `Check` (name `"LLM routing (rate limit)"`, message containing `"free tier limit"` case-insensitive) when the underlying resolver reports that condition — construct the test via whatever mocking seam Steps 1-2 revealed (a `wiremock` 429 response feeding through the real resolution path if that's testable at this layer, or a narrower unit test on just a soon-to-exist helper function if full end-to-end mocking isn't practical here).
 
-- [ ] **Step 5: Write a test for the new doctor behavior**
+Run: `cargo test -p vox-cli` (scoped to the new test name)
+Expected: FAIL — the distinct rate-limit `Check` doesn't exist yet, the doctor still reports the generic FAIL
 
-Once Step 4's implementation is written against the real type, add a test analogous to Task 6's `reports_budget_caps_in_detail_string`, asserting the doctor check produces the distinct rate-limit message when the underlying resolver reports that condition (construct this via whatever mocking seam Step 1-2 revealed, e.g. a `wiremock` 429 response feeding through the real resolution path if that's testable at this layer, or a narrower unit test on just the new helper function if full end-to-end mocking isn't practical here).
+- [ ] **Step 5: Now implement the detection helper**
+
+Add a small helper in `llm_routing.rs` (or wherever is appropriate given the real error type found in Step 1) that checks a resolved error for the rate-limit signal and returns the distinct `Check` from Step 4's test — e.g. `"OpenRouter free tier limit reached — resets at &lt;time if available&gt;, add your own key or wait"` instead of the generic FAIL. The exact implementation depends entirely on Step 1's findings — do not write this code blind; let the discovered error type drive the match arm.
 
 - [ ] **Step 6: Run test to verify it passes**
 
@@ -1205,6 +1546,57 @@ Expected: PASS
 ```bash
 git add crates/vox-llm-egress/ crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/llm_routing.rs
 git commit -m "feat: distinguish rate-limited from no-credential in LLM routing diagnostics"
+```
+
+### Task 12b: Wire `RateLimited` into the live dispatch path (closes design-spec risk #3 for real, not just diagnostically)
+
+**Why this task exists**: two independent audit passes both found the same critical gap. The design spec's §2.3 error taxonomy promises `RateLimited` gets "distinct copy in both CLI and GUI," but as originally planned, Task 12 only ever touched `vox doctor` — an on-demand diagnostic a user has to manually invoke. A real user who exhausts OpenRouter's free-tier 50/day cap mid-chat would still hit whatever generic error `vox-llm-egress` produces today, at the exact chokepoint Task 4 already wired the budget guard into. Wiring both at the same chokepoint, in the same task family, is deliberate — they're the same class of problem (a dispatch-time condition that needs a distinct, actionable message instead of a generic failure).
+
+**Files:**
+- Modify: `crates/vox-orchestrator-mcp/src/chat_model_resolve.rs` (same function Task 4 already touched, `resolve_chat_llm_model` — or wherever the actual HTTP dispatch's error surfaces if it's not visible at the resolve layer; confirm via Step 1 below)
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/` (same catch block Task 5 already touched)
+- Test: same files as above
+
+- [ ] **Step 1: Confirm where the rate-limit error actually needs to be caught**
+
+Task 12 Step 1 already identified the real error type/shape at the `vox-llm-egress` throttle layer. Confirm whether that error propagates all the way up through `resolve_chat_llm_model` (Task 4's chokepoint) as a distinguishable type/variant, or whether it gets stringified/erased somewhere in between:
+
+```bash
+grep -rn "throttle\|RateLimit\|429" crates/vox-orchestrator-mcp/src/chat_model_resolve.rs crates/vox-orchestrator-mcp/src/llm_bridge/
+```
+
+If it's already distinguishable at `resolve_chat_llm_model`, wire the detection there, right alongside Task 4's `budget_guard::check` call. If it only becomes visible deeper in the actual HTTP dispatch (past model resolution, at request-send time), this task's scope shifts to wherever that real dispatch call lives — do not force the check into `resolve_chat_llm_model` if the real signal isn't available there; find the real one.
+
+- [ ] **Step 2: Write the failing test**
+
+At whichever real location Step 1 identifies, write a test asserting a 429/rate-limited condition produces a distinguishable error (containing "rate limit" or "free tier", case-insensitive) as opposed to the generic `NoCredential`-shaped message, using the same `wiremock` pattern Task 12 Step 2 already established for capturing this error shape.
+
+Run the appropriate `cargo test -p &lt;crate&gt;` command scoped to this test.
+Expected: FAIL — no distinct handling exists at this location yet
+
+- [ ] **Step 3: Wire the detection**
+
+Add the rate-limit check at the location confirmed in Step 1, returning a distinct error (reuse whatever error-string convention `budget_guard`/`BudgetGuardError` established in Task 3-4 for consistency, or a comparably small dedicated type if this location isn't already using that pattern) containing enough detail for the caller to show "free tier limit reached, resets at X — add your own key or wait" rather than a generic failure.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Same command as Step 2.
+Expected: PASS
+
+- [ ] **Step 5: Surface it distinctly in the GUI (mirrors Task 5)**
+
+In the same Chat-surface catch block Task 5 already modified, add a second distinguishing check (alongside the "Daily budget"/"Session budget" prefix check from Task 5) for the rate-limit error's distinguishing text from Step 3, with its own toast title (e.g. `'Free tier limit reached'`) and a body pointing at adding a personal key. Write the Playwright test for this first (same mock-invoke pattern as Task 5 Step 2), watch it fail, then implement.
+
+- [ ] **Step 6: Run the full Chat surface spec (regression gate)**
+
+Same as Task 5 Step 6 — this catch block is now shared across three error classes (generic, budget, rate-limit); a regression here affects all of them.
+Expected: all pre-existing and new Chat-surface tests PASS
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add crates/vox-orchestrator-mcp/ crates/vox-gui/ui/src/components/surfaces/Chat/
+git commit -m "feat: surface OpenRouter free-tier rate-limit as a distinct live error, not just a doctor diagnostic"
 ```
 
 ---
@@ -1360,6 +1752,8 @@ git commit -m "feat(vox-gui-ui): add useOnboardingGate hook for wizard visibilit
 
 ### Task 15: `OnboardingWizard` component — 3-path entry screen
 
+**Corrections from the second audit round baked into the component below**: (1) success from `oauth_login_openrouter` no longer jumps straight to "you're set up" — it goes through a `verifying` screen that calls Task 11b's `verify_openrouter_key` first, since "a key string was stored" and "the key works" are different claims. (2) `BrowserOpen` failures now show a clickable fallback link (Task 9/11's `fallback_url` plumbing), not a dead-end error message. (3) i18n debt note: the ~15 English string literals below are still scattered inline rather than centralized into one object — this was flagged as unnecessary debt (English-only v1 is a legitimate scope call per the design spec, but centralizing costs nothing extra now and makes a future i18n pass strictly easier); consider grouping them into a single `const COPY = {...}` if time allows, but it's not a blocking requirement for this task.
+
 **Files:**
 - Create: `crates/vox-gui/ui/src/components/surfaces/Onboarding/OnboardingWizard.tsx`
 - Test: `crates/vox-gui/ui/e2e/onboarding.spec.ts`
@@ -1453,13 +1847,14 @@ interface ProviderStatusRow {
   local_reachable: boolean | null;
 }
 
-type WizardScreen = 'entry' | 'oauth-in-progress' | 'has-key' | 'local-model' | 'budget' | 'confirmation';
+type WizardScreen = 'entry' | 'oauth-in-progress' | 'verifying' | 'has-key' | 'local-model' | 'budget' | 'confirmation';
 
 export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: any) =&gt; void; gamifyEnabled?: boolean }) {
   const [secretCount, setSecretCount] = useState&lt;number | null&gt;(null);
   const [localModelCount, setLocalModelCount] = useState&lt;number | null&gt;(null);
   const [screen, setScreen] = useState&lt;WizardScreen&gt;('entry');
   const [oauthError, setOauthError] = useState&lt;string | null&gt;(null);
+  const [oauthFallbackUrl, setOauthFallbackUrl] = useState&lt;string | null&gt;(null);
 
   useEffect(() =&gt; {
     (async () =&gt; {
@@ -1490,16 +1885,30 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
   const startOAuth = async () =&gt; {
     setScreen('oauth-in-progress');
     setOauthError(null);
+    setOauthFallbackUrl(null);
     try {
-      const result = await invoke&lt;{ success: boolean; error: string | null }&gt;('oauth_login_openrouter');
-      if (result.success) {
+      const result = await invoke&lt;{ success: boolean; error: string | null; fallbackUrl: string | null }&gt;('oauth_login_openrouter');
+      if (!result.success) {
+        setOauthError(result.error ?? 'Unknown error');
+        setOauthFallbackUrl(result.fallbackUrl ?? null);
+        setScreen('entry');
+        return;
+      }
+      // Key was stored — now actually verify it works before claiming success
+      // (Task 11b). "We received a key string" and "the key works" are not
+      // the same thing, and conflating them was a real gap in an earlier draft.
+      setScreen('verifying');
+      const works = await invoke&lt;boolean&gt;('verify_openrouter_key').catch(() =&gt; false);
+      if (works) {
         setScreen('budget');
       } else {
-        setOauthError(result.error ?? 'Unknown error');
+        setOauthError('Key saved, but a test request failed — check your connection and try again.');
+        setOauthFallbackUrl(null);
         setScreen('entry');
       }
     } catch (err) {
       setOauthError(String(err));
+      setOauthFallbackUrl(null);
       setScreen('entry');
     }
   };
@@ -1518,6 +1927,15 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
             {oauthError &amp;&amp; (
               &lt;div role="alert" className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-300"&gt;
                 {oauthError}
+                {oauthFallbackUrl &amp;&amp; (
+                  &lt;&gt;
+                    {' '}
+                    &lt;a href={oauthFallbackUrl} target="_blank" rel="noreferrer" className="underline"&gt;
+                      Open this link manually
+                    &lt;/a&gt;
+                    .
+                  &lt;/&gt;
+                )}
               &lt;/div&gt;
             )}
             &lt;div className="mt-4 flex flex-col gap-2"&gt;
@@ -1541,6 +1959,14 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
             &lt;h1 className="font-display text-xl font-semibold text-text-primary"&gt;Waiting for OpenRouter…&lt;/h1&gt;
             &lt;p className="mt-2 text-sm text-text-muted"&gt;
               A browser window opened — sign in or create a free OpenRouter account, then come back here.
+            &lt;/p&gt;
+          &lt;/&gt;
+        )}
+        {screen === 'verifying' &amp;&amp; (
+          &lt;&gt;
+            &lt;h1 className="font-display text-xl font-semibold text-text-primary"&gt;Checking your key…&lt;/h1&gt;
+            &lt;p className="mt-2 text-sm text-text-muted"&gt;
+              Confirming it actually works before we finish setup.
             &lt;/p&gt;
           &lt;/&gt;
         )}
@@ -1732,6 +2158,8 @@ git commit -m "feat(vox-gui-ui): mount OnboardingWizard at app shell level" --al
 
 ### Task 16: Settings → Onboarding replay entry
 
+**Note**: this is the 3rd of 4 tasks touching `SettingsView.tsx` (after 13, before 7/19 depending on execution order) — don't run this task's own new assertion as the only check; **Sub-gate C** (declared in "Parallelization & Phase Gates" above) requires a full `settings.spec.ts` run after the *last* of Tasks 7/13/16/19 lands, not after each individually.
+
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx` (add a new section or a button in an existing "About"/general section — search: `grep -n "function.*Section" crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx` to find where a new small section fits the existing pattern)
 - Test: extend `settings.spec.ts` or add a focused new spec
@@ -1794,6 +2222,8 @@ git commit -m "feat(vox-gui-ui): add Settings > Onboarding replay entry"
 ```
 
 ### Task 17: `ModelsView.tsx` — free-tier filter toggle
+
+**Note**: Task 18 edits the same file immediately after this one and re-runs the combined spec (its Step 5) — that combined run is **Sub-gate D**. If these two tasks are ever executed by different subagents out of strict sequence, whoever lands second must still run the full `ModelsView` spec file, not just their own new assertion.
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Models/ModelsView.tsx` (the component body around lines 43-137, and the `ModelGrid` calls around lines 131-132)
@@ -1940,6 +2370,8 @@ git commit -m "feat(vox-gui-ui): render quality_score in ModelsView"
 
 ### Task 19: `LlmSettingsSection` — jump-link to Keys & Secrets
 
+**Note**: this is the 4th (last) task touching `SettingsView.tsx` in the Settings chain (7, 13, 16, 19). Whichever of these lands last must run the **full** `settings.spec.ts` file (Sub-gate C, declared in "Parallelization & Phase Gates" above) — not just this task's own new assertion.
+
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx:887-948`
 - Test: extend `settings.spec.ts`
@@ -2007,7 +2439,7 @@ git commit -m "feat(vox-gui-ui): add jump-link from LLM banner to Keys & Secrets
 
 ---
 
-## Final regression pass (run once, after all 19 tasks)
+## Final regression pass (run once, after all 21 tasks — 1 through 19, plus 11b and 12b)
 
 - [ ] **Step 1: Full Rust workspace test + clippy**
 
@@ -2037,9 +2469,9 @@ vox doctor
 ```
 Confirm the LLM routing check's `detail` string now includes `daily_budget_usd=`/`per_session_budget_usd=` (Task 6) and, if a rate-limit condition was reachable in this environment, the distinct message from Task 12.
 
-- [ ] **Step 5: Manual OAuth flow smoke test on the current OS**
+- [ ] **Step 5: Manual OAuth flow smoke test on the current OS — including the empirical `state`-parameter question**
 
-Run `vox secrets login --oauth --provider openrouter` in a real terminal (not CI) and confirm: a browser opens, the loopback server accepts the callback, the key gets stored (`vox secrets status` shows OpenRouter as present afterward). **Repeat this on each of Windows/macOS/Linux before enabling Phase 2/3 behind their feature flag for real users** — per the design spec's rollout guidance, do not assume the loopback pattern behaves identically across all three without this manual pass.
+Run `vox secrets login --oauth --provider openrouter` in a real terminal (not CI) and confirm: a browser opens, the loopback server accepts the callback, the key gets stored (`vox secrets status` shows OpenRouter as present afterward), and `verify_openrouter_key` (Task 11b) actually confirms connectivity. While doing this pass, also settle the open empirical question from Task 9/the Phase 2 gate: log or briefly inspect the real callback URL's query string to see whether OpenRouter actually echoes a `state` parameter back, despite it not being documented. If it does, tighten `callback_handler`'s leniency back to required-and-matching before this ships to real users — the current lenient behavior is a deliberate, documented interim choice, not a permanent design decision. **Repeat the full smoke test on each of Windows/macOS/Linux before enabling Phase 2/3 behind their feature flag for real users** — per the design spec's rollout guidance, do not assume the loopback pattern behaves identically across all three without this manual pass.
 
 - [ ] **Step 6: Update `docs/superpowers/plans/2026-08-01-free-tier-onboarding.md` status**
 
