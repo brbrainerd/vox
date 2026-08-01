@@ -72,8 +72,6 @@ export interface SurfaceProps {
   onOpenFeedbackContext?: (id: string) => void;
   focusedFeedbackId?: string | null;
   attention?: AttentionInbox;
-  chatModelOverride?: string | null;
-  onChatModelOverrideChange?: (id: string | null) => void;
   chatPlanSessionId?: string | null;
   chatPlanVersion?: number | null;
   chatActiveSkillId?: string | null;
@@ -206,8 +204,6 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           attention_budget={props.attention_budget}
           waitingQuestions={props.attention?.needsYou.length}
           blockedTasks={props.attention?.blockedTasksCount}
-          modelOverride={props.chatModelOverride}
-          onModelOverrideChange={props.onChatModelOverrideChange}
           planSessionId={props.chatPlanSessionId}
           planVersion={props.chatPlanVersion}
           activeSkillId={props.chatActiveSkillId}

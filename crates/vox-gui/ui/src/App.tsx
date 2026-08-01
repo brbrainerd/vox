@@ -1302,9 +1302,7 @@ export default function App() {
     chatIntents,
     chatExecutionKpis,
     chatActiveModel: activeModel,
-    chatModelOverride,
     groundingCheckEnabled,
-    onChatModelOverrideChange: setChatModelOverride,
     // No orchestrator plan session is created from chat yet, so PlanPanel
     // renders its honest empty state until a producer wires this up.
     chatPlanSessionId: null,
