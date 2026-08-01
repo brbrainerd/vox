@@ -30,6 +30,7 @@ pub mod dep_adoption;
 pub mod doc_corpus;
 pub mod heuristics;
 pub mod mens_training_run;
+pub mod novelty_lexical;
 pub mod producer;
 pub mod registry;
 pub mod socrates_telemetry;
