@@ -56,15 +56,18 @@ pub fn privacy_allows_model_for_mode(m: &ModelSpec, local_only: bool) -> bool {
 /// process env (which is racy under parallel `cargo test`) while still
 /// exercising the real decision logic in [`inference_privacy_local_only_from_env`].
 ///
-/// Deliberately NOT `#[cfg(test)]`-gated: `vox-orchestrator-mcp`'s test suite
-/// (`llm_bridge::local_health`) needs to drive this override too, and that
-/// crate compiles `vox-orchestrator` as an ordinary (non-`cfg(test)`)
-/// dependency — a `#[cfg(test)]` gate here would compile out for that
-/// caller entirely, silently breaking the seam. The static is process-global
-/// either way; leaving it always-compiled costs one unused `Mutex` in release
-/// builds and keeps the seam actually reachable from every test that needs it.
+/// Gated on `cfg(test)` OR the `test-support` feature (never on by default):
+/// `vox-orchestrator-mcp`'s test suite (`llm_bridge::local_health`) needs to
+/// drive this override too, and that crate compiles `vox-orchestrator` as an
+/// ordinary (non-`cfg(test)`) dev-dependency with `test-support` enabled — a
+/// bare `#[cfg(test)]` gate here would compile out for that caller entirely,
+/// silently breaking the seam, while a plain `pub fn` would leak a
+/// privacy-bypass knob into every release build's public API. The static
+/// itself stays always-compiled (its own `Mutex` is a negligible cost) so the
+/// getter (`inference_privacy_local_only_from_env`) doesn't need its own gate.
 static TEST_PRIVACY_OVERRIDE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
+#[cfg(any(test, feature = "test-support"))]
 pub fn set_test_privacy_override(v: Option<&str>) {
     *TEST_PRIVACY_OVERRIDE
         .lock()

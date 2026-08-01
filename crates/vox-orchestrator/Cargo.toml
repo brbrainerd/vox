@@ -30,6 +30,11 @@ token-counting = ["dep:tiktoken-rs"]
 # In-process corpus DB integrations. Enabled by default; --no-default-features
 # disables to allow compiling without database dependencies.
 corpus-db = ["vox-corpus/database"]
+# Exposes test-only override seams (e.g. `route_policy::set_test_privacy_override`)
+# as `pub` instead of `#[cfg(test)]`-gated, so `vox-orchestrator-mcp`'s own test
+# suite (which depends on this crate as an ordinary, non-`cfg(test)` dependency)
+# can drive them. Never enabled by a shipping binary's default features.
+test-support = []
 # Populi HTTP mesh client (`vox-populi` transport).
 populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
 # `vox-speech` speech-to-text / refinement tools.
