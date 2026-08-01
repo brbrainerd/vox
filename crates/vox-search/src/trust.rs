@@ -79,10 +79,14 @@ impl TrustScorer {
         Some(is_retracted)
     }
 
-    /// Returns a soft reputation multiplier in [0.5, 1.5] based on the
-    /// venue type and author citation history for a work matching `title`,
-    /// via OpenAlex. Returns `1.0` (neutral) on any lookup failure.
-    pub async fn reputation_multiplier(&self, title: &str) -> f64 {
+    /// Returns the OpenAlex venue `source_type` string (e.g. "journal",
+    /// "repository", "conference", "preprint") for a work matching `title`,
+    /// or `None` on any lookup failure or when no venue type is available.
+    /// This is the raw signal `reputation_multiplier` derives its score
+    /// from — exposed separately so callers building `WorthinessSignalItem`s
+    /// (see `vox-scientia::producers::worthiness`) can classify venue type
+    /// without duplicating the OpenAlex fetch/parse.
+    pub async fn venue_type(&self, title: &str) -> Option<String> {
         #[derive(Deserialize)]
         struct OpenAlexSearch {
             results: Vec<OpenAlexWork>,
@@ -107,26 +111,27 @@ impl TrustScorer {
             self.openalex_base.trim_end_matches('/'),
             urlencoding::encode(title)
         );
-        let Ok(resp) = self.http.get(&url).send().await else {
-            return 1.0;
-        };
+        let resp = self.http.get(&url).send().await.ok()?;
         if !resp.status().is_success() {
-            return 1.0;
+            return None;
         }
-        let Ok(text) = resp.text().await else {
-            return 1.0;
-        };
-        let Ok(parsed) = serde_json::from_str::<OpenAlexSearch>(&text) else {
-            return 1.0;
-        };
+        let text = resp.text().await.ok()?;
+        let parsed = serde_json::from_str::<OpenAlexSearch>(&text).ok()?;
 
-        match parsed
+        parsed
             .results
-            .first()
-            .and_then(|w| w.primary_location.as_ref())
-            .and_then(|l| l.source.as_ref())
-            .and_then(|s| s.source_type.as_deref())
-        {
+            .into_iter()
+            .next()
+            .and_then(|w| w.primary_location)
+            .and_then(|l| l.source)
+            .and_then(|s| s.source_type)
+    }
+
+    /// Returns a soft reputation multiplier in [0.5, 1.5] based on the
+    /// venue type and author citation history for a work matching `title`,
+    /// via OpenAlex. Returns `1.0` (neutral) on any lookup failure.
+    pub async fn reputation_multiplier(&self, title: &str) -> f64 {
+        match self.venue_type(title).await.as_deref() {
             Some("journal") => 1.5,
             Some("repository") | Some("conference") => 1.2,
             Some("preprint") => 1.0,
@@ -241,5 +246,20 @@ mod tests {
 
         let scorer = TrustScorer::with_base_urls("http://unused.invalid", server.uri());
         assert_eq!(scorer.reputation_multiplier("Nonexistent Title").await, 1.0);
+    }
+
+    #[tokio::test]
+    async fn venue_type_returns_raw_source_type_string() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/works.*"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "results": [{"primary_location": {"source": {"type": "journal"}}}]
+            })))
+            .mount(&server)
+            .await;
+
+        let scorer = TrustScorer::with_base_urls("http://unused.invalid", server.uri());
+        assert_eq!(scorer.venue_type("Example Paper Title").await, Some("journal".to_string()));
     }
 }

@@ -1,11 +1,23 @@
 //! Populates `WorthinessSignalsV2` hard/soft gates from `TrustScorer`
 //! (retraction status, venue reputation).
+//!
+//! These functions have no production callers yet — wiring into the real
+//! SCIENTIA finding-promotion pipeline is deliberate future work (see
+//! docs/src/architecture/deep-research-trust-novelty-scoring-landscape-2026-08-01.md §5).
+//! Do not delete as "unused"; this is tested infrastructure awaiting its
+//! integration point.
 
 use vox_research_events::schema_types::{WorthinessProfile, WorthinessSignalItem};
 use vox_research_events::WorthinessSignalsV2;
 
 /// Builds the hard-gate retraction signal for a candidate finding, given
 /// whether its primary source DOI is confirmed retracted.
+///
+/// Callers passing through `TrustScorer::check_retraction`'s `Option<bool>`
+/// should collapse `None` (lookup failed/unknown) to `false` here — i.e.
+/// fail-open, matching `vox_search::trust::score_hit_trust`'s existing
+/// convention of never penalizing on an unresolved lookup. Only a
+/// confirmed `Some(true)` should map to `is_retracted: true`.
 pub fn hard_gate_retraction_signal(is_retracted: bool) -> WorthinessSignalItem {
     WorthinessSignalItem {
         id: "hg-retraction".to_string(),
@@ -40,7 +52,13 @@ pub fn soft_gate_peer_review_signal(
             0.5,
             "preprint_not_peer_reviewed",
         ),
-        _ => (WorthinessProfile::Social, false, 0.2, "unverified_venue"),
+        Some(_) => (
+            WorthinessProfile::Social,
+            false,
+            0.2,
+            "unrecognized_venue_type",
+        ),
+        None => (WorthinessProfile::Social, false, 0.2, "unverified_venue"),
     };
     (
         WorthinessSignalItem {
@@ -107,6 +125,14 @@ mod tests {
     fn unknown_venue_fails_soft_gate() {
         let (signal, profile) = soft_gate_peer_review_signal(None);
         assert!(!signal.passed);
+        assert_eq!(profile, WorthinessProfile::Social);
+    }
+
+    #[test]
+    fn unrecognized_venue_type_string_fails_soft_gate_with_distinct_reason() {
+        let (signal, profile) = soft_gate_peer_review_signal(Some("dataset"));
+        assert!(!signal.passed);
+        assert_eq!(signal.reason_code, "unrecognized_venue_type");
         assert_eq!(profile, WorthinessProfile::Social);
     }
 
