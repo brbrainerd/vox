@@ -136,8 +136,6 @@ fn host_matches_site_scope(url: &str, site_scope: &str) -> bool {
     host == scope.as_str() || host.ends_with(&format!(".{}", scope))
 }
 
-const NOVELTY_MIN_SCORE: f64 = 0.15; // matches vox-search's SearchPolicy::novelty_min_score default
-
 async fn search_one_subquery(
     subquery: &str,
     policy: &SearchPolicy,
@@ -158,7 +156,7 @@ async fn search_one_subquery(
             continue;
         }
         let novelty = novelty_scorer.score(&hit.snippet);
-        if novelty < NOVELTY_MIN_SCORE {
+        if novelty < policy.novelty_min_score {
             tracing::debug!(url = %hit.url, novelty, "dropping low-novelty hit");
             continue;
         }
@@ -218,7 +216,7 @@ pub(super) async fn gather_web_hits_for_plan(
             continue;
         }
         let novelty = novelty_scorer.score(&rh.snippet);
-        if novelty < NOVELTY_MIN_SCORE {
+        if novelty < policy.novelty_min_score {
             tracing::debug!(url = %rh.url, novelty, "dropping low-novelty tavily hit");
             continue;
         }
