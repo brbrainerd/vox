@@ -397,9 +397,12 @@ pub async fn run_research_with_context_and_session(
         }
         domains.len()
     };
+    let trust_weighted_citation_score: f32 =
+        all_hits.iter().map(|h| h.trust_score as f32).sum();
     let gate_input = GateInput {
         claims: &draft_claims,
         citation_count: all_hits.len(),
+        trust_weighted_citation_score,
         supported_claim_count,
         distinct_domain_count,
         no_retrieval_hits: all_hits.is_empty(),

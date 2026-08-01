@@ -42,6 +42,10 @@ impl Default for RoutingThresholds {
 pub struct GateInput<'a> {
     pub claims: &'a [Claim],
     pub citation_count: usize,
+    /// Sum of `ResearchHit.trust_score` across all cited hits. Falls back
+    /// to `citation_count as f32` at call sites that haven't wired a real
+    /// `TrustScorer` yet, preserving prior behavior exactly.
+    pub trust_weighted_citation_score: f32,
     pub supported_claim_count: usize,
     pub distinct_domain_count: usize,
     pub no_retrieval_hits: bool,
@@ -95,7 +99,7 @@ pub fn score_with_config(input: &GateInput<'_>, config: &GateConfig) -> Confiden
     }
     let min_cit = (config.min_citations_for_full_score.unwrap_or(5) as f32).max(1.0);
     let min_dom = (config.min_domains_for_full_score.unwrap_or(4) as f32).max(1.0);
-    let citation_score = (input.citation_count as f32 / min_cit).clamp(0.0, 1.0);
+    let citation_score = (input.trust_weighted_citation_score / min_cit).clamp(0.0, 1.0);
     let claim_support_score = if input.claims.is_empty() {
         0.5
     } else {
@@ -188,6 +192,7 @@ mod semcov_wave2_tests {
         let input = GateInput {
             claims: &[],
             citation_count: 0,
+            trust_weighted_citation_score: 0.0,
             supported_claim_count: 0,
             distinct_domain_count: 0,
             no_retrieval_hits: true,
@@ -203,6 +208,7 @@ mod semcov_wave2_tests {
         let input = GateInput {
             claims: &claims,
             citation_count: 5,
+            trust_weighted_citation_score: 5.0,
             supported_claim_count: 4,
             distinct_domain_count: 4,
             no_retrieval_hits: false,
@@ -219,6 +225,7 @@ mod semcov_wave2_tests {
         let input = GateInput {
             claims: &claims,
             citation_count: 2,
+            trust_weighted_citation_score: 2.0,
             supported_claim_count: 0,
             distinct_domain_count: 1,
             no_retrieval_hits: false,
@@ -229,6 +236,40 @@ mod semcov_wave2_tests {
             s.score > 0.0 && s.score < 0.7,
             "expected between 0 and 0.7, got {}",
             s.score
+        );
+    }
+
+    #[test]
+    fn low_trust_citations_score_lower_than_high_trust_citations() {
+        let claims = dummy_claims(2);
+        let config = GateConfig::default();
+
+        let high_trust_input = GateInput {
+            claims: &claims,
+            citation_count: 5,
+            trust_weighted_citation_score: 5.0, // 5 citations at trust_score 1.0 each
+            supported_claim_count: 2,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+        let low_trust_input = GateInput {
+            claims: &claims,
+            citation_count: 5,
+            trust_weighted_citation_score: 0.5, // 5 citations at trust_score 0.1 each (all retracted)
+            supported_claim_count: 2,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+
+        let high = score_with_config(&high_trust_input, &config);
+        let low = score_with_config(&low_trust_input, &config);
+        assert!(
+            high.score > low.score,
+            "high-trust score {} should exceed low-trust score {}",
+            high.score,
+            low.score
         );
     }
 }
