@@ -106,7 +106,7 @@ mod tests {
         // own mocked tests from Task 4.
         let score = vox_search::trust::score_hit_trust("Example Provider Title", None).await;
         assert!(
-            score >= 0.0 && score <= 2.0,
+            (0.0..=2.0).contains(&score),
             "trust score {score} out of sane range"
         );
     }

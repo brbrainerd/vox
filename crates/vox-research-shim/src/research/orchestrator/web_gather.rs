@@ -452,7 +452,7 @@ mod tests {
         // without network access it should degrade gracefully to the 1.0
         // neutral default rather than panicking or hanging.
         let score = vox_search::trust::score_hit_trust("Example Research Title", None).await;
-        assert!(score >= 0.0 && score <= 2.0, "trust score {score} out of sane range");
+        assert!((0.0..=2.0).contains(&score), "trust score {score} out of sane range");
     }
 
     #[test]
