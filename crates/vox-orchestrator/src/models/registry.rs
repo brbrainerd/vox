@@ -753,6 +753,16 @@ impl ModelRegistry {
                     }
                 }
 
+                if !crate::route_policy::route_policy_allows_model(m) {
+                    return false;
+                }
+                if !crate::route_policy::privacy_allows_model_for_mode(
+                    m,
+                    crate::route_policy::inference_privacy_local_only_from_env(),
+                ) {
+                    return false;
+                }
+
                 Self::matches_strength(m, strength) && pred(m)
             })
             .min_by(|a, b| {

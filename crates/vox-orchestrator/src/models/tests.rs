@@ -241,6 +241,65 @@ mod registry_filter_tests {
     }
 
     #[test]
+    fn best_for_internal_excludes_cloud_models_under_local_only_privacy() {
+        let mut r = ModelRegistry::default();
+        r.register(ModelSpec {
+            id: "local-m".into(),
+            canonical_slug: "local-m".into(),
+            provider: "ollama".into(),
+            provider_type: ProviderType::Ollama,
+            max_tokens: 8192,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        });
+        r.register(ModelSpec {
+            id: "cloud-m".into(),
+            canonical_slug: "cloud-m".into(),
+            provider: "openrouter".into(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens: 8192,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        });
+
+        crate::route_policy::set_test_privacy_override(Some("local_only"));
+        let picked = r.best_for_with_filter(
+            TaskCategory::CodeGen,
+            2,
+            CostPreference::Economy,
+            |m| m.is_free,
+            None,
+        );
+        crate::route_policy::set_test_privacy_override(None);
+
+        let picked = picked.expect("local candidate must still be selectable");
+        assert_eq!(
+            picked.id, "local-m",
+            "cloud candidate must be excluded under VOX_INFERENCE_PRIVACY=local_only"
+        );
+    }
+
+    #[test]
     fn cheapest_free_with_filter_stable_tiebreak_on_id() {
         let mut r = ModelRegistry::default();
         r.register(ModelSpec {
