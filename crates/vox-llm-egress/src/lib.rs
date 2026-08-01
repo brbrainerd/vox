@@ -364,17 +364,38 @@ mod tests {
     fn context_exceeded_detects_known_provider_phrasings() {
         let cases = [
             // OpenAI-compatible / OpenRouter
-            (400u16, r#"{"error":{"message":"This model's maximum context length is 4096 tokens. However, your messages resulted in 5000 tokens.","type":"invalid_request_error","code":"context_length_exceeded"}}"#),
-            (400u16, r#"{"error":{"message":"Please reduce the length of the messages."}}"#),
+            (
+                400u16,
+                r#"{"error":{"message":"This model's maximum context length is 4096 tokens. However, your messages resulted in 5000 tokens.","type":"invalid_request_error","code":"context_length_exceeded"}}"#,
+            ),
+            (
+                400u16,
+                r#"{"error":{"message":"Please reduce the length of the messages."}}"#,
+            ),
             // HuggingFace router / dedicated
-            (422u16, r#"{"error":"Input validation error: `inputs` tokens + `max_new_tokens` must be <= 4096. Given: 5000 `inputs` tokens and 512 `max_new_tokens`"}"#),
-            (400u16, r#"{"error":"Input length exceeds the model's maximum context length"}"#),
+            (
+                422u16,
+                r#"{"error":"Input validation error: `inputs` tokens + `max_new_tokens` must be <= 4096. Given: 5000 `inputs` tokens and 512 `max_new_tokens`"}"#,
+            ),
+            (
+                400u16,
+                r#"{"error":"Input length exceeds the model's maximum context length"}"#,
+            ),
             // Ollama
-            (500u16, r#"{"error":"prompt exceeds the available context window (4096)"}"#),
+            (
+                500u16,
+                r#"{"error":"prompt exceeds the available context window (4096)"}"#,
+            ),
             // Generic gateway phrasing, different status code entirely (413)
-            (413u16, r#"{"message":"input is too long for requested model"}"#),
+            (
+                413u16,
+                r#"{"message":"input is too long for requested model"}"#,
+            ),
             // Gemini-style
-            (400u16, r#"{"error":{"message":"input token count (35000) exceeds the maximum number of tokens allowed (32000)."}}"#),
+            (
+                400u16,
+                r#"{"error":{"message":"input token count (35000) exceeds the maximum number of tokens allowed (32000)."}}"#,
+            ),
         ];
         for (code, body) in cases {
             assert!(
@@ -387,11 +408,26 @@ mod tests {
     #[test]
     fn context_exceeded_does_not_misclassify_unrelated_errors() {
         let cases = [
-            (429u16, r#"{"error":{"message":"Rate limit exceeded, please try again later."}}"#),
-            (401u16, r#"{"error":{"message":"Invalid API key provided."}}"#),
-            (403u16, r#"{"error":{"message":"You do not have access to this model."}}"#),
-            (500u16, r#"{"error":{"message":"Internal server error, please try again."}}"#),
-            (400u16, r#"{"error":{"message":"Invalid value for 'temperature': must be between 0 and 2."}}"#),
+            (
+                429u16,
+                r#"{"error":{"message":"Rate limit exceeded, please try again later."}}"#,
+            ),
+            (
+                401u16,
+                r#"{"error":{"message":"Invalid API key provided."}}"#,
+            ),
+            (
+                403u16,
+                r#"{"error":{"message":"You do not have access to this model."}}"#,
+            ),
+            (
+                500u16,
+                r#"{"error":{"message":"Internal server error, please try again."}}"#,
+            ),
+            (
+                400u16,
+                r#"{"error":{"message":"Invalid value for 'temperature': must be between 0 and 2."}}"#,
+            ),
             (402u16, r#"{"error":{"message":"Insufficient credits."}}"#),
         ];
         for (code, body) in cases {
