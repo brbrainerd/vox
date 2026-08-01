@@ -25,4 +25,16 @@ describe('parseSendReply', () => {
     const parsed = parseSendReply(dto);
     expect(parsed.latencyMs).toBeUndefined();
   });
+
+  it('carries selectionReason through from dto.selection_reason', () => {
+    const dto = { id: 11, role: 'assistant', content: 'Hi', created_at: '2026-07-31T00:00:04Z', task_id: null, selection_reason: 'Chosen by the model scorer' };
+    const parsed = parseSendReply(dto);
+    expect(parsed.selectionReason).toBe('Chosen by the model scorer');
+  });
+
+  it('returns undefined selectionReason when absent', () => {
+    const dto = { id: 12, role: 'assistant', content: 'Hi', created_at: '2026-07-31T00:00:05Z', task_id: null };
+    const parsed = parseSendReply(dto);
+    expect(parsed.selectionReason).toBeUndefined();
+  });
 });

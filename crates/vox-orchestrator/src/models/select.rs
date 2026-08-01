@@ -552,6 +552,32 @@ pub enum SelectionReason {
     EnvOverride { env_var: &'static str },
 }
 
+/// Human-readable rendering of [`SelectionReason`], meant to show up verbatim
+/// in a GUI tooltip (e.g. `ModelBadge`) — not a raw `{:?}` passthrough.
+impl std::fmt::Display for SelectionReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SelectionReason::PremiumAlias {
+                task,
+                alias_model_id,
+            } => write!(
+                f,
+                "Pinned to {alias_model_id} — the premium alias for {} tasks",
+                crate::models::task_category_premium_key(*task)
+            ),
+            SelectionReason::Scored => {
+                write!(f, "Chosen by the model scorer as the best match for your request")
+            }
+            SelectionReason::LocalOnly => {
+                write!(f, "Selected the best available local (on-device) model")
+            }
+            SelectionReason::EnvOverride { env_var } => {
+                write!(f, "Forced by the {env_var} environment variable")
+            }
+        }
+    }
+}
+
 // ─── Entry point ────────────────────────────────────────────────────────────
 
 /// Single-source-of-truth model selection.
@@ -1347,6 +1373,50 @@ mod tests {
 mod semcov_wave1c_tests {
     #![allow(unused_imports)]
     use super::*;
+
+    #[test]
+    fn selection_reason_display_is_non_empty_and_distinct() {
+        // Fix Task 7: `SelectionReason` needs a human-readable `Display` impl for
+        // ModelBadge's tooltip — a raw `{:?}` passthrough is not acceptable copy.
+        let premium = SelectionReason::PremiumAlias {
+            task: TaskCategory::CodeGen,
+            alias_model_id: "anthropic/claude-opus-4.7".to_string(),
+        };
+        let scored = SelectionReason::Scored;
+        let local_only = SelectionReason::LocalOnly;
+        let env_override = SelectionReason::EnvOverride {
+            env_var: "VOX_MODEL_FORCE",
+        };
+
+        let premium_s = premium.to_string();
+        let scored_s = scored.to_string();
+        let local_only_s = local_only.to_string();
+        let env_override_s = env_override.to_string();
+
+        for s in [&premium_s, &scored_s, &local_only_s, &env_override_s] {
+            assert!(!s.is_empty(), "SelectionReason::to_string() must not be empty");
+        }
+
+        let all = [
+            premium_s.as_str(),
+            scored_s.as_str(),
+            local_only_s.as_str(),
+            env_override_s.as_str(),
+        ];
+        for i in 0..all.len() {
+            for j in (i + 1)..all.len() {
+                assert_ne!(
+                    all[i], all[j],
+                    "each SelectionReason variant must render a distinct message"
+                );
+            }
+        }
+
+        // The premium-alias message should surface the alias id for transparency.
+        assert!(premium_s.contains("anthropic/claude-opus-4.7"));
+        // The env-override message should surface the env var name.
+        assert!(env_override_s.contains("VOX_MODEL_FORCE"));
+    }
 
     #[test]
     fn scope_allows_enforces_provider_locality() {

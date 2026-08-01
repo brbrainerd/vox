@@ -25,6 +25,19 @@ use vox_orchestrator::session_context_envelope_key;
 const REM_CHAT_CANONICAL: &str = "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
 const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
 
+/// [`try_run_agent_turn`]'s success payload. A named struct (rather than a
+/// 4-tuple) now that the model-selection rationale rides along too — see
+/// Fix Task 7.
+struct AgentTurnResult {
+    text: String,
+    model_used: String,
+    tokens: u64,
+    /// Human-readable reason the model was chosen (`SelectionReason::to_string()`),
+    /// when the rationale-carrying resolver produced one. Surfaced to the GUI as
+    /// `data.selection_reason` for `ModelBadge`'s tooltip.
+    selection_reason: Option<String>,
+}
+
 /// Task 1.3d (F24 wiring): attempt the tool-calling agent loop
 /// ([`super::agent_loop::run_agent_turn`]) for the default (non-`cognitive_profile`)
 /// `vox_chat_message` path.
@@ -37,14 +50,16 @@ const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend
 ///   [`super::agent_loop::model_spec_to_llm_config`] covers (OpenRouter, Ollama).
 /// - `Some(Ok(..))` / `Some(Err(..))` when the agent loop actually ran.
 ///
-/// Model *selection* is unchanged: this still calls
-/// `crate::llm_bridge::resolve_mcp_chat_model` (the rationale-dropping sibling of
-/// `resolve_mcp_chat_model_with_rationale`, which `call_llm` uses internally via
+/// Model *selection*: this calls
+/// `crate::llm_bridge::resolve_mcp_chat_model_with_rationale` (the rationale-carrying
+/// sibling of `resolve_mcp_chat_model`, which `call_llm` also uses internally via
 /// `mcp_infer_completion` — both delegate to the same
-/// `resolve_mcp_chat_model_sync_inner`) — only what happens *after* a model is
-/// chosen differs. `temperature`/`top_p` are `params.temperature`/`params.top_p`
-/// straight from the request, applied to the mapped `LlmConfig` exactly as the
-/// `call_llm` fallback applies them via `temperature_override`/`top_p_override`.
+/// `resolve_mcp_chat_model_sync_inner`) so this hot path's `selection_reason` reaches
+/// the `vox_chat_message` envelope for `ModelBadge`'s tooltip. Everything else about
+/// *after* a model is chosen is unchanged. `temperature`/`top_p` are
+/// `params.temperature`/`params.top_p` straight from the request, applied to the
+/// mapped `LlmConfig` exactly as the `call_llm` fallback applies them via
+/// `temperature_override`/`top_p_override`.
 async fn try_run_agent_turn(
     state: &ServerState,
     system_prompt: &str,
@@ -54,7 +69,7 @@ async fn try_run_agent_turn(
     has_attachment: bool,
     temperature: Option<f32>,
     top_p: Option<f32>,
-) -> Option<Result<(String, String, u64), String>> {
+) -> Option<Result<AgentTurnResult, String>> {
     if has_attachment {
         return None;
     }
@@ -73,7 +88,7 @@ async fn try_run_agent_turn(
         context_fill_ratio,
         ..Default::default()
     };
-    let (model, _is_free) = match crate::llm_bridge::resolve_mcp_chat_model(
+    let choice = match crate::llm_bridge::resolve_mcp_chat_model_with_rationale(
         state,
         user_prompt,
         pref.as_deref(),
@@ -87,6 +102,8 @@ async fn try_run_agent_turn(
         // let the existing `call_llm` path attempt (and correctly surface) it.
         Err(_) => return None,
     };
+    let model = choice.model;
+    let selection_reason = choice.rationale;
 
     let mut llm_config = super::agent_loop::model_spec_to_llm_config(&model)?;
     // Thread sampling overrides through on the mapped path exactly as the
@@ -141,7 +158,12 @@ async fn try_run_agent_turn(
             } else {
                 outcome.final_text
             };
-            Some(Ok((final_text, outcome.model_used, outcome.total_tokens)))
+            Some(Ok(AgentTurnResult {
+                text: final_text,
+                model_used: outcome.model_used,
+                tokens: outcome.total_tokens,
+                selection_reason,
+            }))
         }
         Err(e) => Some(Err(e)),
     }
@@ -500,7 +522,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     );
     let llm_started = std::time::Instant::now();
 
-    let (response_text, model_used, tokens) = match params.cognitive_profile.as_deref() {
+    let (response_text, model_used, tokens, selection_reason) = match params
+        .cognitive_profile
+        .as_deref()
+    {
         Some(profile) => {
             let resolution_template = McpChatModelResolution {
                 allow_cheapest_fallback: profile == "fast",
@@ -561,7 +586,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     )
                     .await
                     {
-                        Ok(r) => r,
+                        // `mcp_infer_completion` doesn't surface a selection rationale
+                        // (its `McpInferRouting.selection_rationale` above is `None`
+                        // on the cognitive-profile path) — no `selection_reason` here.
+                        Ok(r) => (r.0, r.1, r.2, None),
                         Err(e) => {
                             return ToolResult::<String>::err_with_remediation(
                                 format!("LLM error: {e}"),
@@ -589,7 +617,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     )
                     .await
                     {
-                        Ok(r) => r,
+                        Ok(r) => (r.0, r.1, r.2, None),
                         Err(e2) => {
                             return ToolResult::<String>::err_with_remediation(
                                 format!("LLM error: {e2}"),
@@ -620,7 +648,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         )
         .await
         {
-            Some(Ok(r)) => r,
+            Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason),
             Some(Err(e)) => {
                 return ToolResult::<String>::err_with_remediation(
                     format!("LLM error: {e}"),
@@ -639,7 +667,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             )
             .await
             {
-                Ok(r) => r,
+                // `call_llm` resolves via the rationale-carrying resolver internally
+                // but doesn't return the rationale through its `(String, String, u64)`
+                // return type — out of scope for this task (see `try_run_agent_turn`'s
+                // doc comment); `selection_reason` is `None` on this fallback path.
+                Ok(r) => (r.0, r.1, r.2, None),
                 Err(e) => {
                     return ToolResult::<String>::err_with_remediation(
                         format!("LLM error: {e}"),
@@ -988,6 +1020,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         "model_used": model_used,
         "tokens": tokens,
         "latency_ms": llm_started.elapsed().as_millis() as u64,
+        "selection_reason": selection_reason,
         "session_id": session_id,
         "socrates": soc,
         "retrieval": retrieval_evidence,

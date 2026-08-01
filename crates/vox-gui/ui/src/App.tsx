@@ -707,6 +707,7 @@ export default function App() {
           task_id?: string;
           model_id?: string;
           latency_ms?: number;
+          selection_reason?: string;
         }>
       >('chat_get_messages', { sessionId, limit: 500 });
       dispatchSessionChat({
@@ -721,6 +722,7 @@ export default function App() {
           taskId: r.task_id ?? undefined,
           modelId: r.model_id ?? undefined,
           latencyMs: r.latency_ms ?? undefined,
+          selectionReason: r.selection_reason ?? undefined,
         })),
       });
     } catch {
@@ -816,6 +818,7 @@ export default function App() {
               // intentionally, unlike background-task-path bubbles.
               modelId: reply.modelId,
               latencyMs: reply.latencyMs,
+              selectionReason: reply.selectionReason,
             },
           },
         });

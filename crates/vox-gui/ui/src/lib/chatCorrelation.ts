@@ -23,6 +23,9 @@ export interface ChatMessage {
   /** Turn latency in milliseconds, when reported by the reply (synchronous
    *  chat path only — see `lib/chatSend.ts`'s `ParsedChatReply`). */
   latencyMs?: number;
+  /** Human-readable reason the model was chosen, when reported by the reply
+   *  (synchronous chat path only — see `lib/chatSend.ts`'s `ParsedChatReply`). */
+  selectionReason?: string;
   /** True when the opt-in post-reply grounding check flagged this reply as
    *  low-confidence (from grounding_check_completed). */
   groundingFlagged?: boolean;

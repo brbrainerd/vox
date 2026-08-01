@@ -48,7 +48,11 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
       )}
       {message.role === 'assistant' && message.status === 'done' && message.modelId && (
         <div className="mt-1 flex justify-end">
-          <ModelBadge model={message.modelId} latencyMs={message.latencyMs} />
+          <ModelBadge
+            model={message.modelId}
+            latencyMs={message.latencyMs}
+            selectionReason={message.selectionReason}
+          />
         </div>
       )}
       {message.role === 'assistant' && message.groundingFlagged && (

@@ -36,6 +36,10 @@ pub struct ChatMessageDto {
     /// chat replies only — see `chat_send_message`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latency_ms: Option<u64>,
+    /// Human-readable reason the model was chosen, if recorded at append time
+    /// (synchronous chat replies only — see `chat_send_message`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selection_reason: Option<String>,
 }
 
 #[tauri::command]
@@ -96,7 +100,7 @@ pub async fn chat_get_messages(
     Ok(rows
         .into_iter()
         .map(|(id, role, content, created_at, payload)| {
-            let (task_id, model_id, latency_ms) = payload
+            let (task_id, model_id, latency_ms, selection_reason) = payload
                 .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
                 .map(|v| {
                     let task_id = v
@@ -108,9 +112,13 @@ pub async fn chat_get_messages(
                         .and_then(|m| m.as_str())
                         .map(str::to_string);
                     let latency_ms = v.get("latency_ms").and_then(|l| l.as_u64());
-                    (task_id, model_id, latency_ms)
+                    let selection_reason = v
+                        .get("selection_reason")
+                        .and_then(|s| s.as_str())
+                        .map(str::to_string);
+                    (task_id, model_id, latency_ms, selection_reason)
                 })
-                .unwrap_or((None, None, None));
+                .unwrap_or((None, None, None, None));
             ChatMessageDto {
                 id,
                 role,
@@ -119,6 +127,7 @@ pub async fn chat_get_messages(
                 task_id,
                 model_id,
                 latency_ms,
+                selection_reason,
             }
         })
         .collect())
@@ -334,6 +343,7 @@ struct ParsedChatReply {
     content: String,
     model_id: Option<String>,
     latency_ms: Option<u64>,
+    selection_reason: Option<String>,
 }
 
 /// Extracts a [`ParsedChatReply`] from a `vox_chat_message` `ToolResult`
@@ -367,10 +377,15 @@ fn parse_chat_message_envelope(envelope: &serde_json::Value) -> Result<ParsedCha
         .and_then(|m| m.as_str())
         .map(str::to_string);
     let latency_ms = data.get("latency_ms").and_then(|v| v.as_u64());
+    let selection_reason = data
+        .get("selection_reason")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
     Ok(ParsedChatReply {
         content,
         model_id,
         latency_ms,
+        selection_reason,
     })
 }
 
@@ -398,8 +413,9 @@ async fn persist_assistant_reply(
     content: &str,
     model_id: Option<&str>,
     latency_ms: Option<u64>,
+    selection_reason: Option<&str>,
 ) -> Result<ChatMessageDto, String> {
-    let payload = if model_id.is_some() || latency_ms.is_some() {
+    let payload = if model_id.is_some() || latency_ms.is_some() || selection_reason.is_some() {
         let mut obj = serde_json::Map::new();
         if let Some(m) = model_id {
             obj.insert(
@@ -409,6 +425,12 @@ async fn persist_assistant_reply(
         }
         if let Some(l) = latency_ms {
             obj.insert("latency_ms".to_string(), serde_json::json!(l));
+        }
+        if let Some(r) = selection_reason {
+            obj.insert(
+                "selection_reason".to_string(),
+                serde_json::Value::String(r.to_string()),
+            );
         }
         Some(serde_json::Value::Object(obj).to_string())
     } else {
@@ -430,6 +452,7 @@ async fn persist_assistant_reply(
         task_id: None,
         model_id: model_id.map(str::to_string),
         latency_ms,
+        selection_reason: selection_reason.map(str::to_string),
     })
 }
 
@@ -495,6 +518,7 @@ pub async fn chat_send_message<R: tauri::Runtime>(
         &reply.content,
         reply.model_id.as_deref(),
         reply.latency_ms,
+        reply.selection_reason.as_deref(),
     )
     .await
 }
@@ -606,6 +630,7 @@ mod tests {
             task_id: Some("7".to_string()),
             model_id: Some("anthropic/claude-opus-4-5".to_string()),
             latency_ms: Some(842),
+            selection_reason: Some("Chosen by the model scorer".to_string()),
         };
         let j = serde_json::to_string(&dto).unwrap();
         assert!(
@@ -614,6 +639,10 @@ mod tests {
         );
         assert!(j.contains("\"task_id\":\"7\""), "task_id present: {j}");
         assert!(j.contains("\"latency_ms\":842"), "latency_ms present: {j}");
+        assert!(
+            j.contains("\"selection_reason\":\"Chosen by the model scorer\""),
+            "selection_reason present: {j}"
+        );
     }
 
     #[test]
@@ -626,10 +655,15 @@ mod tests {
             task_id: None,
             model_id: None,
             latency_ms: None,
+            selection_reason: None,
         };
         let j = serde_json::to_string(&dto).unwrap();
         assert!(!j.contains("model_id"), "model_id absent when None: {j}");
         assert!(!j.contains("latency_ms"), "latency_ms absent when None: {j}");
+        assert!(
+            !j.contains("selection_reason"),
+            "selection_reason absent when None: {j}"
+        );
     }
 
     #[test]
@@ -700,13 +734,18 @@ mod tests {
                 "message": {"id": "m1", "role": "assistant", "content": "Hi there"},
                 "model_used": "openrouter/auto",
                 "tokens": 42,
-                "latency_ms": 913
+                "latency_ms": 913,
+                "selection_reason": "Chosen by the model scorer as the best match"
             }
         });
         let reply = parse_chat_message_envelope(&envelope).expect("parse ok");
         assert_eq!(reply.content, "Hi there");
         assert_eq!(reply.model_id.as_deref(), Some("openrouter/auto"));
         assert_eq!(reply.latency_ms, Some(913));
+        assert_eq!(
+            reply.selection_reason.as_deref(),
+            Some("Chosen by the model scorer as the best match")
+        );
     }
 
     #[test]
@@ -721,6 +760,7 @@ mod tests {
         });
         let reply = parse_chat_message_envelope(&envelope).expect("parse ok");
         assert_eq!(reply.latency_ms, None);
+        assert_eq!(reply.selection_reason, None);
     }
 
     #[test]
@@ -744,6 +784,7 @@ mod tests {
             "Hello!",
             Some("openrouter/auto"),
             Some(1234),
+            Some("Chosen by the model scorer"),
         )
         .await
         .expect("persist ok");
@@ -751,10 +792,14 @@ mod tests {
         assert_eq!(dto.content, "Hello!");
         assert_eq!(dto.model_id.as_deref(), Some("openrouter/auto"));
         assert_eq!(dto.latency_ms, Some(1234));
+        assert_eq!(
+            dto.selection_reason.as_deref(),
+            Some("Chosen by the model scorer")
+        );
         assert!(!dto.created_at.is_empty(), "created_at must not be blank");
 
-        // Round-trip through chat_get_messages to prove latency_ms survives the
-        // payload JSON persisted into `conversation_messages`.
+        // Round-trip through chat_get_messages to prove latency_ms/selection_reason
+        // survive the payload JSON persisted into `conversation_messages`.
         let msgs = db
             .chat_get_gui_messages("sess-persist", 10)
             .await
@@ -764,6 +809,10 @@ mod tests {
             serde_json::from_str(msgs[0].4.as_deref().expect("payload_json present"))
                 .expect("payload is valid JSON");
         assert_eq!(payload["latency_ms"], serde_json::json!(1234));
+        assert_eq!(
+            payload["selection_reason"],
+            serde_json::json!("Chosen by the model scorer")
+        );
     }
 
     #[test]
