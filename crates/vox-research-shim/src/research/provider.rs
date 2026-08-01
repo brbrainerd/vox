@@ -60,10 +60,16 @@ impl ProviderRegistry {
     pub async fn search(&self, query: &str, policy: &SearchPolicy) -> (Vec<ResearchHit>, String) {
         match WebSearchDispatcher::search(query, policy).await {
             Ok(hybrids) => {
-                let mut hits = Vec::with_capacity(hybrids.len());
-                for h in hybrids {
-                    let trust_score = vox_search::trust::score_hit_trust(&h.title, None).await;
-                    hits.push(ResearchHit {
+                let trust_scores: Vec<f64> = futures::future::join_all(
+                    hybrids
+                        .iter()
+                        .map(|h| vox_search::trust::score_hit_trust(&h.title, None)),
+                )
+                .await;
+                let hits: Vec<ResearchHit> = hybrids
+                    .into_iter()
+                    .zip(trust_scores)
+                    .map(|(h, trust_score)| ResearchHit {
                         url: h.path,
                         title: h.title,
                         snippet: h.content_snippet,
@@ -71,8 +77,8 @@ impl ProviderRegistry {
                         http_status: 0,
                         trust_score,
                         raw_content: String::new(),
-                    });
-                }
+                    })
+                    .collect();
                 (hits, self.primary.clone())
             }
             Err(e) => {

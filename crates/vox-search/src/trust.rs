@@ -4,6 +4,7 @@
 //! rather than blocking the research pipeline.
 
 use serde::Deserialize;
+use std::sync::OnceLock;
 
 const CROSSREF_BASE: &str = "https://api.crossref.org";
 const OPENALEX_BASE: &str = "https://api.openalex.org";
@@ -144,8 +145,17 @@ impl Default for TrustScorer {
 /// confirmed retraction, scaled by venue reputation otherwise. Never fails
 /// — any lookup error yields the neutral 1.0 baseline. `doi` is optional
 /// since most web hits won't resolve to one.
+static SHARED_SCORER: OnceLock<TrustScorer> = OnceLock::new();
+
+/// Returns a process-wide shared `TrustScorer`, constructed once on first
+/// use. Prefer this over `TrustScorer::new()` in hot paths that score many
+/// hits, so the underlying HTTP client's connection pool is actually reused.
+fn shared_scorer() -> &'static TrustScorer {
+    SHARED_SCORER.get_or_init(TrustScorer::new)
+}
+
 pub async fn score_hit_trust(title: &str, doi: Option<&str>) -> f64 {
-    let scorer = TrustScorer::new();
+    let scorer = shared_scorer();
     if let Some(doi) = doi
         && scorer.check_retraction(doi).await == Some(true)
     {
