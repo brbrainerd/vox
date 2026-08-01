@@ -658,7 +658,7 @@ impl ModelRegistry {
             complexity = 7;
         }
 
-        self.best_for_with_filter(task_type, complexity, preference, pred, Some(task))
+        self.best_for_with_filter(task_type, complexity, preference, false, pred, Some(task))
     }
 
     /// Return the best model for a given task category and complexity.
@@ -668,7 +668,7 @@ impl ModelRegistry {
         complexity: u8,
         preference: CostPreference,
     ) -> Option<ModelSpec> {
-        self.best_for_with_filter(task_type, complexity, preference, |_| true, None)
+        self.best_for_with_filter(task_type, complexity, preference, false, |_| true, None)
     }
 
     /// Like [`Self::best_for`] but only considers models for which `pred` returns true.
@@ -678,6 +678,7 @@ impl ModelRegistry {
         task_type: TaskCategory,
         complexity: u8,
         preference: CostPreference,
+        allow_free_in_performance_mode: bool,
         mut pred: impl FnMut(&ModelSpec) -> bool,
         task: Option<&AgentTask>,
     ) -> Option<ModelSpec> {
@@ -690,14 +691,29 @@ impl ModelRegistry {
         let strength = task_category_strength(task_type);
 
         // First pass: Respect penalties
-        let result =
-            self.best_for_internal(task_type, strength, effective_pref, &mut pred, true, task);
+        let result = self.best_for_internal(
+            task_type,
+            strength,
+            effective_pref,
+            allow_free_in_performance_mode,
+            &mut pred,
+            true,
+            task,
+        );
         if result.is_some() {
             return result;
         }
 
         // Second pass: Ignore penalties if no other options
-        self.best_for_internal(task_type, strength, effective_pref, &mut pred, false, task)
+        self.best_for_internal(
+            task_type,
+            strength,
+            effective_pref,
+            allow_free_in_performance_mode,
+            &mut pred,
+            false,
+            task,
+        )
     }
 
     fn best_for_internal(
@@ -705,6 +721,7 @@ impl ModelRegistry {
         _task_type: TaskCategory,
         strength: crate::models::StrengthTag,
         preference: CostPreference,
+        allow_free_in_performance_mode: bool,
         pred: &mut impl FnMut(&ModelSpec) -> bool,
         respect_penalties: bool,
         task: Option<&AgentTask>,
@@ -717,7 +734,10 @@ impl ModelRegistry {
                 }
                 // Removed W1-2 block. The runtime filter will handle dropping Unknown models
                 // if the daily exploration budget is exceeded.
-                if preference == CostPreference::Performance && m.is_free {
+                if preference == CostPreference::Performance
+                    && m.is_free
+                    && !allow_free_in_performance_mode
+                {
                     return false; // Skip free models in performance mode unless they are explicitly mapped
                 }
 

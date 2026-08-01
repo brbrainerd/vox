@@ -169,6 +169,7 @@ pub fn resolve_model_with_registry_fallbacks(
         params.task,
         complexity,
         preference,
+        false,
         &mut registry_pred,
         None,
     );

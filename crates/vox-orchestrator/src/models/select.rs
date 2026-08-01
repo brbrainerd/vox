@@ -182,6 +182,7 @@ pub fn decide(
                 intent.task,
                 intent.complexity,
                 intent.axes.to_cost_preference(),
+                intent.allow_free_in_performance_mode,
                 |m| candidate_ids.contains(&m.id),
                 None,
             )?;
@@ -409,6 +410,12 @@ pub struct SelectionIntent {
     /// (e.g. `vox repair` 3-attempt loop, agent ReAct). Prefers models with
     /// `supports_prompt_caching = true` when available.
     pub cacheable_workload: bool,
+    /// When true, free-tier (`ModelSpec.is_free`) models are allowed to
+    /// compete even under `CostPreference::Performance`, which otherwise
+    /// excludes them unconditionally (`registry.rs::best_for_internal`).
+    /// Defaults to `false` everywhere except `SelectionIntent::research()`,
+    /// which sets it from `VOX_RESEARCH_PREFER_FREE_TIER`.
+    pub allow_free_in_performance_mode: bool,
 }
 
 impl SelectionIntent {
@@ -424,6 +431,7 @@ impl SelectionIntent {
             prefer_local: false,
             max_cost_usd_per_call: None,
             cacheable_workload: false,
+            allow_free_in_performance_mode: false,
         }
     }
 
@@ -440,6 +448,7 @@ impl SelectionIntent {
             prefer_local: false,
             max_cost_usd_per_call: None,
             cacheable_workload: true,
+            allow_free_in_performance_mode: false,
         }
     }
 
@@ -455,6 +464,7 @@ impl SelectionIntent {
             prefer_local: false,
             max_cost_usd_per_call: None,
             cacheable_workload: false,
+            allow_free_in_performance_mode: vox_config::inference::research_prefer_free_tier(),
         }
     }
 
@@ -470,6 +480,7 @@ impl SelectionIntent {
             prefer_local: false,
             max_cost_usd_per_call: None,
             cacheable_workload: true,
+            allow_free_in_performance_mode: false,
         }
     }
 
@@ -485,6 +496,7 @@ impl SelectionIntent {
             prefer_local: false,
             max_cost_usd_per_call: Some(0.01),
             cacheable_workload: false,
+            allow_free_in_performance_mode: false,
         }
     }
 
@@ -500,6 +512,7 @@ impl SelectionIntent {
             prefer_local: true,
             max_cost_usd_per_call: None,
             cacheable_workload: false,
+            allow_free_in_performance_mode: false,
         }
     }
 
@@ -515,6 +528,7 @@ impl SelectionIntent {
             prefer_local: false,
             max_cost_usd_per_call: None,
             cacheable_workload: false,
+            allow_free_in_performance_mode: false,
         }
     }
 }
@@ -744,6 +758,7 @@ fn select_via_scorer(
         intent.task,
         intent.complexity,
         cost_pref,
+        intent.allow_free_in_performance_mode,
         |m| supports_intent_constraints(m, &intent_clone) && ModelRegistry::key_is_present_for(m),
         None,
     )?;
@@ -945,6 +960,14 @@ mod tests {
         let i = SelectionIntent::research();
         assert_eq!(i.axes, SelectionAxes::QUALITY_FIRST);
         assert_eq!(i.task, TaskCategory::Research);
+    }
+
+    #[test]
+    fn research_intent_allows_free_when_prefer_free_tier_env_set() {
+        let intent = SelectionIntent::research();
+        // This assertion documents the contract this task establishes: default
+        // (no env set) must preserve existing behavior: free models excluded.
+        assert!(!intent.allow_free_in_performance_mode);
     }
 
     #[test]
