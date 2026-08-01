@@ -619,9 +619,14 @@ impl ServerState {
     }
 }
 
-#[cfg(test)]
 impl ServerState {
-    /// Create a minimally initialized `ServerState` for unit testing with full control over members.
+    /// Create a minimally initialized `ServerState` for unit testing with full control over
+    /// members.
+    ///
+    /// Not `#[cfg(test)]`-gated: `vox harness eval`'s `agent-loop-terminates` golden task
+    /// (`chat_tools::chat::agent_loop::eval_gate_agent_loop_terminates_check`) is a real,
+    /// non-test call site in `vox-cli` that needs exactly this hermetic, no-IO `ServerState`
+    /// to drive `run_agent_turn` against a mock model server outside `cargo test`.
     pub fn test_stub(
         orchestrator_config: OrchestratorConfig,
         repository: vox_repository::RepositoryContext,

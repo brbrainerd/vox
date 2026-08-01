@@ -138,6 +138,12 @@ which = { workspace = true }
 crossbeam-queue = { workspace = true }
 globset = { workspace = true }
 workspace-hack = { workspace = true }
+# NOT a dev-dependency: the eval-gate check functions purpose-built for `vox
+# harness eval` (`eval_gate_agent_loop_terminates_check` in
+# chat_tools/chat/agent_loop.rs) stand up a wiremock server at runtime, in
+# normal (non-`#[cfg(test)]`) code, so `vox-cli`'s eval gate binary can call
+# them outside `cargo test`.
+wiremock.workspace = true
 
 [build-dependencies]
 serde = { workspace = true, features = ["derive"] }
@@ -148,7 +154,6 @@ vox-plugin-api = { workspace = true }
 tower = { workspace = true, features = ["util"] }
 serial_test.workspace = true
 jsonschema.workspace = true
-wiremock.workspace = true
 
 [lints.rust]
 unsafe_code = "warn"

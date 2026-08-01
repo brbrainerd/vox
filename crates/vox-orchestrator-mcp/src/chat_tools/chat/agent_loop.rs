@@ -298,6 +298,136 @@ pub(crate) async fn run_agent_turn(
     })
 }
 
+/// Purpose-built for `vox harness eval`'s `agent-loop-terminates` golden task
+/// (`crates/vox-cli/src/commands/harness/eval.rs`): stands up a wiremock model
+/// server that always returns a tool call (never a final answer) and runs
+/// [`run_agent_turn`] against it, asserting the loop genuinely stops at its
+/// `max_iterations` bound rather than recursing forever — the property
+/// [`DEFAULT_MAX_ITERATIONS`] exists to guarantee. `pub` (not `pub(crate)`)
+/// specifically so `vox-cli`'s eval gate, in a different crate, can call it.
+/// Hermetic: the mock server is entirely local (no real network egress), and
+/// the `ServerState` built here (via [`ServerState::test_stub`]) does no I/O.
+pub async fn eval_gate_agent_loop_terminates_check() -> Result<(), String> {
+    use std::path::PathBuf;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+    use vox_orchestrator::{
+        AffinityGroupRegistry, Orchestrator, OrchestratorConfig, SessionConfig, SessionManager,
+    };
+    use vox_repository::{RepoCapabilities, RepositoryContext};
+    use vox_skills::new_registry_arc;
+    use wiremock::matchers::method;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    let tool_call_body = serde_json::json!({
+        "id": "chatcmpl-eval-gate",
+        "model": "test-model",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": null,
+                "tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {
+                        "name": "vox_git_status",
+                        "arguments": "{}",
+                    },
+                }],
+            },
+            "finish_reason": "tool_calls",
+        }],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+    });
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(tool_call_body))
+        .mount(&server)
+        .await;
+
+    let cfg = OrchestratorConfig::for_testing();
+    let orch_cfg = cfg.clone();
+    let groups = AffinityGroupRegistry::new(vec![]);
+    let session_cfg = SessionConfig {
+        persist: false,
+        sessions_dir: std::env::temp_dir().join("vox-harness-eval-agent-loop-sessions"),
+        ..SessionConfig::default()
+    };
+    let session_manager =
+        SessionManager::new(session_cfg).map_err(|e| format!("session manager: {e}"))?;
+    let repository = RepositoryContext {
+        root: PathBuf::from("."),
+        git_root: None,
+        repository_id: "harness-eval-agent-loop".into(),
+        origin_url: None,
+        capabilities: RepoCapabilities {
+            vox_project: false,
+            cargo_workspace: false,
+            cargo_package: false,
+            node_workspace: false,
+            python_project: false,
+            go_module: false,
+            git: false,
+        },
+        has_vox_agents_dir: false,
+        vox_toml: None,
+    };
+    let state = ServerState::test_stub(
+        cfg,
+        repository,
+        Arc::new(Orchestrator::with_groups(orch_cfg, groups)),
+        Arc::new(Mutex::new(session_manager)),
+        new_registry_arc(),
+    );
+
+    let llm_config = LlmConfig {
+        provider: "openrouter".into(),
+        model: "test-model".into(),
+        cost_per_1k: None,
+        base_url: Some(format!("{}/chat/completions", server.uri())),
+        api_key: Some("test-key".into()),
+        temperature: None,
+        top_p: None,
+        max_tokens: None,
+        response_format: None,
+        tools: None,
+        tool_choice: None,
+        timeout_ms: None,
+        telemetry_session_id: None,
+        telemetry_user_id: None,
+        telemetry_task_category: None,
+        telemetry_strength_tag: None,
+        telemetry_trace_id: None,
+        telemetry_attempt_number: None,
+        telemetry_skip_interaction: true,
+    };
+
+    let max_iterations = 3;
+    let outcome = run_agent_turn(
+        &state,
+        vec![],
+        "system prompt".to_string(),
+        "eval-gate: loop forever please".to_string(),
+        None,
+        None,
+        llm_config,
+        max_iterations,
+    )
+    .await?;
+
+    if !outcome.hit_iteration_limit {
+        return Err("expected the loop to hit its iteration cap and stop".to_string());
+    }
+    if outcome.tool_calls_made != max_iterations {
+        return Err(format!(
+            "expected {max_iterations} tool calls (one per iteration), got {}",
+            outcome.tool_calls_made
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -598,6 +728,15 @@ mod tests {
             max_iterations,
             "loop must make exactly max_iterations model round-trips, not hang"
         );
+    }
+
+    /// The `vox harness eval` `agent-loop-terminates` golden task body itself must
+    /// succeed — i.e. the check it performs (loop terminates at the iteration
+    /// bound against a model that always requests tools) must actually hold.
+    #[tokio::test]
+    async fn eval_gate_agent_loop_terminates_check_reports_ok_when_loop_is_bounded() {
+        let result = eval_gate_agent_loop_terminates_check().await;
+        assert!(result.is_ok(), "{result:?}");
     }
 
     fn model_spec(provider_type: vox_orchestrator::models::ProviderType, id: &str) -> ModelSpec {

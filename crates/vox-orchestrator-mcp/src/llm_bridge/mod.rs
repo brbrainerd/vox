@@ -7,7 +7,7 @@ mod error;
 mod infer;
 pub mod infer_test_stub;
 mod limits;
-pub(crate) mod local_health;
+pub mod local_health;
 mod model_route_policy;
 mod provider_adapter;
 mod provider_auth;

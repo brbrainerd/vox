@@ -6,7 +6,7 @@
 pub mod params;
 
 mod ambient;
-mod chat;
+pub mod chat;
 mod ghost_text;
 mod inline_edit;
 mod plan;

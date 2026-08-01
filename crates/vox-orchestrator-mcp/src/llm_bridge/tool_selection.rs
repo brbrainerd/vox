@@ -18,6 +18,16 @@ use vox_skills::SkillRegistry;
 
 use crate::skill_permissions::check_skill_tool_permission;
 
+/// Thin re-export of `vox_skills::new_registry_arc` so `vox-cli`'s
+/// `tool-cap-never-exceeds-cap` golden task (`vox harness eval`) can build a
+/// fixture [`SkillRegistry`] for [`select_tools_for_turn`] without taking a
+/// direct (optional, `ars`-feature-gated) dependency on `vox-skills` itself —
+/// `vox-orchestrator-mcp` already depends on it unconditionally.
+#[must_use]
+pub fn new_registry_arc_for_eval() -> std::sync::Arc<SkillRegistry> {
+    vox_skills::new_registry_arc()
+}
+
 /// Default cap on the number of tools offered per turn.
 ///
 /// Chosen well under the ~30-50-tool degradation threshold cited in the

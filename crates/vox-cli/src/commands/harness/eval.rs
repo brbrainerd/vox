@@ -92,6 +92,21 @@ fn golden_tasks() -> Vec<GoldenTask> {
             run: live_model_smoke_task,
             skip_if: Some(live_model_smoke_skip_reason),
         },
+        GoldenTask {
+            name: "tool-cap-never-exceeds-cap",
+            run: tool_cap_never_exceeds_cap_task,
+            skip_if: None,
+        },
+        GoldenTask {
+            name: "agent-loop-terminates",
+            run: agent_loop_terminates_task,
+            skip_if: None,
+        },
+        GoldenTask {
+            name: "privacy-filter-blocks-live-routing",
+            run: privacy_filter_blocks_live_routing_task,
+            skip_if: None,
+        },
     ]
 }
 
@@ -215,6 +230,78 @@ fn live_model_smoke_skip_reason() -> Option<String> {
     } else {
         Some("VOX_HARNESS_EVAL_LIVE not set to \"1\"".to_string())
     }
+}
+
+/// Golden task 5: the tool-selection cap ([`select_tools_for_turn`]) must
+/// never offer more than `DEFAULT_MAX_TOOLS` tools for a plain chat turn, and
+/// must never offer a `vox_chat_*` tool (the agent loop's recursion guard —
+/// see `agent_loop.rs`'s exclusion of that prefix). Regresses silently if the
+/// exclude-before-cap ordering (`tool_selection.rs`) is ever reverted.
+///
+/// [`select_tools_for_turn`]: vox_orchestrator_mcp::llm_bridge::tool_selection::select_tools_for_turn
+fn tool_cap_never_exceeds_cap_task() -> Result<()> {
+    use vox_mcp_registry::TOOL_REGISTRY;
+    use vox_orchestrator_mcp::llm_bridge::tool_selection::{
+        DEFAULT_MAX_TOOLS, TurnContext, new_registry_arc_for_eval, select_tools_for_turn,
+    };
+
+    let ctx = TurnContext {
+        permission_mode: None,
+        lanes: vec!["default"],
+        active_skill_id: None,
+        max_tools: DEFAULT_MAX_TOOLS,
+        exclude_name_prefixes: vec!["vox_chat_"],
+    };
+    let reg = new_registry_arc_for_eval();
+    let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
+    if selected.len() > DEFAULT_MAX_TOOLS {
+        bail!(
+            "selected {} tools, cap is {}",
+            selected.len(),
+            DEFAULT_MAX_TOOLS
+        );
+    }
+    if selected.iter().any(|t| t.name.starts_with("vox_chat_")) {
+        bail!("a vox_chat_* tool was offered to the model — recursion-guard regression");
+    }
+    Ok(())
+}
+
+/// Golden task 6: the agent loop must genuinely terminate at its iteration
+/// cap rather than recursing forever against a model that always returns a
+/// tool call. Bridges into an async check via a dedicated single-threaded
+/// tokio runtime (this crate's task functions are plain `fn() -> Result<()>`,
+/// so async golden tasks need their own runtime rather than relying on an
+/// ambient one).
+fn agent_loop_terminates_task() -> Result<()> {
+    // `run()` (the caller, transitively) is itself async and — under
+    // `#[tokio::test]`'s default current-thread flavor — may already be
+    // running inside a tokio runtime, so a nested `Runtime::block_on` here
+    // would panic ("Cannot start a runtime from within a runtime"). Run the
+    // async check on its own OS thread with its own runtime instead; this
+    // works regardless of the caller's runtime flavor.
+    std::thread::spawn(|| {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        rt.block_on(
+            vox_orchestrator_mcp::chat_tools::chat::agent_loop::eval_gate_agent_loop_terminates_check(
+            ),
+        )
+        .map_err(|e| anyhow::anyhow!(e))
+    })
+    .join()
+    .map_err(|_| anyhow::anyhow!("agent-loop-terminates check thread panicked"))?
+}
+
+/// Golden task 7: the privacy hard filter must block cloud-provider routing
+/// under `local_only` and allow local-provider routing — the property Task
+/// 2.2 established. Runs the same pure decision core `privacy_allows` uses,
+/// with an explicit mode rather than mutating `VOX_INFERENCE_PRIVACY` (kept
+/// hermetic and safe under parallel test/task execution).
+fn privacy_filter_blocks_live_routing_task() -> Result<()> {
+    vox_orchestrator_mcp::llm_bridge::local_health::eval_gate_privacy_filter_check()
+        .map_err(|e| anyhow::anyhow!(e))
 }
 
 /// Result of running (or skipping) one golden task.
@@ -414,6 +501,24 @@ mod tests {
     #[test]
     fn temp_workspace_file_roundtrip_is_byte_exact() {
         assert!(temp_workspace_file_roundtrip().is_ok());
+    }
+
+    #[test]
+    fn tool_cap_never_exceeds_cap_task_passes() {
+        let result = tool_cap_never_exceeds_cap_task();
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[test]
+    fn agent_loop_terminates_task_passes() {
+        let result = agent_loop_terminates_task();
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[test]
+    fn privacy_filter_blocks_live_routing_task_passes() {
+        let result = privacy_filter_blocks_live_routing_task();
+        assert!(result.is_ok(), "{result:?}");
     }
 
     #[test]
