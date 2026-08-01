@@ -42,7 +42,7 @@ fn memory_config_for_state_matches_orchestrator_memory() {
         has_vox_agents_dir: false,
         vox_toml: None,
     };
-    let state = ServerState::test_stub(
+    let state = ServerState::hermetic_stub(
         cfg.clone(),
         repository,
         Arc::new(Orchestrator::with_groups(orch_cfg, groups)),
@@ -99,7 +99,7 @@ async fn retrieval_bundle_prefers_bm25_before_lexical_fallback() {
         has_vox_agents_dir: false,
         vox_toml: None,
     };
-    let state = ServerState::test_stub(
+    let state = ServerState::hermetic_stub(
         cfg.clone(),
         repository,
         Arc::new(Orchestrator::with_groups(orch_cfg, groups)),

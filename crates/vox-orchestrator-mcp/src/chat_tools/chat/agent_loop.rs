@@ -306,7 +306,15 @@ pub(crate) async fn run_agent_turn(
 /// [`DEFAULT_MAX_ITERATIONS`] exists to guarantee. `pub` (not `pub(crate)`)
 /// specifically so `vox-cli`'s eval gate, in a different crate, can call it.
 /// Hermetic: the mock server is entirely local (no real network egress), and
-/// the `ServerState` built here (via [`ServerState::test_stub`]) does no I/O.
+/// the `ServerState` built here (via [`ServerState::hermetic_stub`]) does no
+/// I/O.
+///
+/// Gated behind the `eval-gate` feature (default OFF, enabled by `vox-cli`
+/// only) because it needs `wiremock` at runtime, in normal non-`#[cfg(test)]`
+/// code — see the `eval-gate` feature and the `wiremock` dependency comment
+/// in `Cargo.toml` for why that crate must not leak into every consumer of
+/// `vox-orchestrator-mcp` (`vox-server`, `vox-gui`, ...) by default.
+#[cfg(feature = "eval-gate")]
 pub async fn eval_gate_agent_loop_terminates_check() -> Result<(), String> {
     use std::path::PathBuf;
     use std::sync::Arc;
@@ -373,7 +381,7 @@ pub async fn eval_gate_agent_loop_terminates_check() -> Result<(), String> {
         has_vox_agents_dir: false,
         vox_toml: None,
     };
-    let state = ServerState::test_stub(
+    let state = ServerState::hermetic_stub(
         cfg,
         repository,
         Arc::new(Orchestrator::with_groups(orch_cfg, groups)),
@@ -469,7 +477,7 @@ mod tests {
             has_vox_agents_dir: false,
             vox_toml: None,
         };
-        ServerState::test_stub(
+        ServerState::hermetic_stub(
             cfg,
             repository,
             Arc::new(Orchestrator::with_groups(orch_cfg, groups)),
@@ -733,6 +741,10 @@ mod tests {
     /// The `vox harness eval` `agent-loop-terminates` golden task body itself must
     /// succeed — i.e. the check it performs (loop terminates at the iteration
     /// bound against a model that always requests tools) must actually hold.
+    /// Only compiled with `--features eval-gate` (matching the function under
+    /// test) — run `cargo test -p vox-orchestrator-mcp --lib --features
+    /// eval-gate` to exercise it.
+    #[cfg(feature = "eval-gate")]
     #[tokio::test]
     async fn eval_gate_agent_loop_terminates_check_reports_ok_when_loop_is_bounded() {
         let result = eval_gate_agent_loop_terminates_check().await;
