@@ -35,6 +35,7 @@ pub mod producer;
 pub mod registry;
 pub mod socrates_telemetry;
 pub mod test_corpus;
+pub mod worthiness;
 
 pub use producer::{Producer, ProducerContext};
 pub use registry::ProducerRegistry;
