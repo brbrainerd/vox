@@ -42,6 +42,7 @@ fn supported_result(session_id: i64, quality: i32) -> ResearchResult {
                     text: "supported".to_string(),
                     span_type: SpanType::Supporting,
                 }],
+                self_consistency: 1.0,
             }],
             retrieval_diagnostics: RetrievalDiagnostics::default(),
             quality_score: quality,

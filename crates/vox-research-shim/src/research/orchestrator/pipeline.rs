@@ -383,6 +383,10 @@ pub async fn run_research_with_context_and_session(
     }
 
     // ── (e) Confidence gate → routing decision ────────────────────────────────
+    // NOTE: ClaimVerdict now also carries `self_consistency` (Task 7,
+    // 2026-08-01 deep-research trust/novelty plan) — a follow-up could
+    // weight supported_claim_count by consistency rather than treating
+    // every "Supported" verdict as equally reliable. Not wired yet.
     let supported_claim_count = claim_verdicts
         .iter()
         .filter(|v| matches!(v.verdict, super::super::verifier::Verdict::Supported))
@@ -931,6 +935,7 @@ mod tests {
                 text: "supports durable research artifacts".to_string(),
                 span_type: SpanType::Supporting,
             }],
+            self_consistency: 1.0,
         }];
 
         let audit = audit_citations(&citations, &verdicts);

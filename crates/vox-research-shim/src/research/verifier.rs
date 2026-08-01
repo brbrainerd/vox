@@ -34,7 +34,7 @@ pub struct VerifierConfig {
 /// `dei_shim::research::orchestrator::stages` to keep Phase 0a compile-correct
 /// without rewriting unrelated code. Phase 1's `vox-claim-extractor`
 /// integration is the right point to reconcile to the SciFact taxonomy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Verdict {
     Supported,
@@ -92,16 +92,58 @@ pub struct ClaimVerdict {
     pub supporting_count: usize,
     pub contradicting_count: usize,
     pub evidence_spans: Vec<EvidenceSpan>,
+    /// Fraction of `RESAMPLE_COUNT` repeated verification calls that agreed
+    /// with the final `verdict`. 1.0 = fully consistent, lower = the LLM
+    /// gave different answers across resamples for the same claim/evidence.
+    pub self_consistency: f64,
 }
+
+/// Fraction of `verdicts` matching the most common verdict among them.
+/// Used as a self-consistency signal: low agreement across repeated
+/// samples of the same claim/evidence pair suggests the LLM's verdict is
+/// unreliable, independent of its own stated confidence.
+fn agreement_rate(verdicts: &[Verdict]) -> f64 {
+    if verdicts.is_empty() {
+        return 0.0;
+    }
+    use std::collections::HashMap;
+    let mut counts: HashMap<Verdict, usize> = HashMap::new();
+    for v in verdicts {
+        *counts.entry(*v).or_insert(0) += 1;
+    }
+    let max_count = counts.values().copied().max().unwrap_or(0);
+    max_count as f64 / verdicts.len() as f64
+}
+
+/// Most common verdict among `verdicts`. Ties broken by first-seen order
+/// (stable, deterministic given the resample loop's fixed call order).
+fn majority_verdict(verdicts: &[Verdict]) -> Verdict {
+    use std::collections::HashMap;
+    let mut counts: HashMap<Verdict, usize> = HashMap::new();
+    for v in verdicts {
+        *counts.entry(*v).or_insert(0) += 1;
+    }
+    *verdicts
+        .iter()
+        .max_by_key(|v| counts[*v])
+        .expect("verdicts is non-empty")
+}
+
+// For each claim, sample the verification cascade `RESAMPLE_COUNT` times
+// and keep the majority verdict, recording the agreement rate as the new
+// `self_consistency` field on `ClaimVerdict`.
+const RESAMPLE_COUNT: usize = 3;
 
 /// Verify a batch of claims against retrieved evidence.
 ///
 /// Verifies claims against evidence via an LLM cascade (behind the `runtime`
-/// feature; without it, degrades to blanket `Unverified`). See Task 7 of
-/// `docs/superpowers/plans/2026-08-01-deep-research-trust-novelty-core.md`
-/// for the planned self-consistency resampling addition, and this file's
-/// module-level SciFact-taxonomy note above for the still-open Verdict
-/// naming reconciliation.
+/// feature; without it, degrades to blanket `Unverified`). Each claim is
+/// verified `RESAMPLE_COUNT` times (SelfCheckGPT-style resampling) and the
+/// majority verdict is kept, with `ClaimVerdict::self_consistency` recording
+/// the agreement rate — see Task 7 of
+/// `docs/superpowers/plans/2026-08-01-deep-research-trust-novelty-core.md`.
+/// This file's module-level SciFact-taxonomy note above still has the
+/// open Verdict naming reconciliation, which resampling does not address.
 pub async fn verify_claims_with_config(
     claims: &[Claim],
     query: &str,
@@ -136,54 +178,76 @@ pub async fn verify_claims_with_config(
         let mut verdicts = Vec::new();
 
         for claim in claims {
-            let mut candidates = cascade_with_optional_manual(
-                ResearchStage::Verification,
-                &input,
-                endpoint,
-                api_key,
-                Some(input.openrouter_model.as_str()),
-            );
-            for candidate in &mut candidates {
-                candidate.temperature = Some(0.0);
-                candidate.max_tokens = Some(500);
-                candidate.response_format = Some(serde_json::json!({"type": "json_object"}));
-            }
-            let messages = vec![
-                LlmChatMessage {
-                    role: "system".to_string(),
-                    content: "Classify whether retrieved evidence supports the claim. \
-                        Output only JSON: {\"verdict\":\"Supported|Contradicted|Contested|Unverified\",\
-                        \"confidence\":0.0,\"supporting_indices\":[0],\"contradicting_indices\":[1]}."
-                        .to_string(), ..Default::default()
-},
-                LlmChatMessage {
-                    role: "user".to_string(),
-                    content: format!(
-                        "Original question: {query}\n\nClaim: {}\n\nEvidence:\n{evidence}",
-                        claim.text
-                    ), ..Default::default()
-},
-            ];
-            match chat_with_cascade(&opts, messages, candidates, None).await {
-                Ok(response) => {
-                    match parse_verifier_response(
-                        &response.content,
-                        claim.clone(),
-                        evidence_hits,
-                        abstain_threshold,
-                    ) {
-                        Ok(verdict) => verdicts.push(verdict),
-                        Err(e) => {
-                            tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier response invalid");
-                            verdicts.push(unverified(claim.clone()));
+            // Resample the same claim/evidence pair RESAMPLE_COUNT times,
+            // relying on the cascade's existing nonzero verification
+            // temperature to produce genuine variation across samples.
+            let mut sampled: Vec<ClaimVerdict> = Vec::with_capacity(RESAMPLE_COUNT);
+            for _ in 0..RESAMPLE_COUNT {
+                let mut candidates = cascade_with_optional_manual(
+                    ResearchStage::Verification,
+                    &input,
+                    endpoint,
+                    api_key,
+                    Some(input.openrouter_model.as_str()),
+                );
+                for candidate in &mut candidates {
+                    candidate.max_tokens = Some(500);
+                    candidate.response_format = Some(serde_json::json!({"type": "json_object"}));
+                }
+                let messages = vec![
+                    LlmChatMessage {
+                        role: "system".to_string(),
+                        content: "Classify whether retrieved evidence supports the claim. \
+                            Output only JSON: {\"verdict\":\"Supported|Contradicted|Contested|Unverified\",\
+                            \"confidence\":0.0,\"supporting_indices\":[0],\"contradicting_indices\":[1]}."
+                            .to_string(), ..Default::default()
+    },
+                    LlmChatMessage {
+                        role: "user".to_string(),
+                        content: format!(
+                            "Original question: {query}\n\nClaim: {}\n\nEvidence:\n{evidence}",
+                            claim.text
+                        ), ..Default::default()
+    },
+                ];
+                match chat_with_cascade(&opts, messages, candidates, None).await {
+                    Ok(response) => {
+                        match parse_verifier_response(
+                            &response.content,
+                            claim.clone(),
+                            evidence_hits,
+                            abstain_threshold,
+                        ) {
+                            Ok(verdict) => sampled.push(verdict),
+                            Err(e) => {
+                                tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier response invalid");
+                                sampled.push(unverified(claim.clone()));
+                            }
                         }
                     }
-                }
-                Err(e) => {
-                    tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier cascade failed");
-                    verdicts.push(unverified(claim.clone()));
+                    Err(e) => {
+                        tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier cascade failed");
+                        sampled.push(unverified(claim.clone()));
+                    }
                 }
             }
+
+            let sampled_verdicts: Vec<Verdict> = sampled.iter().map(|v| v.verdict).collect();
+            let final_verdict = majority_verdict(&sampled_verdicts);
+            let self_consistency = agreement_rate(&sampled_verdicts);
+            // Among the samples matching the majority verdict, keep the one
+            // with the highest self-reported confidence for the other
+            // fields (confidence/supporting/contradicting/evidence_spans).
+            let mut chosen = sampled
+                .into_iter()
+                .filter(|v| v.verdict == final_verdict)
+                .fold(None::<ClaimVerdict>, |best, cand| match &best {
+                    Some(b) if b.confidence >= cand.confidence => best,
+                    _ => Some(cand),
+                })
+                .expect("at least one sample matches the majority verdict");
+            chosen.self_consistency = self_consistency;
+            verdicts.push(chosen);
         }
 
         verdicts
@@ -260,6 +324,7 @@ fn parse_verifier_response(
         supporting_count,
         contradicting_count,
         evidence_spans,
+        self_consistency: 1.0,
     })
 }
 
@@ -281,6 +346,7 @@ fn unverified(claim: Claim) -> ClaimVerdict {
         supporting_count: 0,
         contradicting_count: 0,
         evidence_spans: Vec::new(),
+        self_consistency: 1.0,
     }
 }
 
@@ -374,5 +440,23 @@ mod tests {
 
         assert_eq!(verdict.verdict, Verdict::Unverified);
         assert_eq!(verdict.supporting_count, 0);
+    }
+
+    #[test]
+    fn agreement_rate_computes_fraction_matching_majority_verdict() {
+        let verdicts = vec![Verdict::Supported, Verdict::Supported, Verdict::Contradicted];
+        assert_eq!(agreement_rate(&verdicts), 2.0 / 3.0);
+    }
+
+    #[test]
+    fn agreement_rate_is_one_for_unanimous_verdicts() {
+        let verdicts = vec![Verdict::Supported, Verdict::Supported, Verdict::Supported];
+        assert_eq!(agreement_rate(&verdicts), 1.0);
+    }
+
+    #[test]
+    fn agreement_rate_is_zero_for_empty_input() {
+        let verdicts: Vec<Verdict> = vec![];
+        assert_eq!(agreement_rate(&verdicts), 0.0);
     }
 }
