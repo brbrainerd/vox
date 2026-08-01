@@ -237,6 +237,54 @@ describe('App shell', () => {
     expect(submitCall![1].input.session_id).not.toBe('chat-session-abc');
   });
 
+  // Fix Task 2 (chat-harness audit): same bug, second call site — deploying an
+  // installed skill from the Omnibar dispatches via submit_orchestrator_task too,
+  // and must not silently borrow the active chat session's identity either.
+  it('Deploy skill (Omnibar) does not reuse the active chat session id', async () => {
+    invokeMock.mockImplementation((cmd: string, args: any) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'chat-session-abc' });
+      if (cmd === 'invoke_mcp_tool' && args?.tool === 'vox_skill_list') {
+        return Promise.resolve({
+          result: [{ id: 'skill-1', name: 'my-test-skill', description: 'A test skill' }],
+        });
+      }
+      if (cmd === 'submit_orchestrator_task') return Promise.resolve({ task_id: '1', duplicate_of: null });
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    // Open the Omnibar (Mod+K) and search for the installed skill.
+    const ev = new KeyboardEvent('keydown', { key: 'k', metaKey: true, cancelable: true, bubbles: true });
+    window.dispatchEvent(ev);
+    const searchInput = await screen.findByPlaceholderText(/search/i);
+    const user = userEvent.setup();
+    // '/' is the skills+docs prefix mode (see Omnibar.tsx's federatedKindsForMode:
+    // the default/no-prefix mode does NOT include the 'skill' kind).
+    await user.type(searchInput, '/my-test-skill');
+    // The row's label text may be split across highlight-match spans, so match
+    // on any element whose combined text content includes the skill name, and
+    // click the smallest (most specific) such element directly — clicking the
+    // outermost match (e.g. the modal backdrop) would instead close the Omnibar.
+    let skillRow: HTMLElement | undefined;
+    await waitFor(() => {
+      const matches = screen.getAllByText((_, el) => !!el?.textContent?.includes('my-test-skill'));
+      expect(matches.length).toBeGreaterThan(0);
+      skillRow = matches.reduce((smallest, el) =>
+        el.textContent!.length < smallest.textContent!.length ? el : smallest,
+      );
+    });
+    await user.click(skillRow!);
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+    );
+    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'submit_orchestrator_task');
+    expect(submitCall![1].input.session_id).not.toBe('chat-session-abc');
+  });
+
   // Plan Task 2 (gui-chat-agent-loop-wiring): a plain chat send (Loquela's
   // normal Enter-to-send path, which tags task_category: 'chat') must go
   // through the synchronous chat_send_message command, not the background

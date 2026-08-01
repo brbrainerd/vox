@@ -84,13 +84,7 @@ import {
   LIVE_EVENT_FRESH_MS,
 } from './config/constants';
 import { budgetStateFromStatus, DEFAULT_BUDGET_CAP_USD } from './config/budget';
-import { nextId, nextGuiRunId } from './lib/ids';
-
-// Session id for background dispatches (/spawn, Deploy skill) that must not
-// borrow the active chat session's identity — see call sites below.
-function newBackgroundSessionId(): string {
-  return `bg-task-${nextGuiRunId()}`;
-}
+import { nextId, nextGuiRunId, newBackgroundSessionId } from './lib/ids';
 import { slashCommandBase } from './lib/slashRouter';
 import { viewKeyForLocator } from './lib/locatorNavigation';
 import { AchievementsDrawer } from './components/gamify/AchievementsDrawer';
@@ -1406,6 +1400,16 @@ export default function App() {
           }
         }}
         onRunCommand={(command) => {
+          // 'skill:<id>' commands (Omnibar's skill rows, see Omnibar.tsx's
+          // `onRunCommand(`skill:${row.activate.skillId}`)`) must reach
+          // handleCommandAction's `cmd.id.startsWith('skill:')` branch below —
+          // wrapping them in the generic 'hit' shape like every other command
+          // string would hardcode id/type to 'hit' and short-circuit past that
+          // branch in the if/else-if chain, silently no-op'ing skill deploys.
+          if (command.startsWith('skill:')) {
+            handleCommandAction({ id: command });
+            return;
+          }
           handleCommandAction({
             id: 'hit',
             type: 'hit',
