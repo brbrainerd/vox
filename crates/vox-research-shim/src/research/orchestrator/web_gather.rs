@@ -28,14 +28,15 @@ fn hybrid_from_research(hit: &ResearchHit) -> HybridSearchHit {
     }
 }
 
-fn research_hit_from_hybrid(hit: HybridSearchHit) -> ResearchHit {
+async fn research_hit_from_hybrid(hit: HybridSearchHit) -> ResearchHit {
+    let trust_score = vox_search::trust::score_hit_trust(&hit.title, None).await;
     ResearchHit {
         url: hit.path,
         title: hit.title,
         snippet: hit.content_snippet,
         score: hit.score,
         http_status: 0,
-        trust_score: 1.0,
+        trust_score,
         raw_content: String::new(),
     }
 }
@@ -211,7 +212,8 @@ pub(super) async fn gather_web_hits_for_plan(
                 "engine:tavily_research".to_string(),
             ],
             potential_contradiction: false,
-        });
+        })
+        .await;
         if !seen_urls.insert(rh.url.clone()) {
             continue;
         }
@@ -441,6 +443,16 @@ mod tests {
             .filter(|q| !q.trim().is_empty())
             .collect();
         assert_eq!(filtered, vec!["query A", "query B"]);
+    }
+
+    #[tokio::test]
+    async fn score_hit_trust_returns_sane_range_for_typical_title() {
+        // score_hit_trust makes real (mocked-in-Task-4, but here unmocked) HTTP
+        // calls to Crossref/OpenAlex and is fail-open, so in a test environment
+        // without network access it should degrade gracefully to the 1.0
+        // neutral default rather than panicking or hanging.
+        let score = vox_search::trust::score_hit_trust("Example Research Title", None).await;
+        assert!(score >= 0.0 && score <= 2.0, "trust score {score} out of sane range");
     }
 
     #[test]
