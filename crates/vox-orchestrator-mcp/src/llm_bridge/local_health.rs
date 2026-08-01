@@ -126,15 +126,14 @@ pub(crate) fn privacy_allows(m: &ModelSpec) -> bool {
     )
 }
 
-/// The pure decision core `privacy_allows` delegates to after resolving
-/// `local_only` from `inference_privacy_mode()` (which reads
-/// `VOX_INFERENCE_PRIVACY`, or the test-only override). Extracted so `vox
-/// harness eval`'s `privacy-filter-blocks-live-routing` golden task
-/// (`eval_gate_privacy_filter_check` below) can exercise the real decision
-/// logic with an explicit mode, without mutating process environment
-/// variables or the `#[cfg(test)]`-only `TEST_PRIVACY_OVERRIDE` — mirroring
-/// why that override exists in the first place (avoiding racy env mutation
-/// under parallel test/task execution).
+/// Thin delegating wrapper around the real decision core,
+/// `vox_orchestrator::route_policy::privacy_allows_model_for_mode`, which
+/// now lives (along with its `TEST_PRIVACY_OVERRIDE` seam) in
+/// `vox-orchestrator` so it's reachable from that crate's own
+/// `models::registry::best_for_internal` filter chain. Kept here, under this
+/// name, so existing callers in this crate — `privacy_allows` above, and
+/// `vox harness eval`'s `privacy-filter-blocks-live-routing` golden task via
+/// `eval_gate_privacy_filter_check` below — need no changes.
 pub(crate) fn privacy_allows_for_mode(m: &ModelSpec, local_only: bool) -> bool {
     vox_orchestrator::route_policy::privacy_allows_model_for_mode(m, local_only)
 }
