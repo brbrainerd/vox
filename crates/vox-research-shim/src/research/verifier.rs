@@ -202,13 +202,18 @@ pub async fn verify_claims_with_config(
                 let input = &input;
                 let evidence = &evidence;
                 async move {
-                    let mut candidates = cascade_with_optional_manual(
+                    let primary = crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
+                        vox_orchestrator::models::SelectionIntent::nli_classifier(),
+                    );
+                    let mut candidates: Vec<vox_actor_runtime::llm::LlmConfig> =
+                        primary.into_iter().collect();
+                    candidates.extend(cascade_with_optional_manual(
                         ResearchStage::Verification,
                         input,
                         endpoint,
                         api_key,
                         Some(input.openrouter_model.as_str()),
-                    );
+                    ));
                     for candidate in &mut candidates {
                         candidate.max_tokens = Some(500);
                         candidate.response_format =
@@ -471,7 +476,11 @@ mod tests {
 
     #[test]
     fn agreement_rate_computes_fraction_matching_majority_verdict() {
-        let verdicts = vec![Verdict::Supported, Verdict::Supported, Verdict::Contradicted];
+        let verdicts = vec![
+            Verdict::Supported,
+            Verdict::Supported,
+            Verdict::Contradicted,
+        ];
         assert_eq!(agreement_rate(&verdicts), 2.0 / 3.0);
     }
 
@@ -489,13 +498,21 @@ mod tests {
 
     #[test]
     fn majority_verdict_forces_contested_on_full_disagreement() {
-        let verdicts = vec![Verdict::Supported, Verdict::Contradicted, Verdict::Contested];
+        let verdicts = vec![
+            Verdict::Supported,
+            Verdict::Contradicted,
+            Verdict::Contested,
+        ];
         assert_eq!(majority_verdict(&verdicts), Verdict::Contested);
     }
 
     #[test]
     fn majority_verdict_picks_genuine_majority() {
-        let verdicts = vec![Verdict::Supported, Verdict::Supported, Verdict::Contradicted];
+        let verdicts = vec![
+            Verdict::Supported,
+            Verdict::Supported,
+            Verdict::Contradicted,
+        ];
         assert_eq!(majority_verdict(&verdicts), Verdict::Supported);
     }
 }

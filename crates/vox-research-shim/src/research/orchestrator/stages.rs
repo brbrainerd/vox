@@ -430,15 +430,40 @@ async fn chat_stage(
 ) -> anyhow::Result<String> {
     use vox_actor_runtime::ActivityOptions;
     use vox_actor_runtime::llm::LlmChatMessage;
-    use vox_actor_runtime::llm::cascade::{cascade_with_optional_manual, chat_with_cascade};
+    use vox_actor_runtime::llm::cascade::{
+        ResearchStage, cascade_with_optional_manual, chat_with_cascade,
+    };
     use vox_actor_runtime::model_resolution::RouteResolutionInput;
 
     let input = RouteResolutionInput {
         openrouter_model: model.to_string(),
         ..RouteResolutionInput::default()
     };
-    let mut candidates =
-        cascade_with_optional_manual(stage, &input, endpoint, api_key, Some(model));
+    // Mirrors the stage->intent mapping established in
+    // `research::model_select::resolve_research_models`: Synthesis uses the
+    // general research intent, Judge uses the review intent. SelfVerification
+    // has no equivalent stage there yet, so it defaults to the research
+    // intent as the closest fit (future refinement: a dedicated intent).
+    let intent = match stage {
+        ResearchStage::Judge => vox_orchestrator::models::SelectionIntent::review(),
+        ResearchStage::Synthesis | ResearchStage::SelfVerification => {
+            vox_orchestrator::models::SelectionIntent::research()
+        }
+        ResearchStage::Planner => vox_orchestrator::models::SelectionIntent::research(),
+        ResearchStage::ClaimExtraction | ResearchStage::Verification => {
+            vox_orchestrator::models::SelectionIntent::nli_classifier()
+        }
+    };
+    let primary =
+        crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(intent);
+    let mut candidates: Vec<vox_actor_runtime::llm::LlmConfig> = primary.into_iter().collect();
+    candidates.extend(cascade_with_optional_manual(
+        stage,
+        &input,
+        endpoint,
+        api_key,
+        Some(model),
+    ));
     for candidate in &mut candidates {
         candidate.temperature = Some(temperature);
         candidate.max_tokens = Some(max_tokens.into());
