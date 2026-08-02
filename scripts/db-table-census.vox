@@ -44,7 +44,7 @@ import json;
 import regex;
 
 // ── Exclusion list (design §2.2) ────────────────────────────────────────────
-// These three files are excluded from the usage signal because they mention
+// These files are excluded from the usage signal because they mention
 // nearly every table name *generically*, not via real per-table CRUD, and
 // would otherwise make every table in the schema look "used" by vox-db
 // itself:
@@ -54,6 +54,16 @@ import regex;
 //   - schema/manifest.rs — a required-table allowlist; every current table
 //     is listed there by construction, which would make DEAD/DORMANT
 //     detection vacuous if counted as usage.
+//   - migration.rs — added post-Task-5: its QUARANTINE_DROP_TABLES const
+//     lists every quarantined table (including former-DEAD ones) by name so
+//     the existing-DB migration can DROP them generically. Discovered by
+//     running this exact tool for Task 9's re-verification: without this
+//     exclusion, all 24 previously-DEAD tables silently "launder" into
+//     DORMANT the moment migration.rs exists, because the literal table
+//     name now appears inside vox-db — even though nothing about those
+//     tables' real usage changed. Same failure mode as the other three
+//     entries, just introduced by this plan's own Task 5 work rather than
+//     pre-existing code.
 // This is a hardcoded, non-structural signal: a *future* file of the same
 // shape (e.g. a new bulk-export module) will NOT automatically inherit this
 // exclusion — anyone adding one must extend this list by hand.
@@ -63,6 +73,7 @@ fn excluded_usage_suffixes() to list[str] {
         "circuit_breaker.rs",
         "schema/manifest.rs",
         "schema\\manifest.rs",
+        "migration.rs",
     ]
 }
 
@@ -733,13 +744,17 @@ fn main() {
 }
 
 // ── 1.1a fixture test (RED before the classifier existed, GREEN now) ───────
-// Fixtures live under tests/fixtures/db_table_census/repo/ and encode four
+// Fixtures live under tests/fixtures/db_table_census/repo/ and encode five
 // known-correct outcomes:
-//   fixture_live_table     -> LIVE    (used from crates/other-crate, outside vox-db)
-//   fixture_dormant_table  -> DORMANT (used only from crates/vox-db/src/internal_usage.rs)
-//   fixture_dead_table     -> DEAD    (declared in schema/domains/ but never used)
-//   fixture_excluded_table -> DEAD    (only "used" from a codex_legacy.rs stand-in,
-//                                       which must be excluded from the usage signal)
+//   fixture_live_table               -> LIVE    (used from crates/other-crate, outside vox-db)
+//   fixture_dormant_table            -> DORMANT (used only from crates/vox-db/src/internal_usage.rs)
+//   fixture_dead_table               -> DEAD    (declared in schema/domains/ but never used)
+//   fixture_excluded_table           -> DEAD    (only "used" from a codex_legacy.rs stand-in,
+//                                                 which must be excluded from the usage signal)
+//   fixture_migration_excluded_table -> DEAD    (only "used" from a migration.rs stand-in's
+//                                                 QUARANTINE_DROP_TABLES-style const, added to
+//                                                 the exclusion list during Task 9's real-DB
+//                                                 re-verification — see that list's comment)
 //
 // `vox test` runs generated tests with cwd = target/generated (two levels
 // below the repo root), while `vox run` / manual invocation use the repo
@@ -758,21 +773,23 @@ fn fixture_repo_root() to str {
 @test
 fn test_classify_tables_fixture() to Unit {
     let root = fixture_repo_root()
-    let tables = ["fixture_live_table", "fixture_dormant_table", "fixture_dead_table", "fixture_excluded_table"]
+    let tables = ["fixture_live_table", "fixture_dormant_table", "fixture_dead_table", "fixture_excluded_table", "fixture_migration_excluded_table"]
     let results = classify_tables(tables, root)
-    assert(results.len() is 4)
+    assert(results.len() is 5)
 
     let mut i = 0
     let mut live_status = ""
     let mut dormant_status = ""
     let mut dead_status = ""
     let mut excluded_status = ""
+    let mut migration_excluded_status = ""
     while i < results.len() {
         let r = results.get(i).unwrap()
         if r.name == "fixture_live_table" { live_status = r.status }
         if r.name == "fixture_dormant_table" { dormant_status = r.status }
         if r.name == "fixture_dead_table" { dead_status = r.status }
         if r.name == "fixture_excluded_table" { excluded_status = r.status }
+        if r.name == "fixture_migration_excluded_table" { migration_excluded_status = r.status }
         i = i + 1
     }
 
@@ -782,6 +799,8 @@ fn test_classify_tables_fixture() to Unit {
     // The codex_legacy.rs-style exclusion is the whole point of this case:
     // without it, fixture_excluded_table would misclassify as DORMANT.
     assert(excluded_status is "DEAD")
+    // Same for the migration.rs-style exclusion (added post-Task-5).
+    assert(migration_excluded_status is "DEAD")
 }
 
 @test
