@@ -378,18 +378,12 @@ pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
                 && is_valid_git_sha(&previous.git_sha)
                 && is_valid_git_sha(&run.git_sha)
             {
-                let diff_output = std::process::Command::new("git")
-                    .args([
-                        "diff",
-                        "--name-only",
-                        &format!("{}..{}", previous.git_sha, run.git_sha),
-                    ])
-                    .output();
-                if let Ok(out) = diff_output {
-                    run.changed_files = String::from_utf8_lossy(&out.stdout)
-                        .lines()
-                        .map(str::to_string)
-                        .collect();
+                let repo_root = vox_repository::resolve_repo_root_for_ci();
+                let diff_range = format!("{}..{}", previous.git_sha, run.git_sha);
+                if let Ok(out) =
+                    vox_git::read_only(&repo_root, &["diff", "--name-only", &diff_range])
+                {
+                    run.changed_files = out.lines().map(str::to_string).collect();
                 }
             }
         }
