@@ -1,7 +1,7 @@
 //! Tauri commands for in-app OAuth key provisioning (free-tier onboarding).
 
 use serde::Serialize;
-use tauri::{command, AppHandle, Manager};
+use tauri::{AppHandle, Manager, command};
 use vox_oauth_pkce::openrouter::OAuthError;
 use vox_secrets::SecretError;
 
@@ -50,7 +50,8 @@ fn map_store_result(result: Result<std::path::PathBuf, SecretError>) -> OAuthLog
 pub async fn oauth_login_openrouter(app: AppHandle) -> OAuthLoginResultDto {
     match vox_oauth_pkce::openrouter::run_openrouter_flow().await {
         Ok(key) => {
-            let result = map_store_result(vox_secrets::set_registry_token("openrouter", &key, None));
+            let result =
+                map_store_result(vox_secrets::set_registry_token("openrouter", &key, None));
             if result.success
                 && let Some(window) = app.get_webview_window("main")
             {
@@ -103,7 +104,11 @@ async fn verify_key_at(base_url: &str, key: &str) -> bool {
 /// [`verify_key_at`] with an injectable timeout, so tests can exercise the
 /// "server never responds in time" path without waiting out the real
 /// production timeout.
-async fn verify_key_at_with_timeout(base_url: &str, key: &str, timeout: std::time::Duration) -> bool {
+async fn verify_key_at_with_timeout(
+    base_url: &str,
+    key: &str,
+    timeout: std::time::Duration,
+) -> bool {
     let Ok(client) = vox_http_client::client_builder().timeout(timeout).build() else {
         return false;
     };
@@ -170,7 +175,10 @@ mod tests {
             source: std::io::Error::new(std::io::ErrorKind::NotFound, "no browser"),
         };
         let (_, fallback_url) = map_flow_error(&err);
-        assert_eq!(fallback_url.as_deref(), Some("https://openrouter.ai/auth?callback_url=..."));
+        assert_eq!(
+            fallback_url.as_deref(),
+            Some("https://openrouter.ai/auth?callback_url=...")
+        );
     }
 
     #[test]
@@ -190,7 +198,10 @@ mod verify_tests {
         let server = wiremock::MockServer::start().await;
         wiremock::Mock::given(wiremock::matchers::method("GET"))
             .and(wiremock::matchers::path("/api/v1/key"))
-            .and(wiremock::matchers::header("Authorization", "Bearer fake-key"))
+            .and(wiremock::matchers::header(
+                "Authorization",
+                "Bearer fake-key",
+            ))
             .respond_with(
                 wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
                     "data": {
