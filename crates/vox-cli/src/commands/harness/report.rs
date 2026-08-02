@@ -179,16 +179,7 @@ pub async fn run_history(args: HistoryArgs) -> anyhow::Result<()> {
     );
     for run in &runs {
         let events = db.get_model_selection_events(&run.run_id).await?;
-        let non_privacy: Vec<_> = events.iter().filter(|e| !e.was_privacy_gated).collect();
-        let free_cheap_pct = if non_privacy.is_empty() {
-            100.0
-        } else {
-            let free_or_cheap = non_privacy
-                .iter()
-                .filter(|e| e.cost_tier == "free" || e.cost_tier == "cheap")
-                .count();
-            (free_or_cheap as f64 / non_privacy.len() as f64) * 100.0
-        };
+        let free_cheap_pct = free_cheap_ratio(&events);
         println!(
             "{:<24} {:<12} {:>6} {:>6} {:>6} {:>10.4} {:>11.1}%",
             run.run_id, run.git_sha, run.pass_count, run.fail_count, run.skip_count,
@@ -241,13 +232,14 @@ pub async fn run_report(args: ReportArgs) -> anyhow::Result<()> {
     let current_task_results = db.get_harness_eval_task_results(&current.run_id).await?;
     let current_events = db.get_model_selection_events(&current.run_id).await?;
     let previous_events = db.get_model_selection_events(&previous.run_id).await?;
-    let changed_files: Vec<String> = std::process::Command::new("git")
-        .args(["diff", "--name-only", &format!("{}..{}", previous.git_sha, current.git_sha), "--"])
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.lines().map(str::to_string).collect())
-        .unwrap_or_default();
+    let repo_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let changed_files: Vec<String> = vox_git::read_cmd::read_only(
+        &repo_root,
+        &["diff", "--name-only", &format!("{}..{}", previous.git_sha, current.git_sha), "--"],
+    )
+    .ok()
+    .map(|s| s.lines().map(str::to_string).collect())
+    .unwrap_or_default();
 
     let flags = detect_regressions(
         previous,
