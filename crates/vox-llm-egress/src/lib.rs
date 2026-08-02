@@ -165,8 +165,17 @@ pub enum EgressError {
 impl std::fmt::Display for EgressError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            EgressError::RateLimited { retry_after } => {
-                write!(f, "rate limited (retry_after={retry_after:?})")
+            EgressError::RateLimited {
+                retry_after: Some(d),
+            } => {
+                write!(
+                    f,
+                    "rate limit exceeded, try again in {}",
+                    format_retry_after(*d)
+                )
+            }
+            EgressError::RateLimited { retry_after: None } => {
+                write!(f, "rate limit exceeded")
             }
             EgressError::Http(e) => write!(f, "http error: {e}"),
             EgressError::Status { code, body } => write!(f, "provider status {code}: {body}"),
@@ -175,6 +184,31 @@ impl std::fmt::Display for EgressError {
     }
 }
 impl std::error::Error for EgressError {}
+
+/// Formats a retry-after `Duration` as a short human string ("45s", "12m", "2h",
+/// "1d") for [`EgressError::RateLimited`]'s `Display` impl. This message ends up
+/// verbatim in a GUI toast body (via `vox_actor_runtime::llm::chat::map_egress_error`
+/// → `App.tsx`'s `dispatchErrorToast`), so it must read as plain human text —
+/// never Rust's `Debug` syntax for `Option<Duration>` (e.g. `Some(86400s)`).
+///
+/// Picks the single largest whole unit that fits (no "1d 3h" compound form) — this
+/// is a short toast fragment, not a full countdown display, so coarser precision
+/// reads cleaner. Rounds down (floor), consistent with "try again in Xh" meaning
+/// "at least X hours from now"; the case where that floor would render as `0`
+/// (a sub-second `retry_after`) still shows a real value by falling through to
+/// seconds.
+fn format_retry_after(d: Duration) -> String {
+    let total_secs = d.as_secs();
+    if total_secs >= 86_400 {
+        format!("{}d", total_secs / 86_400)
+    } else if total_secs >= 3600 {
+        format!("{}h", total_secs / 3600)
+    } else if total_secs >= 60 {
+        format!("{}m", total_secs / 60)
+    } else {
+        format!("{total_secs}s")
+    }
+}
 
 impl EgressError {
     /// True when this error's underlying HTTP response body looks like a
@@ -478,6 +512,60 @@ mod tests {
         assert!(!EgressError::RateLimited { retry_after: None }.is_context_exceeded());
         assert!(!EgressError::Http("connection reset".into()).is_context_exceeded());
         assert!(!EgressError::Decode("unexpected eof".into()).is_context_exceeded());
+    }
+
+    // Regression coverage for the `RateLimited` `Display` impl: this string ends up
+    // verbatim in a GUI toast (`map_egress_error` → `App.tsx`'s `dispatchErrorToast`),
+    // so it must read as plain human text, never Rust's `Debug` syntax for
+    // `Option<Duration>` (the previous bug rendered "rate limited (retry_after=None)"
+    // and "rate limited (retry_after=Some(86400s))" verbatim).
+    #[test]
+    fn rate_limited_display_omits_retry_after_when_none() {
+        let msg = EgressError::RateLimited { retry_after: None }.to_string();
+        assert_eq!(msg, "rate limit exceeded");
+        assert!(
+            !msg.contains("retry_after"),
+            "must not leak Debug syntax: {msg}"
+        );
+        assert!(!msg.contains("None"), "must not leak Debug syntax: {msg}");
+    }
+
+    #[test]
+    fn rate_limited_display_humanizes_retry_after_when_some() {
+        let msg = EgressError::RateLimited {
+            retry_after: Some(Duration::from_secs(86_400)),
+        }
+        .to_string();
+        assert_eq!(msg, "rate limit exceeded, try again in 1d");
+        assert!(!msg.contains("Some"), "must not leak Debug syntax: {msg}");
+        assert!(!msg.contains("86400s"), "must not leak Debug syntax: {msg}");
+    }
+
+    #[test]
+    fn rate_limited_display_sub_minute_retry_after_shows_seconds() {
+        let msg = EgressError::RateLimited {
+            retry_after: Some(Duration::from_secs(45)),
+        }
+        .to_string();
+        assert_eq!(msg, "rate limit exceeded, try again in 45s");
+    }
+
+    #[test]
+    fn rate_limited_display_minutes_and_hours_retry_after() {
+        assert_eq!(
+            EgressError::RateLimited {
+                retry_after: Some(Duration::from_secs(90))
+            }
+            .to_string(),
+            "rate limit exceeded, try again in 1m"
+        );
+        assert_eq!(
+            EgressError::RateLimited {
+                retry_after: Some(Duration::from_secs(7_200))
+            }
+            .to_string(),
+            "rate limit exceeded, try again in 2h"
+        );
     }
 
     #[test]
