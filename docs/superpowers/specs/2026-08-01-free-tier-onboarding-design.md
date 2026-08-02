@@ -182,6 +182,19 @@ closed and a clear `OAuthTimedOut` error returned (distinct from `NoCredential` 
 but didn't finish, vs. never started). The wizard (Phase 3) surfaces this as "didn't complete —
 try again" rather than the generic zero-key message.
 
+**Accepted residual risk (recorded during implementation code review): local-process injection.**
+Because `state` absence is accepted by design (§2.2 step 4 — OpenRouter doesn't document echoing it
+back, so requiring it would break every real login), any other local process that discovers the
+ephemeral loopback port within the callback timeout window (e.g. via `netstat`) could race a forged
+`GET /callback?code=...` ahead of the real browser redirect and, via the single-shot take-once
+channel, "win" — causing an attacker-controlled `code` to be exchanged instead of the legitimate
+one. This is an inherent property of RFC 8252's loopback pattern (§8.4's local-injection threat
+class), not something this implementation introduces or could close without contradicting
+OpenRouter's own contract — PKCE's `code_verifier` binding protects against passive
+interception/replay, not this active local race. Accepted as a conscious tradeoff, not an
+unexamined gap, given the alternative (requiring `state`) breaks the flow outright per the
+now-twice-verified absence of that parameter in OpenRouter's real callback contract.
+
 **Entry points**:
 - CLI: `vox secrets login --provider openrouter --oauth` (or folded into the existing `vox secrets
   login` command with a provider flag — follow whatever pattern `login_shared::run_login`
