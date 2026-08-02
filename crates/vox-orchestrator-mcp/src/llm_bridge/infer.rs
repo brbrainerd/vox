@@ -300,10 +300,14 @@ pub(crate) const RATE_LIMITED_PREFIX: &str = "RATE_LIMITED: ";
 
 /// Applies [`RATE_LIMITED_PREFIX`] to `msg` when `error_class` is `"rate-limited"`.
 /// Pulled out of the terminal-failure return in `mcp_infer_tool_completion` as a
-/// small pure function so the prefixing decision is unit-testable without driving
-/// a real HTTP retry-exhaustion path — this module's dispatch goes through live
-/// provider adapters (`infer_via_provider_adapter`) with no injection seam for a
-/// synthetic 429 in a unit test.
+/// small pure function so the prefixing decision has cheap, exhaustive unit
+/// coverage over every `error_class` branch without standing up a mock server per
+/// case. The end-to-end wiring — a real HTTP 429 reaching this call inside the
+/// live retry loop — is separately covered by
+/// `tests::mcp_infer_tool_completion_prefixes_real_429_from_custom_provider`,
+/// which drives a `wiremock::MockServer` through `ProviderType::Custom`'s
+/// caller-controlled base URL and the real `infer_via_provider_adapter` dispatch
+/// path.
 fn apply_rate_limited_prefix(error_class: &str, msg: String) -> String {
     if error_class == "rate-limited" {
         format!("{RATE_LIMITED_PREFIX}{msg}")
@@ -1018,15 +1022,100 @@ mod tests {
         );
     }
 
+    /// Spec-compliance follow-up to Task 12b: a genuine end-to-end proof that a
+    /// live HTTP 429 reaches `mcp_infer_tool_completion`'s terminal-failure return
+    /// with `RATE_LIMITED_PREFIX` applied — not just the extracted
+    /// `apply_rate_limited_prefix` helper in isolation. A `wiremock::MockServer`
+    /// always answers 429; the model is `ProviderType::Custom(mock_server.uri())`,
+    /// whose base URL is fully caller-controlled (`provider_endpoints::endpoint_for`),
+    /// and `OpenAiCompatAdapter::supports()` accepts every provider type except
+    /// `GoogleDirect`/`Ollama`, so this routes through the real `reqwest` dispatch
+    /// path in `infer_via_provider_adapter`. `allow_cloud_ollama_fallback: false`
+    /// and a non-Ollama, non-OpenRouter-Gemini model mean none of the three
+    /// fallback branches in the retry loop intercept the error before the
+    /// terminal `return Err(apply_rate_limited_prefix(..))` at the bottom of the
+    /// loop — so a passing assertion here proves the *wiring*, not just the pure
+    /// helper.
+    #[tokio::test]
+    #[serial]
+    async fn mcp_infer_tool_completion_prefixes_real_429_from_custom_provider() {
+        use wiremock::matchers::method;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(429).set_body_string("rate limit exceeded"))
+            .mount(&server)
+            .await;
+
+        // `OpenAiCompatAdapter::infer` requires `bearer_for(model)` to resolve, which
+        // for `ProviderType::Custom` reads `CUSTOM_OPENAI_API_KEY`. Set it for the
+        // duration of this test only, restoring the prior value afterward —
+        // `#[serial]` (shared with the budget-exceeded test above) prevents
+        // concurrent env mutation within this crate's test binary.
+        let prior_key = std::env::var("CUSTOM_OPENAI_API_KEY").ok();
+        // SAFETY: `#[serial]` — no concurrent env mutation in this crate's tests.
+        unsafe { std::env::set_var("CUSTOM_OPENAI_API_KEY", "test-key") };
+
+        let state = crate::server_state::ServerState::new_test().await;
+
+        let mut model = dummy_model();
+        model.provider_type = ProviderType::Custom(server.uri());
+
+        let routing = McpInferRouting {
+            user_prompt: "hello",
+            sticky_model_pref: None,
+            resolution_template: McpChatModelResolution::default(),
+            free_only: false,
+            allow_cloud_ollama_fallback: false,
+            user_id: Some("infer-tool-completion-429-test"),
+            selection_rationale: None,
+        };
+        let result = mcp_infer_completion(
+            &state,
+            model,
+            "test-tool",
+            "system",
+            &routing,
+            100,
+            0.7,
+            None,
+            None,
+            false,
+            None,
+        )
+        .await;
+
+        // SAFETY: `#[serial]` — restore prior env state before asserting/panicking.
+        unsafe {
+            match &prior_key {
+                Some(v) => std::env::set_var("CUSTOM_OPENAI_API_KEY", v),
+                None => std::env::remove_var("CUSTOM_OPENAI_API_KEY"),
+            }
+        }
+
+        let err = result.expect_err("expected terminal failure from exhausted 429 retries");
+        assert!(
+            err.starts_with(RATE_LIMITED_PREFIX),
+            "expected RATE_LIMITED_PREFIX-marked error from a real 429 dispatch, got: {err}"
+        );
+        assert!(
+            err.contains("429"),
+            "expected the underlying HTTP 429 status to survive into the message, got: {err}"
+        );
+    }
+
     // Task 12b (free-tier onboarding plan): `mcp_infer_tool_completion`'s terminal
     // failure (`return Err(...)` after all fallbacks are exhausted) must be
     // prefixed with `RATE_LIMITED_PREFIX` when the exhausted error_class is
     // "rate-limited" (HTTP 429), so live dispatch callers (call_llm, ghost_text,
     // inline_edit, plan, ...) can distinguish OpenRouter's free-tier cap from any
     // other backend failure — mirrors `vox_actor_runtime::llm::chat`'s identical
-    // fix for its own funnel. Driving a real retry-exhaustion path to a 429 would
-    // require mocking live HTTP provider adapters (no injection seam exists), so
-    // this tests the extracted pure prefixing helper directly instead.
+    // fix for its own funnel. `mcp_infer_tool_completion_prefixes_real_429_from_custom_provider`
+    // above drives the real HTTP retry-exhaustion path end-to-end via a wiremock
+    // 429; this test complements it by exercising the pure prefixing helper's
+    // full branch coverage (all error classes) without the overhead of a mock
+    // server per case.
     #[test]
     fn rate_limited_error_class_gets_prefixed() {
         let msg = apply_rate_limited_prefix(
