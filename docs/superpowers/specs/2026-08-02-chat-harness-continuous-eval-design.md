@@ -93,7 +93,9 @@ Phase 4: Scheduling + sync
        (no new server dependency, consistent with this repo's local-first conventions)
 
 Phase 5: Surfacing
-    -> `vox harness eval report` / `vox harness eval history` CLI commands
+    -> `vox harness history` / `vox harness report` / `vox harness publish` CLI commands
+       (siblings of the existing `vox harness eval` subcommand, not nested under it — `eval`'s
+       arguments are a flat struct today, not a subcommand group; see §9)
     -> new "Harness Health" surface in Vox Axis GUI, reading the same vox-db tables
 ```
 
@@ -123,12 +125,18 @@ re-implementing the logic in the test):
    observes a clean rejection rather than a silently dropped write.
 3. **Gate-cascade applies uniformly.** Submit a `TaskCategory::Chat` task whose completion
    attestation would fail the approval/trust/harness gates under any other category, and assert
-   it is gated identically — not skipped.
-4. **Privacy filter holds across all selection paths.** Under `VOX_INFERENCE_PRIVACY=local_only`,
-   with no local model registered, assert task submission fails closed (per this session's
-   `runtime.rs` fix) rather than falling back to Cascade; separately, with a local model
-   registered, assert the premium-alias and `decide()` paths both still exclude a cloud
-   candidate (not just `best_for_internal`'s direct callers).
+   it is gated identically — not skipped. This means actually dequeuing the task and calling the
+   real completion path with a Review-tier attestation, then asserting the gate fired (e.g. the
+   task landed in `BlockedOnApproval`) — a test that only checks the submitted task's category
+   field round-trips does **not** satisfy this item, since that assertion holds whether or not the
+   gate-bypass bug is present.
+4. **Privacy filter holds across all selection paths.** This is two separate, both-required
+   assertions, not one: (a) under `VOX_INFERENCE_PRIVACY=local_only`, with no local model
+   registered, assert task submission fails closed (per this session's `runtime.rs` fix) rather
+   than falling back to Cascade; (b) separately, with a local model registered, assert the
+   premium-alias and `decide()` paths both still exclude a cloud candidate (not just
+   `best_for_internal`'s direct callers). A single test covering only (b) leaves (a) — the
+   fail-closed Cascade behavior — completely unverified.
 
 Each of these tests is a **direct regression test for a bug this session found and fixed** — the
 explicit intent is that if any of these four fixes were reverted, this file would fail immediately
@@ -148,26 +156,39 @@ alongside the existing hermetic ones — these make real calls through the real 
 (`vox_orchestrator_mcp::chat_tools::chat`, the same code Phase 1 drives, but here against real
 providers) rather than in-process library calls.
 
-### 6.1 Golden task corpus (initial scope: ~15-20 tasks)
+### 6.1 Golden task corpus (initial scope: ~15-20 tasks; Phase-1 ship target: ≥12, see below)
 
 - **Plain chat replies (≈5-6 tasks):** short factual Q&A with a checkable answer (e.g. "what is
   2+2 in one word" → deterministic string/regex match on the reply). Exercises the synchronous
   `chat_send_message` path exactly as the GUI composer's "Quick chat" mode does.
-- **Tool-calling / agentic tasks (≈5-6 tasks):** a task requiring at least one real tool call with
-  a checkable end-state (e.g. "read file X and report its line count" → deterministic check against
-  the actual file). Exercises the `AiTaskProcessor` pipeline, matching what `TaskCategory::Chat`
-  and background-task-mode submissions now both run through post-this-session's-fixes.
-- **Privacy-mode tasks (≈2-3 tasks):** run once under `VOX_INFERENCE_PRIVACY=local_only`, assert
-  the model actually used (recorded via the `model_selection_event`, §7) is a local provider —
-  a live-model version of Phase 1's item 4, catching drift that only manifests against real
-  provider/model catalog state (e.g. a newly-added cloud model accidentally matching a local-only
-  candidate filter).
-- **Cost-tier tasks (≈2-3 tasks):** a deliberately trivial task (low complexity, no
-  precision-critical signal) submitted with no explicit tier override; assert the selected model's
-  cost tier (§8) is Free or Cheap, not Premium.
+- **Tool-calling / agentic tasks (≈5-6 tasks):** a task requiring at least one real tool call,
+  checked purely by its observable **end-state** (e.g. "read file X and report its line count" →
+  deterministic check against the actual file), not by introspecting which tools the harness
+  internally invoked. `chat_message`'s public return value (a JSON envelope with `model_used`,
+  `tokens`, `latency_ms`, `selection_reason`, and reply content — see §6.3) does not expose an
+  internal tool-call log, and adding one is out of scope per §3's non-goal against building new
+  observability infrastructure beyond what this design needs — end-state verification is not a
+  weaker substitute, it's the more robust check anyway (it doesn't care *how* the model got there).
+  Exercises the `AiTaskProcessor` pipeline, matching what `TaskCategory::Chat` and
+  background-task-mode submissions now both run through post-this-session's-fixes.
+- **Privacy-mode tasks (≈2-3 tasks, minimum 2 — see redundancy note below):** run once under
+  `VOX_INFERENCE_PRIVACY=local_only`, assert the model actually used (recorded via the
+  `model_selection_event`, §7) is a local provider — a live-model version of Phase 1's item 4,
+  catching drift that only manifests against real provider/model catalog state (e.g. a
+  newly-added cloud model accidentally matching a local-only candidate filter).
+- **Cost-tier tasks (≈2-3 tasks, minimum 2 — see redundancy note below):** a deliberately trivial
+  task (low complexity, no precision-critical signal) submitted with no explicit tier override;
+  assert the selected model's cost tier (§8) is Free or Cheap, not Premium.
+
+**Redundancy floor:** privacy and cost-tier categories must each ship with **at least 2 tasks**,
+not 1. At n=1, a single flaky live-model response flips the entire category from pass to fail with
+no way to distinguish real regression from noise — directly undermining the per-category
+regression signal §8.2/§10.2 are built to provide. This is a hard floor for the initial ship, not
+an aspirational nice-to-have; a plan that ships either category at n=1 has not implemented this
+section.
 
 Each task is authored as a small Rust struct: `{ id, prompt, category, checker }`, where `checker`
-is an enum `Deterministic(fn(&EvalTurnResult) -> CheckOutcome) | LlmJudge { rubric: &str }`. This
+is an enum `Deterministic(fn(&EvalTurnResult) -> Result<(), String>) | LlmJudgeEnsemble { rubric, ensemble_size }`. This
 keeps the corpus statically typed and colocated with the harness code, mirroring the existing
 `golden_tasks()` pattern in the same file rather than inventing a new YAML/JSON DSL.
 
@@ -196,16 +217,33 @@ Per the harness-testing research doc's own recommendation (§4 of that doc):
   (not `Failed`) — consistent with the existing `Skipped` status semantics in this file, and with
   how `key_gate`/`premium_alias` selection tests already treat missing keys elsewhere in this
   codebase.
-- A hard per-run cost ceiling (config value, default **$0.50/run**) aborts the remaining live
-  tasks if exceeded mid-run, logging which tasks were skipped as a result — prevents a runaway
-  loop (a buggy retry, a misconfigured `--samples`) from generating unbounded spend. Chosen to be
-  comfortably above the expected real cost of a ~15-20-task, mostly-free/cheap-model corpus, while
-  still catching a genuine runaway.
+- A hard per-run cost ceiling (config value, default **$0.50/run**) must be checked **before every
+  individual live model call**, not merely once per golden task before that task's `--samples`
+  loop starts — a per-task-only check does not actually bound spend "mid-run" as intended, since a
+  single task's sample loop (bounded by `--samples`, itself uncapped in principle beyond the
+  existing `MAX_SAMPLES = 100` guard) could otherwise blow past the ceiling before the next check.
+  On exceeding the ceiling, abort the remaining live calls (including any remaining samples of the
+  in-progress task) and log which tasks/samples were skipped as a result. Chosen to be comfortably
+  above the expected real cost of a ~15-20-task, mostly-free/cheap-model corpus, while still
+  catching a genuine runaway.
+- The real model actually used for each call is looked up in the model registry to compute both
+  `cost_usd` (tokens × the model's blended `cost_per_1k`) and `cost_tier` (§8.1) — `chat_message`'s
+  envelope reports `model_used` and `tokens`, not a dollar cost directly, so cost is derived, not
+  read off the wire.
+- Any live model reply text that ends up in a `harness_eval_task_result.failure_detail` (§7) is
+  truncated to a bounded length (300 characters) before being persisted, since that field flows
+  through to a permanently git-committed history file (§9) with no redaction step otherwise — the
+  truncated text is a diagnostic hint for "which task failed and roughly why," not a full
+  transcript, and is not intended to be sufficient on its own to reconstruct a conversation.
 
 ## 7. Phase 3 — Persistence (`vox-db`)
 
-New tables in `crates/vox-db/src/schema/domains/scientia.rs` (same domain file as the closely
-analogous `research_eval_runs`/`research_eval_samples` pair this schema is modeled on):
+New tables in a dedicated `crates/vox-db/src/schema/domains/harness_eval.rs` domain file
+(registered as its own `SchemaFragment` in `manifest.rs`, alongside — not inside — the existing
+`scientia.rs` domain that hosts the closely analogous `research_eval_runs`/`research_eval_samples`
+pair this schema is modeled on; a dedicated file avoids merge-conflict pressure on the frequently
+touched `scientia.rs` and follows the same three-file split convention — schema SQL, `vox-db-types`
+struct definitions, `VoxDb` impl methods — that `research.rs`/`research_eval_runs` already uses):
 
 ```sql
 -- One row per `vox harness eval --live` invocation.
@@ -271,8 +309,26 @@ CREATE INDEX IF NOT EXISTS idx_model_selection_event_run
 `research_eval_runs.run_id TEXT UNIQUE` convention, so JSONL sync (§9) can upsert idempotently by
 primary key without a separate dedup pass.
 
-`changed_files_json` is computed once per run as `git diff --name-only <previous_run's git_sha>..<this_sha>`
-— this is the "metadata capture" half of regression cause-tracking (§10); no automatic bisection.
+`changed_files_json` is computed once per run, at the point the run is persisted (after querying
+`vox-db` for the immediately-preceding run's `git_sha`), as
+`git diff --name-only <previous_run's git_sha>..<this_sha>` — this is the "metadata capture" half
+of regression cause-tracking (§10); no automatic bisection. It must actually be computed and
+stored non-empty for a real prior run to exist against — a design that always persists an empty
+`changed_files` and instead recomputes the diff at read time (as the CLI/GUI regression views also
+need to do, for a possibly-different, requested run range — see §10.3) means this column and its
+`Vec<String>` field carry no data ever, which is dead weight, not "computed once."
+
+**`git_sha` values must be validated before being used to construct a shell command.** Both
+`harness_eval_run.git_sha` and any `git_sha` arriving via the JSONL sync path (§9) are untrusted
+input by the time a read-path query does `git diff --name-only <a>..<b>` — `runs.jsonl` is an
+ordinary git-tracked file any PR (or a compromised bot commit) can add lines to, and nothing in the
+ingest path validates its contents' shape today. Reject any `git_sha` that isn't exactly a 7-40
+character lowercase hex string before it reaches a `git` subprocess call, and pass the constructed
+range as a single argument after a literal `--` separator, so a crafted value beginning with `-`
+cannot be parsed by `git` as an option (e.g. a value like `--output=<path>` would otherwise give an
+arbitrary local file-write primitive to anyone who can get a line into `runs.jsonl`). This applies
+to every call site that shells out to `git diff` using a stored `git_sha` — currently the CLI
+`report` command and the GUI's `harness_eval_regressions` command (§10).
 
 ## 8. Model-selection cost-tier tracking
 
@@ -304,38 +360,87 @@ decision. The GUI/CLI surface (§10) computes, per time window (e.g. trailing 7/
 
 ## 9. Phase 4 — Scheduling + sync
 
-**Scheduled workflow:** new `.github/workflows/harness-eval-nightly.yml`, cron-triggered, running
-on the existing self-hosted runner (same runner infra already used by this repo's other CI jobs).
-Steps: checkout, build `vox-cli`, run `vox harness eval --live`, which writes directly to the
-runner's local `vox-db` SQLite file.
+**Scheduled workflow:** new `.github/workflows/harness-eval-nightly.yml`, cron-triggered (plus a
+`workflow_dispatch` manual escape hatch), running on the existing self-hosted runner (same runner
+infra already used by this repo's other CI jobs). Steps: checkout, build `vox-cli`, run
+`vox harness eval --live`, which writes directly to the runner's local `vox-db` SQLite file.
+
+**This workflow commits and pushes, so it must follow this repo's actual established least-
+privilege pattern for that — the same pattern `ci.yml`'s `ssot-autoregen` job already uses for an
+identical bot-commit-and-push shape, not a generic `git push`:**
+- A job-scoped `permissions: contents: write` override (the workflow-level default stays
+  `contents: read`), matching `ci.yml`'s own documented reasoning that the ambient `GITHUB_TOKEN`
+  should not be broadly writable for the whole workflow.
+- `actions/checkout` with `persist-credentials: false`, and the push step authenticated instead via
+  an explicit scoped token — reuse the existing `SSOT_AUTOREGEN_TOKEN` secret if its scope is
+  appropriate for this new automation (confirm before reuse; if not appropriate, a new,
+  similarly-scoped secret should be requested rather than falling back to the ambient token) —
+  mirroring `ci.yml`'s `PUSH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN || github.token }}` pattern.
+- A non-fatal push-rejection fallback, matching `ci.yml`'s own established handling for this exact
+  race (a concurrent merge to `main` between checkout and push): `git push origin HEAD:main ||
+  echo "::warning::harness-eval-nightly push skipped (non-fast-forward)"` rather than a bare
+  `git push` that hard-fails the whole job (and loses that night's already-paid-for live-eval
+  results) on an ordinary, expected race.
+- A `concurrency:` group (keyed on the workflow name) so the scheduled cron run and a manual
+  `workflow_dispatch` invocation — or two manual dispatches — can never execute simultaneously on
+  the same runner. This is what actually prevents the JSONL-append and cost-ceiling races a
+  same-runner overlap would otherwise create; it is a simpler and sufficient fix at the
+  single-runner scope this workflow operates at, so no additional file-level locking is needed in
+  `vox harness publish` itself for this failure mode.
 
 **Local visibility via git-committed JSONL sync (no new server dependency):** after the eval run,
-a `vox harness eval publish` step exports every `harness_eval_run`/`harness_eval_task_result`/
-`model_selection_event` row created since the last publish into an append-only, auto-generated
-JSONL file at `docs/harness-eval-history/runs.jsonl` (clearly marked as auto-generated, per this
-repo's existing convention of never hand-editing generated docs — see AGENTS.md), and commits +
-pushes it via the same bot-commit mechanism other automated repo updates already use. Any
-developer's local `vox-gui`/`vox harness eval history` then ingests this file (idempotent upsert
-keyed by `run_id`) on the next `git pull`/GUI launch — no live network call to the CI runner is
-ever required. This keeps the design consistent with this repo's stated local-first philosophy
-(existing `docs/src/architecture/project_local_first_ci_*` line of work) instead of introducing a
-dependency on the separately-tracked, not-yet-production `vox-server` centralized-telemetry effort.
+a `vox harness publish` step (see §4's naming note) exports every `harness_eval_run`/
+`harness_eval_task_result`/`model_selection_event` row created since the last publish into an
+append-only, auto-generated JSONL file at `docs/harness-eval-history/runs.jsonl` (clearly marked as
+auto-generated, per this repo's existing convention of never hand-editing generated docs — see
+AGENTS.md), and commits + pushes it per the pattern above. Any developer's local `vox-gui`/
+`vox harness history` then ingests this file (idempotent upsert keyed by `run_id`) on the next
+`git pull`/GUI launch — no live network call to the CI runner is ever required. This keeps the
+design consistent with this repo's stated local-first philosophy (existing
+`docs/src/architecture/project_local_first_ci_*` line of work) instead of introducing a dependency
+on the separately-tracked, not-yet-production `vox-server` centralized-telemetry effort.
+
+**JSONL growth:** the file is append-only and permanent by design — it's the durable historical
+record this whole system exists to build, so pruning old entries would defeat its purpose. This is
+not unbounded in any practically concerning sense: one run's JSON line plus its ~10-20 task-result
+and model-selection-event child lines totals well under 2KB; a full year of nightly runs is under
+1MB, and a decade is a few MB — trivial for git at this repo's scale. No rotation/archival
+mechanism is needed for this to remain workable for the foreseeable future; if it ever does become
+a real concern, the fix is a separate, later decision (e.g. an annual roll-to-a-new-file), not
+something this design needs to pre-build.
+
+**No automated correction/rollback for a bad published run.** If a corrupted or wrongly-scored run
+gets published, correcting it is a manual operation (a human edits `runs.jsonl` to remove/fix the
+line and force-recommits, and affected local DBs are corrected by re-running `sync_from_jsonl`
+after the fix lands) — there is no automated "retract and republish under the same run_id" API.
+This is accepted, deliberate scope for the initial design, not a silently-missing feature; if this
+becomes a frequent operational need, a real correction API is a natural, additive follow-up.
 
 **Local ad-hoc runs:** `vox harness eval --live` also works unpublished, purely locally (e.g. a
 developer sanity-checking a branch before merge) — it still writes to the local DB and is visible
 in the local GUI/CLI immediately, it just isn't published to the shared JSONL unless the developer
-explicitly runs `vox harness eval publish` (kept manual for local runs to avoid noisy/duplicate
-history entries from every dev's ad-hoc testing).
+explicitly runs `vox harness publish` (kept manual for local runs to avoid noisy/duplicate history
+entries from every dev's ad-hoc testing).
 
 ## 10. Phase 5 — Surfacing
 
 ### 10.1 CLI
 
-- `vox harness eval history [--limit N] [--category X]` — tabular list of recent runs with
-  pass/fail/skip counts, cost, free/cheap ratio.
-- `vox harness eval report [--since <run_id|date>]` — a single run's full detail, or a trend
-  summary across a range: pass-rate trend, free/cheap-ratio trend, and (if a regression is
-  detected per §8.2/§10.3) the flagged run(s) with their `changed_files_json` and `git_sha` range.
+`vox harness eval` (`crates/vox-cli/src/commands/harness/mod.rs`'s `HarnessCmd`) is a
+`#[derive(Subcommand)]` enum with a single existing variant, `Eval(EvalArgs)`, where `EvalArgs` is
+a flat argument struct, not itself a subcommand group. The commands below are added as new sibling
+`HarnessCmd` variants, not nested under `eval`:
+
+- `vox harness history [--limit N] [--category X]` — tabular list of recent runs with pass/fail/
+  skip counts, cost, free/cheap ratio. `--category` filters to runs where that task category has a
+  result (or, at minimum, is parsed and honored — do not ship a flag that parses but is silently
+  ignored).
+- `vox harness report [--since <run_id|date>]` — a single run's full detail, or a trend summary
+  across a range: pass-rate trend, free/cheap-ratio trend, and (if a regression is detected per
+  §8.2/§10.3) the flagged run(s) with their `changed_files_json` and `git_sha` range, **and the
+  specific task/selection rows that changed** — see §10.3, this requires the regression-detection
+  function to take per-task result lists as input, not just the two runs' aggregate counts.
+- `vox harness publish [--path <jsonl-path>]` — the sync command described in §9.
 
 ### 10.2 GUI — "Harness Health" surface
 
@@ -354,14 +459,20 @@ plumbing style — mirrors how chat sessions/model scoreboard data already reach
 ### 10.3 Regression detection logic
 
 Computed at read time (no separate background job) by the CLI/GUI query layer, comparing the two
-most recent runs (or a requested range):
+most recent runs (or a requested range). The comparison function takes both runs' aggregate
+`HarnessEvalRunRecord`s **and** both runs' full `HarnessEvalTaskResultRecord` lists as input —
+aggregate-only counts cannot answer "which specific task regressed," which is the diagnostic
+payload this feature exists to provide (per Goal 7):
 
 - Pass-rate drop beyond a configured threshold (default: any newly-failing task, or an aggregate
-  drop >10 percentage points) → flagged.
+  drop >10 percentage points) → flagged. "Any newly-failing task" specifically requires diffing
+  the two runs' per-`task_id` status, not just comparing `pass_count`/`task_count` totals — a task
+  that flips fail→pass can mask a different task flipping pass→fail in the aggregate numbers alone.
 - Free/cheap ratio drop beyond a configured threshold (default: >15 percentage points) → flagged.
 - Each flagged regression surfaces: the two run's `git_sha`s, `changed_files_json` for the range,
-  and the specific `harness_eval_task_result` rows that flipped from pass to fail (or a tier that
-  flipped from Free/Cheap to Premium) — this is the "simple diff view," not automatic bisection.
+  and the specific `harness_eval_task_result` rows that flipped from pass to fail (or a
+  `model_selection_event` tier that flipped from Free/Cheap to Premium) — this is the "simple diff
+  view," not automatic bisection.
 
 ## 11. Explicitly deferred (named, not silently dropped)
 
@@ -395,4 +506,16 @@ most recent runs (or a requested range):
   upsert (publishing the same run twice, or ingesting the same JSONL twice, produces no duplicate
   rows) — this is the correctness property the whole local-first sync design depends on.
 - Phase 5's CLI/GUI regression-detection logic (§10.3) gets unit tests against fixture run pairs
-  covering: no regression, pass-rate regression, cost-tier-ratio regression, and both at once.
+  covering: no regression, pass-rate regression (both the aggregate-threshold and the
+  any-single-task-flip cases separately), cost-tier-ratio regression, and both at once.
+- Every call site that shells out to `git diff` using a stored `git_sha` (§7) gets a test proving a
+  malformed/malicious `git_sha` (non-hex, or beginning with `-`) is rejected before reaching the
+  subprocess call, not just a test of the happy path.
+- The cost-ceiling check (§6.3) gets a test proving it is actually consulted before each live call,
+  not just once per task — e.g. a fixture where the first sample of a task exceeds the ceiling and
+  the test asserts the task's remaining samples never ran.
+- New Tauri commands (§10.2) get tests that call the real `#[tauri::command]` function through
+  `tauri::test::mock_app()` + a real in-memory `GuiDbPool` (the existing pattern already used by
+  `crates/vox-gui/src/commands/chat.rs`'s own tests) — a test that manually re-derives the DTO
+  shape inline and asserts it against itself, without ever calling the production function, does
+  not count as coverage for that function.
