@@ -8,9 +8,24 @@ import { PipelineTimeline } from '../../PipelineTimeline';
 import { RESEARCH_STAGES, deriveStages } from '../../../lib/pipeline';
 import { startResearchAsync } from './researchActions';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import { ResearchClaimAccordion, type ResearchClaimRow } from './ResearchClaimAccordion';
+import { HeadlineVerdictBanner } from './HeadlineVerdictBanner';
 
 interface ResearchSession { id: number; status: string; query_text: string; started_at_ms: number; finished_at_ms: number | null; }
-interface ResearchDetail { session: ResearchSession; report_markdown: string | null; artifact_json: string | null; }
+// NOTE: confidenceTier / claims / sourceCount are NOT yet emitted by the
+// `get_research_session_detail` backend command as of this writing — they
+// are declared here (optional) so the trust UI below can render once the
+// backend starts populating them, without fabricating data in the meantime.
+// See docs/superpowers/plans/2026-08-01-deep-research-stage2-domain-agnosticism.md
+// (Task 9) for the tracked follow-up.
+interface ResearchDetail {
+  session: ResearchSession;
+  report_markdown: string | null;
+  artifact_json: string | null;
+  confidenceTier?: 'Direct' | 'Light' | 'DeepResearch';
+  claims?: ResearchClaimRow[];
+  sourceCount?: number;
+}
 
 export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
   const embedded = useIsEmbeddedSurface();
@@ -137,9 +152,22 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
             <button type="button" onClick={() => setDetail(null)} className="text-[11px] text-text-muted hover:text-text-secondary">Close</button>
           </div>
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages(detail.session.status)} />
+          {detail.claims && detail.claims.length > 0 && (
+            <HeadlineVerdictBanner
+              confidenceTier={detail.confidenceTier ?? 'DeepResearch'}
+              corroboratingSources={detail.sourceCount ?? 0}
+              contestedClaims={detail.claims.filter((c) => c.verdict === 'Contested').length}
+              totalClaims={detail.claims.length}
+            />
+          )}
           <pre className="mt-2 max-h-[360px] overflow-auto whitespace-pre-wrap text-[12px] text-text-secondary">
             {detail.report_markdown ?? detail.artifact_json ?? '(no artifact persisted)'}
           </pre>
+          {detail.claims && detail.claims.length > 0 && (
+            <div className="mt-2">
+              <ResearchClaimAccordion claims={detail.claims} sourceCount={detail.sourceCount ?? 0} />
+            </div>
+          )}
         </div>
       )}
     </section>

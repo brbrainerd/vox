@@ -7,8 +7,35 @@ const SESSIONS = [
   { id: 1, status: 'completed', query_text: 'What is Vox?', started_at_ms: 0, finished_at_ms: 1 },
 ];
 
+const DETAIL_NO_CLAIMS = {
+  session: SESSIONS[0],
+  report_markdown: 'The sky is blue.',
+  artifact_json: null,
+};
+
+const DETAIL_WITH_CLAIMS = {
+  session: SESSIONS[0],
+  report_markdown: 'The sky is blue.',
+  artifact_json: null,
+  confidenceTier: 'DeepResearch',
+  sourceCount: 3,
+  claims: [
+    {
+      claimId: 'c1',
+      text: 'The sky is blue.',
+      verdict: 'Supported',
+      confidence: 0.9,
+      resampleStability: 0.8,
+      citations: [{ url: 'https://example.com/a', trust: { kind: 'corroborated', sourceCount: 2 } }],
+    },
+  ],
+};
+
+let detailResponse: unknown = DETAIL_NO_CLAIMS;
+
 const invokeMock = vi.fn((cmd: string) => {
   if (cmd === 'list_research_sessions') return Promise.resolve(SESSIONS);
+  if (cmd === 'get_research_session_detail') return Promise.resolve(detailResponse);
   return Promise.resolve(null);
 });
 vi.mock('@tauri-apps/api/core', () => ({
@@ -25,6 +52,7 @@ describe('ResearchView', () => {
   beforeEach(() => {
     cleanup();
     invokeMock.mockClear();
+    detailResponse = DETAIL_NO_CLAIMS;
   });
 
   it('renders the Research heading', () => {
@@ -49,5 +77,25 @@ describe('ResearchView', () => {
     render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
     await waitFor(() => expect(screen.getAllByRole('list').length).toBeGreaterThan(0));
     expect(screen.getAllByRole('listitem').length).toBe(SESSIONS.length);
+  });
+
+  it('renders the raw report only when the detail has no claim/citation data (current backend shape)', async () => {
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+    await waitFor(() => expect(screen.getByText('The sky is blue.')).toBeTruthy());
+    expect(screen.queryByText(/High confidence/i)).toBeNull();
+    expect(screen.queryByText(/claims verified/i)).toBeNull();
+  });
+
+  it('renders the headline banner and claim accordion when the detail carries claim/citation data', async () => {
+    detailResponse = DETAIL_WITH_CLAIMS;
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+    await waitFor(() => expect(screen.getByText(/High confidence/i)).toBeTruthy());
+    expect(screen.getByText(/1 claim verified · 0 contested · 3 sources/i)).toBeTruthy();
+    // existing raw-report render is still present, unchanged
+    expect(screen.getByText('The sky is blue.')).toBeTruthy();
   });
 });
