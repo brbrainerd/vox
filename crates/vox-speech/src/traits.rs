@@ -244,8 +244,9 @@ pub fn transcribe_path_detailed(
 
             let (_diag, whisper_lang) = crate::language::prepare_language_hint(language_hint);
 
-            let backend = crate::backend_dispatch::create_backend()?;
-            let out = backend.transcribe_pcm(&pcm, sample_rate, whisper_lang.as_deref())?;
+            let out = crate::backend_dispatch::with_cached_backend(|backend| {
+                backend.transcribe_pcm(&pcm, sample_rate, whisper_lang.as_deref())
+            })?;
 
             let refined = crate::refine::refine_transcript(&out.raw_text, ctx);
             return Ok(finalize_after_refine(out.raw_text, refined));
