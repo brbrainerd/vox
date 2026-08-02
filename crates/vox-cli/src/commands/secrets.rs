@@ -712,12 +712,20 @@ mod oauth_login_cli_tests {
         // crate::Cli`), and `crate::Cli` (a Subcommand enum, not a `Commands`
         // enum) has the `Secrets { cmd: SecretsCmd }` variant.
         let root = crate::VoxCliRoot::try_parse_from([
-            "vox", "secrets", "login", "--oauth", "--provider", "openrouter",
+            "vox",
+            "secrets",
+            "login",
+            "--oauth",
+            "--provider",
+            "openrouter",
         ])
         .expect("parses");
         match root.cmd {
             crate::Cli::Secrets {
-                cmd: super::SecretsCmd::Login { oauth, provider, .. },
+                cmd:
+                    super::SecretsCmd::Login {
+                        oauth, provider, ..
+                    },
             } => {
                 assert!(oauth);
                 assert_eq!(provider.as_deref(), Some("openrouter"));
