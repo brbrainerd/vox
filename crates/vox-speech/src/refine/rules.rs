@@ -100,7 +100,16 @@ fn apply_phrase_confusions(text: &str) -> String {
             }
         }
     }
-    result
+    // Collapse whitespace introduced by replacement VALUES that themselves end
+    // in a space (e.g. "let mute" -> "let mut "): splicing that directly
+    // before existing text (which already had its own leading space, e.g.
+    // "...mute count..." -> "...mute" + " count") produces a double space.
+    // `light_trim` already ran once before this function, at the top of
+    // `refine_transcript` — this is a second, narrower pass, not a redundant
+    // one, since it's specifically cleaning up an artifact this function can
+    // introduce that light_trim (which ran on the pre-substitution text)
+    // couldn't have caught.
+    light_trim(&result)
 }
 
 fn default_domain_lexicon() -> HashSet<String> {
@@ -332,6 +341,31 @@ mod tests {
         ctx.protected_tokens.insert("--mends".to_string());
         let out = refine_transcript("--mends", &ctx);
         assert_eq!(out.text, "--mends");
+    }
+
+    #[test]
+    fn phrase_confusion_with_trailing_space_replacement_does_not_double_space() {
+        // Regression test (code review finding): "let mute" -> "let mut "
+        // (trailing space baked into the replacement value) previously
+        // spliced directly against the original text's own leading space on
+        // the next word, producing "let mut  count" (double space). Not
+        // caught by the refine_regression.rs harness, which gates on
+        // char_error_rate — whitespace-insensitive by construction.
+        let ctx = CorrectionContext {
+            domain: crate::refine::DomainMode::Code,
+            ..Default::default()
+        };
+        let out = refine_transcript("let mute count colon i32", &ctx);
+        assert!(
+            !out.text.contains("  "),
+            "must not produce a double space: {:?}",
+            out.text
+        );
+        // `refine_transcript` alone doesn't expand "colon" -> ":" — that's
+        // `speech_normalize::expand_spoken_symbols`, a separate later pass —
+        // so "colon" stays literal here; only the double-space defect is
+        // under test.
+        assert_eq!(out.text, "let mut count colon i32");
     }
 
     #[test]
