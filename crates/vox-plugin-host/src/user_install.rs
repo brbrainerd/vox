@@ -387,7 +387,10 @@ mod tests {
 
         assert_eq!(installed.len(), 1);
         assert_eq!(installed[0].name, "alpha");
-        let dest = ws.path().join(vox_config::paths::REPO_SKILLS_DIR).join("alpha");
+        let dest = ws
+            .path()
+            .join(vox_config::paths::REPO_SKILLS_DIR)
+            .join("alpha");
         assert!(dest.join("SKILL.md").is_file());
         assert!(dest.join("LICENSE").is_file());
     }
@@ -465,7 +468,10 @@ mod tests {
     #[test]
     fn remove_deletes_owned_dir_and_refuses_others() {
         let ws = tempfile::tempdir().unwrap();
-        let owned = ws.path().join(vox_config::paths::REPO_SKILLS_DIR).join("mine");
+        let owned = ws
+            .path()
+            .join(vox_config::paths::REPO_SKILLS_DIR)
+            .join("mine");
         write_skill(&owned, "mine");
         let foreign = ws.path().join(".claude/skills/theirs");
         write_skill(&foreign, "theirs");
@@ -492,7 +498,10 @@ mod tests {
         // When the skill's registry id differs from its name, removing BY NAME must
         // still report the canonical id so the caller uninstalls the right row.
         let ws = tempfile::tempdir().unwrap();
-        let dir = ws.path().join(vox_config::paths::REPO_SKILLS_DIR).join("widget");
+        let dir = ws
+            .path()
+            .join(vox_config::paths::REPO_SKILLS_DIR)
+            .join("widget");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
             dir.join("SKILL.md"),
