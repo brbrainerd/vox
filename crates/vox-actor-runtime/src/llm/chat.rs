@@ -28,6 +28,13 @@ use crate::{ActivityOptions, ActivityResult, execute_activity};
 /// message body themselves.
 pub const CONTEXT_EXCEEDED_PREFIX: &str = "CONTEXT_LENGTH_EXCEEDED: ";
 
+/// `error_class` tag `map_egress_error` assigns to `vox_llm_egress::EgressError::RateLimited`.
+/// Kept `pub` (and re-exported via `vox_actor_runtime::llm`) so downstream callers —
+/// e.g. `vox-cli`'s `vox doctor` rate-limit check, which reads this same tag back out of
+/// the `llm_attempts.error_class` DB column written by [`record_telemetry_attempt`] —
+/// can match on this constant instead of re-guessing the string literal.
+pub const RATE_LIMITED_ERROR_CLASS: &str = "rate-limited";
+
 /// Maps a `vox_llm_egress::EgressError` to `llm_chat`'s `(message, http_status,
 /// error_class)` triple. Pulled out of the `llm_chat` closure body so the
 /// context-overflow prefixing (and the rest of the classification) is unit-testable
@@ -35,7 +42,7 @@ pub const CONTEXT_EXCEEDED_PREFIX: &str = "CONTEXT_LENGTH_EXCEEDED: ";
 fn map_egress_error(e: &vox_llm_egress::EgressError) -> (String, Option<u16>, &'static str) {
     match e {
         vox_llm_egress::EgressError::RateLimited { .. } => {
-            (e.to_string(), Some(429u16), "rate-limited")
+            (e.to_string(), Some(429u16), RATE_LIMITED_ERROR_CLASS)
         }
         vox_llm_egress::EgressError::Status { code, body } => {
             let msg = format!("LLM API returned error ({}): {}", code, body);
@@ -49,16 +56,24 @@ fn map_egress_error(e: &vox_llm_egress::EgressError) -> (String, Option<u16>, &'
                 (
                     msg,
                     Some(*code),
-                    if *code >= 500 { "server-error" } else { "client-error" },
+                    if *code >= 500 {
+                        "server-error"
+                    } else {
+                        "client-error"
+                    },
                 )
             }
         }
-        vox_llm_egress::EgressError::Http(m) => {
-            (format!("HTTP request failed: {}", m), None, "transport-error")
-        }
-        vox_llm_egress::EgressError::Decode(m) => {
-            (format!("Failed to parse response JSON: {}", m), None, "decode-error")
-        }
+        vox_llm_egress::EgressError::Http(m) => (
+            format!("HTTP request failed: {}", m),
+            None,
+            "transport-error",
+        ),
+        vox_llm_egress::EgressError::Decode(m) => (
+            format!("Failed to parse response JSON: {}", m),
+            None,
+            "decode-error",
+        ),
     }
 }
 
@@ -432,10 +447,11 @@ mod context_exceeded_tests {
     fn rate_limited_and_transport_errors_are_never_context_exceeded() {
         let (_, _, class) =
             map_egress_error(&vox_llm_egress::EgressError::RateLimited { retry_after: None });
-        assert_eq!(class, "rate-limited");
+        assert_eq!(class, RATE_LIMITED_ERROR_CLASS);
 
-        let (_, _, class) =
-            map_egress_error(&vox_llm_egress::EgressError::Http("connection reset".into()));
+        let (_, _, class) = map_egress_error(&vox_llm_egress::EgressError::Http(
+            "connection reset".into(),
+        ));
         assert_eq!(class, "transport-error");
 
         let (_, _, class) =

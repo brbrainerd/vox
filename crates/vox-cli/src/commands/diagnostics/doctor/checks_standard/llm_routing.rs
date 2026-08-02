@@ -1,6 +1,7 @@
 //! Secrets-first LLM routing readiness (model prefs + at least one provider key).
 
 use super::super::common::{Check, redact_key};
+use vox_actor_runtime::llm::RATE_LIMITED_ERROR_CLASS;
 use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_model_preference};
 use vox_config::secrets_str;
 use vox_secrets::SecretId;
@@ -132,8 +133,20 @@ mod budget_status_tests {
 
     #[tokio::test]
     async fn reports_budget_caps_in_detail_string() {
+        // `run()` unconditionally calls `recent_rate_limit_check()`, which reads
+        // `VOX_DB_PATH` via `DbConfig::resolve_canonical()` — the same process-global
+        // env var `recent_rate_limit_check_tests` guards with `VOX_DB_PATH_LOCK`. This
+        // test must hold that same lock (and redirect to its own temp DB) or it races
+        // with those tests under cargo test's default multi-threaded execution.
+        let _guard = super::recent_rate_limit_check_tests::VOX_DB_PATH_LOCK
+            .lock()
+            .unwrap();
+        let (_dir, previous) = super::recent_rate_limit_check_tests::redirect_to_temp_db();
+
         let mut checks = Vec::new();
         run(&mut checks).await;
+        super::recent_rate_limit_check_tests::restore_env(previous);
+
         let llm_check = checks
             .iter()
             .find(|c| c.name == "LLM routing (Secrets)")
@@ -216,7 +229,7 @@ async fn recent_rate_limit_check() -> Option<Check> {
     if !(0.0..=RATE_LIMIT_STALENESS_SECS).contains(&last.age_seconds) {
         return None;
     }
-    if last.error_class.as_deref() != Some("rate-limited") {
+    if last.error_class.as_deref() != Some(RATE_LIMITED_ERROR_CLASS) {
         return None;
     }
     // The DB row doesn't carry `retry_after` (only `error_class`/`outcome`/timing are
@@ -275,14 +288,17 @@ mod recent_rate_limit_check_tests {
 
     /// `recent_rate_limit_check` (via `DbConfig::resolve_canonical`) reads
     /// `VOX_DB_PATH` when set, else falls back to the real user-global DB file — so
-    /// every test in this module redirects it to an isolated `tempfile` DB and holds
-    /// this lock for the duration, the same pattern
-    /// `harness::eval::tests::LIVE_ENV_VAR_LOCK` uses for its process-global env var.
-    static VOX_DB_PATH_LOCK: Mutex<()> = Mutex::new(());
+    /// every test in this module (and `budget_status_tests::reports_budget_caps_in_detail_string`,
+    /// which exercises `run()` and therefore `recent_rate_limit_check()` too) redirects
+    /// it to an isolated `tempfile` DB and holds this lock for the duration, the same
+    /// pattern `harness::eval::tests::LIVE_ENV_VAR_LOCK` uses for its process-global env
+    /// var. `pub(super)` so that sibling test module can reuse the same lock/helpers
+    /// instead of duplicating (and risking drift from) this pattern.
+    pub(super) static VOX_DB_PATH_LOCK: Mutex<()> = Mutex::new(());
 
     /// Points `VOX_DB_PATH` at a fresh temp file and returns a guard that restores the
     /// previous value on drop. Must be called while holding `VOX_DB_PATH_LOCK`.
-    fn redirect_to_temp_db() -> (tempfile::TempDir, Option<String>) {
+    pub(super) fn redirect_to_temp_db() -> (tempfile::TempDir, Option<String>) {
         let dir = tempfile::tempdir().expect("tempdir");
         let db_path = dir.path().join("doctor-rate-limit-test.db");
         let previous = std::env::var("VOX_DB_PATH").ok();
@@ -294,7 +310,7 @@ mod recent_rate_limit_check_tests {
         (dir, previous)
     }
 
-    fn restore_env(previous: Option<String>) {
+    pub(super) fn restore_env(previous: Option<String>) {
         // SAFETY: guarded by VOX_DB_PATH_LOCK (caller holds it for the whole test).
         unsafe {
             match previous {

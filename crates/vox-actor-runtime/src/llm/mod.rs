@@ -10,7 +10,7 @@ mod types;
 /// core). Re-exported here so existing `vox_actor_runtime::llm::throttle::*` paths keep working.
 pub use vox_llm_egress::throttle;
 
-pub use chat::{infer_with_retry, llm_chat};
+pub use chat::{RATE_LIMITED_ERROR_CLASS, infer_with_retry, llm_chat};
 pub use embed::llm_embed;
 pub use stream::{llm_stream, llm_stream_activity};
 pub use types::{
