@@ -193,10 +193,11 @@ pub async fn verify_claims_with_config(
 
         for claim in claims {
             // Resample the same claim/evidence pair RESAMPLE_COUNT times,
-            // relying on the cascade's existing nonzero verification
-            // temperature to produce genuine variation across samples. The
-            // samples are independent (no shared mutable state), so run
-            // them concurrently rather than sequentially.
+            // relying on the cascade's nonzero verification temperature
+            // (see `apply_stage_defaults` in vox-actor-runtime's
+            // `llm::cascade` module) to produce genuine variation across
+            // samples. The samples are independent (no shared mutable
+            // state), so run them concurrently rather than sequentially.
             let sample_futures = (0..RESAMPLE_COUNT).map(|_| {
                 let opts = &opts;
                 let input = &input;
@@ -258,28 +259,7 @@ pub async fn verify_claims_with_config(
                 }
             });
             let sampled: Vec<ClaimVerdict> = futures::future::join_all(sample_futures).await;
-
-            let sampled_verdicts: Vec<Verdict> = sampled.iter().map(|v| v.verdict).collect();
-            let final_verdict = majority_verdict(&sampled_verdicts);
-            let self_consistency = agreement_rate(&sampled_verdicts);
-            // Among the samples matching the final verdict, keep the one
-            // with the highest self-reported confidence for the other
-            // fields (confidence/supporting/contradicting/evidence_spans).
-            // When `majority_verdict` forced `Contested` on full
-            // disagreement, no sample truly represents the group; prefer a
-            // sample that itself said `Contested` if one exists, otherwise
-            // fall back to the highest-confidence sample overall.
-            let has_matching_sample = sampled.iter().any(|v| v.verdict == final_verdict);
-            let mut chosen = sampled
-                .into_iter()
-                .filter(|v| !has_matching_sample || v.verdict == final_verdict)
-                .fold(None::<ClaimVerdict>, |best, cand| match &best {
-                    Some(b) if b.confidence >= cand.confidence => best,
-                    _ => Some(cand),
-                })
-                .expect("sampled is non-empty");
-            chosen.self_consistency = self_consistency;
-            verdicts.push(chosen);
+            verdicts.push(assemble_resampled_verdict(sampled));
         }
 
         verdicts
@@ -368,6 +348,43 @@ fn parse_verdict_label(raw: &str) -> anyhow::Result<Verdict> {
         "unverified" | "not_enough_info" | "abstain" | "unknown" => Ok(Verdict::Unverified),
         other => anyhow::bail!("unknown verifier verdict `{other}`"),
     }
+}
+
+/// Combine `RESAMPLE_COUNT` independent verification samples for the same
+/// claim into a single `ClaimVerdict`. The authoritative verdict is always
+/// `majority_verdict` over the samples (forcing `Contested` on full
+/// disagreement); the other fields (confidence/supporting/contradicting/
+/// evidence_spans) are taken from a representative sample — one matching the
+/// final verdict if any exists, preferring the highest self-reported
+/// confidence, otherwise the highest-confidence sample overall.
+///
+/// Invariant: the returned `verdict` and `self_consistency` are never
+/// contradictory — a low `self_consistency` from full disagreement always
+/// implies `verdict == Verdict::Contested`, never a single sample's
+/// confident individual answer.
+fn assemble_resampled_verdict(sampled: Vec<ClaimVerdict>) -> ClaimVerdict {
+    let sampled_verdicts: Vec<Verdict> = sampled.iter().map(|v| v.verdict).collect();
+    let final_verdict = majority_verdict(&sampled_verdicts);
+    let self_consistency = agreement_rate(&sampled_verdicts);
+    // Among the samples matching the final verdict, keep the one with the
+    // highest self-reported confidence for the other fields
+    // (confidence/supporting/contradicting/evidence_spans). When
+    // `majority_verdict` forced `Contested` on full disagreement, no sample
+    // truly represents the group; prefer a sample that itself said
+    // `Contested` if one exists, otherwise fall back to the
+    // highest-confidence sample overall.
+    let has_matching_sample = sampled.iter().any(|v| v.verdict == final_verdict);
+    let mut chosen = sampled
+        .into_iter()
+        .filter(|v| !has_matching_sample || v.verdict == final_verdict)
+        .fold(None::<ClaimVerdict>, |best, cand| match &best {
+            Some(b) if b.confidence >= cand.confidence => best,
+            _ => Some(cand),
+        })
+        .expect("sampled is non-empty");
+    chosen.verdict = final_verdict;
+    chosen.self_consistency = self_consistency;
+    chosen
 }
 
 fn unverified(claim: Claim) -> ClaimVerdict {
@@ -494,6 +511,54 @@ mod tests {
     fn agreement_rate_is_zero_for_empty_input() {
         let verdicts: Vec<Verdict> = vec![];
         assert_eq!(agreement_rate(&verdicts), 0.0);
+    }
+
+    fn verdict_with(v: Verdict, confidence: f64) -> ClaimVerdict {
+        let mut cv = unverified(claim());
+        cv.verdict = v;
+        cv.confidence = confidence;
+        cv
+    }
+
+    #[test]
+    fn assemble_resampled_verdict_writes_back_contested_on_full_disagreement() {
+        // Three samples fully disagree: Supported, Contradicted, Unverified.
+        // majority_verdict forces Contested, and the final ClaimVerdict must
+        // reflect that -- not the highest-confidence individual sample's
+        // own (Supported) verdict.
+        let sampled = vec![
+            verdict_with(Verdict::Supported, 0.95),
+            verdict_with(Verdict::Contradicted, 0.4),
+            verdict_with(Verdict::Unverified, 0.2),
+        ];
+
+        let chosen = assemble_resampled_verdict(sampled);
+
+        assert_eq!(chosen.verdict, Verdict::Contested);
+        assert!(chosen.self_consistency < 1.0);
+        // Regression invariant: verdict and self_consistency must never be
+        // contradictory -- full disagreement (low self_consistency) implies
+        // Contested, never a single confident sample's answer.
+        if chosen.self_consistency < (2.0 / 3.0) {
+            assert_eq!(chosen.verdict, Verdict::Contested);
+        }
+    }
+
+    #[test]
+    fn assemble_resampled_verdict_keeps_genuine_majority() {
+        let sampled = vec![
+            verdict_with(Verdict::Supported, 0.6),
+            verdict_with(Verdict::Supported, 0.9),
+            verdict_with(Verdict::Contradicted, 0.5),
+        ];
+
+        let chosen = assemble_resampled_verdict(sampled);
+
+        assert_eq!(chosen.verdict, Verdict::Supported);
+        // Representative sample among the matching ones is the
+        // highest-confidence Supported sample.
+        assert_eq!(chosen.confidence, 0.9);
+        assert_eq!(chosen.self_consistency, 2.0 / 3.0);
     }
 
     #[test]
