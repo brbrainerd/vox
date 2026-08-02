@@ -9,6 +9,7 @@
 pub mod a2a_contract;
 pub mod bundle;
 pub mod context;
+pub mod corroboration;
 pub mod crag;
 pub mod duckduckgo;
 pub mod embedding_env;
