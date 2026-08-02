@@ -913,7 +913,7 @@ pub fn std_namespace_runtime_call(
             Some(format!("std::path::Path::new(&{}).is_dir()", args[0]))
         }
         ("fs", "canonicalize") if !args.is_empty() => Some(format!(
-            "::std::fs::canonicalize({}).map(|p| p.to_string_lossy().to_string()).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)",
+            "::std::fs::canonicalize({}).map(|p| p.to_string_lossy().to_string()).map_err(|e| e.to_string())",
             args[0]
         )),
         ("fs", "remove") if !args.is_empty() => Some(format!(
