@@ -384,23 +384,20 @@ mod recent_rate_limit_check_tests {
 
         let cfg = vox_db::DbConfig::resolve_canonical().expect("resolve");
         let db = vox_db::VoxDb::connect(cfg).await.expect("connect");
-        db.connection()
-            .execute(
-                "INSERT INTO llm_attempts
-                     (trace_id, attempt_number, model_id, provider, outcome, latency_ms, error_class, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now', '-1 hour'))",
-                turso::params![
-                    "trace-stale",
-                    1i32,
-                    "openrouter/free-model",
-                    "openrouter",
-                    "error",
-                    0i64,
-                    "rate-limited",
-                ],
-            )
-            .await
-            .expect("insert stale rate-limited row");
+        db.record_llm_attempt_with_created_at_offset(
+            vox_db::store::types::ModelAttempt {
+                trace_id: "trace-stale",
+                attempt_number: 1,
+                model_id: "openrouter/free-model",
+                provider: "openrouter",
+                outcome: "error",
+                latency_ms: Some(0),
+                error_class: Some("rate-limited"),
+            },
+            "-1 hour",
+        )
+        .await
+        .expect("insert stale rate-limited row");
 
         let check = recent_rate_limit_check().await;
         restore_env(previous);

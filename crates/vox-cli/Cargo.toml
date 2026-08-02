@@ -327,7 +327,7 @@ wiremock = { workspace = true }
 # leaves `Runtime::timeout` returning the never type and breaks inference in
 # `deadpool::unmanaged::Pool::timeout_get`.
 deadpool = { workspace = true }
-vox-db = { workspace = true }
+vox-db = { workspace = true, features = ["test-support"] }
 vox-sql = { workspace = true, features = ["postgres", "mysql"] }
 vox-orchestrator = { workspace = true }
 

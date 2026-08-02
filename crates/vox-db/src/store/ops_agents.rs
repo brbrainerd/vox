@@ -784,6 +784,53 @@ impl crate::VoxDb {
             .await
     }
 
+    /// Test-only: like [`Self::record_llm_attempt`], but lets the caller backdate
+    /// `created_at` via a SQLite modifier string (e.g. `"-1 hour"`), to exercise
+    /// staleness-window logic in downstream crates that can't reach vox-db's raw
+    /// Turso connection directly (see `crates/vox-cli`'s doctor rate-limit test).
+    /// Gated behind the `test-support` feature so it never ships as part of
+    /// vox-db's normal public API surface.
+    #[cfg(feature = "test-support")]
+    pub async fn record_llm_attempt_with_created_at_offset(
+        &self,
+        attempt: crate::store::types::ModelAttempt<'_>,
+        created_at_modifier: &str,
+    ) -> Result<i64, StoreError> {
+        let trace_id = attempt.trace_id.to_string();
+        let attempt_number = attempt.attempt_number;
+        let model_id = attempt.model_id.to_string();
+        let provider = attempt.provider.to_string();
+        let outcome = attempt.outcome.to_string();
+        let latency_ms = attempt.latency_ms;
+        let error_class = attempt.error_class.map(|s: &str| s.to_string());
+        let created_at_modifier = created_at_modifier.to_string();
+
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO llm_attempts
+                         (trace_id, attempt_number, model_id, provider, outcome, latency_ms, error_class, created_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now', ?8))",
+                    params![
+                        trace_id.as_str(),
+                        attempt_number,
+                        model_id.as_str(),
+                        provider.as_str(),
+                        outcome.as_str(),
+                        latency_ms,
+                        error_class.as_deref(),
+                        created_at_modifier.as_str(),
+                    ],
+                )
+                .await?;
+                Ok(conn.last_insert_rowid())
+            })
+            .await
+    }
+
     /// The most recently recorded `llm_attempts` row (across all providers/models),
     /// with its age in seconds computed in SQL. `None` when no attempt has ever been
     /// recorded. Read-only counterpart to [`Self::record_llm_attempt`] — added for

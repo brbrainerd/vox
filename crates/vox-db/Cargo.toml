@@ -39,6 +39,11 @@ default = ["local"]
 local = []
 replication = []
 legacy-import = []
+# Test-only helpers not part of vox-db's normal public API surface (e.g.
+# backdating `created_at` for staleness-window tests). Enabled via
+# `[dev-dependencies]` in downstream crates so it's compiled only for
+# test/bench/example builds, never a normal `cargo build`.
+test-support = []
 
 [dev-dependencies]
 regex = { workspace = true }
