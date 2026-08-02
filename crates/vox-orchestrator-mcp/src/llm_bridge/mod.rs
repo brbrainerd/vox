@@ -22,7 +22,7 @@ pub use infer::{McpInferRouting, call_llm, emit_cache_miss_if_applicable, mcp_in
 pub use model_route_policy::budget_guard;
 pub use model_route_policy::{
     McpChatModelResolution, mcp_global_llm_context_fill_ratio, mcp_provider_telemetry_labels,
-    resolve_mcp_chat_model, resolve_mcp_chat_model_sync,
+    resolve_mcp_chat_model, resolve_mcp_chat_model_sync, resolve_mcp_chat_model_with_rationale,
 };
 
 /// Clamp requested max output tokens for HTTP chat APIs (OpenRouter / Gemini caps).

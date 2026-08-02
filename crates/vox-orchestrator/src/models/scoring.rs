@@ -907,7 +907,13 @@ mod axes_override_tests {
     /// must be observed by `base_routing_weights` when no per-call thread-local
     /// override is active, and clearing it restores the env fallback. This is the
     /// thread-safe replacement for the old `set_var` startup mutation.
+    ///
+    /// `BASE_AXES` is a process-global `RwLock` (see above); `#[serial]` keeps
+    /// this test's install/clear mutually exclusive with any other test whose
+    /// scoring path reads `base_routing_weights()` without installing its own
+    /// thread-local override (e.g. `policy::tests::emphasize_intelligence_vs_efficiency_differ`).
     #[test]
+    #[serial_test::serial]
     fn install_base_routing_priority_is_observed_then_cleared() {
         // No thread-local override here (this test installs none).
         install_base_routing_priority(Some(axes(11, 22, 33)));

@@ -370,6 +370,7 @@ fn resolve_mcp_chat_model_sync_inner(
         if caps_ok(&m) && mcp_local_model_allowed(&m) && routing_allows(&m) {
             m = apply_gemini_policy(&registry, m, false);
             let m = enforce_free_tier_if_needed(&registry, &res, m)?;
+            *rationale_out = Some(decision.outcome.reason.to_string());
             return Ok((m.clone(), m.is_free));
         }
     }
@@ -444,6 +445,83 @@ pub fn mcp_provider_telemetry_labels(provider: &ProviderType) -> (&'static str, 
 mod tests {
     use super::*;
     use vox_orchestrator::models::Capability;
+
+    /// Fix Task 7: the common `decide()` branch of the sync resolver must populate
+    /// `rationale_out` too, not just the free-tier-latency branch — otherwise
+    /// ordinary chat turns (which take this branch) never get a `selection_reason`
+    /// for `ModelBadge` to show.
+    ///
+    /// Uses a hermetic single-model registry (mirroring
+    /// `vox_orchestrator::models::select`'s `key_gate_spec` test pattern) so the
+    /// `decide()` branch's single pick is guaranteed to survive the MCP-specific
+    /// `routing_allows`/`caps_ok`/`mcp_local_model_allowed` gates applied after it,
+    /// rather than depending on the ambient bootstrap catalog + env state.
+    #[test]
+    fn resolve_with_rationale_populates_reason_on_decide_branch() {
+        use vox_orchestrator::models::spec::PricingSource;
+        use vox_orchestrator::models::{ModelRegistry, ModelSpec, ProviderType};
+
+        let cfg = vox_orchestrator::OrchestratorConfig::for_testing();
+        let groups = vox_orchestrator::AffinityGroupRegistry::new(vec![]);
+        let orch = vox_orchestrator::Orchestrator::with_groups(cfg, groups);
+
+        let spec = ModelSpec {
+            id: "decide-branch-rationale-test".into(),
+            canonical_slug: "decide-branch-rationale-test".into(),
+            provider: "test".into(),
+            provider_type: ProviderType::PopuliMesh,
+            max_tokens: 32_000,
+            // Not free: `best_for_internal` (the scorer's inner filter) skips free
+            // models outright when `CostPreference::Performance` is in effect
+            // (the default `build_selection_request` preference here), which would
+            // otherwise make `decide()` fall through to `None` for this hermetic
+            // single-model registry.
+            cost_per_1k: 0.001,
+            cost_per_1k_input: 0.001,
+            cost_per_1k_output: 0.001,
+            is_free: false,
+            observed_cost_per_1k: None,
+            // `Generalist` matches every task's strength requirement in
+            // `ModelRegistry::matches_strength` — an empty vec matches none.
+            strengths: vec![vox_orchestrator::models::StrengthTag::Generalist],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            // UserConfig ⇒ ModelConfidence::Confirmed ⇒ routing-eligible, and skips
+            // the provider-key gate the way a locally-configured free route would.
+            pricing_source: PricingSource::UserConfig,
+            supported_parameters: vec![],
+        };
+        {
+            let handle = orch.models_handle();
+            let mut registry: std::sync::RwLockWriteGuard<'_, ModelRegistry> =
+                vox_orchestrator::sync_lock::rw_write(&*handle);
+            registry.register(spec);
+        }
+
+        let res = McpChatModelResolution {
+            // Deliberately false: the cheapest-fallback branches (which don't set
+            // `rationale_out`) must not be able to mask a decide()-branch failure —
+            // if `decide()` doesn't resolve a model here, the test should error out
+            // loudly instead of silently falling through to an unrelated branch.
+            allow_cheapest_fallback: false,
+            // Research is not in `VOX_LOCAL_PREFERRED_TASKS`, so this exercises the
+            // general `decide()` branch rather than the vox-local-preferred shortcut.
+            task_category: TaskCategory::Research,
+            ..Default::default()
+        };
+        let mut rationale = None;
+        let result =
+            resolve_mcp_chat_model_sync_inner(&orch, "hello there", None, res, &mut rationale);
+        let (model, _is_free) =
+            result.expect("decide() branch should resolve the sole hermetic candidate model");
+        assert_eq!(model.id, "decide-branch-rationale-test");
+        assert!(
+            rationale.is_some(),
+            "decide() branch of the sync resolver must populate rationale_out"
+        );
+    }
 
     #[test]
     fn build_selection_request_maps_economy_to_cost_first() {

@@ -19,7 +19,8 @@ use std::sync::OnceLock;
 // 85: refactor(schema-condensation): quarantine 42 DDL-bearing DORMANT/DEAD tables into
 //     domains::quarantine, gated by the `quarantine` feature (off by default); handoff_payloads'
 //     CollectionInfo entry gated the same way (Task 4, VoxDB audit condensation plan)
-pub const BASELINE_VERSION: i64 = 85;
+// 86: feat(vox-db): harness_eval_run/task_result/model_selection_event tables
+pub const BASELINE_VERSION: i64 = 86;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -116,6 +117,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "scientia",
         sql: domains::scientia::SCHEMA_SCIENTIA,
+    },
+    SchemaFragment {
+        name: "harness_eval",
+        sql: domains::harness_eval::SCHEMA_HARNESS_EVAL,
     },
     SchemaFragment {
         name: "developer_journeys",

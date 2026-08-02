@@ -82,10 +82,7 @@
     "wasm",
     "workflow"
   ],
-  "surface_count": 106,
-  "unclassified_backfilled": [
-    "chat",
-    "harness"
-  ],
+  "surface_count": 107,
+  "unclassified_backfilled": [],
   "wiring_violations": []
 }

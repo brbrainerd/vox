@@ -192,9 +192,12 @@ impl TaskProcessor for SixPhaseStubProcessor {
     }
 }
 
-/// Test-only stand-in for [`vox_orchestrator::chat_processor::ChatTaskProcessor`]'s
-/// single-call fast path, minus the real LLM call: emits exactly one
-/// `TaskPhaseChanged` (`Decide`, its only terminal phase) then succeeds.
+/// Test-only stand-in for a single-call fast-path chat processor, minus the
+/// real LLM call: emits exactly one `TaskPhaseChanged` (`Decide`, its only
+/// terminal phase) then succeeds. (Fix Task 4, gui-axis-chat-harness-fixes:
+/// the dedicated `ChatTaskProcessor` this originally stood in for was
+/// deleted; this stub still validates `RoutingTaskProcessor`'s dispatch
+/// behavior, which is unaffected by that deletion.)
 struct OnePhaseStubProcessor {
     event_bus: vox_orchestrator::events::EventBus,
 }

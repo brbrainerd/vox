@@ -159,6 +159,11 @@ serde = { workspace = true, features = ["derive"] }
 serde_yaml = { workspace = true }
 
 [dev-dependencies]
+# Re-declared here with `test-support` enabled: this crate's own tests
+# (llm_bridge::local_health) drive vox-orchestrator::route_policy's test-only
+# privacy override, which is gated on cfg(test) OR this feature since a bare
+# #[cfg(test)] would compile out for this crate's non-cfg(test) main dependency.
+vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime", "test-support"] }
 vox-plugin-api = { workspace = true }
 tower = { workspace = true, features = ["util"] }
 serial_test.workspace = true

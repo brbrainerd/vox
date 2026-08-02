@@ -20,6 +20,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'dashboard', cliGroup: null, tier: 'live_backend', navLabel: 'Dashboard', navIcon: 'dashboard', navGroup: 'operate', parentSurface: 'agents' },
   { viewKey: 'flow', cliGroup: null, tier: 'live_backend', navLabel: 'Agents', navIcon: 'flow', navGroup: 'operate', parentSurface: 'agents' },
   { viewKey: 'harness', cliGroup: null, tier: 'live_backend', navLabel: 'Harness', navIcon: 'command', navGroup: 'develop', parentSurface: 'workspace' },
+  { viewKey: 'harness-health', cliGroup: null, tier: 'live_backend', navLabel: 'Harness Health', navIcon: 'bolt', navGroup: 'develop', parentSurface: 'workspace' },
   { viewKey: 'mercatus', cliGroup: null, tier: 'live_backend', navLabel: 'Mercatus', navIcon: 'scale', navGroup: 'operate', parentSurface: null },
   { viewKey: 'mesh', cliGroup: null, tier: 'live_backend', navLabel: 'Mesh', navIcon: 'link', navGroup: 'operate', parentSurface: 'agents' },
   { viewKey: 'needs-you', cliGroup: null, tier: 'live_backend', navLabel: 'Needs You', navIcon: 'alert', navGroup: 'operate', parentSurface: 'runs' },

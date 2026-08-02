@@ -406,6 +406,7 @@ mod tests {
     use crate::models::generated::StrengthTag;
     use crate::models::spec::PricingSource;
     use crate::models::{ModelRegistry, ModelSpec, TaskCategory};
+    use serial_test::serial;
 
     /// Premium paid model: high quality, expensive, not free.
     fn premium() -> ModelSpec {
@@ -498,6 +499,11 @@ mod tests {
     }
 
     #[test]
+    #[serial]
+    // EmphasizeAxis-driven scoring reads the process-global BASE_AXES via
+    // base_routing_weights() (scoring.rs); #[serial] keeps this mutually
+    // exclusive with scoring::tests::install_base_routing_priority_is_observed_then_cleared,
+    // which installs/clears that global without a thread-local override.
     fn emphasize_intelligence_vs_efficiency_differ() {
         let r = fixture();
         let intel = SelectionPolicy {
@@ -561,6 +567,12 @@ mod tests {
     }
 
     #[test]
+    #[serial]
+    // select()/select_with_policy() read process-global env-var test seams
+    // (ANTHROPIC_API_KEY, VOX_MODEL_AXES, VOX_MODEL_FORCE,
+    // VOX_ROUTING_ENABLE_EXPLORATION, ...) that other #[serial] tests in
+    // select.rs mutate; without #[serial] here this test can race against
+    // them and observe a transient value it never set.
     fn default_policy_select_with_policy_matches_pre_existing_select() {
         let r = fixture();
         let policy = SelectionPolicy::default();

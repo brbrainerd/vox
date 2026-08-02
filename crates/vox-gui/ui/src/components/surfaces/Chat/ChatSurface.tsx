@@ -13,7 +13,6 @@ import {
   type ChatExecutionTask,
 } from './ChatExecutionRail';
 import { ChatSessionRail } from './ChatSessionRail';
-import { ChatModelPicker } from './ChatModelPicker';
 import { PlanPanel, type PlanNodeView } from './PlanPanel';
 import { listPlanNodes } from '../../../transport';
 import { labelForNavKey } from '../../../lib/navigation';
@@ -339,8 +338,6 @@ interface ChatSurfaceProps {
   attention_budget?: AttentionBudgetSnapshot | null;
   waitingQuestions?: number;
   blockedTasks?: number;
-  modelOverride?: string | null;
-  onModelOverrideChange?: (id: string | null) => void;
   /** Live plan-DAG identity for this session, if the current task has synthesized a plan. */
   planSessionId?: string | null;
   planVersion?: number | null;
@@ -375,8 +372,6 @@ export function ChatSurface({
   attention_budget,
   waitingQuestions = 0,
   blockedTasks = 0,
-  modelOverride,
-  onModelOverrideChange,
   planSessionId,
   planVersion,
   attention,
@@ -801,11 +796,7 @@ export function ChatSurface({
               separate row below it. */}
           {composer}
         </div>
-      ) : (
-        <div className="mt-auto flex shrink-0 justify-end px-1">
-          <ChatModelPicker activeModel={modelOverride ?? activeModel} onApplied={id => onModelOverrideChange?.(id)} />
-        </div>
-      )}
+      ) : null}
     </>
   );
 

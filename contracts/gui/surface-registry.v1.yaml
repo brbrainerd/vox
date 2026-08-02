@@ -81,6 +81,14 @@ surfaces:
   nav_group: develop
   parent_surface: workspace
   notes: null
+- view_key: harness-health
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Harness Health
+  nav_icon: bolt
+  nav_group: develop
+  parent_surface: workspace
+  notes: chat harness eval run history + regression detection (vox harness eval --live)
 - view_key: mercatus
   cli_group: null
   representation_tier: live_backend

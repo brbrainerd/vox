@@ -13,3 +13,14 @@ export function nextId(prefix = 'ui'): string {
 export function nextGuiRunId(): string {
   return nextId('gui');
 }
+
+/**
+ * Session id for background dispatches (/spawn, Deploy skill) that must not
+ * borrow the active chat session's identity: submit_orchestrator_task never
+ * writes to the orchestrator's chat_history context store, only
+ * vox_chat_message does, so reusing the chat session id would silently
+ * desync that store from the GUI transcript.
+ */
+export function newBackgroundSessionId(): string {
+  return `bg-task-${nextGuiRunId()}`;
+}

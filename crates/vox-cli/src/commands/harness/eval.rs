@@ -57,6 +57,12 @@ pub struct EvalArgs {
     /// is not needed yet at this scale; add more flags if the task set grows).
     #[arg(long)]
     pub task: Option<String>,
+    /// Run the live-model-calling golden task corpus (see `live_eval.rs`) instead of the
+    /// hermetic gate. Makes real API calls, costs real money (bounded by
+    /// `live_eval::LIVE_EVAL_COST_CEILING_USD`), and is intended for scheduled/manual runs, not
+    /// every commit.
+    #[arg(long)]
+    pub live: bool,
 }
 
 /// One golden task: a name, a deterministic check function, and an optional
@@ -338,7 +344,69 @@ impl TaskOutcome {
     }
 }
 
+/// Same `git_sha` validation `ingest_runs` applies at write time — re-checked here as a
+/// defense-in-depth boundary, since this function is the one that actually constructs a `git`
+/// subprocess call from a stored value. A well-formed value will always pass; this only ever
+/// rejects something that slipped through some other write path.
+fn is_valid_git_sha(s: &str) -> bool {
+    (7..=40).contains(&s.len())
+        && s.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+}
+
 pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
+    if args.live {
+        let (mut run, task_results, selection_events) =
+            crate::commands::harness::live_eval::run_live(args.samples, args.task.as_deref())
+                .await?;
+        println!(
+            "{} live run {}: {}/{} tasks passed, {} skipped, ${:.4} spent",
+            " HARNESS EVAL (LIVE) ".on_blue().white().bold(),
+            run.run_id,
+            run.pass_count,
+            run.task_count,
+            run.skip_count,
+            run.total_cost_usd
+        );
+
+        let db = vox_db::open_project_db().await?;
+        // `changed_files` is left empty by `run_live` (which has no DB handle); compute it here
+        // by diffing against the immediately-preceding run's `git_sha`. That `git_sha` may have
+        // originated from a `publish`-ingested JSONL file rather than a local run, but
+        // `publish::ingest_runs` validates the shape of every `git_sha` before it ever enters
+        // vox-db, so it can be trusted here without re-validating.
+        if let Some(previous) = db.list_harness_eval_runs(1).await?.into_iter().next() {
+            if previous.git_sha != run.git_sha
+                && is_valid_git_sha(&previous.git_sha)
+                && is_valid_git_sha(&run.git_sha)
+            {
+                let repo_root = vox_repository::resolve_repo_root_for_ci();
+                let diff_range = format!("{}..{}", previous.git_sha, run.git_sha);
+                if let Ok(out) =
+                    vox_git::read_only(&repo_root, &["diff", "--name-only", &diff_range])
+                {
+                    run.changed_files = out.lines().map(str::to_string).collect();
+                }
+            }
+        }
+        db.record_harness_eval_run(&run).await?;
+        for task_result in &task_results {
+            db.record_harness_eval_task_result(task_result).await?;
+        }
+        for event in &selection_events {
+            db.record_model_selection_event(event).await?;
+        }
+
+        if run.fail_count > 0 {
+            anyhow::bail!(
+                "harness eval --live gate failed: {}/{} tasks did not pass",
+                run.fail_count,
+                run.task_count
+            );
+        }
+        return Ok(());
+    }
+
     if args.samples == 0 {
         bail!("--samples must be at least 1");
     }
@@ -602,6 +670,7 @@ mod tests {
         let args = EvalArgs {
             samples: 3,
             task: None,
+            live: false,
         };
         assert!(run(args).await.is_ok());
     }
@@ -618,6 +687,7 @@ mod tests {
         let args = EvalArgs {
             samples: 1,
             task: Some("live-model-smoke".to_string()),
+            live: false,
         };
         let result = run(args).await;
         // SAFETY: see above.
@@ -636,6 +706,7 @@ mod tests {
         let args = EvalArgs {
             samples: 0,
             task: None,
+            live: false,
         };
         assert!(run(args).await.is_err());
     }
@@ -645,6 +716,7 @@ mod tests {
         let args = EvalArgs {
             samples: MAX_SAMPLES + 1,
             task: None,
+            live: false,
         };
         assert!(run(args).await.is_err());
     }
@@ -654,6 +726,7 @@ mod tests {
         let args = EvalArgs {
             samples: MAX_SAMPLES,
             task: Some("temp-workspace-file-roundtrip".to_string()),
+            live: false,
         };
         assert!(run(args).await.is_ok());
     }
@@ -663,6 +736,7 @@ mod tests {
         let args = EvalArgs {
             samples: 1,
             task: Some("does-not-exist".to_string()),
+            live: false,
         };
         assert!(run(args).await.is_err());
     }
@@ -672,6 +746,7 @@ mod tests {
         let args = EvalArgs {
             samples: 2,
             task: Some("temp-workspace-file-roundtrip".to_string()),
+            live: false,
         };
         assert!(run(args).await.is_ok());
     }

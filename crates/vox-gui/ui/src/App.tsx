@@ -90,7 +90,7 @@ import {
   LIVE_EVENT_FRESH_MS,
 } from './config/constants';
 import { budgetStateFromStatus, DEFAULT_BUDGET_CAP_USD } from './config/budget';
-import { nextId, nextGuiRunId } from './lib/ids';
+import { nextId, nextGuiRunId, newBackgroundSessionId } from './lib/ids';
 import { slashCommandBase } from './lib/slashRouter';
 import { viewKeyForLocator } from './lib/locatorNavigation';
 import { AchievementsDrawer } from './components/gamify/AchievementsDrawer';
@@ -108,6 +108,7 @@ type View =
   | 'mesh'
   | 'gamify'
   | 'harness'
+  | 'harness-health'
   | 'browser'
   | 'console'
   | 'coderabbit'
@@ -141,7 +142,7 @@ type View =
 
 const LEGACY_VIEWS: string[] = [
   'dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository',
-  'mesh', 'gamify', 'harness', 'browser', 'console', 'coderabbit', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
+  'mesh', 'gamify', 'harness', 'harness-health', 'browser', 'console', 'coderabbit', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
   'publications', 'search', 'vox-search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute', 'mercatus',
   'review', 'tasks', 'sub-agents',
@@ -343,6 +344,11 @@ export default function App() {
   chatStoreRef.current = chatStore;
   const [sessionAgentStreams, setSessionAgentStreams] = useState<Record<string, StreamItem[]>>({});
   const persistedAssistantIdsRef = useRef<Map<string, Set<string>>>(new Map());
+  // Fix Task 1 (gui-chat-harness-fixes): guards the synchronous chat_send_message
+  // path against overlapping sends for the same session (e.g. a fast double-Enter
+  // while a prior reply is still in flight), which used to spawn two independent
+  // tempId lifecycles that could settle out of order with no user-visible sign.
+  const chatSendInFlightRef = useRef<Set<string>>(new Set());
   const activeChatMessages = getSessionMessages(chatStore, activeSessionId);
   const activeChatAgentItems = sessionAgentStreams[activeSessionId] ?? [];
 
@@ -739,7 +745,15 @@ export default function App() {
     if (!sessionId) return;
     try {
       const rows = await invoke<
-        Array<{ id: number; role: string; content: string; task_id?: string; model_id?: string }>
+        Array<{
+          id: number;
+          role: string;
+          content: string;
+          task_id?: string;
+          model_id?: string;
+          latency_ms?: number;
+          selection_reason?: string;
+        }>
       >('chat_get_messages', { sessionId, limit: 500 });
       dispatchSessionChat({
         type: 'hydrate',
@@ -752,6 +766,8 @@ export default function App() {
           runId: r.task_id ?? `persist-${r.id}`,
           taskId: r.task_id ?? undefined,
           modelId: r.model_id ?? undefined,
+          latencyMs: r.latency_ms ?? undefined,
+          selectionReason: r.selection_reason ?? undefined,
         })),
       });
     } catch {
@@ -784,6 +800,20 @@ export default function App() {
       pushToast({ tone: 'warn', title: 'No chat session', body: 'Create or select a chat session first.', cause: 'validation' });
       return;
     }
+    // Checked BEFORE chat_append_message persists anything: a second send
+    // while the first is still in flight must not write an orphaned user
+    // message row that nothing will ever reply to (the persisted row would
+    // otherwise survive the early-return below with no assistant turn).
+    if (payload.task_category === 'chat' && chatSendInFlightRef.current.has(sessionId)) {
+      pushToast({
+        tone: 'warn',
+        title: 'Please wait',
+        body: 'A reply is still in progress for this chat.',
+        cause: 'validation',
+      });
+      return;
+    }
+
     invoke('chat_append_message', {
       input: userAppendInput(sessionId, payload.description),
     }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
@@ -794,6 +824,7 @@ export default function App() {
     // submit_orchestrator_task dispatch loop below, which is for every
     // other task_category.
     if (payload.task_category === 'chat') {
+      chatSendInFlightRef.current.add(sessionId);
       const tempId = nextGuiRunId();
       dispatchSessionChat({
         type: 'chatPending',
@@ -836,6 +867,8 @@ export default function App() {
               // background task to correlate against) — left unset
               // intentionally, unlike background-task-path bubbles.
               modelId: reply.modelId,
+              latencyMs: reply.latencyMs,
+              selectionReason: reply.selectionReason,
             },
           },
         });
@@ -848,6 +881,8 @@ export default function App() {
           result: { ok: false, error: errorText },
         });
         pushToast(dispatchErrorToast(errorText, 'Chat reply failed'));
+      } finally {
+        chatSendInFlightRef.current.delete(sessionId);
       }
       return;
     }
@@ -959,6 +994,11 @@ export default function App() {
       void handleLoquelaSubmit({
         description: 'Spawn a sub-agent on the current branch to pursue this task in parallel.',
         mode: 'act',
+        // Own session id (not activeSessionId): submit_orchestrator_task never
+        // writes to the orchestrator's chat_history context store, only
+        // vox_chat_message does, so borrowing the chat session id here would
+        // silently desync that store from the GUI transcript.
+        session_id: newBackgroundSessionId(),
       });
       return true;
     }
@@ -1173,7 +1213,14 @@ export default function App() {
       if (s) {
         const deployId = s.capability_id ?? s.command;
         setDeployedSet(prev => new Set([...prev, deployId]));
-        handleLoquelaSubmit({ description: `Deploy skill: ${s.command}`, active_skill: deployId });
+        // See /spawn handler above: own session id so this background
+        // dispatch doesn't silently borrow the active chat session's
+        // identity in the orchestrator's chat_history store.
+        handleLoquelaSubmit({
+          description: `Deploy skill: ${s.command}`,
+          active_skill: deployId,
+          session_id: newBackgroundSessionId(),
+        });
       }
     } else if ('codename' in cmd) {
       navigateTo('flow');
@@ -1249,7 +1296,19 @@ export default function App() {
     <Loquela
       chips={chips}
       setChips={setChips}
-      onSubmit={(p) => handleLoquelaSubmit({ ...p, session_id: activeSessionId, model_override: chatModelOverride, grounding_check_enabled: groundingCheckEnabled })}
+      onSubmit={(p) => handleLoquelaSubmit({
+        ...p,
+        // 'chat' mode (the composer's default) stays part of the active
+        // chat session, same as before. The "Background task" toggle
+        // position (task_category left undefined by Loquela's send())
+        // must NOT reuse activeSessionId -- same fix as /spawn and
+        // Deploy-skill below, for the same reason (submit_orchestrator_task
+        // never writes to the orchestrator's chat_history:{session_id}
+        // context store, so folding it into the active session desyncs it).
+        session_id: p.task_category === 'chat' ? activeSessionId : newBackgroundSessionId(),
+        model_override: chatModelOverride,
+        grounding_check_enabled: groundingCheckEnabled,
+      })}
       onSlashCommand={handleLoquelaSlash}
       taskInProgress={taskInProgress}
       currentTaskId={taskInProgress ? inFlightTaskId : undefined}
@@ -1317,9 +1376,7 @@ export default function App() {
     chatIntents,
     chatExecutionKpis,
     chatActiveModel: activeModel,
-    chatModelOverride,
     groundingCheckEnabled,
-    onChatModelOverrideChange: setChatModelOverride,
     // No orchestrator plan session is created from chat yet, so PlanPanel
     // renders its honest empty state until a producer wires this up.
     chatPlanSessionId: null,
@@ -1416,6 +1473,16 @@ export default function App() {
           }
         }}
         onRunCommand={(command) => {
+          // 'skill:<id>' commands (Omnibar's skill rows, see Omnibar.tsx's
+          // `onRunCommand(`skill:${row.activate.skillId}`)`) must reach
+          // handleCommandAction's `cmd.id.startsWith('skill:')` branch below —
+          // wrapping them in the generic 'hit' shape like every other command
+          // string would hardcode id/type to 'hit' and short-circuit past that
+          // branch in the if/else-if chain, silently no-op'ing skill deploys.
+          if (command.startsWith('skill:')) {
+            handleCommandAction({ id: command });
+            return;
+          }
           handleCommandAction({
             id: 'hit',
             type: 'hit',

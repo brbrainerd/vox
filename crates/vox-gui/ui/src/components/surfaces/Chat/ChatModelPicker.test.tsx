@@ -161,6 +161,11 @@ describe('model_override submit-payload wiring', () => {
 // for /spawn, so real chat messages were never tagged 'chat' and always
 // fell through to the full agentic pipeline. task_category is now set
 // explicitly at each real call site instead, and App.tsx just forwards it.
+//
+// Fix Task 4 (gui-axis-chat-harness-fixes) made this a user-visible choice:
+// Loquela's composer now exposes an explicit "Quick chat" / "Background
+// task" toggle (`executionMode`), defaulting to 'chat', and only tags
+// task_category: 'chat' when that mode is selected.
 describe('task_category submit-payload wiring', () => {
   it('App.tsx forwards payload.task_category verbatim, not derived from mode', () => {
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
@@ -168,12 +173,12 @@ describe('task_category submit-payload wiring', () => {
     expect(appSrc).not.toMatch(/task_category:\s*payload\.mode/);
   });
 
-  it("Loquela's composer send() tags every normal submission 'chat'", () => {
+  it("Loquela's composer send() tags 'chat' submissions via the executionMode toggle", () => {
     const loquelaSrc = readFileSync(
       path.resolve(__dirname, '../Loquela/Loquela.tsx'),
       'utf8',
     );
-    expect(loquelaSrc).toMatch(/task_category:\s*'chat'/);
+    expect(loquelaSrc).toMatch(/task_category:\s*executionMode === 'chat' \? 'chat' : undefined/);
   });
 
   it("/spawn's direct dispatch payload does not set task_category, leaving it agentic", () => {

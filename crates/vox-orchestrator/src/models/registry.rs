@@ -773,6 +773,16 @@ impl ModelRegistry {
                     }
                 }
 
+                if !crate::route_policy::route_policy_allows_model(m) {
+                    return false;
+                }
+                if !crate::route_policy::privacy_allows_model_for_mode(
+                    m,
+                    crate::route_policy::inference_privacy_local_only_from_env(),
+                ) {
+                    return false;
+                }
+
                 Self::matches_strength(m, strength) && pred(m)
             })
             .min_by(|a, b| {
@@ -882,6 +892,16 @@ impl ModelRegistry {
                     return false;
                 }
                 if !crate::route_policy::route_policy_allows_model(m) {
+                    return false;
+                }
+                // Code-review fix: this ranking backs `vox model explain`, which
+                // must reflect the same eligibility as the real selection path
+                // (best_for_internal) — otherwise `explain` shows cloud models
+                // as viable/ranked even under VOX_INFERENCE_PRIVACY=local_only.
+                if !crate::route_policy::privacy_allows_model_for_mode(
+                    m,
+                    crate::route_policy::inference_privacy_local_only_from_env(),
+                ) {
                     return false;
                 }
                 Self::matches_strength(m, strength)

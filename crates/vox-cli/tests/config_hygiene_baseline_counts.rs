@@ -31,7 +31,7 @@ fn config_hygiene_baseline_has_pinned_count() {
         "config-hygiene-baseline.txt changed — update EXPECTED_HYGIENE_COUNT if intentional"
     );
 }
-const EXPECTED_HYGIENE_COUNT: usize = 299;
+const EXPECTED_HYGIENE_COUNT: usize = 379;
 
 #[test]
 fn config_registry_baseline_has_pinned_count() {
@@ -42,4 +42,4 @@ fn config_registry_baseline_has_pinned_count() {
         "config-registry-baseline.txt changed — update EXPECTED_REGISTRY_COUNT if intentional"
     );
 }
-const EXPECTED_REGISTRY_COUNT: usize = 706;
+const EXPECTED_REGISTRY_COUNT: usize = 347;

@@ -95,6 +95,8 @@ mod config;
 pub mod data_flow;
 pub mod ddl;
 pub mod error_enrichment;
+mod harness_eval;
+pub use harness_eval::*;
 // `eval_params` types moved to `vox-db-types`; re-exported below.
 pub mod exec_time_telemetry;
 mod local_cli_introspection;

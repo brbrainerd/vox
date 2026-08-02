@@ -100,7 +100,7 @@ completion-toestub = ["dep:vox-code-audit", "vox-cli-ci/completion-toestub"]
 # Native Tauri 2 GUI (replaces dashboard SPA)
 gui = []
 # OpenClaw / skill registry (`openclaw`); ARS runtime types live in `vox-openclaw-runtime`; `vox-skills` is the marketplace registry.
-ars = ["dep:vox-skills", "dep:vox-openclaw-runtime", "dep:vox-skill-discovery"]
+ars = ["dep:vox-openclaw-runtime", "dep:vox-skill-discovery"]
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-gamify` (uses `vox-db`).
 extras-ludus = ["dep:vox-gamify", "dep:vox-code-audit"]
 # Ludus terminal HUD over the in-process orchestrator bulletin (`vox ludus hud`).
@@ -171,7 +171,11 @@ vox-eval = { workspace = true }
 vox-container = { workspace = true }
 vox-wasm-engine = { workspace = true, optional = true }
 vox-deploy-codegen = { workspace = true }
-vox-skills = { workspace = true, optional = true }
+# Non-optional: `harness::live_eval::build_eval_server_state` (Task 5, `--live` golden corpus)
+# needs `vox_skills::new_registry_arc`/`SkillRegistry` directly, and vox-orchestrator-mcp already
+# pulls this crate in unconditionally (its own `vox-skills.workspace = true` is not optional), so
+# making it non-optional here adds no new build weight.
+vox-skills = { workspace = true }
 vox-openclaw-runtime = { workspace = true, optional = true }
 vox-skill-discovery = { workspace = true, optional = true }
 vox-gamify = { workspace = true, optional = true }

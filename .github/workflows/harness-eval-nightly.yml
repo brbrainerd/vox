@@ -1,0 +1,66 @@
+name: Harness Eval (Nightly Live)
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # 09:00 UTC nightly
+  workflow_dispatch: {}
+
+concurrency:
+  group: harness-eval-nightly
+  cancel-in-progress: false  # a scheduled run already in flight has already spent real money —
+                              # a manual workflow_dispatch trigger should queue behind it, not
+                              # cancel it and waste that spend. This is also what actually
+                              # prevents the JSONL-append race and double-spend-past-the-cost-
+                              # ceiling scenario a same-runner overlap would otherwise create —
+                              # no separate file-level lock is needed for that failure mode.
+
+jobs:
+  live-eval:
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
+    permissions:
+      contents: write   # job-scoped override (workflow default is contents: read) to push results
+    steps:
+      # Pinned to the same immutable SHA ci.yml's ssot-autoregen job uses for actions/checkout,
+      # for the same reason: this job has contents: write. persist-credentials:false avoids
+      # leaving the clone token in .git/config; the push step below authenticates explicitly.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Build vox-cli
+        run: cargo build --release -p vox-cli
+
+      - name: Run live harness eval
+        env:
+          VOX_HARNESS_EVAL_TRIGGERED_BY: ci-nightly
+          # Confirm the real secret name(s) in Step 1 — this assumes an OPENROUTER_API_KEY
+          # secret already exists for other live-calling automation; verify before relying on it.
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: ./target/release/vox harness eval --live --samples 3
+
+      - name: Publish results to git-tracked history
+        run: ./target/release/vox harness publish
+
+      - name: Commit and push published results
+        env:
+          # PAT (preferred) if its scope is confirmed appropriate for this automation (Step 1);
+          # github.token is the fallback. Passed via env, not inline ${{ }}, to avoid expression
+          # injection in the run block — matches ci.yml's ssot-autoregen job exactly.
+          PUSH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/harness-eval-history/runs.jsonl; then
+            echo "nothing new published — nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/harness-eval-history/runs.jsonl
+          git commit -m "chore(harness-eval): publish nightly run results [skip ci]"
+          # Non-fatal on a rejected push (e.g. a concurrent merge to main landed between
+          # checkout and push) — matches this repo's own established handling for this exact
+          # race elsewhere, rather than hard-failing the job and losing tonight's already-paid-
+          # for live-eval results.
+          git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main \
+            || echo "::warning::harness-eval-nightly push skipped (non-fast-forward)"

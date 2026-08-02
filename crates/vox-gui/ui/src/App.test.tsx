@@ -353,6 +353,84 @@ describe('App shell', () => {
     expect(toastRegion.textContent).not.toMatch(/__TAURI_INTERNALS__|\binvoke\b/);
   });
 
+  // Fix Task 2 (chat-harness audit): /spawn dispatches via submit_orchestrator_task
+  // with no explicit session_id, which used to default to activeSessionId — making
+  // it look like part of the ongoing chat session in the GUI transcript while the
+  // orchestrator's own chat_history:{session_id} context store (only written to by
+  // vox_chat_message) never learns this happened. /spawn must use its own,
+  // clearly-separate session id instead of borrowing the active chat session's.
+  it('/spawn does not reuse the active chat session id', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'chat-session-abc' });
+      if (cmd === 'submit_orchestrator_task') return Promise.resolve({ task_id: '1', duplicate_of: null });
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/spawn');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+    );
+    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'submit_orchestrator_task');
+    expect(submitCall![1].input.session_id).not.toBe('chat-session-abc');
+  });
+
+  // Fix Task 2 (chat-harness audit): same bug, second call site — deploying an
+  // installed skill from the Omnibar dispatches via submit_orchestrator_task too,
+  // and must not silently borrow the active chat session's identity either.
+  it('Deploy skill (Omnibar) does not reuse the active chat session id', async () => {
+    invokeMock.mockImplementation((cmd: string, args: any) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'chat-session-abc' });
+      if (cmd === 'invoke_mcp_tool' && args?.tool === 'vox_skill_list') {
+        return Promise.resolve({
+          result: [{ id: 'skill-1', name: 'my-test-skill', description: 'A test skill' }],
+        });
+      }
+      if (cmd === 'submit_orchestrator_task') return Promise.resolve({ task_id: '1', duplicate_of: null });
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    // Open the Omnibar (Mod+K) and search for the installed skill.
+    const ev = new KeyboardEvent('keydown', { key: 'k', metaKey: true, cancelable: true, bubbles: true });
+    window.dispatchEvent(ev);
+    const searchInput = await screen.findByPlaceholderText(/search/i);
+    const user = userEvent.setup();
+    // '/' is the skills+docs prefix mode (see Omnibar.tsx's federatedKindsForMode:
+    // the default/no-prefix mode does NOT include the 'skill' kind).
+    await user.type(searchInput, '/my-test-skill');
+    // The row's label text may be split across highlight-match spans, so match
+    // on any element whose combined text content includes the skill name, and
+    // click the smallest (most specific) such element directly — clicking the
+    // outermost match (e.g. the modal backdrop) would instead close the Omnibar.
+    let skillRow: HTMLElement | undefined;
+    await waitFor(() => {
+      const matches = screen.getAllByText((_, el) => !!el?.textContent?.includes('my-test-skill'));
+      expect(matches.length).toBeGreaterThan(0);
+      skillRow = matches.reduce((smallest, el) =>
+        el.textContent!.length < smallest.textContent!.length ? el : smallest,
+      );
+    });
+    await user.click(skillRow!);
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+    );
+    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'submit_orchestrator_task');
+    expect(submitCall![1].input.session_id).not.toBe('chat-session-abc');
+  });
+
   // Plan Task 2 (gui-chat-agent-loop-wiring): a plain chat send (Loquela's
   // normal Enter-to-send path, which tags task_category: 'chat') must go
   // through the synchronous chat_send_message command, not the background
@@ -390,6 +468,114 @@ describe('App shell', () => {
     await waitFor(() => {
       expect(screen.getByText('hello back')).toBeInTheDocument();
     });
+  });
+
+  // Fix Task 4 (gui-axis-chat-harness-fixes): a visible toggle in the composer
+  // now lets the user choose "Quick chat" (the default, unchanged behavior
+  // above) vs "Background task" — which reuses the same working
+  // submit_orchestrator_task -> AiTaskProcessor pipeline /spawn already uses,
+  // rather than the now-deleted ChatTaskProcessor.
+  it('background-task mode calls submit_orchestrator_task, not chat_send_message', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_append_message') return Promise.resolve(1);
+      if (cmd === 'submit_orchestrator_task') {
+        return Promise.resolve({ task_id: '1', duplicate_of: null });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+
+    const modeButton = await screen.findByRole('button', { name: /choose send mode/i });
+    await user.click(modeButton);
+    const backgroundOption = await screen.findByRole('button', { name: /set send mode: background task/i });
+    await user.click(backgroundOption);
+
+    await user.click(composer);
+    await user.type(composer, 'do this in the background');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+    );
+    expect(invokeMock).not.toHaveBeenCalledWith('chat_send_message', expect.anything());
+  });
+
+  // Code-review fix: the composer's "Background task" toggle went through a
+  // DIFFERENT onSubmit wrapper than /spawn and Deploy-skill above, and that
+  // wrapper wasn't updated when those two were fixed to stop reusing
+  // activeSessionId -- reintroducing the exact bug this same branch's Fix
+  // Task 2 patched, just via a third entry point.
+  it('background-task mode does not reuse the active chat session id', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'chat-session-abc' });
+      if (cmd === 'chat_append_message') return Promise.resolve(1);
+      if (cmd === 'submit_orchestrator_task') {
+        return Promise.resolve({ task_id: '1', duplicate_of: null });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+
+    const modeButton = await screen.findByRole('button', { name: /choose send mode/i });
+    await user.click(modeButton);
+    const backgroundOption = await screen.findByRole('button', { name: /set send mode: background task/i });
+    await user.click(backgroundOption);
+
+    await user.click(composer);
+    await user.type(composer, 'do this in the background too');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+    );
+    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'submit_orchestrator_task');
+    expect(submitCall![1].input.session_id).not.toBe('chat-session-abc');
+  });
+
+  it('quick-chat mode (the toggle default) still calls chat_send_message, not submit_orchestrator_task', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_send_message') {
+        return Promise.resolve({
+          id: 43,
+          role: 'assistant',
+          content: 'default mode reply',
+          created_at: '2026-08-01T00:00:00Z',
+          task_id: null,
+          model_id: 'openrouter/auto',
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    // Do NOT touch the mode toggle -- default should remain 'chat'.
+    await user.click(composer);
+    await user.type(composer, 'hello again');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+    );
+    expect(invokeMock).not.toHaveBeenCalledWith('submit_orchestrator_task', expect.anything());
   });
 
   // Code-review follow-up (8448c477a1): chat_send_message already persists
@@ -439,6 +625,58 @@ describe('App shell', () => {
           cmd === 'chat_append_message' && args?.input?.content === 'no duplicates please',
       ),
     ).toHaveLength(0);
+  });
+
+  // Fix Task 1 (gui-chat-harness-fixes): nothing prevented a user from
+  // pressing Enter a second time while a prior chat_send_message() call was
+  // still pending — two independent tempIds each got their own
+  // chatPending/chatReplySettled lifecycle, settling out of order with no
+  // user-visible indication. A send-lock keyed by sessionId must block the
+  // second send while the first is still in flight.
+  it('does not send a second chat message while the first is still pending', async () => {
+    let resolveFirst!: (value: unknown) => void;
+    const pending = new Promise((resolve) => { resolveFirst = resolve; });
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_append_message') return Promise.resolve(1);
+      if (cmd === 'chat_send_message') return pending;
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+
+    await user.click(composer);
+    await user.type(composer, 'first message');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+    );
+
+    await user.click(composer);
+    await user.type(composer, 'second message');
+    await user.keyboard('{Enter}');
+
+    const chatSendCalls = invokeMock.mock.calls.filter(([cmd]: [string]) => cmd === 'chat_send_message');
+    expect(chatSendCalls.length).toBe(1);
+    // Code-review fix: the send-lock guard must be checked BEFORE
+    // chat_append_message persists anything -- otherwise the rejected second
+    // send still writes an orphaned user-message row with no reply ever
+    // generated for it (only caught by inspecting chat_append_message's own
+    // call args, not just chat_send_message's count).
+    expect(
+      invokeMock.mock.calls.filter(
+        ([cmd, args]: [string, any]) =>
+          cmd === 'chat_append_message' && args?.input?.content === 'second message',
+      ),
+    ).toHaveLength(0);
+
+    resolveFirst({ id: 1, role: 'assistant', content: 'reply', created_at: '2026-07-31T00:00:00Z', task_id: null, model_id: 'openrouter/auto' });
   });
 
   // Regression (Task 5 nav-shell redesign, ee7903cf4b): openParentNav used to

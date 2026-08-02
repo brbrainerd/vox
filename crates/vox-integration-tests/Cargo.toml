@@ -21,7 +21,7 @@ deadpool = { workspace = true }
 tower-lsp-server = { workspace = true }
 vox-config = { workspace = true }
 vox-repository = { workspace = true }
-vox-orchestrator = { workspace = true }
+vox-orchestrator = { workspace = true, features = ["test-support"] }
 # Integration tests exercise the full MCP tool surface (news/scientia/visus).
 vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser"] }
 vox-compiler = { workspace = true }

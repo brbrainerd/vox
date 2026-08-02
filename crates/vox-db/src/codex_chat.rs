@@ -614,6 +614,17 @@ impl VoxDb {
     }
 
     /// List recent GUI chat sessions for the tab strip.
+    ///
+    /// Excludes `bg-task-*` session ids: `/spawn`, "Deploy skill", and the
+    /// composer's "Background task" send mode all give their
+    /// `submit_orchestrator_task` dispatch a `bg-task-*` session id
+    /// specifically so it never gets folded into a real chat session's
+    /// history (see `newBackgroundSessionId` in the GUI). But
+    /// `chat_append_message` still unconditionally persists the description
+    /// and any eventual reply under that id (it has no category awareness),
+    /// which would otherwise mint a permanent, one-off, mistitled "Chat"
+    /// sidebar entry per background dispatch. The task itself remains fully
+    /// visible via the Tasks surface regardless of this filter.
     pub async fn chat_list_gui_sessions(
         &self,
         limit: usize,
@@ -626,6 +637,7 @@ impl VoxDb {
                         (SELECT COUNT(*) FROM conversation_messages m WHERE m.conversation_id = c.id)
                  FROM conversations c
                  WHERE c.origin_surface = 'gui'
+                   AND c.external_session_id NOT LIKE 'bg-task-%'
                  ORDER BY c.updated_at DESC
                  LIMIT ?1",
                 params![lim],
@@ -832,6 +844,38 @@ mod tests {
             .await
             .expect("ct");
         db.chat_link_message_topic(msg, tid).await.expect("mt");
+    }
+
+    // Code-review fix: `/spawn`, "Deploy skill", and the composer's
+    // "Background task" send mode all give their submit_orchestrator_task
+    // dispatch a `bg-task-*` session id specifically so it's never folded
+    // into a real chat session -- but chat_append_message still persists
+    // under that id regardless, which would otherwise mint a permanent,
+    // one-off "Chat" sidebar entry per background dispatch. Confirms the
+    // sidebar listing filters those out while a real GUI session still shows.
+    #[tokio::test]
+    async fn chat_list_gui_sessions_excludes_bg_task_ids() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        db.chat_ensure_gui_session("gui-real-session", "Chat")
+            .await
+            .expect("ensure real session");
+        db.chat_ensure_gui_session("bg-task-gui-run-1", "Chat")
+            .await
+            .expect("ensure bg-task session");
+
+        let sessions = db.chat_list_gui_sessions(40).await.expect("list sessions");
+        let ids: Vec<&str> = sessions
+            .iter()
+            .map(|(_, _, ext, _, _)| ext.as_str())
+            .collect();
+        assert!(
+            ids.contains(&"gui-real-session"),
+            "a real GUI session must still be listed: {ids:?}"
+        );
+        assert!(
+            !ids.contains(&"bg-task-gui-run-1"),
+            "a bg-task-* session must not appear in the sidebar list: {ids:?}"
+        );
     }
 
     #[tokio::test]

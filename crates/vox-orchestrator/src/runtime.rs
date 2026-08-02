@@ -704,6 +704,31 @@ impl TaskProcessor for AiTaskProcessor {
                 })
             }
         };
+        // Code-review fix: `routed == None` (no eligible model in the registry,
+        // e.g. no local model registered under local_only privacy) used to fall
+        // straight through to `StreamRoute::Cascade` below regardless of
+        // privacy mode. `Cascade` streams from `self.client`'s provider list
+        // (`FreeAiClient::auto_discover()`, built once at construction with no
+        // privacy awareness — it always includes a cloud provider), which is
+        // exactly the cloud egress `VOX_INFERENCE_PRIVACY=local_only` exists to
+        // prevent. Fail closed instead of silently leaking to cloud: if there's
+        // no explicit model_override to honor either, this is an unroutable
+        // request under the current privacy mode.
+        if routed.is_none()
+            && task
+                .model_override
+                .as_deref()
+                .filter(|s| !s.trim().is_empty())
+                .is_none()
+            && crate::route_policy::inference_privacy_local_only_from_env()
+        {
+            anyhow::bail!(
+                "no local model available for task {} under VOX_INFERENCE_PRIVACY=local_only; \
+                 refusing to fall back to a cloud-inclusive Cascade route",
+                task.id.0
+            );
+        }
+
         let (usage_provider, usage_model) = if let Some(ref mo) = task.model_override {
             ("task_override".to_string(), mo.clone())
         } else if let Some(m) = routed.as_ref() {
@@ -1596,20 +1621,29 @@ pub fn spawn_agent_fleet_if_enabled_with_dispatcher(
                 AiTaskProcessor::new(orchestrator.event_bus.clone(), orchestrator.clone()).await
             }
         });
-        let chat = Arc::new(
-            crate::chat_processor::ChatTaskProcessor::new(
-                orchestrator.event_bus.clone(),
-                orchestrator.clone(),
-            )
-            .await,
-        );
+        // Fix Task 4 (gui-axis-chat-harness-fixes): `ChatTaskProcessor` (a
+        // separate, single-shot, non-tool-calling processor for
+        // `TaskCategory::Chat`) is deleted -- it had no tool-calling loop and
+        // never read `task.active_skill`, and nothing produces
+        // `TaskCategory::Chat` in a way that expects that special handling
+        // anymore (the GUI's composer routes chat-category sends through the
+        // synchronous `chat_send_message` path before a background task is
+        // ever submitted; the "Background task" toggle position sends no
+        // category at all, same as `/spawn`). `RoutingTaskProcessor` stays --
+        // it is generic over its two processor types, not hardcoded to
+        // `ChatTaskProcessor` -- but both its `agentic` and `chat` slots now
+        // point at the same `AiTaskProcessor` instance, so a `Chat`-category
+        // task (however it might arise, e.g. an MCP tool caller using
+        // `task_category_from_mcp_str`) is handled by the real, tool-calling,
+        // privacy-filtered pipeline like every other category, not silently
+        // dropped or misrouted.
         let processor: Arc<dyn TaskProcessor> = Arc::new(
-            crate::routing_processor::RoutingTaskProcessor::new(agentic, chat),
+            crate::routing_processor::RoutingTaskProcessor::new(agentic.clone(), agentic),
         );
         let fleet = AgentFleet::new(scheduler, orchestrator, processor);
         tracing::info!(
             target: "vox_orchestrator::runtime",
-            "AgentFleet loop running (RoutingTaskProcessor: AiTaskProcessor + ChatTaskProcessor; MCP / orchestrator-d)"
+            "AgentFleet loop running (RoutingTaskProcessor: AiTaskProcessor for all categories; MCP / orchestrator-d)"
         );
         fleet.run().await;
     });

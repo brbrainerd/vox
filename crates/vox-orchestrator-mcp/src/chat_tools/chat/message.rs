@@ -25,6 +25,20 @@ use vox_orchestrator::session_context_envelope_key;
 const REM_CHAT_CANONICAL: &str = "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
 const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
 
+/// [`try_run_agent_turn`]'s success payload. A named struct (rather than a
+/// 4-tuple) now that the model-selection rationale rides along too — see
+/// Fix Task 7.
+#[derive(Debug)]
+struct AgentTurnResult {
+    text: String,
+    model_used: String,
+    tokens: u64,
+    /// Human-readable reason the model was chosen (`SelectionReason::to_string()`),
+    /// when the rationale-carrying resolver produced one. Surfaced to the GUI as
+    /// `data.selection_reason` for `ModelBadge`'s tooltip.
+    selection_reason: Option<String>,
+}
+
 /// Task 1.3d (F24 wiring): attempt the tool-calling agent loop
 /// ([`super::agent_loop::run_agent_turn`]) for the default (non-`cognitive_profile`)
 /// `vox_chat_message` path.
@@ -37,14 +51,16 @@ const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend
 ///   [`super::agent_loop::model_spec_to_llm_config`] covers (OpenRouter, Ollama).
 /// - `Some(Ok(..))` / `Some(Err(..))` when the agent loop actually ran.
 ///
-/// Model *selection* is unchanged: this still calls
-/// `crate::llm_bridge::resolve_mcp_chat_model` (the rationale-dropping sibling of
-/// `resolve_mcp_chat_model_with_rationale`, which `call_llm` uses internally via
+/// Model *selection*: this calls
+/// `crate::llm_bridge::resolve_mcp_chat_model_with_rationale` (the rationale-carrying
+/// sibling of `resolve_mcp_chat_model`, which `call_llm` also uses internally via
 /// `mcp_infer_completion` — both delegate to the same
-/// `resolve_mcp_chat_model_sync_inner`) — only what happens *after* a model is
-/// chosen differs. `temperature`/`top_p` are `params.temperature`/`params.top_p`
-/// straight from the request, applied to the mapped `LlmConfig` exactly as the
-/// `call_llm` fallback applies them via `temperature_override`/`top_p_override`.
+/// `resolve_mcp_chat_model_sync_inner`) so this hot path's `selection_reason` reaches
+/// the `vox_chat_message` envelope for `ModelBadge`'s tooltip. Everything else about
+/// *after* a model is chosen is unchanged. `temperature`/`top_p` are
+/// `params.temperature`/`params.top_p` straight from the request, applied to the
+/// mapped `LlmConfig` exactly as the `call_llm` fallback applies them via
+/// `temperature_override`/`top_p_override`.
 async fn try_run_agent_turn(
     state: &ServerState,
     system_prompt: &str,
@@ -54,7 +70,7 @@ async fn try_run_agent_turn(
     has_attachment: bool,
     temperature: Option<f32>,
     top_p: Option<f32>,
-) -> Option<Result<(String, String, u64), String>> {
+) -> Option<Result<AgentTurnResult, String>> {
     if has_attachment {
         return None;
     }
@@ -86,7 +102,7 @@ async fn try_run_agent_turn(
         context_fill_ratio,
         ..Default::default()
     };
-    let (model, _is_free) = match crate::llm_bridge::resolve_mcp_chat_model(
+    let choice = match crate::llm_bridge::resolve_mcp_chat_model_with_rationale(
         state,
         user_prompt,
         pref.as_deref(),
@@ -100,6 +116,8 @@ async fn try_run_agent_turn(
         // let the existing `call_llm` path attempt (and correctly surface) it.
         Err(_) => return None,
     };
+    let model = choice.model;
+    let selection_reason = choice.rationale;
 
     let mut llm_config = super::agent_loop::model_spec_to_llm_config(&model)?;
     // Thread sampling overrides through on the mapped path exactly as the
@@ -154,7 +172,12 @@ async fn try_run_agent_turn(
             } else {
                 outcome.final_text
             };
-            Some(Ok((final_text, outcome.model_used, outcome.total_tokens)))
+            Some(Ok(AgentTurnResult {
+                text: final_text,
+                model_used: outcome.model_used,
+                tokens: outcome.total_tokens,
+                selection_reason,
+            }))
         }
         Err(e) => Some(Err(e)),
     }
@@ -513,156 +536,164 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     );
     let llm_started = std::time::Instant::now();
 
-    let (response_text, model_used, tokens) = match params.cognitive_profile.as_deref() {
-        Some(profile) => {
-            let resolution_template = McpChatModelResolution {
-                allow_cheapest_fallback: profile == "fast",
-                complexity: match profile {
-                    "reasoning" => 9,
-                    "creative" => 7,
-                    _ => 5,
-                },
-                ..Default::default()
-            };
-            let base_temperature = if profile == "creative" {
-                0.8_f32
-            } else {
-                0.3_f32
-            };
-            match resolve_chat_llm_model(
-                state,
-                &user_prompt,
-                resolution_template.clone(),
-                Some(session_id.as_str()),
-            )
-            .await
-            {
-                Ok((model, free_only)) => {
-                    let pref = match crate::sync_poison::poison_rw_read(
-                        state.mcp_chat_model_override.read(),
-                        "mcp_chat_model_override",
-                    ) {
-                        Ok(g) => g.clone(),
-                        Err(e) => {
-                            tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
-                            None
-                        }
-                    };
-                    let max_tokens =
-                        crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
-                    let routing = McpInferRouting {
-                        user_prompt: &user_prompt,
-                        sticky_model_pref: pref.as_deref(),
-                        resolution_template,
-                        free_only,
-                        allow_cloud_ollama_fallback: true,
-                        selection_rationale: None,
-                        user_id: Some(session_id.as_str()),
-                    };
-                    match crate::llm_bridge::mcp_infer_completion(
-                        state,
-                        model,
-                        "vox_chat_message",
-                        &system_prompt,
-                        &routing,
-                        max_tokens,
-                        base_temperature,
-                        params.temperature,
-                        params.top_p,
-                        params.json_mode,
-                        params.attachment_manifest.clone(),
-                    )
-                    .await
-                    {
-                        Ok(r) => r,
-                        Err(e) => {
-                            return ToolResult::<String>::err_with_remediation(
-                                format!("LLM error: {e}"),
-                                REM_LLM_COMPLETION,
-                            )
-                            .to_json();
-                        }
-                    }
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        target: "vox_mcp::cognitive_routing",
-                        profile,
-                        error = %e,
-                        "cognitive profile model resolution failed — using standard routing"
-                    );
-                    match call_llm(
-                        state,
-                        &system_prompt,
-                        &user_prompt,
-                        Some(session_id.as_str()),
-                        params.temperature,
-                        params.top_p,
-                        params.attachment_manifest.clone(),
-                    )
-                    .await
-                    {
-                        Ok(r) => r,
-                        Err(e2) => {
-                            return ToolResult::<String>::err_with_remediation(
-                                format!("LLM error: {e2}"),
-                                REM_LLM_COMPLETION,
-                            )
-                            .to_json();
-                        }
-                    }
-                }
-            }
-        }
-        // Default (no cognitive_profile) chat path: Task 1.3d (F24 wiring). Attempt
-        // the tool-calling agent loop (Task 1.3c) whenever the resolved model maps
-        // to a simple provider shape and no multimodal attachment is present (the
-        // mapper does not handle vision/attachment content — see
-        // `super::agent_loop::model_spec_to_llm_config`). Otherwise fall back to
-        // the existing `call_llm` -> `mcp_infer_completion` pipeline unchanged,
-        // which still handles every other provider plus vision/budget/fallback.
-        None => match try_run_agent_turn(
-            state,
-            &system_prompt,
-            &user_prompt,
-            session_id.as_str(),
-            params.skill.clone(),
-            params.attachment_manifest.is_some(),
-            params.temperature,
-            params.top_p,
-        )
-        .await
-        {
-            Some(Ok(r)) => r,
-            Some(Err(e)) => {
-                return ToolResult::<String>::err_with_remediation(
-                    format!("LLM error: {e}"),
-                    REM_LLM_COMPLETION,
+    let (response_text, model_used, tokens, selection_reason) =
+        match params.cognitive_profile.as_deref() {
+            Some(profile) => {
+                let resolution_template = McpChatModelResolution {
+                    allow_cheapest_fallback: profile == "fast",
+                    complexity: match profile {
+                        "reasoning" => 9,
+                        "creative" => 7,
+                        _ => 5,
+                    },
+                    ..Default::default()
+                };
+                let base_temperature = if profile == "creative" {
+                    0.8_f32
+                } else {
+                    0.3_f32
+                };
+                match resolve_chat_llm_model(
+                    state,
+                    &user_prompt,
+                    resolution_template.clone(),
+                    Some(session_id.as_str()),
                 )
-                .to_json();
+                .await
+                {
+                    Ok((model, free_only)) => {
+                        let pref = match crate::sync_poison::poison_rw_read(
+                            state.mcp_chat_model_override.read(),
+                            "mcp_chat_model_override",
+                        ) {
+                            Ok(g) => g.clone(),
+                            Err(e) => {
+                                tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
+                                None
+                            }
+                        };
+                        let max_tokens =
+                            crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
+                        let routing = McpInferRouting {
+                            user_prompt: &user_prompt,
+                            sticky_model_pref: pref.as_deref(),
+                            resolution_template,
+                            free_only,
+                            allow_cloud_ollama_fallback: true,
+                            selection_rationale: None,
+                            user_id: Some(session_id.as_str()),
+                        };
+                        match crate::llm_bridge::mcp_infer_completion(
+                            state,
+                            model,
+                            "vox_chat_message",
+                            &system_prompt,
+                            &routing,
+                            max_tokens,
+                            base_temperature,
+                            params.temperature,
+                            params.top_p,
+                            params.json_mode,
+                            params.attachment_manifest.clone(),
+                        )
+                        .await
+                        {
+                            // `mcp_infer_completion` doesn't surface a selection rationale
+                            // (its `McpInferRouting.selection_rationale` above is `None`
+                            // on the cognitive-profile path) — no `selection_reason` here.
+                            Ok(r) => (r.0, r.1, r.2, None),
+                            Err(e) => {
+                                return ToolResult::<String>::err_with_remediation(
+                                    format!("LLM error: {e}"),
+                                    REM_LLM_COMPLETION,
+                                )
+                                .to_json();
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "vox_mcp::cognitive_routing",
+                            profile,
+                            error = %e,
+                            "cognitive profile model resolution failed — using standard routing"
+                        );
+                        match call_llm(
+                            state,
+                            &system_prompt,
+                            &user_prompt,
+                            Some(session_id.as_str()),
+                            params.temperature,
+                            params.top_p,
+                            params.attachment_manifest.clone(),
+                        )
+                        .await
+                        {
+                            Ok(r) => (r.0, r.1, r.2, None),
+                            Err(e2) => {
+                                return ToolResult::<String>::err_with_remediation(
+                                    format!("LLM error: {e2}"),
+                                    REM_LLM_COMPLETION,
+                                )
+                                .to_json();
+                            }
+                        }
+                    }
+                }
             }
-            None => match call_llm(
+            // Default (no cognitive_profile) chat path: Task 1.3d (F24 wiring). Attempt
+            // the tool-calling agent loop (Task 1.3c) whenever the resolved model maps
+            // to a simple provider shape and no multimodal attachment is present (the
+            // mapper does not handle vision/attachment content — see
+            // `super::agent_loop::model_spec_to_llm_config`). Otherwise fall back to
+            // the existing `call_llm` -> `mcp_infer_completion` pipeline unchanged,
+            // which still handles every other provider plus vision/budget/fallback.
+            None => match try_run_agent_turn(
                 state,
                 &system_prompt,
                 &user_prompt,
-                Some(session_id.as_str()),
+                session_id.as_str(),
+                params.skill.clone(),
+                params.attachment_manifest.is_some(),
                 params.temperature,
                 params.top_p,
-                params.attachment_manifest.clone(),
             )
             .await
             {
-                Ok(r) => r,
-                Err(e) => {
+                Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason),
+                Some(Err(e)) => {
                     return ToolResult::<String>::err_with_remediation(
                         format!("LLM error: {e}"),
                         REM_LLM_COMPLETION,
                     )
                     .to_json();
                 }
+                None => match call_llm(
+                    state,
+                    &system_prompt,
+                    &user_prompt,
+                    Some(session_id.as_str()),
+                    params.temperature,
+                    params.top_p,
+                    params.attachment_manifest.clone(),
+                )
+                .await
+                {
+                    // `call_llm` resolves via the rationale-carrying resolver internally
+                    // but doesn't return the rationale through its `(String, String, u64)`
+                    // return type — out of scope for this task (see `try_run_agent_turn`'s
+                    // doc comment); `selection_reason` is `None` on this fallback path.
+                    Ok(r) => (r.0, r.1, r.2, None),
+                    Err(e) => {
+                        return ToolResult::<String>::err_with_remediation(
+                            format!("LLM error: {e}"),
+                            REM_LLM_COMPLETION,
+                        )
+                        .to_json();
+                    }
+                },
             },
-        },
-    };
+        };
 
     // KB signal adapter: fire-and-forget after response is assembled
     if let Some(db) = state.db.clone() {
@@ -681,6 +712,28 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     let chat_q_key =
         mcp_questioning_session_key(state, "vox_chat_message", Some(session_id.as_str()));
     state.record_questioning_attention_spend(&chat_q_key, llm_started.elapsed().as_millis() as u64);
+
+    // Debit the pilot AttentionBudget for this completed chat turn. This mirrors
+    // what the now-deleted `ChatTaskProcessor::process` (commit bd2ade59ae) used to
+    // do via `Orchestrator::record_chat_attention` after every successful chat
+    // turn — real chat turns moved to this synchronous `chat_message` path, but the
+    // debit call was never carried over, so the GUI's `AttentionBudgetMeter`
+    // (driven purely by `AttentionBudget.spent_ms`, see `record_chat_attention`'s
+    // doc comment on `Orchestrator`) silently stopped moving for normal chat
+    // activity. `state.record_questioning_attention_spend` above debits a
+    // different, unrelated structure (`ServerState`'s in-memory
+    // `questioning_attention_bounds` map) and does not substitute for this.
+    // Token counts are estimated from the actual prompt/response text via
+    // `CompactionEngine::estimate_tokens`, matching `ChatTaskProcessor`'s original
+    // input/output token estimation (it also estimated from `task.description`/
+    // `reply_text` rather than using provider-reported usage numbers).
+    let est_input_tokens =
+        vox_orchestrator::compaction::CompactionEngine::estimate_tokens(&user_prompt) as u32;
+    let est_output_tokens =
+        vox_orchestrator::compaction::CompactionEngine::estimate_tokens(&response_text) as u32;
+    state
+        .orchestrator
+        .record_chat_attention(est_input_tokens, est_output_tokens);
 
     tracing::info!(
         target: "vox_mcp::populi_kpi",
@@ -1000,6 +1053,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         "history": history,
         "model_used": model_used,
         "tokens": tokens,
+        "latency_ms": llm_started.elapsed().as_millis() as u64,
+        "selection_reason": selection_reason,
         "session_id": session_id,
         "socrates": soc,
         "retrieval": retrieval_evidence,
@@ -1013,9 +1068,99 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
 mod tests {
     use super::*;
     use serial_test::serial;
+    use std::path::PathBuf;
     use std::sync::Arc;
+    use tokio::sync::Mutex;
     use vox_db::store::types::ModelOutcome;
     use vox_db::{DbConfig, VoxDb};
+    use vox_orchestrator::models::spec::PricingSource;
+    use vox_orchestrator::models::{ModelCapabilities, ModelSpec, ProviderType};
+    use vox_orchestrator::{
+        AffinityGroupRegistry, Orchestrator, OrchestratorConfig, SessionConfig, SessionManager,
+    };
+    use vox_repository::{RepoCapabilities, RepositoryContext};
+    use vox_skills::new_registry_arc;
+    use wiremock::matchers::method;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    use crate::chat_tools::params::ChatMessageParams;
+
+    // Shared with `agent_loop::tests` — see that lock's doc comment: a private
+    // per-module lock does not serialize against a sibling module's private
+    // lock, so both modules that mutate `OPENROUTER_BASE_URL`/`OPENROUTER_API_KEY`
+    // must hold the same crate-wide lock.
+    use super::super::agent_loop::CHAT_MESSAGE_ENV_LOCK;
+
+    fn test_state() -> ServerState {
+        let cfg = OrchestratorConfig::for_testing();
+        let orch_cfg = cfg.clone();
+        let groups = AffinityGroupRegistry::new(vec![]);
+        let session_cfg = SessionConfig {
+            persist: false,
+            sessions_dir: std::env::temp_dir().join("vox-mcp-message-test-sessions"),
+            ..SessionConfig::default()
+        };
+        let session_manager = SessionManager::new(session_cfg).expect("session manager");
+        let repository = RepositoryContext {
+            root: PathBuf::from("."),
+            git_root: None,
+            repository_id: "message-test".into(),
+            origin_url: None,
+            capabilities: RepoCapabilities {
+                vox_project: false,
+                cargo_workspace: false,
+                cargo_package: false,
+                node_workspace: false,
+                python_project: false,
+                go_module: false,
+                git: false,
+            },
+            has_vox_agents_dir: false,
+            vox_toml: None,
+        };
+        ServerState::hermetic_stub(
+            cfg,
+            repository,
+            Arc::new(Orchestrator::with_groups(orch_cfg, groups)),
+            Arc::new(Mutex::new(session_manager)),
+            new_registry_arc(),
+        )
+    }
+
+    fn model_spec(provider_type: ProviderType, id: &str) -> ModelSpec {
+        ModelSpec {
+            id: id.to_string(),
+            canonical_slug: id.to_string(),
+            provider: "test".to_string(),
+            provider_type,
+            max_tokens: 8192,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            observed_cost_per_1k: None,
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Bootstrap,
+            is_free: false,
+            strengths: Vec::new(),
+            capabilities: ModelCapabilities::default(),
+            supported_parameters: Vec::new(),
+        }
+    }
+
+    fn plain_response_body(content: &str) -> serde_json::Value {
+        serde_json::json!({
+            "id": "chatcmpl-test",
+            "model": "test-model",
+            "choices": [{
+                "index": 0,
+                "message": {"role": "assistant", "content": content},
+                "finish_reason": "stop",
+            }],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+        })
+    }
 
     /// Task 4 spec review finding: `try_run_agent_turn` is the *actual* entry point
     /// for the DEFAULT `vox_chat_message` path (no `cognitive_profile` set) — it
@@ -1096,6 +1241,158 @@ mod tests {
         assert!(
             err.to_lowercase().contains("budget"),
             "expected error to mention budget, got: {err}"
+        );
+    }
+
+    /// Fix Task 6: the turn's elapsed time is already computed (`llm_started.elapsed()`)
+    /// but was never threaded into the envelope `data` object the GUI's `ModelBadge`
+    /// reads. Mirrors `agent_loop::tests::chat_message_default_path_sends_tools_bearing_request`'s
+    /// wiremock harness to drive a real, successful `chat_message` call and assert the
+    /// returned envelope's `data.latency_ms` field is present.
+    #[tokio::test]
+    #[allow(unsafe_code)] // env var mutation under a process-wide lock, like agent_loop's test
+    #[allow(clippy::await_holding_lock)]
+    async fn chat_message_envelope_includes_latency_ms() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("no tools needed")),
+            )
+            .mount(&server)
+            .await;
+
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let state = test_state();
+        let model_id = "test-openrouter-model-latency";
+        {
+            let handle = state.orchestrator.models_handle();
+            let mut registry = handle.write().expect("models registry lock");
+            registry.register(model_spec(ProviderType::OpenRouter, model_id));
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        let params: ChatMessageParams =
+            serde_json::from_value(serde_json::json!({ "prompt": "hello there" }))
+                .expect("chat message params");
+
+        let response_json = chat_message(&state, params).await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&response_json).expect("chat_message must return valid JSON");
+        assert_eq!(
+            parsed["success"], true,
+            "chat_message should succeed via the mapped agent-loop path: {response_json}"
+        );
+        let data = &parsed["data"];
+        assert!(
+            data["model_used"].as_str().is_some(),
+            "sanity check: envelope should carry a model_used string: {response_json}"
+        );
+        assert!(
+            data.get("latency_ms").and_then(|v| v.as_u64()).is_some(),
+            "chat_message envelope `data` must carry a `latency_ms` field for ModelBadge: {response_json}"
+        );
+    }
+
+    /// Regression test for the "attention budget meter never increments during
+    /// chat activity" bug: `ChatTaskProcessor` (the only prior caller of
+    /// `Orchestrator::record_chat_attention`) was deleted in commit `bd2ade59ae`
+    /// once real chat turns moved to this synchronous `chat_message` path, but
+    /// nothing replaced the debit call here. Drives a real, successful
+    /// `chat_message` call through the same wiremock harness as
+    /// `chat_message_envelope_includes_latency_ms` and asserts the
+    /// orchestrator's `BudgetManager` attention `spent_ms` actually increased —
+    /// proving the GUI's `AttentionBudgetMeter` (driven purely by `spent_ms`)
+    /// moves for normal chat activity again.
+    #[tokio::test]
+    #[allow(unsafe_code)] // env var mutation under a process-wide lock, like agent_loop's test
+    #[allow(clippy::await_holding_lock)]
+    async fn chat_message_debits_attention_budget_on_success() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("no tools needed")),
+            )
+            .mount(&server)
+            .await;
+
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let state = test_state();
+        let model_id = "test-openrouter-model-attention";
+        {
+            let handle = state.orchestrator.models_handle();
+            let mut registry = handle.write().expect("models registry lock");
+            registry.register(model_spec(ProviderType::OpenRouter, model_id));
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        let spent_before =
+            vox_orchestrator::sync_lock::rw_read(&*state.orchestrator.budget_manager_handle())
+                .attention_snapshot()
+                .spent_ms;
+
+        let params: ChatMessageParams =
+            serde_json::from_value(serde_json::json!({ "prompt": "hello there" }))
+                .expect("chat message params");
+
+        let response_json = chat_message(&state, params).await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&response_json).expect("chat_message must return valid JSON");
+        assert_eq!(
+            parsed["success"], true,
+            "chat_message should succeed via the mapped agent-loop path: {response_json}"
+        );
+
+        let spent_after =
+            vox_orchestrator::sync_lock::rw_read(&*state.orchestrator.budget_manager_handle())
+                .attention_snapshot()
+                .spent_ms;
+        assert!(
+            spent_after > spent_before,
+            "a successful chat turn must debit AttentionBudget.spent_ms via \
+             Orchestrator::record_chat_attention so the GUI meter moves; \
+             before={spent_before} after={spent_after}"
         );
     }
 }

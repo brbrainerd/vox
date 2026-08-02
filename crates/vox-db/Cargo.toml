@@ -38,7 +38,15 @@ workspace-hack = { workspace = true }
 default = ["local"]
 local = []
 replication = []
-legacy-import = []
+# Implies `quarantine`: the legacy JSONL export/import path
+# (`codex_legacy::LEGACY_EXPORT_TABLES`) still lists the DORMANT/DEAD tables that
+# `quarantine` gates into the schema baseline — a legacy DB predating the
+# condensation plan may still contain rows in them, so a build that can import a
+# legacy chain DB must also be able to create those tables to receive the import.
+# Without this, `local_tests::legacy_tests::*` (which run under `legacy-import`)
+# see a live schema missing ~39 tables `LEGACY_EXPORT_TABLES` still names. See
+# docs/src/architecture/2026-08-01-voxdb-audit-condensation-plan.md Task 4.
+legacy-import = ["quarantine"]
 # Test-only helpers not part of vox-db's normal public API surface (e.g.
 # backdating `created_at` for staleness-window tests). Enabled via
 # `[dev-dependencies]` in downstream crates so it's compiled only for

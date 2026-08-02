@@ -10,6 +10,7 @@ pub mod execution;
 pub mod external_review;
 pub mod foundation;
 pub mod gamification_coordination;
+pub mod harness_eval;
 pub mod history;
 pub mod knowledge;
 pub mod mens_intelligence;

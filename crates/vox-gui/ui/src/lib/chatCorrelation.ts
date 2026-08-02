@@ -20,6 +20,12 @@ export interface ChatMessage {
   sessionId?: string;
   /** Model that produced this assistant message (from cost_incurred). */
   modelId?: string;
+  /** Turn latency in milliseconds, when reported by the reply (synchronous
+   *  chat path only — see `lib/chatSend.ts`'s `ParsedChatReply`). */
+  latencyMs?: number;
+  /** Human-readable reason the model was chosen, when reported by the reply
+   *  (synchronous chat path only — see `lib/chatSend.ts`'s `ParsedChatReply`). */
+  selectionReason?: string;
   /** True when the opt-in post-reply grounding check flagged this reply as
    *  low-confidence (from grounding_check_completed). */
   groundingFlagged?: boolean;
@@ -218,13 +224,16 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
     case 'chatReplySettled': {
       let changed = false;
+      const result = action.result;
+      const errorText = 'error' in result ? result.error : undefined;
+      const okMessage = 'message' in result ? result.message : undefined;
       const messages = state.messages.map((m) => {
         if (m.id !== action.tempId) return m;
         changed = true;
-        if (action.result.ok) {
-          return { ...action.result.message, sessionId: action.sessionId };
+        if (okMessage) {
+          return { ...okMessage, sessionId: action.sessionId };
         }
-        return { ...m, status: 'failed' as const, error: action.result.error };
+        return { ...m, status: 'failed' as const, error: errorText };
       });
       return changed ? { ...state, messages } : state;
     }
