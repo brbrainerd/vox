@@ -1,0 +1,275 @@
+import React, { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { useOnboardingGate } from './useOnboardingGate';
+import { KeysSecretsSection } from '../Settings/SettingsView';
+import type { Toast } from '../../../types/tauri';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
+
+interface SecretStatusRow {
+  id: string;
+  isPresent: boolean;
+}
+
+interface ProviderStatusRow {
+  provider: string;
+  is_local: boolean;
+  local_reachable: boolean | null;
+}
+
+type WizardScreen = 'entry' | 'oauth-in-progress' | 'verifying' | 'has-key' | 'local-model' | 'budget' | 'confirmation';
+
+export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: Toast) => void; gamifyEnabled?: boolean }) {
+  const [secretCount, setSecretCount] = useState<number | null>(null);
+  const [localModelCount, setLocalModelCount] = useState<number | null>(null);
+  const [screen, setScreen] = useState<WizardScreen>('entry');
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  const [oauthFallbackUrl, setOauthFallbackUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const secrets = await invoke<SecretStatusRow[]>('list_secret_status');
+        setSecretCount(secrets.filter((s) => s.isPresent).length);
+      } catch {
+        setSecretCount(0);
+      }
+      try {
+        const providers = await invoke<ProviderStatusRow[]>('inference_provider_status');
+        setLocalModelCount(providers.filter((p) => p.is_local && p.local_reachable === true).length);
+      } catch {
+        setLocalModelCount(0);
+      }
+    })();
+  }, []);
+
+  const gate = useOnboardingGate({
+    secretCount: secretCount ?? 0,
+    localModelCount: localModelCount ?? 0,
+  });
+
+  if (secretCount === null || localModelCount === null || !gate.shouldShow) {
+    return null;
+  }
+
+  const startOAuth = async () => {
+    setScreen('oauth-in-progress');
+    setOauthError(null);
+    setOauthFallbackUrl(null);
+    try {
+      const result = await invoke<{ success: boolean; error: string | null; fallbackUrl: string | null }>('oauth_login_openrouter');
+      if (!result.success) {
+        setOauthError(result.error ?? 'Unknown error');
+        setOauthFallbackUrl(result.fallbackUrl ?? null);
+        setScreen('entry');
+        return;
+      }
+      setScreen('verifying');
+      const works = await invoke<boolean>('verify_openrouter_key').catch(() => false);
+      if (works) {
+        setScreen('budget');
+      } else {
+        setOauthError('Key saved, but a test request failed — check your connection and try again.');
+        setOauthFallbackUrl(null);
+        setScreen('entry');
+      }
+    } catch (err) {
+      setOauthError(sanitizeErrorForToast(err));
+      setOauthFallbackUrl(null);
+      setScreen('entry');
+    }
+  };
+
+  return (
+    <div role="dialog" aria-modal="true" aria-labelledby="onboarding-wizard-heading" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
+      <div className="max-w-lg w-full rounded-xl border border-border-subtle bg-bg-base p-6 shadow-2xl">
+        {screen === 'entry' && (
+          <>
+            <h1 id="onboarding-wizard-heading" className="font-display text-xl font-semibold text-text-primary">
+              Get started with Vox
+            </h1>
+            <p className="mt-2 text-sm text-text-muted">
+              Vox needs a model to talk to. Pick whichever fits you best — you can change this anytime in Settings.
+            </p>
+            {oauthError && (
+              <div role="alert" className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-300">
+                {oauthError}
+                {oauthFallbackUrl && (
+                  <>
+                    {' '}
+                    <a href={oauthFallbackUrl} target="_blank" rel="noreferrer" className="underline">
+                      Open this link manually
+                    </a>
+                    .
+                  </>
+                )}
+              </div>
+            )}
+            <div className="mt-4 flex flex-col gap-2">
+              <button type="button" onClick={startOAuth} className="rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90">
+                Get a free key
+              </button>
+              <button type="button" onClick={() => setScreen('has-key')} className="rounded-lg border border-border-subtle px-4 py-2 text-sm hover:bg-overlay-subtle">
+                I already have an API key
+              </button>
+              <button type="button" onClick={() => setScreen('local-model')} className="rounded-lg border border-border-subtle px-4 py-2 text-sm hover:bg-overlay-subtle">
+                Use a local model
+              </button>
+            </div>
+            <button type="button" onClick={gate.dismiss} className="mt-4 text-[11px] text-text-muted hover:text-text-primary">
+              Skip for now
+            </button>
+          </>
+        )}
+        {screen === 'oauth-in-progress' && (
+          <>
+            <h1 className="font-display text-xl font-semibold text-text-primary">Waiting for OpenRouter…</h1>
+            <p className="mt-2 text-sm text-text-muted">
+              A browser window opened — sign in or create a free OpenRouter account, then come back here.
+            </p>
+          </>
+        )}
+        {screen === 'verifying' && (
+          <>
+            <h1 className="font-display text-xl font-semibold text-text-primary">Checking your key…</h1>
+            <p className="mt-2 text-sm text-text-muted">Confirming it actually works before we finish setup.</p>
+          </>
+        )}
+        {screen === 'has-key' && (
+          <>
+            <h1 className="font-display text-xl font-semibold text-text-primary">Add your API key</h1>
+            <div className="mt-4">
+              <KeysSecretsSection pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
+            </div>
+            <button type="button" onClick={() => setScreen('budget')} className="mt-4 rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90">
+              Done
+            </button>
+          </>
+        )}
+        {screen === 'local-model' && (
+          <>
+            <h1 className="font-display text-xl font-semibold text-text-primary">Use a local model</h1>
+            <p className="mt-2 text-sm text-text-muted">
+              Install{' '}
+              <a href="https://ollama.com/download" target="_blank" rel="noreferrer" className="text-brass underline">
+                Ollama
+              </a>
+              , pull a model, then come back — Vox will detect it automatically.
+            </p>
+            <button type="button" onClick={() => setScreen('budget')} className="mt-4 rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90">
+              Done
+            </button>
+          </>
+        )}
+        {screen === 'budget' && <BudgetSetupScreen onContinue={() => setScreen('confirmation')} />}
+        {screen === 'confirmation' && (
+          <>
+            <h1 className="font-display text-xl font-semibold text-text-primary">You&apos;re set up</h1>
+            <p className="mt-2 text-sm text-text-muted">
+              Auto mode picks a model based on cost and your usage history as it builds up.
+            </p>
+            <button type="button" onClick={gate.dismiss} className="mt-4 rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90">
+              Start using Vox
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Mirrors Rust `UserConfigFieldDto` (crates/vox-gui/src/commands/user_config.rs) —
+ * same wire shape SettingsView's RuntimeConfigSection consumes. */
+interface UserConfigFieldDto {
+  key: string;
+  label: string;
+  hint: string;
+  group: string;
+  kind: string;
+  options: string[];
+  default: string;
+  currentValue: string;
+}
+
+/** Screen 3: review/edit the budget caps set in Phase 1, before finishing onboarding.
+ * Reuses the existing `get_user_config`/`set_user_config` commands — no new Tauri
+ * commands needed for this screen. */
+function BudgetSetupScreen({ onContinue }: { onContinue: () => void }) {
+  const [daily, setDaily] = useState('5');
+  const [perSession, setPerSession] = useState('1');
+  const [warnPct, setWarnPct] = useState('80');
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const fields = await invoke<UserConfigFieldDto[]>('get_user_config');
+        const byKey = Object.fromEntries(fields.map((f) => [f.key, f.currentValue]));
+        if (byKey.daily_budget_usd) setDaily(byKey.daily_budget_usd);
+        if (byKey.per_session_budget_usd) setPerSession(byKey.per_session_budget_usd);
+        if (byKey.budget_warn_threshold_pct) {
+          const pct = Number(byKey.budget_warn_threshold_pct) * 100;
+          setWarnPct(`${pct}`);
+        }
+      } finally {
+        setLoaded(true);
+      }
+    })();
+  }, []);
+
+  const save = async () => {
+    await invoke('set_user_config', { key: 'daily_budget_usd', value: daily });
+    await invoke('set_user_config', { key: 'per_session_budget_usd', value: perSession });
+    await invoke('set_user_config', { key: 'budget_warn_threshold_pct', value: String(Number(warnPct) / 100) });
+    onContinue();
+  };
+
+  return (
+    <>
+      <h1 className="font-display text-xl font-semibold text-text-primary">Set your spending limits</h1>
+      <p className="mt-2 text-sm text-text-muted">
+        This is Vox&apos;s own cap on spend — separate from any free-tier limit your provider applies. You&apos;ll get a warning before it blocks anything.
+      </p>
+      {loaded && (
+        <div className="mt-4 space-y-3">
+          <label className="block text-[11px] text-text-muted">
+            Daily budget (USD)
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={daily}
+              onChange={(e) => setDaily(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-border-subtle bg-transparent px-2 py-1 text-sm text-text-primary"
+            />
+          </label>
+          <label className="block text-[11px] text-text-muted">
+            Per-session budget (USD)
+            <input
+              type="number"
+              min="0"
+              step="0.25"
+              value={perSession}
+              onChange={(e) => setPerSession(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-border-subtle bg-transparent px-2 py-1 text-sm text-text-primary"
+            />
+          </label>
+          <label className="block text-[11px] text-text-muted">
+            Warn me at (% of cap)
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="5"
+              value={warnPct}
+              onChange={(e) => setWarnPct(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-border-subtle bg-transparent px-2 py-1 text-sm text-text-primary"
+            />
+          </label>
+        </div>
+      )}
+      <button type="button" onClick={save} className="mt-4 rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90">
+        Save and continue
+      </button>
+    </>
+  );
+}
