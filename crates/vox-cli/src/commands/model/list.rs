@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn local_only_flag_filters_to_local_providers() {
-        let models = vec![
+        let models = [
             make_spec("cloud-a", ProviderType::OpenRouter, false),
             make_spec("qwen3:8b", ProviderType::Ollama, true),
             make_spec("mesh-model", ProviderType::PopuliMesh, true),

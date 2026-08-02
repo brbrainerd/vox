@@ -360,7 +360,7 @@ token generated at startup and required on every request.
   check).
 - `crates/vox-orchestrator/src/mcp_tools/http_gateway/status.rs` — to
   understand how `auth_required` is surfaced.
-- `crates/vox-secrets/src/spec.rs` — secret spec shape.
+- `crates/vox-secrets/src/spec/` — secret spec shape.
 - `crates/vox-dashboard/src/assets.rs` — current asset handler (no token
   injection).
 - `crates/vox-dashboard/src/transport.ts` — current fetch / WS code.

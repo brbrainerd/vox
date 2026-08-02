@@ -92,7 +92,7 @@ impl EnvSecretShapeDetector {
                     .to_string(),
             ),
             alternatives: vec![
-                "Add a SecretSpec entry in crates/vox-secrets/src/spec.rs, then call \
+                "Add a SecretSpec entry in crates/vox-secrets/src/spec/ (ids.rs + registry/), then call \
                  vox_secrets.resolve(SecretId::YourKey)"
                     .to_string(),
             ],

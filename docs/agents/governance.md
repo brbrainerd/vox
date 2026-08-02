@@ -14,7 +14,7 @@ The Vox codebase enforces architectural health automatically using the TOESTUB e
 **CI / agents (canonical)** — no `vox` feature gate; calls the `toestub` binary directly:
 
 ```bash
-bash scripts/quality/toestub_scoped.sh                    # default root: crates/vox-repository
+vox ci toestub-scoped                                        # default root: crates/vox-repository
 cargo run -p vox-code-audit --bin toestub -- <PATH>         # explicit scan root
 ```
 
@@ -27,7 +27,7 @@ vox stub-check --severity error            # only errors and critical
 # Fix suggestions: `--suggest-fixes` (default true); there is no `--fix` flag
 ```
 
-GitHub CI runs the **scoped** TOESTUB pass above (`toestub_scoped.sh`). When you run **`vox stub-check`**, it exits non-zero on error/critical findings for the configured scan (see CLI flags in [`ref-cli.md`](../src/ref-cli.md)).
+GitHub CI runs the **scoped** TOESTUB pass above (`vox ci toestub-scoped`). When you run **`vox stub-check`**, it exits non-zero on error/critical findings for the configured scan (see CLI flags in [`ref-cli.md`](../src/ref-cli.md)).
 
 ## Enforced Rules
 
