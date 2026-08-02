@@ -239,14 +239,52 @@ pub async fn precheck_quarantine_tables_empty(
 ///
 /// **No automated rollback and no backup taken here** — see the module-level note above. Callers
 /// must keep their own backup of the database file before invoking this.
+///
+/// **Atomicity and the precheck-then-drop race.** The precheck (`SELECT COUNT(*)` per table) and
+/// the drops run inside a single `BEGIN IMMEDIATE` / `COMMIT` transaction, not as separate
+/// unguarded statements. `BEGIN IMMEDIATE` acquires SQLite's write lock immediately, before the
+/// first `SELECT`, so no other connection can insert a row into a target table between the
+/// precheck and the corresponding `DROP TABLE` — closing the check-then-act race a plain
+/// check-then-drop sequence would otherwise have. It also makes the 47 drops all-or-nothing: if
+/// any individual `DROP TABLE` fails partway through (disk full, I/O error, etc.), the whole
+/// transaction rolls back and the database is left exactly as it was before this call, not in a
+/// partially-dropped state. **Precondition:** as with any `BEGIN IMMEDIATE` transaction, this
+/// function assumes it has the connection to itself for its duration — a second writer sharing
+/// the same `turso::Connection` concurrently would still be a caller-side misuse, just no longer
+/// a way to lose data silently (it would instead see this transaction's write lock and wait/error
+/// per normal SQLite busy-handling, not race past it).
 pub async fn migrate_dropping_quarantine(conn: &turso::Connection) -> Result<(), StoreError> {
-    precheck_quarantine_tables_empty(conn).await?;
-    for table in QUARANTINE_DROP_TABLES {
-        let quoted = quote_ident(table);
-        conn.execute(&format!("DROP TABLE IF EXISTS {quoted}"), ())
-            .await
-            .map_err(StoreError::from)?;
+    conn.execute("BEGIN IMMEDIATE", ())
+        .await
+        .map_err(StoreError::from)?;
+
+    let body = async {
+        precheck_quarantine_tables_empty(conn).await?;
+        for table in QUARANTINE_DROP_TABLES {
+            let quoted = quote_ident(table);
+            conn.execute(&format!("DROP TABLE IF EXISTS {quoted}"), ())
+                .await
+                .map_err(StoreError::from)?;
+        }
+        Ok::<(), StoreError>(())
+    };
+
+    match body.await {
+        Ok(()) => {
+            if let Err(e) = conn.execute("COMMIT", ()).await {
+                // COMMIT failed — roll back to prevent a partial-state leak.
+                let _ = conn.execute("ROLLBACK", ()).await;
+                return Err(StoreError::Db(format!(
+                    "quarantine drop commit failed: {e}"
+                )));
+            }
+        }
+        Err(e) => {
+            let _ = conn.execute("ROLLBACK", ()).await;
+            return Err(e);
+        }
     }
+
     crate::VoxDb::migrate(conn).await
 }
 
