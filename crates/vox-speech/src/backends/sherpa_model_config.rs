@@ -151,7 +151,8 @@ mod tests {
     #[test]
     fn transducer_paths_resolve_from_local_dir() {
         // Held for the duration of the test: see `crate::env_test_lock` doc
-        // comment — this env var is also mutated by backend_dispatch's test.
+        // comment — a planned backend_dispatch test (Task 6) will also
+        // mutate this env var and must take this same lock.
         let _guard = crate::env_test_lock::SHERPA_MODEL_DIR_ENV_LOCK
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
