@@ -21,6 +21,7 @@ import { GroundingCheckToggle } from './components/surfaces/Chat/GroundingCheckT
 import { useGroundingCheck } from './hooks/useGroundingCheck';
 import { Toasts, ToastItem } from './components/ui/Toasts';
 import { coalesceToast } from './lib/toastQueue';
+import { scrollAndFocusAnchor } from './lib/anchorFocus';
 import { BackendBanner } from './components/ui/BackendBanner';
 import { VersionMismatchBanner } from './components/layout/VersionMismatchBanner';
 import { OnboardingWizard } from './components/surfaces/Onboarding/OnboardingWizard';
@@ -382,6 +383,55 @@ export default function App() {
       return items;
     });
   }, []);
+
+  // ── Budget warn toast (non-blocking, distinct from the hard-block "Budget
+  // limit reached" toast in `dispatchErrorToast`) ─────────────────────────
+  // `budget_warn_threshold_pct` is read once (VoxConfig, via the same
+  // `get_user_config` command Settings/Onboarding already use) and cached —
+  // it rarely changes mid-session and isn't worth a refetch per message.
+  const budgetWarnThresholdPctRef = useRef<number | null>(null);
+  useEffect(() => {
+    invoke<Array<{ key: string; currentValue: string }>>('get_user_config')
+      .then((fields) => {
+        const field = fields?.find((f) => f.key === 'budget_warn_threshold_pct');
+        if (field) {
+          const pct = Number(field.currentValue);
+          if (Number.isFinite(pct)) budgetWarnThresholdPctRef.current = pct;
+        }
+      })
+      .catch(() => { /* nice-to-have; leave threshold unset on failure */ });
+  }, []);
+  // Fires at most once per session — dedup flag reset when the active
+  // session changes, since a fresh session starts with $0 spend anyway and
+  // shouldn't inherit a previous session's "already warned" state.
+  const budgetWarnedRef = useRef(false);
+  useEffect(() => { budgetWarnedRef.current = false; }, [activeSessionId]);
+
+  const checkBudgetWarn = useCallback((sessionId: string) => {
+    if (budgetWarnedRef.current) return;
+    const threshold = budgetWarnThresholdPctRef.current;
+    if (threshold == null) return;
+    invoke<{ sessionUsd: number; dayUsd: number; totalUsd: number; dailyBudgetUsd: number; perSessionBudgetUsd: number }>(
+      'get_llm_spend',
+      { sessionId },
+    )
+      .then((spend) => {
+        if (!spend || budgetWarnedRef.current) return;
+        const dayRatio = spend.dailyBudgetUsd > 0 ? spend.dayUsd / spend.dailyBudgetUsd : 0;
+        const sessionRatio = spend.perSessionBudgetUsd > 0 ? spend.sessionUsd / spend.perSessionBudgetUsd : 0;
+        const dayWarn = dayRatio >= threshold && dayRatio < 1.0;
+        const sessionWarn = sessionRatio >= threshold && sessionRatio < 1.0;
+        if (!dayWarn && !sessionWarn) return;
+        budgetWarnedRef.current = true;
+        // Prefer whichever cap is closer to its limit when both cross.
+        const useDayCap = dayWarn && (!sessionWarn || dayRatio >= sessionRatio);
+        const body = useDayCap
+          ? `You've used ${Math.round(dayRatio * 100)}% of your daily budget ($${spend.dayUsd.toFixed(2)} of $${spend.dailyBudgetUsd.toFixed(2)}).`
+          : `You've used ${Math.round(sessionRatio * 100)}% of your session budget ($${spend.sessionUsd.toFixed(2)} of $${spend.perSessionBudgetUsd.toFixed(2)}).`;
+        pushToast({ tone: 'warn', title: 'Approaching budget limit', body, cause: 'backend-ok' });
+      })
+      .catch(() => { /* nice-to-have; never surface an error for this check */ });
+  }, [pushToast]);
 
   const openAchievements = useCallback(() => {
     setAchievementsOpen(true);
@@ -872,6 +922,7 @@ export default function App() {
             },
           },
         });
+        checkBudgetWarn(sessionId);
       } catch (err) {
         const errorText = sanitizeErrorForToast(err);
         dispatchSessionChat({
@@ -970,11 +1021,12 @@ export default function App() {
           { session_id: sessionId, task_id: String(result.task_id) },
           { enabled: gamifySettings.enabled },
         );
+        checkBudgetWarn(sessionId);
       }
     } catch (err) {
       pushToast(dispatchErrorToast(sanitizeErrorForToast(err), 'Dispatch Failed'));
     }
-  }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill, gamifySettings.enabled]);
+  }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill, gamifySettings.enabled, checkBudgetWarn]);
 
   const handleLoquelaSlash = useCallback(async (
     cmd: string,
@@ -1467,8 +1519,7 @@ export default function App() {
           navigateTo(vk);
           if (anchorId) {
             requestAnimationFrame(() => {
-              const el = document.getElementById(anchorId);
-              el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+              scrollAndFocusAnchor(anchorId);
             });
           }
         }}

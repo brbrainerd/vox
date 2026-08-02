@@ -229,6 +229,131 @@ describe('App shell', () => {
     expect(screen.queryByText('Dispatch Failed')).toBeNull();
   });
 
+  // Non-blocking budget-warn toast: distinct from "Budget limit reached"
+  // (the hard-block toast above) — fires once spend crosses
+  // `budget_warn_threshold_pct` but before the hard cap, after a SUCCESSFUL
+  // chat_send_message dispatch. See `checkBudgetWarn` in App.tsx.
+  it('a successful chat_send_message past the warn threshold produces an "Approaching budget limit" toast', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'get_user_config') {
+        return Promise.resolve([
+          { key: 'budget_warn_threshold_pct', label: '', hint: '', group: '', kind: 'float', options: [], default: '0.8', currentValue: '0.8' },
+        ]);
+      }
+      if (cmd === 'get_llm_spend') {
+        return Promise.resolve({
+          sessionUsd: 0, dayUsd: 4.25, totalUsd: 4.25, dailyBudgetUsd: 5.0, perSessionBudgetUsd: 2.0,
+        });
+      }
+      if (cmd === 'chat_send_message') {
+        return Promise.resolve({ id: 'reply-1', text: 'hi there', modelId: null, latencyMs: 10, selectionReason: null });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, 'hello there');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Approaching budget limit')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/85% of your daily budget/)).toBeInTheDocument();
+  });
+
+  it('a successful chat_send_message below the warn threshold produces no budget-warn toast', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'get_user_config') {
+        return Promise.resolve([
+          { key: 'budget_warn_threshold_pct', label: '', hint: '', group: '', kind: 'float', options: [], default: '0.8', currentValue: '0.8' },
+        ]);
+      }
+      if (cmd === 'get_llm_spend') {
+        return Promise.resolve({
+          sessionUsd: 0, dayUsd: 1.0, totalUsd: 1.0, dailyBudgetUsd: 5.0, perSessionBudgetUsd: 2.0,
+        });
+      }
+      if (cmd === 'chat_send_message') {
+        return Promise.resolve({ id: 'reply-1', text: 'hi there', modelId: null, latencyMs: 10, selectionReason: null });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, 'hello there');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+    );
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('get_llm_spend', expect.anything()),
+    );
+    expect(screen.queryByText('Approaching budget limit')).toBeNull();
+  });
+
+  it('the budget-warn toast fires only once even after a second message past the threshold', async () => {
+    let replySeq = 0;
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'get_user_config') {
+        return Promise.resolve([
+          { key: 'budget_warn_threshold_pct', label: '', hint: '', group: '', kind: 'float', options: [], default: '0.8', currentValue: '0.8' },
+        ]);
+      }
+      if (cmd === 'get_llm_spend') {
+        return Promise.resolve({
+          sessionUsd: 0, dayUsd: 4.25, totalUsd: 4.25, dailyBudgetUsd: 5.0, perSessionBudgetUsd: 2.0,
+        });
+      }
+      if (cmd === 'chat_send_message') {
+        replySeq += 1;
+        return Promise.resolve({ id: `reply-${replySeq}`, text: 'hi there', modelId: null, latencyMs: 10, selectionReason: null });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, 'hello there');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText('Approaching budget limit')).toBeInTheDocument();
+    });
+
+    await user.click(composer);
+    await user.type(composer, 'second message');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock.mock.calls.filter((c) => c[0] === 'chat_send_message').length).toBeGreaterThanOrEqual(2),
+    );
+    expect(screen.getAllByText('Approaching budget limit').length).toBe(1);
+  });
+
   // Regression: ⌘. used to be displayed in Settings but wired to no handler.
   // It must now be claimed by the global keydown handler (preventDefault fires).
   it('handles ⌘. (Cmd+Period) globally', () => {
