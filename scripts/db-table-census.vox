@@ -151,11 +151,19 @@ fn collect_usage_files(root: str) to list[str] {
 // One classification row.
 // status: "LIVE" | "DORMANT" | "DEAD"
 // refs: full list of referencing file paths (vox_db-side + outside combined)
+// evidence: "literal_string" (table name found as a literal outside vox-db)
+//   or "wrapper_call" (promoted from DORMANT by the wrapper-call pass below
+//   — the table name never appears outside vox-db, but a vox-db function
+//   whose body references it is called by name from outside).
+// wrapper_fn: the wrapper function name that justified the promotion, "" if
+//   evidence is "literal_string".
 type TableUsage {
     name: str,
     status: str,
     outside_refs: list[str],
     vox_db_refs: list[str],
+    evidence: str,
+    wrapper_fn: str,
 }
 
 // Classify every table in `tables` against files found under `root`.
@@ -232,10 +240,258 @@ fn classify_tables(tables: list[str], root: str) to list[TableUsage] {
             status: status,
             outside_refs: outside_refs,
             vox_db_refs: vox_db_refs,
+            evidence: "literal_string",
+            wrapper_fn: "",
         })
         t = t + 1
     }
     return results
+}
+
+// ── Wrapper-call detection pass (Task 1b) ───────────────────────────────────
+//
+// The literal-string pass above has a blind spot: a table can be genuinely
+// live via a `VoxDb` facade/ops function (e.g. `db.acquire_distributed_lock()`)
+// whose *name* doesn't contain the table name as a substring. A DORMANT
+// table (no outside literal-string reference, but a vox-db-side reference
+// exists) may actually be reached this way. DEAD tables are not reconsidered
+// here: zero internal vox-db references means there is no wrapper function
+// to trace in the first place.
+//
+// Approach, per DORMANT table:
+//   1. Re-read each of its already-recorded vox_db_refs files.
+//   2. Find every `pub fn` / `pub async fn` in that file (brace-counted
+//      body, same technique as scripts/db-test-census.vox's test-body
+//      extraction) whose body contains the table name literally — this is
+//      the candidate wrapper function that actually does the CRUD.
+//   3. Collect all candidate function names across all DORMANT tables into
+//      ONE combined alternation regex, and do a SINGLE pass over every
+//      "outside" usage file checking for calls to any of them (`.name(` or
+//      bare `name(` — `\bname\(` matches both, since `.` is a non-word
+//      char and `\b` fires at the word/non-word boundary right after it).
+//      This mirrors classify_tables' pre-filter discipline: one combined
+//      regex pass per file, not one search per function name per file.
+//   4. A table is promoted to LIVE only on a HIGH-CONFIDENCE hit (function
+//      name has an underscore and is at least 8 chars — screens out short/
+//      generic verbs like `get`, `run`, `list` that would otherwise produce
+//      noisy false-promotions). Low-confidence hits are recorded separately
+//      and never silently promote a table.
+
+fn is_pub_fn_line(line: str) to bool {
+    if regex.is_match(line, "^\\s*pub\\s+async\\s+fn\\s+[A-Za-z_][A-Za-z0-9_]*") { return true }
+    if regex.is_match(line, "^\\s*pub\\s+fn\\s+[A-Za-z_][A-Za-z0-9_]*") { return true }
+    return false
+}
+
+fn extract_pub_fn_name(line: str) to str {
+    let parts = line.split("fn ")
+    if parts.len() < 2 { return "" }
+    let tail = parts.get(parts.len() - 1).unwrap()
+    let name_part = tail.split("(").get(0).unwrap().trim()
+    let name_part2 = name_part.split("<").get(0).unwrap().trim()
+    return name_part2
+}
+
+// Is `name` a low-confidence wrapper candidate? Short or underscore-free
+// names (e.g. `get`, `run`, `list`) are common-English/generic enough that
+// a bare `\bname\(` match elsewhere in the workspace is not trustworthy
+// evidence of a real call to *this* function — flag, don't auto-promote.
+fn is_low_confidence_fn_name(name: str) to bool {
+    if name.len() < 8 { return true }
+    if not name.contains("_") { return true }
+    return false
+}
+
+// Extract every `pub fn`/`pub async fn` name + brace-counted body from
+// `content`. Same technique as db-test-census.vox's extract_tests_from_content.
+fn extract_pub_fns_from_content(content: str) to list[TestFn] {
+    let lines = content.split("\n")
+    let mut results: list[TestFn] = []
+    let mut i = 0
+    while i < lines.len() {
+        let line = lines.get(i).unwrap()
+        if is_pub_fn_line(line) {
+            let fn_name = extract_pub_fn_name(line)
+            let mut depth = 0
+            let mut started = false
+            let mut body = ""
+            let mut k = i
+            while k < lines.len() {
+                let lk = lines.get(k).unwrap()
+                body = body + lk + "\n"
+                let opens = lk.split("{").len() - 1
+                let closes = lk.split("}").len() - 1
+                depth = depth + opens - closes
+                if opens > 0 { started = true }
+                if started {
+                    if depth <= 0 { break }
+                }
+                k = k + 1
+            }
+            if fn_name != "" {
+                results = results.push({ name: fn_name, file: "", body: body })
+            }
+            i = k + 1
+            continue
+        }
+        i = i + 1
+    }
+    return results
+}
+
+// Reused record shape for both "test function" (db-test-census.vox's own
+// copy) and "candidate wrapper function" extraction here — `file` is unused
+// in this script's usage (kept "" ) but keeps the record shape identical to
+// the brace-counting helper's origin so the two stay easy to compare.
+type TestFn {
+    name: str,
+    file: str,
+    body: str,
+}
+
+// Candidate wrapper function names (deduped) in `content` whose body
+// references `table` literally.
+fn wrapper_candidates_in_file(content: str, table: str) to list[str] {
+    if not content.contains("pub fn") and not content.contains("pub async fn") { return [] }
+    let fns = extract_pub_fns_from_content(content)
+    let pat = "\\b" + table + "\\b"
+    let mut out: list[str] = []
+    for f in fns {
+        if regex.is_match(f.body, pat) {
+            if not contains_str(out, f.name) { out = out.push(f.name) }
+        }
+    }
+    return out
+}
+
+// One wrapper-call finding: `table` was reclassifiable via `fn_name`, found
+// called from `call_sites` (outside files). `low_confidence` gates whether
+// the caller auto-promotes the table to LIVE or merely flags it.
+type WrapperFinding {
+    table: str,
+    fn_name: str,
+    call_sites: list[str],
+    low_confidence: bool,
+}
+
+// Run the full wrapper-call detection pass described above against every
+// DORMANT row in `classified`. Pure(ish) — only reads files under `root`.
+fn find_wrapper_reclassifications(classified: list[TableUsage], root: str) to list[WrapperFinding] {
+    // Step 1-2: gather candidate wrapper fn names per DORMANT table.
+    let mut fn_table_map_fn: list[str] = []
+    let mut fn_table_map_table: list[str] = []
+    let mut fn_low_conf: list[bool] = []
+    let mut all_fn_names: list[str] = []
+
+    for row in classified {
+        if row.status != "DORMANT" { continue }
+        for path in row.vox_db_refs {
+            let c = fs.read(path)
+            if c.is_err() { continue }
+            let content = c.unwrap()
+            let cands = wrapper_candidates_in_file(content, row.name)
+            for name in cands {
+                fn_table_map_fn = fn_table_map_fn.push(name)
+                fn_table_map_table = fn_table_map_table.push(row.name)
+                fn_low_conf = fn_low_conf.push(is_low_confidence_fn_name(name))
+                if not contains_str(all_fn_names, name) { all_fn_names = all_fn_names.push(name) }
+            }
+        }
+    }
+
+    if all_fn_names.len() == 0 { return [] }
+
+    // Step 3: ONE combined-regex pass over every "outside" usage file.
+    let files = collect_usage_files(root)
+    let mut alt = ""
+    let mut ai = 0
+    while ai < all_fn_names.len() {
+        if ai > 0 { alt = alt + "|" }
+        alt = alt + all_fn_names.get(ai).unwrap()
+        ai = ai + 1
+    }
+    let combined = "\\b(" + alt + ")\\("
+
+    let mut hit_fn_flat: list[str] = []
+    let mut hit_path_flat: list[str] = []
+
+    for path in files {
+        if is_vox_db_side(path) { continue }
+        let c = fs.read(path)
+        if c.is_err() { continue }
+        let content = c.unwrap()
+        if not regex.is_match(content, combined) { continue }
+        // Combined regex only tells us the file matched SOME candidate;
+        // all_fn_names is small (bounded by DORMANT-table count), so a
+        // per-name recheck confined to files that already passed the
+        // cheap pre-filter is fine.
+        for name in all_fn_names {
+            let pat = "\\b" + name + "\\("
+            if regex.is_match(content, pat) {
+                hit_fn_flat = hit_fn_flat.push(name)
+                hit_path_flat = hit_path_flat.push(path)
+            }
+        }
+    }
+
+    // Step 4: assemble findings (only for candidates with >=1 outside hit).
+    let mut findings: list[WrapperFinding] = []
+    let mut i3 = 0
+    while i3 < fn_table_map_fn.len() {
+        let fname = fn_table_map_fn.get(i3).unwrap()
+        let tname = fn_table_map_table.get(i3).unwrap()
+        let low = fn_low_conf.get(i3).unwrap()
+        let mut sites: list[str] = []
+        let mut hj = 0
+        while hj < hit_fn_flat.len() {
+            if hit_fn_flat.get(hj).unwrap() == fname {
+                let p = hit_path_flat.get(hj).unwrap()
+                if not contains_str(sites, p) { sites = sites.push(p) }
+            }
+            hj = hj + 1
+        }
+        if sites.len() > 0 {
+            findings = findings.push({ table: tname, fn_name: fname, call_sites: sites, low_confidence: low })
+        }
+        i3 = i3 + 1
+    }
+    return findings
+}
+
+// Apply `findings` to `classified`: promote a DORMANT table to LIVE only on
+// its first HIGH-CONFIDENCE finding (evidence="wrapper_call"); low-confidence
+// findings never change status. Returns the updated table list plus the
+// full finding list unchanged (caller separates high/low for reporting).
+fn apply_wrapper_findings(classified: list[TableUsage], findings: list[WrapperFinding]) to list[TableUsage] {
+    let mut out: list[TableUsage] = []
+    for row in classified {
+        if row.status != "DORMANT" {
+            out = out.push(row)
+            continue
+        }
+        let mut matched_fn = ""
+        let mut matched_sites: list[str] = []
+        for f in findings {
+            if matched_fn != "" { continue }
+            if f.table == row.name and not f.low_confidence {
+                matched_fn = f.fn_name
+                matched_sites = f.call_sites
+            }
+        }
+        if matched_fn != "" {
+            out = out.push({
+                name: row.name,
+                status: "LIVE",
+                outside_refs: list_concat_str(row.outside_refs, matched_sites),
+                vox_db_refs: row.vox_db_refs,
+                evidence: "wrapper_call",
+                wrapper_fn: matched_fn,
+            })
+        } else {
+            out = out.push(row)
+        }
+    }
+    return out
 }
 
 // ── Row counts via `vox db audit` (design: query sqlite_master directly) ───
@@ -327,6 +583,7 @@ fn main() {
     if contains_str(argv, "--self-test") {
         test_classify_tables_fixture()
         test_sensitive_table_names_include_known_secrets()
+        test_wrapper_call_promotes_dormant_to_live()
         print("db-table-census: self-test OK")
         return
     }
@@ -345,7 +602,11 @@ fn main() {
     }
 
     print("db-table-census: " + str(tables.len()) + " tables found, classifying against " + root + " ...")
-    let classified = classify_tables(tables, root)
+    let classified_pass1 = classify_tables(tables, root)
+
+    print("db-table-census: running wrapper-call detection pass over DORMANT tables ...")
+    let findings = find_wrapper_reclassifications(classified_pass1, root)
+    let classified = apply_wrapper_findings(classified_pass1, findings)
 
     if not fs.exists("graphify-out") {
         match fs.mkdir("graphify-out") { Ok(_) => {} Error(_) => {} }
@@ -371,6 +632,8 @@ fn main() {
         let mut entry = "  {\"table\":\"" + json_escape(row.name) + "\""
         entry = entry + ",\"rows\":" + str(rc)
         entry = entry + ",\"status\":\"" + row.status + "\""
+        entry = entry + ",\"evidence\":\"" + row.evidence + "\""
+        entry = entry + ",\"wrapper_fn\":\"" + json_escape(row.wrapper_fn) + "\""
         entry = entry + ",\"sensitive\":" + str(is_sensitive)
         if is_sensitive {
             // Sensitive tables: counts only, never file paths (they could
@@ -387,12 +650,74 @@ fn main() {
     j = j + "\n]\n"
     fs.write_file("graphify-out/table_usage_report.json", j)
 
+    // Low-confidence wrapper-call candidates: never silently promoted (see
+    // apply_wrapper_findings), but recorded so a human can review them —
+    // sidecar file, not merged into table_usage_report.json, since these
+    // are NOT part of any table's computed status.
+    let mut lj = "[\n"
+    let mut lji = 0
+    let mut first_low = true
+    while lji < findings.len() {
+        let f = findings.get(lji).unwrap()
+        if f.low_confidence {
+            if not first_low { lj = lj + ",\n" }
+            first_low = false
+            lj = lj + "  {\"table\":\"" + json_escape(f.table) + "\""
+            lj = lj + ",\"fn_name\":\"" + json_escape(f.fn_name) + "\""
+            lj = lj + ",\"call_sites\":" + json_str_array(f.call_sites)
+            lj = lj + "}"
+        }
+        lji = lji + 1
+    }
+    lj = lj + "\n]\n"
+    fs.write_file("graphify-out/table_usage_wrapper_low_confidence.json", lj)
+
     print("")
     print("=== db-table-census summary ===")
     print("Total tables: " + str(classified.len()))
     print("  LIVE:    " + str(live))
     print("  DORMANT: " + str(dormant))
     print("  DEAD:    " + str(dead))
+    print("")
+
+    let mut promoted = 0
+    let mut pi = 0
+    while pi < classified.len() {
+        let row = classified.get(pi).unwrap()
+        if row.evidence == "wrapper_call" { promoted = promoted + 1 }
+        pi = pi + 1
+    }
+    print("Reclassified DORMANT -> LIVE via wrapper-call detection: " + str(promoted))
+    if promoted > 0 {
+        let mut wi = 0
+        while wi < classified.len() {
+            let row = classified.get(wi).unwrap()
+            if row.evidence == "wrapper_call" {
+                print("  - " + row.name + " (via " + row.wrapper_fn + "(...))")
+            }
+            wi = wi + 1
+        }
+    }
+    print("")
+
+    let mut low_count = 0
+    let mut lfi = 0
+    while lfi < findings.len() {
+        let f = findings.get(lfi).unwrap()
+        if f.low_confidence { low_count = low_count + 1 }
+        lfi = lfi + 1
+    }
+    print("Low-confidence wrapper-call candidates (NOT auto-promoted, flagged for manual review): " + str(low_count))
+    if low_count > 0 {
+        let mut lfi2 = 0
+        while lfi2 < findings.len() {
+            let f = findings.get(lfi2).unwrap()
+            if f.low_confidence {
+                print("  - " + f.table + " <- " + f.fn_name + "(...) [" + str(f.call_sites.len()) + " outside call site(s)]")
+            }
+            lfi2 = lfi2 + 1
+        }
+    }
     print("")
     print("Sensitive tables (do not auto-quarantine without manual review):")
     let mut si = 0
@@ -464,4 +789,74 @@ fn test_sensitive_table_names_include_known_secrets() to Unit {
     let names = sensitive_table_names()
     assert(contains_str(names, "clavis_account_secrets") is true)
     assert(contains_str(names, "user_identities") is true)
+}
+
+// ── Task 1b fixture test: wrapper-call detection (RED before this pass
+// existed — literal-string classify_tables alone reports both
+// fixture_wrapper_table and fixture_low_confidence_table as DORMANT, since
+// neither table name appears outside vox-db; GREEN now with the wrapper-call
+// pass applied) ───────────────────────────────────────────────────────────
+//   fixture_wrapper_table        -> LIVE, evidence="wrapper_call"
+//     (only vox-db-side reference is ops_wrapper_fixture.rs::
+//     acquire_widget_lease, whose name doesn't contain the table name, but
+//     which IS called from crates/other-crate/src/consumer.rs)
+//   fixture_low_confidence_table -> stays DORMANT
+//     (only vox-db-side reference is ops_wrapper_fixture.rs::list, called
+//     from consumer.rs, but `list` is a short/underscore-free generic name
+//     — must be flagged low-confidence, not silently auto-promoted)
+@test
+fn test_wrapper_call_promotes_dormant_to_live() to Unit {
+    let root = fixture_repo_root()
+    let tables = ["fixture_wrapper_table", "fixture_low_confidence_table"]
+    let pass1 = classify_tables(tables, root)
+
+    // Sanity: literal-string pass alone must NOT see either as LIVE — that's
+    // the whole point of this fixture (proves the blind spot is real before
+    // asserting the fix closes it).
+    let mut p1i = 0
+    while p1i < pass1.len() {
+        let r = pass1.get(p1i).unwrap()
+        assert(r.status is "DORMANT")
+        p1i = p1i + 1
+    }
+
+    let findings = find_wrapper_reclassifications(pass1, root)
+    let final_rows = apply_wrapper_findings(pass1, findings)
+
+    let mut wrapper_status = ""
+    let mut wrapper_evidence = ""
+    let mut wrapper_fn_name = ""
+    let mut low_conf_status = ""
+    let mut i = 0
+    while i < final_rows.len() {
+        let r = final_rows.get(i).unwrap()
+        if r.name == "fixture_wrapper_table" {
+            wrapper_status = r.status
+            wrapper_evidence = r.evidence
+            wrapper_fn_name = r.wrapper_fn
+        }
+        if r.name == "fixture_low_confidence_table" {
+            low_conf_status = r.status
+        }
+        i = i + 1
+    }
+
+    assert(wrapper_status is "LIVE")
+    assert(wrapper_evidence is "wrapper_call")
+    assert(wrapper_fn_name is "acquire_widget_lease")
+    // Low-confidence candidate must NOT be auto-promoted.
+    assert(low_conf_status is "DORMANT")
+
+    // The low-confidence finding must still be surfaced (flagged, not
+    // silently dropped) for manual review.
+    let mut saw_low_conf_finding = false
+    let mut fi = 0
+    while fi < findings.len() {
+        let f = findings.get(fi).unwrap()
+        if f.table == "fixture_low_confidence_table" and f.low_confidence {
+            saw_low_conf_finding = true
+        }
+        fi = fi + 1
+    }
+    assert(saw_low_conf_finding is true)
 }

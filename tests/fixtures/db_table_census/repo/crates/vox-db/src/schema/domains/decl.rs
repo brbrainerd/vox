@@ -20,3 +20,13 @@ CREATE TABLE IF NOT EXISTS fixture_excluded_table (
     _id INTEGER PRIMARY KEY,
     name TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS fixture_wrapper_table (
+    _id INTEGER PRIMARY KEY,
+    owner TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS fixture_low_confidence_table (
+    _id INTEGER PRIMARY KEY,
+    owner TEXT NOT NULL
+);
