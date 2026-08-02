@@ -209,6 +209,10 @@ fn source_authority_score(url: &str) -> f64 {
         || key.ends_with(".gov")
         || key.contains(".edu/")
         || key.ends_with(".edu")
+        || key.contains("wikipedia.org/")
+        || key.contains("reuters.com/")
+        || key.contains("apnews.com/")
+        || key.contains("bbc.co")
     {
         1.25
     } else if key.contains("arxiv.org/")
@@ -249,5 +253,23 @@ mod tests {
 
         assert_eq!(results.len(), 2);
         assert!(results[0].url.contains("docs.rs"));
+    }
+
+    #[test]
+    fn rank_and_dedupe_boosts_general_authority_sources() {
+        let mut results = vec![
+            result("https://blog.example/post", 0.8),
+            result("https://en.wikipedia.org/wiki/Research", 0.8),
+            result("https://www.reuters.com/world/some-article", 0.8),
+        ];
+
+        rank_and_dedupe_results(&mut results);
+
+        let wiki_pos = results.iter().position(|r| r.url.contains("wikipedia.org")).expect("wikipedia result present");
+        let reuters_pos = results.iter().position(|r| r.url.contains("reuters.com")).expect("reuters result present");
+        let blog_pos = results.iter().position(|r| r.url.contains("blog.example")).expect("blog result present");
+
+        assert!(wiki_pos < blog_pos, "wikipedia.org should outrank an unboosted blog");
+        assert!(reuters_pos < blog_pos, "reuters.com should outrank an unboosted blog");
     }
 }
