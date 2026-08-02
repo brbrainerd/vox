@@ -53,7 +53,7 @@ pub async fn run_checks(
     freshness::run(checks);
     binary_ssot::run(checks);
     secrets::run(auto_heal, checks).await;
-    llm_routing::run(checks);
+    llm_routing::run(checks).await;
     gpu_hardware::run(checks).await;
     vox_ignore::run(auto_heal, checks).await;
     web_frontend::run(checks).await;

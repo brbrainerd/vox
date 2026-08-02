@@ -5,7 +5,7 @@ use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_mod
 use vox_config::secrets_str;
 use vox_secrets::SecretId;
 
-pub fn run(checks: &mut Vec<Check>) {
+pub async fn run(checks: &mut Vec<Check>) {
     let model = openrouter_chat_model_preference();
     let routing_profile = secrets_str(SecretId::VoxRoutingProfile).unwrap_or_else(|| {
         // Default from routing contract / secrets spec — not a hard error when unset.
@@ -116,16 +116,24 @@ pub fn run(checks: &mut Vec<Check>) {
         true,
         cache_status,
     ));
+
+    // Task 12 (follow-up): distinguish "a credential is configured but OpenRouter's
+    // free tier is currently rate-limiting us" from plain success/failure of the
+    // Secrets check above. See `recent_rate_limit_check`'s doc comment for the local
+    // (no live network call) DB-read approach.
+    if let Some(check) = recent_rate_limit_check().await {
+        checks.push(check);
+    }
 }
 
 #[cfg(test)]
 mod budget_status_tests {
     use super::*;
 
-    #[test]
-    fn reports_budget_caps_in_detail_string() {
+    #[tokio::test]
+    async fn reports_budget_caps_in_detail_string() {
         let mut checks = Vec::new();
-        run(&mut checks);
+        run(&mut checks).await;
         let llm_check = checks
             .iter()
             .find(|c| c.name == "LLM routing (Secrets)")
@@ -148,24 +156,11 @@ mod budget_status_tests {
 /// (`crates/vox-llm-egress/tests/wire_mock.rs::chat_once_maps_429_to_rate_limited`
 /// already locks that wire-level behavior in).
 ///
-/// What's *not* available today is a resolved `EgressError` inside this check: unlike
-/// `model_telemetry.rs` (which reads already-recorded rows from `vox-db`), `run()`
-/// above is a purely local/offline check (Secrets presence, `VoxConfig`, on-disk model
-/// catalog cache) — it never dispatches a request, and `vox doctor` intentionally makes
-/// no live provider calls elsewhere (see `provider_policy.rs`'s "no network I/O" doc
-/// comment). Doctor probing OpenRouter live would itself burn a real free-tier request
-/// just to run a diagnostic — exactly the kind of budget erosion this plan's Phase 1
-/// exists to prevent. Nor is there yet a persisted "last dispatch outcome" a fresh `vox
-/// doctor` process could read locally (the `llm_attempts` table in `vox-db` records
-/// `error_class`, but there is no read query for it yet, and adding one is a bigger,
-/// separately-scoped change than this task's stated file list).
-///
-/// So this function is the classification building block, not yet called from `run()`.
-/// It takes a resolved `EgressError` — from a real dispatch, however it eventually gets
-/// here (Task 12b's live-dispatch wiring, or a future doctor check that reads a
-/// persisted last-attempt signal) — and produces the distinct rate-limit `Check` in
-/// place of treating it as an opaque failure.
-#[allow(dead_code)] // not yet called from `run()` — see doc comment above for why.
+/// Called from [`recent_rate_limit_check`], which adapts a `vox-db`-read
+/// [`vox_db::store::types::LastLlmAttemptRow`] into a synthetic
+/// `EgressError::RateLimited` (the DB doesn't persist `retry_after`, so that field is
+/// always `None` when reached this way — see that function's doc comment for why a DB
+/// read rather than a live probe).
 pub(crate) fn rate_limit_check(err: &vox_llm_egress::EgressError) -> Option<Check> {
     match err {
         vox_llm_egress::EgressError::RateLimited { retry_after } => {
@@ -185,6 +180,49 @@ pub(crate) fn rate_limit_check(err: &vox_llm_egress::EgressError) -> Option<Chec
         | vox_llm_egress::EgressError::Http(_)
         | vox_llm_egress::EgressError::Decode(_) => None,
     }
+}
+
+/// How long a recorded `llm_attempts` row is trusted as still representing "the free
+/// tier is rate limited right now." Long enough to survive the gap between a chat turn
+/// hitting a 429 and the user running `vox doctor` to investigate it; short enough that
+/// an hours-old rate limit (which has almost certainly cleared — OpenRouter free-tier
+/// throttle windows are on the order of seconds to low minutes, per
+/// `vox_llm_egress::throttle`'s `Retry-After`/`X-RateLimit-Reset` handling, capped at
+/// 120s there) isn't reported as a live condition.
+const RATE_LIMIT_STALENESS_SECS: f64 = 300.0;
+
+/// Reads the most recently recorded LLM dispatch attempt from `vox-db` (the
+/// `llm_attempts` table, written by every real `llm_chat`/`llm_stream` call — see
+/// `vox_actor_runtime::llm::chat::record_telemetry_attempt`) and, if it was a
+/// rate-limited failure within [`RATE_LIMIT_STALENESS_SECS`], returns
+/// [`rate_limit_check`]'s distinct `Check`.
+///
+/// This is a **local-only** read (no network I/O), consistent with `vox doctor`'s
+/// existing convention elsewhere (see `provider_policy.rs`'s "no network I/O" doc
+/// comment, and `model_telemetry.rs`'s identical `DbConfig::resolve_canonical()` +
+/// `VoxDb::connect` pattern for a different table). It deliberately does **not** make a
+/// live provider call itself — that would burn a real free-tier request just to run a
+/// diagnostic, undermining this plan's Phase 1 budget-protection work — so the signal
+/// is only as fresh as the most recent *real* dispatch a user (or the GUI) already made.
+///
+/// Returns `None` on any DB error, when no attempt has ever been recorded, when the
+/// most recent attempt is stale or has a nonsensical (negative) age, or when it wasn't a
+/// rate-limit failure — in every one of those cases `run()` silently falls back to
+/// showing only the `LLM routing (Secrets)` check.
+async fn recent_rate_limit_check() -> Option<Check> {
+    let cfg = vox_db::DbConfig::resolve_canonical().ok()?;
+    let db = vox_db::VoxDb::connect(cfg).await.ok()?;
+    let last = db.get_last_llm_attempt().await.ok().flatten()?;
+    if !(0.0..=RATE_LIMIT_STALENESS_SECS).contains(&last.age_seconds) {
+        return None;
+    }
+    if last.error_class.as_deref() != Some("rate-limited") {
+        return None;
+    }
+    // The DB row doesn't carry `retry_after` (only `error_class`/`outcome`/timing are
+    // persisted), so the synthetic error always resolves to `rate_limit_check`'s
+    // "resets at an unknown time" branch.
+    rate_limit_check(&vox_llm_egress::EgressError::RateLimited { retry_after: None })
 }
 
 #[cfg(test)]
@@ -227,5 +265,133 @@ mod rate_limit_check_tests {
             .is_none()
         );
         assert!(rate_limit_check(&EgressError::Decode("bad json".into())).is_none());
+    }
+}
+
+#[cfg(test)]
+mod recent_rate_limit_check_tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    /// `recent_rate_limit_check` (via `DbConfig::resolve_canonical`) reads
+    /// `VOX_DB_PATH` when set, else falls back to the real user-global DB file — so
+    /// every test in this module redirects it to an isolated `tempfile` DB and holds
+    /// this lock for the duration, the same pattern
+    /// `harness::eval::tests::LIVE_ENV_VAR_LOCK` uses for its process-global env var.
+    static VOX_DB_PATH_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Points `VOX_DB_PATH` at a fresh temp file and returns a guard that restores the
+    /// previous value on drop. Must be called while holding `VOX_DB_PATH_LOCK`.
+    fn redirect_to_temp_db() -> (tempfile::TempDir, Option<String>) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("doctor-rate-limit-test.db");
+        let previous = std::env::var("VOX_DB_PATH").ok();
+        // SAFETY: guarded by VOX_DB_PATH_LOCK; no other test touches this var without
+        // holding the same lock.
+        unsafe {
+            std::env::set_var("VOX_DB_PATH", db_path.to_str().expect("utf8 path"));
+        }
+        (dir, previous)
+    }
+
+    fn restore_env(previous: Option<String>) {
+        // SAFETY: guarded by VOX_DB_PATH_LOCK (caller holds it for the whole test).
+        unsafe {
+            match previous {
+                Some(v) => std::env::set_var("VOX_DB_PATH", v),
+                None => std::env::remove_var("VOX_DB_PATH"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn no_recorded_attempts_yields_no_rate_limit_check() {
+        let _guard = VOX_DB_PATH_LOCK.lock().unwrap();
+        let (_dir, previous) = redirect_to_temp_db();
+
+        // Force schema creation (an empty temp path has no DB file / tables yet) by
+        // connecting once before exercising the check under test.
+        let cfg = vox_db::DbConfig::resolve_canonical().expect("resolve");
+        vox_db::VoxDb::connect(cfg)
+            .await
+            .expect("connect creates schema");
+
+        let check = recent_rate_limit_check().await;
+        restore_env(previous);
+        assert!(
+            check.is_none(),
+            "no llm_attempts rows recorded — must not surface a rate-limit Check"
+        );
+    }
+
+    #[tokio::test]
+    async fn recent_rate_limited_attempt_surfaces_distinct_check_via_run() {
+        let _guard = VOX_DB_PATH_LOCK.lock().unwrap();
+        let (_dir, previous) = redirect_to_temp_db();
+
+        let cfg = vox_db::DbConfig::resolve_canonical().expect("resolve");
+        let db = vox_db::VoxDb::connect(cfg).await.expect("connect");
+        db.record_llm_attempt(vox_db::store::types::ModelAttempt {
+            trace_id: "trace-doctor-test",
+            attempt_number: 1,
+            model_id: "openrouter/free-model",
+            provider: "openrouter",
+            outcome: "error",
+            latency_ms: Some(0),
+            error_class: Some("rate-limited"),
+        })
+        .await
+        .expect("record a just-happened rate-limited attempt");
+
+        let mut checks = Vec::new();
+        run(&mut checks).await;
+        restore_env(previous);
+
+        let rate_limit = checks
+            .iter()
+            .find(|c| c.name == "LLM routing (rate limit)")
+            .expect("run() must surface the distinct rate-limit Check end-to-end");
+        assert!(!rate_limit.pass);
+        assert!(
+            rate_limit.detail.to_lowercase().contains("free tier limit"),
+            "got: {}",
+            rate_limit.detail
+        );
+        // The generic Secrets check is unaffected — this is additive, not a replacement.
+        assert!(checks.iter().any(|c| c.name == "LLM routing (Secrets)"));
+    }
+
+    #[tokio::test]
+    async fn stale_rate_limited_attempt_does_not_surface_check() {
+        let _guard = VOX_DB_PATH_LOCK.lock().unwrap();
+        let (_dir, previous) = redirect_to_temp_db();
+
+        let cfg = vox_db::DbConfig::resolve_canonical().expect("resolve");
+        let db = vox_db::VoxDb::connect(cfg).await.expect("connect");
+        db.connection()
+            .execute(
+                "INSERT INTO llm_attempts
+                     (trace_id, attempt_number, model_id, provider, outcome, latency_ms, error_class, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now', '-1 hour'))",
+                turso::params![
+                    "trace-stale",
+                    1i32,
+                    "openrouter/free-model",
+                    "openrouter",
+                    "error",
+                    0i64,
+                    "rate-limited",
+                ],
+            )
+            .await
+            .expect("insert stale rate-limited row");
+
+        let check = recent_rate_limit_check().await;
+        restore_env(previous);
+        assert!(
+            check.is_none(),
+            "an hour-old rate-limited attempt is outside the staleness window and must \
+             not be reported as a live condition"
+        );
     }
 }

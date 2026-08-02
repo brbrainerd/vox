@@ -783,6 +783,56 @@ impl crate::VoxDb {
             })
             .await
     }
+
+    /// The most recently recorded `llm_attempts` row (across all providers/models),
+    /// with its age in seconds computed in SQL. `None` when no attempt has ever been
+    /// recorded. Read-only counterpart to [`Self::record_llm_attempt`] — added for
+    /// `vox doctor`'s LLM routing check, which needs to distinguish "no credential
+    /// configured" from "a credential is configured but the most recent real dispatch
+    /// was rate-limited," without doctor itself making a live provider call (see
+    /// `crates/vox-cli/.../doctor/checks_standard/llm_routing.rs`'s doc comment on
+    /// `rate_limit_check` for why doctor avoids live network I/O).
+    ///
+    /// Callers doing staleness filtering should treat `age_seconds` as authoritative
+    /// rather than re-deriving it from `created_at` — SQLite's `datetime('now')` and
+    /// `julianday()` are computed inside the same query, avoiding clock-skew or
+    /// timezone-parsing mismatches between the DB and the caller's process.
+    pub async fn get_last_llm_attempt(
+        &self,
+    ) -> Result<Option<crate::store::types::LastLlmAttemptRow>, StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+
+        breaker
+            .call(move || {
+                let conn = conn.clone();
+                async move {
+                    let mut rows = conn
+                        .query(
+                            "SELECT provider, model_id, outcome, error_class,
+                                    (julianday('now') - julianday(created_at)) * 86400.0 AS age_seconds
+                             FROM llm_attempts
+                             ORDER BY created_at DESC, id DESC
+                             LIMIT 1",
+                            (),
+                        )
+                        .await?;
+
+                    if let Some(row) = rows.next().await? {
+                        Ok::<_, StoreError>(Some(crate::store::types::LastLlmAttemptRow {
+                            provider: row.get(0)?,
+                            model_id: row.get(1)?,
+                            outcome: row.get(2)?,
+                            error_class: row.get(3)?,
+                            age_seconds: row.get(4)?,
+                        }))
+                    } else {
+                        Ok::<_, StoreError>(None)
+                    }
+                }
+            })
+            .await
+    }
 }
 
 /// Aggregated LLM spend (USD), the SSOT for actual-cost displays. Budgets (caps) are

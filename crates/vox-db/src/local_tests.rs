@@ -303,6 +303,126 @@ async fn list_model_arm_stats_aggregates_scoreboard_rows() {
 }
 
 #[tokio::test]
+async fn get_last_llm_attempt_is_none_when_no_attempts_recorded() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+    assert!(db.get_last_llm_attempt().await.expect("query").is_none());
+}
+
+#[tokio::test]
+async fn get_last_llm_attempt_returns_most_recent_row_fresh() {
+    use crate::store::types::ModelAttempt;
+
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+    db.record_llm_attempt(ModelAttempt {
+        trace_id: "trace-1",
+        attempt_number: 1,
+        model_id: "openrouter/free-model",
+        provider: "openrouter",
+        outcome: "error",
+        latency_ms: Some(0),
+        error_class: Some("rate-limited"),
+    })
+    .await
+    .expect("record attempt");
+
+    let last = db
+        .get_last_llm_attempt()
+        .await
+        .expect("query")
+        .expect("a row was just recorded");
+    assert_eq!(last.provider, "openrouter");
+    assert_eq!(last.model_id, "openrouter/free-model");
+    assert_eq!(last.outcome, "error");
+    assert_eq!(last.error_class.as_deref(), Some("rate-limited"));
+    // Just recorded via `datetime('now')` — should read back as a few seconds old at
+    // most, never negative and never anywhere near the staleness window doctor uses.
+    assert!(
+        (0.0..30.0).contains(&last.age_seconds),
+        "expected a freshly recorded attempt to have a small non-negative age, got {}",
+        last.age_seconds
+    );
+}
+
+#[tokio::test]
+async fn get_last_llm_attempt_prefers_the_latest_of_multiple_rows() {
+    use crate::store::types::ModelAttempt;
+
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+    db.record_llm_attempt(ModelAttempt {
+        trace_id: "trace-1",
+        attempt_number: 1,
+        model_id: "openrouter/free-model",
+        provider: "openrouter",
+        outcome: "error",
+        latency_ms: Some(0),
+        error_class: Some("rate-limited"),
+    })
+    .await
+    .expect("record first attempt");
+    db.record_llm_attempt(ModelAttempt {
+        trace_id: "trace-2",
+        attempt_number: 1,
+        model_id: "openrouter/free-model",
+        provider: "openrouter",
+        outcome: "success",
+        latency_ms: Some(120),
+        error_class: None,
+    })
+    .await
+    .expect("record second attempt");
+
+    // Both rows may land on the same `datetime('now')` second in SQLite (second-level
+    // resolution); `get_last_llm_attempt`'s `ORDER BY created_at DESC, id DESC` tiebreak
+    // on insertion order is what makes this deterministic rather than flaky.
+    let last = db
+        .get_last_llm_attempt()
+        .await
+        .expect("query")
+        .expect("rows were recorded");
+    assert_eq!(
+        last.outcome, "success",
+        "the second (later-inserted) attempt must win, not the first"
+    );
+    assert_eq!(last.error_class, None);
+}
+
+#[tokio::test]
+async fn get_last_llm_attempt_reports_a_large_age_for_a_stale_row() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+    // Insert directly (bypassing `record_llm_attempt`'s `datetime('now')` default) to
+    // simulate an attempt recorded well outside any reasonable doctor staleness window.
+    db.connection()
+        .execute(
+            "INSERT INTO llm_attempts
+                 (trace_id, attempt_number, model_id, provider, outcome, latency_ms, error_class, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now', '-1 hour'))",
+            turso::params![
+                "trace-stale",
+                1i32,
+                "openrouter/free-model",
+                "openrouter",
+                "error",
+                0i64,
+                "rate-limited",
+            ],
+        )
+        .await
+        .expect("insert stale row");
+
+    let last = db
+        .get_last_llm_attempt()
+        .await
+        .expect("query")
+        .expect("a row was inserted");
+    assert!(
+        last.age_seconds > 3000.0,
+        "expected an ~1h-old row to report age_seconds well over any doctor staleness \
+         window (a few minutes), got {}",
+        last.age_seconds
+    );
+}
+
+#[tokio::test]
 async fn history_entries_round_trip() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
     db.connection()

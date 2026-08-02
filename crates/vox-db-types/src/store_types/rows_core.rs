@@ -351,6 +351,26 @@ pub struct ModelScoreboardRow {
     pub cumulative_cost_usd: f64,
 }
 
+/// The most recently recorded row from `llm_attempts`, with its age precomputed in SQL
+/// (`julianday('now') - julianday(created_at)`) so callers doing staleness filtering
+/// (e.g. `vox doctor` only trusting this within a few minutes, so it never shows an
+/// hours-stale rate-limit as if it were current) don't need to parse the SQLite
+/// `datetime` string themselves.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct LastLlmAttemptRow {
+    pub provider: String,
+    pub model_id: String,
+    /// `"success"` or `"error"` (see `record_telemetry_attempt` callers in
+    /// `vox_actor_runtime::llm::chat`).
+    pub outcome: String,
+    /// e.g. `"rate-limited"`, `"transport-error"`, `"client-error"`, `"server-error"`,
+    /// `"decode-error"` — see `vox_actor_runtime::llm::chat::map_egress_error`. `None`
+    /// for a successful attempt.
+    pub error_class: Option<String>,
+    /// Seconds since this attempt was recorded, computed in SQL at query time.
+    pub age_seconds: f64,
+}
+
 /// One row from `model_pricing_catalog`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ModelPricingCatalogRow {
