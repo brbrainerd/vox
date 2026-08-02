@@ -28,6 +28,7 @@ pub mod mesh;
 pub mod mic;
 pub mod mission_control;
 pub mod models;
+pub mod oauth;
 pub mod oratio;
 pub mod orchestrator;
 pub mod plan_panel;

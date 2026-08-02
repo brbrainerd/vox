@@ -16179,6 +16179,7 @@ dependencies = [
  "vox-git",
  "vox-identity",
  "vox-ml-cli",
+ "vox-oauth-pkce",
  "vox-orchestrator",
  "vox-orchestrator-mcp",
  "vox-package-types",
