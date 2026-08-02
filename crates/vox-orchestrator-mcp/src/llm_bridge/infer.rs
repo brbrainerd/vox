@@ -308,6 +308,15 @@ pub async fn mcp_infer_tool_completion(
         }
     }
 
+    // Budget gate, before any dispatch work: this function is the sole caller of
+    // `infer_via_provider_adapter`, so it's the real universal convergence point for
+    // every caller of `mcp_infer_completion`/`mcp_infer_tool_completion` — including
+    // ones that bypass `resolve_chat_llm_model` entirely (`call_llm`, and therefore
+    // `browser_tools.rs`'s three direct `call_llm` call sites). See
+    // `chat_model_resolve`'s module docs for the full map of why the guard runs at
+    // three separate call sites in this crate rather than one.
+    crate::chat_model_resolve::enforce_budget_guard(state, routing.user_id).await?;
+
     let max_t = super::clamp_http_max_output_tokens(max_tokens);
     let client = &state.http_client;
     let allow_ollama_fallback =
@@ -857,4 +866,127 @@ pub async fn call_llm(
         attachment_manifest,
     )
     .await
+}
+
+#[cfg(test)]
+#[allow(unsafe_code)] // test-only std::env::set_var (unsafe on edition 2024); serialized via #[serial]
+mod tests {
+    use super::*;
+    use serial_test::serial;
+    use std::sync::Arc;
+    use vox_db::store::types::ModelOutcome;
+    use vox_db::{DbConfig, VoxDb};
+
+    fn dummy_model() -> ModelSpec {
+        ModelSpec {
+            id: "test-model".into(),
+            canonical_slug: "test/test-model".into(),
+            provider: "test".into(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens: 1000,
+            cost_per_1k: 0.01,
+            cost_per_1k_input: 0.01,
+            cost_per_1k_output: 0.01,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![vox_orchestrator::models::generated::StrengthTag::Codegen],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: vox_orchestrator::models::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    /// Spec-review finding: `resolve_chat_llm_model`'s budget gate protects only its
+    /// own callers — `call_llm` (used by both `chat_message`'s fallback branches AND
+    /// `browser_tools.rs`'s three direct call sites) resolves via
+    /// `resolve_mcp_chat_model_with_rationale` directly, bypassing it. This test
+    /// proves the *real* universal point for this HTTP path —
+    /// `mcp_infer_tool_completion`, the sole caller of `infer_via_provider_adapter` —
+    /// refuses before any dispatch work, regardless of which caller (or which model
+    /// resolver) got here. No network call is reachable in this test: a
+    /// budget-exceeded state must return `Err` before `infer_via_provider_adapter`
+    /// would ever be invoked (which would otherwise fail differently — no real HTTP
+    /// client/API key in this test environment — proving the gate, not network
+    /// failure, is what's being asserted).
+    #[tokio::test]
+    #[serial]
+    async fn mcp_infer_completion_refuses_when_daily_budget_exceeded() {
+        let prior = std::env::var("VOX_BUDGET_USD").ok();
+        // SAFETY: `#[serial]` — no concurrent env mutation in this crate's tests.
+        unsafe { std::env::set_var("VOX_BUDGET_USD", "0.01") };
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("open in-memory db");
+        db.record_llm_outcome(ModelOutcome {
+            session_id: "infer-completion-test",
+            user_id: None,
+            tenant_id: None,
+            prompt: "p",
+            response: "r",
+            model_id: "m",
+            provider: "openrouter",
+            task_category: "general",
+            strength_tag: "generalist",
+            latency_ms: Some(10),
+            input_tokens: Some(5),
+            output_tokens: Some(5),
+            cache_read_tokens: Some(0),
+            trace_id: None,
+            context_utilization_pct: None,
+            success: true,
+            cost_usd: Some(0.02),
+            quality_score: Some(1.0),
+        })
+        .await
+        .expect("record spend");
+
+        let state = crate::server_state::ServerState::new_test()
+            .await
+            .with_db_initialized(Arc::new(db))
+            .await;
+
+        let routing = McpInferRouting {
+            user_prompt: "hello",
+            sticky_model_pref: None,
+            resolution_template: McpChatModelResolution::default(),
+            free_only: false,
+            allow_cloud_ollama_fallback: false,
+            user_id: Some("infer-completion-test"),
+            selection_rationale: None,
+        };
+        let result = mcp_infer_completion(
+            &state,
+            dummy_model(),
+            "test-tool",
+            "system",
+            &routing,
+            100,
+            0.7,
+            None,
+            None,
+            false,
+            None,
+        )
+        .await;
+
+        // SAFETY: `#[serial]` — restore prior env state before asserting/panicking.
+        unsafe {
+            match &prior {
+                Some(v) => std::env::set_var("VOX_BUDGET_USD", v),
+                None => std::env::remove_var("VOX_BUDGET_USD"),
+            }
+        }
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let err = result.expect_err("expected budget guard to refuse dispatch");
+        assert!(
+            err.to_lowercase().contains("budget"),
+            "expected error to mention budget (not a network/API-key error), got: {err}"
+        );
+    }
 }

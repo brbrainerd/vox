@@ -59,6 +59,19 @@ async fn try_run_agent_turn(
         return None;
     }
 
+    // Budget gate, before any model resolution work. This function (not
+    // `resolve_chat_llm_model`) is the real entry point for the DEFAULT
+    // `vox_chat_message` path: it resolves via `resolve_mcp_chat_model` directly and,
+    // when the model maps to a simple provider shape, dispatches through
+    // `run_agent_turn` -> `vox_actor_runtime::llm::llm_chat` ->
+    // `vox_llm_egress::chat_once` — a completely separate HTTP-issuing mechanism from
+    // `mcp_infer_tool_completion`'s `infer_via_provider_adapter`, with no shared
+    // ancestor and no budget check of its own. See `chat_model_resolve`'s module docs
+    // for the full map of why the guard lives in three places, not one.
+    if let Err(e) = crate::chat_model_resolve::enforce_budget_guard(state, Some(session_id)).await {
+        return Some(Err(e));
+    }
+
     let pref = match crate::sync_poison::poison_rw_read(
         state.mcp_chat_model_override.read(),
         "mcp_chat_model_override",
@@ -993,4 +1006,96 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     });
 
     ToolResult::ok(result).to_json()
+}
+
+#[cfg(test)]
+#[allow(unsafe_code)] // test-only std::env::set_var (unsafe on edition 2024); serialized via #[serial]
+mod tests {
+    use super::*;
+    use serial_test::serial;
+    use std::sync::Arc;
+    use vox_db::store::types::ModelOutcome;
+    use vox_db::{DbConfig, VoxDb};
+
+    /// Task 4 spec review finding: `try_run_agent_turn` is the *actual* entry point
+    /// for the DEFAULT `vox_chat_message` path (no `cognitive_profile` set) — it
+    /// resolves a model and dispatches via `run_agent_turn` ->
+    /// `vox_actor_runtime::llm::llm_chat` -> `vox_llm_egress::chat_once`, entirely
+    /// bypassing `resolve_chat_llm_model` (whose own budget gate therefore never runs
+    /// for this path) and the pre-existing `vox_orchestrator::BudgetGate` inside
+    /// `mcp_infer_tool_completion` (which this path also never reaches). This test
+    /// exercises that exact function — the real default-path entry point, not
+    /// `resolve_chat_llm_model` — end to end, and confirms it is now budget-gated via
+    /// the `enforce_budget_guard` call added at its top.
+    #[tokio::test]
+    #[serial]
+    async fn default_chat_path_refuses_when_daily_budget_exceeded() {
+        let prior = std::env::var("VOX_BUDGET_USD").ok();
+        // SAFETY: `#[serial]` — no concurrent env mutation in this crate's tests.
+        unsafe { std::env::set_var("VOX_BUDGET_USD", "0.01") };
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("open in-memory db");
+        db.record_llm_outcome(ModelOutcome {
+            session_id: "default-path-test",
+            user_id: None,
+            tenant_id: None,
+            prompt: "p",
+            response: "r",
+            model_id: "m",
+            provider: "openrouter",
+            task_category: "general",
+            strength_tag: "generalist",
+            latency_ms: Some(10),
+            input_tokens: Some(5),
+            output_tokens: Some(5),
+            cache_read_tokens: Some(0),
+            trace_id: None,
+            context_utilization_pct: None,
+            success: true,
+            cost_usd: Some(0.02),
+            quality_score: Some(1.0),
+        })
+        .await
+        .expect("record spend");
+
+        let state = ServerState::new_test()
+            .await
+            .with_db_initialized(Arc::new(db))
+            .await;
+
+        // No `cognitive_profile` involved at all — this calls the exact function
+        // `chat_message`'s `None =>` arm (the default path) calls, with the same
+        // shape of arguments (no attachment, real session id).
+        let result = try_run_agent_turn(
+            &state,
+            "system prompt",
+            "hello",
+            "default-path-test",
+            None,
+            false,
+            None,
+            None,
+        )
+        .await;
+
+        // SAFETY: `#[serial]` — restore prior env state before asserting/panicking.
+        unsafe {
+            match &prior {
+                Some(v) => std::env::set_var("VOX_BUDGET_USD", v),
+                None => std::env::remove_var("VOX_BUDGET_USD"),
+            }
+        }
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let err = result
+            .expect("budget-exceeded must refuse via Some(Err(..)), not silently fall through to call_llm via None")
+            .expect_err("expected budget guard to refuse dispatch");
+        assert!(
+            err.to_lowercase().contains("budget"),
+            "expected error to mention budget, got: {err}"
+        );
+    }
 }
