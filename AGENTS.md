@@ -484,31 +484,13 @@ Every vestigial call site must carry this marker until it is fully removed by it
 
 ## Versioning Policy (SSOT)
 
-The workspace uses a **single source of truth** for all crate versions:
+Single source of truth: `Cargo.toml [workspace.package] version`. All first-party crates inherit it via `version.workspace = true`; plugin crates (`vox-plugin-*`) version independently.
 
-```toml
-# Cargo.toml [workspace.package]
-version = "0.6.0"
-```
+**Version scheme:** `MAJOR.MINOR.PATCH+build.N (GITHASH)` — `MAJOR.MINOR`/`PATCH` are human-bumped (or git-cliff on tag for `PATCH`); `+build.N`/`(GITHASH)` are injected automatically by `vox-build-meta` in `build.rs` on every commit.
 
-All first-party crates inherit this via `version.workspace = true`. Plugin crates (`vox-plugin-*`) maintain independent versions on their own release cadence.
+**After bumping `MAJOR.MINOR`:** update `CHANGELOG.md` with a `## [X.Y.Z] - YYYY-MM-DD` entry — `vox-arch-check` Rule 6 uses this date to flag crates that haven't changed in the new release cycle (mark intentionally-stable crates `staleness_exempt = true` in `layers.toml`).
 
-**Version scheme:** `MAJOR.MINOR.PATCH+build.N (GITHASH)`
-
-| Component | Owner | How it changes |
-|---|---|---|
-| `MAJOR.MINOR` | Human (manual bump in `Cargo.toml`) | Breaking or feature releases |
-| `PATCH` | Human (manual bump) or git-cliff on tag | Bugfix releases |
-| `+build.N` | Automatic (`vox-build-meta` in `build.rs`) | Every merged commit |
-| `(GITHASH)` | Automatic (`vox-build-meta`) | Every commit, diagnostics only |
-
-**After bumping `MAJOR.MINOR`:** update `CHANGELOG.md` with a `## [X.Y.Z] - YYYY-MM-DD` entry. This date is the threshold used by `vox-arch-check` Rule 6 (staleness check) to flag crates that haven't changed in the new release cycle.
-
-**Documentation version = compiler version.** Do not maintain a separate "doc version" (e.g., 0.8). All release notes live under `docs/news/YYYY-MM-DD-vX.Y.Z-release.md` and reference the same `X.Y.Z` as `Cargo.toml`.
-
-**Build metadata injection:** Add `vox-build-meta` to `[build-dependencies]` and call `vox_build_meta::emit()` from `build.rs` in any binary that displays its version. The `VOX_BUILD_NUMBER` and `VOX_GIT_HASH` env vars are then available via `env!()`.
-
-**Staleness check:** `vox-arch-check` Rule 6 warns when a crate has had no commits since the last `CHANGELOG.md` release date. Use `staleness_exempt = true` in `layers.toml` for crates that are intentionally stable (e.g., `workspace-hack`, build helpers).
+**Documentation version = compiler version.** Do not maintain a separate "doc version." Release notes live under `docs/news/YYYY-MM-DD-vX.Y.Z-release.md`, same `X.Y.Z` as `Cargo.toml`.
 
 ## Structural Limits & Code Quality
 
