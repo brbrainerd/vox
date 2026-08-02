@@ -97,22 +97,34 @@ pub fn create_backend() -> anyhow::Result<Box<dyn AsrBackend>> {
 /// A construction failure leaves the slot `None` so the *next* call retries
 /// `create_backend()` from scratch, instead of latching into a permanent
 /// "no backend" state until restart.
-static BACKEND: std::sync::Mutex<Option<Box<dyn AsrBackend>>> = std::sync::Mutex::new(None);
+///
+/// Stored as `Arc`, not `Box`: `with_cached_backend` only needs the mutex
+/// held long enough to construct-once-and-clone the handle, not for the
+/// duration of the (potentially slow) inference call `f` makes with it —
+/// holding a `MutexGuard` across `f` would serialize every concurrent
+/// transcription in the process on ASR inference time, not just backend
+/// construction, which nothing about this cache is meant to require.
+static BACKEND: std::sync::Mutex<Option<std::sync::Arc<dyn AsrBackend>>> =
+    std::sync::Mutex::new(None);
 
 /// Run `f` against the cached ASR backend, constructing it on first
 /// successful call. Safe to call from multiple threads: the backend is
 /// constructed at most once (barring a failed attempt, which is retried on
-/// the next call), and each call runs `f` while holding the lock.
+/// the next call). The lock is released before `f` runs, so concurrent
+/// transcriptions don't serialize on each other — only on the one-time
+/// construction.
 pub fn with_cached_backend<F, R>(f: F) -> anyhow::Result<R>
 where
     F: FnOnce(&dyn AsrBackend) -> anyhow::Result<R>,
 {
-    let mut guard = BACKEND.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    if guard.is_none() {
-        *guard = Some(create_backend()?);
-    }
-    let backend = guard.as_deref().expect("just populated");
-    f(backend)
+    let backend = {
+        let mut guard = BACKEND.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if guard.is_none() {
+            *guard = Some(std::sync::Arc::from(create_backend()?));
+        }
+        guard.as_ref().expect("just populated").clone()
+    };
+    f(backend.as_ref())
 }
 
 /// Test-only: clears the cache slot so each test starts from a known state.
