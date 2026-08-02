@@ -71,7 +71,7 @@ signed envelope is forward-compat for the mesh-replicated Option C, which is def
 - `crates/vox-mesh-types/src/kudos.rs` — add `RewardPrimitive::GpuComputeMs` projection helper.
 - `crates/vox-orchestrator/src/a2a/remote_worker.rs:100-160` — replace BLAKE3-derived shared mesh-secret JWE key with per-pairing X25519-derived key; populate attestation.
 - `crates/vox-orchestrator/src/a2a/jwe.rs` — multi-recipient JWE per-pairing (W3 closure).
-- `crates/vox-secrets/src/spec.rs` — add `VoxMeshAuthScheme` (`"ed25519-envelope"` / `"jwt-hs256"` / `"both"`), `VoxMeshSpotCheckProb`, `VoxMeshGithubAttestationGistUrl`, `VoxMeshPairingX25519PrivPath`.
+- `crates/vox-secrets/src/spec/` — add `VoxMeshAuthScheme` (`"ed25519-envelope"` / `"jwt-hs256"` / `"both"`), `VoxMeshSpotCheckProb`, `VoxMeshGithubAttestationGistUrl`, `VoxMeshPairingX25519PrivPath`.
 - `crates/vox-db/src/schema/domains/vox_mesh.rs` — `include_str!` the new SQL block from `mesh_phase5.sql`.
 - `crates/vox-orchestrator/src/lib.rs` — module declaration for `spot_check`.
 - `crates/vox-identity/src/lib.rs` — re-export `ephemeral`, `pairing_x25519`.
@@ -120,7 +120,7 @@ delete the `JwtHs256` and `Both` enum variants, drop `VoxMeshJwtHmacSecret`).
 - Create: `crates/vox-populi/tests/ed25519_envelope.rs`
 - Modify: `crates/vox-populi/src/transport/auth.rs`
 - Modify: `crates/vox-populi/src/transport/mod.rs`
-- Modify: `crates/vox-secrets/src/spec.rs`
+- Modify: `crates/vox-secrets/src/spec/`
 
 ### P5-T1a: Define the wire envelope (failing-test first)
 
@@ -473,7 +473,7 @@ git commit -m "feat(populi): trust-ledger gate for Ed25519 envelope verification
 
 - [ ] **Step 1: Add `VoxMeshAuthScheme` SecretId.**
 
-In `crates/vox-secrets/src/spec.rs`, near `VoxMeshJwtHmacSecret`:
+In `crates/vox-secrets/src/spec/`, near `VoxMeshJwtHmacSecret`:
 
 ```rust
 VoxMeshAuthScheme,
@@ -568,7 +568,7 @@ Expected: PASS.
 ```bash
 git add crates/vox-populi/src/transport/auth.rs \
         crates/vox-populi/tests/ed25519_envelope.rs \
-        crates/vox-secrets/src/spec.rs
+        crates/vox-secrets/src/spec/
 git commit -m "feat(populi): VoxMeshAuthScheme migration flag; JWT-HS256 gated [P5-T1c]"
 ```
 
@@ -586,7 +586,7 @@ git commit -m "feat(populi): VoxMeshAuthScheme migration flag; JWT-HS256 gated [
 - Create: `crates/vox-populi/src/pairing/revocation.rs`
 - Create: `crates/vox-populi/tests/github_attestation.rs`
 - Modify: `crates/vox-populi/src/lib.rs`
-- Modify: `crates/vox-secrets/src/spec.rs`
+- Modify: `crates/vox-secrets/src/spec/`
 
 ### P5-T2a: Manifest schema, sign, verify
 
@@ -1261,7 +1261,7 @@ impl RevocationGossip {
 
 - [ ] **Step 4: Add `VoxMeshGithubAttestationGistUrl` SecretId.**
 
-In `crates/vox-secrets/src/spec.rs`:
+In `crates/vox-secrets/src/spec/`:
 
 ```rust
 VoxMeshGithubAttestationGistUrl,
@@ -1292,7 +1292,7 @@ Expected: all six tests PASS.
 git add crates/vox-populi/src/pairing/github_attestation.rs \
         crates/vox-populi/src/pairing/revocation.rs \
         crates/vox-populi/tests/github_attestation.rs \
-        crates/vox-secrets/src/spec.rs
+        crates/vox-secrets/src/spec/
 git commit -m "feat(populi): GitHub attestation fetch/verify + revocation tombstones [P5-T2c]"
 ```
 
@@ -2216,7 +2216,7 @@ git commit -m "feat(orchestrator): worker populates TaskResult.attestation [P5-T
 - Create: `crates/vox-orchestrator/src/spot_check/sampler.rs`
 - Create: `crates/vox-orchestrator/tests/spot_check.rs`
 - Modify: `crates/vox-orchestrator/src/lib.rs`
-- Modify: `crates/vox-secrets/src/spec.rs`
+- Modify: `crates/vox-secrets/src/spec/`
 
 ### P5-T5a: Sampling decision + verifier
 
@@ -2370,7 +2370,7 @@ impl SpotCheckSampler {
 
 - [ ] **Step 3: Add the SecretId.**
 
-In `crates/vox-secrets/src/spec.rs`:
+In `crates/vox-secrets/src/spec/`:
 
 ```rust
 VoxMeshSpotCheckProb,
@@ -2392,7 +2392,7 @@ Expected: PASS.
 git add crates/vox-orchestrator/src/spot_check/ \
         crates/vox-orchestrator/src/lib.rs \
         crates/vox-orchestrator/tests/spot_check.rs \
-        crates/vox-secrets/src/spec.rs
+        crates/vox-secrets/src/spec/
 git commit -m "feat(orchestrator): spot-check sampler with deterministic-only verify [P5-T5a]"
 ```
 
@@ -3309,7 +3309,7 @@ git commit -m "feat(mesh-types,orchestrator): accept_sensitive_workloads signal 
 - Modify: `crates/vox-identity/src/lib.rs`
 - Modify: `crates/vox-orchestrator/src/a2a/remote_worker.rs:100-160`
 - Modify: `crates/vox-orchestrator/src/a2a/jwe.rs`
-- Modify: `crates/vox-secrets/src/spec.rs`
+- Modify: `crates/vox-secrets/src/spec/`
 
 ### P5-T10a: Per-pairing key derivation
 
@@ -3459,7 +3459,7 @@ if let Some(jwe) = msg.jwe_payload.as_deref() {
 
 - [ ] **Step 2: Add `VoxMeshPairingX25519PrivPath` SecretId.**
 
-In `crates/vox-secrets/src/spec.rs`, add a path-style secret pointing at a 32-byte file containing the local X25519 private half:
+In `crates/vox-secrets/src/spec/`, add a path-style secret pointing at a 32-byte file containing the local X25519 private half:
 
 ```rust
 VoxMeshPairingX25519PrivPath,
@@ -3475,7 +3475,7 @@ Add an integration test in `crates/vox-orchestrator/tests/jwe_per_pairing.rs` (m
 git add crates/vox-orchestrator/src/a2a/remote_worker.rs \
         crates/vox-orchestrator/src/a2a/jwe.rs \
         crates/vox-orchestrator/tests/jwe_per_pairing.rs \
-        crates/vox-secrets/src/spec.rs
+        crates/vox-secrets/src/spec/
 git commit -m "feat(orchestrator): per-pairing X25519 JWE keys; legacy BLAKE3 gated [P5-T10b]"
 ```
 
