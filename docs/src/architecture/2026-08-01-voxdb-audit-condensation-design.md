@@ -1,7 +1,7 @@
 ---
 title: "VoxDB Audit & Condensation — Schema Re-baseline and Quarantine Design"
 description: "Live-data audit of the canonical local VoxDB store plus a design to re-baseline the schema to observed-live tables and quarantine the rest, driven by a code-usage census instead of guesswork."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: false
 training_rationale: "Implementation plan; transient artifact."

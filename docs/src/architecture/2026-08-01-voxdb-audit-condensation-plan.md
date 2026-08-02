@@ -1,7 +1,7 @@
 ---
 title: "VoxDB Audit & Condensation — Implementation Plan"
 description: "Executed plan that re-baselined vox-db's schema from 219 declared tables to 171 live by default, quarantining the other 48 behind an opt-in Cargo feature (not deleting them) with a transactional migration path for existing database files. See the Task 9 final-verification section for the executed numbers; earlier sections retain the audit trail of how the classification was corrected twice along the way."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; transient artifact."
