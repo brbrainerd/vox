@@ -124,6 +124,8 @@ git commit -m "feat(vox-orchestrator): add TriggerSource enum (who/what started 
 
 ### Task 1.2: Policy tables + pure resolver
 
+**⚠️ REVISED after adversarial review (2026-08-02):** the original version of this task modeled `category_policy`/`source_policy` as `Option<(ClutchProfile, RiskPosture)>` — a whole pair, present or absent together. That's wrong: it makes clutch and risk resolve as a *bundle* per precedence level, contradicting this plan's own spec, which explicitly promises "clutch and risk resolve independently... a task can inherit its category's clutch but its source's risk." It's also incompatible with Task 4.3's GUI panel, which lets an operator set just the clutch dropdown and leave risk at "(inherit)" per row — that only means anything if risk really can fall through independently. The fix: `resolve_task_policy` takes each axis at each level as its own `Option`, six parameters instead of four wrapped pairs.
+
 **Files:**
 - Modify: `crates/vox-orchestrator/src/mode.rs`
 
@@ -137,10 +139,9 @@ mod task_policy_resolver_tests {
     #[test]
     fn explicit_wins_over_everything() {
         let (clutch, risk) = resolve_task_policy(
-            Some(ClutchProfile::Genius),
-            Some(RiskPosture::Low),
-            Some((ClutchProfile::Free, RiskPosture::High)),
-            Some((ClutchProfile::Efficiency, RiskPosture::Moderate)),
+            Some(ClutchProfile::Genius), Some(RiskPosture::Low),
+            Some(ClutchProfile::Free), Some(RiskPosture::High),
+            Some(ClutchProfile::Efficiency), Some(RiskPosture::Moderate),
         );
         assert_eq!(clutch, ClutchProfile::Genius);
         assert_eq!(risk, RiskPosture::Low);
@@ -149,10 +150,9 @@ mod task_policy_resolver_tests {
     #[test]
     fn category_policy_wins_over_source_policy() {
         let (clutch, risk) = resolve_task_policy(
-            None,
-            None,
-            Some((ClutchProfile::Balanced, RiskPosture::Moderate)),
-            Some((ClutchProfile::Free, RiskPosture::High)),
+            None, None,
+            Some(ClutchProfile::Balanced), Some(RiskPosture::Moderate),
+            Some(ClutchProfile::Free), Some(RiskPosture::High),
         );
         assert_eq!(clutch, ClutchProfile::Balanced);
         assert_eq!(risk, RiskPosture::Moderate);
@@ -161,10 +161,9 @@ mod task_policy_resolver_tests {
     #[test]
     fn source_policy_wins_when_no_category_policy() {
         let (clutch, risk) = resolve_task_policy(
-            None,
-            None,
-            None,
-            Some((ClutchProfile::Free, RiskPosture::High)),
+            None, None,
+            None, None,
+            Some(ClutchProfile::Free), Some(RiskPosture::High),
         );
         assert_eq!(clutch, ClutchProfile::Free);
         assert_eq!(risk, RiskPosture::High);
@@ -172,24 +171,37 @@ mod task_policy_resolver_tests {
 
     #[test]
     fn falls_back_to_global_default_when_nothing_set() {
-        let (clutch, risk) = resolve_task_policy(None, None, None, None);
+        let (clutch, risk) = resolve_task_policy(None, None, None, None, None, None);
         assert_eq!(clutch, ClutchProfile::Balanced);
         assert_eq!(risk, RiskPosture::Moderate);
     }
 
     #[test]
-    fn clutch_and_risk_resolve_independently_across_levels() {
-        // Category supplies clutch, source supplies risk (category has no risk-relevant entry
-        // in this synthetic case since real entries always carry both — this proves the two
-        // fields aren't forced to come from the same precedence level as a pair).
+    fn axes_resolve_independently_across_levels_real_case() {
+        // A category policy supplies ONLY clutch (its risk axis is None — the
+        // realistic partial-override case Task 4.3's GUI produces when an
+        // operator sets the clutch dropdown and leaves risk at "(inherit)").
+        // Risk must fall through past category to source, NOT default straight
+        // to Moderate — this is the exact property the previous (buggy) design
+        // could not express, because it only ever passed whole pairs.
         let (clutch, risk) = resolve_task_policy(
-            None,
-            Some(RiskPosture::Low),
-            Some((ClutchProfile::Efficiency, RiskPosture::Moderate)),
-            Some((ClutchProfile::Genius, RiskPosture::High)),
+            None, None,
+            Some(ClutchProfile::Efficiency), None,
+            None, Some(RiskPosture::High),
         );
-        assert_eq!(clutch, ClutchProfile::Efficiency, "category clutch wins (explicit clutch unset)");
-        assert_eq!(risk, RiskPosture::Low, "explicit risk wins outright");
+        assert_eq!(clutch, ClutchProfile::Efficiency, "category's clutch axis wins");
+        assert_eq!(risk, RiskPosture::High, "category had no risk axis, so source's risk axis is used, not the global default");
+    }
+
+    #[test]
+    fn explicit_clutch_and_category_risk_combine_across_different_levels() {
+        let (clutch, risk) = resolve_task_policy(
+            Some(ClutchProfile::Genius), None,
+            None, Some(RiskPosture::Low),
+            Some(ClutchProfile::Free), Some(RiskPosture::High),
+        );
+        assert_eq!(clutch, ClutchProfile::Genius, "explicit clutch wins outright");
+        assert_eq!(risk, RiskPosture::Low, "explicit risk unset, category risk wins over source risk");
     }
 }
 ```
@@ -235,27 +247,29 @@ pub const DEFAULT_SOURCE_POLICY: &[TriggerSourcePolicy] = &[];
 
 /// Pure precedence resolver: explicit > category policy > source policy > the
 /// existing global default (`Balanced`/`Moderate`, unchanged from today's
-/// `AgentTask::resolved_clutch()`/`resolved_risk()`). `category_policy` and
-/// `source_policy` are the *already-merged* (compiled default + live override)
-/// effective policy for this task's category/source, or `None` if neither has
-/// one — callers compute these via `effective_category_policy()`/
-/// `effective_source_policy()`. Clutch and risk resolve independently: a task
-/// can inherit its category's clutch but its source's risk if that's what the
-/// effective data says.
+/// `AgentTask::resolved_clutch()`/`resolved_risk()`). Each of the three levels
+/// takes clutch and risk as SEPARATE `Option`s (not a paired tuple) so an
+/// override that only sets one axis lets the other keep falling through —
+/// callers compute the category/source arguments via
+/// `effective_category_policy()`/`effective_source_policy()` below, which
+/// return the same per-axis shape.
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn resolve_task_policy(
     explicit_clutch: Option<ClutchProfile>,
     explicit_risk: Option<RiskPosture>,
-    category_policy: Option<(ClutchProfile, RiskPosture)>,
-    source_policy: Option<(ClutchProfile, RiskPosture)>,
+    category_clutch: Option<ClutchProfile>,
+    category_risk: Option<RiskPosture>,
+    source_clutch: Option<ClutchProfile>,
+    source_risk: Option<RiskPosture>,
 ) -> (ClutchProfile, RiskPosture) {
     let clutch = explicit_clutch
-        .or_else(|| category_policy.map(|(c, _)| c))
-        .or_else(|| source_policy.map(|(c, _)| c))
+        .or(category_clutch)
+        .or(source_clutch)
         .unwrap_or(ClutchProfile::Balanced);
     let risk = explicit_risk
-        .or_else(|| category_policy.map(|(_, r)| r))
-        .or_else(|| source_policy.map(|(_, r)| r))
+        .or(category_risk)
+        .or(source_risk)
         .unwrap_or(RiskPosture::Moderate);
     (clutch, risk)
 }
@@ -264,13 +278,13 @@ pub fn resolve_task_policy(
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `cargo test -p vox-orchestrator --lib mode:: 2>test_out.log; tail -60 test_out.log`
-Expected: PASS (all `mode.rs` tests, including the 5 new ones).
+Expected: PASS (all `mode.rs` tests, including the 6 new ones).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add crates/vox-orchestrator/src/mode.rs
-git commit -m "feat(vox-orchestrator): add resolve_task_policy precedence resolver"
+git commit -m "feat(vox-orchestrator): add resolve_task_policy precedence resolver (per-axis independent)"
 ```
 
 ### Task 1.3: Override-merge helpers (bridges Vox.toml overrides with the compiled tables)
@@ -278,6 +292,8 @@ git commit -m "feat(vox-orchestrator): add resolve_task_policy precedence resolv
 **Files:**
 - Modify: `crates/vox-orchestrator/src/mode.rs`
 - Modify: `crates/vox-orchestrator/src/config/orchestrator_fields.rs`
+- Modify: `crates/vox-orchestrator/src/config/mod.rs` (re-export — see Step 1b; missing this is a compile-blocking gap the original version of this task had)
+- Modify: `crates/vox-orchestrator/src/config/impl_default.rs` (see Step 1c; also compile-blocking if skipped)
 
 - [ ] **Step 1: Write the failing test.** First add the override types this test needs — append to `orchestrator_fields.rs`, near the top after the existing imports (before the `OrchestratorConfig` struct definition):
 
@@ -285,7 +301,9 @@ git commit -m "feat(vox-orchestrator): add resolve_task_policy precedence resolv
 /// One override entry: a clutch and/or risk label (parsed via
 /// `ClutchProfile::from_label`/`RiskPosture::from_label`). Either may be
 /// `None` — an override can set just one axis, letting the other fall through
-/// to the next precedence level.
+/// to the next precedence level. This is exactly the shape Task 4.3's GUI
+/// panel produces (independent clutch/risk dropdowns, each with an
+/// "(inherit)" option).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TaskPolicyEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -318,6 +336,20 @@ Then add the field to `OrchestratorConfig` (a plain `#[serde(default)]` field, m
     pub task_policy: TaskPolicyOverrides,
 ```
 
+- [ ] **Step 1b (compile-blocking, do not skip): export the new types.** `crates/vox-orchestrator/src/config/mod.rs` re-exports from `orchestrator_fields` via an explicit named list, not a glob (`pub use orchestrator_fields::{FieldType, OrchestratorConfig, OrchestratorConfigField};` at line 21) — `TaskPolicyOverrides`/`TaskPolicyEntry` are invisible as `crate::config::TaskPolicyOverrides` anywhere outside `orchestrator_fields.rs` itself until this list is extended. Change that line to:
+
+```rust
+pub use orchestrator_fields::{
+    FieldType, OrchestratorConfig, OrchestratorConfigField, TaskPolicyEntry, TaskPolicyOverrides,
+};
+```
+
+- [ ] **Step 1c (compile-blocking, do not skip): update the hand-written `Default` impl.** `OrchestratorConfig` explicitly does NOT derive `Default` — `crates/vox-orchestrator/src/config/impl_default.rs` has an exhaustive `Self { enabled: true, max_agents: 8, ..., test_decision_policy: crate::planning::TestDecisionPolicy::default(), ... }` struct literal covering every field by name. Adding `task_policy` to the struct without adding a matching line here is `E0063` (missing field). Add, next to the `test_decision_policy` line:
+
+```rust
+            task_policy: crate::config::TaskPolicyOverrides::default(),
+```
+
 Now the test, appended to `mode.rs`:
 
 ```rust
@@ -336,14 +368,15 @@ mod effective_policy_tests {
             TaskPolicyEntry { clutch: Some("free".to_string()), risk: Some("high".to_string()) },
         );
         let overrides = TaskPolicyOverrides { category, source: HashMap::new() };
-        let resolved = effective_category_policy(&overrides, TaskCategory::CodeGen);
-        assert_eq!(resolved, Some((ClutchProfile::Free, RiskPosture::High)));
+        let (clutch, risk) = effective_category_policy(&overrides, TaskCategory::CodeGen);
+        assert_eq!(clutch, Some(ClutchProfile::Free));
+        assert_eq!(risk, Some(RiskPosture::High));
     }
 
     #[test]
     fn missing_category_override_and_no_compiled_default_is_none() {
         let overrides = TaskPolicyOverrides::default();
-        assert_eq!(effective_category_policy(&overrides, TaskCategory::Research), None);
+        assert_eq!(effective_category_policy(&overrides, TaskCategory::Research), (None, None));
     }
 
     #[test]
@@ -354,17 +387,15 @@ mod effective_policy_tests {
             TaskPolicyEntry { clutch: Some("turbo".to_string()), risk: None },
         );
         let overrides = TaskPolicyOverrides { category: HashMap::new(), source };
-        // "turbo" doesn't parse; risk is unset too — the whole entry has nothing
-        // usable, so this falls through to the compiled default (empty today -> None).
-        assert_eq!(effective_source_policy(&overrides, TriggerSource::Automated), None);
+        // "turbo" doesn't parse; risk was never set — neither axis resolves.
+        assert_eq!(effective_source_policy(&overrides, TriggerSource::Automated), (None, None));
     }
 
     #[test]
-    fn partial_override_clutch_only_still_resolves_the_pair() {
-        // A clutch-only override still returns a full (clutch, risk) pair — risk
-        // comes from Moderate (RiskPosture's own #[default]), since there is no
-        // compiled default to fall back to at this level; the caller's overall
-        // resolve_task_policy() call is what lets risk fall through further.
+    fn partial_override_sets_one_axis_and_leaves_the_other_none() {
+        // The property Task 4.3's GUI relies on: setting only the clutch
+        // dropdown for a category must NOT force a risk value — risk stays
+        // `None` here so resolve_task_policy can let it fall through further.
         let mut category = HashMap::new();
         category.insert(
             "Research".to_string(),
@@ -373,10 +404,24 @@ mod effective_policy_tests {
         let overrides = TaskPolicyOverrides { category, source: HashMap::new() };
         assert_eq!(
             effective_category_policy(&overrides, TaskCategory::Research),
-            None,
-            "partial entries with only one usable axis are not returned as a full pair; \
-             use resolve_task_policy's per-axis fallthrough instead of half-filled pairs"
+            (Some(ClutchProfile::Genius), None),
+            "a clutch-only override must resolve clutch and leave risk as None, not force a paired default"
         );
+    }
+
+    #[test]
+    fn unknown_category_key_warns_once_and_falls_through() {
+        // Regression guard for the spec's "unknown category/source name ...
+        // warned once, mirrors unregistered_llm_env's warn-once pattern"
+        // requirement — this test only proves the fallthrough half (no panic,
+        // resolves to (None, None)); the warn call itself is exercised via
+        // `tracing_test` capture if available, or left as a visual check on
+        // `RUST_LOG=warn cargo test -- --nocapture` since this crate doesn't
+        // currently depend on a tracing-capture test helper.
+        let mut category = HashMap::new();
+        category.insert("NotARealCategory".to_string(), TaskPolicyEntry { clutch: Some("free".to_string()), risk: Some("high".to_string()) });
+        let overrides = TaskPolicyOverrides { category, source: HashMap::new() };
+        assert_eq!(effective_category_policy(&overrides, TaskCategory::CodeGen), (None, None));
     }
 }
 ```
@@ -389,30 +434,38 @@ Expected: FAIL — `effective_category_policy`/`effective_source_policy` not fou
 - [ ] **Step 3: Write minimal implementation.** Append to `mode.rs`:
 
 ```rust
-/// Merge the live Vox.toml override (if any and if fully parseable) with the
-/// compiled `DEFAULT_CATEGORY_POLICY` for one category. Returns `None` when
-/// neither source has a *complete* (clutch AND risk) entry — a half-filled
-/// override (only clutch or only risk set) is intentionally not returned here;
-/// `resolve_task_policy`'s own per-axis fallthrough is where partial data gets
-/// used, keeping this merge step simple (whole-pair in, whole-pair out).
+/// Merge the live Vox.toml override (if any and parseable) with the compiled
+/// `DEFAULT_CATEGORY_POLICY` for one category. Returns each axis
+/// INDEPENDENTLY as its own `Option` — an override that sets only `clutch`
+/// resolves `(Some(_), None)`, not a forced pair, so `resolve_task_policy`
+/// can let the unset axis fall through to the source-level policy. Logs a
+/// `tracing::warn!` once per lookup when the override map has an entry for
+/// this key but neither axis parses (a malformed/typo'd label), per the
+/// spec's "not a silent no-op" requirement.
 #[must_use]
 pub fn effective_category_policy(
     overrides: &crate::config::TaskPolicyOverrides,
     category: crate::types::TaskCategory,
-) -> Option<(ClutchProfile, RiskPosture)> {
+) -> (Option<ClutchProfile>, Option<RiskPosture>) {
     let key = format!("{category:?}");
     if let Some(entry) = overrides.category.get(&key) {
-        if let (Some(c), Some(r)) = (
-            entry.clutch.as_deref().and_then(ClutchProfile::from_label),
-            entry.risk.as_deref().and_then(RiskPosture::from_label),
-        ) {
-            return Some((c, r));
+        let clutch = entry.clutch.as_deref().and_then(ClutchProfile::from_label);
+        let risk = entry.risk.as_deref().and_then(RiskPosture::from_label);
+        if clutch.is_none() && risk.is_none() && (entry.clutch.is_some() || entry.risk.is_some()) {
+            tracing::warn!(category = %key, clutch = ?entry.clutch, risk = ?entry.risk, "task_policy category override has an unparseable clutch/risk label; falling through to compiled default");
+        }
+        if clutch.is_some() || risk.is_some() {
+            let default = DEFAULT_CATEGORY_POLICY.iter().find(|p| p.category == category);
+            return (
+                clutch.or_else(|| default.map(|p| p.clutch)),
+                risk.or_else(|| default.map(|p| p.risk)),
+            );
         }
     }
-    DEFAULT_CATEGORY_POLICY
-        .iter()
-        .find(|p| p.category == category)
-        .map(|p| (p.clutch, p.risk))
+    match DEFAULT_CATEGORY_POLICY.iter().find(|p| p.category == category) {
+        Some(p) => (Some(p.clutch), Some(p.risk)),
+        None => (None, None),
+    }
 }
 
 /// Same merge as [`effective_category_policy`], for `TriggerSource`.
@@ -420,35 +473,43 @@ pub fn effective_category_policy(
 pub fn effective_source_policy(
     overrides: &crate::config::TaskPolicyOverrides,
     source: TriggerSource,
-) -> Option<(ClutchProfile, RiskPosture)> {
+) -> (Option<ClutchProfile>, Option<RiskPosture>) {
     let key = format!("{source:?}");
     if let Some(entry) = overrides.source.get(&key) {
-        if let (Some(c), Some(r)) = (
-            entry.clutch.as_deref().and_then(ClutchProfile::from_label),
-            entry.risk.as_deref().and_then(RiskPosture::from_label),
-        ) {
-            return Some((c, r));
+        let clutch = entry.clutch.as_deref().and_then(ClutchProfile::from_label);
+        let risk = entry.risk.as_deref().and_then(RiskPosture::from_label);
+        if clutch.is_none() && risk.is_none() && (entry.clutch.is_some() || entry.risk.is_some()) {
+            tracing::warn!(source = %key, clutch = ?entry.clutch, risk = ?entry.risk, "task_policy source override has an unparseable clutch/risk label; falling through to compiled default");
+        }
+        if clutch.is_some() || risk.is_some() {
+            let default = DEFAULT_SOURCE_POLICY.iter().find(|p| p.source == source);
+            return (
+                clutch.or_else(|| default.map(|p| p.clutch)),
+                risk.or_else(|| default.map(|p| p.risk)),
+            );
         }
     }
-    DEFAULT_SOURCE_POLICY
-        .iter()
-        .find(|p| p.source == source)
-        .map(|p| (p.clutch, p.risk))
+    match DEFAULT_SOURCE_POLICY.iter().find(|p| p.source == source) {
+        Some(p) => (Some(p.clutch), Some(p.risk)),
+        None => (None, None),
+    }
 }
 ```
 
-Add `use serde::{Deserialize, Serialize};` to `orchestrator_fields.rs` if not already imported (check the top of the file first — it already derives `Serialize, Deserialize` on `OrchestratorConfig` itself, so this import already exists).
+Add `use serde::{Deserialize, Serialize};` to `orchestrator_fields.rs` if not already imported (check the top of the file first — it already derives `Serialize, Deserialize` on `OrchestratorConfig` itself, so this import already exists). Confirm `mode.rs` has `tracing` in scope (it's a workspace-standard dependency used throughout `vox-orchestrator`; if this specific file has no prior `tracing::` call, add `use tracing;` is unnecessary since `tracing::warn!` is a fully-qualified macro path — just confirm the crate dependency exists in `Cargo.toml`, which it does everywhere else in this crate).
+
+**Version-skew risk — fixed directly, ahead of this task (2026-08-02), not deferred.** `OrchestratorConfig` previously carried `#[serde(deny_unknown_fields, default)]` at the struct level. `crates/vox-orchestrator/src/config/orchestrator_fields.rs`'s own test `unknown_scope_enforcement_does_not_wipe_whole_section` documents that this combination caused a real production incident (PR #349): one unrecognized/bad key failed the whole `[orchestrator]` section's parse, silently resetting every setting to defaults. Adding `task_policy` would have carried the identical risk for any older binary reading a Vox.toml written by a newer one. Rather than accept and document this as inherited, it's been fixed at the source: `deny_unknown_fields` is removed from `OrchestratorConfig`, and a `#[serde(flatten, skip_serializing)] pub unrecognized_fields: std::collections::BTreeMap<String, toml::Value>` field now absorbs any key that doesn't match a named field instead of failing the parse; `load_from_toml` (`crates/vox-orchestrator/src/config/impl_load.rs`) logs a `tracing::warn!` listing the ignored keys when this is non-empty, so drift stays observable instead of silent. A regression test (`unrecognized_orchestrator_key_does_not_wipe_the_section`) proves an unrelated setting survives a wholly-unknown sibling key. This fix landed in `orchestrator_fields.rs`/`impl_default.rs`/`impl_load.rs` as part of this review pass — Task 1.3's own `git add`/commit list above should include these three files if you're replaying this plan from a clean branch where the fix isn't already present; if you're executing on top of a branch where this review's fixes are already committed, there is nothing left to do here.
 
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `cargo test -p vox-orchestrator --lib mode:: 2>test_out.log; tail -60 test_out.log`
-Expected: PASS (all `mode.rs` tests, including the 4 new ones — note `malformed_override_label_falls_through_to_none` and `partial_override_clutch_only_still_resolves_the_pair` both assert `None` for the same underlying reason: an incomplete entry doesn't produce a pair).
+Expected: PASS (all `mode.rs` tests, including the 5 new ones).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/vox-orchestrator/src/mode.rs crates/vox-orchestrator/src/config/orchestrator_fields.rs
-git commit -m "feat(vox-orchestrator): TaskPolicyOverrides on OrchestratorConfig + effective-policy merge helpers"
+git add crates/vox-orchestrator/src/mode.rs crates/vox-orchestrator/src/config/orchestrator_fields.rs crates/vox-orchestrator/src/config/mod.rs crates/vox-orchestrator/src/config/impl_default.rs crates/vox-orchestrator/src/config/impl_load.rs
+git commit -m "feat(vox-orchestrator): TaskPolicyOverrides on OrchestratorConfig + per-axis effective-policy merge helpers; fix deny_unknown_fields version-skew wiping the whole [orchestrator] section"
 ```
 
 ### Task 1.4: `OrchestratorConfigField` catalog parity check
@@ -646,14 +707,17 @@ Expected: FAIL — `resolved_policy` not found.
         &self,
         overrides: &crate::config::TaskPolicyOverrides,
     ) -> (crate::mode::ClutchProfile, crate::mode::RiskPosture) {
-        let category_policy = crate::mode::effective_category_policy(overrides, self.task_category);
+        let (category_clutch, category_risk) =
+            crate::mode::effective_category_policy(overrides, self.task_category);
         let source = self.trigger_source.unwrap_or(crate::mode::TriggerSource::Interactive);
-        let source_policy = crate::mode::effective_source_policy(overrides, source);
+        let (source_clutch, source_risk) = crate::mode::effective_source_policy(overrides, source);
         crate::mode::resolve_task_policy(
             self.clutch_profile,
             self.risk_posture,
-            category_policy,
-            source_policy,
+            category_clutch,
+            category_risk,
+            source_clutch,
+            source_risk,
         )
     }
 ```
@@ -674,7 +738,9 @@ git commit -m "feat(vox-orchestrator): AgentTask::resolved_policy() — task-typ
 
 This is the AgentTask-path counterpart to Phase 3's MCP wiring — without it, a task submitted from the chat composer with an explicit clutch already works today (see below), but any task relying on a *category or source* policy (no explicit hint — the CI/CD-inbox case, and every non-composer submission) silently does nothing, exactly like the MCP path's dead `build_selection_request` branch this plan already fixes in Task 3.3.
 
-**Grounding (confirmed live):** `crates/vox-orchestrator/src/runtime.rs:628-644` (`AiTaskProcessor::process`) is the real consumption site:
+**Scope note (found by adversarial review, not fixed in this task):** the identical "gate on an explicit hint, ignore category/source policy" bug also exists in `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/attention_fields.rs:86-92` (approval-tier escalation only consults `task.resolved_risk()` when `task.risk_posture.is_some()`) and `crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/success/socrates.rs:47-59` (grounding/Socrates enforcement, same gate). Task 2.4 below fixes both, reusing the exact same `resolved_policy()`/`effective_source_policy()` machinery this task wires into `runtime.rs` — without Task 2.4, a category/source *risk* policy changes cost preference but has no effect on approval strictness or grounding/Socrates enforcement, which undercuts half of what the spec asks for (configurable risk posture per task type).
+
+**Grounding (confirmed live):** `crates/vox-orchestrator/src/runtime.rs:619-634` (`AiTaskProcessor::process`) is the real consumption site (line numbers verified against the live file during this review; a first draft of this plan cited 628-644, off by the width of an intervening comment block — reconfirm against the file you actually have checked out, since comments shift):
 
 ```rust
 let mut cost_pref = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
@@ -759,20 +825,30 @@ fn resolve_task_cost_policy(
     overrides: &crate::config::TaskPolicyOverrides,
     global_default: crate::config::CostPreference,
 ) -> (crate::config::CostPreference, bool) {
-    let category_policy = crate::mode::effective_category_policy(overrides, task.task_category);
+    let (category_clutch, category_risk) =
+        crate::mode::effective_category_policy(overrides, task.task_category);
     let source = task.trigger_source.unwrap_or(crate::mode::TriggerSource::Interactive);
-    let source_policy = crate::mode::effective_source_policy(overrides, source);
-    if task.clutch_profile.is_none() && category_policy.is_none() && source_policy.is_none() {
+    let (source_clutch, source_risk) = crate::mode::effective_source_policy(overrides, source);
+    if task.clutch_profile.is_none()
+        && category_clutch.is_none()
+        && source_clutch.is_none()
+    {
         return (global_default, false);
     }
-    let (clutch, _risk) =
-        crate::mode::resolve_task_policy(task.clutch_profile, task.risk_posture, category_policy, source_policy);
+    let (clutch, _risk) = crate::mode::resolve_task_policy(
+        task.clutch_profile,
+        task.risk_posture,
+        category_clutch,
+        category_risk,
+        source_clutch,
+        source_risk,
+    );
     let rc = clutch.resolve();
     (rc.cost_preference, rc.force_free_pool)
 }
 ```
 
-Replace lines 628-638 in `AiTaskProcessor::process` with:
+Replace the `let mut cost_pref = ...` / `let force_free_pool = if task.clutch_profile.is_some() { ... } else { false };` block (the exact lines shown in this task's "Grounding" quote above — verify against the live file, since the citation drifted once already) in `AiTaskProcessor::process` with:
 
 ```rust
         let overrides = crate::sync_lock::rw_read(&*self.orchestrator.config).task_policy.clone();
@@ -780,7 +856,7 @@ Replace lines 628-638 in `AiTaskProcessor::process` with:
         let (mut cost_pref, force_free_pool) = resolve_task_cost_policy(&task, &overrides, global_default);
 ```
 
-(Leave lines 639-644, the risk/`ModelLean::Intelligence` block, unchanged — it already runs unconditionally today via `task.resolved_risk()`'s own built-in `Moderate` fallback and needs no fix.)
+(Leave the risk/`ModelLean::Intelligence` `if matches!(...)` block immediately after unchanged — it already runs unconditionally today via `task.resolved_risk()`'s own built-in `Moderate` fallback and needs no fix.)
 
 - [ ] **Step 5: Run to verify it passes**
 
@@ -794,15 +870,86 @@ git add crates/vox-orchestrator/src/runtime.rs
 git commit -m "fix(vox-orchestrator): AgentTask execution honors task-type cost policy even without an explicit clutch hint"
 ```
 
+### Task 2.4: Apply the same fix to approval-tier escalation and grounding/Socrates enforcement
+
+**Why this task exists:** flagged by adversarial review — `attention_fields.rs` and `socrates.rs` have the exact same "only consult resolved_risk when risk_posture is explicitly Some" gate that Task 2.3 just fixed in `runtime.rs`. Skipping these means a category/source *risk* policy (e.g. "Automated tasks get Low risk posture, forcing extra grounding") silently has zero effect outside cost preference — the risk half of this plan's stated goal stays unfulfilled without it. Both fixes reuse `resolved_policy()`/`effective_source_policy()` already built in Tasks 1.3/2.2; there is no new resolution logic here, only two more call sites consuming it.
+
+**Files:**
+- Modify: `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/attention_fields.rs:82-92`
+- Modify: `crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/success/socrates.rs:47-59`
+
+- [ ] **Step 1: Read both files' current gate logic in full** (`rg -n "resolved_risk|risk_posture" crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/attention_fields.rs crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/success/socrates.rs`) and confirm the exact current shape before editing — both were read during this plan's review pass, but re-confirm at execution time since these files may have changed since. In `attention_fields.rs`, the gate is `match task.risk_posture { Some(_) => { let risk_tier = task.resolved_risk().approval.to_approval_tier(); tier.max_strictness(risk_tier) } None => tier }`. In `socrates.rs`, it's `task.risk_posture.map(|_| resolved.grounding_enforce).unwrap_or(config....)` (and the equivalent for `socrates_enforce`).
+
+- [ ] **Step 2: Write the failing test for `attention_fields.rs`.** Add near its existing tests:
+
+```rust
+    #[test]
+    fn category_or_source_risk_policy_escalates_approval_tier_without_explicit_hint() {
+        let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        task.trigger_source = Some(crate::mode::TriggerSource::Automated);
+        let mut source = std::collections::HashMap::new();
+        source.insert(
+            "Automated".to_string(),
+            crate::config::TaskPolicyEntry { clutch: None, risk: Some("low".to_string()) },
+        );
+        let overrides = crate::config::TaskPolicyOverrides { category: std::collections::HashMap::new(), source };
+        let tier = TaskPriority::Normal.default_approval_tier(); // or whatever this file's existing baseline-tier helper is named — confirm against live code
+        let escalated = effective_approval_tier(&task, &overrides, tier); // new small function, Step 3
+        assert_eq!(escalated, crate::mode::RiskPosture::Low.resolve().approval.to_approval_tier());
+    }
+```
+
+*(The baseline-tier helper name (`default_approval_tier` above is a placeholder) must be confirmed against the real function computing `tier` before this test is written for real — read the call site immediately before the current `match task.risk_posture { ... }` block to find it.)*
+
+- [ ] **Step 3: Extract and fix.** Replace the `match task.risk_posture { Some(_) => ..., None => tier }` block with a small function mirroring `resolve_task_cost_policy`'s shape:
+
+```rust
+fn effective_approval_tier(
+    task: &crate::types::AgentTask,
+    overrides: &crate::config::TaskPolicyOverrides,
+    baseline: ApprovalTier, // exact type name per this file's existing import
+) -> ApprovalTier {
+    let (_category_clutch, category_risk) =
+        crate::mode::effective_category_policy(overrides, task.task_category);
+    let source = task.trigger_source.unwrap_or(crate::mode::TriggerSource::Interactive);
+    let (_source_clutch, source_risk) = crate::mode::effective_source_policy(overrides, source);
+    let risk = task.risk_posture.or(category_risk).or(source_risk);
+    match risk {
+        Some(r) => baseline.max_strictness(r.resolve().approval.to_approval_tier()),
+        None => baseline,
+    }
+}
+```
+
+Call it in place of the old `match`, passing in the `overrides` fetched the same way Task 2.3 fetches them (`crate::sync_lock::rw_read(&*self.orchestrator.config).task_policy.clone()`, or whatever this file's existing config-access pattern is — confirm at execution time, this file may read config differently than `runtime.rs`).
+
+- [ ] **Step 4: Run to verify it passes**
+
+Run: `cargo test -p vox-orchestrator --lib orchestrator::task_dispatch::submit::attention_fields:: 2>test_out.log; tail -60 test_out.log`
+Expected: PASS, including all pre-existing tests in the file unchanged.
+
+- [ ] **Step 5: Repeat Steps 2-4 for `socrates.rs`**, using the same `task.risk_posture.or(category_risk).or(source_risk)` fallthrough in place of `task.risk_posture.map(|_| ...).unwrap_or(...)` for both `grounding_enforce` and `socrates_enforce`. Write one test per field (`category_or_source_risk_policy_enables_grounding_without_explicit_hint`, `..._enables_socrates_without_explicit_hint`), run `cargo test -p vox-orchestrator --lib orchestrator::task_dispatch::complete::success::socrates::`, confirm PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/attention_fields.rs crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/success/socrates.rs
+git commit -m "fix(vox-orchestrator): approval-tier + grounding/Socrates enforcement honor task-type risk policy"
+```
+
 ---
 
 ## Phase 3 — MCP wiring
 
 ### Task 3.1: `SubmitTaskParams` carries the hints; `submission.rs` forwards them
 
+**Security note (raised by adversarial review, deliberately accepted, not fixed here):** exposing `clutch`/`risk` on the generic `vox_task_submit` MCP tool means any caller of that tool can set `risk: "high"`, which (via `crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/success/socrates.rs`) unconditionally disables grounding/Socrates enforcement with no floor — unlike the sibling approval-tier path (`attention_fields.rs`), which already protects against a permissive risk hint *demoting* below a trust-classified baseline via `max_strictness`. This is a real widening of who can reach that knob, but it is consistent with, not worse than, `vox_task_submit`'s existing trust model: `model_override` (pick an arbitrary model) and `budget.max_cost_usd` are already exposed on the same tool with no per-caller authorization check today. Hardening the grounding/Socrates read to floor against a `max_strictness`-style baseline (mirroring `attention_fields.rs`) is a reasonable follow-up, but it's a change to existing, pre-plan behavior (not something this plan introduces) and is out of scope here — noted so the tradeoff is a conscious call, not a blind spot.
+
 **Files:**
 - Modify: `crates/vox-orchestrator-mcp/src/params.rs`
 - Modify: `crates/vox-orchestrator-mcp/src/task_tools/submission.rs`
+
+**Grounding fix (found by adversarial review):** the real function that builds `TaskEnqueueHints` from `SubmitTaskParams` is `pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<TaskEnqueueHints>` (`submission.rs:90`) — **one argument**, not the five-argument `task_enqueue_hints_from_params(&params, category, campaign_id, benchmark_tier, description)` an earlier draft of this task guessed. Also: `SubmitTaskParams` derives only `#[derive(Debug, Deserialize, JsonSchema)]` — **no `Default`, no `Clone`** — this is a deliberate, file-wide pattern (every MCP param struct in `params.rs` is `Deserialize`-only, since these only ever arrive via JSON-RPC input, never constructed by hand in production code). A test using `SubmitTaskParams { ..., ..Default::default() }` will not compile. Build the test value via `serde_json::from_value` instead, matching how these structs are actually meant to be constructed.
 
 - [ ] **Step 1: Write the failing test.** Add to `submission.rs`'s existing test module (find it with `rg '#\[cfg\(test\)\]' crates/vox-orchestrator-mcp/src/task_tools/submission.rs` — if none exists yet, create one at the bottom of the file):
 
@@ -814,14 +961,14 @@ mod trigger_source_forwarding_tests {
 
     #[test]
     fn forwards_clutch_risk_trigger_source_hints() {
-        let params = SubmitTaskParams {
-            description: "t".to_string(),
-            clutch: Some("free".to_string()),
-            risk: Some("high".to_string()),
-            trigger_source: Some("automated".to_string()),
-            ..Default::default()
-        };
-        let hints = task_enqueue_hints_from_params(&params, None, None, None, "t")
+        let params: SubmitTaskParams = serde_json::from_value(serde_json::json!({
+            "description": "t",
+            "clutch": "free",
+            "risk": "high",
+            "trigger_source": "automated",
+        }))
+        .expect("valid SubmitTaskParams JSON");
+        let hints = enqueue_hints_from_submit_params(&params)
             .expect("hints should be produced when clutch/risk/trigger_source are set");
         assert_eq!(hints.clutch.as_deref(), Some("free"));
         assert_eq!(hints.risk.as_deref(), Some("high"));
@@ -830,12 +977,10 @@ mod trigger_source_forwarding_tests {
 }
 ```
 
-*(The exact name/signature of the function building `TaskEnqueueHints` from `SubmitTaskParams` — shown here as `task_enqueue_hints_from_params(&params, category, campaign_id, benchmark_tier, description)` — must be confirmed against the live function signature at `submission.rs:143` before writing this test; read that function's full signature first and adjust the test's call to match exactly. Do not guess parameter order.)*
-
 - [ ] **Step 2: Run to verify it fails**
 
 Run: `cargo test -p vox-orchestrator-mcp --lib task_tools::submission::trigger_source_forwarding_tests 2>test_out.log; tail -30 test_out.log`
-Expected: FAIL — `SubmitTaskParams` has no `clutch`/`risk`/`trigger_source` fields (and the guard at the top of the hints function, currently returning `None` when every optional field is empty, needs `clutch`/`risk`/`trigger_source` added to its emptiness check or the test's `Some` values won't be enough to avoid an early `None`).
+Expected: FAIL — `SubmitTaskParams` has no `clutch`/`risk`/`trigger_source` fields (and the guard at the top of `enqueue_hints_from_submit_params`, currently returning `None` when every optional field is empty, needs `clutch`/`risk`/`trigger_source` added to its emptiness check or the test's values won't be enough to avoid an early `None`).
 
 - [ ] **Step 3: Write minimal implementation.**
 
@@ -939,7 +1084,7 @@ Add `trigger_source: vox_orchestrator::mode::TriggerSource::Interactive,` to the
 Run: `cargo build -p vox-orchestrator-mcp 2>build_out.log; tail -80 build_out.log`
 Expected: Compile errors (E0063 missing field) at every other place `McpChatModelResolution { .. }` is constructed without `..Default::default()`. Note the exact file:line list from the error output — this is the authoritative list of remaining call sites, not a guess.
 
-- [ ] **Step 5: Fix each flagged call site.** For every file the compiler flagged (expected: `crates/vox-orchestrator-mcp/src/models_tools.rs` and `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs`, per this session's grep — confirm against the actual compiler output, which is authoritative), add `trigger_source: vox_orchestrator::mode::TriggerSource::Interactive,` to the struct literal next to its `clutch: None,`/`risk: None,` fields.
+- [ ] **Step 5: Fix each flagged call site.** **Corrected prediction (an earlier draft of this task guessed wrong here, verified during adversarial review):** `rg 'McpChatModelResolution\s*\{' crates/vox-orchestrator-mcp` finds 27 construction sites across 14 files, but 26 of them already use `..Default::default()` (which absorbs a new field with a `Default` impl automatically — no compile error). **Only one site is exhaustive and will actually be flagged: `crates/vox-orchestrator-mcp/src/models_tools.rs:74-84`.** Add `trigger_source: vox_orchestrator::mode::TriggerSource::Interactive,` to that struct literal, next to its `clutch: None,`/`risk: None,` fields. Still run the build first (Step 4) and treat its output as authoritative — this correction is based on a live grep at review time, not a guarantee about what the file looks like when you execute this task — but do not expect `model_route_policy/tests.rs` to need any change; all 7 of its `McpChatModelResolution` literals already use `..Default::default()`.
 
 - [ ] **Step 6: Run to verify it passes**
 
@@ -949,78 +1094,104 @@ Expected: PASS (full crate test suite, confirming no construction site was misse
 - [ ] **Step 7: Commit**
 
 ```bash
-git add crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/types.rs crates/vox-orchestrator-mcp/src/models_tools.rs crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs
+git add crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/types.rs crates/vox-orchestrator-mcp/src/models_tools.rs
 git commit -m "feat(vox-orchestrator-mcp): McpChatModelResolution carries trigger_source (always Interactive today)"
 ```
 
 ### Task 3.3: Resolve the policy at the top of `resolve_mcp_chat_model_sync_inner`
 
+**⚠️ CRITICAL FIX after adversarial review (2026-08-02) — the original version of this task shipped a silent production regression.** Unconditionally setting `res.clutch = Some(clutch)`/`res.risk = Some(risk)` (where `clutch` falls back to `ClutchProfile::Balanced` when nothing else applies, since the compiled tables start empty) changes `build_selection_request`'s behavior for the *default, most common* case: today, when `res.clutch` is `None` (true everywhere in production right now) and the global `cost_preference` is `Economy` (the actual default — see `crates/vox-orchestrator/src/config/defaults.rs`, "Free-by-default policy"), selection uses `SelectionAxes::COST_FIRST` (70/15/15). Once `res.clutch` is forced to `Some(Balanced)` unconditionally, that same call now takes the `effective_axes(Balanced, Moderate)` branch = `(33,33,34)` — cost weight drops from 70 to 33 for every default-config chat call, with **no explicit policy anywhere causing it**. Every existing test in the 756-line `model_route_policy/tests.rs` suite explicitly overrides `cost_preference` to `Performance`, so none of them exercise the branch that actually changes — this regression would have shipped with a fully green test suite. The fix mirrors Task 2.3's own guard exactly: only override `res.clutch`/`res.risk` when an actual policy source applies (explicit, category, or source) — otherwise leave them `None` so the existing `build_selection_request` fallback (`COST_FIRST`/`BALANCED` based on `preference`) is untouched, preserving today's behavior byte-for-byte until an operator actually configures something.
+
 **Files:**
 - Modify: `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs:197-220`
 
-- [ ] **Step 1: Write the failing test.** Add near the top of `resolve.rs`'s existing test module (`rg '#\[cfg\(test\)\]' crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs` to find it — the sibling `tests.rs` file, 756 lines, is likely `#[path = "tests.rs"] mod tests;` referenced from `mod.rs`; add this test there instead if `resolve.rs` has no inline test module — check `mod.rs` first to see which file actually holds `resolve.rs`'s tests before writing this step for real):
+- [ ] **Step 1: Write the regression test FIRST — this is the test that would have caught the bug above.** Find (or add, if none of the 8 `OrchestratorConfig::for_testing()` fixtures in `model_route_policy/tests.rs` cover this) a test using the *default* `cost_preference` (i.e. do NOT override it to `Performance`, unlike every existing fixture in that file) with `McpChatModelResolution { ..Default::default() }` (no explicit clutch/risk), and assert the selection still prefers the cheap/free model exactly as it does today:
 
 ```rust
     #[test]
-    fn clutch_and_risk_are_populated_before_selection_when_unset() {
-        // Regression guard for the dead-code path this feature fixes: before
-        // this change, res.clutch == None meant build_selection_request never
-        // called effective_axes at all (see resolve.rs's preference-only branch).
-        let res = McpChatModelResolution { task_category: TaskCategory::CodeGen, ..Default::default() };
-        assert!(res.clutch.is_none(), "test setup sanity check");
-        // The resolver call this task adds must backfill both fields to Some
-        // before build_selection_request is reached — verified indirectly via
-        // resolve_task_policy's own already-tested global-default fallback
-        // (Balanced/Moderate), since resolve_mcp_chat_model_sync_inner is not
-        // directly unit-testable without a live Orchestrator registry.
-        let (clutch, risk) = vox_orchestrator::mode::resolve_task_policy(
-            res.clutch, res.risk, None, None,
-        );
-        assert_eq!(clutch, vox_orchestrator::mode::ClutchProfile::Balanced);
-        assert_eq!(risk, vox_orchestrator::mode::RiskPosture::Moderate);
+    fn default_economy_preference_with_no_clutch_keeps_cost_first_selection() {
+        // Regression guard: with Economy (the real default) and no clutch
+        // anywhere (explicit, category, or source), selection must still use
+        // COST_FIRST axes exactly as it does today — Task 3.3's wiring below
+        // must NOT force a Balanced-axes selection for the unconfigured case.
+        let orch = /* build via this file's existing test-orchestrator helper, WITHOUT
+                       overriding cost_preference — confirm the exact constructor name
+                       against live code; every current fixture in this file overrides
+                       cost_preference to Performance, so this is a genuinely new setup */;
+        let registry = tiny_registry_with_free_and_paid(); // or this file's equivalent fixture
+        let (model, _) = resolve_mcp_chat_model_sync(&orch, "generate a parser", None, McpChatModelResolution {
+            task_category: TaskCategory::CodeGen,
+            ..Default::default()
+        }).expect("resolves");
+        assert!(model.is_free, "with no policy configured anywhere, Economy default + no clutch must still pick the free/cheap model (COST_FIRST), matching today's behavior exactly");
     }
 ```
 
-- [ ] **Step 2: Run to verify it passes already**
+*(The exact helper names for building a test `Orchestrator`/registry with default, non-overridden `cost_preference` must be confirmed against live code in `model_route_policy/tests.rs` before this test is written for real — every existing fixture overrides `cost_preference`, so this is new setup, not a copy-paste of an existing one.)*
 
-Run: `cargo test -p vox-orchestrator-mcp --lib clutch_and_risk_are_populated 2>test_out.log; tail -30 test_out.log`
-Expected: PASS — this test only exercises the already-implemented `resolve_task_policy` (Phase 1), so it passes immediately. It documents the contract Step 3 below wires into the real function; it is not itself proof that `resolve_mcp_chat_model_sync_inner` calls it yet.
+- [ ] **Step 2: Run to verify it passes on the CURRENT (unmodified) code** — this proves the test actually captures today's real behavior before you touch anything:
 
-- [ ] **Step 3: Wire the real call site.** In `resolve.rs`, immediately after `let mut res = res;` (currently line 211, before the `force_free_pool` check at line 216), insert:
+Run: `cargo test -p vox-orchestrator-mcp --lib default_economy_preference_with_no_clutch_keeps_cost_first_selection 2>test_out.log; tail -30 test_out.log`
+Expected: PASS (this is a characterization test of existing behavior, not new functionality — it must pass before Step 4's change and continue passing after).
+
+- [ ] **Step 3: Write the dead-path documentation test** (same as the original version of this task — still useful, just no longer the only test):
+
+```rust
+    #[test]
+    fn clutch_and_risk_are_populated_before_selection_when_a_policy_applies() {
+        // Contrast with Step 1's test: when a category/source policy DOES
+        // apply, res.clutch/res.risk must become Some so build_selection_request
+        // actually uses effective_axes — this is the dead-path fix, scoped to
+        // only fire when something real applies.
+        let (clutch, risk) = vox_orchestrator::mode::resolve_task_policy(
+            None, None, None, None, Some(vox_orchestrator::mode::ClutchProfile::Free), Some(vox_orchestrator::mode::RiskPosture::High),
+        );
+        assert_eq!(clutch, vox_orchestrator::mode::ClutchProfile::Free);
+        assert_eq!(risk, vox_orchestrator::mode::RiskPosture::High);
+    }
+```
+
+- [ ] **Step 4: Wire the real call site, WITH the guard.** In `resolve.rs`, immediately after `let mut res = res;` (currently line 211, before the `force_free_pool` check at line 216), insert:
 
 ```rust
     {
-        let category_policy = vox_orchestrator::mode::effective_category_policy(
-            &orch.config_handle_read().task_policy,
-            res.task_category,
-        );
-        let source_policy = vox_orchestrator::mode::effective_source_policy(
-            &orch.config_handle_read().task_policy,
-            res.trigger_source,
-        );
-        let (clutch, risk) = vox_orchestrator::mode::resolve_task_policy(
-            res.clutch,
-            res.risk,
-            category_policy,
-            source_policy,
-        );
-        res.clutch = Some(clutch);
-        res.risk = Some(risk);
+        let overrides = /* however this function already reads OrchestratorConfig —
+                            it does this at line 264-267 via orch.config_handle() +
+                            vox_orchestrator::sync_lock::rw_read(&*config_handle);
+                            read the guard ONCE here and pull .task_policy off it,
+                            reusing that single read for the `preference` lookup
+                            immediately below it too instead of reading twice */;
+        let (category_clutch, category_risk) =
+            vox_orchestrator::mode::effective_category_policy(&overrides.task_policy, res.task_category);
+        let (source_clutch, source_risk) =
+            vox_orchestrator::mode::effective_source_policy(&overrides.task_policy, res.trigger_source);
+        // Guard mirrors Task 2.3's resolve_task_cost_policy exactly: only override
+        // res.clutch/res.risk when a real policy applies somewhere. Leaving both
+        // None when nothing applies preserves today's COST_FIRST/BALANCED legacy
+        // branch in build_selection_request untouched — this is what Step 1's
+        // regression test enforces.
+        if res.clutch.is_some() || category_clutch.is_some() || source_clutch.is_some() {
+            let (clutch, risk) = vox_orchestrator::mode::resolve_task_policy(
+                res.clutch, res.risk,
+                category_clutch, category_risk,
+                source_clutch, source_risk,
+            );
+            res.clutch = Some(clutch);
+            res.risk = Some(risk);
+        }
     }
 ```
 
-*(`orch.config_handle_read()` is a placeholder name for "however this function already reads `OrchestratorConfig`" — the function already does this at line 264-267 via `orch.config_handle()` + `vox_orchestrator::sync_lock::rw_read(&*config_handle)`. Use that exact same pattern here instead of inventing a new accessor: read the config handle once, pull `.task_policy` off the same guard the existing `preference` read at line 264-267 already produces, reusing one read instead of two. Adjust the snippet above to match — the two-`orch.config_handle_read()` calls shown are illustrative of *what* to read, not the literal code to paste.)*
-
-- [ ] **Step 4: Run the full resolve.rs / model_route_policy test suite**
+- [ ] **Step 5: Run the full resolve.rs / model_route_policy test suite**
 
 Run: `cargo test -p vox-orchestrator-mcp --lib llm_bridge::model_route_policy:: 2>test_out.log; tail -150 test_out.log`
-Expected: PASS — all pre-existing tests in `model_route_policy/tests.rs` (756 lines) must still pass unchanged; this is the zero-regression gate for this task, since `res.clutch`/`res.risk` are now always `Some` where they used to sometimes be `None`, and any pre-existing test asserting `None`-branch behavior needs to be read and reconciled (not silently broken) — if any test fails, read it, understand which branch it exercised, and update its expectation to match the new (intentional) always-resolved behavior rather than reverting the wiring.
+Expected: PASS — all pre-existing tests in `model_route_policy/tests.rs` (756 lines) unchanged, PLUS Step 1's new regression test still passing (proving the guard actually preserved default behavior) AND Step 3's test passing (proving the dead path is genuinely fixed when a policy exists). If Step 1's test fails after Step 4's change, the guard is wrong — do not weaken or delete that test to make it pass; fix the guard.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs
-git commit -m "feat(vox-orchestrator-mcp): resolve task-type policy before model selection (fixes dead effective_axes path)"
+git commit -m "feat(vox-orchestrator-mcp): resolve task-type policy before model selection, only when one applies (fixes dead effective_axes path without changing the unconfigured default)"
 ```
 
 ---
@@ -1080,6 +1251,10 @@ git commit -m "feat(vox-gui): get_task_policy_overrides Tauri command"
 
 ### Task 4.2: `set_task_policy_override` / `clear_task_policy_override`
 
+**Before starting this task:** if this is the first `vox-gui` build/test in this worktree, run `vox run scripts/gui-build.vox` once — per `AGENTS.md`'s documented "Perennial Bug Pattern," `cargo build`/`test -p vox-gui` fails inside `tauri-build` the first time any `git worktree add` builds it, because the release `vox` binary Tauri bundles as a sidecar (and `ui/dist`) don't exist yet in a fresh worktree's `target/`. This applies to every `cargo test -p vox-gui --bins` step in this phase and Phase 5, not just this one — it's called out here since it's the first one.
+
+**⚠️ FIX after adversarial review (2026-08-02): these commands must also signal the orchestrator daemon to reload, like `set_orchestrator_config` already does.** The orchestrator runs as a separate long-lived process (`PersistentDaemon`) holding its own `Arc<RwLock<OrchestratorConfig>>` — `AiTaskProcessor::process` (Task 2.3's wiring) reads that live daemon-process config directly, not a value the GUI process can mutate in place. `set_orchestrator_config` (the function this task mirrors) accounts for this: after writing Vox.toml and bumping the local snapshot, it *also* fires a `tokio::spawn`ned, fire-and-forget RPC (`call_orchestrator_daemon(&daemon, orch_daemon_method::RELOAD_CONFIG, ...)`) so the running daemon actually picks up the change. The original version of this task wrote Vox.toml and updated the GUI-process-local snapshot but never told the daemon to reload — a GUI-set override would silently have no effect on real task execution until the daemon was separately restarted, undermining the spec's own "live override" framing. Both commands below now take a `daemon` parameter and include the reload call, exactly mirroring `set_orchestrator_config`'s existing pattern.
+
 **Files:**
 - Modify: `crates/vox-gui/src/commands/orchestrator.rs`
 
@@ -1122,7 +1297,10 @@ fn validate_task_policy_labels(clutch: Option<&str>, risk: Option<&str>) -> Resu
 }
 
 /// `scope_kind` is `"category"` or `"source"`; `scope_key` is a `TaskCategory`/
-/// `TriggerSource` Debug name (e.g. `"CodeGen"`, `"Automated"`).
+/// `TriggerSource` Debug name (e.g. `"CodeGen"`, `"Automated"`). Signals the
+/// running orchestrator daemon to reload afterward (fire-and-forget), exactly
+/// like `set_orchestrator_config` does — without this, the write only affects
+/// what a future daemon restart picks up, not the live process.
 #[tauri::command]
 pub async fn set_task_policy_override(
     app_handle: tauri::AppHandle,
@@ -1130,6 +1308,7 @@ pub async fn set_task_policy_override(
     scope_key: String,
     clutch: Option<String>,
     risk: Option<String>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<(), String> {
     validate_task_policy_labels(clutch.as_deref(), risk.as_deref())?;
 
@@ -1168,15 +1347,25 @@ pub async fn set_task_policy_override(
         ORCH_CONFIG_CHANGED_EVENT,
         OrchestratorConfigChanged { rev: vox_config::snapshot::current_rev() },
     );
+
+    // Fire-and-forget: tell the running daemon to reload so this override
+    // affects real task execution immediately, not just after a restart.
+    let daemon: Arc<PersistentDaemon> = daemon.inner().clone();
+    tokio::spawn(async move {
+        let _ = call_orchestrator_daemon(&daemon, orch_daemon_method::RELOAD_CONFIG, serde_json::json!({})).await;
+    });
+
     Ok(())
 }
 
 /// Remove one override (`scope_kind`/`scope_key` as in [`set_task_policy_override`]).
+/// Same daemon-reload signal as `set_task_policy_override`.
 #[tauri::command]
 pub async fn clear_task_policy_override(
     app_handle: tauri::AppHandle,
     scope_kind: String,
     scope_key: String,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<(), String> {
     let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
     let (mut manifest, path) = VoxManifest::discover(&current_dir).map_err(|e| e.to_string())?;
@@ -1199,11 +1388,17 @@ pub async fn clear_task_policy_override(
         ORCH_CONFIG_CHANGED_EVENT,
         OrchestratorConfigChanged { rev: vox_config::snapshot::current_rev() },
     );
+
+    let daemon: Arc<PersistentDaemon> = daemon.inner().clone();
+    tokio::spawn(async move {
+        let _ = call_orchestrator_daemon(&daemon, orch_daemon_method::RELOAD_CONFIG, serde_json::json!({})).await;
+    });
+
     Ok(())
 }
 ```
 
-*(Verify `toml::map::Map` is the correct type for `manifest.orchestrator`'s value type before pasting — read `VoxManifest`'s definition, e.g. `rg 'pub orchestrator' crates/vox-orchestrator/ crates/vox-config/` first, since `orch_table.insert(...)` in the existing `set_orchestrator_config` implies it's some `toml`-crate map type; match whatever that type actually is exactly, adjusting `toml::map::Map`/`.as_table()` calls if the real type differs.)*
+(`manifest.orchestrator`'s type is confirmed `Option<toml::Table>` — `toml::Table` is a type alias for `toml::map::Map<String, toml::Value>` — so `toml::map::Map::new()` above is correct as written, verified against `crates/vox-package-types/src/manifest.rs` during this plan's review; no further check needed at execution time.)
 
 - [ ] **Step 4: Run to verify it passes**
 
@@ -1225,6 +1420,8 @@ git commit -m "feat(vox-gui): set/clear_task_policy_override Tauri commands"
 ```
 
 ### Task 4.3: Minimal React panel
+
+**⚠️ FIX after adversarial review (2026-08-02): the original version of this task had no way to CREATE a first override.** The spec explicitly requires "a minimal panel... listing current overrides as rows... plus an 'add override' control offering the categories/sources that don't yet have one." The original component only ever rendered `Object.entries(overrides.category/source)` — since a fresh install has zero overrides, the panel rendered an empty table with no way to populate it, short of hand-editing Vox.toml. The version below adds the missing control: a dropdown of not-yet-configured category/source names plus clutch/risk selects and an "Add" button.
 
 **Files:**
 - Create: `crates/vox-gui/ui/src/components/surfaces/Settings/TaskPolicySection.tsx`
@@ -1275,6 +1472,30 @@ describe("TaskPolicySection", () => {
       })
     );
   });
+
+  it("offers only not-yet-configured categories/sources in the add control, and adds one", async () => {
+    render(<TaskPolicySection />);
+    await waitFor(() => expect(screen.getByText(/CodeGen/i)).toBeInTheDocument());
+
+    // CodeGen already has an override (from the mock) — it must not appear as
+    // an addable option; Automated (a source) must, since none are configured.
+    const addScopeSelect = screen.getByLabelText(/add override for/i);
+    const optionLabels = Array.from(addScopeSelect.querySelectorAll("option")).map((o) => o.textContent);
+    expect(optionLabels.some((l) => l?.includes("CodeGen"))).toBe(false);
+    expect(optionLabels.some((l) => l?.includes("Automated"))).toBe(true);
+
+    fireEvent.change(addScopeSelect, { target: { value: "source:Automated" } });
+    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+
+    await waitFor(() =>
+      expect(mockInvoke).toHaveBeenCalledWith("set_task_policy_override", {
+        scopeKind: "source",
+        scopeKey: "Automated",
+        clutch: undefined,
+        risk: undefined,
+      })
+    );
+  });
 });
 ```
 
@@ -1283,7 +1504,7 @@ describe("TaskPolicySection", () => {
 Run: `cd crates/vox-gui/ui && npx vitest run src/components/surfaces/Settings/TaskPolicySection.test.tsx 2>test_out.log; tail -60 test_out.log`
 Expected: FAIL — `TaskPolicySection` module not found.
 
-- [ ] **Step 4: Write minimal implementation** `TaskPolicySection.tsx`:
+- [ ] **Step 4: Write minimal implementation** `TaskPolicySection.tsx`. `ALL_CATEGORIES` mirrors `contracts/orchestration/model-routing.v1.yaml::task_categories` plus the codegen'd default `General` — this is a static, hand-maintained list (matching how `driveConsole.ts` already hardcodes `CLUTCH_DETENTS`/`RISK_POSTURES` rather than fetching them), so it will drift if a category is renamed in the YAML; acceptable for a minimal panel, revisit if that YAML changes often. `ALL_SOURCES` mirrors `TriggerSource`'s four variants exactly:
 
 ```tsx
 import { useEffect, useState, useCallback } from "react";
@@ -1298,8 +1519,20 @@ type TaskPolicyOverrides = {
 const CLUTCH_OPTIONS = ["free", "efficiency", "balanced", "genius"];
 const RISK_OPTIONS = ["high", "moderate", "low"];
 
+// Mirrors contracts/orchestration/model-routing.v1.yaml::task_categories + the
+// codegen'd #[default] General variant. Hand-maintained, like driveConsole.ts's
+// CLUTCH_DETENTS/RISK_POSTURES — update if that YAML's category list changes.
+const ALL_CATEGORIES = [
+  "General", "CodeGen", "Testing", "Debugging", "TypeChecking", "Research",
+  "Parsing", "Review", "Ars", "Planning", "InterAgent", "ToolOrchestration",
+  "Visus", "CodeEffortJudge", "Chat",
+];
+// Mirrors crate::mode::TriggerSource's four variants exactly (Debug-style names).
+const ALL_SOURCES = ["Interactive", "Automated", "Subagent", "Mesh"];
+
 export function TaskPolicySection() {
   const [overrides, setOverrides] = useState<TaskPolicyOverrides>({ category: {}, source: {} });
+  const [addScope, setAddScope] = useState("");
 
   const refresh = useCallback(() => {
     invoke<TaskPolicyOverrides>("get_task_policy_overrides").then(setOverrides);
@@ -1328,6 +1561,16 @@ export function TaskPolicySection() {
 
   const clearOverride = (scopeKind: "category" | "source", scopeKey: string) => {
     invoke("clear_task_policy_override", { scopeKind, scopeKey }).then(refresh);
+  };
+
+  const addableCategories = ALL_CATEGORIES.filter((c) => !(c in overrides.category));
+  const addableSources = ALL_SOURCES.filter((s) => !(s in overrides.source));
+
+  const handleAdd = () => {
+    if (!addScope) return;
+    const [scopeKind, scopeKey] = addScope.split(":") as ["category" | "source", string];
+    setOverride(scopeKind, scopeKey, undefined, undefined);
+    setAddScope("");
   };
 
   return (
@@ -1379,6 +1622,26 @@ export function TaskPolicySection() {
           ))}
         </tbody>
       </table>
+
+      <div>
+        <label htmlFor="task-policy-add-scope">Add override for</label>
+        <select id="task-policy-add-scope" value={addScope} onChange={(e) => setAddScope(e.target.value)}>
+          <option value="">(choose a category or source)</option>
+          {addableCategories.map((c) => (
+            <option key={`category:${c}`} value={`category:${c}`}>
+              Category: {c}
+            </option>
+          ))}
+          {addableSources.map((s) => (
+            <option key={`source:${s}`} value={`source:${s}`}>
+              Source: {s}
+            </option>
+          ))}
+        </select>
+        <button onClick={handleAdd} disabled={!addScope}>
+          Add
+        </button>
+      </div>
     </section>
   );
 }
@@ -1387,7 +1650,7 @@ export function TaskPolicySection() {
 - [ ] **Step 5: Run to verify it passes**
 
 Run: `cd crates/vox-gui/ui && npx vitest run src/components/surfaces/Settings/TaskPolicySection.test.tsx 2>test_out.log; tail -60 test_out.log`
-Expected: PASS (2 tests).
+Expected: PASS (3 tests).
 
 - [ ] **Step 6: Register the section in `SettingsView.tsx`** — import `TaskPolicySection` and render it alongside the other settings sections (match wherever `RuntimeConfigSection`-equivalent components are listed).
 
@@ -1411,6 +1674,8 @@ git commit -m "feat(vox-gui): minimal Task-type cost/model policy settings panel
 
 ### Task 5.1: `resolve_default_task_policy` Tauri command
 
+**⚠️ FIX after adversarial review (2026-08-02): the original version of this task guessed, incorrectly, that `TaskCategory` had no public string parser and left the implementation deliberately unfinished.** It does have one, already used in production: `crates/vox-orchestrator/build.rs` generates `impl std::str::FromStr for TaskCategory` (never errors — lowercases the input, matches against the category list, falls back to `General` for anything unrecognized), and `crates/vox-orchestrator/src/orch_daemon/mod.rs` already calls `.parse::<TaskCategory>()` on a JSON string for exactly this kind of task-category hint. This also resolves what looked like a casing mismatch between this task and Task 5.2 (`category: "Chat"`, capitalized) — the parser lowercases internally, so it accepts either casing. No new parser needed; the version below just uses `.parse()` directly.
+
 **Files:**
 - Modify: `crates/vox-gui/src/commands/orchestrator.rs`
 
@@ -1425,13 +1690,17 @@ mod default_policy_tests {
     fn chat_default_matches_resolve_task_policy_with_no_overrides() {
         let dto = resolve_default_task_policy("Chat".to_string(), "interactive".to_string());
         // No overrides configured in a fresh test environment ⇒ falls all the
-        // way to the global default, exactly like resolve_task_policy(None, None, None, None).
+        // way to the global default, exactly like resolve_task_policy(None, None, None, None, None, None).
         assert_eq!(dto.clutch, "balanced");
         assert_eq!(dto.risk, "moderate");
     }
 
     #[test]
     fn unknown_category_or_source_labels_fall_back_to_global_default() {
+        // TaskCategory::from_str never errors (falls back to General for an
+        // unrecognized string), so this exercises "recognized category with no
+        // configured policy," not a parse failure — still must land on the
+        // same global default since nothing is configured for General either.
         let dto = resolve_default_task_policy("NotARealCategory".to_string(), "not_a_real_source".to_string());
         assert_eq!(dto.clutch, "balanced");
         assert_eq!(dto.risk, "moderate");
@@ -1444,7 +1713,7 @@ mod default_policy_tests {
 Run: `cargo test -p vox-gui --bins resolve_default_task_policy 2>test_out.log; tail -30 test_out.log`
 Expected: FAIL — function not found.
 
-- [ ] **Step 3: Write minimal implementation.** Add to `orchestrator.rs`:
+- [ ] **Step 3: Write the implementation.** Add to `orchestrator.rs`:
 
 ```rust
 #[derive(Debug, Clone, serde::Serialize)]
@@ -1473,29 +1742,37 @@ fn risk_label(r: vox_orchestrator::mode::RiskPosture) -> &'static str {
 /// The composer's real starting clutch/risk for `task_category` — the same
 /// precedence chain (`resolve_task_policy`) the backend uses when actually
 /// executing a task with no explicit hint, so the GUI's shown default can
-/// never drift from what would actually happen. `category`/`source` are
-/// `TaskCategory`/`TriggerSource` Debug-style names (e.g. `"Chat"`,
-/// `"Interactive"`) or a `TriggerSource::from_label`-style lowercase label for
-/// `source` — this command accepts either casing via `from_label`, since the
-/// frontend only ever passes the lowercase `TriggerSource`/`ClutchId` labels.
+/// never drift from what would actually happen. `category` is any string
+/// `TaskCategory::from_str` accepts (case-insensitive, never errors — falls
+/// back to `General`); `source` is a `TriggerSource::from_label` string
+/// (`"interactive"`/`"automated"`/`"subagent"`/`"mesh"`, case-insensitive) —
+/// an unrecognized `source` falls back to `Interactive` via the same
+/// `unwrap_or(TriggerSource::Interactive)` pattern `resolved_policy()` uses
+/// elsewhere, not a parse error.
 #[tauri::command]
 pub fn resolve_default_task_policy(category: String, source: String) -> DefaultTaskPolicyDto {
     use vox_orchestrator::types::TaskCategory;
+    use vox_orchestrator::mode::TriggerSource;
 
     let overrides = vox_orchestrator::config::OrchestratorConfig::snapshot().task_policy;
-    let category: TaskCategory = format!("{category:?}")
-        .parse()
-        .ok()
-        .filter(|_: &TaskCategory| false) // never used — see note below
-        .unwrap_or_default();
-    let _ = category; // placeholder removed in Step 3b below
-    unimplemented!()
+    let category: TaskCategory = category.parse().unwrap_or_default();
+    let source = TriggerSource::from_label(&source).unwrap_or(TriggerSource::Interactive);
+
+    let (category_clutch, category_risk) =
+        vox_orchestrator::mode::effective_category_policy(&overrides, category);
+    let (source_clutch, source_risk) =
+        vox_orchestrator::mode::effective_source_policy(&overrides, source);
+    let (clutch, risk) = vox_orchestrator::mode::resolve_task_policy(
+        None, None,
+        category_clutch, category_risk,
+        source_clutch, source_risk,
+    );
+    DefaultTaskPolicyDto {
+        clutch: clutch_label(clutch).to_string(),
+        risk: risk_label(risk).to_string(),
+    }
 }
 ```
-
-*(The block above is deliberately incomplete — `TaskCategory` has no public string parser today (`task_category_from_mcp_str` in `submission.rs` is crate-private to `vox-orchestrator-mcp` and only covers 10 of the 15 variants). Do not paste the code above as-is. Instead, in Step 3b, either (a) add a small `pub fn from_label(s: &str) -> Option<Self>` to `TaskCategory` in `crates/vox-orchestrator/src/types/tasks.rs` mirroring `ClutchProfile::from_label`'s exact style, matching on the lowercased `model-routing.v1.yaml` category names (`"codegen"`, `"chat"`, `"research"`, etc. — the full 15-entry list is in `contracts/orchestration/model-routing.v1.yaml::task_categories`), or (b) if `TaskCategory` already derives `Deserialize` with `#[serde(rename_all = "PascalCase")]`-equivalent behavior, parse via `serde_json::from_value(serde_json::Value::String(category))` instead of hand-writing a parser. Check `TaskCategory`'s actual derive attributes first — prefer (b) if it already round-trips, since that avoids a second parser to keep in sync with the YAML list.)*
-
-- [ ] **Step 3b: Write the real implementation** once the category-parsing approach from Step 3's note is chosen. Finish `resolve_default_task_policy` to build `category_policy`/`source_policy` via `vox_orchestrator::mode::effective_category_policy`/`effective_source_policy` (same as Task 2.2's `AgentTask::resolved_policy`), call `vox_orchestrator::mode::resolve_task_policy(None, None, category_policy, source_policy)`, and map the result through `clutch_label`/`risk_label` into `DefaultTaskPolicyDto`. Unknown category/source strings (Step 1's second test) must fall through to `None`/`None` policy — not panic — reproducing the global default.
 
 - [ ] **Step 4: Run to verify it passes**
 
@@ -1512,6 +1789,8 @@ git commit -m "feat(vox-gui): resolve_default_task_policy — GUI default mirror
 ```
 
 ### Task 5.2: `Loquela.tsx` fetches its starting clutch/risk instead of hardcoding it
+
+**Note:** `category: 'Chat'` (capitalized) below is fine as written — Task 5.1's `resolve_default_task_policy` parses it via `TaskCategory::from_str`, which lowercases its input before matching, so both `'Chat'` and `'chat'` resolve identically. No casing convention to reconcile here.
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx:169`
@@ -1609,9 +1888,48 @@ git commit -m "docs: cross-link the per-task-type cost policy plan from its spec
 
 ---
 
+## Parallelism and orchestration for executing this plan
+
+**Dependency shape:** this plan is a single dependency chain, not a fan-out. Phase 1 (`mode.rs`/`orchestrator_fields.rs`) is a hard prerequisite for everything downstream (every later phase calls `resolve_task_policy`/`effective_category_policy`/`effective_source_policy`). Within Phase 1, Tasks 1.1→1.2→1.3→1.4 are sequential (1.2 uses 1.1's enum; 1.3 uses 1.2's resolver). Phase 2 depends on Phase 1. Phase 3 depends on Phase 1 (not Phase 2 — the MCP path and the `AgentTask` path are independent consumers of the same Phase 1 resolver). Phase 4 depends on Phase 1 (for the types) but not Phase 2/3. Phase 5 depends on Phase 4's Tauri-command pattern. Phase 6 depends on everything.
+
+**Genuinely parallel-safe pairs (disjoint files, no cross-item dependency):** once Phase 1 is merged, **Phase 2 (`vox-orchestrator`: `tasks.rs`, `runtime.rs`, `attention_fields.rs`, `socrates.rs`) and Phase 3 (`vox-orchestrator-mcp`: `params.rs`, `submission.rs`, `model_route_policy/*`)** touch entirely different crates and could run as two parallel Agent-tool subagents. Phase 4 (`vox-gui` backend commands) could also start in parallel with Phase 2/3 once Phase 1's types exist, since it only needs `TaskPolicyOverrides`/the resolver signatures, not anything Phase 2/3 produce. Within Phase 2, Task 2.4 (`attention_fields.rs` + `socrates.rs`) is disjoint from Task 2.3 (`runtime.rs`) and could run alongside it. Task 4.3 (frontend) has a soft dependency on Task 4.1/4.2 (the commands it calls) existing, but could be scaffolded against a mock in parallel and integrated after. Any step ambiguous enough to need a human checkpoint rather than unattended execution: **Task 3.3** (the guard fix is the single highest-consequence correctness decision in this plan — a human should review the diff before it merges, not just trust green tests) and **Task 2.4** (touches two files this plan's author did not have live output from a compiler for, unlike everywhere else — the "confirm against live code" caveats in that task are real, not decorative).
+
+**Does this plan warrant the Workflow tool for its own execution?** No, and it's worth saying explicitly rather than leaving it unaddressed. Workflow earns its overhead for genuine multi-stage fan-out with a real barrier (a discovery step gating a transform step), a large volume of independent similarly-shaped sub-items (a golden-corpus, a bulk migration across dozens of call sites), or a verify-after-generate loop needing adversarial cross-checking. This plan is ~19 tasks in a single, mostly-sequential dependency chain (Phase 1 gates everything; the two genuinely-parallel branches — Phase 2 and Phase 3 — are two items, not a "volume" of similarly-shaped sub-items). The one place this plan touches something workflow-shaped — Task 2.4 fixing the same bug pattern at two more call sites after Task 2.3 fixed the first instance — is exactly two sites, found by one review pass, not an open-ended sweep; a `rg` for the same gate pattern (`\.risk_posture\.map\(\|_\|`/`\.clutch_profile\.is_some\(\)` outside the three files this plan already touches) is a reasonable one-line addition to Task 2.4 if you want confidence there's a fourth site, but even that's a single grep, not a fan-out. Recommending Workflow here — a resumable background pipeline for a linear ~19-task plan a human can review step-by-step — would itself be the scope/YAGNI violation this review was asked to watch for. Use `subagent-driven-development` (fresh subagent per task, review between tasks) or `executing-plans` (batch with checkpoints), per this plan's own header.
+
+---
+
 ## Self-Review
 
-- **Spec coverage:** `TriggerSource` enum → Task 1.1. Resolver + precedence → Task 1.2. Storage (compiled defaults + Vox.toml overrides, adjusted to live in `vox-orchestrator` per the grounding correction noted at the top) → Task 1.3. `AgentTask` wiring → Phase 2. MCP-direct wiring (the concrete "CI/CD inbox" example from the spec's data-flow section) → Phase 3. GUI panel → Phase 4. Deferred-per-spec items (llm_bridge consolidation, full Band B, combo rules, tenant policy) are not touched anywhere in this plan — verified by absence, not by an explicit "skip" task, since there is nothing to do for them here.
-- **Mid-brainstorm addition coverage (chat wiring, requested after the spec was written):** "the mode actually changes" when selected in chat → Task 2.3 (the real `AgentTask` execution path in `runtime.rs`, which had the same dead-branch-when-unset bug as the MCP path this plan already fixed in Task 3.3 — confirmed via live-code read, not assumed). "Unifying" the frontend and backend defaults → Phase 5 (`resolve_default_task_policy` + `Loquela.tsx` fetching it instead of the hardcoded `defaultControl()`). Grounding note: the chat composer's clutch/risk *submission* path (composer → `SubmitTaskInput` → `enqueue_hints` → `TaskEnqueueHints` → `AgentTask.apply_hints`) was found to already exist and work today — it is explicitly called out as pre-existing in Task 2.3 and Phase 5's intro rather than re-built, so this plan only adds the two genuinely-missing pieces (the execution-side dead branch, and the GUI's independently-hardcoded default).
-- **Placeholder scan:** the call-outs that say "verify against live code before pasting" (Task 3.1's hints-function signature, Task 3.3's config-handle read, Task 4.2's `toml::map::Map` type, Task 4.3's styling conventions, Task 5.1's `TaskCategory` string-parsing approach, Task 5.2's test-scaffolding reuse) are each a concrete, bounded, one-file check with a specific `rg`/read command or explicit decision criterion attached — not an open-ended TODO. Task 5.1's Step 2 code block is a deliberate exception worth flagging explicitly: it is intentionally-incomplete illustrative code (marked `unimplemented!()`), not a step to execute as written — Step 3b is where the real, complete implementation goes, gated on a one-line decision (does `TaskCategory` already round-trip through serde or not) that couldn't be resolved without reading `tasks.rs`'s derive attributes at execution time. This mirrors the "Caveat for the implementer" pattern already used in this repo's Band A/B/egress plans for exactly this kind of drift between plan-writing time and execution time.
-- **Type consistency:** `resolve_task_policy(explicit_clutch, explicit_risk, category_policy, source_policy) -> (ClutchProfile, RiskPosture)` (Task 1.2) is called with that exact signature in `effective_category_policy`/`effective_source_policy` callers (Task 1.3), `AgentTask::resolved_policy` (Task 2.2), `resolve_task_cost_policy` (Task 2.3), the `resolve.rs` wiring (Task 3.3), and `resolve_default_task_policy` (Task 5.1) — verified consistent across all six uses. `TaskPolicyOverrides`/`TaskPolicyEntry` field names (`category`, `source`, `clutch`, `risk`) are identical everywhere they're constructed or read (Tasks 1.3, 2.2, 2.3, 4.1, 4.2, 4.3, 5.1).
+**Note: this section was rewritten after an adversarial multi-dimension review (2026-08-02) found and fixed 5 blockers and 8 majors in the original version of this plan (see the "Adversarial Review — Fixes Applied" section below for the full list). The bullets below describe the plan as it stands now, post-fix, not the original draft.**
+
+- **Spec coverage:** `TriggerSource` enum → Task 1.1. Resolver + precedence (now genuinely per-axis independent, matching the spec's explicit claim — see Fix #4 below) → Task 1.2. Storage (compiled defaults + Vox.toml overrides, adjusted to live in `vox-orchestrator` per the grounding correction noted at the top; `deny_unknown_fields` version-skew risk fixed at the source, not just documented) → Task 1.3. `AgentTask` wiring, including the two sibling call sites (`attention_fields.rs`/`socrates.rs`) the original draft missed → Phase 2. MCP-direct wiring (the concrete "CI/CD inbox" example from the spec's data-flow section), now WITHOUT the silent default-behavior regression the original draft shipped → Phase 3. GUI panel, now WITH the "add override" control the spec explicitly required → Phase 4. Chat unification, now WITH a daemon-reload signal so a GUI override actually reaches the live process → Phase 5. Deferred-per-spec items (llm_bridge consolidation, full Band B, combo rules, tenant policy) remain untouched, verified by absence.
+- **Placeholder scan:** the remaining "confirm against live code" call-outs (Task 3.3's config-handle read pattern, Task 4.3's styling conventions, Task 5.2's test-scaffolding reuse, Task 2.4's exact gate-code shape in two files not read during this review) are each a concrete, bounded, one-file check with a specific `rg`/read command attached — not an open-ended TODO. Task 5.1's previous `unimplemented!()` placeholder is gone — it now has a complete, verified implementation using `TaskCategory::from_str` (confirmed to exist and work as needed, not guessed).
+- **Type consistency:** `resolve_task_policy` now takes 6 independent `Option` parameters (`explicit_clutch, explicit_risk, category_clutch, category_risk, source_clutch, source_risk`) — every call site (`effective_category_policy`/`effective_source_policy`'s own callers in Tasks 1.3's tests, 2.2, 2.3, 3.3, 5.1) was updated to the new signature and independently re-checked in this pass, not just asserted. `effective_category_policy`/`effective_source_policy` now return `(Option<ClutchProfile>, Option<RiskPosture>)` instead of the old `Option<(ClutchProfile, RiskPosture)>` — every caller destructures the pair, not the old `Option`-of-tuple.
+
+## Adversarial Review — Fixes Applied (2026-08-02)
+
+A 6-dimension independent review (correctness-vs-live-code, security, test coverage, operational readiness, scope/YAGNI, spec-plan consistency) plus direct verification against the live repo found the following. Every item below was independently confirmed against real files before being acted on; none is taken on the reviewing agent's word alone.
+
+**Fixed in the plan document:**
+1. **[blocker]** `TaskPolicyOverrides`/`TaskPolicyEntry` were never added to `crates/vox-orchestrator/src/config/mod.rs`'s explicit (non-glob) re-export list — invisible as `crate::config::TaskPolicyOverrides` anywhere outside `orchestrator_fields.rs`. Fixed: Task 1.3 now edits `mod.rs`.
+2. **[blocker]** `OrchestratorConfig` doesn't derive `Default` — it has a hand-written, exhaustive literal in `impl_default.rs`. A new field without a matching line there is `E0063`. Fixed: Task 1.3 now edits `impl_default.rs`.
+3. **[blocker]** Task 3.1's test called a function with the wrong name and arity (`task_enqueue_hints_from_params(&params, None, None, None, "t")` vs. the real `enqueue_hints_from_submit_params(&params)`), and constructed `SubmitTaskParams` via `..Default::default()` on a struct that (by deliberate, file-wide design) derives no `Default`. Fixed: corrected function name/arity, test now builds the value via `serde_json::from_value`.
+4. **[blocker, spec-contradicting]** The original `resolve_task_policy`/`effective_category_policy`/`effective_source_policy` modeled clutch+risk as an inseparable pair per precedence level (`Option<(ClutchProfile, RiskPosture)>`), so a category policy that only set clutch would force risk to jump straight to the global default, never consulting the source-level policy — contradicting the spec's explicit "clutch and risk resolve independently" claim and silently breaking what Task 4.3's GUI (independent clutch/risk dropdowns) promises. Fixed: refactored to per-axis independent `Option`s throughout Phase 1 and every downstream caller.
+5. **[blocker, silent regression]** Task 3.3's original wiring unconditionally forced `res.clutch`/`res.risk` to `Some(_)`, changing `build_selection_request`'s axes from `COST_FIRST` (70/15/15, today's actual default-config behavior) to `BALANCED` (33/33/34) for every unconfigured chat call — invisible to all 8 existing tests, which all override `cost_preference` away from the default. Fixed: added the same "only override when a real policy applies" guard Task 2.3 already had, plus a new regression test that would have caught this.
+6. **[major]** Task 3.2 predicted the compiler would flag `models_tools.rs` AND `model_route_policy/tests.rs`; a live `rg` across all 27 `McpChatModelResolution` construction sites in 14 files found only `models_tools.rs` is exhaustive (everything else, including all 7 sites in `tests.rs`, already uses `..Default::default()`). Fixed: corrected the prediction and removed the unnecessary `tests.rs` edit/commit.
+7. **[major]** Task 4.2's new commands wrote Vox.toml and bumped the GUI-process-local snapshot but never signaled the orchestrator daemon (a separate long-lived process) to reload — a GUI-set override would have had no effect on real task execution until a daemon restart. Fixed: both commands now take a `daemon` parameter and fire the same `RELOAD_CONFIG` RPC `set_orchestrator_config` already uses.
+8. **[major, spec-contradicting]** Task 4.3's GUI panel had no way to create a first override — it only rendered pre-existing entries, and the spec explicitly requires an "add override" control. Fixed: added an add-scope dropdown (offering only not-yet-configured categories/sources) + Add button, with a test.
+9. **[major]** Two more call sites (`attention_fields.rs` approval-tier escalation, `socrates.rs` grounding/Socrates enforcement) have the identical "only consult risk policy when an explicit hint is set" bug Task 2.3 fixes in `runtime.rs` — left unfixed, a category/source *risk* policy would have no effect outside cost preference. Fixed: added Task 2.4, reusing the same resolver machinery.
+10. **[major]** Task 5.1 incorrectly asserted `TaskCategory` had no public string parser and shipped a deliberately-incomplete `unimplemented!()` placeholder; a working `impl FromStr for TaskCategory` already exists and is already used in production. Fixed: Task 5.1 now has a complete implementation using `.parse()`; this also resolved an apparent casing mismatch with Task 5.2 (the parser lowercases internally, so it doesn't matter).
+11. **[major, documentation]** The original Self-Review's "Type consistency" bullet misattributed a `resolve_task_policy` call to Task 1.3 (which doesn't call it — it calls `effective_category_policy`/`effective_source_policy`, the resolver's *inputs*) and miscounted "six uses" against its own five-item list. Fixed: rewritten (see above).
+12. **[minor]** Several quoted line-number citations had drifted from the live file by small amounts (e.g. `runtime.rs:628-644` vs. the real `619-634`). Fixed where cited exactly; loosened to "verify against the live file" language elsewhere, since line numbers drift structurally in any plan written before execution.
+
+**Fixed in actual code, not just documented (per explicit user instruction mid-review):**
+13. **[blocker-adjacent operational risk]** `OrchestratorConfig` had `#[serde(deny_unknown_fields, default)]`, and its own test suite documents a real production incident (PR #349) where an unrecognized value wiped the *entire* `[orchestrator]` section to defaults. Adding `task_policy` would have carried the identical exposure for the *key* case (an older binary reading a newer one's Vox.toml). Rather than accept this as inherited risk, it was fixed directly: `deny_unknown_fields` removed; a `#[serde(flatten, skip_serializing)] unrecognized_fields: BTreeMap<String, toml::Value>` field now absorbs unrecognized keys instead of failing the parse; `load_from_toml` logs a warning listing what was ignored. Landed in `crates/vox-orchestrator/src/config/{orchestrator_fields.rs,impl_default.rs,impl_load.rs}`, with a new regression test (`unrecognized_orchestrator_key_does_not_wipe_the_section`). Verified: `cargo test -p vox-orchestrator --lib config::` — 1079 tests, all passing, including the new one, with no regressions from removing `deny_unknown_fields`.
+
+**Flagged, not fixed (deliberate, with reasoning given):**
+- Security: exposing `risk` on the generic `vox_task_submit` MCP tool widens who can disable grounding/Socrates enforcement (no floor, unlike the sibling approval-tier code). Judged consistent with, not worse than, that tool's existing trust model (`model_override`/`budget` are already ungated the same way) — noted in Task 3.1, not redesigned.
+- The spec's "vox doctor check for malformed entries" testing requirement is partially addressed (a `tracing::warn!` fires on unparseable override labels, per Task 1.3) but a dedicated `vox doctor` CLI surface was not added — that would require grounding in the doctor-check architecture beyond what this review pass covered.
+- `crates/vox-orchestrator/src/orchestrator_policy.rs`'s pre-existing `TODO(risk-safety-budget)` (budget-gate aggressiveness from `ClutchProfile` is still unwired at the one call site that would consume it) predates this plan and is out of scope — noted for completeness, not a new gap this plan introduces.
+
+**Could not be verified either way:** the exact current shape of `attention_fields.rs`'s baseline-tier-computation call site and `socrates.rs`'s config-access pattern (Task 2.4) — flagged in that task as needing a live read at execution time, since this review's agents described the *gate logic* precisely but not every surrounding line, and no one on this review pass re-verified those two files as thoroughly as the ones with actual compiler output attached (Phase 1's `deny_unknown_fields` fix, which was compiled and tested directly).

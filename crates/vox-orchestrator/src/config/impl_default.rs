@@ -158,6 +158,7 @@ impl Default for OrchestratorConfig {
             research_quality_target: super::defaults::default_research_quality_target(),
             tool_ledger_key: String::new(),
             budget_gate_config: None,
+            unrecognized_fields: std::collections::BTreeMap::new(),
         }
     }
 }
