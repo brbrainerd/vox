@@ -98,7 +98,22 @@ pub async fn run_multi_hop_web_research(
             break;
         }
 
-        active_queries = CragRouter::expand_queries_from_partial_evidence(anchor_query, &hop_hits);
+        let llm_queries = crate::llm_query_expansion::try_llm_query_expansion(
+            anchor_query,
+            &hop_hits
+                .iter()
+                .map(|h| h.content_snippet.clone())
+                .collect::<Vec<_>>(),
+            None,
+            None,
+            None,
+        )
+        .await;
+        active_queries = CragRouter::expand_queries_with_llm_or_heuristic(
+            anchor_query,
+            &hop_hits,
+            llm_queries.as_deref(),
+        );
         hops_remaining -= 1;
     }
 

@@ -8,9 +8,66 @@ import { PipelineTimeline } from '../../PipelineTimeline';
 import { RESEARCH_STAGES, deriveStages } from '../../../lib/pipeline';
 import { startResearchAsync } from './researchActions';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import { ResearchClaimAccordion, type ResearchClaimRow } from './ResearchClaimAccordion';
+import { HeadlineVerdictBanner } from './HeadlineVerdictBanner';
 
 interface ResearchSession { id: number; status: string; query_text: string; started_at_ms: number; finished_at_ms: number | null; }
-interface ResearchDetail { session: ResearchSession; report_markdown: string | null; artifact_json: string | null; }
+
+/** Raw claim shape as emitted by `get_research_session_detail` (snake_case,
+ * matching `ResearchClaimDto` in `crates/vox-gui/src/commands/scientia.rs`). */
+interface ResearchDetailClaim {
+  claim_id: string;
+  text: string;
+  verdict: string;
+  confidence: number;
+  resample_stability: number;
+  citation_urls: string[];
+  corroboration_count: number;
+}
+
+// confidence_tier / claims / source_count / citation_precision are parsed
+// out of the session's `artifact_json` on the Rust side (see
+// `extract_research_summary` in scientia.rs) and are `undefined`/empty only
+// when no artifact was persisted for the session (or it failed to parse) —
+// the trust UI below stays hidden in that case rather than fabricating data.
+interface ResearchDetail {
+  session: ResearchSession;
+  report_markdown: string | null;
+  artifact_json: string | null;
+  confidence_tier?: 'Direct' | 'Light' | 'DeepResearch';
+  claims?: ResearchDetailClaim[];
+  source_count?: number;
+  citation_precision?: number;
+}
+
+/**
+ * Map the backend's flat claim DTO onto `ResearchClaimAccordion`'s
+ * `ResearchClaimRow` shape. Trust is derived from `corroboration_count`,
+ * the pipeline's real distinct-domain independent-source count (see
+ * `vox_search::corroboration` / `compute_corroboration_counts` in
+ * `vox-research-shim`'s pipeline.rs) — a claim backed by 2+ distinct-domain
+ * supporting citations reads as corroborated, 0 or 1 as uncorroborated.
+ */
+function toClaimRows(claims: ResearchDetailClaim[] | undefined): ResearchClaimRow[] {
+  if (!claims) return [];
+  return claims.map((c) => {
+    const distinctUrls = Array.from(new Set(c.citation_urls));
+    return {
+      claimId: c.claim_id,
+      text: c.text,
+      verdict: c.verdict,
+      confidence: c.confidence,
+      resampleStability: c.resample_stability,
+      citations: distinctUrls.map((url) => ({
+        url,
+        trust:
+          c.corroboration_count >= 2
+            ? { kind: 'corroborated' as const, sourceCount: c.corroboration_count }
+            : { kind: 'uncorroborated' as const },
+      })),
+    };
+  });
+}
 
 export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
   const embedded = useIsEmbeddedSurface();
@@ -137,9 +194,37 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
             <button type="button" onClick={() => setDetail(null)} className="text-[11px] text-text-muted hover:text-text-secondary">Close</button>
           </div>
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages(detail.session.status)} />
-          <pre className="mt-2 max-h-[360px] overflow-auto whitespace-pre-wrap text-[12px] text-text-secondary">
-            {detail.report_markdown ?? detail.artifact_json ?? '(no artifact persisted)'}
-          </pre>
+          {(() => {
+            const claimRows = toClaimRows(detail.claims);
+            // Count citations the banner can actually back up as
+            // corroborated, not the raw total source count — otherwise the
+            // headline number contradicts the per-citation TrustChips shown
+            // in the accordion below when few/no citations are corroborated.
+            const corroboratingCitationCount = claimRows.reduce(
+              (sum, c) => sum + c.citations.filter((cite) => cite.trust.kind === 'corroborated').length,
+              0,
+            );
+            return (
+              <>
+                {claimRows.length > 0 && (
+                  <HeadlineVerdictBanner
+                    confidenceTier={detail.confidence_tier ?? 'DeepResearch'}
+                    corroboratingSources={corroboratingCitationCount}
+                    contestedClaims={claimRows.filter((c) => c.verdict === 'Contested').length}
+                    totalClaims={claimRows.length}
+                  />
+                )}
+                <pre className="mt-2 max-h-[360px] overflow-auto whitespace-pre-wrap text-[12px] text-text-secondary">
+                  {detail.report_markdown ?? detail.artifact_json ?? '(no artifact persisted)'}
+                </pre>
+                {claimRows.length > 0 && (
+                  <div className="mt-2">
+                    <ResearchClaimAccordion claims={claimRows} sourceCount={detail.source_count ?? 0} />
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
     </section>

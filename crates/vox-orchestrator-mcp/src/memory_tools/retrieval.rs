@@ -436,7 +436,8 @@ pub fn should_trigger_autonomous_research(
     let gate_input = GateInput {
         claims: &claims,
         citation_count,
-        supported_claim_count: 0,
+        trust_weighted_citation_score: citation_count as f32,
+        supported_claim_count: 0.0,
         distinct_domain_count,
         no_retrieval_hits: citation_count == 0,
         answer_is_empty: false,

@@ -54,6 +54,7 @@ fn research_metadata_planner_degraded_round_trips_json() {
         competence: None,
         self_verification: None,
         citation_audit: None,
+        corroboration_counts: vec![],
     };
     let json = serde_json::to_value(&meta).expect("serializes");
     assert_eq!(json["planner_degraded"], true);
