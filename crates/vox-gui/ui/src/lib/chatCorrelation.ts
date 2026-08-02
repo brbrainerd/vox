@@ -224,13 +224,16 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
     case 'chatReplySettled': {
       let changed = false;
+      const result = action.result;
+      const errorText = 'error' in result ? result.error : undefined;
+      const okMessage = 'message' in result ? result.message : undefined;
       const messages = state.messages.map((m) => {
         if (m.id !== action.tempId) return m;
         changed = true;
-        if (action.result.ok) {
-          return { ...action.result.message, sessionId: action.sessionId };
+        if (okMessage) {
+          return { ...okMessage, sessionId: action.sessionId };
         }
-        return { ...m, status: 'failed' as const, error: action.result.error };
+        return { ...m, status: 'failed' as const, error: errorText };
       });
       return changed ? { ...state, messages } : state;
     }
