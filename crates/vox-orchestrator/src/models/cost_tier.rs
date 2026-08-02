@@ -31,24 +31,40 @@ impl CostTier {
     }
 }
 
+/// Blended cost-per-1k (USD): the average of input/output `cost_per_1k` when both are set,
+/// falling back to the flat `cost_per_1k` field otherwise. Split out from `cost_tier_for` so a
+/// caller that also needs the raw dollar figure (e.g. `vox harness eval --live`'s `run_one_turn`,
+/// which derives `cost_usd` from it) computes the formula exactly once instead of duplicating it
+/// inline alongside a `cost_tier_for` call on the same spec.
+pub fn blended_cost_per_1k(model: &ModelSpec) -> f64 {
+    if model.cost_per_1k_input > 0.0 || model.cost_per_1k_output > 0.0 {
+        (model.cost_per_1k_input + model.cost_per_1k_output) / 2.0
+    } else {
+        model.cost_per_1k
+    }
+}
+
+/// Classify a cost tier from an already-computed blended cost-per-1k figure (see
+/// `blended_cost_per_1k`) plus the model's `is_free` flag. Exists so a caller that already has
+/// the blended figure in hand doesn't have to recompute it just to get the tier — `cost_tier_for`
+/// below is the convenience wrapper for callers that only have a `ModelSpec`.
+pub fn cost_tier_for_blended(is_free: bool, blended_cost_per_1k: f64) -> CostTier {
+    if is_free {
+        return CostTier::Free;
+    }
+    if blended_cost_per_1k <= CHEAP_COST_PER_1K_USD {
+        CostTier::Cheap
+    } else {
+        CostTier::Premium
+    }
+}
+
 /// Classify a model's cost tier from its spec. Uses the blended average of input/output
 /// cost_per_1k (falling back to `cost_per_1k` if input/output aren't both set) since a model's
 /// nominal `is_free`/`cost_per_1k` fields are the same ones the rest of the selection pipeline
 /// already treats as authoritative (see `models::scoring::auto_score_model`).
 pub fn cost_tier_for(model: &ModelSpec) -> CostTier {
-    if model.is_free {
-        return CostTier::Free;
-    }
-    let blended = if model.cost_per_1k_input > 0.0 || model.cost_per_1k_output > 0.0 {
-        (model.cost_per_1k_input + model.cost_per_1k_output) / 2.0
-    } else {
-        model.cost_per_1k
-    };
-    if blended <= CHEAP_COST_PER_1K_USD {
-        CostTier::Cheap
-    } else {
-        CostTier::Premium
-    }
+    cost_tier_for_blended(model.is_free, blended_cost_per_1k(model))
 }
 
 #[cfg(test)]

@@ -18,14 +18,25 @@ use anyhow::Result;
 /// One turn's real, observed outcome — what a [`Checker`] evaluates. Deliberately has no
 /// `tool_calls_made`/internal-tool-log field: `chat_message`'s public JSON envelope (Task 5) does
 /// not expose one, and adding new envelope plumbing to introspect it is out of the design's
-/// scope (spec §6.1) — tool-calling tasks are verified purely by observable end-state
-/// (`end_state_check`), which is a more robust check anyway (it doesn't care how the model got
-/// there, only whether the real-world effect happened).
+/// scope (spec §6.1) — tool-calling tasks are verified purely by observable end-state, which is a
+/// more robust check anyway (it doesn't care how the model got there, only whether the real-world
+/// effect happened). There used to be an `end_state_check: Option<Result<(), String>>` field here
+/// for that, but nothing ever populated it (`run_one_turn` always left it `None`), so the three
+/// `tool_calling` tasks always failed unconditionally. It's gone now: `run_one_turn` is
+/// task-agnostic (it only sees a `prompt: &str`), so it has no way to know which task-specific
+/// real-world fact to check — that check can only live in the task's own `Checker`. The three
+/// `tool_calling` checkers in `live_golden_tasks` below do it themselves, as plain `fn`s that
+/// query the real filesystem directly (no plumbing through this struct required) and cross-check
+/// the result against `reply_text`.
 pub struct EvalTurnResult {
     pub reply_text: String,
     pub model_id: String,
     pub cost_tier: vox_orchestrator::models::CostTier,
-    pub end_state_check: Option<Result<(), String>>,
+    /// The real `chat_message` envelope's `data.selection_reason` (sourced from
+    /// `choice.rationale` in `chat_tools/chat/message.rs`), or empty string when the envelope
+    /// genuinely didn't carry one for this response (some selection paths don't produce a
+    /// rationale — see `message.rs`'s doc comments near its `selection_reason` plumbing).
+    pub selection_reason: String,
     pub latency_ms: u64,
     pub cost_usd: f64,
 }
@@ -184,36 +195,28 @@ pub fn live_golden_tasks() -> Vec<LiveEvalTask> {
         // --- Tool-calling / agentic tasks: checkable end-state only (see EvalTurnResult's doc
         // comment for why — chat_message's envelope exposes no internal tool-call log, and
         // end-state verification is the more robust check regardless). Three tasks, not two, to
-        // give this category some redundancy against a single flaky live-model response.
+        // give this category some redundancy against a single flaky live-model response. Each
+        // checker below resolves the REAL current directory / REAL Cargo.toml at check time (no
+        // fixture needed — every crate root, and the workspace root, already has one) and
+        // verifies the model's reply against that real fact, per the `check_tool_calling_*`
+        // functions below.
         LiveEvalTask {
             id: "tool-calling-file-existence-check",
             category: "tool_calling",
             prompt: "Use a tool to check whether Cargo.toml exists in the current directory, then report the result.",
-            checker: Checker::Deterministic(|r| {
-                r.end_state_check.clone().unwrap_or_else(|| {
-                    Err("no end_state_check was recorded for this task".to_string())
-                })
-            }),
+            checker: Checker::Deterministic(check_tool_calling_file_existence),
         },
         LiveEvalTask {
             id: "tool-calling-directory-listing-check",
             category: "tool_calling",
             prompt: "Use a tool to list the files in the current directory, then confirm Cargo.toml is among them.",
-            checker: Checker::Deterministic(|r| {
-                r.end_state_check.clone().unwrap_or_else(|| {
-                    Err("no end_state_check was recorded for this task".to_string())
-                })
-            }),
+            checker: Checker::Deterministic(check_tool_calling_directory_listing),
         },
         LiveEvalTask {
             id: "tool-calling-file-line-count-check",
             category: "tool_calling",
             prompt: "Use a tool to read Cargo.toml in the current directory and report how many lines it has.",
-            checker: Checker::Deterministic(|r| {
-                r.end_state_check.clone().unwrap_or_else(|| {
-                    Err("no end_state_check was recorded for this task".to_string())
-                })
-            }),
+            checker: Checker::Deterministic(check_tool_calling_file_line_count),
         },
         // --- Privacy-mode tasks: local-only enforcement under real provider state. Two tasks
         // (the spec's stated redundancy floor for this category — see design spec §6.1) so a
@@ -298,6 +301,85 @@ pub fn live_golden_tasks() -> Vec<LiveEvalTask> {
     ]
 }
 
+/// Real, observable ground truth shared by the three `tool_calling` checkers below: the process's
+/// actual current directory, joined with `Cargo.toml`. No fixture file is created for this —
+/// every crate root and the workspace root already has a real `Cargo.toml`, so whatever directory
+/// the eval binary's `chat_message` tool calls actually operate against, the fact being checked
+/// (does `Cargo.toml` exist here / what's in it) is already real and already true.
+fn real_cargo_toml_path() -> Result<std::path::PathBuf, String> {
+    std::env::current_dir()
+        .map(|d| d.join("Cargo.toml"))
+        .map_err(|e| format!("could not resolve the real current directory: {e}"))
+}
+
+/// Real end-state check for `tool-calling-file-existence-check`: does `Cargo.toml` really exist
+/// in the real current directory, and does the model's reply actually affirm that?
+fn check_tool_calling_file_existence(r: &EvalTurnResult) -> Result<(), String> {
+    let path = real_cargo_toml_path()?;
+    let really_exists = path.is_file();
+    let lower = r.reply_text.to_lowercase();
+    let denies = lower.contains("does not exist")
+        || lower.contains("doesn't exist")
+        || lower.contains("not found")
+        || lower.contains("no such file")
+        || lower.contains("missing");
+    let affirms = !denies
+        && (lower.contains("yes")
+            || lower.contains("exists")
+            || lower.contains("does exist")
+            || lower.contains("is present")
+            || lower.contains("found"));
+    match (really_exists, affirms) {
+        (true, true) => Ok(()),
+        (true, false) => Err(format!(
+            "Cargo.toml really exists at {path:?} (real end-state check) but the model's reply \
+             did not affirm this: {:?}",
+            r.reply_text
+        )),
+        (false, _) => Err(format!(
+            "real end-state check: expected Cargo.toml to exist at {path:?} but it does not"
+        )),
+    }
+}
+
+/// Real end-state check for `tool-calling-directory-listing-check`: is `Cargo.toml` really among
+/// the real current directory's entries, and does the model's reply actually mention it?
+fn check_tool_calling_directory_listing(r: &EvalTurnResult) -> Result<(), String> {
+    let dir = std::env::current_dir()
+        .map_err(|e| format!("could not resolve the real current directory: {e}"))?;
+    let really_present = dir.join("Cargo.toml").is_file();
+    let mentions = r.reply_text.to_lowercase().contains("cargo.toml");
+    match (really_present, mentions) {
+        (true, true) => Ok(()),
+        (true, false) => Err(format!(
+            "Cargo.toml is really present in {dir:?} (real end-state check) but the model's \
+             reply never mentioned it: {:?}",
+            r.reply_text
+        )),
+        (false, _) => Err(format!(
+            "real end-state check: expected Cargo.toml to be present in {dir:?} but it is not"
+        )),
+    }
+}
+
+/// Real end-state check for `tool-calling-file-line-count-check`: reads the real `Cargo.toml` and
+/// counts its real lines, then checks the model's reply actually contains that number.
+fn check_tool_calling_file_line_count(r: &EvalTurnResult) -> Result<(), String> {
+    let path = real_cargo_toml_path()?;
+    let contents = std::fs::read_to_string(&path)
+        .map_err(|e| format!("real end-state check could not read {path:?}: {e}"))?;
+    let real_line_count = contents.lines().count();
+    if r.reply_text.contains(&real_line_count.to_string()) {
+        Ok(())
+    } else {
+        Err(format!(
+            "{path:?} really has {real_line_count} lines (real end-state check) but the model's \
+             reply did not contain that number: {:?}",
+            r.reply_text
+        ))
+    }
+}
+
 /// Length cap for `failure_detail` before it's persisted (spec §6.3) — this field flows through
 /// to a permanently git-committed history file (Task 6), so a raw live-model reply must not be
 /// stored verbatim and unbounded.
@@ -353,6 +435,13 @@ pub async fn run_live(
         );
     }
 
+    // Built ONCE for the whole run, not per-sample: `build_eval_server_state()` does synchronous
+    // disk I/O and a non-test network catalog refresh (`ModelRegistry::new()`'s bootstrap load),
+    // so rebuilding it inside `run_one_turn` — which used to run once per sample, up to
+    // `task_count * samples` times (36 for a 12-task/3-sample run) — was needless repeated work.
+    // `run_one_turn` now takes this by reference.
+    let state = build_eval_server_state().await?;
+
     for task in tasks {
         if ceiling_reached {
             skip_count += 1;
@@ -395,7 +484,7 @@ pub async fn run_live(
                 break;
             }
             let turn_start = Instant::now();
-            match run_one_turn(task.prompt).await {
+            match run_one_turn(&state, task.prompt).await {
                 Ok(turn) => {
                     total_cost_usd += turn.cost_usd;
                     task_cost_usd += turn.cost_usd;
@@ -405,10 +494,7 @@ pub async fn run_live(
                         task_id: task.id.to_string(),
                         model_id: turn.model_id.clone(),
                         cost_tier: turn.cost_tier.as_str().to_string(),
-                        selection_reason: String::new(), // populated once Step 9 wires the real
-                        // chat_message envelope's
-                        // selection_reason field through
-                        // run_one_turn's EvalTurnResult
+                        selection_reason: turn.selection_reason.clone(),
                         was_privacy_gated: task.category == "privacy",
                         recorded_at_ms: now_ms(),
                     });
@@ -516,20 +602,29 @@ pub async fn run_live(
 ///
 /// `cost_usd`/`cost_tier` are DERIVED, not read off the wire: `chat_message`'s envelope reports
 /// `model_used` and `tokens`, not a dollar figure, so this function looks the model up in the
-/// model registry to get its real `ModelSpec`, then computes `cost_usd = tokens as f64 / 1000.0 *
-/// blended cost_per_1k` and `cost_tier = cost_tier_for(&spec)` (Task 3) from it.
-async fn run_one_turn(prompt: &str) -> anyhow::Result<EvalTurnResult> {
+/// model registry to get its real `ModelSpec`, then computes `cost_usd` from
+/// `blended_cost_per_1k(&spec)` (Task 3, `vox_orchestrator::models::cost_tier`) and derives
+/// `cost_tier` from that SAME blended figure via `cost_tier_for_blended`, rather than calling
+/// `cost_tier_for(&spec)` separately — that would recompute the identical blended formula a
+/// second time on the same spec.
+///
+/// Takes `state` by reference rather than building its own: `build_eval_server_state()` does
+/// synchronous disk I/O and a non-test network catalog refresh, so `run_live` builds it once for
+/// the whole run and passes it in here instead of this function rebuilding it on every sample.
+async fn run_one_turn(
+    state: &vox_orchestrator_mcp::server_state::ServerState,
+    prompt: &str,
+) -> anyhow::Result<EvalTurnResult> {
     use vox_orchestrator_mcp::chat_tools::chat::chat_message;
     use vox_orchestrator_mcp::chat_tools::params::ChatMessageParams;
 
-    let state = build_eval_server_state().await?;
     // `ChatMessageParams` derives `Deserialize` only (no `Default`) — every field but `prompt`
     // is `#[serde(default)]`, so deserializing a single-key JSON object is the real, already
     // -established way to build one with sane defaults (mirrors `message.rs`'s own
     // `chat_message_envelope_includes_latency_ms` test).
     let params: ChatMessageParams = serde_json::from_value(serde_json::json!({ "prompt": prompt }))
         .map_err(|e| anyhow::anyhow!("failed to build ChatMessageParams: {e}"))?;
-    let envelope_str = chat_message(&state, params).await;
+    let envelope_str = chat_message(state, params).await;
     let envelope: serde_json::Value = serde_json::from_str(&envelope_str)
         .map_err(|e| anyhow::anyhow!("chat_message envelope was not valid JSON: {e}"))?;
 
@@ -561,6 +656,16 @@ async fn run_one_turn(prompt: &str) -> anyhow::Result<EvalTurnResult> {
         .to_string();
     let tokens = data.get("tokens").and_then(|v| v.as_u64()).unwrap_or(0);
     let latency_ms = data.get("latency_ms").and_then(|v| v.as_u64()).unwrap_or(0);
+    // `data.selection_reason` (sourced from `choice.rationale` in `message.rs`) is an
+    // `Option<String>` on the wire — some selection paths genuinely don't produce a rationale
+    // (see message.rs's doc comments near its own `selection_reason` field), so a missing/null
+    // value here means "genuinely absent", not "envelope shape changed" — default to "" rather
+    // than erroring, unlike the required fields above.
+    let selection_reason = data
+        .get("selection_reason")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
 
     let registry_handle = state.orchestrator.models_handle();
     let spec = {
@@ -573,21 +678,15 @@ async fn run_one_turn(prompt: &str) -> anyhow::Result<EvalTurnResult> {
             )
         })?
     };
-    let blended = if spec.cost_per_1k_input > 0.0 || spec.cost_per_1k_output > 0.0 {
-        (spec.cost_per_1k_input + spec.cost_per_1k_output) / 2.0
-    } else {
-        spec.cost_per_1k
-    };
+    let blended = vox_orchestrator::models::blended_cost_per_1k(&spec);
     let cost_usd = (tokens as f64 / 1000.0) * blended;
-    let cost_tier = vox_orchestrator::models::cost_tier_for(&spec);
+    let cost_tier = vox_orchestrator::models::cost_tier_for_blended(spec.is_free, blended);
 
     Ok(EvalTurnResult {
         reply_text,
         model_id: model_used,
         cost_tier,
-        end_state_check: None, // populated per-task by tool-calling checkers that need it — see
-        // live_golden_tasks' tool_calling entries; a chat-only task
-        // leaves this None, which their checkers never read
+        selection_reason,
         latency_ms,
         cost_usd,
     })
@@ -679,25 +778,33 @@ fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
+// The 3 helpers below go through `vox_git::read_cmd::read_only` — the repo's sole sanctioned
+// raw-`git` invocation point outside the GitExec write-gateway (see its module doc comment and
+// `layers.toml`'s `raw-git-exec` forbidden-pattern rule) — rather than spawning `git` directly
+// via `std::process`, which that rule forbids outside a short allowlist of exempt files.
+
 fn git_sha_full() -> anyhow::Result<String> {
-    let out = std::process::Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .output()?;
-    Ok(String::from_utf8(out.stdout)?.trim().to_string())
+    let out = vox_git::read_cmd::read_only(std::path::Path::new("."), &["rev-parse", "HEAD"])
+        .map_err(|e| anyhow::anyhow!("git rev-parse HEAD failed: {e}"))?;
+    Ok(out.trim().to_string())
 }
 
 fn git_sha_short() -> anyhow::Result<String> {
-    let out = std::process::Command::new("git")
-        .args(["rev-parse", "--short", "HEAD"])
-        .output()?;
-    Ok(String::from_utf8(out.stdout)?.trim().to_string())
+    let out = vox_git::read_cmd::read_only(
+        std::path::Path::new("."),
+        &["rev-parse", "--short", "HEAD"],
+    )
+    .map_err(|e| anyhow::anyhow!("git rev-parse --short HEAD failed: {e}"))?;
+    Ok(out.trim().to_string())
 }
 
 fn git_branch() -> anyhow::Result<String> {
-    let out = std::process::Command::new("git")
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .output()?;
-    Ok(String::from_utf8(out.stdout)?.trim().to_string())
+    let out = vox_git::read_cmd::read_only(
+        std::path::Path::new("."),
+        &["rev-parse", "--abbrev-ref", "HEAD"],
+    )
+    .map_err(|e| anyhow::anyhow!("git rev-parse --abbrev-ref HEAD failed: {e}"))?;
+    Ok(out.trim().to_string())
 }
 
 #[cfg(test)]
@@ -783,10 +890,114 @@ mod tests {
             reply_text: "The answer is 4.".to_string(),
             model_id: "test/model".to_string(),
             cost_tier: vox_orchestrator::models::CostTier::Free,
-            end_state_check: None,
+            selection_reason: String::new(),
             latency_ms: 100,
             cost_usd: 0.0001,
         };
         assert!(checker(&turn).is_ok());
+    }
+
+    fn fixture_turn(reply_text: &str) -> EvalTurnResult {
+        EvalTurnResult {
+            reply_text: reply_text.to_string(),
+            model_id: "test/model".to_string(),
+            cost_tier: vox_orchestrator::models::CostTier::Free,
+            selection_reason: String::new(),
+            latency_ms: 100,
+            cost_usd: 0.0001,
+        }
+    }
+
+    // --- Finding A regression coverage: the 3 tool-calling checkers must genuinely be able to
+    // pass AND fail depending on the model's reply, checked against the REAL current directory's
+    // REAL Cargo.toml (this crate has one, so `real_cargo_toml_path()` resolves to a real file
+    // regardless of whether `cargo test` runs from the crate root or the workspace root).
+
+    #[test]
+    fn tool_calling_file_existence_check_passes_on_an_affirming_reply() {
+        let turn = fixture_turn("Yes, Cargo.toml exists in the current directory.");
+        assert!(check_tool_calling_file_existence(&turn).is_ok());
+    }
+
+    #[test]
+    fn tool_calling_file_existence_check_fails_on_a_reply_that_never_affirms_it() {
+        let turn = fixture_turn("I used a tool and got some output.");
+        assert!(check_tool_calling_file_existence(&turn).is_err());
+    }
+
+    #[test]
+    fn tool_calling_file_existence_check_fails_on_a_denying_reply() {
+        let turn = fixture_turn("No, Cargo.toml does not exist in the current directory.");
+        assert!(check_tool_calling_file_existence(&turn).is_err());
+    }
+
+    #[test]
+    fn tool_calling_directory_listing_check_passes_when_reply_mentions_cargo_toml() {
+        let turn = fixture_turn("The directory contains Cargo.toml, src/, and other files.");
+        assert!(check_tool_calling_directory_listing(&turn).is_ok());
+    }
+
+    #[test]
+    fn tool_calling_directory_listing_check_fails_when_reply_omits_cargo_toml() {
+        let turn = fixture_turn("The directory contains src/ and some other files.");
+        assert!(check_tool_calling_directory_listing(&turn).is_err());
+    }
+
+    #[test]
+    fn tool_calling_file_line_count_check_passes_when_reply_has_the_real_count() {
+        let real_count = std::fs::read_to_string(real_cargo_toml_path().unwrap())
+            .unwrap()
+            .lines()
+            .count();
+        let turn = fixture_turn(&format!("Cargo.toml has {real_count} lines."));
+        assert!(check_tool_calling_file_line_count(&turn).is_ok());
+    }
+
+    #[test]
+    fn tool_calling_file_line_count_check_fails_when_reply_has_the_wrong_count() {
+        let real_count = std::fs::read_to_string(real_cargo_toml_path().unwrap())
+            .unwrap()
+            .lines()
+            .count();
+        // Off-by-one from the real count is still wrong.
+        let turn = fixture_turn(&format!("Cargo.toml has {} lines.", real_count + 1));
+        assert!(check_tool_calling_file_line_count(&turn).is_err());
+    }
+
+    // --- Finding D regression coverage: blended_cost_per_1k / cost_tier_for_blended agree with
+    // cost_tier_for on the same spec (the shared-computation refactor must not change behavior).
+
+    #[test]
+    fn blended_cost_per_1k_and_cost_tier_for_blended_agree_with_cost_tier_for() {
+        use vox_orchestrator::models::{
+            ModelSpec, PricingSource, ProviderType, blended_cost_per_1k, cost_tier_for,
+            cost_tier_for_blended,
+        };
+
+        let spec = ModelSpec {
+            id: "test-model".into(),
+            canonical_slug: "test-model".into(),
+            provider: "test".into(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens: 8192,
+            cost_per_1k: 0.001,
+            cost_per_1k_input: 0.001,
+            cost_per_1k_output: 0.001,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        };
+        let blended = blended_cost_per_1k(&spec);
+        assert_eq!(blended, 0.001);
+        assert_eq!(
+            cost_tier_for_blended(spec.is_free, blended),
+            cost_tier_for(&spec)
+        );
     }
 }
