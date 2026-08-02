@@ -249,7 +249,7 @@ with a short reason comment.
 | Legacy orchestrator codename | `vox-orchestrator` |
 | Legacy ARS crate label | `vox-openclaw-runtime` |
 | Legacy Ludus crate label | `vox-gamify` |
-| Sync recall API | `recall_async()` |
+| `recall()` / `recall_async()` (deprecated memory reads) | `MemoryManager::lookup_fact_by_key` (async) or RAG/retrieval bundle |
 | Legacy Turso URL env alias | `VOX_DB_URL` |
 
 ---
