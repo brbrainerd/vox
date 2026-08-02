@@ -109,8 +109,6 @@ fn default_domain_lexicon() -> HashSet<String> {
         "mens",
         "oratio",
         "schola",
-        "candle",
-        "whisper",
         "transcribe",
         "orchestrator",
         "tool-call",
@@ -297,6 +295,22 @@ mod tests {
         // nothing (audit finding: the original draft used "Status: complete").
         let out = refine_transcript("Status complete", &CorrectionContext::default());
         assert_eq!(out.text, "Status complete");
+    }
+
+    #[test]
+    fn candle_and_whisper_not_force_lowercased() {
+        // "candle" ("light a candle") and "whisper" (also a real ASR model
+        // name a user might legitimately capitalize when talking about it)
+        // are common English words; forcing them lowercase mid-sentence
+        // corrupts normal capitalized usage the same way "status"/"workflow"
+        // did (see `generic_english_words_not_force_lowercased` above and
+        // commit 5fc47898a6). Bare, punctuation-free tokens, same reasoning
+        // as that fix: a colon-attached token would never match the lexicon
+        // regardless of whether the fix landed, proving nothing.
+        let out = refine_transcript("Whisper is a speech model", &CorrectionContext::default());
+        assert_eq!(out.text, "Whisper is a speech model");
+        let out = refine_transcript("Candle burned all night", &CorrectionContext::default());
+        assert_eq!(out.text, "Candle burned all night");
     }
 
     #[test]
