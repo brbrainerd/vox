@@ -77,15 +77,34 @@ pub async fn oauth_login_openrouter(app: AppHandle) -> OAuthLoginResultDto {
 /// valid key, 401 on missing/invalid/disabled/expired credentials.
 const OPENROUTER_API_BASE_URL: &str = "https://openrouter.ai";
 
+/// Overall request timeout for [`verify_key_at`]. `vox_http_client::client_builder()`
+/// only sets a *connect* timeout, not an end-to-end request timeout, so this
+/// call site must chain one explicitly — the established pattern elsewhere in
+/// the codebase (e.g. `vox-openclaw-runtime/src/openclaw.rs`,
+/// `vox-orchestrator/src/catalog.rs`). Without it, a server that accepts the
+/// connection but never responds (or streams arbitrarily slowly) would hang
+/// this `await` forever, which is exactly the failure mode this task exists
+/// to keep out of the wizard's "verifying" screen — the planned frontend
+/// (`invoke('verify_openrouter_key').catch(() => false)`) never sees a
+/// `.catch()` fire on a promise that simply never resolves.
+const VERIFY_REQUEST_TIMEOUT: std::time::Duration = vox_config::timeouts::D_10S;
+
 /// Hit the key-info endpoint at `base_url` and report whether `key` is
 /// live. Fails closed: any transport/build error (DNS failure, connection
-/// refused, TLS error, etc.) or a non-2xx response (401 for a bad key)
-/// yields `false` rather than propagating an error — callers only need a
-/// yes/no "is this key actually usable" answer. `base_url` is swappable so
-/// tests can point this at a `wiremock::MockServer` instead of the real
-/// OpenRouter host.
+/// refused, TLS error, etc.), a request that exceeds [`VERIFY_REQUEST_TIMEOUT`],
+/// or a non-2xx response (401 for a bad key) all yield `false` rather than
+/// propagating an error or hanging — callers only need a bounded yes/no "is
+/// this key actually usable" answer. `base_url` is swappable so tests can
+/// point this at a `wiremock::MockServer` instead of the real OpenRouter host.
 async fn verify_key_at(base_url: &str, key: &str) -> bool {
-    let Ok(client) = vox_http_client::client_builder().build() else {
+    verify_key_at_with_timeout(base_url, key, VERIFY_REQUEST_TIMEOUT).await
+}
+
+/// [`verify_key_at`] with an injectable timeout, so tests can exercise the
+/// "server never responds in time" path without waiting out the real
+/// production timeout.
+async fn verify_key_at_with_timeout(base_url: &str, key: &str, timeout: std::time::Duration) -> bool {
+    let Ok(client) = vox_http_client::client_builder().timeout(timeout).build() else {
         return false;
     };
     let url = format!("{base_url}/api/v1/key");
@@ -206,5 +225,40 @@ mod verify_tests {
         // Nothing listening on this port — fails closed rather than panicking
         // or propagating an error out of a bool-returning fn.
         assert!(!verify_key_at("http://127.0.0.1:1", "any-key").await);
+    }
+
+    #[tokio::test]
+    async fn verify_returns_false_and_does_not_hang_on_a_slow_server() {
+        // Regression test for the missing-timeout gap: a server that accepts
+        // the connection but responds slower than our timeout must still
+        // resolve to `false` in bounded time, not hang the caller forever
+        // (the wizard's planned `.catch(() => false)` never fires on a
+        // promise that never settles). Uses a short client timeout (1s)
+        // against a longer mock delay (5s) so this test itself stays fast —
+        // the real production timeout (10s) is exercised only by
+        // `verify_key_at`'s default, not re-tested here at full length.
+        let server = wiremock::MockServer::start().await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path("/api/v1/key"))
+            .respond_with(
+                wiremock::ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(5)),
+            )
+            .mount(&server)
+            .await;
+
+        let start = std::time::Instant::now();
+        let result = verify_key_at_with_timeout(
+            &server.uri(),
+            "fake-key",
+            std::time::Duration::from_secs(1),
+        )
+        .await;
+        let elapsed = start.elapsed();
+
+        assert!(!result, "a hung/slow server must verify as false");
+        assert!(
+            elapsed < std::time::Duration::from_secs(3),
+            "verify_key_at_with_timeout took {elapsed:?}, should have returned well under the 5s mock delay"
+        );
     }
 }
