@@ -61,14 +61,28 @@ impl ProviderRegistry {
         match WebSearchDispatcher::search(query, policy).await {
             Ok(hybrids) => {
                 use futures::stream::{self, StreamExt};
-                let trust_scores: Vec<f64> = stream::iter(hybrids.iter())
-                    .map(|h| {
-                        let doi = vox_search::trust::extract_doi_from_url(&h.path);
+                // Stream over OWNED (title, url) pairs, not `hybrids.iter()`
+                // (borrowed `&HybridSearchHit` items) — a `.map` closure taking
+                // a borrowed iterator item and returning an `async move` block
+                // makes rustc infer an overly-generic higher-ranked closure
+                // signature for the closure itself (independent of what the
+                // async block captures), which fails "implementation of
+                // Send/FnOnce is not general enough" in some downstream callers
+                // (observed when this crate is linked into vox-orchestrator-mcp).
+                // Cloning up front so every stream item is fully owned avoids
+                // the closure ever being generic over a borrowed lifetime.
+                let title_urls: Vec<(String, String)> = hybrids
+                    .iter()
+                    .map(|h| (h.title.clone(), h.path.clone()))
+                    .collect();
+                let trust_scores: Vec<f64> = stream::iter(title_urls)
+                    .map(|(title, url)| {
+                        let doi = vox_search::trust::extract_doi_from_url(&url);
                         async move {
                             vox_search::trust::score_hit_trust_for_url(
-                                &h.title,
+                                &title,
                                 doi.as_deref(),
-                                &h.path,
+                                &url,
                             )
                             .await
                         }
