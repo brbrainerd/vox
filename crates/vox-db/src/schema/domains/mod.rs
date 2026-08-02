@@ -15,6 +15,8 @@ pub mod knowledge;
 pub mod mens_intelligence;
 pub mod packages;
 pub mod publish_cloud;
+#[cfg(feature = "quarantine")]
+pub mod quarantine;
 pub mod scientia;
 pub mod secrets_cloudless;
 pub mod toestub_build;

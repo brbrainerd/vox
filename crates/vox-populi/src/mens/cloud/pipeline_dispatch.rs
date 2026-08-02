@@ -894,7 +894,7 @@ mod tests {
         }
 
         // terminate is called in a spawned thread; give it a moment
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::thread::sleep(vox_config::timeouts::D_50MS);
         // The terminate method doesn't bump call_count, so we just verify no panic
         // The key invariant: guard was dropped armed without calling disarm()
         // (terminate call itself is best-effort fire-and-forget in Drop)

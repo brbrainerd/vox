@@ -344,7 +344,7 @@ fn output_with_timeout(mut cmd: Command) -> std::io::Result<std::process::Output
                 format!("child process timed out after {SUBPROCESS_TIMEOUT:?}"),
             ));
         }
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(vox_config::timeouts::POLL_TICK_FAST);
     };
 
     let stdout = stdout_handle.join().unwrap_or_default();

@@ -259,6 +259,17 @@ fn scan_source_lines(
                 continue;
             }
 
+            // A line already naming the correct replacement (lookup_fact_by_key) is
+            // explaining the deprecation accurately, not recommending the retired
+            // symbol -- don't flag it just for mentioning recall()/recall_async()
+            // by name. (AGENTS.md/.cursor/rules/*.mdc state this identically but
+            // never trip this check because their table rows are skipped via
+            // skip_md_table_rows; docs/src/** files with the same row content
+            // don't get that exemption, so this closes the gap explicitly.)
+            if sym.id == "sync-recall-api" && line.contains("lookup_fact_by_key") {
+                continue;
+            }
+
             failures.push(format!(
                 "{}:{}: Found retired symbol '{}': Use {} instead. ({})",
                 path.strip_prefix(root).unwrap_or(path).display(),

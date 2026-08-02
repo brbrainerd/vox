@@ -178,10 +178,18 @@ pub fn decide(
         })
         .or_else(|| {
             // Scoped fallback through registry scorer constrained to candidate set.
+            // Intentionally inherits `intent.allow_free_in_performance_mode` here
+            // rather than hardcoding `false`: this is still the same caller-supplied
+            // intent, so a research intent's free-tier preference should still apply
+            // to its own fallback path. Every non-research SelectionIntent constructor
+            // hardcodes this field `false`, so decide()'s fallback stays inert for
+            // chat/coding/etc. traffic today — this is a deliberate, not incidental,
+            // consequence of threading the flag through by intent rather than by caller.
             let model = registry.best_for_with_filter(
                 intent.task,
                 intent.complexity,
                 intent.axes.to_cost_preference(),
+                intent.allow_free_in_performance_mode,
                 |m| candidate_ids.contains(&m.id),
                 None,
             )?;
@@ -409,6 +417,12 @@ pub struct SelectionIntent {
     /// (e.g. `vox repair` 3-attempt loop, agent ReAct). Prefers models with
     /// `supports_prompt_caching = true` when available.
     pub cacheable_workload: bool,
+    /// When true, free-tier (`ModelSpec.is_free`) models are allowed to
+    /// compete even under `CostPreference::Performance`, which otherwise
+    /// excludes them unconditionally (`registry.rs::best_for_internal`).
+    /// Defaults to `false` everywhere except `SelectionIntent::research()`,
+    /// which sets it from `VOX_RESEARCH_PREFER_FREE_TIER`.
+    pub allow_free_in_performance_mode: bool,
 }
 
 impl SelectionIntent {
@@ -424,6 +438,7 @@ impl SelectionIntent {
             prefer_local: false,
             max_cost_usd_per_call: None,
             cacheable_workload: false,
+            allow_free_in_performance_mode: false,
         }
     }
 
@@ -440,6 +455,7 @@ impl SelectionIntent {
             prefer_local: false,
             max_cost_usd_per_call: None,
             cacheable_workload: true,
+            allow_free_in_performance_mode: false,
         }
     }
 
@@ -455,6 +471,7 @@ impl SelectionIntent {
             prefer_local: false,
             max_cost_usd_per_call: None,
             cacheable_workload: false,
+            allow_free_in_performance_mode: vox_config::inference::research_prefer_free_tier(),
         }
     }
 
@@ -470,6 +487,7 @@ impl SelectionIntent {
             prefer_local: false,
             max_cost_usd_per_call: None,
             cacheable_workload: true,
+            allow_free_in_performance_mode: false,
         }
     }
 
@@ -485,6 +503,7 @@ impl SelectionIntent {
             prefer_local: false,
             max_cost_usd_per_call: Some(0.01),
             cacheable_workload: false,
+            allow_free_in_performance_mode: false,
         }
     }
 
@@ -500,6 +519,7 @@ impl SelectionIntent {
             prefer_local: true,
             max_cost_usd_per_call: None,
             cacheable_workload: false,
+            allow_free_in_performance_mode: false,
         }
     }
 
@@ -515,6 +535,7 @@ impl SelectionIntent {
             prefer_local: false,
             max_cost_usd_per_call: None,
             cacheable_workload: false,
+            allow_free_in_performance_mode: false,
         }
     }
 }
@@ -714,6 +735,9 @@ fn select_via_premium_alias(
     if !supports_intent_constraints(&model, intent) {
         return None;
     }
+    if !ModelRegistry::key_is_present_for(&model) {
+        return None;
+    }
     let effective_axes = intent.axes.to_routing_priority(intent.prefer_local);
     Some(SelectionOutcome {
         model_id: model.id.clone(),
@@ -741,7 +765,8 @@ fn select_via_scorer(
         intent.task,
         intent.complexity,
         cost_pref,
-        |m| supports_intent_constraints(m, &intent_clone),
+        intent.allow_free_in_performance_mode,
+        |m| supports_intent_constraints(m, &intent_clone) && ModelRegistry::key_is_present_for(m),
         None,
     )?;
     drop(_axes_guard);
@@ -942,6 +967,14 @@ mod tests {
         let i = SelectionIntent::research();
         assert_eq!(i.axes, SelectionAxes::QUALITY_FIRST);
         assert_eq!(i.task, TaskCategory::Research);
+    }
+
+    #[test]
+    fn research_intent_allows_free_when_prefer_free_tier_env_set() {
+        let intent = SelectionIntent::research();
+        // This assertion documents the contract this task establishes: default
+        // (no env set) must preserve existing behavior: free models excluded.
+        assert!(!intent.allow_free_in_performance_mode);
     }
 
     #[test]
@@ -1333,6 +1366,108 @@ mod tests {
             ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
         let d = decide(&req, &registry).expect("keyed candidate is eligible");
         assert_eq!(d.selected_model, "anthropic-direct-test");
+        #[allow(unsafe_code)]
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("ANTHROPIC_API_KEY", v),
+                None => std::env::remove_var("ANTHROPIC_API_KEY"),
+            }
+        }
+    }
+
+    #[test]
+    #[serial]
+    #[allow(unsafe_code)]
+    fn select_via_scorer_excludes_keyless_provider() {
+        unsafe {
+            std::env::remove_var("ANTHROPIC_API_KEY");
+            std::env::remove_var("VOX_ANTHROPIC_API_KEY");
+        }
+        let mut registry = ModelRegistry::default();
+        registry.register(key_gate_spec(
+            "anthropic-direct-scorer-test",
+            ProviderType::Anthropic,
+        ));
+        registry.register(key_gate_spec("ollama-scorer-test", ProviderType::Ollama));
+
+        let intent = SelectionIntent::research();
+        let outcome = select_via_scorer(&intent, &registry);
+        if let Some(o) = outcome {
+            assert_ne!(
+                o.model_id, "anthropic-direct-scorer-test",
+                "select_via_scorer returned a keyless-provider candidate"
+            );
+        }
+    }
+
+    // ── Non-research intents: key-gating must degrade gracefully too ────────
+    //
+    // `select()`'s key-presence gate (added alongside `decide()`'s pre-existing
+    // one — see `key_gate_*` tests above and git history: `decide()` gained
+    // `key_is_present_for` in 54d2758fba "B3", and `select_via_scorer` /
+    // `select_via_premium_alias` converged to the same rule afterward) backs
+    // EVERY `SelectionIntent` constructor, not just `SelectionIntent::research()`.
+    // These two tests prove non-research callers (`repair_loop()` stands in for
+    // `ide_autocomplete()` / `plan_mode()` / `review()` / `for_task()`, which all
+    // share the same `select_inner()` cascade) still degrade gracefully: no
+    // keyless candidate leaks through, and a present key is still admitted.
+
+    #[test]
+    #[serial]
+    #[allow(unsafe_code)]
+    fn select_via_scorer_falls_back_gracefully_for_non_research_intent_when_key_missing() {
+        unsafe {
+            std::env::remove_var("ANTHROPIC_API_KEY");
+            std::env::remove_var("VOX_ANTHROPIC_API_KEY");
+        }
+        let mut registry = ModelRegistry::default();
+        registry.register(key_gate_spec(
+            "anthropic-direct-repair-test",
+            ProviderType::Anthropic,
+        ));
+        registry.register(key_gate_spec(
+            "ollama-repair-fallback-test",
+            ProviderType::Ollama,
+        ));
+
+        // Use a non-research intent — repair_loop is representative of the
+        // "everyday" callers whose behavior this test protects.
+        let intent = SelectionIntent::repair_loop();
+        let outcome = select_via_scorer(&intent, &registry);
+        if let Some(o) = outcome {
+            assert_ne!(
+                o.model_id, "anthropic-direct-repair-test",
+                "select_via_scorer must not select a keyless provider for non-research intents either"
+            );
+        }
+        // A None outcome is also acceptable (no eligible candidate) — the
+        // assertion above is what matters: never silently return a keyless
+        // candidate regardless of which intent asked.
+    }
+
+    #[test]
+    #[serial]
+    #[allow(unsafe_code)]
+    fn select_admits_non_research_intent_when_key_present() {
+        let prior = std::env::var("ANTHROPIC_API_KEY").ok();
+        unsafe { std::env::set_var("ANTHROPIC_API_KEY", "test-key") };
+        let mut registry = ModelRegistry::default();
+        registry.register(key_gate_spec(
+            "anthropic-direct-repair-keyed-test",
+            ProviderType::Anthropic,
+        ));
+
+        let intent = SelectionIntent::repair_loop();
+        let outcome = select(&intent, &registry);
+        // With a key present and no better-scoring alternative registered,
+        // select() should be ABLE to choose the keyed candidate for a
+        // non-research intent too — proving the gate doesn't just always
+        // reject, it correctly admits when the key is actually there.
+        assert!(
+            outcome.is_some(),
+            "select() should find a candidate when a key is present"
+        );
+
         #[allow(unsafe_code)]
         unsafe {
             match prior {

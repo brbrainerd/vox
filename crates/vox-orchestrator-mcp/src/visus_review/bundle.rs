@@ -3,9 +3,6 @@
 
 use std::path::Path;
 
-fn default_true() -> bool {
-    true
-}
 fn default_theme() -> String {
     "default".into()
 }
@@ -21,7 +18,7 @@ pub struct BundleEntry {
     pub theme: String,
     pub file: String,
     pub sha256: String,
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub state_ok: bool,
     #[serde(default)]
     pub state_error: String,

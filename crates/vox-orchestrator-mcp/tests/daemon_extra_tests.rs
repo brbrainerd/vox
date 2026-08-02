@@ -21,7 +21,7 @@ async fn wait_ready(addr: &str) {
             tokio::time::Instant::now() < deadline,
             "daemon never became ready"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
 }
 
@@ -189,7 +189,7 @@ async fn permission_mode_on_the_wire_changes_the_gate_decision() {
             tokio::time::Instant::now() < deadline,
             "vox_write_file with no permission_mode on the wire never parked"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
     let pending = state.pending_approvals.list();
     assert_eq!(pending.len(), 1);
@@ -301,7 +301,7 @@ async fn daemon_list_and_resolve_pending_approvals_via_extra_dispatch() {
             tokio::time::Instant::now() < deadline,
             "vox_write_file never appeared in orch.list_pending_approvals"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     };
 
     // `orch.resolve_approval` (RPC) must resolve it and report success.

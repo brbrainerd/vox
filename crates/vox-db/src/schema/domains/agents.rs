@@ -98,15 +98,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS artifact_reviews (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    artifact_id TEXT NOT NULL,
-    reviewer_id TEXT NOT NULL,
-    status TEXT NOT NULL,
-    comment TEXT,
-    rating INTEGER,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+-- artifact_reviews: quarantined (DEAD, Task 4) — see domains/quarantine.rs.
 
 CREATE TABLE IF NOT EXISTS agents (
     id TEXT PRIMARY KEY,
@@ -134,22 +126,7 @@ CREATE TABLE IF NOT EXISTS skill_manifests (
     PRIMARY KEY (id, version)
 );
 
--- Per-execution record for skills — SSOT for skill reliability scoring.
-CREATE TABLE IF NOT EXISTS skill_executions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    skill_id TEXT NOT NULL,
-    version TEXT NOT NULL DEFAULT '',
-    session_id TEXT,
-    workflow_id TEXT,
-    agent_id TEXT,
-    status TEXT NOT NULL,
-    duration_ms INTEGER NOT NULL DEFAULT 0,
-    input_hash TEXT,
-    output_size INTEGER NOT NULL DEFAULT 0,
-    error_kind TEXT,
-    reflection_score REAL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+-- skill_executions: quarantined (DORMANT, Task 4) — see domains/quarantine.rs.
 
 CREATE TABLE IF NOT EXISTS db_snapshots (
     id INTEGER PRIMARY KEY,
@@ -181,25 +158,7 @@ CREATE TABLE IF NOT EXISTS eval_runs (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS builder_sessions (
-    id TEXT PRIMARY KEY,
-    payload_json TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS session_turns (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    payload_json TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS typed_stream_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    stream_id TEXT NOT NULL,
-    payload_json TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+-- builder_sessions, session_turns, typed_stream_events: quarantined (DEAD, Task 4) — see domains/quarantine.rs.
 
 CREATE TABLE IF NOT EXISTS question_sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -241,15 +200,7 @@ CREATE TABLE IF NOT EXISTS question_options (
     UNIQUE(question_event_id, option_id)
 );
 
-CREATE TABLE IF NOT EXISTS question_option_outcomes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    question_event_id INTEGER NOT NULL REFERENCES question_events(id) ON DELETE CASCADE,
-    option_id TEXT NOT NULL,
-    selected INTEGER NOT NULL DEFAULT 0,
-    diagnostic_weight REAL NOT NULL DEFAULT 0.0,
-    information_contribution_bits REAL NOT NULL DEFAULT 0.0,
-    created_at_ms INTEGER NOT NULL
-);
+-- question_option_outcomes: quarantined (DORMANT, Task 4) — see domains/quarantine.rs.
 
 CREATE TABLE IF NOT EXISTS question_stop_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -262,13 +213,7 @@ CREATE TABLE IF NOT EXISTS question_stop_events (
     created_at_ms INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS populi_reviews (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    target_id TEXT NOT NULL,
-    review_kind TEXT NOT NULL,
-    payload_json TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+-- populi_reviews: quarantined (DEAD, Task 4) — see domains/quarantine.rs.
 
 CREATE TABLE IF NOT EXISTS agent_sessions (
     id TEXT PRIMARY KEY,
@@ -401,19 +346,8 @@ CREATE TABLE IF NOT EXISTS endpoint_reliability (
     UNIQUE(endpoint_url, model_id)
 );
 
--- Superseded by `reliability_scores` (entity_type = 'skill') as of schema v51
--- (see `store/open.rs` migration notes and `store/ops_skills.rs`). Nothing
--- writes to this legacy table anymore; it is kept only so existing databases
--- don't lose historical rows on upgrade. Do NOT add new reads/writes against
--- this table — use `ops_skills::list_skill_reliability`/`get_skill_reliability`
--- (which read `reliability_scores`) instead.
-CREATE TABLE IF NOT EXISTS skill_reliability (
-    skill_id           TEXT NOT NULL PRIMARY KEY,
-    reliability        REAL NOT NULL DEFAULT 0.5,
-    success_count      INTEGER NOT NULL DEFAULT 0,
-    failure_count      INTEGER NOT NULL DEFAULT 0,
-    updated_at_ms      INTEGER NOT NULL DEFAULT 0
-);
+-- skill_reliability: quarantined (DORMANT, Task 4) — see domains/quarantine.rs
+-- (still superseded by `reliability_scores`, see that file's header comment).
 
 CREATE TABLE IF NOT EXISTS workflow_reliability (
     workflow_name      TEXT NOT NULL PRIMARY KEY,
@@ -466,16 +400,7 @@ CREATE TABLE IF NOT EXISTS trust_rollups (
     PRIMARY KEY (entity_type, entity_id, dimension, domain, task_class, provider, model_id, repository_id)
 );
 
-CREATE TABLE IF NOT EXISTS trusted_evidence_bundles (
-    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    bundle_key          TEXT    NOT NULL UNIQUE,
-    repository_id       TEXT    NOT NULL DEFAULT '',
-    session_key         TEXT    NOT NULL DEFAULT '',
-    evidence_json       TEXT    NOT NULL,
-    contradiction_count INTEGER NOT NULL DEFAULT 0,
-    created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
-    expires_at          TEXT
-);
+-- trusted_evidence_bundles: quarantined (DORMANT, Task 4) — see domains/quarantine.rs.
 
 CREATE INDEX IF NOT EXISTS idx_memories_agent ON memories(agent_id);
 CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(memory_type);
@@ -490,7 +415,6 @@ CREATE INDEX IF NOT EXISTS idx_llm_interactions_session ON llm_interactions(sess
 CREATE INDEX IF NOT EXISTS idx_llm_feedback_interaction ON llm_feedback(interaction_id);
 CREATE INDEX IF NOT EXISTS idx_artifacts_type ON artifacts(artifact_type);
 CREATE INDEX IF NOT EXISTS idx_artifacts_name ON artifacts(name);
-CREATE INDEX IF NOT EXISTS idx_artifact_reviews_target ON artifact_reviews(artifact_id);
 CREATE INDEX IF NOT EXISTS idx_agents_name ON agents(name);
 CREATE INDEX IF NOT EXISTS idx_skill_manifests_id ON skill_manifests(id);
 
@@ -510,21 +434,14 @@ CREATE TABLE IF NOT EXISTS skill_identities (
     owner TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
-CREATE INDEX IF NOT EXISTS idx_skill_executions_skill ON skill_executions(skill_id, version);
-CREATE INDEX IF NOT EXISTS idx_skill_executions_status ON skill_executions(status, created_at);
-CREATE INDEX IF NOT EXISTS idx_skill_executions_agent ON skill_executions(agent_id);
 CREATE INDEX IF NOT EXISTS idx_agent_reliability_score ON agent_reliability(reliability);
 CREATE INDEX IF NOT EXISTS idx_research_metrics_session ON research_metrics(session_id, metric_type);
-CREATE INDEX IF NOT EXISTS idx_session_turns_session ON session_turns(session_id);
-CREATE INDEX IF NOT EXISTS idx_typed_stream_events_stream ON typed_stream_events(stream_id);
 CREATE INDEX IF NOT EXISTS idx_question_sessions_session ON question_sessions(session_id, started_at_ms);
 CREATE INDEX IF NOT EXISTS idx_question_sessions_repo ON question_sessions(repository_id, started_at_ms);
 CREATE INDEX IF NOT EXISTS idx_question_events_session ON question_events(question_session_id, turn_index);
 CREATE INDEX IF NOT EXISTS idx_question_events_qid ON question_events(question_id);
 CREATE INDEX IF NOT EXISTS idx_question_options_event ON question_options(question_event_id);
-CREATE INDEX IF NOT EXISTS idx_question_option_outcomes_event ON question_option_outcomes(question_event_id);
 CREATE INDEX IF NOT EXISTS idx_question_stop_events_session ON question_stop_events(question_session_id, created_at_ms);
-CREATE INDEX IF NOT EXISTS idx_populi_reviews_target ON populi_reviews(target_id);
 CREATE INDEX IF NOT EXISTS idx_agent_sessions_agent ON agent_sessions(agent_id);
 CREATE INDEX IF NOT EXISTS idx_agent_sessions_status ON agent_sessions(status);
 CREATE INDEX IF NOT EXISTS idx_agent_events_agent ON agent_events(agent_id);
@@ -537,8 +454,6 @@ CREATE INDEX IF NOT EXISTS idx_cost_records_ts ON cost_records(timestamp);
 CREATE INDEX IF NOT EXISTS idx_research_sessions_repo_created ON research_sessions(repository_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_research_sessions_status ON research_sessions(status);
 CREATE INDEX IF NOT EXISTS idx_endpoint_reliability_degraded ON endpoint_reliability(hallucination_proxy_ewma, endpoint_url);
-CREATE INDEX IF NOT EXISTS idx_trusted_evidence_repo_session ON trusted_evidence_bundles(repository_id, session_key, created_at);
-CREATE INDEX IF NOT EXISTS idx_skill_reliability_score ON skill_reliability(reliability);
 CREATE INDEX IF NOT EXISTS idx_workflow_reliability_score ON workflow_reliability(reliability);
 CREATE INDEX IF NOT EXISTS idx_repository_reliability_score ON repository_reliability(reliability);
 CREATE INDEX IF NOT EXISTS idx_trust_observations_entity_dim ON trust_observations(entity_type, entity_id, dimension, created_at_ms);

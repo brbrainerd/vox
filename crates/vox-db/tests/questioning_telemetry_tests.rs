@@ -1,7 +1,13 @@
 use vox_db::{
-    A2aClarificationMessageParams, DbConfig, QuestionEventParams, QuestionOptionOutcomeParams,
-    QuestionOptionParams, QuestionSessionCreateParams, QuestionStopEventParams,
-    QuestioningResearchArtifact, VoxDb,
+    A2aClarificationMessageParams, DbConfig, QuestionEventParams, QuestionSessionCreateParams,
+    VoxDb,
+};
+// Only used by the quarantine-gated tests below (question_option_outcomes);
+// unused when the feature is off.
+#[cfg(feature = "quarantine")]
+use vox_db::{
+    QuestionOptionOutcomeParams, QuestionOptionParams, QuestionStopEventParams,
+    QuestioningResearchArtifact,
 };
 
 fn now_ms() -> i64 {
@@ -11,7 +17,12 @@ fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
+// question_option_outcomes is quarantined (DORMANT, no confirmed caller
+// outside vox-db even via wrapper-call detection — Task 4, VoxDB audit
+// condensation plan) — off by default, see
+// crates/vox-db/src/schema/domains/quarantine.rs.
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn question_tables_round_trip() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
     let ts = now_ms();
@@ -172,7 +183,9 @@ async fn a2a_clarification_payload_is_sent_and_pollable() {
     );
 }
 
+// question_option_outcomes quarantined, see above.
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn dual_write_and_kpi_rollup_work() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
 
@@ -322,7 +335,9 @@ async fn open_session_turn_and_user_answer_helpers() {
     );
 }
 
+// question_option_outcomes quarantined, see above.
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn pending_json_and_mc_belief_posterior_update() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
     let ts = now_ms();

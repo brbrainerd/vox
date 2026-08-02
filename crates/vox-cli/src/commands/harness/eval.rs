@@ -479,12 +479,17 @@ pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
+    // `tokio::sync::Mutex`, not `std::sync::Mutex`: two of the guarded tests
+    // below are `#[tokio::test]` and hold the guard across an `.await` --
+    // clippy denies that for a std Mutex (it can block the async runtime's
+    // worker thread) and `-D warnings` makes that a hard error here. The
+    // plain `#[test]` functions use `blocking_lock()` instead of `.lock()`.
+    use tokio::sync::Mutex;
 
     /// Serializes the handful of tests that read/write `VOX_HARNESS_EVAL_LIVE`
     /// (a process-global) so they cannot race each other under cargo's
     /// default parallel test execution.
-    static LIVE_ENV_VAR_LOCK: Mutex<()> = Mutex::new(());
+    static LIVE_ENV_VAR_LOCK: Mutex<()> = Mutex::const_new(());
 
     #[test]
     fn model_eval_score_fold_exact_is_deterministic() {
@@ -523,9 +528,10 @@ mod tests {
 
     #[test]
     fn live_model_smoke_skip_reason_is_some_without_env_var() {
-        let _guard = LIVE_ENV_VAR_LOCK.lock().unwrap();
+        let _guard = LIVE_ENV_VAR_LOCK.blocking_lock();
         // SAFETY: guarded by LIVE_ENV_VAR_LOCK; no other test touches this
         // var without holding the same lock.
+        #[allow(unsafe_code)]
         unsafe {
             std::env::remove_var("VOX_HARNESS_EVAL_LIVE");
         }
@@ -584,8 +590,9 @@ mod tests {
 
     #[tokio::test]
     async fn run_all_golden_tasks_succeeds_with_default_samples() {
-        let _guard = LIVE_ENV_VAR_LOCK.lock().unwrap();
+        let _guard = LIVE_ENV_VAR_LOCK.lock().await;
         // SAFETY: guarded by LIVE_ENV_VAR_LOCK.
+        #[allow(unsafe_code)]
         unsafe {
             std::env::remove_var("VOX_HARNESS_EVAL_LIVE");
         }
@@ -601,9 +608,10 @@ mod tests {
 
     #[tokio::test]
     async fn run_fails_the_gate_when_live_task_is_forced_to_run_unimplemented() {
-        let _guard = LIVE_ENV_VAR_LOCK.lock().unwrap();
+        let _guard = LIVE_ENV_VAR_LOCK.lock().await;
         // SAFETY: guarded by LIVE_ENV_VAR_LOCK; no other test touches this
         // var without holding the same lock.
+        #[allow(unsafe_code)]
         unsafe {
             std::env::set_var("VOX_HARNESS_EVAL_LIVE", "1");
         }
@@ -613,6 +621,7 @@ mod tests {
         };
         let result = run(args).await;
         // SAFETY: see above.
+        #[allow(unsafe_code)]
         unsafe {
             std::env::remove_var("VOX_HARNESS_EVAL_LIVE");
         }

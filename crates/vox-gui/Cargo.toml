@@ -39,7 +39,7 @@ vox-crypto = { workspace = true }
 vox-search = { workspace = true, features = ["web-scrape"] }
 vox-ml-cli = { workspace = true, optional = true, features = ["oratio-mic"] }
 vox-plugin-host = { workspace = true, optional = true }
-vox-speech = { workspace = true, features = ["stt-candle"] }
+vox-speech = { workspace = true, features = ["stt-candle", "stt-sherpa", "compiler-rerank"] }
 cpal = { workspace = true }
 hound = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }

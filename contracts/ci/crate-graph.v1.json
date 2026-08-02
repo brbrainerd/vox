@@ -411,6 +411,7 @@
       "vox-cli-core",
       "vox-codegen",
       "vox-compiler",
+      "vox-config",
       "vox-foundation",
       "vox-lsp"
     ],
@@ -421,6 +422,7 @@
       "workspace-hack"
     ],
     "vox-llm-egress": [
+      "vox-config",
       "vox-http-client",
       "vox-openai",
       "workspace-hack"
@@ -490,6 +492,7 @@
       "vox-orchestrator-queue",
       "vox-orchestrator-types",
       "vox-package",
+      "vox-plugin-nvml-probe",
       "vox-populi",
       "vox-publisher",
       "vox-repository",
@@ -561,6 +564,7 @@
       "vox-scientia",
       "vox-search",
       "vox-secrets",
+      "vox-similarity",
       "vox-skill-discovery",
       "vox-skills",
       "vox-telemetry",
@@ -601,6 +605,7 @@
       "workspace-hack"
     ],
     "vox-plugin-host": [
+      "vox-config",
       "vox-plugin-api",
       "vox-plugin-types",
       "vox-telemetry",
@@ -821,6 +826,7 @@
       "workspace-hack"
     ],
     "vox-speech": [
+      "vox-compiler",
       "vox-config",
       "vox-secrets",
       "workspace-hack"
@@ -846,6 +852,7 @@
       "workspace-hack"
     ],
     "vox-term": [
+      "vox-config",
       "vox-terminal-core"
     ],
     "vox-terminal-core": [

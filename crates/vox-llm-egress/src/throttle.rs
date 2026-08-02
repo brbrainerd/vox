@@ -181,7 +181,7 @@ mod tests {
         let t = ProviderThrottle::new(2);
         let g1 = t.acquire().await;
         let _g2 = t.acquire().await;
-        let pending = tokio::time::timeout(Duration::from_millis(50), t.acquire()).await;
+        let pending = tokio::time::timeout(vox_config::timeouts::D_50MS, t.acquire()).await;
         assert!(pending.is_err(), "third permit should block at limit 2");
         drop(g1);
         let g3 = tokio::time::timeout(Duration::from_millis(200), t.acquire()).await;

@@ -65,7 +65,7 @@ curl -X POST https://api.anthropic.com/v1/agents \
   "${HEADERS[@]}" \
   -d '{
     "name": "Coding Assistant",
-    "model": "claude-opus-4-8",
+    "model": "claude-opus-5",
     "tools": [{ "type": "agent_toolset_20260401" }]
   }'
 # → { "id": "agent_abc123", ... }
@@ -77,6 +77,8 @@ curl -X POST https://api.anthropic.com/v1/sessions \
     "agent": { "type": "agent", "id": "agent_abc123", "version": "1772585501101368014" },
     "environment_id": "env_abc123"
   }'
+# → { "id": "sesn_abc123", ... }
+# Trace: https://platform.claude.com/workspaces/default/sessions/sesn_abc123  (swap 'default' for your workspace ID if the API key is not in the Default workspace)
 ```
 
 ### With system prompt, custom tools, and GitHub repo
@@ -87,7 +89,7 @@ curl -X POST https://api.anthropic.com/v1/agents \
   "${HEADERS[@]}" \
   -d '{
     "name": "Code Reviewer",
-    "model": "claude-opus-4-8",
+    "model": "claude-opus-5",
     "system": "You are a senior code reviewer. Be thorough and constructive.",
     "tools": [
       { "type": "agent_toolset_20260401" },
@@ -208,7 +210,7 @@ curl -X POST https://api.anthropic.com/v1/sessions/$SESSION_ID/events \
   -d '{
     "events": [
       {
-        "type": "interrupt"
+        "type": "user.interrupt"
       }
     ]
   }'
@@ -293,7 +295,7 @@ curl -X POST https://api.anthropic.com/v1/agents \
   "${HEADERS[@]}" \
   -d '{
     "name": "MCP Agent",
-    "model": "claude-opus-4-8",
+    "model": "claude-opus-5",
     "mcp_servers": [
       { "type": "url", "name": "my-tools", "url": "https://my-mcp-server.example.com/sse" }
     ],
@@ -324,7 +326,7 @@ curl -X POST https://api.anthropic.com/v1/agents \
   "${HEADERS[@]}" \
   -d '{
     "name": "Restricted Agent",
-    "model": "claude-opus-4-8",
+    "model": "claude-opus-5",
     "tools": [
       {
         "type": "agent_toolset_20260401",

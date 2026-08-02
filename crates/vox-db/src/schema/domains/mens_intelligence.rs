@@ -18,16 +18,7 @@ CREATE TABLE IF NOT EXISTS observer_events (
 CREATE INDEX IF NOT EXISTS idx_observer_events_task ON observer_events(task_id);
 CREATE INDEX IF NOT EXISTS idx_observer_events_session ON observer_events(session_id);
 
--- Testing decisions made by the TestDecisionPolicy.
-CREATE TABLE IF NOT EXISTS test_decisions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_id TEXT NOT NULL UNIQUE,
-    decision TEXT NOT NULL,
-    rationale TEXT,
-    complexity_score INTEGER NOT NULL,
-    file_count INTEGER NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+-- test_decisions: quarantined (DORMANT, Task 4) — see domains/quarantine.rs.
 
 -- Multi-tier victory verdicts for task completion.
 CREATE TABLE IF NOT EXISTS victory_verdicts (

@@ -195,7 +195,7 @@ When two `OpFragment`s touch the same commit or file range, `MergePolicy` return
 1. **Auto-merge** — patches commute (non-overlapping line ranges, distinct symbols, additive changes). Apply both; no human involved. Borrows from Pijul's patch theory: independent patches commute.
 2. **Surface as conflict** — patches overlap and the bytes don't match. Materialize via `jj_backend.rs::ContentMerge::n_way` and route to the existing [`conflict_manager`](../../../crates/vox-orchestrator-mcp/src/vcs_tools/mod.rs). Conflicts become first-class artifacts, not transient diffs in a working tree.
 3. **Escalate to Socrates arbitration** — patches overlap but are semantically related (e.g., both rename the same symbol). [`vox-orchestrator-types::socrates_policy`](../../../crates/vox-orchestrator-types/src/socrates_policy/mod.rs) scores each side's hallucination risk + author trust and may auto-pick a winner; otherwise falls through to (2).
-4. **Policy block** — the change violates a project rule (e.g., "agents can't edit `vox-secrets/src/spec.rs` without human review"). Hold the op; surface to a human.
+4. **Policy block** — the change violates a project rule (e.g., "agents can't edit `vox-secrets/src/spec/` without human review"). Hold the op; surface to a human.
 
 The classifier is informed by:
 

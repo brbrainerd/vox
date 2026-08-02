@@ -305,8 +305,43 @@ pub(crate) async fn compile(
 
     let hash = {
         use xxhash_rust::xxh3::xxh3_64;
-        let mut key = Vec::with_capacity(b"vox-cache-v4".len() + 1 + source.len());
-        key.extend_from_slice(b"vox-cache-v4\0");
+        // Cache key must include the compiler/runtime build identity, not just the
+        // script's own source: `~/.vox/script-target/` shares one build of
+        // `vox-actor-runtime` (and vox-compiler-generated codegen) across every
+        // script. If only the source hash were used, rebuilding vox-cli itself
+        // (e.g. a codegen fix in builtin_registry.rs) would leave a stale cached
+        // binary in place until *some* .vox file's own bytes happened to change
+        // too — silently reusing pre-fix behavior.
+        //
+        // `crate::VOX_VERSION` (build number + git commit, both derived from `git
+        // rev-list`/`rev-parse` against HEAD) invalidates the cache across releases,
+        // but NOT across an uncommitted local rebuild during active compiler
+        // development — HEAD hasn't moved, so VOX_VERSION is byte-identical before
+        // and after a `cargo build` that only touched the working tree. That gap is
+        // real and was hit directly during development of this fix: editing
+        // builtin_registry.rs, rebuilding, and rerunning `vox run` on an unchanged
+        // .vox file kept silently executing the pre-fix cached binary. Folding in
+        // the running executable's own mtime closes it — every `cargo
+        // build`/`install` changes the binary's mtime regardless of commit state,
+        // so this also invalidates the cache for the uncommitted-rebuild case
+        // VOX_VERSION alone can't see.
+        let exe_mtime_key = std::env::current_exe()
+            .and_then(std::fs::metadata)
+            .and_then(|m| m.modified())
+            .and_then(|t| {
+                t.duration_since(std::time::UNIX_EPOCH)
+                    .map_err(|e| std::io::Error::other(e.to_string()))
+            })
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let mut key = Vec::with_capacity(
+            b"vox-cache-v6".len() + 1 + crate::VOX_VERSION.len() + 1 + 16 + 1 + source.len(),
+        );
+        key.extend_from_slice(b"vox-cache-v6\0");
+        key.extend_from_slice(crate::VOX_VERSION.as_bytes());
+        key.push(0);
+        key.extend_from_slice(&exe_mtime_key.to_le_bytes());
+        key.push(0);
         key.extend_from_slice(source.as_bytes());
         format!("{:016x}", xxh3_64(&key))
     };

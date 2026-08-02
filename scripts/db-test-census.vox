@@ -1,0 +1,357 @@
+// vox:caps fs process env
+// scripts/db-test-census.vox
+//
+// Companion to scripts/db-table-census.vox (design §2.4). Scans
+// `#[test]` / `#[tokio::test]` function bodies for references to tables
+// classified DEAD or DORMANT by scripts/db-table-census.vox's output
+// (graphify-out/table_usage_report.json), so a later task can decide
+// whether to quarantine/delete those tests along with the tables they
+// only exist to exercise.
+//
+// Usage:
+//   vox run scripts/db-table-census.vox -- --db .vox/store.db   # run first
+//   vox run scripts/db-test-census.vox
+//
+// Output:
+//   graphify-out/quarantine_test_findings.json — one entry per test function
+//   that references at least one DEAD/DORMANT table: function name, file,
+//   and the matched table names.
+//
+// This tool's own output is authoritative for later tasks — cross-check
+// against design §2.4's manual-audit figure (9 functions / 7 files) as a
+// sanity check only; a later task works from this JSON, not the doc table.
+
+import fs;
+import process;
+import env;
+import json;
+import regex;
+
+fn norm(p: str) to str {
+    return p.replace("\\", "/")
+}
+
+fn scan_dirs() to list[str] {
+    return ["crates", "apps", "server", "tools", "tests", "examples", "scripts", "ci"]
+}
+
+fn is_ignored_path(p: str) to bool {
+    let n = norm(p)
+    if n.contains("/target/") { return true }
+    if n.contains("/node_modules/") { return true }
+    if n.contains("/.git/") { return true }
+    if n.contains("/dist/") { return true }
+    if n.contains("/mutants.out") { return true }
+    return false
+}
+
+fn collect_rs_files(root: str) to list[str] {
+    let mut out = []
+    for dir in scan_dirs() {
+        let pattern = root + "/" + dir + "/**/*.rs"
+        let g = fs.glob(pattern)
+        if g.is_err() { continue }
+        for f in g.unwrap() {
+            if is_ignored_path(f) { continue }
+            out = out.push(f)
+        }
+    }
+    return out
+}
+
+fn contains_str(xs: list[str], v: str) to bool {
+    for x in xs { if x == v { return true } }
+    return false
+}
+
+fn is_test_attr_line(trimmed: str) to bool {
+    if trimmed == "#[test]" { return true }
+    if trimmed == "#[tokio::test]" { return true }
+    if trimmed.starts_with("#[tokio::test(") { return true }
+    return false
+}
+
+fn extract_fn_name(line: str) to str {
+    let parts = line.split("fn ")
+    if parts.len() < 2 { return "" }
+    let tail = parts.get(parts.len() - 1).unwrap()
+    let name_part = tail.split("(").get(0).unwrap().trim()
+    let name_part2 = name_part.split("<").get(0).unwrap().trim()
+    return name_part2
+}
+
+// One found test function: name, defining file, and full body text (for
+// table-name matching by the caller).
+type TestFn {
+    name: str,
+    file: str,
+    body: str,
+}
+
+// Extract every #[test]/#[tokio::test] function's name + body from
+// `content` (already-read file text; `path` is only used to tag results).
+// Body extraction is brace-counted from the first line containing `{` after
+// the attribute (skipping any other attributes in between, e.g.
+// `#[should_panic]`) through the matching closing brace.
+//
+// Callers MUST cheap-pre-filter on `content` (e.g. a plain substring check
+// for "#[test]"/"#[tokio::test") before calling this — line-by-line
+// splitting + trimming every line of every file in the workspace (the vast
+// majority of which declare no tests at all) is the expensive part; see
+// find_quarantine_candidates below for why this matters at real-repo scale.
+fn extract_tests_from_content(content: str, path: str) to list[TestFn] {
+    let lines = content.split("\n")
+    let mut results: list[TestFn] = []
+    let mut i = 0
+    while i < lines.len() {
+        let trimmed = lines.get(i).unwrap().trim()
+        if is_test_attr_line(trimmed) {
+            let mut j = i + 1
+            let mut fn_name = ""
+            while j < lines.len() {
+                let l2 = lines.get(j).unwrap().trim()
+                if l2.starts_with("#[") { j = j + 1; continue }
+                if l2 == "" { j = j + 1; continue }
+                fn_name = extract_fn_name(l2)
+                break
+            }
+
+            let mut depth = 0
+            let mut started = false
+            let mut body = ""
+            let mut k = j
+            while k < lines.len() {
+                let lk = lines.get(k).unwrap()
+                body = body + lk + "\n"
+                let opens = lk.split("{").len() - 1
+                let closes = lk.split("}").len() - 1
+                depth = depth + opens - closes
+                if opens > 0 { started = true }
+                if started {
+                    if depth <= 0 { break }
+                }
+                k = k + 1
+            }
+            if fn_name != "" {
+                results = results.push({ name: fn_name, file: path, body: body })
+            }
+            i = k + 1
+            continue
+        }
+        i = i + 1
+    }
+    return results
+}
+
+type QuarantineFinding {
+    function: str,
+    file: str,
+    tables: list[str],
+}
+
+// Pure(ish) core: find every test function under `root` whose body
+// references at least one of `target_tables` (DEAD/DORMANT table names).
+// Directly testable against a fixture root.
+fn find_quarantine_candidates(target_tables: list[str], root: str) to list[QuarantineFinding] {
+    let files = collect_rs_files(root)
+
+    // Combined alternation regex: cheap pre-filter per test body so the
+    // common case (a test body mentions none of the DEAD/DORMANT tables)
+    // costs one regex pass instead of `target_tables.len()` passes — same
+    // fix as scripts/db-table-census.vox's classify_tables, needed here too
+    // once run against the full workspace (100+ targets x every #[test] fn).
+    let mut alt = ""
+    let mut ti = 0
+    while ti < target_tables.len() {
+        if ti > 0 { alt = alt + "|" }
+        alt = alt + target_tables.get(ti).unwrap()
+        ti = ti + 1
+    }
+    let combined_pattern = "\\b(" + alt + ")\\b"
+
+    let mut out: list[QuarantineFinding] = []
+    for f in files {
+        let c = fs.read(f)
+        if c.is_err() { continue }
+        let content = c.unwrap()
+
+        // Cheap pre-filter #1: skip the (large majority of) files that
+        // declare no #[test]/#[tokio::test] at all — avoids line-by-line
+        // splitting + trimming every line of every file in the workspace,
+        // which is what actually made the first real-repo run take many
+        // minutes with zero incremental output (same class of missing-
+        // pre-filter mistake as classify_tables in db-table-census.vox,
+        // just "no pre-filter" here instead of "pre-filter recomputed per
+        // table" there — caught by hand once run against the real repo).
+        let has_test_attr = content.contains("#[test]") or content.contains("#[tokio::test")
+        if not has_test_attr { continue }
+
+        let tests = extract_tests_from_content(content, f)
+        for t in tests {
+            // Cheap pre-filter #2: skip test bodies mentioning none of the
+            // DEAD/DORMANT tables before paying target_tables.len() passes.
+            if regex.is_match(t.body, combined_pattern) {
+                let mut matched = []
+                for tbl in target_tables {
+                    let pat = "\\b" + tbl + "\\b"
+                    if regex.is_match(t.body, pat) {
+                        matched = matched.push(tbl)
+                    }
+                }
+                if matched.len() > 0 {
+                    out = out.push({ function: t.name, file: t.file, tables: matched })
+                }
+            }
+        }
+    }
+    return out
+}
+
+fn jstr(j: Json, k: str) to str {
+    return j.get(k).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+}
+
+fn json_escape(s: str) to str {
+    let s1 = s.replace("\\", "\\\\")
+    return s1.replace("\"", "\\\"")
+}
+
+fn json_str_array(xs: list[str]) to str {
+    let mut out = "["
+    let mut i = 0
+    while i < xs.len() {
+        out = out + "\"" + json_escape(xs.get(i).unwrap()) + "\""
+        if i < xs.len() - 1 { out = out + "," }
+        i = i + 1
+    }
+    return out + "]"
+}
+
+// Load DEAD/DORMANT table names from scripts/db-table-census.vox's output.
+fn load_quarantine_targets(report_path: str) to list[str] {
+    let raw = fs.read(report_path)
+    if raw.is_err() {
+        print("error: could not read " + report_path + " — run `vox run scripts/db-table-census.vox -- --db <path>` first")
+        process.exit(1)
+    }
+    let parsed = json.parse(raw.unwrap())
+    if parsed.is_err() {
+        print("error: could not parse " + report_path + ": " + parsed.unwrap_err())
+        process.exit(1)
+    }
+    let arr = parsed.unwrap().as_array().unwrap_or([])
+    let mut out = []
+    for entry in arr {
+        let status = jstr(entry, "status")
+        if status == "DEAD" {
+            out = out.push(jstr(entry, "table"))
+        }
+        if status == "DORMANT" {
+            out = out.push(jstr(entry, "table"))
+        }
+    }
+    return out
+}
+
+fn main() {
+    let argv = env.args()
+
+    // See scripts/db-table-census.vox for why this exists: `vox test`
+    // currently fails to build any script using the `xs = xs.push(v)`
+    // idiom (pre-existing codegen/lint issue, not specific to this script).
+    if contains_str(argv, "--self-test") {
+        test_find_quarantine_candidates_fixture()
+        print("db-test-census: self-test OK")
+        return
+    }
+
+    let report_path = "graphify-out/table_usage_report.json"
+    print("db-test-census: loading quarantine targets from " + report_path)
+    let targets = load_quarantine_targets(report_path)
+    print("db-test-census: " + str(targets.len()) + " DEAD/DORMANT tables to check against test bodies")
+
+    let findings = find_quarantine_candidates(targets, ".")
+
+    if not fs.exists("graphify-out") {
+        match fs.mkdir("graphify-out") { Ok(_) => {} Error(_) => {} }
+    }
+
+    let mut files_seen = []
+    let mut j = "[\n"
+    let mut i = 0
+    while i < findings.len() {
+        let f = findings.get(i).unwrap()
+        if not contains_str(files_seen, f.file) { files_seen = files_seen.push(f.file) }
+        let mut entry = "  {\"function\":\"" + json_escape(f.function) + "\""
+        entry = entry + ",\"file\":\"" + json_escape(f.file) + "\""
+        entry = entry + ",\"tables\":" + json_str_array(f.tables)
+        entry = entry + "}"
+        j = j + entry
+        if i < findings.len() - 1 { j = j + ",\n" }
+        i = i + 1
+    }
+    j = j + "\n]\n"
+    fs.write_file("graphify-out/quarantine_test_findings.json", j)
+
+    print("")
+    print("=== db-test-census summary ===")
+    print("Quarantine-candidate test functions: " + str(findings.len()))
+    print("Distinct files: " + str(files_seen.len()))
+    print("")
+    print("wrote graphify-out/quarantine_test_findings.json")
+}
+
+// ── 1.2a fixture test (RED before the scanner existed, GREEN now) ──────────
+// tests/fixtures/db_table_census/test_repo/tests/quarantine_candidate_tests.rs
+// has three synthetic fns:
+//   test_reads_dead_table       -> references fixture_dead_table    (DEAD)
+//   test_reads_dormant_table    -> references fixture_dormant_table (DORMANT)
+//   test_reads_live_table_only  -> references fixture_live_table    (LIVE — control, must NOT be flagged)
+//
+// Deliberately a SEPARATE fixture tree from db-table-census.vox's
+// tests/fixtures/db_table_census/repo/ — that root has no tests/ dir of its
+// own, so scanning it for #[test] fns here would find nothing; and if this
+// fixture's tests/ lived under repo/, db-table-census.vox's own scan (which
+// also walks a `tests/` scan dir) would pick up these synthetic #[test] fns
+// as extra "outside" usages and misclassify fixture_dormant_table /
+// fixture_dead_table as LIVE (caught by hand while wiring this up).
+fn fixture_repo_root() to str {
+    let candidates = [
+        "tests/fixtures/db_table_census/test_repo",
+        "../../tests/fixtures/db_table_census/test_repo",
+    ]
+    for c in candidates {
+        if fs.exists(c) { return c }
+    }
+    return candidates.get(0).unwrap()
+}
+
+@test
+fn test_find_quarantine_candidates_fixture() to Unit {
+    let root = fixture_repo_root()
+    let targets = ["fixture_dead_table", "fixture_dormant_table"]
+    let findings = find_quarantine_candidates(targets, root)
+
+    // Exactly the two DEAD/DORMANT-referencing functions are flagged; the
+    // LIVE-only control function must not appear.
+    assert(findings.len() is 2)
+
+    let mut names = []
+    for f in findings { names = names.push(f.function) }
+    assert(contains_str(names, "test_reads_dead_table") is true)
+    assert(contains_str(names, "test_reads_dormant_table") is true)
+    assert(contains_str(names, "test_reads_live_table_only") is false)
+
+    let mut i = 0
+    while i < findings.len() {
+        let f = findings.get(i).unwrap()
+        assert(f.file.ends_with("quarantine_candidate_tests.rs") is true)
+        if f.function == "test_reads_dead_table" {
+            assert(contains_str(f.tables, "fixture_dead_table") is true)
+        }
+        if f.function == "test_reads_dormant_table" {
+            assert(contains_str(f.tables, "fixture_dormant_table") is true)
+        }
+        i = i + 1
+    }
+}

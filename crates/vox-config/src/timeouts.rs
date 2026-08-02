@@ -37,6 +37,7 @@ pub const D_5S: Duration = Duration::from_secs(5);
 pub const D_7S: Duration = Duration::from_secs(7);
 pub const D_10S: Duration = Duration::from_secs(10);
 pub const D_15S: Duration = Duration::from_secs(15);
+pub const D_20S: Duration = Duration::from_secs(20);
 pub const D_30S: Duration = Duration::from_secs(30);
 pub const D_60S: Duration = Duration::from_secs(60);
 pub const D_120S: Duration = Duration::from_secs(120);

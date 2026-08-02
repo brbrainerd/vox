@@ -40,7 +40,8 @@ Schema: `contracts/toestub/toestub-run-json.v1.schema.json`.
 ### `arch/god_object` — Error
 
 **Triggers:** A `.rs` file exceeds 500 non-blank lines, or a struct/impl has
-more than 12 methods. Thresholds: 300 lines = Info, 400 = Warning, 500 = Error.
+more than 12 methods. Multi-tier thresholds (300/400/500 lines): see
+[`governance.md` §God Object Limit](../../agents/governance.md#god-object-limit-multi-tier) — do not restate the numbers here, they drift.
 
 **Fix:** Split using `mod.rs` + `pub use`. Preserve public API surfaces exactly
 via `pub use` re-exports so callers don't break. Follow the
@@ -164,7 +165,7 @@ use vox_secrets::resolve_secret;
 let key = resolve_secret(SecretId::MyApiKey)?;
 ```
 
-Declare the `SecretId` variant in `crates/vox-secrets/src/spec.rs`. See
+Declare the `SecretId` variant in `crates/vox-secrets/src/spec/` (`ids.rs` + `registry/`). See
 [Secrets SSOT](../reference/secrets-ssot.md) for the full lifecycle.
 
 **False positive:** Content-addressed hashes, test fixture values. Suppress
@@ -249,7 +250,7 @@ with a short reason comment.
 | Legacy orchestrator codename | `vox-orchestrator` |
 | Legacy ARS crate label | `vox-openclaw-runtime` |
 | Legacy Ludus crate label | `vox-gamify` |
-| Sync recall API | `recall_async()` |
+| `recall()` / `recall_async()` (deprecated memory reads) | `MemoryManager::lookup_fact_by_key` (async) or RAG/retrieval bundle |
 | Legacy Turso URL env alias | `VOX_DB_URL` |
 
 ---

@@ -176,6 +176,9 @@ mod semcov_wave19_tests {
         use crate::locks::{FileLockManager, LockConflict, LockKind};
         use vox_orchestrator_types::AgentId;
 
+        /// Sleep long enough for a 1ms stale-lock timeout to have definitely elapsed.
+        const STALE_LOCK_SETTLE: std::time::Duration = std::time::Duration::from_millis(5);
+
         #[test]
         fn force_release_stale_removes_exclusive_past_timeout() {
             // Catches: force_release_stale checks elapsed > timeout with wrong comparison (>=/>)
@@ -183,7 +186,7 @@ mod semcov_wave19_tests {
             let mgr = FileLockManager::new();
             mgr.try_acquire(Path::new("old.rs"), AgentId(1), LockKind::Exclusive)
                 .unwrap();
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(STALE_LOCK_SETTLE);
             // timeout of 1 ms → lock is stale
             let count = mgr.force_release_stale(1);
             assert_eq!(count, 1, "one stale exclusive lock should be released");
@@ -210,7 +213,7 @@ mod semcov_wave19_tests {
             let mgr = FileLockManager::new();
             mgr.try_acquire(Path::new("shared.rs"), AgentId(1), LockKind::SharedRead)
                 .unwrap();
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            std::thread::sleep(STALE_LOCK_SETTLE);
             mgr.try_acquire(Path::new("shared.rs"), AgentId(2), LockKind::SharedRead)
                 .unwrap();
             // Only agent-1's lock is old enough to be stale (1 ms threshold)

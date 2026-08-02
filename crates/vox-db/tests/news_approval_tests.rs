@@ -1,6 +1,11 @@
 use vox_db::{DbConfig, VoxDb};
 
+// news_publish_approvals (the legacy, non-digest-bound table) is quarantined
+// (DORMANT, Task 4, VoxDB audit condensation plan) — off by default, see
+// crates/vox-db/src/schema/domains/quarantine.rs. record_news_approval_for_digest
+// and its news_publish_approvals_v2-backed siblings below are unaffected.
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn news_publish_approvals_require_two_distinct_approvers() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
 
@@ -61,7 +66,10 @@ async fn digest_bound_approvals_require_two_distinct_for_same_digest() {
     assert!(db.has_dual_news_approval_for_digest(id, d1).await.unwrap());
 }
 
+// Exercises has_dual_news_approval's fallback to the legacy news_publish_approvals
+// table, quarantined (DORMANT, Task 4) — off by default, see domains/quarantine.rs.
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn digest_approval_fallback_uses_legacy_table_for_migration_window() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
     let id = "2026-03-25-example";

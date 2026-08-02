@@ -970,7 +970,7 @@ mod tests {
 
         // Poll `orch.list_pending_approvals` via the daemon-side ExtraDispatch
         // until the gateway-parked approval becomes visible there.
-        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+        let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_15S;
         #[allow(unused_assignments)]
         let mut approvals = Value::Null;
         loop {
@@ -999,7 +999,7 @@ mod tests {
                  daemon ExtraDispatch's orch.list_pending_approvals — gateway and daemon \
                  do not share one ServerState"
             );
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            tokio::time::sleep(vox_config::timeouts::D_20MS).await;
         }
 
         let approval_id = approvals["approvals"][0]["approval_id"]

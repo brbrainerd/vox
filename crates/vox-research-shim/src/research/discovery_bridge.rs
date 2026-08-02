@@ -286,6 +286,7 @@ mod tests {
                         text: "supported".to_string(),
                         span_type: SpanType::Supporting,
                     }],
+                    resample_stability: 1.0,
                 }],
                 retrieval_diagnostics: RetrievalDiagnostics::default(),
                 quality_score: quality,
@@ -293,6 +294,7 @@ mod tests {
                 competence: None,
                 self_verification: None,
                 citation_audit: None,
+                corroboration_counts: vec![],
             },
         }
     }

@@ -186,11 +186,15 @@ pub fn generate_srt_file(
     pcm = crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(&pcm, budget_ms).0;
 
     let (_diag, whisper_lang) = crate::language::prepare_language_hint(language.as_deref());
-    let backend = crate::backend_dispatch::create_backend()?;
-
-    let out = backend
-        .transcribe_pcm(&pcm, sample_rate, whisper_lang.as_deref())
-        .context("transcribe_pcm failed")?;
+    // Routed through the process-lifetime cache (backend_dispatch::with_cached_backend)
+    // rather than calling create_backend() directly, so repeated subtitle
+    // generation in one process doesn't re-pay full backend construction
+    // (e.g. Parakeet's ~671MB model + ONNX Runtime session) per call.
+    let out = crate::backend_dispatch::with_cached_backend(|backend| {
+        backend
+            .transcribe_pcm(&pcm, sample_rate, whisper_lang.as_deref())
+            .context("transcribe_pcm failed")
+    })?;
 
     if out.segments.is_empty() {
         println!("Warning: Backbone returned no segments. Fallback block generation used.");

@@ -1,14 +1,10 @@
 //! Canonical developer journey rows (machine SSOT) — see `contracts/journeys/`.
 
 pub const SCHEMA_DEVELOPER_JOURNEYS: &str = r#"
-CREATE TABLE IF NOT EXISTS developer_journey_definitions (
-    journey_id TEXT PRIMARY KEY,
-    version INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT,
-    definition_json TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+-- developer_journey_definitions: quarantined (DEAD, Task 4) — see
+-- domains/quarantine.rs, which also carries its deterministic-seed INSERT
+-- (2.1's deterministic-seed exception; excluded from Task 5's auto-DROP
+-- pending manual row export).
 
 CREATE TABLE IF NOT EXISTS developer_journey_steps (
     journey_id TEXT NOT NULL,
@@ -19,16 +15,6 @@ CREATE TABLE IF NOT EXISTS developer_journey_steps (
 );
 
 CREATE INDEX IF NOT EXISTS idx_developer_journey_steps_journey ON developer_journey_steps(journey_id);
-
-INSERT OR IGNORE INTO developer_journey_definitions (
-    journey_id, version, title, description, definition_json
-) VALUES (
-    'canonical_journey.v1.greenfield_vox_mens_devloop',
-    1,
-    'Greenfield Vox + MENS dev loop',
-    'Bootstrap repo → workspace store → author → plan → assist → research → corpus/train → verify.',
-    '{"journey_id":"canonical_journey.v1.greenfield_vox_mens_devloop","version":1,"title":"Greenfield Vox + MENS dev loop","documentation_contract":"contracts/journeys/canonical-journey-definition.v1.schema.json"}'
-);
 
 INSERT OR IGNORE INTO developer_journey_steps (journey_id, ordinal, step_id, step_json) VALUES
 ('canonical_journey.v1.greenfield_vox_mens_devloop', 1, 'bootstrap_repo', '{"step_id":"bootstrap_repo","ordinal":1,"actor":"human","primary_operation_id":"vox","maturity":"stable","limitation_ids":["L-021"]}'),

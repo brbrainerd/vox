@@ -81,7 +81,7 @@ pub async fn inference_provider_status() -> Result<Vec<ProviderStatusDto>, Strin
     let base = vox_config::inference::local_ollama_populi_base_url();
     let probe = vox_actor_runtime::inference_env::probe_populi_capabilities_cached(
         &base,
-        std::time::Duration::from_secs(15),
+        vox_config::timeouts::D_15S,
     )
     .await;
     Ok(statuses

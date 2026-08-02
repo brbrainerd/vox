@@ -100,6 +100,10 @@ mod tests {
     use crate::research_metrics_contract::METRIC_TYPE_SOCRATES_SURFACE;
     use crate::{DbConfig, VoxDb};
 
+    // conversation_versions, conversation_edges, and topic_evolution_events
+    // are NOT quarantined — restored 2026-08-02 after a manual sweep found
+    // Task 4 wrongly quarantined them (see schema/domains/conversations.rs's
+    // comment). This test runs unconditionally again.
     #[tokio::test]
     async fn v17_research_session_conversation_graph_round_trip() {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("db");

@@ -37,12 +37,16 @@ mod semcov_wave4_tests {
     #![allow(unused_imports)]
     use super::*;
 
+    /// Short delay used to simulate a signal arriving (or not) well inside/after
+    /// the barrier's timeout window, local to this test module.
+    const SIGNAL_DELAY: Duration = Duration::from_millis(10);
+
     #[tokio::test]
     async fn wait_with_timeout_returns_true_on_signal() {
         let barrier = TestBarrier::new();
         let b2 = barrier.clone();
         let handle = tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(10)).await;
+            tokio::time::sleep(SIGNAL_DELAY).await;
             b2.signal();
         });
         let result = barrier.wait_with_timeout(D_500MS).await;
@@ -56,7 +60,7 @@ mod semcov_wave4_tests {
     #[tokio::test]
     async fn wait_with_timeout_returns_false_on_timeout() {
         let barrier = TestBarrier::new();
-        let result = barrier.wait_with_timeout(Duration::from_millis(10)).await;
+        let result = barrier.wait_with_timeout(SIGNAL_DELAY).await;
         assert!(!result, "should return false when no signal arrives");
     }
 
@@ -75,7 +79,7 @@ mod semcov_wave4_tests {
     #[tokio::test]
     async fn wait_with_timeout_false_when_no_signal() {
         let barrier = TestBarrier::new();
-        let result = barrier.wait_with_timeout(Duration::from_millis(10)).await;
+        let result = barrier.wait_with_timeout(SIGNAL_DELAY).await;
         assert!(!result);
     }
 }

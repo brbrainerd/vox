@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 //! Integration tests for vox-package skill manifest and execution telemetry storage.
 
+#[cfg(feature = "quarantine")]
 use vox_db::SkillExecutionParams;
 use vox_db::VoxDb;
 
@@ -78,6 +79,9 @@ async fn unpublish_skill_removes_row() {
 
 // ── skill_executions ─────────────────────────────────────────────────────────
 
+// Only used by the quarantine-gated skill_executions tests below; unused
+// when the feature is off.
+#[cfg(feature = "quarantine")]
 fn exec_params<'a>(skill_id: &'a str) -> SkillExecutionParams<'a> {
     SkillExecutionParams {
         skill_id,
@@ -94,7 +98,15 @@ fn exec_params<'a>(skill_id: &'a str) -> SkillExecutionParams<'a> {
     }
 }
 
+// skill_executions is quarantined (DORMANT, no confirmed caller outside vox-db
+// even via wrapper-call detection — Task 4, VoxDB audit condensation plan) —
+// off by default, see crates/vox-db/src/schema/domains/quarantine.rs. These 4
+// tests were never caught by the test-census scan because their bodies call
+// record_skill_execution/list_skill_executions_by_skill, not the literal
+// table name — the same class of blind spot the wrapper-call detection pass
+// exists for, just on the test side instead of the production-caller side.
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn record_skill_execution_returns_rowid() {
     let cs: VoxDb = db().await;
     let id = cs
@@ -105,6 +117,7 @@ async fn record_skill_execution_returns_rowid() {
 }
 
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn record_skill_execution_error_status() {
     let cs: VoxDb = db().await;
     let mut p = exec_params("vox.failing");
@@ -115,6 +128,7 @@ async fn record_skill_execution_error_status() {
 }
 
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn list_skill_executions_returns_newest_first() {
     let cs: VoxDb = db().await;
     cs.record_skill_execution(exec_params("vox.ordered"))
@@ -133,6 +147,7 @@ async fn list_skill_executions_returns_newest_first() {
 }
 
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn list_skill_executions_limit_is_honoured() {
     let cs: VoxDb = db().await;
     for _ in 0..5 {
@@ -148,6 +163,7 @@ async fn list_skill_executions_limit_is_honoured() {
 }
 
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn list_skill_executions_empty_when_no_rows() {
     let cs: VoxDb = db().await;
     let rows = cs

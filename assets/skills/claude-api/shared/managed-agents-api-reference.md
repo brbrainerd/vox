@@ -2,6 +2,8 @@
 
 All endpoints require `x-api-key` and `anthropic-version: 2023-06-01` headers. Managed Agents endpoints additionally require the `anthropic-beta` header.
 
+> Most users should define agents and environments as version-controlled YAML applied with the `ant` CLI — see `shared/anthropic-cli.md`. The endpoints below are the underlying API that the CLI and SDKs drive.
+
 ## Beta Headers
 
 ```
@@ -27,7 +29,7 @@ All resources are under the `beta` namespace. Python and TypeScript share identi
 | Session Threads | `sessions.threads.list` / `retrieve` / `archive`; `sessions.threads.events.list` / `stream` | `Sessions.Threads.List` / `Get` / `Archive`; `Sessions.Threads.Events.List` / `StreamEvents` |
 | Session Resources | `sessions.resources.add` / `retrieve` / `update` / `list` / `delete` | `Sessions.Resources.Add` / `Get` / `Update` / `List` / `Delete` |
 | Deployments | `deployments.create` / `pause` / `unpause` / `archive` / `run` | Not yet documented — WebFetch the SDK repo (`shared/live-sources.md`) |
-| Deployment Runs | `deployment_runs.list` (TS: `deploymentRuns.list`) | Not yet documented — WebFetch the SDK repo (`shared/live-sources.md`) |
+| Deployment Runs | `deployment_runs.list` / `retrieve` (TS: `deploymentRuns.*`) | Not yet documented — WebFetch the SDK repo (`shared/live-sources.md`) |
 | Vaults | `vaults.create` / `retrieve` / `update` / `list` / `delete` / `archive` | `Vaults.New` / `Get` / `Update` / `List` / `Delete` / `Archive` |
 | Credentials | `vaults.credentials.create` / `retrieve` / `update` / `list` / `delete` / `archive` / `mcp_oauth_validate` | `Vaults.Credentials.New` / `Get` / `Update` / `List` / `Delete` / `Archive` / `McpOauthValidate` |
 | Memory Stores | `memory_stores.create` / `retrieve` / `update` / `list` / `delete` / `archive` | `MemoryStores.New` / `Get` / `Update` / `List` / `Delete` / `Archive` |
@@ -40,9 +42,9 @@ All resources are under the `beta` namespace. Python and TypeScript share identi
 - Go's event stream is `StreamEvents` (not `Stream`).
 - The self-hosted worker is **not** under `client.beta.*` — it's `EnvironmentWorker` from `anthropic.lib.environments` / `@anthropic-ai/sdk/helpers/beta/environments`; only `environments.work.poller/stats/stop` are client methods.
 
-**Agent shorthand:** `agent` on session create accepts either a bare string (`agent="agent_abc123"` — uses latest version) or the full reference object (`{type: "agent", id: "agent_abc123", version: 123}`).
+**Agent shorthand:** `agent` on session create accepts three forms — a bare string (`agent="agent_abc123"`, latest version), a pinned reference `{type: "agent", id, version}`, or `{type: "agent_with_overrides", id, version?, model?, system?, tools?, mcp_servers?, skills?}` to override those fields for this session only (see `shared/managed-agents-core.md` → Override agent configuration for a session).
 
-**Model shorthand:** `model` on agent create accepts either a bare string (`model="claude-opus-4-8"` — uses `standard` speed) or the full config object (`{id: "claude-opus-4-6", speed: "fast"}`). Note: `speed: "fast"` is only supported on Opus 4.6.
+**Model shorthand:** `model` on agent create accepts either a bare string (`model="claude-opus-5"` — uses `standard` speed) or the full config object, which takes `speed` and `effort` alongside `id`: `{id: "claude-opus-5", speed: "fast"}`, `{id: "claude-opus-5", effort: "high"}`. `effort` accepts a level string (`low`/`medium`/`high`/`xhigh`/`max`) or `{type: "<level>"}`, and is **agent-configuration only** — an `effort` inside a per-session `model` override is ignored. See `shared/managed-agents-core.md` → Effort on the agent model. Note: `speed: "fast"` is supported on Claude Opus 5 and Opus 4.8 — on the Claude API only, which includes Managed Agents but not Amazon Bedrock, Google Cloud, or Microsoft Foundry. Opus 4.7 fast mode has been removed; `speed: "fast"` on Opus 4.7 returns an error.
 
 ---
 
@@ -55,7 +57,7 @@ All resources are under the `beta` namespace. Python and TypeScript share identi
 | `GET` | `/v1/agents` | ListAgents | List agents |
 | `POST` | `/v1/agents` | CreateAgent | Create a saved agent configuration |
 | `GET` | `/v1/agents/{agent_id}` | GetAgent | Get agent details |
-| `POST` | `/v1/agents/{agent_id}` | UpdateAgent | Update agent configuration |
+| `POST` | `/v1/agents/{agent_id}` | UpdateAgent | Update agent configuration. `version` is **optional**: supply it (≥ 1) for optimistic concurrency — a mismatch returns 409 — or omit it for an unconditional last-write-wins update. |
 | `POST` | `/v1/agents/{agent_id}/archive` | ArchiveAgent | Archive an agent. Makes it **read-only**; existing sessions continue, new sessions cannot reference it. No unarchive — this is the terminal state. |
 | `GET` | `/v1/agents/{agent_id}/versions` | ListAgentVersions | List agent versions |
 
@@ -76,7 +78,7 @@ All resources are under the `beta` namespace. Python and TypeScript share identi
 | -------- | ------------------------------------------------ | ---------------- | ---------------------------------------- |
 | `GET` | `/v1/sessions/{session_id}/events` | ListEvents | List events (polling, paginated) |
 | `POST` | `/v1/sessions/{session_id}/events` | SendEvents | Send events (user message, tool result) |
-| `GET` | `/v1/sessions/{session_id}/events/stream` | StreamEvents | Stream events via SSE |
+| `GET` | `/v1/sessions/{session_id}/events/stream` | StreamEvents | Stream events via SSE. Optional `event_deltas[]=agent.message` / `agent.thinking` opts in to live-preview `event_start`/`event_delta` events — see `shared/managed-agents-events.md` § Live previews. |
 
 ## Session Threads
 
@@ -134,6 +136,7 @@ Each trigger attempt (scheduled or manual) writes a `deployment_run` record (`dr
 | Method   | Path                                             | Operation        | Description                              |
 | -------- | ------------------------------------------------ | ---------------- | ---------------------------------------- |
 | `GET`    | `/v1/deployment_runs?deployment_id=...`          | ListDeploymentRuns | List runs for a deployment (paginated; filter failures with `has_error=true`) |
+| `GET`    | `/v1/deployment_runs/{deployment_run_id}`        | GetDeploymentRun   | Retrieve a single run by ID (a `deployment_run.*` webhook event carries this as `data.id`) |
 
 ## Vaults
 
@@ -181,7 +184,7 @@ Individual text documents inside a store (≤ 100KB each). `create` creates at a
 
 | Method   | Path                                                              | Operation      | Description                              |
 | -------- | ----------------------------------------------------------------- | -------------- | ---------------------------------------- |
-| `GET`    | `/v1/memory_stores/{memory_store_id}/memories`                    | ListMemories   | Returns `Memory \| MemoryPrefix`; filter by `path_prefix`, `depth`, `order_by`/`order` |
+| `GET`    | `/v1/memory_stores/{memory_store_id}/memories`                    | ListMemories   | Returns `Memory \| MemoryPrefix`; filter by `path_prefix`, `depth` |
 | `POST`   | `/v1/memory_stores/{memory_store_id}/memories`                    | CreateMemory   | Create at `path` (SDK: `memories.create`); `409 memory_path_conflict_error` if occupied |
 | `GET`    | `/v1/memory_stores/{memory_store_id}/memories/{memory_id}`        | GetMemory      | Read one memory (defaults to `view="full"`) |
 | `PATCH`  | `/v1/memory_stores/{memory_store_id}/memories/{memory_id}`        | UpdateMemory   | Change `content`, `path`, or both by ID; optional `precondition` |
@@ -231,7 +234,7 @@ Immutable per-mutation snapshots (`memver_...`) — the audit and rollback surfa
 ```json
 {
   "name": "string (required, 1-256 chars)",
-  "model": "claude-opus-4-8 (required — bare string, or {id, speed} object)",
+  "model": "claude-opus-5 (required — bare string, or {id, speed?, effort?} object)",
   "description": "string (optional, up to 2048 chars)",
   "system": "string (optional, up to 100,000 chars)",
   "tools": [
@@ -280,6 +283,9 @@ Immutable per-mutation snapshots (`memver_...`) — the audit and rollback surfa
       "checkout": { "type": "branch", "name": "main" }
     }
   ],
+  "initial_events": [
+    { "type": "user.message", "content": [{ "type": "text", "text": "Review the auth module." }] }
+  ],
   "vault_ids": ["vlt_abc123 (optional — vault credentials: MCP auth + environment variables)"],
   "metadata": {
     "key": "value"
@@ -287,7 +293,9 @@ Immutable per-mutation snapshots (`memver_...`) — the audit and rollback surfa
 }
 ```
 
-> The `agent` field accepts only a string ID or `{type: "agent", id, version}` — `model`/`system`/`tools` live on the agent, not here.
+> The `agent` field accepts a string ID, `{type: "agent", id, version}`, or `{type: "agent_with_overrides", id, version?, ...}` for session-local overrides of `model`/`system`/`tools`/`mcp_servers`/`skills`. Outside the overrides form, those fields live on the agent, not here. An `effort` inside a `model` override is ignored — set it on the agent.
+>
+> **`initial_events`** (optional, max 50) sends events at creation and starts the agent loop in the same call. Only `user.message` and `user.define_outcome` are accepted — no `system.message`, and none of the tool-result kinds. Validation is all-or-nothing. See `shared/managed-agents-core.md` → Seeding a session with `initial_events`.
 >
 > **`checkout`** accepts `{type: "branch", name: "..."}` or `{type: "commit", sha: "..."}`. Omit for the repo's default branch.
 
@@ -346,7 +354,7 @@ Immutable per-mutation snapshots (`memver_...`) — the audit and rollback surfa
 }
 ```
 
-> `system.message` events (update the system prompt between turns) use the same envelope with `type: "system.message"` — Claude Opus 4.8 only; see `shared/managed-agents-events.md` § Updating the system prompt mid-session.
+> `system.message` events (append system-level context for this turn and later ones) use the same envelope with `type: "system.message"` — supported on Claude Opus 5, Claude Opus 4.8, Claude Sonnet 5, Claude Fable 5, and Claude Mythos 5, checked against the agent's *primary* model only; see `shared/managed-agents-events.md` § Adding system context mid-session.
 
 ### Define Outcome Event
 
@@ -404,6 +412,24 @@ Include the `request_id` when reporting issues to Anthropic — it lets us trace
 | 529 | `overloaded_error` | The service is temporarily overloaded — retry with backoff |
 
 Note that `409 Conflict` carries `error.type: "invalid_request_error"` (there is no separate `conflict_error` type); inspect both the HTTP status and the `message` to distinguish conflicts from other invalid requests.
+
+---
+
+## Pagination
+
+Most Managed Agents list endpoints use the `page` / `next_page` cursor scheme:
+
+| Field | Where | Notes |
+|---|---|---|
+| `limit` | query | Max items per page |
+| `page` | query | Opaque cursor from a previous response — pass a `next_page` or `prev_page` value here |
+| `order` | query | `asc` / `desc` on endpoints that support sorting. A cursor encodes the `order` of the request that produced it — reusing it with a different `order` returns 400. Other params (filters, `limit`) can change between paginated requests. |
+| `next_page` | response | Cursor for the next page; `null` when there are no more results |
+| `prev_page` | response | Cursor for the previous page on endpoints that support backward pagination — currently **only `GET /v1/sessions`**. `null` on the first page. On endpoints that don't support it, the field is **absent** (not `null`). |
+
+Every SDK exposes an auto-paginating iterator that follows `next_page`. In Python and TypeScript, iterate the list result directly; the other SDKs expose the iterator via a separate method (iterating the plain list result returns one page). SDK auto-pagination is **forward-only** — to go back a page, read `prev_page` from the response and pass it back as the `page` parameter yourself.
+
+> ⚠️ Some endpoints use a **different** cursor scheme: Message Batches, Files, Models, and several Admin API endpoints take `after_id`/`before_id` and return `has_more`/`first_id`/`last_id` instead of `page`/`next_page`. Some `page`-scheme endpoints (e.g. `GET /v1/skills`) also return a `has_more` boolean alongside `next_page`. Check the endpoint's reference page for its exact pagination fields.
 
 ---
 
