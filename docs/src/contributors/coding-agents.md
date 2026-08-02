@@ -24,7 +24,7 @@ Quick-reference for AI agents operating on the Vox codebase. Deep rationale live
 
 | Limit | Value | Rule ID |
 | --- | --- | --- |
-| God-object / sprawl thresholds | see [`governance.md` §God Object Limit](../../agents/governance.md#god-object-limit-multi-tier) (multi-tier, do not restate here) | `arch/god_object`, `arch/sprawl` |
+| God-object / sprawl thresholds | 300/400/500 lines (soft/warn/error) or 12 methods; sprawl 20 files/dir — see [`governance.md` §God Object Limit](../../agents/governance.md#god-object-limit-multi-tier) for detail | `arch/god_object`, `arch/sprawl` |
 | No `todo!()` / `unimplemented!()` | Zero in production | `stub/todo` |
 | No hollow functions | No trivially-default returns | `skeleton/hollow-fn` |
 | No hardcoded secrets | Use vox-secrets | `security/hardcoded-secret` |
