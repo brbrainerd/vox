@@ -104,7 +104,9 @@ impl VoxDb {
             .await
             .map_err(StoreError::Turso)?
             .ok_or_else(|| {
-                StoreError::Db("scientia_harness_issues: last_insert_rowid() returned no row".into())
+                StoreError::Db(
+                    "scientia_harness_issues: last_insert_rowid() returned no row".into(),
+                )
             })?
             .get(0)
             .map_err(StoreError::Turso)?;
@@ -162,7 +164,14 @@ impl VoxDb {
                     ORDER BY id DESC LIMIT ?3";
         let mut rows = self
             .conn
-            .query(sql, params![status.map(str::to_string), source.map(str::to_string), limit])
+            .query(
+                sql,
+                params![
+                    status.map(str::to_string),
+                    source.map(str::to_string),
+                    limit
+                ],
+            )
             .await
             .map_err(StoreError::Turso)?;
         let mut out = Vec::new();
@@ -243,7 +252,9 @@ mod tests {
         assert_eq!(rows[0].session_key.as_deref(), Some("session-abc"));
         assert_eq!(rows[0].status, "pending");
 
-        db.set_harness_issue_status(id, "confirmed").await.expect("update");
+        db.set_harness_issue_status(id, "confirmed")
+            .await
+            .expect("update");
         let rows = db
             .list_harness_issues(Some("pending"), None, 10)
             .await
@@ -256,7 +267,11 @@ mod tests {
             .expect("list for session");
         assert_eq!(session_rows.len(), 1);
 
-        let fetched = db.get_harness_issue(id).await.expect("get").expect("row exists");
+        let fetched = db
+            .get_harness_issue(id)
+            .await
+            .expect("get")
+            .expect("row exists");
         assert_eq!(fetched.id, id);
     }
 
@@ -283,9 +298,13 @@ mod tests {
     async fn has_pending_harness_issue_dedupes_repeat_scans() {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
         assert!(
-            !db.has_pending_harness_issue("corpus_scan", "examples/golden/x.vox", "stale_frontmatter")
-                .await
-                .expect("check before insert")
+            !db.has_pending_harness_issue(
+                "corpus_scan",
+                "examples/golden/x.vox",
+                "stale_frontmatter"
+            )
+            .await
+            .expect("check before insert")
         );
         db.insert_harness_issue(NewHarnessIssue {
             source: "corpus_scan",
@@ -300,9 +319,13 @@ mod tests {
         .await
         .expect("insert");
         assert!(
-            db.has_pending_harness_issue("corpus_scan", "examples/golden/x.vox", "stale_frontmatter")
-                .await
-                .expect("check after insert")
+            db.has_pending_harness_issue(
+                "corpus_scan",
+                "examples/golden/x.vox",
+                "stale_frontmatter"
+            )
+            .await
+            .expect("check after insert")
         );
     }
 }
