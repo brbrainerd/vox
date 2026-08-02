@@ -2132,6 +2132,41 @@
   ],
   "exceptions": [
     {
+      "from": "vox-cli",
+      "to": "vox-oauth-pkce",
+      "reason": "vox secrets login --oauth --provider openrouter (RFC 8252 loopback PKCE flow), free-tier onboarding plan",
+      "date": "2026-08-02",
+      "authorized_by": "user (explicit chat approval, 2026-08-02)"
+    },
+    {
+      "from": "vox-cli",
+      "to": "vox-llm-egress",
+      "reason": "vox doctor rate-limit diagnostic needs EgressError::RateLimited directly, free-tier onboarding plan",
+      "date": "2026-08-02",
+      "authorized_by": "user (explicit chat approval, 2026-08-02)"
+    },
+    {
+      "from": "vox-gui",
+      "to": "vox-oauth-pkce",
+      "reason": "oauth_login_openrouter Tauri command runs the loopback PKCE flow, free-tier onboarding plan",
+      "date": "2026-08-02",
+      "authorized_by": "user (explicit chat approval, 2026-08-02)"
+    },
+    {
+      "from": "vox-gui",
+      "to": "vox-http-client",
+      "reason": "verify_openrouter_key Tauri command needs a bounded-timeout HTTP client, free-tier onboarding plan",
+      "date": "2026-08-02",
+      "authorized_by": "user (explicit chat approval, 2026-08-02)"
+    },
+    {
+      "from": "vox-oauth-pkce",
+      "to": "vox-http-client",
+      "reason": "OpenRouter token exchange uses the sanctioned HTTP client builder, free-tier onboarding plan",
+      "date": "2026-08-02",
+      "authorized_by": "user (explicit chat approval, 2026-08-02)"
+    },
+    {
       "from": "vox-actor-runtime",
       "to": "vox-openclaw-runtime",
       "reason": "grandfathered at 2026-07-03 bootstrap (pre-existing upward edge; Phase 2 decoupling target)",
