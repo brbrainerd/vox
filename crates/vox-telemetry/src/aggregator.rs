@@ -136,6 +136,10 @@ mod tests {
     use super::*;
     use crate::types::ModelCallEvent;
 
+    /// Minimum sleep to guarantee `wall_time_ms` elapses to a strictly
+    /// positive value between anchoring `started_at` and filling the summary.
+    const WALL_TIME_SETTLE: std::time::Duration = std::time::Duration::from_millis(2);
+
     fn make_model_call(task_id: u64, cost: f64, prompt: u32, completion: u32) -> ModelCallEvent {
         ModelCallEvent {
             model: "test".into(),
@@ -222,7 +226,7 @@ mod tests {
         // Record task start; no model calls yet.
         record_task_started(9005);
         // A small delay so elapsed > 0.
-        std::thread::sleep(std::time::Duration::from_millis(2));
+        std::thread::sleep(WALL_TIME_SETTLE);
         let mut summary = TaskRootSummaryEvent {
             task_id: 9005,
             trace_id: "trace-y".into(),
@@ -250,7 +254,7 @@ mod tests {
         // No explicit record_task_started — first model call should set started_at.
         let event = TelemetryEvent::ModelCall(make_model_call(9006, 0.01, 10, 5));
         observe(&event);
-        std::thread::sleep(std::time::Duration::from_millis(2));
+        std::thread::sleep(WALL_TIME_SETTLE);
         let mut summary = TaskRootSummaryEvent {
             task_id: 9006,
             trace_id: "trace-z".into(),

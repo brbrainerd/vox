@@ -100,7 +100,7 @@ pub fn run() -> Result<()> {
         })?;
 
         // Poll for input events (50 ms tick = ~20 fps).
-        if !event::poll(std::time::Duration::from_millis(50))? {
+        if !event::poll(vox_config::timeouts::D_50MS)? {
             continue;
         }
         match event::read()? {

@@ -171,7 +171,7 @@ async fn completed_hopper_item_is_not_reexecuted_after_restart() {
         .await;
 
     // Wait for the production dispatcher to assign it.
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_10S;
     loop {
         let assigned = hopper.assigned().await;
         if assigned.iter().any(|i| i.item_id == item.item_id) {
@@ -181,7 +181,7 @@ async fn completed_hopper_item_is_not_reexecuted_after_restart() {
             tokio::time::Instant::now() < deadline,
             "dispatcher never assigned the hopper-admitted item"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
 
     let task_id = vox_orchestrator::TaskId(vox_orchestrator::orchestrator::dispatch::stable_hash(

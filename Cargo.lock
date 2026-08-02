@@ -16310,6 +16310,7 @@ dependencies = [
  "vox-cli-core",
  "vox-codegen",
  "vox-compiler",
+ "vox-config",
  "vox-foundation",
  "vox-lsp",
 ]
@@ -16339,6 +16340,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "vox-config",
  "vox-http-client",
  "vox-openai",
  "wiremock",
@@ -16857,6 +16859,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "tracing-test",
+ "vox-config",
  "vox-plugin-api",
  "vox-plugin-types",
  "vox-telemetry",
@@ -17704,6 +17707,7 @@ dependencies = [
  "ratatui",
  "reedline",
  "tokio",
+ "vox-config",
  "vox-terminal-core",
 ]
 

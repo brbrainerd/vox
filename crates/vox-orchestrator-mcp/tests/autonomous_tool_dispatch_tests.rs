@@ -56,7 +56,7 @@ async fn dispatch_actually_parks_a_pending_approval() {
             tokio::time::Instant::now() < deadline,
             "autonomous dispatch never registered a pending approval — bridge did not reach the gate"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
 
     let pending = state.pending_approvals.list();
@@ -114,7 +114,7 @@ async fn task_id_parameter_wins_over_model_supplied_args_task_id() {
             tokio::time::Instant::now() < deadline,
             "autonomous dispatch never registered a pending approval"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
     let pending = state.pending_approvals.list();
     assert_eq!(pending.len(), 1);
@@ -146,7 +146,7 @@ async fn task_id_parameter_wins_over_model_supplied_args_task_id() {
             tokio::time::Instant::now() < deadline,
             "ApprovalRequested.run_id never reflected the explicit task_id parameter (9001)"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
     assert!(
         saw_run_id,

@@ -655,7 +655,7 @@ mod orch_smoke {
 
     async fn seed_agent_reliability_high(db: &vox_db::VoxDb, agent_id: AgentId) {
         // Sleep to let background event sink task finish writing AgentSpawned event
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        tokio::time::sleep(vox_config::timeouts::D_50MS).await;
         let sid = agent_id.0.to_string();
         // Five successive outcomes reach (5+2)/(5+3) ≈ 0.875 ≥ default relax floor 0.85.
         for _ in 0..5 {

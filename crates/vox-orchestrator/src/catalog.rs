@@ -1,5 +1,4 @@
 use crate::models::{ModelCapabilities, ModelSpec, ProviderType, StrengthTag};
-use std::time::Duration;
 
 #[async_trait::async_trait]
 pub trait ModelCatalog: Send + Sync {
@@ -932,7 +931,7 @@ impl LiteLLMCatalog {
     pub fn new() -> Self {
         Self {
             client: vox_http_client::client_builder()
-                .timeout(Duration::from_secs(20))
+                .timeout(vox_config::timeouts::D_20S)
                 .build()
                 .unwrap_or_else(|_| vox_http_client::client()),
         }

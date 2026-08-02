@@ -181,7 +181,7 @@ async fn hopper_admit_assign_complete_lifecycle_is_wired_and_durable() {
 
     // The dispatcher runs on a spawned task reacting to the HopperItemAdmitted
     // event `submit` just emitted; poll briefly for it to land.
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_10S;
     loop {
         let assigned = hopper.assigned().await;
         if assigned.iter().any(|i| i.item_id == item.item_id) {
@@ -191,7 +191,7 @@ async fn hopper_admit_assign_complete_lifecycle_is_wired_and_durable() {
             tokio::time::Instant::now() < deadline,
             "dispatcher never assigned the hopper-admitted item"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
 
     let task_id = vox_orchestrator::TaskId(vox_orchestrator::orchestrator::dispatch::stable_hash(

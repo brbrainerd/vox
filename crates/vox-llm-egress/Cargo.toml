@@ -19,6 +19,7 @@ workspace-hack = { workspace = true }
 
 [dev-dependencies]
 wiremock = { workspace = true }
+vox-config = { workspace = true }
 
 [lints]
 workspace = true

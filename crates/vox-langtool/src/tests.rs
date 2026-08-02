@@ -149,7 +149,7 @@ mod semcov_wave50_tests {
             .modified()
             .ok();
         // Give the fs a tick so mtime would differ if written
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::thread::sleep(vox_config::timeouts::D_50MS);
         let _ = crate::commands::fmt::run(tmp.path(), true);
         let after_meta = std::fs::metadata(tmp.path())
             .expect("metadata after")

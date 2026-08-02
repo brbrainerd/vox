@@ -16,8 +16,6 @@
 
 #![cfg(feature = "ludus-hud")]
 
-use std::time::Duration;
-
 /// Serialized-env-mutation guard — see `live_daemon_routing_tests.rs`'s
 /// identical helper for rationale.
 struct IsolatedNoDaemonEnv {
@@ -94,7 +92,7 @@ async fn hud_run_fails_fast_when_no_daemon_reachable() {
     point_at_dead_port().await;
 
     let result = tokio::time::timeout(
-        Duration::from_secs(20),
+        vox_config::timeouts::D_20S,
         vox_cli::commands::extras::ludus::ludus_hud_run(),
     )
     .await;

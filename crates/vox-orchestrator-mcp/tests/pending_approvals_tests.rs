@@ -3,6 +3,7 @@ use std::sync::Arc;
 use vox_orchestrator::ApprovalOutcome;
 
 const D_15S: std::time::Duration = std::time::Duration::from_secs(15);
+use vox_config::timeouts::D_20MS;
 use vox_orchestrator_mcp::pending_approvals::PendingApprovals;
 use vox_orchestrator_mcp::server::tool_json_envelope_is_error;
 use vox_orchestrator_mcp::{
@@ -76,7 +77,7 @@ async fn dangerous_tool_parks_until_resolved() {
             tokio::time::Instant::now() < deadline,
             "dangerous tool never registered a pending approval"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(D_20MS).await;
     }
 
     let pending = state.pending_approvals.list();
@@ -126,7 +127,7 @@ async fn dangerous_tool_park_and_resolve_records_oplog_pair() {
             tokio::time::Instant::now() < deadline,
             "dangerous tool never registered a pending approval"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(D_20MS).await;
     }
 
     let pending = state.pending_approvals.list();
@@ -177,7 +178,7 @@ async fn dangerous_tool_park_and_resolve_records_oplog_pair() {
             tokio::time::Instant::now() < deadline,
             "oplog missing ApprovalRequested/ApprovalResolved pair for {approval_id}: requested={saw_requested} resolved={saw_resolved}"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(D_20MS).await;
     }
     assert!(saw_requested, "ApprovalRequested not found in oplog");
     assert!(saw_resolved, "ApprovalResolved not found in oplog");
@@ -215,7 +216,7 @@ async fn approval_requested_run_id_falls_back_to_task_id() {
             tokio::time::Instant::now() < deadline,
             "dangerous tool never registered a pending approval"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(D_20MS).await;
     }
     let pending = state.pending_approvals.list();
     assert_eq!(pending.len(), 1);
@@ -247,7 +248,7 @@ async fn approval_requested_run_id_falls_back_to_task_id() {
             tokio::time::Instant::now() < deadline,
             "ApprovalRequested.run_id never fell back to task_id \"4242\""
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(D_20MS).await;
     }
     assert!(
         saw_run_id,
@@ -284,7 +285,7 @@ async fn user_approval_arg_does_not_bypass_the_gate() {
             tokio::time::Instant::now() < deadline,
             "dangerous tool never registered a pending approval (user_approval arg bypassed the gate)"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(D_20MS).await;
     }
 
     let pending = state.pending_approvals.list();
@@ -371,7 +372,7 @@ async fn accept_edits_mode_auto_approves_mutating_reversible_but_parks_destructi
             tokio::time::Instant::now() < deadline,
             "vox_run_shell under accept_edits never registered a pending approval (destructive tool must still park)"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(D_20MS).await;
     }
     let pending = state.pending_approvals.list();
     assert_eq!(pending.len(), 1);
@@ -413,7 +414,7 @@ async fn ask_mode_and_no_mode_still_park_dangerous_tools() {
                 tokio::time::Instant::now() < deadline,
                 "mode {mode:?}: vox_write_file never registered a pending approval (ask/no-mode must still park)"
             );
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            tokio::time::sleep(D_20MS).await;
         }
         let pending = state.pending_approvals.list();
         assert_eq!(pending.len(), 1);
@@ -591,7 +592,7 @@ async fn add_allowlist_entry_tool_itself_always_parks_even_under_accept_all() {
             tokio::time::Instant::now() < deadline,
             "vox_add_approval_allowlist_entry under accept_all never parked — self-serve allowlist bypass!"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(D_20MS).await;
     }
     let pending = state.pending_approvals.list();
     assert_eq!(pending.len(), 1);

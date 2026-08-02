@@ -98,7 +98,7 @@ async fn gui_relaunch_boots_daemon_and_core_surfaces_respond() {
 
     // Poll until the daemon process is actually listening and answering —
     // no token-file race is involved here, just normal process startup time.
-    let deadline = Instant::now() + Duration::from_secs(20);
+    let deadline = Instant::now() + vox_config::timeouts::D_20S;
     loop {
         if client.ping().await.is_ok() {
             break;

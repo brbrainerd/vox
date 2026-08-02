@@ -1926,7 +1926,7 @@ mod tests {
 
         let processor: Arc<dyn TaskProcessor> = Arc::new(StubTaskProcessor);
 
-        let outcome = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        let outcome = tokio::time::timeout(vox_config::timeouts::D_5S, async {
             ActorAgent::handle_command(
                 AgentCommand::ProcessQueue,
                 agent_id,

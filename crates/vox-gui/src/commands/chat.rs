@@ -536,7 +536,7 @@ mod tests {
         let daemon = app.state::<Arc<PersistentDaemon>>();
         let pool = app.state::<GuiDbPool>();
         let result = tokio::time::timeout(
-            std::time::Duration::from_millis(500),
+            vox_config::timeouts::D_500MS,
             chat_append_message(app.handle().clone(), input, pool, daemon),
         )
         .await
