@@ -115,6 +115,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
         sql: domains::scientia::SCHEMA_SCIENTIA,
     },
     SchemaFragment {
+        name: "harness_eval",
+        sql: domains::harness_eval::SCHEMA_HARNESS_EVAL,
+    },
+    SchemaFragment {
         name: "developer_journeys",
         sql: domains::developer_journeys::SCHEMA_DEVELOPER_JOURNEYS,
     },

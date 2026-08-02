@@ -10,7 +10,7 @@ policy:
   # re-updated for skill_identities table (Task 3.4, harness parity plan — skill namespace/identity FCFS uniqueness);
   # re-updated for a superseded-by-reliability_scores doc comment on the legacy skill_reliability table
   # (final holistic branch review finding: CLI report was still reading the dead table).
-  repository_baseline_digest_hex: "0x967e81d1a8c7d54a1f7f47e1a5f9679bc7c1685acd8b5c7470c58d84fd8b1b7c"
+  repository_baseline_digest_hex: "0xe0b983e319dee78e71647ae8e1d590e7e30701fcbb76bb7025775251476e2ab7"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

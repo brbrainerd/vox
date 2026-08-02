@@ -4,6 +4,7 @@
 //! at its crate root for back-compat.
 
 pub mod build;
+pub mod harness_eval;
 pub mod mens;
 pub mod oratio;
 pub mod params;
@@ -12,6 +13,7 @@ pub mod rows_core;
 pub mod rows_extended;
 
 pub use build::*;
+pub use harness_eval::*;
 pub use mens::*;
 pub use params::*;
 pub use research::*;
