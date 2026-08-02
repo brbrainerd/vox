@@ -988,34 +988,44 @@ Still available via git history."
 
 ### Task 15: Refresh the stale `claude-api` vendored pin
 
-**STATUS: BLOCKED, deferred out of this execution pass (2026-08-02).** Two problems surfaced
-during a live attempt, both in `vox run`'s script-transpilation path — neither is specific to
-this task's content, both block the underlying tooling generally:
+**STATUS: BLOCKED, deferred out of this execution pass (2026-08-02, updated after a second
+investigation session the same day).** Two separate problems in `vox run`'s script-transpilation
+path, neither specific to this task's content:
 
-1. `vox run scripts/vendor-skills.vox` failed to compile (`vox-script` codegen bug: `toml.parse`'s
-   generated match arm returned a bare `serde_json::Value` instead of `VoxJson`, breaking
-   `jarr(parsed, ...)`). Fixed in `crates/vox-compiler/src/builtin_registry.rs` (commit
-   `11b2aafa63`) for the plain `toml.parse(...)` call form.
-2. A second instance of the same bug exists for the dot-chained `std.toml.parse(...)` form
-   (used by this exact script to read `SOURCES.toml`, line ~293) — confirmed still broken via a
-   live re-run after fix #1 landed; the codegen path for `StdNamespace` field-access calls
-   wasn't located. `vox run scripts/vendor-skills.vox` currently fails at compile time before any
-   file operation runs (confirmed harmless — `assets/skills/` file count unchanged across the
-   attempt).
-3. **Separately, and independent of #1/#2**: on one earlier attempt, after a *successful* build,
-   `vox run scripts/vendor-skills.vox` ran to completion with no reported errors but left
-   `assets/skills/`'s destination directories **empty** — `remove_tree` deleted ~150 tracked
-   files and `copy_tree` never repopulated them, silently. This was caught via `git status`
-   immediately and reverted with `git checkout -- assets/skills/`; no data was lost. Three
-   faithful controlled retests (real cloned source data, relative destination paths, repo-root
-   CWD, multi-skill loop — matching this script's exact usage pattern) all copied files
-   correctly; the failure could not be reproduced in isolation. Root cause unknown.
+1. **Fixed and confirmed.** `vox run scripts/vendor-skills.vox` initially failed to compile
+   (`vox-script` codegen bug: `toml.parse`'s generated match arm returned a bare
+   `serde_json::Value` instead of `VoxJson`, breaking `jarr(parsed, ...)`). Fixed in
+   `crates/vox-compiler/src/builtin_registry.rs` (commit `11b2aafa63`). A second apparent
+   failure on the dot-chained `std.toml.parse(...)` form (used by this exact script to read
+   `SOURCES.toml`) turned out to be **stale build artifacts, not a second codegen bug** — the
+   dispatch site in `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs` already routes
+   `std.X.Y(...)` calls through the same fixed `std_namespace_runtime_call` function. A full
+   rebuild (`cargo build -p vox-compiler -p vox-codegen -p vox-cli`) plus
+   `cargo install --locked --path crates/vox-cli --force` to refresh the installed `vox` binary
+   resolved it — `vox run scripts/vendor-skills.vox` now compiles and runs cleanly.
+2. **Confirmed real, reproducible, still unfixed.** With the compile issue resolved, a live run
+   against the actual pin (with `assets/skills/` backed up first) **destructively emptied
+   `assets/skills/` again** — `remove_tree` deleted every skill's tracked files and `copy_tree`
+   never repopulated them, printing `ok` for all 26+14 skills regardless. This is now
+   **confirmed reproducible 2/2 on real full-scale runs** (26 `anthropics/skills` +
+   14 `obra/superpowers` skills processed together in one process). Both times it was caught
+   immediately via `git status --short` and reverted with `git checkout -- assets/skills/`; no
+   data was lost either time. **Critically, it is NOT reproducible in isolated/reduced-scale
+   testing** — three faithful controlled retests (real cloned source data, relative destination
+   paths, repo-root CWD, multi-skill loop, matching this script's exact usage pattern, but only
+   1-2 skills from a single source at a time) all copied files correctly. The failure appears to
+   require processing the full real workload (both sources, all 40 skills, in one process) to
+   manifest — root cause still unknown; likely candidates not yet ruled out: a resource limit hit
+   partway through many sequential `fs.copy`/`fs.glob` calls, or a subtle interaction between the
+   two sequential `clone_at_pin` calls (one per source) that only surfaces with two real clones
+   in flight in the same run.
 
-**Before attempting this task again:** fix #2 (locate and patch the `StdNamespace` codegen path
-for `std.X.Y(...)` calls), then either root-cause #3 or, at minimum, always back up
-`assets/skills/` to a scratch location before any live `vox run scripts/vendor-skills.vox`
-invocation until #3 is understood — the destructive behavior is real, witnessed once, and not
-yet explained.
+**Before attempting this task again:** do not keep re-running the full script live to
+trial-and-error the root cause — each attempt is destructive-until-reverted and this has already
+been confirmed twice. Instead, instrument `copy_tree`/`vendor_source` with per-file `print()`
+diagnostics (as done in the controlled retests) and capture one full real run's complete output
+for offline analysis, or step through with a debugger attached to the generated script binary.
+Always back up `assets/skills/` to a scratch location first regardless.
 
 **Files:**
 - Modify: `assets/skills/SOURCES.toml`
