@@ -67,9 +67,19 @@ fn frontmatter_block(body: &str) -> Option<&str> {
 }
 
 /// The `[metadata] vox-tools` list declared in a SKILL.md frontmatter, if present.
+///
+/// Frontmatter historically was TOML for Vox's first-party skills; the agentskills.io
+/// spec mandates YAML. Try TOML first (preserves legacy behavior exactly — YAML's
+/// `key: value` lines are not valid TOML so there is no ambiguity), then fall back to
+/// spec-compliant YAML, mirroring `vox-plugin-host::skill_parser::parse_frontmatter`.
 fn frontmatter_vox_tools(body: &str) -> Option<Vec<String>> {
     let fm = frontmatter_block(body)?;
-    let val: toml::Value = fm.parse().ok()?;
+    let val: serde_json::Value = if let Ok(v) = fm.parse::<toml::Value>() {
+        serde_json::to_value(v).ok()?
+    } else {
+        let v: serde_yaml::Value = serde_yaml::from_str(fm).ok()?;
+        serde_json::to_value(v).ok()?
+    };
     val.get("metadata")
         .and_then(|m| m.get("vox-tools"))
         .and_then(|v| v.as_array())

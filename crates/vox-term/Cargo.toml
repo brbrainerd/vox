@@ -23,6 +23,7 @@ nucleo             = { workspace = true }
 nucleo-matcher     = "0.3"
 anyhow             = { workspace = true }
 tokio              = { workspace = true, features = ["rt", "macros", "rt-multi-thread", "sync"] }
+vox-config         = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }

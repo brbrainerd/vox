@@ -33,7 +33,7 @@ async fn wait_ready(addr: &str, token: Option<&str>) {
             tokio::time::Instant::now() < deadline,
             "daemon never became ready"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
 }
 
@@ -192,7 +192,7 @@ async fn stdio_routed_tool_call_approval_is_visible_and_resolvable_from_a_separa
             tokio::time::Instant::now() < deadline,
             "stdio-routed vox_run_shell call never became visible via a separate client's orch.list_pending_approvals"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
 
     let approval_id = approvals["approvals"][0]["approval_id"]

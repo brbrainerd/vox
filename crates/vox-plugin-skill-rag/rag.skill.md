@@ -1,15 +1,20 @@
 ---
-name = "skill-rag"
-description = "Multi-modal Visual Retrieval-Augmented Generation RAG handler orchestrating queries to connected intelligent backends."
-
-[metadata]
-"vox-id" = "vox.rag"
-"vox-version" = "0.1.0"
-"vox-author" = "vox-team"
-"vox-category" = "research"
-"vox-tools" = ["vox_visual_rag_query"]
-"vox-tags" = ["rag", "visual", "vision", "image", "multimodal", "search"]
-"vox-permissions" = []
+name: skill-rag
+description: "Multi-modal Visual Retrieval-Augmented Generation RAG handler orchestrating queries to connected intelligent backends."
+metadata:
+  vox-id: vox.rag
+  vox-version: "0.1.0"
+  vox-author: vox-team
+  vox-category: research
+  vox-tools:
+    - vox_visual_rag_query
+  vox-tags:
+    - rag
+    - visual
+    - vision
+    - image
+    - multimodal
+    - search
 ---
 
 # Vox Visual RAG

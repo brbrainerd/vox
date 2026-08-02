@@ -181,7 +181,7 @@ pub(crate) fn with_graph_lock<T>(
             .modified()
             .ok()
             .and_then(|m| m.elapsed().ok())
-            .map(|age| age < std::time::Duration::from_secs(3600))
+            .map(|age| age < vox_config::timeouts::LEASE_HOUR)
             .unwrap_or(false);
         if fresh {
             return Ok(None);

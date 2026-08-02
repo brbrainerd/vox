@@ -246,7 +246,7 @@ mod semcov_wave3_tests {
         tx.send(make_event("discord", "message")).unwrap();
 
         // Allow the bridge task to process events, then drop sender to close channel
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        tokio::time::sleep(vox_config::timeouts::D_50MS).await;
         drop(tx);
         handle
             .await
@@ -291,7 +291,7 @@ mod semcov_wave3_tests {
         // Send two events; even though dispatch fails, the bridge must not panic/exit early
         tx.send(make_event("custom", "trigger")).unwrap();
         tx.send(make_event("custom", "trigger")).unwrap();
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        tokio::time::sleep(vox_config::timeouts::D_50MS).await;
         drop(tx);
         handle.await.expect("bridge must survive dispatch errors");
     }

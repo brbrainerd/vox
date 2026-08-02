@@ -441,7 +441,7 @@ impl VcsBackend for JjActorHandle {
 mod tests {
     use super::*;
     use std::time::Duration;
-    use vox_config::timeouts::{D_5S, D_10S, D_250MS};
+    use vox_config::timeouts::{D_5S, D_10S, D_20MS, D_250MS};
 
     /// A wedged operation elapses to a `VcsError` (so the actor thread is freed
     /// for the next queued command) while a fast operation passes through cleanly.
@@ -451,7 +451,7 @@ mod tests {
             tokio::time::sleep(D_250MS).await;
             Ok::<(), VcsError>(())
         };
-        let timed_out = with_op_timeout(Duration::from_millis(20), slow).await;
+        let timed_out = with_op_timeout(D_20MS, slow).await;
         assert!(
             matches!(timed_out, Err(VcsError::Unavailable(ref m)) if m.contains("timed out")),
             "a wedged operation must elapse to VcsError::Unavailable, got {timed_out:?}"

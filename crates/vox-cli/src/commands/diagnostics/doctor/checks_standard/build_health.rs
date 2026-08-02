@@ -576,7 +576,7 @@ pub(crate) async fn hook_guard_check(checks: &mut Vec<Check>) {
         }
         child.wait_with_output().await
     };
-    let out = match tokio::time::timeout(std::time::Duration::from_secs(10), round_trip).await {
+    let out = match tokio::time::timeout(vox_config::timeouts::D_10S, round_trip).await {
         Ok(Ok(o)) => o,
         _ => {
             checks.push(Check::fail(

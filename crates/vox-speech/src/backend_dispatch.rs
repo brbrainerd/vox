@@ -271,7 +271,7 @@ mod tests {
         }
 
         for _ in 0..2 {
-            let ok = rx.recv_timeout(std::time::Duration::from_secs(5)).expect(
+            let ok = rx.recv_timeout(vox_config::timeouts::D_5S).expect(
                 "both with_cached_backend calls should complete within 5s; a hang here \
                      means the lock is being held across `f` again (the bug the Arc \
                      conversion fixed), deadlocking both threads on the shared barrier",

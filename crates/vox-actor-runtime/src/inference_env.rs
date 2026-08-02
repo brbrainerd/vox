@@ -297,20 +297,19 @@ mod tests {
 
     #[tokio::test]
     async fn cached_probe_stores_snapshot_and_sync_peek_respects_ttl() {
+        use vox_config::timeouts::D_60S;
+
         let base = "http://127.0.0.1:1"; // guaranteed-unbound port, like probe_unbound_port_unreachable
         // No entry before the first probe.
-        assert!(last_populi_probe(base, std::time::Duration::from_secs(60)).is_none());
-        let s = probe_populi_capabilities_cached(base, std::time::Duration::from_secs(60)).await;
+        assert!(last_populi_probe(base, D_60S).is_none());
+        let s = probe_populi_capabilities_cached(base, D_60S).await;
         assert!(!s.reachable);
         // Fresh entry is peekable without awaiting…
-        let peeked = last_populi_probe(base, std::time::Duration::from_secs(60))
-            .expect("snapshot cached after probe");
+        let peeked = last_populi_probe(base, D_60S).expect("snapshot cached after probe");
         assert!(!peeked.reachable);
         assert_eq!(peeked.base_url, s.base_url);
         // Trailing-slash URLs normalize to the same cache key (probe trims base_url).
-        assert!(
-            last_populi_probe("http://127.0.0.1:1/", std::time::Duration::from_secs(60)).is_some()
-        );
+        assert!(last_populi_probe("http://127.0.0.1:1/", D_60S).is_some());
         // …and a zero TTL treats it as stale.
         assert!(last_populi_probe(base, std::time::Duration::ZERO).is_none());
     }

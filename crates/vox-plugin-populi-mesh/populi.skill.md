@@ -1,15 +1,23 @@
 ---
-name = "populi-mesh"
-description = "Align mens node labels with orchestrator task hints and inspect local/remote registry visibility."
-
-[metadata]
-"vox-id" = "vox.populi"
-"vox-version" = "0.1.0"
-"vox-author" = "vox-team"
-"vox-category" = "infrastructure"
-"vox-tools" = ["vox_populi_local_status", "vox_orchestrator_status", "vox_submit_task"]
-"vox-tags" = ["mens", "labels", "gpu", "federation", "workers"]
-"vox-permissions" = ["db_read"]
+name: populi-mesh
+description: "Align mens node labels with orchestrator task hints and inspect local/remote registry visibility."
+metadata:
+  vox-id: vox.populi
+  vox-version: "0.1.0"
+  vox-author: vox-team
+  vox-category: infrastructure
+  vox-tools:
+    - vox_populi_local_status
+    - vox_orchestrator_status
+    - vox_submit_task
+  vox-tags:
+    - mens
+    - labels
+    - gpu
+    - federation
+    - workers
+  vox-permissions:
+    - db_read
 ---
 
 # Vox Populi (mesh) skill

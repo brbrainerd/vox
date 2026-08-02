@@ -49,9 +49,9 @@ fn skill_names(entry: Json) to list[str] {
     let mut names = [];
     let items = jarr(entry, "skills");
     for item in items {
-        match item.as_str() {
-            Some(name) => { names = names.push(name); }
-            None => {}
+        let name_opt = item.as_str();
+        if name_opt.is_some() {
+            names = names.push(name_opt.unwrap());
         }
     }
     return names;
@@ -102,19 +102,45 @@ fn copy_tree(src_root: str, dst_root: str) to Result[Unit] {
         Error(m) => return Error("mkdir " + dst_root + ": " + m)
     }
 
-    let pattern = src_root.replace("\\", "/") + "/**/*";
+    // Canonicalize before building the glob pattern/prefix. `src_root` is
+    // frequently a relative path with a leading "./" (e.g. when `root` is
+    // the default "."), and `fs.glob`'s returned paths do not reliably
+    // preserve that literal "./" prefix. If `prefix` (built from the raw,
+    // un-normalized `src_root`) doesn't byte-for-byte match what `glob`
+    // returns, the strip below silently no-ops, `rel` stays as the full
+    // glob-matched path, and `path.join(dst_root, rel)` writes into a
+    // nonsense nested `dst_root/<src_root>/...` location instead of
+    // `dst_root/<relative-file-path>` -- confirmed by instrumenting this
+    // function and observing exactly that on a real vendor-skills.vox run.
+    // Canonicalizing both sides to the same absolute, normalized form
+    // removes the ambiguity entirely.
+    let src_canon = match std.fs.canonicalize(src_root) {
+        Ok(p) => p
+        Error(m) => return Error("canonicalize " + src_root + ": " + m)
+    };
+
+    let pattern = src_canon.replace("\\", "/") + "/**/*";
     let files = match fs.glob(pattern) {
         Ok(f) => f
         Error(m) => return Error("glob " + pattern + ": " + m)
     };
 
-    let prefix = src_root.replace("\\", "/");
+    let prefix = src_canon.replace("\\", "/");
+    let mut copied = 0;
     for file in files {
         if not fs.is_file(file) {
             continue;
         }
         let norm = file.replace("\\", "/");
         let rel = norm.replace(prefix + "/", "");
+        // Guard against the exact silent-no-op failure mode this function
+        // used to have: if the strip did nothing, `rel` still equals `norm`
+        // (the full source path) and joining it onto `dst_root` would nest
+        // the whole source tree inside the destination instead of copying
+        // one file to its relative destination. Fail loudly instead.
+        if rel == norm {
+            return Error("copy_tree: prefix strip failed for " + norm + " (prefix was " + prefix + ") - refusing to write to a nested nonsense path");
+        }
         let dst = path.join(dst_root, rel);
         match ensure_parent_dir(dst) {
             Ok(_) => {}
@@ -124,6 +150,10 @@ fn copy_tree(src_root: str, dst_root: str) to Result[Unit] {
             Ok(_) => {}
             Error(m) => return Error(m)
         }
+        copied = copied + 1;
+    }
+    if copied == 0 {
+        return Error("copy_tree: glob matched 0 files under " + src_canon + " - refusing to leave " + dst_root + " empty after remove_tree");
     }
     return Ok(Unit);
 }
@@ -226,7 +256,10 @@ fn license_upstream_path(upstream_root: str) to str {
 
 fn vendor_source(upstream_root: str, skills: list[str], root: str) to Result[int] {
     let mut copied = 0;
-    let license_src = license_upstream_path(upstream_root);
+    // `upstream_root` is reused below (inside the `for skill in skills` loop) after this
+    // call; pass a freshly-built string here so codegen's move analysis doesn't treat
+    // `upstream_root` itself as consumed by `license_upstream_path`.
+    let license_src = license_upstream_path(upstream_root + "");
 
     for skill in skills {
         let src_dir = path.join(upstream_root, "skills/" + skill);

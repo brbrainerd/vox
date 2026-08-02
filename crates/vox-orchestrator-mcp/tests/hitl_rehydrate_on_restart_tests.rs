@@ -47,7 +47,7 @@ async fn pending_approval_survives_restart_as_visible_and_resolvable() {
         .await
     });
 
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+    let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_15S;
     loop {
         if !s2.pending_approvals.list().is_empty() {
             break;
@@ -56,7 +56,7 @@ async fn pending_approval_survives_restart_as_visible_and_resolvable() {
             tokio::time::Instant::now() < deadline,
             "dangerous tool never registered a pending approval"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
     let before_restart = s2.pending_approvals.list();
     assert_eq!(before_restart.len(), 1);
@@ -121,13 +121,13 @@ async fn resolved_approval_does_not_reappear_after_restart() {
         .await
     });
 
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+    let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_15S;
     loop {
         if !s2.pending_approvals.list().is_empty() {
             break;
         }
         assert!(tokio::time::Instant::now() < deadline, "never parked");
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
     let pending = s2.pending_approvals.list();
     let approval_id = pending[0].approval_id.clone();
@@ -139,7 +139,7 @@ async fn resolved_approval_does_not_reappear_after_restart() {
 
     // Give the durable ApprovalResolved write a moment to land (dispatch
     // awaits it directly, but poll briefly for robustness against scheduling).
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+    let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_15S;
     loop {
         let entries = s2.orchestrator.list_recent_operations(None, 256).await;
         if entries.iter().any(|e| {
@@ -155,7 +155,7 @@ async fn resolved_approval_does_not_reappear_after_restart() {
             tokio::time::Instant::now() < deadline,
             "ApprovalResolved never landed durably"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
 
     let restarted = ServerState::new_full(vox_orchestrator_mcp::load_config())

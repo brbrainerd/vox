@@ -599,6 +599,11 @@ fn main() {
         return
     }
 
+    // NOTE(drift/vox-path-literal): this mirrors `vox_config::paths::REPO_DB_PATH`
+    // (".vox/db/vox.db" — a different repo-scoped DB, not this one's default),
+    // but `.vox` script code has no builtin to call into that Rust constant
+    // (no `std.path`/env bridge exposes it here). Left as a literal default;
+    // revisit if/when script-land gets a path-constants bridge.
     let db_path = parse_flag(argv, "--db", ".vox/store.db")
     let root = parse_flag(argv, "--root", ".")
 

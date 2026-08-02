@@ -31,7 +31,7 @@ async fn wait_ready(addr: &str, token: &str) {
             tokio::time::Instant::now() < deadline,
             "daemon never became ready"
         );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
 }
 

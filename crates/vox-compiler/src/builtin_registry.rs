@@ -913,7 +913,7 @@ pub fn std_namespace_runtime_call(
             Some(format!("std::path::Path::new(&{}).is_dir()", args[0]))
         }
         ("fs", "canonicalize") if !args.is_empty() => Some(format!(
-            "::std::fs::canonicalize({}).map(|p| p.to_string_lossy().to_string()).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)",
+            "::std::fs::canonicalize({}).map(|p| p.to_string_lossy().to_string()).map_err(|e| e.to_string())",
             args[0]
         )),
         ("fs", "remove") if !args.is_empty() => Some(format!(
@@ -1098,11 +1098,11 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("csv", "parse") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_csv_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_csv_parse(({}).as_str()) {{ Ok(v) => Ok(::vox_actor_runtime::builtins::VoxJson(v)), Err(m) => Err(m) }})",
             args[0]
         )),
         ("csv", "parse_records") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_csv_parse_records(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_csv_parse_records(({}).as_str()) {{ Ok(v) => Ok(::vox_actor_runtime::builtins::VoxJson(v)), Err(m) => Err(m) }})",
             args[0]
         )),
         ("csv", "render") if !args.is_empty() => Some(format!(
@@ -1110,7 +1110,7 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("toml", "parse") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_toml_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_toml_parse(({}).as_str()) {{ Ok(v) => Ok(::vox_actor_runtime::builtins::VoxJson(v)), Err(m) => Err(m) }})",
             args[0]
         )),
         ("toml", "render") if !args.is_empty() => Some(format!(
@@ -1118,7 +1118,7 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("yaml", "parse") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_yaml_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_yaml_parse(({}).as_str()) {{ Ok(v) => Ok(::vox_actor_runtime::builtins::VoxJson(v)), Err(m) => Err(m) }})",
             args[0]
         )),
         ("yaml", "render") if !args.is_empty() => Some(format!(
@@ -1126,7 +1126,7 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("io", "open") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_io_open(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_io_open(({}).as_str()) {{ Ok(v) => Ok(::vox_actor_runtime::builtins::VoxJson(v)), Err(m) => Err(m) }})",
             args[0]
         )),
         ("io", "save") if args.len() >= 2 => Some(format!(

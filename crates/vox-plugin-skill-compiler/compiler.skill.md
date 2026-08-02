@@ -1,15 +1,23 @@
 ---
-name = "skill-compiler"
-description = "Compiles Vox source files and runs cargo check/build for the workspace."
-
-[metadata]
-"vox-id" = "vox.compiler"
-"vox-version" = "0.1.0"
-"vox-author" = "vox-team"
-"vox-category" = "compiler"
-"vox-tools" = ["vox_validate_file", "vox_run_tests", "vox_check_workspace"]
-"vox-tags" = ["compile", "build", "cargo", "check"]
-"vox-permissions" = ["read_files", "shell_exec"]
+name: skill-compiler
+description: "Compiles Vox source files and runs cargo check/build for the workspace."
+metadata:
+  vox-id: vox.compiler
+  vox-version: "0.1.0"
+  vox-author: vox-team
+  vox-category: compiler
+  vox-tools:
+    - vox_validate_file
+    - vox_run_tests
+    - vox_check_workspace
+  vox-tags:
+    - compile
+    - build
+    - cargo
+    - check
+  vox-permissions:
+    - read_files
+    - shell_exec
 ---
 
 # Vox Compiler Skill

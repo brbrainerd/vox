@@ -28,3 +28,4 @@ miette = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+vox-config = { workspace = true }

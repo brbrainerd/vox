@@ -41,7 +41,10 @@ async fn add_then_remove_local_skill() {
     );
 
     // 3. The directory landed under the isolated workspace's .vox/skills.
-    let installed_dir = ws.path().join(".vox/skills/fixture-skill");
+    let installed_dir = ws
+        .path()
+        .join(vox_config::paths::REPO_SKILLS_DIR)
+        .join("fixture-skill");
     assert!(installed_dir.join("SKILL.md").is_file());
 
     // 4. Remove it (ownership-scoped — it is under .vox/skills, so removable).

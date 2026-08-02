@@ -411,6 +411,7 @@
       "vox-cli-core",
       "vox-codegen",
       "vox-compiler",
+      "vox-config",
       "vox-foundation",
       "vox-lsp"
     ],
@@ -421,6 +422,7 @@
       "workspace-hack"
     ],
     "vox-llm-egress": [
+      "vox-config",
       "vox-http-client",
       "vox-openai",
       "workspace-hack"
@@ -603,6 +605,7 @@
       "workspace-hack"
     ],
     "vox-plugin-host": [
+      "vox-config",
       "vox-plugin-api",
       "vox-plugin-types",
       "vox-telemetry",
@@ -849,6 +852,7 @@
       "workspace-hack"
     ],
     "vox-term": [
+      "vox-config",
       "vox-terminal-core"
     ],
     "vox-terminal-core": [
