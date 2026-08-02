@@ -18,6 +18,10 @@ pub struct VoxConfig {
     pub anthropic_key: Option<String>,
     pub daily_budget_usd: f64,
     pub per_session_budget_usd: f64,
+    /// Fraction of a budget cap (daily or per-session) at which a non-blocking
+    /// warning is surfaced, before the cap itself blocks dispatch. 1.0 disables
+    /// the warning (warning and block become the same event).
+    pub budget_warn_threshold_pct: f32,
     pub data_dir: PathBuf,
     pub model_dir: PathBuf,
     pub train_epochs: usize,
@@ -51,6 +55,7 @@ impl Default for VoxConfig {
             anthropic_key: None,
             daily_budget_usd: 5.0,
             per_session_budget_usd: 1.0,
+            budget_warn_threshold_pct: 0.8,
             data_dir: PathBuf::from("target/dogfood"),
             model_dir: crate::paths::data_dir()
                 .map(|d| d.join("models"))
@@ -85,5 +90,16 @@ impl Default for VoxConfig {
             },
             agent_provider: "openclaw".to_string(),
         }
+    }
+}
+
+#[cfg(test)]
+mod budget_warn_threshold_tests {
+    use super::VoxConfig;
+
+    #[test]
+    fn default_budget_warn_threshold_is_80_percent() {
+        let cfg = VoxConfig::default();
+        assert!((cfg.budget_warn_threshold_pct - 0.8).abs() < f32::EPSILON);
     }
 }
