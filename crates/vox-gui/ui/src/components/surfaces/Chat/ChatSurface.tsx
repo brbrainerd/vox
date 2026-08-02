@@ -558,7 +558,12 @@ export function ChatSurface({
 
   const loadSessions = useCallback(async () => {
     try {
-      const list = await invoke<ChatSession[]>('chat_list_sessions', { limit: 40 });
+      // `invoke`'s generic type param is a compile-time assertion, not a runtime
+      // guarantee — a backend/mock that resolves `null` would otherwise crash
+      // both `list.length` below and every downstream `sessions.map()` consumer
+      // (e.g. ChatSessionRail).
+      const raw = await invoke<ChatSession[] | null>('chat_list_sessions', { limit: 40 });
+      const list = Array.isArray(raw) ? raw : [];
       setSessions(list);
       if (!activeId && list.length > 0) {
         onSessionChange?.(list[0].session_id);

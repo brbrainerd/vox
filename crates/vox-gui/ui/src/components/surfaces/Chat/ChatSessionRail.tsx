@@ -55,7 +55,7 @@ export function ChatSessionRail({
           aria-label="Chat sessions"
           className="flex min-h-0 flex-1 flex-col overflow-y-auto custom-scrollbar"
         >
-          {sessions.map(s => {
+          {(sessions ?? []).map(s => {
             const isActive = s.session_id === activeSessionId;
             if (renaming === s.session_id) {
               return (
