@@ -886,7 +886,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
   );
 }
 
-function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
+function LlmSettingsSection({ pushToast, onJumpToKeysSecrets }: { pushToast: (t: any) => void; onJumpToKeysSecrets: () => void }) {
   const [cfg, setCfg] = useState({
     maxConcurrentRequests: 8,
     openrouterMaxConcurrent: null as number | null,
@@ -940,9 +940,21 @@ function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
       </div>
       {keyConfigured !== null && (
         <div className="mt-4 rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-[11px] text-text-muted">
-          {keyConfigured
-            ? 'OpenRouter API key is configured.'
-            : 'No OpenRouter key configured — add one under Keys & Secrets.'}
+          {keyConfigured ? (
+            'OpenRouter API key is configured.'
+          ) : (
+            <>
+              No OpenRouter key configured —{' '}
+              <button
+                type="button"
+                onClick={onJumpToKeysSecrets}
+                className="text-brass underline hover:no-underline"
+              >
+                add one under Keys & Secrets
+              </button>
+              .
+            </>
+          )}
         </div>
       )}
     </>
@@ -1360,7 +1372,17 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'llm' && <LlmSettingsSection pushToast={pushToast} />}
+        {section === 'llm' && (
+          <LlmSettingsSection
+            pushToast={pushToast}
+            onJumpToKeysSecrets={() => {
+              setSection('secrets');
+              requestAnimationFrame(() => {
+                document.getElementById('keys-secrets-section')?.scrollIntoView({ behavior: 'smooth' });
+              });
+            }}
+          />
+        )}
 
         {section === 'routing' && (
           <>
@@ -1443,7 +1465,9 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
         )}
 
         {section === 'secrets' && (
-          <KeysSecretsSection pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
+          <div id="keys-secrets-section">
+            <KeysSecretsSection pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
+          </div>
         )}
 
         {section === 'telemetry' && (
