@@ -1,8 +1,8 @@
 ---
 title: "VoxDB Audit & Condensation — Implementation Plan"
-description: "Step-by-step plan to re-baseline vox-db's schema from 219 live tables to the 116 with real callers, and quarantine the 103 dead/dormant ones (4 of which are declared via a separate Collection-spec mechanism, not CREATE TABLE DDL; 5 are already-orphaned with no declaration anywhere), per 2026-08-01-voxdb-audit-condensation-design.md."
+description: "Executed plan that re-baselined vox-db's schema from 219 declared tables to 171 live by default, quarantining the other 48 behind an opt-in Cargo feature (not deleting them) with a transactional migration path for existing database files. See the Task 9 final-verification section for the executed numbers; earlier sections retain the audit trail of how the classification was corrected twice along the way."
 category: "architecture"
-status: "roadmap"
+status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; transient artifact."
 ---
@@ -281,3 +281,17 @@ For `clavis_account_secrets`, `user_identities`, and any other table Task 1's to
 - `developer_journey_definitions` (2.1's deterministic-seed exception): unaffected, still DEAD, same disposition (quarantine, with the deterministic-seed annotation, excluded from the auto-DROP pending manual row export).
 
 **Final quarantine list for Task 4 onward: the 25 DORMANT + 24 DEAD tables in `graphify-out/table_usage_report.json`, minus `scientia_publication_queue`** (the one doc-evidence-only exception) **= 48 tables. Final LIVE count: 170 + 1 = 171.** 171 + 48 = 219, consistent with the total. This — not any earlier number in this document — is what Task 4 operates against.
+
+---
+
+## Task 9 — Final Verification: DONE (2026-08-02)
+
+All nine tasks (plus 1b, added mid-execution when Task 4's sanity check found the wrapper-call blind spot was systemic) are complete, each independently spec- and code-quality-reviewed.
+
+- **9.1 (full build/test, both feature configs):** `cargo build --workspace` clean (`--exclude vox-gui`, a pre-existing unrelated sidecar-binary build gotcha for fresh worktrees, not caused by this work). `cargo test -p vox-db` and `cargo test -p vox-db --features quarantine` both fully green — zero failures across every integration test binary. One test, `guarded_connection_tests::concurrent_writes_through_shared_voxdb_all_succeed`, is order-dependent/flaky and unrelated to this work (confirmed passing reliably in isolation).
+- **9.2 (re-run the census tool):** Final run against the real main-checkout DB: **219 total = 171 LIVE / 48 quarantine-candidate (25 DORMANT + 24 DEAD)**. This re-run itself caught one more real bug: `migration.rs`'s `QUARANTINE_DROP_TABLES` const (added by Task 5) generically lists all 47 auto-dropped tables by name, which "laundered" every former-DEAD table into DORMANT the moment that file existed — the same failure mode `codex_legacy.rs`/`circuit_breaker.rs`/`schema/manifest.rs` were already excluded for, just introduced by this plan's own Task 5 work. Fixed by adding `migration.rs` to the census tool's exclusion list, with a new fixture case covering it. Confirmed the default (non-quarantine) schema's `CREATE TABLE` declarations contain zero of the 48 quarantine-candidate tables (verified directly against `crates/vox-db/src/schema/` excluding `quarantine.rs`, cross-checked against `manifest.rs`'s own `baseline_sql()` feature-gating tests).
+- **9.3 (file-size impact):** `vox init` does not create a database file (confirmed, as anticipated) — used `vox db status` with `VOX_DATA_DIR` pointed at an isolated scratch directory instead, with a freshly-reinstalled `vox` binary built from this branch's HEAD (`2e6b629ac0`) to avoid measuring a stale schema. Fresh file: **1.43MB** (`vox.db`, schema v85), versus the original audit's **5.93MB** (`.vox/store.db`, schema v84, 219 tables) — a **~75% reduction**, exceeding the naive proportional estimate (171/219 ≈ 78% of tables kept → ~78% of size expected) because quarantined tables carried disproportionately more indexes on average. Verified the fresh file's actual table count directly: 168 tables created eagerly via `baseline_sql()`, plus 3 more (`provider_usage`, `attention_events`, `agent_trust_scores`) created lazily via the `Collection` API on first real use, not at connect time — 168 + 3 = 171, matching exactly. The real main-checkout `.vox/store.db` was confirmed untouched throughout (unchanged file timestamp) — all measurement was done against isolated scratch copies/directories, cleaned up afterward.
+
+**What shipped:** schema re-baselined from 219 to 171 default tables; 48 tables quarantined behind an opt-in `quarantine` Cargo feature (not deleted — reversible); a migration path for existing database files to drop the quarantined 47 (`developer_journey_definitions` excluded, pending manual export) with transactional all-or-nothing safety; 4 dead Rust struct types removed; two durable, re-runnable, fixture-tested VoxScript audit tools (`scripts/db-table-census.vox`, `scripts/db-test-census.vox`) as the recurrence-prevention mechanism design §3.6 called for; two forward-looking documentation guardrails (storage-boundary threshold, worktree-cleanup addendum).
+
+**What's explicitly NOT done (by design, matching the plan's stated scope):** no CI gate wired to the census tool (a re-runnable tool exists; nothing yet requires re-running it before landing new schema); design §3.5's graduation path (reviving a quarantined table) has no automation, just a documented 4-step manual procedure; `migrate_dropping_quarantine` is not wired into any automatic `connect()`/`upgrade` flow — it's an explicit opt-in function a future caller must invoke deliberately, with its own backup discipline.
