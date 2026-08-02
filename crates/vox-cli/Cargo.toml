@@ -240,6 +240,12 @@ glob = { workspace = true }
 vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
 
 vox-actor-runtime = { workspace = true }
+# Task 12 (free-tier onboarding doctor diagnostic): `EgressError::RateLimited` is the
+# real, already-distinct error shape a resolved dispatch produces on a 429 (see
+# `vox_llm_egress::EgressError` + `vox_actor_runtime::llm::chat::map_egress_error`,
+# which already classifies it as `error_class = "rate-limited"`). `llm_routing.rs`
+# needs the type directly to classify it into a doctor `Check`.
+vox-llm-egress = { workspace = true }
 vox-foundation = { workspace = true }
 vox-scaling-policy = { workspace = true }
 vox-bounded-fs = { workspace = true, features = ["async"] }

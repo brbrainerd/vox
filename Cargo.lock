@@ -15353,6 +15353,7 @@ dependencies = [
  "vox-http-client",
  "vox-identity",
  "vox-jsonschema-util",
+ "vox-llm-egress",
  "vox-mcp-registry",
  "vox-mesh-types",
  "vox-oauth-pkce",
