@@ -83,6 +83,79 @@ describe('App shell', () => {
     expect(() => renderApp()).not.toThrow();
   });
 
+  // Task 5 (free-tier onboarding plan): a budget-exceeded dispatch error must
+  // surface as a distinct "Budget limit reached" toast, not the generic
+  // "Chat reply failed" toast used for every other backend-error class — see
+  // `dispatchErrorToast` in App.tsx and `isBudgetExceededError` in
+  // lib/backendGuard.ts. The error text matches `BudgetGuardError::Exceeded`'s
+  // `Display` impl (`crates/vox-orchestrator-mcp/.../budget_guard.rs`).
+  it('a budget-exceeded chat_send_message error produces a distinct "Budget limit reached" toast', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_send_message') {
+        // Tauri v2 rejects `Result<T, String>` commands with the raw String,
+        // not a wrapped Error (see chat_send_message's signature in
+        // crates/vox-gui/src/commands/chat.rs) — matches BudgetGuardError's
+        // Display text propagated verbatim through enforce_budget_guard.
+        return Promise.reject('Daily budget of $5.00 exceeded (spent $5.12)');
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, 'hello there');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Budget limit reached')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Chat reply failed')).toBeNull();
+    // The budget message renders twice by design (failed chat bubble +
+    // toast body) — assert presence, not uniqueness.
+    expect(screen.getAllByText(/Daily budget of \$5\.00 exceeded/).length).toBeGreaterThan(0);
+  });
+
+  // Same distinct handling must apply to the other real dispatch mechanism a
+  // chat message can take — `submit_orchestrator_task` (e.g. Act mode) — since
+  // the budget guard is wired into both server-side, not just the synchronous
+  // chat_send_message path.
+  it('a budget-exceeded submit_orchestrator_task error produces a distinct "Budget limit reached" toast, not "Dispatch Failed"', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'submit_orchestrator_task') {
+        return Promise.reject('Session budget of $2.00 exceeded (spent $2.01)');
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/spawn');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Budget limit reached')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Dispatch Failed')).toBeNull();
+  });
+
   // Regression: ⌘. used to be displayed in Settings but wired to no handler.
   // It must now be claimed by the global keydown handler (preventDefault fires).
   it('handles ⌘. (Cmd+Period) globally', () => {

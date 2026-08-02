@@ -57,6 +57,23 @@ export function sanitizeErrorForToast(err: unknown): string {
   return LEAK_PATTERN.test(text) ? 'An unexpected error occurred.' : text;
 }
 
+/**
+ * Matches `BudgetGuardError::Exceeded`'s `Display` impl
+ * (`crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/budget_guard.rs`):
+ * `"{scope:?} budget of ${cap_usd:.2} exceeded (spent ${spent_usd:.2})"`, which
+ * renders as e.g. `"Daily budget of $5.00 exceeded (spent $5.12)"` or
+ * `"Session budget of $2.00 exceeded (spent $2.01)"`. Dispatch-error catch
+ * blocks use this to special-case budget-exceeded failures into a distinct
+ * toast instead of the generic error toast — see App.tsx's two
+ * `submit_orchestrator_task` / `chat_send_message` catch blocks, the two
+ * dispatch mechanisms the budget guard is wired into server-side.
+ */
+const BUDGET_EXCEEDED_PATTERN = /^(Daily|Session) budget of \$/;
+
+export function isBudgetExceededError(text: string): boolean {
+  return BUDGET_EXCEEDED_PATTERN.test(text);
+}
+
 const logged = new Set<string>();
 
 /**

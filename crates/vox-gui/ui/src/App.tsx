@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { sanitizeErrorForToast } from './lib/backendGuard';
+import { sanitizeErrorForToast, isBudgetExceededError } from './lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { AppShell } from './components/layout/AppShell';
 import { SidebarMode } from './components/layout/Sidebar';
@@ -146,6 +146,28 @@ const KNOWN_VIEWS: string[] = LEGACY_VIEWS;
 
 function isKnownView(v: unknown): v is View {
   return typeof v === 'string' && KNOWN_VIEWS.includes(v);
+}
+
+/**
+ * Both real chat-dispatch mechanisms (the synchronous `chat_send_message`
+ * path and the background `submit_orchestrator_task` path — see the two
+ * catch blocks in `handleLoquelaSubmit` below) funnel through
+ * `vox-orchestrator-mcp`'s budget guard. A budget-exceeded failure is
+ * actionable in a way a generic backend error isn't (the user can raise
+ * their cap in Settings), so it gets a distinct title/body instead of the
+ * generic dispatch-failure toast — same `pushToast` shape, just a
+ * budget-aware title/body when `isBudgetExceededError` matches.
+ */
+function dispatchErrorToast(errorText: string, fallbackTitle: string): Toast {
+  if (isBudgetExceededError(errorText)) {
+    return {
+      tone: 'warn',
+      title: 'Budget limit reached',
+      body: `${errorText} Adjust your daily/session budget caps in Settings.`,
+      cause: 'backend-error',
+    };
+  }
+  return { tone: 'warn', title: fallbackTitle, body: errorText, cause: 'backend-error' };
 }
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
@@ -803,7 +825,7 @@ export default function App() {
           tempId,
           result: { ok: false, error: errorText },
         });
-        pushToast({ tone: 'warn', title: 'Chat reply failed', body: errorText, cause: 'backend-error' });
+        pushToast(dispatchErrorToast(errorText, 'Chat reply failed'));
       }
       return;
     }
@@ -893,7 +915,7 @@ export default function App() {
         );
       }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Dispatch Failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+      pushToast(dispatchErrorToast(sanitizeErrorForToast(err), 'Dispatch Failed'));
     }
   }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill, gamifySettings.enabled]);
 

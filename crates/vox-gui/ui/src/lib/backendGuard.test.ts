@@ -6,6 +6,7 @@ import {
   makeBackendUnavailableRejectionFilter,
   __resetBackendAvailabilityForTests,
   sanitizeErrorForToast,
+  isBudgetExceededError,
 } from './backendGuard';
 
 // Phase A test-setup.ts stubs __TAURI_INTERNALS__ globally for suites that mock
@@ -99,5 +100,28 @@ describe('sanitizeErrorForToast', () => {
 
   it('passes through ordinary error text unchanged', () => {
     expect(sanitizeErrorForToast(new Error('Network timeout'))).toBe('Error: Network timeout');
+  });
+});
+
+// Task 5 (free-tier onboarding plan): App.tsx's dispatch-error catch blocks
+// use this to special-case `BudgetGuardError::Exceeded`'s Display-impl text
+// (crates/vox-orchestrator-mcp/.../budget_guard.rs) into a distinct
+// "Budget limit reached" toast instead of the generic dispatch-failure toast.
+describe('isBudgetExceededError', () => {
+  it('matches the Daily-scope BudgetGuardError::Exceeded message', () => {
+    expect(isBudgetExceededError('Daily budget of $5.00 exceeded (spent $5.12)')).toBe(true);
+  });
+
+  it('matches the Session-scope BudgetGuardError::Exceeded message', () => {
+    expect(isBudgetExceededError('Session budget of $2.00 exceeded (spent $2.01)')).toBe(true);
+  });
+
+  it('does not match unrelated backend errors', () => {
+    expect(isBudgetExceededError('Network timeout')).toBe(false);
+    expect(isBudgetExceededError('Error: request failed with status 500')).toBe(false);
+  });
+
+  it('does not match a message that merely mentions "budget" mid-sentence', () => {
+    expect(isBudgetExceededError('Your daily budget of $5.00 exceeded (spent $5.12)')).toBe(false);
   });
 });
