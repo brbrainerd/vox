@@ -244,7 +244,7 @@ pub use socrates_telemetry::{
 pub use store::{
     A2AMessageRow, A2aClarificationMessageParams, AccountSecretCiphertextRow, AgentDefEntry,
     AgentEventRow, ArtifactEntry, BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary,
-    BuildRunRow, BuilderSessionEntry, CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry,
+    BuildRunRow, CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry,
     CommandFrequencyEntry, ComponentEntry, CorpusQualitySummary, CrateSample, CrateSampleRow,
     DiscoveryInboxRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry,
     ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
@@ -259,11 +259,11 @@ pub use store::{
     PublishArtifactParams, QuestionEventParams, QuestionEventRow, QuestionOptionOutcomeParams,
     QuestionOptionOutcomeRow, QuestionOptionParams, QuestionOptionRow, QuestionRow,
     QuestionSessionCreateParams, QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow,
-    RegisterAgentParams, RegressionRow, ReviewEntry, SaveMemoryParams, SaveSnippetParams,
-    ScheduledEntry, ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry,
+    RegisterAgentParams, RegressionRow, SaveMemoryParams, SaveSnippetParams,
+    ScheduledEntry, ScholarlySubmissionRow, SessionEventRow, SessionRow,
     SkillCandidateRow, SkillExecutionParams, SkillExecutionRow, SkillManifestEntry,
     SkillReliabilityReport, SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair,
-    TrustRollupEntry, TypedStreamEventEntry, UpsertAccountSecretCiphertextParams, UserEntry,
+    TrustRollupEntry, UpsertAccountSecretCiphertextParams, UserEntry,
     WarningRow, WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;

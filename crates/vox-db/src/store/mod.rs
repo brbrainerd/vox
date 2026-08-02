@@ -15,7 +15,7 @@ pub const DEFAULT_PROJECT_STORE_PATH: &str = ".vox/store.db";
 pub use types::{
     A2AMessageRow, A2aClarificationMessageParams, AccountSecretCiphertextRow, AgentDefEntry,
     AgentEventRow, ArtifactEntry, BehaviorEventEntry, BenchmarkEventRow, BuildRunRow,
-    BuilderSessionEntry, CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry,
+    CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry,
     ComponentEntry, CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry,
     ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
     ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
@@ -29,11 +29,11 @@ pub use types::{
     PublishArtifactParams, QuestionEventParams, QuestionEventRow, QuestionOptionOutcomeParams,
     QuestionOptionOutcomeRow, QuestionOptionParams, QuestionOptionRow, QuestionRow,
     QuestionSessionCreateParams, QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow,
-    RegisterAgentParams, ReviewEntry, SaveMemoryParams, SaveSnippetParams, ScheduledEntry,
-    ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry, SkillExecutionParams,
+    RegisterAgentParams, SaveMemoryParams, SaveSnippetParams, ScheduledEntry,
+    ScholarlySubmissionRow, SessionEventRow, SessionRow, SkillExecutionParams,
     SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError,
     TestDecision, TestDecisionPolicy, ThroughputProfileRow, TierResult, TrainingPair,
-    TrustRollupEntry, TypedStreamEventEntry, UpsertAccountSecretCiphertextParams, UserEntry,
+    TrustRollupEntry, UpsertAccountSecretCiphertextParams, UserEntry,
     VictoryVerdict, VisusAuditLogRow, VisusBaselineRow, WarningRow, WorkflowExecutionRow,
 };
 

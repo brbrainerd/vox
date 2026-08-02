@@ -37,10 +37,6 @@ fn all_row_types_implement_serde() {
     assert_serde::<ArtifactEntry>();
     assert_serde::<SkillManifestEntry>();
     assert_serde::<KnowledgeNodeSummary>();
-    assert_serde::<BuilderSessionEntry>();
-    assert_serde::<SessionTurnEntry>();
-    assert_serde::<TypedStreamEventEntry>();
-    assert_serde::<ReviewEntry>();
     assert_serde::<CodexChangeLogEntry>();
     assert_serde::<NodeIdentityRow>();
     assert_serde::<ModelScoreboardRow>();
