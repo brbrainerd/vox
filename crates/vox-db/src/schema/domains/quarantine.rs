@@ -5,6 +5,16 @@
 //! (`docs/src/architecture/2026-08-01-voxdb-audit-condensation-plan.md`,
 //! see the "Task 2 — SUPERSEDED" section for the reconciliation history).
 //!
+//! **2026-08-02 correction:** `conversation_versions`, `conversation_edges`, and
+//! `topic_evolution_events` were removed from this file (moved back to
+//! `schema/domains/conversations.rs`) after a manual sweep found the automated
+//! census missed a two-hop delegation: `vox-orchestrator-mcp` calls alias
+//! methods in `codex_conversation_graph.rs` that just forward to the real
+//! implementations here, so the single-hop wrapper-call check never saw the
+//! real external caller. See `conversations.rs`'s comment at those tables and
+//! the plan's Task 9 addendum for the full writeup. 39 tables remain below
+//! (was 42).
+//!
 //! This DDL only compiles into the schema baseline when the `quarantine`
 //! feature is enabled (see `crates/vox-db/Cargo.toml` and
 //! `schema::manifest::baseline_sql`); it is OFF by default. Each table below
@@ -177,23 +187,6 @@ CREATE INDEX IF NOT EXISTS idx_processing_runs_status_created ON processing_runs
 CREATE INDEX IF NOT EXISTS idx_processing_runs_scope ON processing_runs(scope_kind, scope_id);
 CREATE INDEX IF NOT EXISTS idx_processing_runs_kind ON processing_runs(run_kind);
 
--- Table: conversation_edges
--- Status: DORMANT (graphify-out/table_usage_report.json)
--- Evidence: literal_string
--- Referencing files: crates/vox-db/src/codex_conversation_graph.rs, crates/vox-db/src/store/ops_codex/codex_graph.rs
--- Origin: crates/vox-db/src/schema/domains/conversations.rs
-CREATE TABLE IF NOT EXISTS conversation_edges (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    from_conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-    to_conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-    edge_kind TEXT NOT NULL DEFAULT 'related',
-    weight REAL NOT NULL DEFAULT 1.0,
-    metadata_json TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_conversation_edges_from ON conversation_edges(from_conversation_id);
-CREATE INDEX IF NOT EXISTS idx_conversation_edges_to ON conversation_edges(to_conversation_id);
-
 -- Table: conversation_message_topics
 -- Status: DORMANT (graphify-out/table_usage_report.json)
 -- Evidence: literal_string
@@ -240,38 +233,6 @@ CREATE TABLE IF NOT EXISTS conversation_topics (
     PRIMARY KEY (conversation_id, topic_id)
 );
 CREATE INDEX IF NOT EXISTS idx_conversation_topics_topic ON conversation_topics(topic_id);
-
--- Table: conversation_versions
--- Status: DORMANT (graphify-out/table_usage_report.json)
--- Evidence: literal_string
--- Referencing files: crates/vox-db/src/codex_conversation_graph.rs, crates/vox-db/src/store/ops_codex/codex_graph.rs
--- Origin: crates/vox-db/src/schema/domains/conversations.rs
-CREATE TABLE IF NOT EXISTS conversation_versions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-    version_index INTEGER NOT NULL,
-    label TEXT NOT NULL DEFAULT '',
-    snapshot_json TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(conversation_id, version_index)
-);
-CREATE INDEX IF NOT EXISTS idx_conversation_versions_conv ON conversation_versions(conversation_id);
-
--- Table: topic_evolution_events
--- Status: DORMANT (graphify-out/table_usage_report.json)
--- Evidence: literal_string
--- Referencing files: crates/vox-db/src/codex_conversation_graph.rs, crates/vox-db/src/store/ops_codex/codex_graph.rs
--- Origin: crates/vox-db/src/schema/domains/conversations.rs
-CREATE TABLE IF NOT EXISTS topic_evolution_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    topic_id INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
-    event_kind TEXT NOT NULL,
-    prior_label TEXT,
-    new_label TEXT,
-    detail_json TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_topic_evolution_topic_created ON topic_evolution_events(topic_id, created_at);
 
 -- Table: search_indexing_jobs
 -- Status: DEAD (graphify-out/table_usage_report.json)

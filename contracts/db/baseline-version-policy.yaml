@@ -13,7 +13,11 @@ policy:
   # re-updated for 85: quarantine of 42 DDL-bearing DORMANT/DEAD tables out of the default
   # baseline (Task 4, VoxDB audit condensation plan) — digest is of the default (quarantine
   # feature OFF) baseline_sql().
-  repository_baseline_digest_hex: "0x9d225b176264ca81ce3e2ba172e0e27a688dfa954df5534b1176d4762e23b57c"
+  # re-updated (still 85, no BASELINE_VERSION bump needed): conversation_versions,
+  # conversation_edges, topic_evolution_events restored to the default baseline after a
+  # pre-migration sweep found Task 4 wrongly quarantined them (real caller in
+  # vox-orchestrator-mcp via a delegation-alias layer the automated census missed).
+  repository_baseline_digest_hex: "0x652177376ae1afab082eadf0c623f08d3ab3800bcbb6282c59399604187b689a"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

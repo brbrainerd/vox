@@ -91,7 +91,14 @@ async fn baseline_schema_includes_chat_and_search_tables() {
             .expect("sqlite_master");
         assert!(!rows.is_empty(), "missing V16 table {t}");
     }
-    for t in ["research_sessions"] {
+    // conversation_versions/conversation_edges/topic_evolution_events restored
+    // 2026-08-02 — un-quarantined, see schema/domains/conversations.rs.
+    for t in [
+        "research_sessions",
+        "conversation_versions",
+        "conversation_edges",
+        "topic_evolution_events",
+    ] {
         let rows = db
             .query_all(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",

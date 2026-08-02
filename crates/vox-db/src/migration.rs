@@ -105,30 +105,40 @@ pub fn builtin_migrations() -> Vec<Migration> {
 // baseline until the named table(s) are cleared or exported, and that will recur on every
 // subsequent attempt until resolved by hand.
 
-/// The 47 (of Task 4's 48 quarantined) tables this automated migration will `DROP TABLE` for.
+/// The 44 (of Task 4's original 48 quarantined, corrected to 45 post-Task-9-sweep, minus
+/// `developer_journey_definitions`) tables this automated migration will `DROP TABLE` for.
 ///
-/// This is 48 minus `developer_journey_definitions`: per the plan's Task 2.1 decision, that
-/// table's `CREATE TABLE` DDL bakes in an unconditional `INSERT OR IGNORE ... VALUES
-/// ('canonical_journey.v1.greenfield_vox_mens_devloop', ...)` seed row that fires on every
-/// `baseline_sql()` run — so *every* pre-Task-4 database has exactly one row in it, always, by
-/// construction, not because of real user data. Including it in the auto-DROP list would make
-/// [`precheck_quarantine_tables_empty`] abort on literally every legacy database forever (this
-/// was confirmed empirically: running this migration against a copy of the real
+/// **2026-08-02 correction:** `conversation_versions`, `conversation_edges`, and
+/// `topic_evolution_events` were removed from this list (and un-quarantined back into
+/// `schema/domains/conversations.rs`) after a manual pre-migration sweep found they're genuinely
+/// live — `crate::codex_conversation_graph`'s `conversation_version_append` /
+/// `conversation_edge_insert` / `topic_evolution_event_append` are pure delegation aliases over
+/// `store/ops_codex/codex_graph.rs`'s real implementations, and `vox-orchestrator-mcp`'s
+/// `codex_tools.rs` calls the *alias* names — which Task 1b's single-hop wrapper-call detection
+/// never checked, since it only verified the underlying implementation function names. See
+/// `schema/domains/conversations.rs`'s comment at the re-added DDL, and the plan's Task 9 addendum,
+/// for the full writeup. This was 47 before the correction, now 44.
+///
+/// Separately, this is 45 (of the 48 quarantine-candidates) minus `developer_journey_definitions`:
+/// per the plan's Task 2.1 decision, that table's `CREATE TABLE` DDL bakes in an unconditional
+/// `INSERT OR IGNORE ... VALUES ('canonical_journey.v1.greenfield_vox_mens_devloop', ...)` seed row
+/// that fires on every `baseline_sql()` run — so *every* pre-Task-4 database has exactly one row in
+/// it, always, by construction, not because of real user data. Including it in the auto-DROP list
+/// would make [`precheck_quarantine_tables_empty`] abort on literally every legacy database forever
+/// (this was confirmed empirically: running this migration against a copy of the real
 /// `.vox/store.db` aborted on exactly this table alone during Task 5.2's sanity check). Per the
 /// plan, this table is excluded from the automated drop pending a one-time manual row export; its
-/// DDL still moved to `schema/domains/quarantine.rs` in Task 4, it's just not in scope for this
-/// mechanism. `crate::schema::domains::quarantine::SCHEMA_QUARANTINE` still declares it (42
-/// tables total there, 41 of which are also in this list).
+/// DDL still lives in `schema/domains/quarantine.rs`, it's just not in scope for this mechanism.
 ///
 /// This is the single source of truth for [`migrate_dropping_quarantine`]'s drop list; keep it in
-/// sync with `crate::schema::domains::quarantine::SCHEMA_QUARANTINE` (42 tables with literal DDL,
-/// including `developer_journey_definitions`), `handoff_payloads` (declared only via
-/// `CollectionInfo`, see `schema::spec::orchestrator_schema_digest`), and the 5 fully-orphaned
-/// tables with no declaration anywhere in current source (`archive_membership`, `chunk_members`,
-/// `context_window_items`, `context_windows`, `zstd_dictionaries`).
+/// sync with `crate::schema::domains::quarantine::SCHEMA_QUARANTINE` (39 tables with literal DDL
+/// after the correction above, including `developer_journey_definitions`), `handoff_payloads`
+/// (declared only via `CollectionInfo`, see `schema::spec::orchestrator_schema_digest`), and the 5
+/// fully-orphaned tables with no declaration anywhere in current source (`archive_membership`,
+/// `chunk_members`, `context_window_items`, `context_windows`, `zstd_dictionaries`).
 pub const QUARANTINE_DROP_TABLES: &[&str] = &[
-    // 41 tables with literal DDL, moved to schema/domains/quarantine.rs by Task 4.
-    // (developer_journey_definitions, the 42nd, is deliberately excluded — see doc comment above.)
+    // 38 tables with literal DDL, moved to schema/domains/quarantine.rs by Task 4.
+    // (developer_journey_definitions, the 39th, is deliberately excluded — see doc comment above.)
     "activity_result_cache",
     "artifact_reviews",
     "builder_sessions",
@@ -137,11 +147,9 @@ pub const QUARANTINE_DROP_TABLES: &[&str] = &[
     "codex_query_snapshots",
     "codex_schema_lineage",
     "codex_subscriptions",
-    "conversation_edges",
     "conversation_message_topics",
     "conversation_tool_calls",
     "conversation_topics",
-    "conversation_versions",
     "external_review_outcome",
     "news_publish_approvals",
     "package_deps",
@@ -164,7 +172,6 @@ pub const QUARANTINE_DROP_TABLES: &[&str] = &[
     "syndication_events",
     "test_decisions",
     "toestub_file_cache",
-    "topic_evolution_events",
     "trusted_evidence_bundles",
     "typed_stream_events",
     "usage_counter_snapshots",
