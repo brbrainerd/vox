@@ -301,7 +301,14 @@ fn check_archival_pipeline(root: &Path) -> Result<()> {
 /// Fail if docs or GitHub workflows reference retired Python inventory paths or shell gates.
 fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
     const WORKFLOW_BANNED: &[&str] = &["verify_doc_inventory_fresh.py", "populi_release_gate.sh"];
-    const DOC_BANNED: &[&str] = &["verify_doc_inventory_fresh.py", "populi_release_gate.sh"];
+    const DOC_BANNED: &[&str] = &[
+        "verify_doc_inventory_fresh.py",
+        "populi_release_gate.sh",
+        "crates/vox-secrets/src/spec.rs",
+        "crates/vox-orchestrator/src/mcp_tools/tools/mod.rs",
+        "scripts/quality/toestub_scoped.sh",
+        "four `.mdc` rule files",
+    ];
     // Retired crate paths / broken SSOT links — see `docs/src/archive/research-2026-q1/nomenclature-migration-map.md`.
     // Note: "crates/vox-ml-cli/" is intentionally NOT banned here — vox-ml-cli is a
     // grandfathered real crate and implementation plan docs legitimately reference its file paths.
@@ -311,6 +318,23 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
         "crates/vox-codex-api/",
     ];
     const DOC_PATH_BANNED: &[&str] = &["docs/how-to-ai-agents.md", "docs/src/how-to-ai-agents.md"];
+    // Root-level and non-doc-tree files fixed in Tasks 1-4 that `collect_text_files_under`
+    // never reaches (it only walks `docs/`) -- pushed explicitly, same pattern as
+    // README.md/AGENTS.md/CONTRIBUTING.md below.
+    const EXTRA_BANNED_SCAN_TARGETS: &[&str] = &[
+        "GEMINI.md",
+        "CLAUDE.md",
+        ".github/copilot-instructions.md",
+        ".cursor/rules/secrets-policy.mdc",
+        "crates/vox-code-audit/src/detectors/env_secret_shape.rs",
+        "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
+    ];
+    // Historical/point-in-time docs -- implementation plans and specs under
+    // `docs/superpowers/` and archived research under `docs/src/archive/` legitimately
+    // quote retired paths verbatim (before/after diff text, historical audit findings).
+    // They are not living guidance, so they're exempt from this scan (Task 14's final
+    // sweep applies the same exemption for the same reason).
+    const EXEMPT_DOC_DIRS: &[&str] = &["docs/superpowers", "docs/src/archive"];
 
     let wf_dir = root.join(".github/workflows");
     if wf_dir.is_dir() {
@@ -345,9 +369,24 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
                 files.push(p);
             }
         }
+        for rel in EXTRA_BANNED_SCAN_TARGETS {
+            let p = root.join(rel);
+            if p.is_file() {
+                files.push(p);
+            }
+        }
         for p in files {
+            let rel = p.strip_prefix(root).unwrap_or(&p);
+            if EXEMPT_DOC_DIRS.iter().any(|d| rel.starts_with(Path::new(d))) {
+                continue;
+            }
             let ext = p.extension().and_then(|x| x.to_str());
-            if ext != Some("md") && ext != Some("yml") && ext != Some("yaml") {
+            if ext != Some("md")
+                && ext != Some("yml")
+                && ext != Some("yaml")
+                && ext != Some("mdc")
+                && ext != Some("rs")
+            {
                 continue;
             }
             let text = read_utf8_path_capped(&p)?;
@@ -646,4 +685,139 @@ pub(crate) fn check_codex_ssot(root: &Path) -> Result<()> {
     }
     println!("Codex SSOT doc guard OK");
     Ok(())
+}
+
+#[cfg(test)]
+mod stale_ref_guard_tests {
+    use super::*;
+    use std::fs;
+
+    fn write_agents_md(root: &Path, body: &str) {
+        // check_stale_doc_and_workflow_refs only scans the root AGENTS.md/README.md/
+        // CONTRIBUTING.md branch when `docs/` exists (see the `if docs_dir.is_dir()`
+        // guard around that whole block) -- an empty docs/ dir is enough to enter it.
+        fs::create_dir_all(root.join("docs")).expect("create docs dir");
+        fs::write(root.join("AGENTS.md"), body).expect("write AGENTS.md");
+    }
+
+    #[test]
+    fn flags_stale_secrets_spec_rs_path() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_agents_md(
+            tmp.path(),
+            "Define secrets in `crates/vox-secrets/src/spec.rs`.\n",
+        );
+        let err = check_stale_doc_and_workflow_refs(tmp.path())
+            .expect_err("stale spec.rs path must be flagged");
+        assert!(err.to_string().contains("vox-secrets/src/spec.rs"));
+    }
+
+    #[test]
+    fn flags_stale_tool_registry_path() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_agents_md(
+            tmp.path(),
+            "See `crates/vox-orchestrator/src/mcp_tools/tools/mod.rs` for TOOL_REGISTRY.\n",
+        );
+        let err = check_stale_doc_and_workflow_refs(tmp.path())
+            .expect_err("stale mcp_tools/tools/mod.rs path must be flagged");
+        assert!(err.to_string().contains("mcp_tools/tools/mod.rs"));
+    }
+
+    #[test]
+    fn flags_stale_toestub_scoped_sh() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_agents_md(tmp.path(), "Run `scripts/quality/toestub_scoped.sh`.\n");
+        let err = check_stale_doc_and_workflow_refs(tmp.path())
+            .expect_err("stale toestub_scoped.sh reference must be flagged");
+        assert!(err.to_string().contains("toestub_scoped.sh"));
+    }
+
+    #[test]
+    fn flags_stale_mdc_count_phrase() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_agents_md(tmp.path(), "There are four `.mdc` rule files here.\n");
+        let err = check_stale_doc_and_workflow_refs(tmp.path())
+            .expect_err("stale 'four .mdc rule files' phrase must be flagged");
+        assert!(err.to_string().contains("four `.mdc` rule files"));
+    }
+
+    #[test]
+    fn clean_agents_md_passes() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_agents_md(
+            tmp.path(),
+            "Define secrets in `crates/vox-secrets/src/spec/`. Run `vox ci toestub-scoped`. Nine `.mdc` rule files.\n",
+        );
+        check_stale_doc_and_workflow_refs(tmp.path())
+            .expect("clean doc content must pass the stale-ref guard");
+    }
+
+    #[test]
+    fn ignores_historical_docs_dirs() {
+        for rel in ["docs/superpowers/plans/example-plan.md", "docs/src/archive/example.md"] {
+            let tmp = tempfile::tempdir().expect("tempdir");
+            let target = tmp.path().join(rel);
+            fs::create_dir_all(target.parent().expect("has parent")).expect("create parent dir");
+            fs::write(&target, "Define secrets in `crates/vox-secrets/src/spec.rs`.\n")
+                .expect("write file");
+            check_stale_doc_and_workflow_refs(tmp.path()).unwrap_or_else(|e| {
+                panic!("historical docs under {rel} must be exempt from the stale-ref scan: {e}")
+            });
+        }
+    }
+
+    #[test]
+    fn flags_stale_path_in_newly_covered_non_doc_files() {
+        for rel in [
+            ".cursor/rules/secrets-policy.mdc",
+            "crates/vox-code-audit/src/detectors/env_secret_shape.rs",
+            "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
+        ] {
+            let tmp = tempfile::tempdir().expect("tempdir");
+            fs::create_dir_all(tmp.path().join("docs")).expect("create docs dir");
+            let target = tmp.path().join(rel);
+            fs::create_dir_all(target.parent().expect("has parent")).expect("create parent dir");
+            fs::write(&target, "See crates/vox-secrets/src/spec.rs for the registry.\n")
+                .expect("write file");
+            let err = check_stale_doc_and_workflow_refs(tmp.path()).expect_err(
+                "stale reference in newly-covered non-doc file must be flagged",
+            );
+            assert!(
+                err.to_string().contains("vox-secrets/src/spec.rs"),
+                "unexpected error for {rel}: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn flags_stale_path_in_each_newly_covered_root_file() {
+        for filename in ["CLAUDE.md", "GEMINI.md", ".github/copilot-instructions.md"] {
+            let tmp = tempfile::tempdir().expect("tempdir");
+            fs::create_dir_all(tmp.path().join("docs")).expect("create docs dir");
+            let target = tmp.path().join(filename);
+            fs::create_dir_all(target.parent().expect("has parent")).expect("create parent dir");
+            fs::write(&target, "Define secrets in `crates/vox-secrets/src/spec.rs`.\n")
+                .expect("write file");
+            let err = check_stale_doc_and_workflow_refs(tmp.path())
+                .expect_err("stale reference in newly-covered root file must be flagged");
+            assert!(
+                err.to_string().contains("vox-secrets/src/spec.rs"),
+                "unexpected error for {filename}: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn skips_root_files_when_docs_dir_absent() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        fs::write(
+            tmp.path().join("AGENTS.md"),
+            "Define secrets in `crates/vox-secrets/src/spec.rs`.\n",
+        )
+        .expect("write AGENTS.md");
+        check_stale_doc_and_workflow_refs(tmp.path()).expect(
+            "without docs/, the stale-ref guard does not scan root AGENTS.md at all (documented gap)",
+        );
+    }
 }
