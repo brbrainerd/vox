@@ -20,7 +20,10 @@ async fn schema_init_v7_is_ok() {
     assert_eq!(v, BASELINE_VERSION);
 }
 
+// codex_change_log is quarantined (DORMANT, Task 4, VoxDB audit condensation
+// plan) — off by default, see schema/domains/quarantine.rs.
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn append_codex_change_is_ok() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
     let id = db

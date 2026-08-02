@@ -776,7 +776,12 @@ impl VoxDb {
 mod tests {
     use crate::{DbConfig, VoxDb};
 
+    // Exercises conversation_tool_calls, usage_limit_definitions,
+    // usage_counter_snapshots, conversation_topics, and
+    // conversation_message_topics, all quarantined (Task 4, VoxDB audit
+    // condensation plan) — off by default, see domains/quarantine.rs.
     #[tokio::test]
+    #[cfg(feature = "quarantine")]
     async fn chat_tool_usage_topic_round_trip() {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
         assert_eq!(

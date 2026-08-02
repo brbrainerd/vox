@@ -24,21 +24,7 @@ CREATE INDEX IF NOT EXISTS idx_scientia_discoveries_session
 CREATE INDEX IF NOT EXISTS idx_scientia_discoveries_status 
     ON scientia_discoveries(human_gate_status);
 
--- Structured citation tracking aligned with discovery claims.
-CREATE TABLE IF NOT EXISTS scientia_citations (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    discovery_id      TEXT    NOT NULL,
-    citation_key      TEXT    NOT NULL,
-    source_type       TEXT    NOT NULL,          -- 'knowledge_node', 'external_url', 'snippet', 'eval_run'
-    source_ref        TEXT    NOT NULL,
-    title             TEXT,
-    authors_json      TEXT,
-    year              INTEGER,
-    doi               TEXT,
-    url               TEXT,
-    created_at_ms     INTEGER NOT NULL,
-    UNIQUE(discovery_id, citation_key)
-);
+-- scientia_citations: quarantined (DEAD, Task 4) — see domains/quarantine.rs.
 
 -- Orchestration queue for the multi-step publication flow.
 CREATE TABLE IF NOT EXISTS scientia_publication_queue (
@@ -227,30 +213,8 @@ CREATE TABLE IF NOT EXISTS scientia_claim_verdicts (
 );
 CREATE INDEX IF NOT EXISTS idx_scientia_verdicts_claim ON scientia_claim_verdicts(claim_id);
 
--- Pre-registration records (Phase 0d).
-CREATE TABLE IF NOT EXISTS scientia_prereg (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    prereg_id         TEXT    NOT NULL UNIQUE,  -- Nanopub Trusty URI
-    hypothesis        TEXT    NOT NULL,
-    signed_at_ms      INTEGER NOT NULL,
-    signing_key       TEXT    NOT NULL,
-    payload_json      TEXT    NOT NULL,  -- full PreregistrationV1 JSON
-    supersedes_id     TEXT,
-    created_at_ms     INTEGER NOT NULL
-);
-
--- T4 publication attempt log (Phase 0d).
-CREATE TABLE IF NOT EXISTS scientia_publication_attempts (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    manifest_id       TEXT    NOT NULL,
-    venue             TEXT    NOT NULL,
-    attempt_number    INTEGER NOT NULL DEFAULT 1,
-    status            TEXT    NOT NULL DEFAULT 'pending',  -- pending|submitted|accepted|rejected|failed
-    doi               TEXT,
-    error             TEXT,
-    attempted_at_ms   INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_scientia_pub_attempts ON scientia_publication_attempts(manifest_id, attempted_at_ms);
+-- scientia_prereg, scientia_publication_attempts: quarantined (DEAD, Task 4)
+-- — see domains/quarantine.rs.
 
 -- Learned model behavior profiles for the Provider Atlas (Phase 0d).
 CREATE TABLE IF NOT EXISTS scientia_model_profile_learning (
@@ -266,28 +230,8 @@ CREATE TABLE IF NOT EXISTS scientia_model_profile_learning (
     UNIQUE(provider, model_id, profile_key)
 );
 
--- Provider search runs within a research session (Phase 0d).
-CREATE TABLE IF NOT EXISTS scientia_provider_runs (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id        INTEGER NOT NULL,
-    provider_name     TEXT    NOT NULL,
-    hit_count         INTEGER NOT NULL DEFAULT 0,
-    elapsed_ms        INTEGER NOT NULL DEFAULT 0,
-    started_at_ms     INTEGER NOT NULL,
-    finished_at_ms    INTEGER
-);
-CREATE INDEX IF NOT EXISTS idx_scientia_provider_runs_session ON scientia_provider_runs(session_id);
-
--- Training pairs for model learning (quality-scored query/answer pairs) (Phase 0d).
-CREATE TABLE IF NOT EXISTS scientia_training_pairs (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id        INTEGER NOT NULL,
-    query_text        TEXT    NOT NULL,
-    answer_text       TEXT    NOT NULL,
-    quality_score     INTEGER NOT NULL DEFAULT 0,
-    created_at_ms     INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_scientia_training_pairs_session ON scientia_training_pairs(session_id);
+-- scientia_provider_runs, scientia_training_pairs: quarantined (DORMANT,
+-- Task 4) — see domains/quarantine.rs.
 
 -- Phase A — self-observation signal producers ledger.
 -- `vox-scientia-producers` writes rows here from commit-graph, benchmark-history,

@@ -125,7 +125,12 @@ async fn list_publication_claims_and_pending_summary() {
     assert_eq!(counts.extraction_running, 1);
 }
 
+// scientia_training_pairs is quarantined (DORMANT, no confirmed caller
+// outside vox-db even via wrapper-call detection — Task 4, VoxDB audit
+// condensation plan) — off by default, see
+// crates/vox-db/src/schema/domains/quarantine.rs.
 #[tokio::test(flavor = "multi_thread")]
+#[cfg(feature = "quarantine")]
 async fn store_training_pair_roundtrip() {
     let db = test_db().await;
     let sid = db
@@ -171,7 +176,12 @@ async fn research_artifact_roundtrip_returns_latest_report() {
     assert!(artifact.updated_at_ms >= artifact.created_at_ms);
 }
 
+// scientia_provider_runs is quarantined (DORMANT, no confirmed caller
+// outside vox-db even via wrapper-call detection — Task 4, VoxDB audit
+// condensation plan) — off by default, see
+// crates/vox-db/src/schema/domains/quarantine.rs.
 #[tokio::test(flavor = "multi_thread")]
+#[cfg(feature = "quarantine")]
 async fn provider_run_lifecycle() {
     let db = test_db().await;
     let sid = db
