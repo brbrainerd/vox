@@ -47,6 +47,7 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
   const [activeModel, setActiveModel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [providerStatuses, setProviderStatuses] = useState<ProviderStatus[]>([]);
+  const [freeOnly, setFreeOnly] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -90,8 +91,12 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
     }
   };
 
-  const hosted = models.filter(m => !m.id.includes('ollama') && !m.id.startsWith('mesh/') && !m.id.startsWith('mens/'));
-  const local = models.filter(m => m.id.includes('ollama') || m.id.startsWith('mesh/') || m.id.startsWith('mens/'));
+  const hosted = models
+    .filter(m => !m.id.includes('ollama') && !m.id.startsWith('mesh/') && !m.id.startsWith('mens/'))
+    .filter(m => !freeOnly || m.is_free);
+  const local = models
+    .filter(m => m.id.includes('ollama') || m.id.startsWith('mesh/') || m.id.startsWith('mens/'))
+    .filter(m => !freeOnly || m.is_free);
 
   return (
     <div className="flex flex-col gap-5">
@@ -103,9 +108,21 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
               {summary ? `${summary.model_count} models · ${summary.arm_count} routing arms · explore $${(summary.exploration_spent_usd ?? 0).toFixed(2)} / $${(summary.exploration_budget_usd ?? 0).toFixed(0)}` : 'Loading routing summary…'}
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-[10px] uppercase tracking-widest text-text-muted">Active</div>
-            <div className="font-mono text-xs text-brass">{activeModel ?? 'auto-route'}</div>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-[11px] text-text-muted">
+              <input
+                type="checkbox"
+                role="checkbox"
+                aria-label="Free only"
+                checked={freeOnly}
+                onChange={e => setFreeOnly(e.target.checked)}
+              />
+              Free only
+            </label>
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-widest text-text-muted">Active</div>
+              <div className="font-mono text-xs text-brass">{activeModel ?? 'auto-route'}</div>
+            </div>
           </div>
         </div>
       </Glass>
