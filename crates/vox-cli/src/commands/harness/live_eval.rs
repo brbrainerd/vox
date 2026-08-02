@@ -654,6 +654,7 @@ async fn build_eval_server_state() -> anyhow::Result<vox_orchestrator_mcp::serve
 fn scoped_local_only_env() -> impl Drop {
     struct Guard;
     impl Drop for Guard {
+        #[allow(unsafe_code)]
         fn drop(&mut self) {
             // SAFETY: this eval binary runs single-threaded per-task (the outer loop in
             // run_live is sequential, not concurrent), so no other code observes this env var
@@ -664,6 +665,7 @@ fn scoped_local_only_env() -> impl Drop {
         }
     }
     // SAFETY: see Guard::drop.
+    #[allow(unsafe_code)]
     unsafe {
         std::env::set_var("VOX_INFERENCE_PRIVACY", "local_only");
     }

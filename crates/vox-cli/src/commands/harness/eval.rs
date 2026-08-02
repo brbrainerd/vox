@@ -344,6 +344,14 @@ impl TaskOutcome {
     }
 }
 
+/// Same `git_sha` validation `ingest_runs` applies at write time — re-checked here as a
+/// defense-in-depth boundary, since this function is the one that actually constructs a `git`
+/// subprocess call from a stored value. A well-formed value will always pass; this only ever
+/// rejects something that slipped through some other write path.
+fn is_valid_git_sha(s: &str) -> bool {
+    (7..=40).contains(&s.len()) && s.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+}
+
 pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
     if args.live {
         let (mut run, task_results, selection_events) =
@@ -366,7 +374,10 @@ pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
         // `publish::ingest_runs` validates the shape of every `git_sha` before it ever enters
         // vox-db, so it can be trusted here without re-validating.
         if let Some(previous) = db.list_harness_eval_runs(1).await?.into_iter().next() {
-            if previous.git_sha != run.git_sha {
+            if previous.git_sha != run.git_sha
+                && is_valid_git_sha(&previous.git_sha)
+                && is_valid_git_sha(&run.git_sha)
+            {
                 let diff_output = std::process::Command::new("git")
                     .args([
                         "diff",
