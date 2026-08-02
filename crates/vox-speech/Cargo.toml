@@ -9,11 +9,15 @@ keywords = ["vox", "speech", "stt", "whisper"]
 categories = ["multimedia::audio"]
 
 [features]
-# No default features: heavy ML deps (Candle, hf-hub, tokenizers, symphonia, rubato)
-# must be opted into explicitly by consumers via `features = ["stt-candle"]`. This
+# Heavy ML deps (Candle, hf-hub, tokenizers, symphonia, rubato) are NOT default:
+# they must be opted into explicitly by consumers via `features = ["stt-candle"]`. This
 # prevents accidental bleed-through of ~100MB+ of native ML code into crates that
 # only need lightweight surfaces like `refine`, `routing`, or `runtime_config`.
-default = []
+# `compiler-rerank` IS default: it only pulls `vox-compiler` (already linked into the
+# shipped vox-gui binary via vox-cli/vox-orchestrator-mcp), and it is domain-gated at
+# runtime (see transcript_rerank.rs) so it only runs its compiler-frontend pass for
+# `DomainMode::Code` dictation.
+default = ["compiler-rerank"]
 # DEPRECATED: The Candle Whisper code has been extracted into vox-plugin-speech (Unit 4 of the
 # vox-populi extraction follow-up plan). Historical audio-ingress docs/env rows still point here while the
 # plugin-host rewire is pending. Once ingress is rewired through vox-plugin-host::load_code_plugin
