@@ -3,9 +3,12 @@
 #![cfg(feature = "stt-sherpa")]
 
 use super::asr_backend::{AsrBackend, AsrOutput};
-use super::sherpa_model_config::resolve_sherpa_model_paths;
+use super::sherpa_model_config::{resolve_sherpa_model_paths, resolve_sherpa_transducer_model_paths};
 use anyhow::Result;
-use sherpa_onnx::{OfflineRecognizer, OfflineRecognizerConfig, OfflineWhisperModelConfig};
+use sherpa_onnx::{
+    OfflineRecognizer, OfflineRecognizerConfig, OfflineTransducerModelConfig,
+    OfflineWhisperModelConfig,
+};
 use std::sync::Mutex;
 
 const SHERPA_DEFAULT_THREADS: u32 = 4;
@@ -18,27 +21,45 @@ pub struct SherpaOnnxBackend {
 
 impl SherpaOnnxBackend {
     /// Initialize the backend (downloads model if needed).
+    ///
+    /// Tries the NeMo transducer (Parakeet) path first — it is the default,
+    /// faster, more accurate engine (see the STT accuracy design doc). Falls
+    /// back to the Whisper-shaped config only when `VOX_ORATIO_SHERPA_KIND=whisper`
+    /// is explicitly set, so existing local Whisper-model setups keep working.
     pub fn new() -> Result<Self> {
-        let paths = resolve_sherpa_model_paths()?;
-
+        let kind = std::env::var("VOX_ORATIO_SHERPA_KIND").unwrap_or_default();
         let mut config = OfflineRecognizerConfig::default();
-        config.model_config.whisper = OfflineWhisperModelConfig {
-            encoder: Some(paths.encoder.to_string_lossy().to_string()),
-            decoder: Some(paths.decoder.to_string_lossy().to_string()),
-            ..Default::default()
-        };
-        config.model_config.tokens = Some(paths.tokens.to_string_lossy().to_string());
+
+        if kind.eq_ignore_ascii_case("whisper") {
+            let paths = resolve_sherpa_model_paths()?;
+            config.model_config.whisper = OfflineWhisperModelConfig {
+                encoder: Some(paths.encoder.to_string_lossy().to_string()),
+                decoder: Some(paths.decoder.to_string_lossy().to_string()),
+                ..Default::default()
+            };
+            config.model_config.tokens = Some(paths.tokens.to_string_lossy().to_string());
+        } else {
+            let paths = resolve_sherpa_transducer_model_paths()?;
+            config.model_config.transducer = OfflineTransducerModelConfig {
+                encoder: Some(paths.encoder.to_string_lossy().to_string()),
+                decoder: Some(paths.decoder.to_string_lossy().to_string()),
+                joiner: Some(paths.joiner.to_string_lossy().to_string()),
+                ..Default::default()
+            };
+            config.model_config.tokens = Some(paths.tokens.to_string_lossy().to_string());
+        }
         config.model_config.num_threads = SHERPA_DEFAULT_THREADS as i32;
         config.model_config.debug = false;
 
         let recognizer = OfflineRecognizer::create(&config).ok_or_else(|| {
-            anyhow::anyhow!("Sherpa-ONNX Whisper init failed (check model paths)")
+            anyhow::anyhow!("Sherpa-ONNX init failed (kind={kind:?}, check model paths)")
         })?;
 
         tracing::info!(
             target: "vox_oratio_sherpa",
             event = "sherpa_backend_init",
-            "Sherpa-ONNX (Whisper) backend initialized"
+            kind = if kind.is_empty() { "transducer" } else { kind.as_str() },
+            "Sherpa-ONNX backend initialized"
         );
         Ok(Self {
             inner: Mutex::new(recognizer),
@@ -106,4 +127,31 @@ fn resample_to_16k(pcm: &[f32], from_hz: u32) -> Result<Vec<f32>> {
         out.extend_from_slice(&frames[0][..useful.min(frames[0].len())]);
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn transducer_config_variant_builds_recognizer_config() {
+        // Construction-only test (no real ONNX files) — asserts the config
+        // struct wiring is correct, not that a real model loads.
+        let mut config = OfflineRecognizerConfig::default();
+        config.model_config.transducer = sherpa_onnx::OfflineTransducerModelConfig {
+            encoder: Some("encoder.onnx".to_string()),
+            decoder: Some("decoder.onnx".to_string()),
+            joiner: Some("joiner.onnx".to_string()),
+            ..Default::default()
+        };
+        config.model_config.tokens = Some("tokens.txt".to_string());
+        assert_eq!(
+            config.model_config.transducer.encoder.as_deref(),
+            Some("encoder.onnx")
+        );
+        assert_eq!(
+            config.model_config.transducer.joiner.as_deref(),
+            Some("joiner.onnx")
+        );
+    }
 }
