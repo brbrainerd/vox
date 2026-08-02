@@ -20,6 +20,9 @@ pub use spec::orchestrator_schema_digest;
 mod migration_chain_tests {
     use super::SCHEMA_FRAGMENTS;
 
+    // Table assertions trimmed 2026-08-02 to drop tables slated for schema
+    // quarantine (docs/src/architecture/2026-08-01-voxdb-audit-condensation-plan.md,
+    // Task 3) — see graphify-out/quarantine_test_findings.json for the disposition.
     #[test]
     fn chat_search_and_codex_in_fragments() {
         let conversations = SCHEMA_FRAGMENTS

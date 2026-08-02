@@ -48,6 +48,9 @@ async fn codex_alias_connects() {
     assert_eq!(db.schema_version().await.expect("v"), BASELINE_VERSION);
 }
 
+// Table list trimmed 2026-08-02 to drop tables slated for schema quarantine
+// (docs/src/architecture/2026-08-01-voxdb-audit-condensation-plan.md, Task 3) —
+// see graphify-out/quarantine_test_findings.json for the full disposition.
 #[tokio::test]
 async fn baseline_schema_includes_chat_and_search_tables() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
@@ -368,6 +371,8 @@ mod legacy_tests {
     }
 
     /// Gamification + coordination rows survive JSONL export/import on baseline DBs.
+    // `distributed_locks` leg removed 2026-08-02 (quarantine-bound table, see
+    // docs/src/architecture/2026-08-01-voxdb-audit-condensation-plan.md Task 3).
     #[tokio::test]
     async fn legacy_jsonl_roundtrips_gamification_and_coordination() {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
