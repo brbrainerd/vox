@@ -891,7 +891,9 @@ mod tests {
                 }
                 Some(v)
             })
-            .expect("no request with a JSON `messages` body for the resolved chat model was received");
+            .expect(
+                "no request with a JSON `messages` body for the resolved chat model was received",
+            );
         let tools = body
             .get("tools")
             .and_then(|t| t.as_array())
@@ -976,7 +978,9 @@ mod tests {
                 }
                 Some(v)
             })
-            .expect("no request with a JSON `messages` body for the resolved chat model was received");
+            .expect(
+                "no request with a JSON `messages` body for the resolved chat model was received",
+            );
         assert_eq!(
             body.get("temperature").and_then(serde_json::Value::as_f64),
             Some(0.11_f64),

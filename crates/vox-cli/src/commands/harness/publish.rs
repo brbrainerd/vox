@@ -47,7 +47,9 @@ pub fn from_jsonl(blob: &str) -> (Vec<PublishedRun>, Vec<String>) {
 /// once a `git_sha` is in the database, every downstream reader can trust it without
 /// re-validating.
 fn is_valid_git_sha(s: &str) -> bool {
-    (7..=40).contains(&s.len()) && s.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+    (7..=40).contains(&s.len())
+        && s.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
 }
 
 /// Ingest a batch of published runs into the local DB. Idempotent: a run_id already present is
@@ -252,7 +254,9 @@ mod tests {
         let runs = vec![fixture_run("run-idempotent-1")];
 
         ingest_runs(&db, &runs).await.expect("first ingest");
-        ingest_runs(&db, &runs).await.expect("second ingest (same data)");
+        ingest_runs(&db, &runs)
+            .await
+            .expect("second ingest (same data)");
 
         let listed = db.list_harness_eval_runs(10).await.expect("list");
         assert_eq!(
@@ -270,7 +274,9 @@ mod tests {
         let runs = vec![fixture_run_with_children("run-idempotent-children-1")];
 
         ingest_runs(&db, &runs).await.expect("first ingest");
-        ingest_runs(&db, &runs).await.expect("second ingest (same data)");
+        ingest_runs(&db, &runs)
+            .await
+            .expect("second ingest (same data)");
 
         let task_results = db
             .get_harness_eval_task_results("run-idempotent-children-1")
@@ -303,7 +309,10 @@ mod tests {
         let runs = vec![bad, good];
 
         let ingested = ingest_runs(&db, &runs).await.expect("ingest");
-        assert_eq!(ingested, 1, "only the run with a valid git_sha should be ingested");
+        assert_eq!(
+            ingested, 1,
+            "only the run with a valid git_sha should be ingested"
+        );
 
         let listed = db.list_harness_eval_runs(10).await.expect("list");
         assert_eq!(listed.len(), 1);
@@ -312,10 +321,7 @@ mod tests {
 
     #[tokio::test]
     async fn run_creates_the_jsonl_file_when_it_does_not_exist_yet() {
-        let tmp = std::env::temp_dir().join(format!(
-            "harness-publish-test-{}",
-            std::process::id()
-        ));
+        let tmp = std::env::temp_dir().join(format!("harness-publish-test-{}", std::process::id()));
         std::fs::create_dir_all(&tmp).expect("tmp dir");
         let path = tmp.join("runs.jsonl");
         assert!(!path.exists(), "precondition: file must not exist yet");
@@ -326,7 +332,10 @@ mod tests {
         // in a unit test); that half is already covered indirectly by `ingest_runs`'s tests plus
         // Task 5/9's manual end-to-end verification.
         let existing_blob = std::fs::read_to_string(&path).unwrap_or_default();
-        assert_eq!(existing_blob, "", "missing file must read as empty, not error");
+        assert_eq!(
+            existing_blob, "",
+            "missing file must read as empty, not error"
+        );
 
         let _ = std::fs::remove_dir_all(&tmp);
     }

@@ -790,11 +790,9 @@ fn git_sha_full() -> anyhow::Result<String> {
 }
 
 fn git_sha_short() -> anyhow::Result<String> {
-    let out = vox_git::read_cmd::read_only(
-        std::path::Path::new("."),
-        &["rev-parse", "--short", "HEAD"],
-    )
-    .map_err(|e| anyhow::anyhow!("git rev-parse --short HEAD failed: {e}"))?;
+    let out =
+        vox_git::read_cmd::read_only(std::path::Path::new("."), &["rev-parse", "--short", "HEAD"])
+            .map_err(|e| anyhow::anyhow!("git rev-parse --short HEAD failed: {e}"))?;
     Ok(out.trim().to_string())
 }
 

@@ -105,9 +105,7 @@ pub fn detect_regressions(
             current_git_sha: current.git_sha.clone(),
             changed_files: changed_files.to_vec(),
             flipped_task_ids: vec![],
-            detail: format!(
-                "pass rate dropped from {prev_pass_rate:.1}% to {cur_pass_rate:.1}%"
-            ),
+            detail: format!("pass rate dropped from {prev_pass_rate:.1}% to {cur_pass_rate:.1}%"),
         });
     }
 
@@ -138,7 +136,9 @@ use clap::Parser;
 /// subprocess call from a stored value. A well-formed value from `ingest_runs` will always pass;
 /// this only ever rejects something that slipped through some other write path.
 fn is_valid_git_sha(s: &str) -> bool {
-    (7..=40).contains(&s.len()) && s.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+    (7..=40).contains(&s.len())
+        && s.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
 }
 
 #[derive(Parser)]
@@ -182,8 +182,13 @@ pub async fn run_history(args: HistoryArgs) -> anyhow::Result<()> {
         let free_cheap_pct = free_cheap_ratio(&events);
         println!(
             "{:<24} {:<12} {:>6} {:>6} {:>6} {:>10.4} {:>11.1}%",
-            run.run_id, run.git_sha, run.pass_count, run.fail_count, run.skip_count,
-            run.total_cost_usd, free_cheap_pct
+            run.run_id,
+            run.git_sha,
+            run.pass_count,
+            run.fail_count,
+            run.skip_count,
+            run.total_cost_usd,
+            free_cheap_pct
         );
     }
     Ok(())
@@ -218,14 +223,18 @@ pub async fn run_report(args: ReportArgs) -> anyhow::Result<()> {
         runs
     };
     if runs.len() < 2 {
-        println!("need at least 2 runs to compare; only {} recorded", runs.len());
+        println!(
+            "need at least 2 runs to compare; only {} recorded",
+            runs.len()
+        );
         return Ok(());
     }
     let (current, previous) = (&runs[0], &runs[runs.len() - 1]);
     if !is_valid_git_sha(&previous.git_sha) || !is_valid_git_sha(&current.git_sha) {
         anyhow::bail!(
             "refusing to shell out to git diff with a malformed git_sha (previous={:?}, current={:?})",
-            previous.git_sha, current.git_sha
+            previous.git_sha,
+            current.git_sha
         );
     }
     let previous_task_results = db.get_harness_eval_task_results(&previous.run_id).await?;
@@ -235,7 +244,12 @@ pub async fn run_report(args: ReportArgs) -> anyhow::Result<()> {
     let repo_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let changed_files: Vec<String> = vox_git::read_cmd::read_only(
         &repo_root,
-        &["diff", "--name-only", &format!("{}..{}", previous.git_sha, current.git_sha), "--"],
+        &[
+            "diff",
+            "--name-only",
+            &format!("{}..{}", previous.git_sha, current.git_sha),
+            "--",
+        ],
     )
     .ok()
     .map(|s| s.lines().map(str::to_string).collect())
@@ -251,12 +265,19 @@ pub async fn run_report(args: ReportArgs) -> anyhow::Result<()> {
         &changed_files,
     );
     if flags.is_empty() {
-        println!("no regressions detected between {} and {}", previous.run_id, current.run_id);
+        println!(
+            "no regressions detected between {} and {}",
+            previous.run_id, current.run_id
+        );
     } else {
         for flag in &flags {
             println!(
                 "REGRESSION [{:?}]: {} (git {}..{}, {} file(s) changed)",
-                flag.kind, flag.detail, flag.previous_git_sha, flag.current_git_sha, flag.changed_files.len()
+                flag.kind,
+                flag.detail,
+                flag.previous_git_sha,
+                flag.current_git_sha,
+                flag.changed_files.len()
             );
             for f in &flag.changed_files {
                 println!("    {f}");
@@ -289,7 +310,11 @@ mod tests {
         }
     }
 
-    fn event(model_id: &str, cost_tier: &str, privacy_gated: bool) -> vox_db::ModelSelectionEventRecord {
+    fn event(
+        model_id: &str,
+        cost_tier: &str,
+        privacy_gated: bool,
+    ) -> vox_db::ModelSelectionEventRecord {
         vox_db::ModelSelectionEventRecord {
             run_id: "r".to_string(),
             task_id: "t".to_string(),
@@ -331,7 +356,8 @@ mod tests {
     fn pass_rate_drop_beyond_threshold_is_flagged() {
         let prev = run("r1", 10, 10);
         let cur = run("r2", 5, 10); // 100% -> 50%, a 50pp drop
-        let flags = detect_regressions(&prev, &cur, &[], &[], &[], &[], &["src/foo.rs".to_string()]);
+        let flags =
+            detect_regressions(&prev, &cur, &[], &[], &[], &[], &["src/foo.rs".to_string()]);
         assert_eq!(flags.len(), 1);
         assert_eq!(flags[0].kind, RegressionKind::PassRateDrop);
         assert_eq!(flags[0].changed_files, vec!["src/foo.rs".to_string()]);

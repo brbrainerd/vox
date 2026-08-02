@@ -458,8 +458,8 @@ mod tests {
     /// rather than depending on the ambient bootstrap catalog + env state.
     #[test]
     fn resolve_with_rationale_populates_reason_on_decide_branch() {
-        use vox_orchestrator::models::{ModelRegistry, ModelSpec, ProviderType};
         use vox_orchestrator::models::spec::PricingSource;
+        use vox_orchestrator::models::{ModelRegistry, ModelSpec, ProviderType};
 
         let cfg = vox_orchestrator::OrchestratorConfig::for_testing();
         let groups = vox_orchestrator::AffinityGroupRegistry::new(vec![]);
@@ -514,8 +514,8 @@ mod tests {
         let mut rationale = None;
         let result =
             resolve_mcp_chat_model_sync_inner(&orch, "hello there", None, res, &mut rationale);
-        let (model, _is_free) = result
-            .expect("decide() branch should resolve the sole hermetic candidate model");
+        let (model, _is_free) =
+            result.expect("decide() branch should resolve the sole hermetic candidate model");
         assert_eq!(model.id, "decide-branch-rationale-test");
         assert!(
             rationale.is_some(),

@@ -850,8 +850,14 @@ mod tests {
 
     #[test]
     fn task_category_from_mcp_str_still_recognizes_existing_categories() {
-        assert_eq!(task_category_from_mcp_str("codegen"), Some(TaskCategory::CodeGen));
-        assert_eq!(task_category_from_mcp_str("review"), Some(TaskCategory::Review));
+        assert_eq!(
+            task_category_from_mcp_str("codegen"),
+            Some(TaskCategory::CodeGen)
+        );
+        assert_eq!(
+            task_category_from_mcp_str("review"),
+            Some(TaskCategory::Review)
+        );
         assert_eq!(task_category_from_mcp_str("bogus"), None);
     }
 }

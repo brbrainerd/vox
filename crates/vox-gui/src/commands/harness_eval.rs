@@ -48,8 +48,10 @@ pub async fn harness_eval_history(
         .await
         .map_err(map_db_err)?;
     let run_ids: Vec<String> = runs.iter().map(|r| r.run_id.clone()).collect();
-    let mut task_results_by_run =
-        db.get_harness_eval_task_results_for_runs(&run_ids).await.map_err(map_db_err)?;
+    let mut task_results_by_run = db
+        .get_harness_eval_task_results_for_runs(&run_ids)
+        .await
+        .map_err(map_db_err)?;
     let mut out = Vec::with_capacity(runs.len());
     for r in runs {
         let task_results = task_results_by_run.remove(&r.run_id).unwrap_or_default();
@@ -102,7 +104,9 @@ pub struct RegressionFlagDto {
 /// `git diff` subprocess call independently, so it needs its own defense-in-depth check too, not
 /// just a shared library function it might forget to call.
 fn is_valid_git_sha(s: &str) -> bool {
-    (7..=40).contains(&s.len()) && s.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+    (7..=40).contains(&s.len())
+        && s.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
 }
 
 /// Compares the two most recent runs and returns any detected regressions (empty if none, or if
@@ -143,7 +147,12 @@ pub async fn harness_eval_regressions(
     let repo_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let changed_files: Vec<String> = vox_git::read_cmd::read_only(
         &repo_root,
-        &["diff", "--name-only", &format!("{}..{}", previous.git_sha, current.git_sha), "--"],
+        &[
+            "diff",
+            "--name-only",
+            &format!("{}..{}", previous.git_sha, current.git_sha),
+            "--",
+        ],
     )
     .ok()
     .map(|s| s.lines().map(str::to_string).collect())
@@ -209,7 +218,9 @@ mod tests {
         app.manage(pool);
 
         let state = app.state::<GuiDbPool>();
-        let result = harness_eval_history(state, None).await.expect("history call");
+        let result = harness_eval_history(state, None)
+            .await
+            .expect("history call");
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].run_id, "r1");
         assert_eq!(result[0].pass_count, 9);
@@ -222,8 +233,13 @@ mod tests {
         app.manage(pool);
 
         let state = app.state::<GuiDbPool>();
-        let result = harness_eval_regressions(state).await.expect("regressions call");
-        assert!(result.is_empty(), "fewer than 2 runs must return no regressions, not error");
+        let result = harness_eval_regressions(state)
+            .await
+            .expect("regressions call");
+        assert!(
+            result.is_empty(),
+            "fewer than 2 runs must return no regressions, not error"
+        );
     }
 
     #[test]

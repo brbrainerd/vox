@@ -863,11 +863,11 @@ mod tests {
             .await
             .expect("ensure bg-task session");
 
-        let sessions = db
-            .chat_list_gui_sessions(40)
-            .await
-            .expect("list sessions");
-        let ids: Vec<&str> = sessions.iter().map(|(_, _, ext, _, _)| ext.as_str()).collect();
+        let sessions = db.chat_list_gui_sessions(40).await.expect("list sessions");
+        let ids: Vec<&str> = sessions
+            .iter()
+            .map(|(_, _, ext, _, _)| ext.as_str())
+            .collect();
         assert!(
             ids.contains(&"gui-real-session"),
             "a real GUI session must still be listed: {ids:?}"

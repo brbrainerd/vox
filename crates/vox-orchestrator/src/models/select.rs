@@ -601,7 +601,10 @@ impl std::fmt::Display for SelectionReason {
                 crate::models::task_category_premium_key(*task)
             ),
             SelectionReason::Scored => {
-                write!(f, "Chosen by the model scorer as the best match for your request")
+                write!(
+                    f,
+                    "Chosen by the model scorer as the best match for your request"
+                )
             }
             SelectionReason::LocalOnly => {
                 write!(f, "Selected the best available local (on-device) model")
@@ -1425,7 +1428,10 @@ mod tests {
         crate::route_policy::set_test_privacy_override(Some("local_only"));
         let mut registry = ModelRegistry::default();
         registry.register(key_gate_spec("cloud-test", ProviderType::OpenRouter));
-        registry.register(key_gate_spec("ollama-local-privacy-test", ProviderType::Ollama));
+        registry.register(key_gate_spec(
+            "ollama-local-privacy-test",
+            ProviderType::Ollama,
+        ));
         let req =
             ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
         let d = decide(&req, &registry);
@@ -1619,7 +1625,10 @@ mod semcov_wave1c_tests {
         let env_override_s = env_override.to_string();
 
         for s in [&premium_s, &scored_s, &local_only_s, &env_override_s] {
-            assert!(!s.is_empty(), "SelectionReason::to_string() must not be empty");
+            assert!(
+                !s.is_empty(),
+                "SelectionReason::to_string() must not be empty"
+            );
         }
 
         let all = [

@@ -219,8 +219,10 @@ impl VoxDb {
              WHERE run_id IN ({placeholders})
              ORDER BY run_id ASC, id ASC"
         );
-        let bound: Vec<turso::Value> =
-            run_ids.iter().map(|id| turso::Value::from(id.as_str())).collect();
+        let bound: Vec<turso::Value> = run_ids
+            .iter()
+            .map(|id| turso::Value::from(id.as_str()))
+            .collect();
         let mut rows = self.connection().query(&sql, bound).await?;
         let mut out: std::collections::HashMap<String, Vec<HarnessEvalTaskResultRecord>> =
             std::collections::HashMap::new();
@@ -351,7 +353,11 @@ mod tests {
             .await
             .expect("batched fetch");
 
-        assert_eq!(by_run.len(), 2, "only runs with task results should have entries");
+        assert_eq!(
+            by_run.len(),
+            2,
+            "only runs with task results should have entries"
+        );
         assert_eq!(by_run["r1"].len(), 1);
         assert_eq!(by_run["r1"][0].task_id, "task-a");
         assert_eq!(by_run["r2"].len(), 1);
@@ -421,10 +427,7 @@ mod tests {
             .await
             .expect("record selection event");
 
-        let runs = db
-            .list_harness_eval_runs(10)
-            .await
-            .expect("list runs");
+        let runs = db.list_harness_eval_runs(10).await.expect("list runs");
         assert_eq!(runs.len(), 1);
         assert_eq!(runs[0].run_id, run.run_id);
         assert_eq!(runs[0].pass_count, 1);

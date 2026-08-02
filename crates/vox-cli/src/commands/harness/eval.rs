@@ -349,7 +349,9 @@ impl TaskOutcome {
 /// subprocess call from a stored value. A well-formed value will always pass; this only ever
 /// rejects something that slipped through some other write path.
 fn is_valid_git_sha(s: &str) -> bool {
-    (7..=40).contains(&s.len()) && s.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+    (7..=40).contains(&s.len())
+        && s.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
 }
 
 pub async fn run(args: EvalArgs) -> anyhow::Result<()> {

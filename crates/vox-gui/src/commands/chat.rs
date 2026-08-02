@@ -659,7 +659,10 @@ mod tests {
         };
         let j = serde_json::to_string(&dto).unwrap();
         assert!(!j.contains("model_id"), "model_id absent when None: {j}");
-        assert!(!j.contains("latency_ms"), "latency_ms absent when None: {j}");
+        assert!(
+            !j.contains("latency_ms"),
+            "latency_ms absent when None: {j}"
+        );
         assert!(
             !j.contains("selection_reason"),
             "selection_reason absent when None: {j}"

@@ -522,166 +522,164 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     );
     let llm_started = std::time::Instant::now();
 
-    let (response_text, model_used, tokens, selection_reason) = match params
-        .cognitive_profile
-        .as_deref()
-    {
-        Some(profile) => {
-            let resolution_template = McpChatModelResolution {
-                allow_cheapest_fallback: profile == "fast",
-                complexity: match profile {
-                    "reasoning" => 9,
-                    "creative" => 7,
-                    _ => 5,
-                },
-                ..Default::default()
-            };
-            let base_temperature = if profile == "creative" {
-                0.8_f32
-            } else {
-                0.3_f32
-            };
-            match resolve_chat_llm_model(
-                state,
-                &user_prompt,
-                resolution_template.clone(),
-                Some(session_id.as_str()),
-            )
-            .await
-            {
-                Ok((model, free_only)) => {
-                    let pref = match crate::sync_poison::poison_rw_read(
-                        state.mcp_chat_model_override.read(),
-                        "mcp_chat_model_override",
-                    ) {
-                        Ok(g) => g.clone(),
-                        Err(e) => {
-                            tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
-                            None
-                        }
-                    };
-                    let max_tokens =
-                        crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
-                    let routing = McpInferRouting {
-                        user_prompt: &user_prompt,
-                        sticky_model_pref: pref.as_deref(),
-                        resolution_template,
-                        free_only,
-                        allow_cloud_ollama_fallback: true,
-                        selection_rationale: None,
-                        user_id: Some(session_id.as_str()),
-                    };
-                    match crate::llm_bridge::mcp_infer_completion(
-                        state,
-                        model,
-                        "vox_chat_message",
-                        &system_prompt,
-                        &routing,
-                        max_tokens,
-                        base_temperature,
-                        params.temperature,
-                        params.top_p,
-                        params.json_mode,
-                        params.attachment_manifest.clone(),
-                    )
-                    .await
-                    {
-                        // `mcp_infer_completion` doesn't surface a selection rationale
-                        // (its `McpInferRouting.selection_rationale` above is `None`
-                        // on the cognitive-profile path) — no `selection_reason` here.
-                        Ok(r) => (r.0, r.1, r.2, None),
-                        Err(e) => {
-                            return ToolResult::<String>::err_with_remediation(
-                                format!("LLM error: {e}"),
-                                REM_LLM_COMPLETION,
-                            )
-                            .to_json();
-                        }
-                    }
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        target: "vox_mcp::cognitive_routing",
-                        profile,
-                        error = %e,
-                        "cognitive profile model resolution failed — using standard routing"
-                    );
-                    match call_llm(
-                        state,
-                        &system_prompt,
-                        &user_prompt,
-                        Some(session_id.as_str()),
-                        params.temperature,
-                        params.top_p,
-                        params.attachment_manifest.clone(),
-                    )
-                    .await
-                    {
-                        Ok(r) => (r.0, r.1, r.2, None),
-                        Err(e2) => {
-                            return ToolResult::<String>::err_with_remediation(
-                                format!("LLM error: {e2}"),
-                                REM_LLM_COMPLETION,
-                            )
-                            .to_json();
-                        }
-                    }
-                }
-            }
-        }
-        // Default (no cognitive_profile) chat path: Task 1.3d (F24 wiring). Attempt
-        // the tool-calling agent loop (Task 1.3c) whenever the resolved model maps
-        // to a simple provider shape and no multimodal attachment is present (the
-        // mapper does not handle vision/attachment content — see
-        // `super::agent_loop::model_spec_to_llm_config`). Otherwise fall back to
-        // the existing `call_llm` -> `mcp_infer_completion` pipeline unchanged,
-        // which still handles every other provider plus vision/budget/fallback.
-        None => match try_run_agent_turn(
-            state,
-            &system_prompt,
-            &user_prompt,
-            session_id.as_str(),
-            params.skill.clone(),
-            params.attachment_manifest.is_some(),
-            params.temperature,
-            params.top_p,
-        )
-        .await
-        {
-            Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason),
-            Some(Err(e)) => {
-                return ToolResult::<String>::err_with_remediation(
-                    format!("LLM error: {e}"),
-                    REM_LLM_COMPLETION,
+    let (response_text, model_used, tokens, selection_reason) =
+        match params.cognitive_profile.as_deref() {
+            Some(profile) => {
+                let resolution_template = McpChatModelResolution {
+                    allow_cheapest_fallback: profile == "fast",
+                    complexity: match profile {
+                        "reasoning" => 9,
+                        "creative" => 7,
+                        _ => 5,
+                    },
+                    ..Default::default()
+                };
+                let base_temperature = if profile == "creative" {
+                    0.8_f32
+                } else {
+                    0.3_f32
+                };
+                match resolve_chat_llm_model(
+                    state,
+                    &user_prompt,
+                    resolution_template.clone(),
+                    Some(session_id.as_str()),
                 )
-                .to_json();
+                .await
+                {
+                    Ok((model, free_only)) => {
+                        let pref = match crate::sync_poison::poison_rw_read(
+                            state.mcp_chat_model_override.read(),
+                            "mcp_chat_model_override",
+                        ) {
+                            Ok(g) => g.clone(),
+                            Err(e) => {
+                                tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
+                                None
+                            }
+                        };
+                        let max_tokens =
+                            crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
+                        let routing = McpInferRouting {
+                            user_prompt: &user_prompt,
+                            sticky_model_pref: pref.as_deref(),
+                            resolution_template,
+                            free_only,
+                            allow_cloud_ollama_fallback: true,
+                            selection_rationale: None,
+                            user_id: Some(session_id.as_str()),
+                        };
+                        match crate::llm_bridge::mcp_infer_completion(
+                            state,
+                            model,
+                            "vox_chat_message",
+                            &system_prompt,
+                            &routing,
+                            max_tokens,
+                            base_temperature,
+                            params.temperature,
+                            params.top_p,
+                            params.json_mode,
+                            params.attachment_manifest.clone(),
+                        )
+                        .await
+                        {
+                            // `mcp_infer_completion` doesn't surface a selection rationale
+                            // (its `McpInferRouting.selection_rationale` above is `None`
+                            // on the cognitive-profile path) — no `selection_reason` here.
+                            Ok(r) => (r.0, r.1, r.2, None),
+                            Err(e) => {
+                                return ToolResult::<String>::err_with_remediation(
+                                    format!("LLM error: {e}"),
+                                    REM_LLM_COMPLETION,
+                                )
+                                .to_json();
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "vox_mcp::cognitive_routing",
+                            profile,
+                            error = %e,
+                            "cognitive profile model resolution failed — using standard routing"
+                        );
+                        match call_llm(
+                            state,
+                            &system_prompt,
+                            &user_prompt,
+                            Some(session_id.as_str()),
+                            params.temperature,
+                            params.top_p,
+                            params.attachment_manifest.clone(),
+                        )
+                        .await
+                        {
+                            Ok(r) => (r.0, r.1, r.2, None),
+                            Err(e2) => {
+                                return ToolResult::<String>::err_with_remediation(
+                                    format!("LLM error: {e2}"),
+                                    REM_LLM_COMPLETION,
+                                )
+                                .to_json();
+                            }
+                        }
+                    }
+                }
             }
-            None => match call_llm(
+            // Default (no cognitive_profile) chat path: Task 1.3d (F24 wiring). Attempt
+            // the tool-calling agent loop (Task 1.3c) whenever the resolved model maps
+            // to a simple provider shape and no multimodal attachment is present (the
+            // mapper does not handle vision/attachment content — see
+            // `super::agent_loop::model_spec_to_llm_config`). Otherwise fall back to
+            // the existing `call_llm` -> `mcp_infer_completion` pipeline unchanged,
+            // which still handles every other provider plus vision/budget/fallback.
+            None => match try_run_agent_turn(
                 state,
                 &system_prompt,
                 &user_prompt,
-                Some(session_id.as_str()),
+                session_id.as_str(),
+                params.skill.clone(),
+                params.attachment_manifest.is_some(),
                 params.temperature,
                 params.top_p,
-                params.attachment_manifest.clone(),
             )
             .await
             {
-                // `call_llm` resolves via the rationale-carrying resolver internally
-                // but doesn't return the rationale through its `(String, String, u64)`
-                // return type — out of scope for this task (see `try_run_agent_turn`'s
-                // doc comment); `selection_reason` is `None` on this fallback path.
-                Ok(r) => (r.0, r.1, r.2, None),
-                Err(e) => {
+                Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason),
+                Some(Err(e)) => {
                     return ToolResult::<String>::err_with_remediation(
                         format!("LLM error: {e}"),
                         REM_LLM_COMPLETION,
                     )
                     .to_json();
                 }
+                None => match call_llm(
+                    state,
+                    &system_prompt,
+                    &user_prompt,
+                    Some(session_id.as_str()),
+                    params.temperature,
+                    params.top_p,
+                    params.attachment_manifest.clone(),
+                )
+                .await
+                {
+                    // `call_llm` resolves via the rationale-carrying resolver internally
+                    // but doesn't return the rationale through its `(String, String, u64)`
+                    // return type — out of scope for this task (see `try_run_agent_turn`'s
+                    // doc comment); `selection_reason` is `None` on this fallback path.
+                    Ok(r) => (r.0, r.1, r.2, None),
+                    Err(e) => {
+                        return ToolResult::<String>::err_with_remediation(
+                            format!("LLM error: {e}"),
+                            REM_LLM_COMPLETION,
+                        )
+                        .to_json();
+                    }
+                },
             },
-        },
-    };
+        };
 
     // KB signal adapter: fire-and-forget after response is assembled
     if let Some(db) = state.db.clone() {
@@ -1056,8 +1054,8 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::Arc;
     use tokio::sync::Mutex;
-    use vox_orchestrator::models::{ModelCapabilities, ModelSpec, ProviderType};
     use vox_orchestrator::models::spec::PricingSource;
+    use vox_orchestrator::models::{ModelCapabilities, ModelSpec, ProviderType};
     use vox_orchestrator::{
         AffinityGroupRegistry, Orchestrator, OrchestratorConfig, SessionConfig, SessionManager,
     };
