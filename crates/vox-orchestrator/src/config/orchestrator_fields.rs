@@ -14,6 +14,30 @@ use super::enums::{CostPreference, OverflowStrategy, ScalingProfile};
 use super::news::NewsConfig;
 use super::scientia_research_mesh::ScientiaResearchMeshConfig;
 
+/// One override entry: a clutch and/or risk label (parsed via
+/// `ClutchProfile::from_label`/`RiskPosture::from_label`). Either may be
+/// `None` — an override can set just one axis, letting the other fall through
+/// to the next precedence level.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TaskPolicyEntry {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clutch: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub risk: Option<String>,
+}
+
+/// User overrides for the per-task-type cost/model policy, loaded from
+/// `[orchestrator.task_policy.category]` / `[orchestrator.task_policy.source]`
+/// in Vox.toml. Keys are `TaskCategory`/`TriggerSource` Debug names (e.g.
+/// `"CodeGen"`, `"Automated"`).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TaskPolicyOverrides {
+    #[serde(default)]
+    pub category: std::collections::HashMap<String, TaskPolicyEntry>,
+    #[serde(default)]
+    pub source: std::collections::HashMap<String, TaskPolicyEntry>,
+}
+
 // `VoxConfig` is opt-in per field (`#[config(...)]`); un-annotated fields are
 // ignored. Defaults here MUST equal `impl_default.rs`. NOT `#[derive(Default)]` —
 // the hand-written `impl Default` (impl_default.rs) is retained. Enums without
@@ -537,6 +561,11 @@ pub struct OrchestratorConfig {
     /// Optional configuration for the orchestrator-policy budget gate (D7).
     #[serde(default)]
     pub budget_gate_config: Option<crate::budget_gate::BudgetGateConfig>,
+    /// Per-task-type cost/model policy overrides (category + trigger-source).
+    /// See `crate::mode::resolve_task_policy` for how these combine with the
+    /// compiled defaults.
+    #[serde(default)]
+    pub task_policy: TaskPolicyOverrides,
     /// Catch-all for `[orchestrator]` keys this binary doesn't recognize (e.g.
     /// a newer binary added a field this one predates). Never populated by
     /// hand; `#[serde(flatten)]` routes anything that doesn't match a named

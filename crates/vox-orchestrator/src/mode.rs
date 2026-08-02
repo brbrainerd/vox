@@ -597,3 +597,124 @@ mod task_policy_resolver_tests {
         assert_eq!(risk, RiskPosture::Low, "explicit risk unset, category risk wins over source risk");
     }
 }
+
+/// Merge the live Vox.toml override (if any and parseable) with the compiled
+/// `DEFAULT_CATEGORY_POLICY` for one category. Returns each axis
+/// INDEPENDENTLY as its own `Option` — an override that sets only `clutch`
+/// resolves `(Some(_), None)`, not a forced pair, so `resolve_task_policy`
+/// can let the unset axis fall through to the source-level policy. Logs a
+/// `tracing::warn!` once per lookup when the override map has an entry for
+/// this key but neither axis parses (a malformed/typo'd label).
+#[must_use]
+pub fn effective_category_policy(
+    overrides: &crate::config::TaskPolicyOverrides,
+    category: crate::types::TaskCategory,
+) -> (Option<ClutchProfile>, Option<RiskPosture>) {
+    let key = format!("{category:?}");
+    if let Some(entry) = overrides.category.get(&key) {
+        let clutch = entry.clutch.as_deref().and_then(ClutchProfile::from_label);
+        let risk = entry.risk.as_deref().and_then(RiskPosture::from_label);
+        if clutch.is_none() && risk.is_none() && (entry.clutch.is_some() || entry.risk.is_some()) {
+            tracing::warn!(category = %key, clutch = ?entry.clutch, risk = ?entry.risk, "task_policy category override has an unparseable clutch/risk label; falling through to compiled default");
+        }
+        if clutch.is_some() || risk.is_some() {
+            let default = DEFAULT_CATEGORY_POLICY.iter().find(|p| p.category == category);
+            return (
+                clutch.or_else(|| default.map(|p| p.clutch)),
+                risk.or_else(|| default.map(|p| p.risk)),
+            );
+        }
+    }
+    match DEFAULT_CATEGORY_POLICY.iter().find(|p| p.category == category) {
+        Some(p) => (Some(p.clutch), Some(p.risk)),
+        None => (None, None),
+    }
+}
+
+/// Same merge as [`effective_category_policy`], for `TriggerSource`.
+#[must_use]
+pub fn effective_source_policy(
+    overrides: &crate::config::TaskPolicyOverrides,
+    source: TriggerSource,
+) -> (Option<ClutchProfile>, Option<RiskPosture>) {
+    let key = format!("{source:?}");
+    if let Some(entry) = overrides.source.get(&key) {
+        let clutch = entry.clutch.as_deref().and_then(ClutchProfile::from_label);
+        let risk = entry.risk.as_deref().and_then(RiskPosture::from_label);
+        if clutch.is_none() && risk.is_none() && (entry.clutch.is_some() || entry.risk.is_some()) {
+            tracing::warn!(source = %key, clutch = ?entry.clutch, risk = ?entry.risk, "task_policy source override has an unparseable clutch/risk label; falling through to compiled default");
+        }
+        if clutch.is_some() || risk.is_some() {
+            let default = DEFAULT_SOURCE_POLICY.iter().find(|p| p.source == source);
+            return (
+                clutch.or_else(|| default.map(|p| p.clutch)),
+                risk.or_else(|| default.map(|p| p.risk)),
+            );
+        }
+    }
+    match DEFAULT_SOURCE_POLICY.iter().find(|p| p.source == source) {
+        Some(p) => (Some(p.clutch), Some(p.risk)),
+        None => (None, None),
+    }
+}
+
+#[cfg(test)]
+mod effective_policy_tests {
+    use super::*;
+    use crate::config::{TaskPolicyEntry, TaskPolicyOverrides};
+    use crate::types::TaskCategory;
+    use std::collections::HashMap;
+
+    #[test]
+    fn override_wins_over_compiled_default_for_category() {
+        let mut category = HashMap::new();
+        category.insert(
+            "CodeGen".to_string(),
+            TaskPolicyEntry { clutch: Some("free".to_string()), risk: Some("high".to_string()) },
+        );
+        let overrides = TaskPolicyOverrides { category, source: HashMap::new() };
+        let (clutch, risk) = effective_category_policy(&overrides, TaskCategory::CodeGen);
+        assert_eq!(clutch, Some(ClutchProfile::Free));
+        assert_eq!(risk, Some(RiskPosture::High));
+    }
+
+    #[test]
+    fn missing_category_override_and_no_compiled_default_is_none() {
+        let overrides = TaskPolicyOverrides::default();
+        assert_eq!(effective_category_policy(&overrides, TaskCategory::Research), (None, None));
+    }
+
+    #[test]
+    fn malformed_override_label_falls_through_to_none() {
+        let mut source = HashMap::new();
+        source.insert(
+            "Automated".to_string(),
+            TaskPolicyEntry { clutch: Some("turbo".to_string()), risk: None },
+        );
+        let overrides = TaskPolicyOverrides { category: HashMap::new(), source };
+        assert_eq!(effective_source_policy(&overrides, TriggerSource::Automated), (None, None));
+    }
+
+    #[test]
+    fn partial_override_sets_one_axis_and_leaves_the_other_none() {
+        let mut category = HashMap::new();
+        category.insert(
+            "Research".to_string(),
+            TaskPolicyEntry { clutch: Some("genius".to_string()), risk: None },
+        );
+        let overrides = TaskPolicyOverrides { category, source: HashMap::new() };
+        assert_eq!(
+            effective_category_policy(&overrides, TaskCategory::Research),
+            (Some(ClutchProfile::Genius), None),
+            "a clutch-only override must resolve clutch and leave risk as None, not force a paired default"
+        );
+    }
+
+    #[test]
+    fn unknown_category_key_warns_once_and_falls_through() {
+        let mut category = HashMap::new();
+        category.insert("NotARealCategory".to_string(), TaskPolicyEntry { clutch: Some("free".to_string()), risk: Some("high".to_string()) });
+        let overrides = TaskPolicyOverrides { category, source: HashMap::new() };
+        assert_eq!(effective_category_policy(&overrides, TaskCategory::CodeGen), (None, None));
+    }
+}
