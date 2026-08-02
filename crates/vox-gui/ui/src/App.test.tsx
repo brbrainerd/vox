@@ -470,6 +470,52 @@ describe('App shell', () => {
     });
   });
 
+  // GroundingCheckToggle fix: the composer's opt-in grounding-check toggle
+  // (default off) must actually reach `chat_send_message`'s
+  // `grounding_check_enabled` arg for a plain chat send — before this fix the
+  // toggle's state was never threaded into the synchronous send path at all.
+  it('enabling the grounding check toggle forwards grounding_check_enabled=true to chat_send_message', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_send_message') {
+        return Promise.resolve({
+          id: 43,
+          role: 'assistant',
+          content: 'grounded reply',
+          created_at: '2026-08-02T00:00:00Z',
+          task_id: null,
+          model_id: 'openrouter/auto',
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+
+    // Accessible name comes from the button's `aria-label` ("Grounding check
+    // on/off"), not its visible text ("grounding: on/off") — RTL's `name`
+    // matcher matches the accessible name, so the pattern must include "check".
+    const groundingToggle = await screen.findByRole('button', { name: /grounding check (on|off)/i });
+    expect(groundingToggle).toHaveAttribute('aria-pressed', 'false');
+    await user.click(groundingToggle);
+    expect(groundingToggle).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(composer);
+    await user.type(composer, 'check this please');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+    );
+    const sendCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'chat_send_message');
+    expect(sendCall![1].input.grounding_check_enabled).toBe(true);
+  });
+
   // Fix Task 4 (gui-axis-chat-harness-fixes): a visible toggle in the composer
   // now lets the user choose "Quick chat" (the default, unchanged behavior
   // above) vs "Background task" — which reuses the same working
