@@ -20,7 +20,8 @@ use std::sync::OnceLock;
 //     domains::quarantine, gated by the `quarantine` feature (off by default); handoff_payloads'
 //     CollectionInfo entry gated the same way (Task 4, VoxDB audit condensation plan)
 // 86: feat(vox-db): harness_eval_run/task_result/model_selection_event tables
-pub const BASELINE_VERSION: i64 = 86;
+// 87: feat(scientia): add scientia_harness_issues/decisions/fix_proposals tables (harness issue discovery Phase 1)
+pub const BASELINE_VERSION: i64 = 87;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

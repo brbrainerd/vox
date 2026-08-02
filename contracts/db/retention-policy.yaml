@@ -62,3 +62,9 @@ tables:
     kind: ms_days
     days: 90
     time_column: recorded_at
+  # Harness issue discovery (Phase 1): written continuously by an on-by-default
+  # detector, with no other pruning mechanism. New/unproven volume — start wide.
+  scientia_harness_issues:
+    kind: ms_days
+    days: 180
+    time_column: detected_at_ms
