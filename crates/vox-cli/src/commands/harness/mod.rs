@@ -4,6 +4,7 @@
 use clap::{Parser, Subcommand};
 
 pub mod eval;
+pub mod live_eval;
 
 /// Evaluate the harness itself against a small golden task set (`vox harness`).
 #[derive(Parser)]
