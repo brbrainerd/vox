@@ -7,12 +7,12 @@ use vox_orchestrator::services::embeddings::EmbeddingService;
 /// Progress reporting callback for research operations.
 pub type ProgressCallback = dyn Fn(String, Option<f32>) + Send + Sync + 'static;
 
-/// Anti-laziness rider for all research LLM prompts.
-pub(super) const ANTI_LAZINESS_RIDER: &str = "
-<anti_laziness_rider>
-DO NOT summarize or skip steps. DO NOT provide stubs, placeholders, or 'TODO' blocks. Implement ALL requested logic in full detail.
-If providing a plan, ensure it is exhaustive and execution-ready. Laziness will be penalized with a 0 quality score.
-</anti_laziness_rider>";
+/// Completeness rider for all research LLM prompts.
+pub(super) const RESEARCH_COMPLETENESS_RIDER: &str = "
+<research_completeness_rider>
+Cite every material claim. Do not omit contradicting evidence. Do not pad the summary with unsupported filler.
+</research_completeness_rider>
+";
 
 /// Configuration for a single research run.
 #[derive(Clone)]

@@ -42,6 +42,7 @@ fn supported_result(session_id: i64, quality: i32) -> ResearchResult {
                     text: "supported".to_string(),
                     span_type: SpanType::Supporting,
                 }],
+                resample_stability: 1.0,
             }],
             retrieval_diagnostics: RetrievalDiagnostics::default(),
             quality_score: quality,
@@ -49,6 +50,7 @@ fn supported_result(session_id: i64, quality: i32) -> ResearchResult {
             competence: None,
             self_verification: None,
             citation_audit: None,
+            corroboration_counts: vec![],
         },
     }
 }

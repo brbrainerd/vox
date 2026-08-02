@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-fn fnv1a(s: &str) -> u64 {
+pub fn fnv1a(s: &str) -> u64 {
     let mut hash: u64 = 14_695_981_039_346_656_037;
     for byte in s.bytes() {
         hash ^= byte as u64;
@@ -11,7 +11,7 @@ fn fnv1a(s: &str) -> u64 {
     hash
 }
 
-fn shingle_hashes(content: &str, n: usize) -> Vec<u64> {
+pub fn shingle_hashes(content: &str, n: usize) -> Vec<u64> {
     if content.is_empty() {
         return Vec::new();
     }

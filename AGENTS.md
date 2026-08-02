@@ -117,7 +117,7 @@ Rules for any agent writing docs:
 
 Use Clavis for API keys, tokens, and credentials. Do not introduce new direct secret reads from environment variables in consumers.
 
-- Define and maintain secret metadata in `crates/vox-secrets/src/spec.rs`.
+- Define and maintain secret metadata in `crates/vox-secrets/src/spec/` (the `SecretId` enum lives in `spec/ids.rs`; entries live under `spec/registry/`).
 - Resolve secrets with `vox_secrets::resolve_secret(...)`.
 - Keep resolver/source behavior in `crates/vox-secrets/src/resolver.rs` and `crates/vox-secrets/src/sources/*`.
 - After secret-surface changes, run `vox ci secret-env-guard` and `vox ci secrets-parity`.
@@ -130,7 +130,7 @@ Naming policy:
 
 API key lifecycle checklist:
 
-1. Add `SecretId` and `SecretSpec` entries in `crates/vox-secrets/src/spec.rs`.
+1. Add `SecretId` and `SecretSpec` entries in `crates/vox-secrets/src/spec/` (`spec/ids.rs` for the enum, `spec/registry/` for entries).
 2. Migrate callsites to `vox_secrets::resolve_secret(...)`.
 3. Update `vox secrets doctor` workflow/profile expectations when requirements change.
 4. Keep docs in sync at `docs/src/reference/secrets-ssot.md`.
@@ -228,13 +228,12 @@ Vox source follows one rule for top-level declarations:
 > **Bare-keyword blocks declare scope. Decorators modify declarations.**
 
 **Bare-keyword blocks** (each opens a scope with its own rules):
-`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`.
-**Reserved (ADR-028, not yet implemented):** `workflow`, `activity`.
+`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`, `workflow`, `activity`
+(the last two stable per ADR-041 — see Implementation status below).
 
 **Decorators** (modifiers composed on top of a declaration):
 `@table`, `@query`, `@mutation`, `@server`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`,
-`@v0`, `@test`.
-**Reserved (ADR-028, not yet implemented):** `@durable`, `@scheduled`.
+`@v0`, `@test`, `@durable`, `@scheduled` (the last two stable per ADR-041 — see Implementation status below).
 **Removed in v0.6.0:** `@endpoint` (see §Retired Surfaces).
 
 Decorators compose with bare-keyword blocks:
@@ -250,15 +249,7 @@ Decorators compose with bare-keyword blocks:
 that can be expressed as a decorator. New execution semantics (durability,
 tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 
-**Implementation status (ADR-041 supersedes ADR-028).** `actor`, `workflow`, `activity`,
-`@durable`, and `@scheduled` are **stable public-grammar features** backed by a durable runtime
-for the supported subset; the old `E028` reservation gate is **removed**, and out-of-subset
-behavior is now policed by the determinism lint, not a reservation gate. Supported subset +
-contract: [ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md),
-[ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md),
-[ADR-041](docs/src/adr/041-durable-functions-completion-2026.md). Drift between this section and
-`pipeline.rs` is caught by the [`docs-reality-audit-program`](docs/src/contributors/docs-reality-audit-program.md)
-(and the planned `vox ci retirement-audit` gate, [CR-L6](docs/src/architecture/v1-llm-target-implementation-plan-2026.md) P1.3).
+**Implementation status.** `actor`/`workflow`/`activity` and `@durable`/`@scheduled` are stable, backed by a durable runtime for the supported subset (ADR-041 supersedes the old ADR-028 reservation gate — out-of-subset behavior is now policed by the determinism lint, not a reservation gate). Contract: [ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md), [ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md), [ADR-041](docs/src/adr/041-durable-functions-completion-2026.md). Drift between this section and `pipeline.rs` is checked by the [`docs-reality-audit-program`](docs/src/contributors/docs-reality-audit-program.md).
 
 ## Cross-Platform Shell Discipline (Stable Rules)
 
@@ -273,7 +264,7 @@ contract: [ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md),
 - Keep commands decomposed into clear steps when safety or portability is at risk.
 
 Environment-specific overlays (for example Antigravity on Windows) add stricter command-shape rules on top of this base; see [`GEMINI.md`](GEMINI.md). If Claude Code is in use, also see [`CLAUDE.md`](CLAUDE.md) for Claude-specific additions.
-For Cursor-specific rules see [`.cursor/rules/`](.cursor/rules/) — four `.mdc` rule files control build environment, CI runner conventions, CLI registry, and source hygiene.
+For Cursor-specific rules see [`.cursor/rules/`](.cursor/rules/) — nine `.mdc` rule files covering build environment, CI runner conventions, CLI command registry, cross-platform source hygiene, data storage policy, documentation policy, retired surfaces, secrets policy, and VoxScript-first automation.
 
 Live SSOT (scoped claim + evidence): [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md). **Vox stdlib vs shells:** [`docs/src/architecture/vox-shell-stdlib-ssot-2026.md`](docs/src/architecture/vox-shell-stdlib-ssot-2026.md) — `std.fs` / `std.process` are argv‑first Rust builtins; they do not lower to PowerShell/bash. Optional A/B eval design (not run, not required): [`docs/src/architecture/agent-shell-fluency-eval-design-2026.md`](docs/src/architecture/agent-shell-fluency-eval-design-2026.md). Archived 2026-Q1 background research is under `docs/src/archive/research-2026-q1/` — do not ingest autonomously per §Archival Protocol.
 
@@ -303,7 +294,7 @@ In Vox, tests are not just regression catchers — they are training data for th
 
 > **Canonical budgets:** `contracts/budgets/test-tier-budgets.v1.yaml`
 > **Full tier spec:** `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md §4`
-> **Per-flag details:** `docs/src/contributors/local-ci-pre-push.md`
+> **Full tier table + per-flag details:** `docs/src/contributors/local-ci-pre-push.md` — do not restate the tier table here, it drifts.
 
 **Run CI locally first — do NOT use GitHub Actions as your primary feedback loop (Required).**
 GitHub-hosted CI is slow (minutes-to-tens-of-minutes per push) and burns runner
@@ -334,19 +325,12 @@ Push only after the local equivalent of the gates you expect to run is green. Tr
 a red GitHub check whose local equivalent passes as a runner/environment difference
 to reproduce locally (via `--act`), not as something to fix by repeated pushes.
 
-Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo run -q -p vox-cli -- ci install-hooks`.
-
-| Tier | Command | What runs | Target wall-clock |
-|---|---|---|---:|
-| **fast** (default / hook) | `vox ci pre-push` | fmt, line-endings, ssot-drift, runner-policy-check, workflow-concurrency-guard, scoped doc lint + doctest, drift-check | ≤60s |
-| **complete** | `vox ci pre-push --complete` | fast + full doc lint, doc-inventory, clippy, scoped TOESTUB | ≤180s |
-| **full** | `vox ci pre-push --full` | complete + nextest workspace (slow excluded) | ≤120s |
-| **full+cov** | `vox ci pre-push --full --with-coverage` | full but llvm-cov nextest; emits lcov + HTML | ≤260s |
-| **full+since** | `vox ci pre-push --full --since <ref>` | full, nextest for impacted crates only | ≤20s (1–3 crate edit) |
-| **full+cov+since** | `vox ci pre-push --full --with-coverage --since <ref>` | combination of full+cov + since | ≤30s typical |
-| **ci-equivalent** | `vox ci pre-push --full --with-coverage --include-slow` | full+cov + slow `#[ignore]` partition | ≤480s |
-
-**Slow-test partition** (`--include-slow`): runs three `#[ignore = "slow; ..."]` tests that are excluded by default. CI always sets this flag. The 3 tests are: `arch_check_live_workspace_smoke_and_description_rule`, `timeout_kills_long_running_child`, `generated_ai_fixture_bundle_passes_cargo_check`.
+Use `vox ci pre-push` to run any tier locally (default = **fast**, ≤60s: fmt, line-endings,
+ssot-drift, runner-policy-check, workflow-concurrency-guard, scoped doc lint + doctest,
+drift-check). Install the hook once with `cargo run -q -p vox-cli -- ci install-hooks`. The
+full tier list (complete / full / full+cov / full+since / full+cov+since / ci-equivalent),
+their exact flags, and the `--include-slow` slow-test names live in
+[`local-ci-pre-push.md`](docs/src/contributors/local-ci-pre-push.md) — not restated here.
 
 **Budget enforcement:** `--enforce-budgets` compares total elapsed against `contracts/budgets/test-tier-budgets.v1.yaml` (warn at 1.2×, fail at 1.5× measured baseline). No-op if the budgets file is absent. CI also runs `vox ci tier-budget-check --junit target/nextest/ci/junit.xml --profile full` after each nextest run.
 
@@ -414,6 +398,7 @@ Details: `docs/src/ci/local-first-ci.md`.
 - **Async handler / async-test regression (codegen).** `@query`/`@mutation` handler emission must `await` (handler_await); and merges have silently reverted async tests to sync (`vox-vcs` cas_fallback). On a merge that touches async code/tests, re-confirm they're still `async` before pushing.
 - **SSOT / schema drift** (largest class, 103 fixes) — already gated by `vox ci ssot-drift` (+ the `ssot-autoregen` PR bot). Don't hand-regenerate after merge; see §Local CI Gate Tiers.
 - **`vox-gui` sidecar missing in a fresh worktree.** `cargo build`/`test -p vox-gui` fails inside `tauri-build` ("resource path ... doesn't exist") the first time ANY `git worktree add` builds it — each worktree gets its own `target/` (per-worktree by design, see `.cargo/config.toml`), so the release `vox` binary Tauri bundles as an `externalBin` sidecar doesn't exist yet. `crates/vox-gui/build.rs` and `vox doctor` both name the missing path and the fix: run `vox run scripts/gui-build.vox` (or `cargo build -p vox-cli --release` then copy `target/release/vox[.exe]` to the triple-suffixed sidecar path) once per worktree before building `vox-gui`.
+- **Parallel-agent fmt drift.** When multiple agents/worktrees touch overlapping crates concurrently, `rustfmt` drift from one session's edits routinely lands unformatted in another's commit. Before merging work assembled from parallel sessions, run `vox run scripts/fmt.vox` (or `VOX_FMT_CHECK=1 vox run scripts/fmt.vox` to check only).
 
 Coverage of these classes by detector + severity + enforcement point (and the still-open gaps) is tracked in [`detector-coverage-ledger.md`](docs/src/contributors/detector-coverage-ledger.md) — add a row when you add a detector.
 
@@ -421,26 +406,14 @@ Coverage of these classes by detector + severity + enforcement point (and the st
 
 > **Canonical config:** `.coderabbit.yaml` (repo root; CodeRabbit reads it from the **default branch**).
 
-Automated PR review (CodeRabbit) is **rate-limited and shared**: every branch, every
-Claude Code tab/worktree, and every IDE you use pushes as the **same GitHub identity**,
-so they all draw from **one** per-developer review allowance (Pro tier: ~5 PR reviews/hour,
-refilling over time, throttled further under sustained bursts). Treating every `git push`
-as a review request drains that allowance in minutes and stalls all your other work.
-
-**Repo policy (enforced by `.coderabbit.yaml`):** `auto_review.auto_incremental_review:
-false` — CodeRabbit reviews a PR **once when it opens** and does **not** auto-review
-subsequent pushes. Re-review is **on demand only**.
+Automated PR review (CodeRabbit) is **rate-limited and shared** across every branch, worktree, and IDE (same GitHub identity, one per-developer allowance) — and `.coderabbit.yaml` sets `auto_review.auto_incremental_review: false`, so a PR is reviewed **once on open**, never automatically on later pushes.
 
 Therefore, across **all** branches/tabs/IDEs:
 
-- **Batch commits; push once when the PR is review-ready** — not after every commit. (This
-  is the same "don't re-push to iterate" rule as the CI gate tiers above, applied to review.)
-- **Request re-review explicitly** by commenting **`@coderabbitai review`** on the PR when
-  you actually want fresh eyes — never by pushing repeatedly.
-- **Don't open a PR before the work is review-ready.** If you must push early, keep the PR a
-  **Draft** (drafts are not auto-reviewed; `auto_review.drafts: false`).
-- The `vox ci pre-push` hook prints an **advisory** reminder when you re-push a branch that
-  already has an upstream (the proxy for an open PR). It never blocks the push.
+- **Batch commits; push once when the PR is review-ready** — not after every commit.
+- **Request re-review explicitly** by commenting **`@coderabbitai review`** — never by pushing repeatedly.
+- **Don't open a PR before it's review-ready.** If you must push early, keep it a **Draft** (`auto_review.drafts: false`).
+- `vox ci pre-push` prints an **advisory** reminder on re-push to a branch with an upstream; it never blocks.
 
 One-line takeaway: **one deliberate review per ready PR**, not one per push.
 
@@ -471,6 +444,8 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `axum::serve`, `rust-embed` (for generated desktop/mobile apps) | Tauri 2 runtime (Axum is retained for native-binary/server targets only) |
 | `vox-sherpa-transcribe` (Capacitor plugin) | `vox-tauri-stt` (native Tauri STT plugin) |
 
+Memory-write APIs are not a simple retirement pair: for writing facts, use `MemoryManager::persist_fact`; `sync_to_db()` bulk-syncs `MEMORY.md` → DB only and is **not** a drop-in replacement for `persist_fact`.
+
 ### Deprecation Annotations
 
 Any vestigial code remaining from an active migration (e.g. Tauri convergence) MUST be marked with an inline deprecation annotation so `vox ci retirement-audit` can track it.
@@ -481,31 +456,13 @@ Every vestigial call site must carry this marker until it is fully removed by it
 
 ## Versioning Policy (SSOT)
 
-The workspace uses a **single source of truth** for all crate versions:
+Single source of truth: `Cargo.toml [workspace.package] version`. All first-party crates inherit it via `version.workspace = true`; plugin crates (`vox-plugin-*`) version independently.
 
-```toml
-# Cargo.toml [workspace.package]
-version = "0.6.0"
-```
+**Version scheme:** `MAJOR.MINOR.PATCH+build.N (GITHASH)` — `MAJOR.MINOR`/`PATCH` are human-bumped (or git-cliff on tag for `PATCH`); `+build.N`/`(GITHASH)` are injected automatically by `vox-build-meta` in `build.rs` on every commit.
 
-All first-party crates inherit this via `version.workspace = true`. Plugin crates (`vox-plugin-*`) maintain independent versions on their own release cadence.
+**After bumping `MAJOR.MINOR`:** update `CHANGELOG.md` with a `## [X.Y.Z] - YYYY-MM-DD` entry — `vox-arch-check` Rule 6 uses this date to flag crates that haven't changed in the new release cycle (mark intentionally-stable crates `staleness_exempt = true` in `layers.toml`).
 
-**Version scheme:** `MAJOR.MINOR.PATCH+build.N (GITHASH)`
-
-| Component | Owner | How it changes |
-|---|---|---|
-| `MAJOR.MINOR` | Human (manual bump in `Cargo.toml`) | Breaking or feature releases |
-| `PATCH` | Human (manual bump) or git-cliff on tag | Bugfix releases |
-| `+build.N` | Automatic (`vox-build-meta` in `build.rs`) | Every merged commit |
-| `(GITHASH)` | Automatic (`vox-build-meta`) | Every commit, diagnostics only |
-
-**After bumping `MAJOR.MINOR`:** update `CHANGELOG.md` with a `## [X.Y.Z] - YYYY-MM-DD` entry. This date is the threshold used by `vox-arch-check` Rule 6 (staleness check) to flag crates that haven't changed in the new release cycle.
-
-**Documentation version = compiler version.** Do not maintain a separate "doc version" (e.g., 0.8). All release notes live under `docs/news/YYYY-MM-DD-vX.Y.Z-release.md` and reference the same `X.Y.Z` as `Cargo.toml`.
-
-**Build metadata injection:** Add `vox-build-meta` to `[build-dependencies]` and call `vox_build_meta::emit()` from `build.rs` in any binary that displays its version. The `VOX_BUILD_NUMBER` and `VOX_GIT_HASH` env vars are then available via `env!()`.
-
-**Staleness check:** `vox-arch-check` Rule 6 warns when a crate has had no commits since the last `CHANGELOG.md` release date. Use `staleness_exempt = true` in `layers.toml` for crates that are intentionally stable (e.g., `workspace-hack`, build helpers).
+**Documentation version = compiler version.** Do not maintain a separate "doc version." Release notes live under `docs/news/YYYY-MM-DD-vX.Y.Z-release.md`, same `X.Y.Z` as `Cargo.toml`.
 
 ## Structural Limits & Code Quality
 

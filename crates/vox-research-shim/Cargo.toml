@@ -27,6 +27,7 @@ vox-db = { workspace = true }
 vox-research-events = { workspace = true }
 vox-search = { workspace = true }  # tantivy/web-scrape gated graph-wide via vox-cli heavy-retrieval (WS2-T3)
 anyhow = { workspace = true }
+futures = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tokio = { workspace = true }

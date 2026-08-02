@@ -75,7 +75,7 @@ crates/
 
 ## TOESTUB Self-Enforcement
 
-Canonical CI/agents path: **`bash scripts/quality/toestub_scoped.sh`** (or `cargo run -p vox-code-audit --bin toestub -- <PATH>`).
+Canonical CI/agents path: **`vox ci toestub-scoped`** (or `cargo run -p vox-code-audit --bin toestub -- <PATH>`).
 
 With **`cargo build -p vox-cli --features stub-check`**, the same rules are available as:
 
@@ -84,10 +84,7 @@ vox stub-check --path .
 ```
 
 See `docs/src/reference/cli.md` for flags (`--suggest-fixes`, not `--fix`).
-God-object thresholds (from `vox-schema.json`):
-- Files > 500 lines → warning
-- Structs > 12 methods → warning
-- Directories > 20 files → warning
+God-object / sprawl thresholds: see [`governance.md` §God Object Limit](governance.md#god-object-limit-multi-tier) (multi-tier: 300 soft / 400 warn / 500 error lines, or 12 methods; sprawl: 20 files/dir) — do not restate the numbers here, they drift.
 
 ## Build Environment Notes
 

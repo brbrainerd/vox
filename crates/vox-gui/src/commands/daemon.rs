@@ -131,14 +131,13 @@ impl PersistentDaemon {
     /// address nobody is listening on anymore.
     pub async fn ensure_live(&self) -> Result<String, String> {
         let cached = self.resolved.read().await.clone();
-        if let Some((addr, token)) = cached.clone() {
-            if let Ok(resp) = OrchDaemonClient::with_token(addr.clone(), token)
+        if let Some((addr, token)) = cached.clone()
+            && let Ok(resp) = OrchDaemonClient::with_token(addr.clone(), token)
                 .ping()
                 .await
-            {
-                *self.last_version_mismatch.write().await = detect_version_mismatch(&resp);
-                return Ok(addr);
-            }
+        {
+            *self.last_version_mismatch.write().await = detect_version_mismatch(&resp);
+            return Ok(addr);
         }
         // The cached entry (if any) failed its liveness ping — invalidate it
         // before calling `reensure` so its post-lock cache re-check does not

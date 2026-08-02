@@ -1,8 +1,8 @@
-//! Confidence gate + routing-tier selector. Phase 0a STUB — produces a flat
-//! score derived purely from citation count; no claim-level scoring.
-//!
-//! Phase 2 wires this to the symbolic-verifier strategies and the prereg
-//! enforcement layer. See:
+//! Confidence gate + routing-tier selector. `score_with_config` fuses four
+//! weighted signals — citation coverage, claim-support ratio, source
+//! diversity, and a guarded retrieval floor — not a flat citation-count
+//! score. See:
+//!   docs/src/architecture/deep-research-verification-2026-08-01.md
 //!   docs/src/architecture/scientia-self-publication-finalization-plan-2026.md §5.
 
 use serde::{Deserialize, Serialize};
@@ -10,7 +10,9 @@ use serde::{Deserialize, Serialize};
 use super::claims::Claim;
 use super::types::RoutingTier;
 
-/// Gate config. Phase 0a — placeholders for Phase 2 calibration knobs.
+/// Gate config. Both fields are live calibration knobs actively read by
+/// `score_with_config` (not placeholders) — see that function's doc for
+/// how each is used.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GateConfig {
     pub min_citations_for_full_score: Option<usize>,
@@ -40,7 +42,16 @@ impl Default for RoutingThresholds {
 pub struct GateInput<'a> {
     pub claims: &'a [Claim],
     pub citation_count: usize,
-    pub supported_claim_count: usize,
+    /// Sum of `ResearchHit.trust_score` across all cited hits. Falls back
+    /// to `citation_count as f32` at call sites that haven't wired a real
+    /// `TrustScorer` yet, preserving prior behavior exactly.
+    pub trust_weighted_citation_score: f32,
+    /// Sum of per-claim weights for `Supported` verdicts (each weighted by
+    /// `resample_stability` in `[0, 1]`, so a flaky claim contributes less
+    /// than a consistently-supported one). Kept as `f32` rather than a claim
+    /// *count* so that stability weighting survives into the gate score
+    /// instead of being destroyed by rounding to an integer count.
+    pub supported_claim_count: f32,
     pub distinct_domain_count: usize,
     pub no_retrieval_hits: bool,
     pub answer_is_empty: bool,
@@ -61,10 +72,12 @@ impl ConfidenceSignal {
         } else if self.score >= light {
             RoutingTier::Light
         } else if self.score < f32::EPSILON {
-            // PHASE_0a_STUB: exact-zero check is valid only while score_with_config
-            // produces an integer-derived float (citation_count / 5.0). Phase 2
-            // multi-signal fusion may produce non-zero scores with no retrieval hits;
-            // replace with `input.no_retrieval_hits` passed through the call chain.
+            // NOTE: score_with_config already returns exactly 0.0 when
+            // input.no_retrieval_hits is true (see the early return at the
+            // top of that function), so this exact-zero check is a correct,
+            // durable proxy for "no retrieval hits" today — it is not a
+            // stub pending replacement. If score_with_config's early-return
+            // behavior ever changes, this comment must be revisited.
             // No evidence at all → cheapest tier (don't burn cycles on deep
             // research with nothing to verify against).
             RoutingTier::Direct
@@ -74,10 +87,16 @@ impl ConfidenceSignal {
     }
 }
 
-/// Score a gate input. Phase 0a stub — flat function of citation count.
+/// Score a gate input by fusing four weighted signals: `citation_score`
+/// (0.35, citation count vs. `min_citations_for_full_score`),
+/// `claim_support_score` (0.30, the verifier's supported-claim ratio),
+/// `diversity_score` (0.20, distinct-domain count vs.
+/// `min_domains_for_full_score`), and a fixed `retrieval_score` (0.15,
+/// reachable only because `no_retrieval_hits` is guarded above — see
+/// `docs/src/architecture/deep-research-verification-2026-08-01.md`).
 ///
-/// Phase 2 replaces this with a fusion of symbolic-verifier strengths,
-/// claim-evidence coverage, and contradiction ratio.
+/// Phase 2 extends this with symbolic-verifier strategy weights and
+/// contradiction-ratio penalties.
 #[must_use]
 pub fn score_with_config(input: &GateInput<'_>, config: &GateConfig) -> ConfidenceSignal {
     if input.no_retrieval_hits {
@@ -85,11 +104,11 @@ pub fn score_with_config(input: &GateInput<'_>, config: &GateConfig) -> Confiden
     }
     let min_cit = (config.min_citations_for_full_score.unwrap_or(5) as f32).max(1.0);
     let min_dom = (config.min_domains_for_full_score.unwrap_or(4) as f32).max(1.0);
-    let citation_score = (input.citation_count as f32 / min_cit).clamp(0.0, 1.0);
+    let citation_score = (input.trust_weighted_citation_score / min_cit).clamp(0.0, 1.0);
     let claim_support_score = if input.claims.is_empty() {
         0.5
     } else {
-        (input.supported_claim_count as f32 / input.claims.len() as f32).clamp(0.0, 1.0)
+        (input.supported_claim_count / input.claims.len() as f32).clamp(0.0, 1.0)
     };
     let diversity_score = (input.distinct_domain_count as f32 / min_dom).clamp(0.0, 1.0);
     let score = citation_score * 0.35
@@ -178,7 +197,8 @@ mod semcov_wave2_tests {
         let input = GateInput {
             claims: &[],
             citation_count: 0,
-            supported_claim_count: 0,
+            trust_weighted_citation_score: 0.0,
+            supported_claim_count: 0.0,
             distinct_domain_count: 0,
             no_retrieval_hits: true,
             answer_is_empty: false,
@@ -193,7 +213,8 @@ mod semcov_wave2_tests {
         let input = GateInput {
             claims: &claims,
             citation_count: 5,
-            supported_claim_count: 4,
+            trust_weighted_citation_score: 5.0,
+            supported_claim_count: 4.0,
             distinct_domain_count: 4,
             no_retrieval_hits: false,
             answer_is_empty: false,
@@ -209,7 +230,8 @@ mod semcov_wave2_tests {
         let input = GateInput {
             claims: &claims,
             citation_count: 2,
-            supported_claim_count: 0,
+            trust_weighted_citation_score: 2.0,
+            supported_claim_count: 0.0,
             distinct_domain_count: 1,
             no_retrieval_hits: false,
             answer_is_empty: false,
@@ -219,6 +241,122 @@ mod semcov_wave2_tests {
             s.score > 0.0 && s.score < 0.7,
             "expected between 0 and 0.7, got {}",
             s.score
+        );
+    }
+
+    #[test]
+    fn low_trust_citations_score_lower_than_high_trust_citations() {
+        let claims = dummy_claims(2);
+        let config = GateConfig::default();
+
+        let high_trust_input = GateInput {
+            claims: &claims,
+            citation_count: 5,
+            trust_weighted_citation_score: 5.0, // 5 citations at trust_score 1.0 each
+            supported_claim_count: 2.0,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+        let low_trust_input = GateInput {
+            claims: &claims,
+            citation_count: 5,
+            trust_weighted_citation_score: 0.5, // 5 citations at trust_score 0.1 each (all retracted)
+            supported_claim_count: 2.0,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+
+        let high = score_with_config(&high_trust_input, &config);
+        let low = score_with_config(&low_trust_input, &config);
+        assert!(
+            high.score > low.score,
+            "high-trust score {} should exceed low-trust score {}",
+            high.score,
+            low.score
+        );
+    }
+
+    #[test]
+    fn high_trust_citations_do_not_exceed_plain_citation_count_scale() {
+        let claims = dummy_claims(2);
+        let config = full_config(); // min_citations_for_full_score: Some(5)
+
+        // 3 journal-reputation citations (trust_score 1.5 each, capped at 1.0
+        // by the caller before reaching GateInput) should score the SAME as
+        // 3 plain citations — not inflate past what 5-citations-for-full-score
+        // implies.
+        let capped_high_trust_input = GateInput {
+            claims: &claims,
+            citation_count: 3,
+            trust_weighted_citation_score: 3.0, // 3 citations, each capped at 1.0 regardless of raw trust_score
+            supported_claim_count: 2.0,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+        let plain_three_citations_input = GateInput {
+            claims: &claims,
+            citation_count: 3,
+            trust_weighted_citation_score: 3.0, // equivalent to 3 plain citations
+            supported_claim_count: 2.0,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+
+        let capped = score_with_config(&capped_high_trust_input, &config);
+        let plain = score_with_config(&plain_three_citations_input, &config);
+        assert_eq!(
+            capped.score, plain.score,
+            "capping trust contribution at 1.0 per hit must not let 3 high-trust citations outscore 3 plain citations"
+        );
+    }
+
+    /// Regression test for a rounding bug: `weighted_supported_claim_score`
+    /// (resample-stability-weighted) used to be `.round() as usize` before
+    /// reaching `GateInput`, which meant e.g. a single Supported claim with
+    /// `resample_stability: 0.6` rounded to `1` — identical to a fully
+    /// stable claim — silently defeating the whole point of the weighting.
+    /// `supported_claim_count` is now `f32` end-to-end so fractional
+    /// stability actually changes `claim_support_score`.
+    #[test]
+    fn fractional_claim_support_is_not_rounded_away() {
+        let claims = dummy_claims(1);
+        let config = full_config();
+
+        // A single claim that was Supported but flaky across resamples
+        // (resample_stability 0.6) must NOT score identically to a claim
+        // that was consistently Supported (resample_stability 1.0).
+        let flaky = GateInput {
+            claims: &claims,
+            citation_count: 5,
+            trust_weighted_citation_score: 5.0,
+            supported_claim_count: 0.6,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+        let stable = GateInput {
+            claims: &claims,
+            citation_count: 5,
+            trust_weighted_citation_score: 5.0,
+            supported_claim_count: 1.0,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+
+        let flaky_score = score_with_config(&flaky, &config);
+        let stable_score = score_with_config(&stable, &config);
+        assert!(
+            stable_score.score > flaky_score.score,
+            "a flaky Supported claim (resample_stability 0.6) must score lower than a \
+             consistently Supported one (1.0), not round to the same integer count: \
+             flaky={} stable={}",
+            flaky_score.score,
+            stable_score.score
         );
     }
 }

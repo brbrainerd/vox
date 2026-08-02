@@ -31,6 +31,18 @@
       "path_glob": "**/vox-compiler/tests/reactive_smoke.rs",
       "reason": "Large test file",
       "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "arch/god_object",
+      "path_glob": "**/vox-cli/src/commands/harness/eval.rs",
+      "reason": "Legacy: already 617 non-blank lines on main before the 2026-08-01 llm-guidance-token-audit merge touched it (added a Mutex-type + #[allow(unsafe_code)] fix, not new domain logic). Pending decomposition, not introduced by this change.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "arch/god_object",
+      "path_glob": "**/vox-gui/src/commands/daemon.rs",
+      "reason": "Legacy: already 525 non-blank lines on main before the 2026-08-01 llm-guidance-token-audit merge touched it (a clippy collapsible_if fix reduced it by 1 line). Pending decomposition, not introduced by this change.",
+      "owner": "robot"
     }
   ]
 }
