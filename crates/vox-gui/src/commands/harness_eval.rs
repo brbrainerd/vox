@@ -144,8 +144,8 @@ pub async fn harness_eval_regressions(
         .args([
             "diff",
             "--name-only",
-            "--",
             &format!("{}..{}", previous.git_sha, current.git_sha),
+            "--",
         ])
         .output()
         .ok()

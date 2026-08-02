@@ -242,7 +242,7 @@ pub async fn run_report(args: ReportArgs) -> anyhow::Result<()> {
     let current_events = db.get_model_selection_events(&current.run_id).await?;
     let previous_events = db.get_model_selection_events(&previous.run_id).await?;
     let changed_files: Vec<String> = std::process::Command::new("git")
-        .args(["diff", "--name-only", "--", &format!("{}..{}", previous.git_sha, current.git_sha)])
+        .args(["diff", "--name-only", &format!("{}..{}", previous.git_sha, current.git_sha), "--"])
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
