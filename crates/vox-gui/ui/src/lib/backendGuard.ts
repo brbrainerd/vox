@@ -74,6 +74,33 @@ export function isBudgetExceededError(text: string): boolean {
   return BUDGET_EXCEEDED_PATTERN.test(text);
 }
 
+/**
+ * Task 12b (free-tier onboarding plan): matches the `RATE_LIMITED_PREFIX` marker
+ * both live-dispatch funnels prepend to their terminal-failure error string when
+ * the underlying provider failure is a rate limit (e.g. OpenRouter's free-tier
+ * 50/day cap) —
+ * `crates/vox-actor-runtime/src/llm/chat.rs::RATE_LIMITED_PREFIX` (the
+ * `llm_chat`/`try_run_agent_turn` funnel) and
+ * `crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs::RATE_LIMITED_PREFIX`
+ * (the `mcp_infer_tool_completion` funnel — call_llm, ghost_text, inline_edit,
+ * plan, ...) both use the exact marker string `"RATE_LIMITED: "`. Previously
+ * this class was only ever surfaced by `vox doctor`'s diagnostic path; this is
+ * what lets App.tsx's dispatch-error catch blocks give it a distinct toast too,
+ * same pattern as `isBudgetExceededError` above.
+ */
+const RATE_LIMITED_PREFIX = 'RATE_LIMITED: ';
+
+export function isRateLimitedError(text: string): boolean {
+  return text.startsWith(RATE_LIMITED_PREFIX);
+}
+
+/** Strips the detection-only `RATE_LIMITED_PREFIX` marker, leaving the
+ *  human-readable egress error message (e.g. "OpenRouter rate limit exceeded,
+ *  try again in 24h") to show the user. No-op if the prefix isn't present. */
+export function stripRateLimitedPrefix(text: string): string {
+  return text.startsWith(RATE_LIMITED_PREFIX) ? text.slice(RATE_LIMITED_PREFIX.length) : text;
+}
+
 const logged = new Set<string>();
 
 /**

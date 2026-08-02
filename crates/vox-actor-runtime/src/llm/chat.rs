@@ -12,6 +12,15 @@
 //! care can check `err_msg.starts_with(CONTEXT_EXCEEDED_PREFIX)`; callers that don't
 //! see an ordinary human-readable error string (the prefix is plain text, not a
 //! sentinel byte).
+//!
+//! ## Rate-limit signal (Task 12b)
+//!
+//! Same problem, same fix, for `vox_llm_egress::EgressError::RateLimited` (e.g.
+//! OpenRouter's free-tier 50/day cap): the error message is prefixed with
+//! [`RATE_LIMITED_PREFIX`]. Callers check `err_msg.starts_with(RATE_LIMITED_PREFIX)`.
+//! Previously this class was only ever surfaced by `vox doctor`'s diagnostic path
+//! (Task 12); this prefix is what lets the *live* chat dispatch path
+//! (`try_run_agent_turn`, via `llm_chat`) distinguish it too.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -35,15 +44,27 @@ pub const CONTEXT_EXCEEDED_PREFIX: &str = "CONTEXT_LENGTH_EXCEEDED: ";
 /// can match on this constant instead of re-guessing the string literal.
 pub const RATE_LIMITED_ERROR_CLASS: &str = "rate-limited";
 
+/// Prefix `llm_chat` prepends to its `String` error when the underlying provider
+/// failure is `vox_llm_egress::EgressError::RateLimited` (e.g. OpenRouter's
+/// free-tier 50/day cap) — the live-dispatch sibling of [`CONTEXT_EXCEEDED_PREFIX`],
+/// same rationale: no structured error type to carry this across the `Result<_,
+/// String>` boundary, so a plain-text marker callers can `starts_with()` on. See
+/// `crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs`'s
+/// `RATE_LIMITED_PREFIX` for this crate's sibling funnel (raw-`reqwest` dispatch,
+/// a separate HTTP-issuing path — see that module's doc for why there are two).
+pub const RATE_LIMITED_PREFIX: &str = "RATE_LIMITED: ";
+
 /// Maps a `vox_llm_egress::EgressError` to `llm_chat`'s `(message, http_status,
 /// error_class)` triple. Pulled out of the `llm_chat` closure body so the
 /// context-overflow prefixing (and the rest of the classification) is unit-testable
 /// without spinning up the whole durable-activity/telemetry plumbing.
 fn map_egress_error(e: &vox_llm_egress::EgressError) -> (String, Option<u16>, &'static str) {
     match e {
-        vox_llm_egress::EgressError::RateLimited { .. } => {
-            (e.to_string(), Some(429u16), RATE_LIMITED_ERROR_CLASS)
-        }
+        vox_llm_egress::EgressError::RateLimited { .. } => (
+            format!("{RATE_LIMITED_PREFIX}{e}"),
+            Some(429u16),
+            RATE_LIMITED_ERROR_CLASS,
+        ),
         vox_llm_egress::EgressError::Status { code, body } => {
             let msg = format!("LLM API returned error ({}): {}", code, body);
             if e.is_context_exceeded() {
@@ -457,5 +478,45 @@ mod context_exceeded_tests {
         let (_, _, class) =
             map_egress_error(&vox_llm_egress::EgressError::Decode("bad json".into()));
         assert_eq!(class, "decode-error");
+    }
+}
+
+#[cfg(test)]
+mod rate_limited_prefix_tests {
+    use super::*;
+
+    #[test]
+    fn rate_limited_error_is_prefixed_and_classified() {
+        let e = vox_llm_egress::EgressError::RateLimited { retry_after: None };
+        let (msg, status, class) = map_egress_error(&e);
+        assert!(
+            msg.starts_with(RATE_LIMITED_PREFIX),
+            "expected prefixed message, got: {msg}"
+        );
+        assert_eq!(status, Some(429));
+        assert_eq!(class, RATE_LIMITED_ERROR_CLASS);
+    }
+
+    #[test]
+    fn non_rate_limited_errors_are_never_rate_limited_prefixed() {
+        let (msg, _, _) = map_egress_error(&vox_llm_egress::EgressError::Status {
+            code: 400,
+            body: "This model's maximum context length is 4096 tokens.".into(),
+        });
+        assert!(!msg.starts_with(RATE_LIMITED_PREFIX));
+
+        let (msg, _, _) = map_egress_error(&vox_llm_egress::EgressError::Status {
+            code: 401,
+            body: "Invalid API key provided.".into(),
+        });
+        assert!(!msg.starts_with(RATE_LIMITED_PREFIX));
+
+        let (msg, _, _) = map_egress_error(&vox_llm_egress::EgressError::Http(
+            "connection reset".into(),
+        ));
+        assert!(!msg.starts_with(RATE_LIMITED_PREFIX));
+
+        let (msg, _, _) = map_egress_error(&vox_llm_egress::EgressError::Decode("bad json".into()));
+        assert!(!msg.starts_with(RATE_LIMITED_PREFIX));
     }
 }

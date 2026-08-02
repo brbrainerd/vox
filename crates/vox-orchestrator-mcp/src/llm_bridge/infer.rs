@@ -284,6 +284,34 @@ pub async fn mcp_infer_completion(
     .await
 }
 
+/// Prefix `mcp_infer_tool_completion` prepends to its terminal-failure `String`
+/// error when retries are exhausted on a `"rate-limited"` (HTTP 429) failure —
+/// this funnel's sibling to `vox_actor_runtime::llm::chat::RATE_LIMITED_PREFIX`.
+/// This module's dispatch loop (raw `reqwest`, its own Google-direct/Ollama/
+/// secondary-cloud fallback chain — see the module doc for why this funnel is
+/// separate from `vox-actor-runtime`'s `llm_chat`) has no structured error type
+/// that survives past `e.to_string()` at the terminal-failure return, so — same
+/// fix as the context-overflow precedent in `chat.rs` — a plain-text marker
+/// callers can `starts_with()` on. Previously this class was only ever surfaced
+/// by `vox doctor`'s diagnostic path (Task 12); this prefix is what lets the
+/// *live* dispatch path (`call_llm`, `ghost_text`, `inline_edit`, `plan`, etc. —
+/// everything routed through `mcp_infer_tool_completion`) distinguish it too.
+pub(crate) const RATE_LIMITED_PREFIX: &str = "RATE_LIMITED: ";
+
+/// Applies [`RATE_LIMITED_PREFIX`] to `msg` when `error_class` is `"rate-limited"`.
+/// Pulled out of the terminal-failure return in `mcp_infer_tool_completion` as a
+/// small pure function so the prefixing decision is unit-testable without driving
+/// a real HTTP retry-exhaustion path — this module's dispatch goes through live
+/// provider adapters (`infer_via_provider_adapter`) with no injection seam for a
+/// synthetic 429 in a unit test.
+fn apply_rate_limited_prefix(error_class: &str, msg: String) -> String {
+    if error_class == "rate-limited" {
+        format!("{RATE_LIMITED_PREFIX}{msg}")
+    } else {
+        msg
+    }
+}
+
 /// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.) with explicit tools/tool_choice.
 #[allow(clippy::too_many_arguments)]
 pub async fn mcp_infer_tool_completion(
@@ -795,7 +823,7 @@ pub async fn mcp_infer_tool_completion(
                     &model.id,
                     &provider_str,
                 );
-                return Err(e.to_string());
+                return Err(apply_rate_limited_prefix(error_class, e.to_string()));
             }
         }
     }
@@ -988,5 +1016,42 @@ mod tests {
             err.to_lowercase().contains("budget"),
             "expected error to mention budget (not a network/API-key error), got: {err}"
         );
+    }
+
+    // Task 12b (free-tier onboarding plan): `mcp_infer_tool_completion`'s terminal
+    // failure (`return Err(...)` after all fallbacks are exhausted) must be
+    // prefixed with `RATE_LIMITED_PREFIX` when the exhausted error_class is
+    // "rate-limited" (HTTP 429), so live dispatch callers (call_llm, ghost_text,
+    // inline_edit, plan, ...) can distinguish OpenRouter's free-tier cap from any
+    // other backend failure — mirrors `vox_actor_runtime::llm::chat`'s identical
+    // fix for its own funnel. Driving a real retry-exhaustion path to a 429 would
+    // require mocking live HTTP provider adapters (no injection seam exists), so
+    // this tests the extracted pure prefixing helper directly instead.
+    #[test]
+    fn rate_limited_error_class_gets_prefixed() {
+        let msg = apply_rate_limited_prefix(
+            "rate-limited",
+            "LLM API error 429: rate limit exceeded".to_string(),
+        );
+        assert!(
+            msg.starts_with(RATE_LIMITED_PREFIX),
+            "expected prefixed message, got: {msg}"
+        );
+        assert_eq!(
+            msg,
+            format!("{RATE_LIMITED_PREFIX}LLM API error 429: rate limit exceeded")
+        );
+    }
+
+    #[test]
+    fn non_rate_limited_error_classes_are_not_prefixed() {
+        for class in ["connection-timeout", "transport-error", "llm-api-error"] {
+            let msg = apply_rate_limited_prefix(class, "some error".to_string());
+            assert!(
+                !msg.starts_with(RATE_LIMITED_PREFIX),
+                "error_class {class:?} should not be rate-limited-prefixed, got: {msg}"
+            );
+            assert_eq!(msg, "some error");
+        }
     }
 }

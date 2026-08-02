@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { sanitizeErrorForToast, isBudgetExceededError } from './lib/backendGuard';
+import {
+  sanitizeErrorForToast,
+  isBudgetExceededError,
+  isRateLimitedError,
+  stripRateLimitedPrefix,
+} from './lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { AppShell } from './components/layout/AppShell';
 import { SidebarMode } from './components/layout/Sidebar';
@@ -157,6 +162,14 @@ function isKnownView(v: unknown): v is View {
  * their cap in Settings), so it gets a distinct title/body instead of the
  * generic dispatch-failure toast — same `pushToast` shape, just a
  * budget-aware title/body when `isBudgetExceededError` matches.
+ *
+ * Task 12b: the same two dispatch mechanisms also funnel through the live LLM
+ * egress paths (`vox-actor-runtime`'s `llm_chat` and `vox-orchestrator-mcp`'s
+ * `mcp_infer_tool_completion`), both of which now prepend `RATE_LIMITED_PREFIX`
+ * to a rate-limited (e.g. OpenRouter free-tier 50/day cap) terminal failure.
+ * That's actionable too (add your own API key, or wait for the cap to reset),
+ * so it gets its own distinct toast — checked alongside (not instead of) the
+ * budget check, since the two conditions are mutually exclusive.
  */
 function dispatchErrorToast(errorText: string, fallbackTitle: string): Toast {
   if (isBudgetExceededError(errorText)) {
@@ -164,6 +177,14 @@ function dispatchErrorToast(errorText: string, fallbackTitle: string): Toast {
       tone: 'warn',
       title: 'Budget limit reached',
       body: `${errorText} Adjust your daily/session budget caps in Settings.`,
+      cause: 'backend-error',
+    };
+  }
+  if (isRateLimitedError(errorText)) {
+    return {
+      tone: 'warn',
+      title: 'Free tier limit reached',
+      body: `${stripRateLimitedPrefix(errorText)} Add your own API key or wait for the limit to reset.`,
       cause: 'backend-error',
     };
   }

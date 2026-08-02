@@ -156,6 +156,79 @@ describe('App shell', () => {
     expect(screen.queryByText('Dispatch Failed')).toBeNull();
   });
 
+  // Task 12b (free-tier onboarding plan): a rate-limited dispatch error (e.g.
+  // OpenRouter's free-tier 50/day cap) must surface as a distinct "Free tier
+  // limit reached" toast, not the generic "Chat reply failed" toast — see
+  // `dispatchErrorToast` in App.tsx and `isRateLimitedError` in
+  // lib/backendGuard.ts. The error text carries the `RATE_LIMITED_PREFIX`
+  // marker prepended by `vox_actor_runtime::llm::chat::llm_chat`
+  // (crates/vox-actor-runtime/src/llm/chat.rs), the funnel behind
+  // `chat_send_message`'s `try_run_agent_turn` tool-calling loop.
+  it('a rate-limited chat_send_message error produces a distinct "Free tier limit reached" toast', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_send_message') {
+        return Promise.reject('RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h');
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, 'hello there');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Free tier limit reached')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Chat reply failed')).toBeNull();
+    // The stripped, human-readable message renders twice by design (failed
+    // chat bubble [raw, unstripped] + toast body [stripped]) — assert
+    // presence, not uniqueness, mirroring the budget-exceeded test above.
+    expect(screen.getAllByText(/OpenRouter rate limit exceeded/).length).toBeGreaterThan(0);
+  });
+
+  // Same distinct handling must apply to the other real dispatch mechanism a
+  // chat message can take — `submit_orchestrator_task` (e.g. Act mode) — since
+  // `mcp_infer_tool_completion` (crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs)
+  // is the separate HTTP-issuing funnel that path goes through, and it now
+  // prepends the same `RATE_LIMITED_PREFIX` marker on its own terminal failure.
+  it('a rate-limited submit_orchestrator_task error produces a distinct "Free tier limit reached" toast, not "Dispatch Failed"', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'submit_orchestrator_task') {
+        return Promise.reject('RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h');
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/spawn');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Free tier limit reached')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Dispatch Failed')).toBeNull();
+  });
+
   // Regression: ⌘. used to be displayed in Settings but wired to no handler.
   // It must now be claimed by the global keydown handler (preventDefault fires).
   it('handles ⌘. (Cmd+Period) globally', () => {

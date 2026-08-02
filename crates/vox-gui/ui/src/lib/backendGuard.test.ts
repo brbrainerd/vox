@@ -7,6 +7,8 @@ import {
   __resetBackendAvailabilityForTests,
   sanitizeErrorForToast,
   isBudgetExceededError,
+  isRateLimitedError,
+  stripRateLimitedPrefix,
 } from './backendGuard';
 
 // Phase A test-setup.ts stubs __TAURI_INTERNALS__ globally for suites that mock
@@ -123,5 +125,37 @@ describe('isBudgetExceededError', () => {
 
   it('does not match a message that merely mentions "budget" mid-sentence', () => {
     expect(isBudgetExceededError('Your daily budget of $5.00 exceeded (spent $5.12)')).toBe(false);
+  });
+});
+
+// Task 12b (free-tier onboarding plan): App.tsx's dispatch-error catch blocks
+// use this to special-case the `RATE_LIMITED_PREFIX` marker (prepended by both
+// live-dispatch funnels — `chat.rs`'s and `infer.rs`'s `RATE_LIMITED_PREFIX`,
+// both `"RATE_LIMITED: "`) into a distinct "Free tier limit reached" toast
+// instead of the generic dispatch-failure toast.
+describe('isRateLimitedError', () => {
+  it('matches a message carrying the RATE_LIMITED_PREFIX marker', () => {
+    expect(isRateLimitedError('RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h')).toBe(true);
+  });
+
+  it('does not match unrelated backend errors', () => {
+    expect(isRateLimitedError('Network timeout')).toBe(false);
+    expect(isRateLimitedError('Error: request failed with status 500')).toBe(false);
+  });
+
+  it('does not match a message that merely mentions rate limiting mid-sentence', () => {
+    expect(isRateLimitedError('The provider returned a RATE_LIMITED: response')).toBe(false);
+  });
+});
+
+describe('stripRateLimitedPrefix', () => {
+  it('removes the marker, leaving the human-readable message', () => {
+    expect(stripRateLimitedPrefix('RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h')).toBe(
+      'OpenRouter rate limit exceeded, try again in 24h',
+    );
+  });
+
+  it('is a no-op when the prefix is absent', () => {
+    expect(stripRateLimitedPrefix('Network timeout')).toBe('Network timeout');
   });
 });
