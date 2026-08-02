@@ -42,15 +42,19 @@ pub fn run(checks: &mut Vec<Check>) {
         keys.push("Anthropic");
     }
 
+    let budget_cfg = vox_config::VoxConfig::load();
+
     let detail = format!(
-        "routing_profile={routing_profile}; openrouter_model={}; chat_completions_url={}; provider_keys_present=[{}]",
+        "routing_profile={routing_profile}; openrouter_model={}; chat_completions_url={}; provider_keys_present=[{}]; daily_budget_usd={:.2}; per_session_budget_usd={:.2}",
         model,
         OPENROUTER_CHAT_COMPLETIONS_URL,
         if keys.is_empty() {
             "(none)".to_string()
         } else {
             keys.join(", ")
-        }
+        },
+        budget_cfg.daily_budget_usd,
+        budget_cfg.per_session_budget_usd,
     );
 
     if keys.is_empty() {
@@ -112,4 +116,24 @@ pub fn run(checks: &mut Vec<Check>) {
         true,
         cache_status,
     ));
+}
+
+#[cfg(test)]
+mod budget_status_tests {
+    use super::*;
+
+    #[test]
+    fn reports_budget_caps_in_detail_string() {
+        let mut checks = Vec::new();
+        run(&mut checks);
+        let llm_check = checks
+            .iter()
+            .find(|c| c.name == "LLM routing (Secrets)")
+            .expect("LLM routing check present");
+        assert!(
+            llm_check.detail.contains("daily_budget_usd="),
+            "detail should report the configured daily budget cap, got: {}",
+            llm_check.detail
+        );
+    }
 }
