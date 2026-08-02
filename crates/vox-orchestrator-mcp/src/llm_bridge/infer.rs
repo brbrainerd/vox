@@ -464,14 +464,15 @@ pub async fn mcp_infer_tool_completion(
                             continue;
                         }
                     }
-                    return Err(
+                    return Err(apply_rate_limited_prefix(
+                        "rate-limited",
                         if allow_ollama_fallback {
                             "LLM daily quota or rate limit active for this provider; try a local Ollama model or wait."
                         } else {
                             "LLM daily quota or rate limit active for this provider; configure cloud keys, set vox_populi::inference_PROFILE=desktop_ollama or lan_gateway to allow Ollama fallback, or wait."
                         }
                         .into(),
-                    );
+                    ));
                 }
                 GateResult::AttentionExhausted { message, .. } => {
                     return Err(message);
@@ -1019,6 +1020,75 @@ mod tests {
         assert!(
             err.to_lowercase().contains("budget"),
             "expected error to mention budget (not a network/API-key error), got: {err}"
+        );
+    }
+
+    /// Cross-cutting-review fix: the *local* (pre-dispatch) `GateResult::RateLimited`
+    /// branch — driven by `UsageTracker`'s already-recorded rate-limit state via
+    /// `BudgetGate::allow_with_pilot_attention`, not by a live HTTP 429 — must also
+    /// get `RATE_LIMITED_PREFIX` applied. This is the path a user who already
+    /// exhausted their free-tier quota hits on their *next* request (arguably more
+    /// common in practice than a fresh live 429), and previously fell through to a
+    /// plain, unprefixed string that the GUI's `RATE_LIMITED_PREFIX`-keyed toast
+    /// logic wouldn't recognize. Seeds the tracker via `mark_rate_limited` (the same
+    /// helper the real HTTP-429 path uses to persist state) so this test drives the
+    /// real `allow_with_pilot_attention` -> `GateResult::RateLimited` branch, not a
+    /// mocked gate.
+    #[tokio::test]
+    #[serial]
+    async fn mcp_infer_completion_prefixes_local_rate_limited_gate() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("open in-memory db");
+
+        // `is_free: true` so `llm_usage_key()` maps to provider "openrouter",
+        // model ":free" — the aggregate key `resolve_provider_limits()`
+        // actually tracks a daily limit for by default. A non-free model id
+        // has no matching limit row and `allow_with_pilot_attention` would
+        // fall through to `Allowed` regardless of `mark_rate_limited`,
+        // silently not exercising the branch under test.
+        let mut model = dummy_model();
+        model.is_free = true;
+        let usage = model.llm_usage_key();
+        let tracker = vox_orchestrator::usage::UsageTracker::with_user(&db, "infer-rl-test");
+        tracker
+            .mark_rate_limited(&usage.provider, &usage.model)
+            .await
+            .expect("seed rate-limited state");
+
+        let state = crate::server_state::ServerState::new_test()
+            .await
+            .with_db_initialized(Arc::new(db))
+            .await;
+
+        let routing = McpInferRouting {
+            user_prompt: "hello",
+            sticky_model_pref: None,
+            resolution_template: McpChatModelResolution::default(),
+            free_only: false,
+            allow_cloud_ollama_fallback: false,
+            user_id: Some("infer-rl-test"),
+            selection_rationale: None,
+        };
+        let result = mcp_infer_completion(
+            &state,
+            model,
+            "test-tool",
+            "system",
+            &routing,
+            100,
+            0.7,
+            None,
+            None,
+            false,
+            None,
+        )
+        .await;
+
+        let err = result.expect_err("expected local rate-limit gate to refuse dispatch");
+        assert!(
+            err.starts_with(RATE_LIMITED_PREFIX),
+            "expected RATE_LIMITED_PREFIX-marked error from the local pre-dispatch gate, got: {err}"
         );
     }
 
