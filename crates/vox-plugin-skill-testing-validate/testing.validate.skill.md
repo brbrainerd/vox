@@ -1,15 +1,24 @@
 ---
-name = "skill-testing-validate"
-description = "Executes the 5-stage delivery gate pipeline to autonomously validate and heal Vox code."
-
-[metadata]
-"vox-id" = "vox.testing.validate"
-"vox-version" = "0.1.0"
-"vox-author" = "vox-team"
-"vox-category" = "testing"
-"vox-tools" = ["vox_validate_file", "vox_validate_source"]
-"vox-tags" = ["test", "validation", "self-healing", "ars"]
-"vox-permissions" = ["read_files", "write_files", "shell_exec", "ai_invoke"]
+name: skill-testing-validate
+description: "Executes the 5-stage delivery gate pipeline to autonomously validate and heal Vox code."
+metadata:
+  vox-id: vox.testing.validate
+  vox-version: "0.1.0"
+  vox-author: vox-team
+  vox-category: testing
+  vox-tools:
+    - vox_validate_file
+    - vox_validate_source
+  vox-tags:
+    - test
+    - validation
+    - self-healing
+    - ars
+  vox-permissions:
+    - read_files
+    - write_files
+    - shell_exec
+    - ai_invoke
 ---
 
 # Vox Testing Delivery Gate
