@@ -54,6 +54,77 @@ test.describe('Onboarding wizard', () => {
     await expect(page.getByRole('heading', { name: /get started with vox/i })).not.toBeVisible();
   });
 
+  // Regression test for the Task 16 review gap: `useOnboardingGate().replay()`
+  // used to only clear the persisted `dismissed` flag, which is necessary but
+  // not sufficient — `shouldShow` also requires the fresh-install condition
+  // (secretCount === 0 && localModelCount === 0). A user who already has a
+  // key configured (the exact persona who'd want to replay the wizard) would
+  // click "Replay setup wizard" in Settings and see nothing happen, in this
+  // same session or after reload, because shouldShow stays permanently false.
+  test('Settings "Replay setup wizard" reopens the wizard for a user who already has a key configured, without a page reload', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.removeItem('vox_onboarding_dismissed');
+      (window as any).__TAURI_CALLS__ = [];
+      (window as any).__TAURI_INTERNALS__ = {
+        invoke: async (cmd: string, args?: Record<string, unknown>) => {
+          (window as any).__TAURI_CALLS__.push({ cmd, args: args ?? null });
+          if (cmd === 'get_initial_view') return 'chat';
+          if (cmd === 'get_build_info') return { version: '0.6.0', display: '0.6.0+build.test (abc123)' };
+          // Already has a configured secret — the automatic first-run gate
+          // must NOT show the wizard for this persona (same mock as "does
+          // not show when a secret is already configured" above).
+          if (cmd === 'list_secret_status') return [{ id: 'OPENROUTER_API_KEY', isPresent: true }];
+          if (cmd === 'inference_provider_status') return [];
+          if (cmd === 'get_command_catalog') return { generated_from: 'e2e-mock', entries: [] };
+          if (cmd === 'get_action_manifest') return { x_vox_version: 2, schema_version: 1, generated_from: 'e2e-mock', actions: [] };
+          if (cmd === 'get_routing_summary_live') return { decision_preview: null };
+          if (cmd === 'get_gui_preference') return null;
+          if (cmd === 'set_gui_preference') return null;
+          if (cmd === 'get_orchestrator_status_bin') return new Uint8Array([0x80]);
+          if (cmd === 'get_user_config') return [];
+          if (cmd === 'get_llm_spend') return null;
+          // Settings' orchestrator hydration effect indexes into this result
+          // with bracket access (cfg[k]); it must be an object, not the
+          // generic `null` fallback below, or the effect throws and the
+          // whole surface error-boundaries.
+          if (cmd === 'get_orchestrator_config') return {};
+          return null;
+        },
+      };
+    });
+
+    await page.goto('/');
+
+    // Automatic gate: wizard must not appear for this "already has a key" persona.
+    await expect(page.getByRole('heading', { name: /get started with vox/i })).not.toBeVisible();
+
+    // Navigate to Settings -> Onboarding section (same path as the existing
+    // "replays the onboarding wizard by resetting the dismissed flag" test in
+    // settings.spec.ts), then click the replay button.
+    await page.getByRole('button', { name: /^settings$/i }).click();
+    await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: /onboarding/i }).click();
+
+    const replayButton = page.getByRole('button', { name: /replay setup wizard/i });
+    await expect(replayButton).toBeVisible({ timeout: 15_000 });
+    await replayButton.click();
+
+    // The wizard must reopen immediately, in this same session, without a
+    // page reload in between — Settings and the wizard's mount point are
+    // both live in the same running app.
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('heading', { name: /get started with vox/i })).toBeVisible({ timeout: 15_000 });
+
+    // Per-screen recheck (Task 15's handleHasKeyDone) still behaves correctly
+    // on a replay-triggered open: this persona already has `list_secret_status`
+    // returning a present secret, so picking "I already have an API key" and
+    // clicking Done should re-query fresh and let them straight through to
+    // the budget screen — not get stuck with a false "add a key" warning.
+    await dialog.getByRole('button', { name: /i already have an api key/i }).click();
+    await dialog.getByRole('button', { name: /^done$/i }).click();
+    await expect(page.getByRole('heading', { name: /set your spending limits/i })).toBeVisible({ timeout: 15_000 });
+  });
+
   test('budget screen saves caps via set_user_config before finishing', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem('vox_onboarding_dismissed');

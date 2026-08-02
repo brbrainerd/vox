@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useOnboardingGate } from './useOnboardingGate';
+import { useOnboardingGate, ONBOARDING_REPLAY_EVENT } from './useOnboardingGate';
 import { KeysSecretsSection } from '../Settings/SettingsView';
 import type { Toast } from '../../../types/tauri';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
@@ -30,6 +30,17 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
   const [oauthFallbackUrl, setOauthFallbackUrl] = useState<string | null>(null);
   const [hasKeyWarning, setHasKeyWarning] = useState<string | null>(null);
   const [localModelWarning, setLocalModelWarning] = useState<string | null>(null);
+  // Explicit "force open" signal from Settings' "Replay setup wizard" button
+  // (see useOnboardingGate's `replay()`), separate from the automatic
+  // fresh-install gate below — a user who already has a key/local model
+  // configured would otherwise never see `gate.shouldShow` go true again.
+  const [forceOpen, setForceOpen] = useState(false);
+
+  useEffect(() => {
+    const onReplay = () => setForceOpen(true);
+    window.addEventListener(ONBOARDING_REPLAY_EVENT, onReplay);
+    return () => window.removeEventListener(ONBOARDING_REPLAY_EVENT, onReplay);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -52,20 +63,32 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
     secretCount: secretCount ?? 0,
     localModelCount: localModelCount ?? 0,
   });
+  // Visible either because the automatic fresh-install gate says so, or
+  // because the user explicitly asked to replay it from Settings.
+  const isVisible = gate.shouldShow || forceOpen;
+
+  // Dismissing must also clear `forceOpen` — otherwise a replayed-then-dismissed
+  // wizard would stay stuck considering itself "forced open" (never properly
+  // closes, or reopens immediately on next mount).
+  const handleDismiss = () => {
+    gate.dismiss();
+    setForceOpen(false);
+  };
 
   // Escape dismisses the whole wizard, same action as "Skip for now" — mirrors
   // AchievementsDrawer.tsx's window-keydown pattern. Registered unconditionally
-  // (hooks can't be conditional) but only wired up while the gate says to show.
+  // (hooks can't be conditional) but only wired up while the wizard is visible.
   useEffect(() => {
-    if (!gate.shouldShow) return;
+    if (!isVisible) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') gate.dismiss();
+      if (e.key === 'Escape') handleDismiss();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [gate.shouldShow, gate.dismiss]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVisible]);
 
-  if (secretCount === null || localModelCount === null || !gate.shouldShow) {
+  if (secretCount === null || localModelCount === null || !isVisible) {
     return null;
   }
 
@@ -166,7 +189,7 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
                 Use a local model
               </button>
             </div>
-            <button type="button" onClick={gate.dismiss} className="mt-4 text-[11px] text-text-muted hover:text-text-primary">
+            <button type="button" onClick={handleDismiss} className="mt-4 text-[11px] text-text-muted hover:text-text-primary">
               Skip for now
             </button>
           </>
@@ -240,7 +263,7 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
             <p className="mt-2 text-sm text-text-muted">
               Auto mode picks a model based on cost and your usage history as it builds up.
             </p>
-            <button type="button" onClick={gate.dismiss} className="mt-4 rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90">
+            <button type="button" onClick={handleDismiss} className="mt-4 rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90">
               Start using Vox
             </button>
           </>
