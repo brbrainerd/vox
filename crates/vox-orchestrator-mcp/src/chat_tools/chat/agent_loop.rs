@@ -873,18 +873,25 @@ mod tests {
             !requests.is_empty(),
             "vox_chat_message must have made at least one HTTP request to the model"
         );
-        // Find the actual chat-completion POST body (parses to JSON with a
-        // `messages` array) rather than assuming it's `requests[0]` — the mock
-        // server may also record unrelated inbound requests (e.g. from other
-        // concurrently-running tests / background probes) with empty bodies.
+        // Find the actual chat-completion POST body sent for `model_id` (parses to
+        // JSON with a `messages` array and `model` == the resolved chat model)
+        // rather than assuming it's `requests[0]` or the first request with a
+        // `messages` array — the same mock server also receives unrelated internal
+        // LLM calls (e.g. the autonomous-research "gap analyst" follow-up-query
+        // generator, which runs against `openrouter/auto` and never carries tools)
+        // triggered earlier in `chat_message`, before the real tool-bearing
+        // completion request this test is asserting on.
         let body = requests
             .iter()
             .find_map(|r| {
                 let v: serde_json::Value = serde_json::from_slice(&r.body).ok()?;
                 v.get("messages")?.as_array()?;
+                if v.get("model").and_then(|m| m.as_str()) != Some(model_id) {
+                    return None;
+                }
                 Some(v)
             })
-            .expect("no request with a JSON `messages` body was received");
+            .expect("no request with a JSON `messages` body for the resolved chat model was received");
         let tools = body
             .get("tools")
             .and_then(|t| t.as_array())
@@ -954,14 +961,22 @@ mod tests {
         );
 
         let requests = server.received_requests().await.expect("received requests");
+        // See `chat_message_default_path_sends_tools_bearing_request` — the mock
+        // server also receives the autonomous-research "gap analyst" follow-up-query
+        // request (`model: "openrouter/auto"`, no sampling overrides) before the
+        // real completion request for `model_id`, so the first `messages`-bearing
+        // body is not necessarily the one under test.
         let body = requests
             .iter()
             .find_map(|r| {
                 let v: serde_json::Value = serde_json::from_slice(&r.body).ok()?;
                 v.get("messages")?.as_array()?;
+                if v.get("model").and_then(|m| m.as_str()) != Some(model_id) {
+                    return None;
+                }
                 Some(v)
             })
-            .expect("no request with a JSON `messages` body was received");
+            .expect("no request with a JSON `messages` body for the resolved chat model was received");
         assert_eq!(
             body.get("temperature").and_then(serde_json::Value::as_f64),
             Some(0.11_f64),

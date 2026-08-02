@@ -20,6 +20,9 @@ pub use spec::orchestrator_schema_digest;
 mod migration_chain_tests {
     use super::SCHEMA_FRAGMENTS;
 
+    // Table assertions trimmed 2026-08-02 to drop tables slated for schema
+    // quarantine (docs/src/architecture/2026-08-01-voxdb-audit-condensation-plan.md,
+    // Task 3) — see graphify-out/quarantine_test_findings.json for the disposition.
     #[test]
     fn chat_search_and_codex_in_fragments() {
         let conversations = SCHEMA_FRAGMENTS
@@ -38,7 +41,7 @@ mod migration_chain_tests {
             .map(|f| f.sql)
             .expect("knowledge");
         assert!(
-            knowledge.contains("search_documents") && knowledge.contains("search_indexing_jobs"),
+            knowledge.contains("search_documents"),
             "knowledge must define search tables"
         );
         let agents = SCHEMA_FRAGMENTS
@@ -47,7 +50,7 @@ mod migration_chain_tests {
             .map(|f| f.sql)
             .expect("agents");
         assert!(
-            agents.contains("agent_sessions") && agents.contains("behavior_events"),
+            agents.contains("agent_sessions"),
             "agents must define agent DDL"
         );
         assert!(
@@ -56,8 +59,8 @@ mod migration_chain_tests {
         );
         let sql = super::baseline_sql();
         assert!(
-            sql.contains("populi_training_run") && sql.contains("codex_capability_map"),
-            "baseline_sql must include spec-appended training + capability map DDL"
+            sql.contains("populi_training_run"),
+            "baseline_sql must include spec-appended training DDL"
         );
         assert!(
             sql.contains("idx_memories_agent_created")

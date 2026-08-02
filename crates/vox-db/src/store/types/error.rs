@@ -44,4 +44,18 @@ pub enum StoreError {
     /// Internal actor or system failure.
     #[error("Internal error: {0}")]
     Internal(String),
+    /// Phase 1 of [`crate::migration::migrate_dropping_quarantine`] found rows in one or more
+    /// tables slated for `DROP TABLE`; the drop was refused and the database was left untouched.
+    #[error(
+        "quarantine drop aborted: non-empty quarantined table(s) found: {}. \
+         The database is pinned below schema version {} until this is resolved (this will recur on every \
+         connect that attempts this migration). Remediation: export the row(s) in the listed table(s) \
+         (e.g. `SELECT * FROM <table>`), then either delete them or move them to their new home, then retry.",
+        tables.join(", "),
+        crate::schema::BASELINE_VERSION
+    )]
+    QuarantineDropAborted {
+        /// Names of the non-empty tables that blocked the drop.
+        tables: Vec<String>,
+    },
 }

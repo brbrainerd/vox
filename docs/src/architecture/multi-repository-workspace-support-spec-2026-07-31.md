@@ -2,7 +2,7 @@
 title: "Multi-Repository Workspace Support Spec (2026-07-31)"
 description: "Design for letting the Vox GUI operate against multiple local repositories (not just the Vox repo itself): a workspaces table, a folder-picker/switcher GUI surface, and an honest verdict on the git-worktree-vs-jj isolation question, grounded in what is actually implemented today (jj-lib is a real optional dependency behind vox-vcs, current_dir()-based single-repo binding everywhere else)."
 category: "Architecture SSOTs"
-status: "draft"
+status: "roadmap"
 training_eligible: false
 ---
 

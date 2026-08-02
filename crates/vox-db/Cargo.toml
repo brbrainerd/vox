@@ -38,7 +38,19 @@ workspace-hack = { workspace = true }
 default = ["local"]
 local = []
 replication = []
-legacy-import = []
+# Implies `quarantine`: the legacy JSONL export/import path
+# (`codex_legacy::LEGACY_EXPORT_TABLES`) still lists the DORMANT/DEAD tables that
+# `quarantine` gates into the schema baseline — a legacy DB predating the
+# condensation plan may still contain rows in them, so a build that can import a
+# legacy chain DB must also be able to create those tables to receive the import.
+# Without this, `local_tests::legacy_tests::*` (which run under `legacy-import`)
+# see a live schema missing ~39 tables `LEGACY_EXPORT_TABLES` still names. See
+# docs/src/architecture/2026-08-01-voxdb-audit-condensation-plan.md Task 4.
+legacy-import = ["quarantine"]
+# Off by default (like `replication`). Appends `domains::quarantine::SCHEMA_QUARANTINE`
+# (DORMANT/DEAD tables per graphify-out/table_usage_report.json) to baseline_sql().
+# See docs/src/architecture/2026-08-01-voxdb-audit-condensation-plan.md Task 4.
+quarantine = []
 
 [dev-dependencies]
 regex = { workspace = true }

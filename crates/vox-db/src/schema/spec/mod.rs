@@ -125,43 +125,52 @@ fn usage_field_docs() -> Vec<FieldInfo> {
 /// writes them via [`crate::collection::Collection`].
 #[must_use]
 pub fn orchestrator_schema_digest() -> SchemaDigest {
+    #[allow(unused_mut)]
+    let mut collections = vec![
+        CollectionInfo {
+            name: "provider_usage".into(),
+            fields: usage_field_docs(),
+            description: Some(
+                "Schemaless JSON docs: daily LLM usage per user/provider/model (orchestrator)"
+                    .into(),
+            ),
+            is_public: false,
+            sample_data: vec![],
+        },
+        CollectionInfo {
+            name: "attention_events".into(),
+            fields: vec![],
+            description: Some("Append-only pilot attention event log (Phase 15)".into()),
+            is_public: false,
+            sample_data: vec![],
+        },
+        CollectionInfo {
+            name: "agent_trust_scores".into(),
+            fields: vec![],
+            description: Some(
+                "Per-agent EWMA trust scores for attention-aware routing (Phase 15)".into(),
+            ),
+            is_public: false,
+            sample_data: vec![],
+        },
+    ];
+    // handoff_payloads: quarantined (DEAD, Task 4, VoxDB audit condensation
+    // plan). Unlike literal-DDL tables (see domains/quarantine.rs), this
+    // collection has no CREATE TABLE — it's schemaless, created on demand via
+    // `Collection::ensure_table()`. Nothing calls `.collection("handoff_payloads")`
+    // anywhere in current source, so its only footprint is this digest entry;
+    // gate it the same way, off by default.
+    #[cfg(feature = "quarantine")]
+    collections.push(CollectionInfo {
+        name: "handoff_payloads".into(),
+        fields: vec![],
+        description: Some("Schemaless storage for agent handoff documents".into()),
+        is_public: false,
+        sample_data: vec![],
+    });
     SchemaDigest {
         tables: vec![],
-        collections: vec![
-            CollectionInfo {
-                name: "provider_usage".into(),
-                fields: usage_field_docs(),
-                description: Some(
-                    "Schemaless JSON docs: daily LLM usage per user/provider/model (orchestrator)"
-                        .into(),
-                ),
-                is_public: false,
-                sample_data: vec![],
-            },
-            CollectionInfo {
-                name: "handoff_payloads".into(),
-                fields: vec![],
-                description: Some("Schemaless storage for agent handoff documents".into()),
-                is_public: false,
-                sample_data: vec![],
-            },
-            CollectionInfo {
-                name: "attention_events".into(),
-                fields: vec![],
-                description: Some("Append-only pilot attention event log (Phase 15)".into()),
-                is_public: false,
-                sample_data: vec![],
-            },
-            CollectionInfo {
-                name: "agent_trust_scores".into(),
-                fields: vec![],
-                description: Some(
-                    "Per-agent EWMA trust scores for attention-aware routing (Phase 15)".into(),
-                ),
-                is_public: false,
-                sample_data: vec![],
-            },
-        ],
+        collections,
         relationships: vec![],
         indexes: vec![],
         queries: vec![],

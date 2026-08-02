@@ -259,11 +259,21 @@ gui-*.log
 
 # Local `act` artifact server output (see .actrc --artifact-server-path)
 .act-artifacts/
-# graphify knowledge-graph artifacts (local tooling) — large, regenerable
-graphify-out/
+# graphify knowledge-graph artifacts (local tooling) — large, regenerable.
+# NOTE: `graphify-out/*` (not `graphify-out/`) so the negations below can
+# re-include specific committed files — git cannot un-ignore a path whose
+# *parent directory* (as opposed to its contents) is excluded.
+graphify-out/*
 
 # Graphify generated behavior coverage files (Tier D — not versioned)
 graphify-out/COVERAGE_BEHAVIORS_*
+
+# Exception: scripts/db-table-census.vox + scripts/db-test-census.vox outputs
+# ARE committed — they're the re-runnable recurrence-prevention census (see
+# docs/src/architecture/2026-08-01-voxdb-audit-condensation-plan.md Task 1.3),
+# meant to be periodically regenerated and re-committed, not local-only scratch.
+!graphify-out/table_usage_report.json
+!graphify-out/quarantine_test_findings.json
 
 # Isolated git worktrees for parallel development
 .worktrees/

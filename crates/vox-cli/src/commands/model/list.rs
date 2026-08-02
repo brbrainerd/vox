@@ -34,12 +34,20 @@ pub struct ListArgs {
 fn default_sort_key(m: &ModelSpec) -> (bool, bool, &str) {
     // `false < true`, so negating each "wanted first" predicate makes ascending sort put
     // local providers before cloud ones, and free models before paid ones, within each group.
-    (!is_local_http_provider(&m.provider_type), !m.is_free, m.id.as_str())
+    (
+        !is_local_http_provider(&m.provider_type),
+        !m.is_free,
+        m.id.as_str(),
+    )
 }
 
 /// Pure filter/sort/limit core, factored out of [`run`] so the CLI flag wiring (including
 /// `--local-only` / `--free-only`) is testable without touching the on-disk registry cache.
-fn select_model_ids(mut models: Vec<ModelSpec>, args: &ListArgs, cap: Option<Capability>) -> Vec<String> {
+fn select_model_ids(
+    mut models: Vec<ModelSpec>,
+    args: &ListArgs,
+    cap: Option<Capability>,
+) -> Vec<String> {
     if let Some(c) = cap {
         models.retain(|m| m.capabilities.supports(c));
     }
@@ -115,16 +123,30 @@ mod tests {
     #[test]
     fn default_sort_surfaces_local_model_despite_late_alphabetical_id() {
         let mut models: Vec<ModelSpec> = (0..150)
-            .map(|i| make_spec(&format!("cloud-model-{i:03}"), ProviderType::OpenRouter, false))
+            .map(|i| {
+                make_spec(
+                    &format!("cloud-model-{i:03}"),
+                    ProviderType::OpenRouter,
+                    false,
+                )
+            })
             .collect();
         // "qwen3:8b" sorts after all 150 "cloud-model-*" ids alphabetically.
         models.push(make_spec("qwen3:8b", ProviderType::Ollama, true));
-        models.push(make_spec("vox-mens-v1:latest", ProviderType::PopuliMesh, true));
+        models.push(make_spec(
+            "vox-mens-v1:latest",
+            ProviderType::PopuliMesh,
+            true,
+        ));
 
         // Old behavior: plain alphabetical sort + limit(100) would drop both local models.
         let mut alpha_sorted = models.clone();
         alpha_sorted.sort_by(|a, b| a.id.cmp(&b.id));
-        let old_result: Vec<&str> = alpha_sorted.iter().take(100).map(|m| m.id.as_str()).collect();
+        let old_result: Vec<&str> = alpha_sorted
+            .iter()
+            .take(100)
+            .map(|m| m.id.as_str())
+            .collect();
         assert!(
             !old_result.contains(&"qwen3:8b"),
             "sanity check: old alphabetical+limit(100) should reproduce the bug"
@@ -134,7 +156,10 @@ mod tests {
         let mut new_sorted = models.clone();
         new_sorted.sort_by(|a, b| default_sort_key(a).cmp(&default_sort_key(b)));
         let new_top: Vec<&str> = new_sorted.iter().take(100).map(|m| m.id.as_str()).collect();
-        assert!(new_top.contains(&"qwen3:8b"), "qwen3:8b must survive the default limit");
+        assert!(
+            new_top.contains(&"qwen3:8b"),
+            "qwen3:8b must survive the default limit"
+        );
         assert!(
             new_top.contains(&"vox-mens-v1:latest"),
             "vox-mens-v1:latest must survive the default limit"
@@ -146,7 +171,7 @@ mod tests {
 
     #[test]
     fn local_only_flag_filters_to_local_providers() {
-        let models = vec![
+        let models = [
             make_spec("cloud-a", ProviderType::OpenRouter, false),
             make_spec("qwen3:8b", ProviderType::Ollama, true),
             make_spec("mesh-model", ProviderType::PopuliMesh, true),

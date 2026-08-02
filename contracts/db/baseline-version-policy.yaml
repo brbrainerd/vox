@@ -4,13 +4,22 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 85
+  repository_baseline_integer: 86
   # Keccak-256 of baseline_sql() — updated for 83: skill_candidates.lifecycle_state + source_hash (Task 3.3, harness parity plan);
   # re-updated for a comment fix (source_hash is blake3-only, not Keccak/blake3 — code-review finding on cd3f7e8736);
   # re-updated for skill_identities table (Task 3.4, harness parity plan — skill namespace/identity FCFS uniqueness);
   # re-updated for a superseded-by-reliability_scores doc comment on the legacy skill_reliability table
-  # (final holistic branch review finding: CLI report was still reading the dead table).
-  repository_baseline_digest_hex: "0xe0b983e319dee78e71647ae8e1d590e7e30701fcbb76bb7025775251476e2ab7"
+  # (final holistic branch review finding: CLI report was still reading the dead table);
+  # re-updated for 85: quarantine of 42 DDL-bearing DORMANT/DEAD tables out of the default
+  # baseline (Task 4, VoxDB audit condensation plan) — digest is of the default (quarantine
+  # feature OFF) baseline_sql().
+  # re-updated (still 85, no BASELINE_VERSION bump needed): conversation_versions,
+  # conversation_edges, topic_evolution_events restored to the default baseline after a
+  # pre-migration sweep found Task 4 wrongly quarantined them (real caller in
+  # vox-orchestrator-mcp via a delegation-alias layer the automated census missed).
+  # re-updated for 86: harness_eval_run/task_result/model_selection_event tables
+  # (harness_eval domain fragment) added alongside the Task 4 quarantine work.
+  repository_baseline_digest_hex: "0x6a266e96933cfe6b7d71a21a9cd476a11c04e4ba536c0f215c3824e279ea6243"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

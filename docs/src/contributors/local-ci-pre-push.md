@@ -25,6 +25,7 @@ It runs **before** the remote receives objects.
 | **Full+cov** | **`--full --with-coverage`** | **`--full`** but uses **`cargo llvm-cov nextest`** + emits lcov/HTML report under `target/llvm-cov/`. | **≤260s**. |
 | **Full+since** | **`--full --since <ref>`** | **`--full`** nextest step runs only for packages changed since `<ref>` + their reverse-deps. Falls back to workspace when > 20 packages impacted. | **3–20s** for 1–3 crate edits. |
 | **Full+cov+since** | **`--full --with-coverage --since <ref>`** | Combination of the above two. | **3–30s** typical. |
+| **ci-equivalent** | **`--full --with-coverage --include-slow`** | **Full+cov** plus the slow `#[ignore]` partition (see **Extended `--full` flags** below) — the closest local match to what CI runs. | **≤480s**. |
 
 **Legacy:** **`--quick`** is an alias for the default **fast** profile (it conflicts with **`--complete`** / **`--full`**).
 

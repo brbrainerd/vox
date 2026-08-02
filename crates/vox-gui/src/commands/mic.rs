@@ -30,7 +30,26 @@ const TARGET_SAMPLE_RATE: u32 = 16_000;
 /// Returns the refined transcript text. Errors are surfaced verbatim (e.g. a
 /// missing `stt-candle` backend or an undecodable file) — never a panic.
 pub fn transcribe_audio_file(path: &Path) -> Result<String, String> {
-    let ctx = CorrectionContext::default();
+    // Built from a FRESH `OratioRuntimeConfig::resolve()` (not the
+    // process-cached `vox_speech::resolved_runtime_config()`, and not
+    // `CorrectionContext::default()`) so this, the actual live mic-button
+    // path, picks up VOX_ORATIO_DOMAIN_MODE on every call — and therefore the
+    // Settings "Dictation domain" toggle (see `commands/stt_config.rs`) and
+    // code-dictation symbol expansion — instead of either always running as
+    // DomainMode::General, or latching onto whatever value happened to be set
+    // the first time ANY code in the process called the cached resolver
+    // (`resolved_runtime_config` memoizes via `OnceLock` — correct for actual
+    // hot paths like per-token routing, wrong here since this call site fires
+    // once per dictation stop, not per-token, so re-resolving is cheap and
+    // avoids the exact same "Settings change has no effect until restart"
+    // bug that `backend_dispatch::invalidate_cache()` was added to fix for
+    // the ASR-backend setting). `session.rs::transcribe_path_session` takes a
+    // config the CALLER resolves per-session, so it isn't subject to this.
+    let ctx = CorrectionContext::from_runtime(
+        &vox_speech::OratioRuntimeConfig::resolve(),
+        Default::default(),
+        false,
+    );
     // `{e:#}` renders the full anyhow context chain (root candle/HF error +
     // every `.context(...)`), not just the top-level "Whisper inference" label —
     // so the UI surfaces the actionable cause (e.g. a missing model or a tensor
@@ -287,6 +306,58 @@ pub fn stop_mic_capture_and_transcribe(
 mod tests {
     use super::*;
     use std::io::Write;
+
+    /// Regression test for a cross-task wiring gap found in the final review
+    /// of the STT-accuracy plan: `transcribe_audio_file` previously always
+    /// built `CorrectionContext::default()` (DomainMode::General), so the
+    /// Settings "Dictation domain" toggle (`commands/stt_config.rs`) had no
+    /// effect on the actual mic-button path. `code_confusion_map`'s entries
+    /// (e.g. "box dine" -> "Box<dyn") only apply under `DomainMode::Code`
+    /// (see `refine/rules.rs`), giving a simple, already-existing behavior to
+    /// prove the domain now threads through via the `.txt` passthrough seam
+    /// (no audio/model needed).
+    ///
+    /// NOTE: mutates the real `VOX_ORATIO_DOMAIN_MODE` env var read by
+    /// `OratioRuntimeConfig::resolve()` — not parallel-safe with any other
+    /// test touching that var in this binary. None currently does.
+    #[test]
+    fn transcribe_audio_file_honors_domain_mode_env_var() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("fixture.txt");
+        std::fs::write(&p, "box dine error").unwrap();
+
+        let original = std::env::var("VOX_ORATIO_DOMAIN_MODE").ok();
+
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_ORATIO_DOMAIN_MODE");
+        }
+        let general = transcribe_audio_file(&p).expect("general-domain transcribe");
+        assert_eq!(
+            general, "box dine error",
+            "General domain must not apply code_confusion_map"
+        );
+
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_ORATIO_DOMAIN_MODE", "code");
+        }
+        let code = transcribe_audio_file(&p).expect("code-domain transcribe");
+        assert_eq!(
+            code, "Box<dyn error",
+            "Code domain (set via the same env var the Settings toggle writes) \
+             must apply code_confusion_map — if this fails, transcribe_audio_file \
+             has regressed back to always using DomainMode::General"
+        );
+
+        #[allow(unsafe_code)]
+        unsafe {
+            match &original {
+                Some(v) => std::env::set_var("VOX_ORATIO_DOMAIN_MODE", v),
+                None => std::env::remove_var("VOX_ORATIO_DOMAIN_MODE"),
+            }
+        }
+    }
 
     /// `.txt` passthrough exercises the refine glue without needing the Candle
     /// audio backend — proves `transcribe_audio_file` returns refined text.

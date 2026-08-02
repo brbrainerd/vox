@@ -8,7 +8,17 @@ async fn db() -> VoxDb {
     VoxDb::open_memory().await.expect("open_memory")
 }
 
+// workflow_executions is quarantined (DORMANT, no confirmed caller outside
+// vox-db even via wrapper-call detection — Task 4, VoxDB audit condensation
+// plan) — off by default, see crates/vox-db/src/schema/domains/quarantine.rs.
+// These 5 tests were never caught by the test-census scan because their
+// bodies call start_workflow_execution/finish_workflow_execution/
+// get_workflow_execution, not the literal table name — same class of blind
+// spot the wrapper-call detection pass exists for, on the test side.
+// execution_log's tests below (is_activity_completed_*) are unaffected —
+// that table stays LIVE (real caller found via wrapper-call detection).
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn start_workflow_sets_status_running() {
     let cs: VoxDb = db().await;
     cs.start_workflow_execution("wf-1", 3).await.expect("start");
@@ -24,6 +34,7 @@ async fn start_workflow_sets_status_running() {
 }
 
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn finish_workflow_sets_status_ok() {
     let cs: VoxDb = db().await;
     cs.start_workflow_execution("wf-2", 2).await.expect("start");
@@ -40,6 +51,7 @@ async fn finish_workflow_sets_status_ok() {
 }
 
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn finish_workflow_sets_error_count() {
     let cs: VoxDb = db().await;
     cs.start_workflow_execution("wf-3", 5).await.expect("start");
@@ -56,6 +68,7 @@ async fn finish_workflow_sets_error_count() {
 }
 
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn get_workflow_execution_returns_none_for_unknown() {
     let cs: VoxDb = db().await;
     let r = cs
@@ -66,6 +79,7 @@ async fn get_workflow_execution_returns_none_for_unknown() {
 }
 
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn start_workflow_is_idempotent_upsert() {
     let cs: VoxDb = db().await;
     cs.start_workflow_execution("wf-idem", 1)

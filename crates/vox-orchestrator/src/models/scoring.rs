@@ -635,9 +635,11 @@ mod tests {
     /// without a hardcoded provider check.
     #[test]
     fn free_ollama_model_competitive_with_free_mesh_model_at_low_complexity() {
-        unsafe {
-            std::env::set_var("VOX_ROUTING_PREFER_MESH", "false");
-        }
+        // Scoped + auto-restored (previously a raw `unsafe { set_var }` with no
+        // teardown, which both fails clippy's workspace-wide `unsafe_code` deny
+        // and leaked the override into later tests).
+        let _env_guard = vox_test_harness::env_scratch::EnvScratch::empty()
+            .set("VOX_ROUTING_PREFER_MESH", "false");
 
         let mut ollama = make_spec(ProviderType::Ollama, 0.0, true);
         ollama.id = "qwen3:8b".into();
@@ -905,7 +907,13 @@ mod axes_override_tests {
     /// must be observed by `base_routing_weights` when no per-call thread-local
     /// override is active, and clearing it restores the env fallback. This is the
     /// thread-safe replacement for the old `set_var` startup mutation.
+    ///
+    /// `BASE_AXES` is a process-global `RwLock` (see above); `#[serial]` keeps
+    /// this test's install/clear mutually exclusive with any other test whose
+    /// scoring path reads `base_routing_weights()` without installing its own
+    /// thread-local override (e.g. `policy::tests::emphasize_intelligence_vs_efficiency_differ`).
     #[test]
+    #[serial_test::serial]
     fn install_base_routing_priority_is_observed_then_cleared() {
         // No thread-local override here (this test installs none).
         install_base_routing_priority(Some(axes(11, 22, 33)));

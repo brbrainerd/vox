@@ -248,6 +248,7 @@ mod registry_filter_tests {
                 TaskCategory::CodeGen,
                 2,
                 CostPreference::Economy,
+                false,
                 |m| m.is_free && !matches!(m.provider_type, ProviderType::Ollama),
                 None,
             )
@@ -303,6 +304,7 @@ mod registry_filter_tests {
             TaskCategory::CodeGen,
             2,
             CostPreference::Economy,
+            true,
             |m| m.is_free,
             None,
         );
@@ -313,6 +315,55 @@ mod registry_filter_tests {
             picked.id, "local-m",
             "cloud candidate must be excluded under VOX_INFERENCE_PRIVACY=local_only"
         );
+    }
+
+    #[test]
+    #[serial]
+    // best_for_with_filter -> best_for_internal reads the process-global
+    // TEST_PRIVACY_OVERRIDE (route_policy.rs); without #[serial] this races
+    // against other tests in this module that mutate it, transiently
+    // excluding candidates it never itself sets/resets.
+    fn best_for_with_filter_admits_free_model_when_explicitly_allowed() {
+        let mut r = ModelRegistry::default();
+        r.register(ModelSpec {
+            id: "free-perf-test".into(),
+            canonical_slug: "free-perf-test".into(),
+            provider: "google".into(),
+            provider_type: ProviderType::GoogleDirect,
+            max_tokens: 1_000_000,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        });
+
+        let excluded = r.best_for_with_filter(
+            TaskCategory::CodeGen,
+            5,
+            CostPreference::Performance,
+            false, // not allowed
+            |_| true,
+            None,
+        );
+        assert!(excluded.is_none(), "free model must be excluded by default");
+
+        let included = r.best_for_with_filter(
+            TaskCategory::CodeGen,
+            5,
+            CostPreference::Performance,
+            true, // explicitly allowed
+            |_| true,
+            None,
+        );
+        assert_eq!(included.map(|m| m.id), Some("free-perf-test".to_string()));
     }
 
     #[test]

@@ -1,11 +1,14 @@
 //! Research pipeline subsystem for `vox-orchestrator`.
 //!
 //! See `docs/src/architecture/scientia-self-publication-finalization-plan-2026.md`
-//! for the strategic context. This module is currently in **Phase 0a stub**
-//! state: types are real, behavior returns empty/default values. Phase 1
-//! replaces the stub bodies with the `vox-claim-extractor` crate.
-//!
-//! All stubs are marked `// PHASE_0a_STUB` for grep-based discovery.
+//! for the strategic context and
+//! `docs/src/architecture/deep-research-verification-2026-08-01.md` for a
+//! current-state audit. As of 2026-08-01, claim extraction, verification,
+//! confidence gating, and synthesis are real LLM-backed implementations
+//! (behind the `runtime` feature) — this module is no longer in a blanket
+//! stub state. Individual known gaps (not "everything is a stub") are
+//! tracked in the verification doc above; grep `PHASE_0a_STUB` only finds
+//! genuinely narrow remaining placeholders, not whole-module stubs.
 
 pub mod claims;
 pub(super) mod config;

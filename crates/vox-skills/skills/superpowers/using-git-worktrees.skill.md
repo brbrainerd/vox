@@ -41,3 +41,4 @@ git worktree prune
 ## Cleanup discipline
 
 Stale `.claude/worktrees/` or `../wt-*` trees accumulate and consume disk. Remove a worktree as soon as its work is integrated.
+Removing a stale worktree also reclaims its `.vox/store.db` — it's a per-worktree artifact, not shared state, so nothing separate needs to preserve or migrate it.

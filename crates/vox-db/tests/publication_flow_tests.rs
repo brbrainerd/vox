@@ -1,7 +1,14 @@
 use vox_db::{
-    DbConfig, ExternalStatusSnapshotParams, ExternalSubmissionAttemptParams,
-    ExternalSubmissionJobUpsertParams, PublicationExternalLinkUpsertParams,
-    PublicationExternalRevisionUpsertParams, PublicationManifestParams, StoreError, VoxDb,
+    DbConfig, ExternalSubmissionAttemptParams, ExternalSubmissionJobUpsertParams,
+    PublicationManifestParams, StoreError, VoxDb,
+};
+// Only used by the quarantine-gated test below (publication_external_links,
+// publication_external_revisions, plus its ExternalStatusSnapshotParams
+// call); unused when the feature is off.
+#[cfg(feature = "quarantine")]
+use vox_db::{
+    ExternalStatusSnapshotParams, PublicationExternalLinkUpsertParams,
+    PublicationExternalRevisionUpsertParams,
 };
 
 #[tokio::test]
@@ -118,7 +125,15 @@ async fn scholarly_submission_upsert_tracks_status() {
     assert_eq!(manifest.state, "accepted");
 }
 
+// Touches publication_external_links, which is quarantined (DORMANT, no
+// confirmed caller outside vox-db even via wrapper-call detection — Task 4,
+// VoxDB audit condensation plan) — off by default, see
+// crates/vox-db/src/schema/domains/quarantine.rs. Not caught by the
+// test-census scan because most of this test exercises still-live tables
+// (external_submission_jobs/attempts, external_status_snapshots); only its
+// final section references publication_external_links.
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn external_submission_job_attempt_snapshot_and_links_roundtrip() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
     db.upsert_publication_manifest(PublicationManifestParams {

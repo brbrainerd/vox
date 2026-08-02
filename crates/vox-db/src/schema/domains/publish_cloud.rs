@@ -72,13 +72,7 @@ CREATE TABLE IF NOT EXISTS published_news (
     content_sha3_256 TEXT
 );
 
--- Two-person approval: distinct approver identities per news id (filename stem).
-CREATE TABLE IF NOT EXISTS news_publish_approvals (
-    news_id TEXT NOT NULL,
-    approver TEXT NOT NULL,
-    approved_at_ms INTEGER NOT NULL,
-    PRIMARY KEY (news_id, approver)
-);
+-- news_publish_approvals: quarantined (DORMANT, Task 4) — see domains/quarantine.rs.
 
 -- Digest-bound approvals (v2): approvals are tied to immutable content hash.
 CREATE TABLE IF NOT EXISTS news_publish_approvals_v2 (
@@ -253,36 +247,8 @@ CREATE TABLE IF NOT EXISTS external_status_snapshots (
 CREATE INDEX IF NOT EXISTS idx_external_snapshots_adapter_ext
     ON external_status_snapshots(adapter, external_submission_id, fetched_at_ms);
 
-CREATE TABLE IF NOT EXISTS publication_external_links (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    publication_id TEXT NOT NULL,
-    content_sha3_256 TEXT NOT NULL,
-    adapter TEXT NOT NULL,
-    link_kind TEXT NOT NULL,
-    link_value TEXT NOT NULL,
-    metadata_json TEXT,
-    created_at_ms INTEGER NOT NULL,
-    UNIQUE(publication_id, content_sha3_256, adapter, link_kind)
-);
-
-CREATE INDEX IF NOT EXISTS idx_publication_external_links_pub
-    ON publication_external_links(publication_id, content_sha3_256);
-
--- Maps an immutable local content digest to the adapter's current revision/version identifier
--- (e.g. Zenodo deposition version, OpenReview revision tag) for idempotent updates.
-CREATE TABLE IF NOT EXISTS publication_external_revisions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    publication_id TEXT NOT NULL,
-    content_sha3_256 TEXT NOT NULL,
-    adapter TEXT NOT NULL,
-    external_revision TEXT NOT NULL,
-    metadata_json TEXT,
-    updated_at_ms INTEGER NOT NULL,
-    UNIQUE(publication_id, content_sha3_256, adapter)
-);
-
-CREATE INDEX IF NOT EXISTS idx_publication_external_revisions_pub_digest
-    ON publication_external_revisions(publication_id, content_sha3_256);
+-- publication_external_links, publication_external_revisions: quarantined
+-- (DORMANT, Task 4) — see domains/quarantine.rs.
 
 CREATE TABLE IF NOT EXISTS scientia_external_intelligence (
     id TEXT PRIMARY KEY,
@@ -312,40 +278,6 @@ CREATE TABLE IF NOT EXISTS scientia_feed_sources (
     last_crawled_at_ms INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS syndication_events (
-    id               TEXT    PRIMARY KEY,
-    publication_id   TEXT    NOT NULL,
-    channel          TEXT    NOT NULL,
-    outcome          TEXT    NOT NULL,
-    external_id      TEXT,
-    attempt_number   INTEGER NOT NULL DEFAULT 1,
-    retryable        INTEGER NOT NULL DEFAULT 0,
-    attempted_at     TEXT    NOT NULL,
-    created_at       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-);
-CREATE INDEX IF NOT EXISTS idx_syndication_events_pub
-    ON syndication_events (publication_id);
-CREATE INDEX IF NOT EXISTS idx_syndication_events_channel
-    ON syndication_events (channel, attempted_at DESC);
-
-CREATE TABLE IF NOT EXISTS scholarly_publication_records (
-    id                    TEXT PRIMARY KEY,
-    publication_id        TEXT NOT NULL UNIQUE,
-    doi                   TEXT,
-    zenodo_deposit_id     TEXT,
-    zenodo_doi            TEXT,
-    orcid_put_code        INTEGER,        -- returned integer from ORCID POST
-    figshare_article_id   TEXT,
-    arxiv_submission_id   TEXT,
-    openreview_forum_id   TEXT,
-    crossref_deposit_id   TEXT,
-    researchgate_confirmed INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'draft',
-    -- status: 'draft' | 'deposited' | 'published' | 'retracted'
-    published_at          TEXT,
-    created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    updated_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-);
-CREATE INDEX IF NOT EXISTS idx_scholarly_pub_doi
-    ON scholarly_publication_records (doi) WHERE doi IS NOT NULL;
+-- syndication_events, scholarly_publication_records: quarantined
+-- (DEAD, Task 4) — see domains/quarantine.rs.
 "#;

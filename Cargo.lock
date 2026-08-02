@@ -17326,6 +17326,7 @@ name = "vox-research-shim"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "futures",
  "jsonschema",
  "serde",
  "serde_json",

@@ -16,8 +16,11 @@ use std::sync::OnceLock;
 // 82: feat(skill-discovery): add skill_candidates table (Task 3.2, harness parity plan)
 // 83: feat(skill-discovery): add lifecycle_state + source_hash to skill_candidates (Task 3.3, harness parity plan)
 // 84: feat(skill-discovery): add skill_identities table (Task 3.4, harness parity plan)
-// 85: feat(vox-db): harness_eval_run/task_result/model_selection_event tables
-pub const BASELINE_VERSION: i64 = 85;
+// 85: refactor(schema-condensation): quarantine 42 DDL-bearing DORMANT/DEAD tables into
+//     domains::quarantine, gated by the `quarantine` feature (off by default); handoff_payloads'
+//     CollectionInfo entry gated the same way (Task 4, VoxDB audit condensation plan)
+// 86: feat(vox-db): harness_eval_run/task_result/model_selection_event tables
+pub const BASELINE_VERSION: i64 = 86;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -175,11 +178,53 @@ pub fn baseline_sql() -> &'static str {
                 full.push_str("\n\n");
             }
         }
+        #[cfg(feature = "quarantine")]
+        {
+            let sql = domains::quarantine::SCHEMA_QUARANTINE.trim();
+            if !sql.is_empty() {
+                full.push_str(sql);
+                full.push_str("\n\n");
+            }
+        }
         full
     })
 }
 
 #[cfg(test)]
+mod quarantine_gating {
+    use super::baseline_sql;
+
+    /// A table that lives only in `domains::quarantine` (Task 4.1/4.2, VoxDB
+    /// audit condensation plan). With the `quarantine` feature OFF (the
+    /// default), its DDL must be absent from the compiled baseline.
+    #[test]
+    #[cfg(not(feature = "quarantine"))]
+    fn quarantined_table_absent_when_feature_off() {
+        let sql = baseline_sql();
+        assert!(
+            !sql.contains("CREATE TABLE IF NOT EXISTS toestub_file_cache"),
+            "quarantine feature is OFF by default; toestub_file_cache DDL must not appear in baseline_sql()"
+        );
+    }
+
+    /// Same table must be present when the `quarantine` feature is enabled.
+    #[test]
+    #[cfg(feature = "quarantine")]
+    fn quarantined_table_present_when_feature_on() {
+        let sql = baseline_sql();
+        assert!(
+            sql.contains("CREATE TABLE IF NOT EXISTS toestub_file_cache"),
+            "quarantine feature is ON; toestub_file_cache DDL must appear in baseline_sql()"
+        );
+    }
+}
+
+// Skipped under the `quarantine` feature: that feature deliberately appends
+// additional DDL to `baseline_sql()` (VoxDB audit condensation Task 4),
+// producing a different digest by design. The policy tracks the canonical
+// default-feature schema only, so the whole module (including its otherwise-
+// unused imports under that feature) is gated off rather than just the test.
+#[cfg(all(test, not(feature = "quarantine")))]
 mod baseline_digest_policy {
     use super::{BASELINE_VERSION, schema_baseline_digest_hex};
 

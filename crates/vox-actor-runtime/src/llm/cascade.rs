@@ -184,7 +184,12 @@ fn apply_stage_defaults(stage: ResearchStage, cfg: &mut LlmConfig) {
     cfg.telemetry_strength_tag = Some(format!("{stage:?}").to_ascii_lowercase());
     cfg.temperature = Some(match stage {
         ResearchStage::Planner => 0.2,
-        ResearchStage::ClaimExtraction | ResearchStage::Verification | ResearchStage::Judge => 0.0,
+        ResearchStage::ClaimExtraction | ResearchStage::Judge => 0.0,
+        // Nonzero so SelfCheckGPT-style resampling (see
+        // `verify_claims_with_config` in vox-research-shim) produces
+        // genuine variation across samples instead of near-identical
+        // deterministic output.
+        ResearchStage::Verification => 0.3,
         ResearchStage::Synthesis => 0.2,
         ResearchStage::SelfVerification => 0.0,
     });
@@ -253,6 +258,42 @@ mod tests {
                 c.max_tokens
             );
         }
+    }
+
+    #[test]
+    fn verification_stage_uses_nonzero_temperature() {
+        let candidates = cascade_with_optional_manual(
+            ResearchStage::Verification,
+            &RouteResolutionInput::default(),
+            None,
+            None,
+            None,
+        );
+        assert!(
+            candidates.iter().all(|c| c.temperature == Some(0.3)),
+            "Verification stage must use nonzero temperature for self-consistency resampling to work"
+        );
+    }
+
+    #[test]
+    fn claim_extraction_and_judge_stages_stay_deterministic() {
+        let claim_extraction = cascade_with_optional_manual(
+            ResearchStage::ClaimExtraction,
+            &RouteResolutionInput::default(),
+            None,
+            None,
+            None,
+        );
+        assert!(claim_extraction.iter().all(|c| c.temperature == Some(0.0)));
+
+        let judge = cascade_with_optional_manual(
+            ResearchStage::Judge,
+            &RouteResolutionInput::default(),
+            None,
+            None,
+            None,
+        );
+        assert!(judge.iter().all(|c| c.temperature == Some(0.0)));
     }
 
     fn expected_free() -> Vec<String> {
