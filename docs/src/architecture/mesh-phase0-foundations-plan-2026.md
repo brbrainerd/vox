@@ -1322,7 +1322,7 @@ mod unit {
 }
 ```
 
-Note: the camel-to-snake mapping is a deliberate choice — match the existing convention in `crates/vox-secrets/src/spec.rs`. If the canonical mapping there is different (e.g., the env var for `VoxGitHubToken` is `VOX_GITHUB_TOKEN` rather than `VOX_GIT_HUB_TOKEN`), use the `SecretSpec.env` field directly instead of recomputing.
+Note: the camel-to-snake mapping is a deliberate choice — match the existing convention in `crates/vox-secrets/src/spec/`. If the canonical mapping there is different (e.g., the env var for `VoxGitHubToken` is `VOX_GITHUB_TOKEN` rather than `VOX_GIT_HUB_TOKEN`), use the `SecretSpec.env` field directly instead of recomputing.
 
 Update the test `bag_only_exposes_declared_secrets` once the canonical env-var name is known.
 

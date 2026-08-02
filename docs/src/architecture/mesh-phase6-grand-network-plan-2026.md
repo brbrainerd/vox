@@ -907,7 +907,7 @@ Then dispatch in the matching `run` (or `dispatch`) function:
 
 - [ ] **Step 3: Add the secret id**
 
-If `VoxMeshNodeEd25519Sk` is not already defined in `crates/vox-secrets/src/spec.rs`, add it next to existing mesh secrets, with env name `VOX_MESH_NODE_ED25519_SK`. (The vox-secrets file follows a `SecretSpec { id, env, … }` pattern; copy the shape of an existing entry.)
+If `VoxMeshNodeEd25519Sk` is not already defined in `crates/vox-secrets/src/spec/`, add it next to existing mesh secrets, with env name `VOX_MESH_NODE_ED25519_SK`. (The vox-secrets file follows a `SecretSpec { id, env, … }` pattern; copy the shape of an existing entry.)
 
 - [ ] **Step 4: Verify build and CLI smoke**
 
@@ -926,7 +926,7 @@ git add crates/vox-mesh-types/src/attestation_manifest.rs \
         crates/vox-ml-cli/src/commands/populi_attest.rs \
         crates/vox-ml-cli/src/commands/mod.rs \
         crates/vox-ml-cli/src/commands/populi_cli.rs \
-        crates/vox-secrets/src/spec.rs
+        crates/vox-secrets/src/spec/
 git commit -m "feat(populi): P6-T2 public attestation manifest + vox populi attest CLI
 
 Signed JSON manifest published out-of-band (Gist or .well-known/) with

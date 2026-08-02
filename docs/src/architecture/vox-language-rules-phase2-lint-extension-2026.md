@@ -165,7 +165,7 @@ Replace {
   new_text: "vox_secrets.resolve(\"<derived-secret-id>\")"
 }
 ```
-where `<derived-secret-id>` is computed by lowercasing + snake-casing the env var name. The fix is `Likely` (not `Certain`) when a matching `SecretId` does not yet exist in `crates/vox-secrets/src/spec.rs` — the diagnostic carries an `alternatives` entry suggesting addition of a `SecretSpec`.
+where `<derived-secret-id>` is computed by lowercasing + snake-casing the env var name. The fix is `Likely` (not `Certain`) when a matching `SecretId` does not yet exist in `crates/vox-secrets/src/spec/` — the diagnostic carries an `alternatives` entry suggesting addition of a `SecretSpec`.
 
 **Composite fix shape** when no `SecretId` exists:
 ```
