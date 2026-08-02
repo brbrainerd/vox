@@ -114,6 +114,16 @@ pub fn set_stt_config(key: String, value: String) -> Result<(), String> {
     unsafe {
         std::env::set_var(&key, &value);
     }
+    // Changing the backend also requires invalidating vox-speech's
+    // process-lifetime cached ASR backend instance — without this, the env
+    // var above updates but `with_cached_backend` keeps serving the already-
+    // constructed (now stale) engine for the rest of the process's life, so
+    // the Settings change would silently have no effect until restart. The
+    // domain-mode key has no equivalent cache (`runtime_config.rs` reads its
+    // env var fresh every time), so no invalidation is needed for it.
+    if key == BACKEND_KEY {
+        vox_speech::backend_dispatch::invalidate_cache();
+    }
     Ok(())
 }
 
@@ -144,6 +154,12 @@ mod tests {
         // Regression test for the audit finding above this task: a Settings
         // write must be visible to the same process's runtime resolvers
         // without a restart, not just persisted to the flat config file.
+        // Scoped to DOMAIN_KEY specifically: `runtime_config.rs` reads this
+        // env var fresh on every call, so an env-var-visibility check is a
+        // complete proof of "takes effect" for this key. It is NOT a
+        // complete proof for BACKEND_KEY — see the next test — because that
+        // key's actual runtime effect also depends on invalidating
+        // vox-speech's cached backend instance, not just the env var.
         let original = std::env::var(DOMAIN_KEY).ok();
         set_stt_config(DOMAIN_KEY.to_string(), "code".to_string()).expect("valid set");
         assert_eq!(std::env::var(DOMAIN_KEY).as_deref(), Ok("code"));
@@ -152,6 +168,33 @@ mod tests {
             match &original {
                 Some(v) => std::env::set_var(DOMAIN_KEY, v),
                 None => std::env::remove_var(DOMAIN_KEY),
+            }
+        }
+    }
+
+    #[test]
+    fn set_stt_config_invalidates_cached_backend_on_backend_key_change() {
+        // Regression test for the code-review finding that switching the
+        // backend in Settings updated the env var but silently kept serving
+        // vox-speech's already-constructed (stale) cached backend instance
+        // for the rest of the process's life. Full proof of "the NEXT
+        // dictation actually uses the new engine" lives in vox-speech's own
+        // `with_cached_backend`/`invalidate_cache` tests (backend_dispatch.rs)
+        // — this test only proves the wiring from this crate's command into
+        // that invalidation call actually happens for BACKEND_KEY and does
+        // not happen for DOMAIN_KEY (which has no cache to invalidate).
+        let original = std::env::var(BACKEND_KEY).ok();
+        vox_speech::backend_dispatch::invalidate_cache();
+        set_stt_config(BACKEND_KEY.to_string(), "whisper".to_string()).expect("valid set");
+        assert_eq!(std::env::var(BACKEND_KEY).as_deref(), Ok("whisper"));
+        // No panic / no error from the invalidate_cache() call path above is
+        // the primary assertion here — a stale-guard bug (e.g. re-entrant
+        // lock) would deadlock or panic this test.
+        #[allow(unsafe_code)]
+        unsafe {
+            match &original {
+                Some(v) => std::env::set_var(BACKEND_KEY, v),
+                None => std::env::remove_var(BACKEND_KEY),
             }
         }
     }

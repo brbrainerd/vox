@@ -107,6 +107,20 @@ pub fn create_backend() -> anyhow::Result<Box<dyn AsrBackend>> {
 static BACKEND: std::sync::Mutex<Option<std::sync::Arc<dyn AsrBackend>>> =
     std::sync::Mutex::new(None);
 
+/// Clear the cached backend so the *next* call to [`with_cached_backend`]
+/// reconstructs it via `create_backend()`, re-reading `VOX_ORATIO_BACKEND`.
+///
+/// Needed because changing the backend setting (e.g. via the GUI's Settings
+/// panel) only updates the env var / secret resolution the *next*
+/// `create_backend()` call reads — without this, a Settings change would
+/// update the displayed value but silently keep using the previously
+/// constructed (now stale) engine for the rest of the process's life,
+/// since `with_cached_backend` has no other way to know the setting changed.
+pub fn invalidate_cache() {
+    let mut guard = BACKEND.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    *guard = None;
+}
+
 /// Run `f` against the cached ASR backend, constructing it on first
 /// successful call. Safe to call from multiple threads: the backend is
 /// constructed at most once (barring a failed attempt, which is retried on
@@ -130,10 +144,10 @@ where
 /// Test-only: clears the cache slot so each test starts from a known state.
 /// `BACKEND` is a process-wide static shared by every test in this binary;
 /// without this, whichever test runs first "wins" the cache for the rest.
+/// Delegates to [`invalidate_cache`] — same operation, test-facing name.
 #[cfg(test)]
 fn reset_cache_for_test() {
-    let mut guard = BACKEND.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    *guard = None;
+    invalidate_cache();
 }
 
 #[cfg(test)]
