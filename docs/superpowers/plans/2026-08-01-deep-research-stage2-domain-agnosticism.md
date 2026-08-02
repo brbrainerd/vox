@@ -186,24 +186,17 @@ git commit -m "fix: replace coding-agent ANTI_LAZINESS_RIDER with research-appro
 
 ---
 
-### Task 3: Give the post-hoc citation audit pass a tracked backlog task (no code this plan)
+### Task 3: Citation audit pass — status corrected, no longer a backlog item
 
-**Files:** None — this task is process, not code, per the spec's explicit call-out that this item exists to prevent a repeat of the P1-7 silent-drop pattern (see [divergence audit §4](../../src/architecture/deep-research-implementation-divergence-audit-2026-08-01.md)).
+**Files:** None — this task is process/doc-correction, not code.
 
-- [ ] **Step 1: Confirm this task is tracked outside prose**
+**Correction (2026-08-01, during Stage 2 GUI work):** this task originally existed to give the post-hoc citation audit pass a tracked backlog entry, on the premise (from an earlier draft of the divergence audit) that it had been silently dropped during Stage 1 implementation (the "P1-7 silent-drop pattern"). That premise was wrong: `audit_citations()` in `vox-research-shim`'s `pipeline.rs` (~line 731-770) exists and is wired into `ResearchMetadata.citation_audit`, producing a real `CitationAuditResult`. See [divergence audit §4](../../src/architecture/deep-research-implementation-divergence-audit-2026-08-01.md) for the corrected finding.
 
-This plan file itself, as a numbered task with its own checkbox, satisfies the spec's requirement — unlike Stage 1, this item is not buried inside another task's bullet list. Citation-audit implementation (re-fetching each cited source post-synthesis and verifying it supports its attributed claim) is out of scope for *this* plan; it is deferred to a follow-up plan, tracked explicitly here rather than left as a synthesis-doc bullet point.
+What *is* still a legitimate, smaller follow-up: the shipped `audit_citations()` is a lighter-weight design than the original spec — it checks each citation's snippet for quote-overlap against the verifier's already-fetched evidence spans, not a true post-hoc re-fetch of each cited URL to independently re-verify against the live page. Upgrading it to a real re-fetch remains open, but is a scoped enhancement to existing, working code — not a "make this exist" task, and does not need this task's original tracked-backlog framing.
 
-- [ ] **Step 2: Add a placeholder entry to `research-index.md`'s coverage ledger noting the deferral**
+- [x] **Step 1: Confirm this task is tracked outside prose**
 
-Edit `docs/src/architecture/research-index.md`, in the Stage 2 synthesis bullet (search for `Deep Research Stage 2 Synthesis`), append: `" Citation-audit implementation tracked as a standalone follow-up plan, not yet written — see this plan's Task 3."`
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add docs/src/architecture/research-index.md
-git commit -m "docs: track citation-audit implementation as an explicit follow-up, not prose-only"
-```
+Superseded — no backlog entry needed; the feature already exists in code.
 
 ---
 
