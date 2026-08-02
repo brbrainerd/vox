@@ -128,19 +128,26 @@ worth preserving when consolidating onto the canonical dialect.
   `vox_graphify_callers/callees/path/compare/rebuild`, etc. — **still named `vox_graphify_*`**.
 - CLI surface: `vox graphify {status,query,ingest,rebuild,coverage,index,refresh,gc,crate-map,...}`
   (`crates/vox-cli/src/commands/graphify/mod.rs`, 1506 lines).
-- The Claude-format `vox-graph/SKILL.md` (§1) instructs agents to call
-  **`vox_search_query`/`vox_discover`/`vox_search_path`/`vox_search_status`** and to run
-  **`vox search rebuild|status|index`** from the CLI. **Confirmed bug** (read
-  `graph_tools.rs` and `vox-cli/src/commands/graphify/mod.rs` directly, not grep-only): none of
-  those tool or CLI names exist. The MCP layer registers `vox_graphify_status`,
-  `vox_graphify_search`, `vox_graphify_query`, `vox_graphify_path`, `vox_graphify_compare`,
-  `vox_graphify_callers/callees/rebuild`; the CLI subcommand is `vox graphify
-  {status,query,rebuild,coverage,index,refresh,crate-map}` — there is no `vox search` subgroup
-  at all. The skill was written ahead of an intended rename (its own text says "There is no
-  `graph` infix — `vox search <verb>` IS the graph subgroup, per vs1") that was never carried
-  out in code — an aspirational doc describing architecture that doesn't exist yet, which
-  `docs/src/contributors/documentation-governance.md` explicitly disallows for forward-facing
-  docs.
+- **Correction (this line originally reported this as a live bug; the adversarial review pass
+  that verified `docs/superpowers/specs/2026-08-01-skill-ecosystem-improvements-design.md` and
+  `docs/superpowers/plans/2026-08-01-skill-ecosystem-phase1-consolidation.md` found the opposite
+  — recorded here rather than silently rewritten).** The `vox_search_*` rename is **already
+  complete at the dispatch layer**: `crates/vox-orchestrator-mcp/src/dispatch.rs` and
+  `input_schemas.rs` register and dispatch on `vox_search_status`, `vox_search_structural`,
+  `vox_search_neighbors`, `vox_search_path`, `vox_search_callers`, `vox_search_callees`,
+  `vox_search_compare`, `vox_search_rebuild` — confirmed by two passing guard tests
+  (`vox_search_dispatch.rs`, `vox_search_rename.rs`). `vox_graphify_*` survives only as stale
+  doc-comments on internal Rust function names inside `graph_tools.rs` (e.g. `/// \`vox_graphify_status\`:
+  ...` above `pub async fn graphify_status(...)`) — those comments describe what the functions
+  used to be called, not what's actually dispatched; this audit's first pass mistook the
+  doc-comments for the registered tool names. The Claude-format `vox-graph/SKILL.md` (§1) was
+  therefore *mostly correct* already (it mixes already-correct names like `vox_search_status`/
+  `vox_search_path` with a couple of names — `vox_search_query`, `vox_discover` — that were never
+  registered under either the old or new scheme; those two needed fixing, the rest didn't).
+  Canonical CLI form is **`vox graph <verb>`** (`#[command(name = "graph", alias = "graphify",
+  alias = "search")]` in `vox-cli/src/lib.rs`) — `graphify` and `search` are backward-compatible
+  aliases, not competing subgroups. The corrected tool/CLI names now live in
+  `assets/skills/vox-graph/SKILL.md` per Phase 1 Task 17 of the plan above.
 - Construction (parsing→extraction→Leiden clustering as a *pipeline*, as opposed to the
   Rust reader library) is still Python: `scripts/graphify-refresh.vox → rebuild_full_graph.py
   → python -m graphify`, using PyPI `graphifyy` + `networkx` + `graspologic`, with multimodal
@@ -257,7 +264,7 @@ Counted, not padded — this is what 50 files and the surrounding code actually 
 - 4 orphaned/dead files shipping with no referrer (`spec-document-reviewer-prompt.md`, `plan-document-reviewer-prompt.md`, `CREATION-LOG.md`, and the dangling `vox-skill-review` crate history)
 - 1 confirmed-stale reference doc (`claude-api` pricing/model table)
 - 1 missing portability file (`vox-axis-tools.md`) blocking 13+14 superpowers skills from running under MENS
-- 1 likely-live bug (graphify tool-name mismatch between `vox-graph/SKILL.md` and `graph_tools.rs`)
+- 2 stale tool names in `vox-graph/SKILL.md` (not the broader mismatch first reported — see §2.3's correction; the `vox_search_*` rename is already complete in code, only `vox_search_query`/`vox_discover` were ever wrong)
 - 1 graphify skill-wiring gap (construction/read engine exists, no Vox-native skill exposes it)
 - 2 missing skills across both formats (plan/spec review, general code review)
 - 1 policy-violating bespoke index (`skill_search_index.rs`'s BM25 engine) to retire in favor of `vox-search`

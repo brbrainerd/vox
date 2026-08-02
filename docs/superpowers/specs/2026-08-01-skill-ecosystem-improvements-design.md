@@ -37,8 +37,10 @@ canonical frontmatter dialect first (Phase 1) means Phase 4 writes one indexer, 
 ## 2. Phase 1 — Content audit & consolidation
 
 **Goal:** every skill file in the repo is canonical-format, has no dead cross-references, has
-no duplicate SSOT, and the superpowers skill set is portable to Vox Axis/MENS. No new
-capability — this phase only removes debt the audit found.
+no duplicate SSOT, and the superpowers skill set is portable to Vox Axis/MENS. No new *code*
+capability — this phase only removes debt the audit found. Item 5's new reference doc is the one
+exception worth naming explicitly: it documents an existing MCP surface so it becomes usable from
+Vox Axis/MENS, but it adds no new tool, no new runtime behavior, and no code change.
 
 **Scope, itemized (feeds the Phase 1 plan directly):**
 
@@ -82,15 +84,22 @@ capability — this phase only removes debt the audit found.
    whatever `vox-plugin-skill-orchestrator` exposes, subagent dispatch via
    `vox-plugin-skill-orchestrator`'s multi-agent submission). This is the concrete unblock for
    "superpowers skills usable by MENS," not a rewrite of the skills themselves.
-6. **Fix the confirmed graphify tool-name mismatch.** `vox-graph/SKILL.md` documents tools and
-   CLI verbs that don't exist (`vox_search_query`, `vox search rebuild`, etc.) — confirmed by
-   reading `graph_tools.rs` and `vox-cli/src/commands/graphify/mod.rs` directly. Rewrite the
-   skill's "Key MCP tools" and "Graph verbs (CLI)" sections to name the tools/verbs that are
-   actually registered today (`vox_graphify_status/search/query/path/compare/callers/callees/
-   rebuild`; CLI `vox graphify status|query|rebuild|coverage|index|refresh|crate-map`).
-   Completing the `vox_search_*` rename in `graph_tools.rs` itself is a separate, larger,
-   code-touching change — out of scope for a docs-consolidation phase; note it as a fast-follow
-   in the skill's own text if the rename is still wanted, but don't block this phase on it.
+6. **Fix the confirmed graphify tool-name mismatch.** `vox-graph/SKILL.md` mixes already-correct
+   tool names (`vox_search_status`, `vox_search_path`) with stale ones that were never registered
+   (e.g. `vox_search_query`) — confirmed by reading
+   `crates/vox-orchestrator-mcp/src/dispatch.rs` and `input_schemas.rs` directly, alongside
+   `vox-cli/src/commands/graphify/mod.rs`. The `vox_search_*` rename is already complete in
+   code: `dispatch.rs`/`input_schemas.rs` dispatch on `vox_search_status`, `vox_search_structural`,
+   `vox_search_neighbors`, `vox_search_path`, `vox_search_callers`, `vox_search_callees`,
+   `vox_search_compare`, `vox_search_rebuild`; `vox_graphify_*` survives only as stale
+   doc-comments on internal Rust function names in `graph_tools.rs`, never as a dispatched tool
+   name. Rewrite the skill's "Key MCP tools" and "Graph verbs (CLI)" sections to name exactly
+   those eight `vox_search_*` tools, and use `vox graph
+   status|query|rebuild|coverage|index|refresh|crate-map` as the canonical CLI form — `vox graph`
+   is the canonical subcommand name (`#[command(name = "graph", alias = "graphify", alias =
+   "search")]` in `vox-cli/src/lib.rs`); `graphify`/`search` remain only as backward-compatible
+   aliases, not the form to document as primary. This is a pure docs fix — no code-side rename
+   remains outstanding.
 
 **Out of scope for Phase 1:** `canvas-design`/`algorithmic-art` redundancy (both are
 intentionally-different-media templates per the vendored source, not a Vox-authored redundancy
@@ -137,7 +146,9 @@ new skill ships canonical from day one):
 ## 5. Phase 4 — Smart selection/loading upgrade (roadmap-level)
 
 Retire `skill_search_index.rs`'s bespoke BM25 `SkillSearchIndex` — it's a direct AGENTS.md
-violation. Route both `vox_skill_search` and a new relevance-ranked tier-1 catalog selector
+violation. (It already borrows vox-search's tokenization strategy per its own doc comment, but
+it is still a standalone in-memory index, not routed through vox-search's tantivy+semantic+RRF
+hybrid stack.) Route both `vox_skill_search` and a new relevance-ranked tier-1 catalog selector
 through the existing `vox-search` hybrid stack (tantivy lexical + semantic indexer + RRF
 fusion), indexing skill manifests (name/description/tags — the same fields
 `SkillSearchIndex` used) as a `vox-search` document type. `render_skill_catalog`'s cap-64
