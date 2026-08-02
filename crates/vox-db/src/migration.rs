@@ -191,9 +191,7 @@ pub const QUARANTINE_DROP_TABLES: &[&str] = &[
 /// [`StoreError::QuarantineDropAborted`] naming every non-empty table if any has rows; the caller
 /// must not proceed to [`migrate_dropping_quarantine`]'s drop step in that case. This function
 /// performs no writes.
-pub async fn precheck_quarantine_tables_empty(
-    conn: &turso::Connection,
-) -> Result<(), StoreError> {
+pub async fn precheck_quarantine_tables_empty(conn: &turso::Connection) -> Result<(), StoreError> {
     let mut non_empty = Vec::new();
     for table in QUARANTINE_DROP_TABLES {
         let quoted = quote_ident(table);
