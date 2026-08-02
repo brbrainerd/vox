@@ -129,10 +129,18 @@ worth preserving when consolidating onto the canonical dialect.
 - CLI surface: `vox graphify {status,query,ingest,rebuild,coverage,index,refresh,gc,crate-map,...}`
   (`crates/vox-cli/src/commands/graphify/mod.rs`, 1506 lines).
 - The Claude-format `vox-graph/SKILL.md` (§1) instructs agents to call
-  **`vox_search_query`/`vox_discover`/`vox_search_path`/`vox_search_status`** — the *renamed*
-  names, not the ones the MCP layer currently exposes. **This is very likely a live bug**: the
-  skill either calls tools that don't exist yet, or the MCP layer has aliases not surfaced to
-  this audit. Needs a direct verification pass in Phase 1/2, not an assumption either way.
+  **`vox_search_query`/`vox_discover`/`vox_search_path`/`vox_search_status`** and to run
+  **`vox search rebuild|status|index`** from the CLI. **Confirmed bug** (read
+  `graph_tools.rs` and `vox-cli/src/commands/graphify/mod.rs` directly, not grep-only): none of
+  those tool or CLI names exist. The MCP layer registers `vox_graphify_status`,
+  `vox_graphify_search`, `vox_graphify_query`, `vox_graphify_path`, `vox_graphify_compare`,
+  `vox_graphify_callers/callees/rebuild`; the CLI subcommand is `vox graphify
+  {status,query,rebuild,coverage,index,refresh,crate-map}` — there is no `vox search` subgroup
+  at all. The skill was written ahead of an intended rename (its own text says "There is no
+  `graph` infix — `vox search <verb>` IS the graph subgroup, per vs1") that was never carried
+  out in code — an aspirational doc describing architecture that doesn't exist yet, which
+  `docs/src/contributors/documentation-governance.md` explicitly disallows for forward-facing
+  docs.
 - Construction (parsing→extraction→Leiden clustering as a *pipeline*, as opposed to the
   Rust reader library) is still Python: `scripts/graphify-refresh.vox → rebuild_full_graph.py
   → python -m graphify`, using PyPI `graphifyy` + `networkx` + `graspologic`, with multimodal
@@ -149,8 +157,10 @@ worth preserving when consolidating onto the canonical dialect.
 
 `populi.skill.md` exists **twice**, byte-different only in frontmatter shape, identical body:
 `crates/vox-skills/skills/populi.skill.md` (flat TOML) and
-`crates/vox-plugin-populi-mesh/populi.skill.md` (`[metadata]`-nested TOML). Two SSOTs for one
-skill — pick one location, delete the other.
+`crates/vox-plugin-populi-mesh/populi.skill.md` (`[metadata]`-nested TOML). Only the second is
+load-bearing — `Plugin.toml`'s `skill-md = "populi.skill.md"` and `catalog.toml`'s
+`populi-mesh` entry both point at it; the `vox-skills` copy is unreferenced by any sync script,
+test, or catalog entry. Two SSOTs for one skill — keep the plugin-crate copy, delete the stray.
 
 ### 2.5 Review gate
 

@@ -42,11 +42,11 @@ capability — this phase only removes debt the audit found.
 
 **Scope, itemized (feeds the Phase 1 plan directly):**
 
-1. **Dedupe `populi.skill.md`.** Pick one location — `crates/vox-skills/skills/populi.skill.md`
-   (already inside the canonical `vox-skills` registry tree) — delete
-   `crates/vox-plugin-populi-mesh/populi.skill.md`, and confirm nothing in
-   `vox-plugin-populi-mesh`'s crate code loads the skill by that now-removed path (grep for
-   `populi.skill.md` and `populi-mesh` skill-loading references before deleting).
+1. **Dedupe `populi.skill.md`.** Keep `crates/vox-plugin-populi-mesh/populi.skill.md` — it's
+   the load-bearing copy, referenced by `Plugin.toml`'s `[plugin.payload.skill] skill-md =
+   "populi.skill.md"` and shipped via `catalog.toml`'s `populi-mesh` plugin entry. Delete
+   `crates/vox-skills/skills/populi.skill.md` — confirmed (grep) unreferenced by any sync
+   script, test, or catalog entry; it's a stray duplicate, not a second distribution path.
 2. **Migrate frontmatter dialects to canonical.** Per AGENTS.md, canonical = YAML frontmatter
    (`name` matching directory name conceptually, `description` 1–1024 chars) with Vox
    extensions under `metadata` as `vox-*` keys (`vox-id`, `vox-category`, `vox-tools`,
@@ -82,15 +82,15 @@ capability — this phase only removes debt the audit found.
    whatever `vox-plugin-skill-orchestrator` exposes, subagent dispatch via
    `vox-plugin-skill-orchestrator`'s multi-agent submission). This is the concrete unblock for
    "superpowers skills usable by MENS," not a rewrite of the skills themselves.
-6. **Verify (don't assume) the graphify tool-name mismatch.** `vox-graph/SKILL.md` calls
-   `vox_search_query`/`vox_discover`/`vox_search_path`/`vox_search_status`; `graph_tools.rs`
-   registers `vox_graphify_status`/`vox_graphify_search`/`vox_graphify_query`/etc. Read
-   `graph_tools.rs` fully (not grep) to determine: are there aliases making both names work, or
-   is the skill currently calling non-existent tools? Fix whichever side is wrong — rename the
-   skill's tool calls to match the registered names, or finish the rename in
-   `graph_tools.rs` if that's the intended direction (check
-   `docs/superpowers/plans/2026-06-27-vox-graph-rename-and-manifest-plan-vg1.md` for the
-   original intent before picking a direction).
+6. **Fix the confirmed graphify tool-name mismatch.** `vox-graph/SKILL.md` documents tools and
+   CLI verbs that don't exist (`vox_search_query`, `vox search rebuild`, etc.) — confirmed by
+   reading `graph_tools.rs` and `vox-cli/src/commands/graphify/mod.rs` directly. Rewrite the
+   skill's "Key MCP tools" and "Graph verbs (CLI)" sections to name the tools/verbs that are
+   actually registered today (`vox_graphify_status/search/query/path/compare/callers/callees/
+   rebuild`; CLI `vox graphify status|query|rebuild|coverage|index|refresh|crate-map`).
+   Completing the `vox_search_*` rename in `graph_tools.rs` itself is a separate, larger,
+   code-touching change — out of scope for a docs-consolidation phase; note it as a fast-follow
+   in the skill's own text if the rename is still wanted, but don't block this phase on it.
 
 **Out of scope for Phase 1:** `canvas-design`/`algorithmic-art` redundancy (both are
 intentionally-different-media templates per the vendored source, not a Vox-authored redundancy
@@ -168,9 +168,10 @@ Vox can afford to be stricter since it controls the whole stack).
 
 Every phase operates on files/tables that are already git-tracked or already have migration
 tooling (`vox ci agentskills-compliance`, `vox skill discover`) — no phase introduces
-irreversible state. Phase 1's frontmatter migration is the highest-touch change; do it file-by-file
-with `vox ci agentskills-compliance --paths <file>` after each, not as one bulk rewrite, so a bad
-migration is caught and revertable per-file rather than discovered after all 22 files are
+irreversible state. Phase 1's frontmatter migration is the highest-touch change; do it file-by-file,
+running the full `vox ci agentskills-compliance` scan (it has no per-path scoping — it checks
+every skill file in one pass) and committing after each file, not as one bulk rewrite, so a bad
+migration is caught and revertable per-file rather than discovered after all 9 files are
 touched.
 
 ## 9. Testing
