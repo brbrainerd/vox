@@ -1179,3 +1179,69 @@ pub fn llm_config_for_spec(
         cfg
     }
 }
+
+#[cfg(all(test, feature = "runtime"))]
+mod tests {
+    use super::*;
+    use crate::models::TaskCategory;
+
+    /// Minimal fixture, mirroring the helper in `models/tests.rs`.
+    fn spec(id: &str, provider_type: ProviderType) -> ModelSpec {
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 4096,
+            cost_per_1k: 0.01,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Generalist],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: super::super::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    #[test]
+    fn ollama_spec_maps_to_ollama_provider() {
+        let s = spec("llama3", ProviderType::Ollama);
+        let cfg = llm_config_for_spec(&s, TaskCategory::CodeGen);
+        assert_eq!(cfg.provider, "ollama");
+        assert_eq!(cfg.model, "llama3");
+        assert_eq!(cfg.max_tokens, Some(4096));
+    }
+
+    #[test]
+    fn openrouter_spec_maps_to_openrouter_provider() {
+        let s = spec("openai/gpt-4o-mini", ProviderType::OpenRouter);
+        let cfg = llm_config_for_spec(&s, TaskCategory::CodeGen);
+        assert_eq!(cfg.provider, "openrouter");
+        assert_eq!(cfg.model, "openai/gpt-4o-mini");
+        assert_eq!(cfg.cost_per_1k, Some(0.01));
+    }
+
+    #[test]
+    fn google_direct_spec_routes_through_openrouter_base_url() {
+        let s = spec("google/gemini-2.0-flash", ProviderType::GoogleDirect);
+        let cfg = llm_config_for_spec(&s, TaskCategory::CodeGen);
+        assert_eq!(cfg.provider, "openrouter");
+        assert_eq!(cfg.model, "google/gemini-2.0-flash");
+        assert_eq!(cfg.base_url, Some(vox_config::openrouter_chat_completions_url()));
+    }
+
+    #[test]
+    fn telemetry_task_category_and_strength_are_propagated() {
+        // Ollama (unlike OpenRouter, which doesn't stamp telemetry today) explicitly
+        // threads task_type/strength through into the returned LlmConfig.
+        let s = spec("llama3", ProviderType::Ollama);
+        let cfg = llm_config_for_spec(&s, TaskCategory::Research);
+        assert_eq!(cfg.telemetry_task_category.as_deref(), Some("Research"));
+        assert!(cfg.telemetry_strength_tag.is_some());
+    }
+}
