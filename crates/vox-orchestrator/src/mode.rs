@@ -598,64 +598,76 @@ mod task_policy_resolver_tests {
     }
 }
 
+/// Shared merge logic for [`effective_category_policy`] and
+/// [`effective_source_policy`]: combine an optional live override entry with
+/// the matching compiled-default axis values.
+///
+/// `warn_context` yields `(field_name, key)` for the `tracing::warn!` call
+/// and is only invoked (lazily) when a warning is actually needed, so
+/// callers don't have to build the key string on every call.
+fn merge_policy_entry(
+    entry: Option<&crate::config::TaskPolicyEntry>,
+    default: Option<(ClutchProfile, RiskPosture)>,
+    warn_context: impl FnOnce() -> (&'static str, String),
+) -> (Option<ClutchProfile>, Option<RiskPosture>) {
+    if let Some(entry) = entry {
+        let clutch = entry.clutch.as_deref().and_then(ClutchProfile::from_label);
+        let risk = entry.risk.as_deref().and_then(RiskPosture::from_label);
+        if clutch.is_none() && risk.is_none() && (entry.clutch.is_some() || entry.risk.is_some()) {
+            let (field, key) = warn_context();
+            tracing::warn!(field, key = %key, clutch = ?entry.clutch, risk = ?entry.risk, "task_policy override has an unparseable clutch/risk label; falling through to compiled default");
+        }
+        if clutch.is_some() || risk.is_some() {
+            return (
+                clutch.or_else(|| default.map(|(c, _)| c)),
+                risk.or_else(|| default.map(|(_, r)| r)),
+            );
+        }
+    }
+    match default {
+        Some((c, r)) => (Some(c), Some(r)),
+        None => (None, None),
+    }
+}
+
 /// Merge the live Vox.toml override (if any and parseable) with the compiled
 /// `DEFAULT_CATEGORY_POLICY` for one category. Returns each axis
 /// INDEPENDENTLY as its own `Option` — an override that sets only `clutch`
 /// resolves `(Some(_), None)`, not a forced pair, so `resolve_task_policy`
 /// can let the unset axis fall through to the source-level policy. Logs a
-/// `tracing::warn!` once per lookup when the override map has an entry for
-/// this key but neither axis parses (a malformed/typo'd label).
+/// `tracing::warn!` each time this is called with an entry whose
+/// clutch/risk label doesn't parse — acceptable since resolution is not a
+/// tight hot loop, but not deduplicated across calls.
 #[must_use]
 pub fn effective_category_policy(
     overrides: &crate::config::TaskPolicyOverrides,
     category: crate::types::TaskCategory,
 ) -> (Option<ClutchProfile>, Option<RiskPosture>) {
     let key = format!("{category:?}");
-    if let Some(entry) = overrides.category.get(&key) {
-        let clutch = entry.clutch.as_deref().and_then(ClutchProfile::from_label);
-        let risk = entry.risk.as_deref().and_then(RiskPosture::from_label);
-        if clutch.is_none() && risk.is_none() && (entry.clutch.is_some() || entry.risk.is_some()) {
-            tracing::warn!(category = %key, clutch = ?entry.clutch, risk = ?entry.risk, "task_policy category override has an unparseable clutch/risk label; falling through to compiled default");
-        }
-        if clutch.is_some() || risk.is_some() {
-            let default = DEFAULT_CATEGORY_POLICY.iter().find(|p| p.category == category);
-            return (
-                clutch.or_else(|| default.map(|p| p.clutch)),
-                risk.or_else(|| default.map(|p| p.risk)),
-            );
-        }
-    }
-    match DEFAULT_CATEGORY_POLICY.iter().find(|p| p.category == category) {
-        Some(p) => (Some(p.clutch), Some(p.risk)),
-        None => (None, None),
-    }
+    let entry = overrides.category.get(&key);
+    let default = DEFAULT_CATEGORY_POLICY
+        .iter()
+        .find(|p| p.category == category)
+        .map(|p| (p.clutch, p.risk));
+    merge_policy_entry(entry, default, || ("category", key))
 }
 
-/// Same merge as [`effective_category_policy`], for `TriggerSource`.
+/// Same merge as [`effective_category_policy`], for `TriggerSource`. Logs a
+/// `tracing::warn!` each time this is called with an entry whose
+/// clutch/risk label doesn't parse — acceptable since resolution is not a
+/// tight hot loop, but not deduplicated across calls.
 #[must_use]
 pub fn effective_source_policy(
     overrides: &crate::config::TaskPolicyOverrides,
     source: TriggerSource,
 ) -> (Option<ClutchProfile>, Option<RiskPosture>) {
     let key = format!("{source:?}");
-    if let Some(entry) = overrides.source.get(&key) {
-        let clutch = entry.clutch.as_deref().and_then(ClutchProfile::from_label);
-        let risk = entry.risk.as_deref().and_then(RiskPosture::from_label);
-        if clutch.is_none() && risk.is_none() && (entry.clutch.is_some() || entry.risk.is_some()) {
-            tracing::warn!(source = %key, clutch = ?entry.clutch, risk = ?entry.risk, "task_policy source override has an unparseable clutch/risk label; falling through to compiled default");
-        }
-        if clutch.is_some() || risk.is_some() {
-            let default = DEFAULT_SOURCE_POLICY.iter().find(|p| p.source == source);
-            return (
-                clutch.or_else(|| default.map(|p| p.clutch)),
-                risk.or_else(|| default.map(|p| p.risk)),
-            );
-        }
-    }
-    match DEFAULT_SOURCE_POLICY.iter().find(|p| p.source == source) {
-        Some(p) => (Some(p.clutch), Some(p.risk)),
-        None => (None, None),
-    }
+    let entry = overrides.source.get(&key);
+    let default = DEFAULT_SOURCE_POLICY
+        .iter()
+        .find(|p| p.source == source)
+        .map(|p| (p.clutch, p.risk));
+    merge_policy_entry(entry, default, || ("source", key))
 }
 
 #[cfg(test)]
@@ -711,7 +723,13 @@ mod effective_policy_tests {
     }
 
     #[test]
-    fn unknown_category_key_warns_once_and_falls_through() {
+    fn unknown_category_with_no_override_falls_through_to_none() {
+        // The override map has an entry, but under a key that doesn't match
+        // the category being looked up ("NotARealCategory" vs "CodeGen"), so
+        // `effective_category_policy` sees no entry for this key at all and
+        // falls through to the compiled default. This does NOT exercise the
+        // "entry present but unparseable label" warn path — this crate has
+        // no tracing-capture test helper, so that path isn't asserted here.
         let mut category = HashMap::new();
         category.insert("NotARealCategory".to_string(), TaskPolicyEntry { clutch: Some("free".to_string()), risk: Some("high".to_string()) });
         let overrides = TaskPolicyOverrides { category, source: HashMap::new() };
