@@ -36,6 +36,7 @@ catalog/add
 catalog/focus
 catalog/list
 catalog/remove
+chat
 check
 ci
 ci/affected-crates
@@ -79,6 +80,7 @@ ci/corpus-decl-coverage
 ci/coverage-gates
 ci/crate-budget
 ci/crate-build-map-parity
+ci/crate-edges
 ci/cuda-features
 ci/cuda-release-build
 ci/data-ssot-guards
@@ -118,6 +120,7 @@ ci/gui-surface-coverage
 ci/gui-surface-registry
 ci/gui-version-sync
 ci/gui-visual-review
+ci/harness-trust-guard
 ci/ignored-test-age
 ci/install-hooks
 ci/job-timings
@@ -349,10 +352,16 @@ graph/crate-map
 graph/gc
 graph/index
 graph/ingest
+graph/query
 graph/rebuild
 graph/refresh
 graph/status
 graph/why-rebuilt
+harness
+harness/eval
+harness/history
+harness/publish
+harness/report
 init
 llm
 llm/prompt

@@ -1,4 +1,5 @@
 # config-hygiene baseline — grandfathered violations; burn down over time. Regenerate: vox ci config-hygiene --update-baseline
+declared-but-unwired-config|crates/vox-actor-runtime/src/inference_env.rs
 declared-but-unwired-config|crates/vox-config/src/env_parse.rs
 declared-but-unwired-config|crates/vox-db/src/config.rs
 declared-but-unwired-config|crates/vox-secrets/src/lib.rs
@@ -11,7 +12,6 @@ env-var-not-in-registry|crates/vox-actor-runtime/src/llm/types.rs|VOX_ACCOUNT_ID
 env-var-not-in-registry|crates/vox-actor-runtime/src/llm/types.rs|VOX_SECRETS_BACKEND
 env-var-not-in-registry|crates/vox-actor-runtime/src/llm/types.rs|VOX_SECRETS_CLOUDLESS_DB_PATH
 env-var-not-in-registry|crates/vox-actor-runtime/src/llm/types.rs|VOX_SECRETS_PROFILE
-env-var-not-in-registry|crates/vox-actor-runtime/src/model_resolution.rs|VOX_SELECTOR_MODEL
 env-var-not-in-registry|crates/vox-actor-runtime/src/resilient_http.rs|VOX_HTTP_RETRY_BASE_DELAY_MS
 env-var-not-in-registry|crates/vox-actor-runtime/src/route_capability_policy.rs|VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP
 env-var-not-in-registry|crates/vox-actor-runtime/src/route_capability_policy.rs|VOX_ROUTE_ALLOW_NET
@@ -86,6 +86,8 @@ env-var-not-in-registry|crates/vox-cli/src/commands/diagnostics/doctor/checks_st
 env-var-not-in-registry|crates/vox-cli/src/commands/diagnostics/stub_check/mod.rs|VOX_NO_POLICY_STATUS
 env-var-not-in-registry|crates/vox-cli/src/commands/generate.rs|VOX_INFERENCE_URL
 env-var-not-in-registry|crates/vox-cli/src/commands/gui.rs|CARGO_TARGET_DIR
+env-var-not-in-registry|crates/vox-cli/src/commands/harness/eval.rs|VOX_HARNESS_EVAL_LIVE
+env-var-not-in-registry|crates/vox-cli/src/commands/harness/live_eval.rs|VOX_HARNESS_EVAL_TRIGGERED_BY
 env-var-not-in-registry|crates/vox-cli/src/commands/plugin/install.rs|VOX_NO_LOCAL_PLUGIN_FALLBACK
 env-var-not-in-registry|crates/vox-cli/src/commands/repo_upgrade.rs|CARGO
 env-var-not-in-registry|crates/vox-cli/src/commands/runtime/run/backend/native.rs|CARGO
@@ -127,7 +129,6 @@ env-var-not-in-registry|crates/vox-code-audit/src/detectors/env_secret_shape.rs|
 env-var-not-in-registry|crates/vox-code-audit/src/detectors/env_secret_shape.rs|FAKE_API_KEY
 env-var-not-in-registry|crates/vox-code-audit/src/detectors/secrets.rs|STUB_API_KEY
 env-var-not-in-registry|crates/vox-code-audit/src/detectors/unregistered_llm_env.rs|OLLAMA_TUNING_MYSTERY
-env-var-not-in-registry|crates/vox-code-audit/src/detectors/unregistered_llm_env.rs|OPENROUTER_BASE_URL
 env-var-not-in-registry|crates/vox-code-audit/src/detectors/unregistered_llm_env.rs|OPENROUTER_MYSTERY_API_KEY
 env-var-not-in-registry|crates/vox-code-audit/tests/wave_c_parity.rs|MY_API_KEY
 env-var-not-in-registry|crates/vox-codegen-ts/src/emitter.rs|VOX_ADMIN_REGISTRY
@@ -165,7 +166,6 @@ env-var-not-in-registry|crates/vox-config/src/rollout.rs|VOX_DB_EMBEDDED_REPLICA
 env-var-not-in-registry|crates/vox-config/src/rollout.rs|VOX_DB_SYNC_INTEGRATION
 env-var-not-in-registry|crates/vox-config/src/rollout.rs|VOX_ORCH_LINEAGE_OFF
 env-var-not-in-registry|crates/vox-config/src/rollout.rs|VOX_WORKFLOW_JOURNAL_CODEX_OFF
-env-var-not-in-registry|crates/vox-config/src/toml_config.rs|OPENROUTER_BASE_URL
 env-var-not-in-registry|crates/vox-config/tests/config_cross_module.rs|VOX_AGENT_PROVIDER
 env-var-not-in-registry|crates/vox-corpus/src/training/mix_prepare.rs|VOX_TRAIN_SKIP_CORPUS_MIX
 env-var-not-in-registry|crates/vox-db/src/config.rs|VOX_DB_PATH
@@ -185,6 +185,7 @@ env-var-not-in-registry|crates/vox-gui/src/commands/identity.rs|USERNAME
 env-var-not-in-registry|crates/vox-gui/src/commands/mercatus.rs|PRICE_WATCH_CONFIG
 env-var-not-in-registry|crates/vox-gui/src/commands/search.rs|VOX_EDITOR
 env-var-not-in-registry|crates/vox-gui/tests/gui_relaunch_smoke.rs|VOX_GUI_RELAUNCH_SMOKE
+env-var-not-in-registry|crates/vox-gui/tests/gui_relaunch_smoke.rs|VOX_ORCHESTRATOR_D_BIN
 env-var-not-in-registry|crates/vox-integration-tests/tests/golden_arm_parity_test.rs|CARGO
 env-var-not-in-registry|crates/vox-integration-tests/tests/golden_behavioral_gate.rs|VOX_BIN
 env-var-not-in-registry|crates/vox-integration-tests/tests/speech_canary_test.rs|VOX_SPEECH_CANARY_KPI
@@ -215,6 +216,7 @@ env-var-not-in-registry|crates/vox-orchestrator-mcp/src/caller_role.rs|VOX_MCP_C
 env-var-not-in-registry|crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs|VOX_DASHBOARD_LIVE_MESH
 env-var-not-in-registry|crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs|VOX_DASHBOARD_LIVE_RUNS
 env-var-not-in-registry|crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs|VOX_DASHBOARD_ROUTING_VIZ
+env-var-not-in-registry|crates/vox-orchestrator-mcp/src/llm_bridge/local_health.rs|VOX_INFERENCE_PRIVACY
 env-var-not-in-registry|crates/vox-orchestrator-mcp/src/llm_bridge/mod.rs|VOX_LOCAL_ENDPOINT
 env-var-not-in-registry|crates/vox-orchestrator-mcp/src/llm_bridge/provider_endpoints.rs|VOX_LOCAL_ENDPOINT
 env-var-not-in-registry|crates/vox-orchestrator-mcp/src/llm_bridge/providers/probe.rs|VOX_LOCAL_ENDPOINT
@@ -227,6 +229,7 @@ env-var-not-in-registry|crates/vox-orchestrator/src/models/select.rs|VOX_MODEL_F
 env-var-not-in-registry|crates/vox-orchestrator/src/models/select.rs|VOX_ROUTING_ENABLE_EXPLORATION
 env-var-not-in-registry|crates/vox-orchestrator/src/populi_remote.rs|COMPUTERNAME
 env-var-not-in-registry|crates/vox-orchestrator/src/populi_remote.rs|HOSTNAME
+env-var-not-in-registry|crates/vox-orchestrator/src/route_policy.rs|VOX_INFERENCE_PRIVACY
 env-var-not-in-registry|crates/vox-plugin-browser/src/engine.rs|VOX_BROWSER_NO_SANDBOX
 env-var-not-in-registry|crates/vox-plugin-browser/src/engine.rs|VOX_CHROME_EXECUTABLE
 env-var-not-in-registry|crates/vox-plugin-host/src/lib.rs|VOX_PLUGINS_DIR
@@ -290,7 +293,6 @@ env-var-not-in-registry|crates/vox-telemetry/src/config.rs|APPDATA
 env-var-not-in-registry|crates/vox-telemetry/src/config.rs|VOX_TELEMETRY
 env-var-not-in-registry|crates/vox-term/src/theme.rs|TERM
 env-var-not-in-registry|crates/vox-terminal-core/src/pty.rs|SHELL
-env-var-not-in-registry|crates/voxup/build.rs|TARGET
 no-cwd-relative-contract-path|crates/vox-audit/src/bin/cr-a2.rs
 no-cwd-relative-contract-path|crates/vox-audit/src/panel.rs
 no-cwd-relative-contract-path|crates/vox-audit/src/subcommands/humaneval.rs
