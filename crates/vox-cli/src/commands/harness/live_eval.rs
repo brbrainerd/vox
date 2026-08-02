@@ -3,6 +3,15 @@
 //! design — that gate must stay hermetic and CI-safe on every commit; this module is only
 //! invoked via the explicit `--live` flag, scheduled nightly (see
 //! `.github/workflows/harness-eval-nightly.yml`).
+//!
+//! Task 5 Step 9 manual verification (real credentials, real network — this cannot be an
+//! automated CI test): `cargo run -p vox-cli -- harness eval --live --samples 1 --task
+//! chat-arithmetic-basic` on 2026-08-02 made a real OpenRouter call (model
+//! `google/gemma-4-26b-a4b-it:free`, 3867 tokens, ~13.2s), the task passed, and `run_live`
+//! printed `1/1 tasks passed, 0 skipped, $0.0000 spent` with no panic — confirming
+//! `build_eval_server_state()`'s `ServerState::hermetic_stub` construction and the
+//! `data.message.content`/`data.model_used` envelope paths in `run_one_turn` are correct
+//! against the real `chat_message` wire shape.
 
 use anyhow::Result;
 
