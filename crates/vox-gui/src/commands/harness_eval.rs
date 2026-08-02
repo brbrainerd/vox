@@ -47,12 +47,12 @@ pub async fn harness_eval_history(
         .list_harness_eval_runs(limit.unwrap_or(50))
         .await
         .map_err(map_db_err)?;
+    let run_ids: Vec<String> = runs.iter().map(|r| r.run_id.clone()).collect();
+    let mut task_results_by_run =
+        db.get_harness_eval_task_results_for_runs(&run_ids).await.map_err(map_db_err)?;
     let mut out = Vec::with_capacity(runs.len());
     for r in runs {
-        let task_results = db
-            .get_harness_eval_task_results(&r.run_id)
-            .await
-            .map_err(map_db_err)?;
+        let task_results = task_results_by_run.remove(&r.run_id).unwrap_or_default();
         let mut by_category: std::collections::BTreeMap<String, (i64, i64)> =
             std::collections::BTreeMap::new();
         for t in &task_results {
@@ -140,18 +140,14 @@ pub async fn harness_eval_regressions(
         .get_model_selection_events(&previous.run_id)
         .await
         .map_err(map_db_err)?;
-    let changed_files: Vec<String> = std::process::Command::new("git")
-        .args([
-            "diff",
-            "--name-only",
-            &format!("{}..{}", previous.git_sha, current.git_sha),
-            "--",
-        ])
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.lines().map(str::to_string).collect())
-        .unwrap_or_default();
+    let repo_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let changed_files: Vec<String> = vox_git::read_cmd::read_only(
+        &repo_root,
+        &["diff", "--name-only", &format!("{}..{}", previous.git_sha, current.git_sha), "--"],
+    )
+    .ok()
+    .map(|s| s.lines().map(str::to_string).collect())
+    .unwrap_or_default();
 
     let flags = vox_cli::commands::harness::report::detect_regressions(
         previous,

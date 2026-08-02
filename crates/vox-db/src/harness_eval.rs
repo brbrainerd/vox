@@ -194,6 +194,55 @@ impl VoxDb {
         Ok(out)
     }
 
+    /// Batched sibling of [`get_harness_eval_task_results`](Self::get_harness_eval_task_results)
+    /// for callers (e.g. the GUI's `harness_eval_history` command) that need task results for
+    /// many runs at once — issues a single `WHERE run_id IN (...)` query instead of one round
+    /// trip per run. Runs with no task results are simply absent from the returned map (never an
+    /// empty-vec entry), so callers should use `.get(run_id).map_or(&[], Vec::as_slice)` or
+    /// similar rather than indexing.
+    pub async fn get_harness_eval_task_results_for_runs(
+        &self,
+        run_ids: &[String],
+    ) -> Result<std::collections::HashMap<String, Vec<HarnessEvalTaskResultRecord>>, StoreError>
+    {
+        if run_ids.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+        let placeholders = (0..run_ids.len())
+            .map(|i| format!("?{}", i + 1))
+            .collect::<Vec<_>>()
+            .join(",");
+        let sql = format!(
+            "SELECT run_id, task_id, category, checker_kind, status, pass_samples,
+                    total_samples, latency_p50_ms, cost_usd, failure_detail, recorded_at_ms
+             FROM harness_eval_task_result
+             WHERE run_id IN ({placeholders})
+             ORDER BY run_id ASC, id ASC"
+        );
+        let bound: Vec<turso::Value> =
+            run_ids.iter().map(|id| turso::Value::from(id.as_str())).collect();
+        let mut rows = self.connection().query(&sql, bound).await?;
+        let mut out: std::collections::HashMap<String, Vec<HarnessEvalTaskResultRecord>> =
+            std::collections::HashMap::new();
+        while let Some(row) = rows.next().await? {
+            let rec = HarnessEvalTaskResultRecord {
+                run_id: row.get(0)?,
+                task_id: row.get(1)?,
+                category: row.get(2)?,
+                checker_kind: row.get(3)?,
+                status: row.get(4)?,
+                pass_samples: row.get(5)?,
+                total_samples: row.get(6)?,
+                latency_p50_ms: row.get(7)?,
+                cost_usd: row.get(8)?,
+                failure_detail: row.get(9)?,
+                recorded_at_ms: row.get(10)?,
+            };
+            out.entry(rec.run_id.clone()).or_default().push(rec);
+        }
+        Ok(out)
+    }
+
     pub async fn get_model_selection_events(
         &self,
         run_id: &str,
@@ -230,6 +279,95 @@ impl VoxDb {
 mod tests {
     use super::*;
     use crate::{DbConfig, VoxDb};
+
+    /// `harness_eval_history` needs task results for up to 50 runs per call;
+    /// this exercises the batched `WHERE run_id IN (...)` fetch that replaces
+    /// an N-round-trip loop, confirming it groups per-run results correctly
+    /// (including a run with zero task results, which must still round-trip
+    /// as "absent from the map" rather than erroring).
+    #[tokio::test]
+    async fn get_harness_eval_task_results_for_runs_batches_into_one_query() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+        for (run_id, task_id) in [("r1", "task-a"), ("r2", "task-b")] {
+            db.record_harness_eval_run(&HarnessEvalRunRecord {
+                run_id: run_id.to_string(),
+                triggered_by: "local".to_string(),
+                git_sha: "abc1234".to_string(),
+                git_branch: "main".to_string(),
+                changed_files: vec![],
+                config_version: None,
+                samples_per_task: 1,
+                task_count: 1,
+                pass_count: 1,
+                fail_count: 0,
+                skip_count: 0,
+                total_cost_usd: 0.0,
+                started_at_ms: 1000,
+                finished_at_ms: 2000,
+            })
+            .await
+            .expect("record run");
+            db.record_harness_eval_task_result(&HarnessEvalTaskResultRecord {
+                run_id: run_id.to_string(),
+                task_id: task_id.to_string(),
+                category: "chat".to_string(),
+                checker_kind: "deterministic".to_string(),
+                status: "pass".to_string(),
+                pass_samples: 1,
+                total_samples: 1,
+                latency_p50_ms: None,
+                cost_usd: None,
+                failure_detail: None,
+                recorded_at_ms: 1500,
+            })
+            .await
+            .expect("record task result");
+        }
+        // r3 has a run but no task results — must not appear as an empty-vec
+        // entry (or a spurious error) in the batched map.
+        db.record_harness_eval_run(&HarnessEvalRunRecord {
+            run_id: "r3".to_string(),
+            triggered_by: "local".to_string(),
+            git_sha: "abc1234".to_string(),
+            git_branch: "main".to_string(),
+            changed_files: vec![],
+            config_version: None,
+            samples_per_task: 1,
+            task_count: 0,
+            pass_count: 0,
+            fail_count: 0,
+            skip_count: 0,
+            total_cost_usd: 0.0,
+            started_at_ms: 1000,
+            finished_at_ms: 2000,
+        })
+        .await
+        .expect("record run");
+
+        let run_ids = vec!["r1".to_string(), "r2".to_string(), "r3".to_string()];
+        let by_run = db
+            .get_harness_eval_task_results_for_runs(&run_ids)
+            .await
+            .expect("batched fetch");
+
+        assert_eq!(by_run.len(), 2, "only runs with task results should have entries");
+        assert_eq!(by_run["r1"].len(), 1);
+        assert_eq!(by_run["r1"][0].task_id, "task-a");
+        assert_eq!(by_run["r2"].len(), 1);
+        assert_eq!(by_run["r2"][0].task_id, "task-b");
+        assert!(!by_run.contains_key("r3"));
+    }
+
+    #[tokio::test]
+    async fn get_harness_eval_task_results_for_runs_empty_input_returns_empty_map() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        let by_run = db
+            .get_harness_eval_task_results_for_runs(&[])
+            .await
+            .expect("batched fetch on empty input");
+        assert!(by_run.is_empty());
+    }
 
     #[tokio::test]
     async fn harness_eval_run_and_task_results_round_trip() {
