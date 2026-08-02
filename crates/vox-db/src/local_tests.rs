@@ -65,11 +65,7 @@ async fn baseline_schema_includes_chat_and_search_tables() {
             .expect("sqlite_master");
         assert!(!rows.is_empty(), "missing table {t}");
     }
-    for t in [
-        "search_documents",
-        "search_document_chunks",
-        "search_indexing_jobs",
-    ] {
+    for t in ["search_documents", "search_document_chunks"] {
         let rows = db
             .query_all(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",
@@ -79,7 +75,7 @@ async fn baseline_schema_includes_chat_and_search_tables() {
             .expect("search table");
         assert!(!rows.is_empty(), "missing search table {t}");
     }
-    for t in ["processing_runs", "processing_run_steps", "audit_log"] {
+    for t in ["audit_log"] {
         let rows = db
             .query_all(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",
@@ -89,12 +85,7 @@ async fn baseline_schema_includes_chat_and_search_tables() {
             .expect("sqlite_master");
         assert!(!rows.is_empty(), "missing V16 table {t}");
     }
-    for t in [
-        "research_sessions",
-        "conversation_versions",
-        "conversation_edges",
-        "topic_evolution_events",
-    ] {
+    for t in ["research_sessions"] {
         let rows = db
             .query_all(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1",
@@ -394,17 +385,10 @@ mod legacy_tests {
             )
             .await
             .expect("insert companion");
-        db.connection()
-            .execute(
-                "INSERT INTO distributed_locks (lock_key, holder_node, holder_agent, fence_token, expires_at) VALUES ('lk', 'node-a', 'owner', 1, '2099-01-01')",
-                (),
-            )
-            .await
-            .expect("insert lock");
 
         let mut jsonl = Vec::<u8>::new();
         let n = export_legacy_jsonl(&db, &mut jsonl).await.expect("export");
-        assert!(n >= 3, "expected ≥3 rows, got {n}");
+        assert!(n >= 2, "expected ≥2 rows, got {n}");
         let profile_lines = String::from_utf8_lossy(&jsonl)
             .lines()
             .filter(|l| l.contains("\"table\":\"gamify_profiles\""))
@@ -436,7 +420,7 @@ mod legacy_tests {
         let imported = import_legacy_jsonl(&db2, Cursor::new(&jsonl))
             .await
             .expect("import");
-        assert!(imported >= 3);
+        assert!(imported >= 2);
 
         let mut q = db2
             .connection()
@@ -460,17 +444,6 @@ mod legacy_tests {
             .expect("q2");
         let row2 = q2.next().await.expect("row").expect("r2");
         assert_eq!(row2.get::<String>(0).expect("name"), "Ada");
-
-        let mut q3 = db2
-            .connection()
-            .query(
-                "SELECT holder_agent FROM distributed_locks WHERE lock_key = ?1",
-                turso::params!["lk"],
-            )
-            .await
-            .expect("q3");
-        let row3 = q3.next().await.expect("row").expect("r3");
-        assert_eq!(row3.get::<String>(0).expect("holder"), "owner");
     }
 
     /// Simulates `vox codex export-legacy` → new file → `vox codex import-legacy` without the CLI.

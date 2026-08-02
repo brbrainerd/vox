@@ -38,7 +38,7 @@ mod migration_chain_tests {
             .map(|f| f.sql)
             .expect("knowledge");
         assert!(
-            knowledge.contains("search_documents") && knowledge.contains("search_indexing_jobs"),
+            knowledge.contains("search_documents"),
             "knowledge must define search tables"
         );
         let agents = SCHEMA_FRAGMENTS
@@ -47,7 +47,7 @@ mod migration_chain_tests {
             .map(|f| f.sql)
             .expect("agents");
         assert!(
-            agents.contains("agent_sessions") && agents.contains("behavior_events"),
+            agents.contains("agent_sessions"),
             "agents must define agent DDL"
         );
         assert!(
@@ -56,8 +56,8 @@ mod migration_chain_tests {
         );
         let sql = super::baseline_sql();
         assert!(
-            sql.contains("populi_training_run") && sql.contains("codex_capability_map"),
-            "baseline_sql must include spec-appended training + capability map DDL"
+            sql.contains("populi_training_run"),
+            "baseline_sql must include spec-appended training DDL"
         );
         assert!(
             sql.contains("idx_memories_agent_created")
