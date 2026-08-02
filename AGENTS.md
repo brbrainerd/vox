@@ -472,6 +472,8 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `axum::serve`, `rust-embed` (for generated desktop/mobile apps) | Tauri 2 runtime (Axum is retained for native-binary/server targets only) |
 | `vox-sherpa-transcribe` (Capacitor plugin) | `vox-tauri-stt` (native Tauri STT plugin) |
 
+Memory-write APIs are not a simple retirement pair: for writing facts, use `MemoryManager::persist_fact`; `sync_to_db()` bulk-syncs `MEMORY.md` → DB only and is **not** a drop-in replacement for `persist_fact`.
+
 ### Deprecation Annotations
 
 Any vestigial code remaining from an active migration (e.g. Tauri convergence) MUST be marked with an inline deprecation annotation so `vox ci retirement-audit` can track it.
