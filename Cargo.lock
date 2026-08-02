@@ -16177,6 +16177,7 @@ dependencies = [
  "vox-foundation",
  "vox-gamify",
  "vox-git",
+ "vox-http-client",
  "vox-identity",
  "vox-ml-cli",
  "vox-oauth-pkce",
@@ -16191,6 +16192,7 @@ dependencies = [
  "vox-secrets",
  "vox-speech",
  "vox-terminal-core",
+ "wiremock",
 ]
 
 [[package]]

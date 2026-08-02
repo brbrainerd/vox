@@ -69,6 +69,47 @@ pub async fn oauth_login_openrouter(app: AppHandle) -> OAuthLoginResultDto {
     }
 }
 
+/// OpenRouter's documented "get current API key" endpoint — a cheap,
+/// read-only, key-scoped GET that requires auth (proves the key works)
+/// without consuming a completion/costing money. Confirmed against
+/// OpenRouter's live docs (https://openrouter.ai/docs/api-reference/limits):
+/// `GET {base}/api/v1/key` with `Authorization: Bearer <key>`, 200 on a
+/// valid key, 401 on missing/invalid/disabled/expired credentials.
+const OPENROUTER_API_BASE_URL: &str = "https://openrouter.ai";
+
+/// Hit the key-info endpoint at `base_url` and report whether `key` is
+/// live. Fails closed: any transport/build error (DNS failure, connection
+/// refused, TLS error, etc.) or a non-2xx response (401 for a bad key)
+/// yields `false` rather than propagating an error — callers only need a
+/// yes/no "is this key actually usable" answer. `base_url` is swappable so
+/// tests can point this at a `wiremock::MockServer` instead of the real
+/// OpenRouter host.
+async fn verify_key_at(base_url: &str, key: &str) -> bool {
+    let Ok(client) = vox_http_client::client_builder().build() else {
+        return false;
+    };
+    let url = format!("{base_url}/api/v1/key");
+    match client.get(url).bearer_auth(key).send().await {
+        Ok(resp) => resp.status().is_success(),
+        Err(_) => false,
+    }
+}
+
+/// Real post-OAuth connectivity check: resolve the stored OpenRouter key
+/// (via the same `vox_secrets` resolution path `list_secret_status`/`vox
+/// doctor` use) and confirm it's actually accepted by OpenRouter, not just
+/// "a string got stored". No key present, an empty key, and any network
+/// error are all treated identically as `false` (fail closed) — there is
+/// nothing to verify successfully in any of those cases.
+#[command]
+pub async fn verify_openrouter_key() -> bool {
+    let resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey);
+    match resolved.expose() {
+        Some(key) if !key.is_empty() => verify_key_at(OPENROUTER_API_BASE_URL, key).await,
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,5 +159,52 @@ mod tests {
         let err = OAuthError::TimedOut(std::time::Duration::from_secs(120));
         let (_, fallback_url) = map_flow_error(&err);
         assert!(fallback_url.is_none());
+    }
+}
+
+#[cfg(test)]
+mod verify_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn verify_returns_true_on_200() {
+        let server = wiremock::MockServer::start().await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path("/api/v1/key"))
+            .and(wiremock::matchers::header("Authorization", "Bearer fake-key"))
+            .respond_with(
+                wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "data": {
+                        "label": "test",
+                        "limit": null,
+                        "limit_remaining": null,
+                        "usage": 0,
+                        "is_free_tier": true
+                    }
+                })),
+            )
+            .mount(&server)
+            .await;
+
+        assert!(verify_key_at(&server.uri(), "fake-key").await);
+    }
+
+    #[tokio::test]
+    async fn verify_returns_false_on_401() {
+        let server = wiremock::MockServer::start().await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path("/api/v1/key"))
+            .respond_with(wiremock::ResponseTemplate::new(401))
+            .mount(&server)
+            .await;
+
+        assert!(!verify_key_at(&server.uri(), "revoked-or-bad-key").await);
+    }
+
+    #[tokio::test]
+    async fn verify_returns_false_on_network_error() {
+        // Nothing listening on this port — fails closed rather than panicking
+        // or propagating an error out of a bool-returning fn.
+        assert!(!verify_key_at("http://127.0.0.1:1", "any-key").await);
     }
 }
