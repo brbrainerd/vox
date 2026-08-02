@@ -78,6 +78,127 @@ pub(crate) fn local_candidate_allowed(m: &ModelSpec) -> bool {
     local_gate_allows(&m.provider_type, local_backend_health())
 }
 
+/// Test-only seam for `VOX_INFERENCE_PRIVACY`, mirroring
+/// `TEST_HEALTH_OVERRIDE` above — avoids mutating the real process env (which
+/// is racy under parallel `cargo test`) while still exercising the real
+/// decision logic in `privacy_allows`.
+#[cfg(test)]
+static TEST_PRIVACY_OVERRIDE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+#[cfg(test)]
+fn set_test_privacy_override(v: Option<&str>) {
+    *TEST_PRIVACY_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = v.map(str::to_string);
+}
+
+pub(crate) fn inference_privacy_mode() -> String {
+    #[cfg(test)]
+    if let Some(v) = TEST_PRIVACY_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+    {
+        return v;
+    }
+    std::env::var("VOX_INFERENCE_PRIVACY").unwrap_or_else(|_| "any".to_string())
+}
+
+/// Hard privacy filter consulted by the resolver's `routing_allows`, keyed
+/// off `VOX_INFERENCE_PRIVACY` (`any` [default] | `local_only`).
+///
+/// This is UNRELATED to `VOX_MESH_EXEC_POLICY`: that key governs whether a
+/// mesh *task* may be relayed for execution on another physical node
+/// (task placement), while `VOX_INFERENCE_PRIVACY` governs whether a *model*
+/// running on a remote cloud provider may ever be selected for an inference
+/// call (F7). A user relying on `VOX_MESH_EXEC_POLICY=local_only` to keep
+/// prompts off the network gets no such protection — this is the actual
+/// control for that.
+///
+/// A hard filter, not a ranking hint: when `local_only`, non-local-provider
+/// models are excluded from candidates entirely (see
+/// `route_policy::is_local_http_provider` for the local/cloud split reused
+/// here), never merely deprioritized. There is currently no per-request
+/// override surface on the chat params path; if one is ever added, it MUST
+/// be ANDed with this account/session-level setting (one-way ratchet: an
+/// override may only tighten to `local_only`, never loosen an already-set
+/// `local_only` back to `any`), mirroring OpenRouter's `zdr` semantics.
+pub(crate) fn privacy_allows(m: &ModelSpec) -> bool {
+    let local_only = inference_privacy_mode()
+        .trim()
+        .eq_ignore_ascii_case("local_only");
+    privacy_allows_for_mode(m, local_only)
+}
+
+/// The pure decision core `privacy_allows` delegates to after resolving
+/// `local_only` from `inference_privacy_mode()` (which reads
+/// `VOX_INFERENCE_PRIVACY`, or the test-only override). Extracted so `vox
+/// harness eval`'s `privacy-filter-blocks-live-routing` golden task
+/// (`eval_gate_privacy_filter_check` below) can exercise the real decision
+/// logic with an explicit mode, without mutating process environment
+/// variables or the `#[cfg(test)]`-only `TEST_PRIVACY_OVERRIDE` — mirroring
+/// why that override exists in the first place (avoiding racy env mutation
+/// under parallel test/task execution).
+pub(crate) fn privacy_allows_for_mode(m: &ModelSpec, local_only: bool) -> bool {
+    if local_only {
+        return vox_orchestrator::route_policy::is_local_http_provider(&m.provider_type);
+    }
+    true
+}
+
+/// Purpose-built for `vox harness eval`'s `privacy-filter-blocks-live-routing`
+/// golden task (`crates/vox-cli/src/commands/harness/eval.rs`): exercises
+/// [`privacy_allows_for_mode`] — the real decision core `privacy_allows`
+/// delegates to — against a cloud-provider and a local-provider fixture,
+/// asserting the hard filter blocks cloud routing under `local_only` and
+/// allows both providers when not `local_only`. `pub` (not `pub(crate)`)
+/// specifically so `vox-cli`'s eval gate, in a different crate, can call it;
+/// `privacy_allows_for_mode` itself stays `pub(crate)`, keeping the decision
+/// internals encapsulated in the crate that owns them.
+pub fn eval_gate_privacy_filter_check() -> Result<(), String> {
+    use vox_orchestrator::models::{ModelCapabilities, spec::PricingSource};
+
+    fn fixture(id: &str, provider_type: ProviderType) -> ModelSpec {
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 8_000,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            observed_cost_per_1k: None,
+            strengths: vec![],
+            capabilities: ModelCapabilities::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    let cloud = fixture("cloud-model", ProviderType::OpenRouter);
+    let local = fixture("local-model", ProviderType::Ollama);
+
+    if !privacy_allows_for_mode(&local, true) {
+        return Err(
+            "local model was blocked under local_only — over-blocking regression".to_string(),
+        );
+    }
+    if privacy_allows_for_mode(&cloud, true) {
+        return Err(
+            "cloud model was allowed under local_only — privacy-filter regression".to_string(),
+        );
+    }
+    if !privacy_allows_for_mode(&cloud, false) {
+        return Err("cloud model was blocked when not local_only".to_string());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,6 +258,31 @@ mod tests {
         }
     }
 
+    #[test]
+    fn privacy_allows_for_mode_blocks_cloud_under_local_only_and_allows_local() {
+        let cloud = gate_spec("cloud-model", ProviderType::OpenRouter);
+        let local = gate_spec("local-model", ProviderType::Ollama);
+        assert!(
+            !privacy_allows_for_mode(&cloud, true),
+            "cloud model must be blocked under local_only"
+        );
+        assert!(
+            privacy_allows_for_mode(&local, true),
+            "local model must be allowed under local_only"
+        );
+        assert!(
+            privacy_allows_for_mode(&cloud, false),
+            "cloud model must be allowed when not local_only"
+        );
+    }
+
+    /// The `vox harness eval` `privacy-filter-blocks-live-routing` golden task
+    /// body itself must succeed — i.e. the property it checks must actually hold.
+    #[test]
+    fn eval_gate_privacy_filter_check_passes() {
+        assert!(eval_gate_privacy_filter_check().is_ok());
+    }
+
     // Wiring test 2 (resolver gate): `local_candidate_allowed` is exactly what
     // the `routing_allows` closure calls — drive it through the test-only
     // health override so a botched health lookup or provider-match can't hide
@@ -167,5 +313,48 @@ mod tests {
             "ollama-m",
             ProviderType::Ollama
         )));
+    }
+
+    // Both `any` and `local_only` cases live in one test (rather than two
+    // separate `#[test]` fns) because `TEST_PRIVACY_OVERRIDE` is shared
+    // process-global state: under `cargo test`'s default parallel threading,
+    // two tests setting/clearing it independently would race and flake.
+    #[test]
+    fn privacy_allows_any_passes_all_local_only_excludes_cloud_hard() {
+        set_test_privacy_override(Some("any"));
+        assert!(privacy_allows(&gate_spec("ollama-m", ProviderType::Ollama)));
+        assert!(privacy_allows(&gate_spec("vox-m", ProviderType::VoxLocal)));
+        assert!(privacy_allows(&gate_spec("or-m", ProviderType::OpenRouter)));
+        assert!(privacy_allows(&gate_spec(
+            "anthropic-m",
+            ProviderType::Anthropic
+        )));
+
+        set_test_privacy_override(Some("local_only"));
+        assert!(privacy_allows(&gate_spec("ollama-m", ProviderType::Ollama)));
+        assert!(privacy_allows(&gate_spec(
+            "mesh-m",
+            ProviderType::PopuliMesh
+        )));
+        assert!(privacy_allows(&gate_spec("vox-m", ProviderType::VoxLocal)));
+        assert!(!privacy_allows(&gate_spec(
+            "or-m",
+            ProviderType::OpenRouter
+        )));
+        assert!(!privacy_allows(&gate_spec(
+            "anthropic-m",
+            ProviderType::Anthropic
+        )));
+
+        // No override set: falls through to the real env read. In a unit-test
+        // process VOX_INFERENCE_PRIVACY is normally unset, so this proves the
+        // documented default ("any") when the key is absent entirely. (Kept
+        // in this same test, not a separate `#[test]` fn, so the override
+        // clear above and this real-env check can't race against another
+        // thread's override mutation.)
+        set_test_privacy_override(None);
+        if std::env::var("VOX_INFERENCE_PRIVACY").is_err() {
+            assert!(privacy_allows(&gate_spec("or-m", ProviderType::OpenRouter)));
+        }
     }
 }

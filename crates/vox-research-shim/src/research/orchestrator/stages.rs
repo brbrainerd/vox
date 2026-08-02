@@ -1,5 +1,5 @@
 use super::super::types::{Citation, ResearchHit, SelfVerificationResult};
-use super::config::ANTI_LAZINESS_RIDER;
+use super::config::RESEARCH_COMPLETENESS_RIDER;
 use super::helpers::{sanitize_chatml, sanitize_evidence};
 
 /// Count distinct registrable domains in research hits and flag diversity shortfall.
@@ -54,6 +54,24 @@ pub(super) struct JudgeParams<'a> {
     pub fallback_score: i32,
 }
 
+pub(super) fn build_judge_system_prompt() -> String {
+    "You are a research quality evaluator. Score the following answer strictly based on the rubric.
+You MUST output your evaluation as a valid JSON object embedded in a ```json codeblock. Do not output anything else.
+
+Schema required:
+{
+  \"factual_accuracy_reasoning\": \"string\",
+  \"factual_accuracy_score\": integer (0-33),
+  \"citation_density_reasoning\": \"string\",
+  \"citation_density_score\": integer (0-33),
+  \"coverage_reasoning\": \"string\",
+  \"coverage_score\": integer (0-34),
+  \"total_score\": integer (0-100)
+}
+{}"
+    .replace("{}", RESEARCH_COMPLETENESS_RIDER)
+}
+
 pub(super) async fn judge_quality(params: JudgeParams<'_>) -> i32 {
     let citation_snippets: String = params
         .citations
@@ -70,21 +88,7 @@ pub(super) async fn judge_quality(params: JudgeParams<'_>) -> i32 {
         .collect::<Vec<_>>()
         .join("\n");
 
-    let sys_prompt = "You are a research quality evaluator. Score the following answer strictly based on the rubric.
-You MUST output your evaluation as a valid JSON object embedded in a ```json codeblock. Do not output anything else.
-
-Schema required:
-{
-  \"factual_accuracy_reasoning\": \"string\",
-  \"factual_accuracy_score\": integer (0-33),
-  \"citation_density_reasoning\": \"string\",
-  \"citation_density_score\": integer (0-33),
-  \"coverage_reasoning\": \"string\",
-  \"coverage_score\": integer (0-34),
-  \"total_score\": integer (0-100)
-}
-{}";
-    let sys_prompt = sys_prompt.replace("{}", ANTI_LAZINESS_RIDER);
+    let sys_prompt = build_judge_system_prompt();
 
     let user_prompt = format!(
         "Query: {}
@@ -227,7 +231,7 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<Stri
          snippets, write a thorough, well-structured answer to the user's question. \
          Cite sources inline as [1], [2], etc. matching the evidence numbers. \
          If evidence is insufficient, say so clearly.\n{}",
-        ANTI_LAZINESS_RIDER
+        RESEARCH_COMPLETENESS_RIDER
     );
 
     let user = format!(
@@ -430,15 +434,40 @@ async fn chat_stage(
 ) -> anyhow::Result<String> {
     use vox_actor_runtime::ActivityOptions;
     use vox_actor_runtime::llm::LlmChatMessage;
-    use vox_actor_runtime::llm::cascade::{cascade_with_optional_manual, chat_with_cascade};
+    use vox_actor_runtime::llm::cascade::{
+        ResearchStage, cascade_with_optional_manual, chat_with_cascade,
+    };
     use vox_actor_runtime::model_resolution::RouteResolutionInput;
 
     let input = RouteResolutionInput {
         openrouter_model: model.to_string(),
         ..RouteResolutionInput::default()
     };
-    let mut candidates =
-        cascade_with_optional_manual(stage, &input, endpoint, api_key, Some(model));
+    // Mirrors the stage->intent mapping established in
+    // `research::model_select::resolve_research_models`: Synthesis uses the
+    // general research intent, Judge uses the review intent. SelfVerification
+    // has no equivalent stage there yet, so it defaults to the research
+    // intent as the closest fit (future refinement: a dedicated intent).
+    let intent = match stage {
+        ResearchStage::Judge => vox_orchestrator::models::SelectionIntent::review(),
+        ResearchStage::Synthesis | ResearchStage::SelfVerification => {
+            vox_orchestrator::models::SelectionIntent::research()
+        }
+        ResearchStage::Planner => vox_orchestrator::models::SelectionIntent::research(),
+        ResearchStage::ClaimExtraction | ResearchStage::Verification => {
+            vox_orchestrator::models::SelectionIntent::nli_classifier()
+        }
+    };
+    let primary =
+        crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(intent);
+    let mut candidates: Vec<vox_actor_runtime::llm::LlmConfig> = primary.into_iter().collect();
+    candidates.extend(cascade_with_optional_manual(
+        stage,
+        &input,
+        endpoint,
+        api_key,
+        Some(model),
+    ));
     for candidate in &mut candidates {
         candidate.temperature = Some(temperature);
         candidate.max_tokens = Some(max_tokens.into());
@@ -446,7 +475,11 @@ async fn chat_stage(
     }
     let messages = messages
         .into_iter()
-        .map(|(role, content)| LlmChatMessage { role, content })
+        .map(|(role, content)| LlmChatMessage {
+            role,
+            content,
+            ..Default::default()
+        })
         .collect();
     let opts = ActivityOptions::new().with_timeout_secs(45);
     chat_with_cascade(&opts, messages, candidates, None)
@@ -499,5 +532,18 @@ mod citation_diversity_tests {
         let (count, below) = evaluate_citation_diversity(&hits, 3);
         assert_eq!(count, 1);
         assert!(below);
+    }
+
+    #[test]
+    fn judge_prompt_has_no_code_generation_boilerplate() {
+        let sys_prompt = super::build_judge_system_prompt();
+        assert!(
+            !sys_prompt.contains("TODO"),
+            "judge prompt should not contain code-generation vocabulary: {sys_prompt}"
+        );
+        assert!(
+            sys_prompt.contains("Cite every material claim"),
+            "judge prompt should use research-appropriate completeness language: {sys_prompt}"
+        );
     }
 }

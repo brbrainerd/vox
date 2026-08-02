@@ -82,6 +82,12 @@ pub struct ModelCapabilities {
     /// Provider-reported uptime score 0.0–1.0 (1.0 = fully available).
     #[serde(default)]
     pub uptime_score: Option<f32>,
+    /// Parameter count in billions, when known (e.g. parsed from Ollama's
+    /// `/api/tags` `details.parameter_size` field, "8.2B" -> `8.2`). Used only
+    /// as an advisory VRAM-fit signal (see `models::vram`); `None` means no
+    /// signal, never "assume small" or "assume large".
+    #[serde(default)]
+    pub param_count_b: Option<f32>,
 }
 
 impl ModelCapabilities {

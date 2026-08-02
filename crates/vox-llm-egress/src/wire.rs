@@ -7,7 +7,8 @@ use std::time::Instant;
 use serde::Serialize;
 
 use crate::{
-    ChatMessage, ChatParams, ChatStream, EgressChatResponse, EgressError, EgressRequest, throttle,
+    ChatMessage, ChatParams, ChatStream, EgressChatResponse, EgressError, EgressRequest,
+    EgressToolCall, throttle,
 };
 
 #[derive(Serialize)]
@@ -25,12 +26,79 @@ struct OpenAiTool<'a> {
     function: OpenAiToolFunction<'a>,
 }
 
+/// Outbound shape for `function.arguments` — a JSON-encoded **string**, the inverse of
+/// `EgressToolCall::arguments`'s eagerly-parsed `serde_json::Value` (see 1.3a). We
+/// re-serialize here rather than changing `EgressToolCall`, which stays the shared
+/// inbound/outbound type per the task's instruction to reuse it.
+#[derive(Serialize)]
+struct WireToolCallFunction {
+    name: String,
+    arguments: String,
+}
+
+#[derive(Serialize)]
+struct WireToolCall {
+    id: String,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    function: WireToolCallFunction,
+}
+
+impl From<&EgressToolCall> for WireToolCall {
+    fn from(tc: &EgressToolCall) -> Self {
+        WireToolCall {
+            id: tc.id.clone(),
+            kind: "function",
+            function: WireToolCallFunction {
+                name: tc.name.clone(),
+                // Best-effort: if `arguments` somehow fails to re-serialize (it came
+                // from `serde_json::Value`, so in practice this never fails), fall
+                // back to an empty JSON object string rather than panicking.
+                arguments: serde_json::to_string(&tc.arguments)
+                    .unwrap_or_else(|_| "{}".to_string()),
+            },
+        }
+    }
+}
+
+/// Per-message wire shape mirroring `ChatMessage` but with `tool_calls` re-serialized
+/// to the outbound `WireToolCall` shape (JSON-string arguments) instead of the parsed
+/// `Value` shape `ChatMessage`/`EgressToolCall` carry for caller convenience.
+#[derive(Serialize)]
+struct WireMessage<'a> {
+    role: &'a str,
+    content: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_calls: Option<Vec<WireToolCall>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_call_id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<&'a str>,
+}
+
+impl<'a> From<&'a ChatMessage> for WireMessage<'a> {
+    fn from(m: &'a ChatMessage) -> Self {
+        WireMessage {
+            role: &m.role,
+            content: &m.content,
+            tool_calls: m
+                .tool_calls
+                .as_ref()
+                .map(|calls| calls.iter().map(WireToolCall::from).collect()),
+            tool_call_id: m.tool_call_id.as_deref(),
+            name: m.name.as_deref(),
+        }
+    }
+}
+
 #[derive(Serialize)]
 struct OpenAiChatRequest<'a> {
     model: &'a str,
-    messages: &'a [ChatMessage],
+    messages: Vec<WireMessage<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    top_p: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     max_tokens: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -62,8 +130,9 @@ fn build_request<'a>(
     });
     OpenAiChatRequest {
         model: &req.model,
-        messages,
+        messages: messages.iter().map(WireMessage::from).collect(),
         temperature: params.temperature,
+        top_p: params.top_p,
         max_tokens: params.max_tokens,
         response_format: params.response_format,
         tools,
@@ -148,6 +217,7 @@ pub async fn chat_once(
         .or_else(|| usage["cost"].as_f64())
         .or(header_cost);
     let model = json["model"].as_str().unwrap_or(&req.model).to_string();
+    let tool_calls = parse_tool_calls(&json["choices"][0]["message"]["tool_calls"]);
     Ok(EgressChatResponse {
         content,
         prompt_tokens,
@@ -156,7 +226,46 @@ pub async fn chat_once(
         model,
         cost_usd,
         latency_ms,
+        tool_calls,
     })
+}
+
+/// Parse `message.tool_calls` (an array or absent/null) into `EgressToolCall`s.
+/// Returns `None` when the field is absent/null/not-an-array (the common case for
+/// callers that pass no tools), so this never changes behavior for existing callers.
+fn parse_tool_calls(value: &serde_json::Value) -> Option<Vec<EgressToolCall>> {
+    let arr = value.as_array()?;
+    if arr.is_empty() {
+        return None;
+    }
+    let calls: Vec<EgressToolCall> = arr
+        .iter()
+        .filter_map(|tc| {
+            // Provider omitted `id`: default to empty string rather than dropping the
+            // call — correlating (or rejecting) a call with no id is left to the
+            // tool-dispatch loop (a separate task), not this pure wire-parsing layer.
+            let id = tc["id"].as_str().unwrap_or_default().to_string();
+            // Entries with no `function.name` are dropped via `?` (intentional): a
+            // tool call this crate can't even name isn't actionable by any caller, so
+            // we silently skip it rather than surfacing a partially-populated/garbage
+            // call — see `tool_calls_entry_missing_name_is_dropped` for the locked-in
+            // behavior.
+            let name = tc["function"]["name"].as_str()?.to_string();
+            let arguments = tc["function"]["arguments"]
+                .as_str()
+                .and_then(|s| serde_json::from_str(s).ok())
+                .unwrap_or(serde_json::Value::Null);
+            Some(EgressToolCall {
+                id,
+                name,
+                arguments,
+            })
+        })
+        .collect();
+    // If every entry was dropped (e.g. all missing `function.name`), report `None`
+    // rather than `Some(vec![])` — an empty vec would misleadingly read as "tools were
+    // requested but the model called none", when really nothing usable was parsed.
+    if calls.is_empty() { None } else { Some(calls) }
 }
 
 /// Streaming OpenAI-compatible chat completion. Yields content deltas. Ported from

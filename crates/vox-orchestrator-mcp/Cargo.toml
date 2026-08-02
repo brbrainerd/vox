@@ -33,6 +33,11 @@ gui-visual-review = []
 # `cargo check -p vox-orchestrator-mcp` skips the heaviest optional MCP surface.
 # Shipping binaries (vox-cli mcp-server, vox-orchestrator-d, vox-gui) opt back in.
 heavy-browser = []
+# `vox harness eval`'s eval-gate golden tasks (`eval_gate_agent_loop_terminates_check`
+# in chat_tools/chat/agent_loop.rs) need a real wiremock server at runtime, outside
+# `cargo test`. OFF by default so plain consumers of this crate (vox-server, vox-gui,
+# ...) never link a mock-HTTP-server crate; `vox-cli` opts in explicitly.
+eval-gate = ["dep:wiremock"]
 
 [dependencies]
 vox-orchestrator-driver = { workspace = true }
@@ -71,6 +76,7 @@ vox-openclaw-runtime.workspace = true
 vox-plugin-host.workspace = true
 vox-skill-discovery.workspace = true
 vox-plugin-types.workspace = true
+vox-similarity.workspace = true
 vox-plugin-catalog.workspace = true
 vox-orchestrator-types.workspace = true
 
@@ -137,6 +143,16 @@ which = { workspace = true }
 crossbeam-queue = { workspace = true }
 globset = { workspace = true }
 workspace-hack = { workspace = true }
+# Optional, gated by the `eval-gate` feature (default OFF): the eval-gate
+# check function purpose-built for `vox harness eval`
+# (`eval_gate_agent_loop_terminates_check` in chat_tools/chat/agent_loop.rs)
+# stands up a wiremock server at runtime, in normal (non-`#[cfg(test)]`)
+# code, so `vox-cli`'s eval gate binary can call it outside `cargo test`.
+# NOT a plain dependency: linking a mock-HTTP-server crate into every
+# consumer of this crate (vox-server, vox-gui, ...) by default would corrupt
+# the dependency manifest's signal value for anyone auditing prod deps.
+# `vox-cli` opts in explicitly via `features = [..., "eval-gate"]`.
+wiremock = { workspace = true, optional = true }
 
 [build-dependencies]
 serde = { workspace = true, features = ["derive"] }
@@ -147,6 +163,11 @@ vox-plugin-api = { workspace = true }
 tower = { workspace = true, features = ["util"] }
 serial_test.workspace = true
 jsonschema.workspace = true
+# Unconditionally available under `cargo test` regardless of the `eval-gate`
+# feature (existing tests in agent_loop.rs/local_health.rs use it); the
+# feature-gated optional [dependencies] entry above is only what makes it
+# reachable from non-test code (the eval-gate check functions).
+wiremock.workspace = true
 
 [lints.rust]
 unsafe_code = "warn"

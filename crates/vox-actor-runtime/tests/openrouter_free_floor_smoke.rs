@@ -29,6 +29,7 @@ async fn free_floor_slug_dispatches_and_returns_content() {
     let messages = vec![LlmChatMessage {
         role: "user".to_string(),
         content: "Reply with exactly the single word: pong".to_string(),
+        ..Default::default()
     }];
     let opts = ActivityOptions::new().with_timeout_secs(60);
 

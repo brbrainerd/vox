@@ -63,12 +63,12 @@ impl Orchestrator {
                 let messages = vec![
                     LlmChatMessage {
                         role: "system".into(),
-                        content: "You are Lane G, the Vox autonomous research synthesis expert. Your objective is to ingest raw search observations and formulate a dense, factual markdown summary containing specific claims, figures, and direct citations.".into(),
-                    },
+                        content: "You are Lane G, the Vox autonomous research synthesis expert. Your objective is to ingest raw search observations and formulate a dense, factual markdown summary containing specific claims, figures, and direct citations.".into(), ..Default::default()
+},
                     LlmChatMessage {
                         role: "user".into(),
-                        content: format!("Synthesize the following recent web evidence into a high-fidelity summary:\n\n{}", combined_evidence),
-                    }
+                        content: format!("Synthesize the following recent web evidence into a high-fidelity summary:\n\n{}", combined_evidence), ..Default::default()
+}
                 ];
 
                 match infer_with_retry(

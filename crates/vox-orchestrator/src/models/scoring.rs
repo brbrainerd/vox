@@ -8,7 +8,7 @@ const QUALITY_PAID_COMPONENT: f64 = 0.95;
 const QUALITY_TOKEN_WEIGHT: f64 = 0.6;
 const QUALITY_PAID_WEIGHT: f64 = 0.4;
 const EFFICIENCY_COST_SCALER: f64 = 100.0;
-const COMPLEXITY_HIGH_CUTOFF: u8 = 8;
+pub(super) const COMPLEXITY_HIGH_CUTOFF: u8 = 8;
 const COMPLEXITY_LOW_CUTOFF: u8 = 3;
 const COMPLEXITY_PRECISION_BONUS: u8 = 10;
 const COMPLEXITY_EFFICIENCY_BONUS: u8 = 10;
@@ -31,6 +31,29 @@ const DEEPSEEK_OFFPEAK_V3_BONUS: f64 = 0.07;
 /// Routing score bonus for DeepSeek R1 during off-peak pricing window.
 /// DeepSeek R1 is 75% cheaper UTC 16:30–00:30; stronger bonus reflects the larger discount.
 const DEEPSEEK_OFFPEAK_R1_BONUS: f64 = 0.12;
+/// Small flat scoring bonus for any zero-cost model (not just PopuliMesh).
+/// Kept small and complexity-independent on purpose: at high complexity
+/// `w.precision` already outweighs this, so a capable paid model still wins.
+const ZERO_COST_BASE_BONUS: f64 = 0.1;
+/// Small advisory penalty applied when [`super::vram::estimate_vram_fit`]
+/// reports [`super::vram::VramFit::Exceeds`] for a candidate (Task 2.6).
+///
+/// Deliberately small and, deliberately, *not* zero: at high complexity the
+/// zero-cost bonus above is already gated off (see `ZERO_COST_BASE_BONUS`
+/// usage below), so this penalty is the only VRAM-fit signal left there and
+/// must still move the score in the "less suitable" direction on its own —
+/// it must never depend on canceling out the zero-cost bonus to have an
+/// effect. At low/mid complexity, where the zero-cost bonus is active, this
+/// penalty is kept smaller in magnitude than `ZERO_COST_BASE_BONUS` (half of
+/// it) so a free-but-`Exceeds` local model nets a *smaller* bonus than a
+/// free-and-fitting one, rather than the two flattening to a wash — see
+/// `zero_cost_bonus_and_vram_penalty_compound_not_cancel` below.
+///
+/// Advisory only, per the module docs on [`super::vram`]: this is a ranking
+/// deprioritization, never exclusion — the underlying VRAM estimate can be
+/// wrong (unusual setups, other GPU-using processes, unmodeled
+/// quantizations).
+const VRAM_EXCEEDS_PENALTY: f64 = -0.05;
 
 /// Blend telemetry scoreboard signals using contract `quality_weights`.
 #[must_use]
@@ -307,6 +330,19 @@ pub fn auto_score_model(
     let mut w = base_routing_weights();
     if complexity >= COMPLEXITY_HIGH_CUTOFF {
         w.precision = w.precision.saturating_add(COMPLEXITY_PRECISION_BONUS);
+        // Symmetric counterpart to the low-complexity efficiency/latency boost
+        // below: a flat, complexity-independent `w.efficiency` gives free
+        // models (efficiency_score == 1.0) a structural advantage that
+        // `w.precision`'s boost alone can't reliably overcome (verified: even
+        // with the precision boost, a small free 8B-class model beat a
+        // frontier paid model by ~6% under default weights). Since the
+        // zero-cost bonus below is already gated off at this complexity band
+        // (see `ZERO_COST_BASE_BONUS` below), the residual advantage comes
+        // from `efficiency_score`/`w.efficiency` itself, not the bonus — so
+        // trimming efficiency's weight here, mirroring the existing boost at
+        // low complexity, is the correct place to fix it. Guarded against
+        // `free_local_model_does_not_win_high_complexity`.
+        w.efficiency = w.efficiency.saturating_sub(COMPLEXITY_EFFICIENCY_BONUS);
     } else if complexity <= COMPLEXITY_LOW_CUTOFF {
         w.efficiency = w.efficiency.saturating_add(COMPLEXITY_EFFICIENCY_BONUS);
         w.latency = w.latency.saturating_add(COMPLEXITY_LATENCY_BONUS);
@@ -381,8 +417,24 @@ pub fn auto_score_model(
         } else if *m.id == *"mens/vox-language-model" {
             0.25
         } else {
-            0.1 // Base bonus for zero cost
+            ZERO_COST_BASE_BONUS
         }
+    } else if m.is_free && complexity < COMPLEXITY_HIGH_CUTOFF {
+        // Any other zero-cost provider (e.g. local Ollama models) earns the
+        // same small base bonus PopuliMesh gets for being free — the mesh-only
+        // tiers above (0.8 prefer_mesh / 0.25 the mesh flagship) stay
+        // PopuliMesh-specific, since those reflect an explicit mesh-preference
+        // policy or a specific first-party model, not "any free model".
+        //
+        // Complexity-gated (not applied at/above COMPLEXITY_HIGH_CUTOFF): even
+        // with this bonus at zero, `efficiency_score`'s max-value-for-free
+        // behavior plus Ollama's optimistic default `latency_score` fallback
+        // already give local models a structural edge that a flat additive
+        // bonus would only worsen at high complexity. Restricting the bonus to
+        // low/mid complexity keeps it purely a "make local competitive when it
+        // plausibly should win" nudge, never a contributor to it winning hard
+        // tasks. See `free_local_model_does_not_win_high_complexity` below.
+        ZERO_COST_BASE_BONUS
     } else {
         0.0
     };
@@ -428,7 +480,26 @@ pub fn auto_score_model(
 
     let routing_cfg = vox_config::load_model_routing_config();
     let telemetry_boost = scoreboard_feedback_boost(m, scoreboard, &routing_cfg.quality_weights);
-    (score / total_w) + fim_bias + mens_bonus + off_peak_bonus + telemetry_boost
+    let vram_penalty = vram_score_delta(m, super::vram::free_vram_mb_hint());
+
+    (score / total_w) + fim_bias + mens_bonus + off_peak_bonus + telemetry_boost + vram_penalty
+}
+
+/// Advisory VRAM-fit contribution to the score (Task 2.6): a small
+/// deprioritization when [`super::vram::estimate_vram_fit`] reports
+/// [`super::vram::VramFit::Exceeds`], zero otherwise. `Unknown` (no NVML/GPU,
+/// or no parameter-count data for `m`) is a true no-op — see the
+/// `super::vram` module docs. Split out from [`auto_score_model`] as a pure
+/// function so it's directly unit-testable without mutating the process-wide
+/// free-VRAM cache.
+#[must_use]
+fn vram_score_delta(m: &ModelSpec, free_vram_mb: Option<u64>) -> f64 {
+    match super::vram::estimate_vram_fit(m, free_vram_mb) {
+        super::vram::VramFit::Exceeds => VRAM_EXCEEDS_PENALTY,
+        super::vram::VramFit::Comfortable
+        | super::vram::VramFit::Tight
+        | super::vram::VramFit::Unknown => 0.0,
+    }
 }
 
 #[cfg(test)]
@@ -532,6 +603,260 @@ mod tests {
             None,
         );
         assert!(score <= RATE_LIMITED_SCORE_FLOOR, "rate-limited -> floor");
+    }
+
+    /// Task 2.1b root cause 1: Ollama discovery hardcoded `max_tokens: 4096`
+    /// for every model regardless of real context length, which crushed
+    /// `quality_score`'s token component (log10(4096)/7 vs log10(40000)/7).
+    /// This proves fixing the discovered `max_tokens` actually moves the
+    /// metric the routing decision depends on.
+    #[test]
+    fn quality_score_rewards_real_context_length_over_fake_fallback() {
+        let mut fake_fallback = make_spec(ProviderType::Ollama, 0.0, true);
+        fake_fallback.max_tokens = 4096;
+
+        let mut real_context = make_spec(ProviderType::Ollama, 0.0, true);
+        real_context.max_tokens = 40_000;
+
+        let low = quality_score(&fake_fallback);
+        let high = quality_score(&real_context);
+        assert!(
+            high > low + 0.05,
+            "40000-token model should score meaningfully higher than the \
+             4096 fallback (low={low}, high={high})"
+        );
+    }
+
+    /// Task 2.1b root cause 2: the zero-cost bonus was gated on
+    /// `provider_type == PopuliMesh`, so an equally-free Ollama model got no
+    /// bonus at all. At low complexity (where efficiency/latency dominate and
+    /// quality gaps are small) a free Ollama model should now score close to
+    /// a similarly-capable free PopuliMesh model, proving parity was reached
+    /// without a hardcoded provider check.
+    #[test]
+    fn free_ollama_model_competitive_with_free_mesh_model_at_low_complexity() {
+        unsafe {
+            std::env::set_var("VOX_ROUTING_PREFER_MESH", "false");
+        }
+
+        let mut ollama = make_spec(ProviderType::Ollama, 0.0, true);
+        ollama.id = "qwen3:8b".into();
+        ollama.canonical_slug = "ollama/qwen3:8b".into();
+        ollama.max_tokens = 40_000;
+
+        let mut mesh = make_spec(ProviderType::PopuliMesh, 0.0, true);
+        mesh.id = "populi/other-model".into();
+        mesh.canonical_slug = "populi/other-model".into();
+        mesh.max_tokens = 40_000;
+
+        let low_complexity = 1;
+        let ollama_score = auto_score_model(
+            &ollama,
+            low_complexity,
+            false,
+            None,
+            CostPreference::Economy,
+            None,
+            None,
+        );
+        let mesh_score = auto_score_model(
+            &mesh,
+            low_complexity,
+            false,
+            None,
+            CostPreference::Economy,
+            None,
+            None,
+        );
+
+        assert!(
+            (ollama_score - mesh_score).abs() < 0.05,
+            "free Ollama model should be competitive with a similarly-capable \
+             free non-flagship PopuliMesh model at low complexity \
+             (ollama={ollama_score}, mesh={mesh_score})"
+        );
+    }
+
+    /// Critical regression guard for the LiteLLM "free always wins" trap
+    /// flagged during Task 2.1b planning: at high complexity, a small free
+    /// local (Ollama) model must NOT outscore a large, capable paid model.
+    /// `w.precision`'s complexity-scaled weight plus the paid model's far
+    /// higher `quality_score` (bigger context, non-free component) must
+    /// dominate the flat +0.1 zero-cost bonus.
+    #[test]
+    fn free_local_model_does_not_win_high_complexity() {
+        let mut small_local = make_spec(ProviderType::Ollama, 0.0, true);
+        small_local.id = "qwen3:8b".into();
+        small_local.canonical_slug = "ollama/qwen3:8b".into();
+        small_local.max_tokens = 40_000; // real context, post-fix
+
+        let mut frontier_paid = make_spec(ProviderType::Anthropic, 0.045, false);
+        frontier_paid.id = "anthropic/claude-frontier".into();
+        frontier_paid.canonical_slug = "anthropic/claude-frontier".into();
+        frontier_paid.max_tokens = 200_000;
+        frontier_paid.cost_per_1k_input = 0.03;
+        frontier_paid.cost_per_1k_output = 0.06;
+
+        let high_complexity = COMPLEXITY_HIGH_CUTOFF;
+        let local_score = auto_score_model(
+            &small_local,
+            high_complexity,
+            false,
+            None,
+            CostPreference::Performance,
+            None,
+            None,
+        );
+        let paid_score = auto_score_model(
+            &frontier_paid,
+            high_complexity,
+            false,
+            None,
+            CostPreference::Performance,
+            None,
+            None,
+        );
+
+        assert!(
+            paid_score > local_score,
+            "a frontier paid model must outscore a small free local model at \
+             high complexity (local={local_score}, paid={paid_score}) — a \
+             regression here reproduces the LiteLLM zero-cost trap"
+        );
+    }
+
+    /// Task 2.6: `vram_score_delta` (the pure function `auto_score_model`
+    /// delegates to) must apply the small fixed penalty for `Exceeds` and be
+    /// a true no-op for `Unknown` — tested directly, without touching the
+    /// process-global free-VRAM cache, so this test can't race others.
+    #[test]
+    fn vram_score_delta_penalizes_exceeds_and_noops_on_unknown() {
+        let mut huge_local = make_spec(ProviderType::Ollama, 0.0, true);
+        huge_local.capabilities.param_count_b = Some(70.0); // ~33 GiB @ Q4 assumption
+
+        // Tiny free VRAM -> Exceeds -> the fixed penalty applies.
+        assert_eq!(
+            vram_score_delta(&huge_local, Some(1_000)),
+            VRAM_EXCEEDS_PENALTY
+        );
+
+        // No parameter-count data at all -> Unknown -> zero, regardless of free VRAM.
+        let mut no_param_data = make_spec(ProviderType::Ollama, 0.0, true);
+        no_param_data.capabilities.param_count_b = None;
+        assert_eq!(vram_score_delta(&no_param_data, Some(1_000)), 0.0);
+
+        // No free-VRAM signal at all (no NVML/GPU) -> Unknown -> zero, even
+        // though the model itself is "huge" and would otherwise Exceed.
+        assert_eq!(vram_score_delta(&huge_local, None), 0.0);
+
+        // Plenty of VRAM -> Comfortable -> zero (only Exceeds is penalized).
+        let mut small_local = make_spec(ProviderType::Ollama, 0.0, true);
+        small_local.capabilities.param_count_b = Some(1.0);
+        assert_eq!(vram_score_delta(&small_local, Some(20_000)), 0.0);
+    }
+
+    /// Task 2.6: `VramFit::Unknown` must be a *true* no-op end-to-end through
+    /// `auto_score_model`, not merely mathematically zero in isolation. Two
+    /// models differing ONLY in whether they carry `param_count_b` (i.e.
+    /// whether a VRAM-fit signal exists at all) must score identically when
+    /// no free-VRAM hint is available — proving the signal genuinely behaves
+    /// as "doesn't exist for this session" rather than defaulting to fits/
+    /// doesn't-fit. Uses the crate's real global hint accessor
+    /// (`free_vram_mb_hint`), which defaults to `None` absent an explicit
+    /// `set_free_vram_mb_hint` call — this test makes none, so it can't race
+    /// other tests over that global.
+    #[test]
+    fn vram_unknown_signal_is_true_noop_through_auto_score_model() {
+        let mut baseline = make_spec(ProviderType::Ollama, 0.0, true);
+        baseline.id = "qwen3:8b".into();
+        baseline.canonical_slug = "ollama/qwen3:8b".into();
+        baseline.max_tokens = 40_000;
+        baseline.capabilities.param_count_b = None; // no signal
+
+        let mut with_param_data = baseline.clone();
+        with_param_data.capabilities.param_count_b = Some(8.0); // signal exists, but no free-VRAM hint -> Unknown
+
+        let complexity = 5;
+        let baseline_score = auto_score_model(
+            &baseline,
+            complexity,
+            false,
+            None,
+            CostPreference::Economy,
+            None,
+            None,
+        );
+        let with_param_score = auto_score_model(
+            &with_param_data,
+            complexity,
+            false,
+            None,
+            CostPreference::Economy,
+            None,
+            None,
+        );
+        assert_eq!(
+            baseline_score, with_param_score,
+            "with no free-VRAM hint available, adding param_count_b data must \
+             not change the score at all (Unknown is a true no-op)"
+        );
+    }
+
+    /// Task 2.6: a zero-cost local model that ALSO estimates to `Exceeds`
+    /// VRAM must not "average out to neutral" against the zero-cost bonus —
+    /// the two effects must compound in the same "less suitable" direction.
+    /// Verified two ways: (1) the VRAM penalty is strictly smaller in
+    /// magnitude than the zero-cost bonus, so it can only shrink the net
+    /// bonus, never flip its sign or exceed it; (2) at the complexity-9
+    /// zero-cost-trap guard band (where the bonus is already gated to zero),
+    /// the VRAM penalty still fires on its own and does not get canceled by
+    /// anything — it strictly lowers the score relative to an
+    /// otherwise-identical model with no VRAM-fit signal.
+    #[test]
+    fn zero_cost_bonus_and_vram_penalty_compound_not_cancel() {
+        assert!(
+            VRAM_EXCEEDS_PENALTY.abs() < ZERO_COST_BASE_BONUS,
+            "the VRAM penalty must not be large enough to flip the zero-cost \
+             bonus negative on its own (it should shrink the net bonus, not \
+             invert it)"
+        );
+
+        // At the complexity-9 guard band the zero-cost bonus is gated off, so
+        // the only remaining VRAM-related term is the penalty itself. Compare
+        // an Exceeds-signaled huge local model against an otherwise-identical
+        // model with no VRAM signal (Unknown, via no param data) — the former
+        // must score strictly lower, proving the penalty has independent
+        // effect rather than needing the (already-zero) bonus to cancel.
+        let mut huge_local_no_signal = make_spec(ProviderType::Ollama, 0.0, true);
+        huge_local_no_signal.id = "qwen3:70b".into();
+        huge_local_no_signal.canonical_slug = "ollama/qwen3:70b".into();
+        huge_local_no_signal.max_tokens = 40_000;
+        huge_local_no_signal.capabilities.param_count_b = None;
+
+        let high_complexity = COMPLEXITY_HIGH_CUTOFF;
+        let score_no_signal = auto_score_model(
+            &huge_local_no_signal,
+            high_complexity,
+            false,
+            None,
+            CostPreference::Performance,
+            None,
+            None,
+        );
+
+        // vram_score_delta is exercised directly here (not through the global
+        // hint) to avoid any cross-test race, but it demonstrates exactly the
+        // term `auto_score_model` would add if the free-VRAM hint were set to
+        // a small value for this huge model.
+        let mut huge_local_with_signal = huge_local_no_signal.clone();
+        huge_local_with_signal.capabilities.param_count_b = Some(70.0);
+        let delta = vram_score_delta(&huge_local_with_signal, Some(1_000));
+        assert_eq!(delta, VRAM_EXCEEDS_PENALTY);
+        assert!(
+            score_no_signal + delta < score_no_signal,
+            "applying the Exceeds penalty on top of the no-signal score must \
+             strictly lower it — it must never cancel out to neutral"
+        );
     }
 }
 

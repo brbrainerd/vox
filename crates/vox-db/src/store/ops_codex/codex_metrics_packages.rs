@@ -438,7 +438,12 @@ impl crate::VoxDb {
         Ok(out)
     }
 
-    /// `skill_reliability` rows, lowest reliability first (CLI / ops surface).
+    /// Skill reliability rows, lowest reliability first (CLI / ops surface).
+    ///
+    /// Reads `reliability_scores WHERE entity_type = 'skill'` — the live table
+    /// since schema v51 (see `ops_skills.rs`). The legacy `skill_reliability`
+    /// table is superseded and nothing writes to it anymore, so this must NOT
+    /// read from it (doing so would silently report stale/empty data forever).
     pub async fn list_skill_reliability_worst_first(
         &self,
         limit: i64,
@@ -447,8 +452,9 @@ impl crate::VoxDb {
         let mut rows = self
             .conn
             .query(
-                "SELECT skill_id, reliability, success_count, failure_count
-             FROM skill_reliability ORDER BY reliability ASC LIMIT ?1",
+                "SELECT entity_id, reliability, success_count, failure_count
+             FROM reliability_scores WHERE entity_type = 'skill'
+             ORDER BY reliability ASC LIMIT ?1",
                 params![lim],
             )
             .await?;

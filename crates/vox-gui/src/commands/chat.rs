@@ -139,7 +139,11 @@ pub async fn chat_append_message<R: tauri::Runtime>(
     app_handle: tauri::AppHandle<R>,
     input: ChatAppendInput,
     pool: State<'_, GuiDbPool>,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    // No longer used to dispatch a task directly (Task 0.2: propose-only —
+    // see `secretary_confirm_task` for the daemon call). Kept in the
+    // signature so the Tauri command's argument shape (and existing test
+    // call sites) don't need to change.
+    _daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<i64, String> {
     if input.session_id.trim().is_empty() {
         return Err("session_id must not be empty".to_string());
@@ -170,72 +174,88 @@ pub async fn chat_append_message<R: tauri::Runtime>(
         .await
         .map_err(map_db_err)?;
 
-    // Secretary: detect actionable intent in user messages and submit it to the
-    // orchestrator daemon task graph (SUBMIT_TASK) — NOT the SQLite hopper that
-    // the Tasks surface lists (store unification is Phase 2, fork F1).
-    // Fire-and-forget — errors here must never fail the chat message save.
+    // Secretary: detect actionable intent in user messages and *propose* it
+    // to the user — it must NOT auto-submit to the orchestrator daemon task
+    // graph (SUBMIT_TASK). Task 0.2 (harness parity plan): the secretary used
+    // to fire SUBMIT_TASK itself here, silently turning any ≥10-word message
+    // containing an action verb into a live task. That is now client-side
+    // gated: this only emits the proposal toast; the actual SUBMIT_TASK call
+    // happens in `secretary_confirm_task`, invoked when the user explicitly
+    // clicks "confirm" on the toast (see `SecretaryToast.tsx`).
     if let Some(classified) =
         secretary_candidate(&input.role, &input.content, input.already_submitted)
     {
-        let session_id = input.session_id.clone();
-        let app_handle_clone = app_handle.clone();
-        let daemon: Arc<PersistentDaemon> = daemon.inner().clone();
-        tokio::spawn(async move {
-            use vox_foundation::protocol::orch_daemon_method;
-            use vox_orchestrator::orch_daemon::OrchDaemonClient;
-
-            let params = serde_json::json!({
-                "description": classified.intent,
-                "file_manifest": [],
-                "priority": null,
-                "session_id": session_id,
-                "allow_duplicate": false,
-                "model_hint": null,
-                "dry_run": null,
-                "active_skill": null,
-            });
-            let submit_result = async {
-                let addr = daemon.ensure().await?;
-                let client = match daemon.token().await {
-                    Some(token) => OrchDaemonClient::with_token(addr, token),
-                    None => OrchDaemonClient::new(addr),
-                };
-                client
-                    .call(orch_daemon_method::SUBMIT_TASK, params)
-                    .await
-                    .map_err(|e| e.to_string())
-            }
-            .await;
-            match submit_result {
-                Ok(raw) => {
-                    if let Some(item_id) = submitted_task_id(&raw) {
-                        crate::commands::orchestrator::emit_secretary_proposed(
-                            &app_handle_clone,
-                            crate::commands::orchestrator::SecretaryProposedPayload {
-                                item_id,
-                                intent: classified.intent,
-                                confidence_pct: classified.confidence_pct,
-                            },
-                        );
-                        // Also ping the tasks list so it refreshes immediately.
-                        crate::commands::orchestrator::emit_tasks_changed(&app_handle_clone);
-                    } else {
-                        // Daemon deduped (task_id null, duplicate_of set): nothing new
-                        // was enqueued, so no toast and no tasks-changed ping.
-                        tracing::debug!(
-                            "secretary: daemon deduped near-duplicate; suppressing toast"
-                        );
-                    }
-                }
-                Err(e) => {
-                    // Daemon unavailable or rejected — log and move on.
-                    tracing::debug!("secretary: failed to submit task: {e}");
-                }
-            }
-        });
+        // `item_id` here is a client-side proposal id (not a hopper/task id —
+        // no task exists yet). `secretary_confirm_task` is keyed on it so the
+        // eventual daemon submission uses the exact same session_id/intent
+        // the user was shown in the toast.
+        let proposal_id = uuid::Uuid::new_v4().to_string();
+        crate::commands::orchestrator::emit_secretary_proposed(
+            &app_handle,
+            crate::commands::orchestrator::SecretaryProposedPayload {
+                item_id: proposal_id,
+                intent: classified.intent,
+                confidence_pct: classified.confidence_pct,
+                session_id: input.session_id.clone(),
+            },
+        );
     }
 
     Ok(msg_id)
+}
+
+/// Build the SUBMIT_TASK RPC params for a secretary-confirmed task.
+fn build_submit_task_params(
+    session_id: &str,
+    intent: &str,
+    active_skill: Option<&str>,
+) -> serde_json::Value {
+    serde_json::json!({
+        "description": intent,
+        "file_manifest": [],
+        "priority": null,
+        "session_id": session_id,
+        "allow_duplicate": false,
+        "model_hint": null,
+        "dry_run": null,
+        "active_skill": active_skill,
+    })
+}
+
+/// Submit a secretary-proposed task to the orchestrator daemon (SUBMIT_TASK),
+/// only ever called from the frontend when the user explicitly clicks
+/// "confirm" on the `SecretaryToast` — this is the sole path by which a
+/// secretary classification becomes a live task (Task 0.2: auto-dispatch →
+/// propose-only).
+#[tauri::command]
+pub async fn secretary_confirm_task<R: tauri::Runtime>(
+    app_handle: tauri::AppHandle<R>,
+    session_id: String,
+    intent: String,
+    active_skill: Option<String>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<Option<String>, String> {
+    use vox_foundation::protocol::orch_daemon_method;
+    use vox_orchestrator::orch_daemon::OrchDaemonClient;
+
+    let params = build_submit_task_params(&session_id, &intent, active_skill.as_deref());
+    let addr = daemon.ensure().await.map_err(|e| e.to_string())?;
+    let client = match daemon.token().await {
+        Some(token) => OrchDaemonClient::with_token(addr, token),
+        None => OrchDaemonClient::new(addr),
+    };
+    let raw = client
+        .call(orch_daemon_method::SUBMIT_TASK, params)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let task_id = submitted_task_id(&raw);
+    if task_id.is_some() {
+        // Only ping the tasks list when something new was actually enqueued —
+        // a deduped submission (task_id null, duplicate_of set) changed nothing.
+        crate::commands::orchestrator::emit_tasks_changed(&app_handle);
+    }
+    Ok(task_id)
 }
 
 #[tauri::command]
@@ -294,6 +314,156 @@ fn submitted_task_id(raw: &serde_json::Value) -> Option<String> {
         .map(|v| v.to_string())
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ChatSendInput {
+    pub session_id: String,
+    pub content: String,
+    #[serde(default)]
+    pub active_skill: Option<String>,
+}
+
+/// Parsed reply extracted from a `vox_chat_message` `ToolResult` envelope.
+#[derive(Debug)]
+struct ParsedChatReply {
+    content: String,
+    model_id: Option<String>,
+}
+
+/// Extracts a [`ParsedChatReply`] from a `vox_chat_message` `ToolResult`
+/// envelope (`{"success", "data": {"message": {..., "content"}, "model_used"}}`
+/// or `{"success": false, "error"}`) as returned directly by
+/// `OrchDaemonClient::call(TOOL_CALL, ...)`.
+fn parse_chat_message_envelope(envelope: &serde_json::Value) -> Result<ParsedChatReply, String> {
+    let success = envelope
+        .get("success")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if !success {
+        let err = envelope
+            .get("error")
+            .and_then(|v| v.as_str())
+            .unwrap_or("vox_chat_message failed with no error detail")
+            .to_string();
+        return Err(err);
+    }
+    let data = envelope
+        .get("data")
+        .ok_or_else(|| "vox_chat_message succeeded with no data".to_string())?;
+    let content = data
+        .get("message")
+        .and_then(|m| m.get("content"))
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| "vox_chat_message response missing message.content".to_string())?
+        .to_string();
+    let model_id = data
+        .get("model_used")
+        .and_then(|m| m.as_str())
+        .map(str::to_string);
+    Ok(ParsedChatReply { content, model_id })
+}
+
+/// Persists an already-parsed assistant reply and returns a DTO with a real
+/// (not blank) `created_at`. Split out from `chat_send_message` so this half
+/// of the flow — the part that doesn't need a live daemon — is independently
+/// unit-testable against the in-memory test DB.
+///
+/// This writes into the GUI-only conversation returned by
+/// `VoxDb::chat_ensure_gui_session(session_id, ..)`, keyed by `session_id`
+/// alone. That store is display-only, for rendering the transcript in this
+/// GUI's chat panel — it is NOT what feeds the model's context. This is
+/// intentionally separate from, and independent of, the "workspace"
+/// conversation that `vox_chat_message` itself persists into inside
+/// `vox-orchestrator-mcp`'s `chat_tools::chat::message` handler, via
+/// `VoxDb::chat_ensure_workspace_conversation(repository_id, session_id, ..)`
+/// (keyed by `(repository_id, session_id)`), which is what actually backs
+/// `chat_history:{session_id}` and is threaded into future model context.
+/// Both writes happen on every `chat_send_message` call — that duplication
+/// is correct, not a bug: do not remove either write thinking it duplicates
+/// the other.
+async fn persist_assistant_reply(
+    db: &VoxDb,
+    conv_id: i64,
+    content: &str,
+    model_id: Option<&str>,
+) -> Result<ChatMessageDto, String> {
+    let payload = model_id.map(|m| serde_json::json!({ "model_id": m }).to_string());
+    let msg_id = db
+        .chat_append_message(conv_id, "assistant", content, payload.as_deref())
+        .await
+        .map_err(map_db_err)?;
+    let created_at = db
+        .chat_message_created_at(msg_id)
+        .await
+        .map_err(map_db_err)?;
+    Ok(ChatMessageDto {
+        id: msg_id,
+        role: "assistant".to_string(),
+        content: content.to_string(),
+        created_at,
+        task_id: None,
+        model_id: model_id.map(str::to_string),
+    })
+}
+
+/// Synchronous chat reply: calls the real agent loop (`vox_chat_message` via
+/// the daemon's `orch.tool_call`) and persists the assistant's reply via
+/// `persist_assistant_reply`. Unlike `secretary_confirm_task` (which submits
+/// a background work-order task via `SUBMIT_TASK`), this returns a
+/// model-authored reply directly for immediate transcript rendering — the
+/// synchronous chat path this GUI never had. Mirrors `secretary_confirm_task`'s
+/// daemon-call shape exactly (same file, a few lines above) rather than going
+/// through the generic `invoke_mcp_tool` command, whose extra
+/// `{"tool","is_error","result"}` wrapper this function does not need.
+///
+/// Note on persistence: the `vox_chat_message` call below already persists
+/// the user+assistant turn server-side into a "workspace" conversation (see
+/// `persist_assistant_reply`'s doc comment for the exact tables/keys). The
+/// `persist_assistant_reply` call after it writes the same assistant reply
+/// again, but into a separate GUI-only "display" conversation. Both writes
+/// are intentional and target different, non-converging stores — see
+/// `persist_assistant_reply` for why.
+#[tauri::command]
+pub async fn chat_send_message<R: tauri::Runtime>(
+    _app_handle: tauri::AppHandle<R>,
+    input: ChatSendInput,
+    pool: State<'_, GuiDbPool>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<ChatMessageDto, String> {
+    if input.session_id.trim().is_empty() {
+        return Err("session_id must not be empty".to_string());
+    }
+    if input.content.trim().is_empty() {
+        return Err("content must not be empty".to_string());
+    }
+    let addr = daemon.ensure().await?;
+    let client = match daemon.token().await {
+        Some(token) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, token),
+        None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
+    };
+    let mut args = serde_json::json!({
+        "prompt": input.content,
+        "session_id": input.session_id,
+    });
+    if let Some(skill) = input.active_skill.as_ref() {
+        args["active_skill"] = serde_json::Value::String(skill.clone());
+    }
+    let envelope = client
+        .call(
+            vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
+            serde_json::json!({ "name": "vox_chat_message", "args": args }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    let reply = parse_chat_message_envelope(&envelope)?;
+
+    let db = pool_db(&pool)?;
+    let conv_id = db
+        .chat_ensure_gui_session(&input.session_id, "Chat")
+        .await
+        .map_err(map_db_err)?;
+    persist_assistant_reply(&db, conv_id, &reply.content, reply.model_id.as_deref()).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -337,6 +507,42 @@ mod tests {
         let msgs = db.chat_get_gui_messages(session_id, 10).await.expect("get");
         assert_eq!(msgs.len(), 1);
         assert_eq!(msgs[0].2, "hello");
+    }
+
+    /// Task 0.2 regression: a classified message must NOT trigger a
+    /// `SUBMIT_TASK` daemon round-trip from `chat_append_message` — it only
+    /// emits the proposal event. Before this fix, an actionable message
+    /// spawned a task that called `daemon.ensure()` (which spawns/connects to
+    /// the real orchestrator daemon binary and can take seconds). Bounding
+    /// the call in a short timeout proves no such daemon interaction happens
+    /// on this path anymore.
+    #[tokio::test]
+    async fn chat_append_message_does_not_auto_dispatch_to_daemon() {
+        use tauri::Manager;
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(PersistentDaemon::default()));
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let input = ChatAppendInput {
+            session_id: "propose-only-session".to_string(),
+            role: "user".to_string(),
+            // Actionable per the classifier (>=10 words, whole-word verb).
+            content: "please fix the broken authentication flow in the login \
+                      page it keeps failing"
+                .to_string(),
+            task_id: None,
+            model_id: None,
+            already_submitted: false,
+        };
+        let daemon = app.state::<Arc<PersistentDaemon>>();
+        let pool = app.state::<GuiDbPool>();
+        let result = tokio::time::timeout(
+            std::time::Duration::from_millis(500),
+            chat_append_message(app.handle().clone(), input, pool, daemon),
+        )
+        .await
+        .expect("chat_append_message must not block on the orchestrator daemon")
+        .expect("append should succeed");
+        assert!(result > 0);
     }
 
     #[test]
@@ -422,5 +628,79 @@ mod tests {
         )
         .expect("older frontends omit the field");
         assert!(!input.already_submitted);
+    }
+
+    #[tokio::test]
+    async fn chat_send_message_rejects_empty_session_id() {
+        use tauri::Manager;
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(PersistentDaemon::default()));
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let daemon = app.state::<Arc<PersistentDaemon>>();
+        let pool = app.state::<GuiDbPool>();
+        let result = chat_send_message(
+            app.handle().clone(),
+            ChatSendInput {
+                session_id: String::new(),
+                content: "hello".to_string(),
+                active_skill: None,
+            },
+            pool,
+            daemon,
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("session_id"));
+    }
+
+    #[test]
+    fn parse_chat_message_envelope_extracts_content_and_model() {
+        let envelope = serde_json::json!({
+            "success": true,
+            "data": {
+                "message": {"id": "m1", "role": "assistant", "content": "Hi there"},
+                "model_used": "openrouter/auto",
+                "tokens": 42
+            }
+        });
+        let reply = parse_chat_message_envelope(&envelope).expect("parse ok");
+        assert_eq!(reply.content, "Hi there");
+        assert_eq!(reply.model_id.as_deref(), Some("openrouter/auto"));
+    }
+
+    #[test]
+    fn parse_chat_message_envelope_reports_tool_error() {
+        let envelope = serde_json::json!({"success": false, "error": "model unavailable"});
+        let err = parse_chat_message_envelope(&envelope).unwrap_err();
+        assert_eq!(err, "model unavailable");
+    }
+
+    #[tokio::test]
+    async fn persist_assistant_reply_writes_row_and_returns_real_created_at() {
+        let pool = GuiDbPool::connect_memory().await.expect("memory pool");
+        let db = pool.handle().expect("db handle");
+        let conv_id = db
+            .chat_ensure_gui_session("sess-persist", "Chat")
+            .await
+            .expect("ensure session");
+        let dto = persist_assistant_reply(&db, conv_id, "Hello!", Some("openrouter/auto"))
+            .await
+            .expect("persist ok");
+        assert_eq!(dto.role, "assistant");
+        assert_eq!(dto.content, "Hello!");
+        assert_eq!(dto.model_id.as_deref(), Some("openrouter/auto"));
+        assert!(!dto.created_at.is_empty(), "created_at must not be blank");
+    }
+
+    #[test]
+    fn secretary_confirm_task_params_include_active_skill_when_provided() {
+        let params = build_submit_task_params("sess-1", "do the thing", Some("code-review"));
+        assert_eq!(params["active_skill"], serde_json::json!("code-review"));
+    }
+
+    #[test]
+    fn secretary_confirm_task_params_active_skill_null_when_absent() {
+        let params = build_submit_task_params("sess-1", "do the thing", None);
+        assert_eq!(params["active_skill"], serde_json::Value::Null);
     }
 }

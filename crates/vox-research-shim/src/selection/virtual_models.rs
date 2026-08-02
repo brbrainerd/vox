@@ -56,6 +56,7 @@ pub fn virtual_models() -> Vec<ModelSpec> {
                 latency_p50_ms: None,
                 is_moderated: false,
                 uptime_score: None,
+                param_count_b: None,
             },
         },
         ModelSpec {
@@ -101,6 +102,7 @@ pub fn virtual_models() -> Vec<ModelSpec> {
                 latency_p50_ms: None,
                 is_moderated: false,
                 uptime_score: None,
+                param_count_b: None,
             },
         },
     ]

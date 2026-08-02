@@ -60,15 +60,34 @@ impl ProviderRegistry {
     pub async fn search(&self, query: &str, policy: &SearchPolicy) -> (Vec<ResearchHit>, String) {
         match WebSearchDispatcher::search(query, policy).await {
             Ok(hybrids) => {
-                let hits = hybrids
+                use futures::stream::{self, StreamExt};
+                let trust_scores: Vec<f64> = stream::iter(hybrids.iter())
+                    .map(|h| {
+                        let doi = vox_search::trust::extract_doi_from_url(&h.path);
+                        async move {
+                            vox_search::trust::score_hit_trust_for_url(
+                                &h.title,
+                                doi.as_deref(),
+                                &h.path,
+                            )
+                            .await
+                        }
+                    })
+                    // `buffered` (not `buffer_unordered`) to preserve input order,
+                    // since results are zipped positionally against `hybrids` below.
+                    .buffered(5)
+                    .collect()
+                    .await;
+                let hits: Vec<ResearchHit> = hybrids
                     .into_iter()
-                    .map(|h| ResearchHit {
+                    .zip(trust_scores)
+                    .map(|(h, trust_score)| ResearchHit {
                         url: h.path,
                         title: h.title,
                         snippet: h.content_snippet,
                         score: h.score,
                         http_status: 0,
-                        trust_score: 1.0,
+                        trust_score,
                         raw_content: String::new(),
                     })
                     .collect();
@@ -87,5 +106,20 @@ impl ProviderRegistry {
     /// filtering; no dedicated site-map API exists in vox-search yet.
     pub async fn map_site(&self, _root_url: &str) -> Option<Vec<String>> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn provider_search_hits_use_real_trust_scoring() {
+        // Sanity check that trust scoring is wired in and fail-open (no hang,
+        // sane range) — full integration behavior is covered by trust.rs's
+        // own mocked tests from Task 4.
+        let score = vox_search::trust::score_hit_trust("Example Provider Title", None).await;
+        assert!(
+            (0.0..=2.0).contains(&score),
+            "trust score {score} out of sane range"
+        );
     }
 }

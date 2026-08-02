@@ -349,6 +349,8 @@ interface ChatSurfaceProps {
   onOpenFeedbackContext?: (id: string) => void;
   /** Pending-approval count — sources the opt-in Approvals dock panel's condensed badge (App.tsx: `attention.approvals.length`). */
   pendingApprovals?: number;
+  /** Currently pinned skill id (App.tsx `activeSkill`), threaded into secretary task submission. */
+  activeSkillId?: string | null;
 }
 
 export function ChatSurface({
@@ -380,6 +382,7 @@ export function ChatSurface({
   attention,
   onOpenFeedbackContext,
   pendingApprovals = 0,
+  activeSkillId,
 }: ChatSurfaceProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
@@ -643,6 +646,25 @@ export function ChatSurface({
       onSessionChange?.(s.session_id);
     } catch (err) {
       pushToast({ tone: 'warn', title: 'New session failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    }
+  };
+
+  /**
+   * Submit a secretary-proposed task (Task 0.2: propose-only). This is the
+   * ONLY path by which a secretary classification becomes a live orchestrator
+   * task — invoked exclusively from the "Add task" button on `SecretaryToast`.
+   */
+  const confirmSecretaryTask = async (payload: SecretaryProposedPayload) => {
+    setSecretaryToast(null);
+    try {
+      await invoke('secretary_confirm_task', {
+        sessionId: payload.session_id,
+        intent: payload.intent,
+        activeSkill: activeSkillId ?? null,
+      });
+      onNavigate?.('tasks');
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Add task failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 
@@ -1132,10 +1154,7 @@ export function ChatSurface({
             intent={secretaryToast.intent}
             itemId={secretaryToast.item_id}
             onDismiss={() => setSecretaryToast(null)}
-            onViewTask={() => {
-              setSecretaryToast(null);
-              onNavigate?.('tasks');
-            }}
+            onConfirm={() => confirmSecretaryTask(secretaryToast)}
           />
         </div>
       )}

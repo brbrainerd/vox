@@ -14,6 +14,7 @@ const { mockSecretaryPayload, getSecretaryEventHandler, setSecretaryEventHandler
       item_id: 'item-abc',
       intent: 'Fix the broken authentication flow in the login page today',
       confidence_pct: 85,
+      session_id: 's1',
     },
     getSecretaryEventHandler: () => secretaryEventHandler,
     setSecretaryEventHandler: (handler: any) => {
@@ -208,6 +209,59 @@ describe('ChatSurface', () => {
     await waitFor(() => {
       expect(screen.getByTestId('secretary-toast-intent')).toBeInTheDocument();
       expect(screen.getByText(/Fix the broken authentication/)).toBeInTheDocument();
+    });
+    // Task 0.2: the proposal alone must never call secretary_confirm_task —
+    // only an explicit click on "Add task" may.
+    expect(invokeMock).not.toHaveBeenCalledWith('secretary_confirm_task', expect.anything());
+  });
+
+  it('only submits the secretary-proposed task when "Add task" is clicked (propose-only)', async () => {
+    const onNavigate = vi.fn();
+    render(<LanguageProvider><ChatSurface pushToast={noopToast} onNavigate={onNavigate} activeSessionId="s1" /></LanguageProvider>);
+    await waitFor(() => expect(getSecretaryEventHandler()).not.toBeNull());
+    act(() => {
+      getSecretaryEventHandler()!({ payload: mockSecretaryPayload });
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('secretary-toast-intent')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /confirm and add task/i }));
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('secretary_confirm_task', {
+        sessionId: mockSecretaryPayload.session_id,
+        intent: mockSecretaryPayload.intent,
+        activeSkill: null,
+      });
+    });
+    expect(onNavigate).toHaveBeenCalledWith('tasks');
+  });
+
+  it('passes activeSkillId through to secretary_confirm_task', async () => {
+    const onNavigate = vi.fn();
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={onNavigate}
+          activeSessionId="s1"
+          activeSkillId="code-review"
+        />
+      </LanguageProvider>,
+    );
+    await waitFor(() => expect(getSecretaryEventHandler()).not.toBeNull());
+    act(() => {
+      getSecretaryEventHandler()!({ payload: mockSecretaryPayload });
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('secretary-toast-intent')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /confirm and add task/i }));
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('secretary_confirm_task', {
+        sessionId: mockSecretaryPayload.session_id,
+        intent: mockSecretaryPayload.intent,
+        activeSkill: 'code-review',
+      });
     });
   });
 

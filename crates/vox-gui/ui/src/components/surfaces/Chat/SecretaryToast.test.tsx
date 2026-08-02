@@ -19,7 +19,7 @@ describe('SecretaryToast', () => {
         intent="Fix the authentication bug in the login flow"
         itemId="item-1"
         onDismiss={vi.fn()}
-        onViewTask={vi.fn()}
+        onConfirm={vi.fn()}
       />
     );
     expect(screen.getByText(/Fix the authentication bug/)).toBeInTheDocument();
@@ -32,42 +32,45 @@ describe('SecretaryToast', () => {
         intent="Fix something important in the codebase today"
         itemId="item-2"
         onDismiss={onDismiss}
-        onViewTask={vi.fn()}
+        onConfirm={vi.fn()}
       />
     );
     fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 
-  it('calls onViewTask when "View task" is clicked', () => {
-    const onViewTask = vi.fn();
+  it('does NOT submit a task until "Add task" is explicitly clicked', () => {
+    // Task 0.2: rendering the proposal alone must never call onConfirm.
+    const onConfirm = vi.fn();
     render(
       <SecretaryToast
         intent="Implement the new retry logic for HTTP client failures"
         itemId="item-3"
         onDismiss={vi.fn()}
-        onViewTask={onViewTask}
+        onConfirm={onConfirm}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /view task/i }));
-    expect(onViewTask).toHaveBeenCalledOnce();
+    expect(onConfirm).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /confirm and add task/i }));
+    expect(onConfirm).toHaveBeenCalledOnce();
   });
 
-
-  it('auto-dismisses after 5 seconds', () => {
+  it('auto-dismisses after 5 seconds without confirming', () => {
     const onDismiss = vi.fn();
+    const onConfirm = vi.fn();
     render(
       <SecretaryToast
         intent="Fix the memory leak in the websocket handler today"
         itemId="item-4"
         onDismiss={onDismiss}
-        onViewTask={vi.fn()}
+        onConfirm={onConfirm}
       />
     );
     act(() => {
       vi.advanceTimersByTime(5001);
     });
     expect(onDismiss).toHaveBeenCalledOnce();
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 
   it('truncates long intent text to 80 characters', () => {
@@ -77,7 +80,7 @@ describe('SecretaryToast', () => {
         intent={long}
         itemId="item-5"
         onDismiss={vi.fn()}
-        onViewTask={vi.fn()}
+        onConfirm={vi.fn()}
       />
     );
     // The rendered text should not exceed 80 chars + ellipsis

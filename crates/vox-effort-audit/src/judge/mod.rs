@@ -194,10 +194,12 @@ impl Judge for LlmJudge {
                     messages.push(vox_actor_runtime::llm::LlmChatMessage {
                         role: "assistant".into(),
                         content: response.content.clone(),
+                        ..Default::default()
                     });
                     messages.push(vox_actor_runtime::llm::LlmChatMessage {
                         role: "user".into(),
                         content: parse::retry_message(&e),
+                        ..Default::default()
                     });
                     continue;
                 }

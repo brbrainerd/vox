@@ -12,6 +12,7 @@ pub mod select;
 pub mod spec;
 #[cfg(test)]
 mod tests;
+pub mod vram;
 
 pub use generated::{
     Capability, CapabilityFlags, ModelTier, PromptIntent, StrengthTag, TaskCategory,
@@ -22,6 +23,8 @@ pub use policy::{
     active_policy, install_active_policy, policy_for_profile, resolve_policy,
 };
 pub use registry::{ModelRegistry, ModelScore};
+#[cfg(feature = "runtime")]
+pub use registry::llm_config_for_spec;
 pub use scoring::install_base_routing_priority;
 pub use select::{
     CandidateScope, ModelSelectionDecision, ModelSelectionRequest, ScoreBreakdown, SelectionAxes,
@@ -32,3 +35,4 @@ pub use spec::{
     ModelCapabilities, ModelConfig, ModelRouteBackend, ModelSpec, PricingSource, ProviderType,
     route_backend_for_model, task_category_premium_key, task_category_strength,
 };
+pub use vram::{VramFit, estimate_vram_fit, free_vram_mb_hint, refresh_free_vram_hint_from_nvml};

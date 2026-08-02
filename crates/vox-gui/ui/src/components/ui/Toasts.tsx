@@ -9,6 +9,10 @@ export interface ToastItem {
   body?: string;
   cmd?: string;
   cause: ToastCause;
+  /** Coalescing identity — see `Toast.groupKey`. Not rendered directly. */
+  groupKey?: string;
+  /** When > 1, this entry represents multiple coalesced toasts. */
+  count?: number;
 }
 
 // DS token classes from STATUS_TONE (tokens.ts) — ok=emerald, warn=amber, info=sky
@@ -38,7 +42,14 @@ export function Toasts({ items, onClose }: ToastsProps) {
               {t.tone === "ok" ? <Icon.check className="size-3.5" aria-hidden="true"/> : t.tone === "warn" ? <Icon.alert className="size-3.5" aria-hidden="true"/> : <Icon.bolt className="size-3.5" aria-hidden="true"/>}
             </div>
             <div className="flex-1 leading-tight">
-              <div className="font-display text-[12px] tracking-wide text-text-primary">{t.title}</div>
+              <div className="font-display text-[12px] tracking-wide text-text-primary">
+                {t.title}
+                {(t.count ?? 1) > 1 && (
+                  <span className="ml-1.5 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-text-muted">
+                    ×{t.count}
+                  </span>
+                )}
+              </div>
               {t.body && <div className="mt-0.5 text-[11px] text-text-muted">{t.body}</div>}
               {t.cmd && <div className="mt-1 font-mono text-[10px] text-text-muted">▸ {t.cmd}</div>}
             </div>

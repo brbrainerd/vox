@@ -714,8 +714,18 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
     },
     OperatorEnvSpec {
         name: "VOX_MESH_EXEC_POLICY",
-        description: "Execution policy for mesh tasks (local_only, prefer_remote, remote_only).",
+        description: "Execution policy for mesh TASK PLACEMENT across nodes (local_only, \
+            prefer_remote, remote_only) — NOT an LLM inference privacy control. See \
+            VOX_INFERENCE_PRIVACY for that.",
         defaults: "local_only",
+
+        config_class: ConfigClass::UserPreference,
+    },
+    OperatorEnvSpec {
+        name: "VOX_INFERENCE_PRIVACY",
+        description: "Hard filter on candidate models for chat/inference (any | local_only). \
+            Unrelated to VOX_MESH_EXEC_POLICY (mesh task placement).",
+        defaults: "any",
 
         config_class: ConfigClass::UserPreference,
     },

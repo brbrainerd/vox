@@ -186,6 +186,9 @@ impl FreeAiClient {
             let msgs = [vox_llm_egress::ChatMessage {
                 role: "user".to_string(),
                 content: prompt,
+                tool_calls: None,
+                tool_call_id: None,
+                name: None,
             }];
             let params = vox_llm_egress::ChatParams { max_tokens: Some(512), ..Default::default() };
 
@@ -294,6 +297,9 @@ impl FreeAiClient {
             let msgs = [vox_llm_egress::ChatMessage {
                 role: "user".to_string(),
                 content: prompt.to_string(),
+                tool_calls: None,
+                tool_call_id: None,
+                name: None,
             }];
             let params = vox_llm_egress::ChatParams {
                 max_tokens: Some(512),

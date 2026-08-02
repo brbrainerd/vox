@@ -16567,6 +16567,7 @@ dependencies = [
  "vox-orchestrator-queue",
  "vox-orchestrator-types",
  "vox-package",
+ "vox-plugin-nvml-probe",
  "vox-populi",
  "vox-publisher",
  "vox-repository",
@@ -16703,12 +16704,14 @@ dependencies = [
  "vox-scientia",
  "vox-search",
  "vox-secrets",
+ "vox-similarity",
  "vox-skill-discovery",
  "vox-skills",
  "vox-speech",
  "vox-telemetry",
  "walkdir",
  "which 8.0.4",
+ "wiremock",
  "workspace-hack",
  "xxhash-rust",
 ]
@@ -17323,6 +17326,7 @@ name = "vox-research-shim"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "futures",
  "jsonschema",
  "serde",
  "serde_json",

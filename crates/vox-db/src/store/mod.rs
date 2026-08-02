@@ -73,12 +73,16 @@ mod ops_questioning;
 mod ops_retention;
 mod ops_review;
 mod ops_scientia;
+mod ops_skill_candidates;
+mod ops_skill_identity;
+mod ops_skills;
 mod ops_user_identity;
 
 pub use ops_discovery_inbox::DiscoveryInboxRow;
 pub use ops_finding_candidates::{FindingCandidateClass, FindingCandidateRow, InsertOutcome};
 pub use ops_orchestrator::HopperInboxRow;
 pub use ops_review::{ReviewDecisionRow, VALID_DECISIONS};
+pub use ops_skill_candidates::{NewSkillCandidate, SkillCandidateRow};
 pub use ops_user_identity::{NanopubRow, UserIdentityRow};
 mod ops_secrets_cloudless;
 mod ops_visus;

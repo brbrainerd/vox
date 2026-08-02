@@ -66,10 +66,12 @@ Decide one remediation and draft its artifact. Return the JSON object.",
         LlmChatMessage {
             role: "system".into(),
             content: system.into(),
+            ..Default::default()
         },
         LlmChatMessage {
             role: "user".into(),
             content: user,
+            ..Default::default()
         },
     ]
 }
@@ -97,10 +99,12 @@ Try to refute. Return the JSON object.",
         LlmChatMessage {
             role: "system".into(),
             content: system.into(),
+            ..Default::default()
         },
         LlmChatMessage {
             role: "user".into(),
             content: user,
+            ..Default::default()
         },
     ]
 }

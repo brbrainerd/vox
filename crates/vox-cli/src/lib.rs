@@ -575,6 +575,21 @@ pub enum Cli {
         cmd: commands::model::ModelCmd,
     },
 
+    /// Evaluate the harness itself (not a model) against a golden task set
+    /// with a pass^k multi-sample gate (`vox harness eval`).
+    Harness {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::harness::HarnessCmd,
+    },
+
+    /// Send one message through the harness's chat pipeline and print the reply (`vox chat`).
+    Chat {
+        /// Arguments.
+        #[command(flatten)]
+        args: commands::chat::ChatArgs,
+    },
+
     /// Workspace drift and pattern-repetition linter.
     #[command(name = "drift-check")]
     DriftCheck {

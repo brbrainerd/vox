@@ -25,6 +25,12 @@ export type Toast = {
   body?: string;
   cmd?: string;
   cause: ToastCause; // required
+  /**
+   * Optional coalescing identity: a toast that arrives while another
+   * visible toast shares the same `groupKey` merges into it (shown with a
+   * count) instead of adding a new entry. Defaults to `title` when omitted.
+   */
+  groupKey?: string;
 };
 
 /** Mirrors `ChatSessionDto` from `commands/chat.rs`. */

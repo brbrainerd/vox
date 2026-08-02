@@ -96,6 +96,7 @@ pub async fn run(args: ExplainArgs) -> anyhow::Result<()> {
     let candidates = registry.explain_selection(
         category,
         strength,
+        complexity,
         vox_orchestrator::config::CostPreference::Performance,
     );
 

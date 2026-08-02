@@ -207,7 +207,7 @@ vox-orchestrator = { workspace = true }
 vox-orchestrator-driver = { workspace = true }
 # Shipping MCP server: keep the full default tool surface (news/scientia/visus/browser).
 # The crate's own default drops these for fast standalone iteration; binaries opt back in.
-vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser"] }
+vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review", "heavy-browser", "eval-gate"] }
 vox-plugin-api = { workspace = true }
 vox-plugin-types = { workspace = true }
 vox-plugin-catalog = { workspace = true }

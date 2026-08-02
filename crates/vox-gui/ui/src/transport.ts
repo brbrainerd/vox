@@ -174,13 +174,21 @@ export function listenPreviewAvailable(
   return safeListen<PreviewAvailablePayload>(PREVIEW_AVAILABLE_EVENT, (event) => onPreview(event.payload));
 }
 
-/** Tauri event name emitted when the secretary auto-submits a task from chat. */
+/**
+ * Tauri event name emitted when the secretary detects actionable intent in a
+ * chat message and proposes a task. Propose-only (Task 0.2): no task exists
+ * yet at this point — the frontend must call `secretary_confirm_task` to
+ * actually submit it.
+ */
 export const SECRETARY_PROPOSED_EVENT = 'vox://secretary-proposed-task';
 
 export interface SecretaryProposedPayload {
+  /** Client-side proposal id — NOT a hopper/task id, no task has been submitted yet. */
   item_id: string;
   intent: string;
   confidence_pct: number;
+  /** Chat session id, passed back to `secretary_confirm_task` on confirm. */
+  session_id: string;
 }
 
 /**
@@ -893,6 +901,36 @@ export function hopperList(): Promise<HopperTaskDto[]> {
 /** Mark a hopper to-do done (terminal Done state; distinct from cancel). */
 export function hopperMarkDone(itemId: string): Promise<HopperTaskDto> {
   return safeInvoke<HopperTaskDto>('hopper_mark_done', { itemId });
+}
+
+// ---------------------------------------------------------------------------
+// Chat send transport wrapper.
+// ---------------------------------------------------------------------------
+
+export interface ChatSendInput {
+  session_id: string;
+  content: string;
+  active_skill?: string | null;
+}
+
+/** Mirrors Rust `ChatMessageDto` returned by `chat_send_message`. */
+export interface ChatMessageDto {
+  id: number;
+  role: string;
+  content: string;
+  created_at: string;
+  task_id: string | null;
+  model_id?: string;
+}
+
+/**
+ * Calls the real agent loop for a plain chat message; the reply is already
+ * persisted server-side by `chat_send_message` (with a real, non-blank
+ * `created_at`). Throws on failure — see `lib/chatSend.ts` for the
+ * higher-level `sendChatMessage` wrapper consumed by `App.tsx`.
+ */
+export function chatSendMessage(input: ChatSendInput): Promise<ChatMessageDto> {
+  return safeInvoke<ChatMessageDto>('chat_send_message', { input });
 }
 
 // ---------------------------------------------------------------------------

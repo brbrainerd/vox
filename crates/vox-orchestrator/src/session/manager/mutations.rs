@@ -329,6 +329,7 @@ impl SessionManager {
             .map(|t| vox_actor_runtime::llm::LlmChatMessage {
                 role: t.role.clone(),
                 content: t.content.clone(),
+                ..Default::default()
             })
             .collect();
 

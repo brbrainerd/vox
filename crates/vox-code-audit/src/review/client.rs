@@ -224,10 +224,16 @@ impl ReviewClient {
             vox_llm_egress::ChatMessage {
                 role: "system".to_string(),
                 content: system,
+                tool_calls: None,
+                tool_call_id: None,
+                name: None,
             },
             vox_llm_egress::ChatMessage {
                 role: "user".to_string(),
                 content: prompt.to_string(),
+                tool_calls: None,
+                tool_call_id: None,
+                name: None,
             },
         ];
         let params = vox_llm_egress::ChatParams {

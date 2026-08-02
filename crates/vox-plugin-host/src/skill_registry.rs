@@ -18,7 +18,18 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{info, warn};
 use vox_plugin_api::skill::LoadedSkill;
+use vox_plugin_types::skill_identity::SkillIdentity;
 use vox_plugin_types::state_backend::PluginStateBackend;
+
+/// Minimum recorded reliability (`reliability_scores`, `entity_type =
+/// 'skill'`) an externally-sourced skill (Task 3.4 namespace scheme, any
+/// identity outside `local/*`) must have before `install_bundle` will admit
+/// it. Locally-mined skills already went through the Task 3.3 promotion
+/// gate and are exempt. Chosen to match the Laplace-smoothed "coin flip"
+/// prior used by `record_skill_reliability_observation` (2 successes, 3
+/// observations = 0.667) rounded down to a round number — not tuned against
+/// real data, since no externally-sourced skill has been installed yet.
+pub const MIN_EXTERNAL_SKILL_RELIABILITY: f64 = 0.5;
 
 // ---------------------------------------------------------------------------
 // Public result types
@@ -194,6 +205,62 @@ impl SkillRegistry {
         let id = bundle.manifest.id.clone();
         let version = bundle.manifest.version.clone();
         let hash = bundle.content_hash();
+
+        // Task 3.4: namespace/identity validation + first-come-first-served
+        // uniqueness + stricter gating for externally-sourced skills. This
+        // runs before the skill is inserted into the in-memory map or
+        // persisted, so a rejected install has no side effects.
+        let identity = SkillIdentity::parse(&id).map_err(|e| {
+            BundleInstallError(format!(
+                "skill id {id:?} is not a valid namespace/identity (expected \"local/<name>\" \
+                 or \"io.github.<user>/<name>\"): {e}"
+            ))
+        })?;
+
+        if let Some(db) = self.get_backend() {
+            if identity.is_external() {
+                let reliability = db
+                    .get_skill_reliability(&id)
+                    .await
+                    .map_err(|e| BundleInstallError(format!("reliability lookup failed: {e}")))?;
+                match reliability {
+                    Some(r) if r >= MIN_EXTERNAL_SKILL_RELIABILITY => {}
+                    Some(r) => {
+                        return Err(BundleInstallError(format!(
+                            "externally-sourced skill {id:?} has reliability {r:.3}, below the \
+                             minimum {MIN_EXTERNAL_SKILL_RELIABILITY:.3} required for install"
+                        )));
+                    }
+                    None => {
+                        return Err(BundleInstallError(format!(
+                            "externally-sourced skill {id:?} has no recorded reliability signal \
+                             yet (reliability_scores has no row); it must accumulate observations \
+                             (e.g. via the Task 3.3 promotion pipeline) before it can be installed"
+                        )));
+                    }
+                }
+            }
+
+            // NOTE: `owner` is the free-text `manifest.author` field, which has
+            // no verified relationship to the `io.github.<user>` segment of
+            // `identity` — nothing here checks that the installer actually
+            // controls that GitHub account. Anyone can set `author = "alice"`
+            // and claim `io.github.alice/<name>` today. This is the
+            // explicitly-scoped "gameable free-text owner" allowance
+            // documented in `vox_plugin_types::skill_identity` (no GitHub
+            // OAuth/OIDC or other identity-proof mechanism exists in this
+            // codebase yet); the uniqueness guarantee this call provides is
+            // real (first writer wins, no silent overwrite), the *identity*
+            // guarantee is not.
+            let owner = if bundle.manifest.author.is_empty() {
+                "unknown".to_string()
+            } else {
+                bundle.manifest.author.clone()
+            };
+            db.claim_skill_identity(&identity.to_string(), &owner)
+                .await
+                .map_err(|e| BundleInstallError(format!("identity conflict: {e}")))?;
+        }
 
         {
             let mut skills = self.skills.lock().unwrap_or_else(|e| e.into_inner());
@@ -469,5 +536,187 @@ mod tests {
     fn no_backend_attached() {
         let reg = SkillRegistry::new();
         assert!(reg.get_backend().is_none());
+    }
+
+    // -----------------------------------------------------------------------
+    // Task 3.4: namespace/identity + external-reliability gate tests
+    // -----------------------------------------------------------------------
+
+    /// In-process fake backend so these tests don't pull in `vox-db`
+    /// (would be a layering violation from this L3 crate). Mirrors just
+    /// enough of `VoxDb`'s `claim_skill_identity` / `get_skill_reliability`
+    /// semantics to exercise `install_bundle`'s gating logic.
+    #[derive(Default)]
+    struct FakeBackend {
+        claims: Mutex<HashMap<String, String>>,
+        reliability: Mutex<HashMap<String, f64>>,
+    }
+
+    impl FakeBackend {
+        fn with_reliability(id: &str, score: f64) -> Self {
+            let backend = Self::default();
+            backend
+                .reliability
+                .lock()
+                .unwrap()
+                .insert(id.to_string(), score);
+            backend
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl vox_plugin_types::state_backend::PluginStateBackend for FakeBackend {
+        async fn publish_skill(
+            &self,
+            _id: &str,
+            _version: &str,
+            _manifest_json: &str,
+            _skill_md: &str,
+        ) -> Result<(), vox_plugin_types::state_backend::PluginStateError> {
+            Ok(())
+        }
+
+        async fn unpublish_skill(
+            &self,
+            _id: &str,
+        ) -> Result<(), vox_plugin_types::state_backend::PluginStateError> {
+            Ok(())
+        }
+
+        async fn list_skill_manifests(
+            &self,
+        ) -> Result<
+            Vec<vox_plugin_types::state_backend::PluginStateSkillEntry>,
+            vox_plugin_types::state_backend::PluginStateError,
+        > {
+            Ok(vec![])
+        }
+
+        async fn claim_skill_identity(
+            &self,
+            identity: &str,
+            owner: &str,
+        ) -> Result<(), vox_plugin_types::state_backend::PluginStateError> {
+            let mut claims = self.claims.lock().unwrap();
+            match claims.get(identity) {
+                Some(existing) if existing != owner => {
+                    Err(vox_plugin_types::state_backend::PluginStateError::new(
+                        format!("identity '{identity}' already claimed by '{existing}'"),
+                    ))
+                }
+                _ => {
+                    claims.insert(identity.to_string(), owner.to_string());
+                    Ok(())
+                }
+            }
+        }
+
+        async fn get_skill_reliability(
+            &self,
+            skill_id: &str,
+        ) -> Result<Option<f64>, vox_plugin_types::state_backend::PluginStateError> {
+            Ok(self.reliability.lock().unwrap().get(skill_id).copied())
+        }
+    }
+
+    fn test_bundle_author(id: &str, author: &str) -> VoxSkillBundle {
+        let m = SkillManifest::new(
+            id,
+            id,
+            "1.0.0",
+            author,
+            "desc",
+            SkillCategory::Custom("test".to_string()),
+        );
+        VoxSkillBundle::new(m, "# Skill\nInstructions.")
+    }
+
+    #[tokio::test]
+    async fn rejects_malformed_identity() {
+        let reg = SkillRegistry::new();
+        let bundle = test_bundle_author("Not A Valid/id", "vox");
+        let err = reg
+            .install_bundle(&bundle)
+            .await
+            .expect_err("invalid namespace must be rejected");
+        assert!(err.0.contains("not a valid namespace"), "{}", err.0);
+    }
+
+    #[tokio::test]
+    async fn distinct_owner_cannot_squat_claimed_identity() {
+        let reg = SkillRegistry::new().with_state_backend(Arc::new(FakeBackend::default()));
+        let first = test_bundle_author("local/shared-name", "alice");
+        reg.install_bundle(&first).await.expect("first claim");
+
+        let second = test_bundle_author("local/shared-name", "mallory");
+        let err = reg
+            .install_bundle(&second)
+            .await
+            .expect_err("squat attempt must be rejected");
+        assert!(err.0.contains("identity conflict"), "{}", err.0);
+    }
+
+    #[tokio::test]
+    async fn same_owner_can_reinstall_same_identity() {
+        let reg = SkillRegistry::new().with_state_backend(Arc::new(FakeBackend::default()));
+        let v1 = test_bundle_author("local/my-skill", "alice");
+        reg.install_bundle(&v1).await.expect("first install");
+
+        let mut v2_manifest = v1.manifest.clone();
+        v2_manifest.version = "2.0.0".to_string();
+        let v2 = VoxSkillBundle::new(v2_manifest, "# Skill\nUpdated.");
+        reg.install_bundle(&v2)
+            .await
+            .expect("same-owner reinstall must not conflict");
+    }
+
+    #[tokio::test]
+    async fn external_skill_without_reliability_signal_is_rejected() {
+        let reg = SkillRegistry::new().with_state_backend(Arc::new(FakeBackend::default()));
+        let bundle = test_bundle_author("io.github.alice/cool-skill", "alice");
+        let err = reg
+            .install_bundle(&bundle)
+            .await
+            .expect_err("no reliability signal yet must be rejected");
+        assert!(
+            err.0.contains("no recorded reliability signal"),
+            "{}",
+            err.0
+        );
+    }
+
+    #[tokio::test]
+    async fn external_skill_below_reliability_threshold_is_rejected() {
+        let backend = FakeBackend::with_reliability("io.github.alice/cool-skill", 0.1);
+        let reg = SkillRegistry::new().with_state_backend(Arc::new(backend));
+        let bundle = test_bundle_author("io.github.alice/cool-skill", "alice");
+        let err = reg
+            .install_bundle(&bundle)
+            .await
+            .expect_err("below-threshold reliability must be rejected");
+        assert!(err.0.contains("below the minimum"), "{}", err.0);
+    }
+
+    #[tokio::test]
+    async fn external_skill_meeting_reliability_threshold_installs() {
+        let backend = FakeBackend::with_reliability(
+            "io.github.alice/cool-skill",
+            MIN_EXTERNAL_SKILL_RELIABILITY,
+        );
+        let reg = SkillRegistry::new().with_state_backend(Arc::new(backend));
+        let bundle = test_bundle_author("io.github.alice/cool-skill", "alice");
+        reg.install_bundle(&bundle)
+            .await
+            .expect("at-threshold reliability must be admitted");
+    }
+
+    #[tokio::test]
+    async fn local_skill_is_exempt_from_reliability_gate() {
+        // No reliability data at all — must still succeed since it's local/*.
+        let reg = SkillRegistry::new().with_state_backend(Arc::new(FakeBackend::default()));
+        let bundle = test_bundle_author("local/no-reliability-yet", "vox");
+        reg.install_bundle(&bundle)
+            .await
+            .expect("local skills are exempt from the external reliability gate");
     }
 }

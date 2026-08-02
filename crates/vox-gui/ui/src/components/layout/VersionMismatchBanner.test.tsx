@@ -38,4 +38,14 @@ describe('VersionMismatchBanner', () => {
     rerender(<VersionMismatchBanner mismatch={{ daemon: '0.5.8', gui: '0.6.0' }} />);
     expect(screen.getByTestId('version-mismatch-banner')).toHaveTextContent('0.5.8');
   });
+
+  it('keeps the dismiss button outside the role="alert" live region (WCAG: alert regions must stay passive)', () => {
+    render(<VersionMismatchBanner mismatch={{ daemon: '0.5.9', gui: '0.6.0' }} />);
+    const alertRegion = screen.getByRole('alert');
+    const button = screen.getByRole('button', { name: /dismiss/i });
+    expect(alertRegion.contains(button)).toBe(false);
+    // The button remains clickable and functional.
+    fireEvent.click(button);
+    expect(screen.queryByTestId('version-mismatch-banner')).not.toBeInTheDocument();
+  });
 });

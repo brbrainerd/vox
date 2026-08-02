@@ -1,7 +1,7 @@
 use futures::StreamExt;
 use vox_llm_egress::{
-    ChatMessage, ChatParams, EgressError, EgressRequest, ToolDef, chat_once, embed_once,
-    stream_once,
+    ChatMessage, ChatParams, EgressError, EgressRequest, EgressToolCall, ToolDef, chat_once,
+    embed_once, stream_once,
 };
 use wiremock::matchers::{body_partial_json, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -40,6 +40,9 @@ async fn chat_once_sends_bearer_headers_and_parses_usage() {
     let msgs = vec![ChatMessage {
         role: "user".into(),
         content: "yo".into(),
+        tool_calls: None,
+        tool_call_id: None,
+        name: None,
     }];
     let out = chat_once(&r, &msgs, &ChatParams::default())
         .await
@@ -48,6 +51,86 @@ async fn chat_once_sends_bearer_headers_and_parses_usage() {
     assert_eq!(out.prompt_tokens, 5);
     assert_eq!(out.completion_tokens, 2);
     assert_eq!(out.model, "test/model");
+    assert_eq!(
+        out.tool_calls, None,
+        "response with no tool_calls field must parse as None (no regression for \
+         existing non-tool callers like ghost_text/inline_edit/plan)"
+    );
+}
+
+#[tokio::test]
+async fn chat_once_parses_tool_calls() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "model": "test/model",
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": "call_abc123",
+                        "type": "function",
+                        "function": {
+                            "name": "get_weather",
+                            "arguments": "{\"city\":\"Paris\"}"
+                        }
+                    }]
+                }
+            }],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 2}
+        })))
+        .mount(&server)
+        .await;
+
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let out = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .expect("ok");
+    let calls = out.tool_calls.expect("tool_calls must be populated");
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].id, "call_abc123");
+    assert_eq!(calls[0].name, "get_weather");
+    assert_eq!(calls[0].arguments, serde_json::json!({"city": "Paris"}));
+}
+
+#[tokio::test]
+async fn tool_calls_entry_missing_name_is_dropped() {
+    // Locks in the intentional behavior documented at the `?` in `parse_tool_calls`:
+    // an entry with no `function.name` is unnamed/unactionable and is silently
+    // dropped rather than surfaced as a partial/garbage call. Here it's the only
+    // entry, so `tool_calls` ends up `None`; a well-formed sibling entry would
+    // still be kept (this is a per-entry filter, not an all-or-nothing one).
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "model": "test/model",
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": "call_no_name",
+                        "type": "function",
+                        "function": {
+                            "arguments": "{}"
+                        }
+                    }]
+                }
+            }],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+        })))
+        .mount(&server)
+        .await;
+
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let out = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .expect("ok");
+    assert_eq!(
+        out.tool_calls, None,
+        "entry with no function.name must be dropped, leaving no tool_calls"
+    );
 }
 
 #[tokio::test]
@@ -103,6 +186,67 @@ async fn chat_once_serializes_tools() {
     assert_eq!(out.content, "ok");
 }
 
+/// Task 1.3b: a full assistant-tool_calls + tool-result turn must reach the wire with
+/// `function.arguments` re-serialized as a JSON **string** (the inverse of
+/// `EgressToolCall::arguments`'s eagerly-parsed `Value`), and the tool-result message's
+/// `tool_call_id` correlating back to the call.
+#[tokio::test]
+async fn chat_once_serializes_assistant_tool_calls_and_tool_result_message() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(body_partial_json(serde_json::json!({
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [{
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {"name": "get_weather", "arguments": "{\"city\":\"Paris\"}"}
+                    }]
+                },
+                {
+                    "role": "tool",
+                    "content": "72F and sunny",
+                    "tool_call_id": "call_1",
+                    "name": "get_weather"
+                }
+            ]
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "choices": [{"message": {"content": "It's 72F and sunny in Paris."}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+        })))
+        .mount(&server)
+        .await;
+
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let msgs = vec![
+        ChatMessage {
+            role: "assistant".into(),
+            content: String::new(),
+            tool_calls: Some(vec![EgressToolCall {
+                id: "call_1".into(),
+                name: "get_weather".into(),
+                arguments: serde_json::json!({"city": "Paris"}),
+            }]),
+            tool_call_id: None,
+            name: None,
+        },
+        ChatMessage {
+            role: "tool".into(),
+            content: "72F and sunny".into(),
+            tool_calls: None,
+            tool_call_id: Some("call_1".into()),
+            name: Some("get_weather".into()),
+        },
+    ];
+    let out = chat_once(&r, &msgs, &ChatParams::default())
+        .await
+        .expect("request must match the mock's exact tool-call wire shape");
+    assert_eq!(out.content, "It's 72F and sunny in Paris.");
+}
+
 #[tokio::test]
 async fn chat_once_maps_429_to_rate_limited() {
     let server = MockServer::start().await;
@@ -140,6 +284,53 @@ async fn chat_once_maps_non_2xx_to_status_error() {
         matches!(err, EgressError::Status { code: 500, .. }),
         "got {err:?}"
     );
+}
+
+#[tokio::test]
+async fn chat_once_context_overflow_status_is_detectable_via_is_context_exceeded() {
+    // Reproduces a realistic OpenAI-compatible 400 body for "prompt too long", the
+    // way an OpenRouter/OpenAI-compatible upstream reports it. Proves the Task 2.3
+    // classifier works end-to-end off a real `chat_once` error, not just a
+    // hand-constructed `EgressError`.
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+            "error": {
+                "message": "This model's maximum context length is 4096 tokens. However, your messages resulted in 5000 tokens.",
+                "type": "invalid_request_error",
+                "code": "context_length_exceeded"
+            }
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let err = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(err, EgressError::Status { code: 400, .. }),
+        "got {err:?}"
+    );
+    assert!(
+        err.is_context_exceeded(),
+        "expected context-overflow body to be classified as context-exceeded, got {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn chat_once_unrelated_400_is_not_context_exceeded() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+            "error": {"message": "Invalid value for 'temperature': must be between 0 and 2."}
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let err = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .unwrap_err();
+    assert!(!err.is_context_exceeded(), "got {err:?}");
 }
 
 #[tokio::test]

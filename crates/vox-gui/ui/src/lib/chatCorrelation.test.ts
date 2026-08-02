@@ -70,6 +70,43 @@ describe('chatReducer', () => {
     expect(assistant(s, 'R1')).toMatchObject({ status: 'failed', error: 'boom' });
   });
 
+  it('chatPending appends a pending assistant bubble, chatReplySettled replaces it on success', () => {
+    let s = chatReducer(initialChatState, {
+      type: 'chatPending',
+      sessionId: 's1',
+      tempId: 't1',
+      userText: 'hi',
+    });
+    expect(s.messages.some((m) => m.id === 't1' && m.status === 'pending')).toBe(true);
+    s = chatReducer(s, {
+      type: 'chatReplySettled',
+      sessionId: 's1',
+      tempId: 't1',
+      result: {
+        ok: true,
+        message: { id: 'm1', role: 'assistant', text: 'hello back', status: 'done', runId: 't1' },
+      },
+    });
+    expect(s.messages.some((m) => m.id === 'm1' && m.status === 'done')).toBe(true);
+    expect(s.messages.some((m) => m.id === 't1')).toBe(false);
+  });
+
+  it('chatReplySettled marks the pending bubble failed on error', () => {
+    let s = chatReducer(initialChatState, {
+      type: 'chatPending',
+      sessionId: 's1',
+      tempId: 't2',
+      userText: 'hi again',
+    });
+    s = chatReducer(s, {
+      type: 'chatReplySettled',
+      sessionId: 's1',
+      tempId: 't2',
+      result: { ok: false, error: 'daemon unreachable' },
+    });
+    expect(assistant(s, 't2')).toMatchObject({ status: 'failed', error: 'daemon unreachable' });
+  });
+
   it('ignores a token whose agent has no known task mapping', () => {
     const s = chatReducer(initialChatState, evt({ type: 'token_streamed', agent_id: 99, text: 'x' }));
     expect(s.messages).toHaveLength(0);

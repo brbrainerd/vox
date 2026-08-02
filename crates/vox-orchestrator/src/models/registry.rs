@@ -658,7 +658,7 @@ impl ModelRegistry {
             complexity = 7;
         }
 
-        self.best_for_with_filter(task_type, complexity, preference, pred, Some(task))
+        self.best_for_with_filter(task_type, complexity, preference, false, pred, Some(task))
     }
 
     /// Return the best model for a given task category and complexity.
@@ -668,7 +668,7 @@ impl ModelRegistry {
         complexity: u8,
         preference: CostPreference,
     ) -> Option<ModelSpec> {
-        self.best_for_with_filter(task_type, complexity, preference, |_| true, None)
+        self.best_for_with_filter(task_type, complexity, preference, false, |_| true, None)
     }
 
     /// Like [`Self::best_for`] but only considers models for which `pred` returns true.
@@ -678,6 +678,7 @@ impl ModelRegistry {
         task_type: TaskCategory,
         complexity: u8,
         preference: CostPreference,
+        allow_free_in_performance_mode: bool,
         mut pred: impl FnMut(&ModelSpec) -> bool,
         task: Option<&AgentTask>,
     ) -> Option<ModelSpec> {
@@ -690,14 +691,29 @@ impl ModelRegistry {
         let strength = task_category_strength(task_type);
 
         // First pass: Respect penalties
-        let result =
-            self.best_for_internal(task_type, strength, effective_pref, &mut pred, true, task);
+        let result = self.best_for_internal(
+            task_type,
+            strength,
+            effective_pref,
+            allow_free_in_performance_mode,
+            &mut pred,
+            true,
+            task,
+        );
         if result.is_some() {
             return result;
         }
 
         // Second pass: Ignore penalties if no other options
-        self.best_for_internal(task_type, strength, effective_pref, &mut pred, false, task)
+        self.best_for_internal(
+            task_type,
+            strength,
+            effective_pref,
+            allow_free_in_performance_mode,
+            &mut pred,
+            false,
+            task,
+        )
     }
 
     fn best_for_internal(
@@ -705,6 +721,7 @@ impl ModelRegistry {
         _task_type: TaskCategory,
         strength: crate::models::StrengthTag,
         preference: CostPreference,
+        allow_free_in_performance_mode: bool,
         pred: &mut impl FnMut(&ModelSpec) -> bool,
         respect_penalties: bool,
         task: Option<&AgentTask>,
@@ -717,7 +734,10 @@ impl ModelRegistry {
                 }
                 // Removed W1-2 block. The runtime filter will handle dropping Unknown models
                 // if the daily exploration budget is exceeded.
-                if preference == CostPreference::Performance && m.is_free {
+                if preference == CostPreference::Performance
+                    && m.is_free
+                    && !allow_free_in_performance_mode
+                {
                     return false; // Skip free models in performance mode unless they are explicitly mapped
                 }
 
@@ -819,17 +839,46 @@ impl ModelRegistry {
     }
 
     /// Return all models matching the criteria, sorted by the effective score (priority order).
+    ///
+    /// `complexity` (1-10) must flow through to the same [`super::scoring::auto_score_model`]
+    /// used by the canonical [`super::select::select`] path — this is the function
+    /// `vox model explain` renders, and it must rank higher-complexity/precision-favoring
+    /// tasks differently from trivial ones (F3a fix: previously this sorted purely by
+    /// ascending `cost_per_1k`, completely ignoring `complexity` and the caller's task
+    /// signal, which made `explain` byte-identical across trivial and hard tasks).
     pub fn explain_selection(
         &self,
         _task_type: TaskCategory,
         strength: crate::models::StrengthTag,
+        complexity: u8,
         preference: crate::config::CostPreference,
     ) -> Vec<ModelSpec> {
         let mut candidates: Vec<ModelSpec> = self
             .models
             .values()
             .filter(|m| {
-                if preference == crate::config::CostPreference::Performance && m.is_free {
+                // Task 2.1b: `Performance` preference historically excluded every
+                // free model outright, at any complexity — including trivial
+                // low-complexity tasks where a free local (e.g. Ollama) model is
+                // plausibly the *right* choice and should at least be scored and
+                // shown, not silently dropped pre-scoring. Gate the exclusion by
+                // complexity: below `COMPLEXITY_HIGH_CUTOFF` free models remain
+                // eligible for `explain_selection`'s ranking (still subject to
+                // `auto_score_model`'s normal scoring, including the regression
+                // guard against a free model winning purely on cost). At/above
+                // the cutoff the original "Performance never means free" rule
+                // is preserved unchanged.
+                //
+                // This mirrors `best_for_with_filter`'s existing low-complexity
+                // preference-downgrade logic (see `effective_pref` above), but is
+                // deliberately scoped to `explain_selection` only —
+                // `best_for_internal` (real production routing) doesn't thread
+                // `complexity` through this filter today and changing that is out
+                // of scope for this fix.
+                if preference == crate::config::CostPreference::Performance
+                    && m.is_free
+                    && complexity >= super::scoring::COMPLEXITY_HIGH_CUTOFF
+                {
                     return false;
                 }
                 if !crate::route_policy::route_policy_allows_model(m) {
@@ -841,31 +890,26 @@ impl ModelRegistry {
             .collect();
 
         candidates.sort_by(|a, b| {
-            let get_effective_cost = |m: &ModelSpec| {
-                if let Some(score) = self.scoreboard.get(&m.id) {
-                    if score.n_calls >= 3 {
-                        return m.cost_per_1k * (2.0 - score.quality_score.min(2.0));
-                    }
-                }
-                m.cost_per_1k
-            };
-
-            let cost_a = get_effective_cost(a);
-            let cost_b = get_effective_cost(b);
-
-            cost_a.total_cmp(&cost_b).then_with(|| {
-                let a_sr = self
-                    .scoreboard
-                    .get(&a.id)
-                    .map(|s| s.success_rate)
-                    .unwrap_or(0.5);
-                let b_sr = self
-                    .scoreboard
-                    .get(&b.id)
-                    .map(|s| s.success_rate)
-                    .unwrap_or(0.5);
-                b_sr.total_cmp(&a_sr).then_with(|| a.id.cmp(&b.id))
-            })
+            let score_a = super::scoring::auto_score_model(
+                a,
+                complexity,
+                false,
+                None,
+                preference,
+                None,
+                self.scoreboard.get(&a.id),
+            );
+            let score_b = super::scoring::auto_score_model(
+                b,
+                complexity,
+                false,
+                None,
+                preference,
+                None,
+                self.scoreboard.get(&b.id),
+            );
+            // Descending: highest score first.
+            score_b.total_cmp(&score_a).then_with(|| a.id.cmp(&b.id))
         });
 
         candidates
@@ -1022,8 +1066,25 @@ impl ModelRegistry {
         preference: CostPreference,
     ) -> Option<vox_actor_runtime::llm::LlmConfig> {
         self.best_for(task_type, complexity, preference)
-            .map(|spec| {
-                let mut cfg = match spec.provider_type {
+            .map(|spec| llm_config_for_spec(&spec, task_type))
+    }
+}
+
+/// Converts an already-selected [`ModelSpec`] into a dispatchable
+/// [`vox_actor_runtime::llm::LlmConfig`]. Shared by [`ModelRegistry::get_llm_config`]
+/// (which selects via [`ModelRegistry::best_for`]) and by callers that resolve a
+/// spec through the key-gated [`super::select::decide`] path instead (e.g.
+/// `vox-research-shim`, which depends on both this crate and
+/// `vox-actor-runtime` and therefore can bridge the gap that
+/// `vox_actor_runtime::llm::cascade` itself cannot, since that crate must not
+/// depend on `vox-orchestrator`).
+#[cfg(feature = "runtime")]
+pub fn llm_config_for_spec(
+    spec: &ModelSpec,
+    task_type: TaskCategory,
+) -> vox_actor_runtime::llm::LlmConfig {
+    {
+        let mut cfg = match spec.provider_type {
                     ProviderType::OpenRouter => {
                         vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone())
                     }
@@ -1109,13 +1170,78 @@ impl ModelRegistry {
                             Some(task_category_strength(task_type).to_string());
                         cfg
                     }
-                };
-                cfg.max_tokens = Some(spec.max_tokens);
-                // Propagate catalog cost so chat.rs can estimate spend without a DB lookup.
-                if spec.cost_per_1k > 0.0 {
-                    cfg.cost_per_1k = Some(spec.cost_per_1k);
-                }
-                cfg
-            })
+        };
+        cfg.max_tokens = Some(spec.max_tokens);
+        // Propagate catalog cost so chat.rs can estimate spend without a DB lookup.
+        if spec.cost_per_1k > 0.0 {
+            cfg.cost_per_1k = Some(spec.cost_per_1k);
+        }
+        cfg
+    }
+}
+
+#[cfg(all(test, feature = "runtime"))]
+mod tests {
+    use super::*;
+    use crate::models::TaskCategory;
+
+    /// Minimal fixture, mirroring the helper in `models/tests.rs`.
+    fn spec(id: &str, provider_type: ProviderType) -> ModelSpec {
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 4096,
+            cost_per_1k: 0.01,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Generalist],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: super::super::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    #[test]
+    fn ollama_spec_maps_to_ollama_provider() {
+        let s = spec("llama3", ProviderType::Ollama);
+        let cfg = llm_config_for_spec(&s, TaskCategory::CodeGen);
+        assert_eq!(cfg.provider, "ollama");
+        assert_eq!(cfg.model, "llama3");
+        assert_eq!(cfg.max_tokens, Some(4096));
+    }
+
+    #[test]
+    fn openrouter_spec_maps_to_openrouter_provider() {
+        let s = spec("openai/gpt-4o-mini", ProviderType::OpenRouter);
+        let cfg = llm_config_for_spec(&s, TaskCategory::CodeGen);
+        assert_eq!(cfg.provider, "openrouter");
+        assert_eq!(cfg.model, "openai/gpt-4o-mini");
+        assert_eq!(cfg.cost_per_1k, Some(0.01));
+    }
+
+    #[test]
+    fn google_direct_spec_routes_through_openrouter_base_url() {
+        let s = spec("google/gemini-2.0-flash", ProviderType::GoogleDirect);
+        let cfg = llm_config_for_spec(&s, TaskCategory::CodeGen);
+        assert_eq!(cfg.provider, "openrouter");
+        assert_eq!(cfg.model, "google/gemini-2.0-flash");
+        assert_eq!(cfg.base_url, Some(vox_config::openrouter_chat_completions_url()));
+    }
+
+    #[test]
+    fn telemetry_task_category_and_strength_are_propagated() {
+        // Ollama (unlike OpenRouter, which doesn't stamp telemetry today) explicitly
+        // threads task_type/strength through into the returned LlmConfig.
+        let s = spec("llama3", ProviderType::Ollama);
+        let cfg = llm_config_for_spec(&s, TaskCategory::Research);
+        assert_eq!(cfg.telemetry_task_category.as_deref(), Some("Research"));
+        assert!(cfg.telemetry_strength_tag.is_some());
     }
 }

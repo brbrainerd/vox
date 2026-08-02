@@ -22,18 +22,27 @@ pub async fn decompose_query_with_config(
     #[cfg(feature = "runtime")]
     {
         use vox_actor_runtime::ActivityOptions;
-        use vox_actor_runtime::llm::LlmChatMessage;
         use vox_actor_runtime::llm::cascade::{
             ResearchStage, cascade_with_optional_manual, chat_with_cascade,
         };
+        use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig};
         use vox_actor_runtime::model_resolution::RouteResolutionInput;
 
         let mut input = RouteResolutionInput::default();
         if let Some(model) = model.filter(|m| !m.trim().is_empty()) {
             input.openrouter_model = model.to_string();
         }
-        let mut candidates =
-            cascade_with_optional_manual(ResearchStage::Planner, &input, endpoint, api_key, model);
+        let primary = crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
+            vox_orchestrator::models::SelectionIntent::research(),
+        );
+        let mut candidates: Vec<LlmConfig> = primary.into_iter().collect();
+        candidates.extend(cascade_with_optional_manual(
+            ResearchStage::Planner,
+            &input,
+            endpoint,
+            api_key,
+            model,
+        ));
         for candidate in &mut candidates {
             candidate.temperature = temperature.or(candidate.temperature);
             candidate.max_tokens = Some(700);
@@ -47,10 +56,12 @@ pub async fn decompose_query_with_config(
                     "Decompose the user's research question into 3-{max_subqueries} precise web/local retrieval subqueries. \
                      Output only valid JSON with schema: {{\"subqueries\": [\"...\"]}}."
                 ),
+                ..Default::default()
             },
             LlmChatMessage {
                 role: "user".to_string(),
                 content: query.query.clone(),
+                ..Default::default()
             },
         ];
         let opts = ActivityOptions::new().with_timeout_secs(30);

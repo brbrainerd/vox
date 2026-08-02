@@ -9,6 +9,7 @@
 pub mod a2a_contract;
 pub mod bundle;
 pub mod context;
+pub mod corroboration;
 pub mod crag;
 pub mod duckduckgo;
 pub mod embedding_env;
@@ -16,6 +17,7 @@ pub mod embeddings;
 pub mod evaluation;
 pub mod execution;
 pub mod ingest;
+pub mod llm_query_expansion;
 mod memory_cache;
 pub mod memory_hybrid;
 pub mod novelty;
@@ -30,6 +32,7 @@ mod searxng_defaults;
 pub mod semantic_fs;
 pub mod symbol_proximity;
 mod tavily_budget;
+pub mod trust;
 #[cfg(feature = "tavily")]
 pub mod tavily_extract;
 #[cfg(feature = "tavily")]

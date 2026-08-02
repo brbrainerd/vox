@@ -7,12 +7,13 @@ mod error;
 mod infer;
 pub mod infer_test_stub;
 mod limits;
-pub(crate) mod local_health;
+pub mod local_health;
 mod model_route_policy;
 mod provider_adapter;
 mod provider_auth;
 mod provider_endpoints;
 mod providers;
+pub mod tool_selection;
 
 /// Single agent id for MCP-hosted LLM usage accounting (not per-tool agents).
 pub(crate) const MCP_GLOBAL_LLM_AGENT: AgentId = AgentId(0);

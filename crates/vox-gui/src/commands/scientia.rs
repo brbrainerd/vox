@@ -18,11 +18,193 @@ pub struct ResearchSessionDto {
     pub finished_at_ms: Option<i64>,
 }
 
+#[derive(Debug, serde::Serialize, Default)]
+pub struct ResearchClaimDto {
+    pub claim_id: String,
+    pub text: String,
+    pub verdict: String,
+    pub confidence: f64,
+    pub resample_stability: f64,
+    pub citation_urls: Vec<String>,
+    pub corroboration_count: usize,
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct ResearchDetailDto {
     pub session: ResearchSessionDto,
     pub report_markdown: Option<String>,
     pub artifact_json: Option<String>,
+    pub confidence_tier: Option<String>,
+    pub claims: Vec<ResearchClaimDto>,
+    pub source_count: Option<usize>,
+    pub citation_precision: Option<f64>,
+}
+
+// ── Minimal mirror of `vox_research_shim::research::types::ResearchRunArtifact`
+// (and friends) used only to parse `artifact_json` for the DTO above.
+// NOTE: `vox-research-shim` is already transitively linked into `vox-gui`
+// (via `vox-orchestrator-mcp`, an unconditional dependency of this crate) —
+// avoiding a "heavy new dependency" is NOT why this mirrors rather than
+// imports the real types. The real reason: the real `ResearchMetadata` has
+// no `#[serde(default)]` on fields like `corroboration_counts`, so importing
+// it directly would make parsing an *older* artifact (persisted before that
+// field existed) fail the whole deserialization instead of degrading
+// gracefully. These mirror structs cover only what
+// `extract_research_summary` needs and tolerate unknown/missing fields via
+// `#[serde(default)]` everywhere, so both upstream additions AND older
+// on-disk artifacts parse without breaking the trust UI. The tradeoff is a
+// second, hand-maintained copy of the field shapes that must be kept in sync
+// by hand when the real types change.
+mod artifact_mirror {
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize, Default)]
+    pub struct Citation {
+        pub source_id: i64,
+        pub url: String,
+    }
+
+    #[derive(Debug, Deserialize, Default)]
+    pub struct EvidenceSpan {
+        pub source_id: i64,
+    }
+
+    #[derive(Debug, Deserialize, Default)]
+    pub struct Claim {
+        pub text: String,
+        pub claim_id: u64,
+    }
+
+    #[derive(Debug, Deserialize, Default)]
+    pub struct ClaimVerdict {
+        pub claim: Claim,
+        pub verdict: String,
+        pub confidence: f64,
+        #[serde(default)]
+        pub evidence_spans: Vec<EvidenceSpan>,
+        #[serde(default)]
+        pub resample_stability: f64,
+    }
+
+    #[derive(Debug, Deserialize, Default)]
+    pub struct ResearchMetadata {
+        pub routing_tier: String,
+        #[serde(default)]
+        pub source_count: usize,
+        #[serde(default)]
+        pub claim_verdicts: Vec<ClaimVerdict>,
+        #[serde(default)]
+        pub citation_audit: Option<CitationAudit>,
+        /// `(claim_id, distinct_supporting_domain_count)` pairs computed by
+        /// the pipeline's `compute_corroboration_counts` — see
+        /// `vox_search::corroboration`.
+        #[serde(default)]
+        pub corroboration_counts: Vec<(u64, usize)>,
+    }
+
+    #[derive(Debug, Deserialize, Default)]
+    pub struct CitationAudit {
+        #[serde(default)]
+        pub precision: f64,
+    }
+
+    #[derive(Debug, Deserialize, Default)]
+    pub struct ResearchResult {
+        #[serde(default)]
+        pub citations: Vec<Citation>,
+        pub research_metadata: ResearchMetadata,
+    }
+
+    #[derive(Debug, Deserialize, Default)]
+    pub struct ResearchRunArtifact {
+        pub result: ResearchResult,
+    }
+}
+
+/// Extracted summary fields the ResearchView trust UI (headline banner +
+/// claim accordion) needs, parsed out of an artifact's `artifact_json`.
+#[derive(Debug, Default)]
+pub struct ResearchSummary {
+    pub confidence_tier: Option<String>,
+    pub claims: Vec<ResearchClaimDto>,
+    pub source_count: Option<usize>,
+    pub citation_precision: Option<f64>,
+}
+
+/// `Verdict`'s wire form is snake_case (`"contested"`), but the GUI's
+/// existing verdict vocabulary (`VerdictBadge`/`ClaimsView`) is
+/// capitalized (`"Contested"`). Map to match rather than introduce a second
+/// casing convention in the trust UI.
+fn capitalize_verdict(wire: &str) -> String {
+    match wire {
+        "supported" => "Supported".to_string(),
+        "contradicted" => "Contradicted".to_string(),
+        "contested" => "Contested".to_string(),
+        "unverified" => "Unverified".to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// Parse `artifact_json` (the serialized `ResearchRunArtifact` written by the
+/// research pipeline, see `vox-research-shim`'s `pipeline.rs`) into the
+/// summary fields the GUI's trust UI needs. Fail-open: on parse failure,
+/// returns an all-empty summary and logs a warning rather than erroring the
+/// whole `get_research_session_detail` command — matches the pipeline's own
+/// fail-open convention for degraded/legacy artifacts.
+pub fn extract_research_summary(artifact_json: &str) -> ResearchSummary {
+    use std::collections::HashMap;
+
+    let artifact: artifact_mirror::ResearchRunArtifact = match serde_json::from_str(artifact_json)
+    {
+        Ok(a) => a,
+        Err(e) => {
+            tracing::warn!("failed to parse research artifact_json for trust UI: {e}");
+            return ResearchSummary::default();
+        }
+    };
+    let result = artifact.result;
+    let meta = result.research_metadata;
+
+    let url_by_source_id: HashMap<i64, String> = result
+        .citations
+        .iter()
+        .map(|c| (c.source_id, c.url.clone()))
+        .collect();
+    let corroboration_by_claim_id: HashMap<u64, usize> =
+        meta.corroboration_counts.into_iter().collect();
+
+    let claims: Vec<ResearchClaimDto> = meta
+        .claim_verdicts
+        .into_iter()
+        .map(|cv| {
+            let mut citation_urls: Vec<String> = cv
+                .evidence_spans
+                .iter()
+                .filter_map(|span| url_by_source_id.get(&span.source_id).cloned())
+                .collect();
+            citation_urls.dedup();
+            let corroboration_count = corroboration_by_claim_id
+                .get(&cv.claim.claim_id)
+                .copied()
+                .unwrap_or(0);
+            ResearchClaimDto {
+                claim_id: cv.claim.claim_id.to_string(),
+                text: cv.claim.text,
+                verdict: capitalize_verdict(&cv.verdict),
+                confidence: cv.confidence,
+                resample_stability: cv.resample_stability,
+                citation_urls,
+                corroboration_count,
+            }
+        })
+        .collect();
+
+    ResearchSummary {
+        confidence_tier: Some(meta.routing_tier),
+        claims,
+        source_count: Some(meta.source_count),
+        citation_precision: meta.citation_audit.map(|a| a.precision),
+    }
 }
 
 #[tauri::command]
@@ -62,6 +244,10 @@ pub async fn get_research_session_detail(
         .get_research_artifact(session_id)
         .await
         .map_err(map_db_err)?;
+    let summary = artifact
+        .as_ref()
+        .map(|a| extract_research_summary(&a.artifact_json))
+        .unwrap_or_default();
     Ok(ResearchDetailDto {
         session: ResearchSessionDto {
             id: s.id,
@@ -72,6 +258,10 @@ pub async fn get_research_session_detail(
         },
         report_markdown: artifact.as_ref().map(|a| a.report_markdown.clone()),
         artifact_json: artifact.as_ref().map(|a| a.artifact_json.clone()),
+        confidence_tier: summary.confidence_tier,
+        claims: summary.claims,
+        source_count: summary.source_count,
+        citation_precision: summary.citation_precision,
     })
 }
 
@@ -369,6 +559,92 @@ pub fn spawn_discovery_surfaced_stream(app_handle: tauri::AppHandle, db: Arc<Vox
             tokio::time::sleep(std::time::Duration::from_millis(SCIENTIA_POLL_INTERVAL_MS)).await;
         }
     });
+}
+
+#[cfg(test)]
+mod research_summary_tests {
+    use super::extract_research_summary;
+
+    fn fake_artifact_json() -> String {
+        // Minimal shape matching `ResearchRunArtifact` -> `ResearchResult` ->
+        // `ResearchMetadata` as serialized by vox-research-shim's pipeline.
+        r#"{
+            "schema_version": 1,
+            "query": {},
+            "plan": {},
+            "report_markdown": "",
+            "result": {
+                "answer": "x",
+                "sources": [],
+                "citations": [
+                    { "source_id": 1, "url": "https://example.com/a", "title": "A", "snippet": "", "confidence": 0.9 },
+                    { "source_id": 2, "url": "https://example.org/b", "title": "B", "snippet": "", "confidence": 0.5 }
+                ],
+                "research_metadata": {
+                    "session_id": 1,
+                    "duration_ms": 10,
+                    "provider": "test",
+                    "routing_tier": "DeepResearch",
+                    "confidence": 0.8,
+                    "subquery_count": 1,
+                    "source_count": 2,
+                    "claim_verdicts": [
+                        {
+                            "claim": { "text": "The sky is blue.", "claim_id": 42, "is_numeric": false, "is_recent": false, "is_named_event": false },
+                            "verdict": "supported",
+                            "confidence": 0.95,
+                            "supporting_count": 2,
+                            "contradicting_count": 0,
+                            "evidence_spans": [
+                                { "source_id": 1, "span_start": 0, "span_end": 5, "text": "blue", "span_type": "supporting" },
+                                { "source_id": 2, "span_start": 0, "span_end": 5, "text": "blue", "span_type": "supporting" }
+                            ],
+                            "resample_stability": 1.0
+                        }
+                    ],
+                    "retrieval_diagnostics": {},
+                    "quality_score": 80,
+                    "planner_degraded": false,
+                    "competence": null,
+                    "self_verification": null,
+                    "citation_audit": { "checked_citations": 2, "supported_citations": 2, "unsupported_citation_indices": [], "precision": 1.0, "supports": [] },
+                    "corroboration_counts": [[42, 2]]
+                }
+            }
+        }"#
+        .to_string()
+    }
+
+    #[test]
+    fn extracts_confidence_tier_claims_and_source_count() {
+        let summary = extract_research_summary(&fake_artifact_json());
+        assert_eq!(summary.confidence_tier.as_deref(), Some("DeepResearch"));
+        assert_eq!(summary.source_count, Some(2));
+        assert_eq!(summary.citation_precision, Some(1.0));
+        assert_eq!(summary.claims.len(), 1);
+        let claim = &summary.claims[0];
+        assert_eq!(claim.claim_id, "42");
+        assert_eq!(claim.text, "The sky is blue.");
+        assert_eq!(claim.verdict, "Supported");
+        assert!((claim.confidence - 0.95).abs() < f64::EPSILON);
+        assert!((claim.resample_stability - 1.0).abs() < f64::EPSILON);
+        assert_eq!(
+            claim.citation_urls,
+            vec![
+                "https://example.com/a".to_string(),
+                "https://example.org/b".to_string()
+            ]
+        );
+        assert_eq!(claim.corroboration_count, 2);
+    }
+
+    #[test]
+    fn fails_open_on_malformed_json() {
+        let summary = extract_research_summary("not json");
+        assert!(summary.confidence_tier.is_none());
+        assert!(summary.claims.is_empty());
+        assert!(summary.source_count.is_none());
+    }
 }
 
 #[cfg(test)]

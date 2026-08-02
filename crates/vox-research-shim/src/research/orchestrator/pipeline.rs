@@ -383,10 +383,10 @@ pub async fn run_research_with_context_and_session(
     }
 
     // ── (e) Confidence gate → routing decision ────────────────────────────────
-    let supported_claim_count = claim_verdicts
-        .iter()
-        .filter(|v| matches!(v.verdict, super::super::verifier::Verdict::Supported))
-        .count();
+    // NOTE: kept as f32 (not rounded to a claim count) so that
+    // resample_stability weighting isn't destroyed before it reaches the
+    // gate — see `weighted_supported_claim_score`'s doc comment.
+    let supported_claim_count = weighted_supported_claim_score(&claim_verdicts);
     let distinct_domain_count = {
         use std::collections::HashSet;
         let mut domains = HashSet::<String>::new();
@@ -397,9 +397,18 @@ pub async fn run_research_with_context_and_session(
         }
         domains.len()
     };
+    // Cap each hit's contribution at 1.0: a high-reputation source (trust_score
+    // up to 1.5) should not count as MORE than one citation, only a low-trust
+    // or retracted source (trust_score down to 0.1) should count as LESS than
+    // one — otherwise the sum can exceed citation_count and saturate
+    // citation_score with fewer real citations than min_citations_for_full_score
+    // was calibrated for. See docs/src/architecture/deep-research-trust-novelty-scoring-landscape-2026-08-01.md.
+    let trust_weighted_citation_score: f32 =
+        all_hits.iter().map(|h| (h.trust_score as f32).min(1.0)).sum();
     let gate_input = GateInput {
         claims: &draft_claims,
         citation_count: all_hits.len(),
+        trust_weighted_citation_score,
         supported_claim_count,
         distinct_domain_count,
         no_retrieval_hits: all_hits.is_empty(),
@@ -576,6 +585,8 @@ pub async fn run_research_with_context_and_session(
         );
     }
 
+    let corroboration_counts = compute_corroboration_counts(&citations, &claim_verdicts);
+
     let metadata = ResearchMetadata {
         session_id,
         duration_ms,
@@ -591,6 +602,7 @@ pub async fn run_research_with_context_and_session(
         competence,
         self_verification,
         citation_audit: Some(citation_audit),
+        corroboration_counts,
     };
 
     let result = ResearchResult {
@@ -675,6 +687,20 @@ async fn set_session_stage(db: Option<&Codex>, session_id: i64, stage: ResearchS
     }
 }
 
+/// Weights each `Supported` claim's contribution to the gate's citation
+/// coverage signal by how stable its verdict was across LLM resamples — a
+/// claim that flipped between Supported/Contested across resamples
+/// (low `resample_stability`) counts for less than one that was
+/// consistently Supported, rather than every Supported verdict counting
+/// identically regardless of reliability.
+fn weighted_supported_claim_score(verdicts: &[super::super::verifier::ClaimVerdict]) -> f32 {
+    verdicts
+        .iter()
+        .filter(|v| matches!(v.verdict, super::super::verifier::Verdict::Supported))
+        .map(|v| v.resample_stability as f32)
+        .sum()
+}
+
 fn dedupe_hits_by_url(hits: &mut Vec<ResearchHit>) {
     let mut seen = std::collections::HashSet::new();
     hits.retain(|hit| seen.insert(hit.url.clone()));
@@ -748,6 +774,42 @@ fn audit_citations(
         },
         supports,
     }
+}
+
+/// For each verified claim, counts the number of distinct-domain citations
+/// whose evidence spans support it (see `vox_search::corroboration`) — a
+/// domain-agnostic trust fallback for hits with no DOI/academic venue
+/// signal. Mirrors `audit_citations`'s evidence-span matching: a citation
+/// counts as supporting a claim when it has a `Supporting`-type evidence
+/// span with a matching `source_id` for that claim.
+fn compute_corroboration_counts(
+    citations: &[Citation],
+    verdicts: &[super::super::verifier::ClaimVerdict],
+) -> Vec<(u64, usize)> {
+    verdicts
+        .iter()
+        .map(|verdict| {
+            let supporting_source_ids: std::collections::HashSet<i64> = verdict
+                .evidence_spans
+                .iter()
+                .filter(|span| span.span_type == super::super::verifier::SpanType::Supporting)
+                .map(|span| span.source_id)
+                .collect();
+            let hits: Vec<vox_search::corroboration::CorroboratingHit> = citations
+                .iter()
+                .map(|citation| vox_search::corroboration::CorroboratingHit {
+                    url: citation.url.clone(),
+                    supports_claim: supporting_source_ids.contains(&citation.source_id),
+                })
+                .collect();
+            let count = vox_search::corroboration::count_corroboration(
+                &verdict.claim.claim_id.to_string(),
+                &hits,
+            )
+            .count();
+            (verdict.claim.claim_id, count)
+        })
+        .collect()
 }
 
 fn quote_overlaps(citation_snippet: &str, quote: &str) -> bool {
@@ -880,6 +942,7 @@ mod tests {
                 competence: None,
                 self_verification: None,
                 citation_audit: None,
+                corroboration_counts: vec![],
             },
         };
         let report_markdown = render_research_report_markdown(&query, &plan, &result);
@@ -928,6 +991,7 @@ mod tests {
                 text: "supports durable research artifacts".to_string(),
                 span_type: SpanType::Supporting,
             }],
+            resample_stability: 1.0,
         }];
 
         let audit = audit_citations(&citations, &verdicts);
@@ -936,5 +1000,113 @@ mod tests {
         assert_eq!(audit.supported_citations, 1);
         assert!(audit.unsupported_citation_indices.is_empty());
         assert_eq!(audit.precision, 1.0);
+    }
+
+    #[test]
+    fn corroboration_counts_reflect_distinct_supporting_domains() {
+        use super::super::super::claims::Claim;
+        use super::super::super::verifier::ClaimVerdict;
+
+        // claim-1: two supporting citations on distinct domains -> count 2.
+        // claim-2: one supporting citation -> count 1.
+        let citations = vec![
+            Citation {
+                source_id: 0,
+                url: "https://reuters.com/a".to_string(),
+                title: "Reuters".to_string(),
+                snippet: "s".to_string(),
+                confidence: 0.9,
+            },
+            Citation {
+                source_id: 1,
+                url: "https://apnews.com/b".to_string(),
+                title: "AP".to_string(),
+                snippet: "s".to_string(),
+                confidence: 0.9,
+            },
+            Citation {
+                source_id: 2,
+                url: "https://example.com/c".to_string(),
+                title: "Example".to_string(),
+                snippet: "s".to_string(),
+                confidence: 0.9,
+            },
+        ];
+        let make_verdict = |claim_id: u64, source_ids: Vec<i64>| ClaimVerdict {
+            claim: Claim {
+                claim_id,
+                text: format!("claim {claim_id}"),
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+            },
+            verdict: Verdict::Supported,
+            confidence: 0.9,
+            supporting_count: source_ids.len(),
+            contradicting_count: 0,
+            evidence_spans: source_ids
+                .into_iter()
+                .map(|source_id| EvidenceSpan {
+                    source_id,
+                    span_start: 0,
+                    span_end: 1,
+                    text: "t".to_string(),
+                    span_type: SpanType::Supporting,
+                })
+                .collect(),
+            resample_stability: 1.0,
+        };
+        let verdicts = vec![make_verdict(1, vec![0, 1]), make_verdict(2, vec![2])];
+
+        let counts = compute_corroboration_counts(&citations, &verdicts);
+
+        assert_eq!(counts, vec![(1, 2), (2, 1)]);
+    }
+
+    #[test]
+    fn supported_claim_weighted_by_resample_stability() {
+        use super::super::super::claims::Claim;
+        use super::super::super::verifier::ClaimVerdict;
+
+        let stable_claim = ClaimVerdict {
+            claim: Claim {
+                claim_id: 1,
+                text: "Stable claim".to_string(),
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+            },
+            verdict: Verdict::Supported,
+            confidence: 0.9,
+            supporting_count: 3,
+            contradicting_count: 0,
+            evidence_spans: vec![],
+            resample_stability: 1.0,
+        };
+        let flaky_claim = ClaimVerdict {
+            claim: Claim {
+                claim_id: 2,
+                text: "Flaky claim".to_string(),
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+            },
+            verdict: Verdict::Supported,
+            confidence: 0.6,
+            supporting_count: 1,
+            contradicting_count: 0,
+            evidence_spans: vec![],
+            resample_stability: 0.34,
+        };
+
+        let weighted_stable = weighted_supported_claim_score(&[stable_claim]);
+        let weighted_flaky = weighted_supported_claim_score(&[flaky_claim]);
+
+        assert!(
+            weighted_stable > weighted_flaky,
+            "a stable-verdict claim must contribute more to the gate than a flaky one"
+        );
+        assert_eq!(weighted_stable, 1.0);
+        assert_eq!(weighted_flaky, 0.34);
     }
 }

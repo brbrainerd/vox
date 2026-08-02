@@ -63,10 +63,12 @@ items. If you have nothing useful to add, return an empty array []."
         LlmChatMessage {
             role: "system".to_string(),
             content: system,
+            ..Default::default()
         },
         LlmChatMessage {
             role: "user".to_string(),
             content: user,
+            ..Default::default()
         },
     ]
 }

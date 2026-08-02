@@ -260,7 +260,7 @@ pub fn graph_stats_from_json(value: &serde_json::Value) -> Option<(u64, u64)> {
 const LEXICAL_TOKEN_MIN_LEN: usize = 2;
 
 /// Lexical hit from a graphify `graph.json` nodes array.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct LexicalGraphHit {
     pub node_id: String,
     pub label: String,

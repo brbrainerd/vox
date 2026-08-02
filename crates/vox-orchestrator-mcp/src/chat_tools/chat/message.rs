@@ -2,6 +2,7 @@ use serde_json::Value;
 
 use super::super::params::{ANTI_LAZINESS_RIDER, ChatMessageParams, ChatTranscriptEntry};
 use super::super::{build_system_prompt_with_skill, now_ts, ts_to_date_str};
+use super::conversation::{load_conversation, trim_persisted_history};
 use super::hydrate::context_history_or_hydrate;
 use super::mentions::{chat_grounding_score, resolve_mentions};
 use crate::chat_model_resolve::resolve_chat_llm_model;
@@ -23,6 +24,128 @@ use vox_orchestrator::session_context_envelope_key;
 
 const REM_CHAT_CANONICAL: &str = "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
 const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
+
+/// Task 1.3d (F24 wiring): attempt the tool-calling agent loop
+/// ([`super::agent_loop::run_agent_turn`]) for the default (non-`cognitive_profile`)
+/// `vox_chat_message` path.
+///
+/// Returns:
+/// - `None` when this turn should fall back to the existing `call_llm` pipeline
+///   unchanged — either because `has_attachment` is `true` (the mapper does not
+///   handle vision/attachment content) or because the resolved model's
+///   [`vox_orchestrator::models::ProviderType`] isn't one of the simple shapes
+///   [`super::agent_loop::model_spec_to_llm_config`] covers (OpenRouter, Ollama).
+/// - `Some(Ok(..))` / `Some(Err(..))` when the agent loop actually ran.
+///
+/// Model *selection* is unchanged: this still calls
+/// `crate::llm_bridge::resolve_mcp_chat_model` (the rationale-dropping sibling of
+/// `resolve_mcp_chat_model_with_rationale`, which `call_llm` uses internally via
+/// `mcp_infer_completion` — both delegate to the same
+/// `resolve_mcp_chat_model_sync_inner`) — only what happens *after* a model is
+/// chosen differs. `temperature`/`top_p` are `params.temperature`/`params.top_p`
+/// straight from the request, applied to the mapped `LlmConfig` exactly as the
+/// `call_llm` fallback applies them via `temperature_override`/`top_p_override`.
+async fn try_run_agent_turn(
+    state: &ServerState,
+    system_prompt: &str,
+    user_prompt: &str,
+    session_id: &str,
+    active_skill_id: Option<String>,
+    has_attachment: bool,
+    temperature: Option<f32>,
+    top_p: Option<f32>,
+) -> Option<Result<(String, String, u64), String>> {
+    if has_attachment {
+        return None;
+    }
+
+    let pref = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(e) => return Some(Err(e.to_string())),
+    };
+    let context_fill_ratio =
+        crate::llm_bridge::mcp_global_llm_context_fill_ratio(&state.orchestrator);
+    let resolution_template = McpChatModelResolution {
+        allow_cheapest_fallback: true,
+        context_fill_ratio,
+        ..Default::default()
+    };
+    let (model, _is_free) = match crate::llm_bridge::resolve_mcp_chat_model(
+        state,
+        user_prompt,
+        pref.as_deref(),
+        resolution_template,
+        Some(session_id),
+    )
+    .await
+    {
+        Ok(c) => c,
+        // Model resolution failing here is not this function's problem to report —
+        // let the existing `call_llm` path attempt (and correctly surface) it.
+        Err(_) => return None,
+    };
+
+    let mut llm_config = super::agent_loop::model_spec_to_llm_config(&model)?;
+    // Thread sampling overrides through on the mapped path exactly as the
+    // `call_llm` fallback already does (via `temperature_override`/`top_p_override`
+    // -> `mcp_infer_completion`) — without this, a caller's temperature/top_p would
+    // be silently dropped for every provider this task newly routes through
+    // `run_agent_turn` (OpenRouter/Ollama).
+    llm_config.temperature = temperature;
+    llm_config.top_p = top_p;
+
+    // `Box::pin`: `run_agent_turn` dispatches tool calls through
+    // `handle_tool_call_with_mode`, which (for the `vox_chat_message` tool
+    // specifically) can call back into `chat_message` -> `try_run_agent_turn` ->
+    // `run_agent_turn` — a real mutual-recursion cycle the compiler must be able
+    // to size, hence the heap indirection here rather than a plain `.await`.
+    match Box::pin(super::agent_loop::run_agent_turn(
+        state,
+        vec![], // history is already folded into `user_prompt` as text (see Task 1.1
+        // context_parts above) — passing it again here would duplicate it.
+        system_prompt.to_string(),
+        user_prompt.to_string(),
+        None, // permission_mode: `ChatMessageParams` carries no transport-authenticated
+        // permission mode; `handle_tool_call_with_mode`'s fail-safe default (Ask)
+        // applies, matching every other MCP call path that doesn't have one.
+        active_skill_id,
+        llm_config,
+        super::agent_loop::DEFAULT_MAX_ITERATIONS,
+    ))
+    .await
+    {
+        Ok(outcome) => {
+            tracing::info!(
+                target: "vox_mcp::agent_loop",
+                tool_calls_made = outcome.tool_calls_made,
+                hit_iteration_limit = outcome.hit_iteration_limit,
+                model = %outcome.model_used,
+                "vox_chat_message agent-loop turn completed"
+            );
+            let final_text = if outcome.hit_iteration_limit {
+                tracing::warn!(
+                    target: "vox_mcp::agent_loop",
+                    tool_calls_made = outcome.tool_calls_made,
+                    max_iterations = super::agent_loop::DEFAULT_MAX_ITERATIONS,
+                    "vox_chat_message agent-loop turn hit the iteration bound before the \
+                     model returned a final answer"
+                );
+                format!(
+                    "{}\n\n[Note: this response was cut off after {} tool-use round-trips \
+                     without reaching a final answer.]",
+                    outcome.final_text, outcome.tool_calls_made
+                )
+            } else {
+                outcome.final_text
+            };
+            Some(Ok((final_text, outcome.model_used, outcome.total_tokens)))
+        }
+        Err(e) => Some(Err(e)),
+    }
+}
 
 /// Handle a user chat message. Resolves @mentions, injects context from the editor,
 /// calls the best available LLM, persists to session history, and returns the updated history.
@@ -76,8 +199,25 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         );
     }
 
+    // Resolve session id early (before the rest of the function needs it) so we can
+    // load this session's prior conversation turns and thread them into the request —
+    // see Task 1.1 / Finding F25: history was persisted and returned for display but
+    // never actually sent to the model.
+    let (session_id, implicit_session_default) =
+        normalize_chat_session_id(params.session_id.as_deref());
+    let prior_conversation = load_conversation(state, session_id.as_str()).await;
+
     // 2a. Build context preamble from editor state
     let mut context_parts = Vec::new();
+
+    if !prior_conversation.is_empty() {
+        let transcript = prior_conversation
+            .iter()
+            .map(|m| format!("{}: {}", m.role, m.content))
+            .collect::<Vec<_>>()
+            .join("\n");
+        context_parts.push(format!("[CONVERSATION HISTORY]:\n{transcript}"));
+    }
 
     if let Some(active_file) = &params.active_file {
         let line_info = params
@@ -299,8 +439,6 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // 3. Call LLM with cognitive-profile aware routing.
     // When cognitive_profile is set we use mcp_infer_completion() with an explicit
     // resolution template — the same pattern already used by inline_edit() and ghost_text().
-    let (session_id, implicit_session_default) =
-        normalize_chat_session_id(params.session_id.as_deref());
     let thread_id_for_envelope = params.thread_id.clone();
     let journey_id = params
         .journey_id
@@ -463,25 +601,53 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 }
             }
         }
-        None => match call_llm(
+        // Default (no cognitive_profile) chat path: Task 1.3d (F24 wiring). Attempt
+        // the tool-calling agent loop (Task 1.3c) whenever the resolved model maps
+        // to a simple provider shape and no multimodal attachment is present (the
+        // mapper does not handle vision/attachment content — see
+        // `super::agent_loop::model_spec_to_llm_config`). Otherwise fall back to
+        // the existing `call_llm` -> `mcp_infer_completion` pipeline unchanged,
+        // which still handles every other provider plus vision/budget/fallback.
+        None => match try_run_agent_turn(
             state,
             &system_prompt,
             &user_prompt,
-            Some(session_id.as_str()),
+            session_id.as_str(),
+            params.skill.clone(),
+            params.attachment_manifest.is_some(),
             params.temperature,
             params.top_p,
-            params.attachment_manifest.clone(),
         )
         .await
         {
-            Ok(r) => r,
-            Err(e) => {
+            Some(Ok(r)) => r,
+            Some(Err(e)) => {
                 return ToolResult::<String>::err_with_remediation(
                     format!("LLM error: {e}"),
                     REM_LLM_COMPLETION,
                 )
                 .to_json();
             }
+            None => match call_llm(
+                state,
+                &system_prompt,
+                &user_prompt,
+                Some(session_id.as_str()),
+                params.temperature,
+                params.top_p,
+                params.attachment_manifest.clone(),
+            )
+            .await
+            {
+                Ok(r) => r,
+                Err(e) => {
+                    return ToolResult::<String>::err_with_remediation(
+                        format!("LLM error: {e}"),
+                        REM_LLM_COMPLETION,
+                    )
+                    .to_json();
+                }
+            },
         },
     };
 
@@ -544,11 +710,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         context_history_or_hydrate(state, history_key.as_str(), session_id.as_str()).await;
     history.push(user_msg.clone());
     history.push(asst_msg.clone());
-    // Keep last 100 messages per session to bound memory usage.
-    if history.len() > 100 {
-        let trim_to = history.len() - 100;
-        history.drain(0..trim_to);
-    }
+    // Bound the *persisted/display* transcript independently of the token-aware
+    // budget applied to what gets sent to the model (see `conversation.rs` /
+    // Task 1.1): this cap exists only to bound storage/GUI-transcript size.
+    trim_persisted_history(&mut history);
 
     match serde_json::to_string(&history) {
         Ok(history_json) => {

@@ -15,6 +15,7 @@ import { ChatModelPicker } from './components/surfaces/Chat/ChatModelPicker';
 import { GroundingCheckToggle } from './components/surfaces/Chat/GroundingCheckToggle';
 import { useGroundingCheck } from './hooks/useGroundingCheck';
 import { Toasts, ToastItem } from './components/ui/Toasts';
+import { coalesceToast } from './lib/toastQueue';
 import { BackendBanner } from './components/ui/BackendBanner';
 import { VersionMismatchBanner } from './components/layout/VersionMismatchBanner';
 import { userAppendInput } from './lib/composerSubmit';
@@ -37,6 +38,7 @@ import {
   type SessionChatStore,
 } from './lib/sessionChatStore';
 import { mapAgentEvent } from './lib/mapAgentEvent';
+import { sendChatMessage } from './lib/chatSend';
 import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
@@ -308,11 +310,27 @@ export default function App() {
   const meshWindow       = usePersistedSparkWindow('kpi.mesh', typeof kpis.mesh.value === 'number' ? kpis.mesh.value : kpis.mesh.peers);
 
   // ── Toast helper ─────────────────────────────────────────────────────────
+  // Same-group toasts (see Toast.groupKey, defaults to title) coalesce into a
+  // single entry with a count rather than pushing separate entries; once at
+  // capacity, distinct-group arrivals fold into an "N more notifications"
+  // overflow toast instead of silently dropping an unseen one. See
+  // src/lib/toastQueue.ts.
+  const toastTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const pushToast = useCallback((t: Toast) => {
     const id = nextId('toast');
-    const MAX_TOASTS = 3;
-    setToasts(curr => [...curr, { ...t, id }].slice(-MAX_TOASTS));
-    setTimeout(() => setToasts(curr => curr.filter(x => x.id !== id)), 5000);
+    setToasts(curr => {
+      const { items, touchedId } = coalesceToast(curr, t, id);
+      const prevTimer = toastTimers.current.get(touchedId);
+      if (prevTimer) clearTimeout(prevTimer);
+      toastTimers.current.set(
+        touchedId,
+        setTimeout(() => {
+          setToasts(c => c.filter(x => x.id !== touchedId));
+          toastTimers.current.delete(touchedId);
+        }, 5000),
+      );
+      return items;
+    });
   }, []);
 
   const openAchievements = useCallback(() => {
@@ -726,6 +744,70 @@ export default function App() {
       input: userAppendInput(sessionId, payload.description),
     }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
     recordGamifyGuiEvent('chat_message_sent', { session_id: sessionId }, { enabled: gamifySettings.enabled });
+
+    // Plain chat sends go through the synchronous chat_send_message path
+    // (real agent-loop reply, no background task to poll) instead of the
+    // submit_orchestrator_task dispatch loop below, which is for every
+    // other task_category.
+    if (payload.task_category === 'chat') {
+      const tempId = nextGuiRunId();
+      dispatchSessionChat({
+        type: 'chatPending',
+        sessionId,
+        tempId,
+        userText: String(payload.description ?? ''),
+      });
+      try {
+        const reply = await sendChatMessage({
+          session_id: sessionId,
+          content: payload.description,
+          active_skill: payload.active_skill ?? activeSkill?.id ?? null,
+        });
+        // chat_send_message already persisted this exact reply server-side
+        // (that's the point of the synchronous path — see chatSend.ts). Mark
+        // it as already-persisted BEFORE dispatching, so the "persist
+        // assistant transcript rows" effect below (which sweeps
+        // chatStore.sessions for status 'done'/'failed' messages not yet in
+        // persistedAssistantIdsRef) doesn't re-persist it via
+        // chat_append_message and double the row on reload.
+        let persisted = persistedAssistantIdsRef.current.get(sessionId);
+        if (!persisted) {
+          persisted = new Set();
+          persistedAssistantIdsRef.current.set(sessionId, persisted);
+        }
+        persisted.add(reply.id);
+        dispatchSessionChat({
+          type: 'chatReplySettled',
+          sessionId,
+          tempId,
+          result: {
+            ok: true,
+            message: {
+              id: reply.id,
+              role: 'assistant',
+              text: reply.text,
+              status: 'done',
+              runId: tempId,
+              // No real task_id for a synchronous chat reply (there is no
+              // background task to correlate against) — left unset
+              // intentionally, unlike background-task-path bubbles.
+              modelId: reply.modelId,
+            },
+          },
+        });
+      } catch (err) {
+        const errorText = sanitizeErrorForToast(err);
+        dispatchSessionChat({
+          type: 'chatReplySettled',
+          sessionId,
+          tempId,
+          result: { ok: false, error: errorText },
+        });
+        pushToast({ tone: 'warn', title: 'Chat reply failed', body: errorText, cause: 'backend-error' });
+      }
+      return;
+    }
+
     const contextFiles = contextRefsFromPayload(payload);
 
     // One submit attempt. `allowDuplicate=false` lets the daemon refuse a
@@ -1198,6 +1280,7 @@ export default function App() {
     // renders its honest empty state until a producer wires this up.
     chatPlanSessionId: null,
     chatPlanVersion: null,
+    chatActiveSkillId: activeSkill?.id ?? null,
     chatOpenrouterSpendUsd: openrouterSpendUsd,
     chatAgentStreamItems: activeChatAgentItems,
     onOpenAgentInFlow: (agentId: string) => {

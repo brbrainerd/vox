@@ -48,10 +48,12 @@ Return a single JSON object matching the schema. Be concise.",
         LlmChatMessage {
             role: "system".into(),
             content: system.into(),
+            ..Default::default()
         },
         LlmChatMessage {
             role: "user".into(),
             content: user,
+            ..Default::default()
         },
     ]
 }

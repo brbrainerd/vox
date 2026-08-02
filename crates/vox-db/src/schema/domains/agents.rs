@@ -317,6 +317,32 @@ CREATE TABLE IF NOT EXISTS agent_operations (
 CREATE INDEX IF NOT EXISTS idx_agent_operations_session ON agent_operations(session_id, ts_ms);
 CREATE INDEX IF NOT EXISTS idx_agent_operations_tool ON agent_operations(tool_name);
 
+-- Candidate skills discovered by the skill-mining pipeline (code_miner /
+-- op_miner in vox-skill-discovery), persisted so a mining run is no longer
+-- fire-and-forget stdout output. `status` is the coarse review outcome
+-- (pending/reviewed/promoted/rejected, see ops_skill_candidates.rs); once a
+-- candidate reaches `promoted` its `lifecycle_state` (Task 3.3) tracks the
+-- provisional -> confirmed -> deprecated shadow-period state machine,
+-- mirroring `vox_orchestrator::models::autonomic::ModelConfidence`.
+-- `source_hash` binds a promoted skill's identity to the trajectory it was
+-- derived from (blake3 of `raw_json`), so a later mining run that
+-- produces a materially different trajectory under the same
+-- `candidate_name` can be detected and forced back through verification
+-- instead of silently overwriting the confirmed skill (Task 3.3 gate 8).
+CREATE TABLE IF NOT EXISTS skill_candidates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    candidate_name TEXT NOT NULL,
+    source TEXT NOT NULL,
+    raw_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    lifecycle_state TEXT NOT NULL DEFAULT 'provisional',
+    source_hash TEXT,
+    created_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_skill_candidates_status ON skill_candidates(status, created_at_ms);
+CREATE INDEX IF NOT EXISTS idx_skill_candidates_name ON skill_candidates(candidate_name);
+
 CREATE TABLE IF NOT EXISTS cost_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     agent_id TEXT NOT NULL,
@@ -375,6 +401,12 @@ CREATE TABLE IF NOT EXISTS endpoint_reliability (
     UNIQUE(endpoint_url, model_id)
 );
 
+-- Superseded by `reliability_scores` (entity_type = 'skill') as of schema v51
+-- (see `store/open.rs` migration notes and `store/ops_skills.rs`). Nothing
+-- writes to this legacy table anymore; it is kept only so existing databases
+-- don't lose historical rows on upgrade. Do NOT add new reads/writes against
+-- this table — use `ops_skills::list_skill_reliability`/`get_skill_reliability`
+-- (which read `reliability_scores`) instead.
 CREATE TABLE IF NOT EXISTS skill_reliability (
     skill_id           TEXT NOT NULL PRIMARY KEY,
     reliability        REAL NOT NULL DEFAULT 0.5,
@@ -461,6 +493,23 @@ CREATE INDEX IF NOT EXISTS idx_artifacts_name ON artifacts(name);
 CREATE INDEX IF NOT EXISTS idx_artifact_reviews_target ON artifact_reviews(artifact_id);
 CREATE INDEX IF NOT EXISTS idx_agents_name ON agents(name);
 CREATE INDEX IF NOT EXISTS idx_skill_manifests_id ON skill_manifests(id);
+
+-- First-come-first-served namespace/identity claims for skills (Task 3.4,
+-- harness parity plan). identity is the canonical <namespace>/<name>
+-- string parsed/validated by vox_plugin_types::skill_identity::SkillIdentity
+-- (e.g. local/my-skill or io.github.alice/my-skill). The PRIMARY KEY is
+-- the uniqueness constraint: once an identity is claimed, a second distinct
+-- owner cannot claim it (see claim_skill_identity in
+-- store/ops_skill_identity.rs), preventing namespace squatting. owner is
+-- presently the skill manifest's free-text author field, NOT a
+-- cryptographically verified identity -- this codebase has no GitHub
+-- OAuth/OIDC or other identity-proof mechanism (documented deferred gap;
+-- see skill_identity.rs module docs).
+CREATE TABLE IF NOT EXISTS skill_identities (
+    identity TEXT PRIMARY KEY,
+    owner TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 CREATE INDEX IF NOT EXISTS idx_skill_executions_skill ON skill_executions(skill_id, version);
 CREATE INDEX IF NOT EXISTS idx_skill_executions_status ON skill_executions(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_skill_executions_agent ON skill_executions(agent_id);

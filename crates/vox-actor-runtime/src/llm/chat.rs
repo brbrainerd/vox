@@ -1,10 +1,66 @@
 //! Durable chat completion and multi-candidate retry.
+//!
+//! ## Context-overflow signal (Task 2.3)
+//!
+//! `llm_chat`'s error type is a plain `String` (`Result<LlmResponse, String>`), so
+//! there is no structured slot to carry "this failed because the prompt exceeded the
+//! model's context window" across that boundary. Rather than widening the error type
+//! (a larger, more invasive change — every caller of `llm_chat` across the codebase
+//! matches on `String` today), the error message is prefixed with the documented
+//! [`CONTEXT_EXCEEDED_PREFIX`] marker whenever
+//! `vox_llm_egress::EgressError::is_context_exceeded()` reports true. Callers that
+//! care can check `err_msg.starts_with(CONTEXT_EXCEEDED_PREFIX)`; callers that don't
+//! see an ordinary human-readable error string (the prefix is plain text, not a
+//! sentinel byte).
 
 use std::future::Future;
 use std::pin::Pin;
 
 use super::types::{ChatMessage, LlmConfig, LlmResponse};
 use crate::{ActivityOptions, ActivityResult, execute_activity};
+
+/// Prefix `llm_chat` prepends to its `String` error when
+/// `vox_llm_egress::EgressError::is_context_exceeded()` classifies the underlying
+/// provider failure as a context-window overflow. See the module doc for why a
+/// string prefix rather than a richer error type. Kept `pub` so callers can detect
+/// this class of failure (e.g. to surface an actionable message, or as the anchor
+/// point for a future retry-with-larger-context-model cascade) without re-parsing the
+/// message body themselves.
+pub const CONTEXT_EXCEEDED_PREFIX: &str = "CONTEXT_LENGTH_EXCEEDED: ";
+
+/// Maps a `vox_llm_egress::EgressError` to `llm_chat`'s `(message, http_status,
+/// error_class)` triple. Pulled out of the `llm_chat` closure body so the
+/// context-overflow prefixing (and the rest of the classification) is unit-testable
+/// without spinning up the whole durable-activity/telemetry plumbing.
+fn map_egress_error(e: &vox_llm_egress::EgressError) -> (String, Option<u16>, &'static str) {
+    match e {
+        vox_llm_egress::EgressError::RateLimited { .. } => {
+            (e.to_string(), Some(429u16), "rate-limited")
+        }
+        vox_llm_egress::EgressError::Status { code, body } => {
+            let msg = format!("LLM API returned error ({}): {}", code, body);
+            if e.is_context_exceeded() {
+                (
+                    format!("{CONTEXT_EXCEEDED_PREFIX}{msg}"),
+                    Some(*code),
+                    "context-exceeded",
+                )
+            } else {
+                (
+                    msg,
+                    Some(*code),
+                    if *code >= 500 { "server-error" } else { "client-error" },
+                )
+            }
+        }
+        vox_llm_egress::EgressError::Http(m) => {
+            (format!("HTTP request failed: {}", m), None, "transport-error")
+        }
+        vox_llm_egress::EgressError::Decode(m) => {
+            (format!("Failed to parse response JSON: {}", m), None, "decode-error")
+        }
+    }
+}
 
 type LlmChatActivityFuture =
     Pin<Box<dyn Future<Output = Result<Result<LlmResponse, String>, String>> + Send>>;
@@ -35,11 +91,19 @@ pub async fn llm_chat(
                 Ok(r) => r,
                 Err(e) => return Ok(Err(e)),
             };
+            // `tool_calls`/`tool_call_id`/`name` pass straight through unchanged:
+            // `LlmChatMessage::tool_calls` already reuses `vox_llm_egress::EgressToolCall`
+            // (no JSON-string/Value conversion needed at this layer — that conversion is
+            // the wire layer's job, in `vox_llm_egress::wire::build_request`, since it's
+            // the one place with a concrete outbound wire format to target).
             let wire_msgs: Vec<vox_llm_egress::ChatMessage> = messages
                 .iter()
                 .map(|m| vox_llm_egress::ChatMessage {
                     role: m.role.clone(),
                     content: m.content.clone(),
+                    tool_calls: m.tool_calls.clone(),
+                    tool_call_id: m.tool_call_id.clone(),
+                    name: m.name.clone(),
                 })
                 .collect();
             let wire_tools: Option<Vec<vox_llm_egress::ToolDef>> =
@@ -54,6 +118,7 @@ pub async fn llm_chat(
                 });
             let params = vox_llm_egress::ChatParams {
                 temperature: config.temperature,
+                top_p: config.top_p,
                 max_tokens: config.max_tokens,
                 response_format: config.response_format.as_ref(),
                 tools: wire_tools.as_deref(),
@@ -101,33 +166,11 @@ pub async fn llm_chat(
                         completion_tokens: resp.completion_tokens,
                         model: resp.model,
                         cost_usd,
+                        tool_calls: resp.tool_calls,
                     }))
                 }
                 Err(e) => {
-                    let (err_msg, http_status, error_class) = match &e {
-                        vox_llm_egress::EgressError::RateLimited { .. } => {
-                            (e.to_string(), Some(429u16), "rate-limited")
-                        }
-                        vox_llm_egress::EgressError::Status { code, body } => (
-                            format!("LLM API returned error ({}): {}", code, body),
-                            Some(*code),
-                            if *code >= 500 {
-                                "server-error"
-                            } else {
-                                "client-error"
-                            },
-                        ),
-                        vox_llm_egress::EgressError::Http(m) => (
-                            format!("HTTP request failed: {}", m),
-                            None,
-                            "transport-error",
-                        ),
-                        vox_llm_egress::EgressError::Decode(m) => (
-                            format!("Failed to parse response JSON: {}", m),
-                            None,
-                            "decode-error",
-                        ),
-                    };
+                    let (err_msg, http_status, error_class) = map_egress_error(&e);
                     let status_str = http_status.map(|s| s.to_string());
                     let _ =
                         record_telemetry_attempt(&config, "error", 0, status_str.as_deref()).await;
@@ -352,4 +395,51 @@ pub async fn infer_with_retry(
     }
 
     ActivityResult::Ok(Err(last_error))
+}
+
+#[cfg(test)]
+mod context_exceeded_tests {
+    use super::*;
+
+    #[test]
+    fn status_error_with_overflow_body_is_prefixed_and_classified() {
+        let e = vox_llm_egress::EgressError::Status {
+            code: 400,
+            body: "This model's maximum context length is 4096 tokens.".into(),
+        };
+        let (msg, status, class) = map_egress_error(&e);
+        assert!(
+            msg.starts_with(CONTEXT_EXCEEDED_PREFIX),
+            "expected prefixed message, got: {msg}"
+        );
+        assert_eq!(status, Some(400));
+        assert_eq!(class, "context-exceeded");
+    }
+
+    #[test]
+    fn status_error_with_unrelated_body_is_not_prefixed() {
+        let e = vox_llm_egress::EgressError::Status {
+            code: 401,
+            body: "Invalid API key provided.".into(),
+        };
+        let (msg, status, class) = map_egress_error(&e);
+        assert!(!msg.starts_with(CONTEXT_EXCEEDED_PREFIX));
+        assert_eq!(status, Some(401));
+        assert_eq!(class, "client-error");
+    }
+
+    #[test]
+    fn rate_limited_and_transport_errors_are_never_context_exceeded() {
+        let (_, _, class) =
+            map_egress_error(&vox_llm_egress::EgressError::RateLimited { retry_after: None });
+        assert_eq!(class, "rate-limited");
+
+        let (_, _, class) =
+            map_egress_error(&vox_llm_egress::EgressError::Http("connection reset".into()));
+        assert_eq!(class, "transport-error");
+
+        let (_, _, class) =
+            map_egress_error(&vox_llm_egress::EgressError::Decode("bad json".into()));
+        assert_eq!(class, "decode-error");
+    }
 }

@@ -6,7 +6,7 @@
 pub mod params;
 
 mod ambient;
-mod chat;
+pub mod chat;
 mod ghost_text;
 mod inline_edit;
 mod plan;
@@ -147,11 +147,22 @@ pub(crate) async fn build_system_prompt_with_skill(
     // One registry read, reused below for the pinned-skill lookup.
     let reg = &state.orchestrator.skill_registry;
     let manifests = reg.list(None);
+    // Task 3.1: join against `reliability_scores` (`entity_type = 'skill'`) so
+    // the catalog ranks by reliability rather than alphabet. No producer has
+    // written skill rows yet, so this is typically empty — every skill then
+    // falls back to alphabetical, which is exactly the graceful-degradation
+    // behavior `render_skill_catalog` implements. A DB error is swallowed to
+    // `None`-for-all rather than failing the whole system prompt.
+    let reliability: std::collections::HashMap<String, f64> = match state.db.as_ref() {
+        Some(db) => db.list_skill_reliability().await.unwrap_or_default(),
+        None => std::collections::HashMap::new(),
+    };
     let skill_entries: Vec<skill_catalog::CatalogEntry> = manifests
         .iter()
         .map(|m| skill_catalog::CatalogEntry {
             name: m.name.clone(),
             description: m.description.clone(),
+            reliability: reliability.get(&m.name).copied(),
         })
         .collect();
     prompt.push_str(&skill_catalog::render_skill_catalog(&skill_entries, 64));

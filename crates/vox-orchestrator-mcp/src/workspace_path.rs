@@ -122,7 +122,7 @@ mod tests {
             has_vox_agents_dir: false,
             vox_toml: None,
         };
-        ServerState::test_stub(
+        ServerState::hermetic_stub(
             cfg,
             repository,
             Arc::new(Orchestrator::with_groups(orch_cfg, groups)),

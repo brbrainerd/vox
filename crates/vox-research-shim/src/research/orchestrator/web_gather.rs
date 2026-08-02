@@ -28,111 +28,18 @@ fn hybrid_from_research(hit: &ResearchHit) -> HybridSearchHit {
     }
 }
 
-fn research_hit_from_hybrid(hit: HybridSearchHit) -> ResearchHit {
+async fn research_hit_from_hybrid(hit: HybridSearchHit) -> ResearchHit {
+    let doi = vox_search::trust::extract_doi_from_url(&hit.path);
+    let trust_score =
+        vox_search::trust::score_hit_trust_for_url(&hit.title, doi.as_deref(), &hit.path).await;
     ResearchHit {
         url: hit.path,
         title: hit.title,
         snippet: hit.content_snippet,
         score: hit.score,
         http_status: 0,
-        trust_score: 1.0,
+        trust_score,
         raw_content: String::new(),
-    }
-}
-
-/// Attempt LLM-driven CRAG query expansion. Returns `None` on any failure.
-pub(super) async fn try_llm_query_expansion(
-    original_query: &str,
-    top_snippets: &[String],
-    config: &super::config::ResearchConfig,
-) -> Option<Vec<String>> {
-    use vox_actor_runtime::ActivityOptions;
-    use vox_actor_runtime::llm::LlmChatMessage;
-    use vox_actor_runtime::llm::cascade::{
-        ResearchStage, cascade_with_optional_manual, chat_with_cascade,
-    };
-    use vox_actor_runtime::model_resolution::RouteResolutionInput;
-
-    let snippets_text = top_snippets
-        .iter()
-        .take(5)
-        .enumerate()
-        .map(|(i, s)| format!("{}. {}", i + 1, s.chars().take(300).collect::<String>()))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    let user_msg = format!(
-        "Research question: {original_query}\n\nEvidence so far:\n{snippets_text}\n\n\
-        Identify 2-4 specific follow-up search queries covering the most important missing \
-        aspects. Output ONLY valid JSON:\n{{\"followup_queries\": [\"query 1\", \"query 2\"]}}"
-    );
-
-    let messages = vec![
-        LlmChatMessage {
-            role: "system".to_string(),
-            content: "You are a research gap analyst. Generate precise follow-up search \
-                      queries to fill knowledge gaps. Output only valid JSON."
-                .to_string(),
-        },
-        LlmChatMessage {
-            role: "user".to_string(),
-            content: user_msg,
-        },
-    ];
-
-    let candidates = cascade_with_optional_manual(
-        ResearchStage::Planner,
-        &RouteResolutionInput::default(),
-        config.llm_endpoint.as_deref(),
-        config.api_key.as_deref(),
-        Some(&config.planner_model),
-    );
-
-    let opts = ActivityOptions::default();
-    let Ok(response) =
-        chat_with_cascade(&opts, messages, candidates, Some(ResearchStage::Planner)).await
-    else {
-        tracing::warn!("LLM query expansion cascade failed to generate chat completion");
-        return None;
-    };
-
-    let text = response.content.trim();
-    let Some(start) = text.find('{') else {
-        tracing::warn!(raw_response = %text, "LLM query expansion response did not contain '{{'");
-        return None;
-    };
-    let Some(end) = text.rfind('}') else {
-        tracing::warn!(raw_response = %text, "LLM query expansion response did not contain '}}'");
-        return None;
-    };
-    if start > end {
-        tracing::warn!(start, end, "LLM query expansion brace indices are invalid");
-        return None;
-    }
-    let json_str = &text[start..=end];
-
-    #[derive(serde::Deserialize)]
-    struct Expansion {
-        followup_queries: Vec<String>,
-    }
-    let parsed: Expansion = match serde_json::from_str(json_str) {
-        Ok(p) => p,
-        Err(err) => {
-            tracing::warn!(error = %err, json = %json_str, "LLM query expansion JSON parsing failed");
-            return None;
-        }
-    };
-    let queries: Vec<String> = parsed
-        .followup_queries
-        .into_iter()
-        .filter(|q| !q.trim().is_empty())
-        .collect();
-
-    if queries.is_empty() {
-        tracing::warn!("LLM query expansion returned empty list of queries");
-        None
-    } else {
-        Some(queries)
     }
 }
 
@@ -239,6 +146,7 @@ async fn search_one_subquery(
     site_scope: Option<&str>,
     seen_urls: &mut HashSet<String>,
     all_hits: &mut Vec<ResearchHit>,
+    novelty_scorer: &mut vox_search::novelty::NoveltyScorer,
 ) -> (usize, usize) {
     let (mut hits, _) = registry.search(subquery, policy).await;
     if let Some(scope) = site_scope {
@@ -247,10 +155,17 @@ async fn search_one_subquery(
     let attempted = hits.len().max(1);
     let mut accepted = 0usize;
     for hit in hits {
-        if seen_urls.insert(hit.url.clone()) {
-            all_hits.push(hit);
-            accepted += 1;
+        if !seen_urls.insert(hit.url.clone()) {
+            continue;
         }
+        let novelty = novelty_scorer.score(&hit.snippet);
+        if novelty < policy.novelty_min_score {
+            tracing::debug!(url = %hit.url, novelty, "dropping low-novelty hit");
+            continue;
+        }
+        novelty_scorer.accept(&hit.snippet);
+        all_hits.push(hit);
+        accepted += 1;
     }
     (attempted, accepted)
 }
@@ -285,24 +200,45 @@ pub(super) async fn gather_web_hits_for_plan(
     let mut seen_urls: HashSet<String> = HashSet::new();
     let mut subqueries_with_hits = 0usize;
     let mut total_sources_attempted = 0usize;
+    let mut novelty_scorer = vox_search::novelty::NoveltyScorer::new();
 
     // Optional Tavily /research tier (VOX_TAVILY_RESEARCH=1).
-    for row in vox_search::tavily_research::try_tavily_research_hits(&query.query).await {
-        let rh = research_hit_from_hybrid(HybridSearchHit {
-            path: row.url.clone(),
-            title: row.title.clone(),
-            content_snippet: row.content.clone(),
-            score: row.score.unwrap_or(0.85),
-            provenance: vec![
-                "research_web_gather".to_string(),
-                "engine:tavily_research".to_string(),
-            ],
-            potential_contradiction: false,
-        });
-        if seen_urls.insert(rh.url.clone()) {
-            all_hits.push(rh);
-            total_sources_attempted += 1;
+    // Resolve trust-scored ResearchHits concurrently (bounded, order-preserving),
+    // then apply the seen_urls/novelty logic sequentially below — that part is
+    // cheap synchronous stateful work and doesn't benefit from concurrency.
+    let tavily_rows = vox_search::tavily_research::try_tavily_research_hits(&query.query).await;
+    let tavily_hits: Vec<ResearchHit> = {
+        use futures::stream::{self, StreamExt};
+        stream::iter(tavily_rows)
+            .map(|row| {
+                research_hit_from_hybrid(HybridSearchHit {
+                    path: row.url.clone(),
+                    title: row.title.clone(),
+                    content_snippet: row.content.clone(),
+                    score: row.score.unwrap_or(0.85),
+                    provenance: vec![
+                        "research_web_gather".to_string(),
+                        "engine:tavily_research".to_string(),
+                    ],
+                    potential_contradiction: false,
+                })
+            })
+            .buffered(5)
+            .collect()
+            .await
+    };
+    for rh in tavily_hits {
+        if !seen_urls.insert(rh.url.clone()) {
+            continue;
         }
+        let novelty = novelty_scorer.score(&rh.snippet);
+        if novelty < policy.novelty_min_score {
+            tracing::debug!(url = %rh.url, novelty, "dropping low-novelty tavily hit");
+            continue;
+        }
+        novelty_scorer.accept(&rh.snippet);
+        all_hits.push(rh);
+        total_sources_attempted += 1;
     }
 
     for sq in &plan.subqueries {
@@ -313,6 +249,7 @@ pub(super) async fn gather_web_hits_for_plan(
             site_scope,
             &mut seen_urls,
             &mut all_hits,
+            &mut novelty_scorer,
         )
         .await;
         total_sources_attempted += att;
@@ -333,7 +270,14 @@ pub(super) async fn gather_web_hits_for_plan(
 
         let hybrids: Vec<HybridSearchHit> = all_hits.iter().map(hybrid_from_research).collect();
         let top_snippets: Vec<String> = all_hits.iter().map(|h| h.snippet.clone()).collect();
-        let llm_queries = try_llm_query_expansion(&query.query, &top_snippets, config).await;
+        let llm_queries = vox_search::llm_query_expansion::try_llm_query_expansion(
+            &query.query,
+            &top_snippets,
+            config.llm_endpoint.as_deref(),
+            config.api_key.as_deref(),
+            Some(&config.planner_model),
+        )
+        .await;
         let refined = CragRouter::expand_queries_with_llm_or_heuristic(
             &query.query,
             &hybrids,
@@ -352,6 +296,7 @@ pub(super) async fn gather_web_hits_for_plan(
                 site_scope,
                 &mut seen_urls,
                 &mut all_hits,
+                &mut novelty_scorer,
             )
             .await;
             total_sources_attempted += att;
@@ -436,6 +381,20 @@ mod tests {
     use vox_search::{SearchPolicy, SearchRuntimeContext};
 
     #[test]
+    fn novelty_scorer_rejects_near_duplicate_snippets() {
+        use vox_search::novelty::NoveltyScorer;
+        let mut scorer = NoveltyScorer::new();
+        let original =
+            "The confidence gate fuses citation score, claim support, and domain diversity.";
+        assert!(scorer.score(original) >= 0.99);
+        scorer.accept(original);
+
+        let near_duplicate = "The confidence gate fuses citation score, claim support, and domain diversity signals.";
+        // Should score low (mostly-seen shingles) since it's a near-restatement.
+        assert!(scorer.score(near_duplicate) < 0.5);
+    }
+
+    #[test]
     fn site_scope_filters_subdomains() {
         assert!(host_matches_site_scope(
             "https://docs.example.com/page",
@@ -499,6 +458,19 @@ mod tests {
             .filter(|q| !q.trim().is_empty())
             .collect();
         assert_eq!(filtered, vec!["query A", "query B"]);
+    }
+
+    #[tokio::test]
+    async fn score_hit_trust_returns_sane_range_for_typical_title() {
+        // score_hit_trust makes real (mocked-in-Task-4, but here unmocked) HTTP
+        // calls to Crossref/OpenAlex and is fail-open, so in a test environment
+        // without network access it should degrade gracefully to the 1.0
+        // neutral default rather than panicking or hanging.
+        let score = vox_search::trust::score_hit_trust("Example Research Title", None).await;
+        assert!(
+            (0.0..=2.0).contains(&score),
+            "trust score {score} out of sane range"
+        );
     }
 
     #[test]

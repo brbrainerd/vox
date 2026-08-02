@@ -12,6 +12,8 @@ training_rationale: "Normative gap analysis and implementation plan for full dee
 **Date:** 2026-06-17  
 **Scope:** Search stack, research pipeline, novelty detection, OpenRouter free tier, CRAG / SCIENTIA integration — current state vs. 2026 SOTA, with gap analysis and phased implementation plan.
 
+> **2026-08-01 update:** This audit's priority ordering is superseded by [deep-research-synthesis-and-priorities-2026-08-01.md](deep-research-synthesis-and-priorities-2026-08-01.md). Each of the 9 gaps below (G1–G9) was independently re-verified against current code in [deep-research-verification-2026-08-01.md](deep-research-verification-2026-08-01.md) — most of G1/G4/G5/G6 shipped within 48 hours of this doc, then stalled; see that doc for exact status. This audit's technical content otherwise remains a valid baseline.
+
 ---
 
 ## 1. Executive Summary

@@ -38,13 +38,14 @@ export class SurfaceErrorBoundary extends React.Component<Props, State> {
       return (
         <div
           data-surface-error
-          role="alert"
           className="mx-auto mt-16 max-w-md rounded-xl border border-rose-400/20 bg-rose-950/20 p-5 text-center"
         >
-          <div className="font-display text-sm uppercase tracking-wider text-rose-300">
-            {this.props.surface ?? 'Surface'} failed to render
+          <div role="alert">
+            <div className="font-display text-sm uppercase tracking-wider text-rose-300">
+              {this.props.surface ?? 'Surface'} failed to render
+            </div>
+            <div className="mt-2 font-mono text-[11px] text-text-muted break-words">{error.message}</div>
           </div>
-          <div className="mt-2 font-mono text-[11px] text-text-muted break-words">{error.message}</div>
           <button
             type="button"
             aria-label="Retry loading surface"

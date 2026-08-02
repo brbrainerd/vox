@@ -142,6 +142,7 @@ fn emit_search_web_body(out: &mut String, query: &str, top_k: u32) {
     out.push_str(
         "        content: format!(\"Web retrieval query: {}\\n\\n{}\", search_query, prompt),\n",
     );
+    out.push_str("        ..Default::default()\n");
     out.push_str("    }], candidates, Some(web_stage)).await;\n");
     out.push_str("    let (outcome, err_note) = match &web_res {\n");
     out.push_str("        Ok(_) => (\"ok\", None),\n");
@@ -294,6 +295,7 @@ fn emit_prompt_body(
     );
     out.push_str("        role: \"user\".to_string(),\n");
     out.push_str("        content: prompt,\n");
+    out.push_str("        ..Default::default()\n");
     out.push_str("    }], candidates, Some(stage)).await;\n");
     out.push_str("    let content = match res {\n");
     out.push_str("        Ok(resp) => resp.content,\n");
@@ -334,6 +336,7 @@ fn emit_llm_call_single_shot(out: &mut String) {
     );
     out.push_str("        role: \"user\".to_string(),\n");
     out.push_str("        content: prompt,\n");
+    out.push_str("        ..Default::default()\n");
     out.push_str("    }], config).await;\n");
     out.push_str("    let content = match res {\n");
     out.push_str("        vox_actor_runtime::ActivityResult::Ok(Ok(resp)) => resp.content,\n");
@@ -360,6 +363,7 @@ fn emit_llm_call_with_reprompt(out: &mut String, max_iterations: u32) {
     );
     out.push_str("            role: \"user\".to_string(),\n");
     out.push_str("            content: prompt.clone(),\n");
+    out.push_str("            ..Default::default()\n");
     out.push_str("        }], config.clone()).await;\n");
     out.push_str("        let candidate = match res {\n");
     out.push_str("            vox_actor_runtime::ActivityResult::Ok(Ok(resp)) => resp.content,\n");
