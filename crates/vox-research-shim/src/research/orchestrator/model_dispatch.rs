@@ -5,10 +5,22 @@
 //! depend on `vox-orchestrator` directly; this crate already depends on
 //! both, so the bridging happens here).
 
+use std::sync::OnceLock;
+
 use vox_actor_runtime::llm::LlmConfig;
 use vox_orchestrator::models::{
     ModelRegistry, ModelSelectionRequest, SelectionIntent, decide, llm_config_for_spec,
 };
+
+static SHARED_REGISTRY: OnceLock<ModelRegistry> = OnceLock::new();
+
+/// Returns a process-wide shared `ModelRegistry`, loaded from disk once on
+/// first use. Prefer this over `ModelRegistry::from_cache()` in hot paths
+/// (e.g. the claim-verifier's per-sample resampling loop) so the registry
+/// isn't re-read/re-parsed from disk on every call within one research run.
+fn shared_registry() -> &'static ModelRegistry {
+    SHARED_REGISTRY.get_or_init(ModelRegistry::from_cache)
+}
 
 /// Resolves the winning `ModelSpec` for `intent` through the key-gated
 /// `decide()` path and converts it to a dispatchable `LlmConfig`. Returns
@@ -17,10 +29,10 @@ use vox_orchestrator::models::{
 /// `cascade_for_research_stage`'s local+OpenRouter lanes in that case,
 /// never treat `None` as a hard error.
 pub fn primary_candidate_for_intent(intent: SelectionIntent) -> Option<LlmConfig> {
-    let registry = ModelRegistry::from_cache();
+    let registry = shared_registry();
     let task_type = intent.task;
     let request = ModelSelectionRequest::from_intent(intent);
-    let decision = decide(&request, &registry)?;
+    let decision = decide(&request, registry)?;
     Some(llm_config_for_spec(&decision.outcome.model_spec, task_type))
 }
 

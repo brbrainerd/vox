@@ -29,7 +29,8 @@ fn hybrid_from_research(hit: &ResearchHit) -> HybridSearchHit {
 }
 
 async fn research_hit_from_hybrid(hit: HybridSearchHit) -> ResearchHit {
-    let trust_score = vox_search::trust::score_hit_trust(&hit.title, None).await;
+    let doi = vox_search::trust::extract_doi_from_url(&hit.path);
+    let trust_score = vox_search::trust::score_hit_trust(&hit.title, doi.as_deref()).await;
     ResearchHit {
         url: hit.path,
         title: hit.title,
@@ -201,19 +202,31 @@ pub(super) async fn gather_web_hits_for_plan(
     let mut novelty_scorer = vox_search::novelty::NoveltyScorer::new();
 
     // Optional Tavily /research tier (VOX_TAVILY_RESEARCH=1).
-    for row in vox_search::tavily_research::try_tavily_research_hits(&query.query).await {
-        let rh = research_hit_from_hybrid(HybridSearchHit {
-            path: row.url.clone(),
-            title: row.title.clone(),
-            content_snippet: row.content.clone(),
-            score: row.score.unwrap_or(0.85),
-            provenance: vec![
-                "research_web_gather".to_string(),
-                "engine:tavily_research".to_string(),
-            ],
-            potential_contradiction: false,
-        })
-        .await;
+    // Resolve trust-scored ResearchHits concurrently (bounded, order-preserving),
+    // then apply the seen_urls/novelty logic sequentially below — that part is
+    // cheap synchronous stateful work and doesn't benefit from concurrency.
+    let tavily_rows = vox_search::tavily_research::try_tavily_research_hits(&query.query).await;
+    let tavily_hits: Vec<ResearchHit> = {
+        use futures::stream::{self, StreamExt};
+        stream::iter(tavily_rows)
+            .map(|row| {
+                research_hit_from_hybrid(HybridSearchHit {
+                    path: row.url.clone(),
+                    title: row.title.clone(),
+                    content_snippet: row.content.clone(),
+                    score: row.score.unwrap_or(0.85),
+                    provenance: vec![
+                        "research_web_gather".to_string(),
+                        "engine:tavily_research".to_string(),
+                    ],
+                    potential_contradiction: false,
+                })
+            })
+            .buffered(5)
+            .collect()
+            .await
+    };
+    for rh in tavily_hits {
         if !seen_urls.insert(rh.url.clone()) {
             continue;
         }
@@ -370,7 +383,8 @@ mod tests {
     fn novelty_scorer_rejects_near_duplicate_snippets() {
         use vox_search::novelty::NoveltyScorer;
         let mut scorer = NoveltyScorer::new();
-        let original = "The confidence gate fuses citation score, claim support, and domain diversity.";
+        let original =
+            "The confidence gate fuses citation score, claim support, and domain diversity.";
         assert!(scorer.score(original) >= 0.99);
         scorer.accept(original);
 
@@ -452,7 +466,10 @@ mod tests {
         // without network access it should degrade gracefully to the 1.0
         // neutral default rather than panicking or hanging.
         let score = vox_search::trust::score_hit_trust("Example Research Title", None).await;
-        assert!((0.0..=2.0).contains(&score), "trust score {score} out of sane range");
+        assert!(
+            (0.0..=2.0).contains(&score),
+            "trust score {score} out of sane range"
+        );
     }
 
     #[test]

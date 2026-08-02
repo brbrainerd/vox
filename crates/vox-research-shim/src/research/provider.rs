@@ -60,12 +60,17 @@ impl ProviderRegistry {
     pub async fn search(&self, query: &str, policy: &SearchPolicy) -> (Vec<ResearchHit>, String) {
         match WebSearchDispatcher::search(query, policy).await {
             Ok(hybrids) => {
-                let trust_scores: Vec<f64> = futures::future::join_all(
-                    hybrids
-                        .iter()
-                        .map(|h| vox_search::trust::score_hit_trust(&h.title, None)),
-                )
-                .await;
+                use futures::stream::{self, StreamExt};
+                let trust_scores: Vec<f64> = stream::iter(hybrids.iter())
+                    .map(|h| {
+                        let doi = vox_search::trust::extract_doi_from_url(&h.path);
+                        async move { vox_search::trust::score_hit_trust(&h.title, doi.as_deref()).await }
+                    })
+                    // `buffered` (not `buffer_unordered`) to preserve input order,
+                    // since results are zipped positionally against `hybrids` below.
+                    .buffered(5)
+                    .collect()
+                    .await;
                 let hits: Vec<ResearchHit> = hybrids
                     .into_iter()
                     .zip(trust_scores)

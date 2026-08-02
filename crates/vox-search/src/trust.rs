@@ -159,6 +159,29 @@ fn shared_scorer() -> &'static TrustScorer {
 /// confirmed retraction, scaled by venue reputation otherwise. Never fails
 /// — any lookup error yields the neutral 1.0 baseline. `doi` is optional
 /// since most web hits won't resolve to one.
+/// Extracts a DOI from a URL if it matches a common DOI-URL shape
+/// (`https://doi.org/10.XXXX/...` or `https://dx.doi.org/10.XXXX/...`).
+/// Returns `None` for URLs that aren't DOI links — this is intentionally
+/// narrow (exact-prefix match, not a general DOI regex) since it only
+/// needs to catch the common case of a search hit whose URL IS a DOI
+/// resolver link; a hit citing a DOI in its body text without a doi.org
+/// URL is out of scope for this simple extractor.
+pub fn extract_doi_from_url(url: &str) -> Option<String> {
+    let lower = url.to_ascii_lowercase();
+    for prefix in ["https://doi.org/", "http://doi.org/", "https://dx.doi.org/", "http://dx.doi.org/"] {
+        if let Some(rest) = lower.strip_prefix(prefix) {
+            let doi = rest.trim_end_matches('/').trim();
+            if !doi.is_empty() && doi.starts_with("10.") {
+                // Re-slice from the ORIGINAL (non-lowercased) url to preserve
+                // DOI casing (DOIs can be case-sensitive in some registries).
+                let start = url.len() - rest.len();
+                return Some(url[start..].trim_end_matches('/').trim().to_string());
+            }
+        }
+    }
+    None
+}
+
 pub async fn score_hit_trust(title: &str, doi: Option<&str>) -> f64 {
     let scorer = shared_scorer();
     if let Some(doi) = doi
@@ -246,6 +269,27 @@ mod tests {
 
         let scorer = TrustScorer::with_base_urls("http://unused.invalid", server.uri());
         assert_eq!(scorer.reputation_multiplier("Nonexistent Title").await, 1.0);
+    }
+
+    #[test]
+    fn extract_doi_from_url_matches_doi_org_link() {
+        assert_eq!(
+            extract_doi_from_url("https://doi.org/10.1234/example.5678"),
+            Some("10.1234/example.5678".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_doi_from_url_returns_none_for_non_doi_url() {
+        assert_eq!(extract_doi_from_url("https://example.com/some-article"), None);
+    }
+
+    #[test]
+    fn extract_doi_from_url_handles_dx_doi_org_variant() {
+        assert_eq!(
+            extract_doi_from_url("https://dx.doi.org/10.9999/xyz"),
+            Some("10.9999/xyz".to_string())
+        );
     }
 
     #[tokio::test]
