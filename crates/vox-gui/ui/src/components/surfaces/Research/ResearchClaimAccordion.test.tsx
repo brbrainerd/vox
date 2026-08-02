@@ -49,4 +49,25 @@ describe('ResearchClaimAccordion', () => {
     expect(screen.getByText(/peer-reviewed/i)).toBeTruthy();
     expect(screen.getByText(/not independently corroborated/i)).toBeTruthy();
   });
+
+  it('treats a genuine 2-of-3-resample majority (0.667) as stable, not flipped', async () => {
+    // RESAMPLE_COUNT is 3 on the backend, so the only real agreement rates
+    // are 1/3≈0.333, 2/3≈0.667, and 1.0 — a threshold of 0.67 would
+    // wrongly classify a stable 2-of-3 majority as "flipped".
+    const twoOfThreeClaim: ResearchClaimRow[] = [
+      {
+        claimId: 'c3',
+        text: 'Two of three resamples agreed.',
+        verdict: 'Supported',
+        confidence: 0.7,
+        resampleStability: 2 / 3,
+        citations: [],
+      },
+    ];
+    const user = userEvent.setup();
+    render(<ResearchClaimAccordion claims={twoOfThreeClaim} sourceCount={1} />);
+    await user.click(screen.getByRole('button'));
+    expect(screen.getByText(/Stable across resamples/i)).toBeTruthy();
+    expect(screen.queryByText(/Verdict flipped in resampling/i)).toBeNull();
+  });
 });

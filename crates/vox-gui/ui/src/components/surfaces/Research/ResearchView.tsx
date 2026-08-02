@@ -196,12 +196,20 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages(detail.session.status)} />
           {(() => {
             const claimRows = toClaimRows(detail.claims);
+            // Count citations the banner can actually back up as
+            // corroborated, not the raw total source count — otherwise the
+            // headline number contradicts the per-citation TrustChips shown
+            // in the accordion below when few/no citations are corroborated.
+            const corroboratingCitationCount = claimRows.reduce(
+              (sum, c) => sum + c.citations.filter((cite) => cite.trust.kind === 'corroborated').length,
+              0,
+            );
             return (
               <>
                 {claimRows.length > 0 && (
                   <HeadlineVerdictBanner
                     confidenceTier={detail.confidence_tier ?? 'DeepResearch'}
-                    corroboratingSources={detail.source_count ?? 0}
+                    corroboratingSources={corroboratingCitationCount}
                     contestedClaims={claimRows.filter((c) => c.verdict === 'Contested').length}
                     totalClaims={claimRows.length}
                   />

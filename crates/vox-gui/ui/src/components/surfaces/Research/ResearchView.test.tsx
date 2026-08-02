@@ -97,7 +97,34 @@ describe('ResearchView', () => {
     screen.getByText('What is Vox?').closest('button')!.click();
     await waitFor(() => expect(screen.getByText(/High confidence/i)).toBeTruthy());
     expect(screen.getByText(/1 claim verified · 0 contested · 3 sources/i)).toBeTruthy();
+    // The fixture's single citation has corroboration_count: 1 (< 2, so it
+    // reads as uncorroborated) — the banner's "N corroborating sources"
+    // figure must reflect that (0), not the unrelated total source_count
+    // (3), or it contradicts the "uncorroborated" TrustChip shown below.
+    expect(screen.getByText(/High confidence — 0 corroborating sources/i)).toBeTruthy();
     // existing raw-report render is still present, unchanged
     expect(screen.getByText('The sky is blue.')).toBeTruthy();
+  });
+
+  it('counts only citations backed by real corroboration data in the headline banner', async () => {
+    detailResponse = {
+      ...DETAIL_WITH_CLAIMS,
+      claims: [
+        {
+          claim_id: 'c1',
+          text: 'A well-corroborated claim.',
+          verdict: 'Supported',
+          confidence: 0.9,
+          resample_stability: 1.0,
+          citation_urls: ['https://example.com/a'],
+          corroboration_count: 3,
+        },
+      ],
+    };
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+    await waitFor(() => expect(screen.getByText(/High confidence/i)).toBeTruthy());
+    expect(screen.getByText(/High confidence — 1 corroborating source\b/i)).toBeTruthy();
   });
 });

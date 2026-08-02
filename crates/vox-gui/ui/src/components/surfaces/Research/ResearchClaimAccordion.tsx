@@ -56,7 +56,7 @@ export function ResearchClaimAccordion({
               </div>
               <div className="text-sm text-text-secondary">{claim.text}</div>
               <div className="mt-1 font-mono text-[10px] text-text-muted">
-                {claim.resampleStability >= 0.67
+                {claim.resampleStability >= 0.5
                   ? `Stable across resamples (${Math.round(claim.resampleStability * 100)}%)`
                   : 'Verdict flipped in resampling — treat with care'}
               </div>
