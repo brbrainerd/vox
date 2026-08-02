@@ -34,13 +34,10 @@ pub struct SherpaTransducerModelPaths {
 
 /// Default HF model ID for the Parakeet-TDT transducer download.
 ///
-/// VERIFY BEFORE RELYING ON THIS IN PRODUCTION: this repo ID is the best candidate
-/// identified during research (see
-/// docs/src/architecture/vox-axis-stt-accuracy-design-2026-08-01.md,
-/// "External research" section, and
-/// https://k2-fsa.github.io/sherpa/onnx/pretrained_models/offline-transducer/nemo-transducer-models.html)
-/// but was not confirmed to exist byte-for-byte at design time. Step 4's
-/// manual download check is the actual verification gate.
+/// Verified via the HF Hub API (`/api/models/{repo}/tree/main`): this repo
+/// contains exactly `encoder.int8.onnx`, `decoder.int8.onnx`,
+/// `joiner.int8.onnx`, and `tokens.txt` — matching the filenames
+/// `resolve_sherpa_transducer_model_paths` requests below.
 ///
 /// KNOWN RISK (minor, disclosed not silently accepted): this mirrors the
 /// pre-existing `resolve_sherpa_model_paths`' pattern of fetching from an
