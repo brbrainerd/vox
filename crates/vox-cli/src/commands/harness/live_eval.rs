@@ -37,7 +37,10 @@ pub enum Checker {
     /// An odd-sized ensemble of judge calls (majority vote), each also checked for
     /// style-invariance (does the same verdict hold on a paraphrased/reordered reply) — see
     /// `judge_ensemble_score` below. `rubric` is the grading instruction given to each judge.
-    LlmJudgeEnsemble { rubric: &'static str, ensemble_size: usize },
+    LlmJudgeEnsemble {
+        rubric: &'static str,
+        ensemble_size: usize,
+    },
 }
 
 /// One live-eval golden task.
@@ -144,7 +147,10 @@ pub fn live_golden_tasks() -> Vec<LiveEvalTask> {
                 if lower.contains("yes") {
                     Ok(())
                 } else {
-                    Err(format!("expected an affirmative reply, got {:?}", r.reply_text))
+                    Err(format!(
+                        "expected an affirmative reply, got {:?}",
+                        r.reply_text
+                    ))
                 }
             }),
         },
@@ -168,7 +174,10 @@ pub fn live_golden_tasks() -> Vec<LiveEvalTask> {
                 if r.reply_text.to_lowercase().contains("acknowledged") {
                     Ok(())
                 } else {
-                    Err(format!("expected 'acknowledged' in reply, got {:?}", r.reply_text))
+                    Err(format!(
+                        "expected 'acknowledged' in reply, got {:?}",
+                        r.reply_text
+                    ))
                 }
             }),
         },
@@ -181,9 +190,9 @@ pub fn live_golden_tasks() -> Vec<LiveEvalTask> {
             category: "tool_calling",
             prompt: "Use a tool to check whether Cargo.toml exists in the current directory, then report the result.",
             checker: Checker::Deterministic(|r| {
-                r.end_state_check
-                    .clone()
-                    .unwrap_or_else(|| Err("no end_state_check was recorded for this task".to_string()))
+                r.end_state_check.clone().unwrap_or_else(|| {
+                    Err("no end_state_check was recorded for this task".to_string())
+                })
             }),
         },
         LiveEvalTask {
@@ -191,9 +200,9 @@ pub fn live_golden_tasks() -> Vec<LiveEvalTask> {
             category: "tool_calling",
             prompt: "Use a tool to list the files in the current directory, then confirm Cargo.toml is among them.",
             checker: Checker::Deterministic(|r| {
-                r.end_state_check
-                    .clone()
-                    .unwrap_or_else(|| Err("no end_state_check was recorded for this task".to_string()))
+                r.end_state_check.clone().unwrap_or_else(|| {
+                    Err("no end_state_check was recorded for this task".to_string())
+                })
             }),
         },
         LiveEvalTask {
@@ -201,9 +210,9 @@ pub fn live_golden_tasks() -> Vec<LiveEvalTask> {
             category: "tool_calling",
             prompt: "Use a tool to read Cargo.toml in the current directory and report how many lines it has.",
             checker: Checker::Deterministic(|r| {
-                r.end_state_check
-                    .clone()
-                    .unwrap_or_else(|| Err("no end_state_check was recorded for this task".to_string()))
+                r.end_state_check.clone().unwrap_or_else(|| {
+                    Err("no end_state_check was recorded for this task".to_string())
+                })
             }),
         },
         // --- Privacy-mode tasks: local-only enforcement under real provider state. Two tasks
@@ -255,7 +264,8 @@ pub fn live_golden_tasks() -> Vec<LiveEvalTask> {
             checker: Checker::Deterministic(|r| {
                 if matches!(
                     r.cost_tier,
-                    vox_orchestrator::models::CostTier::Free | vox_orchestrator::models::CostTier::Cheap
+                    vox_orchestrator::models::CostTier::Free
+                        | vox_orchestrator::models::CostTier::Cheap
                 ) {
                     Ok(())
                 } else {
@@ -273,7 +283,8 @@ pub fn live_golden_tasks() -> Vec<LiveEvalTask> {
             checker: Checker::Deterministic(|r| {
                 if matches!(
                     r.cost_tier,
-                    vox_orchestrator::models::CostTier::Free | vox_orchestrator::models::CostTier::Cheap
+                    vox_orchestrator::models::CostTier::Free
+                        | vox_orchestrator::models::CostTier::Cheap
                 ) {
                     Ok(())
                 } else {
@@ -336,7 +347,10 @@ pub async fn run_live(
         .filter(|t| task_filter.is_none_or(|filter| filter == t.id))
         .collect();
     if tasks.is_empty() {
-        anyhow::bail!("no live golden task matched --task {:?}", task_filter.unwrap_or_default());
+        anyhow::bail!(
+            "no live golden task matched --task {:?}",
+            task_filter.unwrap_or_default()
+        );
     }
 
     for task in tasks {
@@ -374,7 +388,9 @@ pub async fn run_live(
             if total_cost_usd >= LIVE_EVAL_COST_CEILING_USD {
                 ceiling_reached = true;
                 if first_failure.is_none() {
-                    first_failure = Some("cost ceiling reached mid-task; remaining samples skipped".to_string());
+                    first_failure = Some(
+                        "cost ceiling reached mid-task; remaining samples skipped".to_string(),
+                    );
                 }
                 break;
             }
@@ -390,20 +406,20 @@ pub async fn run_live(
                         model_id: turn.model_id.clone(),
                         cost_tier: turn.cost_tier.as_str().to_string(),
                         selection_reason: String::new(), // populated once Step 9 wires the real
-                                                          // chat_message envelope's
-                                                          // selection_reason field through
-                                                          // run_one_turn's EvalTurnResult
+                        // chat_message envelope's
+                        // selection_reason field through
+                        // run_one_turn's EvalTurnResult
                         was_privacy_gated: task.category == "privacy",
                         recorded_at_ms: now_ms(),
                     });
                     let checker_result = match &task.checker {
                         Checker::Deterministic(f) => f(&turn),
-                        Checker::LlmJudgeEnsemble { .. } => {
-                            Err("LLM-judge ensemble checker not yet wired to a live judge call \
+                        Checker::LlmJudgeEnsemble { .. } => Err(
+                            "LLM-judge ensemble checker not yet wired to a live judge call \
                                  in this task — deterministic checkers only for the initial \
                                  corpus (see live_golden_tasks doc comment)."
-                                .to_string())
-                        }
+                                .to_string(),
+                        ),
                     };
                     match checker_result {
                         Ok(()) => pass_samples += 1,
@@ -423,7 +439,7 @@ pub async fn run_live(
         drop(privacy_scope);
 
         let ran_samples = latencies.len().max(1); // avoid a misleading 0/0 if the ceiling hit
-                                                    // before any sample of this task ran
+        // before any sample of this task ran
         let status = if ceiling_reached && pass_samples < samples {
             skip_count += 1;
             "skip"
@@ -442,8 +458,8 @@ pub async fn run_live(
             Some(sorted[sorted.len() / 2])
         };
         let _ = ran_samples; // samples actually attempted, for a future partial-run diagnostic;
-                              // total_samples below intentionally still reports the REQUESTED
-                              // sample count so pass^k comparisons across runs stay meaningful
+        // total_samples below intentionally still reports the REQUESTED
+        // sample count so pass^k comparisons across runs stay meaningful
         task_results.push(vox_db::HarnessEvalTaskResultRecord {
             run_id: run_id.clone(),
             task_id: task.id.to_string(),
@@ -456,7 +472,11 @@ pub async fn run_live(
             pass_samples: pass_samples as i64,
             total_samples: samples as i64,
             latency_p50_ms: p50,
-            cost_usd: if task_cost_usd > 0.0 { Some(task_cost_usd) } else { None },
+            cost_usd: if task_cost_usd > 0.0 {
+                Some(task_cost_usd)
+            } else {
+                None
+            },
             failure_detail: first_failure,
             recorded_at_ms: now_ms(),
         });
@@ -528,12 +548,16 @@ async fn run_one_turn(prompt: &str) -> anyhow::Result<EvalTurnResult> {
         .get("message")
         .and_then(|m| m.get("content"))
         .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow::anyhow!("no data.message.content field found in envelope: {envelope_str}"))?
+        .ok_or_else(|| {
+            anyhow::anyhow!("no data.message.content field found in envelope: {envelope_str}")
+        })?
         .to_string();
     let model_used = data
         .get("model_used")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow::anyhow!("no data.model_used field found in envelope: {envelope_str}"))?
+        .ok_or_else(|| {
+            anyhow::anyhow!("no data.model_used field found in envelope: {envelope_str}")
+        })?
         .to_string();
     let tokens = data.get("tokens").and_then(|v| v.as_u64()).unwrap_or(0);
     let latency_ms = data.get("latency_ms").and_then(|v| v.as_u64()).unwrap_or(0);
@@ -544,7 +568,9 @@ async fn run_one_turn(prompt: &str) -> anyhow::Result<EvalTurnResult> {
             .read()
             .map_err(|_| anyhow::anyhow!("model registry lock poisoned"))?;
         registry.get(&model_used).ok_or_else(|| {
-            anyhow::anyhow!("model {model_used} not found in registry after a real chat call selected it")
+            anyhow::anyhow!(
+                "model {model_used} not found in registry after a real chat call selected it"
+            )
         })?
     };
     let blended = if spec.cost_per_1k_input > 0.0 || spec.cost_per_1k_output > 0.0 {
@@ -560,8 +586,8 @@ async fn run_one_turn(prompt: &str) -> anyhow::Result<EvalTurnResult> {
         model_id: model_used,
         cost_tier,
         end_state_check: None, // populated per-task by tool-calling checkers that need it — see
-                                // live_golden_tasks' tool_calling entries; a chat-only task
-                                // leaves this None, which their checkers never read
+        // live_golden_tasks' tool_calling entries; a chat-only task
+        // leaves this None, which their checkers never read
         latency_ms,
         cost_usd,
     })
@@ -578,11 +604,14 @@ async fn run_one_turn(prompt: &str) -> anyhow::Result<EvalTurnResult> {
 /// `OPENROUTER_API_KEY`/provider credentials are present in the ambient environment, and the
 /// registry is seeded by `ModelRegistry::new()`'s own synchronous bootstrap load (the same
 /// startup path production uses before its background 6h catalog-refresh loop kicks in).
-async fn build_eval_server_state() -> anyhow::Result<vox_orchestrator_mcp::server_state::ServerState> {
+async fn build_eval_server_state() -> anyhow::Result<vox_orchestrator_mcp::server_state::ServerState>
+{
     use std::path::PathBuf;
     use std::sync::Arc;
     use tokio::sync::Mutex;
-    use vox_orchestrator::{AffinityGroupRegistry, Orchestrator, OrchestratorConfig, SessionConfig, SessionManager};
+    use vox_orchestrator::{
+        AffinityGroupRegistry, Orchestrator, OrchestratorConfig, SessionConfig, SessionManager,
+    };
     use vox_orchestrator_mcp::server_state::ServerState;
     use vox_repository::{RepoCapabilities, RepositoryContext};
 
@@ -705,8 +734,14 @@ mod tests {
 
     #[test]
     fn judge_ensemble_majority_fail_when_all_agree_fail() {
-        let orig = vec![JudgeVerdict { passed: false }, JudgeVerdict { passed: false }];
-        let para = vec![JudgeVerdict { passed: false }, JudgeVerdict { passed: false }];
+        let orig = vec![
+            JudgeVerdict { passed: false },
+            JudgeVerdict { passed: false },
+        ];
+        let para = vec![
+            JudgeVerdict { passed: false },
+            JudgeVerdict { passed: false },
+        ];
         assert!(judge_ensemble_score(&orig, &para).is_err());
     }
 
