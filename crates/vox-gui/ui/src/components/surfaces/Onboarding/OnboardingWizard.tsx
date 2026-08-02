@@ -18,12 +18,18 @@ interface ProviderStatusRow {
 
 type WizardScreen = 'entry' | 'oauth-in-progress' | 'verifying' | 'has-key' | 'local-model' | 'budget' | 'confirmation';
 
+/** Single static id shared by every screen's heading so the outer dialog's
+ * `aria-labelledby` always resolves to a visible, on-screen heading. */
+const WIZARD_HEADING_ID = 'onboarding-wizard-heading';
+
 export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: Toast) => void; gamifyEnabled?: boolean }) {
   const [secretCount, setSecretCount] = useState<number | null>(null);
   const [localModelCount, setLocalModelCount] = useState<number | null>(null);
   const [screen, setScreen] = useState<WizardScreen>('entry');
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [oauthFallbackUrl, setOauthFallbackUrl] = useState<string | null>(null);
+  const [hasKeyWarning, setHasKeyWarning] = useState<string | null>(null);
+  const [localModelWarning, setLocalModelWarning] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -47,9 +53,54 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
     localModelCount: localModelCount ?? 0,
   });
 
+  // Escape dismisses the whole wizard, same action as "Skip for now" — mirrors
+  // AchievementsDrawer.tsx's window-keydown pattern. Registered unconditionally
+  // (hooks can't be conditional) but only wired up while the gate says to show.
+  useEffect(() => {
+    if (!gate.shouldShow) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') gate.dismiss();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [gate.shouldShow, gate.dismiss]);
+
   if (secretCount === null || localModelCount === null || !gate.shouldShow) {
     return null;
   }
+
+  // Re-check for an actually-configured key before letting `has-key` advance —
+  // without this a user could click Done with nothing entered, sail through to
+  // confirmation, dismiss the gate, and never see onboarding again despite
+  // secretCount/localModelCount staying at zero.
+  const handleHasKeyDone = async () => {
+    setHasKeyWarning(null);
+    try {
+      const secrets = await invoke<SecretStatusRow[]>('list_secret_status');
+      if (secrets.some((s) => s.isPresent)) {
+        setScreen('budget');
+        return;
+      }
+    } catch {
+      // fall through to warning — same fail-closed treatment as the initial check
+    }
+    setHasKeyWarning('Add a key above before continuing, or go back and pick a different option — Skip for now is still always available.');
+  };
+
+  // Same idea for `local-model`: re-check reachability before advancing.
+  const handleLocalModelDone = async () => {
+    setLocalModelWarning(null);
+    try {
+      const providers = await invoke<ProviderStatusRow[]>('inference_provider_status');
+      if (providers.some((p) => p.is_local && p.local_reachable === true)) {
+        setScreen('budget');
+        return;
+      }
+    } catch {
+      // fall through to warning — same fail-closed treatment as the initial check
+    }
+    setLocalModelWarning('No local model detected yet. Install Ollama and pull a model above before continuing, or go back and pick a different option — Skip for now is still always available.');
+  };
 
   const startOAuth = async () => {
     setScreen('oauth-in-progress');
@@ -80,11 +131,11 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="onboarding-wizard-heading" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
+    <div role="dialog" aria-modal="true" aria-labelledby={WIZARD_HEADING_ID} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
       <div className="max-w-lg w-full rounded-xl border border-border-subtle bg-bg-base p-6 shadow-2xl">
         {screen === 'entry' && (
           <>
-            <h1 id="onboarding-wizard-heading" className="font-display text-xl font-semibold text-text-primary">
+            <h1 id={WIZARD_HEADING_ID} className="font-display text-xl font-semibold text-text-primary">
               Get started with Vox
             </h1>
             <p className="mt-2 text-sm text-text-muted">
@@ -122,7 +173,7 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
         )}
         {screen === 'oauth-in-progress' && (
           <>
-            <h1 className="font-display text-xl font-semibold text-text-primary">Waiting for OpenRouter…</h1>
+            <h1 id={WIZARD_HEADING_ID} className="font-display text-xl font-semibold text-text-primary">Waiting for OpenRouter…</h1>
             <p className="mt-2 text-sm text-text-muted">
               A browser window opened — sign in or create a free OpenRouter account, then come back here.
             </p>
@@ -130,24 +181,34 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
         )}
         {screen === 'verifying' && (
           <>
-            <h1 className="font-display text-xl font-semibold text-text-primary">Checking your key…</h1>
+            <h1 id={WIZARD_HEADING_ID} className="font-display text-xl font-semibold text-text-primary">Checking your key…</h1>
             <p className="mt-2 text-sm text-text-muted">Confirming it actually works before we finish setup.</p>
           </>
         )}
         {screen === 'has-key' && (
           <>
-            <h1 className="font-display text-xl font-semibold text-text-primary">Add your API key</h1>
+            <h1 id={WIZARD_HEADING_ID} className="font-display text-xl font-semibold text-text-primary">Add your API key</h1>
             <div className="mt-4">
               <KeysSecretsSection pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
             </div>
-            <button type="button" onClick={() => setScreen('budget')} className="mt-4 rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90">
-              Done
-            </button>
+            {hasKeyWarning && (
+              <div role="alert" className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-300">
+                {hasKeyWarning}
+              </div>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button type="button" onClick={() => setScreen('entry')} className="rounded-lg border border-border-subtle px-4 py-2 text-sm hover:bg-overlay-subtle">
+                Back
+              </button>
+              <button type="button" onClick={handleHasKeyDone} className="rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90">
+                Done
+              </button>
+            </div>
           </>
         )}
         {screen === 'local-model' && (
           <>
-            <h1 className="font-display text-xl font-semibold text-text-primary">Use a local model</h1>
+            <h1 id={WIZARD_HEADING_ID} className="font-display text-xl font-semibold text-text-primary">Use a local model</h1>
             <p className="mt-2 text-sm text-text-muted">
               Install{' '}
               <a href="https://ollama.com/download" target="_blank" rel="noreferrer" className="text-brass underline">
@@ -155,15 +216,27 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
               </a>
               , pull a model, then come back — Vox will detect it automatically.
             </p>
-            <button type="button" onClick={() => setScreen('budget')} className="mt-4 rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90">
-              Done
-            </button>
+            {localModelWarning && (
+              <div role="alert" className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-300">
+                {localModelWarning}
+              </div>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button type="button" onClick={() => setScreen('entry')} className="rounded-lg border border-border-subtle px-4 py-2 text-sm hover:bg-overlay-subtle">
+                Back
+              </button>
+              <button type="button" onClick={handleLocalModelDone} className="rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90">
+                Done
+              </button>
+            </div>
           </>
         )}
-        {screen === 'budget' && <BudgetSetupScreen onContinue={() => setScreen('confirmation')} />}
+        {screen === 'budget' && (
+          <BudgetSetupScreen headingId={WIZARD_HEADING_ID} pushToast={pushToast} onBack={() => setScreen('entry')} onContinue={() => setScreen('confirmation')} />
+        )}
         {screen === 'confirmation' && (
           <>
-            <h1 className="font-display text-xl font-semibold text-text-primary">You&apos;re set up</h1>
+            <h1 id={WIZARD_HEADING_ID} className="font-display text-xl font-semibold text-text-primary">You&apos;re set up</h1>
             <p className="mt-2 text-sm text-text-muted">
               Auto mode picks a model based on cost and your usage history as it builds up.
             </p>
@@ -193,11 +266,22 @@ interface UserConfigFieldDto {
 /** Screen 3: review/edit the budget caps set in Phase 1, before finishing onboarding.
  * Reuses the existing `get_user_config`/`set_user_config` commands — no new Tauri
  * commands needed for this screen. */
-function BudgetSetupScreen({ onContinue }: { onContinue: () => void }) {
+function BudgetSetupScreen({
+  headingId,
+  pushToast,
+  onBack,
+  onContinue,
+}: {
+  headingId: string;
+  pushToast: (t: Toast) => void;
+  onBack: () => void;
+  onContinue: () => void;
+}) {
   const [daily, setDaily] = useState('5');
   const [perSession, setPerSession] = useState('1');
   const [warnPct, setWarnPct] = useState('80');
   const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -217,15 +301,23 @@ function BudgetSetupScreen({ onContinue }: { onContinue: () => void }) {
   }, []);
 
   const save = async () => {
-    await invoke('set_user_config', { key: 'daily_budget_usd', value: daily });
-    await invoke('set_user_config', { key: 'per_session_budget_usd', value: perSession });
-    await invoke('set_user_config', { key: 'budget_warn_threshold_pct', value: String(Number(warnPct) / 100) });
-    onContinue();
+    if (busy) return;
+    setBusy(true);
+    try {
+      await invoke('set_user_config', { key: 'daily_budget_usd', value: daily });
+      await invoke('set_user_config', { key: 'per_session_budget_usd', value: perSession });
+      await invoke('set_user_config', { key: 'budget_warn_threshold_pct', value: String(Number(warnPct) / 100) });
+      onContinue();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Could not save spending limits', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <>
-      <h1 className="font-display text-xl font-semibold text-text-primary">Set your spending limits</h1>
+      <h1 id={headingId} className="font-display text-xl font-semibold text-text-primary">Set your spending limits</h1>
       <p className="mt-2 text-sm text-text-muted">
         This is Vox&apos;s own cap on spend — separate from any free-tier limit your provider applies. You&apos;ll get a warning before it blocks anything.
       </p>
@@ -267,9 +359,14 @@ function BudgetSetupScreen({ onContinue }: { onContinue: () => void }) {
           </label>
         </div>
       )}
-      <button type="button" onClick={save} className="mt-4 rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90">
-        Save and continue
-      </button>
+      <div className="mt-4 flex gap-2">
+        <button type="button" onClick={onBack} disabled={busy} className="rounded-lg border border-border-subtle px-4 py-2 text-sm hover:bg-overlay-subtle disabled:opacity-40">
+          Back
+        </button>
+        <button type="button" onClick={save} disabled={busy} className="rounded-lg bg-brass px-4 py-2 text-sm font-semibold text-black hover:bg-brass/90 disabled:opacity-40">
+          {busy ? 'Saving…' : 'Save and continue'}
+        </button>
+      </div>
     </>
   );
 }
