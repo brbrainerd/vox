@@ -48,6 +48,14 @@ This spec builds a system that:
   real routing. A follow-up spec will reuse this system's tables/toast/queue
   plumbing but must be scoped and reviewed on its own so it doesn't repeat
   that failure mode.
+- **User-side repetition detection feeding Vox's memory system.** Detecting
+  when a *user* (not the agent) repeats a request or preference across
+  sessions, and capturing that into Vox's own knowledge-base/memory system
+  (`knowledge_bases`/`kb_entries`/`kb_routing_rules` tables,
+  `crates/vox-orchestrator/src/knowledge_base/`) so it doesn't need repeating
+  — distinct from this spec's target (agent/compiler-error repetition feeding
+  the training corpus). A follow-up spec, reusing the same detect → toast →
+  review-queue plumbing built here.
 
 ## Architecture
 
