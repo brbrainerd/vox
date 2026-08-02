@@ -18,6 +18,7 @@ import { searchSettings } from './settingsIndex';
 import type { HudTilesConfig } from '../../../hooks/useHudTiles';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { ACTION_REGISTRY, DEFAULT_BINDINGS, type Bindings, parseBindings, serializeBindings, chordFromEvent } from '../../../lib/keybinds';
+import { useOnboardingGate } from '../Onboarding/useOnboardingGate';
 
 const GUI_PREF_KEYS = ['theme', 'telemetry', 'sign', 'checkpointMins'] as const;
 
@@ -31,6 +32,7 @@ const SECTIONS = [
   { id: 'signing',      icon: 'shield',  label: 'Signing keys' },
   { id: 'secrets',      icon: 'shield',  label: 'Keys & Secrets' },
   { id: 'telemetry',    icon: 'scale',   label: 'Telemetry' },
+  { id: 'onboarding',   icon: 'refresh', label: 'Onboarding' },
   { id: 'keybinds',     icon: 'command', label: 'Keybinds' },
   { id: 'theme',        icon: 'spark',   label: 'Theme' },
   { id: 'display',      icon: 'monitor', label: 'Display' },
@@ -947,6 +949,25 @@ function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
   );
 }
 
+function OnboardingSection() {
+  // This section only ever calls `.replay()`, a pure `setDismissed(false)` — the
+  // dummy input values deliberately produce `shouldShow: false` from this call site.
+  const gate = useOnboardingGate({ secretCount: 1, localModelCount: 0 });
+  return (
+    <>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Onboarding</h2>
+      <p className="mt-0.5 text-[11px] text-text-muted">Replay the first-run setup wizard.</p>
+      <button
+        type="button"
+        onClick={gate.replay}
+        className="mt-3 rounded-lg border border-border-subtle px-3 py-1.5 text-[11px] hover:bg-overlay-subtle"
+      >
+        Replay setup wizard
+      </button>
+    </>
+  );
+}
+
 interface SettingsViewProps {
   pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
@@ -1446,6 +1467,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             </div>
           </>
         )}
+
+        {section === 'onboarding' && <OnboardingSection />}
 
         {section === 'keybinds' && (
           <>
