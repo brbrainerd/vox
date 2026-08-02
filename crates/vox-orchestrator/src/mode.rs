@@ -266,6 +266,36 @@ impl RiskPosture {
     }
 }
 
+// ── Task: TriggerSource ─────────────────────────────────────────────────────
+
+/// Who/what started a task — orthogonal to `TaskCategory` (what kind of work).
+/// `Interactive`: a live chat/editor feature. `Automated`: CI/CD, scheduled, or
+/// background-poll dispatch. `Subagent`: spawned by another agent. `Mesh`:
+/// delivered via A2A from another node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TriggerSource {
+    #[default]
+    Interactive,
+    Automated,
+    Subagent,
+    Mesh,
+}
+
+impl TriggerSource {
+    /// Parse a hint/GUI-supplied label. Case-insensitive. Unknown labels return `None`.
+    #[must_use]
+    pub fn from_label(label: &str) -> Option<Self> {
+        match label.trim().to_ascii_lowercase().as_str() {
+            "interactive" => Some(Self::Interactive),
+            "automated" => Some(Self::Automated),
+            "subagent" => Some(Self::Subagent),
+            "mesh" => Some(Self::Mesh),
+            _ => None,
+        }
+    }
+}
+
 // ── Task 3: effective_axes ──────────────────────────────────────────────────
 
 /// The (cost, responsiveness, intelligence) triple the scorer should use, after risk
@@ -413,5 +443,28 @@ mod interaction_tests {
     fn genius_already_intelligent_unchanged_by_low_risk() {
         let axes = effective_axes(ClutchProfile::Genius, RiskPosture::Low);
         assert_eq!(axes, (15, 15, 70));
+    }
+}
+
+#[cfg(test)]
+mod trigger_source_tests {
+    use super::*;
+
+    #[test]
+    fn from_label_parses_all_four_case_insensitive() {
+        assert_eq!(TriggerSource::from_label("interactive"), Some(TriggerSource::Interactive));
+        assert_eq!(TriggerSource::from_label("Automated"), Some(TriggerSource::Automated));
+        assert_eq!(TriggerSource::from_label("SUBAGENT"), Some(TriggerSource::Subagent));
+        assert_eq!(TriggerSource::from_label("mesh"), Some(TriggerSource::Mesh));
+    }
+
+    #[test]
+    fn from_label_unknown_returns_none() {
+        assert_eq!(TriggerSource::from_label("turbo"), None);
+    }
+
+    #[test]
+    fn default_is_interactive() {
+        assert_eq!(TriggerSource::default(), TriggerSource::Interactive);
     }
 }
