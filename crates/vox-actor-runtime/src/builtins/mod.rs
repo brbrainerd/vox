@@ -199,6 +199,20 @@ pub fn vox_regex_compile(pattern: &str) -> Result<VoxRegex, String> {
 #[derive(Debug, Clone)]
 pub struct VoxJson(pub serde_json::Value);
 
+/// Lets a `&VoxJson` coerce to `&serde_json::Value` at call sites (e.g.
+/// `vox_toml_render`/`vox_yaml_render`/`vox_io_save`, which are generic over
+/// any Vox value and may receive either a bare `Value` or a `VoxJson`
+/// depending on where the argument came from — a `toml.parse`/`json.parse`
+/// result is `VoxJson`; a value built up structurally in Vox code may be a
+/// raw `Value`). Avoids needing two signatures or a manual unwrap at every
+/// call site.
+impl std::ops::Deref for VoxJson {
+    type Target = serde_json::Value;
+    fn deref(&self) -> &serde_json::Value {
+        &self.0
+    }
+}
+
 impl VoxJson {
     // ── Navigation (single hop, returns Option) ─────────────────────────
     // RFC json-ergonomics-rfc-2026-05-23 §4.2.
