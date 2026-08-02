@@ -395,7 +395,7 @@ interface ImportEnvResultDto {
   entries: ImportEnvEntryDto[];
 }
 
-function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast) => void; gamifyEnabled?: boolean }) {
+export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t: Toast) => void; gamifyEnabled?: boolean }) {
   const [rows, setRows] = useState<SecretStatusDto[]>([]);
   const [loading, setLoading] = useState(true);
   // Holds ONLY the in-flight input value per key. Cleared immediately on save.
