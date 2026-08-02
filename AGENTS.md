@@ -294,7 +294,7 @@ In Vox, tests are not just regression catchers — they are training data for th
 
 > **Canonical budgets:** `contracts/budgets/test-tier-budgets.v1.yaml`
 > **Full tier spec:** `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md §4`
-> **Per-flag details:** `docs/src/contributors/local-ci-pre-push.md`
+> **Full tier table + per-flag details:** `docs/src/contributors/local-ci-pre-push.md` — do not restate the tier table here, it drifts.
 
 **Run CI locally first — do NOT use GitHub Actions as your primary feedback loop (Required).**
 GitHub-hosted CI is slow (minutes-to-tens-of-minutes per push) and burns runner
@@ -325,19 +325,12 @@ Push only after the local equivalent of the gates you expect to run is green. Tr
 a red GitHub check whose local equivalent passes as a runner/environment difference
 to reproduce locally (via `--act`), not as something to fix by repeated pushes.
 
-Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo run -q -p vox-cli -- ci install-hooks`.
-
-| Tier | Command | What runs | Target wall-clock |
-|---|---|---|---:|
-| **fast** (default / hook) | `vox ci pre-push` | fmt, line-endings, ssot-drift, runner-policy-check, workflow-concurrency-guard, scoped doc lint + doctest, drift-check | ≤60s |
-| **complete** | `vox ci pre-push --complete` | fast + full doc lint, doc-inventory, clippy, scoped TOESTUB | ≤180s |
-| **full** | `vox ci pre-push --full` | complete + nextest workspace (slow excluded) | ≤120s |
-| **full+cov** | `vox ci pre-push --full --with-coverage` | full but llvm-cov nextest; emits lcov + HTML | ≤260s |
-| **full+since** | `vox ci pre-push --full --since <ref>` | full, nextest for impacted crates only | ≤20s (1–3 crate edit) |
-| **full+cov+since** | `vox ci pre-push --full --with-coverage --since <ref>` | combination of full+cov + since | ≤30s typical |
-| **ci-equivalent** | `vox ci pre-push --full --with-coverage --include-slow` | full+cov + slow `#[ignore]` partition | ≤480s |
-
-**Slow-test partition** (`--include-slow`): runs three `#[ignore = "slow; ..."]` tests that are excluded by default. CI always sets this flag. The 3 tests are: `arch_check_live_workspace_smoke_and_description_rule`, `timeout_kills_long_running_child`, `generated_ai_fixture_bundle_passes_cargo_check`.
+Use `vox ci pre-push` to run any tier locally (default = **fast**, ≤60s: fmt, line-endings,
+ssot-drift, runner-policy-check, workflow-concurrency-guard, scoped doc lint + doctest,
+drift-check). Install the hook once with `cargo run -q -p vox-cli -- ci install-hooks`. The
+full tier list (complete / full / full+cov / full+since / full+cov+since / ci-equivalent),
+their exact flags, and the `--include-slow` slow-test names live in
+[`local-ci-pre-push.md`](docs/src/contributors/local-ci-pre-push.md) — not restated here.
 
 **Budget enforcement:** `--enforce-budgets` compares total elapsed against `contracts/budgets/test-tier-budgets.v1.yaml` (warn at 1.2×, fail at 1.5× measured baseline). No-op if the budgets file is absent. CI also runs `vox ci tier-budget-check --junit target/nextest/ci/junit.xml --profile full` after each nextest run.
 
@@ -413,26 +406,14 @@ Coverage of these classes by detector + severity + enforcement point (and the st
 
 > **Canonical config:** `.coderabbit.yaml` (repo root; CodeRabbit reads it from the **default branch**).
 
-Automated PR review (CodeRabbit) is **rate-limited and shared**: every branch, every
-Claude Code tab/worktree, and every IDE you use pushes as the **same GitHub identity**,
-so they all draw from **one** per-developer review allowance (Pro tier: ~5 PR reviews/hour,
-refilling over time, throttled further under sustained bursts). Treating every `git push`
-as a review request drains that allowance in minutes and stalls all your other work.
-
-**Repo policy (enforced by `.coderabbit.yaml`):** `auto_review.auto_incremental_review:
-false` — CodeRabbit reviews a PR **once when it opens** and does **not** auto-review
-subsequent pushes. Re-review is **on demand only**.
+Automated PR review (CodeRabbit) is **rate-limited and shared** across every branch, worktree, and IDE (same GitHub identity, one per-developer allowance) — and `.coderabbit.yaml` sets `auto_review.auto_incremental_review: false`, so a PR is reviewed **once on open**, never automatically on later pushes.
 
 Therefore, across **all** branches/tabs/IDEs:
 
-- **Batch commits; push once when the PR is review-ready** — not after every commit. (This
-  is the same "don't re-push to iterate" rule as the CI gate tiers above, applied to review.)
-- **Request re-review explicitly** by commenting **`@coderabbitai review`** on the PR when
-  you actually want fresh eyes — never by pushing repeatedly.
-- **Don't open a PR before the work is review-ready.** If you must push early, keep the PR a
-  **Draft** (drafts are not auto-reviewed; `auto_review.drafts: false`).
-- The `vox ci pre-push` hook prints an **advisory** reminder when you re-push a branch that
-  already has an upstream (the proxy for an open PR). It never blocks the push.
+- **Batch commits; push once when the PR is review-ready** — not after every commit.
+- **Request re-review explicitly** by commenting **`@coderabbitai review`** — never by pushing repeatedly.
+- **Don't open a PR before it's review-ready.** If you must push early, keep it a **Draft** (`auto_review.drafts: false`).
+- `vox ci pre-push` prints an **advisory** reminder on re-push to a branch with an upstream; it never blocks.
 
 One-line takeaway: **one deliberate review per ready PR**, not one per push.
 
