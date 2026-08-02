@@ -65,6 +65,7 @@ fn contextual_bias_phrases_with_lex(
 fn finalize_after_refine(
     raw_text: String,
     refined: crate::refine::RefineOutput,
+    domain: crate::refine::DomainMode,
 ) -> TranscribeDetail {
     let lex = load_lexicon_from_env();
     let refined_after_lex = lex
@@ -76,6 +77,7 @@ fn finalize_after_refine(
         crate::transcript_rerank::build_transcript_candidates(&raw_text, &refined_after_lex),
         &bias,
         Some(raw_text.as_str()),
+        domain,
     );
     let refined_text = candidates
         .first()
@@ -137,10 +139,14 @@ impl TranscribeDetail {
 pub fn transcript_status() -> &'static str {
     #[cfg(all(feature = "stt-sherpa", feature = "stt-candle"))]
     return "Vox Oratio: dual backends compiled — Sherpa-ONNX + Candle Whisper. \
-            Active backend: VOX_ORATIO_BACKEND (auto|whisper|sherpa).";
+            Active backend: VOX_ORATIO_BACKEND (auto|whisper|sherpa). Within Sherpa, \
+            model family: VOX_ORATIO_SHERPA_KIND (transducer/Parakeet by default, or \
+            \"whisper\" for the Whisper-shaped model) — a distinct axis from \
+            VOX_ORATIO_BACKEND.";
 
     #[cfg(all(feature = "stt-sherpa", not(feature = "stt-candle")))]
     return "Vox Oratio: Sherpa-ONNX STT backend active. Env: VOX_ORATIO_BACKEND, \
+            VOX_ORATIO_SHERPA_KIND (transducer/Parakeet by default, or \"whisper\"), \
             VOX_ORATIO_SHERPA_MODEL, VOX_ORATIO_SHERPA_MODEL_DIR.";
 
     #[cfg(all(feature = "stt-candle", not(feature = "stt-sherpa")))]
@@ -162,7 +168,7 @@ pub fn transcript_status() -> &'static str {
 /// and need the same correction pass as `transcribe_path_detailed`.
 pub fn refine_raw_text(raw_text: &str, ctx: &CorrectionContext) -> TranscribeDetail {
     let refined = crate::refine::refine_transcript(raw_text, ctx);
-    finalize_after_refine(raw_text.to_string(), refined)
+    finalize_after_refine(raw_text.to_string(), refined, ctx.domain)
 }
 
 /// Transcribe `path` with explicit refinement context and optional Whisper language override.
@@ -183,7 +189,7 @@ pub fn transcribe_path_detailed(
         let raw_text = std::fs::read_to_string(path)
             .with_context(|| format!("read transcript fixture {}", path.display()))?;
         let refined = crate::refine::refine_transcript(&raw_text, ctx);
-        return Ok(finalize_after_refine(raw_text, refined));
+        return Ok(finalize_after_refine(raw_text, refined, ctx.domain));
     }
 
     let is_audio_or_video = matches!(
@@ -240,11 +246,12 @@ pub fn transcribe_path_detailed(
 
             let (_diag, whisper_lang) = crate::language::prepare_language_hint(language_hint);
 
-            let backend = crate::backend_dispatch::create_backend()?;
-            let out = backend.transcribe_pcm(&pcm, sample_rate, whisper_lang.as_deref())?;
+            let out = crate::backend_dispatch::with_cached_backend(|backend| {
+                backend.transcribe_pcm(&pcm, sample_rate, whisper_lang.as_deref())
+            })?;
 
             let refined = crate::refine::refine_transcript(&out.raw_text, ctx);
-            return Ok(finalize_after_refine(out.raw_text, refined));
+            return Ok(finalize_after_refine(out.raw_text, refined, ctx.domain));
         }
 
         #[cfg(not(feature = "stt-candle"))]
