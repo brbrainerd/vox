@@ -72,6 +72,7 @@ vox-telemetry-otlp        = { path = "crates/vox-telemetry-otlp" }
 vox-foundation            = { path = "crates/vox-foundation" }
 vox-llm-config            = { path = "crates/vox-llm-config" }
 vox-llm-egress            = { path = "crates/vox-llm-egress" }
+vox-oauth-pkce            = { path = "crates/vox-oauth-pkce" }
 
 
 vox-audit                 = { path = "crates/vox-audit" }

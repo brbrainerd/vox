@@ -1,0 +1,29 @@
+[package]
+name = "vox-oauth-pkce"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "RFC 8252 loopback-server OAuth PKCE flow, used for in-app free-tier key provisioning."
+
+[dependencies]
+axum = { workspace = true, features = ["http1", "json", "tokio"] }
+base64 = { workspace = true }
+open = "5"
+rand = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros", "net", "time"] }
+tracing = { workspace = true }
+vox-http-client = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "test-util"] }
+
+[lints]
+workspace = true

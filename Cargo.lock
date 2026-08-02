@@ -16463,6 +16463,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-oauth-pkce"
+version = "0.6.0"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "open",
+ "rand 0.8.6",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "vox-http-client",
+]
+
+[[package]]
 name = "vox-openai"
 version = "0.6.0"
 dependencies = [
