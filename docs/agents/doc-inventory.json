@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-08-02T06:44:09.972Z",
+  "generated_at": "2026-08-02T06:58:05.896Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -11695,7 +11695,7 @@
     {
       "path": "crates/vox-gui/src/commands/daemon.rs",
       "kind": "rust",
-      "lines_total": 571,
+      "lines_total": 570,
       "lines_triple_slash": 103,
       "lines_inner_doc": 27,
       "lines_plain_comment": 63,
