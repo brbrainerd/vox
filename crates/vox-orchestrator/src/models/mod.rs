@@ -1,5 +1,6 @@
 pub mod admission;
 pub mod autonomic;
+pub mod cost_tier;
 pub mod discovery_pipeline;
 pub mod generated;
 pub mod key_guard;
@@ -14,6 +15,7 @@ pub mod spec;
 mod tests;
 pub mod vram;
 
+pub use cost_tier::{CHEAP_COST_PER_1K_USD, CostTier, cost_tier_for};
 pub use generated::{
     Capability, CapabilityFlags, ModelTier, PromptIntent, StrengthTag, TaskCategory,
     infer_capabilities, infer_prompt_intents, intent_required_capabilities,
