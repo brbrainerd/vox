@@ -1399,6 +1399,83 @@ mod tests {
             );
         }
     }
+
+    // ── Non-research intents: key-gating must degrade gracefully too ────────
+    //
+    // `select()`'s key-presence gate (added alongside `decide()`'s pre-existing
+    // one — see `key_gate_*` tests above and git history: `decide()` gained
+    // `key_is_present_for` in 54d2758fba "B3", and `select_via_scorer` /
+    // `select_via_premium_alias` converged to the same rule afterward) backs
+    // EVERY `SelectionIntent` constructor, not just `SelectionIntent::research()`.
+    // These two tests prove non-research callers (`repair_loop()` stands in for
+    // `ide_autocomplete()` / `plan_mode()` / `review()` / `for_task()`, which all
+    // share the same `select_inner()` cascade) still degrade gracefully: no
+    // keyless candidate leaks through, and a present key is still admitted.
+
+    #[test]
+    #[serial]
+    #[allow(unsafe_code)]
+    fn select_via_scorer_falls_back_gracefully_for_non_research_intent_when_key_missing() {
+        unsafe {
+            std::env::remove_var("ANTHROPIC_API_KEY");
+            std::env::remove_var("VOX_ANTHROPIC_API_KEY");
+        }
+        let mut registry = ModelRegistry::default();
+        registry.register(key_gate_spec(
+            "anthropic-direct-repair-test",
+            ProviderType::Anthropic,
+        ));
+        registry.register(key_gate_spec(
+            "ollama-repair-fallback-test",
+            ProviderType::Ollama,
+        ));
+
+        // Use a non-research intent — repair_loop is representative of the
+        // "everyday" callers whose behavior this test protects.
+        let intent = SelectionIntent::repair_loop();
+        let outcome = select_via_scorer(&intent, &registry);
+        if let Some(o) = outcome {
+            assert_ne!(
+                o.model_id, "anthropic-direct-repair-test",
+                "select_via_scorer must not select a keyless provider for non-research intents either"
+            );
+        }
+        // A None outcome is also acceptable (no eligible candidate) — the
+        // assertion above is what matters: never silently return a keyless
+        // candidate regardless of which intent asked.
+    }
+
+    #[test]
+    #[serial]
+    #[allow(unsafe_code)]
+    fn select_admits_non_research_intent_when_key_present() {
+        let prior = std::env::var("ANTHROPIC_API_KEY").ok();
+        unsafe { std::env::set_var("ANTHROPIC_API_KEY", "test-key") };
+        let mut registry = ModelRegistry::default();
+        registry.register(key_gate_spec(
+            "anthropic-direct-repair-keyed-test",
+            ProviderType::Anthropic,
+        ));
+
+        let intent = SelectionIntent::repair_loop();
+        let outcome = select(&intent, &registry);
+        // With a key present and no better-scoring alternative registered,
+        // select() should be ABLE to choose the keyed candidate for a
+        // non-research intent too — proving the gate doesn't just always
+        // reject, it correctly admits when the key is actually there.
+        assert!(
+            outcome.is_some(),
+            "select() should find a candidate when a key is present"
+        );
+
+        #[allow(unsafe_code)]
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("ANTHROPIC_API_KEY", v),
+                None => std::env::remove_var("ANTHROPIC_API_KEY"),
+            }
+        }
+    }
 }
 
 #[cfg(test)]
