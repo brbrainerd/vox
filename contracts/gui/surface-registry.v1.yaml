@@ -218,6 +218,14 @@ surfaces:
   parent_surface: null
   notes: null
 - view_key: null
+  cli_group: chat
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
   cli_group: check
   representation_tier: none
   nav_label: null
@@ -403,6 +411,14 @@ surfaces:
   notes: null
 - view_key: null
   cli_group: graph
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
+  cli_group: harness
   representation_tier: none
   nav_label: null
   nav_icon: null
