@@ -7,20 +7,27 @@ pub fn expand_spoken_symbols(text: &str) -> String {
     let pairs: &[(&str, &str)] = &[
         ("open brace", "{"),
         ("close brace", "}"),
+        ("open curly", "{"),
+        ("close curly", "}"),
         ("open bracket", "["),
         ("close bracket", "]"),
+        ("open angle", "<"),
+        ("close angle", ">"),
         ("open paren", "("),
         ("close paren", ")"),
         ("fat arrow", "=>"),
         ("arrow", "->"),
         ("semicolon", ";"),
+        ("colon colon", "::"),
         ("colon", ":"),
+        ("comma", ","),
         ("new line", "\n"),
         ("underscore", "_"),
         ("double equals", "=="),
         ("not equals", "!="),
         ("dot dot dot", "..."),
         ("dot dot", ".."),
+        ("dot", "."),
         ("bang", "!"),
         ("ampersand", "&"),
         ("pipe", "|"),
@@ -169,5 +176,22 @@ mod tests {
     #[test]
     fn fat_arrow() {
         assert!(normalize_spoken_code_phrase("x fat arrow y").contains("=>"));
+    }
+
+    #[test]
+    fn curly_comma_angle_and_bare_dot_expand() {
+        assert_eq!(expand_spoken_symbols("open curly close curly"), "{ }");
+        assert_eq!(expand_spoken_symbols("a comma b"), "a , b");
+        assert_eq!(expand_spoken_symbols("open angle close angle"), "< >");
+        assert_eq!(expand_spoken_symbols("self dot user"), "self . user");
+        assert_eq!(
+            expand_spoken_symbols("user state colon colon active"),
+            "user state :: active"
+        );
+        // Existing ellipsis mappings must still win over the new bare "dot".
+        assert_eq!(
+            expand_spoken_symbols("wait dot dot dot done"),
+            "wait ... done"
+        );
     }
 }
