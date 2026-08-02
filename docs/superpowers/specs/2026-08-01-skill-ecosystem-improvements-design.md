@@ -1,7 +1,7 @@
 ---
 title: "Skill Ecosystem Improvements — Design Spec (6-Phase Roadmap)"
 description: "Design for consolidating and hardening the skill ecosystem across both harnesses (Claude Code / assets/skills and Vox Axis-MENS / crates/vox-skills+vox-plugin-skill-*): frontmatter consolidation, graphify skill parity, a plan/spec review gate, relevance-ranked skill selection routed through vox-search, a GUI admin surface, and provenance/reliability hardening."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 ---

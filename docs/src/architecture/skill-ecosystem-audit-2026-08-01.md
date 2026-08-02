@@ -1,7 +1,7 @@
 ---
 title: "Skill Ecosystem Audit — All 50 Skill Files, Read in Full (2026-08-01)"
 description: "Per-file findings across every SKILL.md and *.skill.md in the repo (Claude-format vendored bundle, Vox-native superpowers ports, Vox-native plugin skills), plus architecture-level gaps in selection, review, graphify wiring, and GUI surfacing that feed the improvement roadmap."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---
