@@ -9,7 +9,7 @@ Vox Axis (MENS or any other model in the Vox orchestrator), use your platform eq
 | `Write` (file creation) | `vox_write_file` |
 | `Edit` (file editing) | No dedicated tool found — read via `vox_read_file`, then write the full updated content back via `vox_write_file` |
 | `Bash` (run commands) | `vox_run_shell` |
-| `Grep` (search file content) | No direct equivalent found as of 2026-08-01 — for structural/code search prefer the `vox-graph` skill's tools (`vox_graphify_search`/`vox_graphify_query`) once Phase 2 of the improvement roadmap lands it natively for Vox Axis; today it is Claude-Code-only |
+| `Grep` (search file content) | No direct equivalent found as of 2026-08-01 — for structural/code search prefer the `vox-graph` skill's tools (`vox_search_structural`/`vox_search_neighbors`) once Phase 2 of the improvement roadmap lands it natively for Vox Axis; today it is Claude-Code-only |
 | `Glob` (search files by name) | No direct equivalent found as of 2026-08-01 |
 | `TodoWrite` (task tracking) | No direct equivalent found as of 2026-08-01 — track progress in prose or via `vox_memory_log` |
 | `Skill` tool (invoke a skill) | `vox_skill_use` |
