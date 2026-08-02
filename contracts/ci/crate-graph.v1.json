@@ -823,6 +823,7 @@
       "workspace-hack"
     ],
     "vox-speech": [
+      "vox-compiler",
       "vox-config",
       "vox-secrets",
       "workspace-hack"
