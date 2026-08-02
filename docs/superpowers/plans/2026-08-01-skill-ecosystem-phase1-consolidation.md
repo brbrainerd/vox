@@ -988,44 +988,64 @@ Still available via git history."
 
 ### Task 15: Refresh the stale `claude-api` vendored pin
 
-**STATUS: BLOCKED, deferred out of this execution pass (2026-08-02, updated after a second
-investigation session the same day).** Two separate problems in `vox run`'s script-transpilation
-path, neither specific to this task's content:
+**STATUS: DONE (2026-08-02).** Completed after two investigation sessions surfaced and fixed four
+distinct bugs, none specific to this task's content — all in shared `vox` tooling:
 
-1. **Fixed and confirmed.** `vox run scripts/vendor-skills.vox` initially failed to compile
-   (`vox-script` codegen bug: `toml.parse`'s generated match arm returned a bare
-   `serde_json::Value` instead of `VoxJson`, breaking `jarr(parsed, ...)`). Fixed in
-   `crates/vox-compiler/src/builtin_registry.rs` (commit `11b2aafa63`). A second apparent
-   failure on the dot-chained `std.toml.parse(...)` form (used by this exact script to read
-   `SOURCES.toml`) turned out to be **stale build artifacts, not a second codegen bug** — the
-   dispatch site in `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs` already routes
-   `std.X.Y(...)` calls through the same fixed `std_namespace_runtime_call` function. A full
-   rebuild (`cargo build -p vox-compiler -p vox-codegen -p vox-cli`) plus
-   `cargo install --locked --path crates/vox-cli --force` to refresh the installed `vox` binary
-   resolved it — `vox run scripts/vendor-skills.vox` now compiles and runs cleanly.
-2. **Confirmed real, reproducible, still unfixed.** With the compile issue resolved, a live run
-   against the actual pin (with `assets/skills/` backed up first) **destructively emptied
-   `assets/skills/` again** — `remove_tree` deleted every skill's tracked files and `copy_tree`
-   never repopulated them, printing `ok` for all 26+14 skills regardless. This is now
-   **confirmed reproducible 2/2 on real full-scale runs** (26 `anthropics/skills` +
-   14 `obra/superpowers` skills processed together in one process). Both times it was caught
-   immediately via `git status --short` and reverted with `git checkout -- assets/skills/`; no
-   data was lost either time. **Critically, it is NOT reproducible in isolated/reduced-scale
-   testing** — three faithful controlled retests (real cloned source data, relative destination
-   paths, repo-root CWD, multi-skill loop, matching this script's exact usage pattern, but only
-   1-2 skills from a single source at a time) all copied files correctly. The failure appears to
-   require processing the full real workload (both sources, all 40 skills, in one process) to
-   manifest — root cause still unknown; likely candidates not yet ruled out: a resource limit hit
-   partway through many sequential `fs.copy`/`fs.glob` calls, or a subtle interaction between the
-   two sequential `clone_at_pin` calls (one per source) that only surfaces with two real clones
-   in flight in the same run.
+1. **`toml.parse` codegen bug** — the generated match arm returned a bare `serde_json::Value`
+   instead of `VoxJson`, breaking `jarr(parsed, ...)`. Fixed in
+   `crates/vox-compiler/src/builtin_registry.rs` (commit `11b2aafa63`); the parallel `yaml.parse`/
+   `io.open` instances of the same bug fixed in commit `257c850d12`.
+2. **`toml.render`/`yaml.render`/`io.save` regression introduced by fix #1** — these are generic
+   over any Vox value (`Ty::GenericParam(0)`, not `Ty::Named("Json")`), so their argument may be a
+   `VoxJson` (from a parse/open call) or a raw `serde_json::Value` (built up structurally in Vox
+   code) depending on where it came from — a single Rust signature can't accept both. Fixed by
+   adding `impl Deref<Target = serde_json::Value> for VoxJson` (commit `8ebd427c58`) so Rust's
+   standard `&T -> &U` coercion handles both cases at every call site with no codegen changes.
+   Caught by `/code-review` and confirmed via `examples/golden/format_conversion.vox` and
+   `io_polymorphic.vox`.
+3. **`fs.canonicalize` codegen return type didn't match its declared signature** — declared
+   `Result[Str, Str]` but codegen emitted `Result<String, Box<dyn Error>>`, which compiles fine in
+   isolation but breaks the moment a script's error branch needs to `.clone()` the bound error
+   value (`Box<dyn Error>` isn't `Clone`/`Sized`) — surfaced while adding a `canonicalize` call to
+   `scripts/vendor-skills.vox` itself (see #4). Fixed in `crates/vox-compiler/src/builtin_registry.rs`
+   (commit `11ac1409a2`).
+4. **The actual destructive `copy_tree` bug, root-caused.** `src_root` is frequently a relative
+   path with a leading `./` (the default `root="."`), and `fs.glob`'s returned paths do not
+   reliably preserve that literal `./` prefix. The string-based `norm.replace(prefix + "/", "")`
+   strip then silently no-op'd, leaving `rel` as the **full glob-matched path** — so
+   `path.join(dst_root, rel)` wrote every file into a nonsense nested
+   `dst_root/<full-source-path>/...` location instead of `dst_root/<relative-path>`. Confirmed
+   directly on disk: `assets/skills/claude-api/target/vendor-skills-cache/skills/skills/claude-api/...`
+   existed with real copied content, while `assets/skills/claude-api/` itself came out empty after
+   `remove_tree`. This is why it never reproduced in the earlier isolated/reduced-scale retests —
+   those all used absolute source paths, never the relative-with-leading-`./` shape the real
+   script constructs by default. Fixed in `scripts/vendor-skills.vox` (commit `9fb8584756`) by
+   canonicalizing `src_root` before building the glob pattern/prefix, plus two permanent guards:
+   fail loudly if the strip ever no-ops again, and fail loudly if a skill's `copy_tree` call ever
+   copies zero files (rather than silently leaving `dst_root` empty after `remove_tree` already
+   cleared it).
 
-**Before attempting this task again:** do not keep re-running the full script live to
-trial-and-error the root cause — each attempt is destructive-until-reverted and this has already
-been confirmed twice. Instead, instrument `copy_tree`/`vendor_source` with per-file `print()`
-diagnostics (as done in the controlled retests) and capture one full real run's complete output
-for offline analysis, or step through with a debugger attached to the generated script binary.
-Always back up `assets/skills/` to a scratch location first regardless.
+**Separately, root-caused why bug #4 was so hard to pin down**: `~/.vox/script-cache/<hash>/`
+memoizes compiled script binaries keyed only by the `.vox` file's own source text, never the
+compiler/runtime crate versions — so rebuilding `vox-cli` to test a fix left stale cache entries
+in place until *some* `.vox` file's own bytes happened to change too, causing several apparently
+"random" successes/failures for the exact same command. Fixed by folding `crate::VOX_VERSION`
+(build number + git commit) into the cache key (commit `e5fa6f8b6d`). Separately, `cargo install
+--force` was **silently failing** ("Access is denied" replacing the locked `vox.exe`, a known
+class of issue — see `feedback_prepush_locked_vox_exe` in memory) on at least one attempt in this
+session without being caught immediately, compounding the confusion; killing stray `vox`/
+`vox-compilerd` processes before reinstalling resolved it.
+
+**Final re-vendor**: pin bumped from `5754626...` to `b29e7cf...`. Only 2 of the 12
+`anthropics/skills` entries actually changed content in this range — `claude-api` (pricing table
+refreshed to 2026-06-24, adds Claude Opus 5/Sonnet 5; per-language docs restructured to nest
+csharp/go/php/ruby under `claude-api/` like python/typescript already did) and `canvas-design` (78
+new OFL-licensed font files). The other 10 are byte-identical, confirmed via content-level diff,
+not just a path check. License unchanged (Apache-2.0). Committed in `d0326e17a1`, scoped to the
+`anthropics/skills` directories only (the `obra/superpowers` tree's silent recreation of Tasks
+13-14's deletions, and its deletion of this branch's own `vox-axis-tools.md` addition to
+`using-superpowers/`, were both restored/re-deleted before committing and are intentionally
+excluded).
 
 **Files:**
 - Modify: `assets/skills/SOURCES.toml`
