@@ -1085,91 +1085,84 @@ pub fn llm_config_for_spec(
 ) -> vox_actor_runtime::llm::LlmConfig {
     {
         let mut cfg = match spec.provider_type {
-                    ProviderType::OpenRouter => {
-                        vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone())
-                    }
-                    ProviderType::Ollama => vox_actor_runtime::llm::LlmConfig {
-                        provider: "ollama".to_string(),
-                        model: spec.id.clone(),
-                        cost_per_1k: None,
-                        base_url: vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaUrl)
-                            .expose()
-                            .filter(|s: &&str| !s.trim().is_empty())
-                            .map(|u: &str| {
-                                format!("{}/v1/chat/completions", u.trim_end_matches('/'))
-                            }),
-                        api_key: None,
-                        temperature: None,
-                        top_p: None,
-                        max_tokens: None,
-                        response_format: None,
-                        tools: None,
-                        tool_choice: None,
-                        timeout_ms: None,
-                        telemetry_session_id: None,
-                        telemetry_user_id: None,
-                        telemetry_task_category: Some(task_type.to_string()),
-                        telemetry_strength_tag: Some(task_category_strength(task_type).to_string()),
-                        telemetry_trace_id: None,
-                        telemetry_attempt_number: None,
-                        telemetry_skip_interaction: false,
-                    },
-                    ProviderType::GoogleDirect => vox_actor_runtime::llm::LlmConfig {
-                        provider: "openrouter".to_string(),
-                        model: spec.id.clone(),
-                        cost_per_1k: None,
-                        base_url: Some(vox_config::openrouter_chat_completions_url()),
-                        api_key: None,
-                        temperature: None,
-                        top_p: None,
-                        max_tokens: None,
-                        response_format: None,
-                        tools: None,
-                        tool_choice: None,
-                        timeout_ms: None,
-                        telemetry_session_id: None,
-                        telemetry_user_id: None,
-                        telemetry_task_category: Some(task_type.to_string()),
-                        telemetry_strength_tag: Some(task_category_strength(task_type).to_string()),
-                        telemetry_trace_id: None,
-                        telemetry_attempt_number: None,
-                        telemetry_skip_interaction: false,
-                    },
-                    ProviderType::HuggingFaceRouter => {
-                        let mut cfg =
-                            vox_actor_runtime::llm::LlmConfig::huggingface_router(spec.id.clone());
-                        cfg.telemetry_task_category = Some(task_type.to_string());
-                        cfg.telemetry_strength_tag =
-                            Some(task_category_strength(task_type).to_string());
-                        cfg
-                    }
-                    ProviderType::VoxLocal => {
-                        // VoxLocal (7863) is not reachable via vox_actor_runtime LlmConfig;
-                        // route through OpenRouter as an unreachable fallback so the task
-                        // doesn't silently drop. MCP path (infer_via_provider_adapter) handles
-                        // VoxLocal directly and doesn't go through this registry→LlmConfig path.
-                        let mut cfg =
-                            vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
-                        cfg.telemetry_task_category = Some(task_type.to_string());
-                        cfg.telemetry_strength_tag =
-                            Some(task_category_strength(task_type).to_string());
-                        cfg
-                    }
-                    ProviderType::Custom(_)
-                    | ProviderType::PopuliMesh
-                    | ProviderType::Anthropic
-                    | ProviderType::Mistral
-                    | ProviderType::DeepSeek
-                    | ProviderType::SambaNova
-                    | ProviderType::Groq
-                    | ProviderType::Cerebras => {
-                        let mut cfg =
-                            vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
-                        cfg.telemetry_task_category = Some(task_type.to_string());
-                        cfg.telemetry_strength_tag =
-                            Some(task_category_strength(task_type).to_string());
-                        cfg
-                    }
+            ProviderType::OpenRouter => {
+                vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone())
+            }
+            ProviderType::Ollama => vox_actor_runtime::llm::LlmConfig {
+                provider: "ollama".to_string(),
+                model: spec.id.clone(),
+                cost_per_1k: None,
+                base_url: vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaUrl)
+                    .expose()
+                    .filter(|s: &&str| !s.trim().is_empty())
+                    .map(|u: &str| format!("{}/v1/chat/completions", u.trim_end_matches('/'))),
+                api_key: None,
+                temperature: None,
+                top_p: None,
+                max_tokens: None,
+                response_format: None,
+                tools: None,
+                tool_choice: None,
+                timeout_ms: None,
+                telemetry_session_id: None,
+                telemetry_user_id: None,
+                telemetry_task_category: Some(task_type.to_string()),
+                telemetry_strength_tag: Some(task_category_strength(task_type).to_string()),
+                telemetry_trace_id: None,
+                telemetry_attempt_number: None,
+                telemetry_skip_interaction: false,
+            },
+            ProviderType::GoogleDirect => vox_actor_runtime::llm::LlmConfig {
+                provider: "openrouter".to_string(),
+                model: spec.id.clone(),
+                cost_per_1k: None,
+                base_url: Some(vox_config::openrouter_chat_completions_url()),
+                api_key: None,
+                temperature: None,
+                top_p: None,
+                max_tokens: None,
+                response_format: None,
+                tools: None,
+                tool_choice: None,
+                timeout_ms: None,
+                telemetry_session_id: None,
+                telemetry_user_id: None,
+                telemetry_task_category: Some(task_type.to_string()),
+                telemetry_strength_tag: Some(task_category_strength(task_type).to_string()),
+                telemetry_trace_id: None,
+                telemetry_attempt_number: None,
+                telemetry_skip_interaction: false,
+            },
+            ProviderType::HuggingFaceRouter => {
+                let mut cfg =
+                    vox_actor_runtime::llm::LlmConfig::huggingface_router(spec.id.clone());
+                cfg.telemetry_task_category = Some(task_type.to_string());
+                cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
+                cfg
+            }
+            ProviderType::VoxLocal => {
+                // VoxLocal (7863) is not reachable via vox_actor_runtime LlmConfig;
+                // route through OpenRouter as an unreachable fallback so the task
+                // doesn't silently drop. MCP path (infer_via_provider_adapter) handles
+                // VoxLocal directly and doesn't go through this registry→LlmConfig path.
+                let mut cfg = vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
+                cfg.telemetry_task_category = Some(task_type.to_string());
+                cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
+                cfg
+            }
+            ProviderType::Custom(_)
+            | ProviderType::PopuliMesh
+            | ProviderType::Anthropic
+            | ProviderType::Mistral
+            | ProviderType::DeepSeek
+            | ProviderType::SambaNova
+            | ProviderType::Groq
+            | ProviderType::Cerebras => {
+                let mut cfg = vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
+                cfg.telemetry_task_category = Some(task_type.to_string());
+                cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
+                cfg
+            }
         };
         cfg.max_tokens = Some(spec.max_tokens);
         // Propagate catalog cost so chat.rs can estimate spend without a DB lookup.
@@ -1232,7 +1225,10 @@ mod tests {
         let cfg = llm_config_for_spec(&s, TaskCategory::CodeGen);
         assert_eq!(cfg.provider, "openrouter");
         assert_eq!(cfg.model, "google/gemini-2.0-flash");
-        assert_eq!(cfg.base_url, Some(vox_config::openrouter_chat_completions_url()));
+        assert_eq!(
+            cfg.base_url,
+            Some(vox_config::openrouter_chat_completions_url())
+        );
     }
 
     #[test]

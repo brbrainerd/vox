@@ -66,9 +66,9 @@ pub fn dedup_finding_candidates(events: Vec<ResearchEvent>) -> Vec<ResearchEvent
                     // expected per-run finding-candidate volume (tens, not
                     // thousands) — revisit with an LSH/bucketing index if
                     // that assumption ever changes.
-                    let is_near_duplicate = accepted_texts
-                        .iter()
-                        .any(|prior| lexical_similarity(prior, &text) >= LEXICAL_DUPLICATE_THRESHOLD);
+                    let is_near_duplicate = accepted_texts.iter().any(|prior| {
+                        lexical_similarity(prior, &text) >= LEXICAL_DUPLICATE_THRESHOLD
+                    });
                     if is_near_duplicate {
                         continue;
                     }
@@ -136,8 +136,14 @@ mod tests {
     #[test]
     fn collapses_near_duplicate_finding_text_even_with_different_ids() {
         let events = vec![
-            fc_with_text("id-1", "The synthesis stage lacks a post-hoc citation audit"),
-            fc_with_text("id-2", "The synthesis stage lacks a post hoc citation audit"), // near-identical, different id
+            fc_with_text(
+                "id-1",
+                "The synthesis stage lacks a post-hoc citation audit",
+            ),
+            fc_with_text(
+                "id-2",
+                "The synthesis stage lacks a post hoc citation audit",
+            ), // near-identical, different id
         ];
         let deduped = dedup_finding_candidates(events);
         assert_eq!(

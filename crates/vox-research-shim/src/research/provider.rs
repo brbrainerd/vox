@@ -79,12 +79,8 @@ impl ProviderRegistry {
                     .map(|(title, url)| {
                         let doi = vox_search::trust::extract_doi_from_url(&url);
                         async move {
-                            vox_search::trust::score_hit_trust_for_url(
-                                &title,
-                                doi.as_deref(),
-                                &url,
-                            )
-                            .await
+                            vox_search::trust::score_hit_trust_for_url(&title, doi.as_deref(), &url)
+                                .await
                         }
                     })
                     // `buffered` (not `buffer_unordered`) to preserve input order,

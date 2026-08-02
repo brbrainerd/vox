@@ -49,16 +49,24 @@ fn map_egress_error(e: &vox_llm_egress::EgressError) -> (String, Option<u16>, &'
                 (
                     msg,
                     Some(*code),
-                    if *code >= 500 { "server-error" } else { "client-error" },
+                    if *code >= 500 {
+                        "server-error"
+                    } else {
+                        "client-error"
+                    },
                 )
             }
         }
-        vox_llm_egress::EgressError::Http(m) => {
-            (format!("HTTP request failed: {}", m), None, "transport-error")
-        }
-        vox_llm_egress::EgressError::Decode(m) => {
-            (format!("Failed to parse response JSON: {}", m), None, "decode-error")
-        }
+        vox_llm_egress::EgressError::Http(m) => (
+            format!("HTTP request failed: {}", m),
+            None,
+            "transport-error",
+        ),
+        vox_llm_egress::EgressError::Decode(m) => (
+            format!("Failed to parse response JSON: {}", m),
+            None,
+            "decode-error",
+        ),
     }
 }
 
@@ -434,8 +442,9 @@ mod context_exceeded_tests {
             map_egress_error(&vox_llm_egress::EgressError::RateLimited { retry_after: None });
         assert_eq!(class, "rate-limited");
 
-        let (_, _, class) =
-            map_egress_error(&vox_llm_egress::EgressError::Http("connection reset".into()));
+        let (_, _, class) = map_egress_error(&vox_llm_egress::EgressError::Http(
+            "connection reset".into(),
+        ));
         assert_eq!(class, "transport-error");
 
         let (_, _, class) =

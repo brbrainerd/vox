@@ -17,7 +17,11 @@ pub fn lexical_similarity(a: &str, b: &str) -> f64 {
     }
     let intersection = sa.intersection(&sb).count();
     let union = sa.union(&sb).count();
-    if union == 0 { 0.0 } else { intersection as f64 / union as f64 }
+    if union == 0 {
+        0.0
+    } else {
+        intersection as f64 / union as f64
+    }
 }
 
 #[cfg(test)]
@@ -26,7 +30,10 @@ mod tests {
 
     #[test]
     fn identical_text_scores_one() {
-        assert_eq!(lexical_similarity("the same text here", "the same text here"), 1.0);
+        assert_eq!(
+            lexical_similarity("the same text here", "the same text here"),
+            1.0
+        );
     }
 
     #[test]
@@ -44,7 +51,10 @@ mod tests {
             "the confidence gate fuses citation and claim support scores",
             "the confidence gate fuses citation and claim-support scores",
         );
-        assert!(sim > 0.7, "expected high similarity for near-restatement, got {sim}");
+        assert!(
+            sim > 0.7,
+            "expected high similarity for near-restatement, got {sim}"
+        );
     }
 
     #[test]

@@ -284,9 +284,7 @@ mod tests {
             None,
             None,
         );
-        assert!(
-            claim_extraction.iter().all(|c| c.temperature == Some(0.0))
-        );
+        assert!(claim_extraction.iter().all(|c| c.temperature == Some(0.0)));
 
         let judge = cascade_with_optional_manual(
             ResearchStage::Judge,

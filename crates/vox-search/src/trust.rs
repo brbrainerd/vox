@@ -168,7 +168,12 @@ fn shared_scorer() -> &'static TrustScorer {
 /// URL is out of scope for this simple extractor.
 pub fn extract_doi_from_url(url: &str) -> Option<String> {
     let lower = url.to_ascii_lowercase();
-    for prefix in ["https://doi.org/", "http://doi.org/", "https://dx.doi.org/", "http://dx.doi.org/"] {
+    for prefix in [
+        "https://doi.org/",
+        "http://doi.org/",
+        "https://dx.doi.org/",
+        "http://dx.doi.org/",
+    ] {
         if let Some(rest) = lower.strip_prefix(prefix) {
             let doi = rest.trim_end_matches('/').trim();
             if !doi.is_empty() && doi.starts_with("10.") {
@@ -263,7 +268,10 @@ mod tests {
             .await;
 
         let scorer = TrustScorer::with_base_urls(server.uri(), "http://unused.invalid");
-        assert_eq!(scorer.check_retraction("10.1234/example").await, Some(false));
+        assert_eq!(
+            scorer.check_retraction("10.1234/example").await,
+            Some(false)
+        );
     }
 
     #[tokio::test]
@@ -291,7 +299,10 @@ mod tests {
             .await;
 
         let scorer = TrustScorer::with_base_urls("http://unused.invalid", server.uri());
-        assert_eq!(scorer.reputation_multiplier("Example Paper Title").await, 1.5);
+        assert_eq!(
+            scorer.reputation_multiplier("Example Paper Title").await,
+            1.5
+        );
     }
 
     #[tokio::test]
@@ -319,7 +330,10 @@ mod tests {
 
     #[test]
     fn extract_doi_from_url_returns_none_for_non_doi_url() {
-        assert_eq!(extract_doi_from_url("https://example.com/some-article"), None);
+        assert_eq!(
+            extract_doi_from_url("https://example.com/some-article"),
+            None
+        );
     }
 
     #[test]
@@ -342,27 +356,36 @@ mod tests {
             .await;
 
         let scorer = TrustScorer::with_base_urls("http://unused.invalid", server.uri());
-        assert_eq!(scorer.venue_type("Example Paper Title").await, Some("journal".to_string()));
+        assert_eq!(
+            scorer.venue_type("Example Paper Title").await,
+            Some("journal".to_string())
+        );
     }
 
     #[test]
     fn is_plausibly_academic_gates_correctly() {
         assert!(is_plausibly_academic("https://doi.org/10.1000/xyz123"));
         assert!(is_plausibly_academic("https://arxiv.org/abs/2401.00001"));
-        assert!(is_plausibly_academic("https://www.ncbi.nlm.nih.gov/pmc/articles/PMC123"));
-        assert!(!is_plausibly_academic("https://en.wikipedia.org/wiki/Research"));
-        assert!(!is_plausibly_academic("https://www.reuters.com/world/article"));
+        assert!(is_plausibly_academic(
+            "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC123"
+        ));
+        assert!(!is_plausibly_academic(
+            "https://en.wikipedia.org/wiki/Research"
+        ));
+        assert!(!is_plausibly_academic(
+            "https://www.reuters.com/world/article"
+        ));
         assert!(!is_plausibly_academic("https://blog.example/post"));
     }
 
     #[tokio::test]
     async fn score_hit_trust_skips_openalex_for_non_academic_url() {
-        let score = score_hit_trust_for_url(
-            "Some Blog Post Title",
-            None,
-            "https://blog.example/post",
-        )
-        .await;
-        assert_eq!(score, 1.0, "non-academic URL should short-circuit to neutral without an OpenAlex call");
+        let score =
+            score_hit_trust_for_url("Some Blog Post Title", None, "https://blog.example/post")
+                .await;
+        assert_eq!(
+            score, 1.0,
+            "non-academic URL should short-circuit to neutral without an OpenAlex call"
+        );
     }
 }

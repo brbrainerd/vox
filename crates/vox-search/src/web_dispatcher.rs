@@ -215,7 +215,9 @@ fn source_authority_score(url: &str) -> f64 {
         || key.contains("bbc.co")
     {
         1.25
-    } else if crate::trust::CORE_ACADEMIC_DOMAINS.iter().any(|d| key.contains(d))
+    } else if crate::trust::CORE_ACADEMIC_DOMAINS
+        .iter()
+        .any(|d| key.contains(d))
         || key.contains("docs.rs/")
         || key.contains("github.com/")
     {
@@ -284,11 +286,26 @@ mod tests {
 
         rank_and_dedupe_results(&mut results);
 
-        let wiki_pos = results.iter().position(|r| r.url.contains("wikipedia.org")).expect("wikipedia result present");
-        let reuters_pos = results.iter().position(|r| r.url.contains("reuters.com")).expect("reuters result present");
-        let blog_pos = results.iter().position(|r| r.url.contains("blog.example")).expect("blog result present");
+        let wiki_pos = results
+            .iter()
+            .position(|r| r.url.contains("wikipedia.org"))
+            .expect("wikipedia result present");
+        let reuters_pos = results
+            .iter()
+            .position(|r| r.url.contains("reuters.com"))
+            .expect("reuters result present");
+        let blog_pos = results
+            .iter()
+            .position(|r| r.url.contains("blog.example"))
+            .expect("blog result present");
 
-        assert!(wiki_pos < blog_pos, "wikipedia.org should outrank an unboosted blog");
-        assert!(reuters_pos < blog_pos, "reuters.com should outrank an unboosted blog");
+        assert!(
+            wiki_pos < blog_pos,
+            "wikipedia.org should outrank an unboosted blog"
+        );
+        assert!(
+            reuters_pos < blog_pos,
+            "reuters.com should outrank an unboosted blog"
+        );
     }
 }

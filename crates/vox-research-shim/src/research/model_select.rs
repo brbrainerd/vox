@@ -4,9 +4,7 @@
 //! so routing honors premium aliases, scoreboard feedback, and user axes.
 
 use vox_orchestrator::models::ModelRegistry;
-use vox_orchestrator::models::{
-    SelectionAxes, SelectionIntent, select_with_default_registry,
-};
+use vox_orchestrator::models::{SelectionAxes, SelectionIntent, select_with_default_registry};
 
 /// Sentinel NLI model id used before registry resolution; see `verifier_config_for_research_run`.
 pub const FALLBACK_NLI_MODEL_ID: &str = vox_config::NLI_FALLBACK;

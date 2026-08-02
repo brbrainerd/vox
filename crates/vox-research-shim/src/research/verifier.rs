@@ -478,8 +478,12 @@ mod tests {
     #[cfg(feature = "runtime")]
     #[test]
     fn resample_candidates_forces_nonzero_temperature_on_primary_too() {
-        let primary = Some(vox_actor_runtime::llm::LlmConfig::openrouter("primary-model"));
-        let fallback = vec![vox_actor_runtime::llm::LlmConfig::openrouter("fallback-model")];
+        let primary = Some(vox_actor_runtime::llm::LlmConfig::openrouter(
+            "primary-model",
+        ));
+        let fallback = vec![vox_actor_runtime::llm::LlmConfig::openrouter(
+            "fallback-model",
+        )];
 
         let candidates = resample_candidates(primary, fallback);
 

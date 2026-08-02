@@ -60,20 +60,39 @@ mod tests {
     #[test]
     fn counts_distinct_domains_only() {
         let hits = vec![
-            CorroboratingHit { url: "https://www.reuters.com/a".into(), supports_claim: true },
-            CorroboratingHit { url: "https://reuters.com/b".into(), supports_claim: true },
-            CorroboratingHit { url: "https://apnews.com/c".into(), supports_claim: true },
-            CorroboratingHit { url: "https://blog.example/d".into(), supports_claim: false },
+            CorroboratingHit {
+                url: "https://www.reuters.com/a".into(),
+                supports_claim: true,
+            },
+            CorroboratingHit {
+                url: "https://reuters.com/b".into(),
+                supports_claim: true,
+            },
+            CorroboratingHit {
+                url: "https://apnews.com/c".into(),
+                supports_claim: true,
+            },
+            CorroboratingHit {
+                url: "https://blog.example/d".into(),
+                supports_claim: false,
+            },
         ];
 
         let count = count_corroboration("claim-1", &hits);
 
-        assert_eq!(count.count(), 2, "reuters.com counted once despite www./bare variants, apnews.com counted once, blog excluded as non-supporting");
+        assert_eq!(
+            count.count(),
+            2,
+            "reuters.com counted once despite www./bare variants, apnews.com counted once, blog excluded as non-supporting"
+        );
     }
 
     #[test]
     fn zero_supporting_hits_yields_zero_count() {
-        let hits = vec![CorroboratingHit { url: "https://example.com/a".into(), supports_claim: false }];
+        let hits = vec![CorroboratingHit {
+            url: "https://example.com/a".into(),
+            supports_claim: false,
+        }];
         assert_eq!(count_corroboration("claim-2", &hits).count(), 0);
     }
 }

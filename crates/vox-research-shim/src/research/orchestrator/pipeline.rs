@@ -403,8 +403,10 @@ pub async fn run_research_with_context_and_session(
     // one — otherwise the sum can exceed citation_count and saturate
     // citation_score with fewer real citations than min_citations_for_full_score
     // was calibrated for. See docs/src/architecture/deep-research-trust-novelty-scoring-landscape-2026-08-01.md.
-    let trust_weighted_citation_score: f32 =
-        all_hits.iter().map(|h| (h.trust_score as f32).min(1.0)).sum();
+    let trust_weighted_citation_score: f32 = all_hits
+        .iter()
+        .map(|h| (h.trust_score as f32).min(1.0))
+        .sum();
     let gate_input = GateInput {
         claims: &draft_claims,
         citation_count: all_hits.len(),

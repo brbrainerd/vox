@@ -154,8 +154,7 @@ fn capitalize_verdict(wire: &str) -> String {
 pub fn extract_research_summary(artifact_json: &str) -> ResearchSummary {
     use std::collections::HashMap;
 
-    let artifact: artifact_mirror::ResearchRunArtifact = match serde_json::from_str(artifact_json)
-    {
+    let artifact: artifact_mirror::ResearchRunArtifact = match serde_json::from_str(artifact_json) {
         Ok(a) => a,
         Err(e) => {
             tracing::warn!("failed to parse research artifact_json for trust UI: {e}");

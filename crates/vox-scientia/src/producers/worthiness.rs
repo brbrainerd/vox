@@ -7,8 +7,8 @@
 //! Do not delete as "unused"; this is tested infrastructure awaiting its
 //! integration point.
 
-use vox_research_events::schema_types::{WorthinessProfile, WorthinessSignalItem};
 use vox_research_events::WorthinessSignalsV2;
+use vox_research_events::schema_types::{WorthinessProfile, WorthinessSignalItem};
 
 /// Builds the hard-gate retraction signal for a candidate finding, given
 /// whether its primary source DOI is confirmed retracted.
@@ -39,7 +39,12 @@ pub fn soft_gate_peer_review_signal(
     venue_type: Option<&str>,
 ) -> (WorthinessSignalItem, WorthinessProfile) {
     let (profile, passed, score, reason) = match venue_type {
-        Some("journal") => (WorthinessProfile::Journal, true, 1.0, "peer_reviewed_journal"),
+        Some("journal") => (
+            WorthinessProfile::Journal,
+            true,
+            1.0,
+            "peer_reviewed_journal",
+        ),
         Some("repository") => (
             WorthinessProfile::Repository,
             true,

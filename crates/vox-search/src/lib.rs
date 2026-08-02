@@ -32,11 +32,11 @@ mod searxng_defaults;
 pub mod semantic_fs;
 pub mod symbol_proximity;
 mod tavily_budget;
-pub mod trust;
 #[cfg(feature = "tavily")]
 pub mod tavily_extract;
 #[cfg(feature = "tavily")]
 pub mod tavily_research;
+pub mod trust;
 pub mod unified;
 pub mod web_dispatcher;
 

@@ -25,7 +25,11 @@ pub fn parse_followup_queries(text: &str) -> Option<Vec<String>> {
         .filter(|q| !q.trim().is_empty())
         .collect();
 
-    if queries.is_empty() { None } else { Some(queries) }
+    if queries.is_empty() {
+        None
+    } else {
+        Some(queries)
+    }
 }
 
 /// Attempts LLM-driven CRAG query expansion given a research question and
