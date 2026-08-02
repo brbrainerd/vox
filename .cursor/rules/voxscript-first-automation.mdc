@@ -25,7 +25,7 @@ vox run --interp scripts/compute-config.vox
 
 ## Execution tiers
 
-Full tier table (interp / native / wasm-isolated, and when to use each): `AGENTS.md §VoxScript-First Glue Code` — authoritative, do not restate here.
+`vox run --interp` (pure computation, no compile step) · `vox run` (native, file I/O/subprocess, cached) · `vox run --isolation wasm` (untrusted execution). Full tier table with notes: `AGENTS.md §VoxScript-First Glue Code` — authoritative, do not restate the full table here.
 
 ## Bootstrap exception
 
