@@ -468,3 +468,132 @@ mod trigger_source_tests {
         assert_eq!(TriggerSource::default(), TriggerSource::Interactive);
     }
 }
+
+// ── Task: per-task-type cost/model policy resolver ──────────────────────────
+
+/// A compiled-in default policy for one `TaskCategory`. The production table
+/// (`DEFAULT_CATEGORY_POLICY`) starts empty — seeding real defaults is a
+/// separate, low-risk follow-up (editable live via the GUI once this lands)
+/// rather than a behavior change bundled into this plan.
+#[derive(Debug, Clone, Copy)]
+pub struct TaskCategoryPolicy {
+    pub category: crate::types::TaskCategory,
+    pub clutch: ClutchProfile,
+    pub risk: RiskPosture,
+}
+
+/// A compiled-in default policy for one `TriggerSource`. Same seeding note as
+/// [`TaskCategoryPolicy`].
+#[derive(Debug, Clone, Copy)]
+pub struct TriggerSourcePolicy {
+    pub source: TriggerSource,
+    pub clutch: ClutchProfile,
+    pub risk: RiskPosture,
+}
+
+/// Compiled-in `TaskCategory` defaults. Empty at first landing (see
+/// [`TaskCategoryPolicy`] doc) — extend via a dedicated follow-up PR, not by
+/// editing this plan's tasks after the fact.
+pub const DEFAULT_CATEGORY_POLICY: &[TaskCategoryPolicy] = &[];
+
+/// Compiled-in `TriggerSource` defaults. Empty at first landing (see
+/// [`TriggerSourcePolicy`] doc).
+pub const DEFAULT_SOURCE_POLICY: &[TriggerSourcePolicy] = &[];
+
+/// Pure precedence resolver: explicit > category policy > source policy > the
+/// existing global default (`Balanced`/`Moderate`). Each of the three levels
+/// takes clutch and risk as SEPARATE `Option`s (not a paired tuple) so an
+/// override that only sets one axis lets the other keep falling through —
+/// callers compute the category/source arguments via
+/// `effective_category_policy()`/`effective_source_policy()` (added in a
+/// later task), which return the same per-axis shape.
+#[must_use]
+#[allow(clippy::too_many_arguments)]
+pub fn resolve_task_policy(
+    explicit_clutch: Option<ClutchProfile>,
+    explicit_risk: Option<RiskPosture>,
+    category_clutch: Option<ClutchProfile>,
+    category_risk: Option<RiskPosture>,
+    source_clutch: Option<ClutchProfile>,
+    source_risk: Option<RiskPosture>,
+) -> (ClutchProfile, RiskPosture) {
+    let clutch = explicit_clutch
+        .or(category_clutch)
+        .or(source_clutch)
+        .unwrap_or(ClutchProfile::Balanced);
+    let risk = explicit_risk
+        .or(category_risk)
+        .or(source_risk)
+        .unwrap_or(RiskPosture::Moderate);
+    (clutch, risk)
+}
+
+#[cfg(test)]
+mod task_policy_resolver_tests {
+    use super::*;
+
+    #[test]
+    fn explicit_wins_over_everything() {
+        let (clutch, risk) = resolve_task_policy(
+            Some(ClutchProfile::Genius), Some(RiskPosture::Low),
+            Some(ClutchProfile::Free), Some(RiskPosture::High),
+            Some(ClutchProfile::Efficiency), Some(RiskPosture::Moderate),
+        );
+        assert_eq!(clutch, ClutchProfile::Genius);
+        assert_eq!(risk, RiskPosture::Low);
+    }
+
+    #[test]
+    fn category_policy_wins_over_source_policy() {
+        let (clutch, risk) = resolve_task_policy(
+            None, None,
+            Some(ClutchProfile::Balanced), Some(RiskPosture::Moderate),
+            Some(ClutchProfile::Free), Some(RiskPosture::High),
+        );
+        assert_eq!(clutch, ClutchProfile::Balanced);
+        assert_eq!(risk, RiskPosture::Moderate);
+    }
+
+    #[test]
+    fn source_policy_wins_when_no_category_policy() {
+        let (clutch, risk) = resolve_task_policy(
+            None, None,
+            None, None,
+            Some(ClutchProfile::Free), Some(RiskPosture::High),
+        );
+        assert_eq!(clutch, ClutchProfile::Free);
+        assert_eq!(risk, RiskPosture::High);
+    }
+
+    #[test]
+    fn falls_back_to_global_default_when_nothing_set() {
+        let (clutch, risk) = resolve_task_policy(None, None, None, None, None, None);
+        assert_eq!(clutch, ClutchProfile::Balanced);
+        assert_eq!(risk, RiskPosture::Moderate);
+    }
+
+    #[test]
+    fn axes_resolve_independently_across_levels_real_case() {
+        // A category policy supplies ONLY clutch (its risk axis is None). Risk
+        // must fall through past category to source, NOT default straight to
+        // Moderate.
+        let (clutch, risk) = resolve_task_policy(
+            None, None,
+            Some(ClutchProfile::Efficiency), None,
+            None, Some(RiskPosture::High),
+        );
+        assert_eq!(clutch, ClutchProfile::Efficiency, "category's clutch axis wins");
+        assert_eq!(risk, RiskPosture::High, "category had no risk axis, so source's risk axis is used, not the global default");
+    }
+
+    #[test]
+    fn explicit_clutch_and_category_risk_combine_across_different_levels() {
+        let (clutch, risk) = resolve_task_policy(
+            Some(ClutchProfile::Genius), None,
+            None, Some(RiskPosture::Low),
+            Some(ClutchProfile::Free), Some(RiskPosture::High),
+        );
+        assert_eq!(clutch, ClutchProfile::Genius, "explicit clutch wins outright");
+        assert_eq!(risk, RiskPosture::Low, "explicit risk unset, category risk wins over source risk");
+    }
+}
