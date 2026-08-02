@@ -95,7 +95,10 @@ pub struct ClaimVerdict {
     /// Fraction of `RESAMPLE_COUNT` repeated verification calls that agreed
     /// with the final `verdict`. 1.0 = fully consistent, lower = the LLM
     /// gave different answers across resamples for the same claim/evidence.
-    pub self_consistency: f64,
+    pub resample_stability: f64,
+    // NOTE: renamed from `self_consistency` — do not confuse with the
+    // unrelated `self_consistency` signal in vox-orchestrator's
+    // confidence_fusion.rs (a different, pre-existing concept).
 }
 
 /// Fraction of `verdicts` matching the most common verdict among them.
@@ -145,7 +148,7 @@ fn majority_verdict(verdicts: &[Verdict]) -> Verdict {
 
 // For each claim, sample the verification cascade `RESAMPLE_COUNT` times
 // and keep the majority verdict, recording the agreement rate as the new
-// `self_consistency` field on `ClaimVerdict`.
+// `resample_stability` field on `ClaimVerdict`.
 const RESAMPLE_COUNT: usize = 3;
 
 /// Verify a batch of claims against retrieved evidence.
@@ -153,7 +156,7 @@ const RESAMPLE_COUNT: usize = 3;
 /// Verifies claims against evidence via an LLM cascade (behind the `runtime`
 /// feature; without it, degrades to blanket `Unverified`). Each claim is
 /// verified `RESAMPLE_COUNT` times (SelfCheckGPT-style resampling) and the
-/// majority verdict is kept, with `ClaimVerdict::self_consistency` recording
+/// majority verdict is kept, with `ClaimVerdict::resample_stability` recording
 /// the agreement rate — see Task 7 of
 /// `docs/superpowers/plans/2026-08-01-deep-research-trust-novelty-core.md`.
 /// This file's module-level SciFact-taxonomy note above still has the
@@ -336,7 +339,7 @@ fn parse_verifier_response(
         supporting_count,
         contradicting_count,
         evidence_spans,
-        self_consistency: 1.0,
+        resample_stability: 1.0,
     })
 }
 
@@ -358,14 +361,14 @@ fn parse_verdict_label(raw: &str) -> anyhow::Result<Verdict> {
 /// final verdict if any exists, preferring the highest self-reported
 /// confidence, otherwise the highest-confidence sample overall.
 ///
-/// Invariant: the returned `verdict` and `self_consistency` are never
-/// contradictory — a low `self_consistency` from full disagreement always
+/// Invariant: the returned `verdict` and `resample_stability` are never
+/// contradictory — a low `resample_stability` from full disagreement always
 /// implies `verdict == Verdict::Contested`, never a single sample's
 /// confident individual answer.
 fn assemble_resampled_verdict(sampled: Vec<ClaimVerdict>) -> ClaimVerdict {
     let sampled_verdicts: Vec<Verdict> = sampled.iter().map(|v| v.verdict).collect();
     let final_verdict = majority_verdict(&sampled_verdicts);
-    let self_consistency = agreement_rate(&sampled_verdicts);
+    let resample_stability = agreement_rate(&sampled_verdicts);
     // Among the samples matching the final verdict, keep the one with the
     // highest self-reported confidence for the other fields
     // (confidence/supporting/contradicting/evidence_spans). When
@@ -383,7 +386,7 @@ fn assemble_resampled_verdict(sampled: Vec<ClaimVerdict>) -> ClaimVerdict {
         })
         .expect("sampled is non-empty");
     chosen.verdict = final_verdict;
-    chosen.self_consistency = self_consistency;
+    chosen.resample_stability = resample_stability;
     chosen
 }
 
@@ -395,7 +398,7 @@ fn unverified(claim: Claim) -> ClaimVerdict {
         supporting_count: 0,
         contradicting_count: 0,
         evidence_spans: Vec::new(),
-        self_consistency: 1.0,
+        resample_stability: 1.0,
     }
 }
 
@@ -535,11 +538,11 @@ mod tests {
         let chosen = assemble_resampled_verdict(sampled);
 
         assert_eq!(chosen.verdict, Verdict::Contested);
-        assert!(chosen.self_consistency < 1.0);
-        // Regression invariant: verdict and self_consistency must never be
-        // contradictory -- full disagreement (low self_consistency) implies
+        assert!(chosen.resample_stability < 1.0);
+        // Regression invariant: verdict and resample_stability must never be
+        // contradictory -- full disagreement (low resample_stability) implies
         // Contested, never a single confident sample's answer.
-        if chosen.self_consistency < (2.0 / 3.0) {
+        if chosen.resample_stability < (2.0 / 3.0) {
             assert_eq!(chosen.verdict, Verdict::Contested);
         }
     }
@@ -558,7 +561,7 @@ mod tests {
         // Representative sample among the matching ones is the
         // highest-confidence Supported sample.
         assert_eq!(chosen.confidence, 0.9);
-        assert_eq!(chosen.self_consistency, 2.0 / 3.0);
+        assert_eq!(chosen.resample_stability, 2.0 / 3.0);
     }
 
     #[test]

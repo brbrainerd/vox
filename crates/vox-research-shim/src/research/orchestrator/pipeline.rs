@@ -383,14 +383,8 @@ pub async fn run_research_with_context_and_session(
     }
 
     // ── (e) Confidence gate → routing decision ────────────────────────────────
-    // NOTE: ClaimVerdict now also carries `self_consistency` (Task 7,
-    // 2026-08-01 deep-research trust/novelty plan) — a follow-up could
-    // weight supported_claim_count by consistency rather than treating
-    // every "Supported" verdict as equally reliable. Not wired yet.
-    let supported_claim_count = claim_verdicts
-        .iter()
-        .filter(|v| matches!(v.verdict, super::super::verifier::Verdict::Supported))
-        .count();
+    let supported_claim_count =
+        weighted_supported_claim_score(&claim_verdicts).round() as usize;
     let distinct_domain_count = {
         use std::collections::HashSet;
         let mut domains = HashSet::<String>::new();
@@ -688,6 +682,20 @@ async fn set_session_stage(db: Option<&Codex>, session_id: i64, stage: ResearchS
     }
 }
 
+/// Weights each `Supported` claim's contribution to the gate's citation
+/// coverage signal by how stable its verdict was across LLM resamples — a
+/// claim that flipped between Supported/Contested across resamples
+/// (low `resample_stability`) counts for less than one that was
+/// consistently Supported, rather than every Supported verdict counting
+/// identically regardless of reliability.
+fn weighted_supported_claim_score(verdicts: &[super::super::verifier::ClaimVerdict]) -> f32 {
+    verdicts
+        .iter()
+        .filter(|v| matches!(v.verdict, super::super::verifier::Verdict::Supported))
+        .map(|v| v.resample_stability as f32)
+        .sum()
+}
+
 fn dedupe_hits_by_url(hits: &mut Vec<ResearchHit>) {
     let mut seen = std::collections::HashSet::new();
     hits.retain(|hit| seen.insert(hit.url.clone()));
@@ -941,7 +949,7 @@ mod tests {
                 text: "supports durable research artifacts".to_string(),
                 span_type: SpanType::Supporting,
             }],
-            self_consistency: 1.0,
+            resample_stability: 1.0,
         }];
 
         let audit = audit_citations(&citations, &verdicts);
@@ -950,5 +958,52 @@ mod tests {
         assert_eq!(audit.supported_citations, 1);
         assert!(audit.unsupported_citation_indices.is_empty());
         assert_eq!(audit.precision, 1.0);
+    }
+
+    #[test]
+    fn supported_claim_weighted_by_resample_stability() {
+        use super::super::super::claims::Claim;
+        use super::super::super::verifier::ClaimVerdict;
+
+        let stable_claim = ClaimVerdict {
+            claim: Claim {
+                claim_id: 1,
+                text: "Stable claim".to_string(),
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+            },
+            verdict: Verdict::Supported,
+            confidence: 0.9,
+            supporting_count: 3,
+            contradicting_count: 0,
+            evidence_spans: vec![],
+            resample_stability: 1.0,
+        };
+        let flaky_claim = ClaimVerdict {
+            claim: Claim {
+                claim_id: 2,
+                text: "Flaky claim".to_string(),
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+            },
+            verdict: Verdict::Supported,
+            confidence: 0.6,
+            supporting_count: 1,
+            contradicting_count: 0,
+            evidence_spans: vec![],
+            resample_stability: 0.34,
+        };
+
+        let weighted_stable = weighted_supported_claim_score(&[stable_claim]);
+        let weighted_flaky = weighted_supported_claim_score(&[flaky_claim]);
+
+        assert!(
+            weighted_stable > weighted_flaky,
+            "a stable-verdict claim must contribute more to the gate than a flaky one"
+        );
+        assert_eq!(weighted_stable, 1.0);
+        assert_eq!(weighted_flaky, 0.34);
     }
 }
