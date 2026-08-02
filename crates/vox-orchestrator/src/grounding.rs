@@ -125,6 +125,60 @@ pub fn classify_line_claim_kind(line: &str) -> ClaimKind {
     ClaimKind::Factual
 }
 
+/// Result of the opt-in, non-blocking post-reply grounding/hallucination
+/// check (see [`crate::events::AgentEventKind::GroundingCheckCompleted`]).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GroundingCheckResult {
+    /// Fraction (0.0-1.0) of judged clauses that were NOT classified
+    /// [`ClaimKind::Speculative`]. 1.0 when there was nothing to judge.
+    pub confidence: f64,
+    /// True when `confidence` fell below [`GROUNDING_FLAG_THRESHOLD`].
+    pub flagged: bool,
+}
+
+/// Confidence threshold below which [`assess_reply_confidence`] flags a
+/// reply. Chosen so a reply needs a clear majority of its judged clauses to
+/// read as hedged/uncertain before the GUI surfaces a badge — a single
+/// hedge word in an otherwise confident multi-clause reply should not trip
+/// it.
+pub const GROUNDING_FLAG_THRESHOLD: f64 = 0.6;
+
+/// Cheap, deterministic post-reply confidence check: reuses the same
+/// per-clause claim classifier ([`classify_line_claim_kind`]) that factual-mode
+/// citation gating already relies on. A reply whose clauses are mostly
+/// hedged ("might", "unclear", "I think", ...) scores low confidence and is
+/// flagged. This is intentionally NOT a second LLM call — the doc comment on
+/// `GroundingCheckCompleted` promises the check "never delays the reply", so
+/// it must be near-instant and run after the reply has already streamed.
+/// Procedural clauses (steps/instructions) carry no confidence signal and
+/// are excluded from the ratio so a numbered how-to reply doesn't get
+/// penalized just for using imperative verbs.
+#[must_use]
+pub fn assess_reply_confidence(reply: &str) -> GroundingCheckResult {
+    let judged: Vec<ClaimKind> = split_summary_into_claim_segments(reply)
+        .into_iter()
+        .map(classify_line_claim_kind)
+        .filter(|k| !matches!(k, ClaimKind::Procedural))
+        .collect();
+    if judged.is_empty() {
+        // Nothing to judge (empty, or entirely procedural/too-short clauses)
+        // — neutral confidence, never flagged.
+        return GroundingCheckResult {
+            confidence: 1.0,
+            flagged: false,
+        };
+    }
+    let speculative = judged
+        .iter()
+        .filter(|k| matches!(k, ClaimKind::Speculative))
+        .count();
+    let confidence = 1.0 - (speculative as f64 / judged.len() as f64);
+    GroundingCheckResult {
+        confidence,
+        flagged: confidence < GROUNDING_FLAG_THRESHOLD,
+    }
+}
+
 /// Split completion summaries into clauses for factual-mode scans.
 ///
 /// Uses newlines, `;`, `!`, `?`, and `.` only when the period ends a sentence (next char is
@@ -469,6 +523,59 @@ pub fn agentos_suggested_tools_from_intent(intent: &str, max_steps: usize) -> Ve
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn assess_reply_confidence_flags_heavily_hedged_reply() {
+        let reply = "Perhaps this is the cause. It might be a race condition. \
+                      I think the lock is unclear here. This is probably the bug.";
+        let result = assess_reply_confidence(reply);
+        assert!(
+            result.flagged,
+            "mostly-hedged reply should be flagged: {result:?}"
+        );
+        assert!(result.confidence < GROUNDING_FLAG_THRESHOLD);
+    }
+
+    #[test]
+    fn assess_reply_confidence_does_not_flag_confident_reply() {
+        let reply = "The function returns the sum of the two arguments. \
+                      It validates that both inputs are non-negative first.";
+        let result = assess_reply_confidence(reply);
+        assert!(
+            !result.flagged,
+            "confident factual reply should not be flagged: {result:?}"
+        );
+        assert_eq!(result.confidence, 1.0);
+    }
+
+    #[test]
+    fn assess_reply_confidence_ignores_purely_procedural_reply() {
+        let reply = "Run cargo test. Then open the PR. Rebase onto main first.";
+        let result = assess_reply_confidence(reply);
+        assert!(
+            !result.flagged,
+            "purely procedural reply has no confidence signal: {result:?}"
+        );
+        assert_eq!(result.confidence, 1.0);
+    }
+
+    #[test]
+    fn assess_reply_confidence_empty_reply_is_neutral() {
+        let result = assess_reply_confidence("");
+        assert!(!result.flagged);
+        assert_eq!(result.confidence, 1.0);
+    }
+
+    #[test]
+    fn assess_reply_confidence_mixed_reply_scores_between() {
+        let reply = "The config file lives at src/config.rs. \
+                      Perhaps it also needs a migration, unclear without checking.";
+        let result = assess_reply_confidence(reply);
+        assert!(
+            result.confidence > 0.0 && result.confidence < 1.0,
+            "{result:?}"
+        );
+    }
 
     #[test]
     fn agentos_intent_maps_tests_to_run_tool() {

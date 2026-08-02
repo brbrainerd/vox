@@ -481,6 +481,7 @@ impl Orchestrator {
                 current.audit_report.clone(),
                 bandit_model_id,
                 current.tenant_id.clone(),
+                current.grounding_check_enabled,
             )
         };
 
@@ -496,6 +497,7 @@ impl Orchestrator {
             audit_report,
             bandit_model_id,
             tenant_id,
+            grounding_check_enabled,
         ) = completion_data;
 
         let (snap_before, db_snap_before) =
@@ -571,6 +573,25 @@ impl Orchestrator {
 
         for path in &write_files {
             self.lock_manager.release(path, agent_id);
+        }
+
+        // Opt-in, non-blocking post-reply grounding/hallucination check
+        // (T1.5 follow-up): runs after the task's own work is already done —
+        // never delays completion — against whatever narrative text the task
+        // produced (the audit report if the gate cascade generated one,
+        // otherwise the task description). Emitted before `TaskCompleted` so
+        // a consumer correlating on `task_id` sees the confidence signal no
+        // later than completion.
+        if grounding_check_enabled {
+            let judged_text = audit_report.as_deref().unwrap_or(&desc);
+            let result = crate::grounding::assess_reply_confidence(judged_text);
+            self.event_bus
+                .emit(crate::events::AgentEventKind::GroundingCheckCompleted {
+                    agent_id,
+                    task_id,
+                    confidence: result.confidence,
+                    flagged: result.flagged,
+                });
         }
 
         MessageGateway::publish_task_completed(
@@ -741,6 +762,130 @@ mod attribution_tests {
             orch.status().total_completed,
             1,
             "chat task must be marked complete rather than looping through gate requeues"
+        );
+    }
+
+    /// End-to-end producer test for the background-task grounding check
+    /// (T1.5 follow-up): a task submitted with `grounding_check_enabled`
+    /// must emit `GroundingCheckCompleted` on the real `EventBus` at
+    /// completion time, scored against the task's own audit report.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn grounding_check_enabled_task_emits_completed_event() {
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let mut rx = orch.event_bus.subscribe();
+        let hints = crate::types::TaskEnqueueHints {
+            task_category: Some(crate::types::TaskCategory::Chat),
+            grounding_check_enabled: Some(true),
+            ..Default::default()
+        };
+        let task_id = orch
+            .submit_task_with_agent(
+                "Explain the bug.",
+                vec![],
+                None,
+                None,
+                None,
+                Some(hints),
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+        let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
+        {
+            let queue_lock = orch.agent_queue(agent_id).unwrap();
+            let mut queue = queue_lock.write().unwrap();
+            queue.dequeue();
+            if let Some(t) = queue.current_task_mut() {
+                // Heavily hedged narrative — the check should flag it.
+                t.audit_report = Some(
+                    "Perhaps this is the cause. It might be a race condition. \
+                     I think the lock is unclear here. This is probably the bug."
+                        .to_string(),
+                );
+            }
+        }
+
+        orch.complete_task(task_id).await.expect("complete task");
+
+        // Drain the bus for the GroundingCheckCompleted frame (TaskCompleted
+        // fires right after it — see the completion call site's ordering).
+        let mut found = None;
+        for _ in 0..16 {
+            match tokio::time::timeout(vox_config::timeouts::D_100MS, rx.recv()).await {
+                Ok(Ok(event)) => {
+                    if let crate::events::AgentEventKind::GroundingCheckCompleted {
+                        task_id: tid,
+                        flagged,
+                        ..
+                    } = event.kind
+                    {
+                        assert_eq!(tid, task_id);
+                        found = Some(flagged);
+                        break;
+                    }
+                }
+                _ => break,
+            }
+        }
+        assert_eq!(
+            found,
+            Some(true),
+            "expected a GroundingCheckCompleted{{flagged: true}} event for a hedged audit report"
+        );
+    }
+
+    /// Sibling to the above: when `grounding_check_enabled` is unset (the
+    /// default), no `GroundingCheckCompleted` event may be emitted at all —
+    /// this is the opt-in contract.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn grounding_check_disabled_task_emits_no_completed_event() {
+        let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+        let mut rx = orch.event_bus.subscribe();
+        let hints = crate::types::TaskEnqueueHints {
+            task_category: Some(crate::types::TaskCategory::Chat),
+            ..Default::default()
+        };
+        let task_id = orch
+            .submit_task_with_agent(
+                "Explain the bug.",
+                vec![],
+                None,
+                None,
+                None,
+                Some(hints),
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+        let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
+        {
+            let queue_lock = orch.agent_queue(agent_id).unwrap();
+            let mut queue = queue_lock.write().unwrap();
+            queue.dequeue();
+        }
+
+        orch.complete_task(task_id).await.expect("complete task");
+
+        let mut saw_grounding_event = false;
+        for _ in 0..16 {
+            match tokio::time::timeout(vox_config::timeouts::D_100MS, rx.recv()).await {
+                Ok(Ok(event)) => {
+                    if matches!(
+                        event.kind,
+                        crate::events::AgentEventKind::GroundingCheckCompleted { .. }
+                    ) {
+                        saw_grounding_event = true;
+                        break;
+                    }
+                }
+                _ => break,
+            }
+        }
+        assert!(
+            !saw_grounding_event,
+            "grounding check must be opt-in: no event when disabled"
         );
     }
 }

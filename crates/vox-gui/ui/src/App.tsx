@@ -887,6 +887,7 @@ export default function App() {
           session_id: sessionId,
           content: payload.description,
           active_skill: payload.active_skill ?? activeSkill?.id ?? null,
+          grounding_check_enabled: payload.grounding_check_enabled ?? undefined,
         });
         // chat_send_message already persisted this exact reply server-side
         // (that's the point of the synchronous path — see chatSend.ts). Mark
@@ -919,6 +920,7 @@ export default function App() {
               modelId: reply.modelId,
               latencyMs: reply.latencyMs,
               selectionReason: reply.selectionReason,
+              groundingFlagged: reply.groundingFlagged,
             },
           },
         });

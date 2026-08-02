@@ -953,6 +953,9 @@ export interface ChatSendInput {
   session_id: string;
   content: string;
   active_skill?: string | null;
+  /** Opt-in, non-blocking post-reply grounding/hallucination check (see
+   *  `GroundingCheckToggle.tsx` and Rust `ChatSendInput::grounding_check_enabled`). */
+  grounding_check_enabled?: boolean | null;
 }
 
 /** Mirrors Rust `ChatMessageDto` returned by `chat_send_message`. */
@@ -965,6 +968,8 @@ export interface ChatMessageDto {
   model_id?: string;
   latency_ms?: number;
   selection_reason?: string;
+  /** True when the opt-in grounding check flagged this reply as low-confidence. */
+  grounding_flagged?: boolean;
 }
 
 /**

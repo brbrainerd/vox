@@ -40,6 +40,12 @@ pub struct ChatMessageDto {
     /// (synchronous chat replies only — see `chat_send_message`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selection_reason: Option<String>,
+    /// True when the opt-in post-reply grounding check (see
+    /// `ChatSendInput::grounding_check_enabled`) flagged this reply as
+    /// low-confidence. `None` when the check was not run (disabled, or an
+    /// older message predating this field).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grounding_flagged: Option<bool>,
 }
 
 #[tauri::command]
@@ -100,7 +106,7 @@ pub async fn chat_get_messages(
     Ok(rows
         .into_iter()
         .map(|(id, role, content, created_at, payload)| {
-            let (task_id, model_id, latency_ms, selection_reason) = payload
+            let (task_id, model_id, latency_ms, selection_reason, grounding_flagged) = payload
                 .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
                 .map(|v| {
                     let task_id = v
@@ -116,9 +122,16 @@ pub async fn chat_get_messages(
                         .get("selection_reason")
                         .and_then(|s| s.as_str())
                         .map(str::to_string);
-                    (task_id, model_id, latency_ms, selection_reason)
+                    let grounding_flagged = v.get("grounding_flagged").and_then(|g| g.as_bool());
+                    (
+                        task_id,
+                        model_id,
+                        latency_ms,
+                        selection_reason,
+                        grounding_flagged,
+                    )
                 })
-                .unwrap_or((None, None, None, None));
+                .unwrap_or((None, None, None, None, None));
             ChatMessageDto {
                 id,
                 role,
@@ -128,6 +141,7 @@ pub async fn chat_get_messages(
                 model_id,
                 latency_ms,
                 selection_reason,
+                grounding_flagged,
             }
         })
         .collect())
@@ -335,6 +349,11 @@ pub struct ChatSendInput {
     pub content: String,
     #[serde(default)]
     pub active_skill: Option<String>,
+    /// Opt-in, non-blocking post-reply grounding/hallucination check (see
+    /// `GroundingCheckToggle.tsx` and `vox_orchestrator::grounding::assess_reply_confidence`).
+    /// Defaults to disabled when omitted (older frontends, /spawn, tests).
+    #[serde(default)]
+    pub grounding_check_enabled: Option<bool>,
 }
 
 /// Parsed reply extracted from a `vox_chat_message` `ToolResult` envelope.
@@ -414,8 +433,13 @@ async fn persist_assistant_reply(
     model_id: Option<&str>,
     latency_ms: Option<u64>,
     selection_reason: Option<&str>,
+    grounding_flagged: Option<bool>,
 ) -> Result<ChatMessageDto, String> {
-    let payload = if model_id.is_some() || latency_ms.is_some() || selection_reason.is_some() {
+    let payload = if model_id.is_some()
+        || latency_ms.is_some()
+        || selection_reason.is_some()
+        || grounding_flagged.is_some()
+    {
         let mut obj = serde_json::Map::new();
         if let Some(m) = model_id {
             obj.insert(
@@ -431,6 +455,9 @@ async fn persist_assistant_reply(
                 "selection_reason".to_string(),
                 serde_json::Value::String(r.to_string()),
             );
+        }
+        if let Some(g) = grounding_flagged {
+            obj.insert("grounding_flagged".to_string(), serde_json::json!(g));
         }
         Some(serde_json::Value::Object(obj).to_string())
     } else {
@@ -453,6 +480,7 @@ async fn persist_assistant_reply(
         model_id: model_id.map(str::to_string),
         latency_ms,
         selection_reason: selection_reason.map(str::to_string),
+        grounding_flagged,
     })
 }
 
@@ -507,6 +535,16 @@ pub async fn chat_send_message<R: tauri::Runtime>(
         .map_err(|e| e.to_string())?;
     let reply = parse_chat_message_envelope(&envelope)?;
 
+    // Opt-in, non-blocking post-reply grounding check: runs after the reply
+    // is already in hand (a cheap deterministic heuristic, not a second LLM
+    // call — see `assess_reply_confidence`'s doc comment), so it never
+    // delays the response the user sees.
+    let grounding_flagged = if input.grounding_check_enabled == Some(true) {
+        Some(vox_orchestrator::grounding::assess_reply_confidence(&reply.content).flagged)
+    } else {
+        None
+    };
+
     let db = pool_db(&pool)?;
     let conv_id = db
         .chat_ensure_gui_session(&input.session_id, "Chat")
@@ -519,6 +557,7 @@ pub async fn chat_send_message<R: tauri::Runtime>(
         reply.model_id.as_deref(),
         reply.latency_ms,
         reply.selection_reason.as_deref(),
+        grounding_flagged,
     )
     .await
 }
@@ -631,6 +670,7 @@ mod tests {
             model_id: Some("anthropic/claude-opus-4-5".to_string()),
             latency_ms: Some(842),
             selection_reason: Some("Chosen by the model scorer".to_string()),
+            grounding_flagged: Some(true),
         };
         let j = serde_json::to_string(&dto).unwrap();
         assert!(
@@ -642,6 +682,10 @@ mod tests {
         assert!(
             j.contains("\"selection_reason\":\"Chosen by the model scorer\""),
             "selection_reason present: {j}"
+        );
+        assert!(
+            j.contains("\"grounding_flagged\":true"),
+            "grounding_flagged present: {j}"
         );
     }
 
@@ -656,6 +700,7 @@ mod tests {
             model_id: None,
             latency_ms: None,
             selection_reason: None,
+            grounding_flagged: None,
         };
         let j = serde_json::to_string(&dto).unwrap();
         assert!(!j.contains("model_id"), "model_id absent when None: {j}");
@@ -666,6 +711,10 @@ mod tests {
         assert!(
             !j.contains("selection_reason"),
             "selection_reason absent when None: {j}"
+        );
+        assert!(
+            !j.contains("grounding_flagged"),
+            "grounding_flagged absent when None: {j}"
         );
     }
 
@@ -720,6 +769,7 @@ mod tests {
                 session_id: String::new(),
                 content: "hello".to_string(),
                 active_skill: None,
+                grounding_check_enabled: None,
             },
             pool,
             daemon,
@@ -788,6 +838,7 @@ mod tests {
             Some("openrouter/auto"),
             Some(1234),
             Some("Chosen by the model scorer"),
+            Some(true),
         )
         .await
         .expect("persist ok");
@@ -799,10 +850,11 @@ mod tests {
             dto.selection_reason.as_deref(),
             Some("Chosen by the model scorer")
         );
+        assert_eq!(dto.grounding_flagged, Some(true));
         assert!(!dto.created_at.is_empty(), "created_at must not be blank");
 
-        // Round-trip through chat_get_messages to prove latency_ms/selection_reason
-        // survive the payload JSON persisted into `conversation_messages`.
+        // Round-trip through chat_get_messages to prove latency_ms/selection_reason/
+        // grounding_flagged survive the payload JSON persisted into `conversation_messages`.
         let msgs = db
             .chat_get_gui_messages("sess-persist", 10)
             .await
@@ -816,6 +868,20 @@ mod tests {
             payload["selection_reason"],
             serde_json::json!("Chosen by the model scorer")
         );
+        assert_eq!(payload["grounding_flagged"], serde_json::json!(true));
+    }
+
+    #[tokio::test]
+    async fn chat_send_message_computes_grounding_flagged_when_enabled() {
+        // Unit-level check that `assess_reply_confidence` on a heavily-hedged
+        // reply (the shape `chat_send_message` feeds it) yields `flagged`,
+        // matching what `chat_send_message` would persist when
+        // `grounding_check_enabled` is set. `chat_send_message` itself needs
+        // a live daemon round-trip and is covered by the harness eval /
+        // manual GUI flow instead of a unit test here.
+        let hedged = "Perhaps this is the cause. It might be unclear. This is probably wrong.";
+        let result = vox_orchestrator::grounding::assess_reply_confidence(hedged);
+        assert!(result.flagged, "{result:?}");
     }
 
     #[test]

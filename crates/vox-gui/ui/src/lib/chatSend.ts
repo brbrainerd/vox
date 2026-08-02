@@ -11,6 +11,9 @@ export interface ParsedChatReply {
   latencyMs?: number;
   selectionReason?: string;
   createdAt: string;
+  /** True when the opt-in post-reply grounding check flagged this reply as
+   *  low-confidence (only set when the caller passed `grounding_check_enabled`). */
+  groundingFlagged?: boolean;
 }
 
 export function parseSendReply(dto: ChatMessageDto): ParsedChatReply {
@@ -22,6 +25,7 @@ export function parseSendReply(dto: ChatMessageDto): ParsedChatReply {
     latencyMs: dto.latency_ms,
     selectionReason: dto.selection_reason,
     createdAt: dto.created_at,
+    groundingFlagged: dto.grounding_flagged,
   };
 }
 
