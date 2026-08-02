@@ -1098,11 +1098,11 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("csv", "parse") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_csv_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_csv_parse(({}).as_str()) {{ Ok(v) => Ok(::vox_actor_runtime::builtins::VoxJson(v)), Err(m) => Err(m) }})",
             args[0]
         )),
         ("csv", "parse_records") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_csv_parse_records(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_csv_parse_records(({}).as_str()) {{ Ok(v) => Ok(::vox_actor_runtime::builtins::VoxJson(v)), Err(m) => Err(m) }})",
             args[0]
         )),
         ("csv", "render") if !args.is_empty() => Some(format!(
