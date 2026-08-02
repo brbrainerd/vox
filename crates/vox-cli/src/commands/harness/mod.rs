@@ -6,6 +6,7 @@ use clap::{Parser, Subcommand};
 pub mod eval;
 pub mod live_eval;
 pub mod publish;
+pub mod report;
 
 /// Evaluate the harness itself against a small golden task set (`vox harness`).
 #[derive(Parser)]
@@ -23,11 +24,18 @@ pub enum HarnessCmd {
     /// any rows already published by others), so `git pull` is enough to sync results — see
     /// `publish` module docs.
     Publish(publish::PublishArgs),
+    /// List recent persisted harness eval runs (`vox harness history`).
+    History(report::HistoryArgs),
+    /// Compare the two most recent runs (or since a given run_id) and flag regressions
+    /// (`vox harness report`).
+    Report(report::ReportArgs),
 }
 
 pub async fn run(cmd: HarnessCmd) -> anyhow::Result<()> {
     match cmd {
         HarnessCmd::Eval(args) => eval::run(args).await,
         HarnessCmd::Publish(args) => publish::run(args).await,
+        HarnessCmd::History(args) => report::run_history(args).await,
+        HarnessCmd::Report(args) => report::run_report(args).await,
     }
 }
