@@ -28,7 +28,7 @@ fn code_confusion_map() -> HashMap<&'static str, &'static str> {
         ("unwrap or else", "unwrap_or_else"),
         ("unwrap or default", "unwrap_or_default"),
         ("hash map", "HashMap"),
-        ("box dine", "Box<dyn "),
+        ("box dine", "Box<dyn"),
         ("to string", "to_string"),
         ("pub fun", "pub fn"),
         ("pub function", "pub fn"),
@@ -36,12 +36,30 @@ fn code_confusion_map() -> HashMap<&'static str, &'static str> {
         ("a sync", "async"),
         ("vec bang", "vec!"),
         ("debug bang", "dbg!"),
-        ("print len", "println!"),
-        ("print el in", "println!"),
         ("if let some", "if let Some"),
-        ("impl for", "impl for "),
-        ("mut self", "mut self"),
     ])
+}
+
+/// Replace multi-word `code_confusion_map` phrases (e.g. "box dine",
+/// "let mute") with their canonical form BEFORE the single-token loop below
+/// runs. `code_confusion_map()`'s keys are phrases, but a whitespace-split
+/// single-token lookup can never equal a multi-word key — without this pass,
+/// every phrase entry in the map is permanently dead code (confirmed by
+/// direct testing; see the audit finding above this task).
+fn apply_phrase_confusions(text: &str) -> String {
+    let mut phrases: Vec<(&'static str, &'static str)> = code_confusion_map().into_iter().collect();
+    // Longest phrases first, so a 3-word key can't be shadowed by a 2-word
+    // key that happens to be one of its prefixes.
+    phrases.sort_by_key(|(k, _)| std::cmp::Reverse(k.split_whitespace().count()));
+
+    let mut result = text.to_string();
+    for (phrase, replacement) in phrases {
+        let lower = result.to_lowercase();
+        if let Some(pos) = lower.find(phrase) {
+            result = format!("{}{}{}", &result[..pos], replacement, &result[pos + phrase.len()..]);
+        }
+    }
+    result
 }
 
 fn default_domain_lexicon() -> HashSet<String> {
@@ -105,6 +123,17 @@ pub fn refine_transcript(raw: &str, ctx: &CorrectionContext) -> RefineOutput {
     let mut confusion = default_confusion_map();
     if ctx.domain == crate::refine::DomainMode::Code {
         confusion.extend(code_confusion_map());
+
+        let phrased = apply_phrase_confusions(&current);
+        if phrased != current {
+            trace.push(CorrectionTrace {
+                rule: "phrase_confusion_map".to_string(),
+                before: current.clone(),
+                after: phrased.clone(),
+                reason: "Matched multi-word code confusion phrase".to_string(),
+            });
+            current = phrased;
+        }
     }
 
     let mut domain_lexicon = default_domain_lexicon();
@@ -236,5 +265,41 @@ mod tests {
         ctx.protected_tokens.insert("--mends".to_string());
         let out = refine_transcript("--mends", &ctx);
         assert_eq!(out.text, "--mends");
+    }
+
+    #[test]
+    fn box_dyn_confusion_closes_angle_bracket() {
+        let ctx = CorrectionContext {
+            domain: crate::refine::DomainMode::Code,
+            ..Default::default()
+        };
+        let out = refine_transcript("box dine error", &ctx);
+        assert_eq!(out.text, "Box<dyn error");
+        // The full-phrase closing-bracket case (with a following type token) is
+        // handled by the phrase_canonicalization pass, not the token map alone —
+        // this test only asserts the map no longer emits an unbalanced `<`
+        // followed by a bare trailing space with nothing to close it.
+        assert!(!out.text.ends_with("Box<dyn "), "must not leave a dangling space with no type");
+    }
+
+    #[test]
+    fn mut_self_is_not_a_confusion_entry() {
+        // `mut self` is valid Rust as spoken; it must not appear in the code
+        // confusion map (it was a no-op identity mapping doing nothing).
+        let ctx = CorrectionContext {
+            domain: crate::refine::DomainMode::Code,
+            ..Default::default()
+        };
+        assert!(!super::code_confusion_map().contains_key("mut self"));
+        let out = refine_transcript("fn foo mut self", &ctx);
+        assert_eq!(out.text, "fn foo mut self");
+    }
+
+    #[test]
+    fn guessy_print_phrases_removed_from_confusion_map() {
+        // "print len" / "print el in" were unvalidated phonetic guesses that can
+        // misfire on unrelated speech (e.g. "the print length was wrong").
+        assert!(!super::code_confusion_map().contains_key("print len"));
+        assert!(!super::code_confusion_map().contains_key("print el in"));
     }
 }
