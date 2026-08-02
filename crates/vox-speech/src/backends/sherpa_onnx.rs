@@ -26,11 +26,33 @@ impl SherpaOnnxBackend {
     /// faster, more accurate engine (see the STT accuracy design doc). Falls
     /// back to the Whisper-shaped config only when `VOX_ORATIO_SHERPA_KIND=whisper`
     /// is explicitly set, so existing local Whisper-model setups keep working.
+    ///
+    /// `VOX_ORATIO_SHERPA_KIND` is a distinct axis from `VOX_ORATIO_BACKEND`
+    /// (which picks Sherpa vs. Candle Whisper entirely, at a higher layer,
+    /// in `backend_dispatch.rs`): this one only selects the model *family*
+    /// once Sherpa has already been chosen. Same literal value ("whisper"),
+    /// different env var, different meaning — don't conflate the two.
+    ///
+    /// **Known gotcha**: `resolve_sherpa_model_paths` (Whisper) and
+    /// `resolve_sherpa_transducer_model_paths` (this default path) both key
+    /// off the same `VOX_ORATIO_SHERPA_MODEL_DIR` override, but expect
+    /// different files in that directory (Whisper needs no `joiner.onnx`;
+    /// transducer does). A local dir set up for one shape and read under the
+    /// other fails at `OfflineRecognizer::create` with only a generic
+    /// "check model paths" error — if you're pointing
+    /// `VOX_ORATIO_SHERPA_MODEL_DIR` at a local model dir, also set
+    /// `VOX_ORATIO_SHERPA_KIND` to match its shape.
     pub fn new() -> Result<Self> {
-        let kind = std::env::var("VOX_ORATIO_SHERPA_KIND").unwrap_or_default();
+        let kind_env = std::env::var("VOX_ORATIO_SHERPA_KIND").unwrap_or_default();
+        let is_whisper = kind_env.eq_ignore_ascii_case("whisper");
+        // Canonical label for logs/errors — never the raw env value, so a
+        // typo'd `VOX_ORATIO_SHERPA_KIND` (e.g. "whispr") can't misleadingly
+        // echo back as if it were recognized; it silently falls through to
+        // the transducer default and the log honestly says so.
+        let kind_label = if is_whisper { "whisper" } else { "transducer" };
         let mut config = OfflineRecognizerConfig::default();
 
-        if kind.eq_ignore_ascii_case("whisper") {
+        if is_whisper {
             let paths = resolve_sherpa_model_paths()?;
             config.model_config.whisper = OfflineWhisperModelConfig {
                 encoder: Some(paths.encoder.to_string_lossy().to_string()),
@@ -52,13 +74,13 @@ impl SherpaOnnxBackend {
         config.model_config.debug = false;
 
         let recognizer = OfflineRecognizer::create(&config).ok_or_else(|| {
-            anyhow::anyhow!("Sherpa-ONNX init failed (kind={kind:?}, check model paths)")
+            anyhow::anyhow!("Sherpa-ONNX init failed (kind={kind_label}, check model paths)")
         })?;
 
         tracing::info!(
             target: "vox_oratio_sherpa",
             event = "sherpa_backend_init",
-            kind = if kind.is_empty() { "transducer" } else { kind.as_str() },
+            kind = kind_label,
             "Sherpa-ONNX backend initialized"
         );
         Ok(Self {

@@ -137,10 +137,14 @@ impl TranscribeDetail {
 pub fn transcript_status() -> &'static str {
     #[cfg(all(feature = "stt-sherpa", feature = "stt-candle"))]
     return "Vox Oratio: dual backends compiled — Sherpa-ONNX + Candle Whisper. \
-            Active backend: VOX_ORATIO_BACKEND (auto|whisper|sherpa).";
+            Active backend: VOX_ORATIO_BACKEND (auto|whisper|sherpa). Within Sherpa, \
+            model family: VOX_ORATIO_SHERPA_KIND (transducer/Parakeet by default, or \
+            \"whisper\" for the Whisper-shaped model) — a distinct axis from \
+            VOX_ORATIO_BACKEND.";
 
     #[cfg(all(feature = "stt-sherpa", not(feature = "stt-candle")))]
     return "Vox Oratio: Sherpa-ONNX STT backend active. Env: VOX_ORATIO_BACKEND, \
+            VOX_ORATIO_SHERPA_KIND (transducer/Parakeet by default, or \"whisper\"), \
             VOX_ORATIO_SHERPA_MODEL, VOX_ORATIO_SHERPA_MODEL_DIR.";
 
     #[cfg(all(feature = "stt-candle", not(feature = "stt-sherpa")))]
