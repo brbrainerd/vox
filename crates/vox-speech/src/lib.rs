@@ -9,6 +9,17 @@
 mod language;
 mod runtime_config;
 
+/// Serializes tests across the crate that mutate shared global env vars
+/// (e.g. `VOX_ORATIO_SHERPA_MODEL_DIR`, read by both
+/// `backends::sherpa_model_config` and `backend_dispatch` tests). `cargo
+/// test` runs test functions concurrently by default; a comment-only
+/// "don't run this in parallel" convention is not enough once more than one
+/// file touches the same var.
+#[cfg(test)]
+pub(crate) mod env_test_lock {
+    pub static SHERPA_MODEL_DIR_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+}
+
 pub mod acoustic_preprocess;
 
 pub use acoustic_preprocess::{AcousticPreprocessDiagnostics, preprocess_audio_pcm_f32_reported};
