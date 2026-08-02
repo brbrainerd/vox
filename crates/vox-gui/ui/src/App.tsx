@@ -102,6 +102,7 @@ type View =
   | 'mesh'
   | 'gamify'
   | 'harness'
+  | 'harness-health'
   | 'browser'
   | 'console'
   | 'coderabbit'
@@ -135,7 +136,7 @@ type View =
 
 const LEGACY_VIEWS: string[] = [
   'dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository',
-  'mesh', 'gamify', 'harness', 'browser', 'console', 'coderabbit', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
+  'mesh', 'gamify', 'harness', 'harness-health', 'browser', 'console', 'coderabbit', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
   'publications', 'search', 'vox-search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute', 'mercatus',
   'review', 'tasks', 'sub-agents',

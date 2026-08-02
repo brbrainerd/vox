@@ -11,6 +11,7 @@ import { RepositoryView } from '../surfaces/Repository/RepositoryView';
 import { MeshView } from '../surfaces/Mesh/MeshView';
 import { GamifyView } from '../surfaces/Gamify/GamifyView';
 import { HarnessRedirect } from '../surfaces/Harness/HarnessRedirect';
+import { HarnessHealthView } from '../surfaces/HarnessHealth/HarnessHealthView';
 import { BrowserView } from '../surfaces/Browser/BrowserView';
 import { ApprovalsView } from '../surfaces/Approvals/ApprovalsView';
 import { CodeRabbitView } from '../surfaces/CodeRabbit/CodeRabbitView';
@@ -148,6 +149,8 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           gamifyEnabled={props.gamifyEnabled}
         />
       );
+    case 'harness-health':
+      return <HarnessHealthView />;
     case 'browser':
       return <BrowserView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'console':

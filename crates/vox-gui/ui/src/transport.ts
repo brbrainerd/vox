@@ -16,6 +16,38 @@ import type { TownScan } from './components/gamify/urbs/types';
 // alongside the other Tauri command types; re-exported here for callers of the hub.
 export type { OpenLocator, OpenOutcome } from './types/tauri';
 
+/** A single category's pass/fail tally within a harness eval run (Harness Health surface). */
+export interface CategorySummaryDto {
+  category: string;
+  pass_count: number;
+  fail_count: number;
+}
+
+/** One persisted `vox harness eval --live` run, as returned by `harness_eval_history`. */
+export interface HarnessEvalRunDto {
+  run_id: string;
+  git_sha: string;
+  triggered_by: string;
+  pass_count: number;
+  fail_count: number;
+  skip_count: number;
+  total_cost_usd: number;
+  started_at_ms: number;
+  category_breakdown: CategorySummaryDto[];
+}
+
+/** A detected regression between two consecutive harness eval runs. */
+export interface RegressionFlagDto {
+  kind: string;
+  previous_run_id: string;
+  current_run_id: string;
+  previous_git_sha: string;
+  current_git_sha: string;
+  changed_files: string[];
+  flipped_task_ids: string[];
+  detail: string;
+}
+
 // __VOX_RAW_IPC_BEGIN__
 // The ONLY permitted raw Tauri `invoke`/`listen` uses in this file.
 // Guarded by src/guards/transportIpcGuard.test.ts.
@@ -516,6 +548,16 @@ class VoxTransport {
 
   readDocMarkdown(path: string): Promise<string> {
     return safeInvoke('read_doc_markdown', { path });
+  }
+
+  /** Recent chat harness eval runs (Harness Health surface). */
+  harnessEvalHistory(limit = 50): Promise<HarnessEvalRunDto[]> {
+    return safeInvoke('harness_eval_history', { limit });
+  }
+
+  /** Detected regressions between consecutive chat harness eval runs. */
+  harnessEvalRegressions(): Promise<RegressionFlagDto[]> {
+    return safeInvoke('harness_eval_regressions');
   }
 
   /** VG-1 build-time GUI content manifest (gui-content-manifest.json). */

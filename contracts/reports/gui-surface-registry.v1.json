@@ -10,6 +10,7 @@
     "bundle",
     "bundle-app",
     "catalog",
+    "chat",
     "check",
     "ci",
     "codex",
@@ -34,6 +35,7 @@
     "generate",
     "grammar",
     "graph",
+    "harness",
     "init",
     "llm",
     "lock",
@@ -80,7 +82,10 @@
     "wasm",
     "workflow"
   ],
-  "surface_count": 104,
-  "unclassified_backfilled": [],
+  "surface_count": 107,
+  "unclassified_backfilled": [
+    "chat",
+    "harness"
+  ],
   "wiring_violations": []
 }
