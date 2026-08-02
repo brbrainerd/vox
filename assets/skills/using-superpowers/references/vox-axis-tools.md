@@ -28,4 +28,4 @@ until completion instead of awaiting a return value directly.
 |------|---------|
 | `vox_memory_store` / `vox_memory_recall` | Persist and retrieve facts across sessions (`crates/vox-plugin-skill-memory/memory.skill.md`) |
 | `vox_populi_local_status` | Inspect mens worker mesh labels/registry visibility |
-| `vox_graphify_status` / `vox_graphify_query` | Graph-first structural search (see the `graphify` skill once Phase 2 lands it natively; today this is the Claude-Code-only `vox-graph` skill's tool set) |
+| `vox_search_status` / `vox_search_structural` / `vox_search_neighbors` | Graph-first structural search (see the `graphify` skill once Phase 2 lands it natively; today this is the Claude-Code-only `vox-graph` skill's tool set — see `assets/skills/vox-graph/SKILL.md`) |
