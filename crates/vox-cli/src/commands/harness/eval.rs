@@ -57,6 +57,12 @@ pub struct EvalArgs {
     /// is not needed yet at this scale; add more flags if the task set grows).
     #[arg(long)]
     pub task: Option<String>,
+    /// Run the live-model-calling golden task corpus (see `live_eval.rs`) instead of the
+    /// hermetic gate. Makes real API calls, costs real money (bounded by
+    /// `live_eval::LIVE_EVAL_COST_CEILING_USD`), and is intended for scheduled/manual runs, not
+    /// every commit.
+    #[arg(long)]
+    pub live: bool,
 }
 
 /// One golden task: a name, a deterministic check function, and an optional
@@ -339,6 +345,33 @@ impl TaskOutcome {
 }
 
 pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
+    if args.live {
+        let (run, task_results, selection_events) =
+            crate::commands::harness::live_eval::run_live(args.samples, args.task.as_deref())
+                .await?;
+        println!(
+            "{} live run {}: {}/{} tasks passed, {} skipped, ${:.4} spent",
+            " HARNESS EVAL (LIVE) ".on_blue().white().bold(),
+            run.run_id,
+            run.pass_count,
+            run.task_count,
+            run.skip_count,
+            run.total_cost_usd
+        );
+        // Persistence (writing run/task_results/selection_events to vox-db) is wired in Task 6's
+        // `publish` command, which also needs DB access already — see that task for where the
+        // VoxDb handle is constructed and reused for both persistence and publishing.
+        let _ = (task_results, selection_events); // consumed by Task 6's persistence step
+        if run.fail_count > 0 {
+            anyhow::bail!(
+                "harness eval --live gate failed: {}/{} tasks did not pass",
+                run.fail_count,
+                run.task_count
+            );
+        }
+        return Ok(());
+    }
+
     if args.samples == 0 {
         bail!("--samples must be at least 1");
     }
@@ -595,6 +628,7 @@ mod tests {
         let args = EvalArgs {
             samples: 3,
             task: None,
+            live: false,
         };
         assert!(run(args).await.is_ok());
     }
@@ -610,6 +644,7 @@ mod tests {
         let args = EvalArgs {
             samples: 1,
             task: Some("live-model-smoke".to_string()),
+            live: false,
         };
         let result = run(args).await;
         // SAFETY: see above.
@@ -627,6 +662,7 @@ mod tests {
         let args = EvalArgs {
             samples: 0,
             task: None,
+            live: false,
         };
         assert!(run(args).await.is_err());
     }
@@ -636,6 +672,7 @@ mod tests {
         let args = EvalArgs {
             samples: MAX_SAMPLES + 1,
             task: None,
+            live: false,
         };
         assert!(run(args).await.is_err());
     }
@@ -645,6 +682,7 @@ mod tests {
         let args = EvalArgs {
             samples: MAX_SAMPLES,
             task: Some("temp-workspace-file-roundtrip".to_string()),
+            live: false,
         };
         assert!(run(args).await.is_ok());
     }
@@ -654,6 +692,7 @@ mod tests {
         let args = EvalArgs {
             samples: 1,
             task: Some("does-not-exist".to_string()),
+            live: false,
         };
         assert!(run(args).await.is_err());
     }
@@ -663,6 +702,7 @@ mod tests {
         let args = EvalArgs {
             samples: 2,
             task: Some("temp-workspace-file-roundtrip".to_string()),
+            live: false,
         };
         assert!(run(args).await.is_ok());
     }
