@@ -183,7 +183,8 @@ pub fn rerank_candidates_best_first_with_context(
     raw_reference: Option<&str>,
     domain: DomainMode,
 ) -> Vec<String> {
-    candidates = rerank_candidates_best_first_with_raw_and_domain(candidates, raw_reference, domain);
+    candidates =
+        rerank_candidates_best_first_with_raw_and_domain(candidates, raw_reference, domain);
     if bias_phrases.is_empty() || candidates.len() < 2 {
         return candidates;
     }
@@ -227,8 +228,7 @@ mod tests {
             "workflow uses MENS adapter".to_string(),
         ];
         let bias = vec!["MENS".to_string()];
-        let out =
-            rerank_candidates_best_first_with_context(cands, &bias, None, DomainMode::Code);
+        let out = rerank_candidates_best_first_with_context(cands, &bias, None, DomainMode::Code);
         #[cfg(not(feature = "compiler-rerank"))]
         assert!(
             out[0].contains("MENS"),
@@ -279,11 +279,8 @@ mod tests {
             "this is not vox [[[ broken".to_string(),
             "workflow w() { }".to_string(),
         ];
-        let idx_general = pick_best_transcript_index_with_raw_and_domain(
-            &cands,
-            None,
-            DomainMode::General,
-        );
+        let idx_general =
+            pick_best_transcript_index_with_raw_and_domain(&cands, None, DomainMode::General);
         assert_eq!(
             idx_general, 0,
             "compiler-frontend penalty must not influence General-domain dictation: {:?}",

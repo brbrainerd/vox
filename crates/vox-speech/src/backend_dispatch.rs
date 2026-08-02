@@ -117,7 +117,9 @@ static BACKEND: std::sync::Mutex<Option<std::sync::Arc<dyn AsrBackend>>> =
 /// constructed (now stale) engine for the rest of the process's life,
 /// since `with_cached_backend` has no other way to know the setting changed.
 pub fn invalidate_cache() {
-    let mut guard = BACKEND.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut guard = BACKEND
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     *guard = None;
 }
 
@@ -132,7 +134,9 @@ where
     F: FnOnce(&dyn AsrBackend) -> anyhow::Result<R>,
 {
     let backend = {
-        let mut guard = BACKEND.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut guard = BACKEND
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         if guard.is_none() {
             *guard = Some(std::sync::Arc::from(create_backend()?));
         }
@@ -267,13 +271,11 @@ mod tests {
         }
 
         for _ in 0..2 {
-            let ok = rx
-                .recv_timeout(std::time::Duration::from_secs(5))
-                .expect(
-                    "both with_cached_backend calls should complete within 5s; a hang here \
+            let ok = rx.recv_timeout(std::time::Duration::from_secs(5)).expect(
+                "both with_cached_backend calls should complete within 5s; a hang here \
                      means the lock is being held across `f` again (the bug the Arc \
                      conversion fixed), deadlocking both threads on the shared barrier",
-                );
+            );
             assert!(ok, "with_cached_backend call failed unexpectedly");
         }
 

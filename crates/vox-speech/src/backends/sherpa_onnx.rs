@@ -3,7 +3,9 @@
 #![cfg(feature = "stt-sherpa")]
 
 use super::asr_backend::{AsrBackend, AsrOutput};
-use super::sherpa_model_config::{resolve_sherpa_model_paths, resolve_sherpa_transducer_model_paths};
+use super::sherpa_model_config::{
+    resolve_sherpa_model_paths, resolve_sherpa_transducer_model_paths,
+};
 use anyhow::Result;
 use sherpa_onnx::{
     OfflineRecognizer, OfflineRecognizerConfig, OfflineTransducerModelConfig,

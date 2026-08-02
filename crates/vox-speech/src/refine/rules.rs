@@ -380,7 +380,10 @@ mod tests {
         // handled by the phrase_canonicalization pass, not the token map alone —
         // this test only asserts the map no longer emits an unbalanced `<`
         // followed by a bare trailing space with nothing to close it.
-        assert!(!out.text.ends_with("Box<dyn "), "must not leave a dangling space with no type");
+        assert!(
+            !out.text.ends_with("Box<dyn "),
+            "must not leave a dangling space with no type"
+        );
     }
 
     #[test]
