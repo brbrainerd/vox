@@ -619,7 +619,7 @@ Always available in the minimal binary. **`vox snippet`** — `save`, `search`, 
 | `--gate <MODE>` / `--gate-budget-path <PATH>` | CI warning budget / ratchet |
 | `--verify-impacted`, `--max-escalation`, `--self-heal-safe-mode` | Reserved / advanced hooks |
 
-**CI / parity:** prefer **`vox ci toestub-scoped`** (default scan root `crates/vox-repository`) — same policy surface as GitHub Actions. Use **`vox stub-check …`** for interactive or repo-wide scans when you need clap flags (format, baselines, Ludus, etc.). Optional thin shell: `scripts/quality/toestub_scoped.sh` delegates to `vox ci toestub-scoped`; the standalone **`toestub`** crate binary remains available for advanced tooling.
+**CI / parity:** prefer **`vox ci toestub-scoped`** (default scan root `crates/vox-repository`) — same policy surface as GitHub Actions. Use **`vox stub-check …`** for interactive or repo-wide scans when you need clap flags (format, baselines, Ludus, etc.). The standalone **`toestub`** crate binary remains available for advanced tooling.
 
 **`toestub` binary (crate `vox-toestub`):** besides `--mode`, `--format`, `--canary-crates`, and `--suppressions`, the rollout surface includes **`--tests-mode`** (`off` \| `include` \| `strict`, default `off` — skips noisy unresolved-ref under `.../tests/...` when `off`), **`--prelude-allowlist`** (JSON per `contracts/toestub/prelude-allowlist.v1.json`), and **`--feature-flags`** (comma-separated, e.g. `unwired-graph`, `scaling-fs-heuristic-fallback`).
 

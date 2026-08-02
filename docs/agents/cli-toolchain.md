@@ -75,7 +75,7 @@ crates/
 
 ## TOESTUB Self-Enforcement
 
-Canonical CI/agents path: **`bash scripts/quality/toestub_scoped.sh`** (or `cargo run -p vox-code-audit --bin toestub -- <PATH>`).
+Canonical CI/agents path: **`vox ci toestub-scoped`** (or `cargo run -p vox-code-audit --bin toestub -- <PATH>`).
 
 With **`cargo build -p vox-cli --features stub-check`**, the same rules are available as:
 
