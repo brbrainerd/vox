@@ -701,6 +701,28 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         mcp_questioning_session_key(state, "vox_chat_message", Some(session_id.as_str()));
     state.record_questioning_attention_spend(&chat_q_key, llm_started.elapsed().as_millis() as u64);
 
+    // Debit the pilot AttentionBudget for this completed chat turn. This mirrors
+    // what the now-deleted `ChatTaskProcessor::process` (commit bd2ade59ae) used to
+    // do via `Orchestrator::record_chat_attention` after every successful chat
+    // turn — real chat turns moved to this synchronous `chat_message` path, but the
+    // debit call was never carried over, so the GUI's `AttentionBudgetMeter`
+    // (driven purely by `AttentionBudget.spent_ms`, see `record_chat_attention`'s
+    // doc comment on `Orchestrator`) silently stopped moving for normal chat
+    // activity. `state.record_questioning_attention_spend` above debits a
+    // different, unrelated structure (`ServerState`'s in-memory
+    // `questioning_attention_bounds` map) and does not substitute for this.
+    // Token counts are estimated from the actual prompt/response text via
+    // `CompactionEngine::estimate_tokens`, matching `ChatTaskProcessor`'s original
+    // input/output token estimation (it also estimated from `task.description`/
+    // `reply_text` rather than using provider-reported usage numbers).
+    let est_input_tokens =
+        vox_orchestrator::compaction::CompactionEngine::estimate_tokens(&user_prompt) as u32;
+    let est_output_tokens =
+        vox_orchestrator::compaction::CompactionEngine::estimate_tokens(&response_text) as u32;
+    state
+        .orchestrator
+        .record_chat_attention(est_input_tokens, est_output_tokens);
+
     tracing::info!(
         target: "vox_mcp::populi_kpi",
         tool = "vox_chat_message",
@@ -1192,6 +1214,88 @@ mod tests {
         assert!(
             data.get("latency_ms").and_then(|v| v.as_u64()).is_some(),
             "chat_message envelope `data` must carry a `latency_ms` field for ModelBadge: {response_json}"
+        );
+    }
+
+    /// Regression test for the "attention budget meter never increments during
+    /// chat activity" bug: `ChatTaskProcessor` (the only prior caller of
+    /// `Orchestrator::record_chat_attention`) was deleted in commit `bd2ade59ae`
+    /// once real chat turns moved to this synchronous `chat_message` path, but
+    /// nothing replaced the debit call here. Drives a real, successful
+    /// `chat_message` call through the same wiremock harness as
+    /// `chat_message_envelope_includes_latency_ms` and asserts the
+    /// orchestrator's `BudgetManager` attention `spent_ms` actually increased —
+    /// proving the GUI's `AttentionBudgetMeter` (driven purely by `spent_ms`)
+    /// moves for normal chat activity again.
+    #[tokio::test]
+    #[allow(unsafe_code)] // env var mutation under a process-wide lock, like agent_loop's test
+    #[allow(clippy::await_holding_lock)]
+    async fn chat_message_debits_attention_budget_on_success() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("no tools needed")),
+            )
+            .mount(&server)
+            .await;
+
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let state = test_state();
+        let model_id = "test-openrouter-model-attention";
+        {
+            let handle = state.orchestrator.models_handle();
+            let mut registry = handle.write().expect("models registry lock");
+            registry.register(model_spec(ProviderType::OpenRouter, model_id));
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        let spent_before =
+            vox_orchestrator::sync_lock::rw_read(&*state.orchestrator.budget_manager_handle())
+                .attention_snapshot()
+                .spent_ms;
+
+        let params: ChatMessageParams =
+            serde_json::from_value(serde_json::json!({ "prompt": "hello there" }))
+                .expect("chat message params");
+
+        let response_json = chat_message(&state, params).await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&response_json).expect("chat_message must return valid JSON");
+        assert_eq!(
+            parsed["success"], true,
+            "chat_message should succeed via the mapped agent-loop path: {response_json}"
+        );
+
+        let spent_after =
+            vox_orchestrator::sync_lock::rw_read(&*state.orchestrator.budget_manager_handle())
+                .attention_snapshot()
+                .spent_ms;
+        assert!(
+            spent_after > spent_before,
+            "a successful chat turn must debit AttentionBudget.spent_ms via \
+             Orchestrator::record_chat_attention so the GUI meter moves; \
+             before={spent_before} after={spent_after}"
         );
     }
 }
