@@ -156,20 +156,8 @@ impl Orchestrator {
                 .await?;
         }
 
-        // Chat-category tasks are conversational replies, not code changes — the
-        // behavioral/research/approval/trust/harness/toestub/doc-integrity/Socrates
-        // gates below all validate code artifacts (tests passing, files written,
-        // scope compliance) that a chat reply never produces. Running them
-        // unconditionally made every chat task fail behavioral validation and
-        // loop forever through "auto-debug" re-queues, which is exactly the "no
-        // agent picked this up" timeout users hit — the reply was generated
-        // correctly (see `ChatTaskProcessor`) but completion never happened.
-        let is_chat_task = task_clone_opt
-            .as_ref()
-            .is_some_and(|t| t.task_category == crate::types::TaskCategory::Chat);
-
         let mut behavioral_failure = None;
-        if task_clone_opt.is_some() && !is_chat_task {
+        if task_clone_opt.is_some() {
             let require_behavioral =
                 crate::sync_lock::rw_read(&*self.config).behavioral_gate_on_complete;
             let gate = crate::gate::BehavioralGate::new(require_behavioral);
@@ -183,7 +171,18 @@ impl Orchestrator {
         // Holds info for a Review-tier DB write that must happen after the queue lock is dropped.
         let mut review_approval_pending: Option<(String, String, u64)> = None;
 
-        if !is_chat_task {
+        // Code-review fix (gui-axis-chat-harness-fixes, post-Task-4): this
+        // gate cascade used to be skipped entirely for TaskCategory::Chat, on
+        // the premise that chat replies came from a separate, non-tool-calling
+        // `ChatTaskProcessor` and could never produce code artifacts worth
+        // gating. `ChatTaskProcessor` is deleted (Task 4) — TaskCategory::Chat
+        // now runs the identical tool-calling `AiTaskProcessor` as every other
+        // category (reachable e.g. via an MCP `vox_task_submit` call using
+        // Task 4's new "chat" parser arm), so a category-based skip here would
+        // let file writes/actions from a Chat-tagged task bypass approval,
+        // trust, harness, and Socrates validation that every other category
+        // enforces. Gates now run unconditionally for every category.
+        {
             let queue_lock = {
                 let agents = crate::sync_lock::rw_read(&*self.agents);
                 agents
@@ -377,14 +376,9 @@ impl Orchestrator {
             }
         }
 
-        // Socrates gate (needs await, so drop queue above). Skipped for chat
-        // tasks along with the gate cascade above — see `is_chat_task` doc.
-        let socrates_outcome = if is_chat_task {
-            gates::GateOutcome {
-                requeue: None,
-                needs_review_approval: false,
-            }
-        } else {
+        // Socrates gate (needs await, so drop queue above). Runs unconditionally
+        // for every category now — see the gate-cascade comment above.
+        let socrates_outcome = {
             let (task_clone, max_socrates_iterations) = {
                 let agents = crate::sync_lock::rw_read(&*self.agents);
                 let queue_lock = agents

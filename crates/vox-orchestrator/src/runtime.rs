@@ -704,6 +704,31 @@ impl TaskProcessor for AiTaskProcessor {
                 })
             }
         };
+        // Code-review fix: `routed == None` (no eligible model in the registry,
+        // e.g. no local model registered under local_only privacy) used to fall
+        // straight through to `StreamRoute::Cascade` below regardless of
+        // privacy mode. `Cascade` streams from `self.client`'s provider list
+        // (`FreeAiClient::auto_discover()`, built once at construction with no
+        // privacy awareness — it always includes a cloud provider), which is
+        // exactly the cloud egress `VOX_INFERENCE_PRIVACY=local_only` exists to
+        // prevent. Fail closed instead of silently leaking to cloud: if there's
+        // no explicit model_override to honor either, this is an unroutable
+        // request under the current privacy mode.
+        if routed.is_none()
+            && task
+                .model_override
+                .as_deref()
+                .filter(|s| !s.trim().is_empty())
+                .is_none()
+            && crate::route_policy::inference_privacy_local_only_from_env()
+        {
+            anyhow::bail!(
+                "no local model available for task {} under VOX_INFERENCE_PRIVACY=local_only; \
+                 refusing to fall back to a cloud-inclusive Cascade route",
+                task.id.0
+            );
+        }
+
         let (usage_provider, usage_model) = if let Some(ref mo) = task.model_override {
             ("task_override".to_string(), mo.clone())
         } else if let Some(m) = routed.as_ref() {

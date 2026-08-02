@@ -361,6 +361,44 @@ describe('App shell', () => {
     expect(invokeMock).not.toHaveBeenCalledWith('chat_send_message', expect.anything());
   });
 
+  // Code-review fix: the composer's "Background task" toggle went through a
+  // DIFFERENT onSubmit wrapper than /spawn and Deploy-skill above, and that
+  // wrapper wasn't updated when those two were fixed to stop reusing
+  // activeSessionId -- reintroducing the exact bug this same branch's Fix
+  // Task 2 patched, just via a third entry point.
+  it('background-task mode does not reuse the active chat session id', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'chat-session-abc' });
+      if (cmd === 'chat_append_message') return Promise.resolve(1);
+      if (cmd === 'submit_orchestrator_task') {
+        return Promise.resolve({ task_id: '1', duplicate_of: null });
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+
+    const modeButton = await screen.findByRole('button', { name: /choose send mode/i });
+    await user.click(modeButton);
+    const backgroundOption = await screen.findByRole('button', { name: /set send mode: background task/i });
+    await user.click(backgroundOption);
+
+    await user.click(composer);
+    await user.type(composer, 'do this in the background too');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+    );
+    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'submit_orchestrator_task');
+    expect(submitCall![1].input.session_id).not.toBe('chat-session-abc');
+  });
+
   it('quick-chat mode (the toggle default) still calls chat_send_message, not submit_orchestrator_task', async () => {
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
@@ -480,6 +518,17 @@ describe('App shell', () => {
 
     const chatSendCalls = invokeMock.mock.calls.filter(([cmd]: [string]) => cmd === 'chat_send_message');
     expect(chatSendCalls.length).toBe(1);
+    // Code-review fix: the send-lock guard must be checked BEFORE
+    // chat_append_message persists anything -- otherwise the rejected second
+    // send still writes an orphaned user-message row with no reply ever
+    // generated for it (only caught by inspecting chat_append_message's own
+    // call args, not just chat_send_message's count).
+    expect(
+      invokeMock.mock.calls.filter(
+        ([cmd, args]: [string, any]) =>
+          cmd === 'chat_append_message' && args?.input?.content === 'second message',
+      ),
+    ).toHaveLength(0);
 
     resolveFirst({ id: 1, role: 'assistant', content: 'reply', created_at: '2026-07-31T00:00:00Z', task_id: null, model_id: 'openrouter/auto' });
   });

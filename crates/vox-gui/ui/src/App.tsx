@@ -755,6 +755,20 @@ export default function App() {
       pushToast({ tone: 'warn', title: 'No chat session', body: 'Create or select a chat session first.', cause: 'validation' });
       return;
     }
+    // Checked BEFORE chat_append_message persists anything: a second send
+    // while the first is still in flight must not write an orphaned user
+    // message row that nothing will ever reply to (the persisted row would
+    // otherwise survive the early-return below with no assistant turn).
+    if (payload.task_category === 'chat' && chatSendInFlightRef.current.has(sessionId)) {
+      pushToast({
+        tone: 'warn',
+        title: 'Please wait',
+        body: 'A reply is still in progress for this chat.',
+        cause: 'validation',
+      });
+      return;
+    }
+
     invoke('chat_append_message', {
       input: userAppendInput(sessionId, payload.description),
     }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
@@ -765,15 +779,6 @@ export default function App() {
     // submit_orchestrator_task dispatch loop below, which is for every
     // other task_category.
     if (payload.task_category === 'chat') {
-      if (chatSendInFlightRef.current.has(sessionId)) {
-        pushToast({
-          tone: 'warn',
-          title: 'Please wait',
-          body: 'A reply is still in progress for this chat.',
-          cause: 'validation',
-        });
-        return;
-      }
       chatSendInFlightRef.current.add(sessionId);
       const tempId = nextGuiRunId();
       dispatchSessionChat({
@@ -1246,7 +1251,19 @@ export default function App() {
     <Loquela
       chips={chips}
       setChips={setChips}
-      onSubmit={(p) => handleLoquelaSubmit({ ...p, session_id: activeSessionId, model_override: chatModelOverride, grounding_check_enabled: groundingCheckEnabled })}
+      onSubmit={(p) => handleLoquelaSubmit({
+        ...p,
+        // 'chat' mode (the composer's default) stays part of the active
+        // chat session, same as before. The "Background task" toggle
+        // position (task_category left undefined by Loquela's send())
+        // must NOT reuse activeSessionId -- same fix as /spawn and
+        // Deploy-skill below, for the same reason (submit_orchestrator_task
+        // never writes to the orchestrator's chat_history:{session_id}
+        // context store, so folding it into the active session desyncs it).
+        session_id: p.task_category === 'chat' ? activeSessionId : newBackgroundSessionId(),
+        model_override: chatModelOverride,
+        grounding_check_enabled: groundingCheckEnabled,
+      })}
       onSlashCommand={handleLoquelaSlash}
       taskInProgress={taskInProgress}
       currentTaskId={taskInProgress ? inFlightTaskId : undefined}

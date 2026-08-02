@@ -230,9 +230,6 @@ impl Orchestrator {
         let _capability_requirements = task.capability_requirements.clone();
         let _relay_thread_id_seed = task.thread_id.clone();
         let _relay_harness_spec_json_seed = task.harness_spec_json.clone();
-        // Captured before `task` is moved into `task_for_enqueue` below —
-        // see the pre-enqueue goal/CRAG skip further down this function.
-        let is_chat_task = task.task_category == crate::types::TaskCategory::Chat;
 
         let (policy_trust, scope_enforcement) = {
             let cfg = crate::sync_lock::rw_read(&*self.config);
@@ -1020,14 +1017,15 @@ impl Orchestrator {
             traces.insert(task_id, steps);
         }
 
-        // Chat-category tasks are a single conversational turn, not a goal to
-        // decompose — the CRAG/autonomous-research pipeline below runs several
-        // search hops and LLM/embedding calls synchronously before the task is
-        // even enqueued, adding tens of seconds of latency before the fast
-        // ChatTaskProcessor path (see runtime.rs) ever starts. Skipping it here
-        // is the other half of the "chat thinks forever" fix — completion.rs
-        // fixed the post-dequeue gate loop, this fixes the pre-enqueue delay.
-        if !retrieval_context_attached && !is_chat_task {
+        // Code-review fix (gui-axis-chat-harness-fixes, post-Task-4): this used
+        // to also skip for TaskCategory::Chat, on the premise that chat tasks
+        // ran a separate fast, non-agentic `ChatTaskProcessor` where CRAG's
+        // latency wasn't worth paying. `ChatTaskProcessor` is deleted — Chat
+        // now runs the identical `AiTaskProcessor` pipeline as every other
+        // category, so skipping context attachment only for Chat left it with
+        // strictly worse grounding than an identical prompt under any other
+        // category, for a latency rationale that no longer applies.
+        if !retrieval_context_attached {
             let attached_retrieval =
                 self.attach_session_retrieval_envelope_if_present(task_id, &session_id);
             if !attached_retrieval {
@@ -1304,20 +1302,21 @@ mod mesh_dispatch_policy_tests {
     }
 }
 
-/// Reproduces a live latency bug: every submitted task — including
-/// Chat-category ones — ran `attach_goal_search_context_with_retrieval`
-/// synchronously before being enqueued, adding real (sometimes 60+ second)
-/// autonomous-research/CRAG latency before the fast `ChatTaskProcessor` path
-/// ever started. A chat reply doesn't need goal decomposition, so this is
-/// skipped for `TaskCategory::Chat` (see `is_chat_task` in
-/// `process_task_submission_logic`).
+/// Code-review fix (gui-axis-chat-harness-fixes, post-Task-4): this crate used
+/// to skip `attach_goal_search_context_with_retrieval` for `TaskCategory::Chat`,
+/// on the premise that chat tasks ran a separate fast, non-agentic
+/// `ChatTaskProcessor` where CRAG's latency wasn't worth paying. Now that
+/// `ChatTaskProcessor` is deleted and Chat runs the identical `AiTaskProcessor`
+/// pipeline as every other category, that skip only left Chat-tagged tasks
+/// with worse grounding than any other category for no remaining benefit —
+/// so Chat now gets the same context attachment as everything else.
 #[cfg(test)]
 mod chat_skips_goal_search_context_tests {
     use crate::orchestrator::{Orchestrator, OrchestratorConfig};
     use crate::types::{TaskCategory, TaskEnqueueHints};
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn chat_category_task_never_gets_goal_search_context_attached() {
+    async fn chat_category_task_also_gets_goal_search_context_attached() {
         let orch = Orchestrator::new(OrchestratorConfig::for_testing());
         let hints = TaskEnqueueHints {
             task_category: Some(TaskCategory::Chat),
@@ -1343,14 +1342,14 @@ mod chat_skips_goal_search_context_tests {
             .find(|t| t.id == task_id)
             .expect("submitted task must be queued");
         assert!(
-            task.socrates.is_none(),
-            "chat-category task must skip goal/CRAG context attachment entirely"
+            task.socrates.is_some(),
+            "chat-category task must get goal/CRAG context attached like every other category"
         );
     }
 
-    /// Contrast case: a non-chat task still gets goal search context attached
-    /// (via the fast no-DB heuristic path in test config) — proves the skip
-    /// above is specific to `TaskCategory::Chat`, not a general regression.
+    /// Contrast case: a non-chat task also gets goal search context attached
+    /// (via the fast no-DB heuristic path in test config) — proves both
+    /// categories now behave identically, not that either is special-cased.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn non_chat_task_still_gets_goal_search_context_attached() {
         let orch = Orchestrator::new(OrchestratorConfig::for_testing());

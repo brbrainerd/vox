@@ -93,6 +93,13 @@ pub fn decide(
     let all = registry.list_models();
     let mut rejection_reasons: Vec<String> = Vec::new();
     let mut candidates: Vec<ModelSpec> = Vec::new();
+    // Code-review fix: computed once, loop-invariant — `decide()` builds its
+    // own candidate set independently of `best_for_internal`'s filter chain
+    // (its later `.or_else` scored-fallback is the only branch that reaches
+    // that filter), so without this check here a premium-alias or
+    // directly-`select()`-returned cloud model would sail through `decide()`
+    // regardless of VOX_INFERENCE_PRIVACY=local_only.
+    let privacy_local_only = crate::route_policy::inference_privacy_local_only_from_env();
 
     for m in all {
         if !scope_allows(m.provider_type.clone(), request.candidate_scope) {
@@ -113,6 +120,10 @@ pub fn decide(
         }
         if !ModelRegistry::key_is_present_for(&m) {
             rejection_reasons.push(format!("{} rejected: missing provider key", m.id));
+            continue;
+        }
+        if !crate::route_policy::privacy_allows_model_for_mode(&m, privacy_local_only) {
+            rejection_reasons.push(format!("{} rejected: privacy mode excludes cloud", m.id));
             continue;
         }
         let conf = confidence_state_for_model(&m);
@@ -145,6 +156,9 @@ pub fn decide(
                     continue;
                 }
                 if !ModelRegistry::key_is_present_for(&m) {
+                    continue;
+                }
+                if !crate::route_policy::privacy_allows_model_for_mode(&m, privacy_local_only) {
                     continue;
                 }
                 let conf = confidence_state_for_model(&m);
@@ -740,6 +754,17 @@ fn select_via_premium_alias(
     if !supports_intent_constraints(&model, intent) {
         return None;
     }
+    // Code-review fix: this path bypasses `best_for_internal` (a raw
+    // `registry.get`), so it must apply the same privacy hard-filter itself
+    // — otherwise VOX_INFERENCE_PRIVACY=local_only never actually blocks a
+    // premium-alias cloud pick, since this branch runs before the scorer
+    // path in `select_inner` and the alias lookup has no filter of its own.
+    if !crate::route_policy::privacy_allows_model_for_mode(
+        &model,
+        crate::route_policy::inference_privacy_local_only_from_env(),
+    ) {
+        return None;
+    }
     let effective_axes = intent.axes.to_routing_priority(intent.prefer_local);
     Some(SelectionOutcome {
         model_id: model.id.clone(),
@@ -984,7 +1009,12 @@ mod tests {
         assert_eq!(i.axes, SelectionAxes::FAST);
     }
 
+    // #[serial]: calls decide() against the real bootstrap registry and
+    // asserts on the resulting provider type; races against the privacy-
+    // override tests below the same way select_with_empty_policy_falls_
+    // through_to_cascade did (see its own comment).
     #[test]
+    #[serial]
     fn decide_respects_candidate_scope_cloud_only() {
         let registry = ModelRegistry::new();
         let req = ModelSelectionRequest {
@@ -1001,6 +1031,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn decide_populates_non_placeholder_fields() {
         let registry = ModelRegistry::new();
         let req =
@@ -1066,6 +1097,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn select_with_premium_alias_honors_alias_when_intelligence_high() {
         let registry = ModelRegistry::new();
         let intent = SelectionIntent {
@@ -1086,6 +1118,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn select_falls_back_to_scorer_when_intelligence_low() {
         let registry = ModelRegistry::new();
         let intent = SelectionIntent {
@@ -1243,6 +1276,7 @@ mod tests {
         }
 
         #[test]
+        #[serial]
         fn decide_returns_none_when_no_candidates_match_scope_and_capability() {
             // Catches: decide() panicking or returning a model that violates scope,
             // rather than returning None, when every registry model is filtered out.
@@ -1276,7 +1310,12 @@ mod tests {
         }
     }
 
+    // #[serial]: this test's two select() calls must observe the same
+    // TEST_PRIVACY_OVERRIDE state (or lack of it) across both calls; without
+    // this it can race the privacy-override tests above and see the override
+    // flip mid-test, making the two calls' candidate sets diverge.
     #[test]
+    #[serial]
     fn select_with_empty_policy_falls_through_to_cascade() {
         let registry = ModelRegistry::new();
         let intent = SelectionIntent::for_task(TaskCategory::CodeGen);
@@ -1341,6 +1380,57 @@ mod tests {
             "keyless provider must be rejected with a key reason: {:?}",
             d.rejection_reasons
         );
+    }
+
+    // Code-review fix: `decide()` built its own candidate set independently of
+    // `best_for_internal`'s privacy filter — this proves the privacy check
+    // added directly to `decide()`'s candidate loop actually excludes a cloud
+    // candidate under local_only, not just best_for_internal's own callers.
+    #[test]
+    #[serial]
+    fn decide_excludes_cloud_candidate_under_local_only_privacy() {
+        crate::route_policy::set_test_privacy_override(Some("local_only"));
+        let mut registry = ModelRegistry::default();
+        registry.register(key_gate_spec("cloud-test", ProviderType::OpenRouter));
+        registry.register(key_gate_spec("ollama-local-privacy-test", ProviderType::Ollama));
+        let req =
+            ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
+        let d = decide(&req, &registry);
+        crate::route_policy::set_test_privacy_override(None);
+        let d = d.expect("local candidate must still be selectable under local_only");
+        assert_eq!(d.selected_model, "ollama-local-privacy-test");
+        assert!(
+            d.rejection_reasons
+                .iter()
+                .any(|r| r.contains("cloud-test") && r.contains("privacy mode excludes cloud")),
+            "cloud provider must be rejected with a privacy reason: {:?}",
+            d.rejection_reasons
+        );
+    }
+
+    // Same coverage for `select_via_premium_alias`'s own privacy check: with
+    // QUALITY_FIRST axes (intelligence=70) the premium-alias path would
+    // normally fire and return a cloud alias model (see
+    // `select_with_premium_alias_honors_alias_when_intelligence_high` above);
+    // under local_only it must be skipped so `select_inner` falls through to
+    // the scorer path instead.
+    #[test]
+    #[serial]
+    fn select_skips_cloud_premium_alias_under_local_only_privacy() {
+        crate::route_policy::set_test_privacy_override(Some("local_only"));
+        let registry = ModelRegistry::new();
+        let intent = SelectionIntent {
+            axes: SelectionAxes::QUALITY_FIRST,
+            ..SelectionIntent::for_task(TaskCategory::CodeGen)
+        };
+        let outcome = select(&intent, &registry);
+        crate::route_policy::set_test_privacy_override(None);
+        match outcome.map(|o| o.reason) {
+            Some(SelectionReason::PremiumAlias { .. }) => {
+                panic!("premium-alias (cloud) pick must not survive under local_only privacy")
+            }
+            _ => {} // None, Scored, or LocalOnly are all acceptable here.
+        }
     }
 
     #[test]

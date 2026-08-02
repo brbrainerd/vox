@@ -186,8 +186,16 @@ mod registry_filter_tests {
     use crate::config::CostPreference;
     use crate::models::{ModelRegistry, ModelSpec, ProviderType};
     use crate::types::TaskCategory;
+    // TEST_PRIVACY_OVERRIDE is process-global (route_policy.rs); #[serial] on
+    // the one test below that touches it avoids racing other threads' calls
+    // into best_for_internal (mirrors models/select.rs's own convention).
+    use serial_test::serial;
 
+    // best_for_with_filter now applies the privacy hard-filter too; this test
+    // expects a specific cloud (GoogleDirect) pick, so it must not race the
+    // local_only privacy-override test below.
     #[test]
+    #[serial]
     fn best_free_for_with_filter_skips_ollama() {
         let mut r = ModelRegistry::default();
         r.register(ModelSpec {
@@ -241,6 +249,7 @@ mod registry_filter_tests {
     }
 
     #[test]
+    #[serial]
     fn best_for_internal_excludes_cloud_models_under_local_only_privacy() {
         let mut r = ModelRegistry::default();
         r.register(ModelSpec {
@@ -405,6 +414,12 @@ mod explain_selection_complexity_tests {
     use crate::models::spec::PricingSource;
     use crate::models::{ModelRegistry, ModelSpec, ProviderType};
     use crate::types::TaskCategory;
+    // Code-review fix: explain_selection now applies the privacy hard-filter
+    // (route_policy::privacy_allows_model_for_mode); both tests below use
+    // cloud (OpenRouter) fixture models and assert on candidate counts, so
+    // they'd flake if TEST_PRIVACY_OVERRIDE is non-None from a concurrently
+    // running test (see registry_filter_tests's own #[serial] comment).
+    use serial_test::serial;
 
     /// A cheap, low-capability model: wins when efficiency is weighted heavily
     /// (trivial/low-complexity tasks), loses when precision dominates.
@@ -455,6 +470,7 @@ mod explain_selection_complexity_tests {
     }
 
     #[test]
+    #[serial]
     fn explain_selection_ranking_changes_between_trivial_and_hard_complexity() {
         let mut r = ModelRegistry::default();
         r.register(cheap_model());
@@ -497,6 +513,7 @@ mod explain_selection_complexity_tests {
     /// varies with the caller's complexity/category, instead of the previous
     /// byte-identical top-5 for "hi" and a hard concurrency-design task.
     #[test]
+    #[serial]
     fn explain_selection_varies_across_five_real_world_task_descriptions() {
         let r = ModelRegistry::new();
 
