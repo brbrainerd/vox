@@ -65,6 +65,7 @@ fn contextual_bias_phrases_with_lex(
 fn finalize_after_refine(
     raw_text: String,
     refined: crate::refine::RefineOutput,
+    domain: crate::refine::DomainMode,
 ) -> TranscribeDetail {
     let lex = load_lexicon_from_env();
     let refined_after_lex = lex
@@ -76,6 +77,7 @@ fn finalize_after_refine(
         crate::transcript_rerank::build_transcript_candidates(&raw_text, &refined_after_lex),
         &bias,
         Some(raw_text.as_str()),
+        domain,
     );
     let refined_text = candidates
         .first()
@@ -166,7 +168,7 @@ pub fn transcript_status() -> &'static str {
 /// and need the same correction pass as `transcribe_path_detailed`.
 pub fn refine_raw_text(raw_text: &str, ctx: &CorrectionContext) -> TranscribeDetail {
     let refined = crate::refine::refine_transcript(raw_text, ctx);
-    finalize_after_refine(raw_text.to_string(), refined)
+    finalize_after_refine(raw_text.to_string(), refined, ctx.domain)
 }
 
 /// Transcribe `path` with explicit refinement context and optional Whisper language override.
@@ -187,7 +189,7 @@ pub fn transcribe_path_detailed(
         let raw_text = std::fs::read_to_string(path)
             .with_context(|| format!("read transcript fixture {}", path.display()))?;
         let refined = crate::refine::refine_transcript(&raw_text, ctx);
-        return Ok(finalize_after_refine(raw_text, refined));
+        return Ok(finalize_after_refine(raw_text, refined, ctx.domain));
     }
 
     let is_audio_or_video = matches!(
@@ -249,7 +251,7 @@ pub fn transcribe_path_detailed(
             })?;
 
             let refined = crate::refine::refine_transcript(&out.raw_text, ctx);
-            return Ok(finalize_after_refine(out.raw_text, refined));
+            return Ok(finalize_after_refine(out.raw_text, refined, ctx.domain));
         }
 
         #[cfg(not(feature = "stt-candle"))]

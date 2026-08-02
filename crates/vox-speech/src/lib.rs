@@ -110,6 +110,8 @@ pub use traits::{
     transcript_status,
 };
 pub use transcript_rerank::{
-    pick_best_transcript_index, pick_best_transcript_index_with_raw, rerank_candidates_best_first,
+    pick_best_transcript_index, pick_best_transcript_index_with_raw,
+    pick_best_transcript_index_with_raw_and_domain, rerank_candidates_best_first,
     rerank_candidates_best_first_with_context, rerank_candidates_best_first_with_raw,
+    rerank_candidates_best_first_with_raw_and_domain,
 };

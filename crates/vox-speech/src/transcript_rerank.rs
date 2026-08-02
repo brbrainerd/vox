@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 use crate::contextual_bias::bias_hit_score;
+use crate::refine::DomainMode;
 
 /// Build alternative transcripts from one ASR pass (raw + refined + spoken-code normalize).
 /// Whisper does not expose true n-best here yet; this list improves downstream disambiguation.
@@ -73,8 +74,14 @@ fn vox_frontend_penalty(source: &str) -> (u8, u32) {
     (0, penalty)
 }
 
+/// `scored_pair` gated to code-domain dictation. Non-code domains never pay the compiler-frontend
+/// (lex/parse/typecheck/lower/validate) pass — that pass exists to prefer transcripts that read as
+/// valid Vox source, which is meaningless (and costly) for plain-English dictation.
 #[cfg(feature = "compiler-rerank")]
-fn scored_pair(candidate: &str, raw_reference: Option<&str>) -> (u8, u32) {
+fn scored_pair(candidate: &str, raw_reference: Option<&str>, domain: DomainMode) -> (u8, u32) {
+    if domain != DomainMode::Code {
+        return (0, 0);
+    }
     let (fail, mut pen) = vox_frontend_penalty(candidate);
     if let Some(r) = raw_reference {
         pen = pen.saturating_sub(raw_candidate_alignment_bonus(r, candidate));
@@ -89,25 +96,40 @@ pub fn pick_best_transcript_index(candidates: &[String]) -> usize {
 }
 
 /// Like [`pick_best_transcript_index`] but prefers candidates that retain tokens from the raw transcript.
+///
+/// Always scores as code-domain dictation (matches this function's historical, pre-domain-gate
+/// behavior); callers that know the dictation domain should use
+/// [`pick_best_transcript_index_with_raw_and_domain`] instead.
 #[must_use]
 pub fn pick_best_transcript_index_with_raw(
     candidates: &[String],
     raw_reference: Option<&str>,
+) -> usize {
+    pick_best_transcript_index_with_raw_and_domain(candidates, raw_reference, DomainMode::Code)
+}
+
+/// Like [`pick_best_transcript_index_with_raw`] but skips the compiler-frontend penalty entirely
+/// unless `domain` is [`DomainMode::Code`].
+#[must_use]
+pub fn pick_best_transcript_index_with_raw_and_domain(
+    candidates: &[String],
+    raw_reference: Option<&str>,
+    domain: DomainMode,
 ) -> usize {
     if candidates.is_empty() {
         return 0;
     }
     #[cfg(not(feature = "compiler-rerank"))]
     {
-        let _ = (raw_reference,);
+        let _ = (raw_reference, domain);
         0
     }
     #[cfg(feature = "compiler-rerank")]
     {
         let mut best_i = 0usize;
-        let mut best_score = scored_pair(&candidates[0], raw_reference);
+        let mut best_score = scored_pair(&candidates[0], raw_reference, domain);
         for (i, c) in candidates.iter().enumerate().skip(1) {
-            let s = scored_pair(c, raw_reference);
+            let s = scored_pair(c, raw_reference, domain);
             if s < best_score {
                 best_score = s;
                 best_i = i;
@@ -126,13 +148,23 @@ pub fn rerank_candidates_best_first(candidates: Vec<String>) -> Vec<String> {
 /// Like [`rerank_candidates_best_first`] but uses `raw_reference` to prefer hypotheses that retain ASR tokens.
 #[must_use]
 pub fn rerank_candidates_best_first_with_raw(
+    candidates: Vec<String>,
+    raw_reference: Option<&str>,
+) -> Vec<String> {
+    rerank_candidates_best_first_with_raw_and_domain(candidates, raw_reference, DomainMode::Code)
+}
+
+/// Like [`rerank_candidates_best_first_with_raw`] but gates the compiler-frontend penalty on `domain`.
+#[must_use]
+pub fn rerank_candidates_best_first_with_raw_and_domain(
     mut candidates: Vec<String>,
     raw_reference: Option<&str>,
+    domain: DomainMode,
 ) -> Vec<String> {
     if candidates.len() < 2 {
         return candidates;
     }
-    let idx = pick_best_transcript_index_with_raw(&candidates, raw_reference);
+    let idx = pick_best_transcript_index_with_raw_and_domain(&candidates, raw_reference, domain);
     if idx != 0 && idx < candidates.len() {
         candidates.swap(0, idx);
     }
@@ -140,13 +172,18 @@ pub fn rerank_candidates_best_first_with_raw(
 }
 
 /// Compiler-first rerank, then order remaining hypotheses by contextual phrase hits (n-best quality).
+///
+/// The compiler-frontend penalty (which requires source to lex/parse/typecheck as Vox) only applies
+/// when `domain` is [`DomainMode::Code`]; other domains (e.g. plain-English dictation) skip it and
+/// fall back to the contextual bias-phrase heuristic below.
 #[must_use]
 pub fn rerank_candidates_best_first_with_context(
     mut candidates: Vec<String>,
     bias_phrases: &[String],
     raw_reference: Option<&str>,
+    domain: DomainMode,
 ) -> Vec<String> {
-    candidates = rerank_candidates_best_first_with_raw(candidates, raw_reference);
+    candidates = rerank_candidates_best_first_with_raw_and_domain(candidates, raw_reference, domain);
     if bias_phrases.is_empty() || candidates.len() < 2 {
         return candidates;
     }
@@ -190,7 +227,8 @@ mod tests {
             "workflow uses MENS adapter".to_string(),
         ];
         let bias = vec!["MENS".to_string()];
-        let out = rerank_candidates_best_first_with_context(cands, &bias, None);
+        let out =
+            rerank_candidates_best_first_with_context(cands, &bias, None, DomainMode::Code);
         #[cfg(not(feature = "compiler-rerank"))]
         assert!(
             out[0].contains("MENS"),
@@ -228,5 +266,36 @@ mod tests {
                 cands
             );
         }
+    }
+
+    #[cfg(feature = "compiler-rerank")]
+    #[test]
+    fn compiler_penalty_not_applied_outside_code_domain() {
+        // "workflow w() { }" is Vox-shaped and would win under the compiler-frontend penalty;
+        // "this is not vox [[[ broken" is not. For General dictation, the compiler penalty must
+        // be skipped, so the chosen index falls back to the raw n-best ordering (index 0), not
+        // the compiler-preferred one (index 1).
+        let cands = vec![
+            "this is not vox [[[ broken".to_string(),
+            "workflow w() { }".to_string(),
+        ];
+        let idx_general = pick_best_transcript_index_with_raw_and_domain(
+            &cands,
+            None,
+            DomainMode::General,
+        );
+        assert_eq!(
+            idx_general, 0,
+            "compiler-frontend penalty must not influence General-domain dictation: {:?}",
+            cands
+        );
+
+        let idx_code =
+            pick_best_transcript_index_with_raw_and_domain(&cands, None, DomainMode::Code);
+        assert_eq!(
+            idx_code, 1,
+            "compiler-frontend penalty should still apply for Code-domain dictation: {:?}",
+            cands
+        );
     }
 }
