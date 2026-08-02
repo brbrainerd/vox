@@ -37,7 +37,18 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
   const [forceOpen, setForceOpen] = useState(false);
 
   useEffect(() => {
-    const onReplay = () => setForceOpen(true);
+    // The wizard stays mounted for the app's whole lifetime, so `screen` (and
+    // its transient per-screen state) would otherwise still be wherever the
+    // user last left it — replaying from Settings must always start fresh at
+    // 'entry', not reopen mid-flow or on 'confirmation'.
+    const onReplay = () => {
+      setScreen('entry');
+      setOauthError(null);
+      setOauthFallbackUrl(null);
+      setHasKeyWarning(null);
+      setLocalModelWarning(null);
+      setForceOpen(true);
+    };
     window.addEventListener(ONBOARDING_REPLAY_EVENT, onReplay);
     return () => window.removeEventListener(ONBOARDING_REPLAY_EVENT, onReplay);
   }, []);
@@ -73,6 +84,14 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
   const handleDismiss = () => {
     gate.dismiss();
     setForceOpen(false);
+    // Reset to 'entry' so a later replay (which stays mounted across the
+    // app's lifetime) never reopens directly on whatever screen the user
+    // dismissed from (e.g. 'confirmation' or mid-flow on 'has-key'/'local-model'/'budget').
+    setScreen('entry');
+    setOauthError(null);
+    setOauthFallbackUrl(null);
+    setHasKeyWarning(null);
+    setLocalModelWarning(null);
   };
 
   // Escape dismisses the whole wizard, same action as "Skip for now" — mirrors
