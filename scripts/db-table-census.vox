@@ -1,0 +1,467 @@
+// vox:caps fs process env
+// scripts/db-table-census.vox
+//
+// Re-runnable port of the one-off Python investigation script behind
+// docs/src/architecture/2026-08-01-voxdb-audit-condensation-design.md §2.2 /
+// §3.6. Classifies every table in a VoxDB SQLite/turso file as LIVE /
+// DORMANT / DEAD, based on whether Rust code *outside* crates/vox-db and
+// crates/vox-db-types references the table name.
+//
+// Usage:
+//   vox run scripts/db-table-census.vox -- --db .vox/store.db
+//   vox run scripts/db-table-census.vox -- --db .vox/store.db --root .
+//
+// Output:
+//   graphify-out/table_usage_report.json — machine-readable: table, rows,
+//     status, referencing_files (count for sensitive tables, full paths
+//     otherwise). Also prints a human-readable summary to stdout.
+//
+// Sensitive-table handling: tables matching `SENSITIVE_TABLE_NAMES` below
+// never have row content read or printed by this script (it only ever reads
+// table *names* and row *counts* via `vox db audit`, never `SELECT *`), and
+// their JSON entries omit the referencing-file path list (count only). They
+// are always flagged "sensitive — do not auto-quarantine without manual
+// review" in the summary, regardless of computed status.
+//
+// Classification logic (ported from the one-off Python audit script):
+//   - Walk *.rs under crates/, apps/, server/, tools/, tests/, examples/,
+//     scripts/, ci/ (excluding target/, node_modules/, .git/, dist/,
+//     mutants.out*).
+//   - A file is "vox_db-side" if its path contains crates/vox-db/ or
+//     crates/vox-db-types/; otherwise it's "outside".
+//   - A file counts toward the usage signal unless it is one of the
+//     EXCLUDED_USAGE_FILES below, or lives under a schema-declaration
+//     directory (schema/domains/, schema/spec/) — those files declare
+//     tables (CREATE TABLE ...), they don't use them.
+//   - LIVE:    any "outside" reference exists.
+//   - DORMANT: no "outside" reference, but a vox_db-side reference exists.
+//   - DEAD:    no reference anywhere (after exclusions).
+
+import fs;
+import process;
+import env;
+import json;
+import regex;
+
+// ── Exclusion list (design §2.2) ────────────────────────────────────────────
+// These three files are excluded from the usage signal because they mention
+// nearly every table name *generically*, not via real per-table CRUD, and
+// would otherwise make every table in the schema look "used" by vox-db
+// itself:
+//   - codex_legacy.rs   — bulk JSONL import/export walks all tables by name.
+//   - circuit_breaker.rs — a doc-comment enumerates the whole feature
+//     surface (table names appear in prose, not code).
+//   - schema/manifest.rs — a required-table allowlist; every current table
+//     is listed there by construction, which would make DEAD/DORMANT
+//     detection vacuous if counted as usage.
+// This is a hardcoded, non-structural signal: a *future* file of the same
+// shape (e.g. a new bulk-export module) will NOT automatically inherit this
+// exclusion — anyone adding one must extend this list by hand.
+fn excluded_usage_suffixes() to list[str] {
+    return [
+        "codex_legacy.rs",
+        "circuit_breaker.rs",
+        "schema/manifest.rs",
+        "schema\\manifest.rs",
+    ]
+}
+
+// Sensitive tables: never emit row content (this script never reads row
+// content anyway), never emit full referencing-file paths, always flagged
+// in the summary regardless of computed LIVE/DORMANT/DEAD status.
+fn sensitive_table_names() to list[str] {
+    return [
+        "clavis_account_secrets",
+        "user_identities",
+    ]
+}
+
+fn contains_str(xs: list[str], v: str) to bool {
+    for x in xs { if x == v { return true } }
+    return false
+}
+
+fn list_concat_str(a: list[str], b: list[str]) to list[str] {
+    let mut out = a
+    for x in b { out = out.push(x) }
+    return out
+}
+
+fn norm(p: str) to str {
+    return p.replace("\\", "/")
+}
+
+// Directories (relative to `root`) walked for usage signal.
+fn scan_dirs() to list[str] {
+    return ["crates", "apps", "server", "tools", "tests", "examples", "scripts", "ci"]
+}
+
+fn is_ignored_path(p: str) to bool {
+    let n = norm(p)
+    if n.contains("/target/") { return true }
+    if n.contains("/node_modules/") { return true }
+    if n.contains("/.git/") { return true }
+    if n.contains("/dist/") { return true }
+    if n.contains("/mutants.out") { return true }
+    return false
+}
+
+fn is_declaration_dir(p: str) to bool {
+    let n = norm(p)
+    if n.contains("/schema/domains/") { return true }
+    if n.contains("/schema/spec/") { return true }
+    return false
+}
+
+fn is_excluded_usage_file(p: str) to bool {
+    let n = norm(p)
+    for suf in excluded_usage_suffixes() {
+        if n.ends_with(norm(suf)) { return true }
+    }
+    return false
+}
+
+fn is_vox_db_side(p: str) to bool {
+    let n = norm(p)
+    if n.contains("/crates/vox-db/") { return true }
+    if n.contains("/crates/vox-db-types/") { return true }
+    // also match when root itself is crates/vox-db(-types) (no leading dir)
+    if n.starts_with("crates/vox-db/") { return true }
+    if n.starts_with("crates/vox-db-types/") { return true }
+    return false
+}
+
+// Collect all "usage-eligible" .rs files under `root`'s scan dirs.
+fn collect_usage_files(root: str) to list[str] {
+    let mut out = []
+    for dir in scan_dirs() {
+        let pattern = root + "/" + dir + "/**/*.rs"
+        let g = fs.glob(pattern)
+        if g.is_err() { continue }
+        for f in g.unwrap() {
+            if is_ignored_path(f) { continue }
+            if is_declaration_dir(f) { continue }
+            if is_excluded_usage_file(f) { continue }
+            out = out.push(f)
+        }
+    }
+    return out
+}
+
+// One classification row.
+// status: "LIVE" | "DORMANT" | "DEAD"
+// refs: full list of referencing file paths (vox_db-side + outside combined)
+type TableUsage {
+    name: str,
+    status: str,
+    outside_refs: list[str],
+    vox_db_refs: list[str],
+}
+
+// Classify every table in `tables` against files found under `root`.
+// Pure function (no I/O beyond fs.glob/fs.read under `root`) so it is
+// directly testable against a fixture root — see tests/fixtures/db_table_census/.
+fn classify_tables(tables: list[str], root: str) to list[TableUsage] {
+    let files = collect_usage_files(root)
+
+    // Combined alternation regex: cheap pre-filter so most files (which
+    // mention no table name at all) are read once and discarded, instead of
+    // paying a fresh per-table `is_match` for every file. This is computed
+    // ONCE and applied per file (not per table) — the earlier version of
+    // this function re-ran the combined check inside the per-table loop,
+    // which defeated the point of the pre-filter (219 tables x thousands of
+    // files x 2 regex passes each) and made the real-workspace run
+    // impractically slow; caught by hand while validating against the main
+    // checkout's DB.
+    let mut alt = ""
+    let mut ti = 0
+    while ti < tables.len() {
+        if ti > 0 { alt = alt + "|" }
+        alt = alt + tables.get(ti).unwrap()
+        ti = ti + 1
+    }
+    let combined_pattern = "\\b(" + alt + ")\\b"
+
+    // Single pass over files: read once, keep only "candidate" files that
+    // mention at least one table name anywhere, tagged vox_db-side/outside.
+    let mut candidate_paths: list[str] = []
+    let mut candidate_contents: list[str] = []
+    let mut candidate_is_vox_db: list[bool] = []
+    let mut fi = 0
+    while fi < files.len() {
+        let path = files.get(fi).unwrap()
+        let c = fs.read(path)
+        if not c.is_err() {
+            let content = c.unwrap()
+            if regex.is_match(content, combined_pattern) {
+                candidate_paths = candidate_paths.push(path)
+                candidate_contents = candidate_contents.push(content)
+                candidate_is_vox_db = candidate_is_vox_db.push(is_vox_db_side(path))
+            }
+        }
+        fi = fi + 1
+    }
+
+    let mut results: list[TableUsage] = []
+    let mut t = 0
+    while t < tables.len() {
+        let name = tables.get(t).unwrap()
+        let pat = "\\b" + name + "\\b"
+        let mut outside_refs: list[str] = []
+        let mut vox_db_refs: list[str] = []
+        let mut ci = 0
+        while ci < candidate_paths.len() {
+            let content = candidate_contents.get(ci).unwrap()
+            if regex.is_match(content, pat) {
+                let path = candidate_paths.get(ci).unwrap()
+                if candidate_is_vox_db.get(ci).unwrap() {
+                    vox_db_refs = vox_db_refs.push(path)
+                } else {
+                    outside_refs = outside_refs.push(path)
+                }
+            }
+            ci = ci + 1
+        }
+        let status = if outside_refs.len() > 0 {
+            "LIVE"
+        } else {
+            if vox_db_refs.len() > 0 { "DORMANT" } else { "DEAD" }
+        }
+        results = results.push({
+            name: name,
+            status: status,
+            outside_refs: outside_refs,
+            vox_db_refs: vox_db_refs,
+        })
+        t = t + 1
+    }
+    return results
+}
+
+// ── Row counts via `vox db audit` (design: query sqlite_master directly) ───
+// There is no `import sqlite`/`import turso` stdlib module for `.vox`
+// scripts (see crates/vox-compiler/src/builtin_registry.rs std namespace
+// list), and the declarative `table Foo {}` + `db.Foo` ORM requires a
+// compile-time schema, so it can't introspect an arbitrary existing sqlite
+// file. `vox db audit` (crates/vox-cli/src/commands/db/local.rs) already
+// does exactly the read-only `sqlite_master` table-list + `SELECT COUNT(*)`
+// scan this script needs, gated by the `VOX_DB_PATH` env var
+// (crates/vox-db/src/config.rs) — so we shell out to the already-built
+// `vox` binary rather than duplicating that Rust logic.
+fn table_row_counts(db_path: str) to list[Json] {
+    // `process.*` has no env-injecting variant in the type-checked surface
+    // (no run_capture_ex); set the var on our own process instead — the
+    // child inherits the parent environment, which is how VOX_DB_PATH
+    // reaches `vox db audit`.
+    env.set("VOX_DB_PATH", db_path)
+    let result = process.run("vox", ["db", "audit"])
+    if result is null {
+        print("error: could not spawn `vox db audit` — is `vox` on PATH?")
+        process.exit(1)
+    }
+    let r = result.unwrap()
+    if r.code != 0 {
+        print("error: `vox db audit` (VOX_DB_PATH=" + db_path + ") exited " + str(r.code))
+        print(r.stderr)
+        process.exit(1)
+    }
+    let parsed = json.parse(r.stdout)
+    if parsed.is_err() {
+        print("error: could not parse `vox db audit` JSON output: " + parsed.unwrap_err())
+        process.exit(1)
+    }
+    let obj = parsed.unwrap()
+    return obj.get("tables").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+}
+
+fn jstr(j: Json, k: str) to str {
+    return j.get(k).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+}
+fn jint(j: Json, k: str) to int {
+    return j.get(k).and_then(fn(x: Json) to Option[int] { x.as_int() }).unwrap_or(0)
+}
+
+fn json_escape(s: str) to str {
+    let s1 = s.replace("\\", "\\\\")
+    return s1.replace("\"", "\\\"")
+}
+
+fn json_str_array(xs: list[str]) to str {
+    let mut out = "["
+    let mut i = 0
+    while i < xs.len() {
+        out = out + "\"" + json_escape(xs.get(i).unwrap()) + "\""
+        if i < xs.len() - 1 { out = out + "," }
+        i = i + 1
+    }
+    return out + "]"
+}
+
+fn parse_flag(argv: list[str], flag: str, default_val: str) to str {
+    let mut i = 0
+    while i < argv.len() {
+        let arg = argv.get(i).unwrap()
+        if arg == flag {
+            if i + 1 < argv.len() { return argv.get(i + 1).unwrap() }
+        }
+        if arg.starts_with(flag + "=") {
+            return arg.replace(flag + "=", "")
+        }
+        i = i + 1
+    }
+    return default_val
+}
+
+fn main() {
+    let argv = env.args()
+
+    // `vox run -- --self-test` runs the same fixture assertions as the
+    // `@test` blocks below via `vox run --interp` (fast tree-walking
+    // interpreter, no Rust codegen) — a workaround for `vox test` currently
+    // failing to build ANY script using the common `xs = xs.push(v)`
+    // reassignment idiom (a pre-existing codegen/lint issue: the generated
+    // Rust hits `-D warnings` on `clippy::unnecessary_parens`, unrelated to
+    // this script's logic — confirmed identical failure on two independent
+    // scripts using this idiom). `@test` blocks are kept as the durable,
+    // conventional test surface for whenever that codegen issue is fixed.
+    if contains_str(argv, "--self-test") {
+        test_classify_tables_fixture()
+        test_sensitive_table_names_include_known_secrets()
+        print("db-table-census: self-test OK")
+        return
+    }
+
+    let db_path = parse_flag(argv, "--db", ".vox/store.db")
+    let root = parse_flag(argv, "--root", ".")
+
+    print("db-table-census: scanning " + db_path)
+
+    let rows = table_row_counts(db_path)
+    let mut tables = []
+    let mut row_counts = []
+    for r in rows {
+        tables = tables.push(jstr(r, "name"))
+        row_counts = row_counts.push(jint(r, "row_count"))
+    }
+
+    print("db-table-census: " + str(tables.len()) + " tables found, classifying against " + root + " ...")
+    let classified = classify_tables(tables, root)
+
+    if not fs.exists("graphify-out") {
+        match fs.mkdir("graphify-out") { Ok(_) => {} Error(_) => {} }
+    }
+
+    let sensitive = sensitive_table_names()
+
+    let mut live = 0
+    let mut dormant = 0
+    let mut dead = 0
+
+    let mut j = "[\n"
+    let mut i = 0
+    while i < classified.len() {
+        let row = classified.get(i).unwrap()
+        if row.status == "LIVE" { live = live + 1 }
+        if row.status == "DORMANT" { dormant = dormant + 1 }
+        if row.status == "DEAD" { dead = dead + 1 }
+
+        let rc = row_counts.get(i).unwrap()
+        let is_sensitive = contains_str(sensitive, row.name)
+
+        let mut entry = "  {\"table\":\"" + json_escape(row.name) + "\""
+        entry = entry + ",\"rows\":" + str(rc)
+        entry = entry + ",\"status\":\"" + row.status + "\""
+        entry = entry + ",\"sensitive\":" + str(is_sensitive)
+        if is_sensitive {
+            // Sensitive tables: counts only, never file paths (they could
+            // leak deployment-specific layout for a secrets/identity table).
+            entry = entry + ",\"referencing_file_count\":" + str(row.outside_refs.len() + row.vox_db_refs.len())
+        } else {
+            entry = entry + ",\"referencing_files\":" + json_str_array(list_concat_str(row.outside_refs, row.vox_db_refs))
+        }
+        entry = entry + "}"
+        j = j + entry
+        if i < classified.len() - 1 { j = j + ",\n" }
+        i = i + 1
+    }
+    j = j + "\n]\n"
+    fs.write_file("graphify-out/table_usage_report.json", j)
+
+    print("")
+    print("=== db-table-census summary ===")
+    print("Total tables: " + str(classified.len()))
+    print("  LIVE:    " + str(live))
+    print("  DORMANT: " + str(dormant))
+    print("  DEAD:    " + str(dead))
+    print("")
+    print("Sensitive tables (do not auto-quarantine without manual review):")
+    let mut si = 0
+    while si < classified.len() {
+        let row = classified.get(si).unwrap()
+        if contains_str(sensitive, row.name) {
+            print("  - " + row.name + " [" + row.status + "] — sensitive, manual review required")
+        }
+        si = si + 1
+    }
+    print("")
+    print("wrote graphify-out/table_usage_report.json")
+}
+
+// ── 1.1a fixture test (RED before the classifier existed, GREEN now) ───────
+// Fixtures live under tests/fixtures/db_table_census/repo/ and encode four
+// known-correct outcomes:
+//   fixture_live_table     -> LIVE    (used from crates/other-crate, outside vox-db)
+//   fixture_dormant_table  -> DORMANT (used only from crates/vox-db/src/internal_usage.rs)
+//   fixture_dead_table     -> DEAD    (declared in schema/domains/ but never used)
+//   fixture_excluded_table -> DEAD    (only "used" from a codex_legacy.rs stand-in,
+//                                       which must be excluded from the usage signal)
+//
+// `vox test` runs generated tests with cwd = target/generated (two levels
+// below the repo root), while `vox run` / manual invocation use the repo
+// root directly — try both so this test works under either.
+fn fixture_repo_root() to str {
+    let candidates = [
+        "tests/fixtures/db_table_census/repo",
+        "../../tests/fixtures/db_table_census/repo",
+    ]
+    for c in candidates {
+        if fs.exists(c) { return c }
+    }
+    return candidates.get(0).unwrap()
+}
+
+@test
+fn test_classify_tables_fixture() to Unit {
+    let root = fixture_repo_root()
+    let tables = ["fixture_live_table", "fixture_dormant_table", "fixture_dead_table", "fixture_excluded_table"]
+    let results = classify_tables(tables, root)
+    assert(results.len() is 4)
+
+    let mut i = 0
+    let mut live_status = ""
+    let mut dormant_status = ""
+    let mut dead_status = ""
+    let mut excluded_status = ""
+    while i < results.len() {
+        let r = results.get(i).unwrap()
+        if r.name == "fixture_live_table" { live_status = r.status }
+        if r.name == "fixture_dormant_table" { dormant_status = r.status }
+        if r.name == "fixture_dead_table" { dead_status = r.status }
+        if r.name == "fixture_excluded_table" { excluded_status = r.status }
+        i = i + 1
+    }
+
+    assert(live_status is "LIVE")
+    assert(dormant_status is "DORMANT")
+    assert(dead_status is "DEAD")
+    // The codex_legacy.rs-style exclusion is the whole point of this case:
+    // without it, fixture_excluded_table would misclassify as DORMANT.
+    assert(excluded_status is "DEAD")
+}
+
+@test
+fn test_sensitive_table_names_include_known_secrets() to Unit {
+    let names = sensitive_table_names()
+    assert(contains_str(names, "clavis_account_secrets") is true)
+    assert(contains_str(names, "user_identities") is true)
+}
