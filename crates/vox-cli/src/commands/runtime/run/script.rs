@@ -305,8 +305,20 @@ pub(crate) async fn compile(
 
     let hash = {
         use xxhash_rust::xxh3::xxh3_64;
-        let mut key = Vec::with_capacity(b"vox-cache-v4".len() + 1 + source.len());
-        key.extend_from_slice(b"vox-cache-v4\0");
+        // Cache key must include the compiler/runtime build identity, not just the
+        // script's own source: `~/.vox/script-target/` shares one build of
+        // `vox-actor-runtime` (and vox-compiler-generated codegen) across every
+        // script. If only the source hash were used, rebuilding vox-cli itself
+        // (e.g. a codegen fix in builtin_registry.rs) would leave a stale cached
+        // binary in place until *some* .vox file's own bytes happened to change
+        // too — silently reusing pre-fix behavior. `crate::VOX_VERSION` embeds the
+        // build number and git commit, so any rebuild invalidates every script's
+        // cache entry.
+        let mut key =
+            Vec::with_capacity(b"vox-cache-v5".len() + 1 + crate::VOX_VERSION.len() + 1 + source.len());
+        key.extend_from_slice(b"vox-cache-v5\0");
+        key.extend_from_slice(crate::VOX_VERSION.as_bytes());
+        key.push(0);
         key.extend_from_slice(source.as_bytes());
         format!("{:016x}", xxh3_64(&key))
     };
