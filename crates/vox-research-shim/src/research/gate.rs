@@ -272,4 +272,40 @@ mod semcov_wave2_tests {
             low.score
         );
     }
+
+    #[test]
+    fn high_trust_citations_do_not_exceed_plain_citation_count_scale() {
+        let claims = dummy_claims(2);
+        let config = full_config(); // min_citations_for_full_score: Some(5)
+
+        // 3 journal-reputation citations (trust_score 1.5 each, capped at 1.0
+        // by the caller before reaching GateInput) should score the SAME as
+        // 3 plain citations — not inflate past what 5-citations-for-full-score
+        // implies.
+        let capped_high_trust_input = GateInput {
+            claims: &claims,
+            citation_count: 3,
+            trust_weighted_citation_score: 3.0, // 3 citations, each capped at 1.0 regardless of raw trust_score
+            supported_claim_count: 2,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+        let plain_three_citations_input = GateInput {
+            claims: &claims,
+            citation_count: 3,
+            trust_weighted_citation_score: 3.0, // equivalent to 3 plain citations
+            supported_claim_count: 2,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+
+        let capped = score_with_config(&capped_high_trust_input, &config);
+        let plain = score_with_config(&plain_three_citations_input, &config);
+        assert_eq!(
+            capped.score, plain.score,
+            "capping trust contribution at 1.0 per hit must not let 3 high-trust citations outscore 3 plain citations"
+        );
+    }
 }

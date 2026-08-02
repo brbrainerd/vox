@@ -401,8 +401,14 @@ pub async fn run_research_with_context_and_session(
         }
         domains.len()
     };
+    // Cap each hit's contribution at 1.0: a high-reputation source (trust_score
+    // up to 1.5) should not count as MORE than one citation, only a low-trust
+    // or retracted source (trust_score down to 0.1) should count as LESS than
+    // one — otherwise the sum can exceed citation_count and saturate
+    // citation_score with fewer real citations than min_citations_for_full_score
+    // was calibrated for. See docs/src/architecture/deep-research-trust-novelty-scoring-landscape-2026-08-01.md.
     let trust_weighted_citation_score: f32 =
-        all_hits.iter().map(|h| h.trust_score as f32).sum();
+        all_hits.iter().map(|h| (h.trust_score as f32).min(1.0)).sum();
     let gate_input = GateInput {
         claims: &draft_claims,
         citation_count: all_hits.len(),
