@@ -43,6 +43,12 @@ export function installOperatorShellMock(opts: OperatorShellMockOptions = {}): v
         case 'set_gui_preference':
           prefs[args?.key as string] = args?.value as string;
           return null;
+        // Non-fresh-install defaults so the first-run OnboardingWizard (Task 15)
+        // doesn't cover the shell in every operator-shell-mock-backed spec.
+        case 'list_secret_status':
+          return [{ id: 'OPENROUTER_API_KEY', isPresent: true }];
+        case 'inference_provider_status':
+          return [];
         case 'get_initial_view':
           return initialView;
         case 'get_build_info':

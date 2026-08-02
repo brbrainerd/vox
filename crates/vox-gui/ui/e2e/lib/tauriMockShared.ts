@@ -79,6 +79,10 @@ export function bootstrapResponse(cmd: string, viewKey: string): unknown {
     case 'get_active_model': return null;
     case 'get_selection_policy': return { chain: [], free_tier: true };
     case 'vox_docs_index': return [];
+    // Non-fresh-install defaults so the first-run OnboardingWizard (Task 15)
+    // doesn't cover the shell in specs that don't override these explicitly.
+    case 'list_secret_status': return [{ id: 'OPENROUTER_API_KEY', isPresent: true }];
+    case 'inference_provider_status': return [];
     default: return null;
   }
 }

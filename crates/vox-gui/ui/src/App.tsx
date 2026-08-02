@@ -23,6 +23,7 @@ import { Toasts, ToastItem } from './components/ui/Toasts';
 import { coalesceToast } from './lib/toastQueue';
 import { BackendBanner } from './components/ui/BackendBanner';
 import { VersionMismatchBanner } from './components/layout/VersionMismatchBanner';
+import { OnboardingWizard } from './components/surfaces/Onboarding/OnboardingWizard';
 import { userAppendInput } from './lib/composerSubmit';
 import { Transcript } from './components/surfaces/Loquela/Transcript';
 import { DiffReview } from './components/surfaces/Loquela/DiffReview';
@@ -1359,6 +1360,7 @@ export default function App() {
       <div className="flex h-screen flex-col">
         <BackendBanner />
         <VersionMismatchBanner mismatch={orchQuery.versionMismatch} />
+        <OnboardingWizard pushToast={pushToast} gamifyEnabled={gamifySettings.enabled} />
         <AppShell
         activeView={activeView}
         onNavigate={(v) => navigateTo(v)}

@@ -24,6 +24,8 @@ test.describe('Vox Settings pilot', () => {
           }
           if (cmd === 'set_gui_preference') return null;
           if (cmd === 'get_orchestrator_status_bin') return new Uint8Array([0x80]);
+          if (cmd === 'list_secret_status') return [{ id: 'OPENROUTER_API_KEY', isPresent: true }];
+          if (cmd === 'inference_provider_status') return [];
           return null;
         },
       };
@@ -65,6 +67,8 @@ test.describe('Vox Settings — budget warn threshold', () => {
           }
           if (cmd === 'set_gui_preference') return null;
           if (cmd === 'get_orchestrator_status_bin') return new Uint8Array([0x80]);
+          if (cmd === 'list_secret_status') return [{ id: 'OPENROUTER_API_KEY', isPresent: true }];
+          if (cmd === 'inference_provider_status') return [];
           if (cmd === 'get_user_config') {
             return [
               {

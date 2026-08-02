@@ -17,6 +17,8 @@ test.describe('Browser surface', () => {
             return { x_vox_version: 2, schema_version: 1, generated_from: 'e2e', actions: [] };
           }
           if (cmd === 'get_orchestrator_status_bin') return new Uint8Array([0x80]);
+          if (cmd === 'list_secret_status') return [{ id: 'OPENROUTER_API_KEY', isPresent: true }];
+          if (cmd === 'inference_provider_status') return [];
           if (cmd === 'preview_status') {
             return { active: false, url: null, app_dir: null, source: 'none' };
           }
