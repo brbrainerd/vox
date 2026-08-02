@@ -346,7 +346,7 @@ impl TaskOutcome {
 
 pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
     if args.live {
-        let (run, task_results, selection_events) =
+        let (mut run, task_results, selection_events) =
             crate::commands::harness::live_eval::run_live(args.samples, args.task.as_deref())
                 .await?;
         println!(
@@ -358,10 +358,38 @@ pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
             run.skip_count,
             run.total_cost_usd
         );
-        // Persistence (writing run/task_results/selection_events to vox-db) is wired in Task 6's
-        // `publish` command, which also needs DB access already — see that task for where the
-        // VoxDb handle is constructed and reused for both persistence and publishing.
-        let _ = (task_results, selection_events); // consumed by Task 6's persistence step
+
+        let db = vox_db::open_project_db().await?;
+        // `changed_files` is left empty by `run_live` (which has no DB handle); compute it here
+        // by diffing against the immediately-preceding run's `git_sha`. That `git_sha` may have
+        // originated from a `publish`-ingested JSONL file rather than a local run, but
+        // `publish::ingest_runs` validates the shape of every `git_sha` before it ever enters
+        // vox-db, so it can be trusted here without re-validating.
+        if let Some(previous) = db.list_harness_eval_runs(1).await?.into_iter().next() {
+            if previous.git_sha != run.git_sha {
+                let diff_output = std::process::Command::new("git")
+                    .args([
+                        "diff",
+                        "--name-only",
+                        &format!("{}..{}", previous.git_sha, run.git_sha),
+                    ])
+                    .output();
+                if let Ok(out) = diff_output {
+                    run.changed_files = String::from_utf8_lossy(&out.stdout)
+                        .lines()
+                        .map(str::to_string)
+                        .collect();
+                }
+            }
+        }
+        db.record_harness_eval_run(&run).await?;
+        for task_result in &task_results {
+            db.record_harness_eval_task_result(task_result).await?;
+        }
+        for event in &selection_events {
+            db.record_model_selection_event(event).await?;
+        }
+
         if run.fail_count > 0 {
             anyhow::bail!(
                 "harness eval --live gate failed: {}/{} tasks did not pass",
