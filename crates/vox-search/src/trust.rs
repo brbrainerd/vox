@@ -192,6 +192,16 @@ pub async fn score_hit_trust(title: &str, doi: Option<&str>) -> f64 {
     scorer.reputation_multiplier(title).await
 }
 
+/// Domain substrings recognized as scholarly by *both* `is_plausibly_academic`
+/// (below) and `web_dispatcher::source_authority_score`'s citation-tier
+/// boost — kept as one list so the two independently-maintained checks can't
+/// silently drift apart on the domains they agree matter (each function also
+/// has its own additional domains beyond this shared core, since gating an
+/// OpenAlex lookup and boosting search-result ranking are related but not
+/// identical concerns).
+pub(crate) const CORE_ACADEMIC_DOMAINS: &[&str] =
+    &["doi.org/", "arxiv.org/", "pubmed.ncbi.nlm.nih.gov/"];
+
 /// Cheap domain check gating the OpenAlex title-search call in
 /// `score_hit_trust_for_url` — skips the network call and title-collision
 /// misclassification risk for hits that are clearly not scholarly sources.
@@ -200,10 +210,8 @@ pub async fn score_hit_trust(title: &str, doi: Option<&str>) -> f64 {
 /// anyway, so this never suppresses a real signal, only wasted calls.
 pub fn is_plausibly_academic(url: &str) -> bool {
     let key = url.to_ascii_lowercase();
-    key.contains("doi.org/")
-        || key.contains("arxiv.org/")
+    CORE_ACADEMIC_DOMAINS.iter().any(|d| key.contains(d))
         || key.contains(".edu/")
-        || key.contains("pubmed.ncbi.nlm.nih.gov/")
         || key.contains("ncbi.nlm.nih.gov/")
         || key.contains("researchgate.net/")
         || key.contains("springer.com/")

@@ -27,11 +27,16 @@ impl CorroborationCount {
 /// `https://www.reuters.com/world/x` and `https://reuters.com/y` both key
 /// to `reuters.com`). Strips a leading `www.` only; does not attempt full
 /// public-suffix-list registrable-domain parsing (good enough to dedup
-/// same-site hits, not to resolve `co.uk`-style TLDs).
+/// same-site hits, not to resolve `co.uk`-style TLDs). Reuses
+/// `web_dispatcher`'s scheme/query/fragment stripping (`canonical_url_key`)
+/// rather than re-implementing it, then takes just the host portion.
 fn domain_of(url: &str) -> Option<String> {
-    let without_scheme = url.split_once("://").map(|(_, rest)| rest).unwrap_or(url);
-    let host = without_scheme.split('/').next()?;
-    Some(host.strip_prefix("www.").unwrap_or(host).to_ascii_lowercase())
+    let stripped = crate::web_dispatcher::canonical_url_key(url);
+    let host = stripped.split('/').next()?;
+    if host.is_empty() {
+        return None;
+    }
+    Some(host.strip_prefix("www.").unwrap_or(host).to_string())
 }
 
 pub fn count_corroboration(claim_id: &str, hits: &[CorroboratingHit]) -> CorroborationCount {

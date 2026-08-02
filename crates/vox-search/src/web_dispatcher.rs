@@ -187,7 +187,7 @@ fn rank_and_dedupe_results(results: &mut Vec<crate::searxng::SearxngResult>) {
     });
 }
 
-fn canonical_url_key(url: &str) -> String {
+pub(crate) fn canonical_url_key(url: &str) -> String {
     let mut key = url.trim().to_ascii_lowercase();
     if let Some(stripped) = key.strip_prefix("https://") {
         key = stripped.to_string();
@@ -215,9 +215,7 @@ fn source_authority_score(url: &str) -> f64 {
         || key.contains("bbc.co")
     {
         1.25
-    } else if key.contains("arxiv.org/")
-        || key.contains("doi.org/")
-        || key.contains("pubmed.ncbi.nlm.nih.gov/")
+    } else if crate::trust::CORE_ACADEMIC_DOMAINS.iter().any(|d| key.contains(d))
         || key.contains("docs.rs/")
         || key.contains("github.com/")
     {
@@ -230,6 +228,27 @@ fn source_authority_score(url: &str) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ranking_boost_and_academic_gate_agree_on_the_shared_core_domains() {
+        // `source_authority_score` and `crate::trust::is_plausibly_academic`
+        // are separate checks for related-but-different concerns, but both
+        // should treat crate::trust::CORE_ACADEMIC_DOMAINS consistently —
+        // this pins that agreement so a future edit to one list can't
+        // silently diverge from the other on the domains they share.
+        for domain in crate::trust::CORE_ACADEMIC_DOMAINS {
+            let url = format!("https://{domain}some-id");
+            assert!(
+                source_authority_score(&url) >= 1.15,
+                "{domain} is in CORE_ACADEMIC_DOMAINS, so source_authority_score must boost it \
+                 (pubmed.ncbi.nlm.nih.gov/ also matches the separate .gov/ tier at 1.25, which is fine)"
+            );
+            assert!(
+                crate::trust::is_plausibly_academic(&url),
+                "{domain} is in CORE_ACADEMIC_DOMAINS, so is_plausibly_academic must accept it"
+            );
+        }
+    }
 
     fn result(url: &str, score: f64) -> crate::searxng::SearxngResult {
         crate::searxng::SearxngResult {
