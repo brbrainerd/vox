@@ -23,7 +23,7 @@ schema_type: "TechArticle"
 - Inline code blocks across `.md` files should be explicitly imported using `{{#include}}` pointing to `examples/golden/` files, OR manually prepended with `// vox:skip`.
 
 ## Secret Management One-Liner
-Never read `std::env::var("SECRET")`; exclusively employ `vox_secrets::resolve_secret(...)` and declare it in `crates/vox-secrets/src/spec.rs`.
+Never read `std::env::var("SECRET")`; exclusively employ `vox_secrets::resolve_secret(...)` and declare it in `crates/vox-secrets/src/spec/`.
 
 ## Running Dev Environment
 If `vox` is explicitly omitted from terminal `$PATH`, use the dev scripts:

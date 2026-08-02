@@ -164,7 +164,7 @@ use vox_secrets::resolve_secret;
 let key = resolve_secret(SecretId::MyApiKey)?;
 ```
 
-Declare the `SecretId` variant in `crates/vox-secrets/src/spec.rs`. See
+Declare the `SecretId` variant in `crates/vox-secrets/src/spec/` (`ids.rs` + `registry/`). See
 [Secrets SSOT](../reference/secrets-ssot.md) for the full lifecycle.
 
 **False positive:** Content-addressed hashes, test fixture values. Suppress

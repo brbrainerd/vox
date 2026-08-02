@@ -117,7 +117,7 @@ Rules for any agent writing docs:
 
 Use Clavis for API keys, tokens, and credentials. Do not introduce new direct secret reads from environment variables in consumers.
 
-- Define and maintain secret metadata in `crates/vox-secrets/src/spec.rs`.
+- Define and maintain secret metadata in `crates/vox-secrets/src/spec/` (the `SecretId` enum lives in `spec/ids.rs`; entries live under `spec/registry/`).
 - Resolve secrets with `vox_secrets::resolve_secret(...)`.
 - Keep resolver/source behavior in `crates/vox-secrets/src/resolver.rs` and `crates/vox-secrets/src/sources/*`.
 - After secret-surface changes, run `vox ci secret-env-guard` and `vox ci secrets-parity`.
@@ -130,7 +130,7 @@ Naming policy:
 
 API key lifecycle checklist:
 
-1. Add `SecretId` and `SecretSpec` entries in `crates/vox-secrets/src/spec.rs`.
+1. Add `SecretId` and `SecretSpec` entries in `crates/vox-secrets/src/spec/` (`spec/ids.rs` for the enum, `spec/registry/` for entries).
 2. Migrate callsites to `vox_secrets::resolve_secret(...)`.
 3. Update `vox secrets doctor` workflow/profile expectations when requirements change.
 4. Keep docs in sync at `docs/src/reference/secrets-ssot.md`.
