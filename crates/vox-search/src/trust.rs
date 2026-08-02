@@ -192,6 +192,36 @@ pub async fn score_hit_trust(title: &str, doi: Option<&str>) -> f64 {
     scorer.reputation_multiplier(title).await
 }
 
+/// Cheap domain check gating the OpenAlex title-search call in
+/// `score_hit_trust_for_url` — skips the network call and title-collision
+/// misclassification risk for hits that are clearly not scholarly sources.
+/// Fail-open: an unrecognized domain returns `false` (skip OpenAlex), which
+/// is the same neutral 1.0 result a genuine no-match would have produced
+/// anyway, so this never suppresses a real signal, only wasted calls.
+pub fn is_plausibly_academic(url: &str) -> bool {
+    let key = url.to_ascii_lowercase();
+    key.contains("doi.org/")
+        || key.contains("arxiv.org/")
+        || key.contains(".edu/")
+        || key.contains("pubmed.ncbi.nlm.nih.gov/")
+        || key.contains("ncbi.nlm.nih.gov/")
+        || key.contains("researchgate.net/")
+        || key.contains("springer.com/")
+        || key.contains("sciencedirect.com/")
+        || key.contains("jstor.org/")
+}
+
+/// URL-aware wrapper around `score_hit_trust` that skips the OpenAlex
+/// reputation lookup entirely for non-academic domains. This is the new
+/// entry point `web_gather.rs` should call; `score_hit_trust` itself is
+/// left unchanged for any other caller that doesn't yet have a URL handy.
+pub async fn score_hit_trust_for_url(title: &str, doi: Option<&str>, url: &str) -> f64 {
+    if !is_plausibly_academic(url) {
+        return 1.0;
+    }
+    score_hit_trust(title, doi).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -305,5 +335,26 @@ mod tests {
 
         let scorer = TrustScorer::with_base_urls("http://unused.invalid", server.uri());
         assert_eq!(scorer.venue_type("Example Paper Title").await, Some("journal".to_string()));
+    }
+
+    #[test]
+    fn is_plausibly_academic_gates_correctly() {
+        assert!(is_plausibly_academic("https://doi.org/10.1000/xyz123"));
+        assert!(is_plausibly_academic("https://arxiv.org/abs/2401.00001"));
+        assert!(is_plausibly_academic("https://www.ncbi.nlm.nih.gov/pmc/articles/PMC123"));
+        assert!(!is_plausibly_academic("https://en.wikipedia.org/wiki/Research"));
+        assert!(!is_plausibly_academic("https://www.reuters.com/world/article"));
+        assert!(!is_plausibly_academic("https://blog.example/post"));
+    }
+
+    #[tokio::test]
+    async fn score_hit_trust_skips_openalex_for_non_academic_url() {
+        let score = score_hit_trust_for_url(
+            "Some Blog Post Title",
+            None,
+            "https://blog.example/post",
+        )
+        .await;
+        assert_eq!(score, 1.0, "non-academic URL should short-circuit to neutral without an OpenAlex call");
     }
 }

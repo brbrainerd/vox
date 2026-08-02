@@ -30,7 +30,8 @@ fn hybrid_from_research(hit: &ResearchHit) -> HybridSearchHit {
 
 async fn research_hit_from_hybrid(hit: HybridSearchHit) -> ResearchHit {
     let doi = vox_search::trust::extract_doi_from_url(&hit.path);
-    let trust_score = vox_search::trust::score_hit_trust(&hit.title, doi.as_deref()).await;
+    let trust_score =
+        vox_search::trust::score_hit_trust_for_url(&hit.title, doi.as_deref(), &hit.path).await;
     ResearchHit {
         url: hit.path,
         title: hit.title,
