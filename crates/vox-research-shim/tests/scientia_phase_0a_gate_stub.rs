@@ -11,7 +11,7 @@ fn gate_with_no_hits_routes_direct() {
         claims: &claims,
         citation_count: 0,
         trust_weighted_citation_score: 0.0,
-        supported_claim_count: 0,
+        supported_claim_count: 0.0,
         distinct_domain_count: 0,
         no_retrieval_hits: true,
         answer_is_empty: true,

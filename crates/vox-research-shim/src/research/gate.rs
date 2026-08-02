@@ -46,7 +46,12 @@ pub struct GateInput<'a> {
     /// to `citation_count as f32` at call sites that haven't wired a real
     /// `TrustScorer` yet, preserving prior behavior exactly.
     pub trust_weighted_citation_score: f32,
-    pub supported_claim_count: usize,
+    /// Sum of per-claim weights for `Supported` verdicts (each weighted by
+    /// `resample_stability` in `[0, 1]`, so a flaky claim contributes less
+    /// than a consistently-supported one). Kept as `f32` rather than a claim
+    /// *count* so that stability weighting survives into the gate score
+    /// instead of being destroyed by rounding to an integer count.
+    pub supported_claim_count: f32,
     pub distinct_domain_count: usize,
     pub no_retrieval_hits: bool,
     pub answer_is_empty: bool,
@@ -103,7 +108,7 @@ pub fn score_with_config(input: &GateInput<'_>, config: &GateConfig) -> Confiden
     let claim_support_score = if input.claims.is_empty() {
         0.5
     } else {
-        (input.supported_claim_count as f32 / input.claims.len() as f32).clamp(0.0, 1.0)
+        (input.supported_claim_count / input.claims.len() as f32).clamp(0.0, 1.0)
     };
     let diversity_score = (input.distinct_domain_count as f32 / min_dom).clamp(0.0, 1.0);
     let score = citation_score * 0.35
@@ -193,7 +198,7 @@ mod semcov_wave2_tests {
             claims: &[],
             citation_count: 0,
             trust_weighted_citation_score: 0.0,
-            supported_claim_count: 0,
+            supported_claim_count: 0.0,
             distinct_domain_count: 0,
             no_retrieval_hits: true,
             answer_is_empty: false,
@@ -209,7 +214,7 @@ mod semcov_wave2_tests {
             claims: &claims,
             citation_count: 5,
             trust_weighted_citation_score: 5.0,
-            supported_claim_count: 4,
+            supported_claim_count: 4.0,
             distinct_domain_count: 4,
             no_retrieval_hits: false,
             answer_is_empty: false,
@@ -226,7 +231,7 @@ mod semcov_wave2_tests {
             claims: &claims,
             citation_count: 2,
             trust_weighted_citation_score: 2.0,
-            supported_claim_count: 0,
+            supported_claim_count: 0.0,
             distinct_domain_count: 1,
             no_retrieval_hits: false,
             answer_is_empty: false,
@@ -248,7 +253,7 @@ mod semcov_wave2_tests {
             claims: &claims,
             citation_count: 5,
             trust_weighted_citation_score: 5.0, // 5 citations at trust_score 1.0 each
-            supported_claim_count: 2,
+            supported_claim_count: 2.0,
             distinct_domain_count: 4,
             no_retrieval_hits: false,
             answer_is_empty: false,
@@ -257,7 +262,7 @@ mod semcov_wave2_tests {
             claims: &claims,
             citation_count: 5,
             trust_weighted_citation_score: 0.5, // 5 citations at trust_score 0.1 each (all retracted)
-            supported_claim_count: 2,
+            supported_claim_count: 2.0,
             distinct_domain_count: 4,
             no_retrieval_hits: false,
             answer_is_empty: false,
@@ -286,7 +291,7 @@ mod semcov_wave2_tests {
             claims: &claims,
             citation_count: 3,
             trust_weighted_citation_score: 3.0, // 3 citations, each capped at 1.0 regardless of raw trust_score
-            supported_claim_count: 2,
+            supported_claim_count: 2.0,
             distinct_domain_count: 4,
             no_retrieval_hits: false,
             answer_is_empty: false,
@@ -295,7 +300,7 @@ mod semcov_wave2_tests {
             claims: &claims,
             citation_count: 3,
             trust_weighted_citation_score: 3.0, // equivalent to 3 plain citations
-            supported_claim_count: 2,
+            supported_claim_count: 2.0,
             distinct_domain_count: 4,
             no_retrieval_hits: false,
             answer_is_empty: false,
@@ -306,6 +311,52 @@ mod semcov_wave2_tests {
         assert_eq!(
             capped.score, plain.score,
             "capping trust contribution at 1.0 per hit must not let 3 high-trust citations outscore 3 plain citations"
+        );
+    }
+
+    /// Regression test for a rounding bug: `weighted_supported_claim_score`
+    /// (resample-stability-weighted) used to be `.round() as usize` before
+    /// reaching `GateInput`, which meant e.g. a single Supported claim with
+    /// `resample_stability: 0.6` rounded to `1` — identical to a fully
+    /// stable claim — silently defeating the whole point of the weighting.
+    /// `supported_claim_count` is now `f32` end-to-end so fractional
+    /// stability actually changes `claim_support_score`.
+    #[test]
+    fn fractional_claim_support_is_not_rounded_away() {
+        let claims = dummy_claims(1);
+        let config = full_config();
+
+        // A single claim that was Supported but flaky across resamples
+        // (resample_stability 0.6) must NOT score identically to a claim
+        // that was consistently Supported (resample_stability 1.0).
+        let flaky = GateInput {
+            claims: &claims,
+            citation_count: 5,
+            trust_weighted_citation_score: 5.0,
+            supported_claim_count: 0.6,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+        let stable = GateInput {
+            claims: &claims,
+            citation_count: 5,
+            trust_weighted_citation_score: 5.0,
+            supported_claim_count: 1.0,
+            distinct_domain_count: 4,
+            no_retrieval_hits: false,
+            answer_is_empty: false,
+        };
+
+        let flaky_score = score_with_config(&flaky, &config);
+        let stable_score = score_with_config(&stable, &config);
+        assert!(
+            stable_score.score > flaky_score.score,
+            "a flaky Supported claim (resample_stability 0.6) must score lower than a \
+             consistently Supported one (1.0), not round to the same integer count: \
+             flaky={} stable={}",
+            flaky_score.score,
+            stable_score.score
         );
     }
 }

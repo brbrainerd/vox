@@ -437,7 +437,7 @@ pub fn should_trigger_autonomous_research(
         claims: &claims,
         citation_count,
         trust_weighted_citation_score: citation_count as f32,
-        supported_claim_count: 0,
+        supported_claim_count: 0.0,
         distinct_domain_count,
         no_retrieval_hits: citation_count == 0,
         answer_is_empty: false,

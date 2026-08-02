@@ -383,8 +383,10 @@ pub async fn run_research_with_context_and_session(
     }
 
     // ── (e) Confidence gate → routing decision ────────────────────────────────
-    let supported_claim_count =
-        weighted_supported_claim_score(&claim_verdicts).round() as usize;
+    // NOTE: kept as f32 (not rounded to a claim count) so that
+    // resample_stability weighting isn't destroyed before it reaches the
+    // gate — see `weighted_supported_claim_score`'s doc comment.
+    let supported_claim_count = weighted_supported_claim_score(&claim_verdicts);
     let distinct_domain_count = {
         use std::collections::HashSet;
         let mut domains = HashSet::<String>::new();
