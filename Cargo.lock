@@ -16478,6 +16478,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vox-http-client",
+ "wiremock",
 ]
 
 [[package]]
