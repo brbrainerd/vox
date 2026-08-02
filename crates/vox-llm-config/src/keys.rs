@@ -137,8 +137,22 @@ pub const LLM_CONFIG_KEYS: &[LlmConfigKey] = &[
     vc_key!("model", String, General, "Default model", "Model id used when no per-call override is set"),
     vc_key!("daily_budget_usd", Float, General, "Daily budget (USD)", "Soft cap on spend per day"),
     vc_key!("per_session_budget_usd", Float, General, "Per-session budget (USD)", "Soft cap on spend per session"),
+    vc_key!("budget_warn_threshold_pct", Float, General, "Budget warn threshold", "Warn when spend crosses this fraction of a budget cap (0.0-1.0)"),
     vc_key!("data_dir", Path, Training, "Training data dir", "Directory for MENS training data ([train].data_dir)"),
     vc_key!("db_url", String, General, "Database URL", "Optional external database URL (blank = local default)"),
     vc_key!("train_epochs", Int, Training, "Training epochs", "Default epochs for MENS training runs"),
     vc_key!("train_batch_size", Int, Training, "Training batch size", "Default batch size for MENS training runs"),
 ];
+
+#[cfg(test)]
+mod budget_warn_threshold_registry_tests {
+    use super::LLM_CONFIG_KEYS;
+
+    #[test]
+    fn budget_warn_threshold_pct_is_registered() {
+        assert!(
+            LLM_CONFIG_KEYS.iter().any(|k| k.env == "budget_warn_threshold_pct"),
+            "budget_warn_threshold_pct must be registered in LLM_CONFIG_KEYS"
+        );
+    }
+}
