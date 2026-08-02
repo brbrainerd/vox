@@ -60,10 +60,10 @@ For each of the four duplicated rule sets, keep the fullest/most authoritative c
 
 | Rule | Keep full copy in | Reduce to pointer in |
 |---|---|---|
-| Secrets (`vox_secrets::resolve_secret`, never raw env reads) | `AGENTS.md` §Secret Management | `.cursor/rules/secrets-policy.mdc`, `.cursor/rules/data-storage-policy.mdc`, `.cursor/rules/voxscript-first-automation.mdc`, `continuation-prompt-engineering.md`, `toestub-contributor-guide.md` |
+| Secrets (`vox_secrets::resolve_secret`, never raw env reads) | `AGENTS.md` §Secret Management | `.cursor/rules/secrets-policy.mdc`, `.cursor/rules/data-storage-policy.mdc`, `.cursor/rules/voxscript-first-automation.mdc`, `toestub-contributor-guide.md` |
 | VoxScript-first execution tiers | `AGENTS.md` §VoxScript-First Glue Code | `GEMINI.md` §VoxScript-First Glue, `.cursor/rules/voxscript-first-automation.mdc` |
 | Retired-crate table | `AGENTS.md` §Retired Surfaces | `.cursor/rules/retired-surfaces.mdc`, `coding-agents.md` |
-| God-object 500-line threshold | `docs/agents/governance.md` (the multi-tier 300/400/500 SSOT) | `coding-agents.md`, `continuation-prompt-engineering.md`, `contributor-hub.md`, `toestub-contributor-guide.md`, `docs/agents/AGENTS.md`, `cli-toolchain.md` |
+| God-object 500-line threshold | `docs/agents/governance.md` (the multi-tier 300/400/500 SSOT) | `coding-agents.md`, `contributor-hub.md`, `toestub-contributor-guide.md`, `docs/agents/AGENTS.md`, `cli-toolchain.md` |
 
 A "pointer" is a single sentence, e.g. `> Secrets: see AGENTS.md §Secret Management — never read secrets from env vars directly; use \`vox_secrets::resolve_secret(...)\`.` — short enough to still carry the rule inline (so a tool that only loads the overlay isn't blind to it) while eliminating the maintenance burden of a second full copy.
 
@@ -102,7 +102,7 @@ Add a small, scoped check (not a general doc-linter) that catches the specific c
 
 - `grep` for each of the 4 stale strings (§1) across the repo returns zero hits post-fix (excluding intentionally historical references, e.g. changelogs).
 - Word/line count of `AGENTS.md` before vs. after, reported in the plan's final summary.
-- Every cross-reference pointer added in §2/§6 resolves to a section that still exists (no dangling `see AGENTS.md §X` after a trim renames or removes `§X`).
+- Every cross-reference pointer added in §2/§6 resolves to a section that still exists *and actually contains the rule/distinction being pointed at* (no dangling `see AGENTS.md §X` after a trim renames or removes `§X`, and no pointer to a section that exists but never states the specific claim the pointer promises — e.g. a "see §Retired Surfaces for the current distinction" pointer requires that the distinction actually be written there, not just that the section header exist).
 - `vox ci pre-push --complete` (or the relevant doc-lint scope) passes — frontmatter, doc-lint, and any new CI drift-guard all green.
 - Manual read-through of the trimmed `AGENTS.md` confirms no rule was silently dropped (each trim in §5 is a *move*, not a *deletion*, of the detailed content) and no contradiction was introduced between the shortened prose and the linked detail doc.
 
