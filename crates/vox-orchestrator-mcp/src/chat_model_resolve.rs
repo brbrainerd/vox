@@ -73,13 +73,28 @@ pub(crate) async fn enforce_budget_guard(
         },
         None => Default::default(),
     };
-    crate::llm_bridge::budget_guard::check(
+    let warning = crate::llm_bridge::budget_guard::check(
         &spend,
         cfg.daily_budget_usd,
         cfg.per_session_budget_usd,
         cfg.budget_warn_threshold_pct,
     )
     .map_err(|e| e.to_string())?;
+    // `check` returns `Ok(Some(warning))` at `budget_warn_threshold_pct`, before the
+    // hard block. There is no GUI-facing "warn" channel yet (unlike the "Err(Exceeded)"
+    // case, which is a normal dispatch failure the GUI already surfaces as a toast) — a
+    // non-blocking notice would need a new success-path signal from every dispatch
+    // chokepoint to the GUI, which is out of scope for a guard fix. At minimum, don't
+    // silently drop it: log it so it's observable (e.g. via `RUST_LOG=vox_orchestrator_mcp=info`
+    // or a future telemetry consumer) instead of vanishing entirely.
+    if let Some(w) = warning {
+        tracing::info!(
+            scope = ?w.scope,
+            cap_usd = w.cap_usd,
+            spent_usd = w.spent_usd,
+            "budget warn threshold reached (dispatch still allowed)"
+        );
+    }
     Ok(())
 }
 
