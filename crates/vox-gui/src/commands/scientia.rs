@@ -42,11 +42,19 @@ pub struct ResearchDetailDto {
 
 // ── Minimal mirror of `vox_research_shim::research::types::ResearchRunArtifact`
 // (and friends) used only to parse `artifact_json` for the DTO above.
-// `vox-gui` deliberately does NOT depend on `vox-research-shim` (a heavy
-// LLM/HTTP-pulling crate not otherwise used by this crate) just to read a
-// handful of already-serialized fields — these mirror structs cover only
-// what `extract_research_summary` needs and tolerate unknown/missing fields
-// via `#[serde(default)]`, so upstream additions never break parsing here.
+// NOTE: `vox-research-shim` is already transitively linked into `vox-gui`
+// (via `vox-orchestrator-mcp`, an unconditional dependency of this crate) —
+// avoiding a "heavy new dependency" is NOT why this mirrors rather than
+// imports the real types. The real reason: the real `ResearchMetadata` has
+// no `#[serde(default)]` on fields like `corroboration_counts`, so importing
+// it directly would make parsing an *older* artifact (persisted before that
+// field existed) fail the whole deserialization instead of degrading
+// gracefully. These mirror structs cover only what
+// `extract_research_summary` needs and tolerate unknown/missing fields via
+// `#[serde(default)]` everywhere, so both upstream additions AND older
+// on-disk artifacts parse without breaking the trust UI. The tradeoff is a
+// second, hand-maintained copy of the field shapes that must be kept in sync
+// by hand when the real types change.
 mod artifact_mirror {
     use serde::Deserialize;
 
