@@ -12,14 +12,7 @@ CREATE TABLE IF NOT EXISTS packages (
     PRIMARY KEY (name, version)
 );
 
-CREATE TABLE IF NOT EXISTS package_deps (
-    package_name TEXT NOT NULL,
-    package_version TEXT NOT NULL,
-    dep_name TEXT NOT NULL,
-    dep_version_req TEXT NOT NULL,
-    PRIMARY KEY (package_name, package_version, dep_name),
-    FOREIGN KEY (package_name, package_version) REFERENCES packages(name, version)
-);
+-- package_deps: quarantined (DEAD, Task 4) — see domains/quarantine.rs.
 
 CREATE TABLE IF NOT EXISTS components (
     name TEXT PRIMARY KEY,

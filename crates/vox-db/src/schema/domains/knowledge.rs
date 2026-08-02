@@ -65,23 +65,13 @@ CREATE TABLE IF NOT EXISTS search_document_chunks (
     UNIQUE(document_id, chunk_index)
 );
 
-CREATE TABLE IF NOT EXISTS search_indexing_jobs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    job_kind TEXT NOT NULL,
-    target_uri TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'queued',
-    detail_json TEXT,
-    error_text TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+-- search_indexing_jobs: quarantined (DEAD, Task 4) — see domains/quarantine.rs.
 
 CREATE INDEX IF NOT EXISTS idx_knowledge_edges_src ON knowledge_edges(src_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_edges_dst ON knowledge_edges(dst_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_type, source_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_source_created ON embeddings(source_type, created_at);
 CREATE INDEX IF NOT EXISTS idx_search_chunks_doc ON search_document_chunks(document_id);
-CREATE INDEX IF NOT EXISTS idx_search_jobs_status ON search_indexing_jobs(status);
 
 -- Knowledge Base tables (VoxKB) ---------------------------------------------------
 CREATE TABLE IF NOT EXISTS knowledge_bases (

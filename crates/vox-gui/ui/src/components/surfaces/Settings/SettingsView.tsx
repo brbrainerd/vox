@@ -27,6 +27,7 @@ const SECTIONS = [
   { id: 'llm',          icon: 'bolt',    label: 'LLM & providers' },
   { id: 'routing',      icon: 'matrix',  label: 'Model routing' },
   { id: 'runtime',      icon: 'flow',    label: 'Runtime' },
+  { id: 'voice',        icon: 'bolt',    label: 'Voice & dictation' },
   { id: 'mesh',         icon: 'flow',    label: 'Mesh & peers' },
   { id: 'signing',      icon: 'shield',  label: 'Signing keys' },
   { id: 'secrets',      icon: 'shield',  label: 'Keys & Secrets' },
@@ -947,6 +948,74 @@ function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
   );
 }
 
+interface SttConfigFieldDto {
+  key: string;
+  label: string;
+  hint: string;
+  options: string[];
+  currentValue: string;
+}
+
+function SttSettingsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
+  const [fields, setFields] = useState<SttConfigFieldDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      setFields(await invoke<SttConfigFieldDto[]>('get_stt_config'));
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Could not load voice settings', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [pushToast]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const save = async (key: string, value: string) => {
+    setBusy(key);
+    try {
+      await invoke('set_stt_config', { key, value });
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Save failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">Voice &amp; dictation</h2>
+      <p className="mt-0.5 text-[11px] text-text-muted">ASR engine and dictation domain for the mic button in chat.</p>
+      {loading ? (
+        <div className="mt-4 text-[12px] text-text-muted">Loading…</div>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {fields.map(f => (
+            <Row key={f.key} label={f.label} hint={f.hint}>
+              <div className="inline-flex flex-wrap items-center rounded-md border border-border-subtle bg-black/30 p-0.5">
+                {f.options.map(opt => (
+                  <button
+                    key={opt}
+                    type="button"
+                    disabled={busy === f.key}
+                    onClick={() => save(f.key, opt)}
+                    className={`rounded-[5px] px-2 py-1 font-display text-[10px] uppercase tracking-[0.12em] transition disabled:opacity-40 ${
+                      f.currentValue === opt ? 'bg-overlay-subtle text-text-primary' : 'text-text-muted hover:text-text-secondary'
+                    }`}
+                  >{opt}</button>
+                ))}
+              </div>
+            </Row>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 interface SettingsViewProps {
   pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
@@ -1414,6 +1483,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
         )}
 
         {section === 'runtime' && <RuntimeConfigSection pushToast={pushToast} />}
+        {section === 'voice' && <SttSettingsSection pushToast={pushToast} />}
 
         {section === 'mesh' && <MeshPeersSection pushToast={pushToast} />}
 

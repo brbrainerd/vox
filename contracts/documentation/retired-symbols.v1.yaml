@@ -49,14 +49,16 @@ symbols:
     pattern: "VOX_TURSO_TOKEN"
     replacement: "VOX_DB_TOKEN"
     rationale: "Retired compatibility alias. Use VOX_DB_TOKEN."
+  # Note: `recall_async()` is ALSO deprecated, not a valid replacement (see
+  # AGENTS.md §Retired Surfaces) -- `MemoryManager::persist_fact` is the
+  # canonical write API and is NOT retired, so there is no `persist-fact-api`
+  # entry here (a `persist_fact\(` ban was previously listed and was wrong;
+  # removed rather than fixed forward, see Task 7 of the 2026-08-01
+  # llm-guidance-token-audit plan for the source-of-truth correction).
   - id: sync-recall-api
     pattern: "\\brecall\\("
-    replacement: "recall_async()"
-    rationale: "Deprecated synchronous memory recall. Use recall_async()."
-  - id: persist-fact-api
-    pattern: "persist_fact\\("
-    replacement: "sync_to_db()"
-    rationale: "Renamed to sync_to_db() for clarity."
+    replacement: "MemoryManager::lookup_fact_by_key"
+    rationale: "Deprecated synchronous memory recall (recall_async() is also deprecated). Use MemoryManager::lookup_fact_by_key (async) or a RAG/retrieval bundle."
   - id: vox-ml-cli-standalone
     pattern: "\\bvox-ml-cli-standalone\\b"
     replacement: "vox-ml-cli"

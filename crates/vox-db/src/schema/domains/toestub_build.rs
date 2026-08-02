@@ -17,14 +17,7 @@ CREATE TABLE IF NOT EXISTS toestub_baselines (
     PRIMARY KEY (name, run_scope)
 );
 
-CREATE TABLE IF NOT EXISTS toestub_file_cache (
-    path TEXT NOT NULL,
-    content_hash TEXT NOT NULL,
-    rules_version TEXT NOT NULL,
-    findings_json TEXT NOT NULL,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (path, content_hash, rules_version)
-);
+-- toestub_file_cache: quarantined (DORMANT, Task 4) — see domains/quarantine.rs.
 
 CREATE TABLE IF NOT EXISTS toestub_suppressions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

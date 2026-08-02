@@ -1388,7 +1388,7 @@ impl HardwareRegistry {
 
 - [ ] **Step 2: Add the two new vox-secrets SecretIds**
 
-In `crates/vox-secrets/src/spec.rs` (location confirmed via grep — find an existing `SecretId::VoxMeshA2aStorePath` declaration and add nearby), add two new variants matching the existing pattern:
+In `crates/vox-secrets/src/spec/` (location confirmed via grep — find an existing `SecretId::VoxMeshA2aStorePath` declaration and add nearby), add two new variants matching the existing pattern:
 
 ```rust
 VoxMeshProbeCacheTtlSecs,
@@ -1430,7 +1430,7 @@ Expected: all tests pass.
 ```bash
 git add crates/vox-populi/src/mens/hardware/mod.rs \
         crates/vox-populi/Cargo.toml \
-        crates/vox-secrets/src/spec.rs
+        crates/vox-secrets/src/spec/
 git commit -m "feat(populi): wire HardwareRegistryV2 into public probe path with operator override"
 ```
 

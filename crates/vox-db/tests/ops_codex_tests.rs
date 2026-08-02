@@ -31,7 +31,10 @@ async fn test_skill_manifest_lifecycle() {
     assert!(store.get_skill_manifest(skill_id).await.unwrap().is_none());
 }
 
+// codex_change_log is quarantined (DORMANT, Task 4, VoxDB audit condensation
+// plan) — off by default, see crates/vox-db/src/schema/domains/quarantine.rs.
 #[tokio::test]
+#[cfg(feature = "quarantine")]
 async fn test_codex_change_log_playback() {
     let dir = tempdir().unwrap();
     let db_path = dir.path().join("test.db");

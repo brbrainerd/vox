@@ -9,6 +9,18 @@
 mod language;
 mod runtime_config;
 
+/// Serializes tests across the crate that mutate shared global env vars
+/// (e.g. `VOX_ORATIO_SHERPA_MODEL_DIR`). Currently taken by
+/// `backends::sherpa_model_config`'s test; a planned `backend_dispatch` test
+/// (STT-accuracy plan Task 6) will mutate the same var and must take this
+/// same lock too. `cargo test` runs test functions concurrently by default;
+/// a comment-only "don't run this in parallel" convention is not enough once
+/// more than one file touches the same var.
+#[cfg(test)]
+pub(crate) mod env_test_lock {
+    pub static SHERPA_MODEL_DIR_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+}
+
 pub mod acoustic_preprocess;
 
 pub use acoustic_preprocess::{AcousticPreprocessDiagnostics, preprocess_audio_pcm_f32_reported};
@@ -31,6 +43,11 @@ pub mod speech_normalize;
 pub mod speech_policy;
 /// Env-tunable stabilization thresholds for **future** streaming decoders; offline `transcribe_path` ignores this.
 pub mod streaming_partial;
+// Gated: `subtitle::srt`'s audio path calls `backends::audio_io` unconditionally,
+// which is itself gated to `stt-candle` (`backends/mod.rs:9`) — without this
+// gate, any build enabling `stt-sherpa` but not `stt-candle` fails to compile
+// (pre-existing gap, surfaced while adding the `stt-sherpa`-standalone path).
+#[cfg(feature = "stt-candle")]
 pub mod subtitle;
 /// Policy helpers (escalation hint, cache keys) for hosts — not required for file-based STT.
 pub mod tiering;
@@ -93,6 +110,8 @@ pub use traits::{
     transcript_status,
 };
 pub use transcript_rerank::{
-    pick_best_transcript_index, pick_best_transcript_index_with_raw, rerank_candidates_best_first,
+    pick_best_transcript_index, pick_best_transcript_index_with_raw,
+    pick_best_transcript_index_with_raw_and_domain, rerank_candidates_best_first,
     rerank_candidates_best_first_with_context, rerank_candidates_best_first_with_raw,
+    rerank_candidates_best_first_with_raw_and_domain,
 };

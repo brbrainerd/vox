@@ -23,7 +23,7 @@ schema_type: "TechArticle"
 - Inline code blocks across `.md` files should be explicitly imported using `{{#include}}` pointing to `examples/golden/` files, OR manually prepended with `// vox:skip`.
 
 ## Secret Management One-Liner
-Never read `std::env::var("SECRET")`; exclusively employ `vox_secrets::resolve_secret(...)` and declare it in `crates/vox-secrets/src/spec.rs`.
+Never read `std::env::var("SECRET")`; exclusively employ `vox_secrets::resolve_secret(...)` and declare it in `crates/vox-secrets/src/spec/`.
 
 ## Running Dev Environment
 If `vox` is explicitly omitted from terminal `$PATH`, use the dev scripts:
@@ -40,8 +40,9 @@ If `vox` is explicitly omitted from terminal `$PATH`, use the dev scripts:
 | Legacy split compiler crates | `vox-compiler` |
 | Legacy React-interop component decorator | `component Name() {}` |
 | Legacy Turso-prefixed DB env aliases | `VOX_DB_URL` / `VOX_DB_TOKEN` |
-| Sync recall API | `recall_async()` |
-| Persist-fact API | `sync_to_db()` |
+| `recall()` / `recall_async()` (deprecated memory reads) | `MemoryManager::lookup_fact_by_key` (async) or RAG/retrieval bundle |
+
+Memory-write APIs are not a simple retirement pair: for writing facts, use `MemoryManager::persist_fact`; `sync_to_db()` bulk-syncs `MEMORY.md` → DB only and is **not** a drop-in replacement for `persist_fact`.
 
 ## Entry Points
 - Full cross-agent definitions: [`AGENTS.md`](../../../AGENTS.md)

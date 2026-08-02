@@ -122,23 +122,7 @@ CREATE INDEX IF NOT EXISTS idx_lock_leader_expires
 
 -- ── Phase 2: activity result cache (P2-T5) ────────────────────────────────
 
--- Per-activity dedup cache. Result rows are pruned by the background sweep;
--- rows are append-only otherwise.
-CREATE TABLE IF NOT EXISTS activity_result_cache (
-    activity_id           TEXT    NOT NULL,
-    arg_hash              TEXT    NOT NULL,        -- hex SHA3-512 of canonicalized args
-    result_json           TEXT    NOT NULL,        -- serialized activity result value
-    produced_at_unix_ms   INTEGER NOT NULL,
-    dedup_window_ms       INTEGER NOT NULL,        -- TTL window in ms, e.g. 86_400_000 for 24h
-    dedup_window_until    INTEGER NOT NULL,        -- produced_at_unix_ms + dedup_window_ms
-
-    PRIMARY KEY (activity_id, arg_hash)
-);
-
--- Cheap range scan for the background sweep (cadence: every 60s when daemon
--- is running; on-demand via `vox db prune` otherwise).
-CREATE INDEX IF NOT EXISTS idx_activity_result_cache_until
-    ON activity_result_cache (dedup_window_until);
+-- activity_result_cache: quarantined (DORMANT, Task 4) — see domains/quarantine.rs.
 
 -- ── Phase 3: durable convergence op-log (P3-T1) ──────────────────────────
 

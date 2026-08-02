@@ -91,17 +91,7 @@ CREATE TABLE IF NOT EXISTS external_review_finding_state_history (
 CREATE INDEX IF NOT EXISTS idx_external_review_finding_state_finding
     ON external_review_finding_state_history(finding_id, id);
 
-CREATE TABLE IF NOT EXISTS external_review_outcome (
-    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-    finding_id            INTEGER NOT NULL REFERENCES external_review_finding(id) ON DELETE CASCADE,
-    outcome_kind          TEXT    NOT NULL, -- task_generated|fix_merged|regression_observed|regression_resolved
-    outcome_ref           TEXT,             -- task id / commit sha / eval run id
-    outcome_json          TEXT,
-    recorded_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_external_review_outcome_finding
-    ON external_review_outcome(finding_id, id);
+-- external_review_outcome: quarantined (DORMANT, Task 4) — see domains/quarantine.rs.
 
 CREATE TABLE IF NOT EXISTS external_review_deadletter (
     id                    INTEGER PRIMARY KEY AUTOINCREMENT,

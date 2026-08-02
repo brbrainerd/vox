@@ -252,58 +252,6 @@ pub struct KnowledgeNodeSummary {
     pub label: String,
 }
 
-/// Orchestrator builder session payload.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct BuilderSessionEntry {
-    /// Session id.
-    pub id: String,
-    /// Opaque JSON payload.
-    pub payload_json: String,
-    /// Creation timestamp.
-    pub created_at: String,
-}
-
-/// One turn in an agent session transcript.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SessionTurnEntry {
-    /// Row id.
-    pub id: i64,
-    /// Session id.
-    pub session_id: crate::ids::DbSessionId,
-    /// Turn payload JSON.
-    pub payload_json: String,
-    /// Creation timestamp.
-    pub created_at: String,
-}
-
-/// Typed stream event for SSE-style feeds.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct TypedStreamEventEntry {
-    /// Row id.
-    pub id: i64,
-    /// Logical stream id.
-    pub stream_id: String,
-    /// Event JSON body.
-    pub payload_json: String,
-    /// Creation timestamp.
-    pub created_at: String,
-}
-
-/// Mens / review row for a target entity.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ReviewEntry {
-    /// Row id.
-    pub id: i64,
-    /// Entity under review.
-    pub target_id: String,
-    /// Review kind label.
-    pub review_kind: String,
-    /// Review payload JSON.
-    pub payload_json: String,
-    /// Creation timestamp.
-    pub created_at: String,
-}
-
 /// One row from `codex_change_log` (Codex reactivity / SSE).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CodexChangeLogEntry {

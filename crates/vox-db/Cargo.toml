@@ -39,6 +39,10 @@ default = ["local"]
 local = []
 replication = []
 legacy-import = []
+# Off by default (like `replication`). Appends `domains::quarantine::SCHEMA_QUARANTINE`
+# (DORMANT/DEAD tables per graphify-out/table_usage_report.json) to baseline_sql().
+# See docs/src/architecture/2026-08-01-voxdb-audit-condensation-plan.md Task 4.
+quarantine = []
 
 [dev-dependencies]
 regex = { workspace = true }

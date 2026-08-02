@@ -601,7 +601,7 @@ pub(crate) fn run_operator_env_guard(root: &Path, all: bool) -> Result<()> {
         offenders.sort();
         offenders.dedup();
         return Err(anyhow!(
-            "operator-env-guard: found {} usage(s) of unregistered environment variables:\n{}\n\nRegister in `crates/vox-secrets/src/spec.rs` (secrets) or `crates/vox-config/src/operator_registry.rs` (tuning).",
+            "operator-env-guard: found {} usage(s) of unregistered environment variables:\n{}\n\nRegister in `crates/vox-secrets/src/spec/` (secrets) or `crates/vox-config/src/operator_registry.rs` (tuning).",
             offenders.len(),
             offenders.join("\n")
         ));

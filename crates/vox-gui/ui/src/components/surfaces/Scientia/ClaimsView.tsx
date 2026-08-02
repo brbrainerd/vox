@@ -28,7 +28,7 @@ const VERDICT_STYLE: Record<string, string> = {
   Abstain: 'bg-overlay-subtle text-text-secondary ring-1 ring-border-subtle/30',
 };
 
-function VerdictBadge({ verdict }: { verdict: string | null }) {
+export function VerdictBadge({ verdict }: { verdict: string | null }) {
   const label = verdict ?? 'pending';
   const cls = verdict ? VERDICT_STYLE[verdict] ?? VERDICT_STYLE.Abstain : 'bg-overlay-subtle text-text-muted ring-1 ring-white/10';
   return (

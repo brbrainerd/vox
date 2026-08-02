@@ -1,26 +1,71 @@
 //! Deterministic normalization for spoken code: symbol phrases and casing commands.
 
+/// True if `b` is a byte that can be part of a "word" (letter/digit/underscore).
+/// Same definition and purpose as `refine::rules::is_word_byte`: used to reject
+/// a substring match that's actually the middle of a longer ordinary word.
+fn is_word_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
+
+/// Find `phrase` in `haystack` (ASCII case-insensitive) starting at or after
+/// byte offset `from`, at a word boundary on both sides. Mirrors
+/// `refine::rules::find_boundary_match` — kept as a local copy rather than a
+/// shared export since the two callers (code-confusion-map phrases vs.
+/// spoken-symbol phrases) live in otherwise-unrelated modules and the
+/// function is a handful of lines.
+fn find_boundary_match(haystack: &[u8], phrase: &[u8], from: usize) -> Option<usize> {
+    if phrase.is_empty() || from > haystack.len() {
+        return None;
+    }
+    let mut start = from;
+    while start + phrase.len() <= haystack.len() {
+        if haystack[start..start + phrase.len()].eq_ignore_ascii_case(phrase) {
+            let before_ok = start == 0 || !is_word_byte(haystack[start - 1]);
+            let end = start + phrase.len();
+            let after_ok = end == haystack.len() || !is_word_byte(haystack[end]);
+            if before_ok && after_ok {
+                return Some(start);
+            }
+        }
+        start += 1;
+    }
+    None
+}
+
 /// Replace common spoken symbol phrases with ASCII (conservative list).
+///
+/// Word-boundary-checked (via [`find_boundary_match`]): a bare substring
+/// search here would corrupt ordinary English words that merely contain a
+/// phrase as a substring — e.g. "comma" inside "command"/"commander", or
+/// "dot" inside "anecdote"/"dotted" — exactly the bug class already fixed
+/// for `code_confusion_map` in `refine::rules::apply_phrase_confusions`.
 #[must_use]
 pub fn expand_spoken_symbols(text: &str) -> String {
     let mut s = text.to_string();
     let pairs: &[(&str, &str)] = &[
         ("open brace", "{"),
         ("close brace", "}"),
+        ("open curly", "{"),
+        ("close curly", "}"),
         ("open bracket", "["),
         ("close bracket", "]"),
+        ("open angle", "<"),
+        ("close angle", ">"),
         ("open paren", "("),
         ("close paren", ")"),
         ("fat arrow", "=>"),
         ("arrow", "->"),
         ("semicolon", ";"),
+        ("colon colon", "::"),
         ("colon", ":"),
+        ("comma", ","),
         ("new line", "\n"),
         ("underscore", "_"),
         ("double equals", "=="),
         ("not equals", "!="),
         ("dot dot dot", "..."),
         ("dot dot", ".."),
+        ("dot", "."),
         ("bang", "!"),
         ("ampersand", "&"),
         ("pipe", "|"),
@@ -28,13 +73,10 @@ pub fn expand_spoken_symbols(text: &str) -> String {
         ("backslash", "\\"),
     ];
     for (phrase, sym) in pairs {
-        let plen = phrase.len();
         loop {
-            let lower = s.to_ascii_lowercase();
-            if let Some(i) = lower.find(phrase) {
-                s.replace_range(i..i + plen, sym);
-            } else {
-                break;
+            match find_boundary_match(s.as_bytes(), phrase.as_bytes(), 0) {
+                Some(i) => s.replace_range(i..i + phrase.len(), sym),
+                None => break,
             }
         }
     }
@@ -159,6 +201,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn expand_spoken_symbols_respects_word_boundaries() {
+        // Regression test (code review finding): "comma" and "dot" are
+        // ordinary English word fragments — a bare substring match would
+        // corrupt them mid-word, the same bug class already fixed for
+        // code_confusion_map's phrase matching (refine::rules).
+        assert_eq!(
+            expand_spoken_symbols("run the command now"),
+            "run the command now",
+            "must not match \"comma\" inside \"command\""
+        );
+        assert_eq!(
+            expand_spoken_symbols("an anecdote about dogs"),
+            "an anecdote about dogs",
+            "must not match \"dot\" inside \"anecdote\""
+        );
+        // The real, boundary-respecting cases must still work.
+        assert_eq!(expand_spoken_symbols("a comma b"), "a , b");
+        assert_eq!(expand_spoken_symbols("self dot user"), "self . user");
+    }
+
+    #[test]
     fn camel_case_command() {
         assert_eq!(
             normalize_spoken_code_phrase("camel case get user name"),
@@ -169,5 +232,22 @@ mod tests {
     #[test]
     fn fat_arrow() {
         assert!(normalize_spoken_code_phrase("x fat arrow y").contains("=>"));
+    }
+
+    #[test]
+    fn curly_comma_angle_and_bare_dot_expand() {
+        assert_eq!(expand_spoken_symbols("open curly close curly"), "{ }");
+        assert_eq!(expand_spoken_symbols("a comma b"), "a , b");
+        assert_eq!(expand_spoken_symbols("open angle close angle"), "< >");
+        assert_eq!(expand_spoken_symbols("self dot user"), "self . user");
+        assert_eq!(
+            expand_spoken_symbols("user state colon colon active"),
+            "user state :: active"
+        );
+        // Existing ellipsis mappings must still win over the new bare "dot".
+        assert_eq!(
+            expand_spoken_symbols("wait dot dot dot done"),
+            "wait ... done"
+        );
     }
 }
