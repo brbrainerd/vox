@@ -1,0 +1,10 @@
+[
+  {"function":"baseline_schema_includes_chat_and_search_tables","file":"crates\\vox-db\\src\\local_tests.rs","tables":["conversation_edges","conversation_versions","processing_run_steps","processing_runs","search_indexing_jobs","topic_evolution_events"]},
+  {"function":"history_entries_round_trip","file":"crates\\vox-db\\src\\local_tests.rs","tables":["history_entries"]},
+  {"function":"legacy_jsonl_roundtrips_gamification_and_coordination","file":"crates\\vox-db\\src\\local_tests.rs","tables":["distributed_locks"]},
+  {"function":"history_entries_schema_round_trip","file":"crates\\vox-db\\src\\schema\\domains\\history.rs","tables":["history_entries"]},
+  {"function":"chat_search_and_codex_in_fragments","file":"crates\\vox-db\\src\\schema\\mod.rs","tables":["behavior_events","codex_capability_map","search_indexing_jobs"]},
+  {"function":"ensure_tables_is_idempotent_and_creates_usable_tables","file":"crates\\vox-db\\src\\toestub_store.rs","tables":["toestub_suppressions"]},
+  {"function":"mark_news_published_column_order_matches_github_twitter_oc","file":"crates\\vox-db\\tests\\news_approval_tests.rs","tables":["published_news"]},
+  {"function":"published_news_uses_news_id_primary_key","file":"crates\\vox-db\\tests\\schema_contract_tests.rs","tables":["published_news"]}
+]

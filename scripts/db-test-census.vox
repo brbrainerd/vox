@@ -88,14 +88,19 @@ type TestFn {
     body: str,
 }
 
-// Extract every #[test]/#[tokio::test] function's name + body from `path`.
+// Extract every #[test]/#[tokio::test] function's name + body from
+// `content` (already-read file text; `path` is only used to tag results).
 // Body extraction is brace-counted from the first line containing `{` after
 // the attribute (skipping any other attributes in between, e.g.
 // `#[should_panic]`) through the matching closing brace.
-fn extract_tests_from_file(path: str) to list[TestFn] {
-    let c = fs.read(path)
-    if c.is_err() { return [] }
-    let lines = c.unwrap().split("\n")
+//
+// Callers MUST cheap-pre-filter on `content` (e.g. a plain substring check
+// for "#[test]"/"#[tokio::test") before calling this — line-by-line
+// splitting + trimming every line of every file in the workspace (the vast
+// majority of which declare no tests at all) is the expensive part; see
+// find_quarantine_candidates below for why this matters at real-repo scale.
+fn extract_tests_from_content(content: str, path: str) to list[TestFn] {
+    let lines = content.split("\n")
     let mut results: list[TestFn] = []
     let mut i = 0
     while i < lines.len() {
@@ -166,8 +171,25 @@ fn find_quarantine_candidates(target_tables: list[str], root: str) to list[Quara
 
     let mut out: list[QuarantineFinding] = []
     for f in files {
-        let tests = extract_tests_from_file(f)
+        let c = fs.read(f)
+        if c.is_err() { continue }
+        let content = c.unwrap()
+
+        // Cheap pre-filter #1: skip the (large majority of) files that
+        // declare no #[test]/#[tokio::test] at all — avoids line-by-line
+        // splitting + trimming every line of every file in the workspace,
+        // which is what actually made the first real-repo run take many
+        // minutes with zero incremental output (same class of missing-
+        // pre-filter mistake as classify_tables in db-table-census.vox,
+        // just "no pre-filter" here instead of "pre-filter recomputed per
+        // table" there — caught by hand once run against the real repo).
+        let has_test_attr = content.contains("#[test]") or content.contains("#[tokio::test")
+        if not has_test_attr { continue }
+
+        let tests = extract_tests_from_content(content, f)
         for t in tests {
+            // Cheap pre-filter #2: skip test bodies mentioning none of the
+            // DEAD/DORMANT tables before paying target_tables.len() passes.
             if regex.is_match(t.body, combined_pattern) {
                 let mut matched = []
                 for tbl in target_tables {
