@@ -212,6 +212,63 @@ mod tests {
         );
     }
 
+    /// Regression test for the bug the `Box` -> `Arc` cache conversion fixed:
+    /// `with_cached_backend` must release its lock before running `f`, so two
+    /// concurrent calls don't serialize on each other's (potentially slow)
+    /// inference. Proven via a deadlock construction: both threads' closures
+    /// must reach a 2-party barrier to complete. If the lock were still held
+    /// across `f` (the old `Box`-based bug), the second thread could not even
+    /// *enter* its closure until the first thread's closure returns — but the
+    /// first thread's closure is itself blocked on the barrier waiting for the
+    /// second thread to arrive. That's a genuine deadlock, not just slowness,
+    /// so a regression here fails by hanging rather than by a flaky timing
+    /// assumption. Bounded by a channel + `recv_timeout` so CI fails fast
+    /// (as a normal test failure) instead of hanging indefinitely.
+    #[test]
+    fn with_cached_backend_does_not_serialize_concurrent_calls() {
+        let _guard = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_cache_for_test();
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_TEST_FORCE_BACKEND_FAIL");
+            std::env::set_var("VOX_ORATIO_BACKEND", "whisper");
+        }
+        // Warm the cache first so both threads below hit the "already
+        // constructed" fast path, isolating the property under test (lock
+        // scope around `f`) from construction itself.
+        with_cached_backend(|_backend| Ok(())).expect("warm the cache");
+
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let (tx, rx) = std::sync::mpsc::channel();
+        for _ in 0..2 {
+            let barrier = barrier.clone();
+            let tx = tx.clone();
+            std::thread::spawn(move || {
+                let result = with_cached_backend(|_backend| {
+                    barrier.wait();
+                    Ok(())
+                });
+                let _ = tx.send(result.is_ok());
+            });
+        }
+
+        for _ in 0..2 {
+            let ok = rx
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .expect(
+                    "both with_cached_backend calls should complete within 5s; a hang here \
+                     means the lock is being held across `f` again (the bug the Arc \
+                     conversion fixed), deadlocking both threads on the shared barrier",
+                );
+            assert!(ok, "with_cached_backend call failed unexpectedly");
+        }
+
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_ORATIO_BACKEND");
+        }
+    }
+
     #[test]
     fn create_backend_auto_falls_back_to_candle_when_sherpa_init_fails() {
         // Held for the duration of the test: see `crate::env_test_lock` (Task
