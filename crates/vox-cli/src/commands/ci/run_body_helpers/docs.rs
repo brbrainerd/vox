@@ -304,7 +304,11 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
     const DOC_BANNED: &[&str] = &[
         "verify_doc_inventory_fresh.py",
         "populi_release_gate.sh",
-        "crates/vox-secrets/src/spec.rs",
+        // Bare form (no "crates/" prefix) so both "crates/vox-secrets/src/spec.rs"
+        // and prose references like "`vox-secrets/src/spec.rs`" are caught -- the
+        // bare form is a substring of the prefixed form, so this single entry
+        // subsumes both.
+        "vox-secrets/src/spec.rs",
         "crates/vox-orchestrator/src/mcp_tools/tools/mod.rs",
         "scripts/quality/toestub_scoped.sh",
         "four `.mdc` rule files",
@@ -328,6 +332,7 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
         ".cursor/rules/secrets-policy.mdc",
         "crates/vox-code-audit/src/detectors/env_secret_shape.rs",
         "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
+        "crates/vox-cli/src/commands/diagnostics/mod.rs",
     ];
     // Historical/point-in-time docs -- implementation plans and specs under
     // `docs/superpowers/` and archived research under `docs/src/archive/` legitimately
@@ -716,6 +721,22 @@ mod stale_ref_guard_tests {
     }
 
     #[test]
+    fn flags_stale_secrets_spec_rs_path_bare_form() {
+        // Regression test: code-review found real-world docs (e.g.
+        // docs/src/architecture/multi-agent-vcs-replication-spec-2026.md) reference
+        // the retired path without the "crates/" prefix -- the banned string must
+        // catch this bare form too, not just the fully-prefixed one.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_agents_md(
+            tmp.path(),
+            "agents can't edit `vox-secrets/src/spec.rs` without human review\n",
+        );
+        let err = check_stale_doc_and_workflow_refs(tmp.path())
+            .expect_err("bare-form stale spec.rs path must be flagged too");
+        assert!(err.to_string().contains("vox-secrets/src/spec.rs"));
+    }
+
+    #[test]
     fn flags_stale_tool_registry_path() {
         let tmp = tempfile::tempdir().expect("tempdir");
         write_agents_md(
@@ -782,6 +803,7 @@ mod stale_ref_guard_tests {
             ".cursor/rules/secrets-policy.mdc",
             "crates/vox-code-audit/src/detectors/env_secret_shape.rs",
             "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
+            "crates/vox-cli/src/commands/diagnostics/mod.rs",
         ] {
             let tmp = tempfile::tempdir().expect("tempdir");
             fs::create_dir_all(tmp.path().join("docs")).expect("create docs dir");

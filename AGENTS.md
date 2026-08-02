@@ -229,7 +229,7 @@ Vox source follows one rule for top-level declarations:
 
 **Bare-keyword blocks** (each opens a scope with its own rules):
 `type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`, `workflow`, `activity`
-(the last two are stable per ADR-041, superseding the old ADR-028 reservation gate — see Implementation status below).
+(the last two stable per ADR-041 — see Implementation status below).
 
 **Decorators** (modifiers composed on top of a declaration):
 `@table`, `@query`, `@mutation`, `@server`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`,
