@@ -228,13 +228,12 @@ Vox source follows one rule for top-level declarations:
 > **Bare-keyword blocks declare scope. Decorators modify declarations.**
 
 **Bare-keyword blocks** (each opens a scope with its own rules):
-`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`.
-**Reserved (ADR-028, not yet implemented):** `workflow`, `activity`.
+`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`, `workflow`, `activity`
+(the last two are stable per ADR-041, superseding the old ADR-028 reservation gate — see Implementation status below).
 
 **Decorators** (modifiers composed on top of a declaration):
 `@table`, `@query`, `@mutation`, `@server`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`,
-`@v0`, `@test`.
-**Reserved (ADR-028, not yet implemented):** `@durable`, `@scheduled`.
+`@v0`, `@test`, `@durable`, `@scheduled` (the last two stable per ADR-041 — see Implementation status below).
 **Removed in v0.6.0:** `@endpoint` (see §Retired Surfaces).
 
 Decorators compose with bare-keyword blocks:
@@ -250,15 +249,7 @@ Decorators compose with bare-keyword blocks:
 that can be expressed as a decorator. New execution semantics (durability,
 tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 
-**Implementation status (ADR-041 supersedes ADR-028).** `actor`, `workflow`, `activity`,
-`@durable`, and `@scheduled` are **stable public-grammar features** backed by a durable runtime
-for the supported subset; the old `E028` reservation gate is **removed**, and out-of-subset
-behavior is now policed by the determinism lint, not a reservation gate. Supported subset +
-contract: [ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md),
-[ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md),
-[ADR-041](docs/src/adr/041-durable-functions-completion-2026.md). Drift between this section and
-`pipeline.rs` is caught by the [`docs-reality-audit-program`](docs/src/contributors/docs-reality-audit-program.md)
-(and the planned `vox ci retirement-audit` gate, [CR-L6](docs/src/architecture/v1-llm-target-implementation-plan-2026.md) P1.3).
+**Implementation status.** `actor`/`workflow`/`activity` and `@durable`/`@scheduled` are stable, backed by a durable runtime for the supported subset (ADR-041 supersedes the old ADR-028 reservation gate — out-of-subset behavior is now policed by the determinism lint, not a reservation gate). Contract: [ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md), [ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md), [ADR-041](docs/src/adr/041-durable-functions-completion-2026.md). Drift between this section and `pipeline.rs` is checked by the [`docs-reality-audit-program`](docs/src/contributors/docs-reality-audit-program.md).
 
 ## Cross-Platform Shell Discipline (Stable Rules)
 
