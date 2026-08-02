@@ -40,7 +40,8 @@ Schema: `contracts/toestub/toestub-run-json.v1.schema.json`.
 ### `arch/god_object` — Error
 
 **Triggers:** A `.rs` file exceeds 500 non-blank lines, or a struct/impl has
-more than 12 methods. Thresholds: 300 lines = Info, 400 = Warning, 500 = Error.
+more than 12 methods. Multi-tier thresholds (300/400/500 lines): see
+[`governance.md` §God Object Limit](../../agents/governance.md#god-object-limit-multi-tier) — do not restate the numbers here, they drift.
 
 **Fix:** Split using `mod.rs` + `pub use`. Preserve public API surfaces exactly
 via `pub use` re-exports so callers don't break. Follow the
