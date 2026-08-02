@@ -377,7 +377,10 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
         }
         for p in files {
             let rel = p.strip_prefix(root).unwrap_or(&p);
-            if EXEMPT_DOC_DIRS.iter().any(|d| rel.starts_with(Path::new(d))) {
+            if EXEMPT_DOC_DIRS
+                .iter()
+                .any(|d| rel.starts_with(Path::new(d)))
+            {
                 continue;
             }
             let ext = p.extension().and_then(|x| x.to_str());
@@ -755,12 +758,18 @@ mod stale_ref_guard_tests {
 
     #[test]
     fn ignores_historical_docs_dirs() {
-        for rel in ["docs/superpowers/plans/example-plan.md", "docs/src/archive/example.md"] {
+        for rel in [
+            "docs/superpowers/plans/example-plan.md",
+            "docs/src/archive/example.md",
+        ] {
             let tmp = tempfile::tempdir().expect("tempdir");
             let target = tmp.path().join(rel);
             fs::create_dir_all(target.parent().expect("has parent")).expect("create parent dir");
-            fs::write(&target, "Define secrets in `crates/vox-secrets/src/spec.rs`.\n")
-                .expect("write file");
+            fs::write(
+                &target,
+                "Define secrets in `crates/vox-secrets/src/spec.rs`.\n",
+            )
+            .expect("write file");
             check_stale_doc_and_workflow_refs(tmp.path()).unwrap_or_else(|e| {
                 panic!("historical docs under {rel} must be exempt from the stale-ref scan: {e}")
             });
@@ -778,11 +787,13 @@ mod stale_ref_guard_tests {
             fs::create_dir_all(tmp.path().join("docs")).expect("create docs dir");
             let target = tmp.path().join(rel);
             fs::create_dir_all(target.parent().expect("has parent")).expect("create parent dir");
-            fs::write(&target, "See crates/vox-secrets/src/spec.rs for the registry.\n")
-                .expect("write file");
-            let err = check_stale_doc_and_workflow_refs(tmp.path()).expect_err(
-                "stale reference in newly-covered non-doc file must be flagged",
-            );
+            fs::write(
+                &target,
+                "See crates/vox-secrets/src/spec.rs for the registry.\n",
+            )
+            .expect("write file");
+            let err = check_stale_doc_and_workflow_refs(tmp.path())
+                .expect_err("stale reference in newly-covered non-doc file must be flagged");
             assert!(
                 err.to_string().contains("vox-secrets/src/spec.rs"),
                 "unexpected error for {rel}: {err}"
@@ -797,8 +808,11 @@ mod stale_ref_guard_tests {
             fs::create_dir_all(tmp.path().join("docs")).expect("create docs dir");
             let target = tmp.path().join(filename);
             fs::create_dir_all(target.parent().expect("has parent")).expect("create parent dir");
-            fs::write(&target, "Define secrets in `crates/vox-secrets/src/spec.rs`.\n")
-                .expect("write file");
+            fs::write(
+                &target,
+                "Define secrets in `crates/vox-secrets/src/spec.rs`.\n",
+            )
+            .expect("write file");
             let err = check_stale_doc_and_workflow_refs(tmp.path())
                 .expect_err("stale reference in newly-covered root file must be flagged");
             assert!(
