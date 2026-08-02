@@ -79,8 +79,10 @@
       "vox-http-client",
       "vox-identity",
       "vox-jsonschema-util",
+      "vox-llm-egress",
       "vox-mcp-registry",
       "vox-mesh-types",
+      "vox-oauth-pkce",
       "vox-orchestrator",
       "vox-orchestrator-driver",
       "vox-orchestrator-mcp",
@@ -359,7 +361,9 @@
       "vox-foundation",
       "vox-gamify",
       "vox-git",
+      "vox-http-client",
       "vox-identity",
+      "vox-oauth-pkce",
       "vox-orchestrator",
       "vox-orchestrator-mcp",
       "vox-package-types",
@@ -463,6 +467,9 @@
       "vox-repository",
       "vox-scaling-policy",
       "vox-secrets"
+    ],
+    "vox-oauth-pkce": [
+      "vox-http-client"
     ],
     "vox-openai": [
       "workspace-hack"
