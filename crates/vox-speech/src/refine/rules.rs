@@ -46,17 +46,58 @@ fn code_confusion_map() -> HashMap<&'static str, &'static str> {
 /// single-token lookup can never equal a multi-word key — without this pass,
 /// every phrase entry in the map is permanently dead code (confirmed by
 /// direct testing; see the audit finding above this task).
+fn is_word_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
+
+/// Find the byte range of the next word-boundary-respecting, ASCII
+/// case-insensitive occurrence of `phrase` in `haystack` starting at or after
+/// byte offset `from`. All of `code_confusion_map`'s keys are plain ASCII, so
+/// scoping this to `eq_ignore_ascii_case` byte comparisons keeps the search
+/// performed directly over `haystack`'s own bytes — no separately
+/// materialized lowercased copy whose byte offsets could desync from the
+/// original string on non-ASCII input (e.g. `to_lowercase()` changing the
+/// byte length of characters like `İ`).
+fn find_boundary_match(haystack: &[u8], phrase: &[u8], from: usize) -> Option<usize> {
+    if phrase.is_empty() || from > haystack.len() || phrase.len() > haystack.len() {
+        return None;
+    }
+    let mut start = from;
+    while start + phrase.len() <= haystack.len() {
+        if haystack[start..start + phrase.len()].eq_ignore_ascii_case(phrase) {
+            let before_ok = start == 0 || !is_word_byte(haystack[start - 1]);
+            let end = start + phrase.len();
+            let after_ok = end == haystack.len() || !is_word_byte(haystack[end]);
+            if before_ok && after_ok {
+                return Some(start);
+            }
+        }
+        start += 1;
+    }
+    None
+}
+
 fn apply_phrase_confusions(text: &str) -> String {
     let mut phrases: Vec<(&'static str, &'static str)> = code_confusion_map().into_iter().collect();
     // Longest phrases first, so a 3-word key can't be shadowed by a 2-word
-    // key that happens to be one of its prefixes.
-    phrases.sort_by_key(|(k, _)| std::cmp::Reverse(k.split_whitespace().count()));
+    // key that happens to be one of its prefixes. Ties broken on phrase text
+    // for full determinism, since HashMap iteration order is randomized
+    // per-process.
+    phrases.sort_by_key(|(k, _)| (std::cmp::Reverse(k.split_whitespace().count()), *k));
 
     let mut result = text.to_string();
     for (phrase, replacement) in phrases {
-        let lower = result.to_lowercase();
-        if let Some(pos) = lower.find(phrase) {
-            result = format!("{}{}{}", &result[..pos], replacement, &result[pos + phrase.len()..]);
+        let mut search_from = 0;
+        loop {
+            let haystack = result.as_bytes();
+            match find_boundary_match(haystack, phrase.as_bytes(), search_from) {
+                Some(pos) => {
+                    let end = pos + phrase.len();
+                    result = format!("{}{}{}", &result[..pos], replacement, &result[end..]);
+                    search_from = pos + replacement.len();
+                }
+                None => break,
+            }
         }
     }
     result
@@ -301,5 +342,30 @@ mod tests {
         // misfire on unrelated speech (e.g. "the print length was wrong").
         assert!(!super::code_confusion_map().contains_key("print len"));
         assert!(!super::code_confusion_map().contains_key("print el in"));
+    }
+
+    #[test]
+    fn phrase_confusion_respects_word_boundaries() {
+        let ctx = CorrectionContext {
+            domain: crate::refine::DomainMode::Code,
+            ..Default::default()
+        };
+        // "a sync" must not match inside "synchronous".
+        let out = refine_transcript("run a synchronous task", &ctx);
+        assert_eq!(out.text, "run a synchronous task");
+
+        // "hash map" must not match inside "hash mapping"/"hash mapper".
+        let out = refine_transcript("hash mapping utility", &ctx);
+        assert_eq!(out.text, "hash mapping utility");
+    }
+
+    #[test]
+    fn phrase_confusion_replaces_all_occurrences() {
+        let ctx = CorrectionContext {
+            domain: crate::refine::DomainMode::Code,
+            ..Default::default()
+        };
+        let out = refine_transcript("hash map then another hash map", &ctx);
+        assert_eq!(out.text, "HashMap then another HashMap");
     }
 }
