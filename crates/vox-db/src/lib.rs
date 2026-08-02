@@ -250,7 +250,7 @@ pub use store::{
     ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
     ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
     GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, GrpoStepRow, HopperInboxRow,
-    KnowledgeNodeSummary, LearnedPatternEntry, LocalTrainRow, LogExecutionParams,
+    KnowledgeNodeSummary, LearnedPatternEntry, LlmSpendSummary, LocalTrainRow, LogExecutionParams,
     LogInteractionParams, MemoryEntry, NewSkillCandidate, PackageSearchResult, PlanNodeRow,
     PlanSessionRow, PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
     PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,

@@ -78,6 +78,7 @@ mod ops_skill_identity;
 mod ops_skills;
 mod ops_user_identity;
 
+pub use ops_agents::LlmSpendSummary;
 pub use ops_discovery_inbox::DiscoveryInboxRow;
 pub use ops_finding_candidates::{FindingCandidateClass, FindingCandidateRow, InsertOutcome};
 pub use ops_orchestrator::HopperInboxRow;
