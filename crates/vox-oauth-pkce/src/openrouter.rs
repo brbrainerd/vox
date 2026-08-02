@@ -98,10 +98,20 @@ async fn callback_handler(
             _ => Ok(code),
         },
     };
+    // These mutexes guard nothing but `Option<oneshot::Sender<_>>` — a panic
+    // while holding either lock can only happen inside `.take()` itself
+    // (infallible), so poisoning here would only ever be caused by an
+    // unrelated panic elsewhere while the lock happened to be held for the
+    // instant of the `.take()`. Recovering the guard via `into_inner()` is
+    // safe and strictly better than panicking this handler (network-
+    // reachable, once per inbound HTTP request) over state that is still
+    // perfectly usable — the alternative (`.expect()`) would crash the whole
+    // loopback flow, including the one legitimate in-flight callback, over
+    // an unrelated poison.
     if let Some(tx) = state
         .tx
         .lock()
-        .expect("callback state mutex poisoned")
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
         .take()
     {
         let _ = tx.send(result);
@@ -115,7 +125,7 @@ async fn callback_handler(
     if let Some(shutdown_tx) = state
         .shutdown_tx
         .lock()
-        .expect("shutdown state mutex poisoned")
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
         .take()
     {
         let _ = shutdown_tx.send(());
@@ -138,6 +148,28 @@ pub async fn run_openrouter_flow() -> Result<String, OAuthError> {
         .map_err(OAuthError::Bind)?;
     let port = listener.local_addr().map_err(OAuthError::Bind)?.port();
 
+    let callback_url = format!("http://127.0.0.1:{port}/callback");
+    let auth_url = format!(
+        "{OPENROUTER_AUTH_URL}?callback_url={}&code_challenge={}&code_challenge_method=S256&state={}",
+        urlencoding_encode(&callback_url),
+        challenge,
+        state_value,
+    );
+
+    // Attempt to open the browser *before* spawning the loopback server (and
+    // before the listener above is wrapped into one). If this fails, return
+    // immediately with no server ever started — otherwise a failed
+    // `open::that` would leave the just-spawned axum task listening forever
+    // with no one left to receive the callback: the caller sees a
+    // "browser failed to open" error whose fallback URL points at a socket
+    // that can never complete the flow. The bound `listener` itself is
+    // cheap (no task, no leaked resources) and is simply dropped on this
+    // early return.
+    open::that(&auth_url).map_err(|e| OAuthError::BrowserOpen {
+        url: auth_url.clone(),
+        source: e,
+    })?;
+
     let (tx, rx) = oneshot::channel();
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let callback_state = Arc::new(CallbackState {
@@ -157,19 +189,6 @@ pub async fn run_openrouter_flow() -> Result<String, OAuthError> {
             })
             .await;
     });
-
-    let callback_url = format!("http://127.0.0.1:{port}/callback");
-    let auth_url = format!(
-        "{OPENROUTER_AUTH_URL}?callback_url={}&code_challenge={}&code_challenge_method=S256&state={}",
-        urlencoding_encode(&callback_url),
-        challenge,
-        state_value,
-    );
-
-    open::that(&auth_url).map_err(|e| OAuthError::BrowserOpen {
-        url: auth_url.clone(),
-        source: e,
-    })?;
 
     let code = tokio::time::timeout(CALLBACK_TIMEOUT, rx)
         .await
@@ -207,9 +226,7 @@ async fn exchange_code_at(url: &str, code: &str, verifier: &str) -> Result<Strin
 }
 
 fn urlencoding_encode(s: &str) -> String {
-    // Minimal percent-encoding sufficient for a loopback callback_url query
-    // param (only ':' and '/' need escaping beyond what's already safe).
-    s.replace(':', "%3A").replace('/', "%2F")
+    urlencoding::encode(s).into_owned()
 }
 
 #[cfg(test)]
@@ -221,6 +238,18 @@ mod tests {
         assert_eq!(
             urlencoding_encode("http://127.0.0.1:5555/callback"),
             "http%3A%2F%2F127.0.0.1%3A5555%2Fcallback"
+        );
+    }
+
+    #[test]
+    fn urlencoding_escapes_query_delimiters_the_hand_rolled_version_missed() {
+        // The prior hand-rolled `s.replace(':', "%3A").replace('/', "%2F")`
+        // only escaped 2 characters and would have let '&', '=', and spaces
+        // pass through unescaped, corrupting a callback_url containing its
+        // own query string. The real `urlencoding` crate handles these.
+        assert_eq!(
+            urlencoding_encode("http://127.0.0.1:5555/callback?a=1&b=2 c"),
+            "http%3A%2F%2F127.0.0.1%3A5555%2Fcallback%3Fa%3D1%26b%3D2%20c"
         );
     }
 
@@ -298,6 +327,34 @@ mod tests {
         });
         let _ = callback_handler(State(state), query).await;
         let result = rx.await.expect("tx sent");
+        assert_eq!(result.unwrap(), "real-code");
+    }
+
+    #[tokio::test]
+    async fn callback_handler_survives_poisoned_mutex() {
+        // Regression test for the reachable `.expect("...poisoned")` fix:
+        // poison `state.tx`'s mutex from another thread (panic while
+        // holding the lock), then prove the handler still runs to
+        // completion and delivers the result via the recovered guard,
+        // instead of panicking itself.
+        let (tx, rx) = oneshot::channel();
+        let state = test_state("expected-123", tx);
+
+        let poison_state = Arc::clone(&state);
+        let poisoner = std::thread::spawn(move || {
+            let _guard = poison_state.tx.lock().unwrap();
+            panic!("intentionally poisoning the mutex for the regression test");
+        });
+        let _ = poisoner.join(); // join() returns Err on panic; that's expected.
+        assert!(state.tx.is_poisoned());
+
+        let query = Query(CallbackQuery {
+            code: Some("real-code".to_string()),
+            state: Some("expected-123".to_string()),
+        });
+        // Must not panic despite the poisoned mutex.
+        let _ = callback_handler(State(state), query).await;
+        let result = rx.await.expect("tx sent despite poisoned mutex");
         assert_eq!(result.unwrap(), "real-code");
     }
 
