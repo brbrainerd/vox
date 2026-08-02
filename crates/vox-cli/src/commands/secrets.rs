@@ -125,11 +125,18 @@ pub enum OutputFormat {
 
 #[derive(Subcommand, Debug)]
 pub enum SecretsCmd {
-    /// Sign in: configure vault URL/token and optional Secrets account/backend.
+    /// Sign in: configure vault URL/token and optional Secrets account/backend,
+    /// or provision a free OpenRouter key via in-app OAuth (`--oauth`).
     #[command(name = "login")]
     Login {
         #[command(flatten)]
         args: crate::commands::login_shared::LoginArgs,
+        /// Provision a provider API key via in-app OAuth instead of vault login.
+        #[arg(long, default_value_t = false)]
+        oauth: bool,
+        /// Provider to authenticate with when `--oauth` is set. Only "openrouter" is supported today.
+        #[arg(long)]
+        provider: Option<String>,
     },
     /// Show secret readiness for a workflow (credentials / env resolution).
     /// Compatibility: `vox secrets doctor` remains accepted but hidden from help (use top-level `vox doctor` for toolchain checks).
@@ -182,7 +189,27 @@ pub enum SecretsCmd {
 
 pub async fn run(cmd: SecretsCmd) -> Result<()> {
     match cmd {
-        SecretsCmd::Login { args } => crate::commands::login_shared::run_login(args.into()).await,
+        SecretsCmd::Login {
+            args,
+            oauth,
+            provider,
+        } => {
+            if oauth {
+                let provider = provider.as_deref().unwrap_or("openrouter");
+                if provider != "openrouter" {
+                    anyhow::bail!("--oauth only supports --provider openrouter today");
+                }
+                let key = vox_oauth_pkce::openrouter::run_openrouter_flow()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("OAuth flow failed: {e}"))?;
+                vox_secrets::set_registry_token("openrouter", &key, None)
+                    .map_err(|e| anyhow::anyhow!("failed to store key: {e}"))?;
+                println!("OpenRouter API key provisioned and stored.");
+                Ok(())
+            } else {
+                crate::commands::login_shared::run_login(args.into()).await
+            }
+        }
         SecretsCmd::Status {
             workflow,
             profile,
@@ -671,6 +698,33 @@ fn emit_doctor_human(
         );
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod oauth_login_cli_tests {
+    use clap::Parser;
+
+    #[test]
+    fn oauth_flag_parses_on_login_subcommand() {
+        // Parse through the REAL top-level CLI struct. `SecretsCmd` itself only
+        // derives Subcommand, not Parser, so it cannot be parsed standalone.
+        // The real top-level Parser struct is `crate::VoxCliRoot` (field `cmd:
+        // crate::Cli`), and `crate::Cli` (a Subcommand enum, not a `Commands`
+        // enum) has the `Secrets { cmd: SecretsCmd }` variant.
+        let root = crate::VoxCliRoot::try_parse_from([
+            "vox", "secrets", "login", "--oauth", "--provider", "openrouter",
+        ])
+        .expect("parses");
+        match root.cmd {
+            crate::Cli::Secrets {
+                cmd: super::SecretsCmd::Login { oauth, provider, .. },
+            } => {
+                assert!(oauth);
+                assert_eq!(provider.as_deref(), Some("openrouter"));
+            }
+            _ => panic!("expected Cli::Secrets{{ cmd: SecretsCmd::Login }}"),
+        }
+    }
 }
 
 async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {

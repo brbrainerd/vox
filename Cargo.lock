@@ -15355,6 +15355,7 @@ dependencies = [
  "vox-jsonschema-util",
  "vox-mcp-registry",
  "vox-mesh-types",
+ "vox-oauth-pkce",
  "vox-openclaw-runtime",
  "vox-orchestrator",
  "vox-orchestrator-driver",

@@ -46,7 +46,7 @@ fn cli_parses_secrets_login() {
     .expect("secrets login");
     match r.cmd {
         Cli::Secrets { cmd } => match cmd {
-            SecretsCmd::Login { args } => {
+            SecretsCmd::Login { args, .. } => {
                 assert!(args.force);
                 assert_eq!(args.vault_url.as_deref(), Some("https://db.example"));
             }
@@ -69,7 +69,7 @@ fn cli_parses_clavis_login_alias() {
     .expect("clavis login alias");
     match r.cmd {
         Cli::Secrets { cmd } => match cmd {
-            SecretsCmd::Login { args } => {
+            SecretsCmd::Login { args, .. } => {
                 assert!(args.force);
                 assert_eq!(args.vault_url.as_deref(), Some("https://db.example"));
             }
