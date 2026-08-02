@@ -105,7 +105,6 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution. |
 | [`vox-mcp-registry`](../../../crates/vox-mcp-registry/) | Compile-time MCP tool name/description registry from contracts YAML (SSOT). |
 | [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress, no config/secret resolution. |
-| [`vox-oauth-pkce`](../../../crates/vox-oauth-pkce/) | RFC 8252 loopback-server OAuth + RFC 7636 PKCE flow for in-app free-tier key provisioning; provider-agnostic `pkce` core (verifier/challenge/state generation) plus a per-provider driver module (`openrouter`, added in a later task). |
 | [`vox-project-scaffold`](../../../crates/vox-project-scaffold/) | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP. |
 | [`vox-repository`](../../../crates/vox-repository/) | Repository discovery, stable identity, layout probes, and agent scope helpers for external and internal Vox workspaces. |
 | [`vox-similarity`](../../../crates/vox-similarity/) | Pure simhash/minhash/LSH near-duplicate similarity core for discovery + marketplace dedup. |
@@ -147,6 +146,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-gamify`](../../../crates/vox-gamify/) | Gamification layer — companions, quests, battles, and free AI integration. |
 | [`vox-git`](../../../crates/vox-git/) | Pure-Rust Git bridge using gix (no C, no libgit2). |
 | [`vox-vcs`](../../../crates/vox-vcs/) | VCS backend abstraction: `VcsBackend` trait + in-memory `CasFallback`; the single home for all `jj_lib::` calls (the jj-lib 0.42 `JjBackend` lands in a later phase). Injected as a trait object into `vox-compiler` to avoid L3 coupling. |
+| [`vox-oauth-pkce`](../../../crates/vox-oauth-pkce/) | RFC 8252 loopback-server OAuth + RFC 7636 PKCE flow for in-app free-tier key provisioning; provider-agnostic `pkce` core (verifier/challenge/state generation) plus a per-provider driver module (`openrouter`, added in a later task). |
 | [`vox-lsp`](../../../crates/vox-lsp/) | Vox Language Server (stdio JSON-RPC). Capability matrix: [`vox-lsp-capabilities-ssot-2026.md`](./vox-lsp-capabilities-ssot-2026.md). |
 | [`vox-openclaw-runtime`](../../../crates/vox-openclaw-runtime/) | OpenClaw client + ARS runtime adapter, executor, context bundles, hooks. |
 | [`vox-research-shim`](../../../crates/vox-research-shim/) | DEI research pipeline and model-selection sub-systems (A-12 wedge). SCIENTIA orchestrator, claim/verify/persist, BroadcastEmitter, ScientiaMeshSubscriber, and `selection::` (FreeTierRouter, ModelScorer, task_routing). Uses `vox_orchestrator::types::RoutingProfile`. |

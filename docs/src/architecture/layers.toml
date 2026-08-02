@@ -210,6 +210,7 @@ vox-vcs                 = { layer = 3, max_loc = 20_000, orphan_exempt = true }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
 vox-runtime-rn          = { layer = 3, orphan_exempt = true }     # uniffi mobile bridge (RN/Expo); deps vox-runtime+vox-journal; consumed out-of-tree by clients/runtime-rn (PR #97)
+vox-oauth-pkce          = { layer = 3, max_loc = 2_000, orphan_exempt = true }   # RFC 8252 loopback-server OAuth + RFC 7636 PKCE flow for in-app free-tier key provisioning; deps axum/reqwest/vox-http-client; no in-tree consumer yet -- wired in by the CLI/Tauri login commands in later tasks of the same plan (docs/superpowers/plans/2026-08-01-free-tier-onboarding.md)
 vox-code-audit          = { layer = 3, max_loc = 25_000 }
 vox-drift-check              = { layer = 3, kind = "binary", max_loc = 8_000 }
 vox-wire-format-validator    = { layer = 3, kind = "binary", max_loc = 4_000 }
