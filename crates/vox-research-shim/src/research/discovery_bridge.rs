@@ -294,6 +294,7 @@ mod tests {
                 competence: None,
                 self_verification: None,
                 citation_audit: None,
+                corroboration_counts: vec![],
             },
         }
     }

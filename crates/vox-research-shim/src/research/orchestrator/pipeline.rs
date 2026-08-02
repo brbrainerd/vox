@@ -585,6 +585,8 @@ pub async fn run_research_with_context_and_session(
         );
     }
 
+    let corroboration_counts = compute_corroboration_counts(&citations, &claim_verdicts);
+
     let metadata = ResearchMetadata {
         session_id,
         duration_ms,
@@ -600,6 +602,7 @@ pub async fn run_research_with_context_and_session(
         competence,
         self_verification,
         citation_audit: Some(citation_audit),
+        corroboration_counts,
     };
 
     let result = ResearchResult {
@@ -773,6 +776,42 @@ fn audit_citations(
     }
 }
 
+/// For each verified claim, counts the number of distinct-domain citations
+/// whose evidence spans support it (see `vox_search::corroboration`) — a
+/// domain-agnostic trust fallback for hits with no DOI/academic venue
+/// signal. Mirrors `audit_citations`'s evidence-span matching: a citation
+/// counts as supporting a claim when it has a `Supporting`-type evidence
+/// span with a matching `source_id` for that claim.
+fn compute_corroboration_counts(
+    citations: &[Citation],
+    verdicts: &[super::super::verifier::ClaimVerdict],
+) -> Vec<(u64, usize)> {
+    verdicts
+        .iter()
+        .map(|verdict| {
+            let supporting_source_ids: std::collections::HashSet<i64> = verdict
+                .evidence_spans
+                .iter()
+                .filter(|span| span.span_type == super::super::verifier::SpanType::Supporting)
+                .map(|span| span.source_id)
+                .collect();
+            let hits: Vec<vox_search::corroboration::CorroboratingHit> = citations
+                .iter()
+                .map(|citation| vox_search::corroboration::CorroboratingHit {
+                    url: citation.url.clone(),
+                    supports_claim: supporting_source_ids.contains(&citation.source_id),
+                })
+                .collect();
+            let count = vox_search::corroboration::count_corroboration(
+                &verdict.claim.claim_id.to_string(),
+                &hits,
+            )
+            .count();
+            (verdict.claim.claim_id, count)
+        })
+        .collect()
+}
+
 fn quote_overlaps(citation_snippet: &str, quote: &str) -> bool {
     let snippet = citation_snippet.to_ascii_lowercase();
     let quote = quote.to_ascii_lowercase();
@@ -903,6 +942,7 @@ mod tests {
                 competence: None,
                 self_verification: None,
                 citation_audit: None,
+                corroboration_counts: vec![],
             },
         };
         let report_markdown = render_research_report_markdown(&query, &plan, &result);
@@ -960,6 +1000,67 @@ mod tests {
         assert_eq!(audit.supported_citations, 1);
         assert!(audit.unsupported_citation_indices.is_empty());
         assert_eq!(audit.precision, 1.0);
+    }
+
+    #[test]
+    fn corroboration_counts_reflect_distinct_supporting_domains() {
+        use super::super::super::claims::Claim;
+        use super::super::super::verifier::ClaimVerdict;
+
+        // claim-1: two supporting citations on distinct domains -> count 2.
+        // claim-2: one supporting citation -> count 1.
+        let citations = vec![
+            Citation {
+                source_id: 0,
+                url: "https://reuters.com/a".to_string(),
+                title: "Reuters".to_string(),
+                snippet: "s".to_string(),
+                confidence: 0.9,
+            },
+            Citation {
+                source_id: 1,
+                url: "https://apnews.com/b".to_string(),
+                title: "AP".to_string(),
+                snippet: "s".to_string(),
+                confidence: 0.9,
+            },
+            Citation {
+                source_id: 2,
+                url: "https://example.com/c".to_string(),
+                title: "Example".to_string(),
+                snippet: "s".to_string(),
+                confidence: 0.9,
+            },
+        ];
+        let make_verdict = |claim_id: u64, source_ids: Vec<i64>| ClaimVerdict {
+            claim: Claim {
+                claim_id,
+                text: format!("claim {claim_id}"),
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+            },
+            verdict: Verdict::Supported,
+            confidence: 0.9,
+            supporting_count: source_ids.len(),
+            contradicting_count: 0,
+            evidence_spans: source_ids
+                .into_iter()
+                .map(|source_id| EvidenceSpan {
+                    source_id,
+                    span_start: 0,
+                    span_end: 1,
+                    text: "t".to_string(),
+                    span_type: SpanType::Supporting,
+                })
+                .collect(),
+            resample_stability: 1.0,
+        };
+        let verdicts = vec![make_verdict(1, vec![0, 1]), make_verdict(2, vec![2])];
+
+        let counts = compute_corroboration_counts(&citations, &verdicts);
+
+        assert_eq!(counts, vec![(1, 2), (2, 1)]);
     }
 
     #[test]

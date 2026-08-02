@@ -50,6 +50,7 @@ fn supported_result(session_id: i64, quality: i32) -> ResearchResult {
             competence: None,
             self_verification: None,
             citation_audit: None,
+            corroboration_counts: vec![],
         },
     }
 }

@@ -28,6 +28,7 @@ const DETAIL_WITH_CLAIMS = {
       confidence: 0.9,
       resample_stability: 0.8,
       citation_urls: ['https://example.com/a'],
+      corroboration_count: 1,
     },
   ],
 };

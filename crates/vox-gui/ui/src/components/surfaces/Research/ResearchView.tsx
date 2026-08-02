@@ -22,6 +22,7 @@ interface ResearchDetailClaim {
   confidence: number;
   resample_stability: number;
   citation_urls: string[];
+  corroboration_count: number;
 }
 
 // confidence_tier / claims / source_count / citation_precision are parsed
@@ -40,13 +41,12 @@ interface ResearchDetail {
 }
 
 /**
- * Map the backend's flat claim DTO (citation URLs only, no per-citation
- * trust signal yet) onto `ResearchClaimAccordion`'s `ResearchClaimRow`
- * shape. Trust is a coarse heuristic derived from citation count — a claim
- * backed by 2+ distinct citation URLs reads as corroborated, one citation
- * as uncorroborated — since the backend doesn't yet surface a per-citation
- * formal/retraction signal for research claims (that exists today only for
- * Scientia's `ClaimsView`, a different surface).
+ * Map the backend's flat claim DTO onto `ResearchClaimAccordion`'s
+ * `ResearchClaimRow` shape. Trust is derived from `corroboration_count`,
+ * the pipeline's real distinct-domain independent-source count (see
+ * `vox_search::corroboration` / `compute_corroboration_counts` in
+ * `vox-research-shim`'s pipeline.rs) — a claim backed by 2+ distinct-domain
+ * supporting citations reads as corroborated, 0 or 1 as uncorroborated.
  */
 function toClaimRows(claims: ResearchDetailClaim[] | undefined): ResearchClaimRow[] {
   if (!claims) return [];
@@ -61,8 +61,8 @@ function toClaimRows(claims: ResearchDetailClaim[] | undefined): ResearchClaimRo
       citations: distinctUrls.map((url) => ({
         url,
         trust:
-          distinctUrls.length > 1
-            ? { kind: 'corroborated' as const, sourceCount: distinctUrls.length }
+          c.corroboration_count >= 2
+            ? { kind: 'corroborated' as const, sourceCount: c.corroboration_count }
             : { kind: 'uncorroborated' as const },
       })),
     };

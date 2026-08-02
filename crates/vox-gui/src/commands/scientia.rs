@@ -26,6 +26,7 @@ pub struct ResearchClaimDto {
     pub confidence: f64,
     pub resample_stability: f64,
     pub citation_urls: Vec<String>,
+    pub corroboration_count: usize,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -86,6 +87,11 @@ mod artifact_mirror {
         pub claim_verdicts: Vec<ClaimVerdict>,
         #[serde(default)]
         pub citation_audit: Option<CitationAudit>,
+        /// `(claim_id, distinct_supporting_domain_count)` pairs computed by
+        /// the pipeline's `compute_corroboration_counts` — see
+        /// `vox_search::corroboration`.
+        #[serde(default)]
+        pub corroboration_counts: Vec<(u64, usize)>,
     }
 
     #[derive(Debug, Deserialize, Default)]
@@ -156,6 +162,8 @@ pub fn extract_research_summary(artifact_json: &str) -> ResearchSummary {
         .iter()
         .map(|c| (c.source_id, c.url.clone()))
         .collect();
+    let corroboration_by_claim_id: HashMap<u64, usize> =
+        meta.corroboration_counts.into_iter().collect();
 
     let claims: Vec<ResearchClaimDto> = meta
         .claim_verdicts
@@ -167,6 +175,10 @@ pub fn extract_research_summary(artifact_json: &str) -> ResearchSummary {
                 .filter_map(|span| url_by_source_id.get(&span.source_id).cloned())
                 .collect();
             citation_urls.dedup();
+            let corroboration_count = corroboration_by_claim_id
+                .get(&cv.claim.claim_id)
+                .copied()
+                .unwrap_or(0);
             ResearchClaimDto {
                 claim_id: cv.claim.claim_id.to_string(),
                 text: cv.claim.text,
@@ -174,6 +186,7 @@ pub fn extract_research_summary(artifact_json: &str) -> ResearchSummary {
                 confidence: cv.confidence,
                 resample_stability: cv.resample_stability,
                 citation_urls,
+                corroboration_count,
             }
         })
         .collect();
@@ -586,7 +599,8 @@ mod research_summary_tests {
                     "planner_degraded": false,
                     "competence": null,
                     "self_verification": null,
-                    "citation_audit": { "checked_citations": 2, "supported_citations": 2, "unsupported_citation_indices": [], "precision": 1.0, "supports": [] }
+                    "citation_audit": { "checked_citations": 2, "supported_citations": 2, "unsupported_citation_indices": [], "precision": 1.0, "supports": [] },
+                    "corroboration_counts": [[42, 2]]
                 }
             }
         }"#
@@ -613,6 +627,7 @@ mod research_summary_tests {
                 "https://example.org/b".to_string()
             ]
         );
+        assert_eq!(claim.corroboration_count, 2);
     }
 
     #[test]

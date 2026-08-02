@@ -187,6 +187,13 @@ pub struct ResearchMetadata {
     pub competence: Option<CompetenceSignal>,
     pub self_verification: Option<SelfVerificationResult>,
     pub citation_audit: Option<CitationAuditResult>,
+    /// Independent-source corroboration count per claim: `(claim_id, count)`,
+    /// where `count` is the number of distinct domains among that claim's
+    /// supporting citations (see `vox_search::corroboration`). A
+    /// domain-agnostic trust fallback for hits lacking DOI/academic venue
+    /// data. Empty when no claims were verified.
+    #[serde(default)]
+    pub corroboration_counts: Vec<(u64, usize)>,
 }
 
 /// Final research result.
