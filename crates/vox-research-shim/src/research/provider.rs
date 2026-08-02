@@ -64,7 +64,14 @@ impl ProviderRegistry {
                 let trust_scores: Vec<f64> = stream::iter(hybrids.iter())
                     .map(|h| {
                         let doi = vox_search::trust::extract_doi_from_url(&h.path);
-                        async move { vox_search::trust::score_hit_trust(&h.title, doi.as_deref()).await }
+                        async move {
+                            vox_search::trust::score_hit_trust_for_url(
+                                &h.title,
+                                doi.as_deref(),
+                                &h.path,
+                            )
+                            .await
+                        }
                     })
                     // `buffered` (not `buffer_unordered`) to preserve input order,
                     // since results are zipped positionally against `hybrids` below.

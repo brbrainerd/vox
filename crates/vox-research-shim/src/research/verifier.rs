@@ -151,6 +151,30 @@ fn majority_verdict(verdicts: &[Verdict]) -> Verdict {
 // `resample_stability` field on `ClaimVerdict`.
 const RESAMPLE_COUNT: usize = 3;
 
+/// Merges `primary` (from `primary_candidate_for_intent`, if any key-gated
+/// candidate cleared selection) ahead of `fallback` (the cascade), and forces
+/// verification's per-candidate overrides (`max_tokens`, JSON response
+/// format, and a nonzero resample temperature) onto every candidate —
+/// including `primary`, which `llm_config_for_spec` always builds with
+/// `temperature: None` since it never runs through `apply_stage_defaults`.
+/// Without this, whichever candidate is tried first when a key is configured
+/// resamples at whatever the provider's own default temperature is, and
+/// `resample_stability` no longer reflects genuine sample variation.
+#[cfg(feature = "runtime")]
+fn resample_candidates(
+    primary: Option<vox_actor_runtime::llm::LlmConfig>,
+    fallback: Vec<vox_actor_runtime::llm::LlmConfig>,
+) -> Vec<vox_actor_runtime::llm::LlmConfig> {
+    let mut candidates: Vec<vox_actor_runtime::llm::LlmConfig> = primary.into_iter().collect();
+    candidates.extend(fallback);
+    for candidate in &mut candidates {
+        candidate.max_tokens = Some(500);
+        candidate.response_format = Some(serde_json::json!({"type": "json_object"}));
+        candidate.temperature = Some(0.3);
+    }
+    candidates
+}
+
 /// Verify a batch of claims against retrieved evidence.
 ///
 /// Verifies claims against evidence via an LLM cascade (behind the `runtime`
@@ -209,20 +233,14 @@ pub async fn verify_claims_with_config(
                     let primary = crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
                         vox_orchestrator::models::SelectionIntent::nli_classifier(),
                     );
-                    let mut candidates: Vec<vox_actor_runtime::llm::LlmConfig> =
-                        primary.into_iter().collect();
-                    candidates.extend(cascade_with_optional_manual(
+                    let fallback = cascade_with_optional_manual(
                         ResearchStage::Verification,
                         input,
                         endpoint,
                         api_key,
                         Some(input.openrouter_model.as_str()),
-                    ));
-                    for candidate in &mut candidates {
-                        candidate.max_tokens = Some(500);
-                        candidate.response_format =
-                            Some(serde_json::json!({"type": "json_object"}));
-                    }
+                    );
+                    let candidates = resample_candidates(primary, fallback);
                     let messages = vec![
                         LlmChatMessage {
                             role: "system".to_string(),
@@ -455,6 +473,27 @@ mod tests {
                 raw_content: String::new(),
             },
         ]
+    }
+
+    #[cfg(feature = "runtime")]
+    #[test]
+    fn resample_candidates_forces_nonzero_temperature_on_primary_too() {
+        let primary = Some(vox_actor_runtime::llm::LlmConfig::openrouter("primary-model"));
+        let fallback = vec![vox_actor_runtime::llm::LlmConfig::openrouter("fallback-model")];
+
+        let candidates = resample_candidates(primary, fallback);
+
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(
+            candidates[0].model, "primary-model",
+            "primary candidate must be tried first"
+        );
+        assert!(
+            candidates.iter().all(|c| c.temperature == Some(0.3)),
+            "every resample candidate — including primary, which llm_config_for_spec \
+             always builds with temperature: None — must resample at a nonzero \
+             temperature or resample_stability stops reflecting genuine variation"
+        );
     }
 
     #[test]
