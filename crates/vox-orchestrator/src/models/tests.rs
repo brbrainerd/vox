@@ -129,8 +129,15 @@ mod key_guard_tests {
     use crate::config::CostPreference;
     use crate::models::ModelRegistry;
     use crate::types::TaskCategory;
+    // registry.best_for() flows into best_for_internal(), which reads the
+    // process-global TEST_PRIVACY_OVERRIDE (route_policy.rs). #[serial] keeps
+    // this test mutually exclusive with the registry_filter_tests /
+    // explain_selection_complexity_tests tests below that mutate that same
+    // global via set_test_privacy_override, matching their own convention.
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn premium_alias_resolves_to_available_model_when_anthropic_key_absent() {
         // SAFETY: standard test env modification
         #[allow(unsafe_code)]
@@ -695,6 +702,13 @@ mod semcov_wave34_tests {
     use crate::models::{ModelSpec, ProviderType, StrengthTag};
     use crate::types::TaskCategory;
     use crate::usage::RemainingBudget;
+    // best_for_returns_none_when_registry_is_empty below calls
+    // ModelRegistry::best_for(), which flows into best_for_internal() and
+    // reads the process-global TEST_PRIVACY_OVERRIDE (route_policy.rs);
+    // #[serial] keeps it mutually exclusive with tests elsewhere that mutate
+    // that override via set_test_privacy_override (registry_filter_tests'
+    // own #[serial] comment documents the same convention).
+    use serial_test::serial;
 
     // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -1143,6 +1157,7 @@ mod semcov_wave34_tests {
     // ── 13. best_for returns None on empty registry ───────────────────────────
 
     #[test]
+    #[serial]
     fn best_for_returns_none_when_registry_is_empty() {
         // Catches: unwrap() or default fallback returning a ghost spec on empty registry
         let mut r = ModelRegistry::default();
