@@ -17,16 +17,17 @@ const DETAIL_WITH_CLAIMS = {
   session: SESSIONS[0],
   report_markdown: 'The sky is blue.',
   artifact_json: null,
-  confidenceTier: 'DeepResearch',
-  sourceCount: 3,
+  confidence_tier: 'DeepResearch',
+  source_count: 3,
+  citation_precision: 1.0,
   claims: [
     {
-      claimId: 'c1',
+      claim_id: 'c1',
       text: 'The sky is blue.',
       verdict: 'Supported',
       confidence: 0.9,
-      resampleStability: 0.8,
-      citations: [{ url: 'https://example.com/a', trust: { kind: 'corroborated', sourceCount: 2 } }],
+      resample_stability: 0.8,
+      citation_urls: ['https://example.com/a'],
     },
   ],
 };
