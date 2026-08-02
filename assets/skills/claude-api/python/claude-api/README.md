@@ -33,7 +33,7 @@ Use `with_options()` to override client settings for a single call without mutat
 
 ```python
 client.with_options(timeout=5.0, max_retries=5).messages.create(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     max_tokens=1024,
     messages=[{"role": "user", "content": "Hello"}],
 )
@@ -90,7 +90,7 @@ Set `ANTHROPIC_LOG=debug` (or `info`) to enable SDK logging via the standard `lo
 
 ```python
 response = client.messages.create(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     max_tokens=16000,
     messages=[
         {"role": "user", "content": "What is the capital of France?"}
@@ -109,16 +109,16 @@ for block in response.content:
 
 ```python
 response = client.messages.create(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     max_tokens=16000,
     system="You are a helpful coding assistant. Always provide examples in Python.",
     messages=[{"role": "user", "content": "How do I read a JSON file?"}]
 )
 ```
 
-### Mid-conversation system messages (beta, model-gated)
+### Mid-conversation system messages (model-gated)
 
-For operator instructions that arrive mid-conversation (mode switches, injected state), append `{"role": "system", ...}` to `messages` instead of editing top-level `system` — this preserves the cached prefix and carries operator authority. Must follow a user message; cannot be `messages[0]`. Unsupported models return a 400 (`role 'system' is not supported on this model`). See `shared/prompt-caching.md` for when to use this vs. top-level `system`.
+For operator instructions that arrive mid-conversation (mode switches, injected state), append `{"role": "system", ...}` to `messages` instead of editing top-level `system` — this preserves the cached prefix and carries operator authority. Must follow a user message (or an `assistant` message ending in server-tool use), and must be either the last entry in `messages` or be followed by an `assistant` turn; cannot be `messages[0]`. Unsupported models return a 400 (`role 'system' is not supported on this model`). See `shared/prompt-caching.md` for when to use this vs. top-level `system`.
 
 ```python
 response = client.messages.create(
@@ -129,8 +129,7 @@ response = client.messages.create(
         {"role": "user", "content": user_message},
         {"role": "system", "content": "Terse mode enabled — keep responses under 40 words."},
     ],
-    extra_headers={"anthropic-beta": "mid-conversation-system-2026-04-07"},
-)
+)  # No beta header needed — use regular client.messages.create
 ```
 
 ---
@@ -146,7 +145,7 @@ with open("image.png", "rb") as f:
     image_data = base64.standard_b64encode(f.read()).decode("utf-8")
 
 response = client.messages.create(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     max_tokens=16000,
     messages=[{
         "role": "user",
@@ -169,7 +168,7 @@ response = client.messages.create(
 
 ```python
 response = client.messages.create(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     max_tokens=16000,
     messages=[{
         "role": "user",
@@ -199,7 +198,7 @@ Use top-level `cache_control` to automatically cache the last cacheable block in
 
 ```python
 response = client.messages.create(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     max_tokens=16000,
     cache_control={"type": "ephemeral"},  # auto-caches the last cacheable block
     system="You are an expert on this large document...",
@@ -213,7 +212,7 @@ For fine-grained control, add `cache_control` to specific content blocks:
 
 ```python
 response = client.messages.create(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     max_tokens=16000,
     system=[{
         "type": "text",
@@ -225,7 +224,7 @@ response = client.messages.create(
 
 # With explicit TTL (time-to-live)
 response = client.messages.create(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     max_tokens=16000,
     system=[{
         "type": "text",
@@ -250,16 +249,17 @@ If `cache_read_input_tokens` is zero across repeated identical-prefix requests, 
 
 ## Extended Thinking
 
-> **Fable 5, Opus 4.8, Opus 4.7, Opus 4.6, and Sonnet 4.6:** Use adaptive thinking. `budget_tokens` is removed on Fable 5, Opus 4.8, and 4.7 (400 if sent); deprecated on Opus 4.6 and Sonnet 4.6.
+> **Fable 5, Claude Opus 5, Opus 4.8, Opus 4.7, Opus 4.6, and Sonnet 4.6:** Use adaptive thinking. `budget_tokens` is removed on Fable 5, Claude Opus 5, Opus 4.8, and 4.7 (400 if sent); deprecated on Opus 4.6 and Sonnet 4.6.
+> **Claude Opus 5:** thinking is on by default — omitting `thinking` runs adaptive (`{"type": "adaptive"}` is equivalent), unlike Opus 4.8/4.7 where omitting it meant no thinking. `{"type": "disabled"}` is accepted only at effort `high` or lower; pairing it with `xhigh`/`max` returns a 400.
 > **Older models:** Use `thinking: {type: "enabled", budget_tokens: N}` (must be < `max_tokens`, min 1024).
 
 ```python
-# Fable 5 / Opus 4.8 / 4.7 / 4.6: adaptive thinking (recommended)
+# Fable 5 / Claude Opus 5 / Opus 4.8 / 4.7 / 4.6: adaptive thinking (recommended)
 response = client.messages.create(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     max_tokens=16000,
-    thinking={"type": "adaptive"},
-    output_config={"effort": "high"},  # low | medium | high | max
+    thinking={"type": "adaptive", "display": "summarized"},  # display opt-in: default is omitted (empty thinking text) on Fable 5 / Mythos 5 / Claude Opus 5 / Opus 4.8 / 4.7
+    output_config={"effort": "high"},  # low | medium | high | xhigh | max
     messages=[{"role": "user", "content": "Solve this step by step..."}]
 )
 
@@ -317,7 +317,7 @@ To access raw headers or other response metadata, use `.with_raw_response`:
 
 ```python
 raw = client.messages.with_raw_response.create(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     max_tokens=1024,
     messages=[{"role": "user", "content": "Hello"}],
 )
@@ -363,7 +363,7 @@ class ConversationManager:
 # Usage
 conversation = ConversationManager(
     client=anthropic.Anthropic(),
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     system="You are a helpful assistant."
 )
 
@@ -375,13 +375,13 @@ response2 = conversation.send("What's my name?")  # Claude remembers "Alice"
 
 - Consecutive same-role messages are allowed — the API combines them into a single turn
 - First message must be `user`
-- `role: "system"` messages are allowed mid-conversation under the `mid-conversation-system-2026-04-07` beta on supporting models — see § Mid-conversation system messages above
+- `role: "system"` messages are allowed mid-conversation on supporting models (no beta header needed) — see § Mid-conversation system messages above
 
 ---
 
 ### Compaction (long conversations)
 
-> **Beta, Fable 5, Opus 4.8, Opus 4.7, Opus 4.6, and Sonnet 4.6.** When conversations approach the 200K context window, compaction automatically summarizes earlier context server-side. The API returns a `compaction` block; you must pass it back on subsequent requests — append `response.content`, not just the text.
+> **Beta, Fable 5, Claude Opus 5, Opus 4.8, Opus 4.7, Opus 4.6, and Sonnet 4.6.** When conversations approach the 200K context window, compaction automatically summarizes earlier context server-side. The API returns a `compaction` block; you must pass it back on subsequent requests — append `response.content`, not just the text.
 
 ```python
 import anthropic
@@ -394,7 +394,7 @@ def chat(user_message: str) -> str:
 
     response = client.beta.messages.create(
         betas=["compact-2026-01-12"],
-        model="claude-opus-4-8",
+        model="claude-opus-5",
         max_tokens=16000,
         messages=messages,
         context_management={
@@ -434,9 +434,38 @@ When `stop_reason` is `"refusal"`, the response includes a `stop_details` object
 
 ```python
 if response.stop_reason == "refusal" and response.stop_details:
-    print(f"Category: {response.stop_details.category}")   # "cyber" | "bio" | None
+    print(f"Category: {response.stop_details.category}")   # e.g. "cyber", "bio", "reasoning_extraction", "frontier_llm", or None — see docs for the full set
     print(f"Explanation: {response.stop_details.explanation}")
 ```
+
+### Refusal Fallbacks (Claude Fable 5) — opt in by default
+
+Fallbacks are **opt-in**: without them a refused request simply stops. Include the server-side `fallbacks` parameter in `claude-fable-5` code by default — on a policy decline the API re-runs the same request on the fallback model inside the same call. A decline before any output isn't billed (a mid-stream decline bills the streamed partial); the rescue bills at the fallback model's own rates, with cache repricing applied automatically.
+
+```python
+response = client.beta.messages.create(
+    model="claude-fable-5",
+    max_tokens=16000,
+    betas=["server-side-fallback-2026-06-01"],
+    fallbacks=[{"model": "claude-opus-4-8"}],
+    messages=[{"role": "user", "content": "..."}],
+)
+
+# Switch points: one fallback block per model that ran and declined this turn
+for block in response.content:
+    if block.type == "fallback":
+        print(f"{block.from_.model} declined; {block.to.model} continued")
+
+# Served-by signal — covers sticky turns, which carry no fallback block.
+# Pair with stop_reason: the fallback model can itself refuse.
+fallback_ran = any(
+    entry.type == "fallback_message" for entry in response.usage.iterations or []
+)
+if fallback_ran and response.stop_reason != "refusal":
+    print(f"Served by {response.model}")
+```
+
+A `stop_reason: "refusal"` on the final response means the whole chain refused. The header must be exactly `server-side-fallback-2026-06-01` **for this array form**; the newer `fallbacks: "default"` scalar form uses `server-side-fallback-2026-07-01` instead (see `shared/model-migration.md` → Migrating to Claude Opus 5 → New API features), and pairing either header with the other form returns a 400. The parameter is rejected on the Batches API and unavailable on Amazon Bedrock, Vertex AI, and Microsoft Foundry — register the client-side `BetaRefusalFallbackMiddleware` on the client there instead. Full semantics (sticky routing, billing, streaming, echoing fallback turns back): `shared/model-migration.md` → Migrating to Claude Fable 5 → `refusal` stop reason.
 
 ---
 
@@ -447,7 +476,7 @@ if response.stop_reason == "refusal" and response.stop_details:
 ```python
 # Automatic caching (simplest — caches the last cacheable block)
 response = client.messages.create(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     max_tokens=16000,
     cache_control={"type": "ephemeral"},
     system=large_document_text,  # e.g., 50KB of context
@@ -463,14 +492,14 @@ response = client.messages.create(
 ```python
 # Default to Opus for most tasks
 response = client.messages.create(
-    model="claude-opus-4-8",  # $5.00/$25.00 per 1M tokens
+    model="claude-opus-5",  # $5.00/$25.00 per 1M tokens
     max_tokens=16000,
     messages=[{"role": "user", "content": "Explain quantum computing"}]
 )
 
 # Use Sonnet for high-volume production workloads
 standard_response = client.messages.create(
-    model="claude-sonnet-4-6",  # $3.00/$15.00 per 1M tokens
+    model="claude-sonnet-5",  # $3.00/$15.00 per 1M tokens
     max_tokens=16000,
     messages=[{"role": "user", "content": "Summarize this document"}]
 )
@@ -487,7 +516,7 @@ simple_response = client.messages.create(
 
 ```python
 count_response = client.messages.count_tokens(
-    model="claude-opus-4-8",
+    model="claude-opus-5",
     messages=messages,
     system=system
 )

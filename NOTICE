@@ -12,5 +12,5 @@ Licensed under the Apache License, Version 2.0.
 Vendored subset: algorithmic-art, brand-guidelines, canvas-design, claude-api,
 frontend-design, internal-comms, mcp-builder, skill-creator, slack-gif-creator,
 theme-factory, web-artifacts-builder, webapp-testing.
-Pinned at commit 57546260929473d4e0d1c1bb75297be2fdfa1949.
+Pinned at commit b29e7cf65e5cb78a5ac33d582270551bc74a14eb.
 See assets/skills/SOURCES.toml for full provenance.
