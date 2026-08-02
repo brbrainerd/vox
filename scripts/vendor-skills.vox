@@ -49,9 +49,9 @@ fn skill_names(entry: Json) to list[str] {
     let mut names = [];
     let items = jarr(entry, "skills");
     for item in items {
-        match item.as_str() {
-            Some(name) => { names = names.push(name); }
-            None => {}
+        let name_opt = item.as_str();
+        if name_opt.is_some() {
+            names = names.push(name_opt.unwrap());
         }
     }
     return names;
@@ -226,7 +226,10 @@ fn license_upstream_path(upstream_root: str) to str {
 
 fn vendor_source(upstream_root: str, skills: list[str], root: str) to Result[int] {
     let mut copied = 0;
-    let license_src = license_upstream_path(upstream_root);
+    // `upstream_root` is reused below (inside the `for skill in skills` loop) after this
+    // call; pass a freshly-built string here so codegen's move analysis doesn't treat
+    // `upstream_root` itself as consumed by `license_upstream_path`.
+    let license_src = license_upstream_path(upstream_root + "");
 
     for skill in skills {
         let src_dir = path.join(upstream_root, "skills/" + skill);
