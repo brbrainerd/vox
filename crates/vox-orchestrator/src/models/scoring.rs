@@ -635,9 +635,11 @@ mod tests {
     /// without a hardcoded provider check.
     #[test]
     fn free_ollama_model_competitive_with_free_mesh_model_at_low_complexity() {
-        unsafe {
-            std::env::set_var("VOX_ROUTING_PREFER_MESH", "false");
-        }
+        // Scoped + auto-restored (previously a raw `unsafe { set_var }` with no
+        // teardown, which both fails clippy's workspace-wide `unsafe_code` deny
+        // and leaked the override into later tests).
+        let _env_guard = vox_test_harness::env_scratch::EnvScratch::empty()
+            .set("VOX_ROUTING_PREFER_MESH", "false");
 
         let mut ollama = make_spec(ProviderType::Ollama, 0.0, true);
         ollama.id = "qwen3:8b".into();
