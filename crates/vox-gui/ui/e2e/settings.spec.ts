@@ -216,5 +216,10 @@ test.describe('Vox Settings — LLM banner jump-link', () => {
     // Clicking the jump-link must switch the active section — Keys & Secrets'
     // own heading (distinct from the nav button of the same name) should render.
     await expect(page.getByRole('heading', { name: /keys.*secrets/i })).toBeVisible({ timeout: 15_000 });
+
+    // Accessibility: a keyboard/screen-reader user activating the jump-link
+    // needs focus moved to the destination, not left behind on the
+    // now-hidden trigger button.
+    await expect(page.locator('#keys-secrets-section')).toBeFocused();
   });
 });

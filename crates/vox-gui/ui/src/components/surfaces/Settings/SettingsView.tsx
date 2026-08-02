@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
+import { scrollAndFocusAnchor } from '../../../lib/anchorFocus';
 import { Glass } from '../../ui/Glass';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -1447,7 +1448,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             onJumpToKeysSecrets={() => {
               setSection('secrets');
               requestAnimationFrame(() => {
-                document.getElementById('keys-secrets-section')?.scrollIntoView({ behavior: 'smooth' });
+                scrollAndFocusAnchor('keys-secrets-section');
               });
             }}
           />
@@ -1535,7 +1536,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
         )}
 
         {section === 'secrets' && (
-          <div id="keys-secrets-section">
+          <div id="keys-secrets-section" tabIndex={-1}>
             <KeysSecretsSection pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
           </div>
         )}
