@@ -172,10 +172,11 @@ function ModelGrid({ title, items, activeModel, onSetDefault }: {
                 </div>
                 {m.is_free && <span className="text-[9px] uppercase tracking-widest text-emerald-400">free</span>}
               </div>
-              <div className="grid grid-cols-3 gap-2 text-[10px] font-mono text-text-muted">
+              <div className="grid grid-cols-4 gap-2 text-[10px] font-mono text-text-muted">
                 <div><span className="text-text-muted">ctx</span> {Math.round(m.max_tokens / 1000)}k</div>
                 <div><span className="text-text-muted">$/1k</span> {m.cost_per_1k.toFixed(4)}</div>
                 <div><span className="text-text-muted">p50</span> {m.latency_p50_ms ?? '—'}</div>
+                <div><span className="text-text-muted">qual</span> {m.quality_score != null ? m.quality_score.toFixed(2) : '—'}</div>
               </div>
               <button
                 type="button"
