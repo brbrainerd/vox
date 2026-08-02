@@ -33,7 +33,11 @@ stt-candle = [
 # Prefer transcript hypotheses that lex/parse/typecheck as Vox better (for speech-to-code).
 compiler-rerank = ["dep:vox-compiler"]
 cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
-stt-sherpa = ["dep:sherpa-onnx"]
+# `hf-hub` and `rubato` are needed unconditionally by sherpa_model_config.rs
+# (HF Hub model download) and sherpa_onnx.rs (resample_to_16k), both gated
+# only on this feature — without them, `--features stt-sherpa` alone (no
+# `stt-candle`) fails to compile with unresolved-crate errors.
+stt-sherpa = ["dep:sherpa-onnx", "dep:hf-hub", "dep:rubato"]
 cloud = ["dep:vox-populi", "dep:tokio", "dep:vox-http-client", "dep:async-trait", "dep:reqwest"]
 serve = ["dep:axum", "axum/multipart", "dep:tokio", "stt-candle"]
 

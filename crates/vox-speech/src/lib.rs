@@ -42,6 +42,11 @@ pub mod speech_normalize;
 pub mod speech_policy;
 /// Env-tunable stabilization thresholds for **future** streaming decoders; offline `transcribe_path` ignores this.
 pub mod streaming_partial;
+// Gated: `subtitle::srt`'s audio path calls `backends::audio_io` unconditionally,
+// which is itself gated to `stt-candle` (`backends/mod.rs:9`) — without this
+// gate, any build enabling `stt-sherpa` but not `stt-candle` fails to compile
+// (pre-existing gap, surfaced while adding the `stt-sherpa`-standalone path).
+#[cfg(feature = "stt-candle")]
 pub mod subtitle;
 /// Policy helpers (escalation hint, cache keys) for hosts — not required for file-based STT.
 pub mod tiering;
