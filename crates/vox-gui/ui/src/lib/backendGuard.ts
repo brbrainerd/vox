@@ -70,8 +70,27 @@ export function sanitizeErrorForToast(err: unknown): string {
  */
 const BUDGET_EXCEEDED_PATTERN = /^(Daily|Session) budget of \$/;
 
+/**
+ * Every real dispatch call site that can surface a `BudgetGuardError` or a
+ * `RATE_LIMITED_PREFIX`-marked error to the GUI wraps it first via
+ * `format!("LLM error: {e}")` (confirmed at all 10 real call sites: e.g.
+ * `crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs:580,608,639,658`,
+ * `chat_tools/ghost_text.rs`, `chat_tools/inline_edit.rs`, `chat_tools/plan.rs`,
+ * `compiler_tools.rs`, `db_tools.rs`, `scientia_tools/assist.rs`). The pattern
+ * detectors below were previously anchored against the *raw* unwrapped string,
+ * which never actually reaches the GUI in production — this strips that one
+ * known wrapper layer first so detection works against the real wire shape.
+ * A no-op when the prefix isn't present, so unwrapped strings (e.g. direct
+ * test fixtures) still match too.
+ */
+const LLM_ERROR_WRAPPER_PREFIX = 'LLM error: ';
+
+function unwrapLlmErrorPrefix(text: string): string {
+  return text.startsWith(LLM_ERROR_WRAPPER_PREFIX) ? text.slice(LLM_ERROR_WRAPPER_PREFIX.length) : text;
+}
+
 export function isBudgetExceededError(text: string): boolean {
-  return BUDGET_EXCEEDED_PATTERN.test(text);
+  return BUDGET_EXCEEDED_PATTERN.test(unwrapLlmErrorPrefix(text));
 }
 
 /**
@@ -91,14 +110,16 @@ export function isBudgetExceededError(text: string): boolean {
 const RATE_LIMITED_PREFIX = 'RATE_LIMITED: ';
 
 export function isRateLimitedError(text: string): boolean {
-  return text.startsWith(RATE_LIMITED_PREFIX);
+  return unwrapLlmErrorPrefix(text).startsWith(RATE_LIMITED_PREFIX);
 }
 
-/** Strips the detection-only `RATE_LIMITED_PREFIX` marker, leaving the
- *  human-readable egress error message (e.g. "OpenRouter rate limit exceeded,
- *  try again in 24h") to show the user. No-op if the prefix isn't present. */
+/** Strips both the `LLM error: ` wrapper (if present) and the detection-only
+ *  `RATE_LIMITED_PREFIX` marker, leaving the human-readable egress error
+ *  message (e.g. "OpenRouter rate limit exceeded, try again in 24h") to show
+ *  the user. No-op for either layer that isn't present. */
 export function stripRateLimitedPrefix(text: string): string {
-  return text.startsWith(RATE_LIMITED_PREFIX) ? text.slice(RATE_LIMITED_PREFIX.length) : text;
+  const unwrapped = unwrapLlmErrorPrefix(text);
+  return unwrapped.startsWith(RATE_LIMITED_PREFIX) ? unwrapped.slice(RATE_LIMITED_PREFIX.length) : unwrapped;
 }
 
 const logged = new Set<string>();

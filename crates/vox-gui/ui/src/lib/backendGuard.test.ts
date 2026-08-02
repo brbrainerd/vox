@@ -126,6 +126,20 @@ describe('isBudgetExceededError', () => {
   it('does not match a message that merely mentions "budget" mid-sentence', () => {
     expect(isBudgetExceededError('Your daily budget of $5.00 exceeded (spent $5.12)')).toBe(false);
   });
+
+  // Bug fix (2026-08): every real dispatch call site wraps the raw
+  // BudgetGuardError string as `format!("LLM error: {e}")` before it reaches
+  // the GUI (crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs and
+  // siblings) — this is the shape that actually arrives in production, and
+  // the one that would have caught the original bug (detectors anchored
+  // against the raw unwrapped string never matched real dispatch failures).
+  it('matches the Daily-scope message wrapped in the "LLM error: " prefix', () => {
+    expect(isBudgetExceededError('LLM error: Daily budget of $5.00 exceeded (spent $5.12)')).toBe(true);
+  });
+
+  it('matches the Session-scope message wrapped in the "LLM error: " prefix', () => {
+    expect(isBudgetExceededError('LLM error: Session budget of $2.00 exceeded (spent $2.01)')).toBe(true);
+  });
 });
 
 // Task 12b (free-tier onboarding plan): App.tsx's dispatch-error catch blocks
@@ -146,6 +160,16 @@ describe('isRateLimitedError', () => {
   it('does not match a message that merely mentions rate limiting mid-sentence', () => {
     expect(isRateLimitedError('The provider returned a RATE_LIMITED: response')).toBe(false);
   });
+
+  // Bug fix (2026-08): both live-dispatch funnels' RATE_LIMITED_PREFIX-marked
+  // errors reach the GUI wrapped as `format!("LLM error: {e}")` at every real
+  // call site (see isBudgetExceededError's wrapped-case tests above for the
+  // same root cause) — this is the shape production actually sends.
+  it('matches a message carrying both the "LLM error: " wrapper and the RATE_LIMITED_PREFIX marker', () => {
+    expect(isRateLimitedError('LLM error: RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h')).toBe(
+      true,
+    );
+  });
 });
 
 describe('stripRateLimitedPrefix', () => {
@@ -157,5 +181,13 @@ describe('stripRateLimitedPrefix', () => {
 
   it('is a no-op when the prefix is absent', () => {
     expect(stripRateLimitedPrefix('Network timeout')).toBe('Network timeout');
+  });
+
+  // Bug fix (2026-08): must strip BOTH wrapper layers, producing clean
+  // user-facing text rather than "LLM error: <message-with-marker-still-attached>".
+  it('strips both the "LLM error: " wrapper and the RATE_LIMITED_PREFIX marker', () => {
+    expect(stripRateLimitedPrefix('LLM error: RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h')).toBe(
+      'OpenRouter rate limit exceeded, try again in 24h',
+    );
   });
 });
