@@ -114,8 +114,6 @@ fn default_domain_lexicon() -> HashSet<String> {
         "transcribe",
         "orchestrator",
         "tool-call",
-        "workflow",
-        "status",
     ]
     .into_iter()
     .map(str::to_string)
@@ -285,6 +283,20 @@ mod tests {
     #[test]
     fn light_trim_collapse() {
         assert_eq!(light_trim("  a   b  "), "a b");
+    }
+
+    #[test]
+    fn generic_english_words_not_force_lowercased() {
+        // "status" is a common English word; forcing it lowercase mid-sentence
+        // corrupts normal capitalized usage. Use a bare, punctuation-free
+        // token (no trailing colon) — `refine_transcript`'s matching loop
+        // splits on whitespace only, so a colon-attached token like "Status:"
+        // never equals the plain-word lexicon entry "status" regardless of
+        // whether "status" is in the lexicon, which would make this test
+        // pass trivially in both the broken and fixed states and prove
+        // nothing (audit finding: the original draft used "Status: complete").
+        let out = refine_transcript("Status complete", &CorrectionContext::default());
+        assert_eq!(out.text, "Status complete");
     }
 
     #[test]
