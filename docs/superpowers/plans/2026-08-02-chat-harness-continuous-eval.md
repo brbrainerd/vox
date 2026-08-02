@@ -3067,7 +3067,7 @@ pub async fn run_report(args: ReportArgs) -> anyhow::Result<()> {
     let current_events = db.get_model_selection_events(&current.run_id).await?;
     let previous_events = db.get_model_selection_events(&previous.run_id).await?;
     let changed_files: Vec<String> = std::process::Command::new("git")
-        .args(["diff", "--name-only", "--", &format!("{}..{}", previous.git_sha, current.git_sha)])
+        .args(["diff", "--name-only", &format!("{}..{}", previous.git_sha, current.git_sha), "--"])
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
@@ -3100,10 +3100,13 @@ pub async fn run_report(args: ReportArgs) -> anyhow::Result<()> {
 }
 ```
 
-Note the `--` before the git-sha range argument in the `git diff --name-only` call — this is the
+Note the `--` after the git-sha range argument in the `git diff --name-only` call — this is the
 same defense-in-depth measure `ingest_runs` (Task 6) already established (a value beginning with
-`-` cannot be parsed as an option after a literal `--` separator), applied here as well since this
-is a genuine second call site constructing the same kind of subprocess argument.
+`-` cannot be parsed as an option once a literal `--` separator follows it), applied here as well
+since this is a genuine second call site constructing the same kind of subprocess argument. The
+`--` must come *after* the range, not before it — `git diff --name-only -- A..B` treats `A..B` as
+a pathspec and silently produces empty output regardless of the real diff, since `--` before the
+range makes git interpret everything after it as paths rather than revisions.
 
 - [ ] **Step 4: Register the module and subcommands**
 
