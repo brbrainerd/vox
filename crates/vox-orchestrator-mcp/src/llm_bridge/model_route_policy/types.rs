@@ -24,6 +24,11 @@ pub struct McpChatModelResolution {
     /// Task risk posture. When `Some` alongside `clutch`, a `Low` posture's
     /// `ModelLean::Intelligence` overrides a cheap clutch toward intelligence-weighted axes.
     pub risk: Option<vox_orchestrator::mode::RiskPosture>,
+    /// Who/what triggered this resolution. Every MCP tool call site constructs
+    /// this struct directly from a live chat/editor feature, so `Interactive`
+    /// is correct by construction here — no inference needed (contrast with
+    /// `AgentTask.trigger_source`, which is genuinely optional/hinted).
+    pub trigger_source: vox_orchestrator::mode::TriggerSource,
 }
 
 impl Default for McpChatModelResolution {
@@ -38,6 +43,21 @@ impl Default for McpChatModelResolution {
             context_fill_ratio: None,
             clutch: None,
             risk: None,
+            trigger_source: vox_orchestrator::mode::TriggerSource::Interactive,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_trigger_source_is_interactive() {
+        let res = McpChatModelResolution::default();
+        assert_eq!(
+            res.trigger_source,
+            vox_orchestrator::mode::TriggerSource::Interactive
+        );
     }
 }
