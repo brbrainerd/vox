@@ -22,6 +22,37 @@ use crate::types::TaskId;
 use futures_util::StreamExt;
 use std::time::Instant;
 
+/// Compute the effective `(CostPreference, force_free_pool)` for one task —
+/// extracted from `AiTaskProcessor::process` so it's unit-testable without a
+/// live orchestrator. `global_default` is `OrchestratorConfig.cost_preference`,
+/// the fallback when no clutch policy (explicit, category, or source) applies
+/// at all — preserving today's exact behavior for a fully-unconfigured task.
+fn resolve_task_cost_policy(
+    task: &crate::types::AgentTask,
+    overrides: &crate::config::TaskPolicyOverrides,
+    global_default: crate::config::CostPreference,
+) -> (crate::config::CostPreference, bool) {
+    let (category_clutch, category_risk) =
+        crate::mode::effective_category_policy(overrides, task.task_category);
+    let source = task
+        .trigger_source
+        .unwrap_or(crate::mode::TriggerSource::Interactive);
+    let (source_clutch, source_risk) = crate::mode::effective_source_policy(overrides, source);
+    if task.clutch_profile.is_none() && category_clutch.is_none() && source_clutch.is_none() {
+        return (global_default, false);
+    }
+    let (clutch, _risk) = crate::mode::resolve_task_policy(
+        task.clutch_profile,
+        task.risk_posture,
+        category_clutch,
+        category_risk,
+        source_clutch,
+        source_risk,
+    );
+    let rc = clutch.resolve();
+    (rc.cost_preference, rc.force_free_pool)
+}
+
 /// Returns the first hyphen-delimited segment of `s`, or the first 8 bytes if
 /// there are no hyphens.  Never panics.
 fn short_id_from_str(s: &str) -> &str {
@@ -625,17 +656,16 @@ impl TaskProcessor for AiTaskProcessor {
         task: crate::types::AgentTask,
         cancel: Arc<AtomicBool>,
     ) -> anyhow::Result<crate::types::TaskId> {
-        let mut cost_pref = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
-        // Drive Console: a task's clutch overrides the global cost preference and can
-        // force the free-only model pool; a Low-risk posture (model_lean=Intelligence)
-        // nudges selection toward Performance. No clutch set ⇒ unchanged global behavior.
-        let force_free_pool = if task.clutch_profile.is_some() {
-            let rc = task.resolved_clutch();
-            cost_pref = rc.cost_preference;
-            rc.force_free_pool
-        } else {
-            false
-        };
+        // Drive Console: a task's clutch (explicit hint, or category/source policy)
+        // overrides the global cost preference and can force the free-only model
+        // pool; a Low-risk posture (model_lean=Intelligence) nudges selection toward
+        // Performance. No policy anywhere ⇒ unchanged global behavior.
+        let overrides = crate::sync_lock::rw_read(&*self.orchestrator.config)
+            .task_policy
+            .clone();
+        let global_default = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
+        let (mut cost_pref, force_free_pool) =
+            resolve_task_cost_policy(&task, &overrides, global_default);
         if matches!(
             task.resolved_risk().model_lean,
             crate::mode::ModelLean::Intelligence
@@ -2082,5 +2112,53 @@ mod tests {
         fn flush(&mut self) -> std::io::Result<()> {
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod task_policy_wiring_tests {
+    use super::*;
+    use crate::config::TaskPolicyOverrides;
+    use crate::types::{AgentTask, TaskId, TaskPriority};
+
+    #[test]
+    fn unset_task_with_no_overrides_matches_todays_global_default() {
+        let task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        let overrides = TaskPolicyOverrides::default();
+        let global_default = crate::config::OrchestratorConfig::default().cost_preference;
+        let (cost_pref, force_free_pool) =
+            resolve_task_cost_policy(&task, &overrides, global_default);
+        assert_eq!(
+            cost_pref, global_default,
+            "no policy anywhere must reproduce today's behavior exactly"
+        );
+        assert!(!force_free_pool);
+    }
+
+    #[test]
+    fn source_override_applies_when_no_explicit_hint() {
+        let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        task.trigger_source = Some(crate::mode::TriggerSource::Automated);
+        let mut source = std::collections::HashMap::new();
+        source.insert(
+            "Automated".to_string(),
+            crate::config::TaskPolicyEntry {
+                clutch: Some("free".to_string()),
+                risk: Some("high".to_string()),
+            },
+        );
+        let overrides = TaskPolicyOverrides {
+            category: std::collections::HashMap::new(),
+            source,
+        };
+        let (_cost_pref, force_free_pool) = resolve_task_cost_policy(
+            &task,
+            &overrides,
+            crate::config::OrchestratorConfig::default().cost_preference,
+        );
+        assert!(
+            force_free_pool,
+            "Automated source override (Free clutch) must force the free-only pool"
+        );
     }
 }
