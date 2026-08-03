@@ -1,7 +1,12 @@
 # Sidebar Session List — Design Spec
 
-**Status:** Approved (brainstormed and approved in-session; see conversation history for the
-question-by-question decisions this spec encodes).
+**Status:** Approved, then revised following an adversarial review pass (direct code verification +
+4 independent blind reviewers across security/scope/test-coverage/operational-readiness dimensions).
+The review found and this revision fixes: a migration-mechanism bug that would have broken app
+startup for every existing user (§3), a task-badge data model built on a fabricated id convention
+that real dispatch code never writes to (§4), a silently-dropped rename feature and non-functional
+archived-toggle stub (§5), and a factually-incorrect claim about existing error-handling behavior
+(§6). See the implementation plan's own revision note for the corresponding plan-side fixes.
 
 ## 1. Problem statement
 
@@ -31,7 +36,15 @@ that model is already stale:
 - `plan_sessions`/`plan_versions`/`plan_nodes` (task-list-per-session) exist in schema
   ([`execution.rs`](../../../crates/vox-db/src/schema/domains/execution.rs)) and have a working
   `PlanPanel.tsx`/`TodosDockPanel`, but `App.tsx` hardcodes `chatPlanSessionId: null` — the panel
-  is built but permanently unwired.
+  is built but permanently unwired. **Correction from adversarial review:** the real link back to a
+  chat session already exists and is already populated — `plan_sessions.origin_session_id` is set
+  to the chat session's `external_session_id` by real orchestrator dispatch code
+  ([`goal.rs:648`](../../../crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/goal.rs)),
+  with a randomly-minted `plan_session_id = format!("plan-{uuid}")` per dispatched goal
+  ([`goal.rs:533`](../../../crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/goal.rs)).
+  A chat session can accumulate **multiple** `plan_sessions` rows over time (one per dispatched
+  goal), not one. §4 below was originally written around a fabricated `chatplan-{id}` convention
+  that no real dispatch code ever writes to; it has been corrected to join on `origin_session_id`.
 - `chat_archive_conversation` (`vox-db/src/codex_chat.rs:668`) is a literal
   `DELETE FROM conversations WHERE id = ?1` — "Archive" is a hard, unrecoverable delete today.
 - `TasksView.tsx`'s session filter reads a `vox_chat_sessions` `localStorage` key that nothing in
@@ -67,31 +80,90 @@ avoiding; the plan should pick one and say why.
 
 ## 3. Data model changes (`vox-db`)
 
-- `conversations.repository_id`: populate it. `chat_ensure_gui_session()` sets it from the current
-  repo/worktree context at session-creation time (reuse whatever the GUI process already resolves
-  this from for other repo-scoped features, e.g. `runs.rs`'s `StartGuiRunInput.repo`/`.worktree`).
+- `conversations.repository_id`: populate it. `chat_ensure_gui_session()` sets it from
+  `vox_repository::discover_repository_or_fallback(cwd)`, called with the Tauri process's
+  `std::env::current_dir()`. **Known limitation (adversarial review, security dimension):** this is
+  process-global state, not a per-window/per-request value — unlike `runs.rs`'s
+  `StartGuiRunInput.repo`/`.worktree`, which the frontend supplies *explicitly* per call rather than
+  having the backend "resolve" it (the original phrasing here mischaracterized `runs.rs` as
+  precedent for CWD-resolution; it is not). In a GUI process that has more than one
+  repository/workspace open, all sessions created from that process get tagged with whichever repo
+  the process's CWD happened to be at launch. Accepted for v1 because there is no existing
+  app-wide "current workspace" signal to use instead and a real fix (passing an explicit workspace
+  context through the whole GUI, or building one) is out of scope for a sidebar UI change — flagged
+  here so it isn't rediscovered as a surprise later, and revisited if/when a multi-repo-workspace
+  concept lands elsewhere in the app.
+- **Known limitation:** `repository_id` (`vox_repository::compute_repository_id`) hashes
+  `origin_url + canonical_root`. Renaming or moving a repo's local directory changes it, so sessions
+  created before and after such a move land in two different sidebar groups for what the user
+  considers one repo. No reconciliation is planned — flagged, not fixed, in v1.
+- **Known limitation:** every session created before this feature ships has `repository_id = NULL`
+  (confirmed — `chat_ensure_gui_session()` never sets it today) and there is no backfill (see §4's
+  removed "lazily backfilled" language — that mechanism doesn't apply here). Pre-upgrade session
+  history permanently renders under the "Other" pseudo-group (§5/§6) unless a user starts fresh
+  sessions after upgrading.
 - `conversations.archived_at: Option<DateTime>` — new column, nullable, default `NULL`.
   - `chat_archive_conversation(id)` becomes `UPDATE conversations SET archived_at = now() WHERE id = ?1`
     instead of the current `DELETE`.
   - New `chat_unarchive_conversation(id)`: `UPDATE conversations SET archived_at = NULL WHERE id = ?1`.
   - `chat_list_gui_sessions()` gains a `include_archived: bool` parameter; default listing filters
     `WHERE archived_at IS NULL`.
-  - Migration: additive column, no backfill needed (existing rows get `NULL` = not archived).
+  - **`chat_find_gui_conversation_id`** (used by the find-or-create path in `chat_ensure_gui_session`)
+    must also filter `archived_at IS NULL`. Without this, a resumed/deep-linked `external_session_id`
+    pointing at an archived conversation would silently find and reuse it — writing new messages into
+    an archived session with no unarchive step, and that session would stay hidden from the default
+    list while quietly accumulating new content. With the filter, the same resumed id instead creates
+    a fresh conversation row, which is the correct behavior for something the user archived.
+  - **Migration mechanism (adversarial review, operational-readiness dimension — corrects an earlier,
+    broken version of this spec).** `VoxDb::migrate()` only runs `baseline_sql()` — a batch of
+    `CREATE TABLE IF NOT EXISTS` statements — for any database already at or below the current
+    `BASELINE_VERSION` ([`open.rs:93-148`](../../../crates/vox-db/src/store/open.rs)). `CREATE TABLE
+    IF NOT EXISTS` is a no-op against a table that already exists; it does **not** add new columns
+    to it. Simply adding `archived_at` to the `conversations` DDL string and bumping
+    `BASELINE_VERSION` does nothing for any pre-existing `.vox` database file — and an accompanying
+    `CREATE INDEX ... ON conversations(archived_at)` in the same batch would hard-fail
+    `execute_batch()` (no such column), breaking app startup entirely for every upgrading user on
+    their first launch. This is a real, reachable failure mode, not a hypothetical — verified against
+    the live `migrate()` code path, which every `VoxDb::open()`/`open_default()`/`open_remote()` call
+    goes through. The implementation must add the column via an explicit, idempotent
+    `ALTER TABLE conversations ADD COLUMN archived_at TEXT`, gated on a `PRAGMA table_info` check (a
+    bare `ALTER TABLE ADD COLUMN` appended to the schema string would instead break *fresh* databases
+    with a "duplicate column" error, since `CREATE TABLE` already includes the column there) — see the
+    implementation plan's Task 1 for the exact steps. This repo's existing `auto_migrate`/`ddl/diff.rs`
+    engine does real `ALTER TABLE ADD COLUMN` diffing already, but only for Vox-AST `@table`-declared
+    schemas, a separate mechanism from the raw baseline-SQL tables this feature touches — it is not
+    wired into `VoxDb::migrate()` and does not cover this table.
 - No changes to `plan_sessions`/`plan_versions`/`plan_nodes` schema — they already support what's
   needed; the gap is purely on the wiring side (§4).
 
 ## 4. Fixing `chatPlanSessionId` (`vox-gui` + `vox-orchestrator`)
 
-- On session create (`chat_create_session`), also create a `plan_sessions` row with
-  `origin_session_id` set to the new conversation's id, and return its `plan_session_id` in
-  `ChatSessionDto` (new field).
-- `App.tsx` stops hardcoding `chatPlanSessionId: null` — it comes from the active session's DTO.
-- Sidebar session row renders a task-count badge = count of `plan_nodes` for that session's
-  `plan_session_id` where `status != 'done'`. Clicking the badge (not the row) opens the existing
-  `PlanPanel`/`TodosDockPanel` scoped to that session — this is the functional fix, the panel
-  component itself does not need to change.
-- Sessions created before this change have no `plan_session_id`: badge renders as absent/zero,
-  lazily backfilled (create-on-first-open) rather than a bulk migration.
+**Corrected by adversarial review.** The original version of this section invented a
+`plan_session_id = format!("chatplan-{chat_session_id}")` convention and a
+`create_paired_plan_session` call at chat-session-creation time. That id space is never written to
+by real dispatch code and would have made the task badge always read zero. The real link already
+exists: `plan_sessions.origin_session_id` is set to the chat session's `external_session_id` by
+[`goal.rs:648`](../../../crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/goal.rs)
+whenever a task is actually dispatched from that session, with the `plan_session_id` itself minted
+as `plan-{uuid}` per dispatched goal — so one chat session can have zero, one, or several
+`plan_sessions` rows depending on how many goals have been dispatched from it, not exactly one.
+
+- **No new row is created at chat-session-creation time.** A brand-new chat session simply has zero
+  matching `plan_sessions` rows until the user dispatches a task from it, which is already how
+  `plan_sessions` gets populated today.
+- The task-count badge is `SELECT ps.origin_session_id, COUNT(*) FROM plan_sessions ps JOIN
+  plan_nodes pn ON pn.plan_session_id = ps.plan_session_id AND pn.version = ps.current_version
+  WHERE ps.origin_session_id IN (<chat session ids>) AND pn.status IN ('pending', 'queued',
+  'in_progress') GROUP BY ps.origin_session_id` — summed across every `plan_sessions` row for that
+  chat session, at each one's own current version, batched across all visible sessions in one query
+  (not one round-trip per session).
+- `App.tsx` stops hardcoding `chatPlanSessionId: null`. Clicking a session's task badge sets the
+  active plan-panel target to that session's *most recently updated* `plan_sessions` row (there may
+  be several); the panel scopes to that one plan session's DAG, same as today's `PlanPanel`/
+  `TodosDockPanel` already expect.
+- No "lazily backfilled" mechanism is needed — a session with no dispatched goals correctly has no
+  badge (count is genuinely zero), and the first real dispatch creates its own `plan_sessions` row
+  through the existing, unmodified dispatch path.
 
 ## 5. Sidebar component (`vox-gui/ui`)
 
@@ -104,8 +176,15 @@ avoiding; the plan should pick one and say why.
   affect another's.
 - "+ New session" pinned above the repo groups. Creates immediately against the current
   repo/worktree context (§3) — no modal.
-- "Show archived" link at the bottom of the whole Chat group reveals a muted archived sub-list
-  (still grouped by repo) with an Unarchive action per row.
+- **Rename must be retained.** `ChatSessionRail.tsx` (removed by this feature per the resolved open
+  decision point above) currently ships inline rename-on-blur; `SessionSidebarSection` must carry
+  the equivalent affordance (adversarial review, scope dimension: an earlier plan draft deleted
+  `ChatSessionRail` without replacing rename anywhere, silently dropping the ability to rename a
+  chat session from the GUI at all).
+- "Show archived" link at the bottom of the whole Chat group must actually fetch and render the
+  archived sub-list (still grouped by repo) with a working Unarchive action per row — not merely
+  toggle a label. (Adversarial review: an earlier plan draft implemented this as a non-functional
+  stub.)
 - Reuses `activeSessionId`/session-list state already threaded through `App.tsx` — this is a
   second consumer of existing state, not a new state tree. No changes to `sessionChatStore.ts`'s
   per-session task/agent correlation logic.
@@ -114,20 +193,45 @@ avoiding; the plan should pick one and say why.
 
 - Session create failure (backend unreachable, DB error): surface existing toast/error pattern
   used elsewhere in `ChatSurface.tsx`; sidebar entry point uses the same handler, not a new one.
-- Archive/Unarchive failure: optimistic UI update rolls back on error, matching existing
-  rename-on-blur error handling in `ChatSessionRail.tsx`.
+- **Corrected by adversarial review:** the previous wording ("optimistic UI update rolls back on
+  error") misdescribed `ChatSurface.tsx`'s actual current behavior. The real pattern
+  ([`ChatSurface.tsx:671-690`](../../../crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx))
+  is await-then-update: call `invoke`, update local state only on success, show a toast
+  (`pushToast({ tone: 'warn', ... })`) on failure — there is no optimistic update or rollback
+  anywhere in the existing rename/archive code. Rename/archive/unarchive/create in the new sidebar
+  must follow this same await-then-update-on-success, toast-on-failure pattern, not introduce a new
+  optimistic-with-rollback one.
+- Archiving the currently-active session must reassign the active session to another remaining one
+  (matching `ChatSurface.tsx:685`'s existing `if (activeId === sessionId && remaining.length > 0)
+  onSessionChange?.(remaining[0].session_id)` behavior) — an earlier plan draft dropped this when
+  extracting session logic into a shared hook.
 - Missing/null `repository_id` (sessions created before this change, or created outside a resolved
-  repo context): group under an "Other" pseudo-header rather than failing to render.
+  repo context): group under an "Other" pseudo-header rather than failing to render (see §3's related
+  known limitations — this bucket is expected to be large and permanent for pre-upgrade sessions).
 
 ## 7. Testing
 
 - `vox-db`: unit tests for `chat_archive_conversation`/`chat_unarchive_conversation` asserting rows
-  survive archive (no `DELETE`) and are excluded/included correctly by `include_archived`.
-- `vox-gui` (Rust): test that `chat_create_session` creates a paired `plan_sessions` row and returns
-  its id.
+  survive archive (no `DELETE`) and are excluded/included correctly by `include_archived`; a test
+  that an archived conversation's `external_session_id` is no longer found by
+  `chat_find_gui_conversation_id` (so `chat_ensure_gui_session` creates a fresh row instead of
+  reusing the archived one).
+- `vox-db`: a migration-safety test that applies the *pre-`archived_at`* baseline to a fresh
+  connection, then runs the post-change `migrate()` again and asserts the column exists and is
+  queryable — a test against `connect_memory()` alone (fresh DB, version 0) cannot catch the
+  existing-database upgrade failure described in §3, because a fresh DB never exercises the
+  `current_version < BASELINE_VERSION` + already-has-the-table branch.
+- `vox-gui` (Rust): test that the batched task-count query correctly sums open nodes across
+  *multiple* `plan_sessions` rows sharing one `origin_session_id`, and correctly excludes nodes from
+  a superseded plan version after `append_plan_version` bumps `current_version`.
 - `vox-gui/ui`: component test for `SessionSidebarSection` covering per-repo-group truncation
-  (independent "Show more" state across two repo groups), archived-list toggle, and the "Other"
-  fallback for null `repository_id`.
-- Manual verification in the running app (per this project's UI-change convention): create sessions
-  across two repos, confirm independent per-group truncation, archive/unarchive a session, confirm
-  the task badge opens the right session's `PlanPanel`.
+  (independent "Show more" state across two repo groups, using distinct `updated_at` fixture values
+  so sort order is actually exercised), the archived-list toggle actually rendering fetched archived
+  sessions (not just flipping a label), rename, and the "Other" fallback for null `repository_id`.
+- Manual verification in the running app (per this project's UI-change convention): **upgrade an
+  existing `.vox` database file that predates this change** and confirm the app still starts and
+  archive/unarchive work (this is the scenario §3's migration-mechanism fix specifically addresses
+  and a fresh-DB dev environment will not naturally exercise); create sessions across two repos,
+  confirm independent per-group truncation; archive the active session and confirm another session
+  becomes active; confirm the task badge opens the right session's `PlanPanel` after dispatching a
+  real task from that session.
