@@ -589,6 +589,27 @@ pub async fn get_orchestrator_config_catalog() -> Vec<vox_orchestrator::Orchestr
     vox_orchestrator::config::OrchestratorConfig::snapshot().to_catalog()
 }
 
+/// Current per-task-type policy overrides, straight from the effective
+/// `OrchestratorConfig` snapshot (env/project/user-merged, matching every
+/// other orchestrator-settings read in this file).
+#[tauri::command]
+pub fn get_task_policy_overrides() -> vox_orchestrator::config::TaskPolicyOverrides {
+    vox_orchestrator::config::OrchestratorConfig::snapshot().task_policy
+}
+
+#[cfg(test)]
+mod task_policy_tests {
+    use super::*;
+
+    #[test]
+    fn get_task_policy_overrides_reflects_snapshot() {
+        let overrides = get_task_policy_overrides();
+        // Fresh default config has no overrides yet.
+        assert!(overrides.category.is_empty());
+        assert!(overrides.source.is_empty());
+    }
+}
+
 #[cfg(test)]
 mod catalog_tests {
     use vox_orchestrator::config::OrchestratorConfig;

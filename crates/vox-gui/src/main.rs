@@ -176,6 +176,7 @@ async fn main() {
             commands::control_plane::force_orchestrator_verify,
             commands::orchestrator::get_orchestrator_config,
             commands::orchestrator::get_orchestrator_config_catalog,
+            commands::orchestrator::get_task_policy_overrides,
             commands::llm_settings::get_llm_config,
             commands::llm_settings::set_llm_config,
             commands::llm_settings::openrouter_key_status,
