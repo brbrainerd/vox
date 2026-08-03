@@ -476,6 +476,15 @@ pub async fn set_orchestrator_config(
     if let Some(v) = config.get("scalingEnabled").and_then(|v| v.as_bool()) {
         orch_table.insert("scaling_enabled".to_string(), toml::Value::Boolean(v));
     }
+    if let Some(v) = config
+        .get("harnessIssueDetectionEnabled")
+        .and_then(|v| v.as_bool())
+    {
+        orch_table.insert(
+            "harness_issue_detection_enabled".to_string(),
+            toml::Value::Boolean(v),
+        );
+    }
     if let Some(v) = config.get("minAgents").and_then(|v| v.as_u64()) {
         orch_table.insert("min_agents".to_string(), toml::Value::Integer(v as i64));
     }
@@ -514,6 +523,7 @@ pub async fn set_orchestrator_config(
         "scaling_threshold",
         "scale_cpu_ceiling_pct",
         "scale_mem_floor_mb",
+        "harness_issue_detection_enabled",
     ]);
     // Also emit the event directly so the GUI updates immediately even if the
     // snapshot listener fires before the Tauri event loop processes the callback.
@@ -916,6 +926,31 @@ mod catalog_tests {
     }
 }
 
+#[cfg(test)]
+mod orchestrator_config_toggle_tests {
+    // Mirrors the JSON-camelCase-to-TOML-snake_case mapping applied in
+    // set_orchestrator_config for the scaling_enabled sibling field, for
+    // harness_issue_detection_enabled.
+    #[test]
+    fn harness_issue_detection_enabled_maps_to_snake_case_toml_key() {
+        let config = serde_json::json!({"harnessIssueDetectionEnabled": false});
+        let mut orch_table = toml::map::Map::new();
+        if let Some(v) = config
+            .get("harnessIssueDetectionEnabled")
+            .and_then(|v| v.as_bool())
+        {
+            orch_table.insert(
+                "harness_issue_detection_enabled".to_string(),
+                toml::Value::Boolean(v),
+            );
+        }
+        assert_eq!(
+            orch_table.get("harness_issue_detection_enabled"),
+            Some(&toml::Value::Boolean(false))
+        );
+    }
+}
+
 /// Read the effective orchestrator settings (Vox.toml + env overrides) via
 /// [`OrchestratorConfig::snapshot`] so the GUI always reflects the live effective
 /// value rather than only the Vox.toml defaults (fixes the inert-sliders bug).
@@ -935,6 +970,7 @@ pub async fn get_orchestrator_config() -> Result<serde_json::Value, String> {
         "autobudget": cfg.exec_time_budget_enabled,
         "doubt": cfg.socrates_gate_enforce,
         "scalingEnabled": cfg.scaling_enabled,
+        "harnessIssueDetectionEnabled": cfg.harness_issue_detection_enabled,
         "minAgents": cfg.min_agents,
         "scalingThreshold": cfg.scaling_threshold,
         "scaleCpuCeilingPct": cfg.scale_cpu_ceiling_pct,
