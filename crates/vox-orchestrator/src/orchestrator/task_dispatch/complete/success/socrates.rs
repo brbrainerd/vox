@@ -25,12 +25,12 @@ fn resolve_grounding_socrates_enforce(
         .unwrap_or(crate::mode::TriggerSource::Interactive);
     let (_, source_risk) = crate::mode::effective_source_policy(overrides, source);
     let effective_risk = task.risk_posture.or(category_risk).or(source_risk);
-    let resolved = effective_risk.unwrap_or_default().resolve();
-    let grounding_enforce = effective_risk
-        .map(|_| resolved.grounding_enforce)
+    let resolved = effective_risk.map(|r| r.resolve());
+    let grounding_enforce = resolved
+        .map(|r| r.grounding_enforce)
         .unwrap_or(global_grounding_enforce);
-    let socrates_enforce = effective_risk
-        .map(|_| resolved.socrates_enforce)
+    let socrates_enforce = resolved
+        .map(|r| r.socrates_enforce)
         .unwrap_or(global_socrates_enforce);
     (grounding_enforce, socrates_enforce)
 }
