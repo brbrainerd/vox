@@ -878,13 +878,13 @@ mod catalog_tests {
     #[test]
     fn catalog_len_matches_config_field_count() {
         let catalog = OrchestratorConfig::default().to_catalog();
-        // Exact parity test: catalog must have exactly 106 entries — one per
+        // Exact parity test: catalog must have exactly 107 entries — one per
         // field! macro invocation in to_catalog(). Using an exact count rather
         // than a floor catches catalog shrinkage as well as unintentional growth.
         // If you intentionally add or remove fields, update this count to match.
         assert_eq!(
             catalog.len(),
-            106,
+            107,
             "catalog field count changed — update this test if fields were intentionally added/removed"
         );
     }
