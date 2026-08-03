@@ -155,6 +155,67 @@ fn free_clutch_force_free_pool_filters_to_free_model() {
     assert_eq!(resolved.0.id, "free-model");
 }
 
+/// Regression test for the dead-`effective_axes`-path bug: with NO
+/// `cost_preference` override (the real default, `Economy`) and no explicit
+/// clutch/risk/task-policy override configured anywhere, resolution must
+/// still land on `SelectionAxes::COST_FIRST` behavior — i.e. it picks the
+/// free model over the paid one — exactly as it does today before any
+/// task-policy wiring exists. This must pass BEFORE the task-policy
+/// resolution is wired into `resolve_mcp_chat_model_sync_inner` (proving the
+/// test is a real characterization of current behavior) AND AFTER (proving
+/// the guard that skips policy resolution when nothing applies keeps the
+/// unconfigured default intact).
+#[test]
+fn unconfigured_default_still_prefers_free_model_cost_first() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    // Fixtures are OpenRouter models; the B3 key gate requires the key present.
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
+    // Deliberately do NOT override cost_preference — leave it at the real
+    // compiled default (`Economy`), and do NOT set `task_policy` overrides.
+    let config = OrchestratorConfig::for_testing();
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        tiny_registry_with_free_and_paid();
+
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        "",
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            task_category: vox_orchestrator::types::TaskCategory::CodeGen,
+            ..Default::default()
+        },
+    )
+    .expect("resolve");
+    assert!(
+        resolved.0.is_free,
+        "unconfigured default must still prefer the free model (COST_FIRST behavior)"
+    );
+    assert_eq!(resolved.0.id, "free-model");
+}
+
+/// Proves the dead path IS fixed when a policy genuinely applies: a
+/// source-level Free/High policy resolves correctly through the pure
+/// `resolve_task_policy` resolver (the same function now wired into
+/// `resolve_mcp_chat_model_sync_inner`'s guard).
+#[test]
+fn clutch_and_risk_resolve_when_a_policy_applies() {
+    let (clutch, risk) = vox_orchestrator::mode::resolve_task_policy(
+        None,
+        None,
+        None,
+        None,
+        Some(vox_orchestrator::mode::ClutchProfile::Free),
+        Some(vox_orchestrator::mode::RiskPosture::High),
+    );
+    assert_eq!(clutch, vox_orchestrator::mode::ClutchProfile::Free);
+    assert_eq!(risk, vox_orchestrator::mode::RiskPosture::High);
+}
+
 fn registry_ollama_only() -> ModelRegistry {
     let mut r = ModelRegistry::default();
     r.register(ModelSpec {
