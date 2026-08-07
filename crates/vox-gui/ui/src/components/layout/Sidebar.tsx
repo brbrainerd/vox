@@ -10,6 +10,8 @@ import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens
 import { useFreshness } from '../../hooks/useFreshness';
 import { useLang } from '../../hooks/useLanguage';
 import { LEXICON, labelFor, sidebarParentLabel } from '../../lib/lexicon';
+import { SessionSidebarSection } from './SessionSidebarSection';
+import type { ChatSession } from '../../lib/useChatSessions';
 
 export type SidebarMode = 'rail' | 'default' | 'wide';
 
@@ -80,6 +82,20 @@ interface SidebarProps {
   orchUsesPolling?: boolean;
   liveFreshMs?: number;
   onOpenCommandPalette?: () => void;
+  chatSessions?: ChatSession[];
+  activeSessionId?: string | null;
+  chatTaskCounts?: Record<string, number>;
+  archivedChatSessions?: ChatSession[];
+  showArchivedChatSessions?: boolean;
+  /** session_ids with at least one pending scientia_harness_issues row (App.tsx polls). */
+  pendingHarnessIssueSessionIds?: Set<string>;
+  onSessionChange?: (sessionId: string) => void;
+  onCreateSession?: () => void;
+  onRenameSession?: (sessionId: string, title: string) => void;
+  onArchiveSession?: (sessionId: string) => void;
+  onUnarchiveSession?: (sessionId: string) => void;
+  onToggleArchivedSessions?: () => void;
+  onTaskBadgeClick?: (sessionId: string) => void;
 }
 
 export function Sidebar({
@@ -96,6 +112,19 @@ export function Sidebar({
   orchUsesPolling = false,
   liveFreshMs = 10_000,
   onOpenCommandPalette,
+  chatSessions,
+  activeSessionId,
+  chatTaskCounts,
+  archivedChatSessions,
+  showArchivedChatSessions,
+  pendingHarnessIssueSessionIds,
+  onSessionChange,
+  onCreateSession,
+  onRenameSession,
+  onArchiveSession,
+  onUnarchiveSession,
+  onToggleArchivedSessions,
+  onTaskBadgeClick,
 }: SidebarProps) {
   const w = SIDEBAR_WIDTHS[mode];
   const collapsed = mode === "rail";
@@ -238,7 +267,26 @@ export function Sidebar({
                     </button>
                   )}
                 </div>
-                {isExpanded && children && (
+                {isExpanded && key === 'chat' && chatSessions && (
+                  <div className="ml-4 border-l border-border-subtle pl-2 max-h-[50vh] overflow-y-auto custom-scrollbar">
+                    <SessionSidebarSection
+                      sessions={chatSessions}
+                      activeSessionId={activeSessionId ?? null}
+                      taskCounts={chatTaskCounts ?? {}}
+                      archivedSessions={archivedChatSessions ?? []}
+                      showArchived={showArchivedChatSessions ?? false}
+                      pendingIssueSessionIds={pendingHarnessIssueSessionIds}
+                      onSessionChange={onSessionChange ?? (() => {})}
+                      onCreateSession={onCreateSession ?? (() => {})}
+                      onRenameSession={onRenameSession ?? (() => {})}
+                      onArchiveSession={onArchiveSession ?? (() => {})}
+                      onUnarchiveSession={onUnarchiveSession ?? (() => {})}
+                      onToggleArchivedView={onToggleArchivedSessions ?? (() => {})}
+                      onTaskBadgeClick={onTaskBadgeClick ?? (() => {})}
+                    />
+                  </div>
+                )}
+                {isExpanded && key !== 'chat' && children && (
                   <div className="ml-4 flex flex-col gap-0.5 border-l border-border-subtle pl-2">
                     {children.map(childKey => (
                       <button

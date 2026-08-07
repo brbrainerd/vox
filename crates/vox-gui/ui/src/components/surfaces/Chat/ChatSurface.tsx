@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
@@ -12,7 +12,6 @@ import {
   type ChatExecutionRailKpis,
   type ChatExecutionTask,
 } from './ChatExecutionRail';
-import { ChatSessionRail } from './ChatSessionRail';
 import { PlanPanel, type PlanNodeView } from './PlanPanel';
 import { listPlanNodes } from '../../../transport';
 import { labelForNavKey } from '../../../lib/navigation';
@@ -38,14 +37,14 @@ import { getPermissionMode } from '../../../transport';
 
 
 
-const CORE_PANEL_IDS = ['sessions', 'transcript', 'executionRail', 'flow', 'todos'] as const;
+const CORE_PANEL_IDS = ['transcript', 'executionRail', 'flow', 'todos'] as const;
 type CorePanelId = (typeof CORE_PANEL_IDS)[number];
 
-// Sessions is a navigation rail, not a work surface, and must never dominate
-// the row the way an unconstrained 50/50 dockview split otherwise lets it
-// (see the addPanel-sequence note above OPT_IN_PANEL_IDS: every panel added
-// after it without a size halves the *previous* panel's share, but Sessions
-// itself starts the chain, so it never shrinks on its own).
+// Chat transcript is the primary work surface (and, since Task 9 removed the
+// Sessions dockview panel, the dock's leftmost/anchor panel too). It gets a
+// hard floor (`minimumWidth`) so opening more panels to its right can never
+// squeeze it below a usable width, and no `maximumWidth` so it keeps
+// dockview's default fill/grow behavior for whatever room the row leaves it.
 //
 // dockview-core@6.6.1's real constraint mechanism, read from the shipped
 // type defs (not guessed):
@@ -62,33 +61,15 @@ type CorePanelId = (typeof CORE_PANEL_IDS)[number];
 //     `FunctionOrValue<number>`, still resolving to a concrete pixel number
 //     at layout time — not a live "% of container" binding). DockviewPanelApi
 //     inherits this from GridviewPanelApi (dockview/dockviewPanelApi.d.ts:20).
-// There is no percentage/responsive constraint API in 6.6.1 — only a fixed
-// pixel cap. We approximate "roughly max 20% of the dock" with a fixed
-// `maximumWidth` tuned to a typical ~1400px-wide dock workspace (20% of
-// 1400 ≈ 280px). Tradeoff: on much wider windows this cap is a smaller
-// fraction than 20%; on much narrower windows it can exceed 20% — but
-// `minimumWidth` is intentionally left unset so Sessions can still shrink
-// further on narrow windows, and the fixed cap still prevents it from ever
-// growing to dominate on wide ones, which is the actual bug being fixed.
-const SESSIONS_MAX_WIDTH_PX = 280;
-const SESSIONS_INITIAL_WIDTH_PX = 220;
-
-// Chat transcript is the primary work surface. It gets a hard floor
-// (`minimumWidth`, same Contraints mechanism as above) so opening more
-// panels to its right can never squeeze it below a usable width, and no
-// `maximumWidth` so it keeps dockview's default fill/grow behavior for
-// whatever room the row leaves it.
 const TRANSCRIPT_MIN_WIDTH_PX = 460;
 
 // Passed straight into `addPanel`'s `Partial<Contraints>` fields (see above)
-// for every call site that creates these two panels — onReady's initial
-// create and addDefaultPanel's Panels-menu/Reset-layout create both funnel
-// through this single map so the constraint values live in exactly one
-// place.
+// for every call site that creates this panel — onReady's initial create and
+// addDefaultPanel's Panels-menu/Reset-layout create both funnel through this
+// single map so the constraint values live in exactly one place.
 const PANEL_SIZE_CONSTRAINTS: Partial<
   Record<string, { initialWidth?: number; maximumWidth?: number; minimumWidth?: number }>
 > = {
-  sessions: { initialWidth: SESSIONS_INITIAL_WIDTH_PX, maximumWidth: SESSIONS_MAX_WIDTH_PX },
   transcript: { minimumWidth: TRANSCRIPT_MIN_WIDTH_PX },
 };
 
@@ -98,16 +79,6 @@ const PANEL_SIZE_CONSTRAINTS: Partial<
 // section, never resurrected on an unrelated re-render.
 const OPT_IN_PANEL_IDS = ['needs-you', 'voxgraph', 'activity', 'repository', 'mercatus', 'harness', 'approvals'] as const;
 type OptInPanelId = (typeof OPT_IN_PANEL_IDS)[number];
-
-interface ChatSession {
-  session_id: string;
-  title: string;
-  message_count: number;
-}
-
-function SessionsPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
-  return <div data-testid="chat-dock-sessions" className="h-full overflow-y-auto">{props.params.node}</div>;
-}
 
 function TranscriptPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
   return <div data-testid="chat-dock-transcript" className="flex h-full min-w-0 flex-col gap-4 overflow-y-auto p-2">{props.params.node}</div>;
@@ -267,7 +238,6 @@ export function ApprovalsDockPanel(props: IDockviewPanelProps<{ pendingApprovals
 }
 
 const CHAT_DOCK_COMPONENTS = {
-  sessions: SessionsPanel,
   transcript: TranscriptPanel,
   executionRail: ExecutionRailPanel,
   flow: FlowPanel,
@@ -348,8 +318,6 @@ interface ChatSurfaceProps {
   pendingApprovals?: number;
   /** Currently pinned skill id (App.tsx `activeSkill`), threaded into secretary task submission. */
   activeSkillId?: string | null;
-  /** session_ids with at least one pending scientia_harness_issues row — forwarded to ChatSessionRail. */
-  pendingIssueSessionIds?: Set<string>;
 }
 
 export function ChatSurface({
@@ -380,9 +348,10 @@ export function ChatSurface({
   onOpenFeedbackContext,
   pendingApprovals = 0,
   activeSkillId,
-  pendingIssueSessionIds,
 }: ChatSurfaceProps) {
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  // Task 9: session switching lives in the global Sidebar
+  // (SessionSidebarSection) now, backed by App.tsx's single owning call to
+  // useChatSessions. ChatSurface no longer needs session CRUD locally.
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
   const activeId = activeSessionId ?? '';
   const [planNodes, setPlanNodes] = useState<PlanNodeView[]>([]);
@@ -559,26 +528,10 @@ export function ChatSurface({
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [panelsMenuOpen]);
 
-  const loadSessions = useCallback(async () => {
-    try {
-      // `invoke`'s generic type param is a compile-time assertion, not a runtime
-      // guarantee — a backend/mock that resolves `null` would otherwise crash
-      // both `list.length` below and every downstream `sessions.map()` consumer
-      // (e.g. ChatSessionRail).
-      const raw = await invoke<ChatSession[] | null>('chat_list_sessions', { limit: 40 });
-      const list = Array.isArray(raw) ? raw : [];
-      setSessions(list);
-      if (!activeId && list.length > 0) {
-        onSessionChange?.(list[0].session_id);
-      }
-    } catch (err) {
-      pushToast({ tone: 'warn', title: 'Chat sessions', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-    }
-  }, [activeId, onSessionChange, pushToast]);
-
-  useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
+  // Task 9: "auto-select the first session" now lives in App.tsx, the sole
+  // owner of useChatSessions (see its initial-load effect around
+  // chat_list_sessions/{limit:1}) — this component no longer has its own
+  // sessions list to auto-select from.
 
   useEffect(() => {
     if (!planSessionId || planVersion == null) {
@@ -640,18 +593,6 @@ export function ChatSurface({
 
 
 
-  const createSession = async () => {
-    try {
-      const s = await invoke<ChatSession & { conversation_id: number }>('chat_create_session', {
-        title: 'New chat',
-      });
-      setSessions(prev => [s, ...prev]);
-      onSessionChange?.(s.session_id);
-    } catch (err) {
-      pushToast({ tone: 'warn', title: 'New session failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-    }
-  };
-
   /**
    * Submit a secretary-proposed task (Task 0.2: propose-only). This is the
    * ONLY path by which a secretary classification becomes a live orchestrator
@@ -671,46 +612,11 @@ export function ChatSurface({
     }
   };
 
-  const renameSession = async (sessionId: string, title: string) => {
-    try {
-      await invoke('chat_rename_session', { sessionId, title });
-      await loadSessions();
-    } catch (err) {
-      pushToast({ tone: 'warn', title: 'Rename failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-    }
-  };
-
-  const archiveSession = async (sessionId: string) => {
-    try {
-      await invoke('chat_archive_session', { sessionId });
-      const remaining = sessions.filter(s => s.session_id !== sessionId);
-      setSessions(remaining);
-      if (activeId === sessionId && remaining.length > 0) onSessionChange?.(remaining[0].session_id);
-      await loadSessions();
-    } catch (err) {
-      pushToast({ tone: 'warn', title: 'Archive failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-    }
-  };
-
   const railKpis = executionKpis ?? {
     activeAgents: { value: 0 },
     queueDepth: { value: 0 },
     mesh: { peers: 0 },
   };
-
-  const sessionRailNode = (
-    <ChatSessionRail
-      sessions={sessions}
-      activeSessionId={activeId}
-      onSessionChange={id => {
-        onSessionChange?.(id);
-      }}
-      onCreateSession={() => void createSession()}
-      onRenameSession={(id, t) => void renameSession(id, t)}
-      onArchiveSession={id => void archiveSession(id)}
-      pendingIssueSessionIds={pendingIssueSessionIds}
-    />
-  );
 
   const executionRailNode = onNavigate ? (
     <ChatExecutionRail
@@ -825,8 +731,7 @@ export function ChatSurface({
   // params does panel X get" — addDefaultPanel and the refresh effect below
   // both read it, so there is exactly one definition per panel, not two.
   const panelDefs: Record<ChatDockPanelId, { title: string; params: Record<string, unknown>; referenceChain: ChatDockPanelId[] }> = {
-    sessions: { title: 'Sessions', params: { node: sessionRailNode }, referenceChain: [] },
-    transcript: { title: 'Chat', params: { node: centerContent }, referenceChain: ['sessions'] },
+    transcript: { title: 'Chat', params: { node: centerContent }, referenceChain: [] },
     executionRail: { title: 'Execution', params: { node: executionRailNode }, referenceChain: ['transcript'] },
     flow: { title: 'Flow', params: { node: flowNode }, referenceChain: ['executionRail', 'transcript'] },
     todos: { title: 'To-dos', params: { node: todosNode }, referenceChain: ['flow', 'executionRail', 'transcript'] },
@@ -905,7 +810,6 @@ export function ChatSurface({
   useEffect(() => {
     const api = dockApiRef.current;
     if (!api) return;
-    api.getPanel('sessions')?.update({ params: panelDefs.sessions.params });
     api.getPanel('transcript')?.update({ params: panelDefs.transcript.params });
     const executionPanel = api.getPanel('executionRail');
     if (executionRailNode) {
@@ -1087,6 +991,33 @@ export function ChatSurface({
           tabComponents={CHAT_DOCK_TAB_COMPONENTS}
           onReady={(event) => {
             dockApiRef.current = event.api;
+            // Persisted-layout fallback (Task 9). Any user who used the Chat
+            // surface before the Sessions dockview panel was removed has a
+            // persisted `gui.chat` layout that still references a `sessions`
+            // panel whose `contentComponent` no longer exists in
+            // CHAT_DOCK_COMPONENTS. Verified empirically (not assumed) against
+            // dockview-core@6.6.1: DockWorkspaceShell's `event.api.fromJSON`
+            // call, which runs BEFORE this onReady handler, throws
+            // ("Dockview: Only React.memo(...), React.ForwardRef(...) and
+            // functional components are accepted as components") the instant
+            // it tries to construct a panel for an unregistered component id
+            // — it does NOT silently skip just that one panel. That throw is
+            // already caught by DockWorkspaceShell's own try/catch, which logs
+            // a warning and leaves the API on its fresh default (empty) grid,
+            // so `event.api.getPanel('sessions')` is always undefined by the
+            // time this handler runs — dockview's own error-handling already
+            // guarantees the stale panel can never surface. The explicit check
+            // below is kept as defense-in-depth (a future dockview version
+            // could change fromJSON to skip only the bad node instead of
+            // reverting the whole restore) and is exercised by the regression
+            // test "closes a stale 'sessions' panel restored from a persisted
+            // layout" in ChatSurface.test.tsx, which asserts on the
+            // user-visible outcome (no chat-dock-sessions node, transcript
+            // still mounts) rather than on this line executing.
+            const staleSessionsPanel = event.api.getPanel('sessions');
+            if (staleSessionsPanel) {
+              staleSessionsPanel.api.close();
+            }
             event.api.onDidRemovePanel(panel => {
               closedPanelIds.current.add(panel.id);
               // Keeps the Panels menu checkbox in sync when a panel closes
@@ -1118,15 +1049,6 @@ export function ChatSurface({
             // Guarded against duplicate-add: a restored dockview layout
             // (ChatDockShell's localStorage persistence) already recreates
             // these panels, so onReady must not re-add them.
-            if (!event.api.getPanel('sessions')) {
-              event.api.addPanel({
-                id: 'sessions',
-                component: 'sessions',
-                title: 'Sessions',
-                params: panelDefs.sessions.params,
-                ...PANEL_SIZE_CONSTRAINTS.sessions,
-              });
-            }
             if (!event.api.getPanel('transcript')) {
               event.api.addPanel({
                 id: 'transcript',
@@ -1134,7 +1056,11 @@ export function ChatSurface({
                 tabComponent: 'transcript',
                 title: 'Chat',
                 params: panelDefs.transcript.params,
-                position: { direction: 'right', referencePanel: 'sessions' },
+                // No `position` — Task 9 removed the Sessions panel that
+                // transcript used to anchor off of, so transcript is now
+                // added with no positional anchor, matching how Sessions
+                // itself used to be added (dockview places a panel with no
+                // `position` as the layout's default/leftmost panel).
                 ...PANEL_SIZE_CONSTRAINTS.transcript,
               });
             }

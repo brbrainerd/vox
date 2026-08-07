@@ -106,6 +106,34 @@ pub async fn list_plan_nodes(
         .map_err(map_db_err)
 }
 
+/// Batched open-task counts for the sidebar's task-count badges, one round trip for every
+/// visible session instead of one `invoke` per session. Keyed by chat session id (matches
+/// `ChatSessionDto::session_id`); a session absent from the returned map has zero open tasks.
+#[tauri::command]
+pub async fn plan_open_task_counts(
+    pool: State<'_, GuiDbPool>,
+    session_ids: Vec<String>,
+) -> Result<std::collections::HashMap<String, i64>, String> {
+    let db = pool_db(&pool)?;
+    db.open_task_counts_for_sessions(&session_ids)
+        .await
+        .map_err(map_db_err)
+}
+
+/// The most recently updated `plan_sessions` row linked to a chat session, if any — used to
+/// pick which plan DAG the sidebar's task badge opens when a chat session has dispatched more
+/// than one goal (each dispatch mints its own `plan_sessions` row; see `goal.rs`).
+#[tauri::command]
+pub async fn latest_plan_session_for_chat(
+    pool: State<'_, GuiDbPool>,
+    session_id: String,
+) -> Result<Option<String>, String> {
+    let db = pool_db(&pool)?;
+    db.latest_plan_session_id_for_origin(&session_id)
+        .await
+        .map_err(map_db_err)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -209,5 +237,41 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].node_id, "n1");
         assert_eq!(rows[0].description, "first step");
+    }
+
+    #[tokio::test]
+    async fn plan_open_task_counts_batches_across_sessions() {
+        let app = tauri::test::mock_app();
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let pool = app.state::<GuiDbPool>();
+        let db = pool.handle().unwrap();
+
+        db.create_plan_session("ps-count-1", Some("chat-x"), "goal", "sequential")
+            .await
+            .unwrap();
+        db.append_plan_version("ps-count-1", 1, None, None, None)
+            .await
+            .unwrap();
+        db.upsert_plan_node("ps-count-1", 1, "n1", "step", "[]", "{}", "pending", None)
+            .await
+            .unwrap();
+
+        let counts = plan_open_task_counts(pool, vec!["chat-x".to_string(), "chat-y".to_string()])
+            .await
+            .unwrap();
+        assert_eq!(counts.get("chat-x").copied(), Some(1));
+        assert_eq!(counts.get("chat-y"), None);
+    }
+
+    #[tokio::test]
+    async fn latest_plan_session_for_chat_returns_none_for_a_session_with_no_dispatched_goals() {
+        let app = tauri::test::mock_app();
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let pool = app.state::<GuiDbPool>();
+
+        let result = latest_plan_session_for_chat(pool, "chat-with-no-tasks".to_string())
+            .await
+            .unwrap();
+        assert_eq!(result, None);
     }
 }

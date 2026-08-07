@@ -11,6 +11,7 @@ import type { HudTilesConfig } from '../../hooks/useHudTiles';
 import type { Toast } from '../../types/tauri';
 import type { MeshNode } from '../surfaces/Mesh/MeshView';
 import { INITIAL_KPIS } from '../../data/initialState';
+import type { ChatSession } from '../../lib/useChatSessions';
 
 type KpiState = typeof INITIAL_KPIS;
 
@@ -46,6 +47,20 @@ export interface AppShellProps {
   hudTilesConfig: HudTilesConfig;
   onHudTilesChange: (config: HudTilesConfig) => void;
   meshNodes: MeshNode[] | undefined;
+  chatSessions?: ChatSession[];
+  activeSessionId?: string | null;
+  chatTaskCounts?: Record<string, number>;
+  archivedChatSessions?: ChatSession[];
+  showArchivedChatSessions?: boolean;
+  /** session_ids with at least one pending scientia_harness_issues row (App.tsx polls). */
+  pendingHarnessIssueSessionIds?: Set<string>;
+  onSessionChange?: (sessionId: string) => void;
+  onCreateSession?: () => void;
+  onRenameSession?: (sessionId: string, title: string) => void;
+  onArchiveSession?: (sessionId: string) => void;
+  onUnarchiveSession?: (sessionId: string) => void;
+  onToggleArchivedSessions?: () => void;
+  onTaskBadgeClick?: (sessionId: string) => void;
 }
 
 export function AppShell({
@@ -79,6 +94,19 @@ export function AppShell({
   hudTilesConfig,
   onHudTilesChange,
   meshNodes,
+  chatSessions,
+  activeSessionId,
+  chatTaskCounts,
+  archivedChatSessions,
+  showArchivedChatSessions,
+  pendingHarnessIssueSessionIds,
+  onSessionChange,
+  onCreateSession,
+  onRenameSession,
+  onArchiveSession,
+  onUnarchiveSession,
+  onToggleArchivedSessions,
+  onTaskBadgeClick,
 }: AppShellProps) {
   const mainPaddingBottom = chatDocked ? 'pb-[180px]' : 'pb-5';
 
@@ -103,6 +131,19 @@ export function AppShell({
           orchUsesPolling={orchUsesPolling}
           liveFreshMs={liveFreshMs}
           onOpenCommandPalette={onOpenCommandPalette}
+          chatSessions={chatSessions}
+          activeSessionId={activeSessionId}
+          chatTaskCounts={chatTaskCounts}
+          archivedChatSessions={archivedChatSessions}
+          showArchivedChatSessions={showArchivedChatSessions}
+          pendingHarnessIssueSessionIds={pendingHarnessIssueSessionIds}
+          onSessionChange={onSessionChange}
+          onCreateSession={onCreateSession}
+          onRenameSession={onRenameSession}
+          onArchiveSession={onArchiveSession}
+          onUnarchiveSession={onUnarchiveSession}
+          onToggleArchivedSessions={onToggleArchivedSessions}
+          onTaskBadgeClick={onTaskBadgeClick}
         />
 
         <main className="flex-1 flex flex-col min-w-0 relative">

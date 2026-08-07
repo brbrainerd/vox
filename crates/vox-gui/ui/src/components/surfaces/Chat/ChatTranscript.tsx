@@ -96,7 +96,9 @@ export function ChatTranscript({ messages, agentStreamItems, sessionId }: ChatTr
     const fetchIssues = () => {
       listHarnessIssuesForSession(sessionId)
         .then((rows) => {
-          if (!cancelled) setHarnessIssues(rows);
+          // Defend against a mocked/misbehaving backend resolving null/undefined
+          // instead of rejecting — harnessIssues.length below assumes an array.
+          if (!cancelled) setHarnessIssues(rows ?? []);
         })
         .catch(() => {
           if (!cancelled) setHarnessIssues([]);

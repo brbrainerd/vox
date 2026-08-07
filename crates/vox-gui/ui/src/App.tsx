@@ -96,6 +96,7 @@ import { slashCommandBase } from './lib/slashRouter';
 import { viewKeyForLocator } from './lib/locatorNavigation';
 import { AchievementsDrawer } from './components/gamify/AchievementsDrawer';
 import type { LudusProfile } from './lib/ludus';
+import { useChatSessions, type ChatSession } from './lib/useChatSessions';
 
 type View =
   | 'dashboard'
@@ -314,6 +315,7 @@ export default function App() {
     [installedSkills],
   );
   const [activeSessionId, setActiveSessionId] = useState<string>('');
+  const [openPlanSessionId, setOpenPlanSessionId] = useState<string | null>(null);
   const [chatModelOverride, setChatModelOverride] = useState<string | null>(null);
   const [groundingCheckEnabled, setGroundingCheckEnabled] = useGroundingCheck(activeSessionId);
   const {
@@ -350,6 +352,9 @@ export default function App() {
   // while a prior reply is still in flight), which used to spawn two independent
   // tempId lifecycles that could settle out of order with no user-visible sign.
   const chatSendInFlightRef = useRef<Set<string>>(new Set());
+  // Guards "+ New session" against a rapid double-click firing two concurrent
+  // chat_create_session calls before the first's setActiveSessionId lands.
+  const creatingSessionRef = useRef(false);
   const activeChatMessages = getSessionMessages(chatStore, activeSessionId);
   const activeChatAgentItems = sessionAgentStreams[activeSessionId] ?? [];
 
@@ -434,6 +439,36 @@ export default function App() {
       window.clearInterval(id);
     };
   }, [pushToast]);
+
+  // ── Chat sessions (Task 9: App.tsx is the sole owner; Sidebar renders the
+  // list via SessionSidebarSection). The hook's initial mount-time load has
+  // no built-in error handling (Task 7 follow-up) — this is the one place
+  // that owns it, so it's the right place to close that gap with a toast,
+  // matching the existing pushToast pattern used for every other session
+  // action below.
+  const chatSessionsApi = useChatSessions((err) => {
+    pushToast({ tone: 'warn', title: 'Chat sessions', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+  });
+  const [showArchivedSessions, setShowArchivedSessions] = useState(false);
+  const [archivedSessions, setArchivedSessions] = useState<ChatSession[]>([]);
+  const [chatTaskCounts, setChatTaskCounts] = useState<Record<string, number>>({});
+  // Batched open-task counts per chat session, feeding the sidebar's
+  // per-session task badges (SessionSidebarSection). Re-fetches whenever the
+  // visible session list changes; a failure just leaves badges at their
+  // last-known counts rather than surfacing a toast for a purely cosmetic
+  // feature.
+  useEffect(() => {
+    let cancelled = false;
+    const ids = (chatSessionsApi.sessions ?? []).map((s) => s.session_id);
+    if (ids.length === 0) {
+      setChatTaskCounts({});
+      return () => { cancelled = true; };
+    }
+    invoke<Record<string, number>>('plan_open_task_counts', { sessionIds: ids })
+      .then((counts) => { if (!cancelled) setChatTaskCounts(counts); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [chatSessionsApi.sessions]);
 
   // ── Budget warn toast (non-blocking, distinct from the hard-block "Budget
   // limit reached" toast in `dispatchErrorToast`) ─────────────────────────
@@ -1482,9 +1517,10 @@ export default function App() {
     chatExecutionKpis,
     chatActiveModel: activeModel,
     groundingCheckEnabled,
-    // No orchestrator plan session is created from chat yet, so PlanPanel
-    // renders its honest empty state until a producer wires this up.
-    chatPlanSessionId: null,
+    // Set by the sidebar's task-badge click (onTaskBadgeClick below), resolved via
+    // `latest_plan_session_for_chat` against the real origin_session_id link. Null renders
+    // PlanPanel's honest empty state until a badge has been clicked.
+    chatPlanSessionId: openPlanSessionId,
     chatPlanVersion: null,
     chatActiveSkillId: activeSkill?.id ?? null,
     chatOpenrouterSpendUsd: openrouterSpendUsd,
@@ -1498,7 +1534,6 @@ export default function App() {
     hudTilesConfig,
     onHudTilesChange: setHudTilesConfig,
     attention,
-    pendingHarnessIssueSessionIds,
   };
 
   const mainSurface = renderSurfaceContent(activeView, surfaceProps);
@@ -1554,6 +1589,69 @@ export default function App() {
         hudTilesConfig={hudTilesConfig}
         onHudTilesChange={setHudTilesConfig}
         meshNodes={meshNodes}
+        chatSessions={chatSessionsApi.sessions}
+        activeSessionId={activeSessionId}
+        chatTaskCounts={chatTaskCounts}
+        archivedChatSessions={archivedSessions}
+        showArchivedChatSessions={showArchivedSessions}
+        pendingHarnessIssueSessionIds={pendingHarnessIssueSessionIds}
+        onSessionChange={setActiveSessionId}
+        onCreateSession={() => {
+          if (creatingSessionRef.current) return;
+          creatingSessionRef.current = true;
+          chatSessionsApi.createSession()
+            .then(s => setActiveSessionId(s.session_id))
+            .catch(err => pushToast({ tone: 'warn', title: 'New session failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }))
+            .finally(() => { creatingSessionRef.current = false; });
+        }}
+        onRenameSession={(sessionId, title) => {
+          chatSessionsApi.renameSession(sessionId, title)
+            .catch(err => pushToast({ tone: 'warn', title: 'Rename failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
+        }}
+        onArchiveSession={(sessionId) => {
+          chatSessionsApi.archiveSession(sessionId, {
+            wasActive: sessionId === activeSessionId,
+            onReassign: setActiveSessionId,
+          }).catch(err => pushToast({ tone: 'warn', title: 'Archive failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
+        }}
+        onUnarchiveSession={(sessionId) => {
+          // Fetch the active list fresh alongside the full list rather than filtering against
+          // chatSessionsApi.sessions -- that closure is a snapshot from render time and can be
+          // stale by the time this .then runs, which would leave the just-unarchived session
+          // still shown as archived until an unrelated re-render caught it up.
+          chatSessionsApi.unarchiveSession(sessionId)
+            .then(() => Promise.all([
+              invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: false }),
+              invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: true }),
+            ]))
+            .then(([active, all]) => setArchivedSessions(all.filter(s => !active.some(a => a.session_id === s.session_id))))
+            .catch(err => pushToast({ tone: 'warn', title: 'Unarchive failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
+        }}
+        onToggleArchivedSessions={() => {
+          const next = !showArchivedSessions;
+          setShowArchivedSessions(next);
+          if (next) {
+            Promise.all([
+              invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: false }),
+              invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: true }),
+            ])
+              .then(([active, all]) => setArchivedSessions(all.filter(s => !active.some(a => a.session_id === s.session_id))))
+              .catch(err => pushToast({ tone: 'warn', title: 'Load archived sessions failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
+          }
+        }}
+        onTaskBadgeClick={(sessionId: string) => {
+          invoke<string | null>('latest_plan_session_for_chat', { sessionId })
+            .then(planSessionId => {
+              // A null result (badge showed a stale nonzero count, or the session's plan
+              // was archived/retracted between render and click) is a silent no-op by
+              // design -- there is nothing to open, and it isn't an error worth a toast.
+              if (planSessionId) {
+                setOpenPlanSessionId(planSessionId);
+                setActiveSessionId(sessionId);
+              }
+            })
+            .catch(err => pushToast({ tone: 'warn', title: 'Open tasks failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
+        }}
       >
         {mainSurface}
         </AppShell>

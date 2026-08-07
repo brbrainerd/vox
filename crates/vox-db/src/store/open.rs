@@ -134,6 +134,33 @@ impl crate::VoxDb {
             // the `reliability_scores` table in the baseline schema. Since we no longer support
             // upgrading pre-v77 database files, the dynamic migration path here is retired.
 
+            // `baseline_sql()`'s CREATE TABLE IF NOT EXISTS is a no-op against a table that
+            // already exists, so a column added to the DDL string above only takes effect on a
+            // brand-new database. Existing databases need an explicit, idempotent ALTER TABLE —
+            // checked via PRAGMA table_info first, since blindly running ALTER TABLE ADD COLUMN
+            // would fail with "duplicate column name" on a fresh database (where CREATE TABLE
+            // just created the column already).
+            let has_archived_at = {
+                let mut cols = conn.query("PRAGMA table_info(conversations)", ()).await?;
+                let mut found = false;
+                while let Some(row) = cols.next().await? {
+                    let name: String = row.get(1)?;
+                    if name == "archived_at" {
+                        found = true;
+                        break;
+                    }
+                }
+                found
+            };
+            if !has_archived_at {
+                conn.execute_batch("ALTER TABLE conversations ADD COLUMN archived_at TEXT;")
+                    .await?;
+            }
+            conn.execute_batch(
+                "CREATE INDEX IF NOT EXISTS idx_conversations_archived ON conversations(archived_at);",
+            )
+            .await?;
+
             crate::schema_extensions::apply_schema_extensions(conn).await?;
 
             conn.execute(

@@ -30,8 +30,14 @@ vi.mock('@xterm/addon-web-links', () => ({ WebLinksAddon: class { activate() {} 
 
 // ── harness issue polling ────────────────────────────────────────────────────
 const listHarnessIssuesMock = vi.hoisted(() => vi.fn());
+// listHarnessIssuesForSession is also imported (by ChatTranscript, for the
+// inline per-session summary strip) whenever the chat surface renders in
+// this file's other tests — default it to an empty-issues resolution so
+// those unrelated tests don't crash on an undefined mock export.
+const listHarnessIssuesForSessionMock = vi.hoisted(() => vi.fn(() => Promise.resolve([])));
 vi.mock('./components/surfaces/Scientia/harnessIssuesApi', () => ({
   listHarnessIssues: listHarnessIssuesMock,
+  listHarnessIssuesForSession: listHarnessIssuesForSessionMock,
 }));
 
 // ── xyflow ────────────────────────────────────────────────────────────────────
@@ -962,11 +968,11 @@ describe('App shell', () => {
 
       // Badge propagation (pendingHarnessIssueSessionIds -> session-issue
       // badges) is not asserted here: this test file's renderApp() does not
-      // reach a session list surface (no ChatSessionRail rendered given the
-      // mocked chat_list_sessions=[] and default view), so a
+      // reach an expanded chat-session sidebar section (no sessions rendered
+      // given the mocked chat_list_sessions=[] and default view), so a
       // `session-issue-badge-*` testid would not be present regardless of
       // the polling logic's correctness. Covered instead at the
-      // ChatSessionRail/badge component level if such a test exists there.
+      // SessionSidebarSection component level (see its own badge test).
     });
   });
 });

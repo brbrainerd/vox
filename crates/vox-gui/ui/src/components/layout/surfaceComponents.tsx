@@ -76,8 +76,6 @@ export interface SurfaceProps {
   chatPlanSessionId?: string | null;
   chatPlanVersion?: number | null;
   chatActiveSkillId?: string | null;
-  /** session_ids with at least one pending scientia_harness_issues row (App.tsx polls). */
-  pendingHarnessIssueSessionIds?: Set<string>;
 }
 
 export function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
@@ -212,7 +210,6 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           planSessionId={props.chatPlanSessionId}
           planVersion={props.chatPlanVersion}
           activeSkillId={props.chatActiveSkillId}
-          pendingIssueSessionIds={props.pendingHarnessIssueSessionIds}
         />
       );
     default:

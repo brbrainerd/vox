@@ -678,3 +678,83 @@ mod legacy_tests {
         assert!(!leg.is_legacy_schema_chain);
     }
 }
+
+#[tokio::test]
+async fn conversations_archived_at_column_exists_and_defaults_null() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+    let conv_id = db
+        .chat_ensure_gui_session("sess-archived-at-test", "Test session")
+        .await
+        .expect("create session");
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT archived_at FROM conversations WHERE id = ?1",
+            turso::params![conv_id],
+        )
+        .await
+        .expect("query");
+    let row = rows.next().await.expect("row").expect("one row");
+    let archived_at: Option<String> = row.get(0).expect("archived_at column");
+    assert_eq!(archived_at, None, "new sessions must not be pre-archived");
+}
+
+#[tokio::test]
+async fn migrate_adds_archived_at_to_a_pre_existing_conversations_table() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+    let conn = db.connection();
+
+    // Simulate a pre-this-change table: drop the column-having table and recreate the
+    // OLD shape (no archived_at), matching what a real upgrading user's database looks like.
+    conn.execute_batch("DROP TABLE conversations;")
+        .await
+        .unwrap();
+    conn.execute_batch(
+        "CREATE TABLE conversations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT,
+            title TEXT NOT NULL DEFAULT '',
+            code_version TEXT,
+            repository_id TEXT,
+            external_session_id TEXT,
+            thread_id TEXT,
+            origin_surface TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );",
+    )
+    .await
+    .unwrap();
+
+    // `VoxDb::connect` above already ran `migrate()` once and recorded the current
+    // BASELINE_VERSION in `schema_version` — without resetting it, a second `migrate()`
+    // call would see `current_version == BASELINE_VERSION` and skip the whole upgrade
+    // branch (including the ALTER TABLE fix under test) as a no-op. Roll it back to
+    // simulate a database that has never seen this version, matching what a real
+    // upgrading user's `schema_version` row actually looks like before their first
+    // launch on the new binary.
+    conn.execute_batch("DELETE FROM schema_version;")
+        .await
+        .unwrap();
+
+    // Re-run the same migration path a real app startup takes.
+    crate::VoxDb::migrate(conn)
+        .await
+        .expect("migrate should backfill archived_at");
+
+    let mut cols = conn
+        .query("PRAGMA table_info(conversations)", ())
+        .await
+        .unwrap();
+    let mut found = false;
+    while let Some(row) = cols.next().await.unwrap() {
+        let name: String = row.get(1).unwrap();
+        if name == "archived_at" {
+            found = true;
+        }
+    }
+    assert!(
+        found,
+        "migrate() must add archived_at to a pre-existing conversations table"
+    );
+}

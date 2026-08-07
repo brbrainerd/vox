@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import {
   listHarnessIssues,
   recordHarnessIssueDecision,
@@ -10,10 +11,6 @@ import {
   type HarnessIssueRow,
   type HarnessFixProposalRow,
 } from './harnessIssuesApi';
-
-function sanitizeErrorForToast(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
 
 /** Review queue for harness issue discovery (Phase 1). */
 export function HarnessIssuesPanel({ pushToast }: SurfaceDecoratorProps) {

@@ -204,3 +204,51 @@ describe('Sidebar accordion (wide mode only)', () => {
     expect(screen.queryByRole('button', { name: /^tasks$/i })).not.toBeInTheDocument();
   });
 });
+
+describe('Sidebar chat sessions section (Task 9)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Element.prototype.scrollIntoView = vi.fn();
+    window.localStorage.clear();
+  });
+
+  const chatSession = (overrides: Partial<{
+    session_id: string; title: string; updated_at: string; message_count: number;
+    conversation_id: number; repository_id: string | null;
+  }> = {}) => ({
+    session_id: 's1', title: 'First chat', updated_at: '2026-01-01T00:00:00Z',
+    message_count: 1, conversation_id: 1, repository_id: 'repo-a', ...overrides,
+  });
+
+  it('renders SessionSidebarSection (not the generic static children list) when the chat parent is expanded in wide mode and chatSessions is provided', () => {
+    renderSidebar({
+      view: 'chat',
+      mode: 'wide',
+      chatSessions: [chatSession()],
+      activeSessionId: 's1',
+    });
+    // SessionSidebarSection's own "+ New session" control is the reliable
+    // marker that the real section rendered, not the generic per-parent
+    // static children button list (which chat has none of).
+    expect(screen.getByRole('button', { name: /new session/i })).toBeInTheDocument();
+    expect(screen.getByText('First chat')).toBeInTheDocument();
+  });
+
+  it('does not render the session section when chatSessions is not provided, even with the chat parent expanded', () => {
+    renderSidebar({ view: 'chat', mode: 'wide' });
+    expect(screen.queryByRole('button', { name: /new session/i })).not.toBeInTheDocument();
+  });
+
+  it('clicking a session row calls onSessionChange with its session id', () => {
+    const onSessionChange = vi.fn();
+    renderSidebar({
+      view: 'chat',
+      mode: 'wide',
+      chatSessions: [chatSession({ session_id: 's1', title: 'First chat' })],
+      activeSessionId: null,
+      onSessionChange,
+    });
+    fireEvent.click(screen.getByText('First chat'));
+    expect(onSessionChange).toHaveBeenCalledWith('s1');
+  });
+});
