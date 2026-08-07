@@ -14,8 +14,13 @@ use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
+// Intentionally unwired until Task 11 wires this into the agent tool-dispatch
+// loop; the module has no non-test caller yet, so clippy's dead-code lint
+// fires on a normal (non-test) build. Remove this allow when Task 11 lands.
+#[allow(dead_code)]
 pub const THRESHOLD: u32 = 3;
 
+#[allow(dead_code)]
 #[derive(Debug, Default)]
 pub struct HarnessIssueScorer {
     /// (tool_name, first-line-of-result hash) -> times seen this turn.
@@ -27,6 +32,9 @@ pub struct HarnessIssueScorer {
     score: u32,
 }
 
+// Intentionally unwired until Task 11 wires this into the agent tool-dispatch
+// loop; remove this allow when Task 11 lands.
+#[allow(dead_code)]
 impl HarnessIssueScorer {
     pub fn new() -> Self {
         Self::default()
