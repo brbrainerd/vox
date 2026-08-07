@@ -613,7 +613,12 @@ fn merge_policy_entry(
     if let Some(entry) = entry {
         let clutch = entry.clutch.as_deref().and_then(ClutchProfile::from_label);
         let risk = entry.risk.as_deref().and_then(RiskPosture::from_label);
-        if clutch.is_none() && risk.is_none() && (entry.clutch.is_some() || entry.risk.is_some()) {
+        // Warn per-axis: an entry with one valid label and one typo'd label
+        // (e.g. {clutch: "turbo", risk: "high"}) must still surface the bad
+        // axis, not just the case where both fail to parse.
+        let clutch_failed_to_parse = entry.clutch.is_some() && clutch.is_none();
+        let risk_failed_to_parse = entry.risk.is_some() && risk.is_none();
+        if clutch_failed_to_parse || risk_failed_to_parse {
             let (field, key) = warn_context();
             tracing::warn!(field, key = %key, clutch = ?entry.clutch, risk = ?entry.risk, "task_policy override has an unparseable clutch/risk label; falling through to compiled default");
         }
@@ -670,6 +675,27 @@ pub fn effective_source_policy(
     merge_policy_entry(entry, default, || ("source", key))
 }
 
+/// Effective risk policy for `task`: explicit hint > category policy >
+/// source policy, returning `None` when nothing applies anywhere — distinct
+/// from [`resolve_task_policy`]'s always-concrete `RiskPosture`, which
+/// collapses "nothing configured" into the same value as "configured to the
+/// default." Callers that need to tell those two cases apart (e.g. to
+/// preserve an existing global toggle rather than overriding it with a
+/// coincidentally-matching default) use this instead of hand-rolling the
+/// same `effective_category_policy`/`effective_source_policy`/`.or()` chain.
+/// Shared by `socrates.rs`'s grounding/Socrates enforcement and
+/// `attention_fields.rs`'s approval-tier escalation.
+#[must_use]
+pub fn effective_risk_for_task(
+    task: &crate::types::AgentTask,
+    overrides: &crate::config::TaskPolicyOverrides,
+) -> Option<RiskPosture> {
+    let (_, category_risk) = effective_category_policy(overrides, task.task_category);
+    let source = task.trigger_source.unwrap_or(TriggerSource::Interactive);
+    let (_, source_risk) = effective_source_policy(overrides, source);
+    task.risk_posture.or(category_risk).or(source_risk)
+}
+
 #[cfg(test)]
 mod effective_policy_tests {
     use super::*;
@@ -708,6 +734,27 @@ mod effective_policy_tests {
     }
 
     #[test]
+    fn one_bad_label_alongside_one_good_label_still_resolves_the_good_axis() {
+        // Regression test for `merge_policy_entry`'s warn condition, which
+        // used to only fire when BOTH axes failed to parse — silently
+        // swallowing a partially-malformed entry with no diagnostic. This
+        // test asserts the (already-correct) per-axis return value: the
+        // valid `risk` label must still resolve even though `clutch` is a
+        // typo, regardless of whether a warning is logged for it.
+        let mut source = HashMap::new();
+        source.insert(
+            "Automated".to_string(),
+            TaskPolicyEntry { clutch: Some("turbo".to_string()), risk: Some("high".to_string()) },
+        );
+        let overrides = TaskPolicyOverrides { category: HashMap::new(), source };
+        assert_eq!(
+            effective_source_policy(&overrides, TriggerSource::Automated),
+            (None, Some(RiskPosture::High)),
+            "a typo'd clutch label must not prevent the valid risk label from resolving"
+        );
+    }
+
+    #[test]
     fn partial_override_sets_one_axis_and_leaves_the_other_none() {
         let mut category = HashMap::new();
         category.insert(
@@ -734,5 +781,52 @@ mod effective_policy_tests {
         category.insert("NotARealCategory".to_string(), TaskPolicyEntry { clutch: Some("free".to_string()), risk: Some("high".to_string()) });
         let overrides = TaskPolicyOverrides { category, source: HashMap::new() };
         assert_eq!(effective_category_policy(&overrides, TaskCategory::CodeGen), (None, None));
+    }
+
+    #[test]
+    fn effective_risk_for_task_prefers_explicit_over_category_over_source() {
+        let mut task = crate::types::AgentTask::new(
+            crate::types::TaskId(1),
+            "t",
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        task.task_category = TaskCategory::Research;
+        task.trigger_source = Some(TriggerSource::Automated);
+        task.risk_posture = Some(RiskPosture::Low);
+
+        let mut category = HashMap::new();
+        category.insert(
+            "Research".to_string(),
+            TaskPolicyEntry { clutch: None, risk: Some("high".to_string()) },
+        );
+        let mut source = HashMap::new();
+        source.insert(
+            "Automated".to_string(),
+            TaskPolicyEntry { clutch: None, risk: Some("moderate".to_string()) },
+        );
+        let overrides = TaskPolicyOverrides { category, source };
+
+        assert_eq!(
+            effective_risk_for_task(&task, &overrides),
+            Some(RiskPosture::Low),
+            "explicit risk_posture must win over both category and source policy"
+        );
+    }
+
+    #[test]
+    fn effective_risk_for_task_returns_none_when_nothing_configured() {
+        let task = crate::types::AgentTask::new(
+            crate::types::TaskId(1),
+            "t",
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        let overrides = TaskPolicyOverrides::default();
+        assert_eq!(
+            effective_risk_for_task(&task, &overrides),
+            None,
+            "no explicit hint and no category/source policy must return None, not a default"
+        );
     }
 }

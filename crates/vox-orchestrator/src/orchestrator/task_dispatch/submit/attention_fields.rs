@@ -34,13 +34,7 @@ fn effective_approval_tier(
     overrides: &crate::config::TaskPolicyOverrides,
     classified: ApprovalTier,
 ) -> ApprovalTier {
-    let (_, category_risk) = crate::mode::effective_category_policy(overrides, task.task_category);
-    let source = task
-        .trigger_source
-        .unwrap_or(crate::mode::TriggerSource::Interactive);
-    let (_, source_risk) = crate::mode::effective_source_policy(overrides, source);
-    let effective_risk = task.risk_posture.or(category_risk).or(source_risk);
-    match effective_risk {
+    match crate::mode::effective_risk_for_task(task, overrides) {
         Some(risk) => classified.max_strictness(risk.resolve().approval.to_approval_tier()),
         None => classified,
     }

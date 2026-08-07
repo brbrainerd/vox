@@ -620,24 +620,20 @@ pub struct DefaultTaskPolicyDto {
 #[tauri::command]
 pub fn resolve_default_task_policy(category: String, source: String) -> DefaultTaskPolicyDto {
     use vox_orchestrator::mode::TriggerSource;
-    use vox_orchestrator::types::TaskCategory;
+    use vox_orchestrator::types::{AgentTask, TaskCategory, TaskId, TaskPriority};
 
     let overrides = vox_orchestrator::config::OrchestratorConfig::snapshot().task_policy;
     let category: TaskCategory = category.parse().unwrap_or_default();
     let source = TriggerSource::from_label(&source).unwrap_or(TriggerSource::Interactive);
 
-    let (category_clutch, category_risk) =
-        vox_orchestrator::mode::effective_category_policy(&overrides, category);
-    let (source_clutch, source_risk) =
-        vox_orchestrator::mode::effective_source_policy(&overrides, source);
-    let (clutch, risk) = vox_orchestrator::mode::resolve_task_policy(
-        None,
-        None,
-        category_clutch,
-        category_risk,
-        source_clutch,
-        source_risk,
-    );
+    // A throwaway, never-submitted task carrying only the two axes this
+    // preview needs — routes through the SAME AgentTask::resolved_policy()
+    // real task execution uses, so this can't drift from the backend's
+    // actual precedence resolution the way a hand-rolled second copy could.
+    let mut preview_task = AgentTask::new(TaskId(0), "", TaskPriority::Normal, Vec::new());
+    preview_task.task_category = category;
+    preview_task.trigger_source = Some(source);
+    let (clutch, risk) = preview_task.resolved_policy(&overrides);
     DefaultTaskPolicyDto { clutch, risk }
 }
 
