@@ -140,6 +140,14 @@ fn resolve_target_path(
     repo_root: &std::path::Path,
     target_path: &str,
 ) -> Result<std::path::PathBuf, String> {
+    // `resolve_local_path_under_repo_root` calls `std::fs::canonicalize`
+    // internally, which requires the target to exist. Check existence first
+    // so a deleted/renamed file (a common, benign race between proposal
+    // creation and approval) is reported as a missing file rather than
+    // misleadingly phrased as a path-traversal security refusal.
+    if !repo_root.join(target_path).exists() {
+        return Err(format!("target file does not exist: {target_path}"));
+    }
     vox_repository::resolve_local_path_under_repo_root(repo_root, target_path)
         .map_err(|e| format!("refusal: target_path resolves outside the repository root ({e})"))
 }
