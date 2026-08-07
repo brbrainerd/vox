@@ -4,7 +4,7 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 86
+  repository_baseline_integer: 87
   # Keccak-256 of baseline_sql() — updated for 83: skill_candidates.lifecycle_state + source_hash (Task 3.3, harness parity plan);
   # re-updated for a comment fix (source_hash is blake3-only, not Keccak/blake3 — code-review finding on cd3f7e8736);
   # re-updated for skill_identities table (Task 3.4, harness parity plan — skill namespace/identity FCFS uniqueness);
@@ -19,7 +19,10 @@ policy:
   # vox-orchestrator-mcp via a delegation-alias layer the automated census missed).
   # re-updated for 86: harness_eval_run/task_result/model_selection_event tables
   # (harness_eval domain fragment) added alongside the Task 4 quarantine work.
-  repository_baseline_digest_hex: "0x6a266e96933cfe6b7d71a21a9cd476a11c04e4ba536c0f215c3824e279ea6243"
+  # re-updated for 87: conversations.archived_at (soft-archive for GUI chat sessions,
+  # sidebar session-list feature). Existing databases get the column via an explicit
+  # ALTER TABLE in VoxDb::migrate() (see open.rs), not via the baseline DDL alone.
+  repository_baseline_digest_hex: "0x967e81d1a8c7d54a1f7f47e1a5f9679bc7c1685acd8b5c7470c58d84fd8b1b7c"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.
