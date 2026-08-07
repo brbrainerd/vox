@@ -232,4 +232,32 @@ describe('Loquela', () => {
     // mockInvoke back to defaultMockInvokeImpl even if this test fails
     // before reaching this point.
   });
+
+  it('does not clobber a user-made clutch pick if resolve_default_task_policy resolves afterward', async () => {
+    let resolveDefault: (value: { clutch: string; risk: string }) => void = () => {};
+    const deferred = new Promise<{ clutch: string; risk: string }>((resolve) => {
+      resolveDefault = resolve;
+    });
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'resolve_default_task_policy') {
+        return deferred;
+      }
+      return Promise.resolve([]);
+    });
+    renderLoquela();
+
+    // User picks "Genius" before the backend's default has resolved.
+    const geniusButton = screen.getByRole('radio', { name: /genius/i });
+    fireEvent.click(geniusButton);
+    expect(geniusButton).toHaveAttribute('aria-checked', 'true');
+
+    // The slow backend fetch now resolves with a DIFFERENT value — it must
+    // not silently revert the user's already-made choice.
+    resolveDefault({ clutch: 'free', risk: 'high' });
+    await waitFor(() => {
+      const freeButton = screen.getByRole('radio', { name: /^free$/i });
+      expect(freeButton).toHaveAttribute('aria-checked', 'false');
+    });
+    expect(geniusButton).toHaveAttribute('aria-checked', 'true');
+  });
 });

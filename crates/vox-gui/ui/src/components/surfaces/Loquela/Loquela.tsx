@@ -167,16 +167,25 @@ export function Loquela({
   const [tier, setTier] = useState("auto");
   const [dryRun, setDryRun] = useState(false);
   const [control, setControl] = useState<ControlState>(defaultControl);
+  // True once the user has manually changed clutch/risk via DriveConsole —
+  // guards the mount-time fetch below from clobbering that choice if it
+  // resolves after the user has already interacted with the control.
+  const userTouchedControlRef = useRef(false);
 
   // The hardcoded defaultControl() above is only a cold-start fallback — the
   // real default is whatever the backend policy resolver would pick for an
-  // interactive chat task, so fetch that on mount and adopt it if it differs.
+  // interactive chat task, so fetch that on mount and adopt it if it differs
+  // (unless the user has already made their own choice in the meantime).
   useEffect(() => {
     invoke<{ clutch: ClutchId; risk: RiskId }>('resolve_default_task_policy', {
       category: 'Chat',
       source: 'interactive',
     })
-      .then((resolved) => setControl(resolved))
+      .then((resolved) => {
+        if (!userTouchedControlRef.current) {
+          setControl(resolved);
+        }
+      })
       .catch(() => {
         // Backend unavailable (e.g. cold start) — keep the local hardcoded
         // default rather than blocking the composer on this fetch.
@@ -666,7 +675,10 @@ export function Loquela({
 
           <DriveConsole
             control={control}
-            onControlChange={(n) => setControl(c => ({ ...c, ...n }))}
+            onControlChange={(n) => {
+              userTouchedControlRef.current = true;
+              setControl(c => ({ ...c, ...n }));
+            }}
             spentUsd={sessionBudget?.spent ?? 0}
             budgetUsd={sessionBudget?.cap ?? 0}
           />
