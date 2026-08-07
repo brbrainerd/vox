@@ -1149,6 +1149,31 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn latest_plan_session_id_for_origin_picks_the_most_recently_updated_row() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        db.create_plan_session("plan-old", Some("chat-z"), "goal one", "sequential")
+            .await
+            .unwrap();
+        db.create_plan_session("plan-new", Some("chat-z"), "goal two", "sequential")
+            .await
+            .unwrap();
+        // Touch plan-new again so its updated_at is later than plan-old's.
+        db.update_plan_session_goal_text("plan-new", "goal two, revised")
+            .await
+            .unwrap();
+
+        let latest = db.latest_plan_session_id_for_origin("chat-z").await.unwrap();
+        assert_eq!(latest.as_deref(), Some("plan-new"));
+    }
+
+    #[tokio::test]
+    async fn latest_plan_session_id_for_origin_is_none_for_a_session_with_no_dispatched_goals() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        let latest = db.latest_plan_session_id_for_origin("chat-with-no-tasks").await.unwrap();
+        assert_eq!(latest, None);
+    }
+
+    #[tokio::test]
     async fn open_task_counts_join_on_origin_session_id_and_current_version() {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
 

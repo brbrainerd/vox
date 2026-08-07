@@ -484,6 +484,28 @@ impl crate::VoxDb {
         Ok(None)
     }
 
+    /// Most recently updated `plan_sessions.plan_session_id` for a given `origin_session_id`,
+    /// or `None` if that chat session has never dispatched a goal.
+    pub async fn latest_plan_session_id_for_origin(
+        &self,
+        origin_session_id: &str,
+    ) -> Result<Option<String>, StoreError> {
+        let origin = origin_session_id.to_string();
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT plan_session_id FROM plan_sessions
+                 WHERE origin_session_id = ?1
+                 ORDER BY updated_at DESC, rowid DESC LIMIT 1",
+                params![origin.as_str()],
+            )
+            .await?;
+        Ok(match rows.next().await? {
+            Some(r) => Some(r.get::<String>(0)?),
+            None => None,
+        })
+    }
+
     pub async fn list_plan_sessions(
         &self,
         limit: i64,

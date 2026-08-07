@@ -223,6 +223,7 @@ async fn main() {
             commands::plan_panel::insert_plan_node,
             commands::plan_panel::list_plan_nodes,
             commands::plan_panel::plan_open_task_counts,
+            commands::plan_panel::latest_plan_session_for_chat,
             commands::secrets::list_secret_status,
             commands::secrets::set_secret,
             commands::secrets::remove_secret,

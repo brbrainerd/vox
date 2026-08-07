@@ -118,6 +118,18 @@ pub async fn plan_open_task_counts(
     db.open_task_counts_for_sessions(&session_ids).await.map_err(map_db_err)
 }
 
+/// The most recently updated `plan_sessions` row linked to a chat session, if any — used to
+/// pick which plan DAG the sidebar's task badge opens when a chat session has dispatched more
+/// than one goal (each dispatch mints its own `plan_sessions` row; see `goal.rs`).
+#[tauri::command]
+pub async fn latest_plan_session_for_chat(
+    pool: State<'_, GuiDbPool>,
+    session_id: String,
+) -> Result<Option<String>, String> {
+    let db = pool_db(&pool)?;
+    db.latest_plan_session_id_for_origin(&session_id).await.map_err(map_db_err)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,5 +257,17 @@ mod tests {
             .unwrap();
         assert_eq!(counts.get("chat-x").copied(), Some(1));
         assert_eq!(counts.get("chat-y"), None);
+    }
+
+    #[tokio::test]
+    async fn latest_plan_session_for_chat_returns_none_for_a_session_with_no_dispatched_goals() {
+        let app = tauri::test::mock_app();
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let pool = app.state::<GuiDbPool>();
+
+        let result = latest_plan_session_for_chat(pool, "chat-with-no-tasks".to_string())
+            .await
+            .unwrap();
+        assert_eq!(result, None);
     }
 }

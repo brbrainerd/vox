@@ -315,6 +315,7 @@ export default function App() {
     [installedSkills],
   );
   const [activeSessionId, setActiveSessionId] = useState<string>('');
+  const [openPlanSessionId, setOpenPlanSessionId] = useState<string | null>(null);
   const [chatModelOverride, setChatModelOverride] = useState<string | null>(null);
   const [groundingCheckEnabled, setGroundingCheckEnabled] = useGroundingCheck(activeSessionId);
   const {
@@ -403,14 +404,16 @@ export default function App() {
   // last-known counts rather than surfacing a toast for a purely cosmetic
   // feature.
   useEffect(() => {
+    let cancelled = false;
     const ids = (chatSessionsApi.sessions ?? []).map((s) => s.session_id);
     if (ids.length === 0) {
       setChatTaskCounts({});
-      return;
+      return () => { cancelled = true; };
     }
     invoke<Record<string, number>>('plan_open_task_counts', { sessionIds: ids })
-      .then(setChatTaskCounts)
+      .then((counts) => { if (!cancelled) setChatTaskCounts(counts); })
       .catch(() => {});
+    return () => { cancelled = true; };
   }, [chatSessionsApi.sessions]);
 
   // ── Budget warn toast (non-blocking, distinct from the hard-block "Budget
@@ -1460,9 +1463,10 @@ export default function App() {
     chatExecutionKpis,
     chatActiveModel: activeModel,
     groundingCheckEnabled,
-    // No orchestrator plan session is created from chat yet, so PlanPanel
-    // renders its honest empty state until a producer wires this up.
-    chatPlanSessionId: null,
+    // Set by the sidebar's task-badge click (onTaskBadgeClick below), resolved via
+    // `latest_plan_session_for_chat` against the real origin_session_id link. Null renders
+    // PlanPanel's honest empty state until a badge has been clicked.
+    chatPlanSessionId: openPlanSessionId,
     chatPlanVersion: null,
     chatActiveSkillId: activeSkill?.id ?? null,
     chatOpenrouterSpendUsd: openrouterSpendUsd,
@@ -1567,8 +1571,15 @@ export default function App() {
               .catch(err => pushToast({ tone: 'warn', title: 'Load archived sessions failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
           }
         }}
-        onTaskBadgeClick={() => {
-          // Wired in Task 10 (not yet run) — sets the active plan-panel target instead of a no-op.
+        onTaskBadgeClick={(sessionId: string) => {
+          invoke<string | null>('latest_plan_session_for_chat', { sessionId })
+            .then(planSessionId => {
+              if (planSessionId) {
+                setOpenPlanSessionId(planSessionId);
+                setActiveSessionId(sessionId);
+              }
+            })
+            .catch(err => pushToast({ tone: 'warn', title: 'Open tasks failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
         }}
       >
         {mainSurface}
