@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
@@ -35,6 +35,7 @@ import { RepositoryView } from '../Repository/RepositoryView';
 import { Mercatus } from '../Mercatus/Mercatus';
 import { HarnessRedirect } from '../Harness/HarnessRedirect';
 import { getPermissionMode } from '../../../transport';
+import { useChatSessions } from '../../../lib/useChatSessions';
 
 
 
@@ -98,12 +99,6 @@ const PANEL_SIZE_CONSTRAINTS: Partial<
 // section, never resurrected on an unrelated re-render.
 const OPT_IN_PANEL_IDS = ['needs-you', 'voxgraph', 'activity', 'repository', 'mercatus', 'harness', 'approvals'] as const;
 type OptInPanelId = (typeof OPT_IN_PANEL_IDS)[number];
-
-interface ChatSession {
-  session_id: string;
-  title: string;
-  message_count: number;
-}
 
 function SessionsPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
   return <div data-testid="chat-dock-sessions" className="h-full overflow-y-auto">{props.params.node}</div>;
@@ -379,7 +374,13 @@ export function ChatSurface({
   pendingApprovals = 0,
   activeSkillId,
 }: ChatSurfaceProps) {
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  // NOTE: per Task 7's Ownership resolution, `useChatSessions` is meant to be
+  // owned by App.tsx alone once Task 9 removes ChatSessionRail/SessionsPanel
+  // from this component. Until Task 9 lands, ChatSessionRail below still
+  // needs `sessions`/`createSession`/`renameSession`/`archiveSession`, so this
+  // component keeps calling the hook itself (temporarily contradicting that
+  // end-state) to stay compiling.
+  const { sessions, createSession: createChatSession, renameSession: renameChatSession, archiveSession: archiveChatSession } = useChatSessions();
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
   const activeId = activeSessionId ?? '';
   const [planNodes, setPlanNodes] = useState<PlanNodeView[]>([]);
@@ -556,26 +557,15 @@ export function ChatSurface({
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [panelsMenuOpen]);
 
-  const loadSessions = useCallback(async () => {
-    try {
-      // `invoke`'s generic type param is a compile-time assertion, not a runtime
-      // guarantee — a backend/mock that resolves `null` would otherwise crash
-      // both `list.length` below and every downstream `sessions.map()` consumer
-      // (e.g. ChatSessionRail).
-      const raw = await invoke<ChatSession[] | null>('chat_list_sessions', { limit: 40 });
-      const list = Array.isArray(raw) ? raw : [];
-      setSessions(list);
-      if (!activeId && list.length > 0) {
-        onSessionChange?.(list[0].session_id);
-      }
-    } catch (err) {
-      pushToast({ tone: 'warn', title: 'Chat sessions', body: sanitizeErrorForToast(err), cause: 'backend-error' });
-    }
-  }, [activeId, onSessionChange, pushToast]);
-
+  // useChatSessions loads on mount and owns error toasting is NOT done inside
+  // the hook (it only rethrows) — this effect reproduces ChatSurface's prior
+  // "auto-select the first session when nothing is active yet" behavior once
+  // the hook's initial load lands.
   useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
+    if (!activeId && sessions.length > 0) {
+      onSessionChange?.(sessions[0].session_id);
+    }
+  }, [activeId, sessions, onSessionChange]);
 
   useEffect(() => {
     if (!planSessionId || planVersion == null) {
@@ -639,10 +629,7 @@ export function ChatSurface({
 
   const createSession = async () => {
     try {
-      const s = await invoke<ChatSession & { conversation_id: number }>('chat_create_session', {
-        title: 'New chat',
-      });
-      setSessions(prev => [s, ...prev]);
+      const s = await createChatSession('New chat');
       onSessionChange?.(s.session_id);
     } catch (err) {
       pushToast({ tone: 'warn', title: 'New session failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
@@ -670,8 +657,7 @@ export function ChatSurface({
 
   const renameSession = async (sessionId: string, title: string) => {
     try {
-      await invoke('chat_rename_session', { sessionId, title });
-      await loadSessions();
+      await renameChatSession(sessionId, title);
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Rename failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
@@ -679,11 +665,10 @@ export function ChatSurface({
 
   const archiveSession = async (sessionId: string) => {
     try {
-      await invoke('chat_archive_session', { sessionId });
-      const remaining = sessions.filter(s => s.session_id !== sessionId);
-      setSessions(remaining);
-      if (activeId === sessionId && remaining.length > 0) onSessionChange?.(remaining[0].session_id);
-      await loadSessions();
+      await archiveChatSession(sessionId, {
+        wasActive: activeId === sessionId,
+        onReassign: (nextActiveSessionId) => onSessionChange?.(nextActiveSessionId),
+      });
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Archive failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
