@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { ScientiaDashboard } from './ScientiaDashboard';
 import { ClaimsView } from './ClaimsView';
+import { HarnessIssuesPanel } from './HarnessIssuesPanel';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'claims', label: 'Claims' },
+  { id: 'harness', label: 'Harness Issues' },
 ] as const;
 
 type ScientiaTab = typeof TABS[number]['id'];
@@ -37,7 +39,13 @@ export function ScientiaSurface(props: SurfaceDecoratorProps) {
           </button>
         ))}
       </div>
-      {tab === 'dashboard' ? <ScientiaDashboard {...props} /> : <ClaimsView {...props} />}
+      {tab === 'dashboard' ? (
+        <ScientiaDashboard {...props} />
+      ) : tab === 'claims' ? (
+        <ClaimsView {...props} />
+      ) : (
+        <HarnessIssuesPanel {...props} />
+      )}
     </div>
   );
 }
