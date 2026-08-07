@@ -73,11 +73,8 @@ pub fn expand_spoken_symbols(text: &str) -> String {
         ("backslash", "\\"),
     ];
     for (phrase, sym) in pairs {
-        loop {
-            match find_boundary_match(s.as_bytes(), phrase.as_bytes(), 0) {
-                Some(i) => s.replace_range(i..i + phrase.len(), sym),
-                None => break,
-            }
+        while let Some(i) = find_boundary_match(s.as_bytes(), phrase.as_bytes(), 0) {
+            s.replace_range(i..i + phrase.len(), sym);
         }
     }
     s
