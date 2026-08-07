@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-
-type TaskPolicyEntry = { clutch?: string; risk?: string };
-type TaskPolicyOverrides = {
-  category: Record<string, TaskPolicyEntry>;
-  source: Record<string, TaskPolicyEntry>;
-};
+import { voxTransport, type TaskPolicyEntry, type TaskPolicyOverrides } from '../../../transport';
 
 const CLUTCH_OPTIONS = ['free', 'efficiency', 'balanced', 'genius'];
 const RISK_OPTIONS = ['high', 'moderate', 'low'];
@@ -31,7 +25,7 @@ export function TaskPolicySection() {
   const [addScope, setAddScope] = useState('');
 
   const refresh = useCallback(() => {
-    invoke<TaskPolicyOverrides>('get_task_policy_overrides').then(setOverrides);
+    voxTransport.getTaskPolicyOverrides().then(setOverrides);
   }, []);
 
   useEffect(() => {
@@ -52,11 +46,11 @@ export function TaskPolicySection() {
   ];
 
   const setOverride = (scopeKind: 'category' | 'source', scopeKey: string, clutch?: string, risk?: string) => {
-    invoke('set_task_policy_override', { scopeKind, scopeKey, clutch, risk }).then(refresh);
+    voxTransport.setTaskPolicyOverride(scopeKind, scopeKey, clutch, risk).then(refresh);
   };
 
   const clearOverride = (scopeKind: 'category' | 'source', scopeKey: string) => {
-    invoke('clear_task_policy_override', { scopeKind, scopeKey }).then(refresh);
+    voxTransport.clearTaskPolicyOverride(scopeKind, scopeKey).then(refresh);
   };
 
   const addableCategories = ALL_CATEGORIES.filter((c) => !(c in overrides.category));

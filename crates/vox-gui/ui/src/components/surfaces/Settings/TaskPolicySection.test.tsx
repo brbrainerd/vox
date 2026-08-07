@@ -3,9 +3,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 
-const mockInvoke = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => mockInvoke(...args),
+const mockGetTaskPolicyOverrides = vi.fn();
+const mockSetTaskPolicyOverride = vi.fn();
+const mockClearTaskPolicyOverride = vi.fn();
+
+vi.mock('../../../transport', () => ({
+  voxTransport: {
+    getTaskPolicyOverrides: (...args: unknown[]) => mockGetTaskPolicyOverrides(...args),
+    setTaskPolicyOverride: (...args: unknown[]) => mockSetTaskPolicyOverride(...args),
+    clearTaskPolicyOverride: (...args: unknown[]) => mockClearTaskPolicyOverride(...args),
+  },
 }));
 
 import { TaskPolicySection } from './TaskPolicySection';
@@ -13,16 +20,15 @@ import { TaskPolicySection } from './TaskPolicySection';
 describe('TaskPolicySection', () => {
   beforeEach(() => {
     cleanup();
-    mockInvoke.mockReset();
-    mockInvoke.mockImplementation((cmd: string) => {
-      if (cmd === 'get_task_policy_overrides') {
-        return Promise.resolve({
-          category: { CodeGen: { clutch: 'efficiency', risk: 'moderate' } },
-          source: {},
-        });
-      }
-      return Promise.resolve(undefined);
+    mockGetTaskPolicyOverrides.mockReset();
+    mockSetTaskPolicyOverride.mockReset();
+    mockClearTaskPolicyOverride.mockReset();
+    mockGetTaskPolicyOverrides.mockResolvedValue({
+      category: { CodeGen: { clutch: 'efficiency', risk: 'moderate' } },
+      source: {},
     });
+    mockSetTaskPolicyOverride.mockResolvedValue(undefined);
+    mockClearTaskPolicyOverride.mockResolvedValue(undefined);
   });
 
   it('renders existing overrides', async () => {
@@ -36,10 +42,7 @@ describe('TaskPolicySection', () => {
     await waitFor(() => expect(screen.getByText(/CodeGen/i)).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /remove/i }));
     await waitFor(() =>
-      expect(mockInvoke).toHaveBeenCalledWith('clear_task_policy_override', {
-        scopeKind: 'category',
-        scopeKey: 'CodeGen',
-      })
+      expect(mockClearTaskPolicyOverride).toHaveBeenCalledWith('category', 'CodeGen')
     );
   });
 
@@ -58,12 +61,7 @@ describe('TaskPolicySection', () => {
     fireEvent.click(screen.getByRole('button', { name: /^add$/i }));
 
     await waitFor(() =>
-      expect(mockInvoke).toHaveBeenCalledWith('set_task_policy_override', {
-        scopeKind: 'source',
-        scopeKey: 'Automated',
-        clutch: undefined,
-        risk: undefined,
-      })
+      expect(mockSetTaskPolicyOverride).toHaveBeenCalledWith('source', 'Automated', undefined, undefined)
     );
   });
 });

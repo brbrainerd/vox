@@ -182,7 +182,10 @@ export function Loquela({
       source: 'interactive',
     })
       .then((resolved) => {
-        if (!userTouchedControlRef.current) {
+        // Guard against a malformed/empty IPC response (e.g. an unmocked
+        // `invoke` in a test harness resolving to `null`) — only adopt a
+        // well-formed result, otherwise keep the hardcoded fallback.
+        if (!userTouchedControlRef.current && resolved?.clutch && resolved?.risk) {
           setControl(resolved);
         }
       })

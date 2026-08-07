@@ -260,4 +260,23 @@ describe('Loquela', () => {
     });
     expect(geniusButton).toHaveAttribute('aria-checked', 'true');
   });
+
+  it('keeps the hardcoded default when resolve_default_task_policy resolves to null (e.g. an unmocked IPC call)', async () => {
+    // Regression test: a naive `.then((resolved) => setControl(resolved))`
+    // would set `control` to `null`, crashing DriveConsole's render (it reads
+    // `control.risk`) — this reproduces exactly that shape of response, as
+    // seen from a harness whose default mock resolves unmocked commands to
+    // `null` rather than rejecting.
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'resolve_default_task_policy') {
+        return Promise.resolve(null);
+      }
+      return Promise.resolve([]);
+    });
+    renderLoquela();
+    await waitFor(() => {
+      const efficButton = screen.getByRole('radio', { name: /effic/i });
+      expect(efficButton).toHaveAttribute('aria-checked', 'true');
+    });
+  });
 });
