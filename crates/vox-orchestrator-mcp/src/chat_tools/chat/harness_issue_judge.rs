@@ -19,10 +19,6 @@ const KNOWN_SEVERITIES: &[&str] = &["low", "medium", "high"];
 
 /// A judged, real harness issue. `None` is returned by [`judge`] when the
 /// judge concludes the accumulated signals were not a genuine issue.
-///
-/// Not yet consumed outside this module — Task 11 will wire `judge()` and
-/// this type into the live agent tool-dispatch loop.
-#[allow(dead_code)]
 pub struct JudgedHarnessIssue {
     pub category: String,
     pub severity: String, // always one of KNOWN_SEVERITIES after normalize_severity
@@ -38,6 +34,31 @@ struct JudgeVerdict {
     severity: String,
     #[serde(default)]
     summary: String,
+}
+
+/// Strip a leading ```` ```json ```` (or bare ` ``` `) fence and a trailing
+/// ` ``` ` from a model response, if present. Models are asked not to wrap
+/// their JSON in a code fence, but real-world responses do it anyway; this is
+/// a minimal, tolerant unwrap — not a full markdown parser.
+fn strip_markdown_fence(raw: &str) -> &str {
+    let trimmed = raw.trim();
+    let without_open = trimmed
+        .strip_prefix("```")
+        .map(|rest| {
+            // Drop an optional language tag (e.g. "json") up to the first newline.
+            match rest.find('\n') {
+                Some(idx) if rest[..idx].trim().chars().all(|c| c.is_ascii_alphabetic()) => {
+                    &rest[idx + 1..]
+                }
+                _ => rest,
+            }
+        })
+        .unwrap_or(trimmed);
+    without_open
+        .trim()
+        .strip_suffix("```")
+        .map(str::trim)
+        .unwrap_or_else(|| without_open.trim())
 }
 
 fn normalize_severity(raw: &str) -> String {
@@ -61,10 +82,6 @@ If this looks like normal iterative debugging rather than a stuck loop, set is_i
 /// Judge a small excerpt of recent tool-call activity. Returns `None` for
 /// both an explicit "not a real issue" verdict and an unparseable/failed
 /// response — a judge failure must never crash or block the chat turn.
-///
-/// Not yet called from production code — Task 11 wires this into the live
-/// agent tool-dispatch loop.
-#[allow(dead_code)]
 pub async fn judge(recent_activity: &str, model: &str) -> Option<JudgedHarnessIssue> {
     let messages = vec![
         LlmChatMessage {
@@ -121,7 +138,8 @@ pub async fn judge(recent_activity: &str, model: &str) -> Option<JudgedHarnessIs
         ActivityResult::Cancelled => return None,
     };
 
-    let verdict: JudgeVerdict = match serde_json::from_str(response.content.trim()) {
+    let verdict: JudgeVerdict = match serde_json::from_str(strip_markdown_fence(&response.content))
+    {
         Ok(v) => v,
         Err(e) => {
             tracing::warn!(target: "harness_issue_judge", error = %e, raw = %response.content, "judge response was not valid JSON");
@@ -141,7 +159,7 @@ pub async fn judge(recent_activity: &str, model: &str) -> Option<JudgedHarnessIs
 
 #[cfg(test)]
 mod tests {
-    use super::{JudgeVerdict, normalize_severity};
+    use super::{JudgeVerdict, normalize_severity, strip_markdown_fence};
 
     #[test]
     fn parses_a_real_issue_verdict() {
@@ -168,5 +186,28 @@ mod tests {
     fn normalize_severity_falls_back_to_medium_for_unknown_values() {
         assert_eq!(normalize_severity("Critical"), "medium");
         assert_eq!(normalize_severity(""), "medium");
+    }
+
+    #[test]
+    fn strip_markdown_fence_unwraps_fenced_json_with_language_tag() {
+        let raw = "```json\n{\"is_issue\": true, \"category\": \"x\"}\n```";
+        let unwrapped = strip_markdown_fence(raw);
+        let v: JudgeVerdict = serde_json::from_str(unwrapped).expect("parses");
+        assert!(v.is_issue);
+        assert_eq!(v.category, "x");
+    }
+
+    #[test]
+    fn strip_markdown_fence_unwraps_bare_fence() {
+        let raw = "```\n{\"is_issue\": false}\n```";
+        let unwrapped = strip_markdown_fence(raw);
+        let v: JudgeVerdict = serde_json::from_str(unwrapped).expect("parses");
+        assert!(!v.is_issue);
+    }
+
+    #[test]
+    fn strip_markdown_fence_leaves_unfenced_json_unchanged() {
+        let raw = "{\"is_issue\": false}";
+        assert_eq!(strip_markdown_fence(raw), raw);
     }
 }
