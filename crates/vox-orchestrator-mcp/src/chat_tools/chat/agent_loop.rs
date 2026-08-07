@@ -160,6 +160,7 @@ pub struct AgentTurnOutcome {
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_agent_turn(
     state: &ServerState,
+    session_id: Option<&str>,
     prior_conversation: Vec<LlmChatMessage>,
     system_prompt: String,
     user_message: String,
@@ -168,6 +169,9 @@ pub(crate) async fn run_agent_turn(
     llm_config_template: LlmConfig,
     max_iterations: usize,
 ) -> Result<AgentTurnOutcome, String> {
+    // Not yet consumed: threaded through in preparation for Task 11, which will
+    // tag detected harness issues with the chat session they originated from.
+    let _ = session_id;
     let mut messages: Vec<LlmChatMessage> = Vec::with_capacity(prior_conversation.len() + 2);
     messages.push(LlmChatMessage {
         role: "system".into(),
@@ -424,6 +428,7 @@ pub async fn eval_gate_agent_loop_terminates_check() -> Result<(), String> {
     let max_iterations = 3;
     let outcome = run_agent_turn(
         &state,
+        Some("eval-gate"),
         vec![],
         "system prompt".to_string(),
         "eval-gate: loop forever please".to_string(),
@@ -575,6 +580,7 @@ mod tests {
         let config = test_config(format!("{}/chat/completions", server.uri()));
         let outcome = run_agent_turn(
             &state,
+            None,
             vec![],
             "system prompt".to_string(),
             "hi".to_string(),
@@ -616,6 +622,7 @@ mod tests {
         let config = test_config(format!("{}/chat/completions", server.uri()));
         let outcome = run_agent_turn(
             &state,
+            None,
             vec![],
             "system prompt".to_string(),
             "what's the git status?".to_string(),
@@ -671,6 +678,7 @@ mod tests {
         let config = test_config(format!("{}/chat/completions", server.uri()));
         run_agent_turn(
             &state,
+            None,
             vec![],
             "system prompt".to_string(),
             "hi".to_string(),
@@ -722,6 +730,7 @@ mod tests {
         let max_iterations = 3;
         let outcome = run_agent_turn(
             &state,
+            None,
             vec![],
             "system prompt".to_string(),
             "loop forever please".to_string(),

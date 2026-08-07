@@ -135,6 +135,7 @@ async fn try_run_agent_turn(
     // to size, hence the heap indirection here rather than a plain `.await`.
     match Box::pin(super::agent_loop::run_agent_turn(
         state,
+        Some(session_id),
         vec![], // history is already folded into `user_prompt` as text (see Task 1.1
         // context_parts above) — passing it again here would duplicate it.
         system_prompt.to_string(),
