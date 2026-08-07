@@ -273,6 +273,49 @@ pub async fn resolve_harness_fix_proposal(proposal_id: i64, approve: bool) -> Re
         .map_err(|e| e.to_string())
 }
 
+/// List harness issues, optionally filtered by status/source.
+#[tauri::command]
+pub async fn list_harness_issues(
+    status: Option<String>,
+    source: Option<String>,
+) -> Result<Vec<vox_db::HarnessIssueRow>, String> {
+    let db = crate::commands::scientia_review::db().await?;
+    db.list_harness_issues(status.as_deref(), source.as_deref(), 200)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// List harness issues for one chat session (used by the inline transcript summary).
+#[tauri::command]
+pub async fn list_harness_issues_for_session(
+    session_key: String,
+) -> Result<Vec<vox_db::HarnessIssueRow>, String> {
+    let db = crate::commands::scientia_review::db().await?;
+    db.list_harness_issues_for_session(&session_key)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Record a human decision (confirm/dismiss) for a harness issue.
+#[tauri::command]
+pub async fn record_harness_issue_decision(
+    issue_id: i64,
+    decision: String,
+    reason: Option<String>,
+) -> Result<(), String> {
+    let db = crate::commands::scientia_review::db().await?;
+    let decided_at_ms = chrono::Utc::now().timestamp_millis();
+    db.record_harness_issue_decision(&vox_db::HarnessIssueDecisionRow {
+        issue_id,
+        decision,
+        actor: "local_user".to_string(),
+        reason,
+        decided_at_ms,
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -382,6 +425,46 @@ mod tests {
             written, new_content,
             "applied content must equal proposed_content exactly"
         );
+    }
+
+    #[tokio::test]
+    async fn recording_a_decision_updates_issue_status_end_to_end() {
+        // Exercises the same DB-level path record_harness_issue_decision
+        // delegates to (this command hardcodes the canonical DB connection,
+        // so — matching the established pattern in scientia_review.rs — this
+        // tests the underlying vox-db op directly against an in-memory DB
+        // rather than invoking the #[tauri::command] fn itself).
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("open db");
+        let issue_id = db
+            .insert_harness_issue(vox_db::NewHarnessIssue {
+                source: "corpus_scan",
+                session_key: None,
+                target_path: Some("examples/golden/x.vox"),
+                detected_at_ms: 1_000,
+                category: "stale_frontmatter",
+                severity: "low",
+                summary: "s",
+                evidence_json: "{}",
+            })
+            .await
+            .expect("insert");
+        db.record_harness_issue_decision(&vox_db::HarnessIssueDecisionRow {
+            issue_id,
+            decision: "confirmed".to_string(),
+            actor: "local_user".to_string(),
+            reason: None,
+            decided_at_ms: 2_000,
+        })
+        .await
+        .expect("record decision");
+        let issue = db
+            .get_harness_issue(issue_id)
+            .await
+            .expect("get")
+            .expect("row exists");
+        assert_eq!(issue.status, "confirmed");
     }
 
     #[test]
