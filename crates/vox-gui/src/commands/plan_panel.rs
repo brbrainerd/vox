@@ -115,7 +115,9 @@ pub async fn plan_open_task_counts(
     session_ids: Vec<String>,
 ) -> Result<std::collections::HashMap<String, i64>, String> {
     let db = pool_db(&pool)?;
-    db.open_task_counts_for_sessions(&session_ids).await.map_err(map_db_err)
+    db.open_task_counts_for_sessions(&session_ids)
+        .await
+        .map_err(map_db_err)
 }
 
 /// The most recently updated `plan_sessions` row linked to a chat session, if any — used to
@@ -127,7 +129,9 @@ pub async fn latest_plan_session_for_chat(
     session_id: String,
 ) -> Result<Option<String>, String> {
     let db = pool_db(&pool)?;
-    db.latest_plan_session_id_for_origin(&session_id).await.map_err(map_db_err)
+    db.latest_plan_session_id_for_origin(&session_id)
+        .await
+        .map_err(map_db_err)
 }
 
 #[cfg(test)]

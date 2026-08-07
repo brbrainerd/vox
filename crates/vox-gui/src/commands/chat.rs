@@ -352,7 +352,9 @@ pub async fn chat_unarchive_session(
         .await
         .map_err(map_db_err)?
         .ok_or_else(|| format!("session {session_id} not found"))?;
-    db.chat_unarchive_conversation(conv_id).await.map_err(map_db_err)
+    db.chat_unarchive_conversation(conv_id)
+        .await
+        .map_err(map_db_err)
 }
 
 /// Secretary gate: never classify a message the composer already submitted

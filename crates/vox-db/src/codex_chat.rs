@@ -1049,10 +1049,7 @@ mod tests {
         assert!(!active.iter().any(|s| s.0 == conv_id));
 
         // Included when include_archived=true.
-        let all = db
-            .chat_list_gui_sessions(40, true)
-            .await
-            .expect("list all");
+        let all = db.chat_list_gui_sessions(40, true).await.expect("list all");
         assert!(all.iter().any(|s| s.0 == conv_id));
 
         db.chat_unarchive_conversation(conv_id)
@@ -1162,14 +1159,20 @@ mod tests {
             .await
             .unwrap();
 
-        let latest = db.latest_plan_session_id_for_origin("chat-z").await.unwrap();
+        let latest = db
+            .latest_plan_session_id_for_origin("chat-z")
+            .await
+            .unwrap();
         assert_eq!(latest.as_deref(), Some("plan-new"));
     }
 
     #[tokio::test]
     async fn latest_plan_session_id_for_origin_is_none_for_a_session_with_no_dispatched_goals() {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
-        let latest = db.latest_plan_session_id_for_origin("chat-with-no-tasks").await.unwrap();
+        let latest = db
+            .latest_plan_session_id_for_origin("chat-with-no-tasks")
+            .await
+            .unwrap();
         assert_eq!(latest, None);
     }
 

@@ -706,7 +706,9 @@ async fn migrate_adds_archived_at_to_a_pre_existing_conversations_table() {
 
     // Simulate a pre-this-change table: drop the column-having table and recreate the
     // OLD shape (no archived_at), matching what a real upgrading user's database looks like.
-    conn.execute_batch("DROP TABLE conversations;").await.unwrap();
+    conn.execute_batch("DROP TABLE conversations;")
+        .await
+        .unwrap();
     conn.execute_batch(
         "CREATE TABLE conversations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -731,14 +733,19 @@ async fn migrate_adds_archived_at_to_a_pre_existing_conversations_table() {
     // simulate a database that has never seen this version, matching what a real
     // upgrading user's `schema_version` row actually looks like before their first
     // launch on the new binary.
-    conn.execute_batch("DELETE FROM schema_version;").await.unwrap();
+    conn.execute_batch("DELETE FROM schema_version;")
+        .await
+        .unwrap();
 
     // Re-run the same migration path a real app startup takes.
     crate::VoxDb::migrate(conn)
         .await
         .expect("migrate should backfill archived_at");
 
-    let mut cols = conn.query("PRAGMA table_info(conversations)", ()).await.unwrap();
+    let mut cols = conn
+        .query("PRAGMA table_info(conversations)", ())
+        .await
+        .unwrap();
     let mut found = false;
     while let Some(row) = cols.next().await.unwrap() {
         let name: String = row.get(1).unwrap();
