@@ -29,10 +29,24 @@ const PENDING_PROPOSAL = {
   resolved_at_ms: null,
 };
 
+// A confirmed issue with a target_path but no matching pending proposal —
+// the "confirm succeeded, propose-fix failed/pending" stuck state the retry
+// affordance exists to unstick.
+const CONFIRMED_STUCK_ROW = {
+  ...PENDING_ROW,
+  id: 99,
+  status: 'confirmed',
+  summary: 'Confirmed but the fix proposal never landed',
+};
+
 let fixProposals: unknown[] = [];
 
-const invokeMock = vi.fn((cmd: string, _args?: unknown) => {
-  if (cmd === 'list_harness_issues') return Promise.resolve([PENDING_ROW]);
+const invokeMock = vi.fn((cmd: string, args?: unknown) => {
+  if (cmd === 'list_harness_issues') {
+    const status = (args as { status?: string } | undefined)?.status;
+    if (status === 'confirmed') return Promise.resolve([CONFIRMED_STUCK_ROW]);
+    return Promise.resolve([PENDING_ROW]);
+  }
   if (cmd === 'list_harness_fix_proposals') return Promise.resolve(fixProposals);
   if (cmd === 'record_harness_issue_decision') return Promise.resolve();
   if (cmd === 'propose_harness_issue_fix') return Promise.resolve(1);
@@ -107,5 +121,26 @@ describe('HarnessIssuesPanel', () => {
     });
 
     fixProposals = [];
+  });
+
+  it('offers a retry-propose-fix action for a confirmed issue with no matching pending proposal', async () => {
+    render(<HarnessIssuesPanel pushToast={vi.fn()} />);
+    await screen.findByText('Golden example foo.vox references a retired API');
+
+    fireEvent.change(screen.getByLabelText('Filter by status'), { target: { value: 'confirmed' } });
+    await screen.findByText('Confirmed but the fix proposal never landed');
+
+    fireEvent.click(screen.getByText('Retry propose fix'));
+
+    await waitFor(() => {
+      expect(
+        invokeMock.mock.calls.some(
+          ([cmd, args]) =>
+            cmd === 'propose_harness_issue_fix' &&
+            (args as { issueId: number; targetPath: string }).issueId === 99 &&
+            (args as { issueId: number; targetPath: string }).targetPath === 'examples/golden/foo.vox',
+        ),
+      ).toBe(true);
+    });
   });
 });

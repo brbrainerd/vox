@@ -40,7 +40,14 @@ impl HarnessIssueScorer {
     pub fn record(&mut self, tool_name: &str, args_json: &str, result: &str) -> bool {
         let mut hit = false;
 
-        let is_error = result.starts_with("Error:") || result.contains("\"success\":false");
+        // Tool results are commonly rendered via `serde_json::to_string_pretty`
+        // (`ToolResult::to_json`), which inserts a space after the colon —
+        // match both the pretty and compact envelope shapes so the common
+        // pretty-printed case doesn't silently fall out of error-signature
+        // detection.
+        let is_error = result.starts_with("Error:")
+            || result.contains("\"success\":false")
+            || result.contains("\"success\": false");
         if is_error {
             let first_line = result.lines().next().unwrap_or(result);
             let mut hasher = DefaultHasher::new();
@@ -150,6 +157,17 @@ mod tests {
                 "ok: build succeeded"
             ));
         }
+    }
+
+    #[test]
+    fn pretty_printed_json_error_envelope_is_detected_as_an_error() {
+        let mut scorer = HarnessIssueScorer::new();
+        // serde_json::to_string_pretty's shape: space after the colon.
+        let pretty = "{\n  \"success\": false,\n  \"error\": \"E0502\"\n}";
+        assert!(!scorer.record("build_crate", "{}", pretty)); // count=1, no hit
+        assert!(!scorer.record("build_crate", "{}", pretty)); // count=2, hit, score=1
+        assert!(!scorer.record("build_crate", "{}", pretty)); // count=3, hit, score=2
+        assert!(scorer.record("build_crate", "{}", pretty)); // count=4, hit, score=3 -> true
     }
 
     #[test]

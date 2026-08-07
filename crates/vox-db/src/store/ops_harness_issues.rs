@@ -151,6 +151,28 @@ impl VoxDb {
         Ok(rows.next().await.map_err(StoreError::Turso)?.is_some())
     }
 
+    /// Check whether a pending `chat_session` issue with the same
+    /// session/category already exists — used by the chat-turn detector to
+    /// avoid inserting duplicate rows when the scorer re-crosses threshold on
+    /// the same stuck-loop signature multiple times within one turn.
+    pub async fn has_pending_harness_issue_for_session(
+        &self,
+        session_key: &str,
+        category: &str,
+    ) -> Result<bool, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT 1 FROM scientia_harness_issues \
+                 WHERE status = 'pending' AND source = 'chat_session' \
+                 AND session_key = ?1 AND category = ?2 LIMIT 1",
+                params![session_key.to_string(), category.to_string()],
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        Ok(rows.next().await.map_err(StoreError::Turso)?.is_some())
+    }
+
     /// List harness issues, optionally filtered by `status` and/or `source`, newest first.
     pub async fn list_harness_issues(
         &self,
@@ -273,6 +295,55 @@ mod tests {
             .expect("get")
             .expect("row exists");
         assert_eq!(fetched.id, id);
+    }
+
+    #[tokio::test]
+    async fn has_pending_harness_issue_for_session_detects_existing_pending_row() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        assert!(
+            !db.has_pending_harness_issue_for_session("session-abc", "repeated_compiler_error")
+                .await
+                .expect("check before insert")
+        );
+
+        let id = db
+            .insert_harness_issue(NewHarnessIssue {
+                source: "chat_session",
+                session_key: Some("session-abc"),
+                target_path: None,
+                detected_at_ms: 1_000,
+                category: "repeated_compiler_error",
+                severity: "medium",
+                summary: "Same borrow-checker error hit twice in a row",
+                evidence_json: r#"{"error_hash":"deadbeef"}"#,
+            })
+            .await
+            .expect("insert");
+
+        assert!(
+            db.has_pending_harness_issue_for_session("session-abc", "repeated_compiler_error")
+                .await
+                .expect("check after insert")
+        );
+        assert!(
+            !db.has_pending_harness_issue_for_session("session-abc", "other_category")
+                .await
+                .expect("different category is not a dup")
+        );
+        assert!(
+            !db.has_pending_harness_issue_for_session("session-xyz", "repeated_compiler_error")
+                .await
+                .expect("different session is not a dup")
+        );
+
+        db.set_harness_issue_status(id, "confirmed")
+            .await
+            .expect("confirm");
+        assert!(
+            !db.has_pending_harness_issue_for_session("session-abc", "repeated_compiler_error")
+                .await
+                .expect("confirmed issue is no longer pending")
+        );
     }
 
     #[tokio::test]

@@ -33,23 +33,29 @@ impl VoxDb {
                 "scientia_harness_decisions.actor must be non-empty".to_string(),
             ));
         }
-        self.conn
-            .execute(
-                "INSERT INTO scientia_harness_decisions \
-                 (issue_id, decision, actor, reason, decided_at_ms) \
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![
-                    row.issue_id,
-                    row.decision.clone(),
-                    row.actor.clone(),
-                    row.reason.clone(),
-                    row.decided_at_ms,
-                ],
-            )
-            .await
-            .map_err(StoreError::Turso)?;
-        self.set_harness_issue_status(row.issue_id, &row.decision)
-            .await
+        // Both writes must land together — a decision recorded without the issue's
+        // status flipping (or vice versa) would leave the ledger and the issue's
+        // actionable state disagreeing after a crash mid-write.
+        self.transaction(async {
+            self.conn
+                .execute(
+                    "INSERT INTO scientia_harness_decisions \
+                     (issue_id, decision, actor, reason, decided_at_ms) \
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![
+                        row.issue_id,
+                        row.decision.clone(),
+                        row.actor.clone(),
+                        row.reason.clone(),
+                        row.decided_at_ms,
+                    ],
+                )
+                .await
+                .map_err(StoreError::Turso)?;
+            self.set_harness_issue_status(row.issue_id, &row.decision)
+                .await
+        })
+        .await
     }
 }
 

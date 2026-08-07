@@ -170,6 +170,14 @@ pub(crate) async fn run_agent_turn(
     max_iterations: usize,
 ) -> Result<AgentTurnOutcome, String> {
     let mut harness_scorer = super::harness_issue_scorer::HarnessIssueScorer::new();
+    // Read once per turn, not per tool call — the flag cannot change mid-turn
+    // (no code path mutates it during a single `run_agent_turn` invocation).
+    let harness_detection_enabled = {
+        let cfg_handle = state.orchestrator.config_handle();
+        crate::sync_poison::poison_rw_read(cfg_handle.read(), "orchestrator config")
+            .map(|cfg| cfg.harness_issue_detection_enabled)
+            .unwrap_or(false)
+    };
     let mut messages: Vec<LlmChatMessage> = Vec::with_capacity(prior_conversation.len() + 2);
     messages.push(LlmChatMessage {
         role: "system".into(),
@@ -266,13 +274,7 @@ pub(crate) async fn run_agent_turn(
                         Err(e) => format!("Error: {e}"),
                     };
 
-                    let detection_enabled = {
-                        let cfg_handle = state.orchestrator.config_handle();
-                        crate::sync_poison::poison_rw_read(cfg_handle.read(), "orchestrator config")
-                            .map(|cfg| cfg.harness_issue_detection_enabled)
-                            .unwrap_or(false)
-                    };
-                    if detection_enabled {
+                    if harness_detection_enabled {
                         let is_error = content.starts_with("Error:")
                             || crate::server_state::tool_json_envelope_is_error(&content);
                         let crossed = harness_scorer.record(
@@ -289,16 +291,53 @@ pub(crate) async fn run_agent_turn(
                             );
                             let db = state.db.clone();
                             let session_key = session_id.map(str::to_string);
+                            // The judge's own model must be a real, resolved id — a
+                            // literal "auto" is not a recognized provider and every
+                            // real call would fail silently (judge() swallows LLM
+                            // errors and returns None). Resolve it the same way
+                            // propose_harness_issue_fix does.
+                            let judge_model =
+                                vox_orchestrator::models::select_with_default_registry(
+                                    &vox_orchestrator::models::SelectionIntent::review(),
+                                )
+                                .map(|o| o.model_id)
+                                .unwrap_or_else(|| "google/gemini-3.1-pro".to_string());
                             tokio::spawn(async move {
-                                let Some(issue) =
-                                    super::harness_issue_judge::judge(&recent_activity, "auto")
-                                        .await
+                                let Some(issue) = super::harness_issue_judge::judge(
+                                    &recent_activity,
+                                    &judge_model,
+                                )
+                                .await
                                 else {
                                     return;
                                 };
                                 let Some(db) = db else {
                                     return;
                                 };
+                                // The scorer can re-cross threshold more than once
+                                // per turn on the same stuck-loop signature; dedup
+                                // against any still-pending issue for this
+                                // session/category so one incident doesn't flood
+                                // the review queue with duplicate rows.
+                                if let Some(session_key) = session_key.as_deref() {
+                                    match db
+                                        .has_pending_harness_issue_for_session(
+                                            session_key,
+                                            &issue.category,
+                                        )
+                                        .await
+                                    {
+                                        Ok(true) => return,
+                                        Ok(false) => {}
+                                        Err(e) => {
+                                            tracing::warn!(
+                                                target: "harness_issue_judge",
+                                                error = %e,
+                                                "failed to check for a pending duplicate harness issue"
+                                            );
+                                        }
+                                    }
+                                }
                                 let insert_result = db
                                     .insert_harness_issue(vox_db::NewHarnessIssue {
                                         source: "chat_session",

@@ -86,6 +86,19 @@ export function HarnessIssuesPanel({ pushToast }: SurfaceDecoratorProps) {
     [pushToast, refresh],
   );
 
+  const retryProposeFix = useCallback(
+    async (issue: HarnessIssueRow) => {
+      if (!issue.target_path) return;
+      try {
+        await proposeHarnessIssueFix(issue.id, issue.target_path);
+        await refresh();
+      } catch (err) {
+        pushToast({ tone: 'warn', title: 'Harness issues', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+      }
+    },
+    [pushToast, refresh],
+  );
+
   return (
     <div className="flex min-h-0 flex-col gap-4 p-4">
       <div className="flex items-center justify-between gap-2">
@@ -150,6 +163,19 @@ export function HarnessIssuesPanel({ pushToast }: SurfaceDecoratorProps) {
                   </button>
                 </div>
               )}
+              {issue.status === 'confirmed' &&
+                issue.target_path &&
+                !proposals.some((p) => p.issue_id === issue.id) && (
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => retryProposeFix(issue)}
+                      className="rounded border border-brass/30 bg-brass/10 px-2 py-1 text-xs text-brass"
+                    >
+                      Retry propose fix
+                    </button>
+                  </div>
+                )}
             </div>
           ))
         )}
