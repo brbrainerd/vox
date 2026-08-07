@@ -180,4 +180,20 @@ describe('ChatSessionRail', () => {
     const inactiveRow = screen.getByTestId('session-row-r2');
     expect(inactiveRow.className).toMatch(/border-transparent/);
   });
+
+  it('shows a pending-issue badge only for sessions in pendingIssueSessionIds', () => {
+    render(
+      <LanguageProvider>
+        <ChatSessionRail
+          sessions={sessions}
+          activeSessionId="s1"
+          onSessionChange={vi.fn()}
+          onCreateSession={vi.fn()}
+          pendingIssueSessionIds={new Set(['s1'])}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByTestId('session-issue-badge-s1')).toBeInTheDocument();
+    expect(screen.queryByTestId('session-issue-badge-s2')).toBeNull();
+  });
 });

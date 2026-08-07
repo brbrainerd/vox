@@ -17,6 +17,10 @@ export interface ChatSessionRailProps {
   onCreateSession: () => void;
   onRenameSession?: (sessionId: string, title: string) => void;
   onArchiveSession?: (sessionId: string) => void;
+  /** session_ids with at least one PENDING scientia_harness_issues row —
+   * intentionally pending-only, not "any issue ever," so a dismissed/
+   * confirmed issue doesn't leave a stale attention dot. */
+  pendingIssueSessionIds?: Set<string>;
 }
 
 export function ChatSessionRail({
@@ -26,6 +30,7 @@ export function ChatSessionRail({
   onCreateSession,
   onRenameSession,
   onArchiveSession,
+  pendingIssueSessionIds,
 }: ChatSessionRailProps) {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -99,6 +104,13 @@ export function ChatSessionRail({
                   }`}
                 >
                   <span className="min-w-0 flex-1 line-clamp-2 break-words">{s.title}</span>
+                  {pendingIssueSessionIds?.has(s.session_id) ? (
+                    <span
+                      data-testid={`session-issue-badge-${s.session_id}`}
+                      title="Harness issue detected"
+                      className="mt-0.5 size-1.5 shrink-0 rounded-full bg-amber-400"
+                    />
+                  ) : null}
                   {s.message_count > 0 ? (
                     <span className="shrink-0 pt-px font-mono text-[10px] text-text-muted">{s.message_count}</span>
                   ) : null}
