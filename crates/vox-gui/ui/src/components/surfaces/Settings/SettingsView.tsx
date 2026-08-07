@@ -9,6 +9,7 @@ import { voxTransport } from '../../../transport';
 import type { OrchestratorStatus, RoutingSummary, Toast } from '../../../types/tauri';
 import { DEFAULT_BUDGET_CAP_USD } from '../../../config/budget';
 import { PriorityChainEditor } from './PriorityChainEditor';
+import { TaskPolicySection } from './TaskPolicySection';
 import { HudTilesEditor } from './HudTilesEditor';
 import { applyTheme } from '../../../lib/theme';
 import { useLocalStorage } from '../../../hooks/useLocalStorage';
@@ -1523,6 +1524,10 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             {/* Ordered priority chain — the additive, orderable form of emphasis.
                 An EmphasizeAxis step is the ordered version of the sliders above. */}
             <PriorityChainEditor pushToast={pushToast} />
+
+            {/* Per-task-category / per-trigger-source overrides on top of the
+                global emphasis/priority chain above. */}
+            <TaskPolicySection />
           </>
         )}
 

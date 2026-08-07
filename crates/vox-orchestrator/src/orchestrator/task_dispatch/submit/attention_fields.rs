@@ -22,6 +22,24 @@ pub(super) fn task_description_suggests_external(description: &str) -> bool {
         || d.contains("secret ")
 }
 
+/// Effective approval tier after risk-policy escalation: explicit hint > category
+/// policy > source policy, falling through to `classified` unchanged when nothing
+/// applies anywhere. Extracted from `populate_task_attention_fields` so it's
+/// unit-testable without a live `Orchestrator`. Mirrors
+/// `runtime.rs::resolve_task_cost_policy` and
+/// `socrates.rs::resolve_grounding_socrates_enforce`'s precedence.
+#[must_use]
+fn effective_approval_tier(
+    task: &AgentTask,
+    overrides: &crate::config::TaskPolicyOverrides,
+    classified: ApprovalTier,
+) -> ApprovalTier {
+    match crate::mode::effective_risk_for_task(task, overrides) {
+        Some(risk) => classified.max_strictness(risk.resolve().approval.to_approval_tier()),
+        None => classified,
+    }
+}
+
 /// Set Phase-15 attention metadata from trust, manifest, and orchestrator attention config.
 pub(super) fn populate_task_attention_fields(
     orch: &Orchestrator,
@@ -79,17 +97,11 @@ pub(super) fn populate_task_attention_fields(
     };
     let entropy = decision_entropy_bits(approve_rate);
     let tier = classify_tier(&trust, &action, entropy, &config.tier_gate);
-    // Task E: RiskPosture may *escalate* the trust-classified tier (e.g. Low risk
-    // forces Review) but must never demote below what trust warranted. Take the
-    // stricter of (classified, risk-derived). None == Moderate-equivalent, which
-    // resolves to Confirm and therefore cannot demote a higher classified tier.
-    let effective_tier = match task.risk_posture {
-        Some(_) => {
-            let risk_tier = task.resolved_risk().approval.to_approval_tier();
-            tier.max_strictness(risk_tier)
-        }
-        None => tier,
-    };
+    // Task E/2.4: RiskPosture may *escalate* the trust-classified tier (e.g. Low
+    // risk forces Review) but must never demote below what trust warranted. See
+    // `effective_approval_tier` for the full precedence chain (explicit hint >
+    // category policy > source policy).
+    let effective_tier = effective_approval_tier(task, &config.task_policy, tier);
     task.approval_tier = Some(effective_tier);
     let base = config.attention_interrupt_cost_ms.max(1);
     let cost = compute_attention_cost_ms(
@@ -166,6 +178,13 @@ mod tests {
         }
     }
 
+    fn empty_overrides() -> crate::config::TaskPolicyOverrides {
+        crate::config::TaskPolicyOverrides {
+            category: std::collections::HashMap::new(),
+            source: std::collections::HashMap::new(),
+        }
+    }
+
     #[test]
     fn low_risk_escalates_confirm_to_review() {
         // Low risk resolves to ApprovalLean::Review.
@@ -189,6 +208,121 @@ mod tests {
         assert_eq!(
             effective(ApprovalTier::Blocked, Some(crate::mode::RiskPosture::High)),
             ApprovalTier::Blocked
+        );
+    }
+
+    // Task 2.4: a task with NO explicit risk_posture, but a configured
+    // category-policy risk override, must still get its approval tier
+    // escalated -- reproduces the same "policy has zero effect without an
+    // explicit hint" bug fixed in runtime.rs for cost/model routing.
+    #[test]
+    fn category_risk_policy_escalates_tier_without_explicit_risk_posture() {
+        use crate::config::{TaskPolicyEntry, TaskPolicyOverrides};
+        use std::collections::HashMap;
+
+        let mut category = HashMap::new();
+        category.insert(
+            format!("{:?}", crate::types::TaskCategory::CodeGen),
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("low".to_string()),
+            },
+        );
+        let overrides = TaskPolicyOverrides {
+            category,
+            source: HashMap::new(),
+        };
+
+        let mut t = AgentTask::new(TaskId(7), "generate code", TaskPriority::Normal, vec![]);
+        t.task_category = crate::types::TaskCategory::CodeGen;
+        assert_eq!(t.risk_posture, None, "no explicit risk hint set");
+
+        // A brand-new/low classified tier (AutoApprove) with no trust history:
+        // if the category policy had zero effect the tier would stay unchanged
+        // -- this assertion fails on the pre-fix code.
+        let effective_tier = effective_approval_tier(&t, &overrides, ApprovalTier::AutoApprove);
+
+        // Low risk resolves to ApprovalLean::Review.
+        assert_eq!(
+            effective_tier,
+            ApprovalTier::Review,
+            "category risk policy (Low) must escalate the tier even with no explicit risk_posture hint"
+        );
+    }
+
+    #[test]
+    fn source_only_risk_policy_escalates_tier() {
+        use crate::config::{TaskPolicyEntry, TaskPolicyOverrides};
+        use std::collections::HashMap;
+
+        let mut source = HashMap::new();
+        source.insert(
+            format!("{:?}", crate::mode::TriggerSource::Automated),
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("low".to_string()),
+            },
+        );
+        let overrides = TaskPolicyOverrides {
+            category: HashMap::new(),
+            source,
+        };
+
+        let mut t = AgentTask::new(TaskId(8), "generate code", TaskPriority::Normal, vec![]);
+        t.trigger_source = Some(crate::mode::TriggerSource::Automated);
+        assert_eq!(t.risk_posture, None, "no explicit risk hint set");
+
+        let effective_tier = effective_approval_tier(&t, &overrides, ApprovalTier::AutoApprove);
+
+        assert_eq!(
+            effective_tier,
+            ApprovalTier::Review,
+            "source risk policy (Low) must escalate the tier even with no category policy or explicit hint"
+        );
+    }
+
+    #[test]
+    fn explicit_risk_posture_wins_over_category_policy() {
+        use crate::config::{TaskPolicyEntry, TaskPolicyOverrides};
+        use std::collections::HashMap;
+
+        let mut category = HashMap::new();
+        category.insert(
+            format!("{:?}", crate::types::TaskCategory::CodeGen),
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("low".to_string()),
+            },
+        );
+        let overrides = TaskPolicyOverrides {
+            category,
+            source: HashMap::new(),
+        };
+
+        let mut t = AgentTask::new(TaskId(9), "generate code", TaskPriority::Normal, vec![]);
+        t.task_category = crate::types::TaskCategory::CodeGen;
+        t.risk_posture = Some(crate::mode::RiskPosture::High);
+
+        // High risk resolves to ApprovalLean::AutoApprove, overriding the
+        // category's Low-risk (Review) policy; classified tier stays as-is
+        // since AutoApprove doesn't escalate above AutoApprove.
+        let effective_tier = effective_approval_tier(&t, &overrides, ApprovalTier::AutoApprove);
+
+        assert_eq!(
+            effective_tier,
+            ApprovalTier::AutoApprove,
+            "explicit risk_posture must win over category policy"
+        );
+    }
+
+    #[test]
+    fn nothing_configured_preserves_classified_tier() {
+        let overrides = empty_overrides();
+        let t = AgentTask::new(TaskId(10), "generate code", TaskPriority::Normal, vec![]);
+
+        assert_eq!(
+            effective_approval_tier(&t, &overrides, ApprovalTier::Confirm),
+            ApprovalTier::Confirm
         );
     }
 

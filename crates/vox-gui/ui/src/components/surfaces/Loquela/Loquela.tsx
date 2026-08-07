@@ -19,7 +19,7 @@ import {
   resolveInternalModeSlash,
 } from '../../../lib/slashRouter';
 import { DriveConsole } from './DriveConsole';
-import { defaultControl, type ControlState } from '../../../lib/driveConsole';
+import { defaultControl, type ClutchId, type ControlState, type RiskId } from '../../../lib/driveConsole';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { IntentPanel } from './IntentPanel';
 import {
@@ -167,6 +167,33 @@ export function Loquela({
   const [tier, setTier] = useState("auto");
   const [dryRun, setDryRun] = useState(false);
   const [control, setControl] = useState<ControlState>(defaultControl);
+  // True once the user has manually changed clutch/risk via DriveConsole —
+  // guards the mount-time fetch below from clobbering that choice if it
+  // resolves after the user has already interacted with the control.
+  const userTouchedControlRef = useRef(false);
+
+  // The hardcoded defaultControl() above is only a cold-start fallback — the
+  // real default is whatever the backend policy resolver would pick for an
+  // interactive chat task, so fetch that on mount and adopt it if it differs
+  // (unless the user has already made their own choice in the meantime).
+  useEffect(() => {
+    invoke<{ clutch: ClutchId; risk: RiskId }>('resolve_default_task_policy', {
+      category: 'Chat',
+      source: 'interactive',
+    })
+      .then((resolved) => {
+        // Guard against a malformed/empty IPC response (e.g. an unmocked
+        // `invoke` in a test harness resolving to `null`) — only adopt a
+        // well-formed result, otherwise keep the hardcoded fallback.
+        if (!userTouchedControlRef.current && resolved?.clutch && resolved?.risk) {
+          setControl(resolved);
+        }
+      })
+      .catch(() => {
+        // Backend unavailable (e.g. cold start) — keep the local hardcoded
+        // default rather than blocking the composer on this fetch.
+      });
+  }, []);
 
   const [skillOpen, setSkillOpen] = useState(false);
   const [tierOpen,  setTierOpen]  = useState(false);
@@ -651,7 +678,10 @@ export function Loquela({
 
           <DriveConsole
             control={control}
-            onControlChange={(n) => setControl(c => ({ ...c, ...n }))}
+            onControlChange={(n) => {
+              userTouchedControlRef.current = true;
+              setControl(c => ({ ...c, ...n }));
+            }}
             spentUsd={sessionBudget?.spent ?? 0}
             budgetUsd={sessionBudget?.cap ?? 0}
           />

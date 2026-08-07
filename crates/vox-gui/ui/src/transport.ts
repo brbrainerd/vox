@@ -663,6 +663,37 @@ class VoxTransport {
   hopperList(): Promise<HarnessHopperItemDto[]> {
     return safeInvoke<HarnessHopperItemDto[]>('hopper_list');
   }
+
+  /** Current per-category/per-source task-policy overrides (Settings panel). */
+  getTaskPolicyOverrides(): Promise<TaskPolicyOverrides> {
+    return safeInvoke<TaskPolicyOverrides>('get_task_policy_overrides');
+  }
+
+  /** `clutch`/`risk` merge onto the scope's existing entry — `undefined` leaves that axis unchanged. */
+  setTaskPolicyOverride(
+    scopeKind: 'category' | 'source',
+    scopeKey: string,
+    clutch?: string,
+    risk?: string,
+  ): Promise<void> {
+    return safeInvoke<void>('set_task_policy_override', { scopeKind, scopeKey, clutch, risk });
+  }
+
+  clearTaskPolicyOverride(scopeKind: 'category' | 'source', scopeKey: string): Promise<void> {
+    return safeInvoke<void>('clear_task_policy_override', { scopeKind, scopeKey });
+  }
+}
+
+/** One category/source entry in {@link TaskPolicyOverrides}; either axis may be unset (inherit). */
+export interface TaskPolicyEntry {
+  clutch?: string;
+  risk?: string;
+}
+
+/** Mirrors Rust `vox_orchestrator::config::TaskPolicyOverrides`. */
+export interface TaskPolicyOverrides {
+  category: Record<string, TaskPolicyEntry>;
+  source: Record<string, TaskPolicyEntry>;
 }
 
 /** Mirrors Rust CI fleet status DTO consumed by the Vox Urbs harness taps. */

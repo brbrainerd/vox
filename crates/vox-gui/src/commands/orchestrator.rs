@@ -589,6 +589,288 @@ pub async fn get_orchestrator_config_catalog() -> Vec<vox_orchestrator::Orchestr
     vox_orchestrator::config::OrchestratorConfig::snapshot().to_catalog()
 }
 
+/// Current per-task-type policy overrides, straight from the effective
+/// `OrchestratorConfig` snapshot (env/project/user-merged, matching every
+/// other orchestrator-settings read in this file).
+#[tauri::command]
+pub fn get_task_policy_overrides() -> vox_orchestrator::config::TaskPolicyOverrides {
+    vox_orchestrator::config::OrchestratorConfig::snapshot().task_policy
+}
+
+/// `ClutchProfile`/`RiskPosture` already derive `Serialize` with
+/// `#[serde(rename_all = "snake_case")]`, so holding them directly (rather
+/// than hand-rolling a second string mapping) can't drift from the wire
+/// format each already produces on its own.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DefaultTaskPolicyDto {
+    pub clutch: vox_orchestrator::mode::ClutchProfile,
+    pub risk: vox_orchestrator::mode::RiskPosture,
+}
+
+/// The composer's real starting clutch/risk for `task_category` — the same
+/// precedence chain (`resolve_task_policy`) the backend uses when actually
+/// executing a task with no explicit hint, so the GUI's shown default can
+/// never drift from what would actually happen. `category` is any string
+/// `TaskCategory::from_str` accepts (case-insensitive, never errors — falls
+/// back to `General`); `source` is a `TriggerSource::from_label` string
+/// (`"interactive"`/`"automated"`/`"subagent"`/`"mesh"`, case-insensitive) —
+/// an unrecognized `source` falls back to `Interactive` via the same
+/// `unwrap_or(TriggerSource::Interactive)` pattern `resolved_policy()` uses
+/// elsewhere, not a parse error.
+#[tauri::command]
+pub fn resolve_default_task_policy(category: String, source: String) -> DefaultTaskPolicyDto {
+    use vox_orchestrator::mode::TriggerSource;
+    use vox_orchestrator::types::{AgentTask, TaskCategory, TaskId, TaskPriority};
+
+    let overrides = vox_orchestrator::config::OrchestratorConfig::snapshot().task_policy;
+    let category: TaskCategory = category.parse().unwrap_or_default();
+    let source = TriggerSource::from_label(&source).unwrap_or(TriggerSource::Interactive);
+
+    // A throwaway, never-submitted task carrying only the two axes this
+    // preview needs — routes through the SAME AgentTask::resolved_policy()
+    // real task execution uses, so this can't drift from the backend's
+    // actual precedence resolution the way a hand-rolled second copy could.
+    let mut preview_task = AgentTask::new(TaskId(0), "", TaskPriority::Normal, Vec::new());
+    preview_task.task_category = category;
+    preview_task.trigger_source = Some(source);
+    let (clutch, risk) = preview_task.resolved_policy(&overrides);
+    DefaultTaskPolicyDto { clutch, risk }
+}
+
+#[cfg(test)]
+mod default_policy_tests {
+    use super::*;
+
+    #[test]
+    fn chat_default_matches_resolve_task_policy_with_no_overrides() {
+        let dto = resolve_default_task_policy("Chat".to_string(), "interactive".to_string());
+        // No overrides configured in a fresh test environment ⇒ falls all the
+        // way to the global default, exactly like resolve_task_policy(None, None, None, None, None, None).
+        assert_eq!(dto.clutch, vox_orchestrator::mode::ClutchProfile::Balanced);
+        assert_eq!(dto.risk, vox_orchestrator::mode::RiskPosture::Moderate);
+    }
+
+    #[test]
+    fn unknown_category_or_source_labels_fall_back_to_global_default() {
+        // TaskCategory::from_str never errors (falls back to General for an
+        // unrecognized string), so this exercises "recognized category with no
+        // configured policy," not a parse failure — still must land on the
+        // same global default since nothing is configured for General either.
+        let dto = resolve_default_task_policy(
+            "NotARealCategory".to_string(),
+            "not_a_real_source".to_string(),
+        );
+        assert_eq!(dto.clutch, vox_orchestrator::mode::ClutchProfile::Balanced);
+        assert_eq!(dto.risk, vox_orchestrator::mode::RiskPosture::Moderate);
+    }
+}
+
+/// Reject unparseable clutch/risk labels before touching Vox.toml. `None`
+/// values are always accepted (that axis just isn't being set/changed).
+fn validate_task_policy_labels(clutch: Option<&str>, risk: Option<&str>) -> Result<(), String> {
+    if let Some(c) = clutch {
+        vox_orchestrator::mode::ClutchProfile::from_label(c)
+            .ok_or_else(|| format!("unknown clutch label: {c}"))?;
+    }
+    if let Some(r) = risk {
+        vox_orchestrator::mode::RiskPosture::from_label(r)
+            .ok_or_else(|| format!("unknown risk label: {r}"))?;
+    }
+    Ok(())
+}
+
+/// Shared plumbing for [`set_task_policy_override`] and
+/// [`clear_task_policy_override`]: read the current `[orchestrator.task_policy.<scope_kind>]`
+/// table, let `mutate` update it in place, write the manifest back, bump the
+/// config snapshot, emit the change event, and fire-and-forget signal the
+/// running orchestrator daemon to reload — exactly like `set_orchestrator_config`
+/// does, without which a write only affects what a future daemon restart
+/// picks up, not the live process. `mutate` receives the scope's CURRENT
+/// table so a caller can merge onto a pre-existing entry rather than
+/// replacing it wholesale.
+fn mutate_task_policy_scope(
+    app_handle: &tauri::AppHandle,
+    daemon: &Arc<PersistentDaemon>,
+    scope_kind: String,
+    mutate: impl FnOnce(&mut toml::map::Map<String, toml::Value>),
+) -> Result<(), String> {
+    let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
+    let (mut manifest, path) = VoxManifest::discover(&current_dir).map_err(|e| e.to_string())?;
+    let mut orch_table = manifest.orchestrator.unwrap_or_default();
+
+    let mut task_policy_table = orch_table
+        .get("task_policy")
+        .and_then(|v| v.as_table())
+        .cloned()
+        .unwrap_or_default();
+    let mut scope_table = task_policy_table
+        .get(&scope_kind)
+        .and_then(|v| v.as_table())
+        .cloned()
+        .unwrap_or_default();
+
+    mutate(&mut scope_table);
+
+    task_policy_table.insert(scope_kind, toml::Value::Table(scope_table));
+    orch_table.insert(
+        "task_policy".to_string(),
+        toml::Value::Table(task_policy_table),
+    );
+
+    manifest.orchestrator = Some(orch_table);
+    let toml_str = manifest.to_toml_string().map_err(|e| e.to_string())?;
+    std::fs::write(&path, toml_str).map_err(|e| e.to_string())?;
+
+    vox_config::snapshot::bump(&["task_policy"]);
+    let _ = app_handle.emit(
+        ORCH_CONFIG_CHANGED_EVENT,
+        OrchestratorConfigChanged {
+            rev: vox_config::snapshot::current_rev(),
+        },
+    );
+
+    // Fire-and-forget: tell the running daemon to reload so this override
+    // affects real task execution immediately, not just after a restart.
+    let daemon = daemon.clone();
+    tokio::spawn(async move {
+        let _ = call_orchestrator_daemon(
+            &daemon,
+            orch_daemon_method::RELOAD_CONFIG,
+            serde_json::json!({}),
+        )
+        .await;
+    });
+
+    Ok(())
+}
+
+/// Merge `clutch`/`risk` into `scope_table`'s entry for `scope_key`,
+/// preserving whichever axis isn't being set (rather than replacing the
+/// entry wholesale) — `None` means "don't change this axis," not "clear it."
+fn merge_task_policy_entry(
+    scope_table: &mut toml::map::Map<String, toml::Value>,
+    scope_key: &str,
+    clutch: Option<&str>,
+    risk: Option<&str>,
+) {
+    let mut entry = scope_table
+        .get(scope_key)
+        .and_then(|v| v.as_table())
+        .cloned()
+        .unwrap_or_default();
+    if let Some(c) = clutch {
+        entry.insert("clutch".to_string(), toml::Value::String(c.to_string()));
+    }
+    if let Some(r) = risk {
+        entry.insert("risk".to_string(), toml::Value::String(r.to_string()));
+    }
+    scope_table.insert(scope_key.to_string(), toml::Value::Table(entry));
+}
+
+/// `scope_kind` is `"category"` or `"source"`; `scope_key` is a `TaskCategory`/
+/// `TriggerSource` Debug name (e.g. `"CodeGen"`, `"Automated"`). Merges onto
+/// any pre-existing entry rather than replacing it wholesale, so passing only
+/// one of `clutch`/`risk` (leaving the other `None`, meaning "don't change
+/// this axis") can't silently drop the other axis's stored value.
+#[tauri::command]
+pub async fn set_task_policy_override(
+    app_handle: tauri::AppHandle,
+    scope_kind: String,
+    scope_key: String,
+    clutch: Option<String>,
+    risk: Option<String>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<(), String> {
+    validate_task_policy_labels(clutch.as_deref(), risk.as_deref())?;
+    let daemon = daemon.inner().clone();
+    mutate_task_policy_scope(&app_handle, &daemon, scope_kind, move |scope_table| {
+        merge_task_policy_entry(scope_table, &scope_key, clutch.as_deref(), risk.as_deref());
+    })
+}
+
+/// Remove one override (`scope_kind`/`scope_key` as in [`set_task_policy_override`]).
+/// Same daemon-reload signal as `set_task_policy_override`.
+#[tauri::command]
+pub async fn clear_task_policy_override(
+    app_handle: tauri::AppHandle,
+    scope_kind: String,
+    scope_key: String,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<(), String> {
+    let daemon = daemon.inner().clone();
+    mutate_task_policy_scope(&app_handle, &daemon, scope_kind, move |scope_table| {
+        scope_table.remove(&scope_key);
+    })
+}
+
+#[cfg(test)]
+mod task_policy_tests {
+    use super::*;
+
+    #[test]
+    fn get_task_policy_overrides_reflects_snapshot() {
+        let overrides = get_task_policy_overrides();
+        // Fresh default config has no overrides yet.
+        assert!(overrides.category.is_empty());
+        assert!(overrides.source.is_empty());
+    }
+
+    #[test]
+    fn set_task_policy_override_rejects_unparseable_labels() {
+        let result = validate_task_policy_labels(Some("turbo"), Some("high"));
+        assert!(
+            result.is_err(),
+            "an unparseable clutch label must be rejected before writing Vox.toml"
+        );
+    }
+
+    #[test]
+    fn set_task_policy_override_accepts_valid_labels() {
+        let result = validate_task_policy_labels(Some("free"), Some("high"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn merge_task_policy_entry_preserves_the_untouched_axis() {
+        // Regression test: an earlier version replaced the entry wholesale
+        // from only the passed clutch/risk, silently dropping whichever axis
+        // was `None` even if a value for it already existed.
+        let mut scope_table = toml::map::Map::new();
+        let mut existing = toml::map::Map::new();
+        existing.insert(
+            "clutch".to_string(),
+            toml::Value::String("free".to_string()),
+        );
+        existing.insert("risk".to_string(), toml::Value::String("high".to_string()));
+        scope_table.insert("CodeGen".to_string(), toml::Value::Table(existing));
+
+        merge_task_policy_entry(&mut scope_table, "CodeGen", Some("genius"), None);
+
+        let entry = scope_table
+            .get("CodeGen")
+            .and_then(|v| v.as_table())
+            .expect("entry must still exist");
+        assert_eq!(entry.get("clutch").and_then(|v| v.as_str()), Some("genius"));
+        assert_eq!(
+            entry.get("risk").and_then(|v| v.as_str()),
+            Some("high"),
+            "risk must survive a clutch-only update"
+        );
+    }
+
+    #[test]
+    fn merge_task_policy_entry_creates_a_fresh_entry_when_none_exists() {
+        let mut scope_table = toml::map::Map::new();
+        merge_task_policy_entry(&mut scope_table, "Automated", Some("free"), Some("low"));
+        let entry = scope_table
+            .get("Automated")
+            .and_then(|v| v.as_table())
+            .expect("entry must exist");
+        assert_eq!(entry.get("clutch").and_then(|v| v.as_str()), Some("free"));
+        assert_eq!(entry.get("risk").and_then(|v| v.as_str()), Some("low"));
+    }
+}
+
 #[cfg(test)]
 mod catalog_tests {
     use vox_orchestrator::config::OrchestratorConfig;

@@ -14,12 +14,47 @@ use super::enums::{CostPreference, OverflowStrategy, ScalingProfile};
 use super::news::NewsConfig;
 use super::scientia_research_mesh::ScientiaResearchMeshConfig;
 
+/// One override entry: a clutch and/or risk label (parsed via
+/// `ClutchProfile::from_label`/`RiskPosture::from_label`). Either may be
+/// `None` — an override can set just one axis, letting the other fall through
+/// to the next precedence level.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TaskPolicyEntry {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clutch: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub risk: Option<String>,
+}
+
+/// User overrides for the per-task-type cost/model policy, loaded from
+/// `[orchestrator.task_policy.category]` / `[orchestrator.task_policy.source]`
+/// in Vox.toml. Keys are `TaskCategory`/`TriggerSource` Debug names (e.g.
+/// `"CodeGen"`, `"Automated"`).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TaskPolicyOverrides {
+    #[serde(default)]
+    pub category: std::collections::HashMap<String, TaskPolicyEntry>,
+    #[serde(default)]
+    pub source: std::collections::HashMap<String, TaskPolicyEntry>,
+}
+
 // `VoxConfig` is opt-in per field (`#[config(...)]`); un-annotated fields are
 // ignored. Defaults here MUST equal `impl_default.rs`. NOT `#[derive(Default)]` —
 // the hand-written `impl Default` (impl_default.rs) is retained. Enums without
 // `FromStr` (CostPreference/ScalingProfile) stay on the manual env merge.
+//
+// Deliberately NOT `deny_unknown_fields`: that combination previously wiped the
+// *entire* `[orchestrator]` section back to defaults the moment any one key was
+// unrecognized (see `unknown_scope_enforcement_does_not_wipe_whole_section` for
+// the bad-*value* case, already fixed via a lenient per-field deserializer).
+// `deny_unknown_fields` covers the sibling bad-*key* case: an older binary
+// reading a Vox.toml written by a newer one (a field it doesn't know about yet)
+// would hit the same fail-the-whole-struct behavior. `unrecognized_fields`
+// below (`#[serde(flatten)]`) catches any key that doesn't match a known field
+// instead of erroring, so the rest of the section still parses; `load_from_toml`
+// logs a warning listing what was ignored, so drift is visible, not silent.
 #[derive(Debug, Clone, Serialize, Deserialize, vox_config::VoxConfig)]
-#[serde(deny_unknown_fields, default)]
+#[serde(default)]
 #[vox_config(prefix = "VOX_ORCHESTRATOR", group = "Orchestrator")]
 pub struct OrchestratorConfig {
     /// Whether the orchestrator is enabled (default: true).
@@ -526,6 +561,25 @@ pub struct OrchestratorConfig {
     /// Optional configuration for the orchestrator-policy budget gate (D7).
     #[serde(default)]
     pub budget_gate_config: Option<crate::budget_gate::BudgetGateConfig>,
+    /// Per-task-type cost/model policy overrides (category + trigger-source).
+    /// See `crate::mode::resolve_task_policy` for how these combine with the
+    /// compiled defaults.
+    #[serde(default)]
+    pub task_policy: TaskPolicyOverrides,
+    /// Catch-all for `[orchestrator]` keys this binary doesn't recognize (e.g.
+    /// a newer binary added a field this one predates). Never populated by
+    /// hand; `#[serde(flatten)]` routes anything that doesn't match a named
+    /// field here instead of failing the whole section's parse.
+    /// `load_from_toml` logs a warning when this is non-empty. Excluded from
+    /// serialization (`skip_serializing`) — this binary doesn't know how to
+    /// round-trip a field it doesn't understand, so it drops it on rewrite
+    /// rather than risk writing back something malformed; the field survives
+    /// as long as the config is only ever re-read, not re-written, by this
+    /// binary (the GUI's actual write path mutates the raw TOML table
+    /// directly and never re-serializes this struct — see
+    /// `vox-gui/src/commands/orchestrator.rs::set_orchestrator_config`).
+    #[serde(flatten, skip_serializing)]
+    pub unrecognized_fields: std::collections::BTreeMap<String, toml::Value>,
 }
 
 // ── Config catalog (Band B.3) ─────────────────────────────────────────────────
@@ -1663,6 +1717,31 @@ mod isolation_config_tests {
             cfg.scope_enforcement,
             crate::scope::ScopeEnforcement::default(),
             "an unknown scope_enforcement value falls back to default"
+        );
+    }
+
+    #[test]
+    fn unrecognized_orchestrator_key_does_not_wipe_the_section() {
+        // Sibling bug to the scope_enforcement case above, but for the KEY
+        // (not the value): simulates an older binary reading a Vox.toml
+        // written by a newer one that has a field this struct doesn't define
+        // yet. Previously `deny_unknown_fields` failed the whole section's
+        // parse the instant it saw a key with no matching field, resetting
+        // every setting to defaults. The flattened `unrecognized_fields`
+        // catch-all must absorb the unknown key instead.
+        let section =
+            "max_auto_continuations = 99\nsome_field_from_a_newer_binary = \"whatever\"\n";
+        let cfg: OrchestratorConfig = toml::from_str(section)
+            .expect("section must still parse with a wholly unrecognized key");
+        assert_eq!(
+            cfg.max_auto_continuations, 99,
+            "an unrelated setting must survive an unrecognized sibling key"
+        );
+        assert_eq!(
+            cfg.unrecognized_fields
+                .get("some_field_from_a_newer_binary"),
+            Some(&toml::Value::String("whatever".to_string())),
+            "the unrecognized key must be captured, not silently discarded, so drift stays observable"
         );
     }
 }

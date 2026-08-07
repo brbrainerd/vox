@@ -1,9 +1,22 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue([]) }));
+// resolve_default_task_policy defaults to the same values as the local
+// hardcoded defaultControl() fallback, so tests that don't care about this
+// fetch keep seeing the composer settle on efficiency/moderate as before.
+const { mockInvoke, defaultMockInvokeImpl } = vi.hoisted(() => {
+  const defaultMockInvokeImpl = (cmd: string) => {
+    if (cmd === 'resolve_default_task_policy') {
+      return Promise.resolve({ clutch: 'efficiency', risk: 'moderate' });
+    }
+    return Promise.resolve([]);
+  };
+  return { mockInvoke: vi.fn(defaultMockInvokeImpl), defaultMockInvokeImpl };
+});
+
+vi.mock('@tauri-apps/api/core', () => ({ invoke: mockInvoke }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
 vi.mock('../../../transport', () => ({
   voxTransport: { listModels: () => Promise.resolve([]) },
@@ -26,6 +39,14 @@ function renderLoquela(over: Partial<React.ComponentProps<typeof Loquela>> = {})
 }
 
 describe('Loquela', () => {
+  afterEach(() => {
+    // Reset both call history and any per-test mockImplementation override
+    // (e.g. from the resolve_default_task_policy test below) so a failing
+    // assertion mid-test can't leak a stale implementation into later tests.
+    mockInvoke.mockReset();
+    mockInvoke.mockImplementation(defaultMockInvokeImpl);
+  });
+
   it('labels the composer textarea (no placeholder-as-label)', () => {
     renderLoquela();
     expect(screen.getByLabelText('Task composer')).toBeDefined();
@@ -193,5 +214,69 @@ describe('Loquela', () => {
     const allKbds = document.querySelectorAll('kbd');
     const kbdsOutsideRunButton = Array.from(allKbds).filter((k) => !runButton.contains(k));
     expect(kbdsOutsideRunButton.map((k) => k.textContent)).not.toContain('⌘↵');
+  });
+
+  it('seeds the DriveConsole default from resolve_default_task_policy instead of a hardcoded guess', async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'resolve_default_task_policy') {
+        return Promise.resolve({ clutch: 'free', risk: 'high' });
+      }
+      return Promise.resolve([]);
+    });
+    renderLoquela();
+    await waitFor(() => {
+      const freeButton = screen.getByRole('radio', { name: /free/i });
+      expect(freeButton).toHaveAttribute('aria-checked', 'true');
+    });
+    // No manual restore needed here — the top-level afterEach resets
+    // mockInvoke back to defaultMockInvokeImpl even if this test fails
+    // before reaching this point.
+  });
+
+  it('does not clobber a user-made clutch pick if resolve_default_task_policy resolves afterward', async () => {
+    let resolveDefault: (value: { clutch: string; risk: string }) => void = () => {};
+    const deferred = new Promise<{ clutch: string; risk: string }>((resolve) => {
+      resolveDefault = resolve;
+    });
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'resolve_default_task_policy') {
+        return deferred;
+      }
+      return Promise.resolve([]);
+    });
+    renderLoquela();
+
+    // User picks "Genius" before the backend's default has resolved.
+    const geniusButton = screen.getByRole('radio', { name: /genius/i });
+    fireEvent.click(geniusButton);
+    expect(geniusButton).toHaveAttribute('aria-checked', 'true');
+
+    // The slow backend fetch now resolves with a DIFFERENT value — it must
+    // not silently revert the user's already-made choice.
+    resolveDefault({ clutch: 'free', risk: 'high' });
+    await waitFor(() => {
+      const freeButton = screen.getByRole('radio', { name: /^free$/i });
+      expect(freeButton).toHaveAttribute('aria-checked', 'false');
+    });
+    expect(geniusButton).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('keeps the hardcoded default when resolve_default_task_policy resolves to null (e.g. an unmocked IPC call)', async () => {
+    // Regression test: a naive `.then((resolved) => setControl(resolved))`
+    // would set `control` to `null`, crashing DriveConsole's render (it reads
+    // `control.risk`) — this reproduces exactly that shape of response, as
+    // seen from a harness whose default mock resolves unmocked commands to
+    // `null` rather than rejecting.
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'resolve_default_task_policy') {
+        return Promise.resolve(null);
+      }
+      return Promise.resolve([]);
+    });
+    renderLoquela();
+    await waitFor(() => {
+      const efficButton = screen.getByRole('radio', { name: /effic/i });
+      expect(efficButton).toHaveAttribute('aria-checked', 'true');
+    });
   });
 });

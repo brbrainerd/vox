@@ -32,6 +32,9 @@ fn base_params(description: &str) -> SubmitTaskParams {
         budget: None,
         active_skill: None,
         tenant_id: None,
+        clutch: None,
+        risk: None,
+        trigger_source: None,
     }
 }
 

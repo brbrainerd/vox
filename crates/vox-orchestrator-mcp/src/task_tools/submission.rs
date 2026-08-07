@@ -138,6 +138,9 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         && params.research_hints.is_empty()
         && params.required_labels.is_none()
         && params.is_detached.is_none()
+        && params.clutch.is_none()
+        && params.risk.is_none()
+        && params.trigger_source.is_none()
     {
         return None;
     }
@@ -166,9 +169,10 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         }),
         trace_id: params.trace_id.clone(),
         active_skill: params.active_skill.clone(),
-        clutch: None,
+        clutch: params.clutch.clone(),
         grounding_check_enabled: None,
-        risk: None,
+        risk: params.risk.clone(),
+        trigger_source: params.trigger_source.clone(),
     })
 }
 
@@ -859,5 +863,28 @@ mod tests {
             Some(TaskCategory::Review)
         );
         assert_eq!(task_category_from_mcp_str("bogus"), None);
+    }
+}
+
+#[cfg(test)]
+mod trigger_source_forwarding_tests {
+    use super::*;
+    use crate::params::SubmitTaskParams;
+
+    #[test]
+    fn forwards_clutch_risk_trigger_source_hints() {
+        let params: SubmitTaskParams = serde_json::from_value(serde_json::json!({
+            "description": "t",
+            "files": [],
+            "clutch": "free",
+            "risk": "high",
+            "trigger_source": "automated",
+        }))
+        .expect("valid SubmitTaskParams JSON");
+        let hints = enqueue_hints_from_submit_params(&params)
+            .expect("hints should be produced when clutch/risk/trigger_source are set");
+        assert_eq!(hints.clutch.as_deref(), Some("free"));
+        assert_eq!(hints.risk.as_deref(), Some("high"));
+        assert_eq!(hints.trigger_source.as_deref(), Some("automated"));
     }
 }
