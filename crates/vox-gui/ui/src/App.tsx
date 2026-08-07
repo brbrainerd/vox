@@ -352,6 +352,9 @@ export default function App() {
   // while a prior reply is still in flight), which used to spawn two independent
   // tempId lifecycles that could settle out of order with no user-visible sign.
   const chatSendInFlightRef = useRef<Set<string>>(new Set());
+  // Guards "+ New session" against a rapid double-click firing two concurrent
+  // chat_create_session calls before the first's setActiveSessionId lands.
+  const creatingSessionRef = useRef(false);
   const activeChatMessages = getSessionMessages(chatStore, activeSessionId);
   const activeChatAgentItems = sessionAgentStreams[activeSessionId] ?? [];
 
@@ -1542,9 +1545,12 @@ export default function App() {
         showArchivedChatSessions={showArchivedSessions}
         onSessionChange={setActiveSessionId}
         onCreateSession={() => {
+          if (creatingSessionRef.current) return;
+          creatingSessionRef.current = true;
           chatSessionsApi.createSession()
             .then(s => setActiveSessionId(s.session_id))
-            .catch(err => pushToast({ tone: 'warn', title: 'New session failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
+            .catch(err => pushToast({ tone: 'warn', title: 'New session failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }))
+            .finally(() => { creatingSessionRef.current = false; });
         }}
         onRenameSession={(sessionId, title) => {
           chatSessionsApi.renameSession(sessionId, title)
@@ -1557,17 +1563,27 @@ export default function App() {
           }).catch(err => pushToast({ tone: 'warn', title: 'Archive failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
         }}
         onUnarchiveSession={(sessionId) => {
+          // Fetch the active list fresh alongside the full list rather than filtering against
+          // chatSessionsApi.sessions -- that closure is a snapshot from render time and can be
+          // stale by the time this .then runs, which would leave the just-unarchived session
+          // still shown as archived until an unrelated re-render caught it up.
           chatSessionsApi.unarchiveSession(sessionId)
-            .then(() => invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: true }))
-            .then(all => setArchivedSessions(all.filter(s => !chatSessionsApi.sessions.some(active => active.session_id === s.session_id))))
+            .then(() => Promise.all([
+              invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: false }),
+              invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: true }),
+            ]))
+            .then(([active, all]) => setArchivedSessions(all.filter(s => !active.some(a => a.session_id === s.session_id))))
             .catch(err => pushToast({ tone: 'warn', title: 'Unarchive failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
         }}
         onToggleArchivedSessions={() => {
           const next = !showArchivedSessions;
           setShowArchivedSessions(next);
           if (next) {
-            invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: true })
-              .then(all => setArchivedSessions(all.filter(s => !chatSessionsApi.sessions.some(active => active.session_id === s.session_id))))
+            Promise.all([
+              invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: false }),
+              invoke<ChatSession[]>('chat_list_sessions', { limit: 200, includeArchived: true }),
+            ])
+              .then(([active, all]) => setArchivedSessions(all.filter(s => !active.some(a => a.session_id === s.session_id))))
               .catch(err => pushToast({ tone: 'warn', title: 'Load archived sessions failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
           }
         }}

@@ -65,7 +65,7 @@ function SessionRow({
          onClick={() => onSessionChange(s.session_id)}
          onDoubleClick={() => setEditing(true)}
          className="flex items-center justify-between rounded px-2 py-1 text-[12px] cursor-pointer hover:bg-overlay-hover group">
-      <span className="truncate">{s.title}</span>
+      <span title={s.title} className="line-clamp-2 break-words">{s.title}</span>
       <span className="flex items-center gap-1 shrink-0">
         {taskCount > 0 && (
           <span
@@ -79,7 +79,7 @@ function SessionRow({
           <button
             type="button"
             onClick={e => { e.stopPropagation(); onArchiveSession(s.session_id); }}
-            className="hidden group-hover:inline text-[10px] text-text-muted hover:text-text-primary"
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-[10px] text-text-muted hover:text-text-primary"
           >
             Archive
           </button>

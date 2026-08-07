@@ -67,10 +67,16 @@ pub async fn chat_create_session(
         .await
         .map_err(map_db_err)?;
 
+    // Match SQLite's `datetime('now')` format (YYYY-MM-DD HH:MM:SS) so this freshly-created
+    // row's timestamp sorts correctly (lexicographically) alongside DB-read rows -- an empty
+    // string here previously sorted a brand-new session to the bottom of its repo group in
+    // the sidebar instead of the top.
+    let updated_at = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+
     Ok(ChatSessionDto {
         session_id,
         title,
-        updated_at: String::new(),
+        updated_at,
         message_count: 0,
         conversation_id: conv_id,
         repository_id,

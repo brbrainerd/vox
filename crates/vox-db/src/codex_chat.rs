@@ -576,7 +576,7 @@ impl VoxDb {
             .query(
                 "SELECT id FROM conversations
                  WHERE origin_surface = 'gui' AND external_session_id = ?1 AND archived_at IS NULL
-                 LIMIT 1",
+                 ORDER BY id DESC LIMIT 1",
                 params![sid.as_str()],
             )
             .await?;
@@ -600,7 +600,7 @@ impl VoxDb {
             .query(
                 "SELECT id FROM conversations
                  WHERE origin_surface = 'gui' AND external_session_id = ?1
-                 LIMIT 1",
+                 ORDER BY id DESC LIMIT 1",
                 params![sid.as_str()],
             )
             .await?;
