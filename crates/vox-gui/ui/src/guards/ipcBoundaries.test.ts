@@ -71,6 +71,7 @@ describe('IPC boundaries (Phase 0B)', () => {
       'components/surfaces/Scientia/costRollup.ts',
       'components/surfaces/Scientia/discoveryInboxApi.ts',
       'components/surfaces/Scientia/discoveryReviewApi.ts',
+      'components/surfaces/Scientia/harnessIssuesApi.ts',
       'components/surfaces/Scientia/noveltyApi.ts',
       'components/surfaces/Settings/SettingsView.tsx',
       'components/surfaces/SkillsPlugins/SkillsPluginsView.tsx',
