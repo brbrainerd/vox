@@ -679,22 +679,21 @@ fn validate_task_policy_labels(clutch: Option<&str>, risk: Option<&str>) -> Resu
     Ok(())
 }
 
-/// `scope_kind` is `"category"` or `"source"`; `scope_key` is a `TaskCategory`/
-/// `TriggerSource` Debug name (e.g. `"CodeGen"`, `"Automated"`). Signals the
-/// running orchestrator daemon to reload afterward (fire-and-forget), exactly
-/// like `set_orchestrator_config` does — without this, the write only affects
-/// what a future daemon restart picks up, not the live process.
-#[tauri::command]
-pub async fn set_task_policy_override(
-    app_handle: tauri::AppHandle,
+/// Shared plumbing for [`set_task_policy_override`] and
+/// [`clear_task_policy_override`]: read the current `[orchestrator.task_policy.<scope_kind>]`
+/// table, let `mutate` update it in place, write the manifest back, bump the
+/// config snapshot, emit the change event, and fire-and-forget signal the
+/// running orchestrator daemon to reload — exactly like `set_orchestrator_config`
+/// does, without which a write only affects what a future daemon restart
+/// picks up, not the live process. `mutate` receives the scope's CURRENT
+/// table so a caller can merge onto a pre-existing entry rather than
+/// replacing it wholesale.
+fn mutate_task_policy_scope(
+    app_handle: &tauri::AppHandle,
+    daemon: &Arc<PersistentDaemon>,
     scope_kind: String,
-    scope_key: String,
-    clutch: Option<String>,
-    risk: Option<String>,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    mutate: impl FnOnce(&mut toml::map::Map<String, toml::Value>),
 ) -> Result<(), String> {
-    validate_task_policy_labels(clutch.as_deref(), risk.as_deref())?;
-
     let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
     let (mut manifest, path) = VoxManifest::discover(&current_dir).map_err(|e| e.to_string())?;
     let mut orch_table = manifest.orchestrator.unwrap_or_default();
@@ -710,14 +709,8 @@ pub async fn set_task_policy_override(
         .cloned()
         .unwrap_or_default();
 
-    let mut entry = toml::map::Map::new();
-    if let Some(c) = &clutch {
-        entry.insert("clutch".to_string(), toml::Value::String(c.clone()));
-    }
-    if let Some(r) = &risk {
-        entry.insert("risk".to_string(), toml::Value::String(r.clone()));
-    }
-    scope_table.insert(scope_key.clone(), toml::Value::Table(entry));
+    mutate(&mut scope_table);
+
     task_policy_table.insert(scope_kind, toml::Value::Table(scope_table));
     orch_table.insert(
         "task_policy".to_string(),
@@ -738,7 +731,7 @@ pub async fn set_task_policy_override(
 
     // Fire-and-forget: tell the running daemon to reload so this override
     // affects real task execution immediately, not just after a restart.
-    let daemon: Arc<PersistentDaemon> = daemon.inner().clone();
+    let daemon = daemon.clone();
     tokio::spawn(async move {
         let _ = call_orchestrator_daemon(
             &daemon,
@@ -751,6 +744,50 @@ pub async fn set_task_policy_override(
     Ok(())
 }
 
+/// Merge `clutch`/`risk` into `scope_table`'s entry for `scope_key`,
+/// preserving whichever axis isn't being set (rather than replacing the
+/// entry wholesale) — `None` means "don't change this axis," not "clear it."
+fn merge_task_policy_entry(
+    scope_table: &mut toml::map::Map<String, toml::Value>,
+    scope_key: &str,
+    clutch: Option<&str>,
+    risk: Option<&str>,
+) {
+    let mut entry = scope_table
+        .get(scope_key)
+        .and_then(|v| v.as_table())
+        .cloned()
+        .unwrap_or_default();
+    if let Some(c) = clutch {
+        entry.insert("clutch".to_string(), toml::Value::String(c.to_string()));
+    }
+    if let Some(r) = risk {
+        entry.insert("risk".to_string(), toml::Value::String(r.to_string()));
+    }
+    scope_table.insert(scope_key.to_string(), toml::Value::Table(entry));
+}
+
+/// `scope_kind` is `"category"` or `"source"`; `scope_key` is a `TaskCategory`/
+/// `TriggerSource` Debug name (e.g. `"CodeGen"`, `"Automated"`). Merges onto
+/// any pre-existing entry rather than replacing it wholesale, so passing only
+/// one of `clutch`/`risk` (leaving the other `None`, meaning "don't change
+/// this axis") can't silently drop the other axis's stored value.
+#[tauri::command]
+pub async fn set_task_policy_override(
+    app_handle: tauri::AppHandle,
+    scope_kind: String,
+    scope_key: String,
+    clutch: Option<String>,
+    risk: Option<String>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<(), String> {
+    validate_task_policy_labels(clutch.as_deref(), risk.as_deref())?;
+    let daemon = daemon.inner().clone();
+    mutate_task_policy_scope(&app_handle, &daemon, scope_kind, move |scope_table| {
+        merge_task_policy_entry(scope_table, &scope_key, clutch.as_deref(), risk.as_deref());
+    })
+}
+
 /// Remove one override (`scope_kind`/`scope_key` as in [`set_task_policy_override`]).
 /// Same daemon-reload signal as `set_task_policy_override`.
 #[tauri::command]
@@ -760,52 +797,10 @@ pub async fn clear_task_policy_override(
     scope_key: String,
     daemon: tauri::State<'_, Arc<PersistentDaemon>>,
 ) -> Result<(), String> {
-    let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
-    let (mut manifest, path) = VoxManifest::discover(&current_dir).map_err(|e| e.to_string())?;
-    let mut orch_table = manifest.orchestrator.unwrap_or_default();
-
-    if let Some(mut task_policy_table) = orch_table
-        .get("task_policy")
-        .and_then(|v| v.as_table())
-        .cloned()
-    {
-        if let Some(mut scope_table) = task_policy_table
-            .get(&scope_kind)
-            .and_then(|v| v.as_table())
-            .cloned()
-        {
-            scope_table.remove(&scope_key);
-            task_policy_table.insert(scope_kind, toml::Value::Table(scope_table));
-            orch_table.insert(
-                "task_policy".to_string(),
-                toml::Value::Table(task_policy_table),
-            );
-        }
-    }
-
-    manifest.orchestrator = Some(orch_table);
-    let toml_str = manifest.to_toml_string().map_err(|e| e.to_string())?;
-    std::fs::write(&path, toml_str).map_err(|e| e.to_string())?;
-
-    vox_config::snapshot::bump(&["task_policy"]);
-    let _ = app_handle.emit(
-        ORCH_CONFIG_CHANGED_EVENT,
-        OrchestratorConfigChanged {
-            rev: vox_config::snapshot::current_rev(),
-        },
-    );
-
-    let daemon: Arc<PersistentDaemon> = daemon.inner().clone();
-    tokio::spawn(async move {
-        let _ = call_orchestrator_daemon(
-            &daemon,
-            orch_daemon_method::RELOAD_CONFIG,
-            serde_json::json!({}),
-        )
-        .await;
-    });
-
-    Ok(())
+    let daemon = daemon.inner().clone();
+    mutate_task_policy_scope(&app_handle, &daemon, scope_kind, move |scope_table| {
+        scope_table.remove(&scope_key);
+    })
 }
 
 #[cfg(test)]
@@ -833,6 +828,43 @@ mod task_policy_tests {
     fn set_task_policy_override_accepts_valid_labels() {
         let result = validate_task_policy_labels(Some("free"), Some("high"));
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn merge_task_policy_entry_preserves_the_untouched_axis() {
+        // Regression test: an earlier version replaced the entry wholesale
+        // from only the passed clutch/risk, silently dropping whichever axis
+        // was `None` even if a value for it already existed.
+        let mut scope_table = toml::map::Map::new();
+        let mut existing = toml::map::Map::new();
+        existing.insert("clutch".to_string(), toml::Value::String("free".to_string()));
+        existing.insert("risk".to_string(), toml::Value::String("high".to_string()));
+        scope_table.insert("CodeGen".to_string(), toml::Value::Table(existing));
+
+        merge_task_policy_entry(&mut scope_table, "CodeGen", Some("genius"), None);
+
+        let entry = scope_table
+            .get("CodeGen")
+            .and_then(|v| v.as_table())
+            .expect("entry must still exist");
+        assert_eq!(entry.get("clutch").and_then(|v| v.as_str()), Some("genius"));
+        assert_eq!(
+            entry.get("risk").and_then(|v| v.as_str()),
+            Some("high"),
+            "risk must survive a clutch-only update"
+        );
+    }
+
+    #[test]
+    fn merge_task_policy_entry_creates_a_fresh_entry_when_none_exists() {
+        let mut scope_table = toml::map::Map::new();
+        merge_task_policy_entry(&mut scope_table, "Automated", Some("free"), Some("low"));
+        let entry = scope_table
+            .get("Automated")
+            .and_then(|v| v.as_table())
+            .expect("entry must exist");
+        assert_eq!(entry.get("clutch").and_then(|v| v.as_str()), Some("free"));
+        assert_eq!(entry.get("risk").and_then(|v| v.as_str()), Some("low"));
     }
 }
 
