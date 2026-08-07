@@ -597,6 +597,94 @@ pub fn get_task_policy_overrides() -> vox_orchestrator::config::TaskPolicyOverri
     vox_orchestrator::config::OrchestratorConfig::snapshot().task_policy
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DefaultTaskPolicyDto {
+    pub clutch: String,
+    pub risk: String,
+}
+
+fn clutch_label(c: vox_orchestrator::mode::ClutchProfile) -> &'static str {
+    match c {
+        vox_orchestrator::mode::ClutchProfile::Free => "free",
+        vox_orchestrator::mode::ClutchProfile::Efficiency => "efficiency",
+        vox_orchestrator::mode::ClutchProfile::Balanced => "balanced",
+        vox_orchestrator::mode::ClutchProfile::Genius => "genius",
+    }
+}
+
+fn risk_label(r: vox_orchestrator::mode::RiskPosture) -> &'static str {
+    match r {
+        vox_orchestrator::mode::RiskPosture::High => "high",
+        vox_orchestrator::mode::RiskPosture::Moderate => "moderate",
+        vox_orchestrator::mode::RiskPosture::Low => "low",
+    }
+}
+
+/// The composer's real starting clutch/risk for `task_category` — the same
+/// precedence chain (`resolve_task_policy`) the backend uses when actually
+/// executing a task with no explicit hint, so the GUI's shown default can
+/// never drift from what would actually happen. `category` is any string
+/// `TaskCategory::from_str` accepts (case-insensitive, never errors — falls
+/// back to `General`); `source` is a `TriggerSource::from_label` string
+/// (`"interactive"`/`"automated"`/`"subagent"`/`"mesh"`, case-insensitive) —
+/// an unrecognized `source` falls back to `Interactive` via the same
+/// `unwrap_or(TriggerSource::Interactive)` pattern `resolved_policy()` uses
+/// elsewhere, not a parse error.
+#[tauri::command]
+pub fn resolve_default_task_policy(category: String, source: String) -> DefaultTaskPolicyDto {
+    use vox_orchestrator::mode::TriggerSource;
+    use vox_orchestrator::types::TaskCategory;
+
+    let overrides = vox_orchestrator::config::OrchestratorConfig::snapshot().task_policy;
+    let category: TaskCategory = category.parse().unwrap_or_default();
+    let source = TriggerSource::from_label(&source).unwrap_or(TriggerSource::Interactive);
+
+    let (category_clutch, category_risk) =
+        vox_orchestrator::mode::effective_category_policy(&overrides, category);
+    let (source_clutch, source_risk) =
+        vox_orchestrator::mode::effective_source_policy(&overrides, source);
+    let (clutch, risk) = vox_orchestrator::mode::resolve_task_policy(
+        None,
+        None,
+        category_clutch,
+        category_risk,
+        source_clutch,
+        source_risk,
+    );
+    DefaultTaskPolicyDto {
+        clutch: clutch_label(clutch).to_string(),
+        risk: risk_label(risk).to_string(),
+    }
+}
+
+#[cfg(test)]
+mod default_policy_tests {
+    use super::*;
+
+    #[test]
+    fn chat_default_matches_resolve_task_policy_with_no_overrides() {
+        let dto = resolve_default_task_policy("Chat".to_string(), "interactive".to_string());
+        // No overrides configured in a fresh test environment ⇒ falls all the
+        // way to the global default, exactly like resolve_task_policy(None, None, None, None, None, None).
+        assert_eq!(dto.clutch, "balanced");
+        assert_eq!(dto.risk, "moderate");
+    }
+
+    #[test]
+    fn unknown_category_or_source_labels_fall_back_to_global_default() {
+        // TaskCategory::from_str never errors (falls back to General for an
+        // unrecognized string), so this exercises "recognized category with no
+        // configured policy," not a parse failure — still must land on the
+        // same global default since nothing is configured for General either.
+        let dto = resolve_default_task_policy(
+            "NotARealCategory".to_string(),
+            "not_a_real_source".to_string(),
+        );
+        assert_eq!(dto.clutch, "balanced");
+        assert_eq!(dto.risk, "moderate");
+    }
+}
+
 /// Reject unparseable clutch/risk labels before touching Vox.toml. `None`
 /// values are always accepted (that axis just isn't being set/changed).
 fn validate_task_policy_labels(clutch: Option<&str>, risk: Option<&str>) -> Result<(), String> {

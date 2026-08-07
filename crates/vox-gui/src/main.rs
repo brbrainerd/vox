@@ -177,6 +177,7 @@ async fn main() {
             commands::orchestrator::get_orchestrator_config,
             commands::orchestrator::get_orchestrator_config_catalog,
             commands::orchestrator::get_task_policy_overrides,
+            commands::orchestrator::resolve_default_task_policy,
             commands::orchestrator::set_task_policy_override,
             commands::orchestrator::clear_task_policy_override,
             commands::llm_settings::get_llm_config,
