@@ -384,6 +384,57 @@ export default function App() {
     });
   }, []);
 
+  // ── Harness issue polling: badge data + toast on newly-detected issues ──
+  // Only issues detected in a poll *after* the first are toasted — the first
+  // poll just establishes the current pending baseline, so restarting the
+  // app doesn't re-toast the entire existing backlog.
+  const [pendingHarnessIssueSessionIds, setPendingHarnessIssueSessionIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const seenHarnessIssueIdsRef = useRef<Set<number>>(new Set());
+  const harnessIssueBaselineEstablishedRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const { listHarnessIssues } = await import(
+          './components/surfaces/Scientia/harnessIssuesApi'
+        );
+        const pending = await listHarnessIssues('pending', 'chat_session');
+        if (cancelled) return;
+        const sessionIds = new Set(
+          pending.map(i => i.session_key).filter((k): k is string => Boolean(k)),
+        );
+        setPendingHarnessIssueSessionIds(sessionIds);
+
+        const isFirstPoll = !harnessIssueBaselineEstablishedRef.current;
+        harnessIssueBaselineEstablishedRef.current = true;
+        for (const issue of pending) {
+          if (seenHarnessIssueIdsRef.current.has(issue.id)) continue;
+          seenHarnessIssueIdsRef.current.add(issue.id);
+          // Skip toasting the pre-existing backlog on first mount/restart —
+          // only genuinely new detections (found on later polls) toast.
+          if (isFirstPoll) continue;
+          pushToast({
+            tone: 'warn',
+            title: 'Harness issue detected',
+            body: issue.summary,
+            cause: 'backend-ok',
+          });
+        }
+      } catch {
+        // polling failure is non-fatal — next tick retries
+      }
+    };
+    poll();
+    const id = window.setInterval(poll, 8_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [pushToast]);
+
   // ── Budget warn toast (non-blocking, distinct from the hard-block "Budget
   // limit reached" toast in `dispatchErrorToast`) ─────────────────────────
   // `budget_warn_threshold_pct` is read once (VoxConfig, via the same
@@ -1447,6 +1498,7 @@ export default function App() {
     hudTilesConfig,
     onHudTilesChange: setHudTilesConfig,
     attention,
+    pendingHarnessIssueSessionIds,
   };
 
   const mainSurface = renderSurfaceContent(activeView, surfaceProps);

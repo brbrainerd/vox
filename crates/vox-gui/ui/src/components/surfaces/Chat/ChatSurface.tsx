@@ -348,6 +348,8 @@ interface ChatSurfaceProps {
   pendingApprovals?: number;
   /** Currently pinned skill id (App.tsx `activeSkill`), threaded into secretary task submission. */
   activeSkillId?: string | null;
+  /** session_ids with at least one pending scientia_harness_issues row — forwarded to ChatSessionRail. */
+  pendingIssueSessionIds?: Set<string>;
 }
 
 export function ChatSurface({
@@ -378,6 +380,7 @@ export function ChatSurface({
   onOpenFeedbackContext,
   pendingApprovals = 0,
   activeSkillId,
+  pendingIssueSessionIds,
 }: ChatSurfaceProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [secretaryToast, setSecretaryToast] = useState<SecretaryProposedPayload | null>(null);
@@ -705,6 +708,7 @@ export function ChatSurface({
       onCreateSession={() => void createSession()}
       onRenameSession={(id, t) => void renameSession(id, t)}
       onArchiveSession={id => void archiveSession(id)}
+      pendingIssueSessionIds={pendingIssueSessionIds}
     />
   );
 
