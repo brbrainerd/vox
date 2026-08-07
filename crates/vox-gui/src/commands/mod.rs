@@ -19,6 +19,7 @@ pub mod graphify;
 pub mod gui_db_pool;
 pub mod harness;
 pub mod harness_eval;
+pub mod harness_issues;
 pub mod harness_town;
 pub mod identity;
 pub mod llm_settings;

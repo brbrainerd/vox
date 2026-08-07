@@ -11,7 +11,7 @@
 use vox_scientia::review_flow;
 
 /// Open the canonical DB connection used by every command in this module.
-async fn db() -> Result<vox_db::VoxDb, String> {
+pub(crate) async fn db() -> Result<vox_db::VoxDb, String> {
     vox_db::VoxDb::connect_canonical()
         .await
         .map_err(|e| format!("{e:#}"))

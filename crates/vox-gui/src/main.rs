@@ -151,6 +151,7 @@ async fn main() {
             commands::chat::chat_list_sessions,
             commands::harness_eval::harness_eval_history,
             commands::harness_eval::harness_eval_regressions,
+            commands::harness_issues::scan_training_corpus,
             commands::chat::chat_get_messages,
             commands::chat::chat_append_message,
             commands::chat::chat_send_message,
