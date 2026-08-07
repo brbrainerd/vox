@@ -563,6 +563,9 @@ impl VoxDb {
     }
 
     /// Locate a GUI chat session by its external session id (`origin_surface = gui`).
+    /// Archived conversations are excluded — a resumed/deep-linked `external_session_id`
+    /// pointing at an archived row must not silently reuse it (see
+    /// `archived_session_is_not_found_by_external_session_id_lookup`).
     pub async fn chat_find_gui_conversation_id(
         &self,
         external_session_id: &str,
@@ -572,7 +575,7 @@ impl VoxDb {
             .connection()
             .query(
                 "SELECT id FROM conversations
-                 WHERE origin_surface = 'gui' AND external_session_id = ?1
+                 WHERE origin_surface = 'gui' AND external_session_id = ?1 AND archived_at IS NULL
                  LIMIT 1",
                 params![sid.as_str()],
             )
@@ -625,24 +628,31 @@ impl VoxDb {
     /// which would otherwise mint a permanent, one-off, mistitled "Chat"
     /// sidebar entry per background dispatch. The task itself remains fully
     /// visible via the Tasks surface regardless of this filter.
+    ///
+    /// When `include_archived` is false, also excludes rows with `archived_at IS NOT NULL`.
     pub async fn chat_list_gui_sessions(
         &self,
         limit: usize,
-    ) -> Result<Vec<(i64, String, String, String, i64)>, StoreError> {
+        include_archived: bool,
+    ) -> Result<Vec<(i64, String, String, String, i64, Option<String>)>, StoreError> {
         let lim = limit.max(1) as i64;
-        let mut rows = self
-            .connection()
-            .query(
-                "SELECT c.id, c.title, c.external_session_id, c.updated_at,
-                        (SELECT COUNT(*) FROM conversation_messages m WHERE m.conversation_id = c.id)
-                 FROM conversations c
-                 WHERE c.origin_surface = 'gui'
-                   AND c.external_session_id NOT LIKE 'bg-task-%'
-                 ORDER BY c.updated_at DESC
-                 LIMIT ?1",
-                params![lim],
-            )
-            .await?;
+        let archive_clause = if include_archived {
+            ""
+        } else {
+            "AND c.archived_at IS NULL"
+        };
+        let sql = format!(
+            "SELECT c.id, c.title, c.external_session_id, c.updated_at,
+                    (SELECT COUNT(*) FROM conversation_messages m WHERE m.conversation_id = c.id),
+                    c.repository_id
+             FROM conversations c
+             WHERE c.origin_surface = 'gui'
+               AND c.external_session_id NOT LIKE 'bg-task-%'
+               {archive_clause}
+             ORDER BY c.updated_at DESC
+             LIMIT ?1"
+        );
+        let mut rows = self.connection().query(&sql, params![lim]).await?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
             let id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
@@ -650,7 +660,9 @@ impl VoxDb {
             let ext: String = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
             let updated: String = row.get(3).map_err(|e| StoreError::Db(e.to_string()))?;
             let count: i64 = row.get(4).map_err(|e| StoreError::Db(e.to_string()))?;
-            out.push((id, title, ext, updated, count));
+            let repository_id: Option<String> =
+                row.get(5).map_err(|e| StoreError::Db(e.to_string()))?;
+            out.push((id, title, ext, updated, count, repository_id));
         }
         Ok(out)
     }
@@ -676,14 +688,33 @@ impl VoxDb {
             .await
     }
 
-    /// Archive (delete) a conversation and its messages.
+    /// Soft-archive a conversation (recoverable — see `chat_unarchive_conversation`).
     pub async fn chat_archive_conversation(&self, conversation_id: i64) -> Result<(), StoreError> {
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
         breaker
             .call(|| async move {
                 conn.execute(
-                    "DELETE FROM conversations WHERE id = ?1",
+                    "UPDATE conversations SET archived_at = datetime('now') WHERE id = ?1",
+                    params![conversation_id],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Reverse `chat_archive_conversation`.
+    pub async fn chat_unarchive_conversation(
+        &self,
+        conversation_id: i64,
+    ) -> Result<(), StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE conversations SET archived_at = NULL WHERE id = ?1",
                     params![conversation_id],
                 )
                 .await?;
@@ -863,10 +894,13 @@ mod tests {
             .await
             .expect("ensure bg-task session");
 
-        let sessions = db.chat_list_gui_sessions(40).await.expect("list sessions");
+        let sessions = db
+            .chat_list_gui_sessions(40, false)
+            .await
+            .expect("list sessions");
         let ids: Vec<&str> = sessions
             .iter()
-            .map(|(_, _, ext, _, _)| ext.as_str())
+            .map(|(_, _, ext, _, _, _)| ext.as_str())
             .collect();
         assert!(
             ids.contains(&"gui-real-session"),
@@ -875,6 +909,91 @@ mod tests {
         assert!(
             !ids.contains(&"bg-task-gui-run-1"),
             "a bg-task-* session must not appear in the sidebar list: {ids:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn archive_conversation_is_recoverable_not_deleted() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        let conv_id = db
+            .chat_ensure_gui_session("sess-1", "Session 1")
+            .await
+            .expect("ensure session");
+
+        db.chat_archive_conversation(conv_id)
+            .await
+            .expect("archive");
+
+        // Row must still exist.
+        let mut rows = db
+            .connection()
+            .query(
+                "SELECT archived_at FROM conversations WHERE id = ?1",
+                turso::params![conv_id],
+            )
+            .await
+            .expect("query");
+        let row = rows
+            .next()
+            .await
+            .expect("next")
+            .expect("row survives archive");
+        let archived_at: Option<String> = row.get(0).expect("get");
+        assert!(archived_at.is_some(), "archived_at must be set");
+
+        // Excluded from the default (non-archived) listing.
+        let active = db
+            .chat_list_gui_sessions(40, false)
+            .await
+            .expect("list active");
+        assert!(!active.iter().any(|s| s.0 == conv_id));
+
+        // Included when include_archived=true.
+        let all = db
+            .chat_list_gui_sessions(40, true)
+            .await
+            .expect("list all");
+        assert!(all.iter().any(|s| s.0 == conv_id));
+
+        db.chat_unarchive_conversation(conv_id)
+            .await
+            .expect("unarchive");
+        let active_again = db
+            .chat_list_gui_sessions(40, false)
+            .await
+            .expect("list active again");
+        assert!(active_again.iter().any(|s| s.0 == conv_id));
+    }
+
+    #[tokio::test]
+    async fn archived_session_is_not_found_by_external_session_id_lookup() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        let conv_id = db
+            .chat_ensure_gui_session("sess-resume-1", "Session 1")
+            .await
+            .expect("ensure session");
+        db.chat_archive_conversation(conv_id)
+            .await
+            .expect("archive");
+
+        // A resumed/deep-linked external_session_id must not find the archived row...
+        let found = db
+            .chat_find_gui_conversation_id("sess-resume-1")
+            .await
+            .expect("find");
+        assert_eq!(
+            found, None,
+            "archived conversations must not be resurrected by find-or-create lookups"
+        );
+
+        // ...so calling chat_ensure_gui_session again creates a fresh row instead of reusing the archived one.
+        let new_conv_id = db
+            .chat_ensure_gui_session("sess-resume-1", "Session 1")
+            .await
+            .expect("re-ensure session");
+        assert_ne!(
+            new_conv_id, conv_id,
+            "must create a new conversation, not resurrect the archived one"
         );
     }
 
