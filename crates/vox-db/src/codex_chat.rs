@@ -593,6 +593,22 @@ impl VoxDb {
         external_session_id: &str,
         title: &str,
     ) -> Result<i64, StoreError> {
+        self.chat_ensure_gui_session_with_repo(external_session_id, title, None)
+            .await
+    }
+
+    /// Same as [`Self::chat_ensure_gui_session`], additionally recording which
+    /// repository this session targets (see `vox_repository::RepositoryContext::repository_id`
+    /// for how callers derive `repository_id`). If a conversation with this
+    /// `external_session_id` already exists, `repository_id` is ignored on this call — the
+    /// existing row's value is left as-is (find-or-create semantics; this method never updates
+    /// an existing row's repository tag).
+    pub async fn chat_ensure_gui_session_with_repo(
+        &self,
+        external_session_id: &str,
+        title: &str,
+        repository_id: Option<&str>,
+    ) -> Result<i64, StoreError> {
         if let Some(id) = self
             .chat_find_gui_conversation_id(external_session_id)
             .await?
@@ -601,14 +617,15 @@ impl VoxDb {
         }
         let sid = external_session_id.to_string();
         let title = title.to_string();
+        let repo = repository_id.map(str::to_string);
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
         breaker
             .call(|| async move {
                 conn.execute(
-                    "INSERT INTO conversations (title, external_session_id, origin_surface)
-                     VALUES (?1, ?2, 'gui')",
-                    params![title.as_str(), sid.as_str()],
+                    "INSERT INTO conversations (title, external_session_id, origin_surface, repository_id)
+                     VALUES (?1, ?2, 'gui', ?3)",
+                    params![title.as_str(), sid.as_str(), repo.as_deref()],
                 )
                 .await?;
                 Ok::<i64, StoreError>(conn.last_insert_rowid())
@@ -910,6 +927,26 @@ mod tests {
             !ids.contains(&"bg-task-gui-run-1"),
             "a bg-task-* session must not appear in the sidebar list: {ids:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn ensure_gui_session_persists_repository_id() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        let conv_id = db
+            .chat_ensure_gui_session_with_repo("sess-repo-1", "Session 1", Some("abc123"))
+            .await
+            .expect("ensure session with repo");
+        let mut rows = db
+            .connection()
+            .query(
+                "SELECT repository_id FROM conversations WHERE id = ?1",
+                turso::params![conv_id],
+            )
+            .await
+            .expect("query");
+        let row = rows.next().await.expect("row").expect("row present");
+        let repo: Option<String> = row.get(0).expect("get repository_id");
+        assert_eq!(repo.as_deref(), Some("abc123"));
     }
 
     #[tokio::test]
