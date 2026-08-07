@@ -6,14 +6,15 @@ import React from 'react';
 // resolve_default_task_policy defaults to the same values as the local
 // hardcoded defaultControl() fallback, so tests that don't care about this
 // fetch keep seeing the composer settle on efficiency/moderate as before.
-const { mockInvoke } = vi.hoisted(() => ({
-  mockInvoke: vi.fn((cmd: string) => {
+const { mockInvoke, defaultMockInvokeImpl } = vi.hoisted(() => {
+  const defaultMockInvokeImpl = (cmd: string) => {
     if (cmd === 'resolve_default_task_policy') {
       return Promise.resolve({ clutch: 'efficiency', risk: 'moderate' });
     }
     return Promise.resolve([]);
-  }),
-}));
+  };
+  return { mockInvoke: vi.fn(defaultMockInvokeImpl), defaultMockInvokeImpl };
+});
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mockInvoke }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
@@ -38,6 +39,14 @@ function renderLoquela(over: Partial<React.ComponentProps<typeof Loquela>> = {})
 }
 
 describe('Loquela', () => {
+  afterEach(() => {
+    // Reset both call history and any per-test mockImplementation override
+    // (e.g. from the resolve_default_task_policy test below) so a failing
+    // assertion mid-test can't leak a stale implementation into later tests.
+    mockInvoke.mockReset();
+    mockInvoke.mockImplementation(defaultMockInvokeImpl);
+  });
+
   it('labels the composer textarea (no placeholder-as-label)', () => {
     renderLoquela();
     expect(screen.getByLabelText('Task composer')).toBeDefined();
@@ -207,10 +216,6 @@ describe('Loquela', () => {
     expect(kbdsOutsideRunButton.map((k) => k.textContent)).not.toContain('⌘↵');
   });
 
-  afterEach(() => {
-    mockInvoke.mockClear();
-  });
-
   it('seeds the DriveConsole default from resolve_default_task_policy instead of a hardcoded guess', async () => {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'resolve_default_task_policy') {
@@ -223,12 +228,8 @@ describe('Loquela', () => {
       const freeButton = screen.getByRole('radio', { name: /free/i });
       expect(freeButton).toHaveAttribute('aria-checked', 'true');
     });
-    // Restore the shared default implementation for any tests after this one.
-    mockInvoke.mockImplementation((cmd: string) => {
-      if (cmd === 'resolve_default_task_policy') {
-        return Promise.resolve({ clutch: 'efficiency', risk: 'moderate' });
-      }
-      return Promise.resolve([]);
-    });
+    // No manual restore needed here — the top-level afterEach resets
+    // mockInvoke back to defaultMockInvokeImpl even if this test fails
+    // before reaching this point.
   });
 });
