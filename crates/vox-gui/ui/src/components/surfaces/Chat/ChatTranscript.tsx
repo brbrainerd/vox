@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Glass } from '../../ui/Glass';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import type { StreamItem } from '../../../types/dashboard';
@@ -6,10 +6,12 @@ import { buildChatOnlyTimeline } from '../../../lib/chatTranscriptTimeline';
 import { StatusLine } from './StatusLine';
 import { ModelBadge } from './ModelBadge';
 import { useChatVerbosity } from '../../../hooks/useChatVerbosity';
+import { listHarnessIssuesForSession, type HarnessIssueRow } from '../Scientia/harnessIssuesApi';
 
 interface ChatTranscriptProps {
   messages: ChatMessage[];
   agentStreamItems?: StreamItem[];
+  sessionId?: string;
 }
 
 export function MessageBubble({ message }: { message: ChatMessage }) {
@@ -66,12 +68,52 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
   );
 }
 
+function HarnessIssueSummary({ issue }: { issue: HarnessIssueRow }) {
+  const statusTone =
+    issue.status === 'dismissed' ? 'text-text-muted line-through' : 'text-amber-300';
+  return (
+    <div
+      data-testid={`transcript-harness-issue-${issue.id}`}
+      className={`self-center rounded border border-amber-400/30 bg-amber-400/[0.08] px-2 py-1 text-center text-[10px] ${statusTone}`}
+    >
+      Issue detected ({issue.status}): {issue.summary}
+    </div>
+  );
+}
+
 /** Merged chat bubbles + inline agent execution rows for the active session. */
-export function ChatTranscript({ messages, agentStreamItems }: ChatTranscriptProps) {
+export function ChatTranscript({ messages, agentStreamItems, sessionId }: ChatTranscriptProps) {
   const [verbosity] = useChatVerbosity();
   const timeline = buildChatOnlyTimeline(messages, agentStreamItems ?? [], { verbosity });
+  const [harnessIssues, setHarnessIssues] = useState<HarnessIssueRow[]>([]);
 
-  if (timeline.length === 0) return null;
+  useEffect(() => {
+    if (!sessionId) {
+      setHarnessIssues([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchIssues = () => {
+      listHarnessIssuesForSession(sessionId)
+        .then((rows) => {
+          if (!cancelled) setHarnessIssues(rows);
+        })
+        .catch(() => {
+          if (!cancelled) setHarnessIssues([]);
+        });
+    };
+    fetchIssues();
+    // Poll (not fetch-once) so an issue detected mid-session appears without
+    // requiring a session switch — matches the cadence used elsewhere for
+    // this same data (App.tsx's 8s poll, HarnessIssuesPanel's 10s poll).
+    const id = window.setInterval(fetchIssues, 8_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [sessionId]);
+
+  if (timeline.length === 0 && harnessIssues.length === 0) return null;
 
   return (
     <Glass
@@ -82,6 +124,13 @@ export function ChatTranscript({ messages, agentStreamItems }: ChatTranscriptPro
       className="mb-3 min-h-0 flex-1 overflow-y-auto custom-scrollbar p-3 pb-6"
     >
       <div className="mx-auto flex w-full max-w-[900px] flex-col gap-2">
+        {harnessIssues.length > 0 && (
+          <div className="mb-1 flex flex-col gap-1 border-b border-border-subtle pb-2">
+            {harnessIssues.map((issue) => (
+              <HarnessIssueSummary key={issue.id} issue={issue} />
+            ))}
+          </div>
+        )}
         {timeline.map((row) => {
           if (row.kind === 'message') {
             return <MessageBubble key={row.id} message={row.message} />;
