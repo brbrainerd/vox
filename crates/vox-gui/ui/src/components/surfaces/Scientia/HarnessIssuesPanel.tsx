@@ -18,16 +18,22 @@ export function HarnessIssuesPanel({ pushToast }: SurfaceDecoratorProps) {
   const [sourceFilter, setSourceFilter] = useState<'all' | 'chat_session' | 'corpus_scan'>('all');
   const [issues, setIssues] = useState<HarnessIssueRow[]>([]);
   const [proposals, setProposals] = useState<HarnessFixProposalRow[]>([]);
+  // Every proposal ever made per issue (any status), not just pending_approval
+  // — used only to decide retry-eligibility below, so a rejected proposal
+  // doesn't get mistaken for "never proposed" and re-offer "Retry propose fix".
+  const [proposedIssueIds, setProposedIssueIds] = useState<Set<number>>(new Set());
   const [scanning, setScanning] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const [pendingIssues, pendingProposals] = await Promise.all([
+      const [pendingIssues, pendingProposals, allProposals] = await Promise.all([
         listHarnessIssues(statusFilter, sourceFilter === 'all' ? undefined : sourceFilter),
         listHarnessFixProposals('pending_approval'),
+        listHarnessFixProposals(),
       ]);
       setIssues(pendingIssues);
       setProposals(pendingProposals);
+      setProposedIssueIds(new Set(allProposals.map((p) => p.issue_id)));
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Harness issues', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
@@ -162,7 +168,7 @@ export function HarnessIssuesPanel({ pushToast }: SurfaceDecoratorProps) {
               )}
               {issue.status === 'confirmed' &&
                 issue.target_path &&
-                !proposals.some((p) => p.issue_id === issue.id) && (
+                !proposedIssueIds.has(issue.id) && (
                   <div className="mt-2 flex gap-2">
                     <button
                       type="button"

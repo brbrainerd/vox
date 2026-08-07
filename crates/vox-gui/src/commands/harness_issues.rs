@@ -168,15 +168,28 @@ pub fn build_unified_diff(target_path: &str, old: &str, new: &str) -> String {
 /// non-null `target_path`, i.e. currently always a corpus_scan finding).
 #[tauri::command]
 pub async fn propose_harness_issue_fix(issue_id: i64, target_path: String) -> Result<i64, String> {
-    let repo_root = vox_repository::resolve_repo_root_for_ci();
-    let full_path = resolve_target_path(&repo_root, &target_path)?;
-
     let db = crate::commands::scientia_review::db().await?;
     let issue = db
         .get_harness_issue(issue_id)
         .await
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("no harness issue with id {issue_id}"))?;
+    // The caller-supplied `target_path` must match the issue's own persisted
+    // target — otherwise a caller could request a fix proposal (and later an
+    // approved write) for any file in the repo, unrelated to this issue, by
+    // passing a real issue_id alongside an arbitrary path.
+    let issue_target_path = issue
+        .target_path
+        .as_deref()
+        .ok_or_else(|| format!("harness issue {issue_id} has no target_path"))?;
+    if issue_target_path != target_path {
+        return Err(format!(
+            "target_path {target_path:?} does not match harness issue {issue_id}'s stored target_path {issue_target_path:?}"
+        ));
+    }
+
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let full_path = resolve_target_path(&repo_root, &target_path)?;
 
     let old_content = tokio::fs::read_to_string(&full_path)
         .await
@@ -214,6 +227,14 @@ pub async fn propose_harness_issue_fix(issue_id: i64, target_path: String) -> Re
         vox_actor_runtime::ActivityResult::Ok(Ok((resp, _cfg))) => resp.content,
         other => return Err(format!("fix-dispatch LLM call failed: {other:?}")),
     };
+    // A truncated (e.g. max_tokens-capped) or otherwise degenerate response
+    // must never become the sole source of truth `resolve_harness_fix_proposal`
+    // later writes verbatim to disk. `LlmResponse` doesn't currently carry a
+    // finish/stop-reason signal to detect truncation precisely, so this is a
+    // coarse guard, not a complete one — reject only the unambiguous case.
+    if new_content.trim().is_empty() {
+        return Err("fix-dispatch LLM call returned empty content".to_string());
+    }
 
     let diff = build_unified_diff(&target_path, &old_content, &new_content);
     let proposed_at_ms = chrono::Utc::now().timestamp_millis();
@@ -258,6 +279,16 @@ pub async fn resolve_harness_fix_proposal(proposal_id: i64, approve: bool) -> Re
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("no fix proposal with id {proposal_id}"))?;
 
+    // Atomically claim the proposal (transitions only if it is still
+    // `pending_approval`) BEFORE writing to disk. If another actor already
+    // resolved it (e.g. rejected it) between our fetch above and this claim,
+    // this fails and we never write the stale proposal's content — closing
+    // the race where a stale in-flight "approve" could apply content from an
+    // already-rejected proposal.
+    db.resolve_harness_fix_proposal(proposal_id, "applied", resolved_at_ms)
+        .await
+        .map_err(|e| e.to_string())?;
+
     let repo_root = vox_repository::resolve_repo_root_for_ci();
     let full_path = resolve_target_path(&repo_root, &proposal.target_path)?;
 
@@ -266,11 +297,7 @@ pub async fn resolve_harness_fix_proposal(proposal_id: i64, approve: bool) -> Re
     // `scientia_harness_fix_proposals` in vox-db for why that would be lossy).
     tokio::fs::write(&full_path, &proposal.proposed_content)
         .await
-        .map_err(|e| format!("write {}: {e}", full_path.display()))?;
-
-    db.resolve_harness_fix_proposal(proposal_id, "applied", resolved_at_ms)
-        .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| format!("write {}: {e}", full_path.display()))
 }
 
 /// List harness issues, optionally filtered by status/source.

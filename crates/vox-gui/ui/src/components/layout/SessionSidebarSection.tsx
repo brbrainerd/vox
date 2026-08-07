@@ -75,6 +75,8 @@ function SessionRow({
         {hasPendingIssue && (
           <span
             data-testid={`session-issue-badge-${s.session_id}`}
+            role="img"
+            aria-label="Harness issue detected"
             title="Harness issue detected"
             className="size-1.5 shrink-0 rounded-full bg-amber-400"
           />

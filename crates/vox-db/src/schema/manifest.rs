@@ -22,7 +22,13 @@ use std::sync::OnceLock;
 // 86: feat(vox-db): harness_eval_run/task_result/model_selection_event tables
 // 87: feat(vox-db): add conversations.archived_at with an existing-database-safe migration
 // 88: feat(scientia): add scientia_harness_issues/decisions/fix_proposals tables (harness issue discovery Phase 1)
-pub const BASELINE_VERSION: i64 = 88;
+// 89: fix(scientia): add ON DELETE CASCADE foreign keys from scientia_harness_decisions/
+//     scientia_harness_fix_proposals to scientia_harness_issues (PR review: orphaned
+//     child rows after parent retention deletes an issue)
+// 90: fix(scientia): add a partial unique index enforcing the chat_session pending
+//     dedup rule at the database level (PR review: check-then-insert race between
+//     concurrently-spawned judge tasks)
+pub const BASELINE_VERSION: i64 = 90;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

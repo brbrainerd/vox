@@ -108,7 +108,7 @@ mod tests {
             .insert_harness_issue(NewHarnessIssue {
                 source: "corpus_scan",
                 session_key: None,
-                target_path: None,
+                target_path: Some("examples/golden/x.vox"),
                 detected_at_ms: 1_000,
                 category: "c",
                 severity: "low",

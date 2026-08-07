@@ -108,10 +108,19 @@ test.describe('Harness issue discovery review flow', () => {
     );
     expect(decisionCalls[0].args).toMatchObject({ issueId: 42, decision: 'confirmed' });
 
+    // The panel awaits the decision call before dispatching the proposal
+    // call, so poll for it too rather than reading __TAURI_CALLS__ once —
+    // reading immediately after the decision-call assertion above is a race.
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          (window as any).__TAURI_CALLS__.filter((c: any) => c.cmd === 'propose_harness_issue_fix'),
+        ),
+      )
+      .toHaveLength(1);
     const proposeCalls = await page.evaluate(() =>
       (window as any).__TAURI_CALLS__.filter((c: any) => c.cmd === 'propose_harness_issue_fix'),
     );
-    expect(proposeCalls).toHaveLength(1);
     expect(proposeCalls[0].args).toMatchObject({
       issueId: 42,
       targetPath: 'examples/golden/foo.vox',

@@ -386,12 +386,20 @@ CREATE INDEX IF NOT EXISTS idx_scientia_harness_issues_status
     ON scientia_harness_issues(status);
 CREATE INDEX IF NOT EXISTS idx_scientia_harness_issues_session
     ON scientia_harness_issues(session_key);
+-- Enforces the chat_session dedup rule at the database level (PR review: the
+-- app-level has_pending_harness_issue_for_session check-then-insert has a
+-- race window between two concurrently-spawned judge tasks). Scoped to
+-- chat_session/pending only — corpus_scan dedups on target_path instead of
+-- session_key, via has_pending_harness_issue's separate check.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_scientia_harness_issues_pending_session_category
+    ON scientia_harness_issues(session_key, category)
+    WHERE status = 'pending' AND source = 'chat_session';
 
 -- Append-only decision ledger for scientia_harness_issues (mirrors
 -- scientia_review_decisions: only INSERT + SELECT ops exist, no UPDATE/DELETE).
 CREATE TABLE IF NOT EXISTS scientia_harness_decisions (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    issue_id       INTEGER NOT NULL,
+    issue_id       INTEGER NOT NULL REFERENCES scientia_harness_issues(id) ON DELETE CASCADE,
     decision       TEXT    NOT NULL,           -- confirmed|dismissed (validated in Rust)
     actor          TEXT    NOT NULL,
     reason         TEXT,
@@ -408,7 +416,7 @@ CREATE TABLE IF NOT EXISTS scientia_harness_decisions (
 -- lines. Storing the real content directly avoids that class of bug).
 CREATE TABLE IF NOT EXISTS scientia_harness_fix_proposals (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
-    issue_id         INTEGER NOT NULL,
+    issue_id         INTEGER NOT NULL REFERENCES scientia_harness_issues(id) ON DELETE CASCADE,
     target_path      TEXT    NOT NULL,
     proposed_content TEXT    NOT NULL,
     proposed_diff    TEXT    NOT NULL,          -- display-only, see above

@@ -58,11 +58,15 @@ impl VoxDb {
         &self,
         new: NewFixProposal<'_>,
     ) -> Result<i64, StoreError> {
-        self.conn
-            .execute(
+        // See insert_harness_issue's comment: RETURNING id avoids a separate
+        // last_insert_rowid() query racing a concurrent insert.
+        let mut rows = self
+            .conn
+            .query(
                 "INSERT INTO scientia_harness_fix_proposals \
                  (issue_id, target_path, proposed_content, proposed_diff, status, proposed_at_ms) \
-                 VALUES (?1, ?2, ?3, ?4, 'pending_approval', ?5)",
+                 VALUES (?1, ?2, ?3, ?4, 'pending_approval', ?5) \
+                 RETURNING id",
                 params![
                     new.issue_id,
                     new.target_path.to_string(),
@@ -73,18 +77,14 @@ impl VoxDb {
             )
             .await
             .map_err(StoreError::Turso)?;
-        let mut rows = self
-            .conn
-            .query("SELECT last_insert_rowid()", ())
-            .await
-            .map_err(StoreError::Turso)?;
         let id: i64 = rows
             .next()
             .await
             .map_err(StoreError::Turso)?
             .ok_or_else(|| {
                 StoreError::Db(
-                    "scientia_harness_fix_proposals: last_insert_rowid() returned no row".into(),
+                    "scientia_harness_fix_proposals: INSERT ... RETURNING id returned no row"
+                        .into(),
                 )
             })?
             .get(0)
@@ -137,6 +137,12 @@ impl VoxDb {
 
     /// Resolve a proposal to `applied` or `rejected`. Does not touch the filesystem —
     /// callers apply `proposed_content` themselves before calling this with `applied`.
+    ///
+    /// A one-way transition: only rows still `pending_approval` are updated.
+    /// This prevents a stale/duplicate "approve" request from re-resolving an
+    /// already-`rejected` or already-`applied` proposal (which, for `applied`,
+    /// would otherwise let a caller re-derive a since-changed target path and
+    /// write to it again).
     pub async fn resolve_harness_fix_proposal(
         &self,
         id: i64,
@@ -148,13 +154,20 @@ impl VoxDb {
                 "resolve_harness_fix_proposal: status must be 'applied' or 'rejected', got {status:?}"
             )));
         }
-        self.conn
+        let changed = self
+            .conn
             .execute(
-                "UPDATE scientia_harness_fix_proposals SET status = ?2, resolved_at_ms = ?3 WHERE id = ?1",
+                "UPDATE scientia_harness_fix_proposals SET status = ?2, resolved_at_ms = ?3 \
+                 WHERE id = ?1 AND status = 'pending_approval'",
                 params![id, status.to_string(), resolved_at_ms],
             )
             .await
             .map_err(StoreError::Turso)?;
+        if changed == 0 {
+            return Err(StoreError::Db(format!(
+                "scientia_harness_fix_proposals: no pending_approval row with id {id} (already resolved or missing)"
+            )));
+        }
         Ok(())
     }
 }

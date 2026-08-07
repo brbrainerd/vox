@@ -75,11 +75,43 @@ impl VoxDb {
                 new.severity
             )));
         }
-        self.conn
-            .execute(
+        // Source-specific shape: corpus_scan always names the stale file it
+        // found; chat_session (v1) never does — reliably attributing a chat
+        // error to one golden-corpus file is out of scope for this phase (see
+        // spec's Out of scope section). Enforced here, not just by callers,
+        // so a future caller can't silently violate the contract.
+        match new.source {
+            "corpus_scan" if new.target_path.is_none_or(str::is_empty) => {
+                return Err(StoreError::Db(
+                    "scientia_harness_issues: source='corpus_scan' requires a non-empty target_path"
+                        .to_string(),
+                ));
+            }
+            "chat_session" if new.target_path.is_some() => {
+                return Err(StoreError::Db(
+                    "scientia_harness_issues: source='chat_session' must not set target_path (v1)"
+                        .to_string(),
+                ));
+            }
+            _ => {}
+        }
+        if new.category.is_empty() || new.summary.is_empty() {
+            return Err(StoreError::Db(
+                "scientia_harness_issues: category and summary must be non-empty".to_string(),
+            ));
+        }
+        // `INSERT ... RETURNING id` reads the new rowid atomically with the
+        // insert itself, rather than as a separate `last_insert_rowid()`
+        // query after an `await` — closing a window where a concurrent
+        // insert on the same connection could otherwise land between the two
+        // statements and return the wrong id (PR review finding).
+        let mut rows = self
+            .conn
+            .query(
                 "INSERT INTO scientia_harness_issues \
                  (source, session_key, target_path, detected_at_ms, category, severity, summary, evidence_json, status) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending')",
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending') \
+                 RETURNING id",
                 params![
                     new.source.to_string(),
                     new.session_key.map(str::to_string),
@@ -93,19 +125,13 @@ impl VoxDb {
             )
             .await
             .map_err(StoreError::Turso)?;
-
-        let mut rows = self
-            .conn
-            .query("SELECT last_insert_rowid()", ())
-            .await
-            .map_err(StoreError::Turso)?;
         let id: i64 = rows
             .next()
             .await
             .map_err(StoreError::Turso)?
             .ok_or_else(|| {
                 StoreError::Db(
-                    "scientia_harness_issues: last_insert_rowid() returned no row".into(),
+                    "scientia_harness_issues: INSERT ... RETURNING id returned no row".into(),
                 )
             })?
             .get(0)
@@ -225,20 +251,31 @@ impl VoxDb {
         Ok(out)
     }
 
-    /// Update an issue's status (`confirmed`|`dismissed`). No-op if the id is unknown.
+    /// Resolve an issue to `confirmed` or `dismissed`. Only transitions rows
+    /// still `pending` — `pending` itself is rejected as a target (a decision
+    /// can only move an issue forward, never back), and an id that doesn't
+    /// match a pending row (unknown, or already resolved) is an error rather
+    /// than a silent no-op, so a decision can't be recorded against a status
+    /// change that didn't actually happen.
     pub async fn set_harness_issue_status(&self, id: i64, status: &str) -> Result<(), StoreError> {
-        if !VALID_STATUSES.contains(&status) {
+        if !VALID_STATUSES.contains(&status) || status == "pending" {
             return Err(StoreError::Db(format!(
-                "scientia_harness_issues.status must be one of {VALID_STATUSES:?}, got {status:?}"
+                "scientia_harness_issues.status must be 'confirmed' or 'dismissed', got {status:?}"
             )));
         }
-        self.conn
+        let changed = self
+            .conn
             .execute(
-                "UPDATE scientia_harness_issues SET status = ?2 WHERE id = ?1",
+                "UPDATE scientia_harness_issues SET status = ?2 WHERE id = ?1 AND status = 'pending'",
                 params![id, status.to_string()],
             )
             .await
             .map_err(StoreError::Turso)?;
+        if changed == 0 {
+            return Err(StoreError::Db(format!(
+                "scientia_harness_issues: no pending row with id {id} (already resolved or missing)"
+            )));
+        }
         Ok(())
     }
 }

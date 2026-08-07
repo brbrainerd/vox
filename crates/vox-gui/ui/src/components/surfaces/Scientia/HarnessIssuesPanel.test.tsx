@@ -47,7 +47,11 @@ const invokeMock = vi.fn((cmd: string, args?: unknown) => {
     if (status === 'confirmed') return Promise.resolve([CONFIRMED_STUCK_ROW]);
     return Promise.resolve([PENDING_ROW]);
   }
-  if (cmd === 'list_harness_fix_proposals') return Promise.resolve(fixProposals);
+  if (cmd === 'list_harness_fix_proposals') {
+    const status = (args as { status?: string } | undefined)?.status;
+    if (status) return Promise.resolve(fixProposals.filter((p: any) => p.status === status));
+    return Promise.resolve(fixProposals);
+  }
   if (cmd === 'record_harness_issue_decision') return Promise.resolve();
   if (cmd === 'propose_harness_issue_fix') return Promise.resolve(1);
   if (cmd === 'resolve_harness_fix_proposal') return Promise.resolve();
@@ -142,5 +146,20 @@ describe('HarnessIssuesPanel', () => {
         ),
       ).toBe(true);
     });
+
+    fixProposals = [];
+  });
+
+  it('does not offer retry for a confirmed issue whose proposal was rejected (not "never proposed")', async () => {
+    fixProposals = [{ ...PENDING_PROPOSAL, id: 8, issue_id: 99, status: 'rejected' }];
+    render(<HarnessIssuesPanel pushToast={vi.fn()} />);
+    await screen.findByText('Golden example foo.vox references a retired API');
+
+    fireEvent.change(screen.getByLabelText('Filter by status'), { target: { value: 'confirmed' } });
+    await screen.findByText('Confirmed but the fix proposal never landed');
+
+    expect(screen.queryByText('Retry propose fix')).toBeNull();
+
+    fixProposals = [];
   });
 });

@@ -64,6 +64,9 @@ tables:
     time_column: recorded_at
   # Harness issue discovery (Phase 1): written continuously by an on-by-default
   # detector, with no other pruning mechanism. New/unproven volume — start wide.
+  # Child rows (scientia_harness_decisions, scientia_harness_fix_proposals) use
+  # ON DELETE CASCADE — no separate prune rows (PR review finding; see
+  # BASELINE_VERSION 89 in crates/vox-db/src/schema/manifest.rs).
   scientia_harness_issues:
     kind: ms_days
     days: 180

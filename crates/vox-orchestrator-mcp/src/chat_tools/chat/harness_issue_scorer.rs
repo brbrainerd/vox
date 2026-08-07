@@ -16,6 +16,30 @@ use std::hash::{Hash, Hasher};
 
 pub const THRESHOLD: u32 = 3;
 
+/// Derive a stable error-identity string from a tool result. For a JSON
+/// envelope (`ToolResult::to_json`'s shape), `result.lines().next()` is
+/// useless — pretty-printed JSON's first line is always the opening `{`, so
+/// two genuinely distinct errors would collapse onto the same signature.
+/// Pull the `error`/`message` field out of the parsed JSON instead; fall back
+/// to the trimmed full result (not just its first line) when it isn't JSON.
+fn error_signature(result: &str) -> String {
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(result) {
+        if let Some(msg) = value
+            .get("error")
+            .or_else(|| value.get("message"))
+            .and_then(|v| v.as_str())
+        {
+            return msg.to_string();
+        }
+    }
+    result.trim().to_string()
+}
+
+/// Bound on the recorded-call buffer the judge is shown — enough to see the
+/// actual repeating pattern (not just the one call that happened to cross
+/// threshold) without unbounded growth over a long turn.
+const ACTIVITY_BUFFER_CAPACITY: usize = 12;
+
 #[derive(Debug, Default)]
 pub struct HarnessIssueScorer {
     /// (tool_name, first-line-of-result hash) -> times seen this turn.
@@ -25,6 +49,12 @@ pub struct HarnessIssueScorer {
     last_call: Option<(String, String)>,
     consecutive_repeats: u32,
     score: u32,
+    /// One compact line per recorded call this turn (bounded, oldest evicted
+    /// first) — so the judge sees the actual repeating pattern rather than
+    /// only the single call that happened to cross threshold. Caller-supplied
+    /// `tool_name`/`args_json`/`result` are already redacted before `record`
+    /// is invoked (see `agent_loop.rs`).
+    activity_buffer: std::collections::VecDeque<String>,
 }
 
 impl HarnessIssueScorer {
@@ -40,6 +70,14 @@ impl HarnessIssueScorer {
     pub fn record(&mut self, tool_name: &str, args_json: &str, result: &str) -> bool {
         let mut hit = false;
 
+        if self.activity_buffer.len() >= ACTIVITY_BUFFER_CAPACITY {
+            self.activity_buffer.pop_front();
+        }
+        self.activity_buffer.push_back(format!(
+            "tool: {tool_name}\nargs: {args_json}\nresult: {}",
+            if result.is_empty() { "(ok)" } else { result }
+        ));
+
         // Tool results are commonly rendered via `serde_json::to_string_pretty`
         // (`ToolResult::to_json`), which inserts a space after the colon —
         // match both the pretty and compact envelope shapes so the common
@@ -49,9 +87,9 @@ impl HarnessIssueScorer {
             || result.contains("\"success\":false")
             || result.contains("\"success\": false");
         if is_error {
-            let first_line = result.lines().next().unwrap_or(result);
+            let signature = error_signature(result);
             let mut hasher = DefaultHasher::new();
-            first_line.hash(&mut hasher);
+            signature.hash(&mut hasher);
             let key = (tool_name.to_string(), hasher.finish());
             let count = self.error_signatures.entry(key).or_insert(0);
             *count += 1;
@@ -75,6 +113,18 @@ impl HarnessIssueScorer {
             self.score += 1;
         }
         self.score >= THRESHOLD
+    }
+
+    /// The last (up to) [`ACTIVITY_BUFFER_CAPACITY`] recorded calls this
+    /// turn, oldest first, joined for the judge — so it can see the actual
+    /// repeating pattern that crossed threshold, not just the single call
+    /// that happened to be recorded last.
+    pub fn recent_activity(&self) -> String {
+        self.activity_buffer
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n---\n")
     }
 
     /// Reset all accumulated state (called after a judge verdict, whether
@@ -168,6 +218,25 @@ mod tests {
         assert!(!scorer.record("build_crate", "{}", pretty)); // count=2, hit, score=1
         assert!(!scorer.record("build_crate", "{}", pretty)); // count=3, hit, score=2
         assert!(scorer.record("build_crate", "{}", pretty)); // count=4, hit, score=3 -> true
+    }
+
+    #[test]
+    fn distinct_pretty_printed_json_errors_do_not_share_a_signature() {
+        let mut scorer = HarnessIssueScorer::new();
+        let err_a = "{\n  \"success\": false,\n  \"error\": \"E0502\"\n}";
+        let err_b = "{\n  \"success\": false,\n  \"error\": \"E0499\"\n}";
+        // Alternating distinct errors with distinct args too, so the
+        // consecutive-identical-retry signal (tool+args) can't fire either —
+        // isolating the error-signature signal alone. Each occurs twice: on
+        // its own that's a hit (count>=2) but score only reaches 2, below
+        // THRESHOLD=3. If the signature were still derived from
+        // `result.lines().next()` (always "{" for pretty-printed JSON), all
+        // 4 calls would share one key, and the 3rd call overall (the 2nd
+        // err_b) would cross THRESHOLD early.
+        for i in 0..2 {
+            assert!(!scorer.record("build_crate", &format!("{{\"n\":{i}}}"), err_a));
+            assert!(!scorer.record("build_crate", &format!("{{\"n\":{i}}}"), err_b));
+        }
     }
 
     #[test]

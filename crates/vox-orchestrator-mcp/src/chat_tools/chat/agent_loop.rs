@@ -277,18 +277,22 @@ pub(crate) async fn run_agent_turn(
                     if harness_detection_enabled {
                         let is_error = content.starts_with("Error:")
                             || crate::server_state::tool_json_envelope_is_error(&content);
-                        let crossed = harness_scorer.record(
-                            &call.name,
-                            &call.arguments.to_string(),
-                            if is_error { &content } else { "" },
-                        );
+                        // Redact before it ever enters the scorer's activity
+                        // buffer — that buffer is later sent to the judge LLM
+                        // and stored in evidence_json verbatim, so redaction
+                        // must happen at the point of recording, not only
+                        // when building the single-call summary that used to
+                        // be sent (see recent_activity() below).
+                        let redacted_args = vox_redact::redact_args(&call.arguments).to_string();
+                        let redacted_content = if is_error {
+                            vox_redact::redact_owned(&content)
+                        } else {
+                            String::new()
+                        };
+                        let crossed =
+                            harness_scorer.record(&call.name, &redacted_args, &redacted_content);
                         if crossed {
-                            let recent_activity = format!(
-                                "tool: {}\nargs: {}\nresult: {}",
-                                call.name,
-                                vox_redact::redact_args(&call.arguments),
-                                vox_redact::redact_owned(&content)
-                            );
+                            let recent_activity = harness_scorer.recent_activity();
                             let db = state.db.clone();
                             let session_key = session_id.map(str::to_string);
                             // The judge's own model must be a real, resolved id — a
@@ -354,11 +358,27 @@ pub(crate) async fn run_agent_turn(
                                     })
                                     .await;
                                 if let Err(e) = insert_result {
-                                    tracing::warn!(
-                                        target: "harness_issue_judge",
-                                        error = %e,
-                                        "failed to insert detected harness issue"
-                                    );
+                                    // The has_pending_harness_issue_for_session check
+                                    // above is a fast-path only — the database's own
+                                    // partial unique index on (session_key, category)
+                                    // WHERE status='pending' AND source='chat_session'
+                                    // is the actual dedup enforcement, closing the race
+                                    // between two concurrently-spawned judge tasks that
+                                    // both passed the check before either inserted.
+                                    // That expected race outcome (not a real failure)
+                                    // surfaces as a unique-constraint violation here.
+                                    if e.to_string().to_ascii_lowercase().contains("unique") {
+                                        tracing::debug!(
+                                            target: "harness_issue_judge",
+                                            "duplicate harness issue insert raced with another judge task; dropped"
+                                        );
+                                    } else {
+                                        tracing::warn!(
+                                            target: "harness_issue_judge",
+                                            error = %e,
+                                            "failed to insert detected harness issue"
+                                        );
+                                    }
                                 }
                             });
                             harness_scorer.reset();
