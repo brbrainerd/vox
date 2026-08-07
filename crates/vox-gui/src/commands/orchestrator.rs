@@ -597,6 +597,145 @@ pub fn get_task_policy_overrides() -> vox_orchestrator::config::TaskPolicyOverri
     vox_orchestrator::config::OrchestratorConfig::snapshot().task_policy
 }
 
+/// Reject unparseable clutch/risk labels before touching Vox.toml. `None`
+/// values are always accepted (that axis just isn't being set/changed).
+fn validate_task_policy_labels(clutch: Option<&str>, risk: Option<&str>) -> Result<(), String> {
+    if let Some(c) = clutch {
+        vox_orchestrator::mode::ClutchProfile::from_label(c)
+            .ok_or_else(|| format!("unknown clutch label: {c}"))?;
+    }
+    if let Some(r) = risk {
+        vox_orchestrator::mode::RiskPosture::from_label(r)
+            .ok_or_else(|| format!("unknown risk label: {r}"))?;
+    }
+    Ok(())
+}
+
+/// `scope_kind` is `"category"` or `"source"`; `scope_key` is a `TaskCategory`/
+/// `TriggerSource` Debug name (e.g. `"CodeGen"`, `"Automated"`). Signals the
+/// running orchestrator daemon to reload afterward (fire-and-forget), exactly
+/// like `set_orchestrator_config` does — without this, the write only affects
+/// what a future daemon restart picks up, not the live process.
+#[tauri::command]
+pub async fn set_task_policy_override(
+    app_handle: tauri::AppHandle,
+    scope_kind: String,
+    scope_key: String,
+    clutch: Option<String>,
+    risk: Option<String>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<(), String> {
+    validate_task_policy_labels(clutch.as_deref(), risk.as_deref())?;
+
+    let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
+    let (mut manifest, path) = VoxManifest::discover(&current_dir).map_err(|e| e.to_string())?;
+    let mut orch_table = manifest.orchestrator.unwrap_or_default();
+
+    let mut task_policy_table = orch_table
+        .get("task_policy")
+        .and_then(|v| v.as_table())
+        .cloned()
+        .unwrap_or_default();
+    let mut scope_table = task_policy_table
+        .get(&scope_kind)
+        .and_then(|v| v.as_table())
+        .cloned()
+        .unwrap_or_default();
+
+    let mut entry = toml::map::Map::new();
+    if let Some(c) = &clutch {
+        entry.insert("clutch".to_string(), toml::Value::String(c.clone()));
+    }
+    if let Some(r) = &risk {
+        entry.insert("risk".to_string(), toml::Value::String(r.clone()));
+    }
+    scope_table.insert(scope_key.clone(), toml::Value::Table(entry));
+    task_policy_table.insert(scope_kind, toml::Value::Table(scope_table));
+    orch_table.insert(
+        "task_policy".to_string(),
+        toml::Value::Table(task_policy_table),
+    );
+
+    manifest.orchestrator = Some(orch_table);
+    let toml_str = manifest.to_toml_string().map_err(|e| e.to_string())?;
+    std::fs::write(&path, toml_str).map_err(|e| e.to_string())?;
+
+    vox_config::snapshot::bump(&["task_policy"]);
+    let _ = app_handle.emit(
+        ORCH_CONFIG_CHANGED_EVENT,
+        OrchestratorConfigChanged {
+            rev: vox_config::snapshot::current_rev(),
+        },
+    );
+
+    // Fire-and-forget: tell the running daemon to reload so this override
+    // affects real task execution immediately, not just after a restart.
+    let daemon: Arc<PersistentDaemon> = daemon.inner().clone();
+    tokio::spawn(async move {
+        let _ = call_orchestrator_daemon(
+            &daemon,
+            orch_daemon_method::RELOAD_CONFIG,
+            serde_json::json!({}),
+        )
+        .await;
+    });
+
+    Ok(())
+}
+
+/// Remove one override (`scope_kind`/`scope_key` as in [`set_task_policy_override`]).
+/// Same daemon-reload signal as `set_task_policy_override`.
+#[tauri::command]
+pub async fn clear_task_policy_override(
+    app_handle: tauri::AppHandle,
+    scope_kind: String,
+    scope_key: String,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<(), String> {
+    let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
+    let (mut manifest, path) = VoxManifest::discover(&current_dir).map_err(|e| e.to_string())?;
+    let mut orch_table = manifest.orchestrator.unwrap_or_default();
+
+    if let Some(mut task_policy_table) = orch_table.get("task_policy").and_then(|v| v.as_table()).cloned() {
+        if let Some(mut scope_table) = task_policy_table
+            .get(&scope_kind)
+            .and_then(|v| v.as_table())
+            .cloned()
+        {
+            scope_table.remove(&scope_key);
+            task_policy_table.insert(scope_kind, toml::Value::Table(scope_table));
+            orch_table.insert(
+                "task_policy".to_string(),
+                toml::Value::Table(task_policy_table),
+            );
+        }
+    }
+
+    manifest.orchestrator = Some(orch_table);
+    let toml_str = manifest.to_toml_string().map_err(|e| e.to_string())?;
+    std::fs::write(&path, toml_str).map_err(|e| e.to_string())?;
+
+    vox_config::snapshot::bump(&["task_policy"]);
+    let _ = app_handle.emit(
+        ORCH_CONFIG_CHANGED_EVENT,
+        OrchestratorConfigChanged {
+            rev: vox_config::snapshot::current_rev(),
+        },
+    );
+
+    let daemon: Arc<PersistentDaemon> = daemon.inner().clone();
+    tokio::spawn(async move {
+        let _ = call_orchestrator_daemon(
+            &daemon,
+            orch_daemon_method::RELOAD_CONFIG,
+            serde_json::json!({}),
+        )
+        .await;
+    });
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod task_policy_tests {
     use super::*;
@@ -607,6 +746,21 @@ mod task_policy_tests {
         // Fresh default config has no overrides yet.
         assert!(overrides.category.is_empty());
         assert!(overrides.source.is_empty());
+    }
+
+    #[test]
+    fn set_task_policy_override_rejects_unparseable_labels() {
+        let result = validate_task_policy_labels(Some("turbo"), Some("high"));
+        assert!(
+            result.is_err(),
+            "an unparseable clutch label must be rejected before writing Vox.toml"
+        );
+    }
+
+    #[test]
+    fn set_task_policy_override_accepts_valid_labels() {
+        let result = validate_task_policy_labels(Some("free"), Some("high"));
+        assert!(result.is_ok());
     }
 }
 
