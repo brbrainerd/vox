@@ -198,6 +198,58 @@ fn unconfigured_default_still_prefers_free_model_cost_first() {
     assert_eq!(resolved.0.id, "free-model");
 }
 
+/// `task_category` on `McpChatModelResolution` defaults to `CodeGen` for an
+/// unrelated legacy reason (SelectionIntent/capability-pin heuristics) and
+/// most MCP call sites never override it — so a category-scoped policy
+/// override must NOT reach real resolution through this path (it would
+/// otherwise silently misattribute chat/ghost-text/inline-edit calls as
+/// CodeGen). Only source policy is safe here; category policy correctly
+/// applies via the AgentTask-based execution path instead.
+#[test]
+fn category_policy_override_does_not_leak_into_mcp_resolution() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
+    let config = OrchestratorConfig::for_testing();
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        tiny_registry_with_free_and_paid();
+
+    // Configure a CodeGen category override that would force Genius/expensive
+    // routing if (incorrectly) applied here.
+    let mut category = std::collections::HashMap::new();
+    category.insert(
+        "CodeGen".to_string(),
+        vox_orchestrator::config::TaskPolicyEntry {
+            clutch: Some("genius".to_string()),
+            risk: None,
+        },
+    );
+    vox_orchestrator::sync_lock::rw_write(&*orch.config_handle())
+        .task_policy
+        .category = category;
+
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        "",
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            task_category: vox_orchestrator::types::TaskCategory::CodeGen,
+            ..Default::default()
+        },
+    )
+    .expect("resolve");
+    assert!(
+        resolved.0.is_free,
+        "a CodeGen category override must not affect MCP-direct resolution — \
+         task_category here is not a reliable per-call signal, it must still \
+         land on the unconfigured COST_FIRST default"
+    );
+}
+
 /// Proves the dead path IS fixed when a policy genuinely applies: a
 /// source-level Free/High policy resolves correctly through the pure
 /// `resolve_task_policy` resolver (the same function now wired into

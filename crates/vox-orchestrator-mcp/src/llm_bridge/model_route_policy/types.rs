@@ -7,7 +7,12 @@ pub struct McpChatModelResolution {
     pub allow_cheapest_fallback: bool,
     /// Task complexity hint (1–10) for registry routing.
     pub complexity: u8,
-    /// Task category hint so MCP and orchestrator selection share the same intent.
+    /// Task category hint so MCP and orchestrator selection share the same
+    /// intent (feeds `SelectionIntent::for_task` and the capability-pin
+    /// heuristic). Defaults to `CodeGen` for that legacy purpose and most call
+    /// sites never override it — NOT a reliable signal of the caller's actual
+    /// task type, so the per-category cost/model policy feature deliberately
+    /// does not key off this field here (see `resolve_mcp_chat_model_sync_inner`).
     pub task_category: TaskCategory,
     /// Prefer a free model with large context (ghost text / latency-sensitive paths).
     pub free_tier_latency_critical: bool,

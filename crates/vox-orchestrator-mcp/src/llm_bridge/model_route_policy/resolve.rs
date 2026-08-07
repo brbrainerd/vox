@@ -228,16 +228,26 @@ fn resolve_mcp_chat_model_sync_inner(
                 .task_policy
                 .clone()
         };
-        let (category_clutch, category_risk) =
-            vox_orchestrator::mode::effective_category_policy(&overrides, res.task_category);
+        // Category policy is intentionally NOT applied here: `res.task_category`
+        // on this struct defaults to `TaskCategory::CodeGen` for a pre-existing,
+        // unrelated reason (SelectionIntent/capability-pin heuristics), and most
+        // real call sites (ordinary chat, ghost-text, inline-edit, plan/plan-loop,
+        // db/compiler/oratio tool assists) never set their own category —
+        // applying a category override here would silently misattribute all of
+        // them as CodeGen. Source policy is safe to apply: every MCP call site
+        // constructs this struct directly from a live interactive feature, so
+        // `trigger_source` is accurate by construction (see its doc comment).
+        // Category policy correctly applies to the `AgentTask`-based execution
+        // path instead (`runtime.rs`/`socrates.rs`/`attention_fields.rs`), where
+        // `task_category` is a real, deliberately-assigned field.
         let (source_clutch, source_risk) =
             vox_orchestrator::mode::effective_source_policy(&overrides, res.trigger_source);
-        if res.clutch.is_some() || category_clutch.is_some() || source_clutch.is_some() {
+        if res.clutch.is_some() || source_clutch.is_some() {
             let (clutch, risk) = vox_orchestrator::mode::resolve_task_policy(
                 res.clutch,
                 res.risk,
-                category_clutch,
-                category_risk,
+                None,
+                None,
                 source_clutch,
                 source_risk,
             );
