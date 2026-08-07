@@ -56,6 +56,7 @@ impl VoxDb {
 #[cfg(test)]
 mod tests {
     use super::HarnessIssueDecisionRow;
+    use crate::paths::local_user_id;
     use crate::store::ops_harness_issues::NewHarnessIssue;
     use crate::{DbConfig, VoxDb};
 
@@ -79,7 +80,7 @@ mod tests {
         db.record_harness_issue_decision(&HarnessIssueDecisionRow {
             issue_id,
             decision: "confirmed".to_string(),
-            actor: "local_user".to_string(),
+            actor: local_user_id(),
             reason: None,
             decided_at_ms: 2_000,
         })

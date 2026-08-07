@@ -308,7 +308,7 @@ pub async fn record_harness_issue_decision(
     db.record_harness_issue_decision(&vox_db::HarnessIssueDecisionRow {
         issue_id,
         decision,
-        actor: "local_user".to_string(),
+        actor: vox_config::local_user_id(),
         reason,
         decided_at_ms,
     })
@@ -453,7 +453,7 @@ mod tests {
         db.record_harness_issue_decision(&vox_db::HarnessIssueDecisionRow {
             issue_id,
             decision: "confirmed".to_string(),
-            actor: "local_user".to_string(),
+            actor: vox_config::local_user_id(),
             reason: None,
             decided_at_ms: 2_000,
         })
