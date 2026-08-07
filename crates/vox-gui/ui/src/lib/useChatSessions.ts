@@ -15,7 +15,7 @@ interface ArchiveOptions {
   onReassign?: (nextActiveSessionId: string) => void;
 }
 
-export function useChatSessions() {
+export function useChatSessions(onLoadError?: (err: unknown) => void) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [includeArchived, setIncludeArchived] = useState(false);
 
@@ -24,11 +24,11 @@ export function useChatSessions() {
       limit: 200,
       includeArchived: opts?.includeArchived ?? includeArchived,
     });
-    setSessions(list);
+    setSessions(list ?? []);
   }, [includeArchived]);
 
   useEffect(() => {
-    load();
+    load().catch(err => onLoadError?.(err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

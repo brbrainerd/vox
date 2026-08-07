@@ -73,20 +73,6 @@ describe('ChatSurface', () => {
     expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
-  it('marks the active session tab with aria-pressed', async () => {
-    render(<LanguageProvider><ChatSurface pushToast={noopToast} activeSessionId="s1" /></LanguageProvider>);
-    const active = await screen.findByRole('tab', { name: /First/ });
-    expect(active.getAttribute('aria-pressed')).toBe('true');
-    const inactive = screen.getByRole('tab', { name: /Second/ });
-    expect(inactive.getAttribute('aria-pressed')).toBe('false');
-  });
-
-  it('gives the New session button an explicit type', async () => {
-    render(<LanguageProvider><ChatSurface pushToast={noopToast} activeSessionId="s1" /></LanguageProvider>);
-    const newBtn = await screen.findByRole('button', { name: /new chat session/i });
-    expect(newBtn.getAttribute('type')).toBe('button');
-  });
-
   it('renders an empty state when the session has no messages', async () => {
     render(<LanguageProvider><ChatSurface pushToast={noopToast} activeSessionId="s1" messages={[]} /></LanguageProvider>);
     await waitFor(() => {
@@ -291,7 +277,7 @@ describe('ChatSurface', () => {
     expect(screen.getByTestId('chat-attention-meter')).toBeDefined();
   });
 
-  it('mounts sessions, chat, and execution rail as dockview panels', async () => {
+  it('mounts chat and execution rail as dockview panels (Task 9: no Sessions dockview panel)', async () => {
     render(
       <LanguageProvider>
         <ChatSurface
@@ -304,10 +290,10 @@ describe('ChatSurface', () => {
       </LanguageProvider>,
     );
     await waitFor(() => {
-      expect(screen.getByTestId('chat-dock-sessions')).toBeInTheDocument();
       expect(screen.getByTestId('chat-dock-transcript')).toBeInTheDocument();
       expect(screen.getByTestId('chat-dock-execution-rail')).toBeInTheDocument();
     });
+    expect(screen.queryByTestId('chat-dock-sessions')).toBeNull();
   });
 
   it('keeps overflow-y-auto on the transcript dock panel wrapper as a scroll fallback (regression guard for a93331b3ee)', async () => {
@@ -509,22 +495,7 @@ describe('ChatSurface', () => {
     expect(moveAfterUp.defaultPrevented).toBe(false);
   });
 
-  it('creates the Sessions panel with a fixed maximumWidth constraint so it can never dominate the row (dockview 6.6.1 has no responsive % constraint, only a fixed-pixel one)', async () => {
-    const { DockviewApi } = await import('dockview');
-    const addPanelSpy = vi.spyOn(DockviewApi.prototype, 'addPanel');
-    render(
-      <LanguageProvider>
-        <ChatSurface pushToast={noopToast} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
-      </LanguageProvider>,
-    );
-    await screen.findByTestId('chat-dock-sessions');
-    const sessionsCall = addPanelSpy.mock.calls.find(([opts]) => opts.id === 'sessions');
-    expect(sessionsCall).toBeDefined();
-    expect(sessionsCall![0].maximumWidth).toBe(280);
-    addPanelSpy.mockRestore();
-  });
-
-  it('creates the Chat transcript panel with a hard minimumWidth floor so it cannot be halved indefinitely by sibling panels', async () => {
+  it('creates the Chat transcript panel with a hard minimumWidth floor and no positional anchor (Task 9: transcript is the dock\'s default/leftmost panel now that Sessions is gone)', async () => {
     const { DockviewApi } = await import('dockview');
     const addPanelSpy = vi.spyOn(DockviewApi.prototype, 'addPanel');
     render(
@@ -537,7 +508,66 @@ describe('ChatSurface', () => {
     expect(transcriptCall).toBeDefined();
     expect(transcriptCall![0].minimumWidth).toBe(460);
     expect(transcriptCall![0].maximumWidth).toBeUndefined();
+    expect(transcriptCall![0].position).toBeUndefined();
     addPanelSpy.mockRestore();
+  });
+
+  it('closes a stale "sessions" panel restored from a persisted layout (Task 9: pre-existing users have a persisted gui.chat layout that still references the removed Sessions panel/component)', async () => {
+    const { layoutStorageKeyFor } = await import('../../dock/DockWorkspaceShell');
+    // A minimal persisted dockview layout containing a 'sessions' panel —
+    // shaped like what dockview's own toJSON would have produced before
+    // Task 9 removed the panel, trimmed to the fields fromJSON needs.
+    window.localStorage.setItem(
+      layoutStorageKeyFor('gui.chat'),
+      JSON.stringify({
+        grid: {
+          root: {
+            type: 'branch',
+            data: [
+              {
+                type: 'leaf',
+                data: {
+                  views: ['sessions'],
+                  activeView: 'sessions',
+                  id: 'group-sessions',
+                },
+                size: 200,
+              },
+            ],
+            size: 600,
+          },
+          width: 600,
+          height: 600,
+          orientation: 'HORIZONTAL',
+        },
+        panels: {
+          sessions: {
+            id: 'sessions',
+            contentComponent: 'sessions',
+            title: 'Sessions',
+          },
+        },
+        activeGroup: 'group-sessions',
+      }),
+    );
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={noopToast} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-transcript');
+    // The regression this guards: a persisted layout referencing the
+    // removed 'sessions' panel/component must never leave a stale/broken
+    // panel visible, nor prevent the surface from ending up in a normal
+    // working state. Empirically, dockview-core@6.6.1's `fromJSON` throws on
+    // the unregistered 'sessions' component (see the onReady comment in
+    // ChatSurface.tsx), which DockWorkspaceShell's own try/catch turns into
+    // "revert to a fresh default layout" — so this also exercises that
+    // fallback path, not just the belt-and-suspenders `.api.close()` guard.
+    await waitFor(() => {
+      expect(screen.queryByTestId('chat-dock-sessions')).toBeNull();
+    });
+    expect(screen.getByTestId('chat-dock-transcript')).toBeInTheDocument();
   });
 
   it('a 3rd+ opt-in panel stacks BELOW the most-recently-activated opt-in panel instead of splitting the row right again, so an opening row of opt-in panels does not get infinitely thinner', async () => {
@@ -732,7 +762,7 @@ describe('ChatSurface', () => {
     expect(screen.queryByText('All panels open')).toBeNull();
   });
 
-  it('Reset layout clears the persisted layout and closedPanelIds, and recreates only the 5 core panels', async () => {
+  it('Reset layout clears the persisted layout and closedPanelIds, and recreates only the 4 core panels', async () => {
     const { layoutStorageKeyFor } = await import('../../dock/DockWorkspaceShell');
     window.localStorage.setItem(layoutStorageKeyFor('gui.chat'), JSON.stringify({ grid: {} }));
     render(
@@ -747,11 +777,11 @@ describe('ChatSurface', () => {
 
     expect(window.localStorage.getItem(layoutStorageKeyFor('gui.chat'))).toBeNull();
     await waitFor(() => {
-      expect(screen.getByTestId('chat-dock-sessions')).toBeInTheDocument();
       expect(screen.getByTestId('chat-dock-transcript')).toBeInTheDocument();
       expect(screen.getByTestId('chat-dock-flow')).toBeInTheDocument();
       expect(screen.getByTestId('chat-dock-todos')).toBeInTheDocument();
     });
+    expect(screen.queryByTestId('chat-dock-sessions')).toBeNull();
   });
 
   it('Reset layout does not throw when no layout was ever persisted', () => {
