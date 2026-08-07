@@ -452,9 +452,18 @@ mod trigger_source_tests {
 
     #[test]
     fn from_label_parses_all_four_case_insensitive() {
-        assert_eq!(TriggerSource::from_label("interactive"), Some(TriggerSource::Interactive));
-        assert_eq!(TriggerSource::from_label("Automated"), Some(TriggerSource::Automated));
-        assert_eq!(TriggerSource::from_label("SUBAGENT"), Some(TriggerSource::Subagent));
+        assert_eq!(
+            TriggerSource::from_label("interactive"),
+            Some(TriggerSource::Interactive)
+        );
+        assert_eq!(
+            TriggerSource::from_label("Automated"),
+            Some(TriggerSource::Automated)
+        );
+        assert_eq!(
+            TriggerSource::from_label("SUBAGENT"),
+            Some(TriggerSource::Subagent)
+        );
         assert_eq!(TriggerSource::from_label("mesh"), Some(TriggerSource::Mesh));
     }
 
@@ -535,9 +544,12 @@ mod task_policy_resolver_tests {
     #[test]
     fn explicit_wins_over_everything() {
         let (clutch, risk) = resolve_task_policy(
-            Some(ClutchProfile::Genius), Some(RiskPosture::Low),
-            Some(ClutchProfile::Free), Some(RiskPosture::High),
-            Some(ClutchProfile::Efficiency), Some(RiskPosture::Moderate),
+            Some(ClutchProfile::Genius),
+            Some(RiskPosture::Low),
+            Some(ClutchProfile::Free),
+            Some(RiskPosture::High),
+            Some(ClutchProfile::Efficiency),
+            Some(RiskPosture::Moderate),
         );
         assert_eq!(clutch, ClutchProfile::Genius);
         assert_eq!(risk, RiskPosture::Low);
@@ -546,9 +558,12 @@ mod task_policy_resolver_tests {
     #[test]
     fn category_policy_wins_over_source_policy() {
         let (clutch, risk) = resolve_task_policy(
-            None, None,
-            Some(ClutchProfile::Balanced), Some(RiskPosture::Moderate),
-            Some(ClutchProfile::Free), Some(RiskPosture::High),
+            None,
+            None,
+            Some(ClutchProfile::Balanced),
+            Some(RiskPosture::Moderate),
+            Some(ClutchProfile::Free),
+            Some(RiskPosture::High),
         );
         assert_eq!(clutch, ClutchProfile::Balanced);
         assert_eq!(risk, RiskPosture::Moderate);
@@ -557,9 +572,12 @@ mod task_policy_resolver_tests {
     #[test]
     fn source_policy_wins_when_no_category_policy() {
         let (clutch, risk) = resolve_task_policy(
-            None, None,
-            None, None,
-            Some(ClutchProfile::Free), Some(RiskPosture::High),
+            None,
+            None,
+            None,
+            None,
+            Some(ClutchProfile::Free),
+            Some(RiskPosture::High),
         );
         assert_eq!(clutch, ClutchProfile::Free);
         assert_eq!(risk, RiskPosture::High);
@@ -578,23 +596,45 @@ mod task_policy_resolver_tests {
         // must fall through past category to source, NOT default straight to
         // Moderate.
         let (clutch, risk) = resolve_task_policy(
-            None, None,
-            Some(ClutchProfile::Efficiency), None,
-            None, Some(RiskPosture::High),
+            None,
+            None,
+            Some(ClutchProfile::Efficiency),
+            None,
+            None,
+            Some(RiskPosture::High),
         );
-        assert_eq!(clutch, ClutchProfile::Efficiency, "category's clutch axis wins");
-        assert_eq!(risk, RiskPosture::High, "category had no risk axis, so source's risk axis is used, not the global default");
+        assert_eq!(
+            clutch,
+            ClutchProfile::Efficiency,
+            "category's clutch axis wins"
+        );
+        assert_eq!(
+            risk,
+            RiskPosture::High,
+            "category had no risk axis, so source's risk axis is used, not the global default"
+        );
     }
 
     #[test]
     fn explicit_clutch_and_category_risk_combine_across_different_levels() {
         let (clutch, risk) = resolve_task_policy(
-            Some(ClutchProfile::Genius), None,
-            None, Some(RiskPosture::Low),
-            Some(ClutchProfile::Free), Some(RiskPosture::High),
+            Some(ClutchProfile::Genius),
+            None,
+            None,
+            Some(RiskPosture::Low),
+            Some(ClutchProfile::Free),
+            Some(RiskPosture::High),
         );
-        assert_eq!(clutch, ClutchProfile::Genius, "explicit clutch wins outright");
-        assert_eq!(risk, RiskPosture::Low, "explicit risk unset, category risk wins over source risk");
+        assert_eq!(
+            clutch,
+            ClutchProfile::Genius,
+            "explicit clutch wins outright"
+        );
+        assert_eq!(
+            risk,
+            RiskPosture::Low,
+            "explicit risk unset, category risk wins over source risk"
+        );
     }
 }
 
@@ -708,9 +748,15 @@ mod effective_policy_tests {
         let mut category = HashMap::new();
         category.insert(
             "CodeGen".to_string(),
-            TaskPolicyEntry { clutch: Some("free".to_string()), risk: Some("high".to_string()) },
+            TaskPolicyEntry {
+                clutch: Some("free".to_string()),
+                risk: Some("high".to_string()),
+            },
         );
-        let overrides = TaskPolicyOverrides { category, source: HashMap::new() };
+        let overrides = TaskPolicyOverrides {
+            category,
+            source: HashMap::new(),
+        };
         let (clutch, risk) = effective_category_policy(&overrides, TaskCategory::CodeGen);
         assert_eq!(clutch, Some(ClutchProfile::Free));
         assert_eq!(risk, Some(RiskPosture::High));
@@ -719,7 +765,10 @@ mod effective_policy_tests {
     #[test]
     fn missing_category_override_and_no_compiled_default_is_none() {
         let overrides = TaskPolicyOverrides::default();
-        assert_eq!(effective_category_policy(&overrides, TaskCategory::Research), (None, None));
+        assert_eq!(
+            effective_category_policy(&overrides, TaskCategory::Research),
+            (None, None)
+        );
     }
 
     #[test]
@@ -727,10 +776,19 @@ mod effective_policy_tests {
         let mut source = HashMap::new();
         source.insert(
             "Automated".to_string(),
-            TaskPolicyEntry { clutch: Some("turbo".to_string()), risk: None },
+            TaskPolicyEntry {
+                clutch: Some("turbo".to_string()),
+                risk: None,
+            },
         );
-        let overrides = TaskPolicyOverrides { category: HashMap::new(), source };
-        assert_eq!(effective_source_policy(&overrides, TriggerSource::Automated), (None, None));
+        let overrides = TaskPolicyOverrides {
+            category: HashMap::new(),
+            source,
+        };
+        assert_eq!(
+            effective_source_policy(&overrides, TriggerSource::Automated),
+            (None, None)
+        );
     }
 
     #[test]
@@ -744,9 +802,15 @@ mod effective_policy_tests {
         let mut source = HashMap::new();
         source.insert(
             "Automated".to_string(),
-            TaskPolicyEntry { clutch: Some("turbo".to_string()), risk: Some("high".to_string()) },
+            TaskPolicyEntry {
+                clutch: Some("turbo".to_string()),
+                risk: Some("high".to_string()),
+            },
         );
-        let overrides = TaskPolicyOverrides { category: HashMap::new(), source };
+        let overrides = TaskPolicyOverrides {
+            category: HashMap::new(),
+            source,
+        };
         assert_eq!(
             effective_source_policy(&overrides, TriggerSource::Automated),
             (None, Some(RiskPosture::High)),
@@ -759,9 +823,15 @@ mod effective_policy_tests {
         let mut category = HashMap::new();
         category.insert(
             "Research".to_string(),
-            TaskPolicyEntry { clutch: Some("genius".to_string()), risk: None },
+            TaskPolicyEntry {
+                clutch: Some("genius".to_string()),
+                risk: None,
+            },
         );
-        let overrides = TaskPolicyOverrides { category, source: HashMap::new() };
+        let overrides = TaskPolicyOverrides {
+            category,
+            source: HashMap::new(),
+        };
         assert_eq!(
             effective_category_policy(&overrides, TaskCategory::Research),
             (Some(ClutchProfile::Genius), None),
@@ -778,9 +848,21 @@ mod effective_policy_tests {
         // "entry present but unparseable label" warn path — this crate has
         // no tracing-capture test helper, so that path isn't asserted here.
         let mut category = HashMap::new();
-        category.insert("NotARealCategory".to_string(), TaskPolicyEntry { clutch: Some("free".to_string()), risk: Some("high".to_string()) });
-        let overrides = TaskPolicyOverrides { category, source: HashMap::new() };
-        assert_eq!(effective_category_policy(&overrides, TaskCategory::CodeGen), (None, None));
+        category.insert(
+            "NotARealCategory".to_string(),
+            TaskPolicyEntry {
+                clutch: Some("free".to_string()),
+                risk: Some("high".to_string()),
+            },
+        );
+        let overrides = TaskPolicyOverrides {
+            category,
+            source: HashMap::new(),
+        };
+        assert_eq!(
+            effective_category_policy(&overrides, TaskCategory::CodeGen),
+            (None, None)
+        );
     }
 
     #[test]
@@ -798,12 +880,18 @@ mod effective_policy_tests {
         let mut category = HashMap::new();
         category.insert(
             "Research".to_string(),
-            TaskPolicyEntry { clutch: None, risk: Some("high".to_string()) },
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("high".to_string()),
+            },
         );
         let mut source = HashMap::new();
         source.insert(
             "Automated".to_string(),
-            TaskPolicyEntry { clutch: None, risk: Some("moderate".to_string()) },
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("moderate".to_string()),
+            },
         );
         let overrides = TaskPolicyOverrides { category, source };
 

@@ -1729,15 +1729,17 @@ mod isolation_config_tests {
         // parse the instant it saw a key with no matching field, resetting
         // every setting to defaults. The flattened `unrecognized_fields`
         // catch-all must absorb the unknown key instead.
-        let section = "max_auto_continuations = 99\nsome_field_from_a_newer_binary = \"whatever\"\n";
-        let cfg: OrchestratorConfig =
-            toml::from_str(section).expect("section must still parse with a wholly unrecognized key");
+        let section =
+            "max_auto_continuations = 99\nsome_field_from_a_newer_binary = \"whatever\"\n";
+        let cfg: OrchestratorConfig = toml::from_str(section)
+            .expect("section must still parse with a wholly unrecognized key");
         assert_eq!(
             cfg.max_auto_continuations, 99,
             "an unrelated setting must survive an unrecognized sibling key"
         );
         assert_eq!(
-            cfg.unrecognized_fields.get("some_field_from_a_newer_binary"),
+            cfg.unrecognized_fields
+                .get("some_field_from_a_newer_binary"),
             Some(&toml::Value::String("whatever".to_string())),
             "the unrecognized key must be captured, not silently discarded, so drift stays observable"
         );

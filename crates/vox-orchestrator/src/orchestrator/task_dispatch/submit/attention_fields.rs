@@ -240,8 +240,7 @@ mod tests {
         // A brand-new/low classified tier (AutoApprove) with no trust history:
         // if the category policy had zero effect the tier would stay unchanged
         // -- this assertion fails on the pre-fix code.
-        let effective_tier =
-            effective_approval_tier(&t, &overrides, ApprovalTier::AutoApprove);
+        let effective_tier = effective_approval_tier(&t, &overrides, ApprovalTier::AutoApprove);
 
         // Low risk resolves to ApprovalLean::Review.
         assert_eq!(
@@ -273,8 +272,7 @@ mod tests {
         t.trigger_source = Some(crate::mode::TriggerSource::Automated);
         assert_eq!(t.risk_posture, None, "no explicit risk hint set");
 
-        let effective_tier =
-            effective_approval_tier(&t, &overrides, ApprovalTier::AutoApprove);
+        let effective_tier = effective_approval_tier(&t, &overrides, ApprovalTier::AutoApprove);
 
         assert_eq!(
             effective_tier,
@@ -308,8 +306,7 @@ mod tests {
         // High risk resolves to ApprovalLean::AutoApprove, overriding the
         // category's Low-risk (Review) policy; classified tier stays as-is
         // since AutoApprove doesn't escalate above AutoApprove.
-        let effective_tier =
-            effective_approval_tier(&t, &overrides, ApprovalTier::AutoApprove);
+        let effective_tier = effective_approval_tier(&t, &overrides, ApprovalTier::AutoApprove);
 
         assert_eq!(
             effective_tier,

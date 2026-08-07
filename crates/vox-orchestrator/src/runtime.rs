@@ -36,7 +36,11 @@ fn resolve_task_cost_policy(
     task: &crate::types::AgentTask,
     overrides: &crate::config::TaskPolicyOverrides,
     global_default: crate::config::CostPreference,
-) -> (crate::config::CostPreference, bool, crate::mode::RiskPosture) {
+) -> (
+    crate::config::CostPreference,
+    bool,
+    crate::mode::RiskPosture,
+) {
     let (category_clutch, category_risk) =
         crate::mode::effective_category_policy(overrides, task.task_category);
     let source = task

@@ -837,7 +837,10 @@ mod task_policy_tests {
         // was `None` even if a value for it already existed.
         let mut scope_table = toml::map::Map::new();
         let mut existing = toml::map::Map::new();
-        existing.insert("clutch".to_string(), toml::Value::String("free".to_string()));
+        existing.insert(
+            "clutch".to_string(),
+            toml::Value::String("free".to_string()),
+        );
         existing.insert("risk".to_string(), toml::Value::String("high".to_string()));
         scope_table.insert("CodeGen".to_string(), toml::Value::Table(existing));
 

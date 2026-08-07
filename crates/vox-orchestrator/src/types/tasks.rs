@@ -1002,7 +1002,9 @@ impl AgentTask {
     ) -> (crate::mode::ClutchProfile, crate::mode::RiskPosture) {
         let (category_clutch, category_risk) =
             crate::mode::effective_category_policy(overrides, self.task_category);
-        let source = self.trigger_source.unwrap_or(crate::mode::TriggerSource::Interactive);
+        let source = self
+            .trigger_source
+            .unwrap_or(crate::mode::TriggerSource::Interactive);
         let (source_clutch, source_risk) = crate::mode::effective_source_policy(overrides, source);
         crate::mode::resolve_task_policy(
             self.clutch_profile,
@@ -1236,10 +1238,17 @@ mod tests {
                 risk: Some("high".to_string()),
             },
         );
-        let overrides = crate::config::TaskPolicyOverrides { category: std::collections::HashMap::new(), source };
+        let overrides = crate::config::TaskPolicyOverrides {
+            category: std::collections::HashMap::new(),
+            source,
+        };
 
         let (clutch, _risk) = task.resolved_policy(&overrides);
-        assert_eq!(clutch, crate::mode::ClutchProfile::Genius, "explicit clutch hint must win");
+        assert_eq!(
+            clutch,
+            crate::mode::ClutchProfile::Genius,
+            "explicit clutch hint must win"
+        );
     }
 
     #[test]
@@ -1255,7 +1264,10 @@ mod tests {
                 risk: Some("high".to_string()),
             },
         );
-        let overrides = crate::config::TaskPolicyOverrides { category: std::collections::HashMap::new(), source };
+        let overrides = crate::config::TaskPolicyOverrides {
+            category: std::collections::HashMap::new(),
+            source,
+        };
 
         let (clutch, risk) = task.resolved_policy(&overrides);
         assert_eq!(clutch, crate::mode::ClutchProfile::Free);
