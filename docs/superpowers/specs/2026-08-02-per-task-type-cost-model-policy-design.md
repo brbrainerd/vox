@@ -7,6 +7,8 @@ status: "current"
 
 # Per-Task-Type LLM Cost/Model Policy — Design
 
+**Execution:** implemented via [docs/superpowers/plans/2026-08-02-per-task-type-cost-model-policy.md](../plans/2026-08-02-per-task-type-cost-model-policy.md).
+
 **Predecessor context (verified against live code 2026-08-02):** Band A (LLM/AI settings SSOT: `vox-llm-config::LLM_CONFIG_KEYS`, reactive `vox://llm-config-changed`) and the `vox-llm-egress` single-egress consolidation are both **merged to main** (PRs #322, #329). Band B (`docs/superpowers/plans/2026-06-15-llm-ai-settings-ssot-band-b.md`, orchestrator settings under the registry) and `llm_bridge` wire consolidation (`docs/superpowers/plans/2026-06-15-llm-bridge-consolidation.md`) are both **plan-only, not executed**. This design is a narrow, self-contained slice that can land ahead of full Band B — it follows Band B's intended registry pattern but does not require Band B's other 100+ fields to exist first.
 
 **Also verified:** `ClutchProfile` (Free/Efficiency/Balanced/Genius) and `RiskPosture` (High/Moderate/Low) already ship as real code in `crates/vox-orchestrator/src/mode.rs`, each resolving to concrete selection axes, cost preference, free-tier forcing, and budget-gate aggressiveness. `AgentTask` already carries optional `clutch`/`risk` hint fields end-to-end (parsed via `ClutchProfile::from_label`/`RiskPosture::from_label`, tested), falling back to `Balanced`/`Moderate` when unset. Every real call site today sets these to `None` — nothing assigns a clutch/risk by task type. This design fills that gap.
