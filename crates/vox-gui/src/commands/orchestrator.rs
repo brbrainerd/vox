@@ -597,27 +597,14 @@ pub fn get_task_policy_overrides() -> vox_orchestrator::config::TaskPolicyOverri
     vox_orchestrator::config::OrchestratorConfig::snapshot().task_policy
 }
 
+/// `ClutchProfile`/`RiskPosture` already derive `Serialize` with
+/// `#[serde(rename_all = "snake_case")]`, so holding them directly (rather
+/// than hand-rolling a second string mapping) can't drift from the wire
+/// format each already produces on its own.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct DefaultTaskPolicyDto {
-    pub clutch: String,
-    pub risk: String,
-}
-
-fn clutch_label(c: vox_orchestrator::mode::ClutchProfile) -> &'static str {
-    match c {
-        vox_orchestrator::mode::ClutchProfile::Free => "free",
-        vox_orchestrator::mode::ClutchProfile::Efficiency => "efficiency",
-        vox_orchestrator::mode::ClutchProfile::Balanced => "balanced",
-        vox_orchestrator::mode::ClutchProfile::Genius => "genius",
-    }
-}
-
-fn risk_label(r: vox_orchestrator::mode::RiskPosture) -> &'static str {
-    match r {
-        vox_orchestrator::mode::RiskPosture::High => "high",
-        vox_orchestrator::mode::RiskPosture::Moderate => "moderate",
-        vox_orchestrator::mode::RiskPosture::Low => "low",
-    }
+    pub clutch: vox_orchestrator::mode::ClutchProfile,
+    pub risk: vox_orchestrator::mode::RiskPosture,
 }
 
 /// The composer's real starting clutch/risk for `task_category` — the same
@@ -651,10 +638,7 @@ pub fn resolve_default_task_policy(category: String, source: String) -> DefaultT
         source_clutch,
         source_risk,
     );
-    DefaultTaskPolicyDto {
-        clutch: clutch_label(clutch).to_string(),
-        risk: risk_label(risk).to_string(),
-    }
+    DefaultTaskPolicyDto { clutch, risk }
 }
 
 #[cfg(test)]
@@ -666,8 +650,8 @@ mod default_policy_tests {
         let dto = resolve_default_task_policy("Chat".to_string(), "interactive".to_string());
         // No overrides configured in a fresh test environment ⇒ falls all the
         // way to the global default, exactly like resolve_task_policy(None, None, None, None, None, None).
-        assert_eq!(dto.clutch, "balanced");
-        assert_eq!(dto.risk, "moderate");
+        assert_eq!(dto.clutch, vox_orchestrator::mode::ClutchProfile::Balanced);
+        assert_eq!(dto.risk, vox_orchestrator::mode::RiskPosture::Moderate);
     }
 
     #[test]
@@ -680,8 +664,8 @@ mod default_policy_tests {
             "NotARealCategory".to_string(),
             "not_a_real_source".to_string(),
         );
-        assert_eq!(dto.clutch, "balanced");
-        assert_eq!(dto.risk, "moderate");
+        assert_eq!(dto.clutch, vox_orchestrator::mode::ClutchProfile::Balanced);
+        assert_eq!(dto.risk, vox_orchestrator::mode::RiskPosture::Moderate);
     }
 }
 
