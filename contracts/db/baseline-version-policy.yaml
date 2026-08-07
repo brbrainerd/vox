@@ -22,7 +22,7 @@ policy:
   # re-updated for 87: conversations.archived_at (soft-archive for GUI chat sessions,
   # sidebar session-list feature). Existing databases get the column via an explicit
   # ALTER TABLE in VoxDb::migrate() (see open.rs), not via the baseline DDL alone.
-  repository_baseline_digest_hex: "0x967e81d1a8c7d54a1f7f47e1a5f9679bc7c1685acd8b5c7470c58d84fd8b1b7c"
+  repository_baseline_digest_hex: "0xe3d2a50404a52cc540c0f12d6d51772d502022424c1580d3892804a94be4b0d2"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.
