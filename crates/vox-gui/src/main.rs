@@ -157,6 +157,7 @@ async fn main() {
             commands::chat::secretary_confirm_task,
             commands::chat::chat_rename_session,
             commands::chat::chat_archive_session,
+            commands::chat::chat_unarchive_session,
             commands::identity::get_identity_summary,
             commands::harness::get_task_diff,
             commands::graphify::vox_graphify_status,

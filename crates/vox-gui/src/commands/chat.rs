@@ -20,6 +20,7 @@ pub struct ChatSessionDto {
     pub updated_at: String,
     pub message_count: i64,
     pub conversation_id: i64,
+    pub repository_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -56,16 +57,23 @@ pub async fn chat_create_session(
     let db = pool_db(&pool)?;
     let session_id = uuid::Uuid::new_v4().to_string();
     let title = title.unwrap_or_else(|| "New chat".to_string());
+
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let repo_ctx = vox_repository::discover_repository_or_fallback(&cwd);
+    let repository_id = Some(repo_ctx.repository_id);
+
     let conv_id = db
-        .chat_ensure_gui_session(&session_id, &title)
+        .chat_ensure_gui_session_with_repo(&session_id, &title, repository_id.as_deref())
         .await
         .map_err(map_db_err)?;
+
     Ok(ChatSessionDto {
         session_id,
         title,
         updated_at: String::new(),
         message_count: 0,
         conversation_id: conv_id,
+        repository_id,
     })
 }
 
@@ -73,19 +81,26 @@ pub async fn chat_create_session(
 pub async fn chat_list_sessions(
     pool: State<'_, GuiDbPool>,
     limit: Option<usize>,
+    include_archived: Option<bool>,
 ) -> Result<Vec<ChatSessionDto>, String> {
     let db = pool_db(&pool)?;
     let lim = limit.unwrap_or(40);
-    let rows = db.chat_list_gui_sessions(lim).await.map_err(map_db_err)?;
+    let rows = db
+        .chat_list_gui_sessions(lim, include_archived.unwrap_or(false))
+        .await
+        .map_err(map_db_err)?;
     Ok(rows
         .into_iter()
         .map(
-            |(conversation_id, title, session_id, updated_at, message_count)| ChatSessionDto {
-                session_id,
-                title,
-                updated_at,
-                message_count,
-                conversation_id,
+            |(conversation_id, title, session_id, updated_at, message_count, repository_id)| {
+                ChatSessionDto {
+                    session_id,
+                    title,
+                    updated_at,
+                    message_count,
+                    conversation_id,
+                    repository_id,
+                }
             },
         )
         .collect())
@@ -318,6 +333,20 @@ pub async fn chat_archive_session(
     db.chat_archive_conversation(conv_id)
         .await
         .map_err(map_db_err)
+}
+
+#[tauri::command]
+pub async fn chat_unarchive_session(
+    pool: State<'_, GuiDbPool>,
+    session_id: String,
+) -> Result<(), String> {
+    let db = pool_db(&pool)?;
+    let conv_id = db
+        .chat_find_gui_conversation_id_including_archived(&session_id)
+        .await
+        .map_err(map_db_err)?
+        .ok_or_else(|| format!("session {session_id} not found"))?;
+    db.chat_unarchive_conversation(conv_id).await.map_err(map_db_err)
 }
 
 /// Secretary gate: never classify a message the composer already submitted
@@ -894,5 +923,51 @@ mod tests {
     fn secretary_confirm_task_params_active_skill_null_when_absent() {
         let params = build_submit_task_params("sess-1", "do the thing", None);
         assert_eq!(params["active_skill"], serde_json::Value::Null);
+    }
+
+    #[tokio::test]
+    async fn chat_create_session_sets_repository_id() {
+        use tauri::Manager;
+        let app = tauri::test::mock_app();
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let pool = app.state::<GuiDbPool>();
+
+        let dto = chat_create_session(pool, Some("Test".into()))
+            .await
+            .unwrap();
+
+        assert!(
+            dto.repository_id.is_some(),
+            "repository_id should resolve from cwd"
+        );
+    }
+
+    #[tokio::test]
+    async fn chat_archive_and_unarchive_session_round_trip() {
+        use tauri::Manager;
+        let app = tauri::test::mock_app();
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let pool = app.state::<GuiDbPool>();
+
+        let dto = chat_create_session(pool.clone(), Some("Test".into()))
+            .await
+            .unwrap();
+        chat_archive_session(pool.clone(), dto.session_id.clone())
+            .await
+            .unwrap();
+
+        let active = chat_list_sessions(pool.clone(), None, None).await.unwrap();
+        assert!(!active.iter().any(|s| s.session_id == dto.session_id));
+
+        let all = chat_list_sessions(pool.clone(), None, Some(true))
+            .await
+            .unwrap();
+        assert!(all.iter().any(|s| s.session_id == dto.session_id));
+
+        chat_unarchive_session(pool.clone(), dto.session_id.clone())
+            .await
+            .unwrap();
+        let active_again = chat_list_sessions(pool, None, None).await.unwrap();
+        assert!(active_again.iter().any(|s| s.session_id == dto.session_id));
     }
 }

@@ -587,6 +587,30 @@ impl VoxDb {
         })
     }
 
+    /// Same as [`Self::chat_find_gui_conversation_id`] but also finds archived rows — used only
+    /// by the unarchive path, which needs to locate a conversation precisely because it's
+    /// archived.
+    pub async fn chat_find_gui_conversation_id_including_archived(
+        &self,
+        external_session_id: &str,
+    ) -> Result<Option<i64>, StoreError> {
+        let sid = external_session_id.to_string();
+        let mut rows = self
+            .connection()
+            .query(
+                "SELECT id FROM conversations
+                 WHERE origin_surface = 'gui' AND external_session_id = ?1
+                 LIMIT 1",
+                params![sid.as_str()],
+            )
+            .await?;
+        let row = rows.next().await?;
+        Ok(match row {
+            Some(r) => Some(r.get(0).map_err(|e| StoreError::Db(e.to_string()))?),
+            None => None,
+        })
+    }
+
     /// Ensure a GUI-scoped conversation row exists; returns SQLite id.
     pub async fn chat_ensure_gui_session(
         &self,
@@ -1071,6 +1095,22 @@ mod tests {
             new_conv_id, conv_id,
             "must create a new conversation, not resurrect the archived one"
         );
+    }
+
+    #[tokio::test]
+    async fn unarchive_finds_an_archived_conversation_by_id() {
+        let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
+        let conv_id = db
+            .chat_ensure_gui_session("sess-unarchive-1", "S")
+            .await
+            .unwrap();
+        db.chat_archive_conversation(conv_id).await.unwrap();
+
+        let found = db
+            .chat_find_gui_conversation_id_including_archived("sess-unarchive-1")
+            .await
+            .unwrap();
+        assert_eq!(found, Some(conv_id));
     }
 
     #[tokio::test]
