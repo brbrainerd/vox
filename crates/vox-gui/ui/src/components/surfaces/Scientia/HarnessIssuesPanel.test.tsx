@@ -18,11 +18,25 @@ const PENDING_ROW = {
   status: 'pending',
 };
 
+const PENDING_PROPOSAL = {
+  id: 7,
+  issue_id: 42,
+  target_path: 'examples/golden/foo.vox',
+  proposed_content: 'new content',
+  proposed_diff: '--- a/examples/golden/foo.vox\n+++ b/examples/golden/foo.vox\n@@ -1 +1 @@\n-old\n+new',
+  status: 'pending_approval',
+  proposed_at_ms: Date.now() - 1_000,
+  resolved_at_ms: null,
+};
+
+let fixProposals: unknown[] = [];
+
 const invokeMock = vi.fn((cmd: string, _args?: unknown) => {
   if (cmd === 'list_harness_issues') return Promise.resolve([PENDING_ROW]);
-  if (cmd === 'list_harness_fix_proposals') return Promise.resolve([]);
+  if (cmd === 'list_harness_fix_proposals') return Promise.resolve(fixProposals);
   if (cmd === 'record_harness_issue_decision') return Promise.resolve();
   if (cmd === 'propose_harness_issue_fix') return Promise.resolve(1);
+  if (cmd === 'resolve_harness_fix_proposal') return Promise.resolve();
   return Promise.resolve(null);
 });
 vi.mock('@tauri-apps/api/core', () => ({
@@ -70,5 +84,28 @@ describe('HarnessIssuesPanel', () => {
         ),
       ).toBe(true);
     });
+  });
+
+  it('approving a fix proposal invokes resolve_harness_fix_proposal with approve=true', async () => {
+    fixProposals = [PENDING_PROPOSAL];
+    render(<HarnessIssuesPanel pushToast={vi.fn()} />);
+
+    await screen.findByText('examples/golden/foo.vox');
+    expect(await screen.findByText(/-old/)).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Approve & apply'));
+
+    await waitFor(() => {
+      expect(
+        invokeMock.mock.calls.some(
+          ([cmd, args]) =>
+            cmd === 'resolve_harness_fix_proposal' &&
+            (args as { proposalId: number; approve: boolean }).proposalId === 7 &&
+            (args as { proposalId: number; approve: boolean }).approve === true,
+        ),
+      ).toBe(true);
+    });
+
+    fixProposals = [];
   });
 });
