@@ -22,26 +22,28 @@ use crate::types::TaskId;
 use futures_util::StreamExt;
 use std::time::Instant;
 
-/// Compute the effective `(CostPreference, force_free_pool)` for one task —
-/// extracted from `AiTaskProcessor::process` so it's unit-testable without a
-/// live orchestrator. `global_default` is `OrchestratorConfig.cost_preference`,
-/// the fallback when no clutch policy (explicit, category, or source) applies
-/// at all — preserving today's exact behavior for a fully-unconfigured task.
+/// Compute the effective `(CostPreference, force_free_pool, RiskPosture)` for
+/// one task — extracted from `AiTaskProcessor::process` so it's unit-testable
+/// without a live orchestrator. `global_default` is
+/// `OrchestratorConfig.cost_preference`, the fallback when no clutch policy
+/// (explicit, category, or source) applies at all — preserving today's exact
+/// behavior for a fully-unconfigured task. The returned `RiskPosture` is
+/// always the full explicit>category>source>default resolution regardless of
+/// whether any *clutch* policy applied, so callers get category/source risk
+/// policy even for a task with no clutch override at all — `AgentTask::resolved_risk()`
+/// only ever sees the explicit hint and must not be used for this instead.
 fn resolve_task_cost_policy(
     task: &crate::types::AgentTask,
     overrides: &crate::config::TaskPolicyOverrides,
     global_default: crate::config::CostPreference,
-) -> (crate::config::CostPreference, bool) {
+) -> (crate::config::CostPreference, bool, crate::mode::RiskPosture) {
     let (category_clutch, category_risk) =
         crate::mode::effective_category_policy(overrides, task.task_category);
     let source = task
         .trigger_source
         .unwrap_or(crate::mode::TriggerSource::Interactive);
     let (source_clutch, source_risk) = crate::mode::effective_source_policy(overrides, source);
-    if task.clutch_profile.is_none() && category_clutch.is_none() && source_clutch.is_none() {
-        return (global_default, false);
-    }
-    let (clutch, _risk) = crate::mode::resolve_task_policy(
+    let (clutch, risk) = crate::mode::resolve_task_policy(
         task.clutch_profile,
         task.risk_posture,
         category_clutch,
@@ -49,8 +51,11 @@ fn resolve_task_cost_policy(
         source_clutch,
         source_risk,
     );
+    if task.clutch_profile.is_none() && category_clutch.is_none() && source_clutch.is_none() {
+        return (global_default, false, risk);
+    }
     let rc = clutch.resolve();
-    (rc.cost_preference, rc.force_free_pool)
+    (rc.cost_preference, rc.force_free_pool, risk)
 }
 
 /// Returns the first hyphen-delimited segment of `s`, or the first 8 bytes if
@@ -660,14 +665,14 @@ impl TaskProcessor for AiTaskProcessor {
         // overrides the global cost preference and can force the free-only model
         // pool; a Low-risk posture (model_lean=Intelligence) nudges selection toward
         // Performance. No policy anywhere ⇒ unchanged global behavior.
-        let overrides = crate::sync_lock::rw_read(&*self.orchestrator.config)
-            .task_policy
-            .clone();
-        let global_default = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
-        let (mut cost_pref, force_free_pool) =
+        let (overrides, global_default) = {
+            let cfg = crate::sync_lock::rw_read(&*self.orchestrator.config);
+            (cfg.task_policy.clone(), cfg.cost_preference)
+        };
+        let (mut cost_pref, force_free_pool, resolved_risk) =
             resolve_task_cost_policy(&task, &overrides, global_default);
         if matches!(
-            task.resolved_risk().model_lean,
+            resolved_risk.resolve().model_lean,
             crate::mode::ModelLean::Intelligence
         ) {
             cost_pref = crate::config::CostPreference::Performance;
@@ -2126,13 +2131,14 @@ mod task_policy_wiring_tests {
         let task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
         let overrides = TaskPolicyOverrides::default();
         let global_default = crate::config::OrchestratorConfig::default().cost_preference;
-        let (cost_pref, force_free_pool) =
+        let (cost_pref, force_free_pool, risk) =
             resolve_task_cost_policy(&task, &overrides, global_default);
         assert_eq!(
             cost_pref, global_default,
             "no policy anywhere must reproduce today's behavior exactly"
         );
         assert!(!force_free_pool);
+        assert_eq!(risk, crate::mode::RiskPosture::Moderate);
     }
 
     #[test]
@@ -2151,7 +2157,7 @@ mod task_policy_wiring_tests {
             category: std::collections::HashMap::new(),
             source,
         };
-        let (_cost_pref, force_free_pool) = resolve_task_cost_policy(
+        let (_cost_pref, force_free_pool, risk) = resolve_task_cost_policy(
             &task,
             &overrides,
             crate::config::OrchestratorConfig::default().cost_preference,
@@ -2159,6 +2165,44 @@ mod task_policy_wiring_tests {
         assert!(
             force_free_pool,
             "Automated source override (Free clutch) must force the free-only pool"
+        );
+        assert_eq!(risk, crate::mode::RiskPosture::High);
+    }
+
+    #[test]
+    fn source_risk_policy_applies_even_when_no_clutch_policy_is_configured() {
+        // Regression test: resolve_task_cost_policy used to discard its
+        // resolved risk axis whenever no *clutch* policy applied anywhere,
+        // even if a category/source *risk* policy was configured — so the
+        // ModelLean::Intelligence -> CostPreference::Performance nudge in
+        // AiTaskProcessor::process (which reads this function's third return
+        // value, not AgentTask::resolved_risk()) would never see it.
+        let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        task.trigger_source = Some(crate::mode::TriggerSource::Automated);
+        let mut source = std::collections::HashMap::new();
+        source.insert(
+            "Automated".to_string(),
+            crate::config::TaskPolicyEntry {
+                clutch: None,
+                risk: Some("low".to_string()),
+            },
+        );
+        let overrides = TaskPolicyOverrides {
+            category: std::collections::HashMap::new(),
+            source,
+        };
+        let global_default = crate::config::OrchestratorConfig::default().cost_preference;
+        let (cost_pref, force_free_pool, risk) =
+            resolve_task_cost_policy(&task, &overrides, global_default);
+        assert_eq!(
+            cost_pref, global_default,
+            "no clutch policy anywhere must still preserve the global cost-preference default"
+        );
+        assert!(!force_free_pool);
+        assert_eq!(
+            risk,
+            crate::mode::RiskPosture::Low,
+            "the source's risk policy must be resolved and returned even though no clutch policy applied"
         );
     }
 }
