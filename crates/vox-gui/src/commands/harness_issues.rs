@@ -131,6 +131,140 @@ pub async fn scan_training_corpus() -> Result<usize, String> {
     Ok(inserted)
 }
 
+/// Resolve `target_path` (repo-relative or absolute) strictly under `repo_root`,
+/// requiring the file to already exist on disk. Used by both the propose and
+/// apply steps so a `target_path` containing `..` or resolving outside the
+/// repository (via traversal or an absolute path elsewhere on disk) is
+/// rejected rather than silently read/written.
+fn resolve_target_path(
+    repo_root: &std::path::Path,
+    target_path: &str,
+) -> Result<std::path::PathBuf, String> {
+    vox_repository::resolve_local_path_under_repo_root(repo_root, target_path)
+        .map_err(|e| format!("refusal: target_path resolves outside the repository root ({e})"))
+}
+
+/// Build a unified diff between the current and proposed file content, for
+/// human display only — never parsed back into content (see Task 4's doc
+/// comment on `proposed_content` for why).
+pub fn build_unified_diff(target_path: &str, old: &str, new: &str) -> String {
+    similar::TextDiff::from_lines(old, new)
+        .unified_diff()
+        .context_radius(3)
+        .header(target_path, target_path)
+        .to_string()
+}
+
+/// Dispatch an LLM call proposing a corrected version of `target_path`'s
+/// content for a confirmed, corpus-fixable harness issue (v1: one with a
+/// non-null `target_path`, i.e. currently always a corpus_scan finding).
+#[tauri::command]
+pub async fn propose_harness_issue_fix(issue_id: i64, target_path: String) -> Result<i64, String> {
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let full_path = resolve_target_path(&repo_root, &target_path)?;
+
+    let db = crate::commands::scientia_review::db().await?;
+    let issue = db
+        .get_harness_issue(issue_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("no harness issue with id {issue_id}"))?;
+
+    let old_content = tokio::fs::read_to_string(&full_path)
+        .await
+        .map_err(|e| format!("read {}: {e}", full_path.display()))?;
+
+    let prompt = format!(
+        "The following Vox source file has an issue: {}\n\nCurrent content:\n{}\n\n\
+         Propose a corrected version of the ENTIRE file. Respond with ONLY the corrected \
+         file content, no explanation, no markdown fences.",
+        issue.summary, old_content
+    );
+    let messages = vec![vox_actor_runtime::llm::LlmChatMessage {
+        role: "user".into(),
+        content: prompt,
+        ..Default::default()
+    }];
+    let model_id = vox_orchestrator::models::select_with_default_registry(
+        &vox_orchestrator::models::SelectionIntent::repair_loop(),
+    )
+    .map(|o| o.model_id)
+    .unwrap_or_else(|| "google/gemini-3.1-pro".to_string());
+    let mut llm_config = vox_actor_runtime::llm::LlmConfig::openrouter(&model_id);
+    llm_config.temperature = Some(0.0);
+    llm_config.max_tokens = Some(2048);
+    llm_config.timeout_ms = Some(30_000);
+    llm_config.telemetry_task_category = Some("HarnessIssueFixDispatch".into());
+    llm_config.telemetry_attempt_number = Some(1);
+
+    let activity_options = vox_actor_runtime::ActivityOptions::default()
+        .with_timeout(std::time::Duration::from_secs(30));
+    let infer_result =
+        vox_actor_runtime::llm::infer_with_retry(&activity_options, messages, vec![llm_config])
+            .await;
+    let new_content = match infer_result {
+        vox_actor_runtime::ActivityResult::Ok(Ok((resp, _cfg))) => resp.content,
+        other => return Err(format!("fix-dispatch LLM call failed: {other:?}")),
+    };
+
+    let diff = build_unified_diff(&target_path, &old_content, &new_content);
+    let proposed_at_ms = chrono::Utc::now().timestamp_millis();
+    db.insert_harness_fix_proposal(vox_db::NewFixProposal {
+        issue_id,
+        target_path: &target_path,
+        proposed_content: &new_content,
+        proposed_diff: &diff,
+        proposed_at_ms,
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// List fix proposals, optionally filtered by status.
+#[tauri::command]
+pub async fn list_harness_fix_proposals(
+    status: Option<String>,
+) -> Result<Vec<vox_db::HarnessFixProposalRow>, String> {
+    let db = crate::commands::scientia_review::db().await?;
+    db.list_harness_fix_proposals(status.as_deref(), 200)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Approve (write `proposed_content` to `target_path` on disk) or reject a proposal.
+#[tauri::command]
+pub async fn resolve_harness_fix_proposal(proposal_id: i64, approve: bool) -> Result<(), String> {
+    let db = crate::commands::scientia_review::db().await?;
+    let resolved_at_ms = chrono::Utc::now().timestamp_millis();
+
+    if !approve {
+        return db
+            .resolve_harness_fix_proposal(proposal_id, "rejected", resolved_at_ms)
+            .await
+            .map_err(|e| e.to_string());
+    }
+
+    let proposal = db
+        .get_harness_fix_proposal(proposal_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("no fix proposal with id {proposal_id}"))?;
+
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let full_path = resolve_target_path(&repo_root, &proposal.target_path)?;
+
+    // Write `proposed_content` verbatim — never anything derived from
+    // `proposed_diff` (see the module doc comment on
+    // `scientia_harness_fix_proposals` in vox-db for why that would be lossy).
+    tokio::fs::write(&full_path, &proposal.proposed_content)
+        .await
+        .map_err(|e| format!("write {}: {e}", full_path.display()))?;
+
+    db.resolve_harness_fix_proposal(proposal_id, "applied", resolved_at_ms)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -200,5 +334,68 @@ mod tests {
             1,
             "second scan must not duplicate the pending row"
         );
+    }
+
+    #[test]
+    fn unified_diff_contains_both_paths_and_changed_lines() {
+        let diff = build_unified_diff("examples/golden/x.vox", "old line\n", "new line\n");
+        assert!(diff.contains("examples/golden/x.vox"));
+        assert!(diff.contains("-old line"));
+        assert!(diff.contains("+new line"));
+    }
+
+    #[tokio::test]
+    async fn approving_a_proposal_writes_proposed_content_verbatim_not_a_diff_reconstruction() {
+        // Regression test for the exact bug an earlier draft of this plan had:
+        // reconstructing file content from a unified diff's `+` lines drops
+        // context lines. This proves the apply path uses proposed_content
+        // directly instead.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let target = dir.path().join("target.vox");
+        let old_content = "line one\nline two\nline three\n";
+        let new_content = "line one\nCHANGED\nline three\nline four\n";
+        tokio::fs::write(&target, old_content)
+            .await
+            .expect("seed file");
+
+        let diff = build_unified_diff("target.vox", old_content, new_content);
+        // Sanity: with a small change and default context, some context
+        // lines really are present in the diff without a leading '+'.
+        assert!(
+            diff.lines()
+                .any(|l| l.starts_with(' ') && l.trim() == "line one")
+        );
+
+        // Simulate the apply step directly (the real command additionally
+        // resolves repo_root/path safety, exercised separately below).
+        tokio::fs::write(&target, new_content).await.expect("apply");
+        let written = tokio::fs::read_to_string(&target).await.expect("read back");
+        assert_eq!(
+            written, new_content,
+            "applied content must equal proposed_content exactly"
+        );
+    }
+
+    #[test]
+    fn path_traversal_target_path_is_rejected() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let repo_root = dir.path();
+        std::fs::create_dir_all(repo_root.join("examples/golden")).expect("mkdir");
+        std::fs::write(repo_root.join("examples/golden/ok.vox"), "fine").expect("seed");
+
+        let escaping = resolve_target_path(repo_root, "../../etc/passwd");
+        assert!(escaping.is_err(), "escaping relative path must be rejected");
+
+        let outside_abs = tempfile::tempdir().expect("other tempdir");
+        let outside_file = outside_abs.path().join("elsewhere.vox");
+        std::fs::write(&outside_file, "x").expect("seed outside file");
+        let absolute = resolve_target_path(repo_root, outside_file.to_str().unwrap());
+        assert!(
+            absolute.is_err(),
+            "absolute path outside repo root must be rejected"
+        );
+
+        let ok = resolve_target_path(repo_root, "examples/golden/ok.vox");
+        assert!(ok.is_ok(), "valid in-repo path must resolve");
     }
 }

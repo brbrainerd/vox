@@ -16157,6 +16157,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "serde_yaml_ng",
+ "similar",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

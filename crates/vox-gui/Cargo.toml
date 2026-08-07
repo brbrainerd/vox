@@ -61,6 +61,7 @@ turso = { workspace = true }
 base64 = { workspace = true }
 dirs = { workspace = true }
 ignore = { workspace = true }
+similar = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
