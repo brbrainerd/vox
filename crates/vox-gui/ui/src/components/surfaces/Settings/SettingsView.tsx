@@ -55,6 +55,7 @@ interface SettingsState {
   isolation: string;
   checkpointMins: number;
   scalingEnabled: boolean;
+  harnessIssueDetectionEnabled: boolean;
   minAgents: number;
   scalingThreshold: number;
   scaleCpuCeilingPct: number;
@@ -1115,6 +1116,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
     capUsd: DEFAULT_BUDGET_CAP_USD, doubtThresh: 0.6, sign: false, telemetry: 'local',
     isolation: 'wasm', checkpointMins: 5,
     scalingEnabled: false, minAgents: 1, scalingThreshold: 5,
+    harnessIssueDetectionEnabled: true,
     scaleCpuCeilingPct: 85, scaleMemFloorMb: 1024,
   });
 
@@ -1234,6 +1236,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           ...(bool('autobudget') != null ? { autobudget: bool('autobudget')! } : {}),
           ...(bool('doubt') != null ? { doubt: bool('doubt')! } : {}),
           ...(bool('scalingEnabled') != null ? { scalingEnabled: bool('scalingEnabled')! } : {}),
+          ...(bool('harnessIssueDetectionEnabled') != null ? { harnessIssueDetectionEnabled: bool('harnessIssueDetectionEnabled')! } : {}),
           ...(num('minAgents') != null ? { minAgents: num('minAgents')! } : {}),
           ...(num('scalingThreshold') != null ? { scalingThreshold: num('scalingThreshold')! } : {}),
           ...(num('scaleCpuCeilingPct') != null ? { scaleCpuCeilingPct: num('scaleCpuCeilingPct')! } : {}),
@@ -1423,6 +1426,12 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             <div className="mt-4 space-y-3">
               <Row label="Auto-scaling" hint="Let the orchestrator add/remove agents dynamically">
                 <Toggle on={vals.scalingEnabled} onClick={() => update({ scalingEnabled: !vals.scalingEnabled })} />
+              </Row>
+              <Row label="Harness issue detection" hint="Watch chat turns for repeated mistakes and surface a review queue">
+                <Toggle
+                  on={vals.harnessIssueDetectionEnabled}
+                  onClick={() => update({ harnessIssueDetectionEnabled: !vals.harnessIssueDetectionEnabled })}
+                />
               </Row>
               <Row label="Min agents" hint="Never retire below this fleet size">
                 <RangeInline value={vals.minAgents} min={0} max={8} onChange={v => update({ minAgents: v })} />
