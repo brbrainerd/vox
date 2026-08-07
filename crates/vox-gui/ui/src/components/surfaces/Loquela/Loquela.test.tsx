@@ -1,9 +1,21 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue([]) }));
+// resolve_default_task_policy defaults to the same values as the local
+// hardcoded defaultControl() fallback, so tests that don't care about this
+// fetch keep seeing the composer settle on efficiency/moderate as before.
+const { mockInvoke } = vi.hoisted(() => ({
+  mockInvoke: vi.fn((cmd: string) => {
+    if (cmd === 'resolve_default_task_policy') {
+      return Promise.resolve({ clutch: 'efficiency', risk: 'moderate' });
+    }
+    return Promise.resolve([]);
+  }),
+}));
+
+vi.mock('@tauri-apps/api/core', () => ({ invoke: mockInvoke }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
 vi.mock('../../../transport', () => ({
   voxTransport: { listModels: () => Promise.resolve([]) },
@@ -193,5 +205,30 @@ describe('Loquela', () => {
     const allKbds = document.querySelectorAll('kbd');
     const kbdsOutsideRunButton = Array.from(allKbds).filter((k) => !runButton.contains(k));
     expect(kbdsOutsideRunButton.map((k) => k.textContent)).not.toContain('⌘↵');
+  });
+
+  afterEach(() => {
+    mockInvoke.mockClear();
+  });
+
+  it('seeds the DriveConsole default from resolve_default_task_policy instead of a hardcoded guess', async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'resolve_default_task_policy') {
+        return Promise.resolve({ clutch: 'free', risk: 'high' });
+      }
+      return Promise.resolve([]);
+    });
+    renderLoquela();
+    await waitFor(() => {
+      const freeButton = screen.getByRole('radio', { name: /free/i });
+      expect(freeButton).toHaveAttribute('aria-checked', 'true');
+    });
+    // Restore the shared default implementation for any tests after this one.
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'resolve_default_task_policy') {
+        return Promise.resolve({ clutch: 'efficiency', risk: 'moderate' });
+      }
+      return Promise.resolve([]);
+    });
   });
 });

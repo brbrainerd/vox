@@ -19,7 +19,7 @@ import {
   resolveInternalModeSlash,
 } from '../../../lib/slashRouter';
 import { DriveConsole } from './DriveConsole';
-import { defaultControl, type ControlState } from '../../../lib/driveConsole';
+import { defaultControl, type ClutchId, type ControlState, type RiskId } from '../../../lib/driveConsole';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { IntentPanel } from './IntentPanel';
 import {
@@ -167,6 +167,21 @@ export function Loquela({
   const [tier, setTier] = useState("auto");
   const [dryRun, setDryRun] = useState(false);
   const [control, setControl] = useState<ControlState>(defaultControl);
+
+  // The hardcoded defaultControl() above is only a cold-start fallback — the
+  // real default is whatever the backend policy resolver would pick for an
+  // interactive chat task, so fetch that on mount and adopt it if it differs.
+  useEffect(() => {
+    invoke<{ clutch: ClutchId; risk: RiskId }>('resolve_default_task_policy', {
+      category: 'Chat',
+      source: 'interactive',
+    })
+      .then((resolved) => setControl(resolved))
+      .catch(() => {
+        // Backend unavailable (e.g. cold start) — keep the local hardcoded
+        // default rather than blocking the composer on this fetch.
+      });
+  }, []);
 
   const [skillOpen, setSkillOpen] = useState(false);
   const [tierOpen,  setTierOpen]  = useState(false);
