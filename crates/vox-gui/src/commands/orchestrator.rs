@@ -696,7 +696,11 @@ pub async fn clear_task_policy_override(
     let (mut manifest, path) = VoxManifest::discover(&current_dir).map_err(|e| e.to_string())?;
     let mut orch_table = manifest.orchestrator.unwrap_or_default();
 
-    if let Some(mut task_policy_table) = orch_table.get("task_policy").and_then(|v| v.as_table()).cloned() {
+    if let Some(mut task_policy_table) = orch_table
+        .get("task_policy")
+        .and_then(|v| v.as_table())
+        .cloned()
+    {
         if let Some(mut scope_table) = task_policy_table
             .get(&scope_kind)
             .and_then(|v| v.as_table())
