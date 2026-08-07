@@ -3,6 +3,32 @@ use crate::orchestrator::{Orchestrator, OrchestratorError};
 use crate::types::{AgentId, AgentTask, CompletionAttestation, TaskId, TaskStatus};
 use tracing;
 
+/// Compute the effective `(grounding_enforce, socrates_enforce)` pair for one
+/// task -- extracted from `check_socrates_gate` so it's unit-testable without
+/// a live `Orchestrator`/completion pipeline. Task 2.4: the effective risk
+/// used here is the FULL precedence chain (explicit hint > this task's
+/// category policy > this task's trigger-source policy), matching
+/// `resolve_task_cost_policy` in `runtime.rs` -- previously this only
+/// consulted `task.risk_posture`, so a category/source risk policy had zero
+/// effect unless a caller also set an explicit hint. When nothing at all
+/// applies, the global config flags are preserved unchanged.
+#[must_use]
+fn resolve_grounding_socrates_enforce(
+    task: &AgentTask,
+    overrides: &crate::config::TaskPolicyOverrides,
+    global_grounding_enforce: bool,
+    global_socrates_enforce: bool,
+) -> (bool, bool) {
+    let resolved = crate::mode::effective_risk_for_task(task, overrides).map(|r| r.resolve());
+    let grounding_enforce = resolved
+        .map(|r| r.grounding_enforce)
+        .unwrap_or(global_grounding_enforce);
+    let socrates_enforce = resolved
+        .map(|r| r.socrates_enforce)
+        .unwrap_or(global_socrates_enforce);
+    (grounding_enforce, socrates_enforce)
+}
+
 impl Orchestrator {
     pub async fn check_socrates_gate(
         &self,
@@ -44,19 +70,12 @@ impl Orchestrator {
             } else {
                 (false, false)
             };
-            // Task E: per-task RiskPosture overrides the global enforce flags.
-            // A Low-risk task forces grounding+socrates enforcement true even when
-            // the global default is off; None (Moderate-equivalent) leaves the
-            // global value unchanged so default behavior is preserved.
-            let resolved = task.resolved_risk();
-            let grounding_enforce = task
-                .risk_posture
-                .map(|_| resolved.grounding_enforce)
-                .unwrap_or(config.completion_grounding_enforce);
-            let socrates_enforce = task
-                .risk_posture
-                .map(|_| resolved.socrates_enforce)
-                .unwrap_or(config.socrates_gate_enforce);
+            let (grounding_enforce, socrates_enforce) = resolve_grounding_socrates_enforce(
+                task,
+                &config.task_policy,
+                config.completion_grounding_enforce,
+                config.socrates_gate_enforce,
+            );
             (
                 config.completion_grounding_shadow,
                 grounding_enforce,
@@ -255,6 +274,123 @@ impl Orchestrator {
                 needs_review_approval: false,
             })
         }
+    }
+}
+
+#[cfg(test)]
+mod resolve_grounding_socrates_enforce_tests {
+    use super::resolve_grounding_socrates_enforce;
+    use crate::config::{TaskPolicyEntry, TaskPolicyOverrides};
+    use crate::types::{AgentTask, TaskCategory, TaskId, TaskPriority};
+    use std::collections::HashMap;
+
+    // Task 2.4 regression test: a task with NO explicit risk_posture, but a
+    // configured category-policy risk override, must still enable
+    // grounding/socrates enforcement -- reproduces the same
+    // "policy has zero effect without an explicit hint" bug fixed in
+    // runtime.rs for cost/model routing.
+    #[test]
+    fn category_risk_policy_enforces_without_explicit_risk_posture() {
+        let mut category = HashMap::new();
+        category.insert(
+            format!("{:?}", TaskCategory::CodeGen),
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("low".to_string()),
+            },
+        );
+        let overrides = TaskPolicyOverrides {
+            category,
+            source: HashMap::new(),
+        };
+
+        let mut task = AgentTask::new(TaskId(1), "generate code", TaskPriority::Normal, vec![]);
+        task.task_category = TaskCategory::CodeGen;
+        assert_eq!(task.risk_posture, None, "no explicit risk hint set");
+
+        // Global defaults are both OFF -- if the category policy had zero
+        // effect, both enforce flags would stay false.
+        let (grounding_enforce, socrates_enforce) =
+            resolve_grounding_socrates_enforce(&task, &overrides, false, false);
+
+        assert!(
+            grounding_enforce,
+            "Low-risk category policy must enable grounding enforcement even with no explicit risk_posture hint"
+        );
+        assert!(
+            socrates_enforce,
+            "Low-risk category policy must enable socrates enforcement even with no explicit risk_posture hint"
+        );
+    }
+
+    #[test]
+    fn source_risk_policy_applies_when_no_category_policy() {
+        let mut source = HashMap::new();
+        source.insert(
+            format!("{:?}", crate::mode::TriggerSource::Automated),
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("low".to_string()),
+            },
+        );
+        let overrides = TaskPolicyOverrides {
+            category: HashMap::new(),
+            source,
+        };
+
+        let mut task = AgentTask::new(TaskId(2), "generate code", TaskPriority::Normal, vec![]);
+        task.trigger_source = Some(crate::mode::TriggerSource::Automated);
+
+        let (grounding_enforce, socrates_enforce) =
+            resolve_grounding_socrates_enforce(&task, &overrides, false, false);
+
+        assert!(grounding_enforce);
+        assert!(socrates_enforce);
+    }
+
+    #[test]
+    fn nothing_configured_preserves_global_defaults() {
+        let overrides = TaskPolicyOverrides {
+            category: HashMap::new(),
+            source: HashMap::new(),
+        };
+        let task = AgentTask::new(TaskId(3), "generate code", TaskPriority::Normal, vec![]);
+
+        assert_eq!(
+            resolve_grounding_socrates_enforce(&task, &overrides, false, false),
+            (false, false)
+        );
+        assert_eq!(
+            resolve_grounding_socrates_enforce(&task, &overrides, true, true),
+            (true, true)
+        );
+    }
+
+    #[test]
+    fn explicit_risk_posture_still_wins_over_category_policy() {
+        let mut category = HashMap::new();
+        category.insert(
+            format!("{:?}", TaskCategory::CodeGen),
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("low".to_string()),
+            },
+        );
+        let overrides = TaskPolicyOverrides {
+            category,
+            source: HashMap::new(),
+        };
+
+        let mut task = AgentTask::new(TaskId(4), "generate code", TaskPriority::Normal, vec![]);
+        task.task_category = TaskCategory::CodeGen;
+        task.risk_posture = Some(crate::mode::RiskPosture::High);
+
+        // High risk resolves both enforce flags to false, overriding the
+        // category's Low-risk policy.
+        let (grounding_enforce, socrates_enforce) =
+            resolve_grounding_socrates_enforce(&task, &overrides, true, true);
+        assert!(!grounding_enforce);
+        assert!(!socrates_enforce);
     }
 }
 

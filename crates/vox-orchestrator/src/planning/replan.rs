@@ -90,6 +90,7 @@ pub async fn enqueue_recovery_first_node(
                 clutch: None,
                 risk: None,
                 grounding_check_enabled: None,
+                trigger_source: None,
             });
         }
         let next_version = meta.plan_version.saturating_add(1);

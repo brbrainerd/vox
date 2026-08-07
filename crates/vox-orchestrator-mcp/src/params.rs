@@ -276,6 +276,23 @@ pub struct SubmitTaskParams {
     #[serde(default)]
     #[schemars(length(max = 256))]
     pub tenant_id: Option<String>,
+    /// Optional clutch ("how much gas") override for this task: `free`|`efficiency`|`balanced`|`genius`.
+    /// Unrecognized values are silently ignored (no override is applied) — no error is returned.
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub clutch: Option<String>,
+    /// Optional risk-posture override for this task: `high`|`moderate`|`low`.
+    /// Unrecognized values are silently ignored (no override is applied) — no error is returned.
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub risk: Option<String>,
+    /// Optional trigger-source override: `interactive`|`automated`|`subagent`|`mesh`.
+    /// Set this from CI/scheduled callers so their tasks get the `Automated`
+    /// cost/model policy instead of the default `Interactive` one.
+    /// Unrecognized values are silently ignored (no override is applied) — no error is returned.
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub trigger_source: Option<String>,
 }
 
 /// Heuristic plan-adequacy snapshot for direct [`SubmitTaskParams`] submits when shadow mode is on.

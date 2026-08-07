@@ -295,6 +295,13 @@ pub struct TaskEnqueueHints {
     /// When set, overrides [`AgentTask::grounding_check_enabled`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub grounding_check_enabled: Option<bool>,
+    /// Trigger-source label (`interactive`|`automated`|`subagent`|`mesh`); parsed
+    /// in [`AgentTask::apply_hints`]. `None` = unset; the generic MCP submission
+    /// path defaults this to `Interactive` at the resolver, not here (unset stays
+    /// unset so `resolved_policy()` can tell "explicitly interactive" from
+    /// "caller didn't say").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trigger_source: Option<String>,
 }
 
 /// Attribution record for which model was actually used to execute a task.
@@ -705,6 +712,10 @@ pub struct AgentTask {
     /// chat-origin tasks run by `ChatTaskProcessor`.
     #[serde(default)]
     pub grounding_check_enabled: bool,
+    /// Who/what started this task. `None` = unknown; `resolved_policy()` treats
+    /// unset the same as `Interactive` (today's most common caller).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trigger_source: Option<crate::mode::TriggerSource>,
 }
 
 impl AgentTask {
@@ -782,6 +793,7 @@ impl AgentTask {
             clutch_profile: None,
             risk_posture: None,
             grounding_check_enabled: false,
+            trigger_source: None,
         }
     }
 
@@ -952,6 +964,11 @@ impl AgentTask {
         if let Some(enabled) = h.grounding_check_enabled {
             self.grounding_check_enabled = enabled;
         }
+        if let Some(ref source) = h.trigger_source {
+            if let Some(parsed) = crate::mode::TriggerSource::from_label(source) {
+                self.trigger_source = Some(parsed);
+            }
+        }
     }
 
     /// Resolve the clutch profile to its safety/quality gates, falling back to the
@@ -970,6 +987,33 @@ impl AgentTask {
         self.risk_posture
             .unwrap_or(crate::mode::RiskPosture::Moderate)
             .resolve()
+    }
+
+    /// Resolve this task's effective (clutch, risk) pair using the full
+    /// precedence chain: explicit hint > this task's category policy > this
+    /// task's trigger-source policy > the neutral global default. `overrides`
+    /// is the live `OrchestratorConfig::snapshot().task_policy` — callers fetch
+    /// it once per resolution rather than this method reaching for it itself,
+    /// keeping `AgentTask` free of a config-snapshot dependency in its own type.
+    #[must_use]
+    pub fn resolved_policy(
+        &self,
+        overrides: &crate::config::TaskPolicyOverrides,
+    ) -> (crate::mode::ClutchProfile, crate::mode::RiskPosture) {
+        let (category_clutch, category_risk) =
+            crate::mode::effective_category_policy(overrides, self.task_category);
+        let source = self
+            .trigger_source
+            .unwrap_or(crate::mode::TriggerSource::Interactive);
+        let (source_clutch, source_risk) = crate::mode::effective_source_policy(overrides, source);
+        crate::mode::resolve_task_policy(
+            self.clutch_profile,
+            self.risk_posture,
+            category_clutch,
+            category_risk,
+            source_clutch,
+            source_risk,
+        )
     }
 
     /// Mark the task as started, recording the start timestamp.
@@ -1122,6 +1166,41 @@ mod tests {
     }
 
     #[test]
+    fn apply_hints_parses_trigger_source_labels() {
+        for (label, expected) in [
+            ("interactive", crate::mode::TriggerSource::Interactive),
+            ("Automated", crate::mode::TriggerSource::Automated),
+            ("SUBAGENT", crate::mode::TriggerSource::Subagent),
+            ("mesh", crate::mode::TriggerSource::Mesh),
+        ] {
+            let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+            let hints = TaskEnqueueHints {
+                trigger_source: Some(label.to_string()),
+                ..Default::default()
+            };
+            task.apply_hints(&hints);
+            assert_eq!(task.trigger_source, Some(expected), "label {label}");
+        }
+    }
+
+    #[test]
+    fn apply_hints_unknown_trigger_source_leaves_none() {
+        let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        let hints = TaskEnqueueHints {
+            trigger_source: Some("turbo".to_string()),
+            ..Default::default()
+        };
+        task.apply_hints(&hints);
+        assert_eq!(task.trigger_source, None);
+    }
+
+    #[test]
+    fn new_task_has_no_trigger_source_by_default() {
+        let task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        assert_eq!(task.trigger_source, None);
+    }
+
+    #[test]
     fn resolved_clutch_risk_fall_back_to_neutral_defaults() {
         let task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
         assert_eq!(task.clutch_profile, None);
@@ -1134,6 +1213,65 @@ mod tests {
             task.resolved_risk(),
             crate::mode::RiskPosture::Moderate.resolve()
         );
+    }
+
+    #[test]
+    fn resolved_policy_falls_back_to_neutral_defaults_when_nothing_set() {
+        let task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        let overrides = crate::config::TaskPolicyOverrides::default();
+        let (clutch, risk) = task.resolved_policy(&overrides);
+        assert_eq!(clutch, crate::mode::ClutchProfile::Balanced);
+        assert_eq!(risk, crate::mode::RiskPosture::Moderate);
+    }
+
+    #[test]
+    fn resolved_policy_explicit_hint_wins_over_source_override() {
+        let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        task.clutch_profile = Some(crate::mode::ClutchProfile::Genius);
+        task.trigger_source = Some(crate::mode::TriggerSource::Automated);
+
+        let mut source = std::collections::HashMap::new();
+        source.insert(
+            "Automated".to_string(),
+            crate::config::TaskPolicyEntry {
+                clutch: Some("free".to_string()),
+                risk: Some("high".to_string()),
+            },
+        );
+        let overrides = crate::config::TaskPolicyOverrides {
+            category: std::collections::HashMap::new(),
+            source,
+        };
+
+        let (clutch, _risk) = task.resolved_policy(&overrides);
+        assert_eq!(
+            clutch,
+            crate::mode::ClutchProfile::Genius,
+            "explicit clutch hint must win"
+        );
+    }
+
+    #[test]
+    fn resolved_policy_uses_source_override_when_no_explicit_hint() {
+        let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
+        task.trigger_source = Some(crate::mode::TriggerSource::Automated);
+
+        let mut source = std::collections::HashMap::new();
+        source.insert(
+            "Automated".to_string(),
+            crate::config::TaskPolicyEntry {
+                clutch: Some("free".to_string()),
+                risk: Some("high".to_string()),
+            },
+        );
+        let overrides = crate::config::TaskPolicyOverrides {
+            category: std::collections::HashMap::new(),
+            source,
+        };
+
+        let (clutch, risk) = task.resolved_policy(&overrides);
+        assert_eq!(clutch, crate::mode::ClutchProfile::Free);
+        assert_eq!(risk, crate::mode::RiskPosture::High);
     }
 
     #[test]
@@ -1245,6 +1383,7 @@ mod tests {
             clutch: None,
             risk: None,
             grounding_check_enabled: None,
+            trigger_source: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");

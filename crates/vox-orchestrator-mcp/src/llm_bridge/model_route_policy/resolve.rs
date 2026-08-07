@@ -209,6 +209,52 @@ fn resolve_mcp_chat_model_sync_inner(
     }
 
     let mut res = res;
+    // Resolve task-type/source clutch+risk policy overrides, but ONLY when one
+    // genuinely applies (explicit, category, or source policy resolves to
+    // `Some`). Computing `resolve_task_policy` unconditionally and always
+    // assigning its result would silently flip every unconfigured call from
+    // today's `SelectionAxes::COST_FIRST` (Economy default, no clutch) to
+    // `SelectionAxes::BALANCED` (clutch defaults to `ClutchProfile::Balanced`
+    // when the compiled default tables are empty) — a real behavior change
+    // with zero test failures, since `build_selection_request` only takes the
+    // `effective_axes` branch when `res.clutch` is `Some`. See
+    // `unconfigured_default_still_prefers_free_model_cost_first` in
+    // `tests.rs`, which pins the pre-existing default and would catch a
+    // regression here.
+    {
+        let overrides = {
+            let config_handle = orch.config_handle();
+            vox_orchestrator::sync_lock::rw_read(&*config_handle)
+                .task_policy
+                .clone()
+        };
+        // Category policy is intentionally NOT applied here: `res.task_category`
+        // on this struct defaults to `TaskCategory::CodeGen` for a pre-existing,
+        // unrelated reason (SelectionIntent/capability-pin heuristics), and most
+        // real call sites (ordinary chat, ghost-text, inline-edit, plan/plan-loop,
+        // db/compiler/oratio tool assists) never set their own category —
+        // applying a category override here would silently misattribute all of
+        // them as CodeGen. Source policy is safe to apply: every MCP call site
+        // constructs this struct directly from a live interactive feature, so
+        // `trigger_source` is accurate by construction (see its doc comment).
+        // Category policy correctly applies to the `AgentTask`-based execution
+        // path instead (`runtime.rs`/`socrates.rs`/`attention_fields.rs`), where
+        // `task_category` is a real, deliberately-assigned field.
+        let (source_clutch, source_risk) =
+            vox_orchestrator::mode::effective_source_policy(&overrides, res.trigger_source);
+        if res.clutch.is_some() || source_clutch.is_some() {
+            let (clutch, risk) = vox_orchestrator::mode::resolve_task_policy(
+                res.clutch,
+                res.risk,
+                None,
+                None,
+                source_clutch,
+                source_risk,
+            );
+            res.clutch = Some(clutch);
+            res.risk = Some(risk);
+        }
+    }
     // Task clutch with `force_free_pool` (the `Free` detent) must never pick a paid
     // model. Reuse the existing free-tier enforcement seam rather than adding a new
     // filter path: `enforce_free_tier_only` gates every return through
