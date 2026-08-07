@@ -830,6 +830,45 @@ impl VoxDb {
             })
             .await
     }
+
+    /// Count open (pending/queued/in_progress) plan nodes at each plan session's *current*
+    /// version, summed per originating chat session, across every `plan_sessions` row that
+    /// chat session has ever produced (one per dispatched goal — see `goal.rs`). Sessions with
+    /// no dispatched goals, or whose nodes are all resolved, are absent from the returned map
+    /// (not present with a `0` entry) — callers should treat a missing key as zero.
+    pub async fn open_task_counts_for_sessions(
+        &self,
+        chat_external_session_ids: &[String],
+    ) -> Result<std::collections::HashMap<String, i64>, StoreError> {
+        let mut out = std::collections::HashMap::new();
+        if chat_external_session_ids.is_empty() {
+            return Ok(out);
+        }
+        let placeholders = (0..chat_external_session_ids.len())
+            .map(|i| format!("?{}", i + 1))
+            .collect::<Vec<_>>()
+            .join(",");
+        let sql = format!(
+            "SELECT ps.origin_session_id, COUNT(*)
+             FROM plan_sessions ps
+             JOIN plan_nodes pn
+               ON pn.plan_session_id = ps.plan_session_id AND pn.version = ps.current_version
+             WHERE ps.origin_session_id IN ({placeholders})
+               AND pn.status IN ('pending', 'queued', 'in_progress')
+             GROUP BY ps.origin_session_id"
+        );
+        let bound: Vec<turso::Value> = chat_external_session_ids
+            .iter()
+            .map(|id| turso::Value::from(id.as_str()))
+            .collect();
+        let mut rows = self.conn.query(&sql, bound).await?;
+        while let Some(row) = rows.next().await? {
+            let session_id: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let count: i64 = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            out.insert(session_id, count);
+        }
+        Ok(out)
+    }
 }
 
 #[cfg(all(test, feature = "local"))]
@@ -1067,5 +1106,98 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].role, "user");
         assert_eq!(rows[0].content_text, "hello");
+    }
+
+    #[tokio::test]
+    async fn open_task_counts_join_on_origin_session_id_and_current_version() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+        // Session "chat-a" has dispatched two goals -> two plan_sessions rows.
+        db.create_plan_session("plan-a1", Some("chat-a"), "goal one", "sequential")
+            .await
+            .unwrap();
+        db.append_plan_version("plan-a1", 1, None, None, None)
+            .await
+            .unwrap();
+        db.upsert_plan_node("plan-a1", 1, "n1", "step", "[]", "{}", "pending", None)
+            .await
+            .unwrap();
+
+        db.create_plan_session("plan-a2", Some("chat-a"), "goal two", "sequential")
+            .await
+            .unwrap();
+        db.append_plan_version("plan-a2", 1, None, None, None)
+            .await
+            .unwrap();
+        db.upsert_plan_node("plan-a2", 1, "n1", "step", "[]", "{}", "in_progress", None)
+            .await
+            .unwrap();
+
+        // Session "chat-b" has one dispatched goal, already completed.
+        db.create_plan_session("plan-b1", Some("chat-b"), "goal three", "sequential")
+            .await
+            .unwrap();
+        db.append_plan_version("plan-b1", 1, None, None, None)
+            .await
+            .unwrap();
+        db.upsert_plan_node("plan-b1", 1, "n1", "step", "[]", "{}", "completed", None)
+            .await
+            .unwrap();
+
+        // Session "chat-c" has never dispatched anything.
+        let counts = db
+            .open_task_counts_for_sessions(&[
+                "chat-a".to_string(),
+                "chat-b".to_string(),
+                "chat-c".to_string(),
+            ])
+            .await
+            .unwrap();
+
+        assert_eq!(
+            counts.get("chat-a").copied(),
+            Some(2),
+            "sums across both of chat-a's plan_sessions rows"
+        );
+        assert_eq!(
+            counts.get("chat-b"),
+            None,
+            "zero-count sessions are absent from the map, not present with 0"
+        );
+        assert_eq!(counts.get("chat-c"), None);
+    }
+
+    #[tokio::test]
+    async fn open_task_counts_exclude_superseded_plan_versions() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+        db.create_plan_session("plan-v1", Some("chat-v"), "goal", "sequential")
+            .await
+            .unwrap();
+        db.append_plan_version("plan-v1", 1, None, None, None)
+            .await
+            .unwrap();
+        db.upsert_plan_node("plan-v1", 1, "n1", "step", "[]", "{}", "pending", None)
+            .await
+            .unwrap();
+
+        // Bump to version 2 — current_version moves to 2, so version 1's pending node must no
+        // longer count (it belongs to a superseded version).
+        db.append_plan_version("plan-v1", 2, Some(1), None, None)
+            .await
+            .unwrap();
+        db.upsert_plan_node("plan-v1", 2, "n1", "step", "[]", "{}", "completed", None)
+            .await
+            .unwrap();
+
+        let counts = db
+            .open_task_counts_for_sessions(&["chat-v".to_string()])
+            .await
+            .unwrap();
+        assert_eq!(
+            counts.get("chat-v"),
+            None,
+            "version 1's pending node must not count once version 2 is current"
+        );
     }
 }
