@@ -239,7 +239,7 @@ Surfaces; the decorator spellings are hard parse errors as of 2026-06-30
 (`cd7cc96874`).
 
 **Decorators** (modifiers composed on top of a declaration):
-`@pure`, `@deprecated`, `@require`, `@auth`, `@uses`, `@test`, `@durable`,
+`@pure`, `@deprecated`, `@require`, `@auth`, `@uses`, `@test`, `@v0`, `@durable`,
 `@scheduled` (the last two stable per ADR-041 — see Implementation status
 below). **Removed in v0.6.0:** `@endpoint` (see §Retired Surfaces).
 **Retired 2026-06-30:** the decorator spellings of the eight data-layer
@@ -248,7 +248,9 @@ tool/resource/form/index) are now hard parse errors — use the bare-keyword
 forms instead. `@mcp.tool` is a separate case: it still parses but is
 soft-deprecated (a warning, not an error) in favor of bare `tool`; `@mcp.resource`
 remains fully valid, non-deprecated syntax, though bare `resource` is preferred
-for new code.
+for new code. `@v0` is a third case: it still parses today but lowers to a
+no-op (zero corpus uses) and is scheduled for retirement in a later phase of
+this program (not yet implemented) — do not use it in new code.
 
 Decorators compose with bare-keyword blocks:
 
