@@ -73,17 +73,27 @@ impl Parser {
             }
             Token::BangInvalid => {
                 // `!` is not a valid Vox operator. Vox uses phonetic operators
-                // (`not`, `and`, `or`, `is`, `isnt`). Emit a clear error pointing
-                // at the canonical form, then advance past the `!` so the parser
-                // can keep going and report any other issues in the same pass.
-                self.errors.push(ParseError::classified(
+                // (`not`, `and`, `or`, `is`, `isnt`). Deliberately kept as a
+                // hard ERROR (not folded into the tolerant-reader policy like
+                // ==/!=/-> are) per spec S2: this is the exact class of silent
+                // semantic inversion (`if !x` parsing as `if x`) that burned
+                // the project once before BangInvalid existed at all. Carries
+                // a Replacement payload so tooling can still auto-fix from
+                // data; the reader itself stays strict.
+                let mut err = ParseError::classified(
                     start,
                     "`!` is not a valid operator in Vox; use `not` instead. \
                      (Vox uses phonetic operators: `not`, `and`, `or`, `is`, `isnt`.)",
                     vec!["not".to_string()],
                     Some("!".to_string()),
                     ParseErrorClass::Expression,
-                ));
+                );
+                err.replacement = Some(crate::parser::error::Replacement {
+                    from: "!".to_string(),
+                    to: "not".to_string(),
+                    code: "vox/lexer/bang-invalid".to_string(),
+                });
+                self.errors.push(err);
                 self.advance();
                 return Err(());
             }
@@ -1091,5 +1101,33 @@ mod tests {
             result.is_err(),
             "-> in match-arm position must remain a hard error (canonical is =>)"
         );
+    }
+
+    /// S2: `!` stays a hard parse ERROR (never downgraded to a tolerated
+    /// warning — this is the project's one prior near-miss on the exact
+    /// class of bug the tolerant-reader policy exists to prevent
+    /// elsewhere), but the error now carries a machine-readable
+    /// Replacement payload so `vox fmt`/codemods can still suggest the fix
+    /// from data instead of parsing the English message.
+    #[test]
+    fn bang_invalid_error_carries_not_replacement() {
+        let tokens = lex("!true\n");
+        let mut p = Parser::new(tokens);
+        let result = p.parse_expr();
+        assert!(result.is_err(), "! must remain a hard parse error");
+        let errors = p.errors_for_test();
+        assert_eq!(errors.len(), 1);
+        assert_eq!(
+            errors[0].severity,
+            crate::parser::error::ParseSeverity::Error,
+            "! must NOT be downgraded to a warning"
+        );
+        let r = errors[0]
+            .replacement
+            .as_ref()
+            .expect("BangInvalid error must carry a Replacement payload");
+        assert_eq!(r.from, "!");
+        assert_eq!(r.to, "not");
+        assert_eq!(r.code, "vox/lexer/bang-invalid");
     }
 }

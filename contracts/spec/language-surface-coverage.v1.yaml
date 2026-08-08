@@ -49,9 +49,8 @@ productions:
     spec_ref: S2
   - name: bang-invalid-carries-replacement
     kind: grammar-rule
-    status: todo
-    fixture: null
-    # planned: crates/vox-compiler/src/parser/descent/expr/pratt_match.rs::tests::bang_invalid_error_carries_not_replacement
+    status: covered
+    fixture: "crates/vox-compiler/src/parser/descent/expr/pratt_match.rs::tests::bang_invalid_error_carries_not_replacement"
     spec_ref: S2
   - name: bounded-unknown-token-diagnostics
     kind: grammar-rule
