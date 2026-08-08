@@ -27,15 +27,13 @@ productions:
     spec_ref: S2
   - name: reader-tolerant-eq-eq
     kind: grammar-rule
-    status: todo
-    fixture: null
-    # planned: crates/vox-compiler/src/parser/descent/expr/pratt_ops.rs::tests::eq_eq_parses_and_warns
+    status: covered
+    fixture: "crates/vox-compiler/src/parser/descent/expr/pratt_ops.rs::tests::eq_eq_parses_and_warns"
     spec_ref: S2
   - name: reader-tolerant-not-eq
     kind: grammar-rule
-    status: todo
-    fixture: null
-    # planned: crates/vox-compiler/src/parser/descent/expr/pratt_ops.rs::tests::not_eq_parses_and_warns
+    status: covered
+    fixture: "crates/vox-compiler/src/parser/descent/expr/pratt_ops.rs::tests::not_eq_parses_and_warns"
     spec_ref: S2
   - name: arrow-return-type-warning
     kind: grammar-rule

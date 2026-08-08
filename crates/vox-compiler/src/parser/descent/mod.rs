@@ -186,6 +186,25 @@ impl Parser {
         }
     }
 
+    /// S2/S3 tolerant-reader policy: push a Warning diagnostic when a
+    /// mainstream/legacy spelling was accepted in place of the canonical
+    /// one. No `Replacement` payload here (unlike `skip_tolerated_semicolon`)
+    /// because the AST is already correct — `vox fmt` derives the canonical
+    /// spelling from the AST node, it doesn't need a text-level fix-it for
+    /// operators that already parsed to the right `BinOp`.
+    pub(crate) fn warn_mainstream_operator_alias(&mut self, found: &str, canonical: &str) {
+        let span = self.span();
+        self.errors.push(ParseError {
+            message: format!("`{found}` works, but Vox's canonical spelling is `{canonical}`"),
+            span,
+            expected: vec![canonical.to_string()],
+            found: Some(found.to_string()),
+            class: ParseErrorClass::Expression,
+            severity: ParseSeverity::Warning,
+            replacement: None,
+        });
+    }
+
     /// Debug-only trace when `VOX_PARSER_DEBUG` is set in the environment (OP-0008 / OP-0031).
     pub(crate) fn maybe_parser_trace(&self, label: &'static str) {
         if std::env::var_os("VOX_PARSER_DEBUG").is_some() {

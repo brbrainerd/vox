@@ -55,8 +55,16 @@ impl Parser {
                 Token::Gte => BinOp::Gte,
                 Token::And => BinOp::And,
                 Token::Or => BinOp::Or,
-                Token::Is | Token::EqEq => BinOp::Is,
-                Token::Isnt | Token::NotEq => BinOp::Isnt,
+                Token::Is => BinOp::Is,
+                Token::EqEq => {
+                    self.warn_mainstream_operator_alias("==", "is");
+                    BinOp::Is
+                }
+                Token::Isnt => BinOp::Isnt,
+                Token::NotEq => {
+                    self.warn_mainstream_operator_alias("!=", "is not");
+                    BinOp::Isnt
+                }
                 Token::PipeOp => BinOp::Pipe,
                 _ => break,
             };
@@ -136,5 +144,66 @@ mod semcov_wave1c_tests {
         assert!(infix_bp(BinOp::Is).0 > infix_bp(BinOp::And).0);
         assert!(infix_bp(BinOp::And).0 > infix_bp(BinOp::Or).0);
         assert!(infix_bp(BinOp::Or).0 > infix_bp(BinOp::Pipe).0);
+    }
+
+    /// S2: `==` parses exactly as `is` does (same BinOp, same AST shape —
+    /// this was already true before this change) but now also emits a
+    /// single Warning diagnostic pointing at the canonical spelling.
+    #[test]
+    fn eq_eq_parses_and_warns() {
+        use crate::lexer::lex;
+        use crate::parser::descent::Parser;
+
+        let tokens = lex("a == b\n");
+        let mut p = Parser::new(tokens);
+        let expr = p.parse_expr().expect("== must still parse");
+        assert!(
+            matches!(expr, Expr::Binary { op: BinOp::Is, .. }),
+            "== must produce the same BinOp::Is as `is`"
+        );
+        let warnings: Vec<_> = p
+            .errors_for_test()
+            .iter()
+            .filter(|e| e.severity == crate::parser::error::ParseSeverity::Warning)
+            .collect();
+        assert_eq!(warnings.len(), 1, "expected exactly one warning for ==");
+        assert!(warnings[0].message.contains("is"));
+    }
+
+    /// Same for `!=` -> BinOp::Isnt, pointing at `is not`.
+    #[test]
+    fn not_eq_parses_and_warns() {
+        use crate::lexer::lex;
+        use crate::parser::descent::Parser;
+
+        let tokens = lex("a != b\n");
+        let mut p = Parser::new(tokens);
+        let expr = p.parse_expr().expect("!= must still parse");
+        assert!(matches!(expr, Expr::Binary { op: BinOp::Isnt, .. }));
+        let warnings: Vec<_> = p
+            .errors_for_test()
+            .iter()
+            .filter(|e| e.severity == crate::parser::error::ParseSeverity::Warning)
+            .collect();
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].message.contains("is not"));
+    }
+
+    /// The canonical spellings (`is`, `is not` via `isnt`) must NOT trigger
+    /// this new warning — only the mainstream aliases do.
+    #[test]
+    fn is_and_isnt_do_not_warn() {
+        use crate::lexer::lex;
+        use crate::parser::descent::Parser;
+
+        for src in ["a is b\n", "a isnt b\n"] {
+            let tokens = lex(src);
+            let mut p = Parser::new(tokens);
+            let _ = p.parse_expr().expect("must parse");
+            assert!(
+                p.errors_for_test().is_empty(),
+                "canonical spelling {src:?} must not produce any diagnostic"
+            );
+        }
     }
 }
