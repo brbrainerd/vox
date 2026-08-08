@@ -161,6 +161,11 @@ impl Parser {
     /// semicolon-terminated. Scoped to the statement-boundary position
     /// only (see this task's own scope note); does not touch `;` anywhere
     /// else a stray one might appear.
+    ///
+    /// Consumes at most one trailing `;` per call -- a second
+    /// immediately-following `;` (`;;`) is NOT tolerated and surfaces as a
+    /// normal parse error via the caller's existing recovery path; this is
+    /// intentional, not an oversight.
     pub(crate) fn skip_tolerated_semicolon(&mut self) {
         if matches!(self.peek(), Token::Unknown(';')) {
             let span = self.span();
@@ -242,6 +247,12 @@ impl Parser {
                     self.recover_to_top_level();
                 }
             }
+            // Deliberately does not call `skip_tolerated_semicolon()` here --
+            // this is the strict (non-script) top-level declaration loop; a
+            // stray `;` after a declaration is a different construct than a
+            // statement-boundary `;` and script-mode (`parse_module_script`)
+            // is where `;`-heavy corpus files (scripts/) actually live.
+            // Revisit if corpus evidence changes.
             self.skip_newlines();
         }
         if self
