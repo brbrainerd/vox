@@ -99,6 +99,14 @@ impl Parser {
             .unwrap_or(&Token::Eof)
     }
 
+    /// Test-only accessor so sibling test modules can inspect accumulated
+    /// diagnostics without going through the full `parse`/`parse_script`
+    /// `Result<_, Vec<ParseError>>` API (which discards warnings on Ok).
+    #[cfg(test)]
+    pub(crate) fn errors_for_test(&self) -> &[ParseError] {
+        &self.errors
+    }
+
     pub(crate) fn span(&self) -> Span {
         self.tokens
             .get(self.pos)
@@ -142,6 +150,33 @@ impl Parser {
 
     pub(crate) fn skip_newlines(&mut self) {
         while matches!(self.peek(), Token::Newline) {
+            self.advance();
+        }
+    }
+
+    /// S2/S3 tolerant-reader policy: a `;` immediately after a statement is
+    /// accepted (it lexes to `Token::Unknown(';')` per Task 4) with a
+    /// Warning diagnostic carrying a machine-readable `Replacement` that
+    /// deletes it — Vox statements are newline-terminated, not
+    /// semicolon-terminated. Scoped to the statement-boundary position
+    /// only (see this task's own scope note); does not touch `;` anywhere
+    /// else a stray one might appear.
+    pub(crate) fn skip_tolerated_semicolon(&mut self) {
+        if matches!(self.peek(), Token::Unknown(';')) {
+            let span = self.span();
+            self.errors.push(ParseError {
+                message: "Vox statements end at end of line; no semicolon needed".to_string(),
+                span,
+                expected: vec![],
+                found: Some(";".to_string()),
+                class: ParseErrorClass::Statement,
+                severity: ParseSeverity::Warning,
+                replacement: Some(crate::parser::error::Replacement {
+                    from: ";".to_string(),
+                    to: String::new(),
+                    code: "vox/lexer/semicolon-unnecessary".to_string(),
+                }),
+            });
             self.advance();
         }
     }
@@ -355,6 +390,7 @@ impl Parser {
                     }
                 }
             }
+            self.skip_tolerated_semicolon();
             self.skip_newlines();
         }
 

@@ -22,9 +22,8 @@ productions:
     spec_ref: S2
   - name: reader-tolerant-semicolon
     kind: grammar-rule
-    status: todo
-    fixture: null
-    # planned: crates/vox-compiler/src/parser/descent/stmt.rs::tests::tolerates_and_warns_on_trailing_semicolon
+    status: covered
+    fixture: "crates/vox-compiler/src/parser/descent/stmt.rs::tests::tolerates_and_warns_on_trailing_semicolon"
     spec_ref: S2
   - name: reader-tolerant-eq-eq
     kind: grammar-rule

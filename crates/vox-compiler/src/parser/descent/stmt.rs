@@ -26,6 +26,7 @@ impl Parser {
                     }
                 }
             }
+            self.skip_tolerated_semicolon();
             self.skip_newlines();
         }
         self.skip_newlines();
@@ -245,5 +246,64 @@ impl Parser {
                 Err(())
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::lexer::lex;
+
+    /// S2/S3: a trailing `;` after a statement is tolerated (parses) and
+    /// produces exactly one Warning-severity diagnostic carrying a
+    /// Replacement payload that strips it — the tolerant-reader/strict-
+    /// writer policy. This is the dominant real-world case: the audit found
+    /// 1,145 corpus lines ending in `;`, almost all statement terminators.
+    #[test]
+    fn tolerates_and_warns_on_trailing_semicolon() {
+        let tokens = lex("import fs;\nlet x = 5;\n");
+        let module = crate::parser::parse_script(tokens)
+            .expect("trailing ';' must not be a hard parse error");
+        assert_eq!(module.declarations.len(), 2, "both statements must parse");
+    }
+
+    /// The warning diagnostic itself: severity Warning, class Statement,
+    /// and a Replacement payload that deletes the semicolon (from ";" to
+    /// "" ) with the stable code `vox/lexer/semicolon-unnecessary`, so
+    /// `vox fmt` can auto-apply it later without parsing English text.
+    #[test]
+    fn semicolon_warning_carries_replacement_payload() {
+        use crate::parser::descent::Parser;
+        let tokens = lex("let x = 5;\n");
+        let mut p = Parser::new(tokens);
+        let _ = p.parse_module_script();
+        let warnings: Vec<_> = p
+            .errors_for_test()
+            .iter()
+            .filter(|e| e.message.contains("semicolon"))
+            .collect();
+        assert_eq!(warnings.len(), 1, "expected exactly one semicolon warning");
+        let w = warnings[0];
+        assert_eq!(w.severity, crate::parser::error::ParseSeverity::Warning);
+        let r = w
+            .replacement
+            .as_ref()
+            .expect("semicolon warning must carry a Replacement payload");
+        assert_eq!(r.from, ";");
+        assert_eq!(r.to, "");
+        assert_eq!(r.code, "vox/lexer/semicolon-unnecessary");
+    }
+
+    /// A file with NO semicolons is completely unaffected — no warnings,
+    /// same parse result as before this change.
+    #[test]
+    fn no_semicolon_no_warning() {
+        use crate::parser::descent::Parser;
+        let tokens = lex("let x = 5\n");
+        let mut p = Parser::new(tokens);
+        let _ = p.parse_module_script();
+        assert!(
+            p.errors_for_test().is_empty(),
+            "file with no ';' must produce zero diagnostics from this change"
+        );
     }
 }
