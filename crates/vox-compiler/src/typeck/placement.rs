@@ -467,7 +467,8 @@ mod tests {
 
     #[test]
     fn walker_finds_calls_in_nested_positions() {
-        let m = hir_of("fn f() { let x = g(h()); if x { notify() } }");
+        // NB: newline (not `;`) as statement separator — see Task 4 (Token::Unknown) note.
+        let m = hir_of("fn f() { let x = g(h())\nif x { notify() } }");
         let names = callee_names(&m.functions[0].body);
         for want in ["g", "h", "notify"] {
             assert!(

@@ -17,9 +17,8 @@ productions:
   # the failure mode this file exists to prevent. ---
   - name: lexer/unknown-char-token
     kind: token
-    status: todo
-    fixture: null
-    # planned: crates/vox-compiler/src/lexer/cursor.rs::tests::unknown_char_becomes_a_real_token
+    status: covered
+    fixture: "crates/vox-compiler/src/lexer/cursor.rs::tests::unknown_char_becomes_a_real_token"
     spec_ref: S2
   - name: reader-tolerant-semicolon
     kind: grammar-rule

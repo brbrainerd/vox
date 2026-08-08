@@ -3,5 +3,5 @@ fn greet(name: str) to str {
 }
 
 fn main() {
-    print(greet("world"));
+    print(greet("world"))
 }

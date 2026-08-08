@@ -27,24 +27,24 @@ fn demo_vars() {
 // ANCHOR: control_flow
 fn demo_flow(val: int) {
     if val > 10 {
-        print("large");
+        print("large")
     } else {
-        print("small");
+        print("small")
     }
 
     for i in [1, 2, 3] {
-        print(str(i));
+        print(str(i))
     }
 
     while false {
-        break;
+        break
     }
 }
 // ANCHOR_END: control_flow
 
 // ANCHOR: functions
 fn add(a: int, b: int) to int {
-    return a + b;
+    return a + b
 }
 
 component Button(label: str) {

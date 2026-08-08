@@ -479,7 +479,11 @@ fn test_capitalized_call_with_named_args_lowers_to_self_closing() {
 #[test]
 fn test_capitalized_call_with_positional_arg_stays_call() {
     // Enum constructors (Some, Ok, Err) use positional args — must NOT be sugared to JSX.
-    let m = parse_str("fn f() -> int { let x = Some(42); return 1 }");
+    // NB: uses a newline (not `;`) as the statement separator — Vox has no
+    // semicolon statement-separator token; since Task 4 (Token::Unknown),
+    // a bare `;` now lexes to a real, parser-visible token instead of being
+    // silently dropped, so a stray `;` here would now be a genuine parse error.
+    let m = parse_str("fn f() -> int { let x = Some(42)\nreturn 1 }");
     let Decl::Function(func) = &m.declarations[0] else {
         panic!();
     };
