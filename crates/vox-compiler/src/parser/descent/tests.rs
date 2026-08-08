@@ -1178,3 +1178,40 @@ fn arrow_return_type_still_warns() {
         "-> in return-type position must still parse (Warning, not Error)"
     );
 }
+
+/// S2: a long run of one unknown byte at top level must not produce
+/// unbounded diagnostics. This is the pathological-input guard —
+/// before this task, each of the 500 '^' characters below would
+/// independently fail parse_decl's dispatch and push its own
+/// "Unexpected token at top level" error.
+#[test]
+fn long_run_of_unknown_bytes_bounds_diagnostics() {
+    let source = "^".repeat(500);
+    let tokens = crate::lexer::lex(&source);
+    let result = crate::parser::parse(tokens);
+    let errors = result.expect_err("500 unknown bytes must fail to parse");
+    assert!(
+        errors.len() <= 21,
+        "diagnostic count must be bounded (cap + one summary line), got {}",
+        errors.len()
+    );
+    // The final error must be the summary sentinel, not another
+    // per-character "Unexpected token" message.
+    let last = errors.last().unwrap();
+    assert!(
+        last.message.contains("more"),
+        "expected a summary sentinel as the final diagnostic, got: {:?}",
+        last.message
+    );
+}
+
+/// A single unknown byte still gets its own clear, unbounded-count-
+/// unaffected diagnostic -- the cap only matters for pathological runs.
+#[test]
+fn single_unknown_byte_gets_one_clear_error() {
+    let tokens = crate::lexer::lex("^\n");
+    let result = crate::parser::parse(tokens);
+    let errors = result.expect_err("bare '^' must fail to parse");
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains('^'));
+}

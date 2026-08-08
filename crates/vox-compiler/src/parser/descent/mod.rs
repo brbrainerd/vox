@@ -12,6 +12,11 @@ use crate::lexer::cursor::Spanned;
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass, ParseSeverity};
 
+/// S2: cap on how many "unrecognized token" diagnostics a pathological
+/// input (e.g. a long run of one unknown byte) can generate. Once hit, one
+/// summary sentinel replaces further per-token errors.
+const MAX_UNKNOWN_TOKEN_ERRORS: usize = 20;
+
 /// Strict parse: returns [`crate::Module`] or **all** accumulated [`ParseError`] values.
 ///
 /// Defaults to [`crate::module::FileKind::Source`] semantics. Use [`parse_with_kind`] when the file
@@ -71,6 +76,12 @@ struct Parser {
     /// ADR-032, [`crate::module::FileKind::ReactiveModule`] permits module-scope
     /// `state` / `derived` / `effect` / `on mount` / `on cleanup`.
     file_kind: crate::module::FileKind,
+    /// S2 bounded-diagnostics guard: counts how many "unrecognized token at
+    /// top level" errors have been pushed for `Token::Unknown` specifically,
+    /// so a pathological run of one bad byte can't produce unbounded
+    /// diagnostics or retained-error memory. Not used for any other error
+    /// class.
+    unknown_token_error_count: usize,
 }
 
 impl Parser {
@@ -80,6 +91,7 @@ impl Parser {
             pos: 0,
             errors: vec![],
             file_kind: crate::module::FileKind::Source,
+            unknown_token_error_count: 0,
         }
     }
 
@@ -587,6 +599,18 @@ impl Parser {
                 {
                     break;
                 }
+                // S2 bounded-diagnostics guard: don't silently swallow an entire
+                // run of unrecognized bytes in one recovery pass -- consume just
+                // this one `Token::Unknown` and hand control back to the
+                // top-level loop so each occurrence gets its own (capped)
+                // diagnostic via `parse_decl`'s fallback arm. Without this,
+                // a long run of one repeated bad byte would recover silently
+                // past the whole run after only the first diagnostic, hiding
+                // how much of the file is actually unrecognized.
+                Token::Unknown(_) if brace_depth == 0 => {
+                    self.advance();
+                    break;
+                }
                 _ => {
                     self.advance();
                 }
@@ -1015,13 +1039,40 @@ impl Parser {
             // so it serves both the `@form` and bare `form` heads (like `index`).
             Token::Ident(ref name) if name == "form" => self.parse_form_decl(),
             _ => {
-                self.errors.push(ParseError::classified(
-                    self.span(),
-                    format!("Unexpected token at top level: {}", self.peek()),
-                    vec!["fn".into(), "import".into(), "type".into()],
-                    Some(self.peek().to_string()),
-                    ParseErrorClass::TopLevel,
-                ));
+                if matches!(self.peek(), Token::Unknown(_)) {
+                    if self.unknown_token_error_count < MAX_UNKNOWN_TOKEN_ERRORS {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            format!("Unexpected token at top level: {}", self.peek()),
+                            vec!["fn".into(), "import".into(), "type".into()],
+                            Some(self.peek().to_string()),
+                            ParseErrorClass::TopLevel,
+                        ));
+                        self.unknown_token_error_count += 1;
+                    } else if self.unknown_token_error_count == MAX_UNKNOWN_TOKEN_ERRORS {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            format!(
+                                "…and more unrecognized tokens follow (stopped reporting \
+                                 after {MAX_UNKNOWN_TOKEN_ERRORS})"
+                            ),
+                            vec![],
+                            None,
+                            ParseErrorClass::TopLevel,
+                        ));
+                        self.unknown_token_error_count += 1; // never re-enter this branch
+                    }
+                    // Beyond the cap: silently advance without pushing further
+                    // diagnostics, but still return Err so recovery proceeds.
+                } else {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("Unexpected token at top level: {}", self.peek()),
+                        vec!["fn".into(), "import".into(), "type".into()],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::TopLevel,
+                    ));
+                }
                 Err(())
             }
         }

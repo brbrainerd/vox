@@ -54,9 +54,8 @@ productions:
     spec_ref: S2
   - name: bounded-unknown-token-diagnostics
     kind: grammar-rule
-    status: todo
-    fixture: null
-    # planned: crates/vox-compiler/src/parser/descent/mod.rs::tests::long_run_of_unknown_bytes_bounds_diagnostics
+    status: covered
+    fixture: "crates/vox-compiler/src/parser/descent/mod.rs::tests::long_run_of_unknown_bytes_bounds_diagnostics"
     spec_ref: S2
   # --- Everything else in the language is not yet ledgered. Later Sequencing
   # Steps add their own rows as they land; this bucket is intentionally
