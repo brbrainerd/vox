@@ -929,10 +929,24 @@ Run the full lexer+parser suite to catch any cross-cutting fallout:
 Run: `cargo test -p vox-compiler --lib lexer:: parser::`
 Expected: PASS, no regressions.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Flip the CR-F3 ledger row for this production**
+
+Task 0 seeded `contracts/spec/language-surface-coverage.v1.yaml` with a
+`lexer/unknown-char-token` row at `status: todo` (downgraded from an
+initial `covered` claim during Task 0's code-quality review, precisely to
+avoid ever landing a commit that claims coverage before the fixture
+exists — see that task's fix commit for why). Now that
+`unknown_char_becomes_a_real_token` is a real, passing test, flip that row:
+`status: todo` → `status: covered`, `fixture: null` → `fixture: "crates/vox-compiler/src/lexer/cursor.rs::tests::unknown_char_becomes_a_real_token"`.
+Leave `name`/`kind`/`spec_ref` unchanged. This must land in the same commit
+as the test, per the ledger file's own header policy ("add a row in the
+same PR that lands the production it describes").
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add crates/vox-compiler/src/lexer/token.rs crates/vox-compiler/src/lexer/cursor.rs
+git add crates/vox-compiler/src/lexer/token.rs crates/vox-compiler/src/lexer/cursor.rs \
+        contracts/spec/language-surface-coverage.v1.yaml
 git commit -m "fix(lexer): Token::Unknown(char) catch-all kills silent unknown-byte drop
 
 Both lex() and lex_preserving()'s Err(_) => None arms silently dropped
@@ -1160,11 +1174,19 @@ Run the full parser suite to confirm no regression:
 Run: `cargo test -p vox-compiler --lib parser::`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Flip the CR-F3 ledger row for this production**
+
+In `contracts/spec/language-surface-coverage.v1.yaml`, flip the
+`reader-tolerant-semicolon` row from `status: todo` / `fixture: null` to
+`status: covered` / `fixture: "crates/vox-compiler/src/parser/descent/stmt.rs::tests::tolerates_and_warns_on_trailing_semicolon"`.
+Same policy as Task 4's Step 6: land it in this same commit.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add crates/vox-compiler/src/parser/descent/mod.rs \
-        crates/vox-compiler/src/parser/descent/stmt.rs
+        crates/vox-compiler/src/parser/descent/stmt.rs \
+        contracts/spec/language-surface-coverage.v1.yaml
 git commit -m "feat(parser): tolerate trailing ';' at statement boundaries (warn + fix-it)
 
 Vox has no semicolons in its grammar and never did (no ';' token exists);
@@ -1373,11 +1395,22 @@ asserting on a corpus file using `==`/`!=` — check whether it's asserting
 "zero diagnostics" (needs updating to allow this specific warning) or
 something unrelated broke.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Flip the CR-F3 ledger rows for these productions**
+
+In `contracts/spec/language-surface-coverage.v1.yaml`, flip both
+`reader-tolerant-eq-eq` and `reader-tolerant-not-eq` from `status: todo` /
+`fixture: null` to `status: covered` with fixtures
+`"crates/vox-compiler/src/parser/descent/expr/pratt_ops.rs::tests::eq_eq_parses_and_warns"`
+and
+`"crates/vox-compiler/src/parser/descent/expr/pratt_ops.rs::tests::not_eq_parses_and_warns"`
+respectively. Same policy as Task 4's Step 6: land it in this same commit.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add crates/vox-compiler/src/parser/descent/expr/pratt_ops.rs \
-        crates/vox-compiler/src/parser/descent/mod.rs
+        crates/vox-compiler/src/parser/descent/mod.rs \
+        contracts/spec/language-surface-coverage.v1.yaml
 git commit -m "feat(parser): warn (don't error) on == and != as is/is-not aliases
 
 No new parsing — pratt_ops.rs already unified EqEq/NotEq into BinOp::Is/
@@ -1466,11 +1499,22 @@ the audit verified (`parser/descent/mod.rs:182-193` for the warning,
 proceeding; do not "fix" the test to match unexpected behavior without
 understanding why it changed.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Flip the CR-F3 ledger rows for these productions**
+
+In `contracts/spec/language-surface-coverage.v1.yaml`, flip both
+`arrow-return-type-warning` and `arrow-match-arm-stays-error` from
+`status: todo` / `fixture: null` to `status: covered` with fixtures
+`"crates/vox-compiler/src/parser/descent/mod.rs::tests::arrow_return_type_still_warns"`
+and
+`"crates/vox-compiler/src/parser/descent/expr/pratt_match.rs::tests::arrow_match_arm_is_not_aliased"`
+respectively. Same policy as Task 4's Step 6: land it in this same commit.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add crates/vox-compiler/src/parser/descent/tests.rs \
-        crates/vox-compiler/src/parser/descent/expr/pratt_match.rs
+        crates/vox-compiler/src/parser/descent/expr/pratt_match.rs \
+        contracts/spec/language-surface-coverage.v1.yaml
 git commit -m "test(parser): lock in -> as two independent positions, not one alias
 
 Return-type '->' (Warning, tolerated) and match-arm '->' (Error, no
@@ -1600,10 +1644,19 @@ Expected: PASS. Also re-run the two pre-existing `!`-related tests in
 Run: `cargo test -p vox-compiler --lib lexer::cursor::tests`
 Expected: PASS, unchanged.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Flip the CR-F3 ledger row for this production**
+
+In `contracts/spec/language-surface-coverage.v1.yaml`, flip
+`bang-invalid-carries-replacement` from `status: todo` / `fixture: null`
+to `status: covered` with fixture
+`"crates/vox-compiler/src/parser/descent/expr/pratt_match.rs::tests::bang_invalid_error_carries_not_replacement"`.
+Same policy as Task 4's Step 6: land it in this same commit.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add crates/vox-compiler/src/parser/descent/expr/pratt_match.rs
+git add crates/vox-compiler/src/parser/descent/expr/pratt_match.rs \
+        contracts/spec/language-surface-coverage.v1.yaml
 git commit -m "feat(parser): give BangInvalid a Replacement payload, keep it an error
 
 Explicit exception to the tolerant-reader policy: unlike ==/!=/->, '!'
@@ -1792,11 +1845,23 @@ Run the full parser suite once more for regressions:
 Run: `cargo test -p vox-compiler`
 Expected: PASS, zero regressions.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Flip the CR-F3 ledger row for this production**
+
+In `contracts/spec/language-surface-coverage.v1.yaml`, flip
+`bounded-unknown-token-diagnostics` from `status: todo` / `fixture: null`
+to `status: covered` with fixture
+`"crates/vox-compiler/src/parser/descent/mod.rs::tests::long_run_of_unknown_bytes_bounds_diagnostics"`.
+Same policy as Task 4's Step 6: land it in this same commit. After this
+task, all 8 rows Task 0 originally seeded are `covered` with real,
+verified fixtures — the ledger's fabrication-window (flagged in Task 0's
+code-quality review) is fully closed.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add crates/vox-compiler/src/parser/descent/mod.rs \
-        crates/vox-compiler/src/parser/descent/tests.rs
+        crates/vox-compiler/src/parser/descent/tests.rs \
+        contracts/spec/language-surface-coverage.v1.yaml
 git commit -m "fix(parser): bound diagnostic count on pathological unknown-byte input
 
 A file that's mostly one repeated unrecognized character (e.g. 500 '^'
