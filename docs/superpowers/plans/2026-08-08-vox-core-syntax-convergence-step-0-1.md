@@ -278,6 +278,17 @@ productions:
     status: todo
     fixture: null
     spec_ref: S5
+  # Found via graph audit 2026-08-08 (missed by the original 4-agent sweep):
+  # apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json:36's decorator regex
+  # is a second hardcoded copy (scripts/generate-grammars.vox:53), not
+  # derived from vox-language-surface::LEXER_AT_DECORATORS. Currently
+  # highlights several retired/dead/removed decorators as valid @-syntax --
+  # a human-facing (VS Code user) defect, not just an agent/training one.
+  - name: editor-tooling/vscode-tmlanguage-decorators
+    kind: decorator
+    status: todo
+    fixture: null
+    spec_ref: S6
 ```
 
 - [ ] **Step 5: Run test to verify it passes**

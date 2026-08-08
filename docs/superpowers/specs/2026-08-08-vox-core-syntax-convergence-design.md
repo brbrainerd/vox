@@ -376,6 +376,21 @@ comments bound to elements):
   "highest-leverage training defect") does not depend on the grammar-IR work
   landing first. Do this as step 0, alongside AGENTS.md §Grammar Unification
   (also independently stale today, verified live during this review).
+- **Also pull forward, found via graph audit 2026-08-08 (missed by the
+  original 4-agent sweep):** `apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json:36`'s
+  decorator-highlighting regex is a **second hardcoded copy**, not derived
+  from anything — verified at `scripts/generate-grammars.vox:53`, which
+  builds the regex from a literal string, not from
+  `vox-language-surface::LEXER_AT_DECORATORS` (the real SSOT). It currently
+  highlights `table`/`query`/`mutation`/`server`/`mcp.tool`/`mcp.resource`
+  (all hard errors since 2026-06-30), `v0` (dead, S4b), and `py_import`
+  (fully removed per AGENTS.md's Retired Surfaces table) as valid `@`-syntax
+  — a human-facing defect (VS Code users, not just agents/MENS). Fix:
+  `generate-grammars.vox` reads `LEXER_AT_DECORATORS` at generation time
+  instead of hardcoding a string; no dependency on the grammar-IR work,
+  same "pull forward" category as the two items above. Add a
+  `contracts/spec/language-surface-coverage.v1.yaml` row
+  (`editor-tooling/vscode-tmlanguage-decorators`) once fixed.
 - Build **CR-F3** in **warn mode starting at step 0**, not at the end of
   Sequencing: `contracts/spec/language-surface-coverage.v1.yaml` mapping
   every grammar production + decorator + builtin to ≥1 behavioral fixture.
