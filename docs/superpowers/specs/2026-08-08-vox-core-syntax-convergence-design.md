@@ -382,9 +382,15 @@ comments bound to elements):
   from anything — verified at `scripts/generate-grammars.vox:53`, which
   builds the regex from a literal string, not from
   `vox-language-surface::LEXER_AT_DECORATORS` (the real SSOT). It currently
-  highlights `table`/`query`/`mutation`/`server`/`mcp.tool`/`mcp.resource`
-  (all hard errors since 2026-06-30), `v0` (dead, S4b), and `py_import`
-  (fully removed per AGENTS.md's Retired Surfaces table) as valid `@`-syntax
+  highlights `table`/`query`/`mutation`/`server` (hard errors since
+  2026-06-30) alongside `mcp.tool`/`mcp.resource` — **correction, found
+  during Task 2's implementation:** these two are not hard-retired like the
+  other four; `Token::AtMcpTool`/`Token::AtMcpResource` route to real,
+  still-live `parse_mcp_tool`/`parse_mcp_resource` functions
+  (`parser/descent/mod.rs:695,704`), not `reject_retired_decorator` — so
+  highlighting them isn't wrong, only `@table`/`@query`/`@mutation`/`@server`
+  are — plus `v0` (dead, S4b) and `py_import` (fully removed per AGENTS.md's
+  Retired Surfaces table) as valid `@`-syntax
   — a human-facing defect (VS Code users, not just agents/MENS). Fix:
   `generate-grammars.vox` reads `LEXER_AT_DECORATORS` at generation time
   instead of hardcoding a string; no dependency on the grammar-IR work,
