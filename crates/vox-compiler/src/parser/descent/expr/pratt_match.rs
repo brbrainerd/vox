@@ -1068,3 +1068,28 @@ impl super::super::Parser {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::lexer::lex;
+    use crate::parser::descent::Parser;
+
+    /// S2/S3: `->` in MATCH-ARM position is a SEPARATE, already-existing,
+    /// default-severity ERROR (canonical is `=>`) with NO alias mapping —
+    /// this is not the same tolerance as return-type `->`. Locks in that
+    /// the two positions stay independent (a prior review found this
+    /// distinction was easy to conflate in prose; this test prevents it
+    /// from being conflated in code too).
+    #[test]
+    fn arrow_match_arm_is_not_aliased() {
+        let tokens = lex(
+            "fn f(r: Result[int]) to int { match r { Ok(x) -> x  Error(e) -> 0 } }\n",
+        );
+        let mut p = Parser::new(tokens);
+        let result = p.parse_module();
+        assert!(
+            result.is_err(),
+            "-> in match-arm position must remain a hard error (canonical is =>)"
+        );
+    }
+}

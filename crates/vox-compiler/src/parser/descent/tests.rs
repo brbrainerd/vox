@@ -1164,3 +1164,17 @@ component Bad() {
     let res = crate::parser::parse(crate::lexer::cursor::lex(src));
     assert!(res.is_err(), "missing `as <binding>` must be a parse error");
 }
+
+/// S2/S3: `->` in RETURN-TYPE position is tolerated with a Warning
+/// (pre-existing behavior via `eat_return_arrow` — this test locks it
+/// in so a future refactor can't silently change the severity).
+#[test]
+fn arrow_return_type_still_warns() {
+    let tokens = lex("fn f() -> int { return 1 }\n");
+    let mut p = Parser::new(tokens);
+    let result = p.parse_module();
+    assert!(
+        result.is_ok(),
+        "-> in return-type position must still parse (Warning, not Error)"
+    );
+}
