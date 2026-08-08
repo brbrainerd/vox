@@ -1,5 +1,7 @@
 pub mod agent_loop;
 mod conversation;
+mod harness_issue_judge;
+mod harness_issue_scorer;
 mod history;
 mod hydrate;
 pub(crate) mod mentions;

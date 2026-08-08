@@ -14,6 +14,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { id: 'orch-doubt-threshold', section: 'orchestrator', label: 'Auto-doubt threshold', hint: 'Confidence floor for Augur', keywords: ['trust', 'augur', 'verify'] },
   { id: 'orch-isolation', section: 'orchestrator', label: 'Default isolation tier', hint: 'Runtime sandbox: wasm, container, native', keywords: ['sandbox', 'wasm', 'container', 'scope'] },
   { id: 'scaling-enabled', section: 'scaling', label: 'Auto-scaling', hint: 'Spawn/retire agents based on load and resources', keywords: ['scale', 'autoscale', 'dynamic'] },
+  { id: 'harness-issue-detection-enabled', section: 'scaling', label: 'Harness issue detection', hint: 'Detect repeated chat/agent mistakes and surface a review queue', keywords: ['harness', 'issue', 'discovery', 'scientia'] },
   { id: 'scaling-min-agents', section: 'scaling', label: 'Min agents', hint: 'Never retire below this fleet size', keywords: ['floor', 'scale down'] },
   { id: 'scaling-threshold', section: 'scaling', label: 'Queue threshold', hint: 'Per-agent load that triggers scale-up', keywords: ['queue', 'pressure', 'load'] },
   { id: 'scaling-cpu-ceiling', section: 'scaling', label: 'CPU ceiling', hint: 'Block agent spawn above this local CPU usage', keywords: ['cpu', 'resources', 'host'] },

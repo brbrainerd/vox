@@ -9,6 +9,10 @@ interface Props {
   taskCounts: Record<string, number>;
   archivedSessions: ChatSession[];
   showArchived: boolean;
+  /** session_ids with at least one PENDING scientia_harness_issues row —
+   * intentionally pending-only, not "any issue ever," so a dismissed/
+   * confirmed issue doesn't leave a stale attention dot. */
+  pendingIssueSessionIds?: Set<string>;
   onSessionChange: (sessionId: string) => void;
   onCreateSession: () => void;
   onRenameSession: (sessionId: string, title: string) => void;
@@ -33,11 +37,12 @@ function groupByRepo(sessions: ChatSession[]): Map<string, ChatSession[]> {
 }
 
 function SessionRow({
-  s, isActive, taskCount, onSessionChange, onRenameSession, onArchiveSession, onTaskBadgeClick, showArchive,
+  s, isActive, taskCount, hasPendingIssue, onSessionChange, onRenameSession, onArchiveSession, onTaskBadgeClick, showArchive,
 }: {
   s: ChatSession;
   isActive: boolean;
   taskCount: number;
+  hasPendingIssue: boolean;
   onSessionChange: (id: string) => void;
   onRenameSession: (id: string, title: string) => void;
   onArchiveSession: (id: string) => void;
@@ -67,6 +72,15 @@ function SessionRow({
          className="flex items-center justify-between rounded px-2 py-1 text-[12px] cursor-pointer hover:bg-overlay-hover group">
       <span title={s.title} className="line-clamp-2 break-words">{s.title}</span>
       <span className="flex items-center gap-1 shrink-0">
+        {hasPendingIssue && (
+          <span
+            data-testid={`session-issue-badge-${s.session_id}`}
+            role="img"
+            aria-label="Harness issue detected"
+            title="Harness issue detected"
+            className="size-1.5 shrink-0 rounded-full bg-amber-400"
+          />
+        )}
         {taskCount > 0 && (
           <span
             onClick={e => { e.stopPropagation(); onTaskBadgeClick(s.session_id); }}
@@ -90,12 +104,13 @@ function SessionRow({
 }
 
 function RepoGroup({
-  repo, sessions, activeSessionId, taskCounts, onSessionChange, onRenameSession, onArchiveSession, onTaskBadgeClick,
+  repo, sessions, activeSessionId, taskCounts, pendingIssueSessionIds, onSessionChange, onRenameSession, onArchiveSession, onTaskBadgeClick,
 }: {
   repo: string;
   sessions: ChatSession[];
   activeSessionId: string | null;
   taskCounts: Record<string, number>;
+  pendingIssueSessionIds?: Set<string>;
   onSessionChange: (id: string) => void;
   onRenameSession: (id: string, title: string) => void;
   onArchiveSession: (id: string) => void;
@@ -115,6 +130,7 @@ function RepoGroup({
             s={s}
             isActive={s.session_id === activeSessionId}
             taskCount={taskCounts[s.session_id] ?? 0}
+            hasPendingIssue={pendingIssueSessionIds?.has(s.session_id) ?? false}
             onSessionChange={onSessionChange}
             onRenameSession={onRenameSession}
             onArchiveSession={onArchiveSession}
@@ -133,7 +149,7 @@ function RepoGroup({
 }
 
 export function SessionSidebarSection({
-  sessions, activeSessionId, taskCounts, archivedSessions, showArchived,
+  sessions, activeSessionId, taskCounts, archivedSessions, showArchived, pendingIssueSessionIds,
   onSessionChange, onCreateSession, onRenameSession, onArchiveSession, onUnarchiveSession,
   onToggleArchivedView, onTaskBadgeClick,
 }: Props) {
@@ -152,6 +168,7 @@ export function SessionSidebarSection({
           sessions={groupSessions}
           activeSessionId={activeSessionId}
           taskCounts={taskCounts}
+          pendingIssueSessionIds={pendingIssueSessionIds}
           onSessionChange={onSessionChange}
           onRenameSession={onRenameSession}
           onArchiveSession={onArchiveSession}

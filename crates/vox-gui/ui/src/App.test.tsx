@@ -28,6 +28,18 @@ vi.mock('@xterm/xterm', () => ({
 vi.mock('@xterm/addon-fit', () => ({ FitAddon: class { fit() {}; activate() {} } }));
 vi.mock('@xterm/addon-web-links', () => ({ WebLinksAddon: class { activate() {} } }));
 
+// ── harness issue polling ────────────────────────────────────────────────────
+const listHarnessIssuesMock = vi.hoisted(() => vi.fn());
+// listHarnessIssuesForSession is also imported (by ChatTranscript, for the
+// inline per-session summary strip) whenever the chat surface renders in
+// this file's other tests — default it to an empty-issues resolution so
+// those unrelated tests don't crash on an undefined mock export.
+const listHarnessIssuesForSessionMock = vi.hoisted(() => vi.fn(() => Promise.resolve([])));
+vi.mock('./components/surfaces/Scientia/harnessIssuesApi', () => ({
+  listHarnessIssues: listHarnessIssuesMock,
+  listHarnessIssuesForSession: listHarnessIssuesForSessionMock,
+}));
+
 // ── xyflow ────────────────────────────────────────────────────────────────────
 vi.mock('@xyflow/react', () => ({
   ReactFlow: () => null,
@@ -64,6 +76,8 @@ beforeAll(() => {
 beforeEach(() => {
   invokeMock.mockReset();
   invokeMock.mockResolvedValue(null);
+  listHarnessIssuesMock.mockReset();
+  listHarnessIssuesMock.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -892,5 +906,73 @@ describe('App shell', () => {
     await user.click(runsNav!);
 
     await waitFor(() => expect(window.location.hash).toBe('#view=approvals'));
+  });
+
+  // Harness-issue polling (App.tsx's 8s-interval effect): the first poll
+  // establishes the pending baseline without toasting (so restarting the app
+  // doesn't re-toast an existing backlog); only issues that appear on a LATER
+  // poll are genuinely new and get toasted.
+  describe('harness issue polling', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('suppresses toasts for the first-poll backlog, then toasts only genuinely-new issues on a later poll', async () => {
+      invokeMock.mockImplementation((cmd: string) => {
+        if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+        if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+        return Promise.resolve(null);
+      });
+
+      const issue1 = { id: 1, source: 'chat_session', session_key: 's1', target_path: null, detected_at_ms: 0, category: 'x', severity: 'low', summary: 'x', evidence_json: '{}', status: 'pending' };
+      const issue2 = { id: 2, source: 'chat_session', session_key: 's2', target_path: null, detected_at_ms: 0, category: 'y', severity: 'low', summary: 'y', evidence_json: '{}', status: 'pending' };
+      const issue3 = { id: 3, source: 'chat_session', session_key: 's3', target_path: null, detected_at_ms: 0, category: 'z', severity: 'low', summary: 'z', evidence_json: '{}', status: 'pending' };
+
+      listHarnessIssuesMock
+        .mockResolvedValueOnce([issue1, issue2])
+        .mockResolvedValueOnce([issue1, issue2, issue3]);
+
+      renderApp();
+
+      // First poll fires on mount (poll() is invoked immediately, not just on
+      // the interval tick).
+      await waitFor(() => expect(listHarnessIssuesMock).toHaveBeenCalledTimes(1));
+      expect(listHarnessIssuesMock).toHaveBeenCalledWith('pending', 'chat_session');
+
+      // Give the first poll's promise chain (async listHarnessIssues +
+      // dynamic import) a tick to resolve and update state.
+      await vi.waitFor(() => {
+        expect(screen.queryByText('Harness issue detected')).toBeNull();
+      });
+      // No toast for either backlog issue's summary.
+      expect(screen.queryByText('x')).toBeNull();
+      expect(screen.queryByText('y')).toBeNull();
+
+      // Advance the 8s interval to trigger the second poll.
+      await vi.advanceTimersByTimeAsync(8_000);
+
+      await waitFor(() => expect(listHarnessIssuesMock).toHaveBeenCalledTimes(2));
+
+      // Exactly one new toast, for issue 3 only.
+      await vi.waitFor(() => {
+        expect(screen.getByText('Harness issue detected')).toBeInTheDocument();
+      });
+      expect(screen.getAllByText('Harness issue detected')).toHaveLength(1);
+      expect(screen.getByText('z')).toBeInTheDocument();
+      expect(screen.queryByText('x')).toBeNull();
+      expect(screen.queryByText('y')).toBeNull();
+
+      // Badge propagation (pendingHarnessIssueSessionIds -> session-issue
+      // badges) is not asserted here: this test file's renderApp() does not
+      // reach an expanded chat-session sidebar section (no sessions rendered
+      // given the mocked chat_list_sessions=[] and default view), so a
+      // `session-issue-badge-*` testid would not be present regardless of
+      // the polling logic's correctness. Covered instead at the
+      // SessionSidebarSection component level (see its own badge test).
+    });
   });
 });

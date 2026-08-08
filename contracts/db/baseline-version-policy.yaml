@@ -4,7 +4,7 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 87
+  repository_baseline_integer: 90
   # Keccak-256 of baseline_sql() — updated for 83: skill_candidates.lifecycle_state + source_hash (Task 3.3, harness parity plan);
   # re-updated for a comment fix (source_hash is blake3-only, not Keccak/blake3 — code-review finding on cd3f7e8736);
   # re-updated for skill_identities table (Task 3.4, harness parity plan — skill namespace/identity FCFS uniqueness);
@@ -22,7 +22,14 @@ policy:
   # re-updated for 87: conversations.archived_at (soft-archive for GUI chat sessions,
   # sidebar session-list feature). Existing databases get the column via an explicit
   # ALTER TABLE in VoxDb::migrate() (see open.rs), not via the baseline DDL alone.
-  repository_baseline_digest_hex: "0x6c04971c9a60eea734d086acf27028444e17e835e5da4d6c08c1b9dc97584fe8"
+  # re-updated for 88: scientia_harness_issues/decisions/fix_proposals tables
+  # (harness issue discovery Phase 1, Task 1).
+  # re-updated for 89: ON DELETE CASCADE foreign keys from
+  # scientia_harness_decisions/scientia_harness_fix_proposals to
+  # scientia_harness_issues (PR review finding).
+  # re-updated for 90: partial unique index enforcing the chat_session pending
+  # dedup rule at the database level (PR review finding).
+  repository_baseline_digest_hex: "0xab6d25d512bd72054cae666dccba40b97a690549bf17f149d08d89c89202c1e5"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

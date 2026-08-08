@@ -362,4 +362,66 @@ CREATE TABLE IF NOT EXISTS model_prompt_profiles (
 
 CREATE INDEX IF NOT EXISTS idx_model_prompt_profiles_key
     ON model_prompt_profiles(prompt_profile_key, confidence);
+
+-- Harness issue discovery (Phase 1): repeated-correction patterns detected
+-- during live chat/agent turns, plus static staleness findings from golden-
+-- corpus scans. Distinct from scientia_discovery_inbox/scientia_review_decisions,
+-- which are tightly bound to publication_id/claim_id (research findings).
+-- No SQL CHECK/TRIGGER (Turso/libSQL does not support them); validated in Rust.
+CREATE TABLE IF NOT EXISTS scientia_harness_issues (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    source         TEXT    NOT NULL,          -- chat_session|corpus_scan (validated in Rust)
+    session_key    TEXT,                      -- null for corpus_scan
+    target_path    TEXT,                      -- repo-relative path when this issue is tied to a
+                                               -- specific corpus file (always set for corpus_scan;
+                                               -- null for chat_session in v1 — see spec Out of scope)
+    detected_at_ms INTEGER NOT NULL,
+    category       TEXT    NOT NULL,
+    severity       TEXT    NOT NULL,           -- low|medium|high (validated in Rust)
+    summary        TEXT    NOT NULL,
+    evidence_json  TEXT    NOT NULL,           -- redacted via vox_redact before storage
+    status         TEXT    NOT NULL            -- pending|confirmed|dismissed (validated in Rust)
+);
+CREATE INDEX IF NOT EXISTS idx_scientia_harness_issues_status
+    ON scientia_harness_issues(status);
+CREATE INDEX IF NOT EXISTS idx_scientia_harness_issues_session
+    ON scientia_harness_issues(session_key);
+-- Enforces the chat_session dedup rule at the database level (PR review: the
+-- app-level has_pending_harness_issue_for_session check-then-insert has a
+-- race window between two concurrently-spawned judge tasks). Scoped to
+-- chat_session/pending only — corpus_scan dedups on target_path instead of
+-- session_key, via has_pending_harness_issue's separate check.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_scientia_harness_issues_pending_session_category
+    ON scientia_harness_issues(session_key, category)
+    WHERE status = 'pending' AND source = 'chat_session';
+
+-- Append-only decision ledger for scientia_harness_issues (mirrors
+-- scientia_review_decisions: only INSERT + SELECT ops exist, no UPDATE/DELETE).
+CREATE TABLE IF NOT EXISTS scientia_harness_decisions (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    issue_id       INTEGER NOT NULL REFERENCES scientia_harness_issues(id) ON DELETE CASCADE,
+    decision       TEXT    NOT NULL,           -- confirmed|dismissed (validated in Rust)
+    actor          TEXT    NOT NULL,
+    reason         TEXT,
+    decided_at_ms  INTEGER NOT NULL
+);
+
+-- Dispatch-to-fix proposals for corpus-fixable confirmed issues (v1: those
+-- with a non-null target_path). proposed_content is the full replacement
+-- file content — the actual apply source of truth. proposed_diff is a
+-- unified diff computed ONLY for human display; it is never parsed back
+-- into content (a diff with context lines cannot be losslessly
+-- reconstructed by filtering `+` lines, which is what an earlier draft of
+-- this plan did — that truncated the applied file to just the changed
+-- lines. Storing the real content directly avoids that class of bug).
+CREATE TABLE IF NOT EXISTS scientia_harness_fix_proposals (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    issue_id         INTEGER NOT NULL REFERENCES scientia_harness_issues(id) ON DELETE CASCADE,
+    target_path      TEXT    NOT NULL,
+    proposed_content TEXT    NOT NULL,
+    proposed_diff    TEXT    NOT NULL,          -- display-only, see above
+    status           TEXT    NOT NULL,          -- pending_approval|applied|rejected (validated in Rust)
+    proposed_at_ms   INTEGER NOT NULL,
+    resolved_at_ms   INTEGER
+);
 "#;

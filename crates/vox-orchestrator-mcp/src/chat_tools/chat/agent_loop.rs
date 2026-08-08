@@ -160,6 +160,7 @@ pub struct AgentTurnOutcome {
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_agent_turn(
     state: &ServerState,
+    session_id: Option<&str>,
     prior_conversation: Vec<LlmChatMessage>,
     system_prompt: String,
     user_message: String,
@@ -168,6 +169,15 @@ pub(crate) async fn run_agent_turn(
     llm_config_template: LlmConfig,
     max_iterations: usize,
 ) -> Result<AgentTurnOutcome, String> {
+    let mut harness_scorer = super::harness_issue_scorer::HarnessIssueScorer::new();
+    // Read once per turn, not per tool call — the flag cannot change mid-turn
+    // (no code path mutates it during a single `run_agent_turn` invocation).
+    let harness_detection_enabled = {
+        let cfg_handle = state.orchestrator.config_handle();
+        crate::sync_poison::poison_rw_read(cfg_handle.read(), "orchestrator config")
+            .map(|cfg| cfg.harness_issue_detection_enabled)
+            .unwrap_or(false)
+    };
     let mut messages: Vec<LlmChatMessage> = Vec::with_capacity(prior_conversation.len() + 2);
     messages.push(LlmChatMessage {
         role: "system".into(),
@@ -263,6 +273,118 @@ pub(crate) async fn run_agent_turn(
                         Ok(s) => s,
                         Err(e) => format!("Error: {e}"),
                     };
+
+                    if harness_detection_enabled {
+                        let is_error = content.starts_with("Error:")
+                            || crate::server_state::tool_json_envelope_is_error(&content);
+                        // Redact before it ever enters the scorer's activity
+                        // buffer — that buffer is later sent to the judge LLM
+                        // and stored in evidence_json verbatim, so redaction
+                        // must happen at the point of recording, not only
+                        // when building the single-call summary that used to
+                        // be sent (see recent_activity() below).
+                        let redacted_args = vox_redact::redact_args(&call.arguments).to_string();
+                        let redacted_content = if is_error {
+                            vox_redact::redact_owned(&content)
+                        } else {
+                            String::new()
+                        };
+                        let crossed =
+                            harness_scorer.record(&call.name, &redacted_args, &redacted_content);
+                        if crossed {
+                            let recent_activity = harness_scorer.recent_activity();
+                            let db = state.db.clone();
+                            let session_key = session_id.map(str::to_string);
+                            // The judge's own model must be a real, resolved id — a
+                            // literal "auto" is not a recognized provider and every
+                            // real call would fail silently (judge() swallows LLM
+                            // errors and returns None). Resolve it the same way
+                            // propose_harness_issue_fix does.
+                            let judge_model =
+                                vox_orchestrator::models::select_with_default_registry(
+                                    &vox_orchestrator::models::SelectionIntent::review(),
+                                )
+                                .map(|o| o.model_id)
+                                .unwrap_or_else(|| "google/gemini-3.1-pro".to_string());
+                            tokio::spawn(async move {
+                                let Some(issue) = super::harness_issue_judge::judge(
+                                    &recent_activity,
+                                    &judge_model,
+                                )
+                                .await
+                                else {
+                                    return;
+                                };
+                                let Some(db) = db else {
+                                    return;
+                                };
+                                // The scorer can re-cross threshold more than once
+                                // per turn on the same stuck-loop signature; dedup
+                                // against any still-pending issue for this
+                                // session/category so one incident doesn't flood
+                                // the review queue with duplicate rows.
+                                if let Some(session_key) = session_key.as_deref() {
+                                    match db
+                                        .has_pending_harness_issue_for_session(
+                                            session_key,
+                                            &issue.category,
+                                        )
+                                        .await
+                                    {
+                                        Ok(true) => return,
+                                        Ok(false) => {}
+                                        Err(e) => {
+                                            tracing::warn!(
+                                                target: "harness_issue_judge",
+                                                error = %e,
+                                                "failed to check for a pending duplicate harness issue"
+                                            );
+                                        }
+                                    }
+                                }
+                                let insert_result = db
+                                    .insert_harness_issue(vox_db::NewHarnessIssue {
+                                        source: "chat_session",
+                                        session_key: session_key.as_deref(),
+                                        target_path: None,
+                                        detected_at_ms: chrono::Utc::now().timestamp_millis(),
+                                        category: &issue.category,
+                                        severity: &issue.severity,
+                                        summary: &issue.summary,
+                                        evidence_json: &serde_json::json!({
+                                            "excerpt": recent_activity
+                                        })
+                                        .to_string(),
+                                    })
+                                    .await;
+                                if let Err(e) = insert_result {
+                                    // The has_pending_harness_issue_for_session check
+                                    // above is a fast-path only — the database's own
+                                    // partial unique index on (session_key, category)
+                                    // WHERE status='pending' AND source='chat_session'
+                                    // is the actual dedup enforcement, closing the race
+                                    // between two concurrently-spawned judge tasks that
+                                    // both passed the check before either inserted.
+                                    // That expected race outcome (not a real failure)
+                                    // surfaces as a unique-constraint violation here.
+                                    if e.to_string().to_ascii_lowercase().contains("unique") {
+                                        tracing::debug!(
+                                            target: "harness_issue_judge",
+                                            "duplicate harness issue insert raced with another judge task; dropped"
+                                        );
+                                    } else {
+                                        tracing::warn!(
+                                            target: "harness_issue_judge",
+                                            error = %e,
+                                            "failed to insert detected harness issue"
+                                        );
+                                    }
+                                }
+                            });
+                            harness_scorer.reset();
+                        }
+                    }
+
                     messages.push(LlmChatMessage {
                         role: "tool".into(),
                         content,
@@ -424,6 +546,7 @@ pub async fn eval_gate_agent_loop_terminates_check() -> Result<(), String> {
     let max_iterations = 3;
     let outcome = run_agent_turn(
         &state,
+        Some("eval-gate"),
         vec![],
         "system prompt".to_string(),
         "eval-gate: loop forever please".to_string(),
@@ -575,6 +698,7 @@ mod tests {
         let config = test_config(format!("{}/chat/completions", server.uri()));
         let outcome = run_agent_turn(
             &state,
+            None,
             vec![],
             "system prompt".to_string(),
             "hi".to_string(),
@@ -616,6 +740,7 @@ mod tests {
         let config = test_config(format!("{}/chat/completions", server.uri()));
         let outcome = run_agent_turn(
             &state,
+            None,
             vec![],
             "system prompt".to_string(),
             "what's the git status?".to_string(),
@@ -671,6 +796,7 @@ mod tests {
         let config = test_config(format!("{}/chat/completions", server.uri()));
         run_agent_turn(
             &state,
+            None,
             vec![],
             "system prompt".to_string(),
             "hi".to_string(),
@@ -722,6 +848,7 @@ mod tests {
         let max_iterations = 3;
         let outcome = run_agent_turn(
             &state,
+            None,
             vec![],
             "system prompt".to_string(),
             "loop forever please".to_string(),
@@ -745,6 +872,100 @@ mod tests {
             requests.len(),
             max_iterations,
             "loop must make exactly max_iterations model round-trips, not hang"
+        );
+    }
+
+    /// A repeated-error tool call body: the model keeps calling an unknown tool
+    /// name (so `handle_tool_call_with_mode` deterministically fails with
+    /// `Error: Unknown tool: ...`, without needing any real side-effecting tool
+    /// to error) with identical arguments every time — exactly the pattern
+    /// [`super::harness_issue_scorer::HarnessIssueScorer`] is designed to flag.
+    fn repeated_error_tool_call_response_body() -> serde_json::Value {
+        serde_json::json!({
+            "id": "chatcmpl-test",
+            "model": "test-model",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {
+                            "name": "vox_definitely_not_a_real_tool",
+                            "arguments": "{}",
+                        },
+                    }],
+                },
+                "finish_reason": "tool_calls",
+            }],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+        })
+    }
+
+    /// Proves the `harness_issue_detection_enabled` config gate actually gates
+    /// something: with it turned OFF, feeding `run_agent_turn` enough
+    /// error-shaped tool results to normally cross the scorer's `THRESHOLD`
+    /// must not produce any `scientia_harness_issues` row. Uses a real
+    /// in-memory `VoxDb` (unlike `test_state()`'s hermetic, DB-less default) so
+    /// the assertion is a genuine "no row was written" check, not just "no
+    /// panic occurred".
+    #[tokio::test]
+    async fn detection_disabled_gate_prevents_any_harness_issue_row() {
+        let server = MockServer::start().await;
+        // Every response requests the same failing tool call, enough times to
+        // cross THRESHOLD (3) if the scorer were active.
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(repeated_error_tool_call_response_body()),
+            )
+            .mount(&server)
+            .await;
+
+        let mut state = test_state();
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("open in-memory db");
+        state.db = Some(std::sync::Arc::new(db));
+
+        {
+            let cfg_handle = state.orchestrator.config_handle();
+            let mut cfg = cfg_handle.write().expect("config lock");
+            cfg.harness_issue_detection_enabled = false;
+        }
+
+        let config = test_config(format!("{}/chat/completions", server.uri()));
+        let max_iterations = 5;
+        let outcome = run_agent_turn(
+            &state,
+            Some("gate-test-session"),
+            vec![],
+            "system prompt".to_string(),
+            "keep hitting the same broken tool".to_string(),
+            None,
+            None,
+            config,
+            max_iterations,
+        )
+        .await
+        .expect("run_agent_turn should succeed even though every tool call errors");
+
+        assert_eq!(outcome.tool_calls_made, max_iterations);
+
+        // Give the (should-never-have-been-spawned) fire-and-forget judge task a
+        // moment to run, in case the gate were broken and it fired anyway.
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let db = state.db.as_ref().expect("db attached");
+        let rows = db
+            .list_harness_issues(None, None, 10)
+            .await
+            .expect("list_harness_issues");
+        assert!(
+            rows.is_empty(),
+            "harness_issue_detection_enabled = false must prevent any \
+             scientia_harness_issues row from being written, got {rows:?}"
         );
     }
 

@@ -674,7 +674,11 @@ export function ChatSurface({
           description="Describe a task in the composer below to start this session."
         />
       ) : (
-        <ChatTranscript messages={messages} agentStreamItems={agentStreamItems} />
+        <ChatTranscript
+          messages={messages}
+          agentStreamItems={agentStreamItems}
+          sessionId={activeId}
+        />
       )}
       {composer != null ? (
         <div

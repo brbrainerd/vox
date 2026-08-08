@@ -221,6 +221,14 @@ pub struct OrchestratorConfig {
     /// Whether dynamic scaling is enabled (default: false).
     #[serde(default = "default_false")]
     pub scaling_enabled: bool,
+    /// Whether synchronous per-turn repeated-correction detection is
+    /// enabled (default: true — on by default, opt-out via GUI Settings).
+    /// Read live via `Orchestrator::config_handle()`, not this struct's
+    /// value directly — a later task in this plan gates the actual
+    /// detector on the live handle rather than a boot-time snapshot, so
+    /// the Settings toggle takes effect without a restart.
+    #[serde(default = "default_true")]
+    pub harness_issue_detection_enabled: bool,
     /// Do not spawn new agents while local CPU usage is at/above this percent
     /// (0 disables the guard; default: 85).
     #[serde(default = "default_scale_cpu_ceiling_pct")]
@@ -740,6 +748,15 @@ impl OrchestratorConfig {
             defaults.scaling_enabled,
             "scaling",
             "Whether dynamic scaling is enabled."
+        );
+        field!(
+            "harness_issue_detection_enabled",
+            "Harness Issue Detection Enabled",
+            FieldType::Bool,
+            self.harness_issue_detection_enabled,
+            defaults.harness_issue_detection_enabled,
+            "validation",
+            "Whether synchronous per-turn repeated-correction detection is enabled."
         );
         field!(
             "scaling_threshold",
@@ -1743,5 +1760,16 @@ mod isolation_config_tests {
             Some(&toml::Value::String("whatever".to_string())),
             "the unrecognized key must be captured, not silently discarded, so drift stays observable"
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn harness_issue_detection_enabled_defaults_to_true() {
+        let cfg = OrchestratorConfig::default();
+        assert!(cfg.harness_issue_detection_enabled);
     }
 }

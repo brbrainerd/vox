@@ -51,6 +51,7 @@ impl Default for OrchestratorConfig {
             scaling_threshold: default_scaling_threshold(),
             idle_retirement_ms: default_idle_retirement(),
             scaling_enabled: default_false(),
+            harness_issue_detection_enabled: default_true(),
             scale_cpu_ceiling_pct: default_scale_cpu_ceiling_pct(),
             scale_mem_floor_mb: default_scale_mem_floor_mb(),
             cost_preference: default_cost_preference(),

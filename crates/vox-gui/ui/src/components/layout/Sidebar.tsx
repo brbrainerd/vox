@@ -87,6 +87,8 @@ interface SidebarProps {
   chatTaskCounts?: Record<string, number>;
   archivedChatSessions?: ChatSession[];
   showArchivedChatSessions?: boolean;
+  /** session_ids with at least one pending scientia_harness_issues row (App.tsx polls). */
+  pendingHarnessIssueSessionIds?: Set<string>;
   onSessionChange?: (sessionId: string) => void;
   onCreateSession?: () => void;
   onRenameSession?: (sessionId: string, title: string) => void;
@@ -115,6 +117,7 @@ export function Sidebar({
   chatTaskCounts,
   archivedChatSessions,
   showArchivedChatSessions,
+  pendingHarnessIssueSessionIds,
   onSessionChange,
   onCreateSession,
   onRenameSession,
@@ -272,6 +275,7 @@ export function Sidebar({
                       taskCounts={chatTaskCounts ?? {}}
                       archivedSessions={archivedChatSessions ?? []}
                       showArchived={showArchivedChatSessions ?? false}
+                      pendingIssueSessionIds={pendingHarnessIssueSessionIds}
                       onSessionChange={onSessionChange ?? (() => {})}
                       onCreateSession={onCreateSession ?? (() => {})}
                       onRenameSession={onRenameSession ?? (() => {})}

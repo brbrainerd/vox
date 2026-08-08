@@ -52,6 +52,8 @@ export interface AppShellProps {
   chatTaskCounts?: Record<string, number>;
   archivedChatSessions?: ChatSession[];
   showArchivedChatSessions?: boolean;
+  /** session_ids with at least one pending scientia_harness_issues row (App.tsx polls). */
+  pendingHarnessIssueSessionIds?: Set<string>;
   onSessionChange?: (sessionId: string) => void;
   onCreateSession?: () => void;
   onRenameSession?: (sessionId: string, title: string) => void;
@@ -97,6 +99,7 @@ export function AppShell({
   chatTaskCounts,
   archivedChatSessions,
   showArchivedChatSessions,
+  pendingHarnessIssueSessionIds,
   onSessionChange,
   onCreateSession,
   onRenameSession,
@@ -133,6 +136,7 @@ export function AppShell({
           chatTaskCounts={chatTaskCounts}
           archivedChatSessions={archivedChatSessions}
           showArchivedChatSessions={showArchivedChatSessions}
+          pendingHarnessIssueSessionIds={pendingHarnessIssueSessionIds}
           onSessionChange={onSessionChange}
           onCreateSession={onCreateSession}
           onRenameSession={onRenameSession}

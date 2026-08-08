@@ -108,4 +108,11 @@ describe('SessionSidebarSection', () => {
     fireEvent.click(screen.getByText('Unarchive'));
     expect(onUnarchiveSession).toHaveBeenCalledWith('arch-1');
   });
+
+  it('shows a pending-issue badge only for sessions in pendingIssueSessionIds', () => {
+    const sessions = [session({ session_id: 's1' }), session({ session_id: 's2' })];
+    render(<SessionSidebarSection {...baseProps} sessions={sessions} pendingIssueSessionIds={new Set(['s1'])} />);
+    expect(screen.getByTestId('session-issue-badge-s1')).toBeInTheDocument();
+    expect(screen.queryByTestId('session-issue-badge-s2')).not.toBeInTheDocument();
+  });
 });
