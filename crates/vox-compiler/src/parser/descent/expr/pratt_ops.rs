@@ -43,6 +43,7 @@ impl Parser {
                 continue;
             }
 
+            let mut pending_alias_warning: Option<(&str, &str)> = None;
             let op = match self.peek() {
                 Token::Plus => BinOp::Add,
                 Token::Minus => BinOp::Sub,
@@ -57,12 +58,12 @@ impl Parser {
                 Token::Or => BinOp::Or,
                 Token::Is => BinOp::Is,
                 Token::EqEq => {
-                    self.warn_mainstream_operator_alias("==", "is");
+                    pending_alias_warning = Some(("==", "is"));
                     BinOp::Is
                 }
                 Token::Isnt => BinOp::Isnt,
                 Token::NotEq => {
-                    self.warn_mainstream_operator_alias("!=", "is not");
+                    pending_alias_warning = Some(("!=", "is not"));
                     BinOp::Isnt
                 }
                 Token::PipeOp => BinOp::Pipe,
@@ -71,6 +72,9 @@ impl Parser {
             let (l_bp, r_bp) = infix_bp(op);
             if l_bp < min_bp {
                 break;
+            }
+            if let Some((found, canonical)) = pending_alias_warning {
+                self.warn_mainstream_operator_alias(found, canonical);
             }
             self.advance();
             let rhs = self.parse_expr_bp(r_bp)?;
@@ -205,5 +209,54 @@ mod semcov_wave1c_tests {
                 "canonical spelling {src:?} must not produce any diagnostic"
             );
         }
+    }
+
+    /// Regression: chained same-precedence comparisons must warn exactly
+    /// once per operator token consumed, not once per speculative match
+    /// attempt across recursive parse_expr_bp stack frames (== and is/isnt
+    /// are left-associative, so a naive "warn in the op-match-arm" placement
+    /// double-counts the boundary token between two chained comparisons).
+    #[test]
+    fn chained_eq_eq_warns_once_per_operator_not_more() {
+        use crate::lexer::lex;
+        use crate::parser::descent::Parser;
+
+        let tokens = lex("a == b == c\n");
+        let mut p = Parser::new(tokens);
+        let _ = p.parse_expr().expect("must parse");
+        let warnings: Vec<_> = p
+            .errors_for_test()
+            .iter()
+            .filter(|e| e.severity == crate::parser::error::ParseSeverity::Warning)
+            .collect();
+        assert_eq!(
+            warnings.len(),
+            2,
+            "expected exactly 2 warnings for 2 '==' tokens, got {}",
+            warnings.len()
+        );
+    }
+
+    /// Same check with three chained operators, for extra confidence the
+    /// fix generalizes beyond the two-operator case.
+    #[test]
+    fn triple_chained_eq_eq_warns_once_per_operator() {
+        use crate::lexer::lex;
+        use crate::parser::descent::Parser;
+
+        let tokens = lex("a == b == c == d\n");
+        let mut p = Parser::new(tokens);
+        let _ = p.parse_expr().expect("must parse");
+        let warnings: Vec<_> = p
+            .errors_for_test()
+            .iter()
+            .filter(|e| e.severity == crate::parser::error::ParseSeverity::Warning)
+            .collect();
+        assert_eq!(
+            warnings.len(),
+            3,
+            "expected exactly 3 warnings for 3 '==' tokens, got {}",
+            warnings.len()
+        );
     }
 }
