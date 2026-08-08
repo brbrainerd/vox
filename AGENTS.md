@@ -232,8 +232,8 @@ Vox source follows one rule for top-level declarations:
 `workflow`, `activity` (the last two stable per ADR-041 — see
 Implementation status below), and the data-layer soft keywords `table`,
 `query`, `mutation`, `server`, `tool`, `resource`, `form`, `index` (each
-dispatched only at declaration-head position, mirroring the `get`/`post`/
-`put`/`delete` precedent — see `crates/vox-compiler/src/parser/descent/mod.rs`).
+dispatched only at declaration-head position, with no dedicated lexer
+token — see `crates/vox-compiler/src/parser/descent/mod.rs`).
 These eight replaced the equivalent decorator spellings — see §Retired
 Surfaces; the decorator spellings are hard parse errors as of 2026-06-30
 (`cd7cc96874`).
