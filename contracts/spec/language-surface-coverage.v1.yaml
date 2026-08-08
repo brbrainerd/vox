@@ -1,0 +1,96 @@
+# contracts/spec/language-surface-coverage.v1.yaml
+#
+# CR-F3 warn-mode scaffold (Sequencing Step 0 of the core-syntax convergence
+# program). Every grammar production, decorator, and builtin should
+# eventually have a row here with status: covered. No CI gate reads this
+# file yet — enforcement lands in a later Sequencing Step. Add a row in the
+# same PR that lands the production it describes; do not backfill later.
+schema_version: 1
+mode: warn
+productions:
+  # --- Known productions from the CR-F3 scaffold (Sequencing Step 0). These
+  # are pre-declared as `todo` with a planned fixture name; later Sequencing
+  # Steps (Tasks 4-9 of this plan) each flip their own row to `status:
+  # covered` in the same commit that lands the fixture below, per this
+  # file's "same PR" policy. Do not flip these to `covered` ahead of the
+  # fixture landing -- a ledger claiming coverage it doesn't have is exactly
+  # the failure mode this file exists to prevent. ---
+  - name: lexer/unknown-char-token
+    kind: token
+    status: todo
+    fixture: null
+    # planned: crates/vox-compiler/src/lexer/cursor.rs::tests::unknown_char_becomes_a_real_token
+    spec_ref: S2
+  - name: reader-tolerant-semicolon
+    kind: grammar-rule
+    status: todo
+    fixture: null
+    # planned: crates/vox-compiler/src/parser/descent/stmt.rs::tests::tolerates_and_warns_on_trailing_semicolon
+    spec_ref: S2
+  - name: reader-tolerant-eq-eq
+    kind: grammar-rule
+    status: todo
+    fixture: null
+    # planned: crates/vox-compiler/src/parser/descent/expr/pratt_ops.rs::tests::eq_eq_parses_and_warns
+    spec_ref: S2
+  - name: reader-tolerant-not-eq
+    kind: grammar-rule
+    status: todo
+    fixture: null
+    # planned: crates/vox-compiler/src/parser/descent/expr/pratt_ops.rs::tests::not_eq_parses_and_warns
+    spec_ref: S2
+  - name: arrow-return-type-warning
+    kind: grammar-rule
+    status: todo
+    fixture: null
+    # planned: crates/vox-compiler/src/parser/descent/mod.rs::tests::arrow_return_type_still_warns
+    spec_ref: S2
+  - name: arrow-match-arm-stays-error
+    kind: grammar-rule
+    status: todo
+    fixture: null
+    # planned: crates/vox-compiler/src/parser/descent/expr/pratt_match.rs::tests::arrow_match_arm_is_not_aliased
+    spec_ref: S2
+  - name: bang-invalid-carries-replacement
+    kind: grammar-rule
+    status: todo
+    fixture: null
+    # planned: crates/vox-compiler/src/parser/descent/expr/pratt_match.rs::tests::bang_invalid_error_carries_not_replacement
+    spec_ref: S2
+  - name: bounded-unknown-token-diagnostics
+    kind: grammar-rule
+    status: todo
+    fixture: null
+    # planned: crates/vox-compiler/src/parser/descent/mod.rs::tests::long_run_of_unknown_bytes_bounds_diagnostics
+    spec_ref: S2
+  # --- Everything else in the language is not yet ledgered. Later Sequencing
+  # Steps add their own rows as they land; this bucket is intentionally
+  # visible (not silently omitted) so the file's own incompleteness is
+  # honest per the audit's finding that CR-F3 must never again claim
+  # coverage it doesn't have. ---
+  - name: full-decorator-surface
+    kind: decorator
+    status: todo
+    fixture: null
+    spec_ref: S4
+  - name: boolean-operator-aliases
+    kind: grammar-rule
+    status: todo
+    fixture: null
+    spec_ref: S3
+  - name: else-if-chains
+    kind: grammar-rule
+    status: todo
+    fixture: null
+    spec_ref: S5
+  # Found via graph audit 2026-08-08 (missed by the original 4-agent sweep):
+  # apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json:36's decorator regex
+  # is a second hardcoded copy (scripts/generate-grammars.vox:53), not
+  # derived from vox-language-surface::LEXER_AT_DECORATORS. Currently
+  # highlights several retired/dead/removed decorators as valid @-syntax --
+  # a human-facing (VS Code user) defect, not just an agent/training one.
+  - name: editor-tooling/vscode-tmlanguage-decorators
+    kind: decorator
+    status: todo
+    fixture: null
+    spec_ref: S6

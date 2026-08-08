@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/contracts/spec/language-surface-coverage.v1.schema.json",
+  "title": "Vox language-surface coverage ledger",
+  "description": "CR-F3: maps every grammar production, decorator, and builtin to at least one behavioral fixture. Warn-mode scaffold — see docs/superpowers/specs/2026-08-08-vox-core-syntax-convergence-design.md S6. The hard CI gate (fail on missing coverage) lands in a later Sequencing Step, not this file.",
+  "type": "object",
+  "required": ["schema_version", "mode", "productions"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "mode": {
+      "type": "string",
+      "enum": ["warn", "enforce"],
+      "description": "warn = informational only, no CI gate wired; enforce = CI fails on missing coverage (a later Sequencing Step)."
+    },
+    "productions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "kind", "status"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Stable slug, kebab-case, e.g. 'lexer/unknown-char-token'."
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["token", "grammar-rule", "decorator", "soft-keyword", "builtin"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["covered", "todo"]
+          },
+          "fixture": {
+            "type": ["string", "null"],
+            "description": "Path to the behavioral fixture proving this production, e.g. a #[test] name or examples/golden/*.vox file. Required when status is 'covered'."
+          },
+          "spec_ref": {
+            "type": ["string", "null"],
+            "description": "Section of the convergence spec that introduced this row, e.g. 'S2'."
+          }
+        },
+        "if": { "properties": { "status": { "const": "covered" } } },
+        "then": { "required": ["fixture"] }
+      }
+    }
+  }
+}
