@@ -28,13 +28,14 @@ pub enum ParseSeverity {
     Warning,
 }
 
-/// Machine-readable fix for a retired construct, so an LLM/codemod can auto-apply
-/// the replacement from data rather than parsing the English message.
+/// Machine-readable fix for a retired or non-canonical spelling, so an
+/// LLM/codemod can auto-apply the replacement from data rather than parsing
+/// the English message.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Replacement {
-    /// The retired spelling, e.g. `@table`.
+    /// The retired or non-canonical spelling, e.g. `@table`, `!`.
     pub from: String,
-    /// The replacement spelling, e.g. `table`.
+    /// The replacement spelling, e.g. `table`, `not`.
     pub to: String,
     /// Stable diagnostic code, e.g. `vox/decorator/table-retired`.
     pub code: String,
@@ -49,7 +50,10 @@ pub struct ParseError {
     pub found: Option<String>,
     pub class: ParseErrorClass,
     pub severity: ParseSeverity,
-    /// Set on `Tombstoned` diagnostics so tooling can auto-fix from data.
+    /// Set on diagnostics with a known machine-applicable fix (e.g.
+    /// `Tombstoned` retired-construct errors, or `BangInvalid`) so tooling
+    /// can auto-fix from data instead of parsing the message text. Not
+    /// tied to any one `ParseErrorClass`.
     pub replacement: Option<Replacement>,
 }
 
