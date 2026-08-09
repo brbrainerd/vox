@@ -32,7 +32,7 @@ fn main() {
     if dry_run {
         print("DRY-RUN: would run: schtasks /Create /TN VoxCIRunnerScale /XML " + xml_path + " /F");
         print("Unset VOX_RUNNER_DRY_RUN to apply.");
-        return;
+        return
     }
 
     // /F overwrites an existing task with the same name — idempotent re-install.

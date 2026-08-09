@@ -56,7 +56,7 @@ fn days_since_last_commit(rel_path: str, now_epoch_secs: int) to int {
 fn main() {
     if not fs.exists("docs/src/architecture") {
         print("Error: docs/src/architecture not found — run from the repo root.");
-        return;
+        return
     }
 
     let threshold = stale_days_threshold();
@@ -65,7 +65,7 @@ fn main() {
     let glob_res = fs.glob("docs/src/architecture/**/*.md");
     if glob_res.is_err() {
         print("Error: fs.glob failed for docs/src/architecture/**/*.md");
-        return;
+        return
     }
     let all_files = glob_res.unwrap();
     let n = all_files.len();

@@ -127,7 +127,7 @@ fn all_doc_files() to list[str] {
 fn main() {
     if not fs.exists("docs/src") {
         print("Error: docs/src not found — run from the repo root.");
-        return;
+        return
     }
 
     let dry_run = is_dry_run();
