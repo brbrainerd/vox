@@ -78,6 +78,16 @@ fn parse_warning_to_diagnostic(err: &ParseError, source: &str) -> Diagnostic {
     diag
 }
 
+/// Surface Warning-severity parse diagnostics (tolerant `;`, `->`
+/// deprecation, `==`/`!=` aliases, …) that a successful parse would
+/// otherwise discard, appending them to `diagnostics` alongside
+/// typecheck/HIR warnings.
+fn extend_with_parse_warnings(diagnostics: &mut Vec<Diagnostic>, parse_warnings: &[ParseError], source: &str) {
+    for w in parse_warnings {
+        diagnostics.push(parse_warning_to_diagnostic(w, source));
+    }
+}
+
 /// Run the frontend pipeline on a source string.
 pub fn run_frontend_str(source: &str, file_path: &str) -> Result<FrontendResult> {
     run_frontend_str_with_options(source, file_path, &PipelineOptions::default())
@@ -176,11 +186,7 @@ pub fn run_frontend_str_with_options(
     let mut diagnostics =
         crate::typeck::typecheck_hir_module_with_path(source, &mut hir, typeck_path);
 
-    // Surface Warning-severity parse diagnostics (tolerant `;`, `->` deprecation,
-    // `==`/`!=` aliases, …) that a successful parse would otherwise discard.
-    for w in &parse_warnings {
-        diagnostics.push(parse_warning_to_diagnostic(w, source));
-    }
+    extend_with_parse_warnings(&mut diagnostics, &parse_warnings, source);
 
     let jsx_leaks = ["className=", "onClick=", "onChange=", "onSubmit="];
     for line in source.lines() {
@@ -279,12 +285,7 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
             let mut hir = crate::hir::lower_module(&module);
             let mut diagnostics = crate::typeck::typecheck_hir_module(source, &mut hir);
 
-            // Surface Warning-severity parse diagnostics (tolerant `;`, `->`
-            // deprecation, `==`/`!=` aliases, …) that a successful parse would
-            // otherwise discard.
-            for w in &parse_warnings {
-                diagnostics.push(parse_warning_to_diagnostic(w, source));
-            }
+            extend_with_parse_warnings(&mut diagnostics, &parse_warnings, source);
 
             // 5. Deprecated Usage Detector (Item 16, @deprecated)
             for line in source.lines() {
