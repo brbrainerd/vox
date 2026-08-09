@@ -17,9 +17,15 @@ declarations. Four axes remain open, per operator direction:
    estimators over compiler *outputs* (`crates/vox-codegen/src/syntax_k.rs`) and a
    lexer-token verbosity ratchet over goldens
    (`crates/vox-cli/src/commands/ci/run_body_helpers/syntax_k.rs` +
-   `contracts/eval/source-token-budget.v1.json`), but nothing measures what a
-   frontier model actually pays to *emit* Vox source — model-BPE tokens — and
-   nothing trends that cost as the grammar changes.
+   `contracts/eval/source-token-budget.v1.json`), but nothing measures what our
+   target training model actually pays to *emit* Vox source — model-BPE tokens
+   under the MENS (Qwen3-family) tokenizer — and nothing trends that cost as the
+   grammar changes. This is a proxy, not a universal "frontier model" claim:
+   BPE vocabularies differ across tokenizers, and a spelling cheaper under
+   Qwen3-BPE is not guaranteed cheaper under a different model's tokenizer. We
+   measure against MENS specifically because that's the model this program's
+   output actually trains; cross-tokenizer variance is a known, accepted
+   limitation (see Risks), not solved by this program.
 2. **Pythonic surface is unaudited.** Frontier models are saturated with Python.
    Where a Python spelling is free (token cost ≤ current spelling, no grammar
    collision), adopting it as canonical lowers emission cost and transition
@@ -62,7 +68,7 @@ Folded in from the predecessor program's backlog:
 - Dotted-member JSX + idiomatic mutation lowering → Track 4 (driven by the pilot).
 - `vox ci vox-parse-check` enforcement wiring (corpus is now clean) → Phase 0.
 - tmLanguage-regen ledger row (`editor-tooling/vscode-tmlanguage-decorators`) → Track 3.
-- `parse_fn_decl_inner` (~1300-line Rust function) refactor → **out of scope**: it is
+- `parse_fn_decl_inner` (~1350-line Rust function) refactor → **out of scope**: it is
   compiler-internal K-complexity, not VoxScript K-complexity, per operator
   correction. Recorded as optional hygiene in the plan appendix only.
 
@@ -93,47 +99,68 @@ hundreds of files).
 
 ## S3. Track 1 — K-complexity harness
 
-**Extends the existing syntax-K family; does not replace it.** Three measurement
-lanes end up coexisting, each answering a different question:
+**Extends the existing syntax-K family; does not replace it.** Verified against
+the real implementation (`crates/vox-cli/src/commands/ci/run_body_helpers/syntax_k.rs`):
+`source-token-budget.v1.json` already stores `{ fixture_id: { tokens, bytes } }`
+per golden ladder fixture, and `run_source_token_budget` already implements the
+exact ratchet/tolerance/`--update` pattern the absolute series needs. Standing
+up a second, parallel schema+report+CLI-surface to carry one more integer per
+fixture would duplicate working infrastructure — so the **absolute series
+extends this file and function** (adds a `bpe_tokens: Option<usize>` field,
+one more ratchet check) rather than inventing a sibling system. Two lanes
+remain genuinely distinct:
 
-| Lane | Measures | Exists? |
+| Lane | Measures | Home |
 |---|---|---|
-| `syntax_k.rs` compression/NCD | Output (WebIR/TSX) complexity | yes (`vox-codegen`) |
-| `source-token-budget.v1.json` | Per-golden lexer-token verbosity ratchet | yes (`vox ci` helper) |
-| **k-complexity (this track)** | **Model-BPE emission cost of Vox source, absolute + vs paired baselines** | **new** |
+| `syntax_k.rs` compression/NCD | Output (WebIR/TSX) complexity | existing, unchanged |
+| `source-token-budget.v1.json` + `bpe_tokens` | Per-golden BPE emission cost, absolute + trended | **extended** existing file |
+| **k-complexity ratios (this track, new)** | **Vox-vs-Python/TS emission-cost ratio over a paired corpus** | **new** — this is the only genuinely new report |
 
 **Tokenizer.** Model-BPE counts via the `tokenizers` crate (already a workspace
 dependency, v0.21). The tokenizer artifact (a `tokenizer.json`) is vendored and
 pinned by SHA-256 so every count is reproducible forever; the MENS tokenizer
-(Qwen3 family, per the MENS training stack) is the preferred artifact, with its
-content hash recorded in the report. Locating/vendoring the artifact is a plan
-discovery task — if no tokenizer.json exists in-repo today, it is vendored under
-`contracts/eval/tokenizer/` with provenance in a SOURCES note.
+(Qwen3 family, per the MENS training stack) is the artifact, with its content
+hash recorded alongside every measurement. Locating/vendoring the artifact is a
+plan discovery task — if no tokenizer.json exists in-repo today, it is vendored
+under `contracts/eval/tokenizer/` with provenance in a SOURCES note (upstream
+repo, revision SHA, **and license** — the `assets/skills/SOURCES.toml`
+precedent requires license capture, and this program follows that requirement,
+not just the hash-pinning half of it).
 
-**Two data series in one report** (`contracts/reports/k-complexity.v1.json`,
-schema `contracts/eval/k-complexity-report.v1.schema.json`, `x-vox-version: 1`):
+**Two data series, two homes:**
 
-1. **Absolute series (the moving data).** BPE token count per golden fixture
-   (same fixture set `source-token-budget.v1.json` already tracks). This is the
-   per-syntax-change trend line: when a canonical flip lands and the corpus is
-   re-migrated, the report regenerates and the delta is visible in the diff.
-   `vox ci k-complexity --trend` walks `git log` of the committed report and
-   prints the time series per fixture and in aggregate, so the data is *read*
+1. **Absolute series (the moving data), extends `source-token-budget.v1.json`.**
+   BPE token count per golden ladder fixture, added as a field alongside the
+   existing `tokens`/`bytes` measurement, reusing its existing ratchet/tolerance/
+   `--update` gate. This is the per-syntax-change trend line: when a canonical
+   flip lands and the corpus is re-migrated, `--update` regenerates the budget
+   and the delta is visible in the diff — no new report file, no new schema.
+2. **Ratio series (the cross-language anchor), new: `vox ci k-complexity`.**
+   For a paired subset (~25 tasks) drawn from
+   `contracts/eval/humaneval-vox/problems/` (164 problems exist), the **existing**
+   `contracts/eval/humaneval-vox/manifest.v1.yaml` gains optional
+   `solution_py`/`solution_ts` file references and a `paired_for_k_complexity:
+   true` flag on the selected entries — extending that manifest's existing
+   `files:` map rather than a new sibling manifest. Per task:
+   `vox_tokens / py_tokens` and `vox_tokens / ts_tokens`; aggregate = median
+   ratio. New report: `contracts/reports/k-complexity-ratios.v1.json`, schema
+   `contracts/eval/k-complexity-ratios-report.v1.schema.json`, `x-vox-version: 1`.
+   `vox ci k-complexity --trend` walks the report's `git log` (bounded — see
+   below) and prints the aggregate time series, so the data is *read*
    periodically, not just written.
-2. **Ratio series (the cross-language anchor).** For a paired subset (~25 tasks)
-   drawn from `contracts/eval/humaneval-vox/problems/` (164 problems exist),
-   each task gains reference `solution.py` and `solution.ts` implementations.
-   Per task: `vox_tokens / py_tokens` and `vox_tokens / ts_tokens`; aggregate =
-   median ratio. This anchors "is Vox economical" against what the same model
-   already knows how to emit.
 
-**Gate.** `vox ci k-complexity` recomputes both series and fails when the
-aggregate median ratio or the absolute aggregate regresses >2% vs the committed
-report; intentional changes regenerate via `--write` in the same PR (the
-`gui-surface-coverage --write` pattern). Wired into the `full` pre-push tier +
-CI. The paired-corpus reference solutions are static text measured by the
-tokenizer — they are never executed, so the gate adds no Python/Node runtime
-dependency to CI.
+**Gate.** `vox ci k-complexity` recomputes the ratio-series aggregate and fails
+when it regresses **more than 2%** vs the committed report — a single binary
+threshold. There is no separate warning tier: the locked operator decision is
+"trend gate... not advisory-only," and this program does not introduce one.
+Intentional changes regenerate via `--write` in the same PR (the
+`gui-surface-coverage --write` pattern) for the ratio report, and via the
+existing `--update` for the (now-extended) absolute budget file. Both wire into
+the `full` pre-push tier + CI. `--trend` defaults to the most recent 50 report
+revisions (or `--since <ref>`) — unbounded history walking is not acceptable
+given the report regenerates on every Track 2 flip. The paired-corpus reference
+solutions are static text measured by the tokenizer — they are never executed,
+so the gate adds no Python/Node runtime dependency to CI.
 
 **Honesty constraints.** Reference `.py`/`.ts` solutions are review-verified
 idiomatic implementations, not executed artifacts; the report records this.
@@ -167,6 +194,14 @@ fixtures — that is why Track 1 sequences first.
   flow) or colliding.
 - The completed table is a **human checkpoint**: operator approves dispositions
   before any flip is implemented.
+- **Closure criterion:** the audit is done, and the table locked, once every
+  candidate in this spec's inventory has a row AND one bounded search over
+  Python's keyword list + common builtins has been swept for anything the
+  inventory missed. It is not reopened without a new task; new candidates found
+  later start a fresh, separately-scoped audit.
+- Token deltas in the table are measured under the Track 1 tokenizer (MENS/
+  Qwen3-family) — a proxy for this program's target model, not a universal
+  frontier-model claim (see Problem §1).
 
 **Deliverable 2: the flips.** Each approved adopt/tolerate row ships as one task
 following the proven Steps-0-1 shape: failing test → grammar change →
@@ -187,14 +222,38 @@ in the same commit → k-complexity report regen showing the delta.
   on PR #469).
 - Extend `crates/vox-compiler/tests/language_surface_coverage_schema_test.rs`'s
   expected-covered list as rows flip, so coverage claims cannot silently vanish.
-- When the last row flips: `mode: warn` → `mode: enforce`, and a CI check fails
-  on any `todo` row (new productions must ship ledgered).
+- **This program does NOT flip `mode: warn` → `mode: enforce`.** The ledger's
+  own file header, written by the predecessor program, explicitly chose
+  warn-then-observe before gating: *"No CI gate reads this file yet —
+  enforcement lands in a later Sequencing Step."* Flipping to hard enforcement
+  in the same pass that authors all 41 fresh rows gives zero soak time between
+  "row exists" and "row blocks CI." This program's Track 3 exit state is: 100%
+  of `Decl` variants covered, schema tightened, `mode: warn` still active. The
+  enforce flip is a separate, later, explicitly human-checkpointed follow-up
+  task once the ledger has been observed green in warn mode for at least one
+  full review cycle. (A narrower, unconditional check — new `Decl` variants
+  must ship with SOME ledger row, any status — is in scope now; that's a
+  structural completeness check, not the soak-sensitive enforce flip.)
+- Ledger-file coordination: Track 2's flip template also writes a row to this
+  same YAML file (its own `covered` row per flip, in the flip's own commit).
+  Track 2 and Track 3 are parallel at the *task* level (independent test/code
+  work), but commits that touch `contracts/spec/language-surface-coverage.v1.yaml`
+  must serialize (rebase-before-commit) — true simultaneous writes to one YAML
+  file are a real collision, not just a conceptual one. See plan §Orchestration.
 - Includes the `editor-tooling/vscode-tmlanguage-decorators` row: regenerate
   `apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json` from
   `vox-language-surface` (today it hardcodes retired decorators via
   `scripts/generate-grammars.vox:53`).
 
 ## S6. Track 4 — Pilot Axis surface
+
+**Independent of Track 2's flip count.** Track 4 proceeds whether Track 2
+approved many canonical flips or none — the sequencing dependency exists only
+so the pilot is written once, against settled canon, not to avoid rewriting it
+mid-flip-churn. It is not gated on flips existing; the disposition table could
+legitimately reject everything (the audit's own rules allow "Reject" as an
+outcome) and Track 4 still runs, since its value (codegen gaps + evidence base
+for TS-elimination) is independent of the Pythonic-surface question.
 
 **Selection.** One small, real `vox-gui` UI surface — candidate: a settings
 panel (small real IPC + state + list rendering); final pick is a plan task with
@@ -218,11 +277,32 @@ actually hits — known blockers going in:
   validates it against real `vox-gui` components).
 
 **Exit artifacts.** (1) The working ported surface, behind a build-time flag or
-as a parallel file until parity is reviewed. (2) A gap-inventory doc
+as a parallel file until parity is reviewed — with an explicit disposition on
+review, not an indefinite parallel state: **parity passes** → the hand-written
+TSX is deleted, the flag/parallel-file scaffolding is removed, the generated
+file becomes canonical; **parity fails** → the generated file is either deleted
+or kept behind an explicit `vox-deprecated-since`/`retire-by` marker per
+AGENTS.md's migration-vestige policy, never left as untracked, undecided
+scaffolding. (2) A gap-inventory doc
 (`docs/src/architecture/axis-tsx-gap-inventory-2026.md`): every TSX pattern the
 port encountered, marked expressible / fixed-in-program / still-inexpressible —
 the evidence base for the full TS-elimination program. Tauri stays as the shell;
 this program eliminates TypeScript authorship, not the runtime.
+
+## S6b. Human checkpoints (program-wide)
+
+Four, explicitly authorized here so the plan's Orchestration section has spec
+grounding for all of them, not just two:
+1. **After Track 1's baseline report lands** — operator reviews the first
+   absolute + ratio numbers before Track 2 flips begin; these are the "before"
+   line every flip's delta is measured against.
+2. **Track 2's disposition table (hard gate)** — operator approves dispositions
+   before any flip is implemented (stated above, S4).
+3. **Track 4 surface pick** — operator picks the pilot surface from the
+   inventory (stated above, S6).
+4. **Track 4 parity review** — operator reviews the ported surface against the
+   hand-written original before the exit-artifact disposition (pass/fail,
+   above) is applied.
 
 ## S7. Testing & process
 
@@ -246,18 +326,51 @@ this program eliminates TypeScript authorship, not the runtime.
   enough to define outliers; the CI trend gate is the enforcement point now).
 - Removing the `;`/`==`/`!=` tolerances (kept permanently as reader-compat).
 - Executing/CI-testing the paired corpus's Python/TS reference solutions.
-- `parse_fn_decl_inner` refactor (optional hygiene appendix in the plan only).
+- `parse_fn_decl_inner` refactor — recorded as a note in the plan's appendix
+  only; this program does not authorize doing it under any condition, including
+  "a Track 2 flip happens to touch that file."
+- Flipping CR-F3's `mode: warn` → `mode: enforce` (Track 3 reaches
+  100%-covered and stops there; the flip is a separate future task, see S5).
+- Triggering or scheduling an actual MENS training/eval run against the
+  regenerated `mens/config/system_prompt.txt` or k-complexity reports. This
+  program produces measurement infrastructure and data; consuming it in a
+  training cycle is a separate, unscoped follow-up. (Prior session history
+  records MENS training blocked on unrelated corpus-reproducibility issues —
+  this program does not depend on or resolve that.)
+- Validating token-cost claims against any tokenizer other than the vendored
+  MENS/Qwen3-family one (see Problem §1 and Risks).
 
 ## Risks
 
-- **Tokenizer artifact drift.** Mitigated: vendored, SHA-pinned, hash recorded
-  in every report row.
+- **Tokenizer artifact drift.** Mitigated: vendored, SHA-pinned, hash recorded;
+  load-time verification rejects a hash mismatch rather than silently measuring
+  against a corrupted/swapped artifact (plan Task 1.1).
+- **Single-tokenizer narrowing.** The K-metric is MENS/Qwen3-BPE-specific, not a
+  universal frontier-model claim (Problem §1). Accepted, not solved, by this
+  program — see Non-goals.
 - **Pythonic flips churn the corpus mid-program.** Mitigated: Phase 0's
   `vox fix` makes each sweep mechanical; Track 4 sequences after Track 2 so the
-  pilot is written once, in post-flip canon.
+  pilot is written once, in post-flip canon (and proceeds regardless of how
+  many flips were approved — S6).
 - **Paired-corpus authorship quality.** Reference solutions must be idiomatic to
   be a fair baseline; mitigated by review-verification and by measuring medians
   over ~25 tasks rather than trusting any single pair.
-- **Ledger fixture fan-out stalls.** 41 variants is large; mitigated by batch
-  structure and (per plan §Orchestration) a resumable pipeline for the two
-  genuinely wide fan-outs.
+- **Ledger fixture fan-out stalls, or collides with Track 2's own ledger
+  writes.** 41 variants is large; mitigated by batch structure, an explicit
+  barrier (seed rows before fixture batches begin), a resumable pipeline for
+  the two genuinely wide fan-outs, and same-file commit serialization with
+  Track 2's flip-driven ledger rows (plan §Orchestration).
+- **`--trend` / CI wall-clock growth.** The ratio report regenerates on every
+  flip; unbounded git-log walking and unbudgeted full-tier gate additions both
+  risk silently degrading over the program's lifetime. Mitigated: `--trend`
+  windows to the most recent 50 revisions by default; Task 0.3 explicitly runs
+  `--enforce-budgets` and updates the tier budget baseline if the new gates
+  need headroom.
+- **Baseline drift.** This plan cites dozens of exact file:line locations
+  against PR #469, which is still open as of this writing — not yet merged.
+  Citations already drifted once during this spec's own review (a wrong test
+  path was found and fixed). Mitigated: an explicit citation-reverification
+  pass is Phase 0's first task, not just ambient per-task caution.
+- **Track 4 exit ambiguity.** Without an explicit disposition rule, a
+  parity-reviewed pilot could sit indefinitely as untracked parallel
+  scaffolding. Mitigated: pass/fail disposition is specified in S6.
