@@ -53,6 +53,54 @@ pub fn parse_script(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
     p.parse_module_script()
 }
 
+/// Like [`parse_with_kind`], but also surfaces Warning-severity `ParseError`
+/// diagnostics accumulated during a *successful* parse (e.g. the tolerant `;`
+/// at statement boundaries, the `->` return-type deprecation warning, and the
+/// `==`/`!=` as `is`/`is not` alias warnings).
+///
+/// `parse`/`parse_with_kind` intentionally keep their original
+/// `Result<Module, Vec<ParseError>>` signature — dozens of call sites across
+/// the workspace only care about the `Module` and would gain nothing from a
+/// tuple return. This sibling function exists specifically for pipeline-level
+/// callers (see `vox_compiler::pipeline`) that need to surface warnings to
+/// `vox check` instead of silently discarding them.
+///
+/// On success, the returned `Vec<ParseError>` contains only Warning-severity
+/// entries — an Error-severity entry always forces the `Err` path, so the
+/// `Ok` tuple's diagnostics can never contain one. On failure, behaves
+/// exactly like `parse_with_kind`: `Err(all_accumulated_errors)`.
+pub fn parse_with_kind_and_warnings(
+    tokens: Vec<Spanned>,
+    file_kind: crate::module::FileKind,
+) -> Result<(Module, Vec<ParseError>), Vec<ParseError>> {
+    let mut p = Parser::new(tokens);
+    p.file_kind = file_kind;
+    match p.parse_module() {
+        Ok(module) => Ok((module, p.errors.clone())),
+        Err(errors) => Err(errors),
+    }
+}
+
+/// Like [`parse`], but see [`parse_with_kind_and_warnings`] for why this
+/// sibling exists and what its `Ok` warnings vector contains.
+pub fn parse_and_warnings(
+    tokens: Vec<Spanned>,
+) -> Result<(Module, Vec<ParseError>), Vec<ParseError>> {
+    parse_with_kind_and_warnings(tokens, crate::module::FileKind::Source)
+}
+
+/// Like [`parse_script`], but see [`parse_with_kind_and_warnings`] for why
+/// this sibling exists and what its `Ok` warnings vector contains.
+pub fn parse_script_and_warnings(
+    tokens: Vec<Spanned>,
+) -> Result<(Module, Vec<ParseError>), Vec<ParseError>> {
+    let mut p = Parser::new(tokens);
+    match p.parse_module_script() {
+        Ok(module) => Ok((module, p.errors.clone())),
+        Err(errors) => Err(errors),
+    }
+}
+
 /// Fuzz entry: lex arbitrary UTF-8 (lossy) and run declaration parsing; must not panic.
 pub fn fuzz_parse_decl_bytes(data: &[u8]) {
     let source = String::from_utf8_lossy(data);

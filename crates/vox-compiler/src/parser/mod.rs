@@ -49,7 +49,10 @@ pub mod with_registry;
 
 pub use descent::fuzz_parse_decl_bytes;
 pub use descent::parse;
+pub use descent::parse_and_warnings;
 pub use descent::parse_script;
+pub use descent::parse_script_and_warnings;
+pub use descent::parse_with_kind_and_warnings;
 pub use error::{ParseError, ParseErrorClass};
 pub use with_registry::{ParseResult, Warning, parse_with_registry};
 
