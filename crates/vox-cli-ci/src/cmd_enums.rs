@@ -460,6 +460,18 @@ pub enum CiCmd {
         #[arg(required = true)]
         globs: Vec<String>,
     },
+    /// Verify every `.vox` file matched by the given glob(s) parses cleanly (lex + parse,
+    /// no type-check). Regression guard for corpus-wide lexer/parser changes — e.g. the
+    /// `Token::Unknown` catch-all (commit c3446892847e) silently broke 4 `scripts/**/*.vox`
+    /// files with a bare `return;` that no `cargo test` covered, because no test walked the
+    /// `.vox` script corpus. Exits non-zero on any parse failure (Error-severity diagnostics
+    /// only; tolerated-semicolon and similar Warning-severity diagnostics do not fail the gate).
+    #[command(name = "vox-parse-check")]
+    VoxParseCheck {
+        /// One or more glob patterns (e.g. `scripts/**/*.vox`, `apps/**/*.vox`).
+        #[arg(required = true)]
+        globs: Vec<String>,
+    },
     /// Score rule-pack precision/recall/F1 against labeled fixture files.
     /// Authoring-time only: reads `contracts/code-audit/rules.v1.yaml` and
     /// the fixture corpus, emits a table (or JSON), exits non-zero if any rule

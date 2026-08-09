@@ -479,7 +479,11 @@ fn test_capitalized_call_with_named_args_lowers_to_self_closing() {
 #[test]
 fn test_capitalized_call_with_positional_arg_stays_call() {
     // Enum constructors (Some, Ok, Err) use positional args — must NOT be sugared to JSX.
-    let m = parse_str("fn f() -> int { let x = Some(42); return 1 }");
+    // NB: uses a newline (not `;`) as the statement separator — Vox has no
+    // semicolon statement-separator token; since Task 4 (Token::Unknown),
+    // a bare `;` now lexes to a real, parser-visible token instead of being
+    // silently dropped, so a stray `;` here would now be a genuine parse error.
+    let m = parse_str("fn f() -> int { let x = Some(42)\nreturn 1 }");
     let Decl::Function(func) = &m.declarations[0] else {
         panic!();
     };
@@ -1159,4 +1163,55 @@ component Bad() {
 "#;
     let res = crate::parser::parse(crate::lexer::cursor::lex(src));
     assert!(res.is_err(), "missing `as <binding>` must be a parse error");
+}
+
+/// S2/S3: `->` in RETURN-TYPE position is tolerated with a Warning
+/// (pre-existing behavior via `eat_return_arrow` — this test locks it
+/// in so a future refactor can't silently change the severity).
+#[test]
+fn arrow_return_type_still_warns() {
+    let tokens = lex("fn f() -> int { return 1 }\n");
+    let mut p = Parser::new(tokens);
+    let result = p.parse_module();
+    assert!(
+        result.is_ok(),
+        "-> in return-type position must still parse (Warning, not Error)"
+    );
+}
+
+/// S2: a long run of one unknown byte at top level must not produce
+/// unbounded diagnostics. This is the pathological-input guard —
+/// before this task, each of the 500 '^' characters below would
+/// independently fail parse_decl's dispatch and push its own
+/// "Unexpected token at top level" error.
+#[test]
+fn long_run_of_unknown_bytes_bounds_diagnostics() {
+    let source = "^".repeat(500);
+    let tokens = crate::lexer::lex(&source);
+    let result = crate::parser::parse(tokens);
+    let errors = result.expect_err("500 unknown bytes must fail to parse");
+    assert!(
+        errors.len() <= 21,
+        "diagnostic count must be bounded (cap + one summary line), got {}",
+        errors.len()
+    );
+    // The final error must be the summary sentinel, not another
+    // per-character "Unexpected token" message.
+    let last = errors.last().unwrap();
+    assert!(
+        last.message.contains("more"),
+        "expected a summary sentinel as the final diagnostic, got: {:?}",
+        last.message
+    );
+}
+
+/// A single unknown byte still gets its own clear, unbounded-count-
+/// unaffected diagnostic -- the cap only matters for pathological runs.
+#[test]
+fn single_unknown_byte_gets_one_clear_error() {
+    let tokens = crate::lexer::lex("^\n");
+    let result = crate::parser::parse(tokens);
+    let errors = result.expect_err("bare '^' must fail to parse");
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].message.contains('^'));
 }

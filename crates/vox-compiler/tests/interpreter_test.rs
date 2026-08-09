@@ -389,8 +389,8 @@ fn test_interpreter_basic() {
 fn not_keyword_inverts_bool_correctly() {
     let source = "
     fn main() -> bool {
-        let f = false;
-        let t = true;
+        let f = false
+        let t = true
         return (not f) and ((not t) == false) and ((not (not t)) == true)
     }
     ";

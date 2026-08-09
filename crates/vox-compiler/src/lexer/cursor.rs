@@ -22,7 +22,18 @@ pub fn lex_preserving(source: &str) -> Vec<Spanned> {
         .spanned()
         .filter_map(|(result, span)| match result {
             Ok(token) => Some(Spanned { token, span }),
-            Err(_) => None, // skip unrecognized characters (still preserves via gap-fill)
+            Err(_) => None, // Logos-internal lex failure. Any single character
+                            // that isn't part of a longer token now matches the
+                            // Token::Unknown(char) catch-all (added for the tolerant-reader
+                            // policy, see docs/superpowers/specs/2026-08-08-vox-core-syntax-
+                            // convergence-design.md S2) and reaches this iterator as Ok(_),
+                            // so this arm no longer covers "unrecognized single byte." It
+                            // is still reachable when a *multi-character* regex matches
+                            // (higher priority than the priority-0 catch-all) but its
+                            // callback returns None -- e.g. `[0-9]+` matching an integer
+                            // literal that overflows i64 in IntLit's callback. That case
+                            // silently drops the whole matched slice, same as before this
+                            // diff; fixing it is out of scope here.
         })
         .collect();
 
@@ -55,7 +66,7 @@ pub fn lex(source: &str) -> Vec<Spanned> {
                     Some(Spanned { token, span })
                 }
             }
-            Err(_) => None, // skip unrecognized characters
+            Err(_) => None, // See the identical comment in lex_preserving above.
         })
         .collect();
 
@@ -486,5 +497,76 @@ http post "/api/chat" to Result {
     fn lex_preserving_keeps_raw_cr() {
         let lit = first_string_lit(&lex_preserving("let s = \"a\r\nb\""));
         assert!(lit.contains('\r'), "lex_preserving must retain raw CR");
+    }
+
+    /// S2: a character that matches no other token pattern must become a
+    /// real, spanned `Token::Unknown` — not silently vanish. This is the
+    /// fix for the audit's finding-2 P0 hazard (`a && b` used to lex as
+    /// `a b`; `@unknown_decorator` degraded to a bare identifier).
+    #[test]
+    fn unknown_char_becomes_a_real_token() {
+        let toks = lex_tokens("a ^ b");
+        assert_eq!(
+            toks,
+            vec![
+                Token::Ident("a".into()),
+                Token::Unknown('^'),
+                Token::Ident("b".into()),
+                Token::Eof,
+            ],
+            "unrecognized char must lex to Token::Unknown, not vanish"
+        );
+    }
+
+    /// Multiple consecutive unknown chars each become their own token — no
+    /// merging, no silent collapse.
+    #[test]
+    fn multiple_unknown_chars_each_become_their_own_token() {
+        let toks = lex_tokens("^~$");
+        assert_eq!(
+            toks,
+            vec![
+                Token::Unknown('^'),
+                Token::Unknown('~'),
+                Token::Unknown('$'),
+                Token::Eof,
+            ]
+        );
+    }
+
+    /// `&&` must NOT collapse into a single BooleanAnd-shaped token by this
+    /// task's change — S2's boolean-operator work (adding real And/Or
+    /// tokens + Pratt arms) is explicitly out of scope for this plan and
+    /// lands in a later follow-up plan. For now `&&` lexes as two
+    /// Unknown('&') tokens, which is strictly better than the prior silent
+    /// drop (it now produces a clear parse error instead of `a && b`
+    /// silently becoming `a b`) without committing to the larger change here.
+    #[test]
+    fn double_ampersand_lexes_as_two_unknown_tokens_for_now() {
+        let toks = lex_tokens("a && b");
+        assert_eq!(
+            toks,
+            vec![
+                Token::Ident("a".into()),
+                Token::Unknown('&'),
+                Token::Unknown('&'),
+                Token::Ident("b".into()),
+                Token::Eof,
+            ]
+        );
+    }
+
+    /// `lex_preserving` (the byte-preserving path `vox fmt`/`vox migrate`
+    /// depend on) must also surface Unknown tokens rather than silently
+    /// drop them — both call sites of the old `Err(_) => None` behavior
+    /// are fixed by the same lexer-level change.
+    #[test]
+    fn lex_preserving_also_surfaces_unknown_chars() {
+        let spanned = lex_preserving("a ^ b");
+        let toks: Vec<&Token> = spanned.iter().map(|s| &s.token).collect();
+        assert!(
+            toks.contains(&&Token::Unknown('^')),
+            "lex_preserving must not silently drop unknown chars either: {toks:?}"
+        );
     }
 }

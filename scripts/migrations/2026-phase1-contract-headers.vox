@@ -11,7 +11,7 @@ fn main() {
     let files_res = std.fs.glob("contracts/**/*.v*.*");
     if files_res.is_err() {
         print("❌ glob failed.");
-        return;
+        return
     }
     let files = files_res.unwrap();
     let n = len(files);

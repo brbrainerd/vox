@@ -505,6 +505,18 @@ pub enum Token {
     })]
     SingleStringLit(String),
 
+    // ── Unknown ───────────────────────────────────────────────
+    /// A single character that matched no other token pattern. Carries the
+    /// raw character so the parser can produce a real diagnostic instead of
+    /// the character silently vanishing. A tolerant-reader alias mapping
+    /// (e.g. `;`, `==`, `!=` -> a machine-readable fix) is planned — see
+    /// `docs/superpowers/specs/2026-08-08-vox-core-syntax-convergence-design.md`
+    /// S2 — but not yet implemented in `parser/descent/`; those aliases land
+    /// in later tasks of this same plan. Lowest priority so every other
+    /// token pattern wins on any overlap.
+    #[regex(r".", priority = 0, callback = |lex| lex.slice().chars().next())]
+    Unknown(char),
+
     // ── Identifiers ───────────────────────────────────────────
     /// Lower-case identifiers (variables, functions).
     #[regex(r"[a-z_][a-zA-Z0-9_]*", priority = 1, callback = |lex| lex.slice().to_string())]
@@ -678,6 +690,7 @@ impl std::fmt::Display for Token {
             Token::SingleStringLit(s) => write!(f, "'{s}'"),
             Token::RawStringLit(s) => write!(f, "r\"{s}\""),
             Token::DecLit(s) => write!(f, "{s}dec"),
+            Token::Unknown(c) => write!(f, "{c}"),
             Token::Ident(s) => write!(f, "{s}"),
             Token::TypeIdent(s) => write!(f, "{s}"),
             Token::Comment => write!(f, "<comment>"),

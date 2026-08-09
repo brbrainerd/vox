@@ -30,7 +30,10 @@ mod semcov_struct_pipeline_tests {
         // Catches: top-level `let` (parsed as Decl::Const) falling into the
         // `legacy_ast_nodes` `_ =>` catch-all in hir/lower/mod.rs and silently vanishing —
         // the named headline pipeline-gap bug.
-        let hir = lower("let answer = 42;");
+        // NB: no trailing `;` — Vox has no semicolon statement-separator token; since
+        // Task 4 (Token::Unknown) a stray `;` now lexes to a real, parser-visible
+        // token instead of being silently dropped.
+        let hir = lower("let answer = 42");
         assert_eq!(
             hir.consts.len(),
             1,
@@ -58,7 +61,7 @@ mod semcov_struct_pipeline_tests {
         // Catches: the binding being lowered by NAME while the initializer is dropped or
         // zeroed — a "half-lowered" variant of the silent-drop bug that a name-only
         // assertion would miss.
-        let hir = lower("let answer = 42;");
+        let hir = lower("let answer = 42");
         assert_eq!(hir.consts.len(), 1);
         assert!(
             matches!(hir.consts[0].value, HirExpr::IntLit(42, _)),
@@ -72,7 +75,7 @@ mod semcov_struct_pipeline_tests {
         // Catches: the optional `: Type` annotation on a top-level `let` being dropped
         // during lowering (lower_const maps c.type_ann through lower_type) — a binding can
         // survive by name+value while its declared type silently vanishes.
-        let hir = lower("let titled: Int = 7;");
+        let hir = lower("let titled: Int = 7");
         assert_eq!(
             hir.consts.len(),
             1,
@@ -94,7 +97,7 @@ mod semcov_struct_pipeline_tests {
     fn multiple_top_level_lets_none_swallowed() {
         // Catches: the lowering loop dropping a binding when several siblings are present
         // (e.g. an early `continue`/overwrite that loses all but one) — each must survive.
-        let hir = lower("let keep = 1;\nlet also = 2;\nlet third = 3;");
+        let hir = lower("let keep = 1\nlet also = 2\nlet third = 3");
         let names: Vec<&str> = hir.consts.iter().map(|c| c.name.as_str()).collect();
         assert_eq!(
             hir.consts.len(),
@@ -112,7 +115,7 @@ mod semcov_struct_pipeline_tests {
         // Catches: a non-numeric initializer (string literal) being dropped or mistyped
         // while numeric ones survive — the value must round-trip through lowering intact,
         // not just for IntLit.
-        let hir = lower("let greeting = \"hi\";");
+        let hir = lower("let greeting = \"hi\"");
         assert_eq!(hir.consts.len(), 1);
         assert_eq!(hir.consts[0].name, "greeting");
         assert!(

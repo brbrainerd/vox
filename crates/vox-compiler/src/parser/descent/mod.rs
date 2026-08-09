@@ -12,6 +12,11 @@ use crate::lexer::cursor::Spanned;
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass, ParseSeverity};
 
+/// S2: cap on how many "unrecognized token" diagnostics a pathological
+/// input (e.g. a long run of one unknown byte) can generate. Once hit, one
+/// summary sentinel replaces further per-token errors.
+const MAX_UNKNOWN_TOKEN_ERRORS: usize = 20;
+
 /// Strict parse: returns [`crate::Module`] or **all** accumulated [`ParseError`] values.
 ///
 /// Defaults to [`crate::module::FileKind::Source`] semantics. Use [`parse_with_kind`] when the file
@@ -48,6 +53,54 @@ pub fn parse_script(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
     p.parse_module_script()
 }
 
+/// Like [`parse_with_kind`], but also surfaces Warning-severity `ParseError`
+/// diagnostics accumulated during a *successful* parse (e.g. the tolerant `;`
+/// at statement boundaries, the `->` return-type deprecation warning, and the
+/// `==`/`!=` as `is`/`is not` alias warnings).
+///
+/// `parse`/`parse_with_kind` intentionally keep their original
+/// `Result<Module, Vec<ParseError>>` signature — dozens of call sites across
+/// the workspace only care about the `Module` and would gain nothing from a
+/// tuple return. This sibling function exists specifically for pipeline-level
+/// callers (see `vox_compiler::pipeline`) that need to surface warnings to
+/// `vox check` instead of silently discarding them.
+///
+/// On success, the returned `Vec<ParseError>` contains only Warning-severity
+/// entries — an Error-severity entry always forces the `Err` path, so the
+/// `Ok` tuple's diagnostics can never contain one. On failure, behaves
+/// exactly like `parse_with_kind`: `Err(all_accumulated_errors)`.
+pub fn parse_with_kind_and_warnings(
+    tokens: Vec<Spanned>,
+    file_kind: crate::module::FileKind,
+) -> Result<(Module, Vec<ParseError>), Vec<ParseError>> {
+    let mut p = Parser::new(tokens);
+    p.file_kind = file_kind;
+    match p.parse_module() {
+        Ok(module) => Ok((module, p.errors)),
+        Err(errors) => Err(errors),
+    }
+}
+
+/// Like [`parse`], but see [`parse_with_kind_and_warnings`] for why this
+/// sibling exists and what its `Ok` warnings vector contains.
+pub fn parse_and_warnings(
+    tokens: Vec<Spanned>,
+) -> Result<(Module, Vec<ParseError>), Vec<ParseError>> {
+    parse_with_kind_and_warnings(tokens, crate::module::FileKind::Source)
+}
+
+/// Like [`parse_script`], but see [`parse_with_kind_and_warnings`] for why
+/// this sibling exists and what its `Ok` warnings vector contains.
+pub fn parse_script_and_warnings(
+    tokens: Vec<Spanned>,
+) -> Result<(Module, Vec<ParseError>), Vec<ParseError>> {
+    let mut p = Parser::new(tokens);
+    match p.parse_module_script() {
+        Ok(module) => Ok((module, p.errors)),
+        Err(errors) => Err(errors),
+    }
+}
+
 /// Fuzz entry: lex arbitrary UTF-8 (lossy) and run declaration parsing; must not panic.
 pub fn fuzz_parse_decl_bytes(data: &[u8]) {
     let source = String::from_utf8_lossy(data);
@@ -71,6 +124,12 @@ struct Parser {
     /// ADR-032, [`crate::module::FileKind::ReactiveModule`] permits module-scope
     /// `state` / `derived` / `effect` / `on mount` / `on cleanup`.
     file_kind: crate::module::FileKind,
+    /// S2 bounded-diagnostics guard: counts how many "unrecognized token at
+    /// top level" errors have been pushed for `Token::Unknown` specifically,
+    /// so a pathological run of one bad byte can't produce unbounded
+    /// diagnostics or retained-error memory. Not used for any other error
+    /// class.
+    unknown_token_error_count: usize,
 }
 
 impl Parser {
@@ -80,6 +139,7 @@ impl Parser {
             pos: 0,
             errors: vec![],
             file_kind: crate::module::FileKind::Source,
+            unknown_token_error_count: 0,
         }
     }
 
@@ -97,6 +157,14 @@ impl Parser {
             .get(self.pos + n)
             .map(|s| &s.token)
             .unwrap_or(&Token::Eof)
+    }
+
+    /// Test-only accessor so sibling test modules can inspect accumulated
+    /// diagnostics without going through the full `parse`/`parse_script`
+    /// `Result<_, Vec<ParseError>>` API (which discards warnings on Ok).
+    #[cfg(test)]
+    pub(crate) fn errors_for_test(&self) -> &[ParseError] {
+        &self.errors
     }
 
     pub(crate) fn span(&self) -> Span {
@@ -144,6 +212,55 @@ impl Parser {
         while matches!(self.peek(), Token::Newline) {
             self.advance();
         }
+    }
+
+    /// S2/S3 tolerant-reader policy: a `;` immediately after a statement is
+    /// accepted (it lexes to `Token::Unknown(';')` per Task 4) with a
+    /// Warning diagnostic carrying a machine-readable `Replacement` that
+    /// deletes it — Vox statements are newline-terminated, not
+    /// semicolon-terminated. Scoped to the statement-boundary position
+    /// only (see this task's own scope note); does not touch `;` anywhere
+    /// else a stray one might appear.
+    ///
+    /// Consumes at most one trailing `;` per call -- a second
+    /// immediately-following `;` (`;;`) is NOT tolerated and surfaces as a
+    /// normal parse error via the caller's existing recovery path; this is
+    /// intentional, not an oversight.
+    pub(crate) fn skip_tolerated_semicolon(&mut self) {
+        if matches!(self.peek(), Token::Unknown(';')) {
+            let span = self.span();
+            let mut err = ParseError::warning(
+                span,
+                "Vox statements end at end of line; no semicolon needed",
+                ParseErrorClass::Statement,
+            );
+            err.found = Some(";".to_string());
+            err.replacement = Some(crate::parser::error::Replacement {
+                from: ";".to_string(),
+                to: String::new(),
+                code: "vox/lexer/semicolon-unnecessary".to_string(),
+            });
+            self.errors.push(err);
+            self.advance();
+        }
+    }
+
+    /// S2/S3 tolerant-reader policy: push a Warning diagnostic when a
+    /// mainstream/legacy spelling was accepted in place of the canonical
+    /// one. No `Replacement` payload here (unlike `skip_tolerated_semicolon`)
+    /// because the AST is already correct — `vox fmt` derives the canonical
+    /// spelling from the AST node, it doesn't need a text-level fix-it for
+    /// operators that already parsed to the right `BinOp`.
+    pub(crate) fn warn_mainstream_operator_alias(&mut self, found: &str, canonical: &str) {
+        let span = self.span();
+        let mut err = ParseError::warning(
+            span,
+            format!("`{found}` works, but Vox's canonical spelling is `{canonical}`"),
+            ParseErrorClass::Expression,
+        );
+        err.expected = vec![canonical.to_string()];
+        err.found = Some(found.to_string());
+        self.errors.push(err);
     }
 
     /// Debug-only trace when `VOX_PARSER_DEBUG` is set in the environment (OP-0008 / OP-0031).
@@ -207,6 +324,12 @@ impl Parser {
                     self.recover_to_top_level();
                 }
             }
+            // Deliberately does not call `skip_tolerated_semicolon()` here --
+            // this is the strict (non-script) top-level declaration loop; a
+            // stray `;` after a declaration is a different construct than a
+            // statement-boundary `;` and script-mode (`parse_module_script`)
+            // is where `;`-heavy corpus files (scripts/) actually live.
+            // Revisit if corpus evidence changes.
             self.skip_newlines();
         }
         if self
@@ -355,6 +478,7 @@ impl Parser {
                     }
                 }
             }
+            self.skip_tolerated_semicolon();
             self.skip_newlines();
         }
 
@@ -519,6 +643,18 @@ impl Parser {
                 | Token::Async
                     if brace_depth == 0 =>
                 {
+                    break;
+                }
+                // S2 bounded-diagnostics guard: don't silently swallow an entire
+                // run of unrecognized bytes in one recovery pass -- consume just
+                // this one `Token::Unknown` and hand control back to the
+                // top-level loop so each occurrence gets its own (capped)
+                // diagnostic via `parse_decl`'s fallback arm. Without this,
+                // a long run of one repeated bad byte would recover silently
+                // past the whole run after only the first diagnostic, hiding
+                // how much of the file is actually unrecognized.
+                Token::Unknown(_) if brace_depth == 0 => {
+                    self.advance();
                     break;
                 }
                 _ => {
@@ -754,9 +890,14 @@ impl Parser {
                     | Token::AtOfflineCapable
                     | Token::AtCollaborative
                     | Token::AtLayer => {
-                        let mut f = self.parse_fn_decl(false)?;
+                        let (mut f, kind) = self.parse_fn_decl_detect_kind(false)?;
                         f.is_async = true;
-                        Ok(Decl::Function(f))
+                        Ok(match kind {
+                            Some(kind) => {
+                                Decl::Endpoint(crate::ast::decl::EndpointDecl { kind, func: f })
+                            }
+                            None => Decl::Function(f),
+                        })
                     }
                     _ => {
                         self.errors.push(ParseError::classified(
@@ -800,8 +941,11 @@ impl Parser {
             | Token::AtOfflineCapable
             | Token::AtCollaborative
             | Token::AtLayer => {
-                let f = self.parse_fn_decl(false)?;
-                Ok(Decl::Function(f))
+                let (f, kind) = self.parse_fn_decl_detect_kind(false)?;
+                Ok(match kind {
+                    Some(kind) => Decl::Endpoint(crate::ast::decl::EndpointDecl { kind, func: f }),
+                    None => Decl::Function(f),
+                })
             }
             Token::Pub => {
                 self.advance();
@@ -833,8 +977,13 @@ impl Parser {
                     | Token::AtOfflineCapable
                     | Token::AtCollaborative
                     | Token::AtLayer => {
-                        let f = self.parse_fn_decl(true)?;
-                        Ok(Decl::Function(f))
+                        let (f, kind) = self.parse_fn_decl_detect_kind(true)?;
+                        Ok(match kind {
+                            Some(kind) => {
+                                Decl::Endpoint(crate::ast::decl::EndpointDecl { kind, func: f })
+                            }
+                            None => Decl::Function(f),
+                        })
                     }
                     Token::TypeKw => self.parse_typedef(true),
                     Token::Ident(ref name) if name == "url" => self.parse_url_decl(true),
@@ -949,16 +1098,69 @@ impl Parser {
             // so it serves both the `@form` and bare `form` heads (like `index`).
             Token::Ident(ref name) if name == "form" => self.parse_form_decl(),
             _ => {
-                self.errors.push(ParseError::classified(
-                    self.span(),
-                    format!("Unexpected token at top level: {}", self.peek()),
-                    vec!["fn".into(), "import".into(), "type".into()],
-                    Some(self.peek().to_string()),
-                    ParseErrorClass::TopLevel,
-                ));
+                if matches!(self.peek(), Token::Unknown(_)) {
+                    self.push_capped_unknown_token_error(
+                        self.span(),
+                        ParseErrorClass::TopLevel,
+                        vec!["fn".into(), "import".into(), "type".into()],
+                        format!("Unexpected token at top level: {}", self.peek()),
+                    );
+                    // Beyond the cap: silently advance without pushing further
+                    // diagnostics, but still return Err so recovery proceeds.
+                } else {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("Unexpected token at top level: {}", self.peek()),
+                        vec!["fn".into(), "import".into(), "type".into()],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::TopLevel,
+                    ));
+                }
                 Err(())
             }
         }
+    }
+
+    /// S2 bounded-diagnostics guard, shared by every "fell through to the
+    /// catch-all" fallback that might see a pathological run of
+    /// `Token::Unknown` bytes (declaration position, expression position,
+    /// …): pushes `message` while under [`MAX_UNKNOWN_TOKEN_ERRORS`], pushes
+    /// one summary sentinel exactly at the cap, and pushes nothing beyond
+    /// it. Callers must only call this when `self.peek()` is
+    /// `Token::Unknown(_)` -- any other unexpected-but-recognized token
+    /// should be pushed directly, uncapped, since that class of error can't
+    /// blow up into an unbounded run the way a wall of unrecognized bytes
+    /// can.
+    pub(crate) fn push_capped_unknown_token_error(
+        &mut self,
+        span: Span,
+        class: ParseErrorClass,
+        expected: Vec<String>,
+        message: String,
+    ) {
+        if self.unknown_token_error_count < MAX_UNKNOWN_TOKEN_ERRORS {
+            self.errors.push(ParseError::classified(
+                span,
+                message,
+                expected,
+                Some(self.peek().to_string()),
+                class,
+            ));
+            self.unknown_token_error_count += 1;
+        } else if self.unknown_token_error_count == MAX_UNKNOWN_TOKEN_ERRORS {
+            self.errors.push(ParseError::classified(
+                span,
+                format!(
+                    "…and more unrecognized tokens follow (stopped reporting \
+                     after {MAX_UNKNOWN_TOKEN_ERRORS})"
+                ),
+                vec![],
+                None,
+                class,
+            ));
+            self.unknown_token_error_count += 1; // never re-enter this branch
+        }
+        // Beyond the cap: silently drop further per-token diagnostics.
     }
 }
 

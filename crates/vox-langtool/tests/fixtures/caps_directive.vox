@@ -1,4 +1,4 @@
 // vox:caps net fs
 fn main() {
-    print("caps ok");
+    print("caps ok")
 }

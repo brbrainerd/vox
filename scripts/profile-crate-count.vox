@@ -16,7 +16,7 @@ fn main() {
         let parts = trimmed.split(" ")
         let name = parts.get(0).unwrap_or("")
         if name != "" {
-            if !seen_list.contains(name) {
+            if not seen_list.contains(name) {
                 seen_list = seen_list.push(name)
             }
         }

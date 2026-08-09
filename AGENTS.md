@@ -228,21 +228,37 @@ Vox source follows one rule for top-level declarations:
 > **Bare-keyword blocks declare scope. Decorators modify declarations.**
 
 **Bare-keyword blocks** (each opens a scope with its own rules):
-`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`, `workflow`, `activity`
-(the last two stable per ADR-041 — see Implementation status below).
+`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`,
+`workflow`, `activity` (the last two stable per ADR-041 — see
+Implementation status below), and the data-layer soft keywords `table`,
+`query`, `mutation`, `server`, `tool`, `resource`, `form`, `index` (each
+dispatched only at declaration-head position, with no dedicated lexer
+token — see `crates/vox-compiler/src/parser/descent/mod.rs`).
+These eight replaced the equivalent decorator spellings — see §Retired
+Surfaces; the decorator spellings are hard parse errors as of 2026-06-30
+(`cd7cc96874`).
 
 **Decorators** (modifiers composed on top of a declaration):
-`@table`, `@query`, `@mutation`, `@server`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`,
-`@v0`, `@test`, `@durable`, `@scheduled` (the last two stable per ADR-041 — see Implementation status below).
-**Removed in v0.6.0:** `@endpoint` (see §Retired Surfaces).
+`@pure`, `@deprecated`, `@require`, `@auth`, `@uses`, `@test`, `@v0`, `@durable`,
+`@scheduled` (the last two stable per ADR-041 — see Implementation status
+below). **Removed in v0.6.0:** `@endpoint` (see §Retired Surfaces).
+**Retired 2026-06-30:** the decorator spellings of the eight data-layer
+keywords above (i.e. the `@`-prefixed forms of table/query/mutation/server/
+tool/resource/form/index) are now hard parse errors — use the bare-keyword
+forms instead. `@mcp.tool` is a separate case: it still parses but is
+soft-deprecated (a warning, not an error) in favor of bare `tool`; `@mcp.resource`
+remains fully valid, non-deprecated syntax, though bare `resource` is preferred
+for new code. `@v0` is a third case: it still parses today but lowers to a
+no-op (zero corpus uses) and is scheduled for retirement in a later phase of
+this program (not yet implemented) — do not use it in new code.
 
 Decorators compose with bare-keyword blocks:
 
 ```vox
 // vox:skip
-@table type Task { … }                        // decorator on a type declaration
-@query fn list_tasks() { … }  // decorator on a function
-@pure fn checksum(payload: bytes) { … }       // purity declared via decorator
+@auth(scheme: bearer) table Task { … }          // decorator on a bare-keyword declaration
+@uses(net) fn fetch_remote() { … }              // decorator on a function
+@pure fn checksum(payload: bytes) { … }         // purity declared via decorator
 ```
 
 **Rule for new features:** Do NOT introduce a new bare keyword for behavior

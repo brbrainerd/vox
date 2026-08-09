@@ -744,7 +744,8 @@ fn caller() to str { fetch() }",
     #[test]
     fn test_multiple_stdlib_calls_all_checked() {
         // Caller declares net but not db — db call should error, http should not.
-        let diags = check(r#"fn f() uses net to str { http.get("url"); db.query("SELECT 1") }"#);
+        // NB: newline (not `;`) as statement separator — see Task 4 (Token::Unknown) note.
+        let diags = check("fn f() uses net to str { http.get(\"url\")\ndb.query(\"SELECT 1\") }");
         assert_eq!(diags.len(), 1, "expected exactly one violation: {diags:?}");
         assert!(
             diags[0].message.contains("db"),

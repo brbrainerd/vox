@@ -7,8 +7,11 @@
 use crate::ast::decl::Module;
 use crate::hir::HirModule;
 use crate::hir::lower::LowerConfig;
+use crate::parser::error::{ParseError, ParseSeverity};
 use crate::typeck::Diagnostic;
-use crate::typeck::diagnostics::{TypeckSeverity, VoxCompilerDiagnosticPayload};
+use crate::typeck::diagnostics::{
+    DiagnosticCategory, TypeckSeverity, VoxCompilerDiagnosticPayload,
+};
 use anyhow::Result;
 
 // ADR-041 (2026-05-23) supersedes ADR-028. The reserved-keyword gate that rejected
@@ -49,6 +52,43 @@ impl FrontendResult {
 
     pub fn has_errors(&self) -> bool {
         self.error_count() > 0
+    }
+}
+
+/// Convert a Warning-severity `ParseError` (tolerant `;`, `->` return-type
+/// deprecation, `==`/`!=` alias, …) into a `typeck::Diagnostic` so it flows
+/// through the same `FrontendResult::diagnostics` / `warning_count()` /
+/// `vox check` presentation path as typecheck and HIR-validation warnings,
+/// rather than a parallel, inconsistent one.
+///
+/// Callers should only pass entries already known to be Warning-severity
+/// (e.g. the `Ok` side of `parser::parse_and_warnings`); this function
+/// asserts that invariant in debug builds via `debug_assert!` and otherwise
+/// preserves the severity mapping defensively.
+fn parse_warning_to_diagnostic(err: &ParseError, source: &str) -> Diagnostic {
+    debug_assert!(
+        err.severity == ParseSeverity::Warning,
+        "parse_warning_to_diagnostic called with a non-Warning ParseError: {err:?}"
+    );
+    let mut diag = Diagnostic::warning(err.message.clone(), err.span, source);
+    diag.category = DiagnosticCategory::Parse;
+    if let Some(replacement) = &err.replacement {
+        diag.code = Some(replacement.code.clone());
+    }
+    diag
+}
+
+/// Surface Warning-severity parse diagnostics (tolerant `;`, `->`
+/// deprecation, `==`/`!=` aliases, …) that a successful parse would
+/// otherwise discard, appending them to `diagnostics` alongside
+/// typecheck/HIR warnings.
+fn extend_with_parse_warnings(
+    diagnostics: &mut Vec<Diagnostic>,
+    parse_warnings: &[ParseError],
+    source: &str,
+) {
+    for w in parse_warnings {
+        diagnostics.push(parse_warning_to_diagnostic(w, source));
     }
 }
 
@@ -99,11 +139,11 @@ pub fn run_frontend_str_with_options(
 
     // 2. Parse
     let module_res = if options.script_mode {
-        crate::parser::parse_script(tokens.clone())
+        crate::parser::parse_script_and_warnings(tokens.clone())
     } else {
-        crate::parser::parse(tokens.clone())
+        crate::parser::parse_and_warnings(tokens.clone())
     };
-    let module = module_res
+    let (module, parse_warnings) = module_res
         .map_err(|errors| anyhow::anyhow!("Parsing failed with {} error(s)", errors.len()))?;
 
     // 3. Lower to HIR + structural validation
@@ -149,6 +189,8 @@ pub fn run_frontend_str_with_options(
     // imports can be eagerly resolved into the type environment.
     let mut diagnostics =
         crate::typeck::typecheck_hir_module_with_path(source, &mut hir, typeck_path);
+
+    extend_with_parse_warnings(&mut diagnostics, &parse_warnings, source);
 
     let jsx_leaks = ["className=", "onClick=", "onChange=", "onSubmit="];
     for line in source.lines() {
@@ -242,10 +284,12 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
         }
     }
 
-    match crate::parser::parse(tokens) {
-        Ok(module) => {
+    match crate::parser::parse_and_warnings(tokens) {
+        Ok((module, parse_warnings)) => {
             let mut hir = crate::hir::lower_module(&module);
             let mut diagnostics = crate::typeck::typecheck_hir_module(source, &mut hir);
+
+            extend_with_parse_warnings(&mut diagnostics, &parse_warnings, source);
 
             // 5. Deprecated Usage Detector (Item 16, @deprecated)
             for line in source.lines() {

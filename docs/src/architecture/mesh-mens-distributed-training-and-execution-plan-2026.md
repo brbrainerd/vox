@@ -832,8 +832,10 @@ and is routed through the InferenceBackend dispatcher.
 **Sketch (Vox source).**
 
 ```vox
+// vox:skip -- illustrative future syntax; @inference is not implemented yet
+// (see the unchecked Substeps below), so this excerpt cannot compile today.
 @inference(model = "llama-3.1-8b-q4")
-fn predict(input: PromptInput) -> DurablePromise[Output] {
+fn predict(input: PromptInput) to DurablePromise[Output] {
     // body is implicit: dispatch to backend
 }
 ```

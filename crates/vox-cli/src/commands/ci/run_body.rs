@@ -361,6 +361,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ToestubBudget => vox_cli_ci::toestub_budget::run(),
         CiCmd::JsonParseCheck { globs } => vox_cli_ci::parse_check::run_json(&globs),
         CiCmd::YamlParseCheck { globs } => vox_cli_ci::parse_check::run_yaml(&globs),
+        CiCmd::VoxParseCheck { globs } => vox_cli_ci::parse_check::run_vox(&globs),
         CiCmd::ToestubSelfApply => run_toestub_self_apply(&root),
         CiCmd::ToestubScoped { roots, mode } => run_toestub_scoped_roots(&root, &roots, mode),
         CiCmd::ScalingAudit { cmd } => scaling_audit::run(&root, cmd),
