@@ -203,6 +203,7 @@ ci/toestub-budget
 ci/toestub-scoped
 ci/toestub-self-apply
 ci/turso-import-guard
+ci/vox-parse-check
 ci/watch-run
 ci/workflow-concurrency-guard
 ci/workflow-scripts

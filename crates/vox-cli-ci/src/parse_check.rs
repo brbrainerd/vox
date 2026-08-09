@@ -104,6 +104,15 @@ fn is_script_like(source: &str) -> bool {
 /// walking `scripts/**/*.vox` / `apps/**/*.vox` — four files broke silently
 /// until a manual audit found them. Wire this into pre-push / CI as
 /// `vox ci vox-parse-check "scripts/**/*.vox" "apps/**/*.vox"`.
+///
+/// Running that sweep against the full corpus today (2026-08-08) surfaces 8
+/// further pre-existing failures, out of scope for this gate's introduction
+/// and not yet triaged: `apps/marquee/chat/src/main.vox`,
+/// `apps/marquee/todo-auth/src/main.vox`, `scripts/fix-doc-categories.vox`,
+/// `scripts/profile-crate-count.vox`, `scripts/start-marquee.vox`,
+/// `scripts/sync-cursor-skills.vox`, `scripts/sync_golden_vox.vox`,
+/// `scripts/test_for.vox`. Fix those (or file a tracking issue) before
+/// wiring this gate into an enforced tier, or it will fail on day one.
 pub fn run_vox(globs: &[String]) -> Result<()> {
     let paths = expand_globs(globs)?;
     if paths.is_empty() {
