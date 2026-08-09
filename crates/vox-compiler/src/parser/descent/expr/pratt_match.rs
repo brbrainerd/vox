@@ -1101,9 +1101,7 @@ mod tests {
     /// from being conflated in code too).
     #[test]
     fn arrow_match_arm_is_not_aliased() {
-        let tokens = lex(
-            "fn f(r: Result[int]) to int { match r { Ok(x) -> x  Error(e) -> 0 } }\n",
-        );
+        let tokens = lex("fn f(r: Result[int]) to int { match r { Ok(x) -> x  Error(e) -> 0 } }\n");
         let mut p = Parser::new(tokens);
         let result = p.parse_module();
         assert!(

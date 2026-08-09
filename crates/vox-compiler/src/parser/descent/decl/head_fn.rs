@@ -1309,8 +1309,7 @@ mod tests {
 
     #[test]
     fn auth_decorator_composes_with_bare_mutation() {
-        let src =
-            "@auth(scheme: bearer)\nmutation create_todo(title: str) to str {\n    return \"ok\"\n}\n";
+        let src = "@auth(scheme: bearer)\nmutation create_todo(title: str) to str {\n    return \"ok\"\n}\n";
         let module = crate::parser::parse(lex(src)).expect("must parse");
         match &module.declarations[0] {
             Decl::Endpoint(e) => assert_eq!(e.kind, EndpointKind::Mutation),
@@ -1320,8 +1319,7 @@ mod tests {
 
     #[test]
     fn auth_decorator_composes_with_bare_server() {
-        let src =
-            "@auth(scheme: bearer)\nserver stream_room(room_id: str) to str {\n    return \"ok\"\n}\n";
+        let src = "@auth(scheme: bearer)\nserver stream_room(room_id: str) to str {\n    return \"ok\"\n}\n";
         let module = crate::parser::parse(lex(src)).expect("must parse");
         match &module.declarations[0] {
             Decl::Endpoint(e) => assert_eq!(e.kind, EndpointKind::Server),

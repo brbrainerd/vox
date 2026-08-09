@@ -82,7 +82,11 @@ fn parse_warning_to_diagnostic(err: &ParseError, source: &str) -> Diagnostic {
 /// deprecation, `==`/`!=` aliases, …) that a successful parse would
 /// otherwise discard, appending them to `diagnostics` alongside
 /// typecheck/HIR warnings.
-fn extend_with_parse_warnings(diagnostics: &mut Vec<Diagnostic>, parse_warnings: &[ParseError], source: &str) {
+fn extend_with_parse_warnings(
+    diagnostics: &mut Vec<Diagnostic>,
+    parse_warnings: &[ParseError],
+    source: &str,
+) {
     for w in parse_warnings {
         diagnostics.push(parse_warning_to_diagnostic(w, source));
     }

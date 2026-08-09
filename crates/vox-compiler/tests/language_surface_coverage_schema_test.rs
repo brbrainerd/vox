@@ -16,8 +16,8 @@ fn coverage_ledger_is_valid_yaml_matching_its_schema() {
         "/../../contracts/spec/language-surface-coverage.v1.schema.json"
     );
 
-    let yaml_src = fs::read_to_string(yaml_path)
-        .unwrap_or_else(|e| panic!("failed to read {yaml_path}: {e}"));
+    let yaml_src =
+        fs::read_to_string(yaml_path).unwrap_or_else(|e| panic!("failed to read {yaml_path}: {e}"));
     let schema_src = fs::read_to_string(schema_path)
         .unwrap_or_else(|e| panic!("failed to read {schema_path}: {e}"));
 
@@ -30,8 +30,7 @@ fn coverage_ledger_is_valid_yaml_matching_its_schema() {
     let doc_json: serde_json::Value =
         serde_json::to_value(&doc).expect("YAML must convert to JSON");
 
-    let validator =
-        jsonschema::validator_for(&schema_json).expect("schema itself must compile");
+    let validator = jsonschema::validator_for(&schema_json).expect("schema itself must compile");
     if let Err(err) = validator.validate(&doc_json) {
         panic!("ledger does not match schema:\n{err}");
     }

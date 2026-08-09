@@ -183,7 +183,13 @@ mod semcov_wave1c_tests {
         let tokens = lex("a != b\n");
         let mut p = Parser::new(tokens);
         let expr = p.parse_expr().expect("!= must still parse");
-        assert!(matches!(expr, Expr::Binary { op: BinOp::Isnt, .. }));
+        assert!(matches!(
+            expr,
+            Expr::Binary {
+                op: BinOp::Isnt,
+                ..
+            }
+        ));
         let warnings: Vec<_> = p
             .errors_for_test()
             .iter()

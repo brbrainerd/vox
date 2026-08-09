@@ -149,7 +149,9 @@ pub fn run_vox(globs: &[String]) -> Result<()> {
         }
     }
     if failed {
-        Err(anyhow!("vox-parse-check: one or more files failed to parse"))
+        Err(anyhow!(
+            "vox-parse-check: one or more files failed to parse"
+        ))
     } else {
         Ok(())
     }

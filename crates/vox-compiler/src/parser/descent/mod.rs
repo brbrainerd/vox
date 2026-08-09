@@ -893,10 +893,9 @@ impl Parser {
                         let (mut f, kind) = self.parse_fn_decl_detect_kind(false)?;
                         f.is_async = true;
                         Ok(match kind {
-                            Some(kind) => Decl::Endpoint(crate::ast::decl::EndpointDecl {
-                                kind,
-                                func: f,
-                            }),
+                            Some(kind) => {
+                                Decl::Endpoint(crate::ast::decl::EndpointDecl { kind, func: f })
+                            }
                             None => Decl::Function(f),
                         })
                     }
