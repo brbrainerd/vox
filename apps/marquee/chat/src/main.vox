@@ -2,8 +2,8 @@
 //
 // Demonstrates:
 //   actor declaration    — chat room as a stateful actor with join/leave/message handlers
-//   @server endpoint     — streaming / server-sent-event lane (HTTP gateway upgrades to WS)
-//   @table               — message persistence
+//   server endpoint      — streaming / server-sent-event lane (HTTP gateway upgrades to WS), bare-keyword form
+//   table                — message persistence, bare-keyword form
 //   @auth(scheme: bearer)— per-request auth gate on write and streaming endpoints
 //   @test                — unit tests covering validation helpers and write-path error gates
 //
@@ -12,7 +12,7 @@
 //
 // Presence state (who is in a room) lives inside the actor runtime — join/leave
 // handlers return formatted status lines; the deploy-time transport layer
-// broadcasts them to all connected clients.  @server stream_room signals the
+// broadcasts them to all connected clients.  `server stream_room` signals the
 // HTTP gateway to hold the connection open and emit Message records as SSE
 // (server-sent events) / WebSocket frames.
 
@@ -47,17 +47,16 @@ actor ChatRoom {
     }
 }
 
-// ── @server streaming endpoint ────────────────────────────────────────────────
+// ── server streaming endpoint ────────────────────────────────────────────────
 
 // Subscribe to live messages from a chat room.
-// The @server decorator signals the HTTP gateway to hold this connection open
+// The `server` bare keyword signals the HTTP gateway to hold this connection open
 // and deliver new Message records as server-sent events (SSE) or WebSocket
 // frames — the transport choice is made by the deploy adapter.
 // Authentication is enforced by the bearer-token middleware before the
 // connection is upgraded.
-@server
 @auth(scheme: bearer)
-fn stream_room(room_id: str) to list[str] {
+server stream_room(room_id: str) to list[str] {
     // Placeholder: the deploy-time streaming layer replaces this body with
     // live fan-out from the ChatRoom actor mailbox.  The list[str] return
     // type carries the initial backfill; the stream continuation is driven
@@ -68,9 +67,8 @@ fn stream_room(room_id: str) to list[str] {
 // ── Auth-protected write endpoints ────────────────────────────────────────────
 
 // Post a new message to a room. Validates the body then persists it.
-@mutation
 @auth(scheme: bearer)
-fn post_message(room_id: str, sender: str, body: str) to Result[str] {
+mutation post_message(room_id: str, sender: str, body: str) to Result[str] {
     if len(body) is 0 {
         return Error("body must not be empty")
     }
@@ -84,9 +82,8 @@ fn post_message(room_id: str, sender: str, body: str) to Result[str] {
 // ── Auth-protected read endpoints ─────────────────────────────────────────────
 
 // List the most-recent messages in a room (paginated by the HTTP layer).
-@query
 @auth(scheme: bearer)
-fn list_messages(room_id: str) to list[Message] {
+query list_messages(room_id: str) to list[Message] {
     return []
 }
 

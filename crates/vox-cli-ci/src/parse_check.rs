@@ -105,14 +105,22 @@ fn is_script_like(source: &str) -> bool {
 /// until a manual audit found them. Wire this into pre-push / CI as
 /// `vox ci vox-parse-check "scripts/**/*.vox" "apps/**/*.vox"`.
 ///
-/// Running that sweep against the full corpus today (2026-08-08) surfaces 8
-/// further pre-existing failures, out of scope for this gate's introduction
-/// and not yet triaged: `apps/marquee/chat/src/main.vox`,
-/// `apps/marquee/todo-auth/src/main.vox`, `scripts/fix-doc-categories.vox`,
-/// `scripts/profile-crate-count.vox`, `scripts/start-marquee.vox`,
-/// `scripts/sync-cursor-skills.vox`, `scripts/sync_golden_vox.vox`,
-/// `scripts/test_for.vox`. Fix those (or file a tracking issue) before
-/// wiring this gate into an enforced tier, or it will fail on day one.
+/// Running that sweep against the full corpus on 2026-08-08 surfaced 8
+/// further pre-existing failures, all fixed the same day:
+/// `scripts/fix-doc-categories.vox`, `scripts/profile-crate-count.vox`,
+/// `scripts/start-marquee.vox`, `scripts/sync-cursor-skills.vox`,
+/// `scripts/sync_golden_vox.vox`, `scripts/test_for.vox` -- a real gap in
+/// the tolerant-`;` Return-statement coverage, plus two mechanical
+/// migrations off retired `!`/decorator syntax. The remaining two,
+/// `apps/marquee/chat/src/main.vox` and `apps/marquee/todo-auth/src/main.vox`,
+/// needed a parser feature, not a corpus fix: both compose `@auth(...)` with
+/// a bare `query`/`mutation`/`server` declaration, which AGENTS.md's Grammar
+/// Unification section documents as supported (`@auth(scheme: bearer)
+/// table Task { … }`) but the parser didn't actually implement for
+/// `query`/`mutation`/`server` specifically -- see
+/// `crates/vox-compiler/src/parser/descent/decl/head_fn.rs`'s
+/// `parse_fn_decl_detect_kind` / the kind-keyword arm inside
+/// `parse_fn_decl_inner`'s decorator-collection loop for the fix.
 pub fn run_vox(globs: &[String]) -> Result<()> {
     let paths = expand_globs(globs)?;
     if paths.is_empty() {
@@ -205,20 +213,20 @@ mod tests {
     }
 
     #[test]
-    fn vox_parse_check_rejects_bare_return_semicolon() {
-        // Regression fixture for the exact class of bug this gate exists to
-        // catch: `Token::Unknown` (commit c3446892847e) made a bare
+    fn vox_parse_check_tolerates_bare_return_semicolon() {
+        // Regression fixture for the exact class of bug this gate was built
+        // to catch: `Token::Unknown` (commit c3446892847e) made a bare
         // `return;` a hard parse error (`parse_stmt`'s Return arm only
-        // treats Newline/RBrace/Eof as "no value", not the tolerated `;`),
-        // and no test walked the `.vox` script corpus to catch it.
+        // treated Newline/RBrace/Eof as "no value", not the tolerated `;`),
+        // and no test walked the `.vox` script corpus to catch it. That gap
+        // in the Return arm is now closed (it also matches
+        // `Token::Unknown(';')`, letting `skip_tolerated_semicolon` warn on
+        // and consume the leftover `;` the same way any other statement
+        // boundary does) — this now must parse, with a warning, not fail.
         let tmp = TempDir::new().expect("tmpdir");
-        write_fixture(
-            tmp.path(),
-            "bad.vox",
-            "fn main() {\n    return;\n}\n",
-        );
-        let glob = format!("{}/bad.vox", tmp.path().display());
-        assert!(run_vox(&[glob]).is_err());
+        write_fixture(tmp.path(), "ok_return.vox", "fn main() {\n    return;\n}\n");
+        let glob = format!("{}/ok_return.vox", tmp.path().display());
+        run_vox(&[glob]).expect("tolerated bare 'return;' must not fail the gate");
     }
 
     #[test]

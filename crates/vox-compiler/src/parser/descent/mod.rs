@@ -76,7 +76,7 @@ pub fn parse_with_kind_and_warnings(
     let mut p = Parser::new(tokens);
     p.file_kind = file_kind;
     match p.parse_module() {
-        Ok(module) => Ok((module, p.errors.clone())),
+        Ok(module) => Ok((module, p.errors)),
         Err(errors) => Err(errors),
     }
 }
@@ -96,7 +96,7 @@ pub fn parse_script_and_warnings(
 ) -> Result<(Module, Vec<ParseError>), Vec<ParseError>> {
     let mut p = Parser::new(tokens);
     match p.parse_module_script() {
-        Ok(module) => Ok((module, p.errors.clone())),
+        Ok(module) => Ok((module, p.errors)),
         Err(errors) => Err(errors),
     }
 }
@@ -229,19 +229,18 @@ impl Parser {
     pub(crate) fn skip_tolerated_semicolon(&mut self) {
         if matches!(self.peek(), Token::Unknown(';')) {
             let span = self.span();
-            self.errors.push(ParseError {
-                message: "Vox statements end at end of line; no semicolon needed".to_string(),
+            let mut err = ParseError::warning(
                 span,
-                expected: vec![],
-                found: Some(";".to_string()),
-                class: ParseErrorClass::Statement,
-                severity: ParseSeverity::Warning,
-                replacement: Some(crate::parser::error::Replacement {
-                    from: ";".to_string(),
-                    to: String::new(),
-                    code: "vox/lexer/semicolon-unnecessary".to_string(),
-                }),
+                "Vox statements end at end of line; no semicolon needed",
+                ParseErrorClass::Statement,
+            );
+            err.found = Some(";".to_string());
+            err.replacement = Some(crate::parser::error::Replacement {
+                from: ";".to_string(),
+                to: String::new(),
+                code: "vox/lexer/semicolon-unnecessary".to_string(),
             });
+            self.errors.push(err);
             self.advance();
         }
     }
@@ -254,15 +253,14 @@ impl Parser {
     /// operators that already parsed to the right `BinOp`.
     pub(crate) fn warn_mainstream_operator_alias(&mut self, found: &str, canonical: &str) {
         let span = self.span();
-        self.errors.push(ParseError {
-            message: format!("`{found}` works, but Vox's canonical spelling is `{canonical}`"),
+        let mut err = ParseError::warning(
             span,
-            expected: vec![canonical.to_string()],
-            found: Some(found.to_string()),
-            class: ParseErrorClass::Expression,
-            severity: ParseSeverity::Warning,
-            replacement: None,
-        });
+            format!("`{found}` works, but Vox's canonical spelling is `{canonical}`"),
+            ParseErrorClass::Expression,
+        );
+        err.expected = vec![canonical.to_string()];
+        err.found = Some(found.to_string());
+        self.errors.push(err);
     }
 
     /// Debug-only trace when `VOX_PARSER_DEBUG` is set in the environment (OP-0008 / OP-0031).
@@ -892,9 +890,15 @@ impl Parser {
                     | Token::AtOfflineCapable
                     | Token::AtCollaborative
                     | Token::AtLayer => {
-                        let mut f = self.parse_fn_decl(false)?;
+                        let (mut f, kind) = self.parse_fn_decl_detect_kind(false)?;
                         f.is_async = true;
-                        Ok(Decl::Function(f))
+                        Ok(match kind {
+                            Some(kind) => Decl::Endpoint(crate::ast::decl::EndpointDecl {
+                                kind,
+                                func: f,
+                            }),
+                            None => Decl::Function(f),
+                        })
                     }
                     _ => {
                         self.errors.push(ParseError::classified(
@@ -938,8 +942,11 @@ impl Parser {
             | Token::AtOfflineCapable
             | Token::AtCollaborative
             | Token::AtLayer => {
-                let f = self.parse_fn_decl(false)?;
-                Ok(Decl::Function(f))
+                let (f, kind) = self.parse_fn_decl_detect_kind(false)?;
+                Ok(match kind {
+                    Some(kind) => Decl::Endpoint(crate::ast::decl::EndpointDecl { kind, func: f }),
+                    None => Decl::Function(f),
+                })
             }
             Token::Pub => {
                 self.advance();
@@ -971,8 +978,13 @@ impl Parser {
                     | Token::AtOfflineCapable
                     | Token::AtCollaborative
                     | Token::AtLayer => {
-                        let f = self.parse_fn_decl(true)?;
-                        Ok(Decl::Function(f))
+                        let (f, kind) = self.parse_fn_decl_detect_kind(true)?;
+                        Ok(match kind {
+                            Some(kind) => {
+                                Decl::Endpoint(crate::ast::decl::EndpointDecl { kind, func: f })
+                            }
+                            None => Decl::Function(f),
+                        })
                     }
                     Token::TypeKw => self.parse_typedef(true),
                     Token::Ident(ref name) if name == "url" => self.parse_url_decl(true),
@@ -1088,28 +1100,12 @@ impl Parser {
             Token::Ident(ref name) if name == "form" => self.parse_form_decl(),
             _ => {
                 if matches!(self.peek(), Token::Unknown(_)) {
-                    if self.unknown_token_error_count < MAX_UNKNOWN_TOKEN_ERRORS {
-                        self.errors.push(ParseError::classified(
-                            self.span(),
-                            format!("Unexpected token at top level: {}", self.peek()),
-                            vec!["fn".into(), "import".into(), "type".into()],
-                            Some(self.peek().to_string()),
-                            ParseErrorClass::TopLevel,
-                        ));
-                        self.unknown_token_error_count += 1;
-                    } else if self.unknown_token_error_count == MAX_UNKNOWN_TOKEN_ERRORS {
-                        self.errors.push(ParseError::classified(
-                            self.span(),
-                            format!(
-                                "…and more unrecognized tokens follow (stopped reporting \
-                                 after {MAX_UNKNOWN_TOKEN_ERRORS})"
-                            ),
-                            vec![],
-                            None,
-                            ParseErrorClass::TopLevel,
-                        ));
-                        self.unknown_token_error_count += 1; // never re-enter this branch
-                    }
+                    self.push_capped_unknown_token_error(
+                        self.span(),
+                        ParseErrorClass::TopLevel,
+                        vec!["fn".into(), "import".into(), "type".into()],
+                        format!("Unexpected token at top level: {}", self.peek()),
+                    );
                     // Beyond the cap: silently advance without pushing further
                     // diagnostics, but still return Err so recovery proceeds.
                 } else {
@@ -1124,6 +1120,48 @@ impl Parser {
                 Err(())
             }
         }
+    }
+
+    /// S2 bounded-diagnostics guard, shared by every "fell through to the
+    /// catch-all" fallback that might see a pathological run of
+    /// `Token::Unknown` bytes (declaration position, expression position,
+    /// …): pushes `message` while under [`MAX_UNKNOWN_TOKEN_ERRORS`], pushes
+    /// one summary sentinel exactly at the cap, and pushes nothing beyond
+    /// it. Callers must only call this when `self.peek()` is
+    /// `Token::Unknown(_)` -- any other unexpected-but-recognized token
+    /// should be pushed directly, uncapped, since that class of error can't
+    /// blow up into an unbounded run the way a wall of unrecognized bytes
+    /// can.
+    pub(crate) fn push_capped_unknown_token_error(
+        &mut self,
+        span: Span,
+        class: ParseErrorClass,
+        expected: Vec<String>,
+        message: String,
+    ) {
+        if self.unknown_token_error_count < MAX_UNKNOWN_TOKEN_ERRORS {
+            self.errors.push(ParseError::classified(
+                span,
+                message,
+                expected,
+                Some(self.peek().to_string()),
+                class,
+            ));
+            self.unknown_token_error_count += 1;
+        } else if self.unknown_token_error_count == MAX_UNKNOWN_TOKEN_ERRORS {
+            self.errors.push(ParseError::classified(
+                span,
+                format!(
+                    "…and more unrecognized tokens follow (stopped reporting \
+                     after {MAX_UNKNOWN_TOKEN_ERRORS})"
+                ),
+                vec![],
+                None,
+                class,
+            ));
+            self.unknown_token_error_count += 1; // never re-enter this branch
+        }
+        // Beyond the cap: silently drop further per-token diagnostics.
     }
 }
 

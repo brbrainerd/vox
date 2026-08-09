@@ -40,7 +40,10 @@ impl Parser {
             Token::Let => self.parse_let_stmt(),
             Token::Return => {
                 self.advance();
-                let value = if matches!(self.peek(), Token::Newline | Token::RBrace | Token::Eof) {
+                let value = if matches!(
+                    self.peek(),
+                    Token::Newline | Token::RBrace | Token::Eof | Token::Unknown(';')
+                ) {
                     None
                 } else {
                     Some(self.parse_expr()?)

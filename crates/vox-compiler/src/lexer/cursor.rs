@@ -22,13 +22,18 @@ pub fn lex_preserving(source: &str) -> Vec<Spanned> {
         .spanned()
         .filter_map(|(result, span)| match result {
             Ok(token) => Some(Spanned { token, span }),
-            Err(_) => None, // Logos-internal lex failure only — every single
-                            // character that isn't part of a longer token now matches the
+            Err(_) => None, // Logos-internal lex failure. Any single character
+                            // that isn't part of a longer token now matches the
                             // Token::Unknown(char) catch-all (added for the tolerant-reader
                             // policy, see docs/superpowers/specs/2026-08-08-vox-core-syntax-
-                            // convergence-design.md S2) and reaches this iterator as Ok(_).
-                            // This arm is defensive, not the "skip unrecognized characters"
-                            // behavior it used to describe.
+                            // convergence-design.md S2) and reaches this iterator as Ok(_),
+                            // so this arm no longer covers "unrecognized single byte." It
+                            // is still reachable when a *multi-character* regex matches
+                            // (higher priority than the priority-0 catch-all) but its
+                            // callback returns None -- e.g. `[0-9]+` matching an integer
+                            // literal that overflows i64 in IntLit's callback. That case
+                            // silently drops the whole matched slice, same as before this
+                            // diff; fixing it is out of scope here.
         })
         .collect();
 

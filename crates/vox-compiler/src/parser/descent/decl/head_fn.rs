@@ -9,8 +9,29 @@ use crate::lexer::token::Token;
 impl Parser {
     /// Parse a function declaration that begins with the `fn` keyword (plain
     /// `fn`/`pub fn`/`async fn` and every `@decorator fn` head). The `fn` token is
-    /// mandatory here.
+    /// mandatory here, UNLESS a kind keyword (`query`/`mutation`/`server`) turns up
+    /// among the decorators, in which case it becomes optional (see
+    /// `parse_fn_decl_inner`) -- but any endpoint kind discovered that way is
+    /// silently dropped by this wrapper. Callers that need to know whether an
+    /// endpoint kind was found (to wrap as `Decl::Endpoint` instead of
+    /// `Decl::Function`) must use [`Parser::parse_fn_decl_detect_kind`] instead.
     pub(crate) fn parse_fn_decl(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
+        self.parse_fn_decl_inner(is_pub, false).map(|(f, _)| f)
+    }
+
+    /// Like [`Parser::parse_fn_decl`], but also reports an `EndpointKind` if a bare
+    /// `query`/`mutation`/`server` keyword turned up composed with a leading
+    /// decorator list (e.g. `@auth(scheme: bearer)\nquery list_todos() { … }`) --
+    /// AGENTS.md's Grammar Unification section documents decorators composing
+    /// with bare-keyword declarations; this is what makes that composition
+    /// actually parse for `query`/`mutation`/`server` specifically. Used at the
+    /// generic "any decl starting with `fn` or a decorator" dispatch sites in
+    /// `descent/mod.rs`, which need to choose between `Decl::Function` and
+    /// `Decl::Endpoint` based on what was found.
+    pub(crate) fn parse_fn_decl_detect_kind(
+        &mut self,
+        is_pub: bool,
+    ) -> Result<(FnDecl, Option<crate::ast::decl::EndpointKind>), ()> {
         self.parse_fn_decl_inner(is_pub, false)
     }
 
@@ -19,12 +40,18 @@ impl Parser {
     /// optional here — see `parse_fn_decl_inner`. Do NOT use for plain functions: a
     /// missing `fn` must stay an error for those (it gates malformed `@pure foo()`).
     pub(crate) fn parse_fn_decl_headless(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
-        self.parse_fn_decl_inner(is_pub, true)
+        self.parse_fn_decl_inner(is_pub, true).map(|(f, _)| f)
     }
 
-    fn parse_fn_decl_inner(&mut self, is_pub: bool, fn_optional: bool) -> Result<FnDecl, ()> {
+    fn parse_fn_decl_inner(
+        &mut self,
+        is_pub: bool,
+        fn_optional: bool,
+    ) -> Result<(FnDecl, Option<crate::ast::decl::EndpointKind>), ()> {
         let start = self.span();
         let mut is_pub = is_pub;
+        let mut fn_optional = fn_optional;
+        let mut detected_kind: Option<crate::ast::decl::EndpointKind> = None;
         let mut is_auth_exempt = false; // set ONLY by @public decorator, not by `pub fn`
         let mut is_offline_capable = false;
         let mut is_collaborative = false;
@@ -1105,6 +1132,30 @@ impl Parser {
                         self.skip_paren_args_inner();
                     }
                 }
+                // A bare `query`/`mutation`/`server` keyword composed with a
+                // leading decorator list (`@auth(...)\nquery name(...) { … }`):
+                // recognized here, not just when the kind keyword leads (that
+                // case is handled earlier, by `parse_endpoint_kw` calling
+                // `parse_fn_decl_headless` with `fn_optional` already true).
+                // Only fires once; a second occurrence falls through to `_ =>
+                // break` and is reported as a normal "expected fn" error same
+                // as any other malformed head.
+                Token::Ident(ref name) if detected_kind.is_none() => {
+                    let kind = match name.as_str() {
+                        "query" => Some(crate::ast::decl::EndpointKind::Query),
+                        "mutation" => Some(crate::ast::decl::EndpointKind::Mutation),
+                        "server" => Some(crate::ast::decl::EndpointKind::Server),
+                        _ => None,
+                    };
+                    match kind {
+                        Some(k) => {
+                            self.advance();
+                            detected_kind = Some(k);
+                            fn_optional = true;
+                        }
+                        None => break,
+                    }
+                }
                 _ => break,
             }
         }
@@ -1155,7 +1206,7 @@ impl Parser {
             self.expect(&Token::LBrace)?;
             self.parse_block()?
         };
-        Ok(FnDecl {
+        let decl = FnDecl {
             name,
             generics,
             params,
@@ -1225,6 +1276,80 @@ impl Parser {
             is_offline_capable,
             is_collaborative,
             span: start.merge(self.span()),
-        })
+        };
+        Ok((decl, detected_kind))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ast::decl::{Decl, EndpointKind};
+    use crate::lexer::lex;
+
+    /// AGENTS.md's Grammar Unification section documents decorators composing
+    /// with bare-keyword declarations (`@auth(scheme: bearer) table Task { … }`).
+    /// This is the `query`/`mutation`/`server` half of that promise: a leading
+    /// decorator followed by a bare kind keyword must parse as `Decl::Endpoint`
+    /// with the right kind, not fail with "expected fn" or silently become a
+    /// plain `Decl::Function`.
+    #[test]
+    fn auth_decorator_composes_with_bare_query() {
+        let src = "@auth(scheme: bearer)\nquery list_todos() to str {\n    return \"ok\"\n}\n";
+        let module = crate::parser::parse(lex(src)).expect("must parse");
+        assert_eq!(module.declarations.len(), 1);
+        match &module.declarations[0] {
+            Decl::Endpoint(e) => {
+                assert_eq!(e.kind, EndpointKind::Query);
+                assert_eq!(e.func.name, "list_todos");
+                assert_eq!(e.func.auth_provider.as_deref(), Some(""));
+            }
+            other => panic!("expected Decl::Endpoint, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn auth_decorator_composes_with_bare_mutation() {
+        let src =
+            "@auth(scheme: bearer)\nmutation create_todo(title: str) to str {\n    return \"ok\"\n}\n";
+        let module = crate::parser::parse(lex(src)).expect("must parse");
+        match &module.declarations[0] {
+            Decl::Endpoint(e) => assert_eq!(e.kind, EndpointKind::Mutation),
+            other => panic!("expected Decl::Endpoint, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn auth_decorator_composes_with_bare_server() {
+        let src =
+            "@auth(scheme: bearer)\nserver stream_room(room_id: str) to str {\n    return \"ok\"\n}\n";
+        let module = crate::parser::parse(lex(src)).expect("must parse");
+        match &module.declarations[0] {
+            Decl::Endpoint(e) => assert_eq!(e.kind, EndpointKind::Server),
+            other => panic!("expected Decl::Endpoint, got {other:?}"),
+        }
+    }
+
+    /// Regression guard: the pre-existing kind-keyword-first path (no leading
+    /// decorator) must still work exactly as before.
+    #[test]
+    fn bare_query_without_decorator_still_works() {
+        let src = "query health() to str {\n    return \"ok\"\n}\n";
+        let module = crate::parser::parse(lex(src)).expect("must parse");
+        match &module.declarations[0] {
+            Decl::Endpoint(e) => assert_eq!(e.kind, EndpointKind::Query),
+            other => panic!("expected Decl::Endpoint, got {other:?}"),
+        }
+    }
+
+    /// Regression guard: a decorator with no kind keyword following it must
+    /// still produce a plain `Decl::Function`, not an `Decl::Endpoint`.
+    #[test]
+    fn auth_decorator_without_kind_keyword_stays_plain_function() {
+        let src = "@auth(scheme: bearer)\nfn plain_handler() to str {\n    return \"ok\"\n}\n";
+        let module = crate::parser::parse(lex(src)).expect("must parse");
+        match &module.declarations[0] {
+            Decl::Function(f) => assert_eq!(f.name, "plain_handler"),
+            other => panic!("expected Decl::Function, got {other:?}"),
+        }
     }
 }

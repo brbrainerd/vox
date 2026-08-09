@@ -2,8 +2,8 @@
 //
 // Demonstrates:
 //   @auth(scheme: bearer)  — per-request auth gate declared on endpoint functions
-//   @query / @mutation     — typed HTTP endpoint functions
-//   @table                 — schema declaration (User + Todo with FK)
+//   query / mutation       — typed HTTP endpoint functions (bare-keyword form)
+//   table                  — schema declaration (User + Todo with FK, bare-keyword form)
 //   @test                  — unit tests covering business-logic helpers and auth gates
 //
 // References: contracts/marquee/manifest.v1.yaml (marquee-todo-auth)
@@ -32,9 +32,8 @@ table Todo {
 
 // Return all todos accessible to the authenticated user.
 // Ownership filtering is applied by the HTTP middleware auth context.
-@query
 @auth(scheme: bearer)
-fn list_todos() to list[Todo] {
+query list_todos() to list[Todo] {
     // db.Todo.all() returns Result[List[Todo]]; unwrapped by the endpoint runtime.
     // Placeholder until the deploy-time persistence layer is wired.
     return []
@@ -44,9 +43,8 @@ fn list_todos() to list[Todo] {
 
 // Create a new todo. Validates the title before writing to the database.
 // Returns "todo.created" on success or an Error on validation failure.
-@mutation
 @auth(scheme: bearer)
-fn create_todo(title: str) to Result[str] {
+mutation create_todo(title: str) to Result[str] {
     if len(title) is 0 {
         return Error("title must not be empty")
     }
@@ -58,9 +56,8 @@ fn create_todo(title: str) to Result[str] {
 }
 
 // Mark a todo as completed by ID.
-@mutation
 @auth(scheme: bearer)
-fn complete_todo(id: int) to Result[str] {
+mutation complete_todo(id: int) to Result[str] {
     if id <= 0 {
         return Error("invalid id")
     }
@@ -68,9 +65,8 @@ fn complete_todo(id: int) to Result[str] {
 }
 
 // Delete a todo permanently by ID.
-@mutation
 @auth(scheme: bearer)
-fn delete_todo(id: int) to Result[str] {
+mutation delete_todo(id: int) to Result[str] {
     if id <= 0 {
         return Error("invalid id")
     }

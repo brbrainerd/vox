@@ -380,13 +380,22 @@ impl Parser {
                 }
             }
             _ => {
-                self.errors.push(ParseError::classified(
-                    start,
-                    format!("Unexpected token in expression: {}", self.peek()),
-                    vec![],
-                    Some(self.peek().to_string()),
-                    ParseErrorClass::Expression,
-                ));
+                if matches!(self.peek(), Token::Unknown(_)) {
+                    self.push_capped_unknown_token_error(
+                        start,
+                        ParseErrorClass::Expression,
+                        vec![],
+                        format!("Unexpected token in expression: {}", self.peek()),
+                    );
+                } else {
+                    self.errors.push(ParseError::classified(
+                        start,
+                        format!("Unexpected token in expression: {}", self.peek()),
+                        vec![],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::Expression,
+                    ));
+                }
                 return Err(());
             }
         };
