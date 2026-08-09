@@ -1,7 +1,7 @@
 ---
 title: "Vox Language & Syntax Audit (2026-08-08)"
 description: "Empirical audit of the Vox grammar, the 743-file .vox corpus, description-surface drift, and frontend emission quality — evidence base for the core-syntax convergence spec."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 ---
 
