@@ -639,7 +639,7 @@ jobs:
           echo "No ghost retired-surface references in normative docs."
 
       - name: Web TS codegen — forbidden legacy RPC shims in sources
-        if: needs.setup.outputs.docs_changed == 'true' || needs.setup.outputs.affects_compiler == 'true'
+        if: needs.setup.outputs.docs_changed == 'true' || needs.setup.outputs.affects_compiler == 'true' || needs.setup.outputs.affects_web == 'true'
         shell: bash
         run: |
           set -euo pipefail

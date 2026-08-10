@@ -69,7 +69,8 @@ fn all_golden_fixtures_emit_valid_typescript() {
         "node_modules missing in ts-noemit-scratch/. Run: pnpm install --frozen-lockfile (from that directory)"
     );
 
-    let vox_files = collect_vox_files(&golden_dir);
+    let vox_files = collect_vox_files(&golden_dir)
+        .unwrap_or_else(|e| panic!("read_dir {}: {e}", golden_dir.display()));
     assert!(
         !vox_files.is_empty(),
         "No .vox files found in examples/golden-ts/"

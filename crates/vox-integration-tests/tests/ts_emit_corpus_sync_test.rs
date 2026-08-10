@@ -25,7 +25,9 @@ fn promoted_fixtures_match_their_golden_source() {
 
     let mut drifted = Vec::new();
 
-    for ts_path in collect_vox_files(&golden_ts_dir) {
+    let ts_files = collect_vox_files(&golden_ts_dir)
+        .unwrap_or_else(|e| panic!("read_dir {}: {e}", golden_ts_dir.display()));
+    for ts_path in ts_files {
         let name = ts_path.file_name().unwrap();
         let source_path = golden_dir.join(name);
         if !source_path.exists() {

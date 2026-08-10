@@ -7,7 +7,6 @@
 //! Run: cargo nextest run -p vox-integration-tests --test ts_emit_corpus_triage_test --run-ignored ignored-only --no-capture
 
 #![allow(missing_docs)]
-#![allow(unsafe_code)]
 
 use std::path::PathBuf;
 
@@ -16,7 +15,7 @@ use vox_codegen::codegen_ts::{CodegenOptions, generate_with_options};
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
-use vox_integration_tests::collect_vox_files;
+use vox_integration_tests::{EnvVarGuard, collect_vox_files};
 
 fn golden_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden")
@@ -33,9 +32,10 @@ fn try_emit(src: &str) -> Result<usize, String> {
         mode: BuildMode::App,
         ..Default::default()
     };
-    unsafe { std::env::set_var("VOX_WEBIR_VALIDATE", "0") };
-    let result = generate_with_options(&hir, opts);
-    unsafe { std::env::remove_var("VOX_WEBIR_VALIDATE") };
+    let result = {
+        let _guard = EnvVarGuard::set(&[("VOX_WEBIR_VALIDATE", "0")]);
+        generate_with_options(&hir, opts)
+    };
 
     let output = result.map_err(|e| format!("codegen: {e}"))?;
     let ts_count = output
@@ -52,7 +52,9 @@ fn try_emit(src: &str) -> Result<usize, String> {
 #[test]
 #[ignore = "reporting-only triage; run with --run-ignored ignored-only — owner: integration-tests sunset: 2026-12-31"]
 fn report_golden_fixtures_that_emit_typescript() {
-    let files = collect_vox_files(&golden_dir());
+    let dir = golden_dir();
+    let files =
+        collect_vox_files(&dir).unwrap_or_else(|e| panic!("read_dir {}: {e}", dir.display()));
     assert!(!files.is_empty(), "No .vox files found in examples/golden/");
 
     let mut emitting = Vec::new();
@@ -95,5 +97,8 @@ fn report_golden_fixtures_that_emit_typescript() {
     for (label, reason) in &skipped {
         println!("  {label}: {reason}");
     }
-    println!("\nPromote with: cp examples/golden/<name>.vox examples/golden-ts/<name>.vox\n");
+    println!(
+        "\nPromote with (bash):       cp examples/golden/<name>.vox examples/golden-ts/<name>.vox\
+         \nPromote with (PowerShell): Copy-Item examples/golden/<name>.vox examples/golden-ts/<name>.vox -Force\n"
+    );
 }

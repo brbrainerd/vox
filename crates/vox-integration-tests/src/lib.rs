@@ -44,18 +44,21 @@ pub fn ts_scratch_dir() -> PathBuf {
 }
 
 /// Collect all `.vox` files directly under `dir` (non-recursive), sorted for determinism.
-pub fn collect_vox_files(dir: &Path) -> Vec<PathBuf> {
+///
+/// Propagates `read_dir`/entry errors rather than swallowing them into an empty `Vec` —
+/// a caller silently seeing "zero fixtures" for an unreadable directory looks identical
+/// to "the corpus is genuinely empty," which would let a corpus-comparison test complete
+/// having compared nothing.
+pub fn collect_vox_files(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
     let mut files = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let p = entry.path();
-            if p.extension().is_some_and(|e| e == "vox") {
-                files.push(p);
-            }
+    for entry in std::fs::read_dir(dir)? {
+        let p = entry?.path();
+        if p.extension().is_some_and(|e| e == "vox") {
+            files.push(p);
         }
     }
     files.sort();
-    files
+    Ok(files)
 }
 
 /// The canonical strict `tsconfig.json` (`compilerOptions` + `include`) shared by every
@@ -166,5 +169,99 @@ mod tests {
     fn strip_unc_prefix_no_prefix_unchanged() {
         let p = strip_unc_prefix(PathBuf::from(r"C:\Users\Owner\vox"));
         assert_eq!(p, PathBuf::from(r"C:\Users\Owner\vox"));
+    }
+
+    #[test]
+    fn ts_scratch_dir_exists_and_has_node_modules_parent() {
+        // Doesn't assert on node_modules/ specifically (a fresh checkout may not have
+        // run `pnpm install` yet) — just that the scratch dir itself resolves to a real,
+        // absolute, non-UNC-prefixed directory under this crate.
+        let dir = ts_scratch_dir();
+        assert!(dir.is_dir(), "{} is not a directory", dir.display());
+        assert!(dir.ends_with("ts-noemit-scratch"));
+        assert!(!dir.to_string_lossy().starts_with(r"\\?\"));
+    }
+
+    #[test]
+    fn collect_vox_files_filters_and_sorts() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        for name in ["b.vox", "a.vox", "not-vox.txt", "c.VOX"] {
+            std::fs::write(tmp.path().join(name), "").expect("write fixture");
+        }
+        let files = collect_vox_files(tmp.path()).expect("read_dir must succeed");
+        let names: Vec<_> = files
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
+            .collect();
+        // Only lowercase `.vox` extension matches (case-sensitive, matching every
+        // existing fixture's naming); sorted for deterministic emit ordering.
+        assert_eq!(names, vec!["a.vox".to_string(), "b.vox".to_string()]);
+    }
+
+    #[test]
+    fn collect_vox_files_propagates_missing_dir_error() {
+        let missing = std::env::temp_dir().join("vox-integration-tests-definitely-missing-dir");
+        let result = collect_vox_files(&missing);
+        assert!(
+            result.is_err(),
+            "expected an io::Result::Err for a nonexistent directory, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn strict_tsconfig_json_has_expected_shape() {
+        let cfg = strict_tsconfig_json();
+        assert_eq!(cfg["compilerOptions"]["strict"], serde_json::json!(true));
+        assert_eq!(
+            cfg["compilerOptions"]["moduleResolution"],
+            serde_json::json!("bundler")
+        );
+        assert_eq!(
+            cfg["compilerOptions"]["jsx"],
+            serde_json::json!("react-jsx")
+        );
+        assert!(cfg["include"].as_array().is_some_and(|a| !a.is_empty()));
+    }
+
+    #[test]
+    #[should_panic(expected = "TypeScript CLI missing")]
+    fn run_tsc_noemit_panics_when_tsc_missing() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        // Empty scratch dir — no node_modules/typescript/bin/tsc — must panic with a
+        // clear, actionable message rather than a confusing spawn failure.
+        run_tsc_noemit(tmp.path(), &tmp.path().join("tsconfig.json"));
+    }
+
+    #[test]
+    fn env_var_guard_restores_prior_value() {
+        // SAFETY: test-only setup for a var this guard will immediately manage.
+        unsafe { std::env::set_var("VOX_ENV_VAR_GUARD_TEST_PRIOR", "before") };
+        {
+            let _guard = EnvVarGuard::set(&[("VOX_ENV_VAR_GUARD_TEST_PRIOR", "during")]);
+            assert_eq!(
+                std::env::var("VOX_ENV_VAR_GUARD_TEST_PRIOR").as_deref(),
+                Ok("during")
+            );
+        }
+        assert_eq!(
+            std::env::var("VOX_ENV_VAR_GUARD_TEST_PRIOR").as_deref(),
+            Ok("before")
+        );
+        // SAFETY: test-only cleanup.
+        unsafe { std::env::remove_var("VOX_ENV_VAR_GUARD_TEST_PRIOR") };
+    }
+
+    #[test]
+    fn env_var_guard_removes_var_that_was_previously_unset() {
+        // SAFETY: test-only, ensures a clean starting state regardless of test order.
+        unsafe { std::env::remove_var("VOX_ENV_VAR_GUARD_TEST_UNSET") };
+        {
+            let _guard = EnvVarGuard::set(&[("VOX_ENV_VAR_GUARD_TEST_UNSET", "during")]);
+            assert!(std::env::var("VOX_ENV_VAR_GUARD_TEST_UNSET").is_ok());
+        }
+        assert!(
+            std::env::var("VOX_ENV_VAR_GUARD_TEST_UNSET").is_err(),
+            "guard must remove a var that had no prior value, not leave it set"
+        );
     }
 }
