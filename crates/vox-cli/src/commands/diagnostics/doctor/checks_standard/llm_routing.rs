@@ -132,6 +132,10 @@ mod budget_status_tests {
     use super::*;
 
     #[tokio::test]
+    // VOX_DB_PATH_LOCK is a test-only serialization mutex (guards a process-global env
+    // var, not real async state); each #[tokio::test] runs its own single-threaded
+    // runtime, so holding it across .await here can't deadlock or contend with itself.
+    #[allow(clippy::await_holding_lock)]
     async fn reports_budget_caps_in_detail_string() {
         // `run()` unconditionally calls `recent_rate_limit_check()`, which reads
         // `VOX_DB_PATH` via `DbConfig::resolve_canonical()` — the same process-global
@@ -298,20 +302,21 @@ mod recent_rate_limit_check_tests {
 
     /// Points `VOX_DB_PATH` at a fresh temp file and returns a guard that restores the
     /// previous value on drop. Must be called while holding `VOX_DB_PATH_LOCK`.
+    #[allow(unsafe_code)] // SAFETY: guarded by VOX_DB_PATH_LOCK; no other test touches
+    // this var without holding the same lock.
     pub(super) fn redirect_to_temp_db() -> (tempfile::TempDir, Option<String>) {
         let dir = tempfile::tempdir().expect("tempdir");
         let db_path = dir.path().join("doctor-rate-limit-test.db");
         let previous = std::env::var("VOX_DB_PATH").ok();
-        // SAFETY: guarded by VOX_DB_PATH_LOCK; no other test touches this var without
-        // holding the same lock.
         unsafe {
             std::env::set_var("VOX_DB_PATH", db_path.to_str().expect("utf8 path"));
         }
         (dir, previous)
     }
 
+    #[allow(unsafe_code)] // SAFETY: guarded by VOX_DB_PATH_LOCK (caller holds it for
+    // the whole test).
     pub(super) fn restore_env(previous: Option<String>) {
-        // SAFETY: guarded by VOX_DB_PATH_LOCK (caller holds it for the whole test).
         unsafe {
             match previous {
                 Some(v) => std::env::set_var("VOX_DB_PATH", v),
@@ -321,6 +326,9 @@ mod recent_rate_limit_check_tests {
     }
 
     #[tokio::test]
+    // See reports_budget_caps_in_detail_string above: VOX_DB_PATH_LOCK is a test-only
+    // serialization mutex, held across .await deliberately, no real concurrency risk.
+    #[allow(clippy::await_holding_lock)]
     async fn no_recorded_attempts_yields_no_rate_limit_check() {
         let _guard = VOX_DB_PATH_LOCK.lock().unwrap();
         let (_dir, previous) = redirect_to_temp_db();
@@ -341,6 +349,9 @@ mod recent_rate_limit_check_tests {
     }
 
     #[tokio::test]
+    // See reports_budget_caps_in_detail_string above: VOX_DB_PATH_LOCK is a test-only
+    // serialization mutex, held across .await deliberately, no real concurrency risk.
+    #[allow(clippy::await_holding_lock)]
     async fn recent_rate_limited_attempt_surfaces_distinct_check_via_run() {
         let _guard = VOX_DB_PATH_LOCK.lock().unwrap();
         let (_dir, previous) = redirect_to_temp_db();
@@ -378,6 +389,9 @@ mod recent_rate_limit_check_tests {
     }
 
     #[tokio::test]
+    // See reports_budget_caps_in_detail_string above: VOX_DB_PATH_LOCK is a test-only
+    // serialization mutex, held across .await deliberately, no real concurrency risk.
+    #[allow(clippy::await_holding_lock)]
     async fn stale_rate_limited_attempt_does_not_surface_check() {
         let _guard = VOX_DB_PATH_LOCK.lock().unwrap();
         let (_dir, previous) = redirect_to_temp_db();
