@@ -228,37 +228,26 @@ fn all_golden_fixtures_emit_valid_typescript() {
 /// `tsc --noEmit --project <tsconfig>` from `scratch`. Shared by the gated-admin
 /// test below; mirrors the inline invocation in the golden-fixture test.
 fn run_tsc_noemit(scratch: &Path, tsconfig_path: &Path) -> std::process::Output {
-    let tsc_bin = {
-        let local_tsc_cmd = scratch.join("node_modules").join(".bin").join("tsc.cmd");
-        let local_tsc = scratch.join("node_modules").join(".bin").join("tsc");
-        if cfg!(target_os = "windows") && local_tsc_cmd.exists() {
-            local_tsc_cmd
-        } else if local_tsc.exists() {
-            local_tsc
-        } else {
-            PathBuf::from("npx")
-        }
-    };
-    if cfg!(target_os = "windows") && tsc_bin.extension().is_some_and(|e| e == "cmd") {
-        // vox-arch-check: allow shell-spawn
-        Command::new("cmd")
-            .arg("/C")
-            .arg(&tsc_bin)
-            .arg("--noEmit")
-            .arg("--project")
-            .arg(tsconfig_path)
-            .current_dir(scratch)
-            .output()
-            .expect("Failed to spawn tsc.cmd — is node/pnpm installed in ts-noemit-scratch/?")
-    } else {
-        Command::new(&tsc_bin)
-            .arg("--noEmit")
-            .arg("--project")
-            .arg(tsconfig_path)
-            .current_dir(scratch)
-            .output()
-            .expect("Failed to spawn tsc — is node/pnpm installed in ts-noemit-scratch/?")
-    }
+    // Same node-direct approach as the golden-fixture test above: node_modules/.bin
+    // shims rely on PATH resolution that fails under nextest on Windows.
+    let tsc_js = scratch
+        .join("node_modules")
+        .join("typescript")
+        .join("bin")
+        .join("tsc");
+    assert!(
+        tsc_js.exists(),
+        "TypeScript CLI missing at {}. Run: pnpm install --frozen-lockfile (from ts-noemit-scratch/)",
+        tsc_js.display()
+    );
+    Command::new("node")
+        .arg(&tsc_js)
+        .arg("--noEmit")
+        .arg("--project")
+        .arg(tsconfig_path)
+        .current_dir(scratch)
+        .output()
+        .expect("Failed to spawn `node` — is Node.js installed and on PATH?")
 }
 
 /// Strict tsconfig (matches the golden-fixture test) for an isolated emit dir.
