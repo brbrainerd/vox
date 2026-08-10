@@ -97,7 +97,10 @@ fn report_golden_fixtures_that_emit_typescript() {
         }
     }
 
-    println!("\n=== PROMOTABLE ({} fixtures emit TypeScript) ===", emitting.len());
+    println!(
+        "\n=== PROMOTABLE ({} fixtures emit TypeScript) ===",
+        emitting.len()
+    );
     for (label, n) in &emitting {
         println!("  {label}  ({n} ts/tsx files)");
     }
@@ -105,7 +108,5 @@ fn report_golden_fixtures_that_emit_typescript() {
     for (label, reason) in &skipped {
         println!("  {label}: {reason}");
     }
-    println!(
-        "\nPromote with: cp examples/golden/<name>.vox examples/golden-ts/<name>.vox\n"
-    );
+    println!("\nPromote with: cp examples/golden/<name>.vox examples/golden-ts/<name>.vox\n");
 }

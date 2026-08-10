@@ -11,7 +11,9 @@
 use std::path::{Path, PathBuf};
 
 fn examples_dir(sub: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples").join(sub)
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../examples")
+        .join(sub)
 }
 
 fn collect_vox_files(dir: &Path) -> Vec<PathBuf> {
