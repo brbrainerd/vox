@@ -80,15 +80,22 @@ jobs:
           tool: cargo-nextest,cargo-deny,cargo-audit
 
       - name: Check formatting
-        # Per-manifest, NOT `cargo fmt --all` (overflows the Windows
-        # command-line limit — os error 206 — on this large workspace). Same
-        # check on every OS. Local writer: `vox run scripts/fmt.vox`.
+        # This job runs on ubuntu-latest only (never Windows), so the per-manifest
+        # workaround `scripts/fmt.vox` uses to dodge the Windows command-line-length
+        # limit (os error 206) doesn't apply here and isn't needed — plain
+        # `cargo fmt --all -- --check` is the standard, correct invocation on Linux.
+        # The per-manifest loop this replaced also broke outright: it globbed
+        # `crates/*/Cargo.toml` on the filesystem, which isn't workspace-exclude-aware
+        # and picks up crates/vox-cargo-shim — deliberately excluded from
+        # `[workspace]` in the root Cargo.toml (it builds a bin literally named
+        # `cargo` for PATH interception, so it can't be entangled in the main
+        # workspace's own cargo resolution). `cargo fmt --manifest-path` on an
+        # excluded crate fails with "failed to find a workspace root" since it has
+        # no enclosing workspace to inherit edition/version from. `--all` operates
+        # on cargo's real, exclude-aware member set and doesn't hit this.
+        # Local writer: `vox run scripts/fmt.vox`.
         run: |
-          fail=0
-          for m in crates/*/Cargo.toml; do
-            cargo fmt --manifest-path "$m" -- --check || fail=1
-          done
-          if [ "$fail" != 0 ]; then
+          if ! cargo fmt --all -- --check; then
             echo "::error::rustfmt found unformatted files — run 'vox run scripts/fmt.vox' to fix"
             exit 1
           fi
