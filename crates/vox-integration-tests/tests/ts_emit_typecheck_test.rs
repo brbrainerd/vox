@@ -176,42 +176,29 @@ fn all_golden_fixtures_emit_valid_typescript() {
     )
     .expect("Failed to write vox-runtime-shim.d.ts");
 
-    // Resolve tsc: prefer the local node_modules/.bin/tsc (avoids PATH resolution issues
-    // on Windows), falling back to npx tsc if the local binary isn't present.
-    let tsc_bin = {
-        let local_tsc_cmd = scratch.join("node_modules").join(".bin").join("tsc.cmd");
-        let local_tsc = scratch.join("node_modules").join(".bin").join("tsc");
-        if cfg!(target_os = "windows") && local_tsc_cmd.exists() {
-            local_tsc_cmd
-        } else if local_tsc.exists() {
-            local_tsc
-        } else {
-            // fallback: hope tsc is in PATH
-            PathBuf::from("npx")
-        }
-    };
+    // Resolve tsc by invoking node directly on the TypeScript CLI entrypoint.
+    // The `node_modules/.bin/tsc(.cmd)` shims rely on PATH resolution that fails
+    // under nextest on Windows ('node' is not recognized); running
+    // `node node_modules/typescript/bin/tsc` is portable and shim-free.
+    let tsc_js = scratch
+        .join("node_modules")
+        .join("typescript")
+        .join("bin")
+        .join("tsc");
+    assert!(
+        tsc_js.exists(),
+        "TypeScript CLI missing at {}. Run: pnpm install --frozen-lockfile (from ts-noemit-scratch/)",
+        tsc_js.display()
+    );
 
-    // For Windows .cmd files we must invoke via cmd.exe.
-    let output = if cfg!(target_os = "windows") && tsc_bin.extension().is_some_and(|e| e == "cmd") {
-        // vox-arch-check: allow shell-spawn
-        Command::new("cmd")
-            .arg("/C")
-            .arg(&tsc_bin)
-            .arg("--noEmit")
-            .arg("--project")
-            .arg(&tsconfig_path)
-            .current_dir(&scratch)
-            .output()
-            .expect("Failed to spawn tsc.cmd — is node/pnpm installed in ts-noemit-scratch/?")
-    } else {
-        Command::new(&tsc_bin)
-            .arg("--noEmit")
-            .arg("--project")
-            .arg(&tsconfig_path)
-            .current_dir(&scratch)
-            .output()
-            .expect("Failed to spawn tsc — is node/pnpm installed in ts-noemit-scratch/?")
-    };
+    let output = Command::new("node")
+        .arg(&tsc_js)
+        .arg("--noEmit")
+        .arg("--project")
+        .arg(&tsconfig_path)
+        .current_dir(&scratch)
+        .output()
+        .expect("Failed to spawn `node` — is Node.js installed and on PATH?");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
