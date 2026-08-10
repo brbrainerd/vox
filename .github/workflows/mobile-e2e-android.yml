@@ -10,6 +10,7 @@ on:
       - 'apps/vox-mental-tracker/**'
       - 'crates/vox-cli/**'
       - 'crates/vox-codegen/**'
+      - 'crates/vox-codegen-ts/**'
       - 'crates/vox-tauri-codegen/**'
       - '.github/workflows/mobile-e2e-android.yml'
 

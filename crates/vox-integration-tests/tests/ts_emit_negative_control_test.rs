@@ -13,27 +13,7 @@
 
 #![allow(missing_docs)]
 
-use std::path::PathBuf;
-use std::process::Command;
-
-/// Strip the Windows `\\?\` UNC prefix that `canonicalize()` adds on Windows.
-fn strip_unc_prefix(p: PathBuf) -> PathBuf {
-    let s = p.to_string_lossy();
-    if let Some(stripped) = s.strip_prefix(r"\\?\") {
-        PathBuf::from(stripped)
-    } else {
-        p
-    }
-}
-
-fn scratch_dir() -> PathBuf {
-    strip_unc_prefix(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("ts-noemit-scratch")
-            .canonicalize()
-            .expect("ts-noemit-scratch directory must exist"),
-    )
-}
+use vox_integration_tests::{run_tsc_noemit, strict_tsconfig_json, ts_scratch_dir};
 
 /// One negative-control case: a filename, the invalid TS source, and the
 /// `tsc` diagnostic code it must produce.
@@ -88,18 +68,7 @@ export function negativeControlImport() {
 #[test]
 #[ignore = "requires node in PATH; run with --run-ignored ignored-only — owner: integration-tests sunset: 2026-12-31"]
 fn tsc_gate_rejects_deliberately_bad_typescript() {
-    let scratch = scratch_dir();
-
-    let tsc_js = scratch
-        .join("node_modules")
-        .join("typescript")
-        .join("bin")
-        .join("tsc");
-    assert!(
-        tsc_js.exists(),
-        "TypeScript CLI missing at {}. Run: pnpm install --frozen-lockfile (from ts-noemit-scratch/)",
-        tsc_js.display()
-    );
+    let scratch = ts_scratch_dir();
 
     // Isolated dir so this never collides with the positive gate's __emit_test__.
     let neg_dir = scratch.join("__negative_control__");
@@ -114,36 +83,14 @@ fn tsc_gate_rejects_deliberately_bad_typescript() {
     }
 
     // Same compilerOptions as the positive gate — proving the SAME config rejects these.
-    let tsconfig_content = serde_json::json!({
-        "compilerOptions": {
-            "target": "ES2022",
-            "module": "ESNext",
-            "moduleResolution": "bundler",
-            "strict": true,
-            "noEmit": true,
-            "jsx": "react-jsx",
-            "skipLibCheck": true,
-            "esModuleInterop": true,
-            "isolatedModules": true,
-            "lib": ["ES2022", "DOM", "DOM.Iterable"]
-        },
-        "include": ["./**/*.ts", "./**/*.tsx"]
-    });
     let tsconfig_path = neg_dir.join("tsconfig.json");
     std::fs::write(
         &tsconfig_path,
-        serde_json::to_string_pretty(&tsconfig_content).unwrap(),
+        serde_json::to_string_pretty(&strict_tsconfig_json()).unwrap(),
     )
     .expect("Failed to write tsconfig.json");
 
-    let output = Command::new("node")
-        .arg(&tsc_js)
-        .arg("--noEmit")
-        .arg("--project")
-        .arg(&tsconfig_path)
-        .current_dir(&scratch)
-        .output()
-        .expect("Failed to spawn `node` — is Node.js installed and on PATH?");
+    let output = run_tsc_noemit(&scratch, &tsconfig_path);
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -157,11 +104,19 @@ fn tsc_gate_rejects_deliberately_bad_typescript() {
     );
 
     for case in CASES {
+        // Check filename and code co-occur on the SAME diagnostic line (tsc's format is
+        // `filename(line,col): error TSxxxx: message`), not just that both strings appear
+        // anywhere in the combined output. Two cases share TS2322 — a whole-output substring
+        // check could pass even if a case's diagnostic were misattributed or emitted the
+        // wrong code, as long as some OTHER case's line happened to carry the same code.
+        let matched = combined
+            .lines()
+            .any(|line| line.contains(case.filename) && line.contains(case.expected_code));
         assert!(
-            combined.contains(case.expected_code) && combined.contains(case.filename),
-            "Expected {} in {} — tsc output did not report this error class:\n{combined}",
-            case.expected_code,
-            case.filename
+            matched,
+            "Expected a diagnostic line containing both {} and {} — tsc output did not report \
+             this error class on this file's own line:\n{combined}",
+            case.expected_code, case.filename
         );
     }
 

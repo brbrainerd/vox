@@ -12,8 +12,8 @@ insta = { workspace = true }
 vox-test-harness = { path = "../vox-test-harness" }
 tokio = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+rayon = { workspace = true }
 jsonschema = { workspace = true, default-features = false, features = ["resolve-file"] }
 wiremock = { workspace = true }
 # Force deadpool's `rt_tokio_1` feature (see root Cargo.toml).
@@ -52,4 +52,6 @@ workspace = true
 pulldown-cmark = "0.13"
 walkdir.workspace = true
 workspace-hack = { workspace = true }
+# Needed by src/lib.rs (shared ts_emit_* test helpers: strict_tsconfig_json, run_tsc_noemit).
+serde_json = { workspace = true }
 

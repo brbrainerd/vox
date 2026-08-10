@@ -9,6 +9,7 @@ on:
     paths:
       - "crates/vox-cli/**"
       - "crates/vox-codegen/**"
+      - "crates/vox-codegen-ts/**"
       - "crates/vox-config/**"
       - "crates/vox-release-artifacts/**"
       - "crates/vox-tauri-codegen/**"

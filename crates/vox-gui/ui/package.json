@@ -8,7 +8,6 @@
     "tokens:build": "node style-dictionary.config.mjs",
     "bundle": "vite build",
     "build": "pnpm tokens:build && run-p typecheck bundle",
-    "build:serial": "pnpm tokens:build && tsc --noEmit && vite build",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "review:capture": "playwright test e2e/review/capture.spec.ts --project=chromium --project=firefox-review --workers=4",

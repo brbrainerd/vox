@@ -9,30 +9,17 @@
 #![allow(missing_docs)]
 #![allow(unsafe_code)]
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use vox_codegen::codegen_ts::emitter::BuildMode;
 use vox_codegen::codegen_ts::{CodegenOptions, generate_with_options};
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
+use vox_integration_tests::collect_vox_files;
 
 fn golden_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden")
-}
-
-fn collect_vox_files(dir: &Path) -> Vec<PathBuf> {
-    let mut files = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let p = entry.path();
-            if p.extension().is_some_and(|e| e == "vox") {
-                files.push(p);
-            }
-        }
-    }
-    files.sort();
-    files
 }
 
 /// Returns Ok(count_of_ts_files) if the fixture lowers to TS, Err(reason) otherwise.

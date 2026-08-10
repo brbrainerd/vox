@@ -16,6 +16,7 @@ on:
     paths:
       - 'apps/vox-mental-tracker/**'
       - 'crates/vox-codegen/**'
+      - 'crates/vox-codegen-ts/**'
       - 'crates/vox-runtime-rn/**'
       - 'clients/runtime-rn/**'
       - '.github/workflows/mobile-eas-build.yml'
@@ -23,6 +24,7 @@ on:
     paths:
       - 'apps/vox-mental-tracker/**'
       - 'crates/vox-codegen/**'
+      - 'crates/vox-codegen-ts/**'
       - 'crates/vox-runtime-rn/**'
       - 'clients/runtime-rn/**'
       - '.github/workflows/mobile-eas-build.yml'

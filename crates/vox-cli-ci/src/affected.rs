@@ -64,6 +64,7 @@ pub fn compute_path_flags(changed_files: &[String]) -> PathFlags {
         }
         if f.starts_with("crates/vox-integration-tests/")
             || f.starts_with("crates/vox-compiler/src/codegen_ts/")
+            || f.starts_with("crates/vox-codegen-ts/")
             || f.starts_with("examples/golden-ts/")
             || f.starts_with("apps/experimental/visualizer/")
         {
@@ -249,6 +250,15 @@ mod tests {
     fn golden_path_sets_flag() {
         let flags = compute_path_flags(&["examples/golden/foo.vox".into()]);
         assert!(flags.affects_golden);
+    }
+
+    #[test]
+    fn codegen_ts_crate_sets_affects_web() {
+        // crates/vox-codegen-ts/ is the TS emitter's real source (pulled into vox-codegen
+        // via #[path]); a change here must set affects_web, or web-vite-build-smoke and
+        // visualizer-ingest-smoke silently skip on emitter-only PRs.
+        let flags = compute_path_flags(&["crates/vox-codegen-ts/src/emitter.rs".into()]);
+        assert!(flags.affects_web);
     }
 
     #[test]

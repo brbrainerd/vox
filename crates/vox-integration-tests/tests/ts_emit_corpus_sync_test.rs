@@ -8,26 +8,14 @@
 
 #![allow(missing_docs)]
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+
+use vox_integration_tests::collect_vox_files;
 
 fn examples_dir(sub: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../examples")
         .join(sub)
-}
-
-fn collect_vox_files(dir: &Path) -> Vec<PathBuf> {
-    let mut files = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let p = entry.path();
-            if p.extension().is_some_and(|e| e == "vox") {
-                files.push(p);
-            }
-        }
-    }
-    files.sort();
-    files
 }
 
 #[test]
