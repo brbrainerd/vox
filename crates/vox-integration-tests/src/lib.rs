@@ -10,14 +10,22 @@
 //! independently, which is exactly the risk the negative-control test exists to catch.
 
 #![allow(missing_docs)]
+#![allow(unsafe_code)] // EnvVarGuard wraps set_var/remove_var, isolated behind a Mutex
 
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, MutexGuard};
 
 /// Strip the Windows `\\?\` UNC prefix that `canonicalize()` adds on Windows.
 /// `cmd.exe` and many CLI tools cannot handle the extended-length path prefix.
 pub fn strip_unc_prefix(p: PathBuf) -> PathBuf {
     let s = p.to_string_lossy();
-    if let Some(stripped) = s.strip_prefix(r"\\?\") {
+    // A verbatim UNC path (`\\?\UNC\server\share\...`) needs the `\\?\UNC\` prefix
+    // converted to `\\`, not stripped outright — stripping it bare would produce
+    // `UNC\server\share\...`, a relative path, not the `\\server\share\...` UNC
+    // path it actually names. Check this case before the plain `\\?\` case below.
+    if let Some(stripped) = s.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{stripped}"))
+    } else if let Some(stripped) = s.strip_prefix(r"\\?\") {
         PathBuf::from(stripped)
     } else {
         p
@@ -95,4 +103,68 @@ pub fn run_tsc_noemit(scratch: &Path, tsconfig_path: &Path) -> std::process::Out
         .current_dir(scratch)
         .output()
         .expect("Failed to spawn `node` — is Node.js installed and on PATH?")
+}
+
+/// Serializes process-global env-var mutations across the `ts_emit_*` tests that touch
+/// `VOX_WEBIR_VALIDATE` / `VOX_EMIT_ADMIN` / `VOX_ADMIN_REGISTRY`. `cargo nextest` (used by
+/// CI and this crate's documented `--run-ignored` invocations) isolates each test into its
+/// own process, so these vars never actually collide there — but this file's own doc
+/// comment also documents a plain `cargo test -p vox-integration-tests -- --ignored` entry
+/// point, which runs every test in the binary in one process across multiple threads by
+/// default. Under that path, two tests setting different values for the same var can race.
+static ENV_VAR_LOCK: Mutex<()> = Mutex::new(());
+
+/// RAII guard: holds [`ENV_VAR_LOCK`], sets each `(name, value)` pair, and restores each
+/// var to its prior value when dropped — including when dropped during a panic unwind
+/// (e.g. a panic inside a `rayon` batch running under this guard), so a failing test never
+/// leaves a mutated env var for the next test to observe.
+pub struct EnvVarGuard {
+    _lock: MutexGuard<'static, ()>,
+    prior: Vec<(String, Option<String>)>,
+}
+
+impl EnvVarGuard {
+    pub fn set(vars: &[(&str, &str)]) -> Self {
+        let lock = ENV_VAR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let mut prior = Vec::with_capacity(vars.len());
+        for (name, value) in vars {
+            prior.push(((*name).to_string(), std::env::var(name).ok()));
+            unsafe { std::env::set_var(name, value) };
+        }
+        Self { _lock: lock, prior }
+    }
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        for (name, value) in self.prior.drain(..) {
+            match value {
+                Some(v) => unsafe { std::env::set_var(&name, v) },
+                None => unsafe { std::env::remove_var(&name) },
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strip_unc_prefix_plain_verbatim() {
+        let p = strip_unc_prefix(PathBuf::from(r"\\?\C:\Users\Owner\vox"));
+        assert_eq!(p, PathBuf::from(r"C:\Users\Owner\vox"));
+    }
+
+    #[test]
+    fn strip_unc_prefix_verbatim_unc_share() {
+        let p = strip_unc_prefix(PathBuf::from(r"\\?\UNC\server\share\vox"));
+        assert_eq!(p, PathBuf::from(r"\\server\share\vox"));
+    }
+
+    #[test]
+    fn strip_unc_prefix_no_prefix_unchanged() {
+        let p = strip_unc_prefix(PathBuf::from(r"C:\Users\Owner\vox"));
+        assert_eq!(p, PathBuf::from(r"C:\Users\Owner\vox"));
+    }
 }

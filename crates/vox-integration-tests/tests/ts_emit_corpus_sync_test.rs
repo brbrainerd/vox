@@ -46,7 +46,8 @@ fn promoted_fixtures_match_their_golden_source() {
     assert!(
         drifted.is_empty(),
         "These examples/golden-ts/ fixtures have drifted from their examples/golden/ source:\n  {}\n\
-         Re-sync with: cp examples/golden/<name>.vox examples/golden-ts/<name>.vox",
+         Re-sync with (bash):       cp examples/golden/<name>.vox examples/golden-ts/<name>.vox\n\
+         Re-sync with (PowerShell): Copy-Item examples/golden/<name>.vox examples/golden-ts/<name>.vox -Force",
         drifted.join("\n  ")
     );
 }

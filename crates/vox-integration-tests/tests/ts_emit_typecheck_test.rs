@@ -8,7 +8,6 @@
 //! Run explicitly:
 //!   cargo test -p vox-integration-tests --test ts_emit_typecheck_test -- --ignored --nocapture
 #![allow(missing_docs)]
-#![allow(unsafe_code)] // set_var/remove_var used to isolate VOX_WEBIR_VALIDATE for this test
 
 use std::path::PathBuf;
 
@@ -18,7 +17,9 @@ use vox_codegen::codegen_ts::{CodegenOptions, generate_with_options};
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
-use vox_integration_tests::{collect_vox_files, run_tsc_noemit, strip_unc_prefix, ts_scratch_dir};
+use vox_integration_tests::{
+    EnvVarGuard, collect_vox_files, run_tsc_noemit, strip_unc_prefix, ts_scratch_dir,
+};
 
 /// Absolute path to the `examples/golden-ts/` directory of Vox fixtures.
 fn golden_ts_dir() -> PathBuf {
@@ -85,22 +86,24 @@ fn all_golden_fixtures_emit_valid_typescript() {
     // state, so toggling it inside the parallel loop below would race across threads.
     // Disables the WebIR validate gate for test isolation (same pattern as pipeline_test.rs)
     // — we care about whether the emitted TS type-checks, not the structural IR gate.
-    unsafe { std::env::set_var("VOX_WEBIR_VALIDATE", "0") };
+    // EnvVarGuard also serializes against admin_output_typechecks_when_gated (below), which
+    // mutates the same var, and restores it even if a fixture panics inside the batch.
+    let emitted: Vec<(String, Vec<(String, String)>)> = {
+        let _guard = EnvVarGuard::set(&[("VOX_WEBIR_VALIDATE", "0")]);
 
-    // Compile every fixture in parallel — each is an independent lex/parse/lower/codegen
-    // pass with no shared mutable state (the env var above is set once, read-only from here).
-    let emitted: Vec<(String, Vec<(String, String)>)> = vox_files
-        .par_iter()
-        .map(|vox_path| {
-            let label = vox_path.file_stem().unwrap().to_string_lossy().to_string();
-            let src = std::fs::read_to_string(vox_path)
-                .unwrap_or_else(|e| panic!("Could not read {}: {e}", vox_path.display()));
-            let ts_files = compile_to_ts(&src, &label);
-            (label, ts_files)
-        })
-        .collect();
-
-    unsafe { std::env::remove_var("VOX_WEBIR_VALIDATE") };
+        // Compile every fixture in parallel — each is an independent lex/parse/lower/codegen
+        // pass with no shared mutable state (the env var is set once, read-only from here).
+        vox_files
+            .par_iter()
+            .map(|vox_path| {
+                let label = vox_path.file_stem().unwrap().to_string_lossy().to_string();
+                let src = std::fs::read_to_string(vox_path)
+                    .unwrap_or_else(|e| panic!("Could not read {}: {e}", vox_path.display()));
+                let ts_files = compile_to_ts(&src, &label);
+                (label, ts_files)
+            })
+            .collect()
+    };
 
     // Write all emitted files, prefixed by fixture name to avoid collisions.
     for (label, ts_files) in &emitted {
@@ -225,27 +228,25 @@ fn admin_output_typechecks_when_gated() {
     let registry_path = emit_dir.join("admin-registry.yaml");
     std::fs::write(&registry_path, "admin_tables:\n  - User\n").expect("write registry");
 
-    // Enable the gate + point at our registry; disable the WebIR validate gate
-    // for isolation (same pattern as compile_to_ts). nextest runs each test in
-    // its own process, so these env writes don't leak across tests.
-    unsafe {
-        std::env::set_var("VOX_EMIT_ADMIN", "1");
-        std::env::set_var("VOX_ADMIN_REGISTRY", &registry_path);
-        std::env::set_var("VOX_WEBIR_VALIDATE", "0");
-    }
-    let opts = CodegenOptions {
-        tanstack_start: false,
-        target: None,
-        mode: BuildMode::App,
-        ..Default::default()
+    // Enable the gate + point at our registry; disable the WebIR validate gate for
+    // isolation (same pattern as compile_to_ts). EnvVarGuard serializes against
+    // all_golden_fixtures_emit_valid_typescript (above), which also mutates
+    // VOX_WEBIR_VALIDATE, and restores every var even if codegen panics.
+    let registry_path_str = registry_path.to_str().expect("registry path must be UTF-8");
+    let output = {
+        let _guard = EnvVarGuard::set(&[
+            ("VOX_EMIT_ADMIN", "1"),
+            ("VOX_ADMIN_REGISTRY", registry_path_str),
+            ("VOX_WEBIR_VALIDATE", "0"),
+        ]);
+        let opts = CodegenOptions {
+            tanstack_start: false,
+            target: None,
+            mode: BuildMode::App,
+            ..Default::default()
+        };
+        generate_with_options(&hir, opts).expect("admin codegen")
     };
-    let result = generate_with_options(&hir, opts);
-    unsafe {
-        std::env::remove_var("VOX_EMIT_ADMIN");
-        std::env::remove_var("VOX_ADMIN_REGISTRY");
-        std::env::remove_var("VOX_WEBIR_VALIDATE");
-    }
-    let output = result.expect("admin codegen");
 
     // Sanity: the admin component is present and NOT the regressed Convex idiom.
     let forms = output
