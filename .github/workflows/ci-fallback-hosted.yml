@@ -63,6 +63,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        # This job excludes vox-gui from clippy, but `cargo clippy --workspace`
+        # still resolves/builds every OTHER workspace member's dependency graph,
+        # and at least one non-vox-gui crate transitively depends on glib-sys /
+        # gobject-sys (GTK bindings) — without these system packages, their
+        # build.rs fails via pkg-config before clippy ever runs. Same package
+        # list ci.yml's self-hosted jobs already install.
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
