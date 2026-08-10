@@ -4,14 +4,18 @@ on:
     branches: [main]
     paths:
       - 'crates/vox-codegen/**'
+      - 'crates/vox-codegen-ts/**'
       - 'crates/vox-compiler/**'
       - 'examples/golden-ts/**'
+      - 'crates/vox-integration-tests/tests/ts_emit_*.rs'
       - 'crates/vox-integration-tests/ts-noemit-scratch/**'
   pull_request:
     paths:
       - 'crates/vox-codegen/**'
+      - 'crates/vox-codegen-ts/**'
       - 'crates/vox-compiler/**'
       - 'examples/golden-ts/**'
+      - 'crates/vox-integration-tests/tests/ts_emit_*.rs'
       - 'crates/vox-integration-tests/ts-noemit-scratch/**'
 
 concurrency:
