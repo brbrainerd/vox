@@ -63,6 +63,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        # This job excludes vox-gui from clippy, but `cargo clippy --workspace`
+        # still resolves/builds every OTHER workspace member's dependency graph,
+        # and at least one non-vox-gui crate transitively depends on glib-sys /
+        # gobject-sys (GTK bindings) — without these system packages, their
+        # build.rs fails via pkg-config before clippy ever runs. Same package
+        # list ci.yml's self-hosted jobs already install.
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -80,15 +89,22 @@ jobs:
           tool: cargo-nextest,cargo-deny,cargo-audit
 
       - name: Check formatting
-        # Per-manifest, NOT `cargo fmt --all` (overflows the Windows
-        # command-line limit — os error 206 — on this large workspace). Same
-        # check on every OS. Local writer: `vox run scripts/fmt.vox`.
+        # This job runs on ubuntu-latest only (never Windows), so the per-manifest
+        # workaround `scripts/fmt.vox` uses to dodge the Windows command-line-length
+        # limit (os error 206) doesn't apply here and isn't needed — plain
+        # `cargo fmt --all -- --check` is the standard, correct invocation on Linux.
+        # The per-manifest loop this replaced also broke outright: it globbed
+        # `crates/*/Cargo.toml` on the filesystem, which isn't workspace-exclude-aware
+        # and picks up crates/vox-cargo-shim — deliberately excluded from
+        # `[workspace]` in the root Cargo.toml (it builds a bin literally named
+        # `cargo` for PATH interception, so it can't be entangled in the main
+        # workspace's own cargo resolution). `cargo fmt --manifest-path` on an
+        # excluded crate fails with "failed to find a workspace root" since it has
+        # no enclosing workspace to inherit edition/version from. `--all` operates
+        # on cargo's real, exclude-aware member set and doesn't hit this.
+        # Local writer: `vox run scripts/fmt.vox`.
         run: |
-          fail=0
-          for m in crates/*/Cargo.toml; do
-            cargo fmt --manifest-path "$m" -- --check || fail=1
-          done
-          if [ "$fail" != 0 ]; then
+          if ! cargo fmt --all -- --check; then
             echo "::error::rustfmt found unformatted files — run 'vox run scripts/fmt.vox' to fix"
             exit 1
           fi

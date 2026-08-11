@@ -8,6 +8,7 @@ on:
     paths:
       - "crates/vox-compiler/**"
       - "crates/vox-codegen/**"
+      - "crates/vox-codegen-ts/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -43,6 +44,8 @@ jobs:
             path_filter: "crates/vox-compiler/**"
           - crate: vox-codegen
             path_filter: "crates/vox-codegen/**"
+          - crate: vox-codegen-ts
+            path_filter: "crates/vox-codegen-ts/**"
     steps:
       - uses: actions/checkout@v7
         with:

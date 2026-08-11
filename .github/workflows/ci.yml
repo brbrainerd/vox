@@ -639,11 +639,11 @@ jobs:
           echo "No ghost retired-surface references in normative docs."
 
       - name: Web TS codegen — forbidden legacy RPC shims in sources
-        if: needs.setup.outputs.docs_changed == 'true' || needs.setup.outputs.affects_compiler == 'true'
+        if: needs.setup.outputs.docs_changed == 'true' || needs.setup.outputs.affects_compiler == 'true' || needs.setup.outputs.affects_web == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          if rg -n "createServerFn\\(" crates/vox-compiler/src/codegen_ts; then
+          if rg -n "createServerFn\\(" crates/vox-codegen-ts/src; then
             echo "createServerFn must not appear in vox-codegen-ts sources"
             exit 1
           fi

@@ -8,37 +8,18 @@
 //! Run explicitly:
 //!   cargo test -p vox-integration-tests --test ts_emit_typecheck_test -- --ignored --nocapture
 #![allow(missing_docs)]
-#![allow(unsafe_code)] // set_var/remove_var used to isolate VOX_WEBIR_VALIDATE for this test
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::PathBuf;
 
+use rayon::prelude::*;
 use vox_codegen::codegen_ts::emitter::BuildMode;
 use vox_codegen::codegen_ts::{CodegenOptions, generate_with_options};
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
-
-/// Strip the Windows `\\?\` UNC prefix that `canonicalize()` adds on Windows.
-/// `cmd.exe` and many CLI tools cannot handle the extended-length path prefix.
-fn strip_unc_prefix(p: PathBuf) -> PathBuf {
-    let s = p.to_string_lossy();
-    if let Some(stripped) = s.strip_prefix(r"\\?\") {
-        PathBuf::from(stripped)
-    } else {
-        p
-    }
-}
-
-/// Absolute path to the scratch dir that contains `node_modules` and the base `tsconfig.json`.
-fn scratch_dir() -> PathBuf {
-    strip_unc_prefix(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("ts-noemit-scratch")
-            .canonicalize()
-            .expect("ts-noemit-scratch directory must exist"),
-    )
-}
+use vox_integration_tests::{
+    EnvVarGuard, collect_vox_files, run_tsc_noemit, strip_unc_prefix, ts_scratch_dir,
+};
 
 /// Absolute path to the `examples/golden-ts/` directory of Vox fixtures.
 fn golden_ts_dir() -> PathBuf {
@@ -50,23 +31,12 @@ fn golden_ts_dir() -> PathBuf {
     )
 }
 
-/// Collect all `.vox` files from `dir`.
-fn collect_vox_files(dir: &Path) -> Vec<PathBuf> {
-    let mut files = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let p = entry.path();
-            if p.extension().is_some_and(|e| e == "vox") {
-                files.push(p);
-            }
-        }
-    }
-    files.sort();
-    files
-}
-
 /// Compile one `.vox` source string to TypeScript files using the codegen pipeline.
 /// Returns `Vec<(filename, content)>` of emitted `.ts` / `.tsx` / `.json` files.
+///
+/// Caller is responsible for `VOX_WEBIR_VALIDATE` — it's process-global state, so it
+/// must be set once outside any parallel loop over fixtures, not toggled per-call
+/// (toggling per-call would race when called from multiple threads).
 fn compile_to_ts(src: &str, label: &str) -> Vec<(String, String)> {
     let tokens = lex(src);
     let module = parse(tokens).unwrap_or_else(|e| {
@@ -79,12 +49,8 @@ fn compile_to_ts(src: &str, label: &str) -> Vec<(String, String)> {
         mode: BuildMode::App,
         ..Default::default()
     };
-    // Disable WebIR validate gate for test isolation (same pattern as pipeline_test.rs).
-    // We care about whether the emitted TS type-checks, not the structural IR gate.
-    unsafe { std::env::set_var("VOX_WEBIR_VALIDATE", "0") };
     let output = generate_with_options(&hir, opts)
         .unwrap_or_else(|e| panic!("Codegen failed for {label}: {e}"));
-    unsafe { std::env::remove_var("VOX_WEBIR_VALIDATE") };
     output.files
 }
 
@@ -93,7 +59,7 @@ fn compile_to_ts(src: &str, label: &str) -> Vec<(String, String)> {
 #[test]
 #[ignore = "requires node/npx in PATH; run explicitly with: cargo test -p vox-integration-tests --test ts_emit_typecheck_test -- --ignored --nocapture — owner: integration-tests sunset: 2026-12-31"]
 fn all_golden_fixtures_emit_valid_typescript() {
-    let scratch = scratch_dir();
+    let scratch = ts_scratch_dir();
     let golden_dir = golden_ts_dir();
 
     // Verify node_modules exist (pnpm install must have run).
@@ -103,7 +69,8 @@ fn all_golden_fixtures_emit_valid_typescript() {
         "node_modules missing in ts-noemit-scratch/. Run: pnpm install --frozen-lockfile (from that directory)"
     );
 
-    let vox_files = collect_vox_files(&golden_dir);
+    let vox_files = collect_vox_files(&golden_dir)
+        .unwrap_or_else(|e| panic!("read_dir {}: {e}", golden_dir.display()));
     assert!(
         !vox_files.is_empty(),
         "No .vox files found in examples/golden-ts/"
@@ -116,19 +83,36 @@ fn all_golden_fixtures_emit_valid_typescript() {
     }
     std::fs::create_dir_all(&emit_dir).expect("Failed to create __emit_test__");
 
-    // Emit all fixtures into the test dir, prefixed by fixture name to avoid collisions.
-    for vox_path in &vox_files {
-        let label = vox_path.file_stem().unwrap().to_string_lossy();
-        let src = std::fs::read_to_string(vox_path)
-            .unwrap_or_else(|e| panic!("Could not read {}: {e}", vox_path.display()));
+    // Set once for the whole batch, not per-fixture: VOX_WEBIR_VALIDATE is process-global
+    // state, so toggling it inside the parallel loop below would race across threads.
+    // Disables the WebIR validate gate for test isolation (same pattern as pipeline_test.rs)
+    // — we care about whether the emitted TS type-checks, not the structural IR gate.
+    // EnvVarGuard also serializes against admin_output_typechecks_when_gated (below), which
+    // mutates the same var, and restores it even if a fixture panics inside the batch.
+    let emitted: Vec<(String, Vec<(String, String)>)> = {
+        let _guard = EnvVarGuard::set(&[("VOX_WEBIR_VALIDATE", "0")]);
 
-        let ts_files = compile_to_ts(&src, &label);
+        // Compile every fixture in parallel — each is an independent lex/parse/lower/codegen
+        // pass with no shared mutable state (the env var is set once, read-only from here).
+        vox_files
+            .par_iter()
+            .map(|vox_path| {
+                let label = vox_path.file_stem().unwrap().to_string_lossy().to_string();
+                let src = std::fs::read_to_string(vox_path)
+                    .unwrap_or_else(|e| panic!("Could not read {}: {e}", vox_path.display()));
+                let ts_files = compile_to_ts(&src, &label);
+                (label, ts_files)
+            })
+            .collect()
+    };
 
+    // Write all emitted files, prefixed by fixture name to avoid collisions.
+    for (label, ts_files) in &emitted {
         // Only write TypeScript/TSX files — skip JSON, Dockerfile, etc. which tsc won't type-check.
-        for (name, content) in &ts_files {
+        for (name, content) in ts_files {
             if name.ends_with(".ts") || name.ends_with(".tsx") {
                 // Namespace by fixture to prevent inter-fixture name collisions.
-                let dest_dir = emit_dir.join(label.as_ref());
+                let dest_dir = emit_dir.join(label);
                 std::fs::create_dir_all(&dest_dir)
                     .unwrap_or_else(|e| panic!("mkdir {}: {e}", dest_dir.display()));
                 let dest = dest_dir.join(name);
@@ -141,25 +125,10 @@ fn all_golden_fixtures_emit_valid_typescript() {
     // Write a per-run tsconfig into __emit_test__/ that includes all emitted files.
     // Uses compilerOptions inline (cannot use `extends` with a path that node_modules
     // resolution may not find on Windows without a junction).
-    let tsconfig_content = serde_json::json!({
-        "compilerOptions": {
-            "target": "ES2022",
-            "module": "ESNext",
-            "moduleResolution": "bundler",
-            "strict": true,
-            "noEmit": true,
-            "jsx": "react-jsx",
-            "skipLibCheck": true,
-            "esModuleInterop": true,
-            "isolatedModules": true,
-            "lib": ["ES2022", "DOM", "DOM.Iterable"]
-        },
-        "include": ["./**/*.ts", "./**/*.tsx"]
-    });
     let tsconfig_path = emit_dir.join("tsconfig.json");
     std::fs::write(
         &tsconfig_path,
-        serde_json::to_string_pretty(&tsconfig_content).unwrap(),
+        serde_json::to_string_pretty(&vox_integration_tests::strict_tsconfig_json()).unwrap(),
     )
     .expect("Failed to write tsconfig.json");
 
@@ -176,42 +145,7 @@ fn all_golden_fixtures_emit_valid_typescript() {
     )
     .expect("Failed to write vox-runtime-shim.d.ts");
 
-    // Resolve tsc: prefer the local node_modules/.bin/tsc (avoids PATH resolution issues
-    // on Windows), falling back to npx tsc if the local binary isn't present.
-    let tsc_bin = {
-        let local_tsc_cmd = scratch.join("node_modules").join(".bin").join("tsc.cmd");
-        let local_tsc = scratch.join("node_modules").join(".bin").join("tsc");
-        if cfg!(target_os = "windows") && local_tsc_cmd.exists() {
-            local_tsc_cmd
-        } else if local_tsc.exists() {
-            local_tsc
-        } else {
-            // fallback: hope tsc is in PATH
-            PathBuf::from("npx")
-        }
-    };
-
-    // For Windows .cmd files we must invoke via cmd.exe.
-    let output = if cfg!(target_os = "windows") && tsc_bin.extension().is_some_and(|e| e == "cmd") {
-        // vox-arch-check: allow shell-spawn
-        Command::new("cmd")
-            .arg("/C")
-            .arg(&tsc_bin)
-            .arg("--noEmit")
-            .arg("--project")
-            .arg(&tsconfig_path)
-            .current_dir(&scratch)
-            .output()
-            .expect("Failed to spawn tsc.cmd — is node/pnpm installed in ts-noemit-scratch/?")
-    } else {
-        Command::new(&tsc_bin)
-            .arg("--noEmit")
-            .arg("--project")
-            .arg(&tsconfig_path)
-            .current_dir(&scratch)
-            .output()
-            .expect("Failed to spawn tsc — is node/pnpm installed in ts-noemit-scratch/?")
-    };
+    let output = run_tsc_noemit(&scratch, &tsconfig_path);
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -237,62 +171,6 @@ fn all_golden_fixtures_emit_valid_typescript() {
     );
 }
 
-/// Resolve the local `tsc` binary (preferring `node_modules/.bin`) and run
-/// `tsc --noEmit --project <tsconfig>` from `scratch`. Shared by the gated-admin
-/// test below; mirrors the inline invocation in the golden-fixture test.
-fn run_tsc_noemit(scratch: &Path, tsconfig_path: &Path) -> std::process::Output {
-    let tsc_bin = {
-        let local_tsc_cmd = scratch.join("node_modules").join(".bin").join("tsc.cmd");
-        let local_tsc = scratch.join("node_modules").join(".bin").join("tsc");
-        if cfg!(target_os = "windows") && local_tsc_cmd.exists() {
-            local_tsc_cmd
-        } else if local_tsc.exists() {
-            local_tsc
-        } else {
-            PathBuf::from("npx")
-        }
-    };
-    if cfg!(target_os = "windows") && tsc_bin.extension().is_some_and(|e| e == "cmd") {
-        // vox-arch-check: allow shell-spawn
-        Command::new("cmd")
-            .arg("/C")
-            .arg(&tsc_bin)
-            .arg("--noEmit")
-            .arg("--project")
-            .arg(tsconfig_path)
-            .current_dir(scratch)
-            .output()
-            .expect("Failed to spawn tsc.cmd — is node/pnpm installed in ts-noemit-scratch/?")
-    } else {
-        Command::new(&tsc_bin)
-            .arg("--noEmit")
-            .arg("--project")
-            .arg(tsconfig_path)
-            .current_dir(scratch)
-            .output()
-            .expect("Failed to spawn tsc — is node/pnpm installed in ts-noemit-scratch/?")
-    }
-}
-
-/// Strict tsconfig (matches the golden-fixture test) for an isolated emit dir.
-fn emit_tsconfig_json() -> serde_json::Value {
-    serde_json::json!({
-        "compilerOptions": {
-            "target": "ES2022",
-            "module": "ESNext",
-            "moduleResolution": "bundler",
-            "strict": true,
-            "noEmit": true,
-            "jsx": "react-jsx",
-            "skipLibCheck": true,
-            "esModuleInterop": true,
-            "isolatedModules": true,
-            "lib": ["ES2022", "DOM", "DOM.Iterable"]
-        },
-        "include": ["./**/*.ts", "./**/*.tsx"]
-    })
-}
-
 /// AGH-0005 regression gate: the opt-in admin UI (`VOX_EMIT_ADMIN=1`) emits
 /// TypeScript that actually type-checks. The original Track A code emitted the
 /// Convex idiom (`useQuery(api.<t>.list)`, `row._id`, `api.<t>.upsert`) with no
@@ -307,7 +185,7 @@ fn admin_output_typechecks_when_gated() {
     use vox_compiler::hir::nodes::DefId;
     use vox_compiler::hir::{HirModule, HirTable, HirTableField, HirType};
 
-    let scratch = scratch_dir();
+    let scratch = ts_scratch_dir();
     assert!(
         scratch.join("node_modules").exists(),
         "node_modules missing in ts-noemit-scratch/. Run: pnpm install --frozen-lockfile (from that directory)"
@@ -351,27 +229,25 @@ fn admin_output_typechecks_when_gated() {
     let registry_path = emit_dir.join("admin-registry.yaml");
     std::fs::write(&registry_path, "admin_tables:\n  - User\n").expect("write registry");
 
-    // Enable the gate + point at our registry; disable the WebIR validate gate
-    // for isolation (same pattern as compile_to_ts). nextest runs each test in
-    // its own process, so these env writes don't leak across tests.
-    unsafe {
-        std::env::set_var("VOX_EMIT_ADMIN", "1");
-        std::env::set_var("VOX_ADMIN_REGISTRY", &registry_path);
-        std::env::set_var("VOX_WEBIR_VALIDATE", "0");
-    }
-    let opts = CodegenOptions {
-        tanstack_start: false,
-        target: None,
-        mode: BuildMode::App,
-        ..Default::default()
+    // Enable the gate + point at our registry; disable the WebIR validate gate for
+    // isolation (same pattern as compile_to_ts). EnvVarGuard serializes against
+    // all_golden_fixtures_emit_valid_typescript (above), which also mutates
+    // VOX_WEBIR_VALIDATE, and restores every var even if codegen panics.
+    let registry_path_str = registry_path.to_str().expect("registry path must be UTF-8");
+    let output = {
+        let _guard = EnvVarGuard::set(&[
+            ("VOX_EMIT_ADMIN", "1"),
+            ("VOX_ADMIN_REGISTRY", registry_path_str),
+            ("VOX_WEBIR_VALIDATE", "0"),
+        ]);
+        let opts = CodegenOptions {
+            tanstack_start: false,
+            target: None,
+            mode: BuildMode::App,
+            ..Default::default()
+        };
+        generate_with_options(&hir, opts).expect("admin codegen")
     };
-    let result = generate_with_options(&hir, opts);
-    unsafe {
-        std::env::remove_var("VOX_EMIT_ADMIN");
-        std::env::remove_var("VOX_ADMIN_REGISTRY");
-        std::env::remove_var("VOX_WEBIR_VALIDATE");
-    }
-    let output = result.expect("admin codegen");
 
     // Sanity: the admin component is present and NOT the regressed Convex idiom.
     let forms = output
@@ -399,7 +275,7 @@ fn admin_output_typechecks_when_gated() {
     let tsconfig_path = emit_dir.join("tsconfig.json");
     std::fs::write(
         &tsconfig_path,
-        serde_json::to_string_pretty(&emit_tsconfig_json()).unwrap(),
+        serde_json::to_string_pretty(&vox_integration_tests::strict_tsconfig_json()).unwrap(),
     )
     .expect("write tsconfig.json");
 

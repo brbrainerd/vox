@@ -1464,11 +1464,9 @@ mod tests {
         };
         let outcome = select(&intent, &registry);
         crate::route_policy::set_test_privacy_override(None);
-        match outcome.map(|o| o.reason) {
-            Some(SelectionReason::PremiumAlias { .. }) => {
-                panic!("premium-alias (cloud) pick must not survive under local_only privacy")
-            }
-            _ => {} // None, Scored, or LocalOnly are all acceptable here.
+        // None, Scored, or LocalOnly are all acceptable here — only PremiumAlias is a failure.
+        if let Some(SelectionReason::PremiumAlias { .. }) = outcome.map(|o| o.reason) {
+            panic!("premium-alias (cloud) pick must not survive under local_only privacy")
         }
     }
 

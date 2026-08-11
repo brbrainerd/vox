@@ -68,7 +68,6 @@ impl SherpaOnnxBackend {
                 encoder: Some(paths.encoder.to_string_lossy().to_string()),
                 decoder: Some(paths.decoder.to_string_lossy().to_string()),
                 joiner: Some(paths.joiner.to_string_lossy().to_string()),
-                ..Default::default()
             };
             config.model_config.tokens = Some(paths.tokens.to_string_lossy().to_string());
         }
@@ -166,7 +165,6 @@ mod tests {
             encoder: Some("encoder.onnx".to_string()),
             decoder: Some("decoder.onnx".to_string()),
             joiner: Some("joiner.onnx".to_string()),
-            ..Default::default()
         };
         config.model_config.tokens = Some("tokens.txt".to_string());
         assert_eq!(

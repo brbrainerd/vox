@@ -16247,6 +16247,7 @@ dependencies = [
  "insta",
  "jsonschema",
  "pulldown-cmark",
+ "rayon",
  "serde",
  "serde_json",
  "serde_yaml_ng",
