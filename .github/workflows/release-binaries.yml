@@ -16,7 +16,14 @@ jobs:
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ fromJson(matrix.runs_on) }}
-    timeout-minutes: 180
+    timeout-minutes: 240
+    # This job performs three serial fat-LTO links (vox-cli with
+    # heavy-retrieval, vox-ml-cli, voxup) on 4-core/14-16GB hosted runners.
+    # CARGO_BUILD_JOBS caps the dep-compile phase's parallelism to protect
+    # peak RSS during the link, matching the dist-verify lane's budget for a
+    # single such link (see below).
+    env:
+      CARGO_BUILD_JOBS: "2"
     strategy:
       fail-fast: false
       matrix:

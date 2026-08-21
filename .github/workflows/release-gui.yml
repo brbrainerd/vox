@@ -34,8 +34,15 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not the floating alias: dtolnay/rust-toolchain's floating
+        # form exports RUSTUP_TOOLCHAIN, which OVERRIDES rust-toolchain.toml —
+        # so the shipped GUI would be built by whatever stable is current,
+        # not the channel every CI gate ran against. See AGENTS.md's
+        # Perennial Bug Patterns for the toolchain-bump lint-wave class this
+        # avoids.
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.96.0"
           # universal-apple-darwin is a Tauri meta-target, not a real rustup
           # triple. The x86_64-apple-darwin cross target is added separately
           # below via `rustup target add` (not here) because this repo pins
@@ -82,10 +89,10 @@ jobs:
         run: |
           # rustup target add (no channel arg) always targets whatever
           # toolchain cargo will actually use here — the repo's pinned
-          # rust-toolchain.toml channel — regardless of what toolchain the
-          # earlier dtolnay/rust-toolchain@stable step installed under the
-          # "stable" alias. Installing this via the action's `targets:` input
-          # instead left x86_64-apple-darwin's core/std missing at build time.
+          # rust-toolchain.toml channel, matching the toolchain installed by
+          # the pinned dtolnay/rust-toolchain step above. Installing this via
+          # the action's `targets:` input instead left x86_64-apple-darwin's
+          # core/std missing at build time.
           rustup target add x86_64-apple-darwin
           cargo build -p vox-cli --profile dist --target aarch64-apple-darwin
           cargo build -p vox-cli --profile dist --target x86_64-apple-darwin

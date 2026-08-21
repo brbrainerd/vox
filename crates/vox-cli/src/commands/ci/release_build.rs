@@ -555,6 +555,7 @@ mod tests {
             ".github/workflows/release-binaries.yml",
             ".github/workflows/release-installers.yml",
             ".github/workflows/bundle-release.yml",
+            ".github/workflows/release-gui.yml",
         ] {
             let text = std::fs::read_to_string(root.join(rel)).expect("read workflow");
             assert!(
@@ -610,8 +611,11 @@ mod tests {
                 &[],
                 &["target/release/vox-", "target/release/bundle"],
             ),
-            // `cargo run … -- bundle` builds the bundler tool, not a shipped artifact.
-            (".github/workflows/bundle-release.yml", &["cargo run"], &[]),
+            // bundle-release.yml needs no exemption: it builds once via
+            // `cargo build --profile dist` and every later step (bundle apply/
+            // build/verify) runs that dist binary directly via $VOX_BIN, since
+            // `vox bundle build` tars std::env::current_exe() into the shipped
+            // tarball — no `cargo build`/`cargo run` line remains to allow-list.
             ("Dockerfile", &[], &[]),
         ];
 

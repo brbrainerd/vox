@@ -71,6 +71,19 @@ jobs:
       - name: Build vox CLI
         run: cargo build --profile dist --locked -p vox-cli --target ${{ matrix.target }}
 
+      - name: Set VOX_BIN
+        # `vox bundle build` tars std::env::current_exe() as bin/vox, so the
+        # bundler MUST run from the --profile dist binary above, not a
+        # `cargo run --release` (thin-LTO) build — otherwise every tarball
+        # ships a non-dist binary.
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            echo "VOX_BIN=target/${{ matrix.target }}/dist/vox.exe" >> "$GITHUB_ENV"
+          else
+            echo "VOX_BIN=target/${{ matrix.target }}/dist/vox" >> "$GITHUB_ENV"
+          fi
+        shell: bash
+
       - name: Apply bundle (install plugins into VOX_PLUGINS_DIR)
         # For bundles with plugins, pre-install them into a local dir so
         # `vox bundle build` can find them.  vox-base has no plugins and
@@ -78,7 +91,7 @@ jobs:
         env:
           VOX_PLUGINS_DIR: ${{ github.workspace }}/bundle-plugins
         run: |
-          cargo run --release --locked -p vox-cli -- bundle apply ${{ matrix.bundle }} --yes
+          "$VOX_BIN" bundle apply ${{ matrix.bundle }} --yes
         shell: bash
         continue-on-error: true   # warn but proceed; build step reports missing plugins
 
@@ -86,12 +99,8 @@ jobs:
         env:
           VOX_PLUGINS_DIR: ${{ github.workspace }}/bundle-plugins
           BUNDLE_ARTIFACT: ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
-        # `cargo run --release` here builds the bundler TOOL, not a shipped
-        # artifact — the tarball contents come from `bundle build`. Keep it on
-        # --release: fat LTO would add three ~30-minute links per matrix cell
-        # for zero change to what ships.
         run: |
-          cargo run --release --locked -p vox-cli -- \
+          "$VOX_BIN" \
             bundle build ${{ matrix.bundle }} \
             --out "$BUNDLE_ARTIFACT"
         shell: bash
@@ -100,7 +109,8 @@ jobs:
         env:
           VOX_PLUGINS_DIR: ${{ github.workspace }}/bundle-plugins
           BUNDLE_ARTIFACT: ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
-        run: cargo run --release --locked -p vox-cli -- bundle verify "$BUNDLE_ARTIFACT"
+        run: |
+          "$VOX_BIN" bundle verify "$BUNDLE_ARTIFACT"
         shell: bash
 
       - name: Checksum bundle
