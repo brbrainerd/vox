@@ -15,8 +15,15 @@ use std::process::Command;
 /// set, a missing binary is a HARD FAILURE — silently skipping would make the
 /// whole verification lane a no-op that reports green.
 fn dist_binary() -> Option<PathBuf> {
-    if let Ok(p) = std::env::var("VOX_DIST_BIN") {
-        let p = PathBuf::from(p);
+    // An exported-but-empty value is a misconfigured workflow, not a missing
+    // artifact — say so, rather than asserting on a blank path.
+    if let Ok(raw) = std::env::var("VOX_DIST_BIN") {
+        assert!(
+            !raw.trim().is_empty(),
+            "VOX_DIST_BIN is set but empty — the workflow that exported it did \
+             not resolve a path"
+        );
+        let p = PathBuf::from(raw);
         assert!(
             p.is_file(),
             "VOX_DIST_BIN={} does not exist — the verification lane would \
