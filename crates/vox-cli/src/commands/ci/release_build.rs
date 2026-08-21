@@ -672,4 +672,30 @@ mod tests {
             p.display()
         );
     }
+
+    /// A tag push cannot be gated by GitHub required checks, so the ordering between
+    /// verification and publication must be structural. Deleting the dist-verify job
+    /// or dropping it from `needs:` would silently publish unverified artifacts.
+    #[test]
+    fn publish_job_is_gated_on_dist_verification() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let text = std::fs::read_to_string(root.join(".github/workflows/release-binaries.yml"))
+            .expect("read release-binaries.yml");
+        let v: serde_yaml::Value =
+            serde_yaml::from_str(&text).expect("workflow must be valid YAML");
+
+        assert!(
+            !v["jobs"]["dist-verify"].is_null(),
+            "the dist-verify job was removed; artifacts would publish unverified"
+        );
+        let needs = v["jobs"]["publish"]["needs"]
+            .as_sequence()
+            .expect("publish must declare a needs: list");
+        let names: Vec<&str> = needs.iter().filter_map(|n| n.as_str()).collect();
+        assert!(
+            names.contains(&"dist-verify"),
+            "publish no longer needs dist-verify (needs: {names:?}); a tag would \
+             publish while verification was still running, or after it failed"
+        );
+    }
 }
