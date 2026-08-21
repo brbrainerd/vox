@@ -1,8 +1,8 @@
 # Vox Distribution System — Design
 
-> **Status:** Revision 3 · **Date:** 2026-08-20
-> Rewritten after an eight-track adversarial audit (finding verification, plan executability, gap
-> hunting, CI correctness, cargo semantics, repo policy, packaging feasibility, supply chain).
+> **Status:** Revision 4 · **Date:** 2026-08-21
+> Revised after two eight-track adversarial audit rounds (16 tracks total). Round 2 re-verified
+> every finding against code and corrected six of them; corrections are marked *r4*.
 > **Supersedes the open items of:** [`docs/plans/INSTALL-RELEASE-AUDIT.md`](../../plans/INSTALL-RELEASE-AUDIT.md) (2026-06-07)
 
 ## The headline
@@ -141,11 +141,32 @@ test target is force-built with unwind.
 
 ### F9 — Native plugins execute with zero integrity verification (critical, security)
 
-`plugin/install.rs:110-138` fetches a zip over HTTPS and calls `archive.extract()` with **no
-checksum, no signature, no pinned version**, then `vox-plugin-host/src/loader.rs:39` `dlopen`s the
-cdylib. The only gate is an ABI integer (`loader.rs:49`). `install_from_catalog:178-186` builds a
-mutable `…/releases/latest/download/<id>-latest-<triple>.zip` URL — anyone able to publish a release
-asset in that repo owns the user's process.
+Three separate holes, in descending order of exploitability.
+
+**(a) The default path never verifies anything.** `install_from_catalog` (`install.rs:158-171`) calls
+`install_from_path` **directly** through a workspace-local fallback that is **on by default**
+(`VOX_NO_LOCAL_PLUGIN_FALLBACK` is opt-*out*). `vox_plugin_host::workspace_local_plugin_source`
+(`vox-plugin-host/src/lib.rs:89-116`) resolves from `$VOX_WORKSPACE_ROOT`, else **walks up eight
+levels from the current working directory** looking for `crates/vox-plugin-<id>/Plugin.toml`:
+
+```text
+/tmp/x/crates/vox-plugin-oratio/{Plugin.toml, liboratio.so}
+cd /tmp/x/anything && vox plugin install oratio     # installs the attacker's cdylib
+```
+
+No privilege is needed beyond writing a directory the user later enters — a cloned repo, an unzipped
+download, `/tmp`. This is the `.`-in-`PATH` bug class, and **any verification added to the network
+path is simply not consulted here.** Fix: make the fallback opt-**in**.
+
+**(b) The network path has no integrity check.** `install.rs:110-138` fetches a zip over HTTPS and
+calls `archive.extract()` with no checksum, no signature, and no pinned version, then
+`vox-plugin-host/src/loader.rs:40` `dlopen`s the cdylib. The only gate is an ABI integer
+(`loader.rs:49`). `install_from_catalog:178-186` builds a mutable
+`releases/latest/download/<id>-latest-<triple>.zip` URL, malformed today because `latest` is
+interpolated into both the tag slot and the filename, so this path currently 404s.
+
+**(c) That zip extraction is itself unhardened.** `zip::ZipArchive::extract` creates symlinks and
+applies no size cap, and it is the **one extraction path in the codebase that ends in `dlopen`**.
 
 Adjacent: `vox-plugin-host/src/user_install.rs:145-170` clones arbitrary skill URLs with no SHA pin.
 (That path is otherwise well-hardened — it rejects `ext::`/`file::`/`fd::`, sets
@@ -181,8 +202,15 @@ and the archive extension is `.zip` only on Windows. **The tar path is what ever
 user takes, and it is the unguarded one.**
 
 Impact is concrete: extraction lands in `~/.vox/toolchains/vox-<ver>/`, one `..` from
-`~/.vox/toolchains/bin`, which `proxy.rs:209-216` **prepends to `PATH`** for every proxied `vox`
-invocation. Mitigation today rests entirely on the `tar` crate skipping escaping entries — silently,
+`~/.vox/toolchains/bin`, which `proxy.rs:7-9` and `:56-63` **prepend to `PATH`** for every proxied
+`vox` invocation.
+
+**Scope this honestly.** `download::extract` has exactly one caller (`install.rs:98`), and
+`install.rs:92` runs `verify_sha256` against `checksums.txt` six lines earlier. A malicious tar must
+therefore already carry a matching hash, meaning the attacker controls the release and would simply
+ship a malicious `vox` as the single expected entry rather than bother with tar-slip. This hardening
+defends against a checksum-consistency bug, not an adversary. It is ten lines; land it, but do not
+headline it. The genuinely exposed extractor is F9(c), which no checksum gates. Mitigation today rests entirely on the `tar` crate skipping escaping entries — silently,
 so a tampered archive surfaces as "Extraction succeeded but 'vox' not found."
 
 ### F13 — Release artifacts are built on an unpinned toolchain (medium)
@@ -197,16 +225,22 @@ lint wave. The fleet image already ships the pinned toolchain, so the step is al
 build-matrix jobs that compile third-party crates hold a write token they never use.
 `release-installers.yml` declares **no `permissions:` block at all**, inheriting the repo default.
 
-Good news to preserve: all three release workflows trigger on `push: tags` only. **No
-`pull_request_target` and no `workflow_run` exists anywhere in the repo**, so signing secrets are not
-reachable from untrusted code. Phase 2 and 3 must not introduce either.
+All three release workflows trigger on `push: tags` only, and **no `pull_request_target` exists
+anywhere in the repo**, so signing secrets are unreachable from untrusted code today. `workflow_run`
+*does* exist (`deploy-telemetry.yml:16`, `ci-timings.yml:16`) but neither is on a release path.
+Phase 2 and 3 must not add either to a workflow holding signing secrets.
+
+One limit on the fix: in `release-gui.yml` the sole job `build-tauri` both compiles the full
+dependency graph and uploads the release, so it genuinely needs `contents: write`. Job-scoping fixes
+`release-binaries.yml`; it does **not** fix `release-gui.yml` without splitting that job in two.
 
 ### F15 — Two updaters, one of which bricks itself (high)
 
 Revision 1 claimed "only the CLI self-updates, via `voxup`." There are **two**.
 `toolchain_upgrade.rs:669` calls `maybe_install_openclaw_sidecar` **after** the binary swap at `:665`,
 and that function hard-errors when no `openclaw-gateway-*` asset is in `checksums.txt` (`:703-705`) —
-which is never, since nothing builds or uploads it. The binary is replaced, then the command exits
+which is never, since nothing builds or uploads it. An escape hatch exists but is opt-in: `:693-698`
+early-returns when `VOX_OPENCLAW_SIDECAR_DISABLE=1`. The binary is replaced, then the command exits
 non-zero. It then probes the retired `vox-bootstrap` at `:678`.
 
 ### F16 — Unaudited container distribution (medium)
@@ -217,10 +251,15 @@ pushed public to a **personal** namespace, entrypointing `vox mcp`. `Dockerfile:
 `ghcr.io/<owner>/vox-ci-runner:latest` is mutable and pulled by the fleet. Neither is signed,
 attested, or version-pinned to a release.
 
-### F17 — No SBOM, no provenance, and no client-side verification (medium)
+### F17 — SBOM is non-blocking; no provenance and no client-side verification (medium)
 
-The SBOM step is **commented out** (`release-binaries.yml:69-78`) and is CycloneDX, not SPDX —
-revision 1 credited it as existing. Nothing is signed or attested.
+*Corrected in r4.* An **active SPDX SBOM step exists**: `release-binaries.yml:196-208`,
+`anchore/sbom-action@v0`, `format: spdx-json`, attached at `:216`. Revisions 1-3 called it "commented
+out and CycloneDX"; that describes only a separate dead stub at `:69-79`. The real defect is
+narrower: the live step is `continue-on-error: true`, with an inline comment stating a hiccup "can
+NEVER block a release" and that it is "unverified in local dev". A supply-chain artifact that
+silently vanishes is worse than none, because consumers assume it exists. Nothing is signed or
+attested.
 
 And an attestation nobody verifies is a compliance artifact, not a control. Revision 1 proposed
 `actions/attest-build-provenance` and stopped there; `voxup` has no hook where a check could go.
@@ -281,9 +320,13 @@ Nineteen workflows carry `schedule:`; none publishes a release artifact. `voxup/
 a single `API_LATEST` const and no channel concept.
 
 A rolling force-updated `nightly` tag has a trap: `install.rs:97` keys the cache directory on
-`release.version`, and `update.rs:117` compares `latest <= installed` by semver. Two nightlies
-sharing `0.7.0` mean the cache collides and `voxup update` is a **permanent no-op** — and an E2E
-asserting "update is a no-op" would pass for entirely the wrong reason.
+`release.version`, and `update.rs:38` compares `latest <= installed` by semver. Two nightlies sharing
+`0.7.0` mean the cache collides and `voxup update` is a **permanent no-op** — and an E2E asserting
+"update is a no-op" would pass for entirely the wrong reason.
+
+Critically, **build metadata cannot break the tie**: semver ordering ignores everything after `+`,
+and `parse_version_output` (`update.rs:8-16`) discards it too. The distinguishing token must live in
+the **pre-release** segment (`0.7.0-nightly.N`), never in `+build.N`.
 
 ### F25 — GUI has no auto-update (high)
 
@@ -302,9 +345,11 @@ broken F20 test), and `docs/src/ci/binary-release-contract.md`.
 
 ### F28 — D6's post-install weights path does not exist (medium)
 
-No code pulls a model: no `ollama pull`, no `/api/pull`, no `vox model pull`. `vox doctor` only
-TCP-probes `127.0.0.1:11434` and prints an advisory (`tail.rs:217-225`). Ollama is never installed by
-anything. A fresh install has no local model and no automated route to one.
+The CLI, GUI, and installers have no model-pull path: no `/api/pull` call, no `vox model pull`.
+`vox doctor` only TCP-probes `127.0.0.1:11434` and prints an advisory (`tail.rs:217-225`), and
+nothing installs Ollama. The sole existing route is a VS Code extension command that types
+`ollama pull <model>` into a terminal (`apps/editor/vox-vscode/src/commands/model.ts:33`). A fresh
+CLI or GUI install has no local model and no automated way to get one.
 
 ### F29 — A crates.io publish set with no publish automation (medium)
 
@@ -419,22 +464,39 @@ Ordered by cost-to-benefit; the first item is what converts the chain from integ
 
 1. **Sign `checksums.txt`** with a key held outside GitHub; embed the public key in `voxup`; verify
    signature before hash in `install.rs` between `:68` and `:92`.
-2. **Verify plugins at load, not just install** (F9): add required `sha256` to catalog `[[plugin]]`
-   and `Plugin.toml`; record it in an installed-manifest lockfile; make `Loader::load` refuse a
-   dylib whose on-disk hash differs — closing the swap-after-install path. Reuse
-   `voxup::download::verify_sha256` by defactoring (~10 lines, no new crate edge).
-3. **Delete the `install.sh` fail-open branch** (F11) — one line.
-4. **Explicit tar entry validation** (F12): reject symlink/hardlink/device entries, validate paths
+2. **Close F9(a) first — make the workspace-local fallback opt-in.** One line. Until it lands,
+   nothing else in this item is consulted on the default path, and any "fail-closed" claim is false.
+3. **Anchor plugin hashes in the compiled-in catalog, not on disk.** `catalog.toml` is
+   `include_str!`'d (`vox-plugin-catalog/src/lib.rs:13`) and parsed through a `OnceLock`, so a hash
+   recorded there is exactly as trustworthy as the `vox` binary. Two distinct hashes are needed and
+   **neither can be derived from the other**: an archive `sha256`, checked in `install_from_url`
+   before extraction, and a **per-artifact, per-triple** `artifacts_sha256`, checked in
+   `Loader::load` before `dlopen`. For a catalog-known plugin a *missing* expected hash must fail,
+   or the check is bypassed by deleting a record. A disk sidecar is **not** a security control: it
+   sits in the same directory, writable by the same user, and the expected value is looked up by
+   filename, so `Plugin.toml` can simply be repointed at a second file. Keep a sidecar only for
+   provenance, labelled as corruption detection.
+4. **Ship hash *recording* with hash *checking*.** With no hashes populated, every catalog install
+   fails and `--allow-unverified` becomes the documented happy path before the first hash exists.
+   Reuse `voxup::download::verify_sha256` by defactoring with a `// vox:defactored-from voxup`
+   marker, per AGENTS.md rule 3.
+5. **Harden F9(c)'s zip extraction** — the one path that ends in `dlopen`. Reject symlink entries and
+   cap size, matching the tar work below.
+6. **Delete the `install.sh` fail-open branch** (F11) — one line.
+7. **Explicit tar entry validation** (F12): reject symlink/hardlink/device entries, validate paths
    are relative and `..`-free, re-check `starts_with(dest)`, cap uncompressed bytes and entry count.
-   Port the existing zip-slip test to a `#[cfg(unix)]` tar equivalent.
-5. **Job-scoped `permissions:`** (F14); add a lint asserting every workflow declares one, shaped like
-   `vox ci workflow-concurrency-guard`.
-6. **Client-verifiable provenance** (F17): publish the attestation bundle as a release asset so
+   Port the existing zip-slip test to a `#[cfg(unix)]` tar equivalent. Note the safe `tar` API
+   **cannot construct** a `..` fixture (`Header::set_path` rejects it), so the test must stamp the
+   raw GNU name field.
+8. **Job-scoped `permissions:`** (F14); add a lint asserting every workflow declares one, shaped like
+   `vox ci workflow-concurrency-guard`. It must **parse** the document — a substring check passes
+   `permissions: write-all`.
+9. **Client-verifiable provenance** (F17): publish the attestation bundle as a release asset so
    airgapped installs can carry it; add `voxup verify` and call it during install; make
    `gh attestation verify` a **required** step in the clean-room matrix. State the residual plainly:
    attestation roots in GitHub's OIDC, so only item 1 defends against a compromised workflow.
-7. **Add SBOM generation** and make it required — `continue-on-error: true` on a supply-chain
-   artifact is worse than none, because consumers assume it exists.
+10. **Make the existing SBOM blocking** by dropping `continue-on-error: true` — a supply-chain
+    artifact that silently vanishes is worse than none.
 
 **Offline payload provenance.** A `sha256` minted by fetching a URL and recording what comes back is
 downstream of the trust decision — it launders an unverified download into a permanent
