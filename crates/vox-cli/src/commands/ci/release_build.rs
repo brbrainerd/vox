@@ -118,6 +118,11 @@ fn build_and_package_binary(
     built_bin_name: &str,
     archive_name: &str,
 ) -> Result<String> {
+    debug_assert!(
+        RELEASE_PACKAGES.contains(&package_name),
+        "package '{package_name}' is not in RELEASE_PACKAGES; add it there so \
+         `every_release_package_exists_in_the_workspace` can verify it exists"
+    );
     let mut cmd = Command::new(super::cargo_bin());
     cmd.current_dir(repo_root).args([
         "build",
