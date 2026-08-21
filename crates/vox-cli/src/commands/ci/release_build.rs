@@ -337,4 +337,29 @@ mod tests {
             wf.display()
         );
     }
+
+    /// The install command we document must resolve. `docs/src/reference/installation.md`
+    /// and both script headers advertise https://voxlang.org/voxup ; if nothing is
+    /// served there, `curl … | sh` pipes a 404 page into a shell.
+    #[test]
+    fn documented_install_urls_are_served() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        for (advertised, served) in [("voxup", "docs-astro/public/voxup"),
+                                     ("voxup.ps1", "docs-astro/public/voxup.ps1")] {
+            assert!(
+                root.join(served).is_file(),
+                "https://voxlang.org/{advertised} is documented but {served} does not exist"
+            );
+        }
+        // The served copies must not drift from the canonical scripts.
+        for (served, canonical) in [("docs-astro/public/voxup", "scripts/install.sh"),
+                                    ("docs-astro/public/voxup.ps1", "scripts/install.ps1")] {
+            let a = std::fs::read_to_string(root.join(served)).expect("read served copy");
+            let b = std::fs::read_to_string(root.join(canonical)).expect("read canonical script");
+            assert_eq!(
+                a, b,
+                "{served} has drifted from {canonical}; regenerate it in the same commit"
+            );
+        }
+    }
 }
