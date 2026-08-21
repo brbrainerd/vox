@@ -24,7 +24,7 @@ jobs:
   build-bundles:
     name: ${{ matrix.bundle }} @ ${{ matrix.target }}
     runs-on: ${{ fromJson(matrix.runs_on) }}
-    timeout-minutes: 60
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -69,7 +69,7 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Build vox CLI
-        run: cargo build --release --locked -p vox-cli --target ${{ matrix.target }}
+        run: cargo build --profile dist --locked -p vox-cli --target ${{ matrix.target }}
 
       - name: Apply bundle (install plugins into VOX_PLUGINS_DIR)
         # For bundles with plugins, pre-install them into a local dir so

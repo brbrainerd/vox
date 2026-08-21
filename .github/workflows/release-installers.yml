@@ -72,9 +72,9 @@ jobs:
         with:
           tool: cargo-wix
       - name: Build MSI
-        run: cargo wix --no-build --package vox-cli
-        # Note: In a real pipeline, `cargo build --release --locked -p vox-cli` 
-        # would be run first to populate target/release/vox.exe.
+        run: cargo wix --no-build --profile dist --package vox-cli
+        # Note: In a real pipeline, `cargo build --profile dist --locked -p vox-cli`
+        # would be run first to populate target/dist/vox.exe.
 
   build-linux-deb:
     runs-on: ubuntu-latest
@@ -95,7 +95,7 @@ jobs:
       - name: Install system deps (libdbus/GTK)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - name: Build DEB
-        run: cargo deb -p vox-cli
+        run: cargo deb -p vox-cli --profile dist
 
   publish-macos-brew:
     runs-on: macos-latest
@@ -103,10 +103,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Build Release
-        run: cargo build --release --locked -p vox-cli
+        run: cargo build --profile dist --locked -p vox-cli
       - name: Archive and Hash
         run: |
-          tar -czvf vox-darwin.tar.gz -C target/release vox
+          tar -czvf vox-darwin.tar.gz -C target/dist vox
           shasum -a 256 vox-darwin.tar.gz > checksum.txt
       - name: Upload to Homebrew Tap
         run: |

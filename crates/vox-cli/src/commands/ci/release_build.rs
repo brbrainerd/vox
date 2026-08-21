@@ -11,6 +11,21 @@ use vox_cli_ci::cmd_enums::ReleasePackage;
 /// Supported release triples (SSOT: `vox-install-policy`; keep workflow/docs aligned via `vox ci command-compliance`).
 pub use crate::utils::install_policy::SUPPORTED_RELEASE_TARGETS;
 
+/// Cargo profile used for every shipped artifact.
+///
+/// `[profile.dist]` sets `lto = "fat"`, `codegen-units = 1`, `strip = "symbols"`.
+/// Plain `--release` is thin-LTO and keeps debuginfo — see spec finding F6.
+pub(crate) const DIST_PROFILE: &str = "dist";
+
+/// Where cargo writes a `--target <triple> --profile dist` binary.
+pub(crate) fn built_binary_path(repo_root: &Path, target: &str, bin: &str) -> PathBuf {
+    repo_root
+        .join("target")
+        .join(target)
+        .join(DIST_PROFILE)
+        .join(bin)
+}
+
 /// Crates the release builder shells `cargo build -p` for. Asserted against the
 /// workspace by `every_release_package_exists_in_the_workspace`.
 pub(crate) const RELEASE_PACKAGES: &[&str] = &["vox-cli", "vox-ml-cli"];
@@ -118,6 +133,8 @@ fn build_and_package_binary(
     built_bin_name: &str,
     archive_name: &str,
 ) -> Result<String> {
+    // Fires because release-binaries.yml runs `cargo run` (debug) — not `--release`.
+    // If that invocation is ever release-optimized, promote this to a hard check.
     debug_assert!(
         RELEASE_PACKAGES.contains(&package_name),
         "package '{package_name}' is not in RELEASE_PACKAGES; add it there so \
@@ -128,7 +145,8 @@ fn build_and_package_binary(
         "build",
         "-p",
         package_name,
-        "--release",
+        "--profile",
+        DIST_PROFILE,
         "--locked",
         "--target",
         target,
@@ -149,11 +167,7 @@ fn build_and_package_binary(
         ));
     }
 
-    let built_binary = repo_root
-        .join("target")
-        .join(target)
-        .join("release")
-        .join(built_bin_name);
+    let built_binary = built_binary_path(repo_root, target, built_bin_name);
     if !built_binary.is_file() {
         return Err(anyhow!(
             "built binary not found at {}",
@@ -554,5 +568,108 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Build steps that produce a SHIPPED artifact must use --profile dist, and no
+    /// shipped-artifact workflow may still read from target/release/.
+    ///
+    /// Comments are stripped before scanning: release-installers.yml documents the
+    /// old command in prose, and a blanket file-level `contains` assertion is
+    /// unsatisfiable because of it.
+    #[test]
+    fn shipped_build_steps_use_the_dist_profile() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let flag = concat!("--", "release");
+
+        // (file, build lines that legitimately stay on release, target/release paths
+        //  that legitimately remain)
+        let shipped: &[(&str, &[&str], &[&str])] = &[
+            // `cargo run … ci release-build` runs the vox-cli TOOL itself (in debug —
+            // no --release/--profile on this line), which then shells its own
+            // `cargo build --profile dist` internally (see build_and_package_binary).
+            // Same shape as bundle-release.yml's `cargo run` exception below.
+            (
+                ".github/workflows/release-binaries.yml",
+                &["cargo run"],
+                &[],
+            ),
+            // voxup is built here only to smoke `--help` and run an install E2E;
+            // fat LTO would blow the 30-minute job budget for zero shipped bytes.
+            // Because it stays on --release, its output stays at target/release/.
+            (
+                ".github/workflows/release-installers.yml",
+                &["-p voxup"],
+                &["target/release/voxup"],
+            ),
+            // The Tauri sidecar STAGING destination is target/release/vox-<triple>
+            // and must not move — tauri.conf.json's externalBin is read by seven
+            // consumers. Only the copy SOURCE moves to dist. `bundle` is Tauri's
+            // own output dir, unrelated to the cargo profile.
+            (
+                ".github/workflows/release-gui.yml",
+                &[],
+                &["target/release/vox-", "target/release/bundle"],
+            ),
+            // `cargo run … -- bundle` builds the bundler tool, not a shipped artifact.
+            (".github/workflows/bundle-release.yml", &["cargo run"], &[]),
+            ("Dockerfile", &[], &[]),
+        ];
+
+        for (rel, allowed_flags, allowed_paths) in shipped {
+            let text = std::fs::read_to_string(root.join(rel))
+                .unwrap_or_else(|e| panic!("read {rel}: {e}"));
+            for (i, line) in text.lines().enumerate() {
+                let code = line.split('#').next().unwrap_or("");
+                if !code.contains("cargo build") && !code.contains("cargo run") {
+                    continue;
+                }
+                if allowed_flags.iter().any(|a| code.contains(a)) {
+                    continue;
+                }
+                assert!(
+                    !code.contains(flag),
+                    "{rel}:{} builds a shipped artifact with the release profile:\n  {}",
+                    i + 1,
+                    code.trim()
+                );
+                assert!(
+                    code.contains("--profile dist"),
+                    "{rel}:{} builds a shipped artifact without --profile dist:\n  {}",
+                    i + 1,
+                    code.trim()
+                );
+            }
+            // Path fallout: switching the flag relocates output, so a surviving
+            // `target/release` read is a job that dies at the next step.
+            for (i, line) in text.lines().enumerate() {
+                let code = line.split('#').next().unwrap_or("");
+                if !code.contains("target/release") {
+                    continue;
+                }
+                if allowed_paths.iter().any(|a| code.contains(a)) {
+                    continue;
+                }
+                panic!(
+                    "{rel}:{} still reads target/release/ after the profile switch:\n  {}",
+                    i + 1,
+                    code.trim()
+                );
+            }
+        }
+    }
+
+    /// The builder writes to and reads from target/<triple>/<profile>/.
+    #[test]
+    fn built_binary_path_uses_the_dist_profile() {
+        let p = super::built_binary_path(
+            std::path::Path::new("/repo"),
+            "x86_64-unknown-linux-gnu",
+            "vox",
+        );
+        assert!(
+            p.ends_with("target/x86_64-unknown-linux-gnu/dist/vox"),
+            "built artifacts must be read from the dist profile dir, got {}",
+            p.display()
+        );
     }
 }

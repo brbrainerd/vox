@@ -18,9 +18,9 @@ COPY . .
 # --locked ensures we use the exact versions from Cargo.lock.
 # -j 1 limits memory usage (critical for build stability on smaller runners/VPS).
 RUN if [ -z "$VOX_CLI_FEATURES" ]; then \
-      cargo build --release -j 1 --locked -p vox-cli && strip /app/target/release/vox; \
+      cargo build --profile dist -j 1 --locked -p vox-cli; \
     else \
-      cargo build --release -j 1 --locked -p vox-cli --features "$VOX_CLI_FEATURES" && strip /app/target/release/vox; \
+      cargo build --profile dist -j 1 --locked -p vox-cli --features "$VOX_CLI_FEATURES"; \
     fi
 
 # Runtime image — no Rust toolchain, just the binary + TLS certs
@@ -29,7 +29,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/target/release/vox /usr/local/bin/vox
+COPY --from=builder /app/target/dist/vox /usr/local/bin/vox
 # Tiny script for mesh compose worker
 COPY examples/golden/mesh/noop.vox /opt/vox/mesh-noop.vox
 COPY infra/containers/entrypoints/vox-entrypoint.vox /usr/local/bin/vox-entrypoint.vox
