@@ -366,4 +366,34 @@ mod tests {
             "ReleasePackage tiers changed; `bootstrap` and `both` built a deleted crate"
         );
     }
+
+    /// Bundle artifacts must be parameterised by BOTH matrix axes, or the 16
+    /// uploads collide and the survivor identifies neither bundle nor target.
+    #[test]
+    fn every_bundle_artifact_name_is_matrix_unique() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let text = std::fs::read_to_string(root.join(".github/workflows/bundle-release.yml"))
+            .expect("read bundle-release.yml");
+        let v: serde_yaml::Value = serde_yaml::from_str(&text).expect("workflow must be valid YAML");
+
+        let steps = v["jobs"]["build-bundles"]["steps"]
+            .as_sequence()
+            .expect("build-bundles must have steps");
+
+        let mut checked = 0usize;
+        for step in steps {
+            let blob = serde_yaml::to_string(step).expect("re-serialise step");
+            // Steps that name an artifact: the build (--out) and the release attach (files:).
+            let names_artifact = blob.contains("--out") || !step["with"]["files"].is_null();
+            if !names_artifact {
+                continue;
+            }
+            checked += 1;
+            assert!(
+                blob.contains("matrix.bundle") && blob.contains("matrix.target"),
+                "bundle artifact name is not parameterised by both matrix axes:\n{blob}"
+            );
+        }
+        assert!(checked >= 2, "expected at least a build step and an attach step, saw {checked}");
+    }
 }

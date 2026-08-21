@@ -80,33 +80,47 @@ jobs:
       - name: Build bundle tarball
         env:
           VOX_PLUGINS_DIR: ${{ github.workspace }}/bundle-plugins
+          BUNDLE_ARTIFACT: ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+        # `cargo run --release` here builds the bundler TOOL, not a shipped
+        # artifact — the tarball contents come from `bundle build`. Keep it on
+        # --release: fat LTO would add three ~30-minute links per matrix cell
+        # for zero change to what ships.
         run: |
           cargo run --release --locked -p vox-cli -- \
             bundle build ${{ matrix.bundle }} \
-            --out bundle.tar.gz
+            --out "$BUNDLE_ARTIFACT"
         shell: bash
 
       - name: Verify bundle integrity
         env:
           VOX_PLUGINS_DIR: ${{ github.workspace }}/bundle-plugins
-        run: cargo run --release --locked -p vox-cli -- bundle verify bundle.tar.gz
+          BUNDLE_ARTIFACT: ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+        run: cargo run --release --locked -p vox-cli -- bundle verify "$BUNDLE_ARTIFACT"
         shell: bash
 
-      - name: Report tarball size
-        run: ls -lh bundle.tar.gz
+      - name: Checksum bundle
+        env:
+          BUNDLE_ARTIFACT: ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+        run: |
+          ls -lh "$BUNDLE_ARTIFACT"
+          sha256sum "$BUNDLE_ARTIFACT" > "$BUNDLE_ARTIFACT.sha256"
         shell: bash
 
       - name: Upload bundle artifact
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.bundle }}-${{ matrix.target }}
-          path: bundle.tar.gz
+          path: |
+            ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+            ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz.sha256
           retention-days: 30
 
       - name: Attach to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v3
         with:
-          files: bundle.tar.gz
+          files: |
+            ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+            ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
