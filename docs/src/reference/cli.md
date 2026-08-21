@@ -30,9 +30,7 @@ artifacts per supported target triple, each as its own archive on the
 | `--package` value | Produces | Use for |
 |---|---|---|
 | `vox` | `vox-<ver>-<target>.{tar.gz,zip}` | Lean install — compiler, package manager, orchestrator. No ML, no scientia. |
-| `bootstrap` | `vox-bootstrap-<ver>-<target>.{tar.gz,zip}` | Standalone installer used by `scripts/install.{sh,ps1}`. |
 | `mens` | `vox-ml-cli-<ver>-<target>.{tar.gz,zip}` | ML / speech / populi / train plugin (heavy: Candle + Whisper). |
-| `both` | `vox` + `vox-bootstrap` | Legacy pre-plugin tier (kept for backwards compatibility). |
 | `all` | Everything above | Full install for CI / dogfood. |
 
 Download a plugin archive, extract the binary onto `PATH`, and `vox` will
@@ -240,7 +238,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `policy-allowlist-parity` | Verifies `allow_direct_access` in `contracts/db/data-storage-policy.v1.yaml` matches [`docs/agents/turso-import-allowlist.txt`](../../../docs/agents/turso-import-allowlist.txt). |
 | `retirement-audit` | Enforces removal of `vox-deprecated-since` markers whose `retire-by` version has been reached. Scans workspace Rust sources; fails when any marker's `retire-by` semver ≤ current workspace version. |
 | `secrets-parity` | Verifies Secrets SSOT parity between managed secret specs and [`secrets-ssot.md`](secrets-ssot.md). Visible alias: **`clavis-parity`**. |
-| `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|bootstrap\|both]` | Build and package allowlisted release artifacts (`cargo build --locked --release`): `vox`, `vox-bootstrap`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
+| `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|mens\|all]` | Build and package allowlisted release artifacts (`cargo build --locked --release`): `vox`, `vox-ml-cli`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, CLI reference (`docs/src/reference/cli.md` or legacy `ref-cli.md`), reachability SSOT, compilerd/dei RPC names, MCP tool registry, script duals, and **`contracts/operations/completion-policy.v1.yaml`** (JSON Schema) — blocks orphan CLI drift |
 | `completion-audit [--scan-extra <DIR>]…` | Scans **`crates/`** (always) plus optional extra directories under the repo (generated apps, codegen trees). Same detectors; paths must exist and resolve under the repository root. Writes **`contracts/reports/completion-audit.v1.json`**. CI uses **`--features completion-toestub`** to merge TOESTUB `victory-claim` (Tier C). |
 | `completion-gates [--mode warn\|enforce]` | Applies Tier A hard blocks and Tier B regression limits from **`contracts/reports/completion-baseline.v1.json`** to the last audit report (CI uses **`enforce`**) |

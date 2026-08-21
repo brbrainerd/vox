@@ -158,14 +158,14 @@
                     {
                         "path":  "scripts/install.sh",
                         "invoked_by_ci":  false,
-                        "replacement":  "vox-bootstrap",
+                        "replacement":  "voxup",
                         "status":  "bootstrap",
                         "notes":  "First-run installer; not replaceable by vox cli alone"
                     },
                     {
                         "path":  "scripts/install.ps1",
                         "invoked_by_ci":  false,
-                        "replacement":  "vox-bootstrap",
+                        "replacement":  "voxup",
                         "status":  "bootstrap",
                         "notes":  "First-run installer; not replaceable by vox cli alone"
                     },

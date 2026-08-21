@@ -1802,7 +1802,6 @@ jobs:
           - vox-ml-cli
           - vox-gamify
           - vox-oratio
-          - vox-schola
           - vox-skills
           - vox-scientia-ingest
           - vox-doc-pipeline

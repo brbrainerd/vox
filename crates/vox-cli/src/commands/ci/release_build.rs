@@ -11,6 +11,10 @@ use vox_cli_ci::cmd_enums::ReleasePackage;
 /// Supported release triples (SSOT: `vox-install-policy`; keep workflow/docs aligned via `vox ci command-compliance`).
 pub use crate::utils::install_policy::SUPPORTED_RELEASE_TARGETS;
 
+/// Crates the release builder shells `cargo build -p` for. Asserted against the
+/// workspace by `every_release_package_exists_in_the_workspace`.
+pub(crate) const RELEASE_PACKAGES: &[&str] = &["vox-cli", "vox-ml-cli"];
+
 pub(crate) fn validate_release_target(target: &str) -> Result<()> {
     if SUPPORTED_RELEASE_TARGETS.contains(&target) {
         Ok(())
@@ -36,14 +40,7 @@ pub fn run(
         .with_context(|| format!("create out dir {}", out_dir_abs.display()))?;
 
     let mut checksum_lines = Vec::new();
-    let want_vox = matches!(
-        package,
-        ReleasePackage::Vox | ReleasePackage::Both | ReleasePackage::All
-    );
-    let want_bootstrap = matches!(
-        package,
-        ReleasePackage::Bootstrap | ReleasePackage::Both | ReleasePackage::All
-    );
+    let want_vox = matches!(package, ReleasePackage::Vox | ReleasePackage::All);
     let want_mens = matches!(package, ReleasePackage::Mens | ReleasePackage::All);
 
     if want_vox {
@@ -55,19 +52,6 @@ pub fn run(
             "vox-cli",
             executable_name(target),
             "vox",
-        )?;
-        let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
-        checksum_lines.push(checksum_line(&digest, &artifact_name));
-    }
-    if want_bootstrap {
-        let artifact_name = build_and_package_binary(
-            repo_root,
-            out_dir_abs.as_path(),
-            target,
-            artifact_version,
-            "vox-bootstrap",
-            bootstrap_executable_name(target),
-            "vox-bootstrap",
         )?;
         let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
         checksum_lines.push(checksum_line(&digest, &artifact_name));
@@ -110,14 +94,6 @@ fn executable_name(target: &str) -> &'static str {
         "vox.exe"
     } else {
         "vox"
-    }
-}
-
-fn bootstrap_executable_name(target: &str) -> &'static str {
-    if is_windows_target(target) {
-        "vox-bootstrap.exe"
-    } else {
-        "vox-bootstrap"
     }
 }
 
@@ -196,10 +172,7 @@ mod tests {
     use crate::utils::release_artifacts::artifact_filename;
     use vox_bounded_fs::read_utf8_path_capped;
 
-    use super::{
-        bootstrap_executable_name, checksum_line, executable_name, plugin_executable_name,
-        validate_release_target,
-    };
+    use super::{checksum_line, executable_name, plugin_executable_name, validate_release_target};
 
     #[test]
     fn unsupported_target_errors() {
@@ -215,14 +188,6 @@ mod tests {
         assert_eq!(executable_name("x86_64-pc-windows-msvc"), "vox.exe");
         assert_eq!(executable_name("x86_64-unknown-linux-gnu"), "vox");
         assert_eq!(executable_name("aarch64-apple-darwin"), "vox");
-        assert_eq!(
-            bootstrap_executable_name("x86_64-pc-windows-msvc"),
-            "vox-bootstrap.exe"
-        );
-        assert_eq!(
-            bootstrap_executable_name("x86_64-unknown-linux-gnu"),
-            "vox-bootstrap"
-        );
         assert_eq!(
             plugin_executable_name("x86_64-pc-windows-msvc", "vox-ml-cli"),
             "vox-ml-cli.exe"
@@ -252,8 +217,8 @@ mod tests {
             "vox-v1.2.3-aarch64-apple-darwin.tar.gz"
         );
         assert_eq!(
-            artifact_filename("vox-bootstrap", "v1.2.3", "x86_64-unknown-linux-gnu"),
-            "vox-bootstrap-v1.2.3-x86_64-unknown-linux-gnu.tar.gz"
+            artifact_filename("vox-ml-cli", "v1.2.3", "x86_64-unknown-linux-gnu"),
+            "vox-ml-cli-v1.2.3-x86_64-unknown-linux-gnu.tar.gz"
         );
     }
 
@@ -270,15 +235,12 @@ mod tests {
     fn checksum_manifest_supports_multiple_entries() {
         let all = [
             checksum_line("aaa", "vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz"),
-            checksum_line(
-                "bbb",
-                "vox-bootstrap-v1.2.3-x86_64-unknown-linux-gnu.tar.gz",
-            ),
+            checksum_line("bbb", "vox-ml-cli-v1.2.3-x86_64-unknown-linux-gnu.tar.gz"),
         ]
         .join("");
         assert_eq!(
             all,
-            "aaa  vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\nbbb  vox-bootstrap-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\n"
+            "aaa  vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\nbbb  vox-ml-cli-v1.2.3-x86_64-unknown-linux-gnu.tar.gz\n"
         );
     }
 
@@ -361,5 +323,42 @@ mod tests {
                 "{served} has drifted from {canonical}; regenerate it in the same commit"
             );
         }
+    }
+
+    /// Every crate the release builder shells out to must exist. `vox-bootstrap`
+    /// was deleted from the workspace but `--package all` kept building it, so
+    /// every release matrix leg failed and no artifact was ever published.
+    ///
+    /// Reads `RELEASE_PACKAGES` — the same constant `run()` uses — rather than a
+    /// hardcoded list, so adding a package to the builder cannot bypass this.
+    #[test]
+    fn every_release_package_exists_in_the_workspace() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let lock = std::fs::read_to_string(root.join("Cargo.lock")).expect("read Cargo.lock");
+        for pkg in super::RELEASE_PACKAGES {
+            assert!(
+                root.join("crates").join(pkg).is_dir(),
+                "release_build shells `cargo build -p {pkg}` but crates/{pkg}/ does not exist"
+            );
+            assert!(
+                lock.contains(&format!("name = \"{pkg}\"")),
+                "release_build shells `cargo build -p {pkg}`, absent from Cargo.lock"
+            );
+        }
+    }
+
+    /// `--package all` must still parse, and the retired tiers must not.
+    #[test]
+    fn release_package_value_enum_matches_the_shipped_tiers() {
+        use clap::ValueEnum;
+        let names: Vec<String> = vox_cli_ci::cmd_enums::ReleasePackage::value_variants()
+            .iter()
+            .filter_map(|v| v.to_possible_value().map(|p| p.get_name().to_string()))
+            .collect();
+        assert_eq!(
+            names,
+            vec!["vox".to_string(), "mens".to_string(), "all".to_string()],
+            "ReleasePackage tiers changed; `bootstrap` and `both` built a deleted crate"
+        );
     }
 }
