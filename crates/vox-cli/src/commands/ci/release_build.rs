@@ -311,16 +311,20 @@ mod tests {
     #[test]
     fn documented_install_urls_are_served() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        for (advertised, served) in [("voxup", "docs-astro/public/voxup"),
-                                     ("voxup.ps1", "docs-astro/public/voxup.ps1")] {
+        for (advertised, served) in [
+            ("voxup", "docs-astro/public/voxup"),
+            ("voxup.ps1", "docs-astro/public/voxup.ps1"),
+        ] {
             assert!(
                 root.join(served).is_file(),
                 "https://voxlang.org/{advertised} is documented but {served} does not exist"
             );
         }
         // The served copies must not drift from the canonical scripts.
-        for (served, canonical) in [("docs-astro/public/voxup", "scripts/install.sh"),
-                                    ("docs-astro/public/voxup.ps1", "scripts/install.ps1")] {
+        for (served, canonical) in [
+            ("docs-astro/public/voxup", "scripts/install.sh"),
+            ("docs-astro/public/voxup.ps1", "scripts/install.ps1"),
+        ] {
             let a = std::fs::read_to_string(root.join(served)).expect("read served copy");
             let b = std::fs::read_to_string(root.join(canonical)).expect("read canonical script");
             assert_eq!(
@@ -374,7 +378,8 @@ mod tests {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let text = std::fs::read_to_string(root.join(".github/workflows/bundle-release.yml"))
             .expect("read bundle-release.yml");
-        let v: serde_yaml::Value = serde_yaml::from_str(&text).expect("workflow must be valid YAML");
+        let v: serde_yaml::Value =
+            serde_yaml::from_str(&text).expect("workflow must be valid YAML");
 
         let steps = v["jobs"]["build-bundles"]["steps"]
             .as_sequence()
@@ -394,7 +399,10 @@ mod tests {
                 "bundle artifact name is not parameterised by both matrix axes:\n{blob}"
             );
         }
-        assert!(checked >= 2, "expected at least a build step and an attach step, saw {checked}");
+        assert!(
+            checked >= 2,
+            "expected at least a build step and an attach step, saw {checked}"
+        );
     }
 
     /// Bundles the x86-64 Linux + Windows matrix deliberately does not build.
@@ -451,13 +459,66 @@ mod tests {
         let actual = workflow_matrix_bundle_ids(&wf);
 
         assert_eq!(
-            actual, expected,
+            actual,
+            expected,
             "bundle-release.yml matrix must match the buildable [[bundle]] ids in \
              catalog.toml (excluding {MATRIX_EXCLUDED_BUNDLES:?}).\n  \
              only in workflow (phantom — fails UnknownBundle every release): {:?}\n  \
              only in catalog (never built): {:?}",
-            actual.iter().filter(|b| !expected.contains(b)).collect::<Vec<_>>(),
-            expected.iter().filter(|b| !actual.contains(b)).collect::<Vec<_>>(),
+            actual
+                .iter()
+                .filter(|b| !expected.contains(b))
+                .collect::<Vec<_>>(),
+            expected
+                .iter()
+                .filter(|b| !actual.contains(b))
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    /// `[profile.dist]` must not abort on panic. Three non-test paths in the shipped
+    /// binary rely on unwinding:
+    ///   - vox-actor-runtime/src/supervisor.rs:30,52 — spawn_supervised matches on
+    ///     JoinError::is_panic(); under abort a panicking task kills the process and
+    ///     every caller silently loses supervision.
+    ///   - vox-vcs/src/jj_actor.rs:196,282 — the `guarded!` macro catch_unwinds
+    ///     block_on so a panicking jj-lib call returns Err(Unavailable) rather than
+    ///     killing the actor loop. `jj` is a default feature of vox-orchestrator,
+    ///     which vox-cli takes with defaults, so this ships.
+    ///   - vox-search/src/memory_cache.rs:88 — resume_unwind on a spawn_blocking panic.
+    ///
+    /// Also guards the two other routes abort could arrive by: inheritance from
+    /// [profile.release], and a global rustflag.
+    #[test]
+    fn dist_profile_does_not_abort_on_panic() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let manifest = std::fs::read_to_string(root.join("Cargo.toml")).expect("read Cargo.toml");
+        let v: toml::Value = manifest.parse().expect("workspace Cargo.toml must parse");
+
+        let dist = v["profile"].get("dist").expect("[profile.dist] must exist");
+        assert!(
+            dist.get("panic").is_none(),
+            "[profile.dist] must not set `panic`; abort breaks catch_unwind-based \
+             panic containment in supervisor.rs and jj_actor.rs"
+        );
+        assert!(
+            v["profile"]["release"].get("panic").is_none(),
+            "[profile.release] sets `panic`; [profile.dist] inherits from it"
+        );
+
+        // The optimization settings ARE the point of the profile — keep them.
+        assert_eq!(dist.get("lto").and_then(|x| x.as_str()), Some("fat"));
+        assert_eq!(
+            dist.get("codegen-units").and_then(|x| x.as_integer()),
+            Some(1)
+        );
+        assert_eq!(dist.get("strip").and_then(|x| x.as_str()), Some("symbols"));
+
+        let cargo_cfg =
+            std::fs::read_to_string(root.join(".cargo/config.toml")).unwrap_or_default();
+        assert!(
+            !cargo_cfg.replace(' ', "").contains("panic=abort"),
+            ".cargo/config.toml sets panic=abort globally, bypassing the profile"
         );
     }
 }
