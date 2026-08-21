@@ -33,8 +33,12 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not @stable: shipped artifacts must be built by the same compiler
+        # CI gates use (rust-toolchain.toml). @stable also imports each new
+        # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.96.0"
           targets: ${{ matrix.target }}
 
       - name: Build and package release artifacts (core + plugins)

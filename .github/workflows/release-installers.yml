@@ -18,7 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not @stable: shipped artifacts must be built by the same compiler
+        # CI gates use (rust-toolchain.toml). @stable also imports each new
+        # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
       - name: Build voxup
         run: cargo build --release -p voxup
       - name: Smoke — voxup --help (all branches)
@@ -56,7 +61,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not @stable: shipped artifacts must be built by the same compiler
+        # CI gates use (rust-toolchain.toml). @stable also imports each new
+        # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
       - name: Install cargo-wix
         uses: taiki-e/install-action@v2
         with:
@@ -72,7 +82,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not @stable: shipped artifacts must be built by the same compiler
+        # CI gates use (rust-toolchain.toml). @stable also imports each new
+        # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
       - name: Install cargo-deb
         uses: taiki-e/install-action@v2
         with:
@@ -113,7 +128,12 @@ jobs:
           echo "install.sh syntax OK"
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not @stable: shipped artifacts must be built by the same compiler
+        # CI gates use (rust-toolchain.toml). @stable also imports each new
+        # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
 
       - name: Build voxup (for E2E bootstrap test)
         run: cargo build --release -p voxup

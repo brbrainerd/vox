@@ -521,4 +521,38 @@ mod tests {
             ".cargo/config.toml sets panic=abort globally, bypassing the profile"
         );
     }
+
+    /// Release workflows must not float the toolchain. Building shipped artifacts on
+    /// `@stable` means users get binaries from a compiler no CI gate ever ran, and
+    /// each new stable silently imports its lint wave.
+    #[test]
+    fn release_workflows_pin_the_toolchain() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let pinned = std::fs::read_to_string(root.join("rust-toolchain.toml"))
+            .expect("read rust-toolchain.toml");
+        let want = pinned
+            .lines()
+            .find_map(|l| l.trim().strip_prefix("channel = "))
+            .map(|v| v.trim().trim_matches('"').to_string())
+            .expect("rust-toolchain.toml must declare a channel");
+
+        let floating = concat!("rust-toolchain@", "stable");
+        for rel in [
+            ".github/workflows/release-binaries.yml",
+            ".github/workflows/release-installers.yml",
+            ".github/workflows/bundle-release.yml",
+        ] {
+            let text = std::fs::read_to_string(root.join(rel)).expect("read workflow");
+            assert!(
+                !text.contains(floating),
+                "{rel} floats the toolchain; pin it to {want} (rust-toolchain.toml)"
+            );
+            if text.contains("dtolnay/rust-toolchain") {
+                assert!(
+                    text.contains(&format!("toolchain: \"{want}\"")),
+                    "{rel} installs a toolchain other than rust-toolchain.toml's {want}"
+                );
+            }
+        }
+    }
 }
