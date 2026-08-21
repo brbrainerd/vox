@@ -698,19 +698,33 @@ fn shipped_build_steps_use_the_dist_profile() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let flag = concat!("--", "release");
 
-    // (file, substrings marking a build line that legitimately stays on release)
-    let shipped: &[(&str, &[&str])] = &[
-        (".github/workflows/release-binaries.yml", &[]),
+    // (file, build lines that legitimately stay on release, target/release paths
+    //  that legitimately remain)
+    let shipped: &[(&str, &[&str], &[&str])] = &[
+        (".github/workflows/release-binaries.yml", &[], &[]),
         // voxup is built here only to smoke `--help` and run an install E2E;
         // fat LTO would blow the 30-minute job budget for zero shipped bytes.
-        (".github/workflows/release-installers.yml", &["-p voxup"]),
-        (".github/workflows/release-gui.yml", &[]),
+        // Because it stays on --release, its output stays at target/release/.
+        (
+            ".github/workflows/release-installers.yml",
+            &["-p voxup"],
+            &["target/release/voxup"],
+        ),
+        // The Tauri sidecar STAGING destination is target/release/vox-<triple>
+        // and must not move — tauri.conf.json's externalBin is read by seven
+        // consumers. Only the copy SOURCE moves to dist. `bundle` is Tauri's
+        // own output dir, unrelated to the cargo profile.
+        (
+            ".github/workflows/release-gui.yml",
+            &[],
+            &["target/release/vox-", "target/release/bundle"],
+        ),
         // `cargo run … -- bundle` builds the bundler tool, not a shipped artifact.
-        (".github/workflows/bundle-release.yml", &["cargo run"]),
-        ("Dockerfile", &[]),
+        (".github/workflows/bundle-release.yml", &["cargo run"], &[]),
+        ("Dockerfile", &[], &[]),
     ];
 
-    for (rel, allowed) in shipped {
+    for (rel, allowed_flags, allowed_paths) in shipped {
         let text = std::fs::read_to_string(root.join(rel))
             .unwrap_or_else(|e| panic!("read {rel}: {e}"));
         for (i, line) in text.lines().enumerate() {
@@ -718,7 +732,7 @@ fn shipped_build_steps_use_the_dist_profile() {
             if !code.contains("cargo build") && !code.contains("cargo run") {
                 continue;
             }
-            if allowed.iter().any(|a| code.contains(a)) {
+            if allowed_flags.iter().any(|a| code.contains(a)) {
                 continue;
             }
             assert!(
@@ -734,10 +748,22 @@ fn shipped_build_steps_use_the_dist_profile() {
                 code.trim()
             );
         }
-        assert!(
-            !text.replace("target/release/bundle", "").contains("target/release"),
-            "{rel} still reads target/release/ after the profile switch"
-        );
+        // Path fallout: switching the flag relocates output, so a surviving
+        // `target/release` read is a job that dies at the next step.
+        for (i, line) in text.lines().enumerate() {
+            let code = line.split('#').next().unwrap_or("");
+            if !code.contains("target/release") {
+                continue;
+            }
+            if allowed_paths.iter().any(|a| code.contains(a)) {
+                continue;
+            }
+            panic!(
+                "{rel}:{} still reads target/release/ after the profile switch:\n  {}",
+                i + 1,
+                code.trim()
+            );
+        }
     }
 }
 
