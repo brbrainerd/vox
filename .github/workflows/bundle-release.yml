@@ -4,7 +4,9 @@ name: Build Distribution Bundles
 # Produces one tarball per (bundle-id x platform) matrix cell, verifies
 # each with `vox bundle verify`, and uploads as release artifacts.
 #
-# Matrix: 8 bundles x 2 platforms = 16 jobs per run.
+# Matrix: 7 bundles x 2 platforms = 14 jobs per run.
+# vox-ml-metal (Apple Metal) and vox-mobile (alpha, v0.8) are excluded — see
+# MATRIX_EXCLUDED_BUNDLES in crates/vox-cli/src/commands/ci/release_build.rs.
 
 on:
   release:
@@ -28,13 +30,12 @@ jobs:
       matrix:
         bundle:
           - vox-base
-          - vox-fullstack
-          - vox-ml
-          - vox-mesh
-          - vox-server
-          - vox-edge
-          - vox-cloud-only
           - vox-dev
+          - vox-edge
+          - vox-fullstack
+          - vox-mesh
+          - vox-ml
+          - vox-server
         target:
           - x86_64-unknown-linux-gnu
           - x86_64-pc-windows-msvc

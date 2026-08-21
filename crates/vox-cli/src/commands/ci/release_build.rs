@@ -396,4 +396,68 @@ mod tests {
         }
         assert!(checked >= 2, "expected at least a build step and an attach step, saw {checked}");
     }
+
+    /// Bundles the x86-64 Linux + Windows matrix deliberately does not build.
+    /// `vox-ml-metal` carries an Apple-Metal plugin; `vox-mobile` is status="alpha",
+    /// planned v0.8. Adding either would spawn jobs that cannot succeed here.
+    const MATRIX_EXCLUDED_BUNDLES: &[&str] = &["vox-ml-metal", "vox-mobile"];
+
+    fn catalog_bundle_ids(catalog_toml: &str) -> Vec<String> {
+        let v: toml::Value = catalog_toml.parse().expect("catalog.toml must parse");
+        let mut ids: Vec<String> = v
+            .get("bundle")
+            .and_then(|b| b.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|t| t.get("id")?.as_str().map(String::from))
+                    .filter(|id| !MATRIX_EXCLUDED_BUNDLES.contains(&id.as_str()))
+                    .collect()
+            })
+            .unwrap_or_default();
+        ids.sort();
+        ids
+    }
+
+    /// Read the matrix from parsed YAML. A hand-rolled line scanner gives wrong
+    /// answers on comments, quoted ids, flow style, anchors, and any second
+    /// `bundle:` key elsewhere in the file.
+    fn workflow_matrix_bundle_ids(yml: &str) -> Vec<String> {
+        let v: serde_yaml::Value = serde_yaml::from_str(yml).expect("workflow must be valid YAML");
+        let mut ids: Vec<String> = v["jobs"]["build-bundles"]["strategy"]["matrix"]["bundle"]
+            .as_sequence()
+            .expect("matrix.bundle must be a list")
+            .iter()
+            .map(|x| x.as_str().expect("bundle id must be a string").to_string())
+            .collect();
+        ids.sort();
+        ids
+    }
+
+    #[test]
+    fn catalog_bundle_ids_excludes_platform_specific_bundles() {
+        let toml_src = "[[bundle]]\nid = \"vox-base\"\n\n[[bundle]]\nid = \"vox-ml-metal\"\n";
+        assert_eq!(catalog_bundle_ids(toml_src), vec!["vox-base"]);
+    }
+
+    #[test]
+    fn bundle_release_matrix_matches_plugin_catalog() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let catalog = std::fs::read_to_string(root.join("crates/vox-plugin-catalog/catalog.toml"))
+            .expect("read catalog.toml");
+        let wf = std::fs::read_to_string(root.join(".github/workflows/bundle-release.yml"))
+            .expect("read bundle-release.yml");
+
+        let expected = catalog_bundle_ids(&catalog);
+        let actual = workflow_matrix_bundle_ids(&wf);
+
+        assert_eq!(
+            actual, expected,
+            "bundle-release.yml matrix must match the buildable [[bundle]] ids in \
+             catalog.toml (excluding {MATRIX_EXCLUDED_BUNDLES:?}).\n  \
+             only in workflow (phantom — fails UnknownBundle every release): {:?}\n  \
+             only in catalog (never built): {:?}",
+            actual.iter().filter(|b| !expected.contains(b)).collect::<Vec<_>>(),
+            expected.iter().filter(|b| !actual.contains(b)).collect::<Vec<_>>(),
+        );
+    }
 }
