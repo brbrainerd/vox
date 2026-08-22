@@ -175,18 +175,69 @@ async fn install_from_url(url: &str, yes: bool) -> Result<()> {
     let tmp_base = std::env::temp_dir().join(format!("vox-plugin-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&tmp_base).context("creating temp dir")?;
 
-    let zip_path = tmp_base.join("plugin.zip");
-    std::fs::write(&zip_path, &bytes).context("writing zip to temp")?;
-
-    // Unzip.
-    let file = std::fs::File::open(&zip_path).context("opening zip")?;
-    let mut archive = zip::ZipArchive::new(file).context("parsing zip")?;
-    archive.extract(&tmp_base).context("extracting zip")?;
+    extract_plugin_zip(&bytes, &tmp_base)?;
 
     let result = install_from_path(&tmp_base, true);
     // Best-effort cleanup.
     let _ = std::fs::remove_dir_all(&tmp_base);
     result
+}
+
+/// Extract a plugin archive, refusing anything that escapes `dest` or is not a
+/// plain file or directory.
+///
+/// `ZipArchive::extract` materialises symlinks and applies no size cap. This is
+/// the one extraction path in the codebase whose output is `dlopen`'d, and
+/// unlike voxup's tar path it has no checksum gate in front of it.
+fn extract_plugin_zip(data: &[u8], dest: &Path) -> Result<()> {
+    const MAX_UNCOMPRESSED_BYTES: u64 = 512 * 1024 * 1024;
+    const MAX_ENTRIES: usize = 10_000;
+
+    let mut archive =
+        zip::ZipArchive::new(std::io::Cursor::new(data)).context("open plugin zip")?;
+    if archive.len() > MAX_ENTRIES {
+        bail!("plugin archive has more than {MAX_ENTRIES} entries; refusing to extract");
+    }
+
+    let mut total: u64 = 0;
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).context("read zip entry")?;
+        let enclosed = entry
+            .enclosed_name()
+            .with_context(|| format!("entry {:?} escapes destination", entry.name()))?;
+        let outpath = dest.join(&enclosed);
+        if !outpath.starts_with(dest) {
+            bail!("entry {:?} escapes destination", entry.name());
+        }
+
+        total = total.saturating_add(entry.size());
+        if total > MAX_UNCOMPRESSED_BYTES {
+            bail!("plugin archive expands beyond {MAX_UNCOMPRESSED_BYTES} bytes");
+        }
+
+        if entry.is_dir() {
+            std::fs::create_dir_all(&outpath)
+                .with_context(|| format!("create dir {}", outpath.display()))?;
+            continue;
+        }
+        // Anything that is neither a plain file nor a directory is refused
+        // rather than materialised.
+        if entry.is_symlink() {
+            bail!(
+                "plugin archive contains a symlink entry {:?}; refusing",
+                entry.name()
+            );
+        }
+        if let Some(parent) = outpath.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("create dir {}", parent.display()))?;
+        }
+        let mut out = std::fs::File::create(&outpath)
+            .with_context(|| format!("create {}", outpath.display()))?;
+        std::io::copy(&mut entry, &mut out)
+            .with_context(|| format!("write {}", outpath.display()))?;
+    }
+    Ok(())
 }
 
 /// Opt-in switch for the workspace-local plugin source.
@@ -413,5 +464,43 @@ mod tests {
         unsafe { std::env::set_var(LOCAL_FALLBACK_ENV, "1") };
         assert!(local_fallback_enabled());
         unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
+    }
+
+    /// Plugin archives are extracted and then dlopen'd. An escaping entry must
+    /// be refused, not materialised.
+    #[test]
+    fn extract_plugin_zip_rejects_escaping_entries() {
+        use std::io::Write;
+        let mut buf = Vec::new();
+        {
+            let mut w = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
+            let opts: zip::write::FileOptions<'_, ()> = zip::write::FileOptions::default();
+            w.start_file("../escaped.txt", opts).expect("start file");
+            w.write_all(b"pwned").expect("write");
+            w.finish().expect("finish");
+        }
+        let dir = tempfile::tempdir().expect("tempdir");
+        let err = extract_plugin_zip(&buf, dir.path()).expect_err("must reject escaping entry");
+        assert!(
+            err.to_string().contains("escapes destination"),
+            "got: {err}"
+        );
+        assert!(!dir.path().parent().unwrap().join("escaped.txt").exists());
+    }
+
+    #[test]
+    fn extract_plugin_zip_accepts_a_normal_entry() {
+        use std::io::Write;
+        let mut buf = Vec::new();
+        {
+            let mut w = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
+            let opts: zip::write::FileOptions<'_, ()> = zip::write::FileOptions::default();
+            w.start_file("Plugin.toml", opts).expect("start file");
+            w.write_all(b"[plugin]\n").expect("write");
+            w.finish().expect("finish");
+        }
+        let dir = tempfile::tempdir().expect("tempdir");
+        extract_plugin_zip(&buf, dir.path()).expect("normal entry must extract");
+        assert!(dir.path().join("Plugin.toml").is_file());
     }
 }
