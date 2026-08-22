@@ -702,4 +702,39 @@ mod tests {
              publish while verification was still running, or after it failed"
         );
     }
+
+    /// `install.sh` must abort, not continue, when no SHA-256 tool exists. Executes
+    /// the real `verify_checksum` with every hash tool reported missing.
+    #[cfg(unix)]
+    #[test]
+    fn install_sh_aborts_when_no_hash_tool_exists() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let sh = std::fs::read_to_string(root.join("scripts/install.sh")).expect("read install.sh");
+
+        // Source the helpers without running main(), then shadow `command -v` so
+        // every hash tool reports missing.
+        let harness = format!(
+            "{}\n\
+             command() {{ if [ \"$1\" = \"-v\" ]; then case \"$2\" in \
+               sha256sum|shasum|openssl) return 1;; esac; fi; builtin command \"$@\"; }}\n\
+             verify_checksum /dev/null deadbeef\n\
+             echo REACHED_INSTALL\n",
+            sh.replace("main \"$@\"", "")
+        );
+
+        let out = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&harness)
+            .output()
+            .expect("spawn sh");
+
+        assert!(
+            !out.status.success(),
+            "verify_checksum returned success with no hash tool available"
+        );
+        assert!(
+            !String::from_utf8_lossy(&out.stdout).contains("REACHED_INSTALL"),
+            "install.sh continued past an unverifiable checksum"
+        );
+    }
 }

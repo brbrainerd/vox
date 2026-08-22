@@ -53,17 +53,23 @@ verify_checksum() {
     _file="$1"
     _expected="$2"
 
+    # Fail CLOSED. A missing hashing tool must abort, never downgrade to
+    # installing unverified bytes — this runs inside `curl | sh`, where a
+    # printed warning scrolls past unread.
     if command -v sha256sum >/dev/null 2>&1; then
         _actual="$(sha256sum "$_file" | cut -d ' ' -f1)"
     elif command -v shasum >/dev/null 2>&1; then
         _actual="$(shasum -a 256 "$_file" | cut -d ' ' -f1)"
+    elif command -v openssl >/dev/null 2>&1; then
+        # OpenSSL 3.x prints "SHA2-256(f)= <hex>", 1.x "SHA256(f)= <hex>",
+        # LibreSSL "SHA256 (f) = <hex>". The hex is the last field in all three.
+        _actual="$(openssl dgst -sha256 "$_file" | awk '{print $NF}')"
     else
-        say "WARNING: no sha256 tool found — skipping integrity check"
-        return 0
+        err "no SHA-256 tool found (need one of: sha256sum, shasum, openssl)."
     fi
 
     if [ "$_actual" != "$_expected" ]; then
-        err "SHA-256 mismatch for $_file\n  expected: $_expected\n  actual:   $_actual"
+        err "SHA-256 mismatch for $_file (expected $_expected, got $_actual)"
     fi
     say "Checksum OK"
 }
