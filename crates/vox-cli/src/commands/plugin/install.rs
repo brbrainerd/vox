@@ -32,6 +32,30 @@ pub async fn run(
     }
 }
 
+/// Reject an id or version that would escape the install root once joined.
+///
+/// The extraction hardening bounds what an ARCHIVE can contain, but the install
+/// destination is built from the archive's declared metadata, which no zip
+/// entry check ever sees. A plugin declaring `id = "../../.config/autostart"`
+/// passes every extraction gate and still writes outside the root.
+fn validate_path_component(kind: &str, value: &str) -> Result<()> {
+    if value.is_empty() {
+        bail!("plugin {kind} is empty");
+    }
+    if value == "." || value == ".." {
+        bail!("plugin {kind} {value:?} is not a usable directory name");
+    }
+    // Allowlist, not a denylist: this rejects `/`, `\`, a `C:` drive prefix and
+    // every separator a future platform might add, without enumerating them.
+    if let Some(bad) = value
+        .chars()
+        .find(|c| !(c.is_ascii_alphanumeric() || *c == '-' || *c == '_' || *c == '.'))
+    {
+        bail!("plugin {kind} {value:?} contains {bad:?}; allowed: A-Z a-z 0-9 . - _");
+    }
+    Ok(())
+}
+
 /// Copy plugin files from `src_dir` (must contain Plugin.toml) into the install root.
 fn install_from_path(src_dir: &Path, yes: bool) -> Result<()> {
     let plugin_toml_path = src_dir.join("Plugin.toml");
@@ -46,6 +70,12 @@ fn install_from_path(src_dir: &Path, yes: bool) -> Result<()> {
         toml::from_str(&raw).with_context(|| format!("parsing {}", plugin_toml_path.display()))?;
     let id = &head.plugin.id;
     let version = &head.plugin.version;
+    // Both strings come from the archive's OWN Plugin.toml and are about to
+    // become path components, so they are attacker-controlled on every install
+    // path (catalog, --path, --url). Validate here rather than at each caller:
+    // this is the one function they all route through.
+    validate_path_component("id", id)?;
+    validate_path_component("version", version)?;
 
     let root = plugins_root();
     let dest = root.join(id).join(version);
@@ -321,6 +351,20 @@ async fn install_from_catalog(id: &str, yes: bool, allow_unverified: bool) -> Re
 
     // Resolve source to a URL or local path.
     if let Some(rel) = source.strip_prefix("local:") {
+        // Same threat as the workspace-local fallback, same gate: `rel` is
+        // CWD-relative, so any directory the user happens to be inside can
+        // supply a cdylib for a catalog plugin id. A `local:` entry only ever
+        // resolves inside a repo checkout anyway, which is exactly the
+        // developer scenario this env var exists for.
+        if !local_fallback_enabled() {
+            bail!(
+                "refusing to install {id} from its local source {source:?}: it resolves 
+                   relative to the current directory, so any directory you happen to be in 
+                   could supply the native code this loads.
+                   Set {}=1 to opt in, or pass --path <dir> to name the directory explicitly.",
+                LOCAL_FALLBACK_ENV
+            );
+        }
         let local_path = std::path::Path::new(rel);
         install_from_path(local_path, yes)
     } else if let Some(gh) = source.strip_prefix("github:") {
@@ -531,6 +575,101 @@ mod tests {
     }
 
     /// The core property: with no expected hash, installation is REFUSED.
+    #[test]
+    /// The escape this phase's extraction hardening cannot see: it lives in the
+    /// archive's declared metadata, not in any zip entry.
+    /// Wiring test, not a unit test: the validator existing is worthless if
+    /// `install_from_path` does not CALL it. Removing either call site must
+    /// break this, which a direct `validate_path_component` test cannot detect.
+    #[test]
+    fn install_from_path_refuses_a_plugin_whose_declared_id_escapes() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            dir.path().join("Plugin.toml"),
+            "[plugin]
+id = \"../../../../evil\"
+version = \"0.1.0\"
+",
+        )
+        .expect("write Plugin.toml");
+        let err = install_from_path(dir.path(), true)
+            .expect_err("a declared id that escapes the install root must be refused");
+        let m = err.to_string();
+        assert!(m.contains("id"), "error must name the offending field: {m}");
+    }
+
+    #[test]
+    fn install_from_path_refuses_a_plugin_whose_declared_version_escapes() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            dir.path().join("Plugin.toml"),
+            "[plugin]
+id = \"ok-plugin\"
+version = \"../../..\"
+",
+        )
+        .expect("write Plugin.toml");
+        let err = install_from_path(dir.path(), true)
+            .expect_err("a declared version that escapes the install root must be refused");
+        assert!(
+            err.to_string().contains("version"),
+            "error must name the offending field: {err}"
+        );
+    }
+
+    /// The sibling of the workspace-local fallback: a `local:` catalog source is
+    /// CWD-relative, so it must sit behind the same opt-in.
+    #[tokio::test]
+    async fn catalog_local_source_is_refused_without_the_opt_in() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // SAFETY: ENV_LOCK serialises every mutator of this variable.
+        unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
+        let err = install_from_catalog("mens-candle-metal", true, false)
+            .await
+            .expect_err("a CWD-relative local: source must not install by default");
+        let m = err.to_string();
+        assert!(
+            m.contains(LOCAL_FALLBACK_ENV),
+            "error must name the opt-in switch: {m}"
+        );
+    }
+
+    #[test]
+    fn a_traversing_id_is_refused_before_it_becomes_a_path() {
+        for bad in [
+            "../../../../../.config/autostart",
+            "..",
+            ".",
+            "a/b",
+            r"a\b",
+            "C:evil",
+            "",
+        ] {
+            assert!(
+                validate_path_component("id", bad).is_err(),
+                "must reject id {bad:?} — it is joined onto the install root"
+            );
+        }
+    }
+
+    #[test]
+    fn a_traversing_version_is_refused_too() {
+        assert!(validate_path_component("version", "../../etc").is_err());
+        // ...while the version strings real plugins actually use still pass.
+        for ok in ["0.1.0", "1.2.3-beta.1", "2026_08_22"] {
+            validate_path_component("version", ok)
+                .unwrap_or_else(|e| panic!("legitimate version {ok:?} must pass: {e}"));
+        }
+    }
+
+    #[test]
+    fn a_normal_id_still_passes() {
+        for ok in ["oratio", "mens-candle-cuda", "skill_git", "v0"] {
+            validate_path_component("id", ok)
+                .unwrap_or_else(|e| panic!("legitimate id {ok:?} must pass: {e}"));
+        }
+    }
+
     #[test]
     fn missing_hash_is_refused_by_default() {
         let err = verify_plugin_archive(PAYLOAD, None, false, "https://example/p.zip")
