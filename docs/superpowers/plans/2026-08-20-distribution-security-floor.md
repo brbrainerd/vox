@@ -78,6 +78,16 @@ Expected: the fallback block, with `VOX_NO_LOCAL_PLUGIN_FALLBACK` read as an opt
 mod tests {
     use super::*;
 
+    /// Serialises every test that mutates `LOCAL_FALLBACK_ENV`.
+    ///
+    /// `std::env::set_var`/`remove_var` change process-global state, and cargo
+    /// runs the tests in this binary in parallel — without this, Task 6's
+    /// `catalog_install_refuses_an_unpinned_entry_before_downloading` (which
+    /// removes the var) races the two tests below (which set and remove it),
+    /// and all three are intermittently wrong. Recover from poisoning rather
+    /// than cascading a panic into unrelated tests.
+    pub(super) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     /// The workspace-local fallback must be OPT-IN. As an opt-out it let any
     /// directory the user happened to be inside supply a cdylib for a catalog
     /// plugin id, bypassing every integrity check — the `.`-in-PATH bug class.
@@ -96,13 +106,16 @@ mod tests {
 
     #[test]
     fn local_fallback_disabled_when_env_unset() {
-        // SAFETY: single-threaded test; unset is the default state.
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // SAFETY: ENV_LOCK serialises every mutator of this variable.
         unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
         assert!(!local_fallback_enabled(), "fallback must be off unless explicitly enabled");
     }
 
     #[test]
     fn local_fallback_enabled_when_env_set() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // SAFETY: ENV_LOCK serialises every mutator of this variable.
         unsafe { std::env::set_var(LOCAL_FALLBACK_ENV, "1") };
         assert!(local_fallback_enabled());
         unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
@@ -954,7 +967,12 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
     /// unpinned — an unpinned `latest` asset cannot be checksummed at all.
     #[tokio::test]
     async fn catalog_install_refuses_an_unpinned_entry_before_downloading() {
-        // SAFETY: single-threaded async test.
+        // ENV_LOCK (defined in Task 1's test module) serialises this against the
+        // fallback tests, which set and remove the same process-global variable.
+        // `#[tokio::test]` is single-threaded, so holding the guard across the
+        // await is sound.
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // SAFETY: ENV_LOCK serialises every mutator of this variable.
         unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
         let err = install_from_catalog("oratio", true, false)
             .await
