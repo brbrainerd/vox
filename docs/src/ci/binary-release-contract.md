@@ -60,6 +60,21 @@ No nested directory prefix inside the archive for the executable entry.
 
 - Per-job `dist/checksums.txt` from `release-build` is for **local debugging** only; release downloads should use the root `checksums.txt` attached to the GitHub Release.
 
+## Build profile
+
+Every shipped artifact is built with **`--profile dist`**, not `--release`. `[profile.dist]` in the
+workspace `Cargo.toml` sets `lto = "fat"`, `codegen-units = 1`, and `strip = "symbols"`; plain
+`--release` is thin-LTO and retains debuginfo.
+
+`[profile.dist]` deliberately does **not** set `panic = "abort"`. Three non-test paths in the shipped
+binary depend on unwinding for panic containment — `vox-actor-runtime`'s `spawn_supervised`
+(`JoinError::is_panic`), `vox-vcs`'s `guarded!` macro (`catch_unwind` around `jj-lib`, which ships via
+`vox-orchestrator`'s default features), and `vox-search`'s `memory_cache` (`resume_unwind`). Abort
+would convert each containment point into a process kill. Do not add it back.
+
+The profile is enforced by `shipped_build_steps_use_the_dist_profile` and
+`dist_profile_does_not_abort_on_panic` in `crates/vox-cli/src/commands/ci/release_build.rs`.
+
 ## Download URLs (voxup)
 
 - Tagged asset: `https://github.com/vox-foundation/vox/releases/download/<tag>/<basename>`
