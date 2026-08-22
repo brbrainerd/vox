@@ -191,6 +191,13 @@ async fn install_from_url(url: &str, yes: bool) -> Result<()> {
 /// unlike voxup's tar path it has no checksum gate in front of it.
 fn extract_plugin_zip(data: &[u8], dest: &Path) -> Result<()> {
     const MAX_UNCOMPRESSED_BYTES: u64 = 512 * 1024 * 1024;
+    extract_plugin_zip_capped(data, dest, MAX_UNCOMPRESSED_BYTES)
+}
+
+/// Same as [`extract_plugin_zip`], with the uncompressed-size cap as a
+/// parameter so tests can exercise the cap without building a 512 MiB
+/// fixture.
+fn extract_plugin_zip_capped(data: &[u8], dest: &Path, max_uncompressed_bytes: u64) -> Result<()> {
     const MAX_ENTRIES: usize = 10_000;
 
     let mut archive =
@@ -210,9 +217,12 @@ fn extract_plugin_zip(data: &[u8], dest: &Path) -> Result<()> {
             bail!("entry {:?} escapes destination", entry.name());
         }
 
-        total = total.saturating_add(entry.size());
-        if total > MAX_UNCOMPRESSED_BYTES {
-            bail!("plugin archive expands beyond {MAX_UNCOMPRESSED_BYTES} bytes");
+        // Cheap pre-check on the declared size to skip wasted work, but this
+        // is NOT the authoritative bound: `entry.size()` is metadata from the
+        // central directory and need not match what DEFLATE actually
+        // inflates to. The real bound is on `io::copy`'s output below.
+        if entry.size() > max_uncompressed_bytes.saturating_sub(total) {
+            bail!("plugin archive expands beyond {max_uncompressed_bytes} bytes");
         }
 
         if entry.is_dir() {
@@ -234,8 +244,23 @@ fn extract_plugin_zip(data: &[u8], dest: &Path) -> Result<()> {
         }
         let mut out = std::fs::File::create(&outpath)
             .with_context(|| format!("create {}", outpath.display()))?;
-        std::io::copy(&mut entry, &mut out)
+        // Bound the COPY itself, not just the declared metadata: a crafted
+        // entry can declare a small size and inflate far past it. `take`
+        // physically caps what `io::copy` can pull from `entry`, so this is
+        // authoritative regardless of what the entry claims. +1 lets us tell
+        // "exactly at the cap" apart from "would exceed it". If we bail
+        // mid-copy, `outpath` is left holding a truncated file — harmless
+        // here because extraction happens into a temp dir the caller
+        // discards on every path (success or error).
+        use std::io::Read;
+        let remaining = max_uncompressed_bytes.saturating_sub(total);
+        let mut limited = (&mut entry).take(remaining.saturating_add(1));
+        let written = std::io::copy(&mut limited, &mut out)
             .with_context(|| format!("write {}", outpath.display()))?;
+        if written > remaining {
+            bail!("plugin archive expands beyond {max_uncompressed_bytes} bytes");
+        }
+        total = total.saturating_add(written);
     }
     Ok(())
 }
@@ -486,6 +511,63 @@ mod tests {
             "got: {err}"
         );
         assert!(!dir.path().parent().unwrap().join("escaped.txt").exists());
+    }
+
+    /// The cap must bound bytes actually written, not the entry's declared
+    /// (and forgeable) uncompressed-size metadata. Build a real zip, then
+    /// patch the uncompressed-size field in both the local file header and
+    /// the central directory record down to a small lie — decompression
+    /// itself doesn't depend on that field, so `io::copy` still produces the
+    /// full payload. A metadata-only check would pass this straight through;
+    /// the byte-bounded copy must catch it.
+    #[test]
+    fn extract_plugin_zip_bounds_actual_bytes_not_declared_size() {
+        use std::io::Write;
+        let payload = vec![0u8; 5_000]; // highly compressible, tiny once deflated
+        let mut buf = Vec::new();
+        {
+            let mut w = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
+            let opts: zip::write::FileOptions<'_, ()> = zip::write::FileOptions::default();
+            w.start_file("bomb.bin", opts).expect("start file");
+            w.write_all(&payload).expect("write");
+            w.finish().expect("finish");
+        }
+
+        // Patch the uncompressed-size field in the local file header (offset
+        // 22 after the PK\x03\x04 signature) and the central directory
+        // record (offset 24 after PK\x01\x02) down to a small lie. Anchored
+        // on the header signatures rather than a blind byte-pattern search,
+        // so this can't accidentally corrupt the compressed data stream.
+        let declared_size: [u8; 4] = 5_000u32.to_le_bytes();
+        let lie: [u8; 4] = 10u32.to_le_bytes();
+        let mut patched = 0;
+        let local_sig = [0x50, 0x4B, 0x03, 0x04];
+        let central_sig = [0x50, 0x4B, 0x01, 0x02];
+        let mut i = 0;
+        while i + 4 <= buf.len() {
+            let (sig_len, size_off) = if buf[i..i + 4] == local_sig {
+                (4, 22)
+            } else if buf[i..i + 4] == central_sig {
+                (4, 24)
+            } else {
+                i += 1;
+                continue;
+            };
+            let field = i + size_off;
+            assert_eq!(buf[field..field + 4], declared_size, "unexpected header layout");
+            buf[field..field + 4].copy_from_slice(&lie);
+            patched += 1;
+            i += sig_len;
+        }
+        assert_eq!(
+            patched, 2,
+            "expected to forge exactly the local and central uncompressed-size fields, patched {patched}"
+        );
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let err = extract_plugin_zip_capped(&buf, dir.path(), 1_000)
+            .expect_err("must reject an entry that decompresses past the cap");
+        assert!(err.to_string().contains("expands beyond"), "got: {err}");
     }
 
     #[test]
