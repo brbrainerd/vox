@@ -93,9 +93,16 @@ pub async fn run_install(profile: &str) -> Result<()> {
         .with_context(|| format!("Integrity check failed for {archive_name}"))?;
     info!("Checksum OK");
 
-    // Extract to versioned dir
+    // Extract to versioned dir. A mid-extraction failure must not leave a
+    // partially-populated version dir behind for the next run, so extract into
+    // a sibling staging dir and rename on success.
     let tc_dir = cache_dir.join(format!("vox-{}", release.version));
-    crate::download::extract(&ar_bytes, &tc_dir, &archive_name)?;
+    let staging = tc_dir.with_extension("incoming");
+    let _ = fs::remove_dir_all(&staging);
+    crate::download::extract(&ar_bytes, &staging, &archive_name)?;
+    let _ = fs::remove_dir_all(&tc_dir);
+    fs::rename(&staging, &tc_dir)
+        .with_context(|| format!("promote {} -> {}", staging.display(), tc_dir.display()))?;
 
     // Write active version
     fs::write(cache_dir.join("active"), &release.version)
