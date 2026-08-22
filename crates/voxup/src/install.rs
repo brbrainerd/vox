@@ -37,6 +37,16 @@ pub(crate) fn place_binaries(
     Ok(())
 }
 
+/// Staging dir for an in-progress extraction of `version` under `cache_dir`.
+///
+/// Built as a string, not `tc_dir.with_extension("incoming")` — `with_extension`
+/// replaces everything after the LAST dot, so "vox-0.7.0" would collide with
+/// "vox-0.7.5" at the same "vox-0.7.incoming" staging path, letting one
+/// in-progress install's `remove_dir_all` delete another's.
+fn staging_dir_for(cache_dir: &Path, version: &str) -> std::path::PathBuf {
+    cache_dir.join(format!("vox-{version}.incoming"))
+}
+
 pub async fn run_install(profile: &str) -> Result<()> {
     // Validate tier before touching the network.
     crate::profiles::validate_tier(crate::profiles::PROFILES_YAML, profile)
@@ -97,7 +107,7 @@ pub async fn run_install(profile: &str) -> Result<()> {
     // partially-populated version dir behind for the next run, so extract into
     // a sibling staging dir and rename on success.
     let tc_dir = cache_dir.join(format!("vox-{}", release.version));
-    let staging = tc_dir.with_extension("incoming");
+    let staging = staging_dir_for(&cache_dir, &release.version);
     let _ = fs::remove_dir_all(&staging);
     crate::download::extract(&ar_bytes, &staging, &archive_name)?;
     let _ = fs::remove_dir_all(&tc_dir);
@@ -303,6 +313,21 @@ mod tests {
     fn write_fake_binary(path: &Path, byte: u8) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, vec![byte; (MIN_REAL_BINARY_BYTES + 1) as usize]).unwrap();
+    }
+
+    #[test]
+    fn staging_dir_keeps_full_dotted_version_and_does_not_collide() {
+        let cache_dir = Path::new("/cache");
+        let staging_070 = staging_dir_for(cache_dir, "0.7.0");
+        let staging_075 = staging_dir_for(cache_dir, "0.7.5");
+        assert_eq!(
+            staging_070.file_name().unwrap().to_str().unwrap(),
+            "vox-0.7.0.incoming"
+        );
+        assert_ne!(
+            staging_070, staging_075,
+            "distinct patch versions must not collide"
+        );
     }
 
     #[test]

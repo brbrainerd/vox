@@ -62,9 +62,11 @@ pub fn extract(data: &[u8], dest_dir: &Path, filename: &str) -> Result<()> {
 }
 
 /// Maximum total uncompressed bytes from one archive (512 MiB). tar-rs bounds
-/// each entry's reader with `io::Take` at the header-declared size, so a lying
-/// header can only understate — checking the declared size before unpacking is
-/// therefore an upper bound on bytes written, not merely advisory.
+/// each entry's reader with `io::Take` at `Entry::size()` — which is the raw
+/// header field, EXCEPT when a PAX `size` extension record is present, in which
+/// case the PAX value wins. Summing `entry.size()` (not `entry.header().size()`)
+/// therefore tracks the same bound the reader is actually limited by, so it is
+/// a real upper bound on bytes written, not merely advisory.
 pub(crate) const MAX_UNCOMPRESSED_BYTES: u64 = 512 * 1024 * 1024;
 /// Maximum entries in one archive.
 const MAX_ENTRIES: usize = 10_000;
@@ -121,7 +123,12 @@ fn extract_targz(data: &[u8], dest_dir: &Path) -> Result<()> {
             bail!("Tar Slip detected: path {:?} escapes destination", path);
         }
 
-        let declared = entry.header().size().context("read tar entry size")?;
+        // `entry.size()` (not `entry.header().size()`) — the raw header field is
+        // overridden by a PAX `size` extension record when one is present, and
+        // tar-rs bounds its reader with `entry.size()`, PAX override included
+        // (vendored tar-0.4.46/src/archive.rs:337-360). Checking the header field
+        // alone lets a small ustar size + a large PAX size sail past this cap.
+        let declared = entry.size();
         total_bytes = total_bytes.saturating_add(declared);
         if total_bytes > MAX_UNCOMPRESSED_BYTES {
             bail!("archive expands beyond {MAX_UNCOMPRESSED_BYTES} bytes; refusing to extract");
