@@ -189,6 +189,24 @@ async fn install_from_url(url: &str, yes: bool) -> Result<()> {
     result
 }
 
+/// Opt-in switch for the workspace-local plugin source.
+///
+/// This was previously an opt-*out* env var (the negated, `VOX_NO_`-prefixed
+/// form of this same name). Because
+/// `workspace_local_plugin_source` walks up eight levels from the CURRENT
+/// WORKING DIRECTORY, an opt-out default meant any directory the user happened
+/// to be inside could supply a cdylib for a catalog plugin id, bypassing every
+/// integrity check. Contributors who want the local source set this explicitly;
+/// `--path <dir>` remains the documented alternative.
+pub(crate) const LOCAL_FALLBACK_ENV: &str = "VOX_LOCAL_PLUGIN_FALLBACK";
+
+fn local_fallback_enabled() -> bool {
+    matches!(
+        std::env::var(LOCAL_FALLBACK_ENV).as_deref(),
+        Ok("1") | Ok("true")
+    )
+}
+
 /// Resolve `id` in the catalog, parse default-source, and install.
 async fn install_from_catalog(id: &str, yes: bool) -> Result<()> {
     let catalog = vox_plugin_catalog::all_plugins();
@@ -205,20 +223,19 @@ async fn install_from_catalog(id: &str, yes: bool) -> Result<()> {
     // copy-paste step and avoids needing GitHub release artifacts during
     // local development. Catalog `local:` entries already do this; this
     // extends the same treatment to `github:` defaults when a matching
-    // workspace crate is on disk.
-    if !source.starts_with("local:") {
+    // workspace crate is on disk. Opt-in only — see LOCAL_FALLBACK_ENV.
+    if !source.starts_with("local:") && local_fallback_enabled() {
         if let Some(local) = vox_plugin_host::workspace_local_plugin_source(id) {
             println!(
-                "ℹ Found local workspace source for plugin '{}' at {} — installing from there \
-                 instead of the catalog default ('{}'). Set VOX_NO_LOCAL_PLUGIN_FALLBACK=1 \
-                 to disable.",
+                "ℹ {}=1 — installing plugin '{}' from the local workspace source at {} \
+                 instead of the catalog default ('{}'). This path performs NO \
+                 integrity verification.",
+                LOCAL_FALLBACK_ENV,
                 id,
                 local.display(),
                 source
             );
-            if std::env::var("VOX_NO_LOCAL_PLUGIN_FALLBACK").is_err() {
-                return install_from_path(&local, yes);
-            }
+            return install_from_path(&local, yes);
         }
     }
 
@@ -345,5 +362,56 @@ version = "0.1.0"
             id_to_crate_name("vox-plugin-populi-mesh"),
             "vox-plugin-populi-mesh"
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Serialises every test that mutates `LOCAL_FALLBACK_ENV`.
+    ///
+    /// `std::env::set_var`/`remove_var` change process-global state, and cargo
+    /// runs the tests in this binary in parallel — without this, Task 6's
+    /// `catalog_install_refuses_an_unpinned_entry_before_downloading` (which
+    /// removes the var) races the two tests below (which set and remove it),
+    /// and all three are intermittently wrong. Recover from poisoning rather
+    /// than cascading a panic into unrelated tests.
+    pub(super) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// The workspace-local fallback must be OPT-IN. As an opt-out it let any
+    /// directory the user happened to be inside supply a cdylib for a catalog
+    /// plugin id, bypassing every integrity check — the `.`-in-PATH bug class.
+    #[test]
+    fn local_fallback_is_opt_in_not_opt_out() {
+        let src = include_str!("install.rs");
+        // Split so this needle cannot match the assertion message below.
+        let opt_out = concat!("VOX_NO_", "LOCAL_PLUGIN_FALLBACK");
+        assert!(
+            !src.contains(opt_out),
+            "the workspace-local plugin fallback is still opt-out; it must require \
+             {LOCAL_FALLBACK_ENV} to be set before it can bypass verification"
+        );
+        assert_eq!(LOCAL_FALLBACK_ENV, "VOX_LOCAL_PLUGIN_FALLBACK");
+    }
+
+    #[test]
+    fn local_fallback_disabled_when_env_unset() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // SAFETY: ENV_LOCK serialises every mutator of this variable.
+        unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
+        assert!(
+            !local_fallback_enabled(),
+            "fallback must be off unless explicitly enabled"
+        );
+    }
+
+    #[test]
+    fn local_fallback_enabled_when_env_set() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // SAFETY: ENV_LOCK serialises every mutator of this variable.
+        unsafe { std::env::set_var(LOCAL_FALLBACK_ENV, "1") };
+        assert!(local_fallback_enabled());
+        unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
     }
 }
