@@ -175,9 +175,12 @@ async fn install_from_url(url: &str, yes: bool) -> Result<()> {
     let tmp_base = std::env::temp_dir().join(format!("vox-plugin-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&tmp_base).context("creating temp dir")?;
 
-    extract_plugin_zip(&bytes, &tmp_base)?;
-
-    let result = install_from_path(&tmp_base, true);
+    // Cleanup must cover the extract failure paths too, not just install:
+    // extract_plugin_zip bails on the size cap, on an escaping entry, and on a
+    // symlink entry; an early return there would strand tmp_base and any
+    // partially-written file on disk.
+    let result =
+        extract_plugin_zip(&bytes, &tmp_base).and_then(|()| install_from_path(&tmp_base, true));
     // Best-effort cleanup.
     let _ = std::fs::remove_dir_all(&tmp_base);
     result
@@ -249,9 +252,9 @@ fn extract_plugin_zip_capped(data: &[u8], dest: &Path, max_uncompressed_bytes: u
         // physically caps what `io::copy` can pull from `entry`, so this is
         // authoritative regardless of what the entry claims. +1 lets us tell
         // "exactly at the cap" apart from "would exceed it". If we bail
-        // mid-copy, `outpath` is left holding a truncated file — harmless
-        // here because extraction happens into a temp dir the caller
-        // discards on every path (success or error).
+        // mid-copy, `outpath` is left holding a truncated file; the URL
+        // caller removes its temp dir on the failure path too, so nothing
+        // survives to be dlopen'd.
         use std::io::Read;
         let remaining = max_uncompressed_bytes.saturating_sub(total);
         let mut limited = (&mut entry).take(remaining.saturating_add(1));
@@ -554,7 +557,11 @@ mod tests {
                 continue;
             };
             let field = i + size_off;
-            assert_eq!(buf[field..field + 4], declared_size, "unexpected header layout");
+            assert_eq!(
+                buf[field..field + 4],
+                declared_size,
+                "unexpected header layout"
+            );
             buf[field..field + 4].copy_from_slice(&lie);
             patched += 1;
             i += sig_len;
