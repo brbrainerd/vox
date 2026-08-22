@@ -17,11 +17,14 @@ pub async fn run(
     path: Option<&Path>,
     url: Option<&str>,
     yes: bool,
+    allow_unverified: bool,
 ) -> Result<()> {
     match (id, path, url) {
         (_, Some(dir), None) => install_from_path(dir, yes),
-        (_, None, Some(u)) => install_from_url(u, yes).await,
-        (Some(plugin_id), None, None) => install_from_catalog(plugin_id, yes).await,
+        (_, None, Some(u)) => install_from_url(u, yes, None, allow_unverified).await,
+        (Some(plugin_id), None, None) => {
+            install_from_catalog(plugin_id, yes, allow_unverified).await
+        }
         (None, None, None) => bail!("Specify a plugin id, --path <dir>, or --url <url>"),
         (Some(_), Some(_), _) | (_, Some(_), Some(_)) => {
             bail!("Only one of id, --path, or --url may be specified at a time")
@@ -91,7 +94,12 @@ fn install_from_path(src_dir: &Path, yes: bool) -> Result<()> {
 }
 
 /// Fetch a .zip from `url`, unpack to a temp dir, then install-from-path.
-async fn install_from_url(url: &str, yes: bool) -> Result<()> {
+async fn install_from_url(
+    url: &str,
+    yes: bool,
+    expected_sha256: Option<&str>,
+    allow_unverified: bool,
+) -> Result<()> {
     if !url.starts_with("https://") {
         bail!("Only HTTPS URLs are supported (got: {})", url);
     }
@@ -119,6 +127,8 @@ async fn install_from_url(url: &str, yes: bool) -> Result<()> {
         .bytes()
         .await
         .context("reading response bytes")?;
+
+    verify_plugin_archive(&bytes, expected_sha256, allow_unverified, url)?;
 
     // Create a unique temp directory under the system temp dir.
     let tmp_base = std::env::temp_dir().join(format!("vox-plugin-{}", uuid::Uuid::new_v4()));
@@ -217,6 +227,48 @@ fn extract_plugin_zip_capped(data: &[u8], dest: &Path, max_uncompressed_bytes: u
     Ok(())
 }
 
+/// Verify a downloaded plugin archive and return its lowercase hex SHA-256.
+///
+/// Fail-closed: with no `expected` hash this REFUSES unless `allow_unverified`.
+/// The archive is `dlopen`'d as native code after installation, so an unverified
+/// download is arbitrary code execution — see spec finding F9.
+///
+// vox:defactored-from voxup 2026-08-21 (voxup::download::verify_sha256, ~10 lines)
+fn verify_plugin_archive(
+    data: &[u8],
+    expected: Option<&str>,
+    allow_unverified: bool,
+    source: &str,
+) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    let actual = hex::encode(Sha256::digest(data));
+
+    match expected {
+        Some(want) => {
+            let want = want.trim().to_lowercase();
+            if want != actual {
+                bail!(
+                    "plugin checksum mismatch for {source}\n  expected: {want}\n  actual:   {actual}"
+                );
+            }
+            Ok(actual)
+        }
+        None if allow_unverified => {
+            eprintln!(
+                "⚠ Installing {source} with no sha256 to check against. Its contents \
+                 will be loaded as native code. Actual sha256: {actual}"
+            );
+            Ok(actual)
+        }
+        None => bail!(
+            "refusing to install {source}: no sha256 recorded for this plugin.\n  \
+             Add a `sha256` to its entry in crates/vox-plugin-catalog/catalog.toml, \
+             or pass --allow-unverified to accept the risk explicitly.\n  \
+             Actual sha256 of the fetched archive: {actual}"
+        ),
+    }
+}
+
 /// Opt-in switch for the workspace-local plugin source.
 ///
 /// This was previously an opt-*out* env var (the negated, `VOX_NO_`-prefixed
@@ -236,7 +288,7 @@ fn local_fallback_enabled() -> bool {
 }
 
 /// Resolve `id` in the catalog, parse default-source, and install.
-async fn install_from_catalog(id: &str, yes: bool) -> Result<()> {
+async fn install_from_catalog(id: &str, yes: bool, allow_unverified: bool) -> Result<()> {
     let catalog = vox_plugin_catalog::all_plugins();
     let entry = catalog
         .iter()
@@ -272,14 +324,19 @@ async fn install_from_catalog(id: &str, yes: bool) -> Result<()> {
         let local_path = std::path::Path::new(rel);
         install_from_path(local_path, yes)
     } else if let Some(gh) = source.strip_prefix("github:") {
-        // github:owner/repo → conventional release asset URL.
+        // Pinned, not `latest`: the bytes behind a floating asset change, so no
+        // recorded hash could ever match it.
         let triple = vox_plugin_host::current_target_triple_key();
-        let version = "latest";
+        let version = entry.version.as_deref().with_context(|| {
+            format!(
+                "plugin '{id}' has a github: source but no pinned `version` in \
+                 catalog.toml; an unpinned release asset cannot be checksummed"
+            )
+        })?;
         let url = format!(
-            "https://github.com/{}/releases/{}/download/{}-{}-{}.zip",
-            gh, version, id, version, triple
+            "https://github.com/{gh}/releases/download/v{version}/{id}-v{version}-{triple}.zip"
         );
-        install_from_url(&url, yes).await
+        install_from_url(&url, yes, entry.sha256.as_deref(), allow_unverified).await
     } else {
         bail!(
             "Unsupported default-source format for plugin '{}': '{}'. \
@@ -450,5 +507,66 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         extract_plugin_zip(&buf, dir.path()).expect("normal entry must extract");
         assert!(dir.path().join("Plugin.toml").is_file());
+    }
+
+    const PAYLOAD: &[u8] = b"pretend this is a plugin zip";
+
+    fn payload_hash() -> String {
+        use sha2::{Digest, Sha256};
+        hex::encode(Sha256::digest(PAYLOAD))
+    }
+
+    #[test]
+    fn matching_hash_is_accepted_and_returned() {
+        let want = payload_hash();
+        let got = verify_plugin_archive(PAYLOAD, Some(&want), false, "test://x").unwrap();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn mismatched_hash_is_rejected() {
+        let err = verify_plugin_archive(PAYLOAD, Some(&"a".repeat(64)), false, "test://x")
+            .expect_err("mismatched hash must fail");
+        assert!(err.to_string().contains("checksum mismatch"), "got: {err}");
+    }
+
+    /// The core property: with no expected hash, installation is REFUSED.
+    #[test]
+    fn missing_hash_is_refused_by_default() {
+        let err = verify_plugin_archive(PAYLOAD, None, false, "https://example/p.zip")
+            .expect_err("an unverifiable plugin must not install");
+        let m = err.to_string();
+        assert!(m.contains("no sha256"), "error must say why: {m}");
+        assert!(
+            m.contains("--allow-unverified"),
+            "error must name the override: {m}"
+        );
+    }
+
+    #[test]
+    fn missing_hash_is_allowed_with_the_explicit_override() {
+        let got = verify_plugin_archive(PAYLOAD, None, true, "https://example/p.zip").unwrap();
+        assert_eq!(got, payload_hash());
+    }
+
+    /// A catalog install must fail BEFORE any network call when the entry is
+    /// unpinned — an unpinned `latest` asset cannot be checksummed at all.
+    #[tokio::test]
+    async fn catalog_install_refuses_an_unpinned_entry_before_downloading() {
+        // ENV_LOCK (defined above) serialises this against the fallback tests,
+        // which set and remove the same process-global variable.
+        // `#[tokio::test]` is single-threaded, so holding the guard across the
+        // await is sound.
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // SAFETY: ENV_LOCK serialises every mutator of this variable.
+        unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
+        let err = install_from_catalog("oratio", true, false)
+            .await
+            .expect_err("unpinned catalog entry must not install");
+        let m = err.to_string();
+        assert!(
+            m.contains("no pinned `version`") || m.contains("no sha256"),
+            "expected a pre-network refusal, got: {m}"
+        );
     }
 }
