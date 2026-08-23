@@ -1,10 +1,10 @@
 // ---
 // title: "Reference: Agent Migration"
-// description: "Reference snippet showing the tombstoned agent construct replaced by a plain function plus a @table memory bank for state."
+// description: "Reference snippet showing the tombstoned agent construct replaced by a plain function plus a table memory bank for state."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [fn, @table, List]
+// constructs: [fn, table, List]
 // last_validated: "2026-06-03"
 // training_eligible: true
 // training_weight: 1.0

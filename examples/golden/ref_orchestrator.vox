@@ -1,10 +1,10 @@
 // ---
 // title: "Reference: MCP Tool and Resource"
-// description: "Reference snippet for MCP surface: @tool and @mcp.resource functions plus an orchestrator config helper replacing tombstoned env."
+// description: "Reference snippet for MCP surface: tool and @mcp.resource functions plus an orchestrator config helper replacing tombstoned env."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [fn, @tool, @mcp.resource]
+// constructs: [fn, tool, @mcp.resource]
 // last_validated: "2026-06-03"
 // training_eligible: true
 // training_weight: 1.0
