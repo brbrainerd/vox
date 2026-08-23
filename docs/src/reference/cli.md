@@ -41,14 +41,14 @@ dispatch automatically — no rebuild of the core required.
 - **Completions:** **`vox completions bash`** | **`zsh`** | **`fish`** | **`powershell`** | **`elvish`** — print to stdout and install per your shell (e.g. bash: `vox completions bash > /path/to/bash_completion.d/vox`).
 - **Dynamic command catalog:** **`vox commands`** — clap-derived list from the actual compiled binary; add `--recommended` for first-time essentials or `--format json --include-nested` for tooling.
 - **Secrets namespace:** **`vox secrets`** (deprecated alias **`vox clavis`**) centralizes token health checks and credential compatibility storage.
-- **Latin aliases (same behavior as flat commands):** **`vox fabrica`** (`fab`) — build/check/test/run/dev/**`bundle` (web app)** /fmt/script; top-level **`vox bundle`** is **plugin** bundles (`list` / `build` / `apply`), not the web-app bundler. **`vox diag`** — doctor, architect, stub-check; **`vox ars`** — snippet, share, skill, openclaw, ludus; **`vox recensio`** (`rec`, feature **`coderabbit`**) — same as **`vox review`**.
+- **Latin aliases (same behavior as flat commands):** **`vox fabrica`** (`fab`) — build/check/test/run/dev/**`bundle` (web app)** /fmt/script; top-level **`vox bundle`** is **plugin** bundles (`list` / `build` / `apply`), not the web-app bundler. **`vox diag`** — doctor, architect, stub-check; **`vox ars`** — snippet, share, skill, openclaw, ludus.
 
 ### Naming, aliases, and discovery (maintainer rules)
 
 - **One canonical path per operation** in [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml); regenerate **`contracts/cli/command-registry.yaml`** with **`vox ci operations-sync --target cli --write`**, then keep **`vox ci command-compliance`** green (see [Command compliance](command-compliance.md)).
 - **Latin mirrors** (`fabrica`, `diag`, `ars`, …) are intentional — do not delete them for “simplicity”; add English docs/examples beside them when introducing new verbs.
 - **Aliases:** prefer **hidden** `alias = "…"` for legacy spellings; use **`visible_alias`** only when the alias is part of the supported learning path.
-- **Disambiguate overloaded nouns in docs:** **`vox review`** (feature **`coderabbit`**) is batch PR review; **`vox mens review`** is the MENS lane (different feature gates). **`vox doctor`** is toolchain/environment diagnostics; **`vox secrets status`** may accept the hidden alias `doctor` for legacy scripts — prefer **`vox secrets status`** in new docs.
+- **Disambiguate overloaded nouns in docs:** **`vox mens review`** is the MENS lane (the retired batch-PR `vox review coderabbit` command is gone). **`vox doctor`** is toolchain/environment diagnostics; **`vox secrets status`** may accept the hidden alias `doctor` for legacy scripts — prefer **`vox secrets status`** in new docs.
 - **Machine vs human output:** prefer **`--json`** + stable stderr for progress; global **`--quiet` / `-q`** sets **`VOX_CLI_QUIET=1`** for commands that honor it.
 
 ### Product lanes
@@ -279,20 +279,8 @@ When **`vox` is not installed** or not on `PATH`, use the repo launchers so **`c
 |-----|---------|
 | `VOX_REPO_ROOT` | Force workspace root (root `Cargo.toml` must contain `[workspace]`). |
 | `VOX_USE_PATH=1` | Prefer **`vox` on `PATH`** when present (default: **`cargo run`** from the clone so the binary matches sources). |
-| `VOX_DEV_FEATURES` | Optional comma-separated Cargo features for `vox-cli` (e.g. `coderabbit,gpu`). If unset and an argument equals **`coderabbit`**, the launcher adds **`--features coderabbit`**. |
+| `VOX_DEV_FEATURES` | Optional comma-separated Cargo features for `vox-cli` (e.g. `gpu`). |
 | `VOX_DEV_QUIET=1` | Pass **`--quiet`** to **`cargo run`**. |
-
-**Full-repo CodeRabbit (build-if-needed + open PRs):** set **`GITHUB_TOKEN`** or **`GH_TOKEN`**, then from the repo root:
-
-```powershell
-pwsh -File scripts/windows/vox-dev.ps1 review coderabbit semantic-submit --full-repo --execute
-```
-
-```bash
-./scripts/vox-dev.sh review coderabbit semantic-submit --full-repo --execute
-```
-
-Equivalent one-liner without the script: `cargo run -p vox-cli --features coderabbit -- review coderabbit semantic-submit --full-repo --execute` (plan-only: omit **`--execute`**).
 ### `vox secrets` (deprecated alias `vox clavis`)
 
 Centralized secret diagnostics and compatibility credential storage.
