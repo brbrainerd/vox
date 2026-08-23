@@ -524,6 +524,11 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             run: Box::new(step_workflow_concurrency_guard),
         },
         OwnedStep {
+            label: "vox ci workflow-permissions-guard".into(),
+            scope: None,
+            run: Box::new(step_workflow_permissions_guard),
+        },
+        OwnedStep {
             label: "vox ci check-links".into(),
             scope: None,
             run: Box::new(step_check_links),
@@ -1093,6 +1098,16 @@ fn step_workflow_concurrency_guard(root: &Path) -> Result<()> {
     // In-process (same as runner-policy-check) — avoids Windows nested `current_exe()`
     // spawning a stale `vox.exe`. Strict: the tree is already clean + exceptions exist.
     vox_cli_ci::workflow_concurrency_guard::run(root, true)
+}
+
+fn step_workflow_permissions_guard(root: &Path) -> Result<()> {
+    // Advisory (strict=false), unlike its concurrency sibling: only 19 of 45
+    // workflows currently declare a top-level `permissions:` block, so strict
+    // here would block every contributor's pre-push on a pre-existing backlog.
+    // Warning-only still makes the gate real — it runs, and a NEW workflow
+    // without a block is named on the next push. Flip to `true` once the
+    // backlog is cleared.
+    vox_cli_ci::workflow_permissions_guard::run(root, false)
 }
 
 fn step_check_links(root: &Path) -> Result<()> {
