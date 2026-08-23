@@ -29,7 +29,7 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            runs_on: '["self-hosted","linux","x64"]'
+            runs_on: '["ubuntu-latest"]'
           - target: x86_64-pc-windows-msvc
             runs_on: '["windows-latest"]'
           - target: x86_64-apple-darwin
@@ -168,14 +168,21 @@ jobs:
   #
   # One lane only: `cargo test --profile dist` across the workspace would
   # fat-LTO-link each of the 80+ integration targets against a 1656-package
-  # graph, exceeding the 14 GB runner budget (runner_scale.rs MEM_PER_RUNNER,
-  # whose own test cites a measured ~12 GB peak at THIN LTO).
+  # graph.
   #
-  # No rust-toolchain step: the fleet image ships the pinned 1.96.0 toolchain
-  # and rust-toolchain.toml is authoritative.
+  # 2026-08-23: moved off [self-hosted, linux, x64] to ubuntu-latest -- the
+  # self-hosted fleet's Linux queue never picked up a release-tag run (one
+  # recorded attempt queued 24:00:00 with zero pickup). NOTE: the 14 GB
+  # self-hosted budget this job used to cite (runner_scale.rs MEM_PER_RUNNER,
+  # measured from a THIN-LTO `cargo doc` workload, not this job's FAT-LTO
+  # link) never actually applied to ubuntu-latest, and this job's real
+  # peak RSS under fat LTO has never been measured on ANY runner -- the
+  # 2026-05-26 self-hosted attempt queued forever and never reached the
+  # link step. ubuntu-latest is nominally 16 GB; if this job OOMs there,
+  # that is new, useful information the self-hosted hang never gave us.
   dist-verify:
     name: dist verification (fat LTO)
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     # ~90-180m dep compile at codegen-units=1 + a serial fat-LTO link + the e2e
     # test target. CARGO_BUILD_JOBS caps the dep phase for RSS headroom.
     timeout-minutes: 240
@@ -185,6 +192,14 @@ jobs:
       CARGO_BUILD_JOBS: "2"
     steps:
       - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        # ubuntu-latest ships no pinned toolchain (the self-hosted fleet
+        # image this job used to run on did) -- pinned, not @stable, so
+        # shipped artifacts are built by the same compiler CI gates use.
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
 
       - name: Build the real dist binary
         # Feature set MUST match release_build.rs::build_and_package_binary.
@@ -197,7 +212,7 @@ jobs:
 
   publish:
     name: Publish GitHub release
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [build, dist-verify]
     permissions:
@@ -245,3 +260,12 @@ jobs:
             scripts/install.ps1
           generate_release_notes: true
           fail_on_unmatched_files: false
+          # softprops defaults to make_latest: true with no prerelease flag --
+          # a tag like v0.0.0-test (used for pipeline verification) would
+          # otherwise become the public "latest" release, servable to any
+          # real user's `voxup install` (which has no version-floor guard,
+          # unlike `voxup update`). Semver convention: a hyphenated tag
+          # (v1.2.3-rc1, v0.0.0-test) is a prerelease and never "latest";
+          # a plain tag (v1.2.3) is a real release and becomes latest.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          make_latest: ${{ !contains(github.ref_name, '-') }}

@@ -14,7 +14,7 @@ The repository defaults to **self-hosted** runners for CI (see [runner contract]
 | Workflow | Runner | Reason |
 |----------|--------|--------|
 | `docs-deploy.yml` | `ubuntu-latest` | GitHub Pages deploy + Astro docs; portable Pages API. |
-| `release-binaries.yml` | `windows-latest`, `macos-latest` (matrix) | Publish tagged Windows/macOS binaries; Linux build lane is self-hosted. |
+| `release-binaries.yml` | `windows-latest`, `macos-latest`, `ubuntu-latest` (matrix + dist-verify + publish) | Publish tagged binaries for all platforms. Linux build, fat-LTO dist-verify, and the release-publish step moved off the self-hosted fleet 2026-08-23 -- the fleet's availability for tag-triggered release runs is unverified (a 2026-05-26 run queued 24h with no runner pickup) and this pipeline needs to be provably reliable, not best-effort. |
 | `release-installers.yml` | `windows-latest`, `ubuntu-latest`, `macos-latest` (matrix) | Cross-platform installer packaging. |
 | `release-gui.yml` | matrix (`ubuntu-latest`, etc.) | Tauri GUI release matrix across host OSes. |
 | `bundle-release.yml` | matrix (`ubuntu-latest`, etc.) | Multi-target bundle publishing. |
