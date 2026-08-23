@@ -451,7 +451,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `vox-ludus` | `vox-gamify` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |
-| `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `@server fn` / `@query fn` / `@mutation fn` |
+| `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `server fn` / `query fn` / `mutation fn` (bare-keyword; the at-prefixed forms became hard parse errors 2026-06-30, `cd7cc96874`) |
 | `@py.import` (Python interop) | Removed — Python is no longer a Vox glue surface (see §VoxScript-First Glue Code) |
 | `@native` (decorator) | `@place(native)` |
 | `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
@@ -491,12 +491,12 @@ Agents and contributors must strictly adhere to architectural invariants. Ensure
 These rules apply to `.vox` source files and are enforced by `vox stub-check` (static) and the Vox runtime (dynamic). Agents writing Vox code MUST follow them.
 
 **Effect declarations (Phase 5):**
-- Any `pub fn`, `@query fn`, `@mutation fn`, or `@server fn` that calls `http.*`, `net.*`, `fetch(`, `populi.*`, or `std.http.*` MUST carry `@uses(net)` in the preceding decorator list.
+- Any `pub fn`, `query fn`, `mutation fn`, or `server fn` that calls `http.*`, `net.*`, `fetch(`, `populi.*`, or `std.http.*` MUST carry `@uses(net)` in the preceding decorator list.
 - A `@pure fn` MUST NOT call `http`, `net`, `fs`, `db`, `random`, `time`, `log`, or any `async/await` — the compiler will reject it.
 - Workflow bodies (`workflow { }`) MUST NOT call non-deterministic builtins: `time.now()`, `random.*()`, `uuid()`, `crypto.random_bytes()`. Use `activity` functions for side-effectful work instead.
 
 **Type boundaries (Phase 3):**
-- ID parameters on `@query`, `@mutation`, `@server`, `@activity`, or actor-message functions MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`.
+- ID parameters on `query`, `mutation`, `server`, or `activity` functions, or actor-message functions, MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`.
 - Error types on public boundaries MUST be named ADTs — `Result[T, str]` is flagged by `vox/types/anonymous-error-type`.
 
 **Decorator position (Phase 2):**
@@ -504,7 +504,7 @@ These rules apply to `.vox` source files and are enforced by `vox stub-check` (s
 - See the Grammar Unification section above for the full keyword table.
 
 **Auth / access control:**
-- Every `@query fn`, `@mutation fn`, or `@server fn` should carry either `@auth(...)` for authenticated routes or an explicit open-access annotation. The legacy `vox/auth/endpoint-missing-decorator` lint targeted `@endpoint fn`, which was removed in v0.6.0; auth decoration enforcement for the bare-form decorators is tracked in Phase 6 of the language-rules plan.
+- Every `query fn`, `mutation fn`, or `server fn` should carry either `@auth(...)` for authenticated routes or an explicit open-access annotation. The legacy `vox/auth/endpoint-missing-decorator` lint targeted `@endpoint fn`, which was removed in v0.6.0; auth decoration enforcement for the bare-form decorators is tracked in Phase 6 of the language-rules plan.
 
 **State machines:**
 - Every state in a `state_machine { }` block must have at least one `->` outgoing transition, or be marked as a terminal state with a `// terminal` comment. Flagged by `vox/state-machine/unreachable-state`.
