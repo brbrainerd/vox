@@ -758,8 +758,8 @@ echo REACHED_INSTALL
             .expect("spawn sh");
         assert!(
             String::from_utf8_lossy(&ok.stdout).contains("REACHED_INSTALL"),
-            "positive control failed — the harness cannot reach the success path, so the 
-             negative assertion above is vacuous. stdout: {}
+            "positive control failed — the harness cannot reach the success path, so              the negative assertion above is vacuous.
+stdout: {}
 stderr: {}",
             String::from_utf8_lossy(&ok.stdout),
             String::from_utf8_lossy(&ok.stderr)

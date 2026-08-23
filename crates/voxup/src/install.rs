@@ -118,9 +118,25 @@ pub async fn run_install(profile: &str, tag: Option<&str>) -> Result<()> {
     let staging = staging_dir_for(&cache_dir, &release.version);
     let _ = fs::remove_dir_all(&staging);
     crate::download::extract(&ar_bytes, &staging, &archive_name)?;
-    let _ = fs::remove_dir_all(&tc_dir);
-    fs::rename(&staging, &tc_dir)
-        .with_context(|| format!("promote {} -> {}", staging.display(), tc_dir.display()))?;
+    // Move the existing version aside rather than deleting it outright: if the
+    // promote below fails after a delete, the user is left with NO install at
+    // all. Retire the old copy only once the new one is in place.
+    let retired = cache_dir.join(format!("vox-{}.retired", release.version));
+    let _ = fs::remove_dir_all(&retired);
+    let had_previous = tc_dir.exists();
+    if had_previous {
+        fs::rename(&tc_dir, &retired)
+            .with_context(|| format!("set aside {} before promoting", tc_dir.display()))?;
+    }
+    if let Err(e) = fs::rename(&staging, &tc_dir) {
+        // Put the working install back before surfacing the failure.
+        if had_previous {
+            let _ = fs::rename(&retired, &tc_dir);
+        }
+        return Err(e)
+            .with_context(|| format!("promote {} -> {}", staging.display(), tc_dir.display()));
+    }
+    let _ = fs::remove_dir_all(&retired);
 
     // Write active version
     fs::write(cache_dir.join("active"), &release.version)

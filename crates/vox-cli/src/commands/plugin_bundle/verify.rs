@@ -126,6 +126,19 @@ fn extract_bundle_tar<R: std::io::Read>(reader: R, dest: &Path) -> Result<()> {
             anyhow::bail!("bundle expands beyond {MAX_UNCOMPRESSED_BYTES} bytes; refusing");
         }
 
+        if ty.is_dir() {
+            std::fs::create_dir_all(&outpath)
+                .with_context(|| format!("create dir {}", outpath.display()))?;
+            continue;
+        }
+        // `Entry::unpack` does NOT create missing parents (unlike the
+        // `Archive::unpack` this replaced). build.rs appends the binary as
+        // `bin/vox` via append_path_with_name, which emits no `bin/` entry, so
+        // without this every real bundle fails to extract.
+        if let Some(parent) = outpath.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("create dir {}", parent.display()))?;
+        }
         entry
             .unpack(&outpath)
             .with_context(|| format!("unpack {}", outpath.display()))?;
@@ -191,6 +204,32 @@ mod tests {
         assert!(
             names.iter().any(|n| n.contains("..")),
             "fixture no longer escapes: {names:?}"
+        );
+    }
+
+    /// Reproduces the real bundle layout: `build.rs` appends the vox binary via
+    /// `append_path_with_name(.., "bin/vox")`, which emits ONE file entry and no
+    /// directory entry for `bin/`. `Archive::unpack` created missing parents;
+    /// `Entry::unpack` does not.
+    #[test]
+    fn a_nested_entry_without_a_parent_dir_entry_still_extracts() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let payload = b"ELF";
+        let mut header = tar::Header::new_gnu();
+        header.set_size(payload.len() as u64);
+        header.set_entry_type(tar::EntryType::Regular);
+        header.set_mode(0o755);
+        header.set_cksum();
+        let mut builder = tar::Builder::new(Vec::new());
+        builder
+            .append_data(&mut header, "bin/vox", &payload[..])
+            .expect("append");
+        let data = builder.into_inner().expect("finish");
+        extract_bundle_tar(std::io::Cursor::new(data), dir.path())
+            .expect("a bundle with no explicit bin/ entry must still extract");
+        assert_eq!(
+            std::fs::read(dir.path().join("bin").join("vox")).expect("read bin/vox"),
+            payload
         );
     }
 

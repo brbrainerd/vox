@@ -17,6 +17,11 @@ pub fn top_level_permissions(yml: &str) -> Option<serde_yaml::Value> {
 /// Check every workflow. In `strict` mode a missing block is an error.
 pub fn run(root: &Path, strict: bool) -> Result<()> {
     let dir = root.join(".github/workflows");
+    // A checkout without workflows is not a violation — `read_dir` on a missing
+    // path is an Err, which would fail every pre-push in such a tree.
+    if !dir.is_dir() {
+        return Ok(());
+    }
     let mut offenders = Vec::new();
     for entry in std::fs::read_dir(&dir)? {
         let path = entry?.path();
