@@ -459,6 +459,9 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `@capacitor/*`, `npx cap sync` | `@tauri-apps/plugin-*`, `cargo tauri build` |
 | `axum::serve`, `rust-embed` (for generated desktop/mobile apps) | Tauri 2 runtime (Axum is retained for native-binary/server targets only) |
 | `vox-sherpa-transcribe` (Capacitor plugin) | `vox-tauri-stt` (native Tauri STT plugin) |
+| `crates/vox-dashboard` (deleted 2026-05-12, `af5f26278`; Axum dashboard retired per ADR-037) | `crates/vox-gui` (Tauri 2) |
+| `crates/vox-oratio` (crate renamed `81681e81b`; the `vox speech` command keeps `oratio` as a visible alias) | `crates/vox-speech` |
+| `vox-dei-shim` (renamed `5463bc16c`) | `vox-research-shim` |
 
 Memory-write APIs are not a simple retirement pair: for writing facts, use `MemoryManager::persist_fact`; `sync_to_db()` bulk-syncs `MEMORY.md` → DB only and is **not** a drop-in replacement for `persist_fact`.
 
