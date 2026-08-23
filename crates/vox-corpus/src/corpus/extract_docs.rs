@@ -312,6 +312,8 @@ fn extract_qa_sections(
     // including retired syntax the author had explicitly marked to exclude.
     let mut in_fence = false;
     let mut fence_buf: Vec<&str> = Vec::new();
+    // The opening fence verbatim, so the language tag survives re-emission.
+    let mut fence_open = "```";
 
     for line in &lines {
         let trimmed = line.trim();
@@ -322,7 +324,8 @@ fn extract_qa_sections(
             if in_fence {
                 let body = fence_buf.join("\n");
                 if !(body.contains("// vox:skip") || body.contains("{{#include")) {
-                    current_body.push_str("```\n");
+                    current_body.push_str(fence_open);
+                    current_body.push_str("\n");
                     current_body.push_str(&body);
                     current_body.push_str("\n```\n");
                 }
@@ -330,6 +333,7 @@ fn extract_qa_sections(
                 in_fence = false;
             } else {
                 in_fence = true;
+                fence_open = trimmed;
             }
             continue;
         }

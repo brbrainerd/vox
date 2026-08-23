@@ -51,7 +51,7 @@ Treat the current model as **durable step deduplication**, not a universal exact
 For replay to work, the workflow body should stay deterministic.
 
 - **BAD**: `let d = Date.now()` (Time changes on replay)
-- **GOOD**: `let d = get_current_time()` (Wrap non-deterministic calls in an `@activity`)
+- **GOOD**: `let d = get_current_time()` (Wrap non-deterministic calls in an `activity`)
 
 ## 5. Storage Backend
 

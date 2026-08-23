@@ -10,7 +10,7 @@
 // training_weight: 1.0
 // difficulty: advanced
 // ---
-// @training_prompt: Combine table Post, a list query, an mutation, and a small routes tree for a tutorial-style blog slice.
+// @training_prompt: Combine table Post, a list query, a mutation, and a small routes tree for a tutorial-style blog slice.
 
 table Post {
     title: str

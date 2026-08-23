@@ -25,9 +25,9 @@ Version: **v1** (logical contract version). Current compiler paths are under **`
 
 | Concern | Rule |
 |---|---|
-| Host and path roots | HTTPS base `https://<host>/`. Endpoints live under **`/api/`** with **no `/v1` segment** in current compiler output: **`/api/query/<name>`** (query), **`/api/mutation/<name>`** (mutation), **`/api/<name>`** (server fn). Constants: [`web_prefixes.rs`](../../../crates/vox-compiler/src/web_prefixes.rs). A future breaking generation would move under **`/api/v2/`** (see §7). |
-| Query endpoints (`query fn`) | HTTP `GET`; parameters as query string (see §2.1) |
-| Mutation/server endpoints (`mutation fn`, `server fn`) | HTTP `POST`; JSON body |
+| Host and path roots | HTTPS base `https://<host>/`. Endpoints live under **`/api/`** with **no `/v1` segment** in current compiler output: **`/api/query/<name>`** (query), **`/api/mutation/<name>`** (mutation), **`/api/<name>`** (server). Constants: [`web_prefixes.rs`](../../../crates/vox-compiler/src/web_prefixes.rs). A future breaking generation would move under **`/api/v2/`** (see §7). |
+| Query endpoints (`query`) | HTTP `GET`; parameters as query string (see §2.1) |
+| Mutation/server endpoints (`mutation`, `server`) | HTTP `POST`; JSON body |
 | Request `Content-Type` | `application/json` |
 | Response `Content-Type` | `application/json; charset=utf-8` |
 | Character encoding | UTF-8 throughout |
@@ -35,7 +35,7 @@ Version: **v1** (logical contract version). Current compiler paths are under **`
 
 ### 2.1 Query parameter encoding
 
-`query fn` endpoint parameters are serialized as a query string with keys in **sorted lexicographic order**. Each value is `encodeURIComponent(JSON.stringify(value))`.
+`query` endpoint parameters are serialized as a query string with keys in **sorted lexicographic order**. Each value is `encodeURIComponent(JSON.stringify(value))`.
 
 **OpenAPI:** generated specs describe each query parameter with a `schema` for the logical type **after** URI decoding and `JSON.parse`. Parameter descriptions reference this section. Tools that generate clients from OpenAPI alone must still apply JSON parsing per value (not treat raw query tokens as primitive strings).
 
@@ -53,7 +53,7 @@ GET /api/query/search_items?filter=%22books%22&limit=20
 
 ### 2.2 Mutation body encoding
 
-`mutation fn` and `server fn` endpoints receive a JSON object whose keys are the parameter names.
+`mutation` and `server` endpoints receive a JSON object whose keys are the parameter names.
 
 ```vox
 mutation create_order(item_id: str, quantity: int) to bool {

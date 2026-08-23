@@ -13,28 +13,35 @@ This guide lists every language-surface change between Vox `0.5.x` and `0.6.0` t
 
 ## Removed surface
 
-### `@endpoint(kind: …)` decorator → bare-form decorators
+### `@endpoint(kind: …)` decorator → bare keywords
 
 **Status:** removed in v0.6.0 (`vox-stdlib-gap-audit-2026-05-23.md §Phase H step 18`).
 
-The `@endpoint(kind: server|query|mutation)` decorator no longer lexes. The
-canonical bare-form decorators `@server`, `@query`, `@mutation` — introduced
-in Phase B (audit doc §11.2, 2026-05-23) — are now the only endpoint
-declaration surface. All three produce the same `Decl::Endpoint` AST node;
-nothing changed in HIR, codegen, or runtime semantics.
+The `@endpoint(kind: server|query|mutation)` decorator no longer lexes.
 
-| Retired (≤ v0.5)                       | Canonical (v0.6+) |
-|----------------------------------------|-------------------|
-| `@endpoint(kind: server) fn h(...) {}` | `@server fn h(...) {}`   |
-| `@endpoint(kind: query) fn h(...) {}`  | `@query fn h(...) {}`    |
-| `@endpoint(kind: mutation) fn h(...) {}` | `@mutation fn h(...) {}` |
+> **Two migrations, not one.** `@endpoint` was first replaced by the
+> at-prefixed decorators `@server` / `@query` / `@mutation` (Phase B, audit
+> doc §11.2, 2026-05-23). Those were themselves retired on 2026-06-30
+> (`cd7cc96874`) and are now **hard parse errors**. If you are coming from
+> v0.5, migrate straight to the bare keywords below — do not stop at the
+> at-prefixed forms.
+
+The canonical surface is a bare keyword in declaration-head position, with no
+`@` and no `fn`. All three produce the same `Decl::Endpoint` AST node; nothing
+changed in HIR, codegen, or runtime semantics.
+
+| Retired (≤ v0.5)                         | Also retired (2026-06-30) | Canonical |
+|------------------------------------------|---------------------------|-----------|
+| `@endpoint(kind: server) fn h(...) {}`   | `@server fn h(...) {}`    | `server h(...) to T { }`   |
+| `@endpoint(kind: query) fn h(...) {}`    | `@query fn h(...) {}`     | `query h(...) to T { }`    |
+| `@endpoint(kind: mutation) fn h(...) {}` | `@mutation fn h(...) {}`  | `mutation h(...) to T { }` |
 
 **Migration recipe** (mechanical):
 
 ```diff
 - @endpoint(kind: server)
-+ @server
-  fn list_items() to List[Item] {
+- fn list_items() to List[Item] {
++ server list_items() to List[Item] {
       return db.Item.all()
   }
 ```

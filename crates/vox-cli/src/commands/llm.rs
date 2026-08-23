@@ -1,8 +1,10 @@
 use clap::Subcommand;
 use owo_colors::OwoColorize;
 
-// Vox snippets printed by `vox llm prompt`. Copied VERBATIM from
-// examples/golden/crud_api.vox:19-32, which the compiler verifies.
+// Vox snippets printed by `vox llm prompt`. GOLDEN_ROUTE and GOLDEN_MUTATION
+// are copied VERBATIM from examples/golden/crud_api.vox:19-21 and :29-32,
+// which the compiler verifies. The SYNTAX_* and SCHEMA_* constants are
+// hand-written shapes, guarded instead by the printed_snippets test below.
 //
 // Do NOT hand-write Vox here. This subcommand exists to teach an LLM the
 // language; a wrong snippet is a training defect shipped as a feature. It
@@ -37,7 +39,7 @@ pub async fn run(cmd: LlmCmd) -> anyhow::Result<()> {
             let task_lower = task.to_lowercase();
 
             if task_lower == "web-route" || task_lower == "route" || task_lower == "@query" {
-                println!("{}", "--- Route Decorator Syntax ---".bright_yellow());
+                println!("{}", "--- Route Declaration Syntax ---".bright_yellow());
                 println!("{SYNTAX_ROUTE}");
                 println!();
                 println!("{}", "--- Golden Example ---".bright_yellow());
@@ -50,7 +52,7 @@ pub async fn run(cmd: LlmCmd) -> anyhow::Result<()> {
                 || task_lower == "mutation"
                 || task_lower == "@mutation"
             {
-                println!("{}", "--- Mutation Decorator Syntax ---".bright_yellow());
+                println!("{}", "--- Mutation Declaration Syntax ---".bright_yellow());
                 println!("{SYNTAX_MUTATION}");
                 println!();
                 println!("{}", "--- Golden Example ---".bright_yellow());

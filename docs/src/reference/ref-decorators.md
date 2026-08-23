@@ -46,9 +46,9 @@ Migration is mechanical:
 
 | Retired (≤ v0.5)               | Canonical (v0.6+) |
 |--------------------------------|-------------------|
-| `@endpoint(kind: server)`      | `@server`         |
-| `@endpoint(kind: query)`       | `@query`          |
-| `@endpoint(kind: mutation)`    | `@mutation`       |
+| `@endpoint(kind: server)`      | `server`          |
+| `@endpoint(kind: query)`       | `query`           |
+| `@endpoint(kind: mutation)`    | `mutation`        |
 
 See also: [migration guide 0.5 → 0.6](./migration-0.5-to-0.6.md).
 
@@ -187,7 +187,7 @@ fn assistant_greet(name: str) to str {
 }
 ```
 ### `tool` (Keyword)
-Tools are declared with the bare `tool` keyword (not a decorator). `@tool` and the older dotted `@mcp.tool` are both deprecated aliases that emit a `vox/decorator/mcp-tool-deprecated` warning.
+Tools are declared with the bare `tool` keyword (not a decorator). `@tool` is a **hard parse error** (`vox/decorator/tool-retired`). The older dotted `@mcp.tool` still parses but emits a `vox/decorator/mcp-tool-deprecated` warning.
 - **Goal**: Exports a function as an MCP tool.
 - **Effect**: Registered with the MCP server for discovery by AI agents.
 - **Usage**:
@@ -198,7 +198,7 @@ tool "Calculate the sum of two integers" sum(a: int, b: int) to int {
 ```
 
 ### `resource` (Keyword)
-Resources are declared with the bare `resource` keyword (not a decorator). `@resource` and the older dotted `@mcp.resource` are both deprecated aliases.
+Resources are declared with the bare `resource` keyword (not a decorator). `@resource` is a **hard parse error** (`vox/decorator/resource-retired`). The dotted `@mcp.resource` remains valid, non-deprecated syntax, though bare `resource` is preferred for new code.
 - **Goal**: Exposes dynamic readable content to MCP.
 - **Effect**: Registers a resource URI endpoint via `getResources`.
 - **Usage**:

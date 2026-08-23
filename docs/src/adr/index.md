@@ -53,6 +53,8 @@ This directory contains ADRs for the Vox project.
 | [039](039-ai-fixture-hole-decorator.md) | **AI fixture `@hole` decorator** |
 | [040](040-ai-fixture-search-decorator.md) | **AI fixture `@search` decorator** |
 | [041](041-durable-functions-completion-2026.md) | **Durable functions completion** — closes ADR-028; `workflow`/`activity`/`@scheduled`/`actor` now backed by real runtime (Stable for ADR-019 subset) |
+| [042](../architecture/adr-042-vox-populi-types.md) | **Extract `NodeRecord` into `vox-populi-types` (L2)** (filed under `architecture/`) |
+| [043](../architecture/adr-043-quantized-safetensors-ondisk-format.md) | **Quantized SafeTensors on-disk format** (filed under `architecture/`) |
 | [044](044-ai-fixture-subagent-decorator.md) | **AI fixture `@subagent` decorator** (renumbered from a three-way 037 collision) |
 | [045](045-tauri-gui-replaces-axum-dashboard.md) | **Tauri GUI replaces the Axum dashboard** (renumbered from a three-way 037 collision) |
 

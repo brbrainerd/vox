@@ -18,7 +18,7 @@ sort_order: 8
 | --- | --- | --- |
 | `Id[T]` at API boundaries | [Phase 3 typecheck rules](vox-language-rules-phase3-typecheck-rules-2026.md) | `vox migrate id-strings` codemod referenced in plan. |
 | `@island` retirement / React interop | [Phase 5 React interop spec](../archive/phase5-react-interop-spec-2026.md) | `vox migrate drop-island` helper referenced. |
-| Endpoint decorator migration | Root [`AGENTS.md`](../../../AGENTS.md) retired surfaces table | `@server fn` → `@endpoint(kind: …)`. |
+| Endpoint decorator migration | Root [`AGENTS.md`](../../../AGENTS.md) retired surfaces table | `@endpoint(kind: …)` → `@server fn` (2026-05-23) → `server name(...) to T` (2026-06-30, `cd7cc96874`). Both at-prefixed forms are now hard parse errors. |
 | Durability grammar | [ADR 028](../adr/028-deprecate-stub-durability-grammar.md), [durability-runtime-audit-2026.md](durability-runtime-audit-2026.md) | Parse vs runtime truth; align docs before teaching agents new keywords. |
 | Database env naming | [`AGENTS.md`](../../../AGENTS.md) | `VOX_DB_*` replaces legacy Turso names. |
 

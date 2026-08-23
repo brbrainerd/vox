@@ -341,8 +341,6 @@ fn compute_metrics(inv: &InventoryFile, findings: &FindingsFile) -> Value {
         .count();
     let open = findings.findings.len().saturating_sub(closed);
 
-    let generated_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-
     serde_json::json!({
         "schema_version": 1,
         "inventory_claim_count": inv.claims.len(),

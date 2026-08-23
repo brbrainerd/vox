@@ -25,7 +25,7 @@ The smallest valid Vox program: a typed function that returns a string. Demonstr
 
 ## CRUD API — Table, Query, Mutation, and Endpoint
 
-A complete data layer in one file. `@table` generates the database schema, `@endpoint(kind: query)` wires a read-only resolver, `@endpoint(kind: mutation)` wires a write operation, and `@get` exposes an HTTP handler — all with the Rust Axum backend generated automatically.
+A complete data layer in one file. `table` generates the database schema, `query` wires a read-only resolver, and `mutation` wires a write operation — all with the Rust Axum backend generated automatically.
 
 ```vox
 {{#include ../../../examples/golden/crud_api.vox:display}}
@@ -155,5 +155,5 @@ Bundled as `/opt/vox/mesh-noop.vox` in the Docker image for compose-based worker
 
 ## Rosetta inventory (multi-language walkthrough)
 
-Two golden files back the [Rosetta inventory explanation](../explanation/expl-rosetta-inventory.md): core merge + `@table` in `inventory_rosetta_core.vox`, and actor / workflow / MCP / UI / capability layers in `inventory_rosetta_platform.vox`. Use that page for C++ / Rust / Python contrast snippets; Vox sections pull anchored regions from these files.
+Two golden files back the [Rosetta inventory explanation](../explanation/expl-rosetta-inventory.md): core merge + `table` in `inventory_rosetta_core.vox`, and actor / workflow / MCP / UI / capability layers in `inventory_rosetta_platform.vox`. Use that page for C++ / Rust / Python contrast snippets; Vox sections pull anchored regions from these files.
 
