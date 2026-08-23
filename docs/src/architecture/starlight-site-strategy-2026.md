@@ -146,7 +146,7 @@ No `vox.foundation` references remain.
 *Originally CRITICAL.* Two independent things closed this: `docs/src/index.md`
 was replaced by `index.mdx`, and
 [`remark-vox-include.mjs`](../../../docs-astro/src/plugins/remark-vox-include.mjs)
-now resolves `{{#include path:anchor}}` inside fenced code blocks at build time.
+now resolves the mdBook `#include` directive (`path:anchor` syntax) inside fenced code blocks at build time.
 
 The plugin **throws** on an unresolved path or anchor rather than emitting the
 raw directive as visible text, so a broken include fails the build instead of
