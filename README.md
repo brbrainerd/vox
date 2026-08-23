@@ -50,7 +50,7 @@ Vox collapses the massive fragmentation of modern web and AI development into a 
 - **[One File to Rule the Stack](docs/src/reference/deployment-compose.md)**: A single `.vox` file emits database migrations, a typed API server, reactive frontend components, and deployment artifacts. Zero integration boilerplate.
 - **[Distributed Mesh Computing](docs/src/how-to/how-to-model-routing.md)**: Securely network laptops and cloud servers. The orchestrator automatically routes AI workloads to the nodes with the best available hardware.
 - **[Native Desktop GUI](crates/vox-gui/)**: Compile `.vox` files into fully native, cross-platform graphical applications powered by Tauri, complete with native IPC bridges.
-- [Wire format](crates/vox-protocol/) — Data and tool contracts are the single source of truth; schemas are generated, not restated.
+- [Wire format](crates/vox-foundation/) — Data and tool contracts are the single source of truth; schemas are generated, not restated.
 - [Autonomous RAG & Research](docs/src/reference/socrates-protocol.md) — Deploy agents equipped with persistent long-term memory, fact-checking (the [Socrates protocol](docs/src/reference/socrates-protocol.md)), and autonomous web-search.
 
 ---
@@ -83,11 +83,11 @@ The full CLI surface, including every `vox ci`, `vox populi`, and `vox mens` sub
 
 ### Ecosystem & plugins
 
-The core binary covers compile, run, bundle, and package. Heavier capabilities — Rust-native ML training/serving, the native desktop GUI, and 20+ first-party agent skills (git, memory, RAG, testing, container/WASM runtimes, and more) — load as optional extensions and skills through a stable ABI; `vox` tells you if one is required but missing.
+The core binary covers compile, run, bundle, and package. Heavier capabilities — Rust-native ML training/serving, the native desktop GUI, and 20+ bundled agent skills (git, memory, RAG, testing, container/WASM runtimes, and more) — load as optional extensions and skills through a stable ABI; `vox` tells you if one is required but missing.
 
 Full extension and skill catalog, kept current automatically: **[Plugin Catalog](docs/src/reference/plugin-catalog.generated.md)**.
 
-Project automation itself is `.vox`, not `.ps1`/`.sh`/`.py` — scripts are type-checked, cross-platform, and telemetry-observable by default (`vox run scripts/clean-cache.vox`).
+Project automation itself is `.vox`, not `.ps1`/`.sh`/`.py` — scripts are type-checked, cross-platform, and telemetry-observable by default (`vox run scripts/clean-build-artifacts.vox`).
 
 Cross-machine orchestration (mesh) is opt-in: nodes advertise hardware capabilities on startup and the orchestrator routes workloads to the best-equipped peer, wire-checked at compile time. See the [model routing how-to](docs/src/how-to/how-to-model-routing.md).
 

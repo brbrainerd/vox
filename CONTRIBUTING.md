@@ -41,9 +41,21 @@ Requires [lefthook](https://github.com/evilmartians/lefthook): `winget install e
 
 ## First PR checklist
 
-- [ ] `cargo fmt`, `cargo clippy` (as appropriate)
+- [ ] **Write the failing test first.** New `pub fn` in `crates/*/src/**` needs a
+      test in the same file *before* the implementation — the `tdd-guard`
+      pre-commit hook blocks commits that skip it. See
+      [AGENTS.md §Test-First Policy](AGENTS.md). `vox new fn` scaffolds a stub
+      paired with a failing `@test` block.
+- [ ] `vox run scripts/fmt.vox` to format — **not** `cargo fmt`. At this
+      virtual-workspace root a bare `cargo fmt` is the all-members invocation,
+      which overflows the Windows `CreateProcess` limit and dies with
+      `os error 206`. For one crate: `cargo fmt -p <crate>`.
+- [ ] `cargo clippy -p <crate> -- -D warnings` for crates you changed
 - [ ] Targeted `cargo test -p <crate>` for crates you changed
-- [ ] `vox ci line-endings` (or CI will flag)
+- [ ] `vox ci pre-push` before pushing — the aggregate local gate (fmt,
+      line-endings, ssot-drift, scoped doc lint). Install the hooks once with
+      `vox run scripts/install-hooks.vox`. Note `--complete` runs **no tests**;
+      use `--full` when you changed code or tests.
 - [ ] Docs SSOT if you changed user-visible behavior (see [`documentation-governance.md`](docs/src/contributors/documentation-governance.md))
 
 ## Deep onboarding
