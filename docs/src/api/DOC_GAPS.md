@@ -23,11 +23,11 @@ This is a living checklist for the Vox open source community and core contributo
 
   The index is hand-written and will drift. The durable fix is generating it from `build_catalog()` and gating it in `ssot-drift`; the table carries a `ponytail:` marker saying so.
 
-- [ ] **20 of 76 top-level commands are missing from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml)** — `bundle-app`, `chat`, `component`, `config`, `container`, `dispatch`, `drift-check`, `emit`, `ext`, `grammar`, `harness`, `llm`, `new`, `play`, `plugin`, `policy`, `repair`, `rollback`, `term`, `wasm`.
+- [x] **20 of 76 top-level commands were missing from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml)** — closed 2026-08-23 by adding a `- id: <name>` row to `contracts/operations/catalog.v1.yaml` for each of `bundle-app`, `chat`, `component`, `config`, `container`, `dispatch`, `drift-check`, `emit`, `ext`, `grammar`, `harness`, `llm`, `new`, `play`, `plugin`, `policy`, `repair`, `rollback`, `term`, `wasm`, modeled on the existing pure-CLI entries (`mcp: null`, populated `cli:` block with `handler_rust` traced to the actual dispatch match arm). `vox ci operations-verify`, `operations-sync --target cli --write`, and `operations-sync --target capability --write` regenerated `command-registry.yaml` and `capability-registry.yaml`; `command-sync --write` regenerated `cli-command-surface.generated.md`. All 20 now appear in both generated artifacts.
 
-  That registry (projected from `contracts/operations/catalog.v1.yaml`) is what `vox ci command-sync` renders into `cli-command-surface.generated.md`. So that file is gated, freshly generated, and missing a quarter of the top-level surface — a generator pointed at a hand-maintained list that shadows the clap tree.
+  That registry (projected from `contracts/operations/catalog.v1.yaml`) is what `vox ci command-sync` renders into `cli-command-surface.generated.md`. It was gated and freshly generated, but the generator was pointed at a hand-maintained catalog that shadowed the clap tree for a quarter of the top-level surface — the CLI itself always had these 20 commands, `catalog.v1.yaml` just never had rows for them.
 
-  Nothing currently checks registry coverage against `build_catalog()`: `command_compliance` validates MCP tool wiring and capability rows, not command presence. Adding that check is the fix, but it fails on the 20 rows above until they are written, and each needs curated metadata (capability id, category) that clap cannot supply — so the rows come first, then the gate.
+  Nothing currently checks registry coverage against `build_catalog()`: `command_compliance` validates MCP tool wiring and capability rows, not command presence. Adding that check remains open — it would have caught this gap immediately instead of needing a manual audit.
 
 ## Retired-syntax prose lint (measured, not yet closed)
 

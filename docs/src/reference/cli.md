@@ -901,6 +901,26 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `review` | `coderabbit` | `commands::review` |
 | `train` | `gpu` + `mens-dei` | `commands::ai::train` |
 | `dei` | `dei` | `commands::dei` (alias `orchestrator`) |
+| `bundle-app` | default | `commands::bundle` |
+| `chat` | default | `commands::chat` |
+| `component` | default | `commands::add_component` |
+| `config` | default | `commands::config` |
+| `container` | default | `commands::container` |
+| `dispatch` | default | `commands::dispatch` |
+| `drift-check` | default | `commands::drift_check` |
+| `emit` | default | `commands::emit` |
+| `ext` | default | `commands::ext` |
+| `grammar` | default | `commands::grammar::handle` |
+| `harness` | default | `commands::harness` |
+| `llm` | default | `commands::llm` |
+| `new` | default | `commands::new` |
+| `play` | default | `commands::play` |
+| `plugin` | default | `commands::plugin` |
+| `policy` | default | `commands::policy` |
+| `repair` | default | `commands::repair` |
+| `rollback` | default | `commands::rollback` |
+| `term` | default | `vox_term::app::run` |
+| `wasm` | `script-wasi` | `commands::wasm` |
 
 ### `vox-compilerd` RPC (not CLI variants)
 
