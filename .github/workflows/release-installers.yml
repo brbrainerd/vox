@@ -84,10 +84,15 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-wix
+      - name: Build the dist binary
+        # `--no-build` below expects target/dist/vox.exe + vox-compilerd.exe to
+        # already exist. Without this step, `cargo wix` links `light.exe`
+        # against nonexistent files and fails with exit 103 (LGHT0103,
+        # file-not-found). Features must match the shipped binary --
+        # release_build.rs adds `heavy-retrieval` for the real release build.
+        run: cargo build --profile dist --locked -p vox-cli --features heavy-retrieval
       - name: Build MSI
         run: cargo wix --no-build --profile dist --package vox-cli
-        # Note: In a real pipeline, `cargo build --profile dist --locked -p vox-cli`
-        # would be run first to populate target/dist/vox.exe.
 
   build-linux-deb:
     runs-on: ubuntu-latest
