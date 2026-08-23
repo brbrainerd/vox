@@ -53,6 +53,16 @@ jobs:
           toolchain: "1.96.0"
           targets: ${{ matrix.target }}
 
+      - name: Install system deps (libdbus/GTK)
+        # vox-cli pulls in glib-sys transitively; the self-hosted fleet image
+        # this Linux leg used to run on had these preinstalled, ubuntu-latest
+        # doesn't. Same package list as release-installers.yml's
+        # build-linux-deb job, which hit and fixed the identical gap for the
+        # same crate. Linux-only: Windows/macOS legs of this matrix don't
+        # need it and `apt-get` doesn't exist there.
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+
       - name: Build and package release artifacts (core + plugins)
         # `--package all` produces: vox, vox-ml-cli. voxup is built separately below.
         # Each ships as its own archive so users opt into the heavy ML/scientia plugins.
@@ -210,6 +220,11 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.96.0"
+
+      - name: Install system deps (libdbus/GTK)
+        # Same gap as the build job's Linux leg -- vox-cli pulls in glib-sys
+        # transitively, and this job also builds vox-cli directly.
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
       - name: Build the real dist binary
         # Feature set MUST match release_build.rs::build_and_package_binary.
