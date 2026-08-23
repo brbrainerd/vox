@@ -50,7 +50,7 @@ This is a living checklist for the Vox open source community and core contributo
 ## Medium Priority
 - [ ] Explain the underlying generic instantiation (`<T>`) algorithm used by HIR logic
 - [ ] Detail all `mcp.tool` options regarding rate limits and user confirmation schemas
-- [ ] Add explicit HTTP request payload mapping examples for `server` endpoints
+- [x] Add explicit HTTP request payload mapping examples for `server` endpoints — **closed 2026-08-23**, see [wire-format-v1-ssot.md §2.2](../architecture/wire-format-v1-ssot.md). `mutation` and `server` share the same param-extraction emitter (`request["<name>"].clone()`, flat top-level JSON lookup); the only wire differences are the path root and that `server` never gets transaction wrapping.
 
 ## Completed 
 - [x] Standard library built-ins (completed 2026-04-06)

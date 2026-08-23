@@ -61,10 +61,38 @@ mutation create_order(item_id: str, quantity: int) to bool {
 }
 ```
 
-Wire request body:
+Wire request:
+```
+POST /api/mutation/create_order
+```
 ```json
 { "item_id": "abc123", "quantity": 3 }
 ```
+
+`server` endpoints encode parameters identically -- the only wire difference
+is the path root (§2.0: `/api/<name>`, no `/mutation/` segment) and that a
+`server` write is never wrapped in a DB transaction (§Transactional
+boundaries in [ref-db-surface.md](../reference/ref-db-surface.md#transactional-boundaries-query-vs-mutation-vs-server)).
+
+```vox
+server charge_card(customer_id: str, amount_cents: int) to bool {
+    return true
+}
+```
+
+Wire request:
+```
+POST /api/charge_card
+```
+```json
+{ "customer_id": "cus_123", "amount_cents": 1999 }
+```
+
+Verified against `emit_server_fn_handler` in
+[`crates/vox-codegen/src/codegen_rust/emit/http.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/http.rs):
+`mutation` and `server` share this exact emitter, and both extract each
+declared parameter with `request["<param_name>"].clone()` -- a flat
+top-level JSON-object lookup, not destructuring or positional binding.
 
 ---
 
