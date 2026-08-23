@@ -149,7 +149,6 @@ fn extract_bundle_tar<R: std::io::Read>(reader: R, dest: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
 
     /// Builds a tar whose entry name is written raw, because tar-rs's safe
     /// `set_path` REFUSES `..` — the safe API cannot express the attack.
