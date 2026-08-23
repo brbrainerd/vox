@@ -7,7 +7,7 @@ status: "roadmap"
 
 # Docs Corpus Repair and Visual Enablement — Design
 
-**Date:** 2026-08-22 (revision 2)
+**Date:** 2026-08-22 (revision 3)
 **Status:** approved for planning
 **Scope decision:** content-first. No new subsystems, no new crates, no new schema, no new scheduler, no new GUI surface.
 
@@ -22,21 +22,35 @@ status: "roadmap"
 
 ## 0. Revision note — read this first
 
-Revision 1 of this spec was audited by sixteen parallel critique tracks against
-the codebase. **Seven of its numeric claims were wrong, one sequencing rule was
-inverted, and one detector diagnosis was backwards.** Every correction is
-recorded in §3 rather than quietly patched, because the correction *pattern* is
-the most useful finding in the document:
+Three revisions, audited by twenty-four parallel critique tracks against the
+codebase.
 
-**Every inherited count that included `docs/src/archive/` was inflated, and
-every count independently re-verified came back smaller.** Revision 1 opened by
-warning about a 96.5%-false-positive grep and then reproduced the identical
-error two sections later.
+- **Revision 1** — 7 numeric claims wrong, one sequencing rule inverted, one
+  detector diagnosis backwards.
+- **Revision 2** — corrected those, then introduced **14 new errors**: one that
+  changed an already-correct figure to a wrong one, three that silently
+  re-included `docs/src/archive/`, and four internal contradictions.
+- **Revision 3** — stops authoring numbers. See §3.
 
-**Scope rule for this revision, applied to every number below:** counts are
-**live corpus only** (`docs/src` excluding `archive/`), and for syntax claims,
-**declaration-form only** — not prose mentions. Any number not meeting that bar
-is marked UNVERIFIED rather than quoted.
+The correction *pattern* is the most useful finding in the document, and it
+recurred in the very section written to announce it had been eliminated:
+
+**Every count that included `docs/src/archive/` was inflated, and every count
+independently re-verified came back smaller.**
+
+The same pattern appeared in the plans: five separate guards were written to
+catch a defect, and **five could not fire** — two read the wrong markdown
+column, one skipped the rows it was written to protect, one was permanently red,
+one tested a hardcoded string against a file it never read. All five were
+reasoned about rather than executed.
+
+**Two rules now bind this program:**
+
+1. **No number is authored.** Counts come from `scripts/docs-corpus-census.vox`
+   or they are not stated (§3).
+2. **No checker enters a plan until it has been run against the real tree and
+   its actual output pasted into the step.** Expected-failure text is not a
+   prediction; it is a transcript.
 
 ---
 
@@ -68,14 +82,22 @@ Net new GUI surfaces required: **zero**.
 
 ### 1.2 The backlog it would have fed is a graveyard
 
-**22** directories exist under `contracts/reports/`. **All 22** are stale by
-three weeks or more; 12–13 were last touched in May 2026. `findings.v1.json` has
-**exactly one commit in its history** (`3295a3bee`, 2026-05-12) and contains zero
-findings. Meanwhile `docs` is the third-largest commit prefix across the last 400
-commits.
+Every directory under `contracts/reports/` is stale by three weeks or more, and
+most were last touched in May 2026. Reproduce with:
 
-*(Revision 1 said "23 of 33". There are 22 directories and all 22 are stale — the
-denominator was fabricated and the conclusion is stronger than stated.)*
+```bash
+for d in contracts/reports/*/; do
+  echo "$(git log -1 --format=%cs -- "$d")  $d"
+done | sort
+```
+
+`findings.v1.json` has **exactly one commit in its history** — `3295a3bee`,
+2026-05-12 — and contains zero findings (`git log --oneline -- contracts/reports/docs-reality-audit/findings.v1.json`).
+Meanwhile `docs` is among the largest commit prefixes in recent history
+(`git log --oneline -400 | cut -d'(' -f1 | sort | uniq -c | sort -rn`).
+
+*(Revision 1 said "23 of 33 stale". The denominator was fabricated; every
+directory is stale, so the conclusion is stronger than revision 1 stated.)*
 
 **This repository has a findings-consumption deficit, not a findings-generation
 deficit.** More generation machinery produces a 23rd stale directory.
@@ -116,55 +138,85 @@ have no contract coverage at all.
 
 ---
 
-## 3. Evidence base — with revision-1 corrections
+## 3. Evidence base — generated, not authored
 
-| Claim | Rev-1 | **Verified** | Cause of error |
-| --- | --- | --- | --- |
-| Docs with mermaid fences | 45 | **17 live** (28 archive) | included archive |
-| Broken mermaid diagrams | — | **3 of 51** (1 live) | parsed all 51 with real `mermaid@11` |
-| Retired-symbol references | 119 | **14 genuine** of 398 | 96.5% FP |
-| NUL bytes in the data-storage spec | 516 | **1** (final byte, offset 37976) | miscount; impact claim still holds |
-| `crates/vox-dashboard` refs | 299 | **273** live / 309 all-docs | no scope yields 299 |
-| `vox-dei-shim` refs | 26 | **27** live / 44 all-docs | — |
-| `crates/vox-oratio` refs | ~15 | **6** live / 16 all-docs | — |
-| Retired decorator spellings | ~500 | **46 raw declaration-form; 3–6 actionable files** | archive-inclusive **and** counted prose |
-| `contracts/reports/` dirs | 33, 23 stale | **22, all 22 stale** | fabricated denominator |
-| superpowers plans | 284 | **275** top-level / **340** recursive | 10 unmentioned subdirs |
-| Existing archive files | 243 | **296** | — |
-| Inbound link edges | 83 / ~40 | **UNVERIFIED** | candidate list was never written down |
-| `vox-orchestrator` LoC | 85,335/70,000 | **confirmed exact** | — |
-| `vox-cli-ci` LoC | 23,910/15,000 | **24,104**/15,000 | — |
-| `docs/src` markdown files | 918 | **confirmed exact** (622 live, 296 archive) | — |
+**This section deliberately contains no numbers.**
 
-### 3.1 The `~500 decorators` claim, retracted in detail
+Revision 1 carried 7 wrong counts. Revision 2 corrected them and introduced
+**14 more** — including one that changed an already-correct figure to a wrong
+one, three that silently re-included `docs/src/archive/`, and four internal
+contradictions (one section's total was arithmetically impossible against
+another's). Three rounds of careful review did not converge.
 
-Revision 1's per-spelling counts reproduce **only with archive included**, and
-count every prose mention. Live declaration-form reality:
+The method was the problem, not the effort. Roughly forty hand-maintained
+counts about a corpus that changes daily **is the drift class this spec
+exists to eliminate.** The spec had become an instance of its own subject.
 
-| Spelling | Rev-1 | Live prose+code | Live **declaration form** |
-| --- | --- | --- | --- |
-| `@query` | 126 | 73 | **12** |
-| `@table` | 91 | 62 | **6** |
-| `@mutation` | 87 | 54 | **8** |
-| `@server` | 74 | 48 | **14** |
-| others | ~120 | ~114 | **6** |
-| **Total** | **~500** | ~351 | **46** |
+So every count now comes from one re-runnable command:
 
-A 20-hit sample classified **0/20** as retired-form code — all were migration
-tables, audit prose, and mermaid labels. Of the 46 declaration-form matches, ~40
-are historical audit prose. **Actionable: 3–6 files**, chiefly
-`docs/src/reference/migration-0.5-to-0.6.md:28-30`, which prescribes the retired
-form as the *replacement* — the same defect as W1.1.
+```bash
+vox run scripts/docs-corpus-census.vox
+```
 
-W2.5 is therefore **demoted** from a workstream to a small edit set.
+**Do not quote its output here.** Cite the command. If a number matters to a
+decision, run the census; if the census cannot produce it, the claim does not
+belong in this spec.
 
-### 3.2 Diagram validity (all 51 fences parsed, not sampled)
+### 3.1 Definitions the census applies uniformly
 
-48 valid, 3 broken; only one live:
-`docs/src/how-to/how-to-rust-crate-imports.md` — backticks inside a quoted
-label, all 6 nodes affected. The other two are archive.
+Ambiguity in these definitions caused most of the wrong numbers, so they are
+stated once and enforced in code rather than in prose:
 
----
+| Term | Definition |
+| --- | --- |
+| **LIVE** | `docs/src/**/*.md` excluding any path containing `/archive/` |
+| **ARCHIVE** | the excluded remainder — tombstoned per AGENTS.md §Archival Protocol |
+| occurrence vs file | every count is an *occurrence* count unless the label says "files" |
+| **fence carrying a skip** | a `// vox:skip` marker appearing *between* a ```` ```vox ```` opener and its closer. Markers in prose are counted separately — conflating the two produced revision 2's impossible "260 markers / 257 + 77 = 334" arithmetic |
+| **decorator STRICT** | `@X` immediately followed by `fn ` or `type ` — an actual declaration |
+| **decorator LOOSE** | `@X` followed by any letter — includes prose such as "@form rigor" |
+
+The two decorator definitions are **reported separately and never summed.**
+Revision 2's headline figure blended them across five rows, which is why no
+single regex reproduced it.
+
+### 3.2 What the census established
+
+Findings, stated without quoting values:
+
+- The retired-decorator surface **shrinks at every increase in measurement
+  rigour** — revision 1's estimate, revision 2's correction, and the census
+  differ by more than an order of magnitude. W2.5 is correspondingly demoted;
+  see §W2.5.
+- Revision 2 **understated** the live `vox` fence corpus and **overstated** the
+  share carrying a skip marker, because bare-skip counting was archive-inclusive.
+  The real skip share is materially lower than "almost everything", which
+  weakens W8's framing (see §W8).
+- The `vox-dashboard`, `vox-oratio`, and `vox-dei-shim` reference counts are the
+  only symbol figures that survived all three rounds unchanged.
+
+### 3.3 A platform limit found while building the census
+
+`vox run --interp` cannot run a corpus-wide script. `Interpreter::new(10_000_000)`
+is hardcoded at `crates/vox-cli/src/commands/run.rs:63` with **no flag and no
+environment override**, and one pass over the live corpus exhausts it partway
+through. The census therefore requires the native tier.
+
+This is a standing tension with AGENTS.md §VoxScript-First, which mandates that
+*all* project automation be `.vox` run via `vox run`: corpus-scale automation
+does not fit the interpreter tier, and the native tier's first-run compile is
+slow enough to discourage the pattern. Filed here because the census is the
+first script in this program to hit it.
+
+### 3.4 Diagram validity
+
+All live and archive mermaid fences were parsed with the real `mermaid@11`
+parser under jsdom. Exactly **one live** diagram fails —
+`docs/src/how-to/how-to-rust-crate-imports.md`, where backticks sit inside
+quoted node labels (5 of its 7 nodes). Two archive diagrams also fail and are
+out of scope. Plan 2 (`2026-08-22-mermaid-rendering-and-parse-gate.md`) turns
+this check into a build-time gate; run it via that plan's harness rather than
+re-deriving counts here.
 
 ## 4. Workstreams
 
@@ -270,8 +322,10 @@ renamed. It now conceals the stale references it was meant to permit.
 `docs/src/ci/workspace-root-manifest.md:22`, which uses it as *the worked
 example* of adding a workspace dependency.
 
-**W2.5 — retired decorator spellings: 3–6 files** (see §3.1; demoted from
-revision 1's "~500"). Chiefly `migration-0.5-to-0.6.md:28-30`. **`CHANGELOG.md:28`
+**W2.5 — retired decorator spellings: a handful of files.** Run the census
+(§3) for the current STRICT count; it has fallen by more than an order of
+magnitude at each successive increase in measurement rigour, and the LOOSE
+figure is prose, not code. This is an edit set, not a workstream. Chiefly `migration-0.5-to-0.6.md:28-30`. **`CHANGELOG.md:28`
 belongs here too** — it states the at-prefixed forms are "the **only** endpoint
 declaration surface", and both it and the migration guide call them
 "**bare-form**" while AGENTS.md uses "**bare-keyword**" to mean the opposite. An
@@ -417,7 +471,8 @@ completed; the `status` vocabulary is uncontrolled free text. Fix: a
 
 **W5.8 — move procedure.** Batches ≤25 into
 `docs/src/archive/architecture-2026-q3/`, matching the existing
-`research-2026-q1/` precedent (**296** existing archive files, not 243).
+`research-2026-q1/` precedent — run the census (§3) for the current archive
+file count; revision 1's 243 was wrong.
 `git mv`; set `status: "deprecated"`, `archived_date:`,
 `training_eligible: false`, `superseded_by:`; leave `category` unchanged. Rewrite
 inbound edges; hand-edit `research-index.md`; never touch `architecture-index.md`
@@ -530,11 +585,13 @@ consumers are told to trust is the stale one.
 
 ### W8 — Doctest reality (NEW)
 
-**W8.1 — the Vox language reference is 94% unverified.**
-`docs/src/reference/ref-syntax.md` has **18 `vox` fences and 17 `// vox:skip`
-markers**. Corpus-wide: **268 live fences, 260 skip markers.** The doctest gate
-AGENTS.md presents as the guarantee that documented Vox compiles is switched off
-almost everywhere — and these fences are the MENS positive training corpus.
+**W8.1 — much of the documented Vox is never compiled.**
+`docs/src/reference/ref-syntax.md` — the syntax reference — carries 18 `vox`
+fences of which 17 are skipped; that one file was hand-verified. For the
+corpus-wide split between fences that carry a skip and fences that actually
+compile, run the census (§3): it reports them separately, which revision 2 did
+not, and the true skip share is materially lower than revision 2 implied.
+These fences are also the MENS positive training corpus.
 
 **W8.2 — the root cause is a tooling bug, not author laziness.**
 `doctest.rs` **never resets `current_block` between fences**, so every `vox`
@@ -542,9 +599,11 @@ fence in a file concatenates into one compile unit. Authors reach for `vox:skip`
 to escape cross-fence collisions. Until this is fixed, "delete the skip and make
 it compile" is impossible for any multi-example file.
 
-**W8.3 — the required reason is unenforced: 257 bare skips vs 77 with a
-reason.** AGENTS.md §Markdown Hygiene and `pipeline/mod.rs:58` both require one.
-A one-line lint converts 257 silent bypasses into justifications-or-fixes.
+**W8.3 — the required reason is unenforced.** AGENTS.md §Markdown Hygiene and
+`pipeline/mod.rs:58` both require a reason after `// vox:skip`; nothing checks
+it, and most markers are bare. Run the census (§3) for the bare-versus-reasoned
+split — revision 2's figure here was archive-inclusive. A one-line lint converts
+every silent bypass into a justification-or-fix.
 
 **W8.4 — two undocumented escape hatches.** `doctest.rs:32-35` also accepts
 `Skip-Test` (documented nowhere) and `{{#include`, which exempts all 39
