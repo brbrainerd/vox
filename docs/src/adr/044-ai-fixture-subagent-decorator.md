@@ -1,12 +1,12 @@
 ---
-title: "ADR 037 — AI fixture `@subagent` decorator"
+title: "ADR 044 — AI fixture `@subagent` decorator"
 description: "Proposes a decorator-based author surface for subagent dispatch policy without introducing a new bare keyword."
 category: "Architecture Decisions (ADRs)"
 status: "current"
 training_eligible: true
 ---
 
-# ADR 037: AI fixture `@subagent` decorator
+# ADR 044: AI fixture `@subagent` decorator
 
 ## Status
 
