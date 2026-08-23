@@ -808,6 +808,41 @@ Use one canonical command description in clap for each command, then reuse it in
 4. Run **`vox ci operations-verify`** and **`vox ci command-compliance`** before merge (also enforced in CI).
 
 
+## Command index — not yet covered in detail
+
+The sections above document 50 of the 76 top-level `vox` commands. The remaining 26 are listed here with the description clap already carries, so the surface is at least discoverable while the prose catches up. Run `vox <command> --help` for flags and subcommands.
+
+<!-- ponytail: hand-written index, sourced from `vox commands --format json` on 2026-08-23. It will drift as commands are added. The durable fix is generating this table from `build_catalog()` (which reflects the clap tree directly) and gating it in `ssot-drift`; see docs/src/api/DOC_GAPS.md. -->
+
+| Command | What it does |
+|---------|--------------|
+| `vox audit` | Run quality-gate checks from `contracts/ci/check-targets.v1.yaml` (`vox audit`) |
+| `vox bundle-app` | Bundle a Vox source file into a complete web application (use `vox fab bundle` or `vox fabrica bundle`) |
+| `vox catalog` | Manage the `.vox/repositories.yaml` cross-repo catalog |
+| `vox chat` | Send one message through the harness's chat pipeline and print the reply (`vox chat`) |
+| `vox component` | Vendor a shadcn/ui component into the project (fetches source from ui.shadcn.com and writes it under your `components.json` aliases) |
+| `vox config` | Manage global configuration and preferences |
+| `vox container` | Manage OCI containers: build/run the current project with resource limits |
+| `vox dispatch` | Dispatch-time routing preview — project what the dispatcher would do (P2-T6) |
+| `vox drift-check` | Workspace drift and pattern-repetition linter |
+| `vox ext` | Extensions lane — unified entry for legacy and ML subcommands (`ext`) |
+| `vox grammar` | Export the Vox language grammar in various formats for MENS training |
+| `vox harness` | Evaluate the harness itself (not a model) against a golden task set with a pass^k multi-sample gate (`vox harness eval`) |
+| `vox llm` | LLM-native context and prompt generation tools (`vox llm prompt`) |
+| `vox model` | Manage models: discovery, scoreboard, and explainability (`vox model`) |
+| `vox new` | Scaffold a new Vox application from opinionated presets (`vox new web`) |
+| `vox plan` | Agentic Planning tools: Create, replan, and bypass planning steps (`vox plan`) |
+| `vox play` | Scaffold and immediately run a temporary Vox project (`vox play`) |
+| `vox plugin` | Install, remove, list, and inspect Vox plugins |
+| `vox policy` | View the unified policy catalog (CI gates, language rules, audits) |
+| `vox repair` | Automatically repair syntax and type errors in a `.vox` file via LLM (`vox repair`) |
+| `vox repl` | Interactive Vox expression REPL (read-eval-print loop) |
+| `vox rollback` | Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger |
+| `vox snapshot` | Insta snapshot helpers: detect and clean up orphaned `.snap` files (`vox snapshot orphans [--clean]`) |
+| `vox stop` | Emergency stop the orchestrator (MCP/daemon local stop request) |
+| `vox term` | Headless-capable ratatui terminal UI — block-model shell + AI agent strip |
+| `vox wasm` | Raw precompiled WASI module execution (needs `--features script-wasi`) |
+
 ## CLI command reachability
 
 This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../crates/vox-cli/src/lib.rs) -> their **implementation modules** under [`crates/vox-cli/src/commands/`](../../../crates/vox-cli/src/commands).

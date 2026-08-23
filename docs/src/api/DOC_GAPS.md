@@ -19,16 +19,15 @@ This is a living checklist for the Vox open source community and core contributo
 
 ## CLI surface coverage
 
-- [ ] **33 of 97 top-level `vox` commands (34%) are absent from [`cli.md`](../reference/cli.md)** — measured 2026-08-22 against the clap `Cli` enum in `crates/vox-cli/src/lib.rs`. Nothing is documented-but-nonexistent; the page is stale by omission only. Undocumented:
+- [x] **26 of 76 top-level `vox` commands were absent from [`cli.md`](../reference/cli.md)** — closed 2026-08-23 by adding a *Command index* section listing each with the description clap already carries. Counted from `vox commands --format json`, i.e. `build_catalog()` walking the real clap tree. (An earlier note here said "33 of 97"; that came from regex-parsing the `Cli` enum in `lib.rs` and over-counted cfg-gated stub variants and acronym spellings. The 34% rate was right, the counts were not — prefer `build_catalog()` over source parsing.)
 
-  `attention` `audit` `axis` `bundle-app` `catalog` `chat` `component` `config`
-  `container` `create` `dispatch` `drift-check` `ext` `grammar` `gui` `harness`
-  `kubernetes` `llm` `model` `new` `plan` `play` `plugin` `policy` `repair`
-  `repl` `rollback` `safety` `snapshot` `ssh` `stop` `term` `wasm`
+  The index is hand-written and will drift. The durable fix is generating it from `build_catalog()` and gating it in `ssot-drift`; the table carries a `ponytail:` marker saying so.
 
-  Includes first-class user lanes (`gui`, `chat`, `plugin`, `new`, `model`, `plan`, `config`).
+- [ ] **20 of 76 top-level commands are missing from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml)** — `bundle-app`, `chat`, `component`, `config`, `container`, `dispatch`, `drift-check`, `emit`, `ext`, `grammar`, `harness`, `llm`, `new`, `play`, `plugin`, `policy`, `repair`, `rollback`, `term`, `wasm`.
 
-  **Do not close this by hand-writing 33 sections** — that recreates the drift. `crates/vox-cli/src/command_catalog.rs` already reflects the full clap tree via `build_catalog()`, and `contracts/operations/catalog.v1.yaml` (which feeds the generated `cli-command-surface.generated.md`) is itself missing 31 of the same commands. Retarget `command_sync.rs` at `build_catalog()` so the generated inventory comes from clap rather than from a YAML that shadows it; the narrative and tombstones in `cli.md` stay hand-written.
+  That registry (projected from `contracts/operations/catalog.v1.yaml`) is what `vox ci command-sync` renders into `cli-command-surface.generated.md`. So that file is gated, freshly generated, and missing a quarter of the top-level surface — a generator pointed at a hand-maintained list that shadows the clap tree.
+
+  Nothing currently checks registry coverage against `build_catalog()`: `command_compliance` validates MCP tool wiring and capability rows, not command presence. Adding that check is the fix, but it fails on the 20 rows above until they are written, and each needs curated metadata (capability id, category) that clap cannot supply — so the rows come first, then the gate.
 
 ## Retired-syntax prose lint (measured, not yet closed)
 
