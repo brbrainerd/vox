@@ -24,7 +24,7 @@ Everything in §3 is intentional and acceptable today; the document exists so th
 
 All three CI gates exit clean (`0`) on the audit branch:
 
-```pwsh
+```powershell
 # Workspace clippy under deny-warnings (the CI gate)
 cargo clippy --workspace --all-targets -- -D warnings   # ✅ clean
 
@@ -171,7 +171,7 @@ This is **not** a CI gate and does **not** affect the `-D warnings` parity. Trac
 
 ## 6. Verification commands (cheat sheet)
 
-```pwsh
+```powershell
 # Full workspace deny-warnings parity check (matches CI gate)
 cargo clippy --workspace --all-targets -- -D warnings   # ✅ clean
 

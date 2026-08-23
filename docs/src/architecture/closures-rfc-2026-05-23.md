@@ -47,7 +47,7 @@ it becomes the full Rust-ish API surface.
 
 ### §2.1 — Closure literal
 
-```bnf
+```text
 closure-expr := "|" param-list "|" closure-body
 param-list   := ε
              |  param ("," param)*

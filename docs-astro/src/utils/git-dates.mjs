@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Last-commit date for every doc under `docs/src`, keyed the way Starlight
@@ -10,7 +11,11 @@ import { execFileSync } from 'node:child_process';
  * nothing and the feed shipped empty. Git is the source it was always meant
  * to read; this reads it directly, in one subprocess rather than one per file.
  */
-export function getGitDates(repoRoot = new URL('../../../', import.meta.url).pathname) {
+// fileURLToPath, not .pathname: on Windows the latter yields "/C:/Users/..."
+// with a leading slash, which is not a usable cwd.
+const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
+
+export function getGitDates(repoRoot = REPO_ROOT) {
   const out = execFileSync(
     'git',
     ['log', '--format=C|%cI', '--name-only', '--', 'docs/src'],
