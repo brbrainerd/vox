@@ -22,6 +22,17 @@ export async function GET(context: APIContext) {
       description: doc.data.description ?? '',
     }));
 
+  // Fail the build rather than shipping an empty feed. Both known breakages
+  // of this endpoint -- filtering on a `last_updated` key no live doc carries,
+  // and a Windows cwd that made `git` unspawnable -- produced a well-formed
+  // RSS document with zero items and a green build. Nothing noticed either.
+  if (items.length === 0) {
+    throw new Error(
+      `feed.xml produced 0 items from ${docs.length} docs and ` +
+        `${gitDates.size} git dates. Refusing to publish an empty feed.`,
+    );
+  }
+
   return rss({
     title: 'Vox: The AI-Native Programming Language — Docs',
     description: 'Official documentation updates for the Vox language.',

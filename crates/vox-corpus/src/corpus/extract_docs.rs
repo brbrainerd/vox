@@ -325,7 +325,7 @@ fn extract_qa_sections(
                 let body = fence_buf.join("\n");
                 if !(body.contains("// vox:skip") || body.contains("{{#include")) {
                     current_body.push_str(fence_open);
-                    current_body.push_str("\n");
+                    current_body.push('\n');
                     current_body.push_str(&body);
                     current_body.push_str("\n```\n");
                 }
