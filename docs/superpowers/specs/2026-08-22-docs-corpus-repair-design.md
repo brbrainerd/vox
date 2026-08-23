@@ -1,13 +1,13 @@
 ---
 title: "Docs Corpus Repair and Visual Enablement"
-description: "Evidence-backed repair of the documentation corpus: retired-surface drift, detector holes, retirement/archival, and mermaid rendering. No new subsystems."
+description: "Evidence-backed repair of the documentation corpus: agent-facing artifact drift, retired-surface references, detector holes, retirement/archival, and mermaid rendering. No new subsystems."
 category: "architecture"
 status: "roadmap"
 ---
 
 # Docs Corpus Repair and Visual Enablement — Design
 
-**Date:** 2026-08-22
+**Date:** 2026-08-22 (revision 2)
 **Status:** approved for planning
 **Scope decision:** content-first. No new subsystems, no new crates, no new schema, no new scheduler, no new GUI surface.
 
@@ -20,60 +20,76 @@ status: "roadmap"
 
 ---
 
+## 0. Revision note — read this first
+
+Revision 1 of this spec was audited by sixteen parallel critique tracks against
+the codebase. **Seven of its numeric claims were wrong, one sequencing rule was
+inverted, and one detector diagnosis was backwards.** Every correction is
+recorded in §3 rather than quietly patched, because the correction *pattern* is
+the most useful finding in the document:
+
+**Every inherited count that included `docs/src/archive/` was inflated, and
+every count independently re-verified came back smaller.** Revision 1 opened by
+warning about a 96.5%-false-positive grep and then reproduced the identical
+error two sections later.
+
+**Scope rule for this revision, applied to every number below:** counts are
+**live corpus only** (`docs/src` excluding `archive/`), and for syntax claims,
+**declaration-form only** — not prose mentions. Any number not meeting that bar
+is marked UNVERIFIED rather than quoted.
+
+---
+
 ## 1. Origin and method
 
 The request was to audit the codebase against all documentation and surface
 dozens of high-value improvements, adding visuals, improving navigability, and
 retiring stale documents.
 
-An initial design proposed a nine-component auto-maintenance program. Eight
-parallel critique tracks were run against the codebase to test it. **The design
-did not survive.** This spec is what replaced it, and the reasoning is recorded
-here because the negative results are more valuable than the original plan.
+An initial design proposed a nine-component auto-maintenance program. It did not
+survive review. This spec is what replaced it.
 
-### 1.1 What the critique found
+### 1.1 The proposed machinery was ~90% redundant
 
-**The proposed machinery was ~90% redundant.** Eight of nine components already
-exist in the tree:
+Eight of nine components already exist:
 
 | Proposed component | Already exists as |
 | --- | --- |
-| Proposal queue with accept/reject | `crates/vox-gui/src/commands/harness_issues.rs` — propose, `build_unified_diff`, `resolve_harness_fix_proposal`, staleness detection, path-traversal guard, verbatim-write invariant test |
-| LLM drafts fixes from findings | `vox audit effort-route` (routes audit findings to verified proposals) |
+| Proposal queue with accept/reject | `crates/vox-gui/src/commands/harness_issues.rs` — propose, `build_unified_diff`, `resolve_harness_fix_proposal`, staleness detection, path-traversal guard |
+| LLM drafts fixes from findings | `vox audit effort-route` |
 | Wiki browse surface | `DocViewerDrawer` + `DocReader` + `omnibarFacets.ts` docs facet + `vox_docs_index` |
 | Wiki index | Pagefind (`pagefind: true`) and `starlight-llms-txt` (`llmsFullTxt`) |
-| Toasts on new work | `ui/Toasts.tsx` + `lib/toastQueue.ts` (group-key coalescing, overflow folding) |
+| Toasts on new work | `ui/Toasts.tsx` + `lib/toastQueue.ts` |
 | Human-review queue | `NeedsYou` surface + `useAttentionInbox` + `feedbackResolve` |
 | Doc-vs-code drift backlog | `vox ci docs-reality-audit` + three schemas + taxonomy YAML |
 | Retirement scanning | `vox ci retired-symbol-check`, `vox ci retirement-audit`, 7 `vox-code-audit` detectors |
 
 Net new GUI surfaces required: **zero**.
 
-**The backlog it would have fed is a documented graveyard.** 23 of 33
-directories under `contracts/reports/` are stale by three weeks or more, 13 by
-roughly three months, with a signature three-day burst on 2026-05-21/22/23
-followed by silence across twelve of them. `findings.v1.json` has **one commit
-in its entire history** (`3295a3bee`, 2026-05-12) and contains zero findings.
-Meanwhile `docs` is the third-largest commit prefix across the last 400 commits.
+### 1.2 The backlog it would have fed is a graveyard
 
-The conclusion is not subtle: **this repository has a findings-consumption
-deficit, not a findings-generation deficit.** Building more generation machinery
-would produce a 34th stale directory.
+**22** directories exist under `contracts/reports/`. **All 22** are stale by
+three weeks or more; 12–13 were last touched in May 2026. `findings.v1.json` has
+**exactly one commit in its history** (`3295a3bee`, 2026-05-12) and contains zero
+findings. Meanwhile `docs` is the third-largest commit prefix across the last 400
+commits.
 
-### 1.2 What the critique also found
+*(Revision 1 said "23 of 33". There are 22 directories and all 22 are stale — the
+denominator was fabricated and the conclusion is stronger than stated.)*
 
-The opposite error was equally available. An early reading was that the corpus
-needed only three to five line edits. That was wrong too, because the real
-damage was hiding *behind* the existing detector's exemptions. A naive grep for
-17 retired symbols produced 398 line-hits of which **384 were legitimate and 14
-genuinely stale — 96.5% false positive**. The symbols that mattered were the
-ones not being counted at all.
+**This repository has a findings-consumption deficit, not a findings-generation
+deficit.** More generation machinery produces a 23rd stale directory.
 
-**This is the load-bearing insight of the whole audit:** the existing detector
-has accreted so many hand-written carve-outs that it now suppresses real drift,
-and the largest retirement classes in the corpus have no contract coverage at
-all. The fix is not more machinery. It is repairing the corpus and closing the
-holes that let it rot silently.
+### 1.3 But the corpus damage is real — it was just somewhere else
+
+A naive grep for 17 retired symbols produced 398 line-hits of which **384 were
+legitimate and 14 genuinely stale — 96.5% false positive**. The symbols that
+mattered were not being counted at all, and the worst damage is not in `docs/`
+but in the **agent-facing artifacts and the shipped CLI** (§W7).
+
+**Load-bearing insight:** the existing detector has accreted so many hand-written
+carve-outs that it now suppresses real drift, and the largest retirement classes
+have no contract coverage at all.
 
 ---
 
@@ -81,501 +97,566 @@ holes that let it rot silently.
 
 ### Goals
 
-1. Repair documentation that actively misleads coding agents — highest value
-   first, because every agent session pays the cost.
-2. Close the detector holes that allowed the drift, so the repair does not
-   need repeating.
-3. Enable diagram rendering, which is broken today, without adding a
-   build-time browser dependency or degrading agent-facing output.
-4. Archive superseded documents with their inbound links rewritten and their
-   training eligibility correctly set.
-5. Fix the small correctness bugs found in the audit machinery itself, so its
-   numbers stop lying.
+1. Repair artifacts that actively mislead coding agents — highest value first,
+   because every agent session pays the cost.
+2. Close the detector holes that allowed the drift.
+3. Enable diagram rendering without a build-time browser dependency or a
+   regression in agent-facing output.
+4. Archive superseded documents with inbound links rewritten and training
+   eligibility correctly set.
+5. Fix correctness bugs in the audit machinery so its numbers stop lying.
 
 ### Non-goals
 
-- No new crate, no new GUI surface, no new findings schema, no new scheduler.
-- No LLM judge tier. (The `vox-cli-ci -> vox-actor-runtime` edge required for
-  one has been authorized by the maintainer but is **deliberately not taken**,
-  because this scope does not need it. It is banked for a follow-up.)
-- No inventory expansion to ~150 claims. The existing 10 claims have produced
-  zero findings in 102 days; scaling a zero-yield mechanism fifteen-fold yields
-  zero fifteen times over.
-- No modification of `docs/src/archive/**` content beyond frontmatter required
-  by CI, per AGENTS.md §Archival Protocol.
+- No new crate, GUI surface, findings schema, or scheduler.
+- No LLM judge tier. The `vox-cli-ci -> vox-actor-runtime` edge required for one
+  has been authorized by the maintainer but is **deliberately not taken**.
+- No inventory expansion to ~150 claims.
+- No modification of `docs/src/archive/**` beyond frontmatter CI requires.
 
 ---
 
-## 3. Evidence base
+## 3. Evidence base — with revision-1 corrections
 
-Every claim below was verified against the tree at commit `693c012db`. Counts
-that were corrected during the audit are shown with the correction, because the
-first number was wrong in each case and the pattern matters.
-
-| Claim | First estimate | Verified | Source of error |
+| Claim | Rev-1 | **Verified** | Cause of error |
 | --- | --- | --- | --- |
-| Docs with mermaid fences | 45 | **17 live** (28 archive, 2 outside content root) | Included tombstoned archive |
-| Broken mermaid diagrams | unknown | **3 of 51** (1 live) | Parsed all 51 with real `mermaid@11` under jsdom |
-| Retired-symbol references | 119 file-hits | **14 genuine** of 398 line-hits | 96.5% false positive; double-counted files across symbols |
-| Refs to nonexistent crates | not counted | **~340** (`vox-dashboard` 299, `vox-dei-shim` 26, `vox-oratio` ~15) | Not searched for |
-| Ungated retired decorators | not counted | **~500** | No contract coverage |
-| Retirement candidates | ~150 by shape | **54 with evidence** | Shape-based rule had load-bearing false positives |
-| Inbound links to rewrite | unknown | **83 edges** for 150 files, ~40 for 54 | — |
+| Docs with mermaid fences | 45 | **17 live** (28 archive) | included archive |
+| Broken mermaid diagrams | — | **3 of 51** (1 live) | parsed all 51 with real `mermaid@11` |
+| Retired-symbol references | 119 | **14 genuine** of 398 | 96.5% FP |
+| NUL bytes in the data-storage spec | 516 | **1** (final byte, offset 37976) | miscount; impact claim still holds |
+| `crates/vox-dashboard` refs | 299 | **273** live / 309 all-docs | no scope yields 299 |
+| `vox-dei-shim` refs | 26 | **27** live / 44 all-docs | — |
+| `crates/vox-oratio` refs | ~15 | **6** live / 16 all-docs | — |
+| Retired decorator spellings | ~500 | **46 raw declaration-form; 3–6 actionable files** | archive-inclusive **and** counted prose |
+| `contracts/reports/` dirs | 33, 23 stale | **22, all 22 stale** | fabricated denominator |
+| superpowers plans | 284 | **275** top-level / **340** recursive | 10 unmentioned subdirs |
+| Existing archive files | 243 | **296** | — |
+| Inbound link edges | 83 / ~40 | **UNVERIFIED** | candidate list was never written down |
+| `vox-orchestrator` LoC | 85,335/70,000 | **confirmed exact** | — |
+| `vox-cli-ci` LoC | 23,910/15,000 | **24,104**/15,000 | — |
+| `docs/src` markdown files | 918 | **confirmed exact** (622 live, 296 archive) | — |
 
-### 3.1 Diagram validity (all 51 fences parsed, not sampled)
+### 3.1 The `~500 decorators` claim, retracted in detail
 
-48 valid, 3 broken:
+Revision 1's per-spelling counts reproduce **only with archive included**, and
+count every prose mention. Live declaration-form reality:
 
-| File | Error | Cause |
-| --- | --- | --- |
-| `docs/src/how-to/how-to-rust-crate-imports.md` **(live)** | Lexical error line 2 | Backticks *inside* a quoted label; mermaid requires them wrapping the whole label. All 6 nodes affected. |
-| `docs/src/archive/.../web-architecture-analysis-2026.md` | Expecting 'SQE', got 'STR' | Unbalanced quote: opens with an unquoted bracket, closes with a quoted one |
-| `docs/src/archive/.../toestub-self-healing-architecture-2026.md` | Expecting ..., got 'GRAPH' | Node id `graph` is a reserved flowchart keyword |
+| Spelling | Rev-1 | Live prose+code | Live **declaration form** |
+| --- | --- | --- | --- |
+| `@query` | 126 | 73 | **12** |
+| `@table` | 91 | 62 | **6** |
+| `@mutation` | 87 | 54 | **8** |
+| `@server` | 74 | 48 | **14** |
+| others | ~120 | ~114 | **6** |
+| **Total** | **~500** | ~351 | **46** |
+
+A 20-hit sample classified **0/20** as retired-form code — all were migration
+tables, audit prose, and mermaid labels. Of the 46 declaration-form matches, ~40
+are historical audit prose. **Actionable: 3–6 files**, chiefly
+`docs/src/reference/migration-0.5-to-0.6.md:28-30`, which prescribes the retired
+form as the *replacement* — the same defect as W1.1.
+
+W2.5 is therefore **demoted** from a workstream to a small edit set.
+
+### 3.2 Diagram validity (all 51 fences parsed, not sampled)
+
+48 valid, 3 broken; only one live:
+`docs/src/how-to/how-to-rust-crate-imports.md` — backticks inside a quoted
+label, all 6 nodes affected. The other two are archive.
 
 ---
 
 ## 4. Workstreams
 
-Five workstreams, ordered by value per unit of effort. Each is independently
-shippable; W1 is worth doing even if nothing else lands.
-
-### W1 — Policy and reference correctness (highest value)
-
-These mislead every agent in every session. They are one-line fixes.
+### W1 — Policy and reference correctness
 
 **W1.1 — `AGENTS.md` contradicts itself, and the wrong half is instruction.**
-§Retired Surfaces gives the replacement for the removed `@endpoint(kind: ...)`
-decorator as the at-prefixed `server` / `query` / `mutation` function forms.
-§Grammar Unification states that the at-prefixed forms of
-`table`/`query`/`mutation`/`server`/`tool`/`resource`/`form`/`index` became
-**hard parse errors on 2026-06-30** (`cd7cc96874`), replaced by bare-keyword
-forms. The always-loaded policy file therefore instructs every agent to emit
-code that cannot parse. Fix: the replacement column must give the bare-keyword
-forms, consistent with §Grammar Unification.
+§Retired Surfaces (`AGENTS.md:454`) gives the replacement for `@endpoint` as the
+at-prefixed `server`/`query`/`mutation` function forms. §Grammar Unification
+(`:245-248`) states those became **hard parse errors on 2026-06-30**
+(`cd7cc96874`).
 
-**W1.2 — Three renamed or deleted crates are absent from the retired table.**
-Add rows for `crates/vox-dashboard` (does not exist), `crates/vox-oratio` ->
-`crates/vox-speech` (note: the `vox oratio` **CLI command** still exists, so
-only the crate path is stale), and `vox-dei-shim` -> `vox-research-shim`.
+**Verified from the parser, not the doc:** `descent/mod.rs:822` calls
+`reject_retired_decorator(...)`, which pushes `ParseSeverity::Error`;
+`parse_module` returns `Err` on any error-severity entry. Same at lines 810, 814,
+828, 833, 1024, 1028, 1076. Commit `cd7cc96874` exists, dated Tue Jun 30 2026,
+titled "Hard-error flip". All 79 `examples/golden/**/*.vox` use bare forms
+exclusively.
 
-**W1.3 — The governance `category` vocabulary does not overlap the enforced
-one.** `documentation-governance.md` §Category vocabulary lists slugs
-(`architecture`, `how-to`, `reference`); `VALID_CATEGORIES` in
-`crates/vox-doc-pipeline/src/pipeline/lint.rs:18` requires display labels
-("Architecture SSOTs", "Language Reference"). The documented vocabulary is
-simply wrong. Fix the doc to match the lint, which is the SSOT AGENTS.md points
-at.
+The row was **correct when written** (`5ba104fde`, 2026-05-26) and has been false
+for ~7 weeks. §Grammar Unification is accurate line-by-line against the parser,
+including that `@mcp.tool` warns rather than errors, `@mcp.resource` is fully
+valid, and `@v0` still parses.
 
-**W1.4 — `astro.config.mjs` comment is false.** It says the sidebar is
-generated from `SUMMARY.md`; `sidebar.mjs` derives it from frontmatter
-(`category`/`sort_order`/`title`) with section order from
-`contracts/documentation/docs-sidebar-section-order.v1.json`.
+**Three further lines prescribe the same parse-error syntax outside the table:**
+`AGENTS.md:494`, `:499`, `:507`. And **`:499` names `@activity`, a decorator
+that has never existed** — no lexer token, no parser arm. Any fix scoped to the
+table alone leaves the most-read prescriptive text wrong.
 
-**W1.5 — `infer_with_retry`'s doc comment is false.** It claims the function
-"skips specific candidates on 401s or continues on 429/timeout". The body does
-no error classification whatsoever: every failure class takes an identical
-branch and advances to the next candidate, with no retry and no backoff.
-`retry_after` is captured at `crates/vox-llm-egress/src/wire.rs:179` and
-discarded. Fix the comment to describe actual behavior. (Fixing the *behavior*
-is out of scope but should be filed.)
+**W1.2 — Three renamed or deleted crates absent from the retired table.**
+`crates/vox-dashboard` (273 live refs), `crates/vox-oratio` → `crates/vox-speech`,
+`vox-dei-shim` → `vox-research-shim`. All three replacements are **documented,
+not inferred**: ADR-037 decommissions vox-dashboard in favour of `vox-gui`;
+`81681e81b` and `5463bc16c` are the rename commits.
 
-**W1.6 — `docs-reality-audit-program.md` documents a cadence that has never
-run.** It declares weekly/monthly/release-gate cycles; zero of roughly 14
-weekly cycles occurred. Either mark the program dormant or state the real
-cadence. Documentation that describes an unperformed ritual as current practice
-is the exact class this audit exists to catch.
+Two precision notes: `vox-dashboard` **did exist** (created ~2026-05-10, deleted
+2026-05-12 in `af5f26278`) — do not write "never existed". And the canonical CLI
+command is now **`vox speech`**, with `oratio` retained as a `visible_alias`.
 
-**W1.7 — Three ADRs share number 037.** `037-ai-fixture-subagent-decorator.md`,
-`037-tauri-convergence.md`, `037-tauri-gui-replaces-axum-dashboard.md`.
-Renumber two; update `docs/src/adr/index.md`.
+**W1.3 — The governance `category` vocabulary does not overlap the enforced one.**
+`documentation-governance.md:41-52` lists 9 slugs; `VALID_CATEGORIES`
+(`lint.rs:18`) requires 13 display labels, matched exactly at `lint.rs:395` with
+no alias map. **All 918 docs use display labels; zero use slugs** — nobody has
+ever followed the governance doc. It is also *incomplete*, omitting `Examples`,
+`Concepts`, `Operations`, and `archive`.
 
-**W1.8 — `data-storage-lint-and-ci-spec-2026.md` contains 516 embedded NUL
-bytes.** `grep` classifies the file as binary and silently skips it, so every
-grep-based audit — including the ones that produced this spec's first draft —
-has a blind spot there. The Rust detectors read it fine, so this is a hazard for
-humans and agents, not for CI. Strip the NULs.
+Two same-class defects nearby: `docs/src/adr/002-diataxis-doc-architecture.md:58`
+ships the dead slug vocabulary in a yaml fence, and **`lint.rs:16-17` claims
+"slug aliases are kept for grep-safety" when the array contains none.**
+
+**W1.4 — `astro.config.mjs:27` comment is false.** The sidebar derives from
+frontmatter via `sidebar.mjs`; `SUMMARY.md` is only ever *excluded*.
+
+**W1.5 — `infer_with_retry`'s doc comment is false — and revision 1's proposed
+replacement was also false.** The existing comment claims 401-skip and
+429-continue; the body does no error classification at all. **But revision 1's
+"a 429's `retry_after` is not honoured — nothing sleeps" is wrong at the system
+level:** `wire.rs:178-182` passes it to `throttle::on_rate_limited`, which sets
+`cooldown_until = now + retry_after`, and `throttle.rs:57-66` sleeps in
+`acquire`. The accurate statement is that backoff is not *this function's* job.
+`ActivityResult::Cancelled` also returns immediately rather than advancing.
+
+**W1.6 — the audit program documents a cadence that has never run.** Zero of ~14
+weekly cycles occurred.
+
+**W1.7 — ADR numbering is broken in three ways.** Three files share 037. **ADR
+numbers 042 and 043 are already taken** by `docs/src/architecture/adr-042-*.md`
+and `adr-043-*.md` — outside `docs/src/adr/`, and ADR-042 is cited from
+`layers.toml:158` and two Rust source files. So renumber targets are **044/045**,
+and ADRs live in **two directories**. Third: `docs/src/adr/index.md` is missing
+rows for **five** ADRs (both 037 duplicates plus 038, 039, 040). Fourth:
+`docs/src/architecture/adr-NNN-scope-tauri-desktop-only.md` has a literal `NNN`
+placeholder filename and falsely claims ADR-037 is "not yet filed as a doc".
+
+Renumbering must also sweep **bare-prose citations** (`ADR-037`, `ADR 037`) in
+`no_tauri_in_core.rs:1,28`, `tauri_convergence_snapshots.rs:1`,
+`tauri_endpoint_client_parity_test.rs:4`, and several architecture docs.
+Filename-only rewriting leaves prose citations silently pointing at the wrong
+decision — worse than an obviously-ambiguous collision.
+
+**W1.8 — one NUL byte hides a live spec from grep.**
+`data-storage-lint-and-ci-spec-2026.md` contains **exactly 1** NUL, at offset
+37976 — the final byte, after the last newline. Enough for `grep` to classify the
+file binary and skip it silently. Only such file in the repo (1,906 markdown
+files scanned).
 
 ### W2 — Retired-surface corpus repair
 
-**W2.1 — The 14 verified stale references.** Listed with file:line in the
-implementation plan. The worst is `docs/src/architecture/wire-format-v1-ssot.md`
-— a **live SSOT** specifying the v1 wire format entirely in the removed
-`@endpoint(kind: ...)` spelling. Two of its six occurrences sit inside `vox`
-fences marked `// vox:skip`, so the doctest gate never sees them either. It
-passed both gates by construction.
+**W2.1 — the 14 verified stale references.** Worst is
+`docs/src/architecture/wire-format-v1-ssot.md` — a live SSOT specifying the v1
+wire format entirely in the removed `@endpoint(kind:)` spelling.
 
-**W2.2 — `crates/vox-dashboard`: 299 references to a crate that does not
-exist.** Sixteen non-exempt live files, including five ADRs and two reference
-docs that name it as the canonical implementation target
-(`reference/frontend-surface-ownership.md:18` — "implement under
-`crates/vox-dashboard` first"; `adr/024-dashboard-axum-spa.md:25` — "the
-canonical home for the orchestration UI"). Per the retired-surfaces table,
-Axum-based dashboards were superseded by the Tauri 2 GUI. ADRs get a
-supersession note in place (see W5.3); reference docs get corrected.
+**W2.2 — `crates/vox-dashboard`: 273 live references.** Five ADRs and two
+reference docs name it as the canonical implementation target
+(`frontend-surface-ownership.md:18`, `adr/024:25`). ADRs get supersession notes
+in place (W5.3); reference docs get corrected.
 
-**W2.3 — `vox-dei-shim`: 26 references, and the detector actively hides them.**
-`retired_symbol_check.rs` contains a carve-out suppressing any `vox-dei` line
-containing `vox-dei-shim`, written to protect a crate that was subsequently
-renamed to `vox-research-shim`. The exemption now conceals the stale references
-it was meant to permit. Remove the carve-out and fix the references.
+**W2.3 — `vox-dei-shim`: the detector actively hides it.**
+`retired_symbol_check.rs:219-221` suppresses any `vox-dei` line containing
+`vox-dei-shim` — a carve-out written to protect a crate that was subsequently
+renamed. It now conceals the stale references it was meant to permit.
 
-**W2.4 — `crates/vox-oratio` -> `crates/vox-speech`.** Notably
-`docs/src/ci/workspace-root-manifest.md:22` uses it as *the worked example* of
-adding a workspace dependency.
+**W2.4 — `crates/vox-oratio` → `crates/vox-speech`**, notably
+`docs/src/ci/workspace-root-manifest.md:22`, which uses it as *the worked
+example* of adding a workspace dependency.
 
-**W2.5 — ~500 retired decorator spellings, zero contract coverage.** Counts by
-spelling: `query` 126, `table` 91, `mutation` 87, `server` 74, `form` 28,
-`resource` 8, `index` 7, `tool` 3 (all in their retired at-prefixed form), plus
-`@mcp.tool` 40 (soft-deprecated, warning only) and `@v0` 39 (parses but lowers
-to a no-op, slated for retirement). This is a retirement class larger than the
-entire 17-symbol list that started the audit. W1.1 is a hard prerequisite:
-fixing the corpus while the policy file still prescribes the broken form
-guarantees reintroduction.
+**W2.5 — retired decorator spellings: 3–6 files** (see §3.1; demoted from
+revision 1's "~500"). Chiefly `migration-0.5-to-0.6.md:28-30`. **`CHANGELOG.md:28`
+belongs here too** — it states the at-prefixed forms are "the **only** endpoint
+declaration surface", and both it and the migration guide call them
+"**bare-form**" while AGENTS.md uses "**bare-keyword**" to mean the opposite. An
+agent reading both gets contradictory definitions of "bare".
 
-**W2.6 — `VoxPlayground.astro` ships retired syntax on the landing page.** Its
-static demo uses the retired at-prefixed `table` and `endpoint(kind: query)`
-forms. This is user-facing on `/` and is the first Vox code a visitor reads.
+**W2.6 — `VoxPlayground.astro` ships retired syntax on the landing page**
+(`@table type Task`, `@endpoint(kind: query)`) — the first Vox code a visitor
+reads.
 
 ### W3 — Close the detector holes
 
-Repair without this is repair that must be repeated.
+**W3.1 — Contract coverage.** Eight audited symbols are absent from
+`retired-symbols.v1.yaml`: `vox-ludus`, `@endpoint`, `@py.import`, `@native`,
+`@capacitor`, `axum::serve`, `rust-embed`, `vox-sherpa-transcribe`, plus the
+three crates from W1.2.
 
-**W3.1 — Contract coverage.** Eight of the 17 audited symbols are absent from
-`contracts/documentation/retired-symbols.v1.yaml` entirely: `vox-ludus`,
-`@endpoint`, `@py.import`, `@native`, `@capacitor`, `axum::serve`,
-`rust-embed`, `vox-sherpa-transcribe`. Add these plus the three crates from
-W1.2 and the decorator class from W2.5.
+**W3.2 — Precision rules.** Naive matching yields ~90 findings at ~16% precision.
+R1 (same-line replacement suppression, already implemented for
+`sync-recall-api` — generalize it), R2 (retirement-vocabulary proximity), and R3
+(doc-class gate via frontmatter, replacing the leaky 13-entry `HISTORY_SUFFIXES`)
+bring it to ~14 findings at ~86%. R6 (dropping the `skip_md_table_rows`
+asymmetry) becomes safe once R1 lands.
 
-**W3.2 — Precision rules.** Naive matching yields ~90 findings at ~16%
-precision, which is why the detector accreted carve-outs. Four rules bring it
-to ~14 findings at ~86%:
+**R5 is retracted.** Revision 1 claimed `vox:skip` exempts fences from the
+retirement gate. It does not — `scan_source_lines` skips **all** fenced blocks
+unconditionally (`retired_symbol_check.rs:161-174`). `wire-format-v1-ssot.md`
+survived because `@endpoint` has no contract entry at all. Implementing R5 as
+written would be a no-op.
 
-- **R1 — same-line replacement suppression.** Suppress when the line also
-  contains the canonical replacement token. Already implemented for
-  `sync-recall-api`; generalize to all entries. A migration table row *must*
-  name both sides. Precision ~100%, recall cost ~0.
-- **R2 — retirement-vocabulary proximity.** Extend the existing literal
-  `DEPRECATED|Historical note|ARCHIVED` test to a case-insensitive match on
-  retired / deprecated / removed / formerly / renamed / no longer / replaced by
-  / legacy / superseded, plus one line of leading context for headings.
-- **R3 — doc-class gate replaces the filename-suffix gate.** The 13-entry
-  `HISTORY_SUFFIXES` list is unmaintainable and already leaks. Use the
-  frontmatter that is already mandatory.
-- **R5 — `vox:skip` must not exempt retired decorators.** A `vox` fence marked
-  `// vox:skip` escapes the doctest gate; it must not also escape the retirement
-  gate. This is exactly how `wire-format-v1-ssot.md` survived both.
+**Instead — the root-cause fix that replaces a bespoke guard:** narrow
+`ScanCfg::skip_md_table_rows` to skip only the **first cell** rather than the
+whole row. That covers the replacement column of `AGENTS.md`, `CLAUDE.md`,
+`GEMINI.md`, and all nine `.cursor/rules/*.mdc`, for **every** contract entry
+present and future — one predicate change instead of a new hand-maintained list.
 
-**R6** (dropping the `skip_md_table_rows` asymmetry between policy roots and
-`docs/`) becomes safe once R1 lands, and removes the need for the bespoke
-`lookup_fact_by_key` carve-out.
+**W3.3 — R4: path-existence detection beats symbol matching.** Any doc reference
+to a `crates/<name>` or `apps/<path>` that does not exist. No allowlist, no
+vocabulary heuristics. **Scope is larger than revision 1 assumed: 89 distinct
+nonexistent `crates/vox-*` names** are referenced in live docs, not 3 —
+including `vox-stdlib`, `vox-mcp`, `vox-schema`, `vox-protocol`.
 
-**W3.3 — R4: path-existence detection is a better detector than symbol
-matching.** Any documentation reference naming a `crates/<name>` or
-`apps/<path>` directory, or a `-p <crate>` argument, where the path does not
-exist on disk. No allowlist to maintain, no vocabulary heuristics, and it caught
-4 of the 14 true positives plus all ~340 nonexistent-crate references. Expected
-precision ~85%; the failure mode is design docs proposing not-yet-existing
-crates, which R3 handles.
+**W3.4 — `cli-command-surface.generated.md` is not a usable oracle**, and the
+bug is **not** in the generator: `contracts/operations/catalog.v1.yaml` has zero
+entries for `vox gui`, `chat`, `plugin`, `new`, `repair`, `workflow`. The
+generator faithfully renders an incomplete input. Separately,
+`docs/src/reference/cli.md` omits ~30 real top-level commands.
 
-**W3.4 — `cli-command-surface.generated.md` is not a usable oracle.** It lists
-285 operations but omits real top-level commands that exist in
-`crates/vox-cli/src/lib.rs` — `vox plugin`, `vox new`, `vox workflow`,
-`vox repair`, `vox gui`, `vox chat`. A generated SSOT with holes is worse than
-none, because downstream checks trust it. File as a generator bug.
+**W3.5 — `check-links` misses two policy roots.** `check_links.rs:337` reads
+`for rel in ["README.md", "AGENTS.md", "CONTRIBUTING.md"]`. Adding `CLAUDE.md`
+and `GEMINI.md` is a **one-line fix** and removes the "grep by hand" caveat from
+W5.8. Promoted into Plan 1.
 
-**W3.5 — `vox ci check-links` does not scan `CLAUDE.md` or `GEMINI.md`.** Both
-are policy roots that link into `docs/`. A stale link there passes the merge
-gate and only surfaces in the nightly lychee run. Add them to the source set.
+**W3.6 — the sequencing rule from revision 1 is INVERTED.** It said "W3 before
+W2 completes". `retired_symbol_check.rs` has **no severity tier** — `run()`
+accumulates failures and bails. Adding contract entries while the references
+still exist produces **~680 hard CI failures** on the first run:
+`vox-dashboard` 195, `@endpoint` 73, `vox-oratio` 44, decorator class ~276, and
+so on. That is an unmergeable tree.
+
+**Correct order:** add a per-symbol `severity: warn` (or the `path_allowlist:`
+already proposed in `docs/superpowers/specs/2026-05-24-pr92-handoff.md` §5.3)
+**first**, land W3.1 entries as warnings, complete W2, then flip to error.
 
 ### W4 — Visual enablement
 
-**W4.1 — Approach: client-side `astro-mermaid@2.1.0`, placed before
-`starlight()` in `integrations`.** Rejected alternatives, with reasons:
+**W4.1 — client-side `astro-mermaid@2.1.0`, placed before `starlight()`.**
+Rejected: `rehype-mermaid@3` and `@beoe/rehype-mermaid` declare a `playwright`
+peer dependency via `mermaid-isomorphic`, putting a Chromium download on the docs
+build path including the self-hosted Linux fleet. `starlight-client-mermaid`
+**does not exist** (nearest is an abandoned `@pasqal-io` 0.1.0 from 2025-02).
 
-- `rehype-mermaid@3` and `@beoe/rehype-mermaid` declare a `playwright` peer
-  dependency via `mermaid-isomorphic`. That puts a **Chromium download on the
-  docs build path**, including the self-hosted Linux fleet, which has no browser
-  provisioning today.
-- `starlight-client-mermaid` **does not exist**. The nearest package is
-  `@pasqal-io/starlight-client-mermaid@0.1.0`, single release, last published
-  2025-02-27. Abandonware.
-- **The decisive argument is agent-facing output.** `starlight-llms-txt@0.8.1`
-  renders each entry to HTML and converts back via
-  `rehypeParse -> rehypeRemark -> remarkStringify`; `rawContent` is not set in
-  this config. Client-side rendering emits a `pre.mermaid` element containing
-  the diagram source, which round-trips back into a fenced code block, so
-  `llms-full.txt` keeps the source. Build-time SVG **deletes the diagram content
-  from agent-facing output** — a direct regression against a stated project
-  constraint.
+**The decisive argument is agent-facing output.** `starlight-llms-txt@0.8.1`
+renders to HTML and converts back via `rehypeParse → rehypeRemark →
+remarkStringify`; `rawContent` is not set. Client-side emits a `pre.mermaid`
+carrying the source, which round-trips into a fenced code block, so
+`llms-full.txt` keeps the diagram. **Build-time SVG deletes diagram content from
+agent-facing output.**
 
-Secondary advantages: fails soft (a parse error renders an error box rather
-than failing `pnpm build` and both deploy jobs); dark mode is free because its
-client script keys on Starlight's own `data-theme` attribute; and it
-lazy-imports mermaid only when a `pre.mermaid` element is present.
+Secondary: fails soft; dark mode free via Starlight's own `data-theme`; lazy
+import only when a diagram is present.
 
-**W4.2 — Ordering is not negotiable.** Fix the one live broken diagram
-(W4.4) *before* enabling the renderer. `astro-expressive-code` registers on
-`markdown.rehypePlugins`, so a remark-stage transform necessarily wins — this
-is proven by `remark-vox-include`, which already mutates code nodes before
-expressive-code highlights them. But if ordering ever resolves the other way,
-the symptom is a **silent no-op** (a normal-looking code block), so verify
-visually after wiring rather than assuming.
+**W4.2 — ordering.** Fix the live broken diagram before enabling the renderer.
+Expressive-code registers on `rehypePlugins`, so a remark-stage transform wins —
+proven by `remark-vox-include`. If ordering ever resolves the other way the
+symptom is a **silent no-op**, so verify visually.
 
-**W4.3 — The parse-check gate must land before the ASCII conversion, not
-after.** This is the single highest-value item in the visual workstream. The
-existing 51 fences are 94% valid; 54 hand-authored ASCII-to-mermaid conversions
-will not be, and client-side rendering **fails silently in CI** — nothing
-catches a broken diagram until a human looks at the page. The gate is a
-`mermaid.parse()` harness run over every fence. Note for whoever builds it:
-jsdom is required, or DOMPurify fails to initialise and every block spuriously
-fails with a `DOMPurify.sanitize is not a function` error.
+**W4.3 — the parse gate lands before the conversion.** Existing fences are 94%
+valid; 54 hand-authored conversions will not be, and client-side rendering
+**fails silently in CI**. Note for the implementer: jsdom is required or
+DOMPurify fails to initialise and every block spuriously fails.
 
-**W4.4 — Fix the live broken diagram** in `how-to-rust-crate-imports.md`. The
-two archive diagrams are out of scope per §Archival Protocol; they render
-noindexed pages.
+**W4.4 — fix the one live broken diagram.** Archive diagrams are out of scope.
 
-**W4.5 — `--frozen-lockfile` is used in all four CI install steps.** Adding
-`astro-mermaid` without committing a regenerated `docs-astro/pnpm-lock.yaml` in
-the **same commit** fails CI immediately. `docs-astro/node_modules` does not
-exist locally, so a real `pnpm install` is required.
+**W4.5 — `--frozen-lockfile` in all four CI install steps.** Commit the
+regenerated `pnpm-lock.yaml` in the same commit.
 
-**W4.6 — `docs/design-system/` is 0 of 8 specs implemented.** Claimed: a React
-landing page, a `/concepts/` route, a `/showcase/` route, a shadcn HSL token
-map, generated imagery, five components. Shipped: `VoxPlayground.astro` alone,
-hand-written as a vanilla custom element. `docs-astro/package.json` contains no
-`react`, no `tailwindcss`, no `shadcn` — the kit's entire target runtime is
-absent. The README points at an `integration-notes.md` that does not exist.
-These files carry no frontmatter (they sit outside `docs/src/`). Either mark
-them `status: roadmap` or archive them; do not let "author new diagrams" quietly
-become a ninth unbuilt spec.
+**W4.6 — `docs/design-system/` is 0 of 8 specs implemented.** No `react`, no
+`tailwindcss`, no `shadcn` in `package.json`; the README points at an
+`integration-notes.md` that does not exist. Mark `status: roadmap` or archive.
 
-**W4.7 — Accessibility.** Rendering replaces readable preformatted text with an
-SVG. Authored diagrams should carry `accTitle:` and `accDescr:` directives.
+**W4.7 — accessibility.** Authored diagrams carry `accTitle:`/`accDescr:`.
 
 ### W5 — Retirement and archival
 
-**W5.1 — 54 evidenced candidates**, tiered: three already carrying
-`status: "deprecated"` with zero inbound links; twelve point-in-time snapshots
-with zero inbound, several of which say so in their own body text ("Superseded
-by §14", "superseded by vox-capability-registry", "Shipped"); the remainder
-findings/handoff/plan documents with zero or one inbound link.
+**W5.1 — 54 evidenced candidates**, tiered; several say "Superseded by …" in
+their own body text. *(The claimed 83/40 inbound-edge counts are UNVERIFIED — the
+candidate list was never written down. Plan 5 must enumerate it before quoting
+an edge count.)*
 
-**W5.2 — Load-bearing documents that a shape-based rule would destroy.**
-`vox-as-llm-target-audit-and-plan-2026.md` matches the audit-and-plan filename
-shape but is **opened by path** at `crates/vox-arch-check/src/main.rs:825` for
-the evidence ledger; archiving it breaks `arch-check`. Likewise
-`v1-release-criteria.md` (`main.rs:280,292`) and `where-things-live.md`
-(`cache.rs:26,76,81`). These require an explicit blocklist, not a heuristic.
+**W5.2 — the load-bearing blocklist must be derived mechanically, not
+hand-listed.** Revision 1 named 3 files. Grepping `"docs/src/` literals in
+`crates/*/src` finds many more: `vox-cli-ci/src/constants.rs:8-28` (~14 entries),
+`runner_policy_check.rs:10`, `workflow_concurrency_guard.rs:15`,
+`capability_snapshot.rs:20`, `vox-audit/.../stdlib_coverage.rs:21`. Derive the
+blocklist from that grep in the same PR.
 
-**W5.3 — All 46 ADRs are excluded.** An ADR is an append-only decision record;
-a superseded one gets `status: "deprecated"` plus a supersession note **in
-place**. `adr/012-internal-web-ir-strategy.md` has 17 inbound links — archiving
-it would be actively wrong.
+**W5.3 — all 46 ADRs excluded.** `adr/012` has 17–22 inbound links; archiving it
+would be actively wrong. Superseded ADRs get `status: deprecated` in place.
 
-**W5.4 — Archiving does not remove a document from the MENS training corpus.**
-Corpus mode emits `docs/src/corpus.jsonl` from an unfiltered `docs/src` walk. If
-retirement is meant to stop feeding superseded designs to the model, the file
-move accomplishes nothing on its own — `training_eligible: false` is the lever,
-and CI already requires it (plus `archived_date:`) on every archived file, via
-`check_archival_pipeline`, which runs inside `ssot-drift` on the fast pre-push
-tier. Omitting either key is a hard failure.
+**W5.4 — archiving does not remove a doc from the MENS training corpus.**
+`--mode corpus` walks `docs/src` unfiltered. `training_eligible: false` is the
+lever, and CI already requires it plus `archived_date:` on every archived file
+via `check_archival_pipeline` in the fast pre-push tier.
 
-**W5.5 — Two of five exclusion surfaces do not exclude archive.** The Astro
-sidebar, `llms.txt` (via the docs loader's `archive/**` exclusion), and
-`.voxignore` all exclude it correctly. **`vox-doc-inventory` does not** —
-`SKIP_DIR_NAMES` omits `archive`, and `docs/agents/doc-inventory.json` already
-contains 303 archive references. **The doc-pipeline lint does not either** —
-archive files are still fully linted, with only two exemptions.
+**Related, and not limited to archive:** `lint.rs:457-461` requires
+`training_rationale` only for `research`/`roadmap`. **82 docs are
+research/roadmap + trainable with unvalidated free-text rationale, and 2 are
+explicitly `deprecated` + trainable with no gate at all.**
 
-**W5.6 — `superseded_by` will be silently invisible unless added in two
-places.** The doc-pipeline lint has no unknown-key rejection, so it passes. But
-`docs-astro/src/content.config.ts` extends the Starlight schema with an explicit
-Zod key list, and Zod **strips** unknown keys — the field does nothing on the
-site until it is declared there as an optional string. Add it unenforced first;
-add a `LintKind` variant only if drift appears.
+**W5.5 — two of five exclusion surfaces do not exclude archive.** Sidebar,
+llms.txt, and `.voxignore` do. **`vox-doc-inventory` does not** (`SKIP_DIR_NAMES`
+omits `archive`; `doc-inventory.json` already carries 296 archive paths).
+**The doc-pipeline lint does not** either.
 
-**W5.7 — `docs/superpowers/` needs a different rule.** 284 plans and 147 specs
-sit outside `docs/src/`, so they are unlinted, unbuilt, and absent from the
-corpus — but **not** in `.voxignore`, so agents ingest all 431. Only 3 of 284
-plans are marked completed, and the `status` vocabulary there is uncontrolled
-free text ("green-after-remediation", "two-strike-stop"). Forcing them through
-the `docs/src/` frontmatter regime is roughly 400 files of busywork for zero
-enforcement gain. The correct fix is a `docs/superpowers/plans/archive/` bucket
-plus one `.voxignore` line.
+**W5.6 — `superseded_by` is silently stripped** unless declared in
+`docs-astro/src/content.config.ts`'s Zod key list. Add unenforced first.
 
-**W5.8 — Move procedure.** Batches of at most 25 files into
+**W5.7 — `docs/superpowers/` needs its own rule.** **275 top-level plans (340
+recursive across 10 subdirectories) + 147 specs**, unlinted and unbuilt but
+**not** in `.voxignore`, so agents ingest all of them. Only 3–4 of 275 are marked
+completed; the `status` vocabulary is uncontrolled free text. Fix: a
+`plans/archive/` bucket plus one `.voxignore` line.
+
+**W5.8 — move procedure.** Batches ≤25 into
 `docs/src/archive/architecture-2026-q3/`, matching the existing
-`research-2026-q1/` precedent. `git mv` (preserves history, which the pipeline
-reads for `last_updated`); set `status: "deprecated"`, `archived_date:`,
-`training_eligible: false`, and `superseded_by:`; leave `category` unchanged,
-matching the 243 existing archive files. Rewrite the ~40 inbound edges — and
-**grep `CLAUDE.md` and `GEMINI.md` by hand**, since W3.5 is not yet fixed when
-this runs. Hand-edit `research-index.md` (hand-curated despite the name); do
-**not** touch `architecture-index.md` or `SUMMARY.md`, both gitignored and
-regenerated. Move `architecture/planning-meta/` as a whole directory or not at
-all — it is a coherent self-referential methodology set with its own index.
-
-**Links *from* moved files are already safe:** `check_links.rs:318` skips any
-path with an `archive` component as a *source*, so relative-depth changes inside
-moved files are never checked.
+`research-2026-q1/` precedent (**296** existing archive files, not 243).
+`git mv`; set `status: "deprecated"`, `archived_date:`,
+`training_eligible: false`, `superseded_by:`; leave `category` unchanged. Rewrite
+inbound edges; hand-edit `research-index.md`; never touch `architecture-index.md`
+or `SUMMARY.md` (gitignored, regenerated). Move `planning-meta/` whole or not at
+all. **Links *from* moved files are already safe** — `check_links.rs:318` skips
+archive as a source.
 
 ### W6 — Audit-machine correctness
 
-Small fixes so the existing program's numbers stop lying. No new capability.
+**W6.1 — delete `rollout_milestone_pct`, do not fix it.** It returns 25 for an
+empty backlog and 25 for 80 open findings. **Nothing consumes it** — every
+reference is its own definition, output JSON, schema, and tests. The other four
+fields already permit any ratio a consumer wants. Deleting is a smaller diff than
+a floor constant plus three tests, and "a number nobody read went unquestioned
+for three months" argues against its existence.
 
-**W6.1 — `rollout_milestone_pct` is a constant.** The body returns 25 when
-findings are empty, else 25 plus a closed-ratio share of the remaining 75. The
-current value of 25 means "inventory exists, no findings". Filing 80 open
-findings leaves it at **exactly 25**. The program's one headline number cannot
-distinguish "not started" from "full backlog".
+**W6.2 — `verify` must recompute metrics.** Nothing in CI or `lefthook.yml` runs
+`metrics --write`. *(Correction: this would **not** have caught the 2026-05-12
+staleness, because `generated_at` is excluded from comparison by design. The
+committed file is numerically correct today. This guards a real future hazard,
+not the cited incident.)* `run_verify` is wired into `ssot-drift`, so this is the
+one W6 change that becomes genuinely enforced.
 
-**W6.2 — Metrics have no regenerator and no drift gate.** `run_verify`
-schema-checks `metrics.v1.json` but never recomputes it, and nothing in CI or
-`lefthook.yml` runs `metrics --write`. A 150-claim inventory alongside
-`inventory_claim_count: 10` is a **green build**. This is precisely how the file
-reached 2026-05-12 unnoticed. Fix: have `run_verify` recompute and diff, reusing
-`run_metrics`' body.
+**W6.3 — findings paths are never existence-checked.** The schema declares
+`doc_paths`/`code_paths`/`contract_paths`; `FindingRow` does not deserialize
+them, so serde silently drops schema-declared fields. Real, but **zero
+executions** while the backlog is empty — defer to the first real finding.
 
-**W6.3 — Findings paths are never existence-checked.** Inventory `doc_path`,
-contracts, and globs are hard-checked, but findings' `doc_paths`, `code_paths`
-and `contract_paths` are not even deserialized into `FindingRow`. A finding may
-cite files that do not exist and CI stays green — the exact drift class the
-program exists to catch.
+**W6.4 — duplicate finding ids are not rejected.** Same deferral.
 
-**W6.4 — Duplicate finding ids are not rejected.** Claim ids are deduped;
-findings are not, and the schema lacks `uniqueItems`.
+**W6.5 — band thresholds are duplicated** between the program YAML (22/14) and
+`priority_band_from_score`. *(Correction: revision 1 justified a string
+assertion by claiming a YAML dependency would have to be added. **`serde_yaml` is
+already a dependency of `vox-cli-ci`**, used in 10+ files. Keep the four boundary
+unit assertions; drop the substring tripwire, which false-fails on
+`min_score:22` or a flow-style rewrite.)*
 
-**W6.5 — Band thresholds are duplicated** between the program YAML (22/14/0)
-and `priority_band_from_score`. They agree today; nothing enforces that they
-continue to.
+**W6.6 — `glob_match_count` has no early exit.** Measured: the inventory's
+`crates/**` expands to **6,012 entries**, on one claim, inside `ssot-drift`,
+inside the 60-second fast pre-push tier, on every push. Worth fixing today.
+*(Correction: it is one glob on one claim — not "5,206 files per claim" and not
+a linear-in-claim-count argument.)* Note the behaviour change: short-circuiting
+stops reporting `GlobError`s encountered after the first match.
 
-**W6.6 — `glob_match_count` has no early exit.** It materializes every match
-into a vector, uncached, once per claim. The seed inventory already contains a
-`crates/**` pattern (5,206 files). This runs inside `ssot-drift` on the fast
-pre-push tier's 60-second budget. Short-circuit at the first match.
+### W7 — Agent-facing artifact repair (NEW — highest value in the program)
+
+Revision 1 missed this entirely. These are what agents consume
+*programmatically*, and they are worse than the prose defects in W1.
+
+**W7.1 — `vox llm prompt` prints hard-parse-error syntax as a "Golden Example".**
+`crates/vox-cli/src/commands/llm.rs:24-35` prints the **correct** bare form
+(`query get_user(id: u64) -> User`), then four lines later prints
+`@query\npub fn get_profile()` labelled "Golden Example", then an "MCP Schema
+Excerpt" declaring `"decorator": "@query"`. One invocation, contradictory syntax,
+plus `pub fn` which is not Vox. Same for `mutation` at `:41-52`. This is the
+subcommand whose entire purpose is telling an LLM how to write Vox.
+
+**W7.2 — `docs/agents/vox-language-surface.v1.json` teaches six decorators;
+five are hard parse errors.** `@server`, `@table`, `@query`, `@mutation`,
+`@tool` — plus **`@island`, which has never existed in the compiler**. The
+`@table` example reads `@table struct User` and `struct` is not a Vox keyword.
+Stamped `updated_at: 2026-04-19`, two months before the retirement.
+`llm.rs:57` directs users to it by name.
+
+**Fix: generate it.** `crates/vox-language-surface/src/lib.rs:336-348` already
+holds `LEXER_DEPRECATED_DECORATORS` as the code SSOT. The JSON should be derived
+from it rather than hand-maintained.
+
+**W7.3 — `doc-inventory.json`'s `first_read_for_agents` names a nonexistent
+path, and regeneration cannot fix it.**
+`crates/vox-doc-inventory/src/inventory_gen.rs:60` hardcodes
+`"crates/vox-mcp/src/tools/mod.rs"`. The crate is `vox-orchestrator-mcp`. One of
+five files agents are told to read first is unreadable.
+
+**W7.4 — `ai-ide-feature-matrix-2026.json`: 14 of 31 cited paths (45%) do not
+exist**, including 2 of the 3 entries in the "what Vox already has" list.
+
+**W7.5 — `llms.txt:18` points agents at the tombstoned archive.** It advertises
+`architecture-index` as the master architecture map; that file exists **only**
+under `docs/src/archive/`, which the LLM guard forbids ingesting — and the URL
+404s. `docs-astro/public/_redirects:21` 301s into that 404. Lines 7-8 also
+advertise `voxlang.org/GEMINI.md` and `/CLAUDE.md`, which have no publishable
+source.
+
+**W7.6 — `README.md` sends readers to two nonexistent things.** `:53` links
+`crates/vox-protocol` (consolidated into `vox-foundation`; 404s on GitHub); `:90`
+cites `scripts/clean-cache.vox`, which does not exist — the README's single
+concrete VoxScript example. `:86` claims "20+ first-party agent skills" against a
+catalog of 18.
+
+**W7.7 — `CONTRIBUTING.md:44` instructs contributors to run the command
+`AGENTS.md:213` forbids** (`cargo fmt`, which at a virtual-workspace root is the
+all-members invocation that dies with `os error 206`). It never mentions
+`scripts/fmt.vox`, `vox ci pre-push`, or the Test-First Policy whose `tdd-guard`
+hook will block their commits.
+
+**W7.8 — `script-registry.json`: all 15 `"status": "wrapper"` rows point at
+deleted files**, and 20 of 34 rows reference nonexistent paths. The field
+consumers are told to trust is the stale one.
+
+**Two systemic root causes** account for most of W7:
+1. **The `vox-mcp` → `vox-orchestrator-mcp` split never propagated to agent
+   metadata** — `doc-inventory.json`, its generator, 10 paths in the feature
+   matrix, `query-all-allowlist.txt:15`, `orchestrator.md:58`,
+   `contracts/README.md:9`.
+2. **The 2026-06-30 decorator retirement landed in the compiler and AGENTS.md
+   and nowhere else** — the language-surface JSON, `vox llm prompt`,
+   `CHANGELOG.md`, the migration guide, and the v0.5 case study all still teach
+   it.
+
+### W8 — Doctest reality (NEW)
+
+**W8.1 — the Vox language reference is 94% unverified.**
+`docs/src/reference/ref-syntax.md` has **18 `vox` fences and 17 `// vox:skip`
+markers**. Corpus-wide: **268 live fences, 260 skip markers.** The doctest gate
+AGENTS.md presents as the guarantee that documented Vox compiles is switched off
+almost everywhere — and these fences are the MENS positive training corpus.
+
+**W8.2 — the root cause is a tooling bug, not author laziness.**
+`doctest.rs` **never resets `current_block` between fences**, so every `vox`
+fence in a file concatenates into one compile unit. Authors reach for `vox:skip`
+to escape cross-fence collisions. Until this is fixed, "delete the skip and make
+it compile" is impossible for any multi-example file.
+
+**W8.3 — the required reason is unenforced: 257 bare skips vs 77 with a
+reason.** AGENTS.md §Markdown Hygiene and `pipeline/mod.rs:58` both require one.
+A one-line lint converts 257 silent bypasses into justifications-or-fixes.
+
+**W8.4 — two undocumented escape hatches.** `doctest.rs:32-35` also accepts
+`Skip-Test` (documented nowhere) and `{{#include`, which exempts all 39
+remaining include directives.
 
 ---
 
-## 4a. Decisions taken
+## 5. Decisions taken
 
-| Decision | Choice | Consequence |
-| --- | --- | --- |
-| Backlog home | Fill the existing `docs-reality-audit` contracts | No new store; `verify` already gates it |
-| Provenance | Human-grade findings only; **no schema change** | Every filed finding is evidence-backed and hand-verified. A future generated tier files to a separate artifact rather than polluting a trusted backlog. |
-| Retirement | Tombstone in place, never delete | `archive/` is already excluded from sidebar and llms.txt; W5.4/W5.5 close the remaining gaps |
-| Visual | Renderer plus authored diagrams | Client-side only, gated by W4.3 |
-| LLM judge tier | **Deferred.** Edge authorized but not taken | No `vox-cli-ci -> vox-actor-runtime` edge is added by this work |
+| Decision | Choice |
+| --- | --- |
+| Backlog home | Existing `docs-reality-audit` contracts |
+| Provenance | Human-grade findings only; no schema change |
+| Retirement | Tombstone in place, never delete |
+| Visual | Client-side renderer, gated by W4.3 |
+| LLM judge tier | Deferred; edge authorized but not taken |
+| `rollout_milestone_pct` | **Deleted, not fixed** (zero consumers) |
 
-### Why the LLM tier is deferred rather than rejected
+### Why the LLM tier is deferred
 
-The original framing asked for auto-updating docs via openrouter/local/fallback
-models with "no single point of failure". The audit established that this cannot
-honestly be claimed of the current stack:
+"No single point of failure" cannot honestly be claimed of the current stack:
+`chat_once` has zero retry; `infer_with_retry` iterates once per candidate with
+no error classification; the activity retry loop is dead code for LLM errors;
+`FallbackCondition::ProviderUnavailable` reads an env var before dispatch, so a
+live 503 never feeds back; "local is always available" is a hardcoded `true` with
+no liveness probe; MENS contributes zero models; and **`durable_scheduler` has no
+runner** — no `impl DurableJobStore` exists anywhere.
 
-- `chat_once` has zero retry; `infer_with_retry` does not retry, it iterates
-  once per candidate with no error classification and no backoff.
-- The activity retry loop is dead code for LLM errors, because `llm_chat`
-  returns a success-wrapped error on provider failure, so `execute_activity`
-  sees success. `ActivityOptions::default()` sets zero retries regardless.
-- `FallbackCondition::ProviderUnavailable` is read from the environment
-  variable `VOX_PROVIDER_UNAVAILABLE` before dispatch. Selection runs once,
-  before any HTTP call; a live 503 never feeds back. There is no circuit
-  breaker.
-- "Local is always available" is a hardcoded true in
-  `models/key_guard.rs:58-62` with no liveness probe, deliberately asserted by
-  a test. The selector will choose a local model on a machine where Ollama was
-  never installed.
-- MENS contributes zero models — `MensCatalog::refresh` enumerates a
-  `mens/runs/` tree, which does not exist in this repository.
-- **`durable_scheduler` has no runner.** No `impl DurableJobStore` exists
-  anywhere in the workspace; its own module doc defers implementations to "a
-  follow-up PR". It is a library of pure scheduling arithmetic, not
-  infrastructure. The real out-of-process template is
-  `.github/workflows/harness-eval-nightly.yml`.
-
-A resilient version is achievable, but only with the deterministic tier as the
-**primary** path and the LLM tier as strictly optional enrichment — the
-inventory's `evidence_hints.code_globs` can be checked for existence and
-staleness with no model at all. Then being offline degrades output *quality*,
-not availability. That inversion is a design in its own right and is not part of
-this scope.
+A resilient version requires the deterministic tier as **primary** and the LLM
+tier as optional enrichment, so that offline degrades output *quality*, not
+availability. That inversion is a design in its own right.
 
 ---
 
-## 5. Sequencing
+## 6. Sequencing
 
-Ordering constraints are real, not stylistic:
-
-1. **W1.1 before W2.5.** Fixing ~500 decorator references while the policy file
-   still prescribes the broken form guarantees reintroduction.
-2. **W3 before W2 completes.** Landing the precision rules and contract
-   entries first means the corpus repair is verified by a gate rather than by
-   inspection.
-3. **W4.4 before W4.1.** Fix the live broken diagram before enabling the
-   renderer.
-4. **W4.3 before W4's conversion work.** The parse gate must exist before 54
-   hand-authored diagrams are written against a renderer that fails silently.
-5. **W5.5/W5.6 before W5.8.** Close the inventory/lint exclusion gaps and add
-   the Zod key before moving files, or the moves are invisible where it counts.
-6. **W6 is independent** and may land at any point.
+1. **W1.1 + W7.1 + W7.2 before W2.5 and any decorator repair.** Fixing references
+   while the policy file, the CLI, and the machine-readable surface still
+   prescribe the broken form guarantees reintroduction.
+2. **W3.6 severity valve before W3.1 contract entries** — otherwise ~680 hard CI
+   failures. *(This reverses revision 1's rule.)*
+3. **W8.2 before W8.1** — the concatenation bug must be fixed before any fence
+   can lose its skip.
+4. **W4.4 before W4.1**; **W4.3 before the conversion.**
+5. **W5.5 / W5.6 before W5.8.**
+6. **W6 is independent.**
 
 ---
 
-## 6. Verification
-
-Every workstream must be green on:
+## 7. Verification
 
 ```text
-vox ci pre-push --complete
+vox ci pre-push --full        # NOT --complete: complete runs no tests
 cargo run -q -p vox-cli -- ci retired-symbol-check
 cargo run -q -p vox-cli -- ci check-links
+cargo run -q -p vox-cli -- ci doc-inventory generate --output docs/agents/doc-inventory.json
 cargo run -p vox-doc-pipeline -- --lint-only
 cargo run -q -p vox-arch-check
 cargo run -q -p vox-cli -- ci docs-reality-audit verify
 vox run scripts/fmt.vox
 ```
 
-`--complete` rather than the default fast tier: fast omits clippy and all
-tests, and its doc lint is scoped to changed paths only, while this work touches
-the whole `docs/src/` tree.
+**`--complete` runs no tests.** It is fmt, line-endings, ssot-drift, doc lint +
+doctest, doc-inventory, workspace clippy, and scoped TOESTUB. Only `--full` adds
+`cargo nextest run --workspace`. Revision 1 prescribed `--complete` for work
+whose entire point was new tests.
 
-W4 additionally requires `pnpm install` in `docs-astro/` with the regenerated
-lockfile committed in the same commit, and a visual check of one diagram page in
-both themes.
+**`doc-inventory` drifts on nearly every task in this program** and is verified
+in `--complete` and CI. Regenerate and commit it.
 
-Per AGENTS.md, all glue scripts introduced by this work are `.vox` run via
-`vox run` — no `.ps1`, `.sh`, or `.py`. Any new public function gets its failing
-test first. `cargo fmt --all` is never used on this workspace.
+All glue scripts are `.vox` via `vox run`. Any new `pub fn` gets its failing test
+first. `cargo fmt --all` is never used.
 
 ---
 
-## 7. Risks
+## 8. Risks
 
 | Risk | Mitigation |
 | --- | --- |
-| ASCII-to-mermaid conversion produces broken diagrams that fail silently | W4.3 parse gate lands first; this is the highest-value single item |
-| Archive move breaks inbound links | ~40 edges enumerated in the plan; `check-links` is the gate; `CLAUDE.md`/`GEMINI.md` grepped by hand until W3.5 |
-| A shape-based retirement rule archives a load-bearing doc | Explicit blocklist (W5.2); `arch-check` catches it |
-| Precision rules over-suppress and hide real drift | R1/R2/R3/R5 measured at ~86% precision on this corpus; R4 is allowlist-free and independent |
-| `--frozen-lockfile` CI failure | Lockfile committed in the same commit as the dependency |
-| Repair regresses because the policy file still prescribes retired forms | W1.1 sequenced first |
-| This spec becomes the 34th stale report directory | It ships no recurring artifact. Every workstream is a finite repair with a CI gate that prevents recurrence. |
+| Adding contract entries before repair | W3.6 severity valve first; ~680 failures otherwise |
+| ASCII→mermaid conversion fails silently | W4.3 parse gate lands first |
+| Archive move breaks inbound links | Derived blocklist (W5.2); `check-links` gate; W3.5 closes the CLAUDE/GEMINI hole |
+| Precision rules over-suppress | R1/R2/R3 measured ~86%; R4 is allowlist-free |
+| Repair regresses | W1.1 + W7.1 + W7.2 sequenced first |
+| **This becomes the sixth abandoned docs plan** | See below — the dominant risk |
+
+**The dominant risk, stated plainly.** Five prior docs plans exist in
+`docs/superpowers/plans/` with **328 open checkboxes and zero ticked between
+them**. Two ledgers (`legacy-tombstone-remediation-ledger-2026.md`,
+`repo-cleanup-ledger-2026.md`) are open, `status: current`, and unenforced.
+`docs/superpowers/specs/2026-05-24-pr92-handoff.md` §5.3 **already documents W3
+and already proposes the severity valve**.
+
+The repository's failure mode is not overlapping plans — it is ledgers that
+declare intent, never close, and get rewritten six weeks later. **W2, W3, and W5
+should update those existing ledgers rather than spawn three more plan
+documents.** Only W1, W6, W7, and W4 are genuinely net-new.
 
 ---
 
-## 8. Deferred, with reasons
+## 9. Deferred
 
-- **LLM judge tier** — see §4a. Edge authorized, not taken.
-- **Inventory expansion to ~150 claims** — the existing 10 produced zero
-  findings in 102 days. Revisit only if a manual run of the existing 10 yields
-  a finding a human actually merges.
-- **GUI wiki surface** — zero new surfaces needed; `DocViewerDrawer` +
-  `DocReader` + the omnibar docs facet already cover browsing. Note that
-  `docs/src` is **not shipped** with the GUI (`tauri.conf.json` has no
-  `bundle.resources` key), so today's doc surface is a developer-in-repo feature
-  that fails silently in an installed app. That is a prerequisite decision for
-  any future wiki work, not a task here.
-- **`infer_with_retry` behavioral fix** (as opposed to the doc fix in W1.5) —
-  real, but it is an LLM-runtime change, not a docs change.
-- **`cli-command-surface.generated.md` generator repair** (W3.4) — filed, but
-  the generator fix belongs with its owner.
+- **LLM judge tier** (§5).
+- **Inventory expansion to ~150 claims** — the existing 10 produced zero findings
+  in 102 days.
+- **GUI wiki surface** — zero new surfaces needed. Note `docs/src` is **not
+  shipped** with the GUI (`tauri.conf.json` has no `bundle.resources`), so
+  today's doc surface is a developer-in-repo feature that fails silently in an
+  installed app.
+- **`infer_with_retry` behavioral fix** (as opposed to W1.5's doc fix).
+- **`contracts/operations/catalog.v1.yaml` completion** (W3.4) — different owner.
+- **W6.3 / W6.4** — real but zero-execution until the backlog is non-empty.
+- **`contracts/index.yaml` coverage** — 188 of 412 contract files indexed, and
+  `contracts_index.rs:80-89` validates index→disk only, so the gap can only grow.
+  At least 7 unindexed files are read literally by Rust source.

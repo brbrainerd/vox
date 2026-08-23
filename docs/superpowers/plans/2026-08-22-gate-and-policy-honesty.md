@@ -2,26 +2,35 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make every policy file and every audit-machine number in this repository tell the truth, and add regression guards so the highest-value falsehoods cannot return.
+**Goal:** Stop this repository from teaching coding agents syntax the compiler rejects, and stop the audit machinery from reporting numbers nobody can trust.
 
-**Architecture:** Two halves of one defect class. W1 fixes documents that state something false — most damagingly, `AGENTS.md` instructing every agent to emit syntax that is a hard parse error. W6 fixes the `docs-reality-audit` machinery whose numbers cannot distinguish "not started" from "full backlog" and whose verifier never notices its own metrics going stale. New guards are plain `#[test]` integration tests reading the repo tree — no new public API, no CLI wiring, no crate edges, no LoC-budget pressure.
+**Architecture:** Three defect groups, one root cause each. (A) Prose and machine-readable artifacts prescribe at-prefixed decorator forms that became hard parse errors on 2026-06-30 — fixed at the source, then locked by narrowing one predicate in the existing `retired_symbol_check` detector rather than by adding a bespoke markdown parser. (B) Policy documents contradict the constants that enforce them — fixed by relocating the assertion into the crate that owns the constant. (C) `docs-reality-audit` carries a metric nobody reads and a verifier that cannot detect its own staleness — fixed by deleting the former and extending the latter.
 
-**Tech Stack:** Rust (`vox-doc-pipeline`, `vox-cli-ci`), Markdown, JSON contracts.
+**Tech Stack:** Rust (`vox-cli`, `vox-cli-ci`, `vox-doc-pipeline`), Markdown, JSON contracts.
 
-**Spec:** `docs/superpowers/specs/2026-08-22-docs-corpus-repair-design.md`
+**Spec:** `docs/superpowers/specs/2026-08-22-docs-corpus-repair-design.md` (revision 2)
+
+## Revision note
+
+Revision 1 of this plan was audited by eight parallel critique tracks. It
+contained **two guards that shipped dead**, **three compile errors**, **three
+false justifications**, a **wrong ADR renumber target**, and the **wrong
+verification tier**. All are corrected here; the cut rationale is in each task.
+Every code block below was compiled and run against the real tree during the
+audit unless explicitly marked otherwise.
 
 ## Global Constraints
 
-- **This plan covers spec workstreams W1 and W6 only.** W2 (corpus repair), W3 (detector holes), W4 (visual), W5 (retirement) are separate plans. Do not start them here.
-- **No new crate, no new GUI surface, no new findings schema, no new scheduler.**
-- **No new crate edges.** Do not add entries to `contracts/ci/crate-edges.allow.v1.json`. Exception entries are user-authorized-only.
-- **Test-first is binding.** Every new `pub fn` in `crates/*/src/**` needs a test in the same file before the implementation. The `tdd-guard` lefthook blocks commits that violate this. This plan avoids new `pub fn` almost entirely by using integration tests.
-- **Never run `cargo fmt --all`** on this workspace — it overflows the Windows command-line limit (`os error 206`). Use `vox run scripts/fmt.vox`, or `cargo fmt -p <crate>` for one crate.
-- **Line endings:** `md`, `rs`, `json`, `yaml` are all LF (`EXT_LF` in `crates/vox-cli-ci/src/line_endings.rs:10`). `.gitattributes:14` enforces `*.md text eol=lf`. If your editor writes CRLF, strip it before committing.
-- **Verification tier:** `vox ci pre-push --complete`, not the default fast tier. Fast omits clippy and all tests.
-- **`ssot-drift` is fail-fast** across ~30 sequential guards — one bad row fails the whole bundle with a single message.
-- **PR discipline:** CodeRabbit reviews once on open (`auto_incremental_review: false`). Batch commits; push once when review-ready; re-request with a `@coderabbitai review` comment, never by re-pushing.
-- **Do not modify `docs/src/archive/**`** beyond frontmatter CI requires (AGENTS.md §Archival Protocol).
+- **Covers spec workstreams W1, W6, W7, and W3.5 only.** W2, W4, W5, W8 are separate efforts. Per spec §8, W2/W3/W5 should update the existing ledgers (`legacy-tombstone-remediation-ledger-2026.md`, `pr92-handoff.md` §5.3) rather than spawn new plan documents.
+- **No new crate, GUI surface, findings schema, scheduler, or crate edge.** Do not add entries to `contracts/ci/crate-edges.allow.v1.json`.
+- **Do NOT add contract entries to `contracts/documentation/retired-symbols.v1.yaml` in this plan.** `retired_symbol_check.rs` has no severity tier — adding entries while ~680 live references exist makes the tree unmergeable. That is W3.1 and requires the severity valve first.
+- **Test-first.** Every new `pub fn` needs a test in the same file first. This plan adds no new `pub fn`.
+- **Never run `cargo fmt --all`** — `os error 206` on Windows. Use `vox run scripts/fmt.vox` or `cargo fmt -p <crate>`.
+- **Line endings are LF** for `md`/`rs`/`json`/`yaml`.
+- **Verification tier is `--full`, not `--complete`.** `--complete` runs **no tests**; only `--full` adds `cargo nextest run --workspace`.
+- **`doc-inventory.json` drifts on nearly every task here** and is verified in `--complete` and CI. Regenerate and commit it (Task 14).
+- **One agent per worktree.** During the audit, parallel agents editing this tree deleted each other's files mid-build.
+- **PR discipline:** CodeRabbit reviews once on open. Batch commits; push once; re-request via a `@coderabbitai review` comment.
 
 ---
 
@@ -29,237 +38,392 @@
 
 | File | Responsibility | Task |
 | --- | --- | --- |
-| `crates/vox-doc-pipeline/tests/policy_docs_guard.rs` | **New.** Integration tests asserting repo policy documents are internally consistent. Four independent guards, one per defect. | 1–4 |
-| `AGENTS.md` | Retired-surfaces table: fix the decorator replacement column; add three missing crate rows. | 1, 6 |
-| `docs/src/contributors/documentation-governance.md` | Category vocabulary table: replace slugs with the enforced display labels. | 2 |
-| `docs/src/adr/037-tauri-convergence.md` and siblings | Resolve the three-way ADR 037 number collision. | 3 |
-| `docs/src/adr/index.md` | Add index rows for the renumbered ADRs. | 3 |
-| `docs/src/architecture/data-storage-lint-and-ci-spec-2026.md` | Strip the embedded NUL byte that makes `grep` treat it as binary. | 4 |
-| `docs-astro/astro.config.mjs:27` | Comment claims the sidebar comes from `SUMMARY.md`; it comes from frontmatter. | 5 |
-| `crates/vox-actor-runtime/src/llm/chat.rs:359-361` | `infer_with_retry` doc comment describes error handling the body does not perform. | 5 |
-| `docs/src/contributors/docs-reality-audit-program.md` | Declares a weekly/monthly cadence that has never run. | 5 |
-| `crates/vox-cli-ci/src/docs_reality_audit.rs` | All six W6 correctness fixes plus their unit tests. | 7–12 |
+| `AGENTS.md` | Retired-surfaces row fix; three prescriptive lines outside the table; three new crate rows | 1, 3 |
+| `crates/vox-cli-ci/src/retired_symbol_check.rs` | Narrow `skip_md_table_rows` to the first cell — the root-cause guard replacing revision 1's broken bespoke parser | 2 |
+| `crates/vox-doc-pipeline/src/pipeline/lint.rs` | Governance-parity assertion (relocated here so it can see `VALID_CATEGORIES`); false comment fix | 4 |
+| `docs/src/contributors/documentation-governance.md`, `docs/src/adr/002-diataxis-doc-architecture.md` | Category vocabulary corrections | 4 |
+| `docs/src/adr/**`, `docs/src/architecture/adr-*.md` | ADR 037 collision, index gaps, prose citations, `NNN` placeholder | 5 |
+| `crates/vox-doc-pipeline/tests/policy_docs_guard.rs` | **New.** Two guards only: NUL bytes and ADR uniqueness. No markdown-table parsing. | 5, 6 |
+| `docs/src/architecture/data-storage-lint-and-ci-spec-2026.md` | Strip the NUL byte | 6 |
+| `docs-astro/astro.config.mjs`, `crates/vox-actor-runtime/src/llm/chat.rs`, `docs/src/contributors/docs-reality-audit-program.md` | Three false comments | 7 |
+| `crates/vox-cli-ci/src/check_links.rs` | Add `CLAUDE.md` / `GEMINI.md` to the scanned policy roots | 8 |
+| `crates/vox-cli/src/commands/llm.rs` | Stop printing hard-parse-error syntax as a "Golden Example" | 9 |
+| `docs/agents/vox-language-surface.v1.json` | Remove five retired decorators and one that never existed | 10 |
+| `crates/vox-cli-ci/src/docs_reality_audit.rs` | Delete the unread metric; recompute metrics in verify; short-circuit glob | 11, 12, 13 |
 
-Why `crates/vox-doc-pipeline/tests/` for the guards: `vox-doc-pipeline` is the docs-lint home and is **unbudgeted** (1,693 LoC, no `max_loc` in `layers.toml`), whereas `vox-cli-ci` is already 23,910 LoC against a 15,000 budget (159%). An integration test needs no `pub fn`, no CLI subcommand, and no registration, so it adds a gate without adding surface area.
+**Why only two guards.** Revision 1 proposed five. Two were verified inert: the
+`AGENTS.md` decorator guard mis-columned the one row it existed for (the row's
+`\|` escapes split as delimiters, so `cols[2]` read `"query\\"`), and the
+crate-existence guard skipped every `crates/`-prefixed token — i.e. both rows it
+was written to protect. The two that survive parse no markdown at all.
 
 ---
 
-### Task 1: Guard and fix the `AGENTS.md` decorator contradiction
+### Task 1: Fix every place `AGENTS.md` prescribes parse-error syntax
 
-This is the single highest-value fix in the plan. `AGENTS.md` is loaded into every agent session. Its §Retired Surfaces table gives the replacement for the removed `@endpoint(kind: ...)` decorator as the at-prefixed `@server fn` / `@query fn` / `@mutation fn` forms — while §Grammar Unification in the same file states those at-prefixed forms became **hard parse errors on 2026-06-30** (`cd7cc96874`). The policy file instructs agents to write code that cannot compile.
+`AGENTS.md` is loaded into every agent session. §Retired Surfaces (`:454`) gives
+the replacement for `@endpoint` as the at-prefixed forms, while §Grammar
+Unification (`:245-248`) states those became hard parse errors on 2026-06-30.
+
+Verified from the parser, not the doc: `crates/vox-compiler/src/parser/descent/mod.rs:822`
+calls `reject_retired_decorator(...)` which pushes `ParseSeverity::Error`, and
+`parse_module` returns `Err` on any error-severity entry. Commit `cd7cc96874`
+exists, dated Tue Jun 30 2026, "Hard-error flip". All 79 `examples/golden/**/*.vox`
+use bare forms exclusively.
 
 **Files:**
-- Create: `crates/vox-doc-pipeline/tests/policy_docs_guard.rs`
-- Modify: `AGENTS.md` (the §Retired Surfaces row whose left column begins `` `@endpoint(kind: server\|query\|mutation) fn` ``)
+- Modify: `AGENTS.md` (four locations: `:454`, `:494`, `:499`, `:507`)
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: an `AGENTS.md` whose replacement column and prescriptive prose both name bare-keyword forms. Task 2's detector change enforces it.
+
+- [ ] **Step 1: Fix the §Retired Surfaces row**
+
+Change the replacement cell of the `@endpoint` row so it reads:
+
+```
+| `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `server fn` / `query fn` / `mutation fn` (bare-keyword; the at-prefixed forms became hard parse errors 2026-06-30, `cd7cc96874`) |
+```
+
+Leave the left column alone — naming the retired form is that column's job.
+
+- [ ] **Step 2: Fix the three prescriptive lines outside the table**
+
+These are in §Vox Language Enforcement Rules and are the most-read prescriptive
+text in the file. A fix scoped to the table alone leaves all three wrong.
+
+`AGENTS.md:494` — replace the at-prefixed forms:
+
+```
+- Any `pub fn`, `query fn`, `mutation fn`, or `server fn` that calls `http.*`, `net.*`, `fetch(`, `populi.*`, or `std.http.*` MUST carry `@uses(net)` in the preceding decorator list.
+```
+
+`AGENTS.md:499` — replace the at-prefixed forms **and delete `@activity`**,
+which has never existed (no `AtActivity` token in
+`crates/vox-compiler/src/lexer/token.rs`, no parser arm; `activity` is a bare
+keyword):
+
+```
+- ID parameters on `query`, `mutation`, `server`, or `activity` functions, or actor-message functions, MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`.
+```
+
+`AGENTS.md:507`:
+
+```
+- Every `query fn`, `mutation fn`, or `server fn` should carry either `@auth(...)` for authenticated routes or an explicit open-access annotation.
+```
+
+- [ ] **Step 3: Confirm no at-prefixed data-layer form remains as a prescription**
+
+```bash
+grep -n '@server fn\|@query fn\|@mutation fn\|@activity' AGENTS.md
+```
+
+Expected: **no output**. Any remaining hit is either a new prescription (fix it)
+or a left-column retirement notice (move it into the left column).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add AGENTS.md
+git commit -m "fix(agents): AGENTS.md prescribed decorator forms that are parse errors"
+```
+
+---
+
+### Task 2: Narrow `skip_md_table_rows` so the detector can see replacement columns
+
+Revision 1 proposed a bespoke markdown guard for Task 1. It was verified inert.
+The root cause is that `retired_symbol_check.rs` deliberately cannot see the
+row: `ScanCfg::skip_md_table_rows` skips the **entire** table row for policy
+files. Narrowing it to the **first cell** covers the replacement column of
+`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and all nine `.cursor/rules/*.mdc`, for
+**every** contract entry present and future — one predicate change instead of a
+hand-maintained list that drifts.
+
+**Files:**
+- Modify: `crates/vox-cli-ci/src/retired_symbol_check.rs` (the `skip_md_table_rows` branch in `scan_source_lines`, around `:146`)
+- Test: same file's `#[cfg(test)] mod tests`
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
-- Produces: `fn repo_root() -> std::path::PathBuf` and `fn read_repo_file(rel: &str) -> String`, both private to this test file, reused by Tasks 2, 3, and 4.
+- Produces: `fn first_cell_only(line: &str) -> Option<&str>` — private; returns the remainder of a markdown table row after its first data cell, or `None` if the line is not a table row.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Read the current skip and confirm its shape**
 
-Create `crates/vox-doc-pipeline/tests/policy_docs_guard.rs`:
+```bash
+sed -n '140,175p' crates/vox-cli-ci/src/retired_symbol_check.rs
+```
+
+Confirm the branch skips the whole line when `cfg.skip_md_table_rows` is set and
+the trimmed line starts with `|`. Note the exact variable names before editing.
+
+- [ ] **Step 2: Write the failing test**
+
+Add to `#[cfg(test)] mod tests` in `crates/vox-cli-ci/src/retired_symbol_check.rs`:
 
 ```rust
-//! Guards that repo policy documents do not contradict themselves.
-//!
-//! These are integration tests rather than lint rules on purpose: they assert
-//! facts about specific policy files, not a property of every doc, and they
-//! need no CLI wiring to run in CI's test tier.
+    #[test]
+    fn first_cell_only_exposes_the_replacement_column() {
+        // The real AGENTS.md row: escaped pipes inside the first cell must not
+        // be treated as column separators.
+        let row = r"| `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `server fn` / `query fn` / `mutation fn` |";
+        let rest = first_cell_only(row).expect("table row");
+        assert!(
+            !rest.contains("@endpoint"),
+            "the retired form lives in the first cell and must be skipped, got: {rest}"
+        );
+        assert!(
+            rest.contains("server fn"),
+            "the replacement column must remain scannable, got: {rest}"
+        );
+    }
 
-use std::path::{Path, PathBuf};
+    #[test]
+    fn first_cell_only_returns_none_for_non_table_lines() {
+        assert!(first_cell_only("plain prose line").is_none());
+        assert!(first_cell_only("").is_none());
+    }
+```
 
-/// Workspace root, two levels up from this crate's manifest.
-fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
-        .canonicalize()
-        .expect("canonicalize repo root")
-}
+- [ ] **Step 3: Run the test to verify it fails**
 
-fn read_repo_file(rel: &str) -> String {
-    let path = repo_root().join(rel);
-    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
-}
+Run: `cargo test -p vox-cli-ci retired_symbol_check::tests::first_cell_only -- --nocapture`
 
-/// The at-prefixed spellings of the data-layer keywords became hard parse
-/// errors on 2026-06-30 (cd7cc96874). AGENTS.md must never prescribe them as a
-/// replacement for anything, or every agent session emits uncompilable code.
-#[test]
-fn agents_md_does_not_prescribe_retired_decorator_forms() {
-    let agents = read_repo_file("AGENTS.md");
+Expected: FAIL to compile — `cannot find function 'first_cell_only' in this scope`.
 
-    // Isolate the Retired Surfaces table: rows between its heading and the next heading.
-    let start = agents
-        .find("## Retired Surfaces")
-        .expect("AGENTS.md must contain a '## Retired Surfaces' section");
-    let rest = &agents[start..];
-    let end = rest[3..].find("\n## ").map(|i| i + 3).unwrap_or(rest.len());
-    let table = &rest[..end];
+- [ ] **Step 4: Implement `first_cell_only`**
 
-    // Only the replacement (right-hand) column matters. The left column names
-    // the retired form on purpose.
-    let mut offenders = Vec::new();
-    for line in table.lines() {
-        if !line.trim_start().starts_with('|') {
-            continue;
-        }
-        let cols: Vec<&str> = line.split('|').collect();
-        // "| left | right |" splits to ["", " left ", " right ", ""].
-        if cols.len() < 4 {
-            continue;
-        }
-        let replacement = cols[2];
-        for retired in [
-            "@server fn",
-            "@query fn",
-            "@mutation fn",
-            "@table ",
-            "@form ",
-            "@resource ",
-            "@index ",
-        ] {
-            if replacement.contains(retired) {
-                offenders.push(format!("{retired:?} in replacement column: {}", line.trim()));
+Add near the other helpers in `crates/vox-cli-ci/src/retired_symbol_check.rs`:
+
+```rust
+/// For a markdown table row, return everything after the first data cell.
+///
+/// Policy files list the retired symbol in the first column on purpose, so that
+/// cell is skipped — but the replacement column must stay scannable, because a
+/// replacement that names a retired form is exactly the defect we are hunting.
+///
+/// `\|` inside a cell is escaped content, not a delimiter (the AGENTS.md
+/// `@endpoint` row contains two), so it is masked before splitting.
+fn first_cell_only(line: &str) -> Option<&str> {
+    let trimmed = line.trim_start();
+    if !trimmed.starts_with('|') {
+        return None;
+    }
+    let masked = trimmed.replace(r"\|", "\u{1}");
+    // Byte offset of the pipe that closes the first data cell, measured on the
+    // masked copy and applied to the original (same length: 2 bytes -> 2 bytes
+    // would differ, so compute on the masked string and map by index count).
+    let mut pipes = 0usize;
+    for (idx, ch) in masked.char_indices() {
+        if ch == '|' {
+            pipes += 1;
+            if pipes == 2 {
+                // `idx` is valid in `trimmed` only if the mask preserved byte
+                // offsets; it does not (`\|` is 2 bytes, `\u{1}` is 1), so slice
+                // the masked string and unmask the result.
+                let tail = &masked[idx..];
+                return Some(Box::leak(tail.replace('\u{1}', r"\|").into_boxed_str()));
             }
         }
     }
-
-    assert!(
-        offenders.is_empty(),
-        "AGENTS.md Retired Surfaces prescribes retired at-prefixed decorator forms \
-         that are hard parse errors per AGENTS.md's own Grammar Unification section. \
-         Use the bare-keyword forms instead. Offending rows:\n{}",
-        offenders.join("\n")
-    );
+    None
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+**Note on the `Box::leak`:** the mask/unmask round-trip cannot borrow from the
+input because byte offsets shift. If a leak is unacceptable in this crate,
+change the signature to `-> Option<String>` and adjust the two call sites and
+both tests accordingly; prefer that if `clippy` objects.
 
-Run: `cargo test -p vox-doc-pipeline --test policy_docs_guard agents_md_does_not_prescribe -- --nocapture`
+- [ ] **Step 5: Wire it into the skip branch**
 
-Expected: FAIL. The panic message lists the row whose replacement column reads `` `@server fn` / `@query fn` / `@mutation fn` ``.
+In `scan_source_lines`, replace the whole-row skip with a first-cell skip: when
+`cfg.skip_md_table_rows` is set and `first_cell_only(line)` returns `Some(rest)`,
+scan `rest` instead of `line` rather than `continue`-ing. When it returns `None`,
+behaviour is unchanged.
 
-- [ ] **Step 3: Fix `AGENTS.md`**
+- [ ] **Step 6: Run the tests to verify they pass**
 
-In the §Retired Surfaces table, change the replacement cell of the `@endpoint` row from the at-prefixed forms to the bare-keyword forms, so the row reads:
+Run: `cargo test -p vox-cli-ci retired_symbol_check`
 
-```
-| `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `server fn` / `query fn` / `mutation fn` (bare-keyword; the at-prefixed forms are hard parse errors as of 2026-06-30) |
-```
+Expected: all PASS, including the crate's pre-existing `retired_symbol_check` tests.
 
-Do not change the left column — naming the retired form is that column's job.
+- [ ] **Step 7: Run the real detector — this is the acceptance check**
 
-- [ ] **Step 4: Run the test to verify it passes**
+Run: `cargo run -q -p vox-cli -- ci retired-symbol-check`
 
-Run: `cargo test -p vox-doc-pipeline --test policy_docs_guard agents_md_does_not_prescribe`
+Expected: **exit 0.** Task 1 already removed the offending prescriptions. If it
+fails, the failure names a policy-file replacement column still prescribing a
+retired form — fix that, do not widen the skip back.
 
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add AGENTS.md crates/vox-doc-pipeline/tests/policy_docs_guard.rs
-git commit -m "fix(docs): AGENTS.md prescribed decorator forms that are parse errors"
+git add crates/vox-cli-ci/src/retired_symbol_check.rs
+git commit -m "fix(ci): retired-symbol-check now scans policy-table replacement columns"
 ```
 
 ---
 
-### Task 2: Guard and fix the category vocabulary contradiction
+### Task 3: Add three missing crates to the retired-surfaces table
 
-`documentation-governance.md` is the SSOT that `AGENTS.md` points contributors at for frontmatter. Its §Category vocabulary table lists slugs (`architecture`, `how-to`, `reference`). The enforced list, `VALID_CATEGORIES` in `crates/vox-doc-pipeline/src/pipeline/lint.rs:18`, contains display labels (`"Architecture SSOTs"`, `"How-To Guides"`). Validation is an exact `VALID_CATEGORIES.contains(&value)` at `lint.rs:395` — there is no alias normalisation, and `suggest()` only produces a hint after failure. All 918 docs already use display labels; **zero** use the documented slugs. A contributor following the governance doc fails the lint.
+Three renamed or deleted crates are absent from the table, and the live corpus
+carries references to all three: `crates/vox-dashboard` (273 live references,
+named as the canonical implementation target in five ADRs and two reference
+docs), `vox-dei-shim` (27), `crates/vox-oratio` (6).
+
+Adding rows only. Fixing the references is W2 and requires the W3.6 severity
+valve first.
 
 **Files:**
-- Modify: `crates/vox-doc-pipeline/tests/policy_docs_guard.rs` (add one test)
-- Modify: `docs/src/contributors/documentation-governance.md:41-53`
+- Modify: `AGENTS.md` (§Retired Surfaces table)
 
 **Interfaces:**
-- Consumes: `read_repo_file` from Task 1.
+- Consumes: Task 1's corrected table.
 - Produces: nothing consumed by later tasks.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Verify the three replacements before writing them**
 
-Append to `crates/vox-doc-pipeline/tests/policy_docs_guard.rs`:
+```bash
+ls -d crates/vox-gui crates/vox-speech crates/vox-research-shim
+ls -d crates/vox-dashboard crates/vox-oratio crates/vox-dei-shim 2>&1 | head -3
+grep -n 'visible_alias = "oratio"' crates/vox-cli/src/lib.rs
+```
+
+Expected: the first three exist, the second three do not, and the `oratio` alias
+is present. Each replacement is documented, not inferred: ADR-037 decommissions
+`vox-dashboard` in favour of `vox-gui`; `81681e81b` is the oratio→speech rename;
+`5463bc16c` is the dei-shim→research-shim rename.
+
+- [ ] **Step 2: Add the three rows**
+
+```
+| `crates/vox-dashboard` (deleted 2026-05-12, `af5f26278`; Axum dashboard retired per ADR-037) | `crates/vox-gui` (Tauri 2) |
+| `crates/vox-oratio` (crate renamed `81681e81b`; the `vox speech` command keeps `oratio` as a visible alias) | `crates/vox-speech` |
+| `vox-dei-shim` (renamed `5463bc16c`) | `vox-research-shim` |
+```
+
+Two precision points that revision 1 got wrong and that matter in an
+always-loaded file: `vox-dashboard` **did exist** — writing "never existed"
+replaces one falsehood with another. And the `oratio` **CLI alias still works**;
+an agent over-applying the row would delete a working command.
+
+- [ ] **Step 3: Confirm the detector still passes**
+
+Run: `cargo run -q -p vox-cli -- ci retired-symbol-check`
+
+Expected: exit 0. The new rows name retired crates only in the **first** cell,
+which Task 2's narrowed skip still skips.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add AGENTS.md
+git commit -m "docs(agents): add vox-dashboard, vox-oratio, vox-dei-shim to retired surfaces"
+```
+
+---
+
+### Task 4: Fix the category vocabulary, in the crate that owns it
+
+`documentation-governance.md:41-52` advertises 9 slugs. `VALID_CATEGORIES`
+(`lint.rs:18`) holds 13 display labels, matched exactly at `lint.rs:395` with no
+alias map. All 918 docs use display labels; **zero** use the slugs. A contributor
+following the governance doc fails the lint.
+
+Revision 1 put this assertion in a new integration-test file with a hardcoded
+copy of `VALID_CATEGORIES` — a **third** copy of the same SSOT. It belongs in
+`lint.rs`'s own test module, where it can reference the constant directly.
+
+**Files:**
+- Modify: `crates/vox-doc-pipeline/src/pipeline/lint.rs` (test module; and the false comment at `:16-17`)
+- Modify: `docs/src/contributors/documentation-governance.md:41-53`
+- Modify: `docs/src/adr/002-diataxis-doc-architecture.md:58`
+
+**Interfaces:**
+- Consumes: `VALID_CATEGORIES` (already in scope inside `lint.rs`).
+- Produces: nothing consumed by later tasks.
+
+- [ ] **Step 1: Write the failing test inside `lint.rs`**
+
+Add to the existing `#[cfg(test)] mod tests` in
+`crates/vox-doc-pipeline/src/pipeline/lint.rs`:
 
 ```rust
-/// Every `category` value the governance doc advertises must be one the lint
-/// actually accepts. lint.rs:395 does an exact string match with no alias map,
-/// so a slug in the governance table is an instruction to fail CI.
-#[test]
-fn governance_category_vocabulary_matches_enforced_list() {
-    // Mirrors VALID_CATEGORIES in crates/vox-doc-pipeline/src/pipeline/lint.rs.
-    // Kept as a literal so this test fails loudly if either side drifts.
-    const ENFORCED: &[&str] = &[
-        "Getting Started",
-        "Tutorials",
-        "How-To Guides",
-        "Language Reference",
-        "API Reference — Crates",
-        "Examples",
-        "Concepts",
-        "Architecture Decisions (ADRs)",
-        "Architecture SSOTs",
-        "Contributors",
-        "CI & Quality",
-        "Operations",
-        "archive",
-    ];
+    /// The governance doc is the SSOT AGENTS.md points contributors at. Every
+    /// category it advertises must be one `VALID_CATEGORIES` accepts, because
+    /// validation at lint.rs:395 is an exact match with no alias map.
+    #[test]
+    fn governance_doc_advertises_only_enforced_categories() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("repo root")
+            .join("docs/src/contributors/documentation-governance.md");
+        let doc = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
-    let doc = read_repo_file("docs/src/contributors/documentation-governance.md");
-    let start = doc
-        .find("### Category vocabulary")
-        .expect("governance doc must have a '### Category vocabulary' section");
-    let rest = &doc[start..];
-    let end = rest[3..].find("\n### ").map(|i| i + 3).unwrap_or(rest.len());
-    let table = &rest[..end];
+        let start = doc
+            .find("### Category vocabulary")
+            .expect("governance doc must have a '### Category vocabulary' section");
+        let rest = &doc[start..];
+        // Stop at the next heading of any level, not just "### ".
+        let end = ["\n### ", "\n## "]
+            .iter()
+            .filter_map(|h| rest[3..].find(h).map(|i| i + 3))
+            .min()
+            .unwrap_or(rest.len());
+        let table = &rest[..end];
 
-    let mut advertised = Vec::new();
-    for line in table.lines() {
-        let trimmed = line.trim();
-        if !trimmed.starts_with("| `") {
-            continue;
+        let mut advertised = Vec::new();
+        for line in table.lines() {
+            let trimmed = line.trim();
+            if !trimmed.starts_with('|') {
+                continue;
+            }
+            let cols: Vec<&str> = trimmed.split('|').collect();
+            if cols.len() < 3 {
+                continue;
+            }
+            let raw = cols[1].trim();
+            // Take the first backtick-delimited span so "`X` (note)" yields "X".
+            let value = raw.split('`').nth(1).unwrap_or(raw).trim();
+            if value.is_empty()
+                || value == "category"
+                || value.chars().all(|c| c == '-' || c == ':')
+            {
+                continue;
+            }
+            advertised.push(value.to_string());
         }
-        let cols: Vec<&str> = trimmed.split('|').collect();
-        if cols.len() < 3 {
-            continue;
-        }
-        let value = cols[1].trim().trim_matches('`');
-        if value == "category" || value.is_empty() {
-            continue;
-        }
-        advertised.push(value.to_string());
+
+        assert!(
+            !advertised.is_empty(),
+            "parsed zero categories — the table shape changed and this guard is inert"
+        );
+
+        let unknown: Vec<&String> = advertised
+            .iter()
+            .filter(|v| !VALID_CATEGORIES.contains(&v.as_str()))
+            .collect();
+        assert!(
+            unknown.is_empty(),
+            "documentation-governance.md advertises categories the lint rejects: {unknown:?}"
+        );
     }
-
-    assert!(
-        !advertised.is_empty(),
-        "parsed zero category values from the governance table — the table shape changed, \
-         so this guard is no longer checking anything"
-    );
-
-    let unknown: Vec<&String> = advertised
-        .iter()
-        .filter(|v| !ENFORCED.contains(&v.as_str()))
-        .collect();
-
-    assert!(
-        unknown.is_empty(),
-        "documentation-governance.md advertises category values the lint rejects \
-         (lint.rs:395 is an exact match, there is no alias map): {unknown:?}"
-    );
-}
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cargo test -p vox-doc-pipeline --test policy_docs_guard governance_category -- --nocapture`
+Run: `cargo test -p vox-doc-pipeline pipeline::lint::tests::governance_doc_advertises -- --nocapture`
 
-Expected: FAIL, listing `["getting-started", "tutorial", "how-to", "explanation", "reference", "adr", "architecture", "ci", "contributor"]`.
+Expected: FAIL listing `["getting-started", "tutorial", "how-to", "explanation", "reference", "adr", "architecture", "ci", "contributor"]`.
 
-- [ ] **Step 3: Fix the governance table**
+- [ ] **Step 3: Replace the governance table**
 
-Replace the table body at `docs/src/contributors/documentation-governance.md:41-52` with the enforced display labels:
+At `docs/src/contributors/documentation-governance.md:41-52`:
 
 ```markdown
 | `category` | Meaning |
@@ -279,7 +443,7 @@ Replace the table body at `docs/src/contributors/documentation-governance.md:41-
 | `archive` | tombstoned pages (excluded from the sidebar) |
 ```
 
-Then replace line 53 with:
+Replace line 53 with:
 
 ```markdown
 These display labels are the enforced vocabulary — `VALID_CATEGORIES` in
@@ -288,157 +452,291 @@ alias normalisation. They must stay in sync with the `sections` array in
 `contracts/documentation/docs-sidebar-section-order.v1.json`.
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+The old table also **omitted** `Examples`, `Concepts`, `Operations`, and
+`archive` — four live categories. The replacement adds them.
 
-Run: `cargo test -p vox-doc-pipeline --test policy_docs_guard governance_category`
+- [ ] **Step 4: Fix the false comment in `lint.rs`**
 
-Expected: PASS.
+`lint.rs:16-17` reads "Display-label format … is canonical; slug aliases are kept
+for grep-safety". **The array contains no slug aliases.** Replace with:
 
-- [ ] **Step 5: Verify the governance doc still lints**
+```rust
+// These must match the `sections` array in contracts/documentation/docs-sidebar-section-order.v1.json.
+// Display labels are the only accepted form — validation at `collect_lint_errors_*`
+// is an exact `contains` check with no alias normalisation. `suggest()` maps a
+// wrong value to the nearest label for the error message only.
+```
 
-Run: `cargo run -p vox-doc-pipeline -- --lint-only --paths contributors/documentation-governance.md`
+- [ ] **Step 5: Fix the second source of the dead vocabulary**
 
-Expected: no errors. (The doc's own frontmatter `category` is unchanged; this confirms the edit did not break the fence or frontmatter parsing.)
+`docs/src/adr/002-diataxis-doc-architecture.md:58` ships the same slug list
+inside a yaml fence. Update it to the display labels, or mark the fence as
+illustrative of the historical scheme with a one-line note saying the current
+vocabulary lives in the governance doc.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Run the test and the lint**
 
 ```bash
-git add docs/src/contributors/documentation-governance.md crates/vox-doc-pipeline/tests/policy_docs_guard.rs
+cargo test -p vox-doc-pipeline pipeline::lint::tests::governance_doc_advertises
+cargo run -p vox-doc-pipeline -- --lint-only --paths contributors/documentation-governance.md
+cargo run -p vox-doc-pipeline -- --lint-only --paths adr/002-diataxis-doc-architecture.md
+```
+
+Expected: test PASS, both lints clean.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add crates/vox-doc-pipeline/src/pipeline/lint.rs docs/src/contributors/documentation-governance.md docs/src/adr/002-diataxis-doc-architecture.md
 git commit -m "fix(docs): governance category vocabulary did not match the enforced list"
 ```
 
 ---
 
-### Task 3: Guard and fix the ADR 037 number collision
+### Task 5: Resolve the ADR numbering damage
 
-Three files claim ADR number 037: `037-ai-fixture-subagent-decorator.md`, `037-tauri-convergence.md`, `037-tauri-gui-replaces-axum-dashboard.md`. Only one appears in `docs/src/adr/index.md` (line 51). An ADR number is a citation key; three documents sharing one makes every reference to "ADR-037" ambiguous.
+Four separate defects. Three files claim 037; the index is missing five rows;
+bare-prose citations will silently repoint after a rename; and one ADR filename
+is still a literal placeholder.
+
+**Critical correction from revision 1:** the next free numbers are **044 and
+045**, not 042/043. `docs/src/architecture/adr-042-vox-populi-types.md` and
+`adr-043-quantized-safetensors-ondisk-format.md` already exist **outside**
+`docs/src/adr/`, and ADR-042 is cited from `layers.toml:158`,
+`crate-audit-and-plan-2026.md:552`, and two Rust source files.
 
 **Files:**
-- Modify: `crates/vox-doc-pipeline/tests/policy_docs_guard.rs` (add one test)
-- Rename: two of the three `037-*.md` files in `docs/src/adr/`
-- Modify: `docs/src/adr/index.md`
+- Create: `crates/vox-doc-pipeline/tests/policy_docs_guard.rs`
+- Rename: two `037-*.md` in `docs/src/adr/`
+- Modify: `docs/src/adr/index.md`, plus inbound links and prose citations
 
 **Interfaces:**
-- Consumes: `repo_root` from Task 1.
-- Produces: nothing consumed by later tasks.
+- Consumes: nothing from earlier tasks.
+- Produces: `fn repo_root() -> PathBuf` in the new test file, reused by Task 6.
 
-- [ ] **Step 1: Determine the next free ADR numbers**
+- [ ] **Step 1: Write the failing test**
 
-Run: `ls docs/src/adr/ | grep -oE '^[0-9]{3}' | sort -n | tail -3`
-
-Note the highest number in use. The two renamed ADRs take the next two free numbers above it. This plan calls them `NNN` and `MMM`; substitute the real values in every step below.
-
-- [ ] **Step 2: Write the failing test**
-
-Append to `crates/vox-doc-pipeline/tests/policy_docs_guard.rs`:
+Create `crates/vox-doc-pipeline/tests/policy_docs_guard.rs`:
 
 ```rust
+//! Guards on repo policy documents that need no markdown-table parsing.
+//!
+//! Two only, deliberately. Table-parsing guards were tried and shipped inert:
+//! escaped pipes shifted the columns and a prefix filter skipped the rows the
+//! guard existed for. Retired-symbol coverage lives in `retired_symbol_check`
+//! instead, which already owns the contract.
+
+use std::path::{Path, PathBuf};
+
+/// Workspace root, two levels up from this crate's manifest.
+/// Matches the convention used by the other tests in this workspace
+/// (`.ancestors().nth(2)`) — deliberately no `canonicalize`, which would put
+/// `\\?\` verbatim prefixes into every assertion message on Windows.
+fn repo_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .expect("repo root")
+        .to_path_buf()
+}
+
 /// An ADR number is a citation key. Two documents sharing one makes every
-/// "ADR-0NN" reference in the corpus ambiguous.
+/// "ADR-0NN" reference ambiguous. ADRs live in two directories today, so both
+/// are scanned — checking only `docs/src/adr/` is how 042 and 043 came to be
+/// occupied without anyone noticing.
 #[test]
 fn adr_numbers_are_unique() {
     use std::collections::BTreeMap;
 
-    let adr_dir = repo_root().join("docs").join("src").join("adr");
-    let mut by_number: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let root = repo_root();
+    let mut by_number: BTreeMap<u32, Vec<String>> = BTreeMap::new();
 
-    for entry in std::fs::read_dir(&adr_dir).expect("read docs/src/adr") {
-        let entry = entry.expect("read dir entry");
+    let dirs = [
+        root.join("docs").join("src").join("adr"),
+        root.join("docs").join("src").join("architecture"),
+    ];
+
+    for dir in &dirs {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.ends_with(".md") {
+                continue;
+            }
+            // `037-foo.md` in adr/, `adr-042-foo.md` in architecture/.
+            let stem = name.strip_prefix("adr-").unwrap_or(&name);
+            let digits: String = stem.chars().take_while(|c| c.is_ascii_digit()).collect();
+            // Accept 2-4 digits so `37-`, `037-`, `0037-` all collide.
+            if digits.len() < 2 || digits.len() > 4 {
+                continue;
+            }
+            let Ok(number) = digits.parse::<u32>() else {
+                continue;
+            };
+            by_number.entry(number).or_default().push(name);
+        }
+    }
+
+    let collisions: Vec<_> = by_number.iter().filter(|(_, f)| f.len() > 1).collect();
+    assert!(
+        collisions.is_empty(),
+        "ADR numbers must be unique across docs/src/adr and docs/src/architecture; \
+         collisions: {collisions:?}"
+    );
+}
+
+/// Every numbered ADR must appear in the index, or it is undiscoverable.
+#[test]
+fn adr_index_lists_every_numbered_adr() {
+    let root = repo_root();
+    let adr_dir = root.join("docs").join("src").join("adr");
+    let index = std::fs::read_to_string(adr_dir.join("index.md")).expect("read adr/index.md");
+
+    let mut missing = Vec::new();
+    for entry in std::fs::read_dir(&adr_dir).expect("read docs/src/adr").flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
-        if !name.ends_with(".md") {
+        if !name.ends_with(".md") || name == "index.md" || name == "README.md" {
             continue;
         }
         let digits: String = name.chars().take_while(|c| c.is_ascii_digit()).collect();
-        if digits.len() != 3 {
-            continue; // index.md, README.md, and named-not-numbered ADRs
+        if digits.len() < 2 {
+            continue;
         }
-        by_number.entry(digits).or_default().push(name);
+        if !index.contains(&name) {
+            missing.push(name);
+        }
     }
 
-    let collisions: Vec<_> = by_number
-        .iter()
-        .filter(|(_, files)| files.len() > 1)
-        .collect();
-
     assert!(
-        collisions.is_empty(),
-        "ADR numbers must be unique; collisions: {collisions:?}"
+        missing.is_empty(),
+        "docs/src/adr/index.md is missing rows for: {missing:?}"
     );
 }
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [ ] **Step 2: Run both tests to verify they fail**
 
-Run: `cargo test -p vox-doc-pipeline --test policy_docs_guard adr_numbers_are_unique -- --nocapture`
+Run: `cargo test -p vox-doc-pipeline --test policy_docs_guard adr -- --nocapture`
 
-Expected: FAIL, reporting `"037"` mapped to three filenames.
+Expected: `adr_numbers_are_unique` FAILS on `037 -> [3 files]`;
+`adr_index_lists_every_numbered_adr` FAILS listing five files (both 037
+duplicates plus `038-ai-fixture-prompt-decorator.md`,
+`039-ai-fixture-hole-decorator.md`, `040-ai-fixture-search-decorator.md`).
 
-- [ ] **Step 4: Renumber two of the three ADRs**
-
-Keep `037-tauri-convergence.md` at 037 — it is the one already cited in `index.md:51`, so leaving it put avoids rewriting existing references.
-
-```bash
-git mv docs/src/adr/037-ai-fixture-subagent-decorator.md docs/src/adr/NNN-ai-fixture-subagent-decorator.md
-git mv docs/src/adr/037-tauri-gui-replaces-axum-dashboard.md docs/src/adr/MMM-tauri-gui-replaces-axum-dashboard.md
-```
-
-Use `git mv`, not `mv` — history preservation matters because the doc pipeline derives `last_updated` from Git.
-
-- [ ] **Step 5: Update the heading and any self-reference inside each renamed file**
-
-Open each renamed file and change its H1 and any `ADR-037` self-reference to the new number. Check with:
+- [ ] **Step 3: Confirm 044/045 are free**
 
 ```bash
-grep -n '037' docs/src/adr/NNN-ai-fixture-subagent-decorator.md docs/src/adr/MMM-tauri-gui-replaces-axum-dashboard.md
+ls docs/src/adr/ docs/src/architecture/ | grep -E '^(adr-)?04[0-9]'
 ```
 
-- [ ] **Step 6: Add index rows for both renamed ADRs**
+Expected: `040-*`, `041-*`, `adr-042-*`, `adr-043-*` and nothing at 044 or 045.
 
-In `docs/src/adr/index.md`, add a row for each, following the existing format at line 51:
+- [ ] **Step 4: Renumber**
 
-```markdown
-| [NNN](NNN-ai-fixture-subagent-decorator.md) | **AI fixture subagent decorator** |
-| [MMM](MMM-tauri-gui-replaces-axum-dashboard.md) | **Tauri GUI replaces the Axum dashboard** |
+Keep `037-tauri-convergence.md` at 037 — it is the one already cited in
+`index.md:51`, so leaving it put minimises citation churn.
+
+```bash
+git mv docs/src/adr/037-ai-fixture-subagent-decorator.md docs/src/adr/044-ai-fixture-subagent-decorator.md
+git mv docs/src/adr/037-tauri-gui-replaces-axum-dashboard.md docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md
 ```
 
-- [ ] **Step 7: Find and rewrite inbound links to the two renamed files**
+- [ ] **Step 5: Fix headings and self-references inside both renamed files**
+
+```bash
+grep -n '037' docs/src/adr/044-ai-fixture-subagent-decorator.md docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md
+```
+
+Update the frontmatter `title:` and the H1 in each (lines 2 and 9 in the first,
+2 and 8 in the second).
+
+- [ ] **Step 6: Rewrite filename links**
 
 ```bash
 grep -rn '037-ai-fixture-subagent-decorator\|037-tauri-gui-replaces-axum-dashboard' \
-  docs AGENTS.md CLAUDE.md GEMINI.md crates contracts
+  docs contracts crates AGENTS.md CLAUDE.md GEMINI.md 2>/dev/null | grep -v doc-inventory.json
 ```
 
-Rewrite every hit to the new filename. Note that `vox ci check-links` does **not** scan `CLAUDE.md` or `GEMINI.md`, so those two must be checked by hand here — that gap is fixed in the W3 plan, not this one.
+Known hits: `docs/src/architecture/vox-gui-harness-buildout-plan-2026.md:15`
+and `contracts/frontend/surface-ownership.v1.yaml:26`. **Do not hand-edit
+`docs/agents/doc-inventory.json`** — it is generated; Task 14 regenerates it.
 
-- [ ] **Step 8: Run the test and the link gate**
+- [ ] **Step 7: Sweep bare-prose citations — the step revision 1 omitted**
+
+Filename links are not the whole problem. Bare `ADR-037` / `ADR 037` prose
+citations point at three different decisions today, and after the rename the
+ones meaning the two renamed ADRs would silently resolve to the wrong document.
 
 ```bash
-cargo test -p vox-doc-pipeline --test policy_docs_guard adr_numbers_are_unique
+grep -rn 'ADR-037\|ADR 037' crates docs contracts 2>/dev/null | grep -v '/archive/'
+```
+
+For each hit, determine which decision is meant and rewrite to the new number:
+- `crates/vox-cli-ci/src/no_tauri_in_core.rs:1,28` — means tauri-convergence → **stays 037**
+- `crates/vox-codegen/tests/tauri_convergence_snapshots.rs:1` — tauri-convergence → **stays 037**
+- `crates/vox-codegen/tests/tauri_endpoint_client_parity_test.rs:4` — tauri-convergence → **stays 037**
+- `docs/src/architecture/vox-gui-harness-buildout-plan-2026.md:28,34,167,399` — means tauri-gui-replaces-axum-dashboard → **becomes 045**
+- `docs/src/architecture/rust-warning-audit-backlog-2026.md:105,106,108` — means ai-fixture-subagent-decorator → **becomes 044**
+
+- [ ] **Step 8: Add the five missing index rows**
+
+In `docs/src/adr/index.md`, following the existing format at line 51:
+
+```markdown
+| [038](038-ai-fixture-prompt-decorator.md) | **AI fixture `@prompt` decorator** |
+| [039](039-ai-fixture-hole-decorator.md) | **AI fixture `@hole` decorator** |
+| [040](040-ai-fixture-search-decorator.md) | **AI fixture `@search` decorator** |
+| [044](044-ai-fixture-subagent-decorator.md) | **AI fixture `@subagent` decorator** |
+| [045](045-tauri-gui-replaces-axum-dashboard.md) | **Tauri GUI replaces the Axum dashboard** |
+```
+
+- [ ] **Step 9: Fix the placeholder ADR filename and its false claim**
+
+`docs/src/architecture/adr-NNN-scope-tauri-desktop-only.md` has a literal `NNN`
+in its filename and states at `:30` that "ADR-037 (2026-05-11, not yet filed as a
+doc)" — false; it is filed at `docs/src/adr/037-tauri-convergence.md`. Give the
+file a real number (046, after Step 3 confirms it free), fix the claim, and add
+an index row. If the decision is not actually accepted, move it out of an
+`adr-` filename instead.
+
+- [ ] **Step 10: Run the tests and the link gate**
+
+```bash
+cargo test -p vox-doc-pipeline --test policy_docs_guard adr
 cargo run -q -p vox-cli -- ci check-links
 ```
 
-Expected: test PASS, `check-links` exits 0.
+Expected: both tests PASS, `check-links` exits 0.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 11: Commit — one commit, not two**
+
+The rename and the link rewrite must land together or `check-links` fails in
+between.
 
 ```bash
-git add docs/src/adr crates/vox-doc-pipeline/tests/policy_docs_guard.rs
-git commit -m "fix(docs): resolve three-way ADR 037 number collision"
+git add docs/src/adr docs/src/architecture contracts/frontend/surface-ownership.v1.yaml crates/vox-doc-pipeline/tests/policy_docs_guard.rs crates
+git commit -m "fix(docs): resolve ADR 037 collision, index gaps, and prose citations"
 ```
 
 ---
 
-### Task 4: Guard and fix the NUL byte that hides a doc from grep
+### Task 6: Strip the NUL byte that hides a live spec from grep
 
-`docs/src/architecture/data-storage-lint-and-ci-spec-2026.md` contains exactly **one** embedded NUL byte in 37,977 bytes. That is enough for `grep` to classify the file as binary and skip it silently, so every grep-based audit — including the ones that produced this plan's spec — has a blind spot there. Rust detectors read it fine, so CI never noticed. It is the only live doc with this defect.
+`docs/src/architecture/data-storage-lint-and-ci-spec-2026.md` contains **exactly
+one** NUL byte, at offset 37976 — the final byte, after the last newline. Enough
+for `grep` to classify the file binary and skip it silently, so every grep-based
+audit has an invisible blind spot there. Rust detectors read it fine, so CI never
+noticed. It is the only such file among 1,906 markdown files in the repo.
 
 **Files:**
 - Modify: `crates/vox-doc-pipeline/tests/policy_docs_guard.rs` (add one test)
 - Modify: `docs/src/architecture/data-storage-lint-and-ci-spec-2026.md`
 
 **Interfaces:**
-- Consumes: `repo_root` from Task 1.
-- Produces: nothing consumed by later tasks.
+- Consumes: `repo_root` from Task 5.
+- Produces: nothing.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -446,30 +744,37 @@ Append to `crates/vox-doc-pipeline/tests/policy_docs_guard.rs`:
 
 ```rust
 /// A single NUL byte makes grep treat a markdown file as binary and skip it
-/// silently. Every grep-based audit then has an invisible blind spot.
+/// silently, so every grep-based audit gains an invisible blind spot.
+///
+/// Scans the whole repo, not just docs/src: the policy files agents read most
+/// (AGENTS.md, CLAUDE.md, docs/agents/**) live outside docs/src, and the repo
+/// is already clean, so the wider scope costs nothing.
 #[test]
-fn no_docs_contain_nul_bytes() {
+fn no_markdown_contains_nul_bytes() {
+    const SKIP: &[&str] = &["target", "node_modules", ".git"];
+
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         let Ok(entries) = std::fs::read_dir(dir) else {
             return;
         };
         for entry in entries.flatten() {
             let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
             if path.is_dir() {
-                walk(&path, out);
+                if !SKIP.contains(&name.as_str()) {
+                    walk(&path, out);
+                }
             } else if path.extension().and_then(|e| e.to_str()) == Some("md") {
                 out.push(path);
             }
         }
     }
 
-    let docs_src = repo_root().join("docs").join("src");
     let mut files = Vec::new();
-    walk(&docs_src, &mut files);
-
+    walk(&repo_root(), &mut files);
     assert!(
         !files.is_empty(),
-        "walked zero markdown files under docs/src — the guard is not checking anything"
+        "walked zero markdown files — the guard is not checking anything"
     );
 
     let mut offenders = Vec::new();
@@ -491,18 +796,18 @@ fn no_docs_contain_nul_bytes() {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cargo test -p vox-doc-pipeline --test policy_docs_guard no_docs_contain_nul -- --nocapture`
+Run: `cargo test -p vox-doc-pipeline --test policy_docs_guard no_markdown_contains_nul -- --nocapture`
 
-Expected: FAIL, naming `data-storage-lint-and-ci-spec-2026.md (1 NUL bytes)`.
+Expected: FAIL naming `data-storage-lint-and-ci-spec-2026.md (1 NUL bytes)`.
 
-- [ ] **Step 3: Strip the NUL byte**
+- [ ] **Step 3: Strip the byte**
 
 ```bash
 f=docs/src/architecture/data-storage-lint-and-ci-spec-2026.md
 tr -d '\000' < "$f" > "$f.tmp" && mv "$f.tmp" "$f"
 ```
 
-- [ ] **Step 4: Confirm the byte count dropped by exactly one and grep now sees text**
+- [ ] **Step 4: Confirm the size dropped by exactly one and grep sees text**
 
 ```bash
 wc -c < docs/src/architecture/data-storage-lint-and-ci-spec-2026.md
@@ -513,7 +818,7 @@ Expected: `37976`, and `text`.
 
 - [ ] **Step 5: Run the test to verify it passes**
 
-Run: `cargo test -p vox-doc-pipeline --test policy_docs_guard no_docs_contain_nul`
+Run: `cargo test -p vox-doc-pipeline --test policy_docs_guard no_markdown_contains_nul`
 
 Expected: PASS.
 
@@ -526,28 +831,26 @@ git commit -m "fix(docs): strip NUL byte hiding data-storage spec from grep"
 
 ---
 
-### Task 5: Correct three comments that describe behavior the code does not have
+### Task 7: Correct three comments that describe behavior the code lacks
 
-No tests here — these are comments, and a test asserting a comment's prose would be worse than the defect. They are grouped into one commit because they share a cause: the code moved and the prose did not.
+No tests — a test asserting a comment's prose would be worse than the defect.
+Grouped into one commit because they share a cause: the code moved, the prose
+did not.
 
 **Files:**
 - Modify: `docs-astro/astro.config.mjs:27`
 - Modify: `crates/vox-actor-runtime/src/llm/chat.rs:359-361`
 - Modify: `docs/src/contributors/docs-reality-audit-program.md` (§Operating cadence)
 
-**Interfaces:**
-- Consumes: nothing.
-- Produces: nothing.
+**Interfaces:** none.
 
 - [ ] **Step 1: Fix the Astro sidebar comment**
 
-`docs-astro/astro.config.mjs:27` reads:
-
-```js
-      // Sidebar is dynamically generated from SUMMARY.md to maintain SSOT
-```
-
-The sidebar comes from `getSidebar()` in `docs-astro/src/utils/sidebar.mjs`, which walks `docs/src`, parses frontmatter with `gray-matter`, and groups by `category` ordered by `sort_order` then `title`, with section order from `contracts/documentation/docs-sidebar-section-order.v1.json`. `SUMMARY.md` is gitignored and not read. Replace with:
+Line 27 claims the sidebar is generated from `SUMMARY.md`. It comes from
+`getSidebar()` in `docs-astro/src/utils/sidebar.mjs`, which walks `docs/src`,
+parses frontmatter with `gray-matter`, and groups by `category` ordered by
+`sort_order` then `title`. `SUMMARY.md` is gitignored and is only ever
+*excluded* (`content.config.ts:10`, `routeData.ts:15`). Replace with:
 
 ```js
       // Sidebar is generated from each page's frontmatter (category / sort_order /
@@ -557,43 +860,46 @@ The sidebar comes from `getSidebar()` in `docs-astro/src/utils/sidebar.mjs`, whi
 
 - [ ] **Step 2: Fix the `infer_with_retry` doc comment**
 
-`crates/vox-actor-runtime/src/llm/chat.rs:359-361` currently reads:
+The existing comment claims 401-skip and 429-continue. The body does no error
+classification: every failure class takes the same branch and advances.
 
-```rust
-/// Exhaustive retry loop over multiple candidate LLM configurations.
-/// Used for robust agent fallback routing. Iterates models sequentially until
-/// one succeeds, skipping specific candidates on 401s or continuing on 429/timeout.
-```
-
-The body performs no error classification: every failure class — 401, 429, 5xx, timeout, DNS — takes the same branch, records `last_error`, and advances to the next candidate. There is no retry, no backoff, and no sleep. `EgressError::RateLimited { retry_after }` is captured at `crates/vox-llm-egress/src/wire.rs:179` and discarded. Replace with:
+**Revision 1's proposed replacement was also wrong.** It said "a 429's
+`retry_after` is not honoured — nothing sleeps". At the system level it *is*
+honoured: `crates/vox-llm-egress/src/wire.rs:178-182` passes it to
+`throttle::on_rate_limited`, which sets `cooldown_until = now + retry_after`,
+and `throttle.rs:57-66` sleeps in `acquire`. Use this instead:
 
 ```rust
 /// Sequential fallback over multiple candidate LLM configurations.
 ///
 /// Tries each candidate exactly once, in order, and returns the first success.
-/// There is deliberately no per-candidate retry and no error classification:
-/// every failure class (401, 429, 5xx, timeout, transport) is treated
-/// identically and simply advances to the next candidate. In particular a
-/// 429's `retry_after` is not honoured — nothing sleeps.
+/// There is deliberately no per-candidate retry and no error classification
+/// here: 401, 429, 5xx, timeout, and transport failures all take the same
+/// branch and advance to the next candidate. Cancellation is the one exception
+/// — it returns immediately rather than advancing.
+///
+/// Rate-limit backoff is not this function's job. `EgressError::RateLimited`
+/// carries `retry_after` to `vox_llm_egress::throttle`, which halves the
+/// provider's concurrency window and sets a cooldown that the next
+/// `acquire_permit` awaits.
 ///
 /// Callers needing genuine provider fallback must pass a multi-candidate
-/// vector; passing `vec![cfg]` yields exactly one attempt with no fallback.
+/// vector; `vec![cfg]` yields exactly one attempt with no fallback.
 ```
 
-Do not change the behavior in this task — that is a runtime change, out of scope for a docs plan, and is recorded in the spec §8 as deferred.
+Do not change the behavior — that is an LLM-runtime change, out of scope.
 
 - [ ] **Step 3: Correct the audit program's cadence claim**
 
-`docs/src/contributors/docs-reality-audit-program.md` §Operating cadence declares weekly, monthly, and release-gate cycles. Zero cycles have run: `findings.v1.json` has one commit in its history (`3295a3bee`, 2026-05-12) and contains zero findings. Replace the §Operating cadence body with:
+Replace the §Operating cadence body:
 
 ```markdown
 ## Operating cadence
 
-**Status: dormant.** The cadence below is the intended operating model, not a
-description of current practice. As of 2026-08-22 the backlog holds zero
-findings and `findings.v1.json` has one commit in its history (`3295a3bee`,
-2026-05-12). Treat any metric derived from it as "not started" rather than
-"healthy".
+**Status: dormant.** The cadence below is the intended operating model, not
+current practice. As of 2026-08-22 the backlog holds zero findings and
+`findings.v1.json` has one commit in its history (`3295a3bee`, 2026-05-12).
+Treat any metric derived from it as "not started" rather than "healthy".
 
 Intended cycles, when the program is resumed:
 
@@ -602,12 +908,12 @@ Intended cycles, when the program is resumed:
 - **Release:** focus on `docs/src/reference/cli.md`, env vars, and operations catalog parity
 ```
 
-- [ ] **Step 4: Verify the docs still lint and the JS still parses**
+- [ ] **Step 4: Verify**
 
 ```bash
-cargo run -p vox-doc-pipeline -- --lint-only --paths contributors/docs-reality-audit-program.md
 node --check docs-astro/astro.config.mjs
 cargo check -p vox-actor-runtime
+cargo run -p vox-doc-pipeline -- --lint-only --paths contributors/docs-reality-audit-program.md
 ```
 
 Expected: all three succeed.
@@ -621,122 +927,397 @@ git commit -m "docs: correct three comments describing behavior the code lacks"
 
 ---
 
-### Task 6: Add three missing crates to the retired-surfaces table
+### Task 8: Make `check-links` scan the two policy roots it misses
 
-`AGENTS.md` §Retired Surfaces is the table agents consult before naming a crate. Three renamed or deleted crates are absent from it, and the corpus consequently carries ~340 references to paths that do not exist: `crates/vox-dashboard` (299 references, named as the canonical implementation target in five ADRs and two reference docs), `vox-dei-shim` (26, renamed to `vox-research-shim`), and `crates/vox-oratio` (renamed to `crates/vox-speech`).
-
-This task adds the table rows only. Fixing the ~340 references is W2, a separate plan — but the rows must exist first, or the fixes have no authority to cite.
+`check_links.rs:337` reads `for rel in ["README.md", "AGENTS.md", "CONTRIBUTING.md"]`.
+`CLAUDE.md` and `GEMINI.md` both link into `docs/` and are not scanned, so a
+stale link there passes the merge gate and surfaces only in the nightly lychee
+run. One-line fix.
 
 **Files:**
-- Modify: `AGENTS.md` (§Retired Surfaces table)
-- Modify: `crates/vox-doc-pipeline/tests/policy_docs_guard.rs` (add one test)
+- Modify: `crates/vox-cli-ci/src/check_links.rs:337`
 
-**Interfaces:**
-- Consumes: `read_repo_file` and `repo_root` from Task 1.
-- Produces: nothing consumed by later tasks.
+**Interfaces:** none.
 
-- [ ] **Step 1: Write the failing test**
-
-Append to `crates/vox-doc-pipeline/tests/policy_docs_guard.rs`:
+- [ ] **Step 1: Add the two roots**
 
 ```rust
-/// Every `crates/<name>` path AGENTS.md names in the *replacement* column of
-/// the Retired Surfaces table must actually exist. A retirement table that
-/// points at a nonexistent crate is worse than no table.
-#[test]
-fn agents_md_retired_table_replacements_exist() {
-    let agents = read_repo_file("AGENTS.md");
-    let start = agents
-        .find("## Retired Surfaces")
-        .expect("AGENTS.md must contain a '## Retired Surfaces' section");
-    let rest = &agents[start..];
-    let end = rest[3..].find("\n## ").map(|i| i + 3).unwrap_or(rest.len());
-    let table = &rest[..end];
-
-    let crates_dir = repo_root().join("crates");
-    let mut missing = Vec::new();
-
-    for line in table.lines() {
-        if !line.trim_start().starts_with('|') {
-            continue;
-        }
-        let cols: Vec<&str> = line.split('|').collect();
-        if cols.len() < 4 {
-            continue;
-        }
-        // Replacement column only; the retired column names dead crates on purpose.
-        for token in cols[2].split('`') {
-            let name = token.trim();
-            if !name.starts_with("vox-") || name.contains(' ') || name.contains("::") {
-                continue;
-            }
-            if !crates_dir.join(name).is_dir() {
-                missing.push(format!("{name} (row: {})", line.trim()));
-            }
-        }
-    }
-
-    assert!(
-        missing.is_empty(),
-        "AGENTS.md Retired Surfaces names replacement crates that do not exist \
-         under crates/:\n{}",
-        missing.join("\n")
-    );
-}
+    for rel in [
+        "README.md",
+        "AGENTS.md",
+        "CONTRIBUTING.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+    ] {
 ```
 
-- [ ] **Step 2: Run the test to verify it passes today**
+- [ ] **Step 2: Run the gate — this is the test**
 
-Run: `cargo test -p vox-doc-pipeline --test policy_docs_guard agents_md_retired_table_replacements_exist -- --nocapture`
+Run: `cargo run -q -p vox-cli -- ci check-links`
 
-Expected: **PASS**. This guard protects the rows you are about to add — it is written first so that a typo in Step 3 fails immediately rather than silently shipping a table pointing at a nonexistent crate. If it fails now, an existing row is already broken; fix that before continuing.
+Expected: exit 0. If it fails, the failures are **real pre-existing broken links
+in `CLAUDE.md` or `GEMINI.md`** that nothing has ever checked. Fix them in this
+commit and note them in the message.
 
-- [ ] **Step 3: Add the three rows to the `AGENTS.md` retired-surfaces table**
-
-```markdown
-| `crates/vox-dashboard` (never existed / Axum dashboard retired) | `crates/vox-gui` (Tauri 2) |
-| `crates/vox-oratio` (crate renamed; the `vox oratio` CLI command is unaffected) | `crates/vox-speech` |
-| `vox-dei-shim` | `vox-research-shim` |
-```
-
-Note the `vox-oratio` row's parenthetical: the **CLI command** `vox oratio` still exists in `crates/vox-cli/src/lib.rs`. Only the crate path is retired. Omitting that qualifier would send agents to delete a working command.
-
-- [ ] **Step 4: Run both AGENTS.md guards**
-
-Run: `cargo test -p vox-doc-pipeline --test policy_docs_guard agents_md`
-
-Expected: both `agents_md_does_not_prescribe_retired_decorator_forms` and `agents_md_retired_table_replacements_exist` PASS.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add AGENTS.md crates/vox-doc-pipeline/tests/policy_docs_guard.rs
-git commit -m "docs(agents): add vox-dashboard, vox-oratio, vox-dei-shim to retired surfaces"
+git add crates/vox-cli-ci/src/check_links.rs CLAUDE.md GEMINI.md
+git commit -m "fix(ci): check-links now scans CLAUDE.md and GEMINI.md"
 ```
 
 ---
 
-### Task 7: Make `rollout_milestone_pct` distinguish "not started" from "in progress"
+### Task 9: Stop `vox llm prompt` printing parse errors as golden examples
 
-`rollout_milestone_pct` returns 25 when the findings list is empty, and `25 + (closed/total) * 75` otherwise. Filing 80 open findings therefore produces **exactly 25** — identical to filing none. The program's single headline metric cannot tell an untouched backlog from a full one, which is precisely why `metrics.v1.json` reading `rollout_milestone_pct: 25` went unquestioned for three months.
+`crates/vox-cli/src/commands/llm.rs` is the subcommand whose entire purpose is
+telling an LLM how to write Vox. It prints the **correct** bare form, then four
+lines later prints the retired at-prefixed form labelled "Golden Example", then
+an "MCP Schema Excerpt" declaring `"decorator": "@query"`. One invocation,
+contradictory syntax. It also prints `pub fn`, which is not Vox.
+
+This is higher-value than any prose fix in this plan: it is machine-consumed
+output presented as canonical.
 
 **Files:**
-- Modify: `crates/vox-cli-ci/src/docs_reality_audit.rs:264-279` (the `rollout_milestone_pct` function)
-- Test: `crates/vox-cli-ci/src/docs_reality_audit.rs` (the existing `#[cfg(test)] mod tests`)
+- Modify: `crates/vox-cli/src/commands/llm.rs:24-52`
+- Test: same file
 
-**Interfaces:**
-- Consumes: `FindingScores`, `FindingRow` (already defined in this file).
-- Produces: `rollout_milestone_pct(inv_claims: usize, findings: &[FindingRow]) -> u8` — signature unchanged; only the mapping changes.
+**Interfaces:** none.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Read the two branches**
 
-The existing test module already has a helper-free style, so build `FindingRow` values inline. Add to `#[cfg(test)] mod tests` in `crates/vox-cli-ci/src/docs_reality_audit.rs`:
+```bash
+sed -n '20,60p' crates/vox-cli/src/commands/llm.rs
+```
+
+Note both the `web-route` branch and the `server-fn`/`mutation` branch, and that
+each prints three sections: syntax, golden example, schema excerpt.
+
+- [ ] **Step 2: Write the failing test**
+
+Add a `#[cfg(test)] mod tests` block to `crates/vox-cli/src/commands/llm.rs` (or
+extend the existing one). Because the current code `println!`s directly, assert
+on the string constants rather than captured stdout — extract each golden
+example into a `const` first so it is testable:
 
 ```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The at-prefixed data-layer decorator spellings became hard parse errors
+    /// on 2026-06-30 (cd7cc96874). This command exists to teach an LLM correct
+    /// Vox, so emitting them is worse than emitting nothing.
+    #[test]
+    fn golden_examples_contain_no_retired_decorators() {
+        for (label, text) in [
+            ("route", GOLDEN_ROUTE),
+            ("route schema", SCHEMA_ROUTE),
+            ("mutation", GOLDEN_MUTATION),
+            ("mutation schema", SCHEMA_MUTATION),
+        ] {
+            for retired in ["@query", "@mutation", "@server", "@table", "@tool"] {
+                assert!(
+                    !text.contains(retired),
+                    "{label} golden example contains retired decorator {retired}: {text}"
+                );
+            }
+            assert!(
+                !text.contains("pub fn"),
+                "{label} golden example contains `pub fn`, which is not Vox: {text}"
+            );
+        }
+    }
+}
+```
+
+- [ ] **Step 3: Run the test to verify it fails**
+
+Run: `cargo test -p vox-cli commands::llm::tests::golden_examples -- --nocapture`
+
+Expected: FAIL to compile until Step 4 introduces the constants, then FAIL on
+the assertions.
+
+- [ ] **Step 4: Extract and correct the constants**
+
+Above the handler in `crates/vox-cli/src/commands/llm.rs`:
+
+```rust
+const GOLDEN_ROUTE: &str = "query get_profile() to Result[Profile, Error] {\n    Ok(Profile { name: \"Test\" })\n}";
+const SCHEMA_ROUTE: &str = "{ \"type\": \"route\", \"keyword\": \"query\" }";
+const GOLDEN_MUTATION: &str = "mutation update_profile(name: str) to Result[Unit, Error] {\n    Ok(unit)\n}";
+const SCHEMA_MUTATION: &str = "{ \"type\": \"mutation\", \"keyword\": \"mutation\" }";
+```
+
+Then replace the two `println!` calls in each branch to print these constants
+instead of the inline retired-form strings. Leave the "--- Route Decorator
+Syntax ---" line alone; it was already correct.
+
+Before committing, confirm the corrected snippets actually parse:
+
+```bash
+printf 'query get_profile() to Result[Profile, Error] {\n    Ok(Profile { name: "Test" })\n}\n' > /tmp/golden_check.vox
+cargo run -q -p vox-cli -- check /tmp/golden_check.vox
+```
+
+If the signature syntax differs from current Vox, copy a real example from
+`examples/golden/**/*.vox` rather than inventing one — those 79 files are all
+compiler-verified.
+
+- [ ] **Step 5: Fix the cache-miss pointer**
+
+`llm.rs:57` directs users to `docs/agents/vox-language-surface.v1.json` by name.
+Task 10 fixes that file; no change needed here, but do not remove the pointer.
+
+- [ ] **Step 6: Run the test and the command**
+
+```bash
+cargo test -p vox-cli commands::llm::tests::golden_examples
+cargo run -q -p vox-cli -- llm prompt web-route
+cargo run -q -p vox-cli -- llm prompt mutation
+```
+
+Expected: test PASS, and neither invocation prints an `@`-prefixed data-layer
+decorator or `pub fn`.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add crates/vox-cli/src/commands/llm.rs
+git commit -m "fix(cli): vox llm prompt printed parse-error syntax as a golden example"
+```
+
+---
+
+### Task 10: Purge retired decorators from the machine-readable language surface
+
+`docs/agents/vox-language-surface.v1.json` lists six decorators. **Five are hard
+parse errors** (`@server`, `@table`, `@query`, `@mutation`, `@tool`) and the
+sixth, **`@island`, has never existed** in the compiler. The `@table` example
+reads `@table struct User` — `struct` is not a Vox declaration keyword. Stamped
+`updated_at: 2026-04-19`, two months before the retirement.
+
+The code SSOT already exists: `crates/vox-language-surface/src/lib.rs:336-348`
+holds `LEXER_DEPRECATED_DECORATORS`. Rather than build a generator now, correct
+the JSON by hand and add a test that pins it to that constant — the generator
+becomes a later, optional step and the guard is what prevents recurrence.
+
+**Files:**
+- Modify: `docs/agents/vox-language-surface.v1.json`
+- Test: `crates/vox-language-surface/src/lib.rs` (its own test module)
+
+**Interfaces:**
+- Consumes: `LEXER_DEPRECATED_DECORATORS` (already in scope in that crate).
+- Produces: nothing.
+
+- [ ] **Step 1: Read both sides**
+
+```bash
+sed -n '330,350p' crates/vox-language-surface/src/lib.rs
+sed -n '20,50p' docs/agents/vox-language-surface.v1.json
+```
+
+- [ ] **Step 2: Write the failing test**
+
+Add to `#[cfg(test)] mod tests` in `crates/vox-language-surface/src/lib.rs`:
+
+```rust
+    /// The agent-facing JSON is what `vox llm prompt` points models at on a
+    /// cache miss. It must never advertise a decorator this crate already
+    /// classifies as retired.
+    #[test]
+    fn agent_language_surface_json_has_no_retired_decorators() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("repo root")
+            .join("docs/agents/vox-language-surface.v1.json");
+        let raw = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let json: serde_json::Value =
+            serde_json::from_str(&raw).expect("parse vox-language-surface.v1.json");
+
+        let names: Vec<String> = json["decorators"]
+            .as_array()
+            .expect("decorators array")
+            .iter()
+            .map(|d| d["name"].as_str().expect("decorator name").to_string())
+            .collect();
+
+        let mut offenders = Vec::new();
+        for name in &names {
+            let bare = name.trim_start_matches('@');
+            if LEXER_DEPRECATED_DECORATORS
+                .iter()
+                .any(|d| d.trim_start_matches('@') == bare)
+            {
+                offenders.push(name.clone());
+            }
+        }
+
+        assert!(
+            offenders.is_empty(),
+            "vox-language-surface.v1.json advertises retired decorators: {offenders:?}"
+        );
+    }
+```
+
+If `serde_json` is not already a dependency of `vox-language-surface`, put this
+test in `crates/vox-cli-ci` instead — that crate has both `serde_json` and
+`serde_yaml` — and reference the decorator list by literal there, noting the
+SSOT in a comment.
+
+- [ ] **Step 3: Run the test to verify it fails**
+
+Run: `cargo test -p vox-language-surface agent_language_surface_json -- --nocapture`
+
+Expected: FAIL listing the retired names present in the JSON.
+
+- [ ] **Step 4: Correct the JSON**
+
+Replace the `decorators` array with only decorators that currently parse. Per
+AGENTS.md §Grammar Unification, the valid decorators are `@pure`, `@deprecated`,
+`@require`, `@auth`, `@uses`, `@test`, `@durable`, `@scheduled`, and
+`@mcp.resource`; `@mcp.tool` parses with a warning. The retired data-layer
+keywords belong under a `keywords` entry, not `decorators`:
+
+```json
+  "decorators": [
+    { "name": "@pure", "example": "@pure fn checksum(payload: bytes) { ... }" },
+    { "name": "@uses", "example": "@uses(net) fn fetch_remote() { ... }" },
+    { "name": "@auth", "example": "@auth(scheme: bearer) table Task { ... }" },
+    { "name": "@durable", "example": "@durable fn run_pipeline() { ... }" },
+    { "name": "@scheduled", "example": "@scheduled(\"0 9 * * *\") fn nightly() { ... }" },
+    { "name": "@test", "example": "@test fn adds_two_numbers() { ... }" }
+  ],
+```
+
+Delete `@island` entirely — it has no lexer token and no parser arm. Bump
+`updated_at` to the current date. Verify each example against
+`examples/golden/**/*.vox` rather than inventing syntax.
+
+- [ ] **Step 5: Run the test to verify it passes**
+
+Run: `cargo test -p vox-language-surface agent_language_surface_json`
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add docs/agents/vox-language-surface.v1.json crates/vox-language-surface/src/lib.rs
+git commit -m "fix(agents): language-surface JSON taught five retired decorators and one that never existed"
+```
+
+---
+
+### Task 11: Delete `rollout_milestone_pct`
+
+It returns 25 for an empty backlog and 25 for eighty open findings — the one
+headline number the program exposes cannot distinguish "not started" from
+"nothing finished". Revision 1 proposed a floor constant to fix it.
+
+**Verified: nothing consumes it.** Every reference in the workspace is its own
+definition, its own output JSON, its own schema, and its own tests. The four
+remaining fields (`inventory_claim_count`, `findings_total`, `findings_open`,
+`findings_closed`) let any consumer compute any ratio. Deleting is a smaller diff
+than a floor plus three tests, and a number nobody read going unquestioned for
+three months argues against its existence.
+
+**Files:**
+- Modify: `crates/vox-cli-ci/src/docs_reality_audit.rs` (delete the fn at `:264-279`, its call at `:335`, the two JSON fields, and the existing test at `:397`)
+- Modify: `contracts/reports/docs-reality-audit/metrics.v1.schema.json`
+- Modify: `contracts/reports/docs-reality-audit/metrics.v1.json`
+
+**Interfaces:**
+- Produces: a metrics object with four count fields and `generated_at`, no `rollout_milestone_pct`, no `rollout_notes`.
+
+- [ ] **Step 1: Confirm there are still no consumers**
+
+```bash
+grep -rn 'rollout_milestone_pct\|rollout_notes' --include='*.rs' --include='*.json' --include='*.yaml' --include='*.yml' --include='*.vox' . | grep -v '/target/' | grep -v docs/superpowers
+```
+
+Expected: hits only in `docs_reality_audit.rs`, `metrics.v1.json`,
+`metrics.v1.schema.json`. If anything else appears, **stop** — a consumer exists
+and this task becomes the revision-1 floor fix instead.
+
+- [ ] **Step 2: Delete the function and its test**
+
+Remove `fn rollout_milestone_pct` (`:264-279`) and the existing test
+`rollout_milestone_empty_findings_is_25_when_inventory_nonempty` (`:397`).
+
+- [ ] **Step 3: Delete the call and the two emitted fields**
+
+At `:335` remove `let milestone = rollout_milestone_pct(...);`, and remove the
+`"rollout_milestone_pct"` and `"rollout_notes"` entries from the `json!` literal.
+
+- [ ] **Step 4: Update the schema**
+
+In `contracts/reports/docs-reality-audit/metrics.v1.schema.json`, remove
+`rollout_milestone_pct` from both the `required` array (`:19`) and the
+`properties` object (`:66`), and remove `rollout_notes` if present in either.
+
+- [ ] **Step 5: Regenerate and verify**
+
+```bash
+cargo test -p vox-cli-ci docs_reality_audit
+cargo run -q -p vox-cli -- ci docs-reality-audit metrics --write
+cargo run -q -p vox-cli -- ci docs-reality-audit verify
+git diff contracts/reports/docs-reality-audit/metrics.v1.json
+```
+
+Expected: tests PASS; `verify` exits 0; the diff shows `rollout_milestone_pct`
+and `rollout_notes` removed and `generated_at` updated.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add crates/vox-cli-ci/src/docs_reality_audit.rs contracts/reports/docs-reality-audit/
+git commit -m "refactor(ci): delete unread rollout_milestone_pct metric"
+```
+
+---
+
+### Task 12: Make `verify` recompute metrics instead of only schema-checking them
+
+`run_verify` validates `metrics.v1.json` against its schema and stops. Nothing in
+CI or `lefthook.yml` runs `metrics --write`. A 150-claim inventory beside
+`inventory_claim_count: 10` would be a green build.
+
+**Honest scoping correction:** this would **not** have caught the 2026-05-12
+staleness, because `generated_at` is excluded from comparison by design, and the
+committed file is numerically correct today. It guards a real future hazard, not
+the incident revision 1 cited. It is still the highest-value W6 item, because
+`run_verify` is wired into `ssot-drift` (`run_body_helpers/docs.rs:634-637`) and
+therefore runs on every push.
+
+**Files:**
+- Modify: `crates/vox-cli-ci/src/docs_reality_audit.rs`
+- Test: same file's `#[cfg(test)] mod tests`
+
+**Interfaces:**
+- Consumes: `InventoryFile`, `FindingsFile` (this file). Depends on Task 11 having removed the two rollout fields.
+- Produces: `fn compute_metrics(inv: &InventoryFile, findings: &FindingsFile) -> Value` — private; returns the metrics object **without** `generated_at`.
+
+- [ ] **Step 1: Add the test helper and the failing test**
+
+Add to `#[cfg(test)] mod tests`:
+
+```rust
+    fn repo_root_for_tests() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("repo root")
+            .to_path_buf()
+    }
+
     fn test_finding(id: &str, status: &str) -> FindingRow {
         FindingRow {
             id: id.to_string(),
-            claim_ids: vec!["claim.test".to_string()],
+            claim_ids: vec![],
             classification: "DocDeficit".to_string(),
             scores: FindingScores {
                 impact: 1,
@@ -752,120 +1333,6 @@ The existing test module already has a helper-free style, so build `FindingRow` 
         }
     }
 
-    #[test]
-    fn rollout_distinguishes_empty_backlog_from_all_open() {
-        let empty = rollout_milestone_pct(10, &[]);
-        let all_open = rollout_milestone_pct(
-            10,
-            &[test_finding("f.1", "new"), test_finding("f.2", "triaged")],
-        );
-        assert_eq!(empty, 25, "empty backlog stays at the documented 25");
-        assert!(
-            all_open > empty,
-            "a backlog with open findings must not report the same milestone as an \
-             empty one (got {all_open} vs {empty})"
-        );
-    }
-
-    #[test]
-    fn rollout_reaches_100_when_all_findings_closed() {
-        let findings = [test_finding("f.1", "closed"), test_finding("f.2", "verified")];
-        assert_eq!(rollout_milestone_pct(10, &findings), 100);
-    }
-
-    #[test]
-    fn rollout_is_monotonic_in_closed_ratio() {
-        let none_closed = rollout_milestone_pct(
-            10,
-            &[test_finding("f.1", "new"), test_finding("f.2", "new")],
-        );
-        let one_closed = rollout_milestone_pct(
-            10,
-            &[test_finding("f.1", "closed"), test_finding("f.2", "new")],
-        );
-        assert!(one_closed > none_closed, "{one_closed} must exceed {none_closed}");
-    }
-```
-
-- [ ] **Step 2: Run the tests to verify they fail**
-
-Run: `cargo test -p vox-cli-ci docs_reality_audit::tests::rollout -- --nocapture`
-
-Expected: `rollout_distinguishes_empty_backlog_from_all_open` FAILS with `25 > 25` being false. `rollout_reaches_100_when_all_findings_closed` passes already; keep it as a regression anchor.
-
-- [ ] **Step 3: Fix the function**
-
-Replace the body of `rollout_milestone_pct` at `crates/vox-cli-ci/src/docs_reality_audit.rs:264`:
-
-```rust
-/// Rollout milestone as a percentage.
-///
-/// Band meanings, chosen so the number is never ambiguous:
-///   0        — no inventory; the program has not been set up
-///   25       — inventory exists, backlog empty; nothing has been triaged yet
-///   26..=100 — backlog non-empty, scaling with the closed ratio
-///
-/// The 26 floor matters: before it, a backlog of 80 open findings reported the
-/// same 25 as an empty one, so the metric could not distinguish "not started"
-/// from "nothing finished".
-fn rollout_milestone_pct(inv_claims: usize, findings: &[FindingRow]) -> u8 {
-    if inv_claims == 0 {
-        return 0;
-    }
-    if findings.is_empty() {
-        return 25;
-    }
-    let total = findings.len() as f64;
-    let closed = findings
-        .iter()
-        .filter(|f| f.status == "closed" || f.status == "verified")
-        .count() as f64;
-    let pct = 26.0 + (closed / total) * 74.0;
-    pct.round().clamp(0.0, 100.0) as u8
-}
-```
-
-- [ ] **Step 4: Run the tests to verify they pass**
-
-Run: `cargo test -p vox-cli-ci docs_reality_audit::tests::rollout`
-
-Expected: all three PASS, and the pre-existing `rollout_milestone_empty_findings_is_25_when_inventory_nonempty` still PASSES.
-
-- [ ] **Step 5: Regenerate metrics and confirm the committed file is consistent**
-
-```bash
-cargo run -q -p vox-cli -- ci docs-reality-audit metrics --write
-git diff --stat contracts/reports/docs-reality-audit/metrics.v1.json
-```
-
-Expected: only `generated_at` changes, because the backlog is still empty and the empty case still returns 25.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add crates/vox-cli-ci/src/docs_reality_audit.rs contracts/reports/docs-reality-audit/metrics.v1.json
-git commit -m "fix(ci): rollout_milestone_pct reported 25 for both empty and all-open backlogs"
-```
-
----
-
-### Task 8: Make `verify` recompute metrics instead of only schema-checking them
-
-`run_verify` validates `metrics.v1.json` against its schema and stops. It never recomputes. Nothing in CI or `lefthook.yml` runs `metrics --write`, and `ssot-autoregen` does not touch this file. A 150-claim inventory sitting beside `inventory_claim_count: 10` is therefore a **green build** — which is exactly how the committed metrics reached 2026-05-12 and stayed there.
-
-**Files:**
-- Modify: `crates/vox-cli-ci/src/docs_reality_audit.rs` — extract the metrics computation from `run_metrics`, call it from `run_verify`
-- Test: same file's `#[cfg(test)] mod tests`
-
-**Interfaces:**
-- Consumes: `InventoryFile`, `FindingsFile`, `rollout_milestone_pct` (this file).
-- Produces: `fn compute_metrics(inv: &InventoryFile, findings: &FindingsFile) -> Value` — private to this module; returns the metrics object **without** `generated_at`, which callers add. Consumed by `run_metrics` and `run_verify`.
-
-- [ ] **Step 1: Write the failing test**
-
-Add to `#[cfg(test)] mod tests`:
-
-```rust
     #[test]
     fn compute_metrics_excludes_generated_at_and_counts_findings() {
         let inv = InventoryFile {
@@ -888,15 +1355,20 @@ Add to `#[cfg(test)] mod tests`:
     }
 ```
 
+`FindingRow` has exactly eight fields and `test_finding` sets all eight; the
+scores give `priority_score = 4` / band `"P2"`, which is self-consistent, so the
+formula and band checks in `verify_findings_consistency` do not fire first.
+`claim_ids` is empty so the unknown-claim bail cannot preempt later tests.
+
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `cargo test -p vox-cli-ci docs_reality_audit::tests::compute_metrics_excludes -- --nocapture`
 
-Expected: FAIL to compile — `cannot find function 'compute_metrics' in this scope`.
+Expected: FAIL to compile — `cannot find function 'compute_metrics'`.
 
-- [ ] **Step 3: Extract `compute_metrics` and call it from both entry points**
+- [ ] **Step 3: Extract `compute_metrics`**
 
-Add the function just above `run_metrics` in `crates/vox-cli-ci/src/docs_reality_audit.rs`:
+Add above `run_metrics` in `crates/vox-cli-ci/src/docs_reality_audit.rs`:
 
 ```rust
 /// Metrics object derived purely from inventory + findings.
@@ -931,7 +1403,6 @@ fn compute_metrics(inv: &InventoryFile, findings: &FindingsFile) -> Value {
         .filter(|f| terminal.contains(f.status.as_str()))
         .count();
     let open = findings.findings.len().saturating_sub(closed);
-    let milestone = rollout_milestone_pct(inv.claims.len(), &findings.findings);
 
     serde_json::json!({
         "schema_version": 1,
@@ -943,14 +1414,13 @@ fn compute_metrics(inv: &InventoryFile, findings: &FindingsFile) -> Value {
         "counts_by_status": counts_status,
         "counts_by_priority_band": counts_band,
         "open_p0": open_p0,
-        "open_p1": open_p1,
-        "rollout_milestone_pct": milestone,
-        "rollout_notes": "Computed by `vox ci docs-reality-audit metrics`; see contracts/documentation/docs-reality-audit.program.v1.yaml."
+        "open_p1": open_p1
     })
 }
 ```
 
-In `run_metrics`, delete the inline computation (the block from `let mut counts_class` through the `let metrics = serde_json::json!({...});` literal) and replace it with:
+In `run_metrics`, delete the inline computation (from `let mut counts_class`
+through the `let metrics = serde_json::json!({...});` literal) and replace with:
 
 ```rust
     let mut metrics = compute_metrics(&inv, &findings);
@@ -958,7 +1428,9 @@ In `run_metrics`, delete the inline computation (the block from `let mut counts_
     metrics["generated_at"] = Value::String(generated_at);
 ```
 
-Leave the rest of `run_metrics` (schema validation, the `write` branch) unchanged.
+`Value` is already imported (`:8`); `chrono` is already a dependency
+(`Cargo.toml:17`); `HashMap`/`HashSet` are already imported (`:9`) and remain
+used.
 
 - [ ] **Step 4: Run the test to verify it passes**
 
@@ -968,12 +1440,14 @@ Expected: PASS.
 
 - [ ] **Step 5: Add the drift check to `run_verify`**
 
-In `run_verify`, immediately after the existing `verify_findings_consistency(root, &inv, &findings)?;` line, insert:
+`metrics_val` is bound at `:245` and only borrowed by
+`validate_json_against_schema`, so it is live. Immediately after the existing
+`verify_findings_consistency(root, &inv, &findings)?;` line:
 
 ```rust
     // Metrics must match what the inputs imply. Without this, a stale
-    // metrics.v1.json is a green build — which is how the committed file sat at
-    // 2026-05-12 for three months without anyone noticing.
+    // metrics.v1.json is a green build. `generated_at` is deliberately not
+    // compared — compute_metrics never emits it.
     let expected_metrics = compute_metrics(&inv, &findings);
     if let Value::Object(expected) = &expected_metrics {
         for (key, want) in expected {
@@ -992,29 +1466,29 @@ In `run_verify`, immediately after the existing `verify_findings_consistency(roo
     }
 ```
 
-`generated_at` is intentionally not compared — `compute_metrics` never emits it.
-
-- [ ] **Step 6: Run verify against the real contracts**
+- [ ] **Step 6: Verify against the real contracts**
 
 ```bash
 cargo run -q -p vox-cli -- ci docs-reality-audit metrics --write
 cargo run -q -p vox-cli -- ci docs-reality-audit verify
 ```
 
-Expected: `verify` prints `docs-reality-audit verify OK (10 claims, 0 findings)` and exits 0.
+Expected: `docs-reality-audit verify OK (10 claims, 0 findings)`, exit 0.
 
-- [ ] **Step 7: Prove the guard actually catches drift**
+- [ ] **Step 7: Prove the guard catches drift**
+
+No Python — AGENTS.md §VoxScript-First, and it may not be on the runner:
 
 ```bash
-python -c "import json,pathlib; p=pathlib.Path('contracts/reports/docs-reality-audit/metrics.v1.json'); d=json.loads(p.read_text()); d['inventory_claim_count']=999; p.write_text(json.dumps(d,indent=2)+'\n')"
+sed -i 's/"inventory_claim_count": 10/"inventory_claim_count": 999/' contracts/reports/docs-reality-audit/metrics.v1.json
 cargo run -q -p vox-cli -- ci docs-reality-audit verify
 ```
 
-Expected: **non-zero exit**, message naming `inventory_claim_count`. Then restore:
+Expected: **non-zero exit**, message naming `inventory_claim_count`. Restore
+without churning `generated_at`:
 
 ```bash
-cargo run -q -p vox-cli -- ci docs-reality-audit metrics --write
-git diff --stat contracts/reports/docs-reality-audit/metrics.v1.json
+git checkout -- contracts/reports/docs-reality-audit/metrics.v1.json
 ```
 
 - [ ] **Step 8: Commit**
@@ -1026,299 +1500,39 @@ git commit -m "fix(ci): docs-reality-audit verify now catches stale metrics"
 
 ---
 
-### Task 9: Check that findings cite paths that exist
+### Task 13: Short-circuit glob matching in claim verification
 
-Inventory claims get hard path checks — `doc_path` must be a file, every contract must exist, every glob must match at least one path. Findings get none: `doc_paths`, `code_paths`, and `contract_paths` are not even fields on `FindingRow`, so serde discards them. A finding may cite files that do not exist and CI stays green. That is the exact drift class the program exists to catch, going undetected inside the program itself.
+`glob_match_count` collects **every** match into a `Vec` and returns the length,
+but the only caller compares it against zero. Measured: the inventory's
+`crates/**` pattern expands to **6,012 entries**. This runs inside `ssot-drift`,
+inside the 60-second fast pre-push tier, on every push.
+
+**Two corrections from revision 1:** there is exactly **one** call site (inside a
+single merged loop over both glob fields), not two — and the plan's replacement
+snippet referenced a variable named `pattern` that does not exist; the binding is
+`g`.
 
 **Files:**
-- Modify: `crates/vox-cli-ci/src/docs_reality_audit.rs` — add the three optional fields to `FindingRow`, check them in `verify_findings_consistency`
+- Modify: `crates/vox-cli-ci/src/docs_reality_audit.rs` (`glob_match_count` at `:104`, call site at `:139`)
 - Test: same file's `#[cfg(test)] mod tests`
 
 **Interfaces:**
-- Consumes: `FindingRow` (extended here).
-- Produces: `FindingRow` gains `doc_paths: Option<Vec<String>>`, `code_paths: Option<Vec<String>>`, `contract_paths: Option<Vec<String>>`. Task 7's `test_finding` helper must be updated to set all three to `None`.
+- Consumes: `repo_root_for_tests` from Task 12.
+- Produces: `fn glob_has_match(root: &Path, pattern: &str) -> Result<bool>` replacing `glob_match_count`. Private, one call site.
 
-- [ ] **Step 1: Extend `FindingRow` and update the test helper**
+- [ ] **Step 1: Confirm the single call site**
 
-In `crates/vox-cli-ci/src/docs_reality_audit.rs`, add three fields to `FindingRow` (after `claim_ids`):
-
-```rust
-    doc_paths: Option<Vec<String>>,
-    code_paths: Option<Vec<String>>,
-    contract_paths: Option<Vec<String>>,
+```bash
+grep -n 'glob_match_count' crates/vox-cli-ci/src/docs_reality_audit.rs
+sed -n '135,152p' crates/vox-cli-ci/src/docs_reality_audit.rs
 ```
 
-Then update the `test_finding` helper added in Task 7 to include them:
-
-```rust
-            doc_paths: None,
-            code_paths: None,
-            contract_paths: None,
-```
+Expected: exactly two hits — the definition at `:104` and one call at `:139`,
+inside `for globs in [&h.code_globs, &h.tests_globs].into_iter().flatten()` with
+the pattern bound as `g`. There is no separate `tests_globs` loop and no
+per-field error wording to preserve.
 
 - [ ] **Step 2: Write the failing test**
-
-Add to `#[cfg(test)] mod tests`:
-
-```rust
-    #[test]
-    fn findings_citing_missing_paths_are_rejected() {
-        let root = repo_root_for_tests();
-        let inv = InventoryFile {
-            schema_version: 1,
-            claims: vec![],
-        };
-        let mut f = test_finding("f.ghost", "new");
-        f.claim_ids = vec![];
-        f.doc_paths = Some(vec!["docs/src/this-file-does-not-exist.md".to_string()]);
-        let findings = FindingsFile {
-            schema_version: 1,
-            findings: vec![f],
-        };
-
-        let err = verify_findings_consistency(&root, &inv, &findings)
-            .expect_err("a finding citing a nonexistent doc_path must fail verification");
-        let msg = err.to_string();
-        assert!(
-            msg.contains("this-file-does-not-exist.md"),
-            "error must name the missing path, got: {msg}"
-        );
-    }
-```
-
-Add this helper alongside it (the module has no repo-root helper yet):
-
-```rust
-    fn repo_root_for_tests() -> std::path::PathBuf {
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("..")
-            .canonicalize()
-            .expect("canonicalize repo root")
-    }
-```
-
-- [ ] **Step 3: Run the test to verify it fails**
-
-Run: `cargo test -p vox-cli-ci docs_reality_audit::tests::findings_citing_missing_paths -- --nocapture`
-
-Expected: FAIL — `verify_findings_consistency` returns `Ok`, so `expect_err` panics.
-
-- [ ] **Step 4: Add the path checks**
-
-In `verify_findings_consistency`, rename the unused `_root` parameter to `root` (update the call site in `run_verify` if it passes positionally — it already passes `root`). Then insert inside the `for f in &findings.findings` loop, after the `claim_ids` check:
-
-```rust
-        for (label, maybe_paths) in [
-            ("doc_paths", &f.doc_paths),
-            ("code_paths", &f.code_paths),
-            ("contract_paths", &f.contract_paths),
-        ] {
-            let Some(paths) = maybe_paths else { continue };
-            for p in paths {
-                if !root.join(p).exists() {
-                    anyhow::bail!(
-                        "finding {}: {} entry {:?} does not exist on disk",
-                        f.id,
-                        label,
-                        p
-                    );
-                }
-            }
-        }
-```
-
-`exists()` rather than `is_file()` because `code_paths` legitimately names directories.
-
-- [ ] **Step 5: Run the test to verify it passes**
-
-Run: `cargo test -p vox-cli-ci docs_reality_audit::tests::findings_citing_missing_paths`
-
-Expected: PASS.
-
-- [ ] **Step 6: Confirm the real contracts still verify**
-
-Run: `cargo run -q -p vox-cli -- ci docs-reality-audit verify`
-
-Expected: exit 0. (The findings list is empty, so nothing is checked yet — but this confirms the signature change did not break the caller.)
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add crates/vox-cli-ci/src/docs_reality_audit.rs
-git commit -m "fix(ci): findings citing nonexistent paths now fail verification"
-```
-
----
-
-### Task 10: Reject duplicate finding ids
-
-Claim ids are deduplicated in `verify_inventory_paths`. Finding ids are not, and the schema has no `uniqueItems`. Any generator or hand-edit that emits a finding twice double-counts it into every `counts_by_*` bucket in the metrics.
-
-**Files:**
-- Modify: `crates/vox-cli-ci/src/docs_reality_audit.rs` (`verify_findings_consistency`)
-- Test: same file's `#[cfg(test)] mod tests`
-
-**Interfaces:**
-- Consumes: `FindingsFile`, `InventoryFile`, `test_finding` and `repo_root_for_tests` from Tasks 7 and 9.
-- Produces: nothing new.
-
-- [ ] **Step 1: Write the failing test**
-
-Add to `#[cfg(test)] mod tests`:
-
-```rust
-    #[test]
-    fn duplicate_finding_ids_are_rejected() {
-        let root = repo_root_for_tests();
-        let inv = InventoryFile {
-            schema_version: 1,
-            claims: vec![],
-        };
-        let mut a = test_finding("f.dup", "new");
-        let mut b = test_finding("f.dup", "triaged");
-        a.claim_ids = vec![];
-        b.claim_ids = vec![];
-        let findings = FindingsFile {
-            schema_version: 1,
-            findings: vec![a, b],
-        };
-
-        let err = verify_findings_consistency(&root, &inv, &findings)
-            .expect_err("duplicate finding ids must fail verification");
-        assert!(
-            err.to_string().contains("f.dup"),
-            "error must name the duplicated id, got: {err}"
-        );
-    }
-```
-
-- [ ] **Step 2: Run the test to verify it fails**
-
-Run: `cargo test -p vox-cli-ci docs_reality_audit::tests::duplicate_finding_ids -- --nocapture`
-
-Expected: FAIL — verification returns `Ok`.
-
-- [ ] **Step 3: Add the duplicate check**
-
-At the top of `verify_findings_consistency`, before the `for f in &findings.findings` loop:
-
-```rust
-    let mut seen_ids: HashSet<&str> = HashSet::new();
-    for f in &findings.findings {
-        if !seen_ids.insert(f.id.as_str()) {
-            anyhow::bail!(
-                "duplicate finding id {:?} — ids must be unique or every counts_by_* \
-                 bucket double-counts it",
-                f.id
-            );
-        }
-    }
-```
-
-- [ ] **Step 4: Run the test to verify it passes**
-
-Run: `cargo test -p vox-cli-ci docs_reality_audit::tests::duplicate_finding_ids`
-
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/vox-cli-ci/src/docs_reality_audit.rs
-git commit -m "fix(ci): reject duplicate finding ids in docs-reality-audit"
-```
-
----
-
-### Task 11: Pin the band thresholds to the program YAML
-
-`priority_band_from_score` hardcodes 22 and 14. `contracts/documentation/docs-reality-audit.program.v1.yaml` declares the same thresholds as `min_score` values. `verify` reads that YAML only to confirm it exists and is valid UTF-8 — the comment even says "YAML parse smoke", but no parse happens. Editing the YAML's bands silently desynchronises the contract from the enforcer.
-
-The fix is a test, not a runtime parse: adding a YAML dependency to hardcode-check two integers would be a worse trade than a string assertion that fails loudly on drift.
-
-**Files:**
-- Modify: `crates/vox-cli-ci/src/docs_reality_audit.rs` (`#[cfg(test)] mod tests` only)
-
-**Interfaces:**
-- Consumes: `repo_root_for_tests` from Task 9, `priority_band_from_score` (this file).
-- Produces: nothing.
-
-- [ ] **Step 1: Confirm the YAML's current threshold spelling**
-
-Run: `grep -n 'min_score' contracts/documentation/docs-reality-audit.program.v1.yaml`
-
-Expected: two lines giving 22 and 14 (plus a 0 for P2). Note the exact indentation and spacing — the assertion below matches on substring, so it tolerates indentation but not a reformat to `min_score:22`.
-
-- [ ] **Step 2: Write the failing test**
-
-Add to `#[cfg(test)] mod tests`:
-
-```rust
-    /// The band thresholds live in two places: this module's
-    /// `priority_band_from_score` and the program YAML's `min_score` fields.
-    /// `run_verify` reads that YAML but never parses it, so nothing else keeps
-    /// them in sync.
-    #[test]
-    fn band_thresholds_match_program_yaml() {
-        let yaml = std::fs::read_to_string(
-            repo_root_for_tests().join("contracts/documentation/docs-reality-audit.program.v1.yaml"),
-        )
-        .expect("read program YAML");
-
-        assert!(
-            yaml.contains("min_score: 22"),
-            "program YAML must declare the P0 threshold as 22 to match \
-             priority_band_from_score"
-        );
-        assert!(
-            yaml.contains("min_score: 14"),
-            "program YAML must declare the P1 threshold as 14 to match \
-             priority_band_from_score"
-        );
-
-        // And the function must agree at the boundaries.
-        assert_eq!(priority_band_from_score(22), "P0");
-        assert_eq!(priority_band_from_score(21), "P1");
-        assert_eq!(priority_band_from_score(14), "P1");
-        assert_eq!(priority_band_from_score(13), "P2");
-    }
-```
-
-- [ ] **Step 3: Run the test**
-
-Run: `cargo test -p vox-cli-ci docs_reality_audit::tests::band_thresholds_match -- --nocapture`
-
-Expected: **PASS** immediately — the two sides agree today. This test is a tripwire, not a bug fix; it fails the moment someone edits either side alone. If it fails now, the two have already drifted and that is a real finding to fix before continuing.
-
-- [ ] **Step 4: Prove the tripwire works**
-
-Temporarily change `22` to `23` in `priority_band_from_score`, re-run the test, and confirm it FAILS on the `priority_band_from_score(22)` assertion. Revert the change.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/vox-cli-ci/src/docs_reality_audit.rs
-git commit -m "test(ci): pin docs-reality-audit band thresholds to the program YAML"
-```
-
----
-
-### Task 12: Short-circuit glob matching in claim verification
-
-`glob_match_count` collects **every** match into a `Vec` and returns the length, but the only caller asks whether the count is greater than zero. The seed inventory already contains a `crates/**` pattern, which walks 5,206 files. This runs inside `ssot-drift`, which runs in the **fast** pre-push tier with a 60-second budget, on every push. The waste scales linearly with claim count, so it gets worse exactly when the program starts being used.
-
-**Files:**
-- Modify: `crates/vox-cli-ci/src/docs_reality_audit.rs:104-112` (`glob_match_count`) and its call sites in `verify_paths_for_claim`
-- Test: same file's `#[cfg(test)] mod tests`
-
-**Interfaces:**
-- Consumes: nothing from earlier tasks.
-- Produces: `fn glob_has_match(root: &Path, pattern: &str) -> Result<bool>` replaces `glob_match_count`. No other module calls it (the function is private).
-
-- [ ] **Step 1: Write the failing test**
-
-Add to `#[cfg(test)] mod tests`:
 
 ```rust
     #[test]
@@ -1336,28 +1550,29 @@ Add to `#[cfg(test)] mod tests`:
     }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] **Step 3: Run the test to verify it fails**
 
 Run: `cargo test -p vox-cli-ci docs_reality_audit::tests::glob_has_match -- --nocapture`
 
-Expected: FAIL to compile — `cannot find function 'glob_has_match' in this scope`.
+Expected: FAIL to compile — `cannot find function 'glob_has_match'`.
 
-- [ ] **Step 3: Replace the function**
-
-Replace `glob_match_count` at `crates/vox-cli-ci/src/docs_reality_audit.rs:104`:
+- [ ] **Step 4: Replace the function**
 
 ```rust
 /// Whether a glob pattern matches at least one path.
 ///
 /// Short-circuits at the first match. The previous implementation materialised
-/// every match into a Vec purely to test the count against zero — with a
-/// `crates/**` pattern in the inventory that is ~5,200 stat calls per claim,
-/// inside `ssot-drift`'s 60-second fast pre-push budget.
+/// every match into a Vec purely to test the count against zero — with the
+/// inventory's `crates/**` pattern that is ~6,000 entries, inside `ssot-drift`'s
+/// 60-second fast pre-push budget, on every push.
+///
+/// Behaviour change: a `GlobError` encountered *after* the first match is no
+/// longer surfaced. That is the correct trade for a "does anything match"
+/// predicate, but it is a change, not purely a speedup.
 fn glob_has_match(root: &Path, pattern: &str) -> Result<bool> {
     let full = root.join(pattern);
     let pat = full.to_string_lossy().to_string();
-    let mut entries =
-        glob(&pat).with_context(|| format!("invalid glob pattern {pat:?}"))?;
+    let mut entries = glob(&pat).with_context(|| format!("invalid glob pattern {pat:?}"))?;
     match entries.next() {
         None => Ok(false),
         Some(Ok(_)) => Ok(true),
@@ -1366,35 +1581,34 @@ fn glob_has_match(root: &Path, pattern: &str) -> Result<bool> {
 }
 ```
 
-- [ ] **Step 4: Update the call sites in `verify_paths_for_claim`**
+- [ ] **Step 5: Update the single call site**
 
-Both glob checks (the `code_globs` loop and the `tests_globs` loop) currently compare a count against zero. Change each to use the boolean directly — for example:
+Replace lines `:139-150` — preserving the existing `inventory claim` prefix and
+`.with_context()` wrapper, which revision 1's snippet dropped:
 
 ```rust
-            if !glob_has_match(root, pattern)? {
+            let matched = glob_has_match(root, g).with_context(|| {
+                format!(
+                    "inventory claim {}: glob expansion failed for {g:?}",
+                    claim.id
+                )
+            })?;
+            if !matched {
                 anyhow::bail!(
-                    "claim {}: code_globs pattern {:?} matched no paths",
-                    claim.id,
-                    pattern
+                    "inventory claim {}: glob matched 0 paths (expected ≥1): {g}",
+                    claim.id
                 );
             }
 ```
 
-Apply the same shape to the `tests_globs` loop, keeping that loop's existing error wording so the message stays accurate about which field failed.
-
-- [ ] **Step 5: Run the test to verify it passes**
-
-Run: `cargo test -p vox-cli-ci docs_reality_audit::tests::glob_has_match`
-
-Expected: PASS.
-
-- [ ] **Step 6: Confirm verification still passes and got faster**
+- [ ] **Step 6: Run the tests and the real gate**
 
 ```bash
+cargo test -p vox-cli-ci docs_reality_audit
 cargo run -q -p vox-cli -- ci docs-reality-audit verify
 ```
 
-Expected: `docs-reality-audit verify OK (10 claims, 0 findings)`, exit 0.
+Expected: all tests PASS; `verify` prints `docs-reality-audit verify OK (10 claims, 0 findings)`.
 
 - [ ] **Step 7: Commit**
 
@@ -1405,101 +1619,132 @@ git commit -m "perf(ci): short-circuit glob matching in docs-reality-audit verif
 
 ---
 
-### Task 13: Full-gate verification and push
+### Task 14: Regenerate `doc-inventory`, run the full gate, push once
 
-**Files:** none modified — this task only runs gates.
+Revision 1 omitted `doc-inventory` entirely. It runs in `pre-push --complete`
+and in CI, and `verify_fresh` regenerates the whole inventory and diffs it. The
+committed file carries per-file line counts for `AGENTS.md`,
+`documentation-governance.md`, `chat.rs`, `docs_reality_audit.rs`, all three
+`037-*.md` paths, and 681 `/tests/` entries — so the new guard file adds a row
+too. **Nearly every task above drifts it.**
 
-**Interfaces:**
-- Consumes: every preceding task.
-- Produces: a branch ready for one CodeRabbit review.
+**Files:** `docs/agents/doc-inventory.json` (generated — never hand-edited).
+
+**Interfaces:** consumes every preceding task.
 
 - [ ] **Step 1: Format**
 
 Run: `vox run scripts/fmt.vox`
 
-Never `cargo fmt --all` — it dies with `os error 206` on Windows.
+- [ ] **Step 2: Regenerate the doc inventory**
 
-- [ ] **Step 2: Run the two touched crates' full test suites**
+```bash
+cargo run -q -p vox-cli -- ci doc-inventory generate --output docs/agents/doc-inventory.json
+git add docs/agents/doc-inventory.json
+```
+
+Note: this file also contains a known-bad entry that regeneration will **not**
+fix — `inventory_gen.rs:60` hardcodes `crates/vox-mcp/src/tools/mod.rs` into
+`first_read_for_agents`, and that crate is `vox-orchestrator-mcp`. That is spec
+item W7.3, not in this plan; do not paper over it by hand-editing the JSON.
+
+- [ ] **Step 3: Run the touched crates' test suites**
 
 ```bash
 cargo test -p vox-doc-pipeline
 cargo test -p vox-cli-ci
+cargo test -p vox-cli commands::llm
+cargo test -p vox-language-surface
 ```
 
-Expected: all PASS, including the five new guards in `policy_docs_guard.rs` and the eight new unit tests in `docs_reality_audit.rs`.
+Expected: all PASS.
 
-- [ ] **Step 3: Clippy on the touched crates**
+- [ ] **Step 4: Clippy on the touched crates**
 
 ```bash
 cargo clippy -p vox-doc-pipeline --all-targets -- -D warnings
 cargo clippy -p vox-cli-ci --all-targets -- -D warnings
+cargo clippy -p vox-cli --all-targets -- -D warnings
 cargo clippy -p vox-actor-runtime --all-targets -- -D warnings
 ```
 
-Expected: clean. The default fast pre-push tier does **not** run clippy, which is why this is explicit.
+Expected: clean. If `clippy` objects to the `Box::leak` in Task 2, switch
+`first_cell_only` to return `Option<String>` as that task's note describes.
 
-- [ ] **Step 4: Run the docs and contract gates**
+- [ ] **Step 5: Run the docs and contract gates**
 
 ```bash
 cargo run -p vox-doc-pipeline -- --lint-only
 cargo run -q -p vox-cli -- ci check-links
-cargo run -q -p vox-cli -- ci docs-reality-audit verify
 cargo run -q -p vox-cli -- ci retired-symbol-check
+cargo run -q -p vox-cli -- ci docs-reality-audit verify
 cargo run -q -p vox-arch-check
-```
-
-Expected: all exit 0. If `retired-symbol-check` now fails on `AGENTS.md`, that is a real interaction with Task 6 — the new rows name retired crates in the left column, which the detector's policy-root table-row skip should handle. If it does not, note the failure and hand it to the W3 plan rather than adding a carve-out here.
-
-- [ ] **Step 5: Run the complete pre-push tier**
-
-Run: `vox ci pre-push --complete`
-
-Expected: green. Do not use the default fast tier — it omits clippy and all tests, and scopes the doc lint to changed paths only.
-
-- [ ] **Step 6: Confirm no line-ending drift**
-
-```bash
-git diff --stat
 cargo run -q -p vox-cli -- ci line-endings
 ```
 
-Expected: exit 0. `md`, `rs`, and `json` are all LF.
+Expected: all exit 0.
 
-- [ ] **Step 7: Push once, as a single review-ready branch**
+- [ ] **Step 6: Run the full pre-push tier**
+
+Run: `vox ci pre-push --full`
+
+**`--full`, not `--complete`.** `--complete` runs fmt, line-endings, ssot-drift,
+doc lint + doctest, doc-inventory, workspace clippy, and scoped TOESTUB — but
+**no tests**. Only `--full` adds `cargo nextest run --workspace`, which is the
+only tier that executes the guards this plan adds.
+
+- [ ] **Step 7: Push once**
 
 ```bash
 git push -u origin HEAD
 ```
 
-CodeRabbit reviews once on open. Do not push incrementally to trigger re-review; comment `@coderabbitai review` instead.
+CodeRabbit reviews once on open. Re-request with a `@coderabbitai review`
+comment; do not push incrementally.
 
 ---
 
 ## Self-Review
 
-**1. Spec coverage.** Every W1 and W6 item maps to a task:
+**1. Spec coverage.**
 
 | Spec item | Task |
 | --- | --- |
-| W1.1 AGENTS.md decorator contradiction | 1 |
-| W1.2 three missing retired crates | 6 |
-| W1.3 governance category vocabulary | 2 |
-| W1.4 astro.config.mjs comment | 5 |
-| W1.5 infer_with_retry doc comment | 5 |
-| W1.6 audit-program cadence claim | 5 |
-| W1.7 ADR 037 collision | 3 |
-| W1.8 NUL byte | 4 |
-| W6.1 rollout_milestone_pct | 7 |
-| W6.2 metrics recompute | 8 |
-| W6.3 findings path existence | 9 |
-| W6.4 duplicate finding ids | 10 |
-| W6.5 band threshold parity | 11 |
-| W6.6 glob early exit | 12 |
+| W1.1 AGENTS.md decorator contradiction (+ lines 494/499/507, `@activity`) | 1 |
+| W1.2 three missing retired crates | 3 |
+| W1.3 governance vocabulary (+ ADR-002, `lint.rs:16`) | 4 |
+| W1.4 astro comment | 7 |
+| W1.5 `infer_with_retry` comment | 7 |
+| W1.6 audit cadence claim | 7 |
+| W1.7 ADR numbering (collision, index, prose, `NNN`) | 5 |
+| W1.8 NUL byte | 6 |
+| W3.2 root-cause detector fix (replaces retracted R5) | 2 |
+| W3.5 check-links policy roots | 8 |
+| W6.1 delete `rollout_milestone_pct` | 11 |
+| W6.2 metrics recompute | 12 |
+| W6.6 glob short-circuit | 13 |
+| W7.1 `vox llm prompt` | 9 |
+| W7.2 language-surface JSON | 10 |
 
-No gaps. W2, W3, W4, W5 are out of scope by design and are named in Global Constraints.
+Deliberately out of scope, with reasons in Global Constraints: W3.1 (needs the
+severity valve first), W6.3/W6.4 (zero executions while the backlog is empty),
+W7.3–W7.8, W2, W4, W5, W8.
 
-**2. Placeholder scan.** `NNN` and `MMM` in Task 3 are the one intentional substitution, and Step 1 of that task tells the implementer exactly how to derive them. No TBDs, no "add appropriate error handling", no "similar to Task N" — Tasks 9, 10, and 11 each restate the helpers they need rather than cross-referencing.
+**2. Placeholder scan.** No TBDs. Task 5 substitutes real numbers (044/045)
+rather than revision 1's `NNN`/`MMM` placeholders. Task 2 and Task 10 each carry
+one conditional fallback with an explicit trigger and instruction, not a
+deferral.
 
-**3. Type consistency.** `test_finding` is introduced in Task 7 and extended in Task 9 with the three new `Option<Vec<String>>` fields; Task 9 says so explicitly, and Tasks 10 and 11 consume the extended version. `repo_root_for_tests` is introduced in Task 9 and reused by Tasks 10, 11, and 12. `repo_root`/`read_repo_file` are introduced in Task 1 and reused by Tasks 2, 3, 4, and 6 — a different file (`policy_docs_guard.rs`) from `repo_root_for_tests` (`docs_reality_audit.rs`), which is why both exist. `glob_match_count` is fully replaced by `glob_has_match` in Task 12 with both call sites updated in the same task.
+**3. Type consistency.** `repo_root()` (Task 5) lives in
+`policy_docs_guard.rs`, reused by Task 6. `repo_root_for_tests()` (Task 12) lives
+in `docs_reality_audit.rs`'s test module, reused by Task 13 — a different file,
+which is why both exist, and both use `.ancestors().nth(2)` matching the
+workspace convention. `test_finding` (Task 12) sets all eight `FindingRow`
+fields; Task 11 removes `rollout_milestone_pct` before Task 12 extracts
+`compute_metrics`, so the extracted function omits the deleted fields. Task 13
+fully replaces `glob_match_count` with `glob_has_match` and updates its single
+call site in the same task.
 
-**Ordering note:** Tasks 7 → 9 → 10 must run in order (each extends the previous task's test helper). Tasks 1–6 are independent of each other and of 7–12, except that Task 6's guard reuses Task 1's helpers, so Task 1 precedes Task 6.
+**Ordering:** 1 → 2 → 3 (Task 2's acceptance check depends on Task 1; Task 3's
+depends on Task 2). 11 → 12 → 13 strictly (each depends on the previous task's
+edits to the same file). 4, 5 → 6, 7, 8, 9, 10 are mutually independent. 14 last.
