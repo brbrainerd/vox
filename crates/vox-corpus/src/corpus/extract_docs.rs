@@ -305,8 +305,38 @@ fn extract_qa_sections(
     let mut current_body = String::new();
     let mut heading_level = 0usize;
 
+    // Fence-aware accumulation. A fence carrying `// vox:skip` (or an
+    // unresolved `{{#include}}`) is dropped from the section body, matching
+    // what `extract_code_blocks` already does for the code lane. Without this
+    // the QA lane shipped skip-marked fences verbatim into `vox_docs_qa` --
+    // including retired syntax the author had explicitly marked to exclude.
+    let mut in_fence = false;
+    let mut fence_buf: Vec<&str> = Vec::new();
+
     for line in &lines {
         let trimmed = line.trim();
+
+        // Fence open/close, tracked before anything else so a heading-looking
+        // line inside a fence cannot split the section.
+        if trimmed.starts_with("```") {
+            if in_fence {
+                let body = fence_buf.join("\n");
+                if !(body.contains("// vox:skip") || body.contains("{{#include")) {
+                    current_body.push_str("```\n");
+                    current_body.push_str(&body);
+                    current_body.push_str("\n```\n");
+                }
+                fence_buf.clear();
+                in_fence = false;
+            } else {
+                in_fence = true;
+            }
+            continue;
+        }
+        if in_fence {
+            fence_buf.push(line);
+            continue;
+        }
 
         // New heading
         if trimmed.starts_with('#') {
@@ -545,6 +575,103 @@ pub fn write_docs_to_jsonl(pairs: &[DocTrainingPair], output: &Path) -> anyhow::
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A fence the author marked `// vox:skip` must not reach the QA lane.
+    ///
+    /// The code lane already filters these (see `extract_code_blocks`), but the
+    /// QA lane accumulated every non-empty line including fenced blocks. The
+    /// result: `docs/src/architecture/wire-format-v1-ssot.md` is
+    /// `training_eligible: true` and carries six `@endpoint(kind: ...)`
+    /// occurrences -- syntax that became a hard parse error on 2026-06-30 --
+    /// inside `vox:skip`-marked fences, and shipped all of them verbatim into
+    /// `vox_docs_qa`. The marker the author wrote to keep it out of training
+    /// data did nothing in this lane.
+    const SKIP_FENCE_MD: &str = r#"# Wire Format
+
+## Endpoint Shape
+
+The v1 wire format describes each route in terms of its declaration. This
+paragraph is long enough to clear the minimum section length so the section
+is actually emitted as a training pair by the extractor under test.
+
+```vox
+// vox:skip — illustrative endpoint definition
+@endpoint(kind: query) fn get_user(id: int) -> User {
+    return db.User.get(id)
+}
+```
+
+More prose after the fence, also part of the section body.
+"#;
+
+    #[test]
+    fn qa_lane_excludes_skip_marked_fences() {
+        let mut out = Vec::new();
+        let config = ExtractDocsConfig {
+            min_section_chars: 40,
+            ..ExtractDocsConfig::default()
+        };
+        extract_qa_sections(
+            SKIP_FENCE_MD,
+            Path::new("wire-format.md"),
+            &Frontmatter::default(),
+            0,
+            &config,
+            &mut out,
+        );
+        assert!(!out.is_empty(), "the section should still be extracted");
+        let body = &out[0].response;
+        assert!(
+            !body.contains("@endpoint"),
+            "a vox:skip fence must not reach the QA lane; got: {body}"
+        );
+        assert!(
+            body.contains("wire format describes"),
+            "surrounding prose must survive; got: {body}"
+        );
+        assert!(
+            body.contains("More prose after the fence"),
+            "prose after the fence must survive; got: {body}"
+        );
+    }
+
+    #[test]
+    fn qa_lane_keeps_unmarked_fences() {
+        // Only skip-marked fences are dropped. An ordinary example is still
+        // legitimate Q&A context and must survive.
+        const OK_MD: &str = r#"# Actors
+
+## Counter
+
+This section explains the counter actor and is long enough to be emitted as
+a training pair by the extractor under test without being filtered out.
+
+```vox
+actor Counter {
+    state count: int = 0
+}
+```
+"#;
+        let mut out = Vec::new();
+        let config = ExtractDocsConfig {
+            min_section_chars: 40,
+            ..ExtractDocsConfig::default()
+        };
+        extract_qa_sections(
+            OK_MD,
+            Path::new("actors.md"),
+            &Frontmatter::default(),
+            0,
+            &config,
+            &mut out,
+        );
+        assert!(!out.is_empty());
+        assert!(
+            out[0].response.contains("actor Counter"),
+            "unmarked fences must survive: {}",
+            out[0].response
+        );
+    }
 
     const SAMPLE_MD: &str = r#"# Vox Actors
 
