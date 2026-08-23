@@ -700,41 +700,6 @@ fn emit_doctor_human(
     Ok(())
 }
 
-#[cfg(test)]
-mod oauth_login_cli_tests {
-    use clap::Parser;
-
-    #[test]
-    fn oauth_flag_parses_on_login_subcommand() {
-        // Parse through the REAL top-level CLI struct. `SecretsCmd` itself only
-        // derives Subcommand, not Parser, so it cannot be parsed standalone.
-        // The real top-level Parser struct is `crate::VoxCliRoot` (field `cmd:
-        // crate::Cli`), and `crate::Cli` (a Subcommand enum, not a `Commands`
-        // enum) has the `Secrets { cmd: SecretsCmd }` variant.
-        let root = crate::VoxCliRoot::try_parse_from([
-            "vox",
-            "secrets",
-            "login",
-            "--oauth",
-            "--provider",
-            "openrouter",
-        ])
-        .expect("parses");
-        match root.cmd {
-            crate::Cli::Secrets {
-                cmd:
-                    super::SecretsCmd::Login {
-                        oauth, provider, ..
-                    },
-            } => {
-                assert!(oauth);
-                assert_eq!(provider.as_deref(), Some("openrouter"));
-            }
-            _ => panic!("expected Cli::Secrets{{ cmd: SecretsCmd::Login }}"),
-        }
-    }
-}
-
 async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
     if !mesh {
         println!("secrets sync: no targets specified (use --mesh)");
@@ -913,4 +878,39 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
         success_count, fail_count
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod oauth_login_cli_tests {
+    use clap::Parser;
+
+    #[test]
+    fn oauth_flag_parses_on_login_subcommand() {
+        // Parse through the REAL top-level CLI struct. `SecretsCmd` itself only
+        // derives Subcommand, not Parser, so it cannot be parsed standalone.
+        // The real top-level Parser struct is `crate::VoxCliRoot` (field `cmd:
+        // crate::Cli`), and `crate::Cli` (a Subcommand enum, not a `Commands`
+        // enum) has the `Secrets { cmd: SecretsCmd }` variant.
+        let root = crate::VoxCliRoot::try_parse_from([
+            "vox",
+            "secrets",
+            "login",
+            "--oauth",
+            "--provider",
+            "openrouter",
+        ])
+        .expect("parses");
+        match root.cmd {
+            crate::Cli::Secrets {
+                cmd:
+                    super::SecretsCmd::Login {
+                        oauth, provider, ..
+                    },
+            } => {
+                assert!(oauth);
+                assert_eq!(provider.as_deref(), Some("openrouter"));
+            }
+            _ => panic!("expected Cli::Secrets{{ cmd: SecretsCmd::Login }}"),
+        }
+    }
 }
