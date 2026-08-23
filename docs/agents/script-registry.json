@@ -1,254 +1,274 @@
 {
-    "schema_version":  1,
-    "description":  "Canonical script / guard inventory: ownership, CI usage, replacement command. Many legacy shell paths were migrated to `vox ci` / `vox run`; rows may reference files no longer in-tree — use `replacement` and `status` (removed/legacy/operator) as SSOT.",
-    "families":  [
-                     {
-                         "id":  "ci-guards-rust",
-                         "owner":  "platform-ci",
-                         "replacement":  "cargo run -p vox-cli -- ci \u003csubcommand\u003e",
-                         "notes":  "Primary path for SSOT guards; shell twins are thin delegates only."
-                     },
-                     {
-                         "id":  "mesh-gates",
-                         "owner":  "mens",
-                         "replacement":  "cargo run -p vox-cli -- ci mesh-gate --profile ci_full|m1m4|training",
-                         "manifest":  "scripts/populi/gates.yaml"
-                     },
-                     {
-                         "id":  "doc-inventory",
-                         "owner":  "docs-agents",
-                         "replacement":  "cargo run -p vox-cli -- ci doc-inventory generate|verify",
-                         "crate":  "vox-doc-inventory"
-                     },
-                     {
-                         "id":  "workflow-allowlist",
-                         "owner":  "platform-ci",
-                         "replacement":  "cargo run -p vox-cli -- ci workflow-scripts",
-                         "allowlist":  "docs/agents/workflow-script-allowlist.txt"
-                     }
-                 ],
-    "scripts":  [
-                    {
-                        "path":  "scripts/verify_workspace_manifest.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci manifest",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/check_docs_ssot.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci check-docs-ssot",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/check_codex_ssot.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci check-codex-ssot",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/check_vox_cli_feature_matrix.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci feature-matrix",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/check_vox_cli_no_vox_dei.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci no-dei-import",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/check_cuda_feature_builds.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci cuda-features",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/examples_strict_parse.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-compiler --test golden_examples_strict_parse",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/examples_strict_parse.ps1",
-                        "invoked_by_ci":  false,
-                        "replacement":  "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-compiler --test golden_examples_strict_parse",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/quality/toestub_scoped.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci toestub-scoped",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/populi_release_gate.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci mesh-gate --profile m1m4",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/populi_release_gate.ps1",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci mesh-gate --profile m1m4",
-                        "status":  "removed",
-                        "notes":  "Path removed from tree; use replacement."
-                    },
-                    {
-                        "path":  "scripts/populi/release_training_gate.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci mesh-gate --profile training",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/populi/mens_gate_safe.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci mesh-gate --profile training|ci_full|m1m4 --isolated-runner [--gate-log-file PATH]",
-                        "status":  "wrapper",
-                        "notes":  "Delegates to Rust isolated runner; --detach via nohup"
-                    },
-                    {
-                        "path":  "scripts/ci/corpus_prep.vox",
-                        "invoked_by_ci":  true,
-                        "replacement":  "cargo run -p vox-cli -- run --interp scripts/ci/corpus_prep.vox",
-                        "status":  "native-vox",
-                        "notes":  "Writes minimal JSONL under mens/data for strict vox mens corpus mix in CI (replaces prep_mens_mix_inputs.sh)"
-                    },
-                    {
-                        "path":  "scripts/mens/release_training_gate.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci mesh-gate --profile training",
-                        "status":  "wrapper",
-                        "notes":  "Legacy path; forwards to scripts/populi/release_training_gate.sh"
-                    },
-                    {
-                        "path":  "scripts/docs/generate_doc_inventory.py",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci doc-inventory generate",
-                        "status":  "removed"
-                    },
-                    {
-                        "path":  "scripts/docs/verify_doc_inventory_fresh.py",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci doc-inventory verify",
-                        "status":  "removed"
-                    },
-                    {
-                        "path":  "scripts/vox_system_prompt.txt",
-                        "invoked_by_ci":  true,
-                        "replacement":  null,
-                        "status":  "data",
-                        "notes":  "ML workflow output; allowlisted in workflow-script-allowlist.txt"
-                    },
-                    {
-                        "path":  "scripts/run_qwen35_qlora_real_4080.ps1",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox mens train --preset qwen_4080_16g --data-dir target/dogfood --output-dir mens/runs/qwen35_real --device cuda --background --log-dir mens/runs/logs (SSOT base model when --model omitted; build: cargo vox-cuda-release)",
-                        "status":  "removed",
-                        "notes":  "Script path removed; use replacement via `vox mens train`. See docs/src/architecture/mens-training-ssot.md"
-                    },
-                    {
-                        "path":  "scripts/populi/dogfood_qlora_cuda.ps1",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox mens train --preset qwen_4080_16g --data-dir target/dogfood --output-dir mens/runs/qwen35_qlora_dogfood --device cuda --background --log-dir mens/runs/logs",
-                        "status":  "removed",
-                        "notes":  "Path removed; use replacement."
-                    },
-                    {
-                        "path":  "scripts/install.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox-bootstrap",
-                        "status":  "bootstrap",
-                        "notes":  "First-run installer; not replaceable by vox cli alone"
-                    },
-                    {
-                        "path":  "scripts/install.ps1",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox-bootstrap",
-                        "status":  "bootstrap",
-                        "notes":  "First-run installer; not replaceable by vox cli alone"
-                    },
-                    {
-                        "path":  "infra/containers/entrypoints/vox-entrypoint.vox",
-                        "invoked_by_ci":  false,
-                        "replacement":  null,
-                        "status":  "essential",
-                        "notes":  "PID1 sidecar + exec; container boundary (ported from .sh)"
-                    },
-                    {
-                        "path":  "infra/containers/entrypoints/populi-entrypoint.vox",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox mens train | vox mens serve (train/serve); agent TBD",
-                        "status":  "essential",
-                        "notes":  "Cloud/HF/curl self-terminate; see script-surface-audit.md (ported from .sh)"
-                    },
-                    {
-                        "path":  "scripts/mens_release_gate.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci mesh-gate --profile m1m4",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/populi/cursor_background_train_example.ps1",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox mens train --background --log-dir ...",
-                        "status":  "removed",
-                        "notes":  "Path removed; use replacement."
-                    },
-                    {
-                        "path":  "scripts/populi/vox_continuous_trainer.ps1",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox mens corpus … + vox mens pipeline",
-                        "status":  "removed",
-                        "notes":  "Path removed; use replacement."
-                    },
-                    {
-                        "path":  "scripts/toestub_self_apply.sh",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci toestub-self-apply",
-                        "status":  "wrapper"
-                    },
-                    {
-                        "path":  "scripts/windows/ensure_cuda_path.ps1",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox doctor --fix-cuda-path",
-                        "status":  "removed",
-                        "notes":  "Migrated to CLI primitive"
-                    },
-                    {
-                        "path":  "scripts/windows/stop_stuck_cargo_tests.ps1",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox ci kill-stuck-tests",
-                        "status":  "removed",
-                        "notes":  "Migrated to CLI primitive"
-                    },
-                    {
-                        "path":  "scripts/windows/run_4080_experiment_cycles.ps1",
-                        "invoked_by_ci":  false,
-                        "replacement":  "vox mens eval-gate, vox mens eval-local, cargo check -p vox-orchestrator (documented batch)",
-                        "status":  "operator"
-                    },
-                    {
-                        "path":  "tools/jj-checkpoint.ps1",
-                        "invoked_by_ci":  false,
-                        "replacement":  null,
-                        "status":  "operator",
-                        "notes":  "Jujutsu VCS; not a vox concern"
-                    },
-                    {
-                        "path":  "scripts/extract_mcp_tool_registry.py",
-                        "invoked_by_ci":  false,
-                        "replacement":  "edit contracts/mcp/tool-registry.canonical.yaml + build vox-mcp-registry",
-                        "status":  "legacy",
-                        "notes":  "Legacy mod.rs → YAML scrape; rare"
-                    },
-                    {
-                        "path":  "patches/aegis-0.9.8/src/test-vectors/gen.py",
-                        "invoked_by_ci":  false,
-                        "replacement":  null,
-                        "status":  "vendor",
-                        "notes":  "Regenerate JSON vectors from IRTF draft"
-                    }
-                ]
+  "schema_version": 1,
+  "description": "Registry of project automation scripts. INVARIANT: `status: removed` means the file is not in the tree; every other status means it exists. Rows reclassified from a stale status carry `former_status` with their prior value. Verify with: python -c \"import json,pathlib; [print(r['path']) for r in json.load(open('docs/agents/script-registry.json'))['scripts'] if r.get('path') and not pathlib.Path(r['path']).exists() and r['status']!='removed']\" (should print nothing).",
+  "families": [
+    {
+      "id": "ci-guards-rust",
+      "owner": "platform-ci",
+      "replacement": "cargo run -p vox-cli -- ci <subcommand>",
+      "notes": "Primary path for SSOT guards; shell twins are thin delegates only."
+    },
+    {
+      "id": "mesh-gates",
+      "owner": "mens",
+      "replacement": "cargo run -p vox-cli -- ci mesh-gate --profile ci_full|m1m4|training",
+      "manifest": "scripts/populi/gates.yaml"
+    },
+    {
+      "id": "doc-inventory",
+      "owner": "docs-agents",
+      "replacement": "cargo run -p vox-cli -- ci doc-inventory generate|verify",
+      "crate": "vox-doc-inventory"
+    },
+    {
+      "id": "workflow-allowlist",
+      "owner": "platform-ci",
+      "replacement": "cargo run -p vox-cli -- ci workflow-scripts",
+      "allowlist": "docs/agents/workflow-script-allowlist.txt"
+    }
+  ],
+  "scripts": [
+    {
+      "path": "scripts/verify_workspace_manifest.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci manifest",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/check_docs_ssot.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci check-docs-ssot",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/check_codex_ssot.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci check-codex-ssot",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/check_vox_cli_feature_matrix.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci feature-matrix",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/check_vox_cli_no_vox_dei.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci no-dei-import",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/check_cuda_feature_builds.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci cuda-features",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/examples_strict_parse.sh",
+      "invoked_by_ci": false,
+      "replacement": "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-compiler --test golden_examples_strict_parse",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/examples_strict_parse.ps1",
+      "invoked_by_ci": false,
+      "replacement": "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-compiler --test golden_examples_strict_parse",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/quality/toestub_scoped.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci toestub-scoped",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/populi_release_gate.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci mesh-gate --profile m1m4",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/populi_release_gate.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox ci mesh-gate --profile m1m4",
+      "status": "removed",
+      "notes": "Path removed from tree; use replacement."
+    },
+    {
+      "path": "scripts/populi/release_training_gate.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci mesh-gate --profile training",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/populi/mens_gate_safe.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci mesh-gate --profile training|ci_full|m1m4 --isolated-runner [--gate-log-file PATH]",
+      "status": "removed",
+      "notes": "Delegates to Rust isolated runner; --detach via nohup",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/ci/corpus_prep.vox",
+      "invoked_by_ci": true,
+      "replacement": "cargo run -p vox-cli -- run --interp scripts/ci/corpus_prep.vox",
+      "status": "native-vox",
+      "notes": "Writes minimal JSONL under mens/data for strict vox mens corpus mix in CI (replaces prep_mens_mix_inputs.sh)"
+    },
+    {
+      "path": "scripts/mens/release_training_gate.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci mesh-gate --profile training",
+      "status": "removed",
+      "notes": "Legacy path; forwards to scripts/populi/release_training_gate.sh",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/docs/generate_doc_inventory.py",
+      "invoked_by_ci": false,
+      "replacement": "vox ci doc-inventory generate",
+      "status": "removed"
+    },
+    {
+      "path": "scripts/docs/verify_doc_inventory_fresh.py",
+      "invoked_by_ci": false,
+      "replacement": "vox ci doc-inventory verify",
+      "status": "removed"
+    },
+    {
+      "path": "scripts/vox_system_prompt.txt",
+      "invoked_by_ci": true,
+      "replacement": null,
+      "status": "removed",
+      "notes": "ML workflow output; allowlisted in workflow-script-allowlist.txt",
+      "former_status": "data"
+    },
+    {
+      "path": "scripts/run_qwen35_qlora_real_4080.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox mens train --preset qwen_4080_16g --data-dir target/dogfood --output-dir mens/runs/qwen35_real --device cuda --background --log-dir mens/runs/logs (SSOT base model when --model omitted; build: cargo vox-cuda-release)",
+      "status": "removed",
+      "notes": "Script path removed; use replacement via `vox mens train`. See docs/src/architecture/mens-training-ssot.md"
+    },
+    {
+      "path": "scripts/populi/dogfood_qlora_cuda.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox mens train --preset qwen_4080_16g --data-dir target/dogfood --output-dir mens/runs/qwen35_qlora_dogfood --device cuda --background --log-dir mens/runs/logs",
+      "status": "removed",
+      "notes": "Path removed; use replacement."
+    },
+    {
+      "path": "scripts/install.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox-bootstrap",
+      "status": "bootstrap",
+      "notes": "First-run installer; not replaceable by vox cli alone"
+    },
+    {
+      "path": "scripts/install.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox-bootstrap",
+      "status": "bootstrap",
+      "notes": "First-run installer; not replaceable by vox cli alone"
+    },
+    {
+      "path": "infra/containers/entrypoints/vox-entrypoint.vox",
+      "invoked_by_ci": false,
+      "replacement": null,
+      "status": "essential",
+      "notes": "PID1 sidecar + exec; container boundary (ported from .sh)"
+    },
+    {
+      "path": "infra/containers/entrypoints/populi-entrypoint.vox",
+      "invoked_by_ci": false,
+      "replacement": "vox mens train | vox mens serve (train/serve); agent TBD",
+      "status": "essential",
+      "notes": "Cloud/HF/curl self-terminate; see script-surface-audit.md (ported from .sh)"
+    },
+    {
+      "path": "scripts/mens_release_gate.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci mesh-gate --profile m1m4",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/populi/cursor_background_train_example.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox mens train --background --log-dir ...",
+      "status": "removed",
+      "notes": "Path removed; use replacement."
+    },
+    {
+      "path": "scripts/populi/vox_continuous_trainer.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox mens corpus \u2026 + vox mens pipeline",
+      "status": "removed",
+      "notes": "Path removed; use replacement."
+    },
+    {
+      "path": "scripts/toestub_self_apply.sh",
+      "invoked_by_ci": false,
+      "replacement": "vox ci toestub-self-apply",
+      "status": "removed",
+      "former_status": "wrapper"
+    },
+    {
+      "path": "scripts/windows/ensure_cuda_path.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox doctor --fix-cuda-path",
+      "status": "removed",
+      "notes": "Migrated to CLI primitive"
+    },
+    {
+      "path": "scripts/windows/stop_stuck_cargo_tests.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox ci kill-stuck-tests",
+      "status": "removed",
+      "notes": "Migrated to CLI primitive"
+    },
+    {
+      "path": "scripts/windows/run_4080_experiment_cycles.ps1",
+      "invoked_by_ci": false,
+      "replacement": "vox mens eval-gate, vox mens eval-local, cargo check -p vox-orchestrator (documented batch)",
+      "status": "removed",
+      "former_status": "operator"
+    },
+    {
+      "path": "tools/jj-checkpoint.ps1",
+      "invoked_by_ci": false,
+      "replacement": null,
+      "status": "removed",
+      "notes": "Jujutsu VCS; not a vox concern",
+      "former_status": "operator"
+    },
+    {
+      "path": "scripts/extract_mcp_tool_registry.py",
+      "invoked_by_ci": false,
+      "replacement": "edit contracts/mcp/tool-registry.canonical.yaml + build vox-mcp-registry",
+      "status": "removed",
+      "notes": "Legacy mod.rs \u2192 YAML scrape; rare",
+      "former_status": "legacy"
+    },
+    {
+      "path": "patches/aegis-0.9.8/src/test-vectors/gen.py",
+      "invoked_by_ci": false,
+      "replacement": null,
+      "status": "removed",
+      "notes": "Regenerate JSON vectors from IRTF draft",
+      "former_status": "vendor"
+    }
+  ]
 }
