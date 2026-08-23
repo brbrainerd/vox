@@ -206,6 +206,17 @@ fn process_order(customer: str, order_data: str, amount: int) to Result[str] {
 - [Language Reference](../reference/ref-syntax.md) — Full syntax and type system reference
 - [Compiler Architecture](expl-architecture.md) — How actors and workflows compile
 
+## Compilation Phases
+
+`workflow` and `activity` are bare-keyword declarations (`crates/vox-compiler/src/parser/descent/decl/mid.rs::parse_workflow_decl` / `parse_activity_decl`) that go through the same four phases as any function, diverging at codegen:
+
+1. **Parse.** Both parse into a plain function shape — params, optional `to ReturnType`, body. A `workflow` explicitly does **not** accept a `uses ...` effect clause; the parser's own comment notes this ("the form is unsupported despite earlier doc drift claiming it").
+2. **HIR lowering** (`hir/lower/mod.rs`). Both lower into the same `HirFn` node regular functions use — there is no separate `HirWorkflow`/`HirActivity` type. Lowering tags the node with `durability: Some(DurabilityKind::Workflow | Activity)` and stamps a `generated_hash`: a SHA3-512 over the semantic AST (name, params, return type, body — spans stripped so whitespace-only edits don't change it), used as a drift fingerprint by the runtime.
+3. **Determinism lint** (`typeck/ast_decl_lints.rs::check_workflow_stmt_determinism`, code `WORKFLOW_NON_DETERMINISTIC_CALL`). Walks every statement in a `workflow` body — `let`, `return`, assignment, expression statements, and recursively through `while`/`loop` — rejecting calls to `time.now()` or anything on `random`. `activity` bodies are **not** linted this way; non-determinism is exactly what they exist for.
+4. **Codegen** (`codegen_rust/emit/durability_lower.rs::emit_durable_body`) — this is where the two genuinely diverge:
+   - **`workflow`**: the Vox source body is **not** emitted as Rust at all. The generated function body is a call into `vox_workflow_runtime::workflow::interpret_workflow_durable(hir_module, name, tracker)`, which re-interprets the *original HIR* embedded in the binary, journals each step, and on the next call extracts the terminal return from that journal via `extract_terminal_return::<T>`. This is why the determinism lint exists: an interpreter has to replay a workflow's steps identically to resume it, so anything non-deterministic in the body would replay differently.
+   - **`activity`**: the body **is** compiled to real Rust — each statement goes through the normal `emit_stmt` path into an inner function (`__vox_activity_body_<name>`) — wrapped so its execution and result are recorded in the same journal. Activities are the side-effectful boundary: real I/O, real non-determinism, journaled as an opaque completed/failed step rather than replayed statement-by-statement.
+
 ## Durability Taxonomy
 
 Understanding the types of durability is crucial when reasoning about failure recovery in Vox:
@@ -214,5 +225,5 @@ Understanding the types of durability is crucial when reasoning about failure re
    State survives restarts because the runtime checkpoints the return value of each handler. When the actor respawns, it resumes with the last saved state.
 2. **Workflow Durability** (Interpreted Runtime):
    When running via `vox run` or `vox mens` workflow, the engine tracks execution steps natively in the database. If the process dies and restarts, completed activities are short-circuited.
-3. **Compiled Rust Workflows** (Future Parity):
-   Workflows that are compiled strictly down to standard Rust async equivalents do not automatically benefit from step-level replayable durability yet. This remains an active implementation target for parity with the interpreted path (see ADR-021).
+
+**There is currently one `workflow` codegen path, and it is the durable/interpreted one above** — verified against `emit_durable_body` in `codegen_rust/emit/durability_lower.rs` (2026-08-23). An earlier version of this page described a second, separately-compiled "strictly Rust async" workflow path lacking step-level durability as a "future parity" gap tracked by ADR-021; no such second path exists in the current emitter. AGENTS.md's own Implementation Status note (§Grammar Unification) already records `workflow`/`activity` as stable, backed by a real durable runtime — this page's taxonomy had not caught up to that.
