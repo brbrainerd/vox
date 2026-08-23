@@ -13,35 +13,5 @@ repository = "https://github.com/vox-foundation/vox"
 [workspace]
 members = ["crates/*/Vox.toml"]
 
-# ── CodeRabbit Review Configuration ──────────────────────────────────────────
-# Tier determines rate-limit defaults; CLI flags override these per-invocation.
-#
-# Pro tier: 150 files/review, 5 reviews/hour → 720s minimum between PRs.
-#
-# Run a full-codebase review from scratch:
-#   vox review coderabbit semantic-submit --full-repo --execute
-#
-# Resume an interrupted run:
-#   vox review coderabbit semantic-submit --full-repo --resume --execute
-[review.coderabbit]
-tier = "pro"
-# delay_between_prs_secs auto-populates from `tier` when omitted.
-# Slice size: owner-observed Pro cap is 150 files/PR; we ride the cap exactly.
-max_files_per_pr = 150
-# Not our code / generated / agent artifacts — never burn review quota on these.
-exclude_prefixes = [
-    "docs/",
-    "mens/data/",
-    ".vox-research-data/",
-    "patches/",        # vendored third-party crate copies
-    "assets/skills/",  # imported skill bundles (third-party content)
-    ".vox/",           # local agent/audit artifacts
-    ".cursor/",        # editor agent artifacts + audit dumps
-    "graphify-out/",   # generated graph reports
-]
-# Fail planning if the unassigned group grows past 5% of included files —
-# forces new top-level dirs into contracts/review/coderabbit-semantic-groups.v1.yaml.
-max_unassigned_ratio = 0.05
-
 
 

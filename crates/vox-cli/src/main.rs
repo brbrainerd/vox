@@ -7,7 +7,7 @@
 //!
 //! Root flags (before subcommand): **`--color`**, **`--json`**, **`--verbose` / `-v`**, **`--quiet` / `-q`** — see [`VoxCliRoot`](vox_cli::VoxCliRoot). **`vox completions <shell>`** emits shell completions (bash/zsh/fish/powershell/elvish).
 //!
-//! Latin groupings (same dispatch as flat verbs): **`vox fabrica`**, **`vox mens`**, **`vox ars`**, **`vox recensio`** (feature **`coderabbit`**).
+//! Latin groupings (same dispatch as flat verbs): **`vox fabrica`**, **`vox mens`**, **`vox ars`**.
 //!
 //! ## Subcommands
 //!
@@ -42,7 +42,6 @@
 //! | `vox doctor` (extended: `--build-perf` / `--scope` / `--json` need `--features codex`) | `commands::diagnostics::doctor` |
 //! | `vox secrets …` / `vox clavis …` | `commands::secrets` |
 //! | `vox train …` (feature `mens-dei` + `gpu`) | `commands::ai::train` |
-//! | `vox review coderabbit …` | `commands::review` (needs `--features coderabbit`) |
 //!
 //! End-user docs: repository file `docs/src/reference/cli.md`. `@v0` integration during `build`: module `v0`.
 

@@ -1,4 +1,6 @@
-//! Review-related helpers: DeI daemon review is invoked from **`vox mens review`** (`mens-dei`); GitHub CodeRabbit flows are **`vox review coderabbit`** — now in the `vox-cli-review` crate (`vox_cli_review::{ReviewCli, run}`).
+//! Review-related helpers: DeI daemon review, invoked from **`vox mens review`**
+//! (`mens-dei`). The GitHub CodeRabbit flows that used to live alongside this
+//! were retired with the `vox-cli-review` crate.
 
 #[cfg(feature = "dei")]
 mod dei;

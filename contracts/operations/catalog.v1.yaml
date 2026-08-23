@@ -9760,32 +9760,6 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
-- id: recensio
-  title: Recensio
-  description: CLI operation `vox recensio`
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - recensio
-    status: active
-    latin_ns: recensio
-    handler_rust: null
-    feature_gate: coderabbit
-    catalog_group: null
-    ref_cli_required: false
-    reachability_required: false
 - id: record.cost
   title: Record Cost
   description: Record a cost event from a Vox agent session token usage.
@@ -10353,32 +10327,6 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
-- id: review
-  title: Review
-  description: CLI operation `vox review`
-  description_human: null
-  product_lane: ai
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - review
-    status: active
-    latin_ns: recensio
-    handler_rust: commands::review
-    feature_gate: coderabbit
-    catalog_group: null
-    ref_cli_required: true
-    reachability_required: null
 - id: run
   title: Run
   description: CLI operation `vox run`
@@ -12876,7 +12824,7 @@ operations:
   cli: null
 - id: toestub.findings.upsert
   title: Toestub Findings Upsert
-  description: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
+  description: Record or update TOESTUB anti-pattern findings from external reviews (e.g. GitHub PR review).
   description_human: null
   product_lane: platform
   intent_tags: []

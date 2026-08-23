@@ -110,11 +110,6 @@ pub(crate) async fn run_openclaw_subcommand(
     commands::openclaw::run(action, false).await
 }
 
-#[cfg(feature = "coderabbit")]
-pub(crate) async fn run_review_subcommand(cmd: vox_cli_review::ReviewCli) -> anyhow::Result<()> {
-    vox_cli_review::run(cmd).await
-}
-
 /// Top-level `vox build` / `check` / … shims that map 1:1 onto [`latin_cmd::FabricaCmd`].
 ///
 /// `Script` is not included: top-level `vox script` uses [`run_script_subcommand`] instead of `fabrica script`.

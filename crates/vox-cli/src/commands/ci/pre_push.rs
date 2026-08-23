@@ -269,11 +269,10 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
 
 /// Non-blocking advisory printed after a successful pre-push: when re-pushing a
 /// feature branch that already has an upstream (the proxy for an open PR),
-/// remind that pushes do **not** auto-trigger a CodeRabbit review (the repo
-/// `.coderabbit.yaml` sets `auto_review.auto_incremental_review: false`) and that
-/// `@coderabbitai review` is the on-demand trigger. See AGENTS.md §"PR & Review
-/// Discipline". Best-effort and never fails the push; uses only local git (no
-/// network), so it adds no measurable latency.
+/// remind that **nothing reviews the PR automatically**. The automated reviewer
+/// was retired, so review falls to whoever opens the PR. See AGENTS.md §"PR &
+/// Review Discipline". Best-effort and never fails the push; uses only local git
+/// (no network), so it adds no measurable latency.
 fn print_pr_review_discipline_hint(root: &Path) {
     use std::process::Command;
     let branch = match Command::new("git")
@@ -299,13 +298,11 @@ fn print_pr_review_discipline_hint(root: &Path) {
     if !has_upstream {
         return;
     }
+    eprintln!("pre-push: review discipline — nothing reviews this PR automatically.");
     eprintln!(
-        "pre-push: review discipline — this re-push will NOT auto-trigger a CodeRabbit review"
+        "          Batch commits, and review the full branch diff yourself before asking"
     );
-    eprintln!(
-        "          (.coderabbit.yaml auto_incremental_review=false). Batch commits, and comment"
-    );
-    eprintln!("          `@coderabbitai review` on the PR when it's ready for a fresh review.");
+    eprintln!("          for a merge (`/code-review high`, or an equivalent careful pass).");
 }
 
 fn run_step_with_heartbeat(

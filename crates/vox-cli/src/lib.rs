@@ -175,14 +175,6 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::secrets::SecretsCmd,
     },
-    /// Review lane — CodeRabbit flows (`recensio`; alias of `review` when built with `coderabbit`).
-    #[cfg(feature = "coderabbit")]
-    #[command(name = "recensio", visible_alias = "rec")]
-    Recensio {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: vox_cli_review::ReviewCli,
-    },
     /// Manage global configuration and preferences.
     Config {
         /// Subcommand
@@ -604,13 +596,6 @@ pub enum Cli {
         cmd: vox_cli_research::ResearchCmd,
     },
 
-    /// CodeRabbit batch PRs + ingest (`--features coderabbit`).
-    #[cfg(feature = "coderabbit")]
-    Review {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: vox_cli_review::ReviewCli,
-    },
     /// Emergency stop the orchestrator (MCP/daemon local stop request)
     Stop {
         /// Reason for stopping

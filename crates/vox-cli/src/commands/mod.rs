@@ -140,8 +140,13 @@ pub mod upgrade;
 /// Ludus gamification systems logic wrapper.
 #[cfg(feature = "extras-ludus")]
 pub use extras::ludus;
-/// AI-powered CodeRabbit review adapter (`vox review`).
-#[cfg(feature = "coderabbit")]
+/// DeI daemon review adapter (`vox mens review`).
+///
+/// Gated on `dei`, not on the retired `coderabbit` feature: the module's only
+/// content is `dei.rs`, which delegates to `vox-dei-d`. Gating it on
+/// `coderabbit` meant `vox mens review` compiled only when an unrelated
+/// review bot's feature happened to be on.
+#[cfg(feature = "dei")]
 pub mod review;
 /// Native execution via local runtime execution (`vox run`).
 pub mod run;

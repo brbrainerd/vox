@@ -1382,14 +1382,6 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
-  - id: review-coderabbit-semantic-groups-v1
-    path: contracts/review/coderabbit-semantic-groups.v1.yaml
-    owner: platform-ci
-    kind: yaml
-    description: CodeRabbit semantic grouping hints for review automation.
-    enforced_by:
-      - vox ci contracts-index
-
   - id: code-audit-rules-v1
     path: contracts/code-audit/rules.v1.yaml
     owner: platform-ci

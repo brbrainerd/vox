@@ -110,9 +110,9 @@ jobs:
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
       - name: Build vox-cli (warms sccache + downstream artifact)
         # Includes the off-by-default features whose code is otherwise never compiled
-        # in CI (extras-ludus/ars/coderabbit) so they can't silently drift against
+        # in CI (extras-ludus/ars) so they can't silently drift against
         # moved APIs — see the ludus/vox-db identity drift (2026-06-30).
-        run: cargo build -p vox-cli --locked --features completion-toestub,extras-ludus,ars,coderabbit
+        run: cargo build -p vox-cli --locked --features completion-toestub,extras-ludus,ars
 
       # pull_request: map diff → affected crate closure via committed graph SSOT.
       # merge_group: authoritative full gate (no PR base ref; closes feature-unification gap).

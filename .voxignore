@@ -98,7 +98,6 @@ tmp/
 scratch*.txt
 /artifacts/
 .opencode/
-.coderabbit/
 .mypy_cache/
 
 # === LARGE BINARY BLOBS ===

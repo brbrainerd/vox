@@ -10,8 +10,6 @@ use vox_telemetry::{CommandUsageEvent, TelemetryEvent};
 
 #[cfg(feature = "ars")]
 pub(crate) use lanes::run_openclaw_subcommand;
-#[cfg(feature = "coderabbit")]
-pub(crate) use lanes::run_review_subcommand;
 #[cfg(feature = "script-execution")]
 pub(crate) use lanes::run_script_subcommand;
 #[cfg(feature = "stub-check")]
@@ -267,10 +265,6 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
             }
             let root = crate::commands::ci::repo_root();
             crate::commands::graphify::run(cmd, &root).await?;
-        }
-        #[cfg(feature = "coderabbit")]
-        Cli::Recensio { cmd } => {
-            run_review_subcommand(cmd).await?;
         }
         Cli::Audit { args } => {
             // F1: route the nested `vox audit effort` subcommand on the async
@@ -559,10 +553,6 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
             crate::commands::drift_check::run(args).await?;
         }
         Cli::Research { cmd } => vox_cli_research::run(cmd).await?,
-        #[cfg(feature = "coderabbit")]
-        Cli::Review { cmd } => {
-            run_review_subcommand(cmd).await?;
-        }
         Cli::Plugin { cmd } => {
             crate::commands::plugin::run(cmd).await?;
         }

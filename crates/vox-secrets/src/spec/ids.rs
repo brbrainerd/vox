@@ -390,7 +390,6 @@ pub enum SecretId {
     VoxReviewRepositoryId,
     VoxRegistryToken,
     VoxPmAllowGitUnverified,
-    VoxCoderabbitGithubPerPage,
     VoxScriptCacheMaxEntries,
     VoxScriptCacheMaxSizeMb,
     VoxEvalMinParseRate,

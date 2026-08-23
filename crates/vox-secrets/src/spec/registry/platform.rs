@@ -461,17 +461,6 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
         scope_description: "",
     },
     SecretSpec {
-        id: SecretId::VoxCoderabbitGithubPerPage,
-        canonical_env: "CODERABBIT_GITHUB_PER_PAGE",
-        aliases: &[],
-        deprecated_aliases: &[],
-        backend_key: None,
-        auth_registry: None,
-        policy: SecretPolicy::optional_skip(),
-        remediation: "Items per page for CodeRabbit GitHub API.",
-        scope_description: "",
-    },
-    SecretSpec {
         id: SecretId::VoxScriptCacheMaxEntries,
         canonical_env: "VOX_SCRIPT_CACHE_MAX_ENTRIES",
         aliases: &[],

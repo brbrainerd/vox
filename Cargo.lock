@@ -15327,7 +15327,6 @@ dependencies = [
  "vox-cli-contracts",
  "vox-cli-core",
  "vox-cli-research",
- "vox-cli-review",
  "vox-cli-share",
  "vox-code-audit",
  "vox-codegen",
@@ -15511,35 +15510,6 @@ dependencies = [
  "vox-research-shim",
  "vox-search",
  "vox-secrets",
-]
-
-[[package]]
-name = "vox-cli-review"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "blake3",
- "chrono",
- "clap",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "tempfile",
- "tokio",
- "toml 0.8.23",
- "tracing",
- "vox-bounded-fs",
- "vox-code-audit",
- "vox-config",
- "vox-corpus",
- "vox-db",
- "vox-forge",
- "vox-git",
- "vox-graph-reader",
- "vox-http-client",
- "vox-secrets",
- "walkdir",
 ]
 
 [[package]]

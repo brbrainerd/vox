@@ -116,12 +116,6 @@ workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime"]
 # BYOK / config slices in `mens status`, extended `vox doctor`, scope checks (`vox_eval`).
 codex = []
 
-# GitHub CodeRabbit batch PRs (`vox review coderabbit …`).
-# The implementation lives in the vox-cli-review crate; this feature just pulls it in
-# (it carries vox-forge/blake3/vox-code-audit, so those are no longer vox-cli's concern).
-coderabbit = [
-    "dep:vox-cli-review",
-]
 # Stub for non-functional inference server when refactoring or debugging.
 # Enables all social platform adapters for publication and diagnostics.
 scientia-social = [
@@ -161,7 +155,6 @@ vox-cli-core = { workspace = true }
 vox-cli-ci = { workspace = true }
 vox-cli-share = { workspace = true }
 vox-cli-research = { workspace = true }
-vox-cli-review = { workspace = true, optional = true }
 vox-cli-contracts = { workspace = true }
 base64 = { workspace = true }
 futures = { workspace = true }
