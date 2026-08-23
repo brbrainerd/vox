@@ -3830,23 +3830,6 @@ curated:
   - populi
   - up
   parameters: null
-- id: cli.recensio
-  title: Recensio
-  description_human: null
-  description_model: CLI operation `vox recensio`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - recensio
-  parameters: null
 - id: cli.remove
   title: Remove
   description_human: null
@@ -4053,23 +4036,6 @@ curated:
   cli_path:
   - research
   - run
-  parameters: null
-- id: cli.review
-  title: Review
-  description_human: null
-  description_model: CLI operation `vox review`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - review
   parameters: null
 - id: cli.run
   title: Run
@@ -6327,7 +6293,7 @@ curated:
 - id: mcp.vox_code_audit_findings_upsert
   title: Toestub Findings Upsert
   description_human: null
-  description_model: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
+  description_model: Record or update TOESTUB anti-pattern findings from external reviews (e.g. GitHub PR review).
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -10489,7 +10455,6 @@ exemptions:
   - - fabrica
   - - mens
   - - ars
-  - - recensio
   - - codex
   - - db
   - - scientia

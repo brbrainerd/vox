@@ -24,9 +24,7 @@ use crate::utils::install_policy::{
 };
 
 /// Known `latin_ns` values in [`contracts/cli/command-registry.yaml`] for `surface: vox-cli`.
-const KNOWN_LATIN_NS: &[&str] = &[
-    "fabrica", "mens", "diag", "ars", "ci", "codex", "recensio", "dei", "pm",
-];
+const KNOWN_LATIN_NS: &[&str] = &["fabrica", "mens", "diag", "ars", "ci", "codex", "dei", "pm"];
 const KNOWN_PRODUCT_LANES: &[&str] = &["app", "workflow", "ai", "interop", "data", "platform"];
 const CLI_REGISTRY_SCHEMA_REL: &str = "contracts/cli/command-registry.schema.json";
 const MCP_TOOL_REGISTRY_SCHEMA_REL: &str = "contracts/mcp/tool-registry.schema.json";
@@ -624,10 +622,7 @@ pub(crate) fn check_reachability(reg: &RegistryFile, reach: &str) -> Result<()> 
             continue;
         }
         let top = &op.path[0];
-        if matches!(
-            top.as_str(),
-            "completions" | "fabrica" | "mens" | "ars" | "recensio"
-        ) {
+        if matches!(top.as_str(), "completions" | "fabrica" | "mens" | "ars") {
             continue;
         }
         let needle = format!("| `{top}` |");

@@ -41,7 +41,6 @@ env-var-not-in-registry|crates/vox-cli-ci/src/retired_symbol_check.rs|VOX_CI_RET
 env-var-not-in-registry|crates/vox-cli-core/src/build_service.rs|CARGO
 env-var-not-in-registry|crates/vox-cli-core/src/diagnostics.rs|NO_COLOR
 env-var-not-in-registry|crates/vox-cli-core/src/workflow_journal_codex.rs|VOX_WORKFLOW_JOURNAL_CODEX_OFF
-env-var-not-in-registry|crates/vox-cli-review/src/coderabbit/semantic_planner/rules.rs|CARGO
 env-var-not-in-registry|crates/vox-cli-share/src/binary_cache.rs|VOX_CLOUDFLARED_PATH
 env-var-not-in-registry|crates/vox-cli-share/src/consent.rs|VOX_SHARE_NONINTERACTIVE
 env-var-not-in-registry|crates/vox-cli-share/src/state.rs|VOX_SHARE_STATE_PATH

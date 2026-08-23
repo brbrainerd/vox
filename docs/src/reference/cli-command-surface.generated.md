@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 285
+**schema_version:** `1` · **vox-cli operations:** 283
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -238,7 +238,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox populi serve` | active | populi | — | workflow | — |
 | `vox populi status` | active | populi | — | workflow | — |
 | `vox populi up` | active | populi | — | workflow | — |
-| `vox recensio` | active | coderabbit | recensio | ai | — |
 | `vox remove` | active | — | pm | platform | — |
 | `vox repo` | active | — | codex | platform | — |
 | `vox repo catalog` | active | — | codex | platform | — |
@@ -250,7 +249,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox repo query text` | active | — | codex | platform | — |
 | `vox repo status` | active | — | codex | platform | — |
 | `vox research run` | active | — | — | ai | — |
-| `vox review` | active | coderabbit | recensio | ai | — |
 | `vox run` | active | — | fabrica | app | — |
 | `vox scientia` | active | — | codex | data | — |
 | `vox scientia collection-transform-preview` | active | — | codex | data | — |

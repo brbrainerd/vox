@@ -625,7 +625,7 @@
       "mcp_tool": "vox_code_audit_findings_upsert",
       "implicit": false,
       "title": "Toestub Findings Upsert",
-      "description_model": "Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).",
+      "description_model": "Record or update TOESTUB anti-pattern findings from external reviews (e.g. GitHub PR review).",
       "curated": true
     },
     {
@@ -5278,16 +5278,6 @@
       "curated": true
     },
     {
-      "capability_id": "cli.recensio",
-      "cli_path": [
-        "recensio"
-      ],
-      "implicit": false,
-      "title": "Recensio",
-      "description_model": "CLI operation `vox recensio`",
-      "curated": true
-    },
-    {
       "capability_id": "cli.remove",
       "cli_path": [
         "remove"
@@ -5433,16 +5423,6 @@
       "implicit": false,
       "title": "Research Run",
       "description_model": "CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).",
-      "curated": true
-    },
-    {
-      "capability_id": "cli.review",
-      "cli_path": [
-        "review"
-      ],
-      "implicit": false,
-      "title": "Review",
-      "description_model": "CLI operation `vox review`",
       "curated": true
     },
     {

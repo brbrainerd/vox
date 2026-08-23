@@ -384,7 +384,7 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_code_audit_findings_upsert
-  description: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
+  description: Record or update TOESTUB anti-pattern findings from external reviews (e.g. GitHub PR review).
   product_lane: platform
   http_read_role_eligible: false
   tier: core

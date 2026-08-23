@@ -2560,17 +2560,6 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
-  - recensio
-  status: active
-  latin_ns: recensio
-  product_lane: ai
-  feature_gate: coderabbit
-  catalog_group: null
-  ref_cli_required: false
-  reachability_required: false
-  handler_rust: null
-- surface: vox-cli
-  path:
   - remove
   status: active
   latin_ns: pm
@@ -2704,17 +2693,6 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: vox_cli_research::run_research_query
-- surface: vox-cli
-  path:
-  - review
-  status: active
-  latin_ns: recensio
-  product_lane: ai
-  feature_gate: coderabbit
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: commands::review
 - surface: vox-cli
   path:
   - run

@@ -123,10 +123,6 @@
     ],
     [
       "vox-cli",
-      "vox-cli-review"
-    ],
-    [
-      "vox-cli",
       "vox-cli-share"
     ],
     [
@@ -503,46 +499,6 @@
     ],
     [
       "vox-cli-research",
-      "vox-secrets"
-    ],
-    [
-      "vox-cli-review",
-      "vox-bounded-fs"
-    ],
-    [
-      "vox-cli-review",
-      "vox-code-audit"
-    ],
-    [
-      "vox-cli-review",
-      "vox-config"
-    ],
-    [
-      "vox-cli-review",
-      "vox-corpus"
-    ],
-    [
-      "vox-cli-review",
-      "vox-db"
-    ],
-    [
-      "vox-cli-review",
-      "vox-forge"
-    ],
-    [
-      "vox-cli-review",
-      "vox-git"
-    ],
-    [
-      "vox-cli-review",
-      "vox-graph-reader"
-    ],
-    [
-      "vox-cli-review",
-      "vox-http-client"
-    ],
-    [
-      "vox-cli-review",
       "vox-secrets"
     ],
     [
