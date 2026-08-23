@@ -37,9 +37,15 @@ This is a living checklist for the Vox open source community and core contributo
 
   A line-level migration-cue allowlist (`retired|removed|deprecated|instead|→|no longer|superseded|…`) was measured against all 194 decorator hits: it clears **62**, leaving **132**. Insufficient — the remainder are legitimate mentions inside historical and design docs whose individual lines carry no cue.
 
-  What this actually needs is **block-level context**: skip a fenced block or a section under a "Retired"/"Historical" heading, the way `is_historical_or_audit_doc` already approximates at whole-file granularity. Until that exists, the patterns stay out; a gate the tree fails on 195 legitimate lines is not a guard.
+  **Block-level context was implemented and measured — still not enough (2026-08-23).** `scan_source_lines` in `retired_symbol_check.rs` now tracks markdown heading depth and skips a section opened by a "## Retired"/"### Historical"/"#### Superseded" heading until the next heading at the same or shallower level (bounded, unlike the whole-file `is_historical_or_audit_doc` carve-out). It is a strict widening with zero regression against the shipped 14 patterns — `retired-symbol-check OK` before and after — so it is kept regardless of the nine at-prefixed patterns' status.
 
-  Related measurement: of 629 stale-syntax occurrences repo-wide, only **6.2%** sit inside ```vox fences (all correctly `vox:skip`-marked), **60.9%** are prose and **25.1%** table cells. The doctest gate can never reach the latter two.
+  Re-measured with the nine patterns re-added: **195 → 180 violations.** Two new obstacles, beyond what section-scoping can reach:
+  - Single-sentence mentions with no enclosing "Retired" section — e.g. `AGENTS.md:244` and `:510`, plain prose ("Removed in v0.6.0: `@endpoint`") inside otherwise-current sections that aren't themselves headed "Retired". The cue-word filter (62/194) was built for exactly this case and remains the more promising direction than heading-scoping; the two should probably compose.
+  - `docs/agents/vox-language-surface.v1.json` is a machine-generated **data file**, not prose — it deliberately documents the retired `@`-forms as part of the language-surface SSOT. `cfg.is_md` gates all of the frontmatter/fence/heading logic, so a `.json` file gets none of it; JSON needs its own carve-out (e.g. skip a `"note"` field whose text contains a migration cue) or exclusion from the scan entirely, since the check's doc comment already says Rust sources are "intentionally out of scope" for a symmetric reason.
+
+  Still not shipping the nine patterns. A gate that fails on legitimate SSOT data and legitimate single-sentence retirement notices is not ready.
+
+  Related measurement: of 629 stale-syntax occurrences repo-wide, only **6.2%** sit inside ```vox fences (all correctly `vox:skip`-marked as of 2026-08-23), **60.9%** are prose and **25.1%** table cells. The doctest gate can never reach the latter two.
 
 ## Medium Priority
 - [ ] Explain the underlying generic instantiation (`<T>`) algorithm used by HIR logic

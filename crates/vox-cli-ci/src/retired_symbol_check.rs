@@ -172,6 +172,15 @@ fn scan_source_lines(
     let mut in_frontmatter = false;
     let mut frontmatter_closed = false;
     let mut in_fence = false;
+    // Section-scoped carve-out: a "## Retired ..." / "### Historical" / "#### Superseded"
+    // heading legitimately names retired symbols until the next heading at the
+    // same or shallower level. This is narrower than `is_history_doc` (whole-file)
+    // and catches the common case of a single Retired/Historical subsection inside
+    // an otherwise-current, otherwise-prescriptive page -- e.g. a reference page's
+    // "## Retired: `@endpoint`" migration note, or a roadmap's dated "Superseded"
+    // callout -- without silencing the rest of the page.
+    let mut in_retired_section = false;
+    let mut retired_section_level = 0usize;
 
     for (line_idx, line) in body.lines().enumerate() {
         let line: &str = if cfg.skip_md_table_rows {
@@ -185,6 +194,25 @@ fn scan_source_lines(
 
         if cfg.is_md {
             let t = line.trim();
+            if !in_fence && t.starts_with('#') {
+                let level = t.bytes().take_while(|b| *b == b'#').count();
+                let heading = t[level..].trim();
+                if in_retired_section && level <= retired_section_level {
+                    in_retired_section = false;
+                }
+                let lower = heading.to_lowercase();
+                if lower.starts_with("retired")
+                    || lower.starts_with("historical")
+                    || lower.starts_with("superseded")
+                    || lower.contains("retired:")
+                    || lower.contains("(retired)")
+                    || lower.contains("(historical)")
+                    || lower.contains("(superseded)")
+                {
+                    in_retired_section = true;
+                    retired_section_level = level;
+                }
+            }
             if t.starts_with("```") {
                 in_fence = !in_fence;
                 continue;
@@ -221,7 +249,7 @@ fn scan_source_lines(
             // plans, dated architectural snapshots) intentionally mention
             // retired symbols while explaining what replaced them. Skip the
             // policy check for those whole files.
-            if is_history_doc {
+            if is_history_doc || in_retired_section {
                 continue;
             }
 
