@@ -156,7 +156,28 @@ fn extract_targz(data: &[u8], dest_dir: &Path) -> Result<()> {
 fn extract_zip(data: &[u8], dest_dir: &Path) -> Result<()> {
     #[cfg(windows)]
     {
+        return extract_zip_capped(data, dest_dir, MAX_UNCOMPRESSED_BYTES);
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (data, dest_dir);
+        bail!(".zip extraction is only supported on Windows")
+    }
+}
+
+/// Inner form with an injectable cap, so tests can trip the bound without
+/// building a 512 MiB archive.
+#[cfg(windows)]
+fn extract_zip_capped(data: &[u8], dest_dir: &Path, max_uncompressed: u64) -> Result<()> {
+    {
+        // Same bounds as `extract_targz`. This is the WINDOWS release path and
+        // carries identical trust, so leaving it unbounded just meant an
+        // attacker picked the weaker platform.
         let mut archive = zip::ZipArchive::new(Cursor::new(data)).context("open zip archive")?;
+        if archive.len() > MAX_ENTRIES {
+            bail!("archive has more than {MAX_ENTRIES} entries; refusing to extract");
+        }
+        let mut total_bytes: u64 = 0;
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i).context("read zip entry")?;
             let enclosed = entry
@@ -171,22 +192,39 @@ fn extract_zip(data: &[u8], dest_dir: &Path) -> Result<()> {
             }
             if entry.is_dir() {
                 fs::create_dir_all(&outpath)?;
-            } else {
-                if let Some(p) = outpath.parent() {
-                    fs::create_dir_all(p)?;
-                }
-                let mut outfile = fs::File::create(&outpath)
-                    .with_context(|| format!("create {}", outpath.display()))?;
-                std::io::copy(&mut entry, &mut outfile)
-                    .with_context(|| format!("write {}", outpath.display()))?;
+                continue;
             }
+            // Allowlist regular files, mirroring the tar path. A real Vox
+            // archive holds exactly one regular file.
+            if entry.is_symlink() {
+                bail!(
+                    "archive contains a symlink entry {:?}; refusing to extract",
+                    entry.name()
+                );
+            }
+            if let Some(p) = outpath.parent() {
+                fs::create_dir_all(p)?;
+            }
+            let mut outfile = fs::File::create(&outpath)
+                .with_context(|| format!("create {}", outpath.display()))?;
+            // Bound the COPY, not the declared size. Unlike tar — where tar-rs
+            // bounds its reader by `entry.size()` — a zip entry's uncompressed
+            // size is central-directory metadata that DEFLATE need not honour,
+            // so a small declared size can inflate without limit. `take` caps
+            // what `io::copy` can pull; +1 distinguishes "exactly at the cap"
+            // from "over it".
+            use std::io::Read;
+            let remaining = max_uncompressed.saturating_sub(total_bytes);
+            let mut limited = (&mut entry).take(remaining.saturating_add(1));
+            let written = std::io::copy(&mut limited, &mut outfile)
+                .with_context(|| format!("write {}", outpath.display()))?;
+            if written > remaining {
+                bail!("archive expands beyond {max_uncompressed} bytes; refusing to extract");
+            }
+            total_bytes = total_bytes.saturating_add(written);
         }
         info!("Extracted zip to {}", dest_dir.display());
         Ok(())
-    }
-    #[cfg(not(windows))]
-    {
-        bail!(".zip extraction is only supported on Windows")
     }
 }
 
@@ -322,6 +360,51 @@ mod tests {
             paths,
             vec!["../escaped.txt".to_string()],
             "fixture no longer escapes"
+        );
+    }
+
+    /// Parity tests for the WINDOWS path. `extract_zip` is `#[cfg(windows)]`,
+    /// so these are too — on other hosts the function is a `bail!` stub.
+    #[cfg(windows)]
+    #[test]
+    fn extract_zip_rejects_a_zip_bomb_bounded_on_actual_bytes() {
+        use std::io::Write;
+        // Declare a small uncompressed size, then inflate far past it. The
+        // declared value is central-directory metadata; only bounding the copy
+        // catches this.
+        let payload = vec![0u8; 4096];
+        let mut buf = Vec::new();
+        {
+            let mut w = zip::ZipWriter::new(Cursor::new(&mut buf));
+            let opts: zip::write::FileOptions<'_, ()> = zip::write::FileOptions::default();
+            w.start_file("bomb.bin", opts).expect("start file");
+            w.write_all(&payload).expect("write");
+            w.finish().expect("finish");
+        }
+        let dir = tempfile::tempdir().expect("tempdir");
+        // Cap below the real payload so the bounded copy must trip.
+        let err = extract_zip_capped(&buf, dir.path(), 1024)
+            .expect_err("an entry inflating past the cap must be refused");
+        assert!(err.to_string().contains("expands beyond"), "got: {err}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn extract_zip_accepts_a_normal_entry() {
+        use std::io::Write;
+        let mut buf = Vec::new();
+        {
+            let mut w = zip::ZipWriter::new(Cursor::new(&mut buf));
+            let opts: zip::write::FileOptions<'_, ()> = zip::write::FileOptions::default();
+            w.start_file("vox.exe", opts).expect("start file");
+            w.write_all(b"binary").expect("write");
+            w.finish().expect("finish");
+        }
+        let dir = tempfile::tempdir().expect("tempdir");
+        extract_zip(&buf, dir.path()).expect("a normal archive must extract");
+        assert_eq!(
+            std::fs::read(dir.path().join("vox.exe")).expect("read extracted"),
+            b"binary"
         );
     }
 
