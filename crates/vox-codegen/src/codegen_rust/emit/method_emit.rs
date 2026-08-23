@@ -108,6 +108,23 @@ where
                 await_or_expect_suffix(fallible, "vox codegen: db get")
             )
         }
+        HirDbTableOp::Update => {
+            let id_arg = args_str.first().cloned().unwrap_or_else(|| "0".to_string());
+            let val = args_str
+                .get(1)
+                .cloned()
+                .unwrap_or_else(|| "serde_json::json!({})".to_string());
+            if fallible {
+                format!(
+                    "{{ let item: {table_name} = serde_json::from_value({val}).map_err(|e| vox_db::StoreError::Serialization(format!(\"{{}}\", e)))?; {table_name}::update({db}, {id_arg}, &item).await?; }}"
+                )
+            } else {
+                format!(
+                    "{{ let item: {table_name} = serde_json::from_value({val}).expect(\"vox codegen: db update from_value\"); {table_name}::update({db}, {id_arg}, &item){} }}",
+                    await_or_expect_suffix(false, "vox codegen: db update")
+                )
+            }
+        }
         HirDbTableOp::Delete => {
             format!(
                 "{}::delete({}, {}){}",
@@ -728,6 +745,7 @@ where
         match method {
             "insert" => HirDbTableOp::Insert,
             "get" | "find" => HirDbTableOp::Get,
+            "update" => HirDbTableOp::Update,
             "delete" => HirDbTableOp::Delete,
             "all" => HirDbTableOp::All,
             "count" => HirDbTableOp::Count,

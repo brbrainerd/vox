@@ -521,6 +521,7 @@ impl<'a> Checker<'a> {
                 matches!(
                     plan.op,
                     HirDbTableOp::Insert
+                        | HirDbTableOp::Update
                         | HirDbTableOp::Delete
                         | HirDbTableOp::UnsafeQueryRawClause
                 ) || Self::contains_db_write_or_unsafe_in_expr(callee)

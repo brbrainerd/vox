@@ -34,12 +34,18 @@ When you declare a `table Model`, the compiler auto-instantiates a `db.Model` ha
   *Extract a specific row by primary key (alias of `.get()`).*
 - `db.Model.insert(fields) -> Result[int, str]`
   *Insert a full record. Returns the inserted row's `rowid`, not an `Id[Model]`.*
+- `db.Model.update(id: Id[Model], fields) -> Result[Unit, str]`
+  *Full-record replace by primary key — `fields` must supply every column, same shape as `insert`. Added 2026-08-23; generates a parameterized `UPDATE ... SET ... WHERE` (see `crates/vox-codegen/src/codegen_rust/emit/tables/codegen.rs`).*
 - `db.Model.delete(id: Id[Model]) -> Result[Unit, str]`
   *Removes the row at that key.*
 - `db.Model.count() -> Result[int, str]`
   *Row count for the table.*
 
-**There is no `db.Model.update()`.** A previous version of this page documented one; it does not exist in the compiler. To change a row today, `delete` then `insert`, or use the raw escape hatch below.
+```vox
+mutation deactivate(id: Id[User], age: int, role: str, created_at: str) to Result[Unit, str] {
+    return db.User.update(id, { age: age, status: "inactive", role: role, created_at: created_at })
+}
+```
 
 ## Filters and Predicates
 

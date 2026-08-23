@@ -27,6 +27,8 @@ pub enum HirDbTableOp {
     Insert,
     /// Primary key fetch (alias: `find`).
     Get,
+    /// Full-record replace by primary key: `db.T.update(id, item)`.
+    Update,
     Delete,
     /// Safe full-table scan (`SELECT * FROM t`).
     All,

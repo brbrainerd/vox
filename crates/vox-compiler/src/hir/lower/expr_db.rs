@@ -53,6 +53,7 @@ pub(super) fn db_table_op_from_field(
     let op = match method {
         "insert" => HirDbTableOp::Insert,
         "get" | "find" => HirDbTableOp::Get,
+        "update" => HirDbTableOp::Update,
         "delete" => HirDbTableOp::Delete,
         "all" => HirDbTableOp::All,
         "count" => HirDbTableOp::Count,

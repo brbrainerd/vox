@@ -345,6 +345,43 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
     out.push_str("        Ok(db.connection().last_insert_rowid())\n");
     out.push_str("    }\n\n");
 
+    // -- update: full-record replace by primary key, same bind pattern as insert
+    // plus one trailing placeholder for the WHERE clause.
+    out.push_str(&format!(
+        "    pub async fn update(db: &Codex, id: {pk_rust_ty}, item: &Self) -> Result<usize, turso::Error> {{\n",
+    ));
+    for field in &table.fields {
+        if is_json(&field.type_ann) {
+            out.push_str(&format!(
+                "        let {}_json = serde_json::to_string(&item.{}).map_err(|e| turso::Error::ConversionFailure(format!(\"serde_json: {{}}\", e)))?;\n",
+                field.name, field.name
+            ));
+        }
+    }
+    let set_clause = col_names
+        .iter()
+        .zip(placeholders.iter())
+        .map(|(col, ph)| format!("{col} = {ph}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let update_binds = emit_turso_positional_binds(
+        &insert_bind_exprs
+            .iter()
+            .map(|s| s.as_str())
+            .chain(std::iter::once("turso::Value::from(id)"))
+            .collect::<Vec<_>>(),
+    );
+    out.push_str(&format!(
+        "        let n = db.connection().execute(\n            \"UPDATE {} SET {} WHERE {} = {}\",\n            {},\n        ).await?;\n",
+        tn,
+        set_clause,
+        pk_col,
+        placeholder_sql(&dialect, col_names.len() + 1),
+        update_binds
+    ));
+    out.push_str("        Ok(n as usize)\n");
+    out.push_str("    }\n\n");
+
     // -- get
     out.push_str(&format!(
         "    pub async fn get(db: &Codex, id: {pk_rust_ty}) -> Result<Option<Self>, turso::Error> {{\n",
@@ -723,6 +760,54 @@ mod tests {
         assert!(
             !out.contains("turso::params!["),
             "insert must not use params! macro (array of Result<Value>)"
+        );
+    }
+
+    #[test]
+    fn update_emits_set_clause_and_where_pk_with_trailing_placeholder() {
+        use vox_compiler::ast::span::Span;
+        use vox_compiler::hir::{DefId, HirTable, HirTableField, HirType};
+
+        let table = HirTable {
+            id: DefId(1),
+            name: "Task".into(),
+            fields: vec![
+                HirTableField {
+                    name: "title".into(),
+                    type_ann: HirType::Named("str".into()),
+                    span: Span::new(0, 0),
+                },
+                HirTableField {
+                    name: "done".into(),
+                    type_ann: HirType::Named("bool".into()),
+                    span: Span::new(0, 0),
+                },
+            ],
+            primary_key: None,
+            is_extern: false,
+            source: None,
+            is_pub: true,
+            is_deprecated: false,
+            span: Span::new(0, 0),
+        };
+        let out = emit_table_struct(&table, &[]);
+        assert!(
+            out.contains("pub async fn update(db: &Codex, id: i64, item: &Self)"),
+            "update signature missing or wrong shape:\n{out}"
+        );
+        // Two columns -> ?1, ?2 in SET, then the pk placeholder is ?3 (offset by
+        // col_names.len(), not hardcoded), matching insert's own placeholder scheme.
+        assert!(
+            out.contains("\"UPDATE task SET title = ?1, done = ?2 WHERE _id = ?3\""),
+            "update SQL missing expected SET/WHERE shape:\n{out}"
+        );
+        assert!(
+            out.contains("turso::Value::from(id)"),
+            "update must bind the pk via turso::Value::from(id):\n{out}"
+        );
+        assert!(
+            !out.contains("turso::params!["),
+            "update must not use params! macro (array of Result<Value>)"
         );
     }
 
