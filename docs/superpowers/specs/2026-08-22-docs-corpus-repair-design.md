@@ -463,8 +463,10 @@ omits `archive`; `doc-inventory.json` already carries 296 archive paths).
 **W5.6 — `superseded_by` is silently stripped** unless declared in
 `docs-astro/src/content.config.ts`'s Zod key list. Add unenforced first.
 
-**W5.7 — `docs/superpowers/` needs its own rule.** **275 top-level plans (340
-recursive across 10 subdirectories) + 147 specs**, unlinted and unbuilt but
+**W5.7 — `docs/superpowers/` needs its own rule.** Several hundred plans
+(across 10 subdirectories) plus their specs — run the census (§3) for current
+counts; an earlier revision hardcoded them here and they drifted within this
+same work program, which wrote new plan files. Unlinted and unbuilt but
 **not** in `.voxignore`, so agents ingest all of them. Only 3–4 of 275 are marked
 completed; the `status` vocabulary is uncontrolled free text. Fix: a
 `plans/archive/` bucket plus one `.voxignore` line.
