@@ -403,6 +403,15 @@ pub fn run(root: &Path) -> Result<()> {
                 if filename == "legacy-tombstone-remediation-ledger-2026.md" {
                     continue;
                 }
+                // A changelog is a historical record by construction: every retired
+                // symbol legitimately appears in the entry that introduced or removed
+                // it, describing the tree as it stood at that release. This file is
+                // synced verbatim from the repository-root CHANGELOG.md, which is
+                // outside every scan root, so before the sync the same text was
+                // simply invisible rather than compliant.
+                if filename == "changelog.md" {
+                    continue;
+                }
                 if filename.starts_with("2026-05-08-crate-org-followup") {
                     continue;
                 }
