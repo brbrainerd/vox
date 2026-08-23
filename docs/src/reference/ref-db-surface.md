@@ -83,3 +83,31 @@ These chainable context selectors modify *how* the operation interacts with the 
 
 - `db.query(sql: str, params: list[T]) -> list[Result]`
   *Allows writing explicit raw parameter-bound queries that entirely bypass the compiler's safety assertions. Designed exclusively for highly customized analytics scripts mapping across disparate tables.*
+
+## Transactional boundaries: `query` vs `mutation` vs `server`
+
+Verified against `crates/vox-codegen/src/codegen_rust/emit/http.rs` and
+`crates/vox-compiler/src/app_contract.rs`.
+
+- **`query`** handlers (`emit_query_fn_handler`) never run inside a
+  transaction. There is no transaction parameter in that code path at all —
+  queries are read-only by construction, so there's nothing to make atomic.
+- **`mutation`** handlers run inside `db.transaction(async move { ... })`
+  whenever the enclosing module declares any `table` — `wraps_db_transaction`
+  in `app_contract.rs` is `!module.tables.is_empty()`, a **module-level**
+  flag applied uniformly to every mutation in that module, not a per-function
+  decision based on whether a given mutation actually touches the database.
+  In a module with no tables, mutations run unwrapped.
+- **`server`** handlers share the exact same emitter as `mutation`
+  (`emit_server_fn_handler`) but are called with the transaction flag
+  hard-coded to `false`. A `server` function that writes to the database gets
+  no atomicity guarantee — that's a deliberate consequence of the surface,
+  not an oversight: `server` is the boundary for side effects the compiler
+  can't reason about (external APIs, non-DB I/O), so wrapping it in a DB
+  transaction would be a false promise for the common case where there's no
+  DB write in the body at all.
+
+Practical implication: if you need transactional atomicity, the write has to
+be a `mutation` in a module that has at least one `table` declared — a
+`server` function with a DB write inside it is not atomic, even though the
+syntax looks identical to a `mutation`.
