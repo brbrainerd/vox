@@ -161,7 +161,9 @@ mod is_script_like_tests {
     /// tests) handled it correctly all along.
     #[test]
     fn bare_workflow_decl_is_not_script_like() {
-        assert!(!is_script_like("workflow Train() to Unit {\n    return Unit\n}\n"));
+        assert!(!is_script_like(
+            "workflow Train() to Unit {\n    return Unit\n}\n"
+        ));
     }
 
     #[test]
@@ -173,7 +175,9 @@ mod is_script_like_tests {
 
     #[test]
     fn bare_actor_decl_is_not_script_like() {
-        assert!(!is_script_like("actor Counter {\n    state n: int = 0\n}\n"));
+        assert!(!is_script_like(
+            "actor Counter {\n    state n: int = 0\n}\n"
+        ));
     }
 
     #[test]
