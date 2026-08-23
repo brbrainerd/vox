@@ -356,9 +356,21 @@ pub(super) async fn record_telemetry_attempt(
     Ok(())
 }
 
-/// Exhaustive retry loop over multiple candidate LLM configurations.
-/// Used for robust agent fallback routing. Iterates models sequentially until
-/// one succeeds, skipping specific candidates on 401s or continuing on 429/timeout.
+/// Sequential fallback over multiple candidate LLM configurations.
+///
+/// Tries each candidate exactly once, in order, and returns the first success.
+/// There is deliberately no per-candidate retry and no error classification
+/// here: 401, 429, 5xx, timeout, and transport failures all take the same
+/// branch and advance to the next candidate. Cancellation is the one
+/// exception -- it returns immediately rather than advancing.
+///
+/// Rate-limit backoff is not this function's job. `vox_llm_egress::wire` hands
+/// the `Retry-After` header to `throttle::on_rate_limited` before surfacing
+/// `EgressError::RateLimited`; that halves the provider's concurrency window
+/// and sets a cooldown which the next `acquire_permit` awaits.
+///
+/// Callers needing genuine provider fallback must pass a multi-candidate
+/// vector; `vec![cfg]` yields exactly one attempt with no fallback.
 pub async fn infer_with_retry(
     options: &ActivityOptions,
     messages: Vec<ChatMessage>,

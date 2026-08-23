@@ -334,7 +334,16 @@ fn collect_markdown_files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
 }
 
 fn collect_root_guides(repo_root: &Path, out: &mut Vec<std::path::PathBuf>) {
-    for rel in ["README.md", "AGENTS.md", "CONTRIBUTING.md"] {
+    // CLAUDE.md and GEMINI.md are policy roots that link into docs/ just as
+    // AGENTS.md does; omitting them meant a stale link there passed the merge
+    // gate and surfaced only in the nightly lychee run.
+    for rel in [
+        "README.md",
+        "AGENTS.md",
+        "CONTRIBUTING.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+    ] {
         let path = repo_root.join(rel);
         if path.is_file() {
             out.push(path);
