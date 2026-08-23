@@ -451,6 +451,16 @@ never fires; delete the fallback once supervision lands.
 - *RED:* `Child::kill` the daemon mid-stream → GUI reconnects and receives the
   Tier-A events emitted during the outage; no `setInterval` orchestrator polling
   remains (guard-checked).
+- *Guard scope (corrected 2026-08-23).* `scan_orchestrator_status_polling_removed`
+  in `crates/vox-cli-ci/src/harness_trust_guard.rs` requires **a timer *and* a
+  status re-fetch** (`invalidateQueries` / `refetch(` / `ORCH_POLL_FALLBACK_MS`),
+  not a bare `setInterval(`. It was originally a whole-file `setInterval(` ban,
+  which is wider than what this task removed: `useOrchestratorStatus.ts` also
+  polls `getOrchestratorVersionMismatch` for T2/Task 2, and that poll is
+  legitimate. The wider check failed `vox ci harness-trust-guard` on `main` from
+  2026-07-22 (`8644a3272`, #460) until 2026-08-23, reading an unrelated feature
+  as a T3.1 regression. The removal itself never regressed — the status path
+  still refuses to poll.
 
 ### Phase 4 — Runtime consolidation (~1 week; parallel-safe after T1.2)
 
