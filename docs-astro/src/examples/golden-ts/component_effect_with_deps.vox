@@ -1,0 +1,14 @@
+component Timer(initial: int) {
+    state count: int = initial
+
+    derived label = "Count: " + str(count)
+
+    effect: {
+        print("count changed to " + str(count))
+    }
+
+    view: column() {
+        text() { label }
+        button(on_click={count = count + 1}) { "Tick" }
+    }
+}

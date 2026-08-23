@@ -1,0 +1,7 @@
+fn greet(name: str) to str {
+    return "Hello " + name
+}
+
+fn add(a: int, b: int) to int {
+    return a + b
+}

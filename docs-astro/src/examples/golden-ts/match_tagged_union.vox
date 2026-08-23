@@ -1,0 +1,11 @@
+fn classify(code: int) to str {
+    return match code {
+        0 => "ok"
+        404 => "not_found"
+        500 => {
+            let prefix = "server"
+            prefix + "_error"
+        }
+        _ => "other"
+    }
+}
