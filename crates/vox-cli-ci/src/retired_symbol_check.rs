@@ -133,6 +133,31 @@ fn is_historical_or_audit_doc(rel_path: &Path) -> bool {
     false
 }
 
+/// For a markdown table row, return everything after the first data cell.
+///
+/// Policy files list the retired symbol in the first column on purpose, so that
+/// cell is skipped — but the replacement column must stay scannable, because a
+/// replacement that names a retired form is exactly the defect we are hunting.
+///
+/// `\|` inside a cell is escaped content, not a delimiter (the AGENTS.md
+/// `@endpoint` row contains two), so it is masked before splitting.
+fn first_cell_only(line: &str) -> Option<&str> {
+    let trimmed = line.trim_start();
+    let mut rest = trimmed.strip_prefix('|')?;
+    let mut consumed = trimmed.len() - rest.len();
+    loop {
+        let i = rest.find('|')?;
+        if rest[..i].ends_with('\\') {
+            // An escaped pipe inside the cell (e.g. AGENTS.md's `@endpoint`
+            // row) -- not a column delimiter. Keep scanning past it.
+            consumed += i + 1;
+            rest = &rest[i + 1..];
+            continue;
+        }
+        return Some(&trimmed[consumed + i..]);
+    }
+}
+
 fn scan_source_lines(
     path: &Path,
     root: &Path,
@@ -149,9 +174,11 @@ fn scan_source_lines(
     let mut in_fence = false;
 
     for (line_idx, line) in body.lines().enumerate() {
-        if cfg.skip_md_table_rows && line.trim_start().starts_with('|') {
-            continue;
-        }
+        let line: &str = if cfg.skip_md_table_rows {
+            first_cell_only(line).unwrap_or(line)
+        } else {
+            line
+        };
         if cfg.is_rust && should_skip_rust_line(line) {
             continue;
         }
@@ -530,11 +557,33 @@ pub fn run(root: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::should_skip_rust_line;
+    use super::{first_cell_only, should_skip_rust_line};
 
     #[test]
     fn rust_skip_skips_line_comments() {
         assert!(should_skip_rust_line("// vox-dei"));
         assert!(!should_skip_rust_line(r#"let _ = "vox-dei";"#));
+    }
+
+    #[test]
+    fn first_cell_only_exposes_the_replacement_column() {
+        // The real AGENTS.md row: escaped pipes inside the first cell must not
+        // be treated as column separators.
+        let row = r"| `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `server fn` / `query fn` / `mutation fn` |";
+        let rest = first_cell_only(row).expect("table row");
+        assert!(
+            !rest.contains("@endpoint"),
+            "the retired form lives in the first cell and must be skipped, got: {rest}"
+        );
+        assert!(
+            rest.contains("server fn"),
+            "the replacement column must remain scannable, got: {rest}"
+        );
+    }
+
+    #[test]
+    fn first_cell_only_returns_none_for_non_table_lines() {
+        assert!(first_cell_only("plain prose line").is_none());
+        assert!(first_cell_only("").is_none());
     }
 }
