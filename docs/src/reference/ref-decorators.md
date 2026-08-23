@@ -194,6 +194,15 @@ tool "Calculate the sum of two integers" sum(a: int, b: int) to int {
 }
 ```
 
+**Rate limits and user confirmation are not `tool` options.** `tool "description" name(...)` accepts nothing beyond the description string — verified against `parse_tool_kw` in `crates/vox-compiler/src/parser/descent/decl/head.rs`. The inner function *can* carry a generic `@rate_limit(by: user_id|api_key|ip, window_secs: N, max_requests: N)` decorator (it parses into `FnDecl.rate_limit`, the same field HTTP endpoints use), but it is **inert on a `tool` declaration**: `.rate_limit` is only read by the HTTP codegen path (`crates/vox-codegen/src/codegen_rust/emit/http.rs`), never by the MCP tool-call dispatch path. Writing `@rate_limit` on a tool parses cleanly and does nothing.
+
+User confirmation for MCP tool calls is not a per-tool schema at all — it is a runtime policy layer, entirely outside the `.vox` source, documented in [`contracts/orchestration/permission-modes.v1.yaml`](../../../contracts/orchestration/permission-modes.v1.yaml) and implemented in `crates/vox-orchestrator-mcp/src/dispatch.rs`'s dangerous-tool gate:
+
+- Each gated tool is classified by `safety_class` (`read_only`/`mutating`/`destructive`/`unknown`) and `reversible` in the contract's `risk_classes` list; an unlisted tool defaults to `unknown` and is never auto-approved.
+- Three `PermissionMode`s decide which `(safety_class, reversible)` pairs skip the human-approval park: `ask` (default; auto-approves nothing), `accept_edits` (mutating + reversible only), `accept_all` (everything except any tool flagged `always_requires_approval: true`, which never auto-approves under any mode).
+- A per-`(repository_id, tool_name)` persisted "always allow" allowlist (`crates/vox-orchestrator-mcp/src/approval_allowlist.rs`) can additionally auto-approve under `ask` mode, checked only after the permission-mode tier says "still park".
+- The contract documents a 5-tier precedence for the eventual unified decision (`explicit_deny` > `permission_mode` > `persisted_allowlist` > `risk_confidence_matrix_hitl_actions` > `attention_auto_approve_tier`); as of this writing only tiers 2 and 3 are wired into the gate, and the file says so explicitly rather than implying a finished system.
+
 ### `resource` (Keyword)
 Resources are declared with the bare `resource` keyword (not a decorator). `@resource` is a **hard parse error** (`vox/decorator/resource-retired`). The dotted `@mcp.resource` remains valid, non-deprecated syntax, though bare `resource` is preferred for new code.
 - **Goal**: Exposes dynamic readable content to MCP.

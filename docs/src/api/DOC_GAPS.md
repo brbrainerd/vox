@@ -49,7 +49,7 @@ This is a living checklist for the Vox open source community and core contributo
 
 ## Medium Priority
 - [ ] Explain the underlying generic instantiation (`<T>`) algorithm used by HIR logic
-- [ ] Detail all `mcp.tool` options regarding rate limits and user confirmation schemas
+- [x] Detail all `mcp.tool` options regarding rate limits and user confirmation schemas — **closed 2026-08-23**, see [ref-decorators.md §`tool`](../reference/ref-decorators.md). Mostly a false premise: the `tool` keyword itself takes no options beyond its description string, and a `@rate_limit` decorator written on a tool's inner function parses but is never consumed by MCP dispatch (only by HTTP endpoint codegen) -- silently inert. Confirmation is real but lives entirely outside the language, as runtime policy in `contracts/orchestration/permission-modes.v1.yaml` + `dispatch.rs`'s dangerous-tool gate: risk classification, three `PermissionMode`s, a per-repo persisted allowlist, and a documented (partially unwired) 5-tier precedence order.
 - [x] Add explicit HTTP request payload mapping examples for `server` endpoints — **closed 2026-08-23**, see [wire-format-v1-ssot.md §2.2](../architecture/wire-format-v1-ssot.md). `mutation` and `server` share the same param-extraction emitter (`request["<name>"].clone()`, flat top-level JSON lookup); the only wire differences are the path root and that `server` never gets transaction wrapping.
 
 ## Completed 
