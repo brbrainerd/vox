@@ -21,6 +21,7 @@
 - **Line endings are LF** for `md`, `json`, `mjs`, `yml`.
 - **Verification tier is `--full`.** `--complete` runs no tests.
 - **One agent per worktree.**
+- **No checker enters this plan until it has been RUN and its real output pasted into the step.** Task 1's harness was verified that way and one line of it proved fatal on Node >= 21; reasoning about it would not have caught that.
 - **PR discipline:** CodeRabbit reviews once on open. Batch commits; push once.
 
 ---
@@ -96,11 +97,11 @@ const docsSrc = join(repoRoot, 'docs', 'src');
 
 // mermaid imports DOMPurify, which requires a DOM at module-evaluation time.
 const dom = new JSDOM('<!DOCTYPE html><body></body>', { pretendToBeVisual: true });
+// One global is sufficient, and this is the verified minimum. Do NOT assign
+// globalThis.navigator: Node >= 21 ships a getter-only `navigator`, so plain
+// assignment throws `TypeError: Cannot set property navigator of #<Object>
+// which has only a getter` and kills the script before it parses anything.
 globalThis.window = dom.window;
-globalThis.document = dom.window.document;
-globalThis.navigator = dom.window.navigator;
-globalThis.HTMLElement = dom.window.HTMLElement;
-globalThis.SVGElement = dom.window.SVGElement;
 
 const mermaid = (await import('mermaid')).default;
 mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' });
@@ -192,8 +193,9 @@ In `docs-astro/package.json`, add to `scripts`:
 Run: `pnpm --dir docs-astro check:mermaid`
 
 Expected: **exit 1**, reporting exactly one failure —
-`docs/src/how-to/how-to-rust-crate-imports.md:54` with a lexical error near
-`A["`.
+`docs/src/how-to/how-to-rust-crate-imports.md:53` -- the script reports the
+line of the ```` ```mermaid ```` opener, and the real message is
+`Lexical error on line 2. Unrecognized text.`
 
 The archive's two broken diagrams must **not** appear; if they do, the `archive`
 skip in `walk()` is not firing. The reported fence count should be **20** (17
@@ -231,7 +233,7 @@ string is a lexical error. Five of the seven nodes are affected: `A`, `C`, `D`,
 
 Run: `pnpm --dir docs-astro check:mermaid`
 
-Expected: exit 1, one failure at `how-to-rust-crate-imports.md:54`.
+Expected: exit 1, one failure at `how-to-rust-crate-imports.md:53`.
 
 - [ ] **Step 2: Replace the diagram**
 

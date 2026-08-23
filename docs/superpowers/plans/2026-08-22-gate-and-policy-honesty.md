@@ -30,6 +30,7 @@ audit unless explicitly marked otherwise.
 - **Verification tier is `--full`, not `--complete`.** `--complete` runs **no tests**; only `--full` adds `cargo nextest run --workspace`.
 - **`doc-inventory.json` drifts on nearly every task here** and is verified in `--complete` and CI. Regenerate and commit it (Task 14).
 - **One agent per worktree.** During the audit, parallel agents editing this tree deleted each other's files mid-build.
+- **No checker enters this plan until it has been RUN against the real tree and its actual output pasted into the step.** Across two plans, five guards were written to catch drift and **five could not fire** -- two read the wrong markdown column, one skipped the very rows it protected, one was permanently red, one asserted a hardcoded string against a file it never read. Every one was reasoned about instead of executed. "Expected: FAIL" is a transcript, not a prediction.
 - **PR discipline:** CodeRabbit reviews once on open. Batch commits; push once; re-request via a `@coderabbitai review` comment.
 
 ---
@@ -551,12 +552,16 @@ fn adr_numbers_are_unique() {
     let root = repo_root();
     let mut by_number: BTreeMap<u32, Vec<String>> = BTreeMap::new();
 
+    // `architecture/` REQUIRES the `adr-` prefix. Without that guard the 15
+    // date-prefixed files there (`2026-05-08-workspace-reorg-design.md`, ...)
+    // all parse as ADR number 2026 and this assertion is permanently red.
+    // Exactly 3 digits, for the same reason.
     let dirs = [
-        root.join("docs").join("src").join("adr"),
-        root.join("docs").join("src").join("architecture"),
+        (root.join("docs").join("src").join("adr"), false),
+        (root.join("docs").join("src").join("architecture"), true),
     ];
 
-    for dir in &dirs {
+    for (dir, require_prefix) in &dirs {
         let Ok(entries) = std::fs::read_dir(dir) else {
             continue;
         };
@@ -565,11 +570,13 @@ fn adr_numbers_are_unique() {
             if !name.ends_with(".md") {
                 continue;
             }
-            // `037-foo.md` in adr/, `adr-042-foo.md` in architecture/.
-            let stem = name.strip_prefix("adr-").unwrap_or(&name);
+            let stem = match name.strip_prefix("adr-") {
+                Some(s) => s,
+                None if *require_prefix => continue,
+                None => name.as_str(),
+            };
             let digits: String = stem.chars().take_while(|c| c.is_ascii_digit()).collect();
-            // Accept 2-4 digits so `37-`, `037-`, `0037-` all collide.
-            if digits.len() < 2 || digits.len() > 4 {
+            if digits.len() != 3 {
                 continue;
             }
             let Ok(number) = digits.parse::<u32>() else {
@@ -1012,8 +1019,10 @@ mod tests {
     #[test]
     fn golden_examples_contain_no_retired_decorators() {
         for (label, text) in [
+            ("route syntax", SYNTAX_ROUTE),
             ("route", GOLDEN_ROUTE),
             ("route schema", SCHEMA_ROUTE),
+            ("mutation syntax", SYNTAX_MUTATION),
             ("mutation", GOLDEN_MUTATION),
             ("mutation schema", SCHEMA_MUTATION),
         ] {
@@ -1023,10 +1032,12 @@ mod tests {
                     "{label} golden example contains retired decorator {retired}: {text}"
                 );
             }
-            assert!(
-                !text.contains("pub fn"),
-                "{label} golden example contains `pub fn`, which is not Vox: {text}"
-            );
+            for non_vox in ["pub fn", "->", "u64", "String", "Result<"] {
+                assert!(
+                    !text.contains(non_vox),
+                    "{label} contains {non_vox:?}, which is not Vox syntax: {text}"
+                );
+            }
         }
     }
 }
@@ -1044,26 +1055,50 @@ the assertions.
 Above the handler in `crates/vox-cli/src/commands/llm.rs`:
 
 ```rust
-const GOLDEN_ROUTE: &str = "query get_profile() to Result[Profile, Error] {\n    Ok(Profile { name: \"Test\" })\n}";
+// Copied VERBATIM from examples/golden/crud_api.vox:19-32, which the
+// compiler verifies. Do NOT hand-write Vox here: a previous revision of
+// this task invented `Ok(unit)`, a `Profile`/`Error` pair nothing
+// declares, and a named-struct literal with zero precedent across all 79
+// golden files -- shipping a new falsehood into the exact command this
+// task exists to de-falsify.
+const SYNTAX_ROUTE: &str = "query user_count() to int {\n    // ...\n}";
+const GOLDEN_ROUTE: &str =
+    "query user_count() to int {\n    return len(db.User.all())\n}";
 const SCHEMA_ROUTE: &str = "{ \"type\": \"route\", \"keyword\": \"query\" }";
-const GOLDEN_MUTATION: &str = "mutation update_profile(name: str) to Result[Unit, Error] {\n    Ok(unit)\n}";
+const SYNTAX_MUTATION: &str = "mutation seed_user(name: str) to str {\n    // ...\n}";
+const GOLDEN_MUTATION: &str =
+    "mutation seed_user(name: str) to str {\n    db.User.insert({ name: name, active: true })\n    return \"created\"\n}";
 const SCHEMA_MUTATION: &str = "{ \"type\": \"mutation\", \"keyword\": \"mutation\" }";
 ```
 
-Then replace the two `println!` calls in each branch to print these constants
-instead of the inline retired-form strings. Leave the "--- Route Decorator
-Syntax ---" line alone; it was already correct.
+Then replace **all three** content `println!` calls in each branch with these
+constants.
 
-Before committing, confirm the corrected snippets actually parse:
+**The syntax line is NOT already correct** -- a previous revision of this task
+claimed it was. `llm.rs:26` prints `query get_user(id: u64) -> User`: `u64` is
+not a Vox type (`int` is) and `->` is not the return arrow (`to` is). The
+mutation branch at `:41` is worse: `String`, and `Result<(), Error>` with angle
+brackets. That is why `SYNTAX_ROUTE` / `SYNTAX_MUTATION` exist above, and why
+the test below iterates them too.
+
+Before committing, confirm the snippets parse. The constants above are copied
+from a compiler-verified golden file, so this should pass on the first run --
+if it does not, the golden file moved and you must re-copy from it rather than
+edit the snippet.
+
+Do not write to `/tmp`: a Git-Bash `/tmp` path is not resolvable by the
+`cargo run` child process on Windows. Use a repo-relative scratch file and
+delete it.
 
 ```bash
-printf 'query get_profile() to Result[Profile, Error] {\n    Ok(Profile { name: "Test" })\n}\n' > /tmp/golden_check.vox
-cargo run -q -p vox-cli -- check /tmp/golden_check.vox
+printf 'query user_count() to int {\n    return len(db.User.all())\n}\n' > target/golden_check.vox
+cargo run -q -p vox-cli -- check target/golden_check.vox
+rm target/golden_check.vox
 ```
 
-If the signature syntax differs from current Vox, copy a real example from
-`examples/golden/**/*.vox` rather than inventing one — those 79 files are all
-compiler-verified.
+Never hand-write Vox into this task. Copy from `examples/golden/**/*.vox` --
+those 79 files are compiler-verified, and the previous revision of this step
+invented syntax that does not compile.
 
 - [ ] **Step 5: Fix the cache-miss pointer**
 
