@@ -209,34 +209,23 @@ Add near the other helpers in `crates/vox-cli-ci/src/retired_symbol_check.rs`:
 /// `@endpoint` row contains two), so it is masked before splitting.
 fn first_cell_only(line: &str) -> Option<&str> {
     let trimmed = line.trim_start();
-    if !trimmed.starts_with('|') {
-        return None;
-    }
-    let masked = trimmed.replace(r"\|", "\u{1}");
-    // Byte offset of the pipe that closes the first data cell, measured on the
-    // masked copy and applied to the original (same length: 2 bytes -> 2 bytes
-    // would differ, so compute on the masked string and map by index count).
-    let mut pipes = 0usize;
-    for (idx, ch) in masked.char_indices() {
-        if ch == '|' {
-            pipes += 1;
-            if pipes == 2 {
-                // `idx` is valid in `trimmed` only if the mask preserved byte
-                // offsets; it does not (`\|` is 2 bytes, `\u{1}` is 1), so slice
-                // the masked string and unmask the result.
-                let tail = &masked[idx..];
-                return Some(Box::leak(tail.replace('\u{1}', r"\|").into_boxed_str()));
-            }
+    let mut rest = trimmed.strip_prefix('|')?;
+    let mut consumed = trimmed.len() - rest.len();
+    loop {
+        let i = rest.find('|')?;
+        if rest[..i].ends_with('\\') {
+            // An escaped pipe inside the cell (e.g. AGENTS.md's `@endpoint`
+            // row) -- not a column delimiter. Keep scanning past it.
+            consumed += i + 1;
+            rest = &rest[i + 1..];
+            continue;
         }
+        return Some(&trimmed[consumed + i..]);
     }
-    None
 }
 ```
 
-**Note on the `Box::leak`:** the mask/unmask round-trip cannot borrow from the
-input because byte offsets shift. If a leak is unacceptable in this crate,
-change the signature to `-> Option<String>` and adjust the two call sites and
-both tests accordingly; prefer that if `clippy` objects.
+
 
 - [ ] **Step 5: Wire it into the skip branch**
 
@@ -1157,10 +1146,25 @@ sed -n '20,50p' docs/agents/vox-language-surface.v1.json
 
 Add to `#[cfg(test)] mod tests` in `crates/vox-language-surface/src/lib.rs`:
 
+**Ruling: `vox-language-surface` has exactly one dependency
+(`workspace-hack`) and no dev-dependencies** -- a `serde_json`-based test
+cannot compile there, and the "move it to vox-cli-ci" fallback would
+duplicate `LEXER_DEPRECATED_DECORATORS` into a second SSOT (the exact
+anti-pattern this task exists to reject in the JSON it is fixing) and needs
+a crate edge that does not exist. Use a substring check against the file's
+own JSON text instead -- no new dependency, stays next to the constant it
+verifies.
+
 ```rust
     /// The agent-facing JSON is what `vox llm prompt` points models at on a
     /// cache miss. It must never advertise a decorator this crate already
     /// classifies as retired.
+    ///
+    /// A substring check, not a JSON parse: this crate has no serde_json
+    /// dependency and none should be added just for this test. The file
+    /// spells every decorator as `"name": "@foo"`, so that literal is
+    /// specific enough to avoid false hits on prose mentions elsewhere in
+    /// the document.
     #[test]
     fn agent_language_surface_json_has_no_retired_decorators() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -1170,26 +1174,16 @@ Add to `#[cfg(test)] mod tests` in `crates/vox-language-surface/src/lib.rs`:
             .join("docs/agents/vox-language-surface.v1.json");
         let raw = std::fs::read_to_string(&path)
             .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-        let json: serde_json::Value =
-            serde_json::from_str(&raw).expect("parse vox-language-surface.v1.json");
 
-        let names: Vec<String> = json["decorators"]
-            .as_array()
-            .expect("decorators array")
+        assert!(
+            raw.contains("\"decorators\""),
+            "shape changed -- this guard is inert"
+        );
+
+        let offenders: Vec<&&str> = LEXER_DEPRECATED_DECORATORS
             .iter()
-            .map(|d| d["name"].as_str().expect("decorator name").to_string())
+            .filter(|d| raw.contains(&format!("\"name\": \"{d}\"")))
             .collect();
-
-        let mut offenders = Vec::new();
-        for name in &names {
-            let bare = name.trim_start_matches('@');
-            if LEXER_DEPRECATED_DECORATORS
-                .iter()
-                .any(|d| d.trim_start_matches('@') == bare)
-            {
-                offenders.push(name.clone());
-            }
-        }
 
         assert!(
             offenders.is_empty(),
@@ -1198,10 +1192,12 @@ Add to `#[cfg(test)] mod tests` in `crates/vox-language-surface/src/lib.rs`:
     }
 ```
 
-If `serde_json` is not already a dependency of `vox-language-surface`, put this
-test in `crates/vox-cli-ci` instead — that crate has both `serde_json` and
-`serde_yaml` — and reference the decorator list by literal there, noting the
-SSOT in a comment.
+Verified `LEXER_DEPRECATED_DECORATORS` (`crates/vox-language-surface/src/lib.rs:336-355`,
+14 entries, all `@`-prefixed) contains `@mcp.resource` -- which AGENTS.md and
+Step 4 below both call fully valid, non-deprecated syntax. **Do not add
+`@mcp.resource` to the JSON's `decorators` array** in Step 4; doing so trips
+this guard. If a future need arises to document it, that is a change to
+`LEXER_DEPRECATED_DECORATORS`'s own meaning, not to this JSON.
 
 - [ ] **Step 3: Run the test to verify it fails**
 
@@ -1484,19 +1480,37 @@ Expected: PASS.
     // metrics.v1.json is a green build. `generated_at` is deliberately not
     // compared — compute_metrics never emits it.
     let expected_metrics = compute_metrics(&inv, &findings);
-    if let Value::Object(expected) = &expected_metrics {
-        for (key, want) in expected {
-            let got = metrics_val.get(key);
-            if got != Some(want) {
-                anyhow::bail!(
-                    "metrics.v1.json is stale: field {:?} is {} but inputs imply {}. \
-                     Run `vox ci docs-reality-audit metrics --write`.",
-                    key,
-                    got.map(|v| v.to_string())
-                        .unwrap_or_else(|| "absent".to_string()),
-                    want
-                );
-            }
+    let Value::Object(expected) = &expected_metrics else {
+        unreachable!("compute_metrics always returns a JSON object")
+    };
+    for (key, want) in expected {
+        let got = metrics_val.get(key);
+        if got != Some(want) {
+            anyhow::bail!(
+                "metrics.v1.json is stale: field {:?} is {} but inputs imply {}. \
+                 Run `vox ci docs-reality-audit metrics --write`.",
+                key,
+                got.map(|v| v.to_string())
+                    .unwrap_or_else(|| "absent".to_string()),
+                want
+            );
+        }
+    }
+    // The loop above only checks expected -> actual, so a field REMOVED from
+    // compute_metrics but still present in the committed file passes
+    // silently. additionalProperties:false in the schema catches this only
+    // for keys in `required`; an optional stale key (there is none today,
+    // but nothing prevents one tomorrow) would not be. Close it explicitly.
+    if let Some(actual) = metrics_val.as_object() {
+        let extra: Vec<&String> = actual
+            .keys()
+            .filter(|k| k.as_str() != "generated_at" && !expected.contains_key(*k))
+            .collect();
+        if !extra.is_empty() {
+            anyhow::bail!(
+                "metrics.v1.json has stale fields no longer emitted: {extra:?}. \
+                 Run `vox ci docs-reality-audit metrics --write`."
+            );
         }
     }
 ```
@@ -1703,8 +1717,7 @@ cargo clippy -p vox-cli --all-targets -- -D warnings
 cargo clippy -p vox-actor-runtime --all-targets -- -D warnings
 ```
 
-Expected: clean. If `clippy` objects to the `Box::leak` in Task 2, switch
-`first_cell_only` to return `Option<String>` as that task's note describes.
+Expected: clean.
 
 - [ ] **Step 5: Run the docs and contract gates**
 
