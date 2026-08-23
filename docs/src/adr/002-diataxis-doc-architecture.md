@@ -55,7 +55,7 @@ Published pages should use YAML frontmatter. At minimum, new pages should carry:
 ---
 title: "Human-readable Title"
 description: "One-sentence summary"
-category: "Getting Started"|tutorial|how-to|explanation|reference|adr|architecture|contributor|ci
+category: "Getting Started"|"Tutorials"|"How-To Guides"|"Concepts"|"Language Reference"|"API Reference — Crates"|"Examples"|"Architecture Decisions (ADRs)"|"Architecture SSOTs"|"CI & Quality"|"Contributors"|"Operations"|archive  # see documentation-governance.md for the enforced vocabulary
 training_eligible: true
 status: current|experimental|legacy|research|roadmap|deprecated  # when needed
 ---
