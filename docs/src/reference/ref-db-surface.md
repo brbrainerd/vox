@@ -12,59 +12,74 @@ schema_type: "TechArticle"
 
 Vox provides a built-in typed surface targeting the unified storage layer (Codex/Arca) via the standard `db.*` API domain. 
 
+```vox
+table User {
+    age: int
+    status: str
+    role: str
+    created_at: str
+}
+```
+
+Every fence on this page shares this one `User` table declaration.
+
 ## Standard Table Fetch & Mutations
 
-When you declare a `table Model`, the compiler auto-instantiates a `db.Model` handler namespace holding explicit data actions. 
+When you declare a `table Model`, the compiler auto-instantiates a `db.Model` handler namespace holding explicit data actions. Signatures below are verified against the method table in
+[`crates/vox-compiler/src/typeck/builtins.rs`](../../../crates/vox-compiler/src/typeck/builtins.rs) (`TypeckBuiltins::lookup_method` on `Ty::Table`) — every method returns `Result[T, str]`, not a bare `T`.
 
-- `db.Model.all() -> list[Model]`  
-  *Retrieve every matched record in a table.*
-- `db.Model.find(id: Id[Model]) -> Option[Model]`  
-  *Extract a specific row given a compiler-tracked typed Identifier key.*
-- `db.Model.insert(fields) -> Id[Model]`  
-  *Insert mapping with schema constraints automatically typed and parameterized. ID is returned upon storage completion.*
-- `db.Model.update(id: Id[Model], diff) -> Unit`  
-  *Replaces explicit parameters targeted inside `diff` directly over the previously generated ID scope.*
-- `db.Model.delete(id: Id[Model]) -> Unit`  
-  *Removes row associated with that specific Identifier entirely.*
+- `db.Model.all() -> Result[list[Model], str]`
+  *Retrieve every record in a table.*
+- `db.Model.find(id: Id[Model]) -> Result[Option[Model], str]`
+  *Extract a specific row by primary key (alias of `.get()`).*
+- `db.Model.insert(fields) -> Result[int, str]`
+  *Insert a full record. Returns the inserted row's `rowid`, not an `Id[Model]`.*
+- `db.Model.delete(id: Id[Model]) -> Result[Unit, str]`
+  *Removes the row at that key.*
+- `db.Model.count() -> Result[int, str]`
+  *Row count for the table.*
+
+**There is no `db.Model.update()`.** A previous version of this page documented one; it does not exist in the compiler. To change a row today, `delete` then `insert`, or use the raw escape hatch below.
 
 ## Filters and Predicates
 
-Query structures map to literal internal predicates mapped across your database indexes mapping securely. Note: Filtering and pagination requires appending `.all()` to trigger SQL fulfillment. 
+Verified 2026-08-23 by compiling each example below with `vox check` — all pass. An earlier version of this page marked these `// vox:skip` as "not yet implemented"; that was wrong, and so was the claim that `.all()` must be appended to a filter/where call — appending it is in fact a type error, since `.filter()`/`.where()` already return `Result[list[Model], str]` directly.
 
-- `db.Model.filter({ field: val })`  
-  *Creates simple equality matches across the field table parameters.* 
+- `db.Model.filter({ field: val })`
+  *Simple equality matches across fields.*
   ```vox
-  // vox:skip -- db.Table.filter() is not yet implemented (see examples/golden/db_advanced_queries.vox)
-  db.User.filter({ age: 30 }).all()
+  query filtered_users() to Result[list[User], str] {
+      return db.User.filter({ age: 30 })
+  }
   ```
 
-- `db.Model.where({ field: { predicate } })`  
-  *Accepts complex structured parameter ranges such as `gt`, `lt`, `eq`, `ne`, `in`.* 
+- `db.Model.where({ field: { predicate } })`
+  *Structured predicates: `gt`, `lt`, `eq`, `ne` (see `crates/vox-compiler/src/hir/lower/expr_db.rs` for the full operator set).*
   ```vox
-  // vox:skip -- db.Table.where() is not yet implemented (see examples/golden/db_advanced_queries.vox)
-  db.User.where({ age: { gt: 18, lt: 65 }, status: { ne: "blocked" } }).all()
+  query filtered_users_range() to Result[list[User], str] {
+      return db.User.where({ age: { gt: 18, lt: 65 }, status: { ne: "blocked" } })
+  }
   ```
 
 ## Query Context Chaining 
 
-The Vox DB handler uses deterministic chained methods. 
+The Vox DB handler uses deterministic chained methods. Verified against the same `expr_db.rs` match arms as above.
 
 - `.order_by("field", "asc" | "desc")`  
-  *Orders results chronologically or structurally based on the explicit field value sequence.*
+  *Orders results by the given field.*
 - `.limit(n: int)`  
-  *Determines max response array element limits.*
+  *Caps the result count.*
 - `.select("field1", "field2")`  
-  *Performs column restrictions at query transit.* 
+  *Restricts which columns are returned.*
 
-**Chain Aggregation Example**:
+**Chain Aggregation Example** (compiles as-is; note no trailing `.all()`):
 ```vox
-// vox:skip -- .where()/.order_by()/.limit() chaining is not yet implemented (see examples/golden/db_advanced_queries.vox)
-return db.User
-   .where({ role: { eq: "admin" } })
-   .order_by("created_at", "desc")
-   .limit(5)
-   .all()
+query admins_recent() to Result[list[User], str] {
+    return db.User.where({ role: { eq: "admin" } }).order_by("created_at", "desc").limit(5)
+}
 ```
+
+Note the chain is written on one line: Vox does not support a leading-dot method call continuing onto the next line the way some other languages do.
 
 ## Advanced Storage Modifiers 
 
@@ -81,8 +96,14 @@ These chainable context selectors modify *how* the operation interacts with the 
 
 ## Database Escape Hatch 
 
-- `db.query(sql: str, params: list[T]) -> list[Result]`
-  *Allows writing explicit raw parameter-bound queries that entirely bypass the compiler's safety assertions. Designed exclusively for highly customized analytics scripts mapping across disparate tables.*
+- `db.Model.query(clause: str) -> Result[list[Model], str]`
+  *Not `db.query(sql, params)` — the escape hatch lives on the table handler, takes one raw SQL-fragment string (no separate params list), and is appended after `SELECT * FROM t`.*
+
+This is deliberately hostile to use. `vox check` rejects it with a hard error by default —
+`.query(clause) builds dynamic SQL; prefer .all() or .get(id)` — and it must be called from a
+`mutation`, not a `query`, even for a read-only clause (the compiler cannot statically verify
+a raw clause doesn't mutate). Reach for `.filter()`/`.where()` first; this exists for the small
+minority of queries their predicate algebra can't express.
 
 ## Transactional boundaries: `query` vs `mutation` vs `server`
 
