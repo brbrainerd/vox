@@ -576,9 +576,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(unsafe_code)] // `set_var`/`remove_var` are unsafe on Rust 2024; ENV_LOCK serialises this test's mutators.
     fn local_fallback_disabled_when_env_unset() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        // SAFETY: ENV_LOCK serialises every mutator of this variable.
         unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
         assert!(
             !local_fallback_enabled(),
@@ -587,9 +587,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(unsafe_code)] // `set_var`/`remove_var` are unsafe on Rust 2024; ENV_LOCK serialises this test's mutators.
     fn local_fallback_enabled_when_env_set() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        // SAFETY: ENV_LOCK serialises every mutator of this variable.
         unsafe { std::env::set_var(LOCAL_FALLBACK_ENV, "1") };
         assert!(local_fallback_enabled());
         unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
@@ -716,7 +716,6 @@ mod tests {
     }
 
     /// The core property: with no expected hash, installation is REFUSED.
-    #[test]
     /// The escape this phase's extraction hardening cannot see: it lives in the
     /// archive's declared metadata, not in any zip entry.
     /// Wiring test, not a unit test: the validator existing is worthless if
@@ -761,9 +760,10 @@ version = \"../../..\"
     /// The sibling of the workspace-local fallback: a `local:` catalog source is
     /// CWD-relative, so it must sit behind the same opt-in.
     #[tokio::test]
+    #[allow(unsafe_code)] // `remove_var` is unsafe on Rust 2024; ENV_LOCK serialises this test's mutators.
+    #[allow(clippy::await_holding_lock)] // `#[tokio::test]` is single-threaded, so holding the guard across the await is sound.
     async fn catalog_local_source_is_refused_without_the_opt_in() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        // SAFETY: ENV_LOCK serialises every mutator of this variable.
         unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
         let err = install_from_catalog("mens-candle-metal", true, false)
             .await
@@ -832,13 +832,12 @@ version = \"../../..\"
     /// A catalog install must fail BEFORE any network call when the entry is
     /// unpinned — an unpinned `latest` asset cannot be checksummed at all.
     #[tokio::test]
+    #[allow(unsafe_code)] // `remove_var` is unsafe on Rust 2024; ENV_LOCK serialises this test's mutators.
+    #[allow(clippy::await_holding_lock)] // `#[tokio::test]` is single-threaded, so holding the guard across the await is sound.
     async fn catalog_install_refuses_an_unpinned_entry_before_downloading() {
         // ENV_LOCK (defined above) serialises this against the fallback tests,
         // which set and remove the same process-global variable.
-        // `#[tokio::test]` is single-threaded, so holding the guard across the
-        // await is sound.
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        // SAFETY: ENV_LOCK serialises every mutator of this variable.
         unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
         let err = install_from_catalog("oratio", true, false)
             .await
