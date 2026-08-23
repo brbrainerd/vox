@@ -30,6 +30,18 @@ This is a living checklist for the Vox open source community and core contributo
 
   **Do not close this by hand-writing 33 sections** — that recreates the drift. `crates/vox-cli/src/command_catalog.rs` already reflects the full clap tree via `build_catalog()`, and `contracts/operations/catalog.v1.yaml` (which feeds the generated `cli-command-surface.generated.md`) is itself missing 31 of the same commands. Retarget `command_sync.rs` at `build_catalog()` so the generated inventory comes from clap rather than from a YAML that shadows it; the narrative and tombstones in `cli.md` stay hand-written.
 
+## Retired-syntax prose lint (measured, not yet closed)
+
+- [ ] **`contracts/documentation/retired-symbols.v1.yaml` has no pattern for any at-prefixed data-layer form** — no `@table`, `@query`, `@mutation`, `@server`, `@tool`, `@resource`, `@form`, `@index`, or `@endpoint`. It carries `@component fn` but not the eight forms that became hard parse errors on 2026-06-30 (`cd7cc96874`). So `vox ci retired-symbol-check` could not fire on the defect it exists to prevent, and `ref-decorators.md` and `migration-0.5-to-0.6.md` told readers to migrate *onto* dead syntax for months with every gate green.
+
+  **Adding the nine patterns is not the fix — measured 2026-08-23.** They work (verified against an injected probe) but produce **195 violations on a clean tree**: 65 `@endpoint`, 26 `@table`, 22 `@query`, 20 each `@tool`/`@mutation`, 19 `@form`, 16 `@server`, 3 each `@resource`/`@index`. Concentrated in `boilerplate-reduction-gap-analysis-2026.md` (27), `vox-gui-native-roadmap-2026.md` (21), `migration-0.5-to-0.6.md` (14), `ref-decorators.md` (10). The last two are *correct* — the retired forms live in their "Retired" columns and migration tables, which is what those pages are for.
+
+  A line-level migration-cue allowlist (`retired|removed|deprecated|instead|→|no longer|superseded|…`) was measured against all 194 decorator hits: it clears **62**, leaving **132**. Insufficient — the remainder are legitimate mentions inside historical and design docs whose individual lines carry no cue.
+
+  What this actually needs is **block-level context**: skip a fenced block or a section under a "Retired"/"Historical" heading, the way `is_historical_or_audit_doc` already approximates at whole-file granularity. Until that exists, the patterns stay out; a gate the tree fails on 195 legitimate lines is not a guard.
+
+  Related measurement: of 629 stale-syntax occurrences repo-wide, only **6.2%** sit inside ```vox fences (all correctly `vox:skip`-marked), **60.9%** are prose and **25.1%** table cells. The doctest gate can never reach the latter two.
+
 ## Medium Priority
 - [ ] Explain the underlying generic instantiation (`<T>`) algorithm used by HIR logic
 - [ ] Detail all `mcp.tool` options regarding rate limits and user confirmation schemas
