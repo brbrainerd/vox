@@ -388,6 +388,14 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
             {
                 continue;
             }
+            // docs/src/reference/changelog.md is synced verbatim from the
+            // repository-root CHANGELOG.md. A changelog names removed files by
+            // construction -- the entry that records a deletion has to say what
+            // was deleted -- so a "stale reference" there is the record working,
+            // not drift. Same carve-out as retired_symbol_check's.
+            if rel == Path::new("docs/src/reference/changelog.md") {
+                continue;
+            }
             let ext = p.extension().and_then(|x| x.to_str());
             if ext != Some("md")
                 && ext != Some("yml")
