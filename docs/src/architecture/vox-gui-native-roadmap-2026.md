@@ -1209,10 +1209,15 @@ different constraints. Unification reduces the decorator surface from 14 to
 12 and consolidates three HIR buckets (`query_fns`, `mutation_fns`,
 `server_fns`) into one.
 
-**Target syntax**:
+**Target syntax** (as of April 2026 — superseded):
+
+> This unification shipped as `@endpoint(kind: …)`, which was then removed in
+> v0.6.0 and replaced by the bare keywords `query` / `mutation` / `server`.
+> The at-prefixed spellings below are hard parse errors as of 2026-06-30
+> (`cd7cc96874`). Kept to record the design rationale, not as a target.
 
 ```vox
-// vox:skip
+// vox:skip -- superseded design: @endpoint was removed in v0.6.0
 @endpoint(kind: query)    fn recent_tasks() to list[Task] { ... }
 @endpoint(kind: mutation) fn add_task(t: NewTask) to Id[Task] { ... }
 @endpoint(kind: server)   fn privileged_action() to Result[Unit] { ... }

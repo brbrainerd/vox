@@ -1362,7 +1362,7 @@ each.
 Today's spelling:
 
 ```vox
-// vox:skip
+// vox:skip -- historical: this audit is what retired @endpoint
 @endpoint(kind: query) fn list_items() to list[Item] { … }
 @endpoint(kind: mutation) fn add_item(name: str) to Result[Item] { … }
 ```
