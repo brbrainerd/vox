@@ -64,11 +64,9 @@ mod tests {
     #[test]
     fn release_workflows_grant_write_only_where_needed() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        // release-gui's sole job both builds and uploads, so it needs write
-        // until that job is split — see the plan's honesty table.
         for (wf, writer) in [
             ("release-binaries.yml", Some("publish")),
-            ("release-gui.yml", Some("build-tauri")),
+            ("release-gui.yml", Some("publish")),
             ("release-installers.yml", None),
         ] {
             let text = std::fs::read_to_string(root.join(".github/workflows").join(wf))
