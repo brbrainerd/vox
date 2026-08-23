@@ -14,7 +14,6 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'approvals', cliGroup: null, tier: 'live_backend', navLabel: 'Approvals', navIcon: 'shield', navGroup: 'operate', parentSurface: 'runs' },
   { viewKey: 'browser', cliGroup: null, tier: 'live_backend', navLabel: 'Browser', navIcon: 'globe', navGroup: 'develop', parentSurface: 'workspace' },
   { viewKey: 'chat', cliGroup: null, tier: 'live_backend', navLabel: 'Chat', navIcon: 'send', navGroup: 'operate', parentSurface: null },
-  { viewKey: 'coderabbit', cliGroup: null, tier: 'live_backend', navLabel: 'CodeRabbit', navIcon: 'check', navGroup: 'develop', parentSurface: 'workspace' },
   { viewKey: 'console', cliGroup: null, tier: 'live_backend', navLabel: 'Console', navIcon: 'command', navGroup: 'develop', parentSurface: 'workspace' },
   { viewKey: 'coverage', cliGroup: null, tier: 'live_backend', navLabel: 'Coverage', navIcon: 'check', navGroup: 'system', parentSurface: 'settings' },
   { viewKey: 'dashboard', cliGroup: null, tier: 'live_backend', navLabel: 'Dashboard', navIcon: 'dashboard', navGroup: 'operate', parentSurface: 'agents' },

@@ -33,14 +33,6 @@ surfaces:
   nav_group: operate
   parent_surface: null
   notes: Primary chat surface
-- view_key: coderabbit
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: CodeRabbit
-  nav_icon: check
-  nav_group: develop
-  parent_surface: workspace
-  notes: date-scoped importance sweep + slice review
 - view_key: console
   cli_group: null
   representation_tier: live_backend

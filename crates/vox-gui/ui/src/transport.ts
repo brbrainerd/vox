@@ -1013,35 +1013,3 @@ export function chatSendMessage(input: ChatSendInput): Promise<ChatMessageDto> {
   return safeInvoke<ChatMessageDto>('chat_send_message', { input });
 }
 
-// ---------------------------------------------------------------------------
-// CodeRabbit sweep transport wrappers.
-// ---------------------------------------------------------------------------
-
-export function codeRabbitTokenPresent(): Promise<boolean> {
-  return safeInvoke<boolean>('coderabbit_token_present');
-}
-
-/** Generic over the view's own `Report` shape — this hub has no opinion on it. */
-export function codeRabbitReport<T = unknown>(): Promise<T> {
-  return safeInvoke<T>('coderabbit_report');
-}
-
-export interface CodeRabbitSweepArgs {
-  since: string;
-  cap: number;
-  rankWeights: string;
-  top: number | null;
-  fullRepo: boolean;
-  [key: string]: unknown;
-}
-
-/** Generic over the view's own `Manifest` shape — this hub has no opinion on it. */
-export function codeRabbitPlan<T = unknown>(args: CodeRabbitSweepArgs): Promise<T> {
-  return safeInvoke<T>('coderabbit_plan', args);
-}
-
-export function codeRabbitRunAsync(args: CodeRabbitSweepArgs): Promise<void> {
-  return safeInvoke('coderabbit_run_async', args);
-}
-
-

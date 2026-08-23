@@ -14,7 +14,6 @@ import { HarnessRedirect } from '../surfaces/Harness/HarnessRedirect';
 import { HarnessHealthView } from '../surfaces/HarnessHealth/HarnessHealthView';
 import { BrowserView } from '../surfaces/Browser/BrowserView';
 import { ApprovalsView } from '../surfaces/Approvals/ApprovalsView';
-import { CodeRabbitView } from '../surfaces/CodeRabbit/CodeRabbitView';
 import { DiscoverySurface } from '../surfaces/Discovery/DiscoverySurface';
 import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
 import { PoliciesView } from '../surfaces/Policies/PoliciesView';
@@ -167,8 +166,6 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
       );
     case 'approvals':
       return <ApprovalsView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
-    case 'coderabbit':
-      return <CodeRabbitView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'activity':
       return <DiscoverySurface pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'needs-you':

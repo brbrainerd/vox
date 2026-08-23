@@ -11,7 +11,6 @@ vi.mock('../../generated/surfaceRegistry.generated', () => ({
     { viewKey: 'console', navLabel: 'Console', parentSurface: 'workspace', tier: 'live_backend' },
     { viewKey: 'harness', navLabel: 'Harness', parentSurface: 'workspace', tier: 'live_backend' },
     { viewKey: 'repository', navLabel: 'Repository', parentSurface: 'workspace', tier: 'live_backend' },
-    { viewKey: 'coderabbit', navLabel: 'CodeRabbit', parentSurface: 'workspace', tier: 'live_backend' },
   ],
 }));
 
@@ -47,6 +46,6 @@ describe('ParentSurface sub-tab ordering', () => {
       </LanguageProvider>,
     );
     const tabs = screen.getAllByRole('button').map(t => t.textContent);
-    expect(tabs).toEqual(['Console', 'Repository', 'Browser', 'Harness', 'CodeRabbit']);
+    expect(tabs).toEqual(['Console', 'Repository', 'Browser', 'Harness']);
   });
 });

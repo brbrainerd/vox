@@ -37,7 +37,7 @@ const VARIANT_SURFACES = new Set([
 export const SURFACE_STATES: Record<string, ReviewState[]> = Object.fromEntries(
   // Every surface starts with an explicit [DEFAULT]; specifics below override.
   ([
-    'activity', 'approvals', 'browser', 'catalog', 'chat', 'coderabbit', 'console',
+    'activity', 'approvals', 'browser', 'catalog', 'chat', 'console',
     'coverage', 'dashboard', 'flow', 'harness', 'harness-health', 'memory', 'mercatus', 'mesh',
     'models', 'needs-you', 'policies', 'publications', 'runs', 'settings',
     'skills', 'sub-agents', 'tasks', 'vox-search', 'gamify', 'repository',

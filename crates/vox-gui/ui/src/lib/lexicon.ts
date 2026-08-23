@@ -21,7 +21,6 @@ export const LEXICON: Record<string, LexEntry> = {
   browser: { en: 'Browser', la: 'Explorator' },
   catalog: { en: 'Catalog', la: 'Catalogus' },
   claims: { en: 'Claims', la: 'Assertiones' },
-  coderabbit: { en: 'CodeRabbit' },
   console: { en: 'Console', la: 'Terminus' },
   coverage: { en: 'Coverage', la: 'Tegmen' },
   dashboard: { en: 'Dashboard', la: 'Specula' },
