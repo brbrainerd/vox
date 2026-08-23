@@ -42,7 +42,6 @@ In Vox, `null` and `undefined` do not exist. Absence must be modeled explicitly 
 A named collection of fields.
 
 ```vox
-// vox:skip
 table Task {
     id:       Id[Task]
     title:    str
@@ -72,9 +71,11 @@ Vox uses the `match` keyword for exhaustive destructuring of ADTs. The compiler 
 Used for values that might be missing.
 
 ```vox
-// vox:skip
-fn find_user(id: int) to Option[User] {
-    return db.User.find(id)
+fn find_user(id: int) to Option[str] {
+    if id is 1 {
+        return Some("alice@example.com")
+    }
+    return None
 }
 ```
 
@@ -82,13 +83,12 @@ fn find_user(id: int) to Option[User] {
 Used for operations that can fail.
 
 ```vox
-// vox:skip
-server update_task(id: Id[Task], title: str) to Result[Unit, str] {
-    if title.len() == 0 {
-        return Err("Title cannot be empty")
+server remove_task(id: Id[Task], title: str) to Result[str] {
+    if title.len() is 0 {
+        return Error("Title cannot be empty")
     }
-    db.patch(id, { title: title })
-    return Ok(())
+    db.Task.delete(id)?
+    return Ok("removed")
 }
 ```
 
@@ -97,10 +97,9 @@ server update_task(id: Id[Task], title: str) to Result[Unit, str] {
 Similar to Rust, the `?` operator can be used to early-return on `None` or `Err`.
 
 ```vox
-// vox:skip
 fn get_user_email(id: int) to Option[str] {
-    let user = find_user(id)? // If None, returns None early
-    return Some(user.email)
+    let email = find_user(id)? // If None, returns None early
+    return Some(email)
 }
 ```
 
@@ -119,10 +118,15 @@ Vox supports **type constructors** such as `list[T]`, `map[K, V]`, `Option[T]`, 
 You rarely need Type annotations for local variables. Vox infers them from the right-hand side or from how the variable is used.
 
 ```vox
-// vox:skip
-let x = 10                  // inferred as int
-let names = ["Alice", "Bob"] // inferred as list[str]
-let result = add_task("Hi")  // inferred from add_task signature
+fn add_task(title: str) to int {
+    return 1
+}
+
+fn demo_inference() {
+    let x = 10                  // inferred as int
+    let names = ["Alice", "Bob"] // inferred as list[str]
+    let result = add_task("Hi")  // inferred from add_task signature
+}
 ```
 
 Explicit types are **required** on:

@@ -29,12 +29,15 @@ This utility checks the system environment against the `SecretSpec` definition t
 Input validation is not an afterthought; it is a structural precondition. The `@require` decorator evaluates expressions before the function or type instantiation occurs.
 
 ```vox
-// vox:skip
+table User {
+    name: str
+}
+
 tool "Delete user data"
 @require(auth.is_admin(caller))
-mutation delete_data(id: Id[User]) to Result[Unit] {
+mutation delete_data(id: Id[User]) to Result[str] {
     db.User.delete(id)
-    return Ok(())
+    return Ok("deleted")
 }
 ```
 

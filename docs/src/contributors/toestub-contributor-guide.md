@@ -90,7 +90,6 @@ non-golden `.vox` files are not checked.
 (the @test-first gate from [contribution-loop.md](contribution-loop.md#test-first-for-golden-examples)):
 
 ```vox
-// vox:skip
 @test
 fn test_my_fn() {
     let result = my_fn("input")
@@ -106,7 +105,7 @@ fn my_fn(x: str) to str {
 only by other helpers (not directly tested), suppress on that line:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: `{ ... }` is placeholder notation, not real syntax
 fn _internal_helper() { ... } // toestub-ignore(skeleton/no-test-for-pub-fn)
 ```
 
@@ -189,7 +188,7 @@ with `// toestub-ignore(security/hardcoded-secret) — SHA256 test fixture`.
 <!-- Option B: illustrative snippet not meant to compile -->
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: `{ ... }` is placeholder notation, not real syntax
 fn illustrative_example() { ... }
 ```
 

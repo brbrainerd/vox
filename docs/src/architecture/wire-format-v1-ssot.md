@@ -119,11 +119,10 @@ Wire request body:
 **Rule:** `Option<T>` serializes as an **absent key** when the value is `None`. It never serializes as JSON `null`.
 
 ```vox
-// vox:skip
 type UserProfile {
     id: string
     display_name: string
-    bio: Option<string>
+    bio: Option[string]
 }
 ```
 
@@ -140,11 +139,11 @@ Wire JSON when `bio` is absent:
 **`@nullable` override:** applying `@nullable` to an `Option<T>` field instructs the emitter to serialize `None` as JSON `null` and keep the key present. Use only for interop with consumers that require explicit nulls (e.g., some SQL-backed ORMs).
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed @nullable field decorator, not implemented
 type LegacyRow {
     id: string
     @nullable
-    deprecated_field: Option<string>
+    deprecated_field: Option[string]
 }
 ```
 
@@ -162,7 +161,7 @@ The `@nullable` override is explicit opt-in. The default is always absent-key.
 All Vox sum types encode as a discriminated union using a `_tag` string-literal field. The `_tag` value is the exact variant name as declared in Vox source.
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: sum-type variant syntax shown here is not valid Vox `type` declaration syntax
 type Shape {
     Circle { radius: Decimal }
     Rectangle { width: Decimal, height: Decimal }

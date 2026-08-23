@@ -169,7 +169,6 @@ We will solve the same inventory problem, watching the Vox file grow.
 Vox prevents Python's default-argument sharing by enforcing static types and copy-by-value on assignment. C++'s dangling iterator is avoided because we use an explicit exhaustive `match` that cannot hold a mutable container reference across an allocation.
 
 ```vox
-// vox:skip
 type MergeError =
     | WrongKind(left: str, right: str)
     | InvalidCap(cap: int)
@@ -182,7 +181,7 @@ fn merge_stacks(kind_a: str, qty_a: int, kind_b: str, qty_b: int, max_stack: int
     if max_stack <= 0 {
         return Rejected(InvalidCap(max_stack))
     }
-    if kind_a != kind_b {
+    if kind_a is not kind_b {
         return Rejected(WrongKind(kind_a, kind_b))
     }
 
@@ -197,13 +196,12 @@ fn merge_stacks(kind_a: str, qty_a: int, kind_b: str, qty_b: int, max_stack: int
 Wrong-kind and invalid-capacity errors are not exceptions or integer codes; they are first-class algebraic values. The compiler enforces that every caller handles both `Applied` and `Rejected`.
 
 ```vox
-// vox:skip
 // In Rust this is an `enum`, in C++ `std::variant`, in Python `Union`.
 // Vox enforces exhaustive handling across all variants via `match`.
 fn format_error(err: MergeError) to str {
     match err {
-        WrongKind(l, r) -> "Cannot merge " + l + " with " + r
-        InvalidCap(c) -> "Invalid capacity: " + str(c)
+        WrongKind(l, r) => "Cannot merge " + l + " with " + r
+        InvalidCap(c) => "Invalid capacity: " + str(c)
     }
 }
 ```
@@ -211,13 +209,12 @@ fn format_error(err: MergeError) to str {
 What about missing items? There is no `nullptr`, `null`, or unchecked `None`. 
 
 ```vox
-// vox:skip
 // No null, no None, no nullptr — the missing case is a compile error.
 fn get_stack_safe(id: int) to Option[InventoryStack] {
-    let stack = db.InventoryStack.get(id)
-    match stack {
-        Some(s) -> Some(s)
-        None -> None
+    let result = db.InventoryStack.get(id)
+    match result {
+        Ok(stack) => stack
+        Error(msg) => None
     }
 }
 ```
@@ -317,16 +314,15 @@ tool "propose_merge: Propose a stack merge and return primary+overflow" propose_
 When the inventory requires a display, a `component` lowers to plain React/TSX for the external frontend to import. The compiler guarantees the backend types exist in the DOM layer.
 
 ```vox
-// vox:skip
 component StashMeter(values: list[int]) {
-    view: <div class="meter">"stash meter"</div>
+    view: panel(class="meter") { "stash meter" }
 }
 
 component InventoryView() {
-    view: <div className="inventory-view">
-        <h1>{"inventory"}</h1>
-        <StashMeter values=[7, 9, 2] />
-    </div>
+    view: panel(class="inventory-view") {
+        heading() { "inventory" }
+        StashMeter(values=[7, 9, 2])
+    }
 }
 
 routes {
@@ -339,12 +335,10 @@ routes {
 Finally, attempting to bulk-import loot requires reading the host file system. Instead of implicitly depending on an OS directory path, Vox uses fine-grained Platform Capabilities that are passed explicitly as tokens, guaranteeing security boundary visibility.
 
 ```vox
-// vox:skip
-// vox:skip
 // Import requires a named platform capability, not just ambient OS access.
 // See docs/src/architecture/capability-grants-ssot.md for the runtime model.
 fn import_loot_csv(import_cap: cap, path: str) to Result[str] {
-    if !has_capability(import_cap) {
+    if not has_capability(import_cap) {
         return Error("missing capability token")
     }
     return Ok("imported:" + path)
@@ -356,7 +350,7 @@ fn import_loot_csv(import_cap: cap, path: str) to Result[str] {
 Finally, some logic is too complex or fuzzy to write by hand. Vox allows you to delegate function bodies to an LLM while maintaining strict type contracts and telemetry.
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative future syntax; @llm decorator is not implemented yet
 @llm(model = "claude-3-opus")
 fn generate_loot_flavor_text(kind: str, qty: int) to str
 

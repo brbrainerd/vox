@@ -20,10 +20,9 @@ imports. (Historical: the `@island` decorator was retired 2026-05-03; see
 Client-side interactive UI is modeled with `component` declarations.
 
 ```vox
-// vox:skip
 component ToggleBtn() {
-    let on = false
-    view: <button>{if on { "Active" } else { "Inactive" }}</button>
+    let active = false
+    view: button() { if active { "Active" } else { "Inactive" } }
 }
 ```
 
@@ -59,7 +58,7 @@ Vox emits a **`routes.manifest.ts`** (`VoxRoute[]`) for adapters; the **normativ
 Older prose used arrow forms; prefer **`to`** and manifests per [`vox-web-stack.md`](./vox-web-stack.md).
 
 ```vox
-// vox:skip
+// vox:skip -- excerpt: Home and AccountDashboard components are defined elsewhere
 routes {
     "/" to Home
     "/dashboard" to AccountDashboard

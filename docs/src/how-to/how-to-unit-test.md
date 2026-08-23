@@ -16,10 +16,9 @@ Learn how to write and run automated tests for your Vox application using the bu
 Use the `@test` decorator to mark functions as test cases. These functions can be run with the `vox test` command.
 
 ```vox
-// vox:skip
 @test 
 fn test_addition() to Unit {
-    assert(1 + 1 == 2)
+    assert(1 + 1 is 2)
 }
 ```
 
@@ -28,7 +27,7 @@ fn test_addition() to Unit {
 Rather than language-level magic, Vox encourages simple, plain functions for setup logic that can be reused across test cases.
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative fixture pattern; Database/MockDatabase/query are placeholders, not real APIs
 fn setup_mock_db() to Database {
     return spawn MockDatabase()
 }
@@ -49,10 +48,9 @@ fn test_query() to Unit {
 Vox supports property-based testing. The test runner will generate random inputs for your function to find edge cases where your assertions fail.
 
 ```vox
-// vox:skip
 @forall
 fn test_addition_commutative(a: int, b: int) to Unit {
-    assert(a + b == b + a)
+    assert(a + b is b + a)
 }
 ```
 
@@ -61,10 +59,9 @@ fn test_addition_commutative(a: int, b: int) to Unit {
 For deeper security and stability testing, the `@fuzz` decorator uses the project's native LLVM-based fuzzer to explore illegal execution paths.
 
 ```vox
-// vox:skip
 @fuzz
 fn fuzz_parser(input: str) to Unit {
-    let _ = parse_json(input) // Fuzzer tries to crash this
+    let result = json.parse(input) // Fuzzer tries to crash this
 }
 ```
 

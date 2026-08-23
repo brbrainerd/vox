@@ -382,7 +382,7 @@ This means:
 ### 4.4 Annotations
 
 ```vox
-// vox:skip
+// vox:skip -- proposed future syntax; @training_step / @distributed_train are not implemented yet
 @training_step
 fn step(model: Llama, batch: Batch) -> StepResult {
     // standard forward/backward, returns loss + grads

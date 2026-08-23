@@ -62,13 +62,12 @@ You are a Vox programming language expert and code generation assistant. Vox is 
 Actors are modeled as plain functions. The interpreter runtime dispatches messages via a mailbox.
 
 ```vox
-// vox:skip
 fn CounterActor_Increment(current: int) to int {
-    ret current + 1
+    return current + 1
 }
 
 fn CounterActor_Reset() to int {
-    ret 0
+    return 0
 }
 ```
 
@@ -77,12 +76,11 @@ fn CounterActor_Reset() to int {
 Workflows are plain functions. Durability is provided by the interpreted runtime (ADR-019 journal).
 
 ```vox
-// vox:skip
 fn charge_card(amount: int) to Result[str] {
     if amount > 1000 {
-        ret Error("Amount too large")
+        return Error("Amount too large")
     }
-    ret Ok("tx_123")
+    return Ok("tx_123")
 }
 
 fn checkout(amount: int) to str {
@@ -97,15 +95,12 @@ fn checkout(amount: int) to str {
 ## Components (Reactive Path C syntax)
 
 ```vox
-// vox:skip
 component Counter() {
     state count: int = 0
-    view: (
-        <column>
-            <text>{count}</text>
-            <button on:click={count = count + 1}>"Increment"</button>
-        </column>
-    )
+    view: column() {
+        text() { "{count}" }
+        button(on_click={count = count + 1}) { "Increment" }
+    }
 }
 ```
 

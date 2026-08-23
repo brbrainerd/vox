@@ -98,11 +98,11 @@ fn share_tunnel_url_includes_port() {
 **For Vox golden examples:**
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: greet() is intentionally undefined, the failing test is the point
 @test
 fn greet_returns_full_name() {
-    let result = greet("Ada", "Lovelace");
-    assert result == "Hello, Ada Lovelace";
+    let result = greet("Ada", "Lovelace")
+    assert(result is "Hello, Ada Lovelace")
 }
 // fn greet does NOT exist yet — write it until this passes
 ```

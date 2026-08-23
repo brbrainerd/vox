@@ -17,7 +17,6 @@ Testing in Vox focuses on unit tests and bounded integration tests using the `@t
 Any function annotated with `@test` will be executed during a `vox test` invocation. The `assert` global built-in is used to evaluate conditions.
 
 ```vox
-// vox:skip
 fn calculate_total(subtotal: int, tax: int) to int {
     return subtotal + tax
 }
@@ -25,7 +24,7 @@ fn calculate_total(subtotal: int, tax: int) to int {
 @test
 fn test_calculate_total() to Unit {
     let result = calculate_total(100, 10)
-    assert(result == 110)
+    assert(result is 110)
 }
 ```
 
@@ -34,15 +33,19 @@ fn test_calculate_total() to Unit {
 When testing functions that return `Result[T, E]`, you typically use `match` to assert the correct execution branch.
 
 ```vox
-// vox:skip
+table Task {
+    title: str
+    owner: str
+}
+
 @test
 fn test_database_insert_validation() to Unit {
     let invalid_data = { title: "", owner: "alice" }
     
     // Assuming db.Task.insert has a length requirement on title
     match db.Task.insert(invalid_data) {
-        Ok(_) -> assert(false) // Should fail
-        Error(_) -> assert(true) // Expected
+        Ok(_) => assert(false) // Should fail
+        Error(_) => assert(true) // Expected
     }
 }
 ```
@@ -52,7 +55,7 @@ fn test_database_insert_validation() to Unit {
 Workflows and Activities evaluate sequentially and synchronously from the tester's perspective because the execution context blocks until the workflow concludes or hits a checkpoint limit.
 
 ```vox
-// vox:skip
+// vox:skip -- excerpt; process_order is a workflow function defined elsewhere
 @test
 fn test_order_workflow() to Unit {
     // Run the workflow natively

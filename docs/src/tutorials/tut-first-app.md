@@ -63,9 +63,8 @@ component TaskList() {
 Finally, we map a route to our `TaskList` component.
 
 ```vox
-// vox:skip
 routes {
-    "/" -> TaskList
+    "/" to TaskList
 }
 ```
 

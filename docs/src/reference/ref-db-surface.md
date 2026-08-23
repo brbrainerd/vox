@@ -34,14 +34,14 @@ Query structures map to literal internal predicates mapped across your database 
 - `db.Model.filter({ field: val })`  
   *Creates simple equality matches across the field table parameters.* 
   ```vox
-  // vox:skip
+  // vox:skip -- db.Table.filter() is not yet implemented (see examples/golden/db_advanced_queries.vox)
   db.User.filter({ age: 30 }).all()
   ```
 
 - `db.Model.where({ field: { predicate } })`  
   *Accepts complex structured parameter ranges such as `gt`, `lt`, `eq`, `ne`, `in`.* 
   ```vox
-  // vox:skip
+  // vox:skip -- db.Table.where() is not yet implemented (see examples/golden/db_advanced_queries.vox)
   db.User.where({ age: { gt: 18, lt: 65 }, status: { ne: "blocked" } }).all()
   ```
 
@@ -58,7 +58,7 @@ The Vox DB handler uses deterministic chained methods.
 
 **Chain Aggregation Example**:
 ```vox
-// vox:skip
+// vox:skip -- .where()/.order_by()/.limit() chaining is not yet implemented (see examples/golden/db_advanced_queries.vox)
 return db.User
    .where({ role: { eq: "admin" } })
    .order_by("created_at", "desc")

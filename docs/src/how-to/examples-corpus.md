@@ -39,7 +39,7 @@ Sometimes it is necessary to show brief, inline examples that cannot be fully co
 In these cases, you must add a `// vox:skip` comment *inside* the code fence. The `vox-doc-pipeline` linter will scan for this directive; if it finds raw code fences without `// vox:skip` and without an `#include` directive, the build will fail.
 
 ```vox
-// vox:skip
+// vox:skip -- meta-example: this fence illustrates the `// vox:skip` directive itself
 fn incomplete_function() {
     // This inline code will not be strictly verified by the compiler.
 }

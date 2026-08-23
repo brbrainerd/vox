@@ -27,7 +27,7 @@ In Vox, the chaos of generative models is bounded by the compiler's zero-null gu
 By declaring a bare `tool`, Vox parses the docstring, the types, and the return structure, turning your function into a ready-to-execute schema for your LLM.
 
 ```vox
-// vox:skip
+// vox:skip -- partially implemented; db.vector_search is not a generic builtin method
 // This feature is partially implemented.
 type SearchResult {
     Found { text: str, score: int }

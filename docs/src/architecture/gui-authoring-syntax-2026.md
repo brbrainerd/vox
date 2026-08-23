@@ -37,7 +37,7 @@ VUV addresses the surface as a whole: **one syntax (function calls), one type sy
 Built with **ordinary function calls**. Named arguments are props. A trailing `{ … }` block is the call's children list, where each statement-position expression is one child. Same shape inside a `component`, in a top-level `let`, returned from a function, or passed as an argument. There is no "view mode."
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: bare view-expression fragment, not a compilable top-level program
 button(variant: primary, on_click: submit) {
     text("Send")
 }
@@ -54,7 +54,7 @@ Style axes become enumerated kwargs: `font`, `weight`, `case`, `color`, `bg`, `p
 Responsive and state variants are *also* typed kwargs, not string prefixes:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: bare view-expression fragment, not a compilable top-level program
 text("Send", color: zinc.50, color_hover: blue.500, color_md: zinc.100)
 ```
 
@@ -65,7 +65,7 @@ The compiler decides whether the lowered output is a Tailwind class, a CSS varia
 ### Rule 3 — Behavior is typed kwargs
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: bare view-expression fragment, not a compilable top-level program
 button(on_click: submit, disabled: is_submitting) { text("Send") }
 ```
 
@@ -78,7 +78,7 @@ Source: [`crates/vox-dashboard/app/src/tabs/speak.vox`](../../../crates/vox-dash
 **Today (JSX + Tailwind strings):**
 
 ```vox
-// vox:skip
+// vox:skip -- historical: JSX+Tailwind-string authoring shape VUV is replacing, not valid post-VUV syntax
 component ChatMessage(role: str, content: str) {
     view: (
         <row class={if role is "user" { "justify-end px-4 py-2" } else { "justify-start px-4 py-2" }}>
@@ -96,7 +96,7 @@ component ChatMessage(role: str, content: str) {
 **Proposed (VUV):**
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed VUV call-site `:` named-arg syntax, not implemented (still `=` today)
 component ChatMessage(role: str, content: str) {
     let mine = role == "user"
     view: row(justify: if mine { end } else { start }, pad_x: 4, pad_y: 2) {

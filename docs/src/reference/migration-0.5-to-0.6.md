@@ -70,8 +70,12 @@ The legacy fallible-`Option` `Json` accessors returned `Option[Str]` / `Option[I
 For nested paths use `pointer` (RFC 6901):
 
 ```vox
-// vox:skip
-let username = response.pointer("/user/profile/username")?.as_str()
+fn read_username(payload_json: str) to Option[str] {
+    return match std.json.parse(payload_json) {
+        Ok(data) => data.pointer("/user/profile/username").and_then(fn(j: Json) to Option[str] { j.as_str() })
+        Error(_) => None
+    }
+}
 ```
 
 ## New surface
@@ -108,9 +112,10 @@ See `docs/src/architecture/rfc-json-as-2026-05-24.md` (planned) for the design r
 Raw string literals do not process escape sequences. Hash-padded form `r#"…"#` lets the literal contain `"` characters.
 
 ```vox
-// vox:skip
-let path = r"C:\Users\me\Documents"
-let regex = r#"^([a-z]+):"([^"]+)"$"#
+fn demo_raw_strings() {
+    let path = r"C:\Users\me\Documents"
+    let regex = r#"^([a-z]+):"([^"]+)"$"#
+}
 ```
 
 ### Intra-project imports (`import "./relative.vox"`)
@@ -122,7 +127,7 @@ let regex = r#"^([a-z]+):"([^"]+)"$"#
 module system without the build-system overhead.
 
 ```vox
-// vox:skip
+// vox:skip -- cross-file example; multi-file import typecheck differs from in-file lookup as of v0.6
 // src/util.vox
 pub fn slugify(s: Str) to Str {
     return s.to_lower().replace(" ", "-")

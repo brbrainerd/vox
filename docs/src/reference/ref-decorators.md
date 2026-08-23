@@ -53,13 +53,10 @@ Migration is mechanical:
 See also: [migration guide 0.5 → 0.6](./migration-0.5-to-0.6.md).
 
 ### `@scheduled`
-> [!NOTE]
-> Planned — not yet parseable.
 - **Goal**: Run a background task periodically.
 - **Effect**: Compiles to a Tokio timer loop or cron job scheduling block.
 - **Usage**:
 ```vox
-// vox:skip
 @scheduled("0 * * * *")
 fn hourly_task() { 
     // Logic here
@@ -134,7 +131,7 @@ Indexes are declared with the bare `index` keyword (not a decorator); `@index` w
 - **Effect**: Injects validation checks before assignment/constructor.
 - **Usage**:
 ```vox
-// vox:skip
+// vox:skip -- illustrative future syntax; @require only decorates fn today, not type
 @require(len(self.pwd) > 8)
 type User {
     pwd: str

@@ -1535,8 +1535,7 @@ with exhaustiveness enforcement kills an entire bug class.
 **Target syntax**:
 
 ```vox
-// vox:skip
-state_machine AgentLifecycle {
+partial state_machine AgentLifecycle {
   state Idle
   state Working(task: Task)
   state Paused(reason: str)
@@ -1711,7 +1710,7 @@ graph and compile-time link verification.
 **Target syntax**:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed `url` block primitive and typed-link syntax, not implemented
 url Path {
   Home
   Task(id: Id[Task])
@@ -2138,7 +2137,7 @@ guaranteed by construction.
 **Target syntax**:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed `surface:` primitive and `:` call-arg syntax, not implemented
 panel(surface: primary) {
   text(size: body) "Hello"
 }
@@ -2169,7 +2168,7 @@ rudimentary AABB non-overlap check at declared breakpoints.
 **Target syntax**:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed `overlay` block primitive, not implemented; `...` placeholder body
 overlay {
   toast(z: 100, position: top_right) { ... }
   drawer(z: 90, position: left) { ... }

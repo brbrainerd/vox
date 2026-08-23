@@ -21,7 +21,6 @@ fn CounterActor_Increment(current: int, amount: int) to int {
 ### ADT (Algebraic Data Type)
 A composite type formed by combining other types. In Vox, this primarily refers to **Structs** (product types) and **Enums** (sum types/tagged unions).
 ```vox
-// vox:skip
 type Status = | Pending | Active(user: str)
 ```
 

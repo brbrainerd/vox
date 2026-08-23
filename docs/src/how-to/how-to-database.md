@@ -28,14 +28,13 @@ table Note {
 To speed up lookups on large datasets, use the `index` keyword. Vox determines the optimal storage engine (B-Tree or Hash) and generates the SQL automatically.
 
 ```vox
-// vox:skip
 table User {
     email: str
     team_id: Id[Team]
 }
 
-// Unique index: prevents duplicate emails
-index User.unique_email on (email) unique
+// Index: speeds up email lookups
+index User.unique_email on (email)
 
 // Composite index: speeds up filtered team lookups
 index User.by_team on (team_id, email)
@@ -50,7 +49,7 @@ The built-in `db` module uses code-generation to inject statically typed accesso
 
 - **Create**:
   ```vox
-  // vox:skip
+  // vox:skip -- excerpt; Task table and imports come from the rest of the file
   let new_id: Id[Task] = db.Task.insert({ 
       title: "Clean desk", 
       done: false, 
@@ -60,7 +59,7 @@ The built-in `db` module uses code-generation to inject statically typed accesso
   ```
 - **Read**:
   ```vox
-  // vox:skip
+  // vox:skip -- excerpt; new_id comes from the Create step above
   match db.Task.find(new_id) {
       Some(t) -> println(t.title)
       None    -> println("Not found")
@@ -68,12 +67,12 @@ The built-in `db` module uses code-generation to inject statically typed accesso
   ```
 - **Update**:
   ```vox
-  // vox:skip
+  // vox:skip -- excerpt; new_id comes from the Create step above
   db.Task.update(new_id, { done: true })
   ```
 - **Delete**:
   ```vox
-  // vox:skip
+  // vox:skip -- excerpt; new_id comes from the Create step above
   db.Task.delete(new_id)
   ```
 
@@ -83,13 +82,11 @@ Instead of raw string interpolation, use Vox's exact literal querying to avoid i
 
 // Fetch simple exact match parameters
 ```vox
-// vox:skip
 let alice_tasks = db.Task.filter({ owner: "alice" })
 ```
 
 // Advanced predicate-object queries
 ```vox
-// vox:skip
 let urgent_tasks = db.Task.where({ priority: { gt: 10 }, done: { eq: false } }).all()
 ```
 
@@ -98,12 +95,7 @@ let urgent_tasks = db.Task.where({ priority: { gt: 10 }, done: { eq: false } }).
 You can apply limits, multi-field ordering, and select specific field projections by chaining.
 
 ```vox
-// vox:skip
-let feed = db.Task
-            .where({ done: false })
-            .order_by("priority", "desc")
-            .limit(10)
-            .all()
+let feed = db.Task.where({ done: false }).order_by("priority", "desc").limit(10).all()
 ```
 
 ## Guarding Reads/Writes with `query` and `mutation`
@@ -117,7 +109,11 @@ The compiler verifies that a `query` function does not contain `.insert`, `.upda
 Every function declared with `mutation` is automatically wrapped in a database transaction. If the function returns an `Error` or panics, the transaction is rolled back.
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative future syntax; db.Table.update() is not implemented yet
+table Account {
+    balance: int
+}
+
 mutation transfer_funds(from: Id[Account], to: Id[Account], amount: int) to Result[Unit] {
     let mut sender = db.Account.find(from)?
     let mut receiver = db.Account.find(to)?
@@ -143,7 +139,6 @@ Occasionally, complex analytic aggregations exceed the currently supported ORM b
 > Use this **only** as a last resort. Raw SQL queries bypass Vox's type checking checks on schema changes. 
 
 ```vox
-// vox:skip
 let count = db.query("SELECT COUNT(*) FROM Task WHERE owner = ?", ["alice"])
 ```
 
