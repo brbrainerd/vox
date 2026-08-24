@@ -664,6 +664,68 @@ The corrected gate:
 Without these three, the gate proves nothing and unlocks discovery on a green
 light with no bulb in it.
 
+## Stored URLs are a credential-leak vector
+
+**Added 2026-08-24.** Every observation stores `source_url` verbatim in an
+append-only table. Merchant and API response URLs routinely carry affiliate
+parameters, session identifiers, and signed query tokens — eBay Browse URLs
+carry `_trkparms` / `campid`, and some Best Buy and Bright Data call shapes put
+the API key in the query string.
+
+Those rows land in `.vox/store.db`
+(`crates/vox-db/src/store/mod.rs:13`), and that file is not necessarily local.
+`DbConfig::from_env` (`crates/vox-db/src/config.rs:115`) returns `Remote` when
+`VOX_DB_URL` + `VOX_DB_TOKEN` resolve, or `EmbeddedReplica` when a path is set
+as well. In either case every row is replicated to a remote libSQL primary. So
+the design's own append-only guarantee — never overwrite, retain forever — is
+also a guarantee that a leaked token is retained forever and pushed off-box.
+
+**Store the identity, not the session.** Strip query and fragment at write time.
+`url` 2 is already a workspace dependency (`Cargo.toml:400`), so this is one
+function and about six lines. Provenance keeps everything it was for: the value
+is *which listing*, never *which session*. Where a parameter is genuinely needed
+to re-fetch (an eBay item id), it belongs in its own typed column, not smuggled
+inside a URL blob. This must land in the same commit as the column, or it never
+lands.
+
+Telemetry is **not** the vector here — `vox-telemetry` never opens the store,
+and its remote upload is opt-in and off by default
+(`crates/vox-telemetry/src/config.rs:40`). Replication and backup are.
+
+**Keep `MarketError` payload-free.** Its five variants carry no response body
+today, which is why no merchant `Set-Cookie` or session echo can reach a stored
+row. If someone later adds `ParseFailed(String)` holding the raw body, that is
+the change that turns an error row into a credential row. Worth saying out loud
+because it looks like an obvious debugging improvement.
+
+## No outbound host allowlist exists
+
+**Added 2026-08-24.** `vox_config::resolve_egress`
+(`crates/vox-config/src/resolve_egress.rs:146`) is a resolver, not an allowlist:
+it maps a provider name to a key and base URL, and honours `base_url_override`
+unconditionally. `vox-http-client` is ~115 lines of `reqwest::ClientBuilder`
+presets with no host policy, and no CI gate requires adapters to route through
+it. A new adapter calling `reqwest::get(url)` on an arbitrary host compiles,
+passes clippy, and passes CI.
+
+This matters more here than in most features because **the fetch target is
+partly attacker-influenced**: reconciliation follows URLs that arrived from
+search results. That is SSRF-shaped — `http://169.254.169.254/` and localhost
+are both reachable.
+
+The `llm_provider_call` detector is the wrong tool to copy. It flags hostname
+*literals*, and the risk here is a URL constructed at runtime, which no
+source-level grep sees. The guard is a runtime `allowed_host(&str) -> bool`
+against a const list living beside the adapter registry, checked before every
+fetch — about ten lines. It must also set `reqwest::redirect::Policy::none()`
+or re-check the final host after redirects, or a 302 walks straight through it.
+
+Incidental, found while confirming this: `crates/vox-http-client/src/lib.rs:3`
+cites `docs/src/architecture/outbound-http-policy.md`, which does not exist —
+the file is tombstoned under `docs/src/archive/research-2026-q1/`. The crate's
+only stated policy is a dead link, and that document is where a host allowlist
+would belong.
+
 ## Vendor terms constrain the product, not just the implementation
 
 **Added 2026-08-24, from a ToS review of every named source.** This section is
@@ -707,6 +769,23 @@ Three consequences for the design above:
    `identity/v1/oauth2/token`, yielding a 2-hour token. Two secrets and a token
    refresh path, not one static key. The Buy APIs additionally carry an
    "additional license" footnote pointing at eBay Partner Network approval.
+
+   There is no "credential pair" type in `vox-secrets`, and none is needed: the
+   established pattern is N independent `SecretId`s sharing a name prefix. Reddit
+   does exactly this at `crates/vox-secrets/src/spec/registry/social.rs:50-73`
+   (`VoxSocialRedditClientId` / `...ClientSecret` / `...RefreshToken`, three
+   sibling `SecretSpec` entries in one const, each `optional_skip`). YouTube
+   repeats it; ORCID does the client-id/secret pair without a token. Copy that
+   shape, and remember the taxonomy match arms in `spec/mod.rs` — missing them
+   fails `secrets-parity`.
+
+   **The minted access token is not a `SecretId`.** A `SecretSpec` describes a
+   user-configured *input*; a machine-minted 2-hour token is derived state. The
+   repo already reflects this — it registers Reddit's long-lived *refresh* token
+   and derives the access token at runtime — and the caching mechanism exists:
+   the `SnapshotCache` statics in `resolve_egress.rs:35-37`. Holding the token
+   in one of those with an expiry also removes the per-attribute-per-tick
+   Credential Manager round-trip that `is_available()` would otherwise incur.
 
 **Amazon PA-API is retired** (May 2026, now HTTP 403). Its successor gates on
 active affiliate sales. Newegg has no public product API; Micro Center has no

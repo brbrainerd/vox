@@ -1076,6 +1076,61 @@ at ~175 B/row is 128 MB/yr at 10 items, 1.28 GB/yr at 100 — landing in the
 shared `.vox/store.db`. `contracts/db/retention-policy.yaml` already exists and
 supports `kind: ms_days`; one entry fixes it.
 
+### Security preconditions
+
+These are not hardening passes to schedule later; each one is cheaper to build
+in than to retrofit, and the first must land in the same commit as the column
+it protects.
+
+- **Strip query and fragment from `source_url` at write time.** Response URLs
+  carry affiliate params, session ids, and sometimes the API key itself. Rows
+  land in `.vox/store.db`, which `DbConfig::from_env`
+  (`crates/vox-db/src/config.rs:115`) replicates to a remote libSQL primary
+  whenever `VOX_DB_URL` + `VOX_DB_TOKEN` resolve — so append-only means a leaked
+  token is retained forever *and* pushed off-box. `url` 2 is already a workspace
+  dep (`Cargo.toml:400`); this is ~6 lines. Keep any parameter needed for
+  re-fetch in its own typed column.
+- **Keep `MarketError` payload-free.** Five variants, no body. Adding
+  `ParseFailed(String)` holding the raw response is what turns an error row into
+  a credential row, and it looks like an obvious debugging improvement.
+- **Add a runtime host allowlist before the first adapter fetches.** There is no
+  outbound host policy anywhere in the repo: `resolve_egress` is a
+  provider-to-URL resolver honouring `base_url_override` unconditionally, and
+  `vox-http-client` carries no host checks. Reconciliation follows URLs that came
+  from search results, so the target is partly attacker-influenced — SSRF-shaped.
+  A const list plus `allowed_host(&str) -> bool` beside the adapter registry is
+  ~10 lines. Set `reqwest::redirect::Policy::none()` or re-check the host after
+  redirects, or a 302 defeats it. Do not try to do this with a `vox-code-audit`
+  detector: the risk is a runtime-constructed URL, which source-grepping cannot
+  see.
+- **eBay is two secrets, not one.** `VoxMarketEbayClientId` +
+  `VoxMarketEbayClientSecret` as sibling `SecretSpec` entries in one `SPECS_*`
+  const — the Reddit pattern at
+  `crates/vox-secrets/src/spec/registry/social.rs:50-73`. There is no pair type
+  and none is needed. Remember the taxonomy match arms in `spec/mod.rs`, or
+  `secrets-parity` fails.
+- **The 2-hour access token is memory-only, not a `SecretId`.** A `SecretSpec`
+  is a user-configured input; a minted token is derived state. Use a
+  `SnapshotCache`-style static with an expiry (`resolve_egress.rs:35-37`), which
+  also removes the per-attribute-per-tick Credential Manager round-trip noted
+  under the adapter above.
+- **Budget: copy the check, not the type.** `BudgetLedger::check_capacity` is
+  six lines of arithmetic wrapped in cloud-GPU specifics — constructed from
+  `CloudProviderConfig.max_budget_usd`, accruing from `cloud_dispatch_log`,
+  taking a `JobHandle`/`gpu_name`/`vram_mb`, pro-rating *running* jobs by
+  elapsed time, and hardcoding `--max-budget=N` in its error text. A fetch
+  budget is a discrete per-call debit against a daily reset — a different
+  accrual model — and reusing the type would take a `vox-populi` crate edge this
+  plan exists to avoid. Defactor per AGENTS.md
+  (`// vox:defactored-from vox-populi <date>`, under 50 lines, no edge). Lazier
+  still and the right first move: make `is_available()` false for any source
+  with `cost_usd() > 0.0` until a real ledger exists.
+
+**Checked and fine, no work needed:** no PII is captured anywhere in the specced
+field set, and no new third-party crate is required — `reqwest`,
+`reqwest-middleware`, `reqwest-retry`, `governor`, `scraper`, `quick-xml`, and
+`url` are all already in the workspace root `Cargo.toml`.
+
 ### Store
 - No `crates/vox-db/migrations/` exists. DDL is a `SchemaFragment` const in
   `crates/vox-db/src/schema/domains/market.rs`, registered in `manifest.rs`,
