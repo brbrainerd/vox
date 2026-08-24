@@ -121,6 +121,182 @@ impl CatalogSchema {
     }
 }
 
+/// Trust tier of an observed value. Ordering IS the precedence rule.
+///
+/// Scoped to market attributes (price, stock, availability) when it gates a
+/// comparison: an A6000's 48 GB is 48 GB whether a search snippet or a checkout
+/// page reported it. Applying an evidence ladder to a physical spec is a
+/// category error.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Evidence {
+    Aggregator = 1,   // price tracker, no merchant page
+    SearchIndex = 2,  // search snippet, page never loaded
+    MerchantPage = 3, // page fetched, no stock text
+    Transactable = 4, // page fetched, cart live, stock stated
+    Derived = 5,      // computed from an observation by a named, versioned rule
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Value {
+    pub number: f64,
+    pub unit: Option<String>,
+    pub evidence: Evidence,
+}
+
+#[derive(Debug, Clone)]
+pub struct CatalogItem {
+    pub item_id: String,
+    pub category: String,
+    pub attributes: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CmpOp {
+    Gte,
+    Lte,
+    Eq,
+}
+
+#[derive(Debug, Clone)]
+pub struct Constraint {
+    pub attribute: String,
+    pub op: CmpOp,
+    pub value: f64,
+    pub unit: String,
+}
+
+impl Constraint {
+    pub fn gte(attribute: &str, value: f64, unit: &str) -> Self {
+        Self::new(attribute, CmpOp::Gte, value, unit)
+    }
+    pub fn lte(attribute: &str, value: f64, unit: &str) -> Self {
+        Self::new(attribute, CmpOp::Lte, value, unit)
+    }
+    pub fn eq(attribute: &str, value: f64, unit: &str) -> Self {
+        Self::new(attribute, CmpOp::Eq, value, unit)
+    }
+
+    fn new(attribute: &str, op: CmpOp, value: f64, unit: &str) -> Self {
+        Self {
+            attribute: attribute.into(),
+            op,
+            value,
+            unit: unit.into(),
+        }
+    }
+
+    fn satisfied_by(&self, v: f64) -> bool {
+        match self.op {
+            CmpOp::Gte => v >= self.value,
+            CmpOp::Lte => v <= self.value,
+            // ponytail: exact f64 equality. Both sides are literals — one from a
+            // contract, one from a caller — never arithmetic results. Switch to
+            // an epsilon if a derivation ever feeds this path.
+            CmpOp::Eq => v == self.value,
+        }
+    }
+
+    fn describe(&self) -> &'static str {
+        match self.op {
+            CmpOp::Gte => ">=",
+            CmpOp::Lte => "<=",
+            CmpOp::Eq => "==",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Excluded {
+    pub item_id: String,
+    pub reason: String,
+}
+
+/// `indeterminate` is deliberately separate from `excluded`. Folding them loses
+/// the distinction between "measured, falls short" and "never measured" — and
+/// only the second is a data gap someone can close.
+#[derive(Debug, Default)]
+pub struct Outcome {
+    pub passed: Vec<CatalogItem>,
+    pub excluded: Vec<Excluded>,
+    pub indeterminate: Vec<Excluded>,
+}
+
+enum Verdict {
+    Passed,
+    Excluded(String),
+    Indeterminate(String),
+}
+
+fn evaluate(schema: &CatalogSchema, item: &CatalogItem, c: &Constraint) -> Verdict {
+    let Some(def) = schema.attribute(&item.category, &c.attribute) else {
+        return Verdict::Indeterminate(format!(
+            "`{}` is not an attribute of category `{}` in the catalog schema",
+            c.attribute, item.category
+        ));
+    };
+    let Some(v) = item.attributes.get(&c.attribute) else {
+        return Verdict::Indeterminate(format!(
+            "`{}` is unknown for this item — not recorded by any source",
+            c.attribute
+        ));
+    };
+    // String equality, not conversion. GiB vs GB is a real 7.4% difference, and
+    // guessing which was meant is how a wrong answer looks confident.
+    if v.unit.as_deref() != Some(c.unit.as_str()) {
+        return Verdict::Indeterminate(format!(
+            "`{}` is recorded in {} but the constraint is in {} — no conversion is defined",
+            c.attribute,
+            v.unit.as_deref().unwrap_or("no unit"),
+            c.unit
+        ));
+    }
+    if c.satisfied_by(v.number) {
+        return Verdict::Passed;
+    }
+    let mut reason = format!(
+        "{} is {} {}, which fails {} {} {}",
+        c.attribute,
+        v.number,
+        c.unit,
+        c.attribute,
+        c.describe(),
+        c.value
+    );
+    if let Some(note) = def.note.as_deref() {
+        reason.push_str(&format!(" ({note})"));
+    }
+    Verdict::Excluded(reason)
+}
+
+/// Hard filters. Constraints eliminate; they never score.
+pub fn apply(schema: &CatalogSchema, items: &[CatalogItem], constraints: &[Constraint]) -> Outcome {
+    let mut out = Outcome::default();
+    'items: for item in items {
+        for c in constraints {
+            match evaluate(schema, item, c) {
+                Verdict::Passed => {}
+                Verdict::Excluded(r) => {
+                    out.excluded.push(Excluded {
+                        item_id: item.item_id.clone(),
+                        reason: r,
+                    });
+                    continue 'items;
+                }
+                Verdict::Indeterminate(r) => {
+                    out.indeterminate.push(Excluded {
+                        item_id: item.item_id.clone(),
+                        reason: r,
+                    });
+                    continue 'items;
+                }
+            }
+        }
+        out.passed.push(item.clone());
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -226,5 +402,170 @@ categories:
             .unwrap_err()
             .to_string();
         assert!(e.to_lowercase().contains("categories"), "got: {e}");
+    }
+
+    fn v(n: f64, unit: &str) -> Value {
+        Value {
+            number: n,
+            unit: Some(unit.into()),
+            evidence: Evidence::MerchantPage,
+        }
+    }
+
+    fn item(id: &str, attrs: &[(&str, Value)]) -> CatalogItem {
+        CatalogItem {
+            item_id: id.into(),
+            category: "laptop".into(),
+            attributes: attrs
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.clone()))
+                .collect(),
+        }
+    }
+
+    fn schema() -> CatalogSchema {
+        CatalogSchema::load_from_str(include_str!(
+            "../../../contracts/market/catalog-schema.v1.yaml"
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn a_measured_miss_is_excluded_with_both_numbers_and_the_cause() {
+        let items = vec![item("mbp14", &[("gpu_accessible_gb", v(48.0, "GB"))])];
+        let out = apply(
+            &schema(),
+            &items,
+            &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")],
+        );
+
+        assert!(out.passed.is_empty());
+        assert_eq!(out.excluded.len(), 1);
+        let r = &out.excluded[0].reason;
+        // Both numbers in the right roles. `contains("48") && contains("64")`
+        // alone also passes if they are swapped into "64 < required 48".
+        assert!(r.contains("48"), "must state the actual value: {r}");
+        assert!(r.contains("64"), "must state the requirement: {r}");
+        // The schema `note` is what turns a comparison into an explanation.
+        assert!(
+            r.contains("unified") || r.contains("reserves"),
+            "must explain WHY 64GB exposes only 48GB: {r}"
+        );
+    }
+
+    /// The spec's named silent-drop failure. An item that simply lacks the
+    /// attribute must be distinguishable from one measured and found short: the
+    /// two demand different action — close a data gap, or move on.
+    #[test]
+    fn an_absent_attribute_is_indeterminate_not_a_measured_failure() {
+        let items = vec![
+            item("roomy", &[("gpu_accessible_gb", v(96.0, "GB"))]),
+            item("cramped", &[("gpu_accessible_gb", v(48.0, "GB"))]),
+            item("unknown", &[("price_usd", v(4200.0, "USD"))]),
+        ];
+        let out = apply(
+            &schema(),
+            &items,
+            &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")],
+        );
+
+        assert_eq!(out.passed.len(), 1);
+        assert_eq!(out.passed[0].item_id, "roomy");
+        assert_eq!(out.excluded.len(), 1, "only the measured miss");
+        assert_eq!(out.excluded[0].item_id, "cramped");
+
+        assert_eq!(out.indeterminate.len(), 1);
+        let r = out.indeterminate[0].reason.to_lowercase();
+        assert!(
+            r.contains("unknown") || r.contains("not recorded"),
+            "got: {r}"
+        );
+        assert!(
+            !r.contains('<'),
+            "must not claim a comparison it never made: {r}"
+        );
+    }
+
+    /// 96 >= 64 numerically, so only unit-checking produces this exclusion.
+    #[test]
+    fn a_value_in_the_wrong_unit_is_indeterminate_not_silently_compared() {
+        let items = vec![item("euro-spec", &[("gpu_accessible_gb", v(96.0, "GiB"))])];
+        let out = apply(
+            &schema(),
+            &items,
+            &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")],
+        );
+        assert!(out.passed.is_empty(), "GiB and GB differ by 7.4%");
+        assert_eq!(out.indeterminate.len(), 1);
+        assert!(
+            out.indeterminate[0].reason.contains("GiB"),
+            "{:?}",
+            out.indeterminate[0]
+        );
+    }
+
+    #[test]
+    fn every_comparison_operator_works_at_its_boundary() {
+        let items = vec![item("edge", &[("gpu_accessible_gb", v(64.0, "GB"))])];
+        let s = schema();
+        for (c, should_pass) in [
+            (Constraint::gte("gpu_accessible_gb", 64.0, "GB"), true),
+            (Constraint::lte("gpu_accessible_gb", 64.0, "GB"), true),
+            (Constraint::eq("gpu_accessible_gb", 64.0, "GB"), true),
+            (Constraint::gte("gpu_accessible_gb", 65.0, "GB"), false),
+            (Constraint::lte("gpu_accessible_gb", 63.0, "GB"), false),
+        ] {
+            let out = apply(&s, &items, &[c]);
+            assert_eq!(
+                out.passed.len(),
+                usize::from(should_pass),
+                "at the boundary"
+            );
+        }
+    }
+
+    /// Constraints eliminate in conjunction; the reason must name the one that
+    /// actually did it, not the first one checked.
+    #[test]
+    fn multiple_constraints_report_the_one_that_eliminated_the_item() {
+        let items = vec![item(
+            "heavy",
+            &[
+                ("gpu_accessible_gb", v(96.0, "GB")),
+                ("tdp_w", v(2000.0, "W")),
+            ],
+        )];
+        let out = apply(
+            &schema(),
+            &items,
+            &[
+                Constraint::gte("gpu_accessible_gb", 64.0, "GB"),
+                Constraint::lte("tdp_w", 1600.0, "W"),
+            ],
+        );
+        assert_eq!(out.excluded.len(), 1);
+        let r = &out.excluded[0].reason;
+        assert!(r.contains("tdp_w"), "must name the failing constraint: {r}");
+        assert!(
+            !r.contains("gpu_accessible_gb"),
+            "must not blame a passing one: {r}"
+        );
+    }
+
+    #[test]
+    fn a_constraint_on_an_attribute_the_schema_does_not_know_is_loud() {
+        let items = vec![item("x", &[("gpu_accessible_gb", v(96.0, "GB"))])];
+        let out = apply(
+            &schema(),
+            &items,
+            &[Constraint::gte("warp_factor", 9.0, "c")],
+        );
+        assert!(out.passed.is_empty());
+        assert_eq!(out.indeterminate.len(), 1);
+        assert!(
+            out.indeterminate[0].reason.contains("warp_factor"),
+            "a typo'd attribute must be loud, not a silent empty set: {:?}",
+            out.indeterminate[0]
+        );
     }
 }
