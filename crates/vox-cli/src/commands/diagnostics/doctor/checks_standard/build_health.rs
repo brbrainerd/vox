@@ -29,6 +29,8 @@ pub(crate) const KNOWN_DIAGNOSIS_IDS: &[&str] = &[
     "vox.schema_drift",
     "linker.lld_missing",
     "ci.hook_guard_stale_binary",
+    "build.disk_low",
+    "build.memory_low",
 ];
 
 /// Encode a machine-parseable diagnosis tag into a check `detail` string.
@@ -436,6 +438,7 @@ pub(crate) enum DiagCheckKind {
     Schema,
     Linker,
     HookGuard,
+    Resources,
 }
 
 /// Pure mapping from a diagnosis id to the check-kind that can produce it.
@@ -453,6 +456,7 @@ pub(crate) fn check_kind_for_diag(id: &str) -> Option<DiagCheckKind> {
         "vox.schema_drift" => Some(DiagCheckKind::Schema),
         "linker.lld_missing" => Some(DiagCheckKind::Linker),
         "ci.hook_guard_stale_binary" => Some(DiagCheckKind::HookGuard),
+        "build.disk_low" | "build.memory_low" => Some(DiagCheckKind::Resources),
         _ => None,
     }
 }
@@ -467,6 +471,7 @@ pub(crate) async fn run_check_for_diag(kind: DiagCheckKind, checks: &mut Vec<Che
         DiagCheckKind::Schema => schema_health(checks).await,
         DiagCheckKind::Linker => linker_health(checks).await,
         DiagCheckKind::HookGuard => hook_guard_check(checks).await,
+        DiagCheckKind::Resources => resource_preflight(checks).await,
     }
 }
 
@@ -521,6 +526,116 @@ pub(crate) async fn linker_health(checks: &mut Vec<Check>) {
             "install LLVM (lld-link) or drop the `linker = \"lld-link\"` line to fall back to MSVC link.exe",
             false))
     });
+}
+
+const GIB: u64 = 1024 * 1024 * 1024;
+
+/// Disk: below 5 GiB a build can hit ENOSPC and poison the target directory;
+/// below 20 GiB a full `cargo build --workspace` is not comfortably survivable.
+const DISK_FAIL_AT: u64 = 5 * GIB;
+const DISK_WARN_AT: u64 = 20 * GIB;
+
+/// Memory: peak single-rustc working set measured at 1,193 MB on this host, so
+/// below 1 GiB free even one compiler is over budget.
+const MEM_FAIL_AT: u64 = GIB;
+const MEM_WARN_AT: u64 = 2 * GIB;
+
+/// Severity for a free-bytes reading. Pure, so the thresholds are testable
+/// without depending on whatever the host happens to have free right now.
+///
+/// Boundaries are inclusive at the failing end: exactly `fail_at` free is not
+/// "enough", it is the last reading before there is none.
+pub(crate) fn resource_severity(free: u64, warn_at: u64, fail_at: u64) -> &'static str {
+    if free <= fail_at {
+        "error"
+    } else if free <= warn_at {
+        "warn"
+    } else {
+        "ok"
+    }
+}
+
+/// Free disk on the target-directory volume, and free physical RAM.
+///
+/// ENOSPC is the one *proven* cause of build failure in the 2026-08-23 corpus
+/// (`os error 112`, 916 MB free of 476 GB) and nothing watched it. Its damage
+/// outlives the run: cargo leaves truncated `.rmeta` files, and the next build
+/// reports a metadata error whose real cause was the previous full disk.
+pub(crate) async fn resource_preflight(checks: &mut Vec<Check>) {
+    let root = crate::commands::ci::repo_root();
+    // The target dir may not exist yet in a fresh worktree; the volume is the
+    // same either way, which is all `available_space` needs.
+    let probe = if root.join("target").is_dir() {
+        root.join("target")
+    } else {
+        root.clone()
+    };
+
+    match fs2::available_space(&probe) {
+        Ok(free) => {
+            let sev = resource_severity(free, DISK_WARN_AT, DISK_FAIL_AT);
+            let detail = format!(
+                "{:.1} GiB free on {}",
+                free as f64 / GIB as f64,
+                probe.display()
+            );
+            checks.push(Check::new(
+                "build: disk space",
+                sev == "ok",
+                if sev == "ok" {
+                    detail
+                } else {
+                    diag(
+                        "build.disk_low",
+                        sev,
+                        &format!(
+                            "{detail} — a full disk truncates .rmeta files and the NEXT build \
+                             reports a metadata error instead"
+                        ),
+                        "cargo clean, or vox ci workspace-artifacts --prune",
+                        false,
+                    )
+                },
+            ));
+        }
+        Err(e) => checks.push(Check::fail(
+            "build: disk space",
+            diag(
+                "build.disk_low",
+                "warn",
+                &format!("could not read free space on {}: {e}", probe.display()),
+                "check the path is on a mounted volume",
+                false,
+            ),
+        )),
+    }
+
+    let mut sys = sysinfo::System::new();
+    sys.refresh_memory();
+    let free = sys.available_memory();
+    let jobs = std::env::var("CARGO_BUILD_JOBS").unwrap_or_else(|_| "unset".to_string());
+    let sev = resource_severity(free, MEM_WARN_AT, MEM_FAIL_AT);
+    // Peak single-rustc working set here is 1,193 MB, so report the ratio: it
+    // is what makes CARGO_BUILD_JOBS a judgeable number rather than a guess.
+    let detail = format!(
+        "{:.1} GiB free, CARGO_BUILD_JOBS={jobs} (peak rustc working set ~1.2 GiB)",
+        free as f64 / GIB as f64
+    );
+    checks.push(Check::new(
+        "build: memory headroom",
+        sev == "ok",
+        if sev == "ok" {
+            detail
+        } else {
+            diag(
+                "build.memory_low",
+                sev,
+                &format!("{detail} — low memory makes rustc exit nonzero with no diagnostic"),
+                "close other builds, or lower CARGO_BUILD_JOBS in .claude/settings.json",
+                false,
+            )
+        },
+    ));
 }
 
 /// Round-trips the INSTALLED `vox` binary (PATH, not this process) through the
@@ -620,6 +735,7 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     schema_health(checks).await;
     sccache_guard(checks).await;
     linker_health(checks).await;
+    resource_preflight(checks).await;
     compile_probe(checks).await;
     hook_guard_check(checks).await;
 
@@ -749,5 +865,48 @@ mod tests {
             );
         }
         assert_eq!(check_kind_for_diag("nope.unknown"), None);
+    }
+
+    #[test]
+    fn resource_severity_brackets_the_thresholds() {
+        const GB: u64 = 1024 * 1024 * 1024;
+        // fail_at 5 GB, warn_at 20 GB — the disk thresholds.
+        assert_eq!(resource_severity(GB, 20 * GB, 5 * GB), "error");
+        assert_eq!(
+            resource_severity(5 * GB, 20 * GB, 5 * GB),
+            "error",
+            "boundary is inclusive"
+        );
+        assert_eq!(resource_severity(10 * GB, 20 * GB, 5 * GB), "warn");
+        assert_eq!(resource_severity(100 * GB, 20 * GB, 5 * GB), "ok");
+    }
+
+    /// The corpus failure was `os error 112` with 916 MB free of 476 GB. That
+    /// must be an error-severity check, not a warning.
+    #[test]
+    fn the_observed_enospc_free_space_is_an_error() {
+        const MB: u64 = 1024 * 1024;
+        const GB: u64 = 1024 * MB;
+        assert_eq!(resource_severity(916 * MB, 20 * GB, 5 * GB), "error");
+    }
+
+    /// This host idles at 1.6 GB free of 15.7 GB with zero rustc running, so
+    /// the RAM check is expected to warn at rest. That is the finding.
+    #[test]
+    fn the_measured_idle_ram_warns() {
+        const MB: u64 = 1024 * 1024;
+        assert_eq!(resource_severity(1600 * MB, 2048 * MB, 1024 * MB), "warn");
+    }
+
+    #[tokio::test]
+    async fn resource_preflight_emits_both_checks() {
+        let mut checks = Vec::new();
+        resource_preflight(&mut checks).await;
+        assert_eq!(checks.len(), 2, "one disk check, one memory check");
+        assert!(checks.iter().any(|c| c.name.contains("disk")), "{checks:?}");
+        assert!(
+            checks.iter().any(|c| c.name.contains("memory")),
+            "{checks:?}"
+        );
     }
 }

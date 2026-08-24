@@ -6,7 +6,6 @@ exclude = [
     "crates/vox-cargo-shim",
     "crates/vox-arch-check/tests/fixtures/missing-desc",
 
-    "crates/vox-plugin-cloud",
     "crates/vox-plugin-host/tests/fixtures/noop-code",
     "crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi",
     "crates/vox-plugin-host/tests/fixtures/noop-skill",
@@ -263,7 +262,13 @@ mime_guess         = "2.0"
 uuid               = { version = "1", features = ["v4", "serde"] }
 async-stream       = "0.3"
 xxhash-rust        = { version = "0.8", features = ["xxh3"] }
-sysinfo            = "0.39"
+# Default features fan out to ~35 Win32_* modules on the `windows` crate
+# (incl. Win32_System_Wmi, one of the largest metadata blobs) — and since the only
+# other `windows` 0.62 consumer, process-wrap, declares no features at all,
+# sysinfo's defaults ARE the 0.62 feature union behind the 843 s `windows` unit.
+# Every workspace use is `System` / `Pid` / `ProcessesToUpdate` only (verified
+# 2026-08-23 across all 8 call sites), so `system` alone is sufficient.
+sysinfo            = { version = "0.39", default-features = false, features = ["system"] }
 walkdir            = "2"
 petgraph           = "0.8.3"
 leiden-rs          = "0.8.1"
@@ -372,10 +377,18 @@ swc_common         = "23"
 which              = "8"
 ctrlc              = "3.4"
 proptest           = { version = "1", default-features = false, features = ["std"] }
+# Free-space probe for the `vox doctor` disk preflight (pure Rust, no C).
+fs2                = "0.4"
 # File watching
 notify             = "8"
 # Audio
-cpal               = "0.15"
+# 0.17, not 0.15: cpal 0.15/0.16 pin `windows ^0.54`, which is the SOLE reason a
+# third `windows` tree (233 s) is built. 0.17 accepts windows >=0.59,<=0.62 so it
+# unifies onto one already in the graph, also dropping windows-core 0.54,
+# windows-result 0.1, windows-targets 0.42 and eight windows_*_0.42 arch crates.
+# Not 0.18: that adds unconditional pipewire + pulseaudio deps on Linux CI.
+# `SampleFormat::U16` (vox-gui mic.rs) still exists in 0.17.3 — verified 2026-08-23.
+cpal               = "0.17"
 # Binary / stream utilities
 byteorder          = "1"
 tar                = "0.4"
