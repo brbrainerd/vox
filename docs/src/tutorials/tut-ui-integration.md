@@ -83,13 +83,13 @@ The true power of Vox is technical unification. UI event handlers can call bare 
 
 ```vox
 table Task {
-    id:    Id[Task]
-    title: str
-    done:  bool
+    task_id: Id[Task]
+    title:   str
+    done:    bool
 }
 
-mutation complete_task(id: Id[Task]) to Result[str] {
-    db.Task.delete(id)?
+mutation complete_task(task_id: Id[Task]) to Result[str] {
+    db.Task.delete(task_id)?
     return Ok("completed")
 }
 
@@ -98,12 +98,18 @@ component TaskRow(t: Task) {
         button(
             attr_type="checkbox",
             checked=t.done,
-            on_change={fn() complete_task(t.id)}
+            on_change={fn() complete_task(t.task_id)}
         )
         text() { t.title }
     }
 }
 ```
+
+`table` always adds its own surrogate `_id` primary key, but it isn't exposed as a Vox-source
+field access (`t._id` doesn't typecheck) — so a component that needs to reference a row's
+identity, like the delete-button handler here, declares its own `Id[Task]` field. It just can't
+be literally named `id`: that collides with the auto-added `_id` and triggers a compiler
+warning (`crates/vox-compiler/src/typeck/ast_decl_lints.rs`).
 
 The `attr_` prefix on `attr_type` strips at parse time so the emitted HTML attribute is `type="checkbox"` — needed because `type` is a Vox keyword.
 

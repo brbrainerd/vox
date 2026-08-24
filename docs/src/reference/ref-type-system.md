@@ -43,12 +43,18 @@ A named collection of fields.
 
 ```vox
 table Task {
-    id:       Id[Task]
-    title:    str
-    done:     bool
-    priority: int
+    parent_id: Id[Task]
+    title:     str
+    done:      bool
+    priority:  int
 }
 ```
+
+`table` always adds its own surrogate `_id` primary key, so a user-declared field literally
+named `id` collides with it and triggers a compiler warning
+(`crates/vox-compiler/src/typeck/ast_decl_lints.rs`) — this example uses `parent_id` to
+demonstrate an `Id[T]`-typed field (a self-reference, e.g. a subtask's parent) without
+shadowing the real primary key.
 
 ### Enums (Sum Types / Tagged Unions)
 Types that can be one of several variants, potentially carrying extra data.

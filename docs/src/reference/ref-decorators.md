@@ -116,15 +116,20 @@ Tables are declared with the bare `table` keyword (not a decorator); `@table` wa
 - **Usage**:
 ```vox
 table MyRecord {
-    id: str
+    external_id: str
 }
 ```
+
+Vox `table` always adds its own surrogate `_id` primary key; a user-declared field literally
+named `id` collides with it and gets a compiler warning
+(`crates/vox-compiler/src/typeck/ast_decl_lints.rs`), which is why this example uses
+`external_id` instead.
 
 ### `index` (Keyword)
 Indexes are declared with the bare `index` keyword (not a decorator); `@index` was retired in v0.6.0.
 - **Goal**: Creates a database index.
 - **Effect**: Generates SQL for fast lookup on specified properties.
-- **Usage**: `index MyRecord.by_id on (id)`
+- **Usage**: `index MyRecord.by_external_id on (external_id)`
 
 ### `@require`
 - **Goal**: Adds runtime validation guards.

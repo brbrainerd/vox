@@ -2791,6 +2791,10 @@ fn render_step(s: &PreviewedActivity, indent: usize) {
 Create `tests/fixtures/workflow_preview/simple_two_step.vox`:
 
 ```vox
+// vox:skip -- illustrative: proposed @remote, not implemented at plan time
+// (verified 2026-08-23: crates/vox-compiler/tests/remote_annotation.rs and
+// the workflow.rs emit path this plan cites don't exist; same status as the
+// two sibling fixtures below, which already carry this marker)
 @remote fn fetch_url(u: str) to str { return u }
 activity parse_json(s: str) to str { return s }
 
