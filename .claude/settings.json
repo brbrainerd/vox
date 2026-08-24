@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CARGO_BUILD_JOBS": "4"
+  },
   "hooks": {
     "PreToolUse": [
       {
