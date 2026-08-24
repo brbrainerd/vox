@@ -18,6 +18,7 @@ pub trait HeavyGuardHost: vox_cli_contracts::GateStatusWriter {
 pub mod affected;
 pub mod benchmark_telemetry;
 pub mod build_bench;
+pub mod build_failure;
 pub mod build_timings;
 pub mod completion_quality;
 pub mod constants;
