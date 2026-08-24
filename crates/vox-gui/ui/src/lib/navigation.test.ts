@@ -9,6 +9,7 @@ import {
   CHILD_ORDER_BY_PARENT,
   orderedChildren,
   labelForNavKey,
+  PARENT_CHILD_MAP,
 } from './navigation';
 import { SURFACE_REGISTRY } from '../generated/surfaceRegistry.generated';
 
@@ -123,5 +124,26 @@ describe('unchanged plumbing', () => {
   });
   it('breadcrumbsForView includes parent and child', () => {
     expect(breadcrumbsForView('console').map(c => c.key)).toEqual(['workspace', 'console']);
+  });
+});
+
+describe('nav labels resolve through the lexicon (single SSOT)', () => {
+  it('labels mercatus "Market", matching the sidebar and the surface header', () => {
+    // Regression: NAV_LABELS carried its own 'Mercatus' while the lexicon said
+    // 'Market', so the breadcrumb and the page you landed on disagreed on screen.
+    expect(labelForNavKey('mercatus')).toBe('Market');
+  });
+
+  it('still prefers a nav:-scoped lexicon entry over the bare key', () => {
+    // lexicon has runs:'Runs' AND nav:runs:'Review'; the nav surface wants Review.
+    expect(labelForNavKey('runs')).toBe('Review');
+  });
+
+  it('every top-level and child nav key resolves to a real label, not a slug', () => {
+    const keys = new Set<string>([...TOP_LEVEL_VIEWS, ...Object.keys(PARENT_CHILD_MAP)]);
+    for (const key of keys) {
+      const label = labelForNavKey(key);
+      expect(label, `nav key ${key} fell through to its slug`).not.toBe(key.replace(/-/g, ' '));
+    }
   });
 });

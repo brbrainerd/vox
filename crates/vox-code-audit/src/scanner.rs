@@ -32,6 +32,14 @@ const DEFAULT_EXCLUDES: &[&str] = &[
     "**/vendor/**",
     // `include!` fragments for split integration tests — not standalone crates; avoids duplicate noise.
     "**/tests/pipeline/includes/**",
+    // Agent-harness state, not project source. `.claude/worktrees/` in particular
+    // holds FULL checkouts of this repo (one per concurrent agent session), so
+    // without this a whole-repo scan reports every finding once per worktree —
+    // measured 2026-08-23: 279 of 372 `secret/env-get-shape` findings came from
+    // here, swamping the 93 that are actually first-party.
+    "**/.claude/**",
+    // Subagent-driven-development scratch: ledgers, briefs, review packages.
+    "**/.superpowers/**",
 ];
 
 /// File-system scanner that walks directories and loads source files.
@@ -108,8 +116,22 @@ impl Scanner {
                 .and_then(|e| e.to_str())
                 .map(Language::from_extension)
                 .unwrap_or(Language::Unknown);
-
-            if lang == Language::Unknown {
+            // `Cargo.toml` maps to `Language::Unknown` (it has no source language),
+            // but `crypto_ban` — the only rule declaring `Unknown` — needs to see
+            // dependency declarations. Before this, `Scanner` dropped every Unknown
+            // file here, so that detector's whole Cargo arm was dead code and a
+            // first-party `aws-lc-rs = "1"` would have been caught by nothing.
+            //
+            // Scoped to manifests on purpose: admitting all Unknown files would feed
+            // every .md/.json/.yaml/.lock in the tree through the detector loop for
+            // no gain. `Cargo.lock` is excluded too — its `name = "ring"` form does
+            // not match the detector's `^<crate> =` dependency-declaration regexes,
+            // so it would be pure I/O. NOTE: there is deliberately no whole-graph gate —
+            // a `[[bans.deny]]` for aws-lc-rs was added and reverted on 2026-08-23
+            // because that crate is already in the lock and already builds. Transitive
+            // crypto arrivals are reviewed in cryptography-ssot-2026.md, not gated.
+            let is_manifest = path.file_name().and_then(|n| n.to_str()) == Some("Cargo.toml");
+            if lang == Language::Unknown && !is_manifest {
                 continue;
             }
 
@@ -163,6 +185,68 @@ mod tests {
 
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].language, Language::TypeScript);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// `Cargo.toml` has no source language, but `crypto_ban` is registered for
+    /// `Language::Unknown` specifically to read dependency declarations. If the
+    /// scanner drops it, that detector's Cargo arm silently never runs.
+    #[test]
+    fn scanner_collects_cargo_manifests_but_not_other_unknown_files() {
+        let dir = std::env::temp_dir().join("toestub_manifest_scan_test");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("create dir");
+        fs::write(dir.join("Cargo.toml"), "[dependencies]\nring = \"0.17\"\n").expect("write");
+        fs::write(dir.join("Cargo.lock"), "[[package]]\nname = \"ring\"\n").expect("write");
+        fs::write(dir.join("notes.md"), "hello").expect("write");
+
+        let scanner = Scanner::new(vec![dir.clone()], &[], None);
+        let names: Vec<String> = scanner
+            .scan()
+            .iter()
+            .filter_map(|f| {
+                f.path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map(String::from)
+            })
+            .collect();
+
+        assert_eq!(names, vec!["Cargo.toml".to_string()], "got {names:?}");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// `.claude/worktrees/` holds full checkouts of this repo — one per concurrent
+    /// agent session — so scanning it reports every finding once per worktree.
+    #[test]
+    fn scanner_skips_agent_harness_state() {
+        let dir = std::env::temp_dir().join("toestub_harness_exclude_test");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join(".claude/worktrees/agent-x/src")).expect("mkdir");
+        fs::create_dir_all(dir.join(".superpowers/sdd")).expect("mkdir");
+        fs::create_dir_all(dir.join("src")).expect("mkdir");
+        fs::write(
+            dir.join(".claude/worktrees/agent-x/src/dup.rs"),
+            "fn main() {}",
+        )
+        .expect("w");
+        fs::write(dir.join(".superpowers/sdd/scratch.rs"), "fn main() {}").expect("w");
+        fs::write(dir.join("src/real.rs"), "fn main() {}").expect("w");
+
+        let names: Vec<String> = Scanner::new(vec![dir.clone()], &[], None)
+            .scan()
+            .iter()
+            .filter_map(|f| {
+                f.path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map(String::from)
+            })
+            .collect();
+
+        assert_eq!(names, vec!["real.rs".to_string()], "got {names:?}");
 
         let _ = fs::remove_dir_all(&dir);
     }

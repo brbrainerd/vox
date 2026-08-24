@@ -3,7 +3,7 @@ import { Backdrop } from '../ui/Backdrop';
 import { Sidebar, type SidebarMode } from './Sidebar';
 import { SurfaceScrollHost } from './SurfaceScrollHost';
 import { BreadcrumbBar } from './BreadcrumbBar';
-import { BottomStatusBar } from './BottomStatusBar';
+import { BottomStatusBar, type BottomStatusBarProps } from './BottomStatusBar';
 import { SurfaceErrorBoundary } from '../ui/ErrorBoundary';
 import type { DashboardData } from '../../types/dashboard';
 import type { PolicyBadge } from './Sidebar';
@@ -41,7 +41,8 @@ export interface AppShellProps {
   chatDock?: React.ReactNode;
   children: React.ReactNode;
   activeModel?: string | null;
-  openrouterSpendUsd?: number | null;
+  llmSpend?: BottomStatusBarProps['llmSpend'];
+  buildDisplay?: string | null;
   gamifyEnabled?: boolean;
   onOpenAchievements?: () => void;
   hudTilesConfig: HudTilesConfig;
@@ -88,7 +89,8 @@ export function AppShell({
   chatDock,
   children,
   activeModel,
-  openrouterSpendUsd,
+  llmSpend,
+  buildDisplay,
   gamifyEnabled,
   onOpenAchievements,
   hudTilesConfig,
@@ -174,7 +176,8 @@ export function AppShell({
         orchUsesPolling={orchUsesPolling}
         liveFreshMs={liveFreshMs}
         activeModel={activeModel}
-        openrouterSpendUsd={openrouterSpendUsd}
+        llmSpend={llmSpend}
+        buildDisplay={buildDisplay}
         pendingApprovals={pendingApprovals}
         meshNodes={meshNodes}
         gamifyEnabled={gamifyEnabled}

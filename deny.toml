@@ -59,6 +59,17 @@ multiple-versions = "warn"
 highlight = "all"
 wildcards = "allow"
 
+# NO `[[bans.deny]]` for aws-lc-rs. It was added 2026-08-23 and reverted the same
+# day: aws-lc-rs 1.17.0 is ALREADY in Cargo.lock and already compiles here — it
+# arrives via reqwest 0.13 (chromiumoxide, gix-transport, rmcp, self_update,
+# tauri) whose `rustls` feature expands to `__rustls-aws-lc-rs`, and
+# workspace-hack enables it. A deny rule would hard-fail `cargo deny check` on
+# the current lock, not prevent anything. It also builds fine on Windows/MSVC
+# (it ships pre-generated nasm objects, same trick as ring) — the honest
+# objection is build WEIGHT, not build failure. Removing it needs feature or
+# `[patch]` surgery on five transitive consumers; see
+# docs/src/architecture/cryptography-ssot-2026.md.
+
 [sources]
 unknown-registry = "warn"
 unknown-git = "warn"

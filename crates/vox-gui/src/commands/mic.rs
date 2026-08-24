@@ -166,7 +166,8 @@ pub fn start_mic_capture(state: tauri::State<'_, MicCaptureState>) -> Result<(),
         .default_input_config()
         .map_err(|e| format!("query default input config: {e}"))?;
 
-    let source_sample_rate = config.sample_rate().0;
+    // cpal 0.17: `SampleRate` is a plain `u32` alias, not the 0.15 newtype — no `.0`.
+    let source_sample_rate = config.sample_rate();
     let channels = config.channels();
     let sample_format = config.sample_format();
     let stream_config: cpal::StreamConfig = config.into();
@@ -451,7 +452,7 @@ mod tests {
             .default_input_device()
             .expect("a real default input device must be present");
         let cfg = device.default_input_config().expect("default input config");
-        let src_rate = cfg.sample_rate().0;
+        let src_rate = cfg.sample_rate();
         let channels = cfg.channels();
         let fmt = cfg.sample_format();
         let stream_config: cpal::StreamConfig = cfg.into();

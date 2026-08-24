@@ -312,6 +312,13 @@ pub struct LlmSpendDto {
     pub total_usd: f64,
     pub daily_budget_usd: f64,
     pub per_session_budget_usd: f64,
+    /// Fraction of a cap at which spend is "warning" rather than "ok".
+    ///
+    /// Carried on this DTO so the GUI warns at exactly the point
+    /// `model_route_policy::budget_guard` starts warning, instead of the
+    /// status bar keeping its own literal that silently drifts from the
+    /// threshold that actually governs dispatch.
+    pub warn_threshold_pct: f32,
 }
 
 /// Read recorded LLM spend (session/day/total) + the budget caps. `session_id` scopes the
@@ -334,6 +341,7 @@ pub async fn get_llm_spend(session_id: Option<String>) -> Result<LlmSpendDto, St
         total_usd: spend.total_usd,
         daily_budget_usd: cfg.daily_budget_usd,
         per_session_budget_usd: cfg.per_session_budget_usd,
+        warn_threshold_pct: cfg.budget_warn_threshold_pct,
     })
 }
 
@@ -353,6 +361,7 @@ mod tests {
             total_usd: 1.2,
             daily_budget_usd: 5.0,
             per_session_budget_usd: 1.0,
+            warn_threshold_pct: 0.8,
         };
         let j = serde_json::to_string(&d).expect("serialize");
         assert!(j.contains("\"sessionUsd\":0.03"), "{j}");

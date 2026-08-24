@@ -75,8 +75,16 @@ impl LlmProviderCallDetector {
     }
 
     /// `true` if `line` reaches a provider via a `vox-config` base-url accessor.
-    fn has_base_url_call(&self, line: &str) -> bool {
-        self.base_url_call.is_match(line)
+    /// Same code-vs-literal discrimination as [`Self::has_http_call`].
+    fn has_base_url_call(
+        &self,
+        line: &str,
+        ctx: Option<(&crate::analysis::RustFileContext, &str, usize)>,
+    ) -> bool {
+        self.base_url_call.find_iter(line).any(|m| match ctx {
+            Some((c, content, line_num)) => c.is_code_at(content, line_num, m.start()),
+            None => true,
+        })
     }
 
     /// Returns `true` if `line` contains a known provider hostname.
@@ -85,12 +93,26 @@ impl LlmProviderCallDetector {
     }
 
     /// Returns `true` if `line` contains an HTTP call pattern appropriate for `lang`.
-    fn has_http_call(&self, line: &str, lang: Language) -> bool {
-        match lang {
-            Language::Rust => self.rust_http_call.is_match(line),
-            Language::Vox | Language::TypeScript => self.vox_http_call.is_match(line),
-            _ => false,
-        }
+    ///
+    /// The hostname a provider call targets is always a string literal, so the literal
+    /// cannot be the discriminator. The *call* can: `client.post(...)` written as code
+    /// is egress, the same text inside a literal is a test fixture or a doc example.
+    /// When `ctx` is present (Rust), require the matched call to start on a code byte.
+    fn has_http_call(
+        &self,
+        line: &str,
+        lang: Language,
+        ctx: Option<(&crate::analysis::RustFileContext, &str, usize)>,
+    ) -> bool {
+        let re = match lang {
+            Language::Rust => &self.rust_http_call,
+            Language::Vox | Language::TypeScript => &self.vox_http_call,
+            _ => return false,
+        };
+        re.find_iter(line).any(|m| match ctx {
+            Some((c, content, line_num)) => c.is_code_at(content, line_num, m.start()),
+            None => true,
+        })
     }
 
     /// Returns the matched hostname substring, for the finding message.
@@ -183,9 +205,10 @@ impl DetectionRule for LlmProviderCallDetector {
     fn detect(
         &self,
         file: &SourceFile,
-        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
+        let at = |line_num: usize| rust_ctx.map(|c| (c, file.content.as_str(), line_num));
 
         // The sanctioned facade is the one place allowed to reach providers directly.
         if Self::is_facade_file(&file.path) {
@@ -208,7 +231,7 @@ impl DetectionRule for LlmProviderCallDetector {
             // Trigger on a literal provider hostname (any lang) or, for Rust workspace
             // code, a `vox-config` base-url accessor (the second-egress signature).
             let trigger = self.has_hostname(line)
-                || (file.language == Language::Rust && self.has_base_url_call(line));
+                || (file.language == Language::Rust && self.has_base_url_call(line, at(line_num)));
             if !trigger {
                 continue;
             }
@@ -225,7 +248,7 @@ impl DetectionRule for LlmProviderCallDetector {
             }
 
             // Check for HTTP call on the same line first
-            if self.has_http_call(line, file.language) {
+            if self.has_http_call(line, file.language, at(line_num)) {
                 let hostname = self.matched_hostname(line).to_string();
                 findings.push(self.make_finding(file, line_num, &hostname));
                 continue;
@@ -236,7 +259,8 @@ impl DetectionRule for LlmProviderCallDetector {
             let window_end = (i + 4).min(file.lines.len());
             let nearby_has_http = file.lines[window_start..window_end]
                 .iter()
-                .any(|l| self.has_http_call(l, file.language));
+                .enumerate()
+                .any(|(off, l)| self.has_http_call(l, file.language, at(window_start + off + 1)));
 
             if nearby_has_http {
                 let hostname = self.matched_hostname(line).to_string();
@@ -255,6 +279,33 @@ mod tests {
 
     fn source(lang: &str, code: &str) -> SourceFile {
         SourceFile::new(PathBuf::from(format!("test.{lang}")), code.to_string())
+    }
+
+    // Regression: the hostname legitimately lives in a literal, so the literal cannot
+    // be the discriminator — the *call* is. A fixture quoting both inside one string
+    // is not egress.
+    #[test]
+    fn ignores_provider_call_quoted_inside_string_literal() {
+        let d = LlmProviderCallDetector::new();
+        let code = "fn f() { let fixture = r#\"reqwest::Client::new().post(\"https://api.anthropic.com/v1/messages\")\"#; }";
+        let f = source("rs", code);
+        let ctx = crate::analysis::RustFileContext::parse(code);
+        assert!(
+            d.detect(&f, Some(&ctx)).is_empty(),
+            "provider call quoted in a literal is fixture text"
+        );
+    }
+
+    // Companion: a real call with the hostname still in a literal must still fire.
+    #[test]
+    fn still_detects_real_provider_call_with_context() {
+        let d = LlmProviderCallDetector::new();
+        let code = "async fn f(c: reqwest::Client) { let _ = c.post(\"https://api.anthropic.com/v1/messages\").send().await; }";
+        let f = source("rs", code);
+        let ctx = crate::analysis::RustFileContext::parse(code);
+        let findings = d.detect(&f, Some(&ctx));
+        assert_eq!(findings.len(), 1, "real provider egress must still fire");
+        assert!(findings[0].message.contains("api.anthropic.com"));
     }
 
     #[test]

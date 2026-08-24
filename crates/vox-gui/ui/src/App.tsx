@@ -298,8 +298,11 @@ export default function App() {
   }, []);
   const orchQuery = useOrchestratorStatus();
   const orchUsesPolling = orchQuery.usesPolling;
-  const { totalUsd: openrouterSpendUsd } = useLlmSpend();
   const { config: hudTilesConfig, setConfig: setHudTilesConfig } = useHudTilesConfig();
+  // Spend poll cadence is a status-bar option (contract hud-tiles.v1 §options),
+  // not a fixed 60s: each refresh is a DB round-trip, and how closely you want
+  // to watch a budget is a per-operator call.
+  const llmSpend = useLlmSpend((hudTilesConfig.options?.spendPollSeconds ?? 60) * 1000);
   // Slower than MeshView's own 5s poll — BottomStatusBar is mounted for the
   // whole session on every view, so a one-line online/total summary doesn't
   // need MeshView's fast cadence, which would add permanent steady-state
@@ -1523,7 +1526,7 @@ export default function App() {
     chatPlanSessionId: openPlanSessionId,
     chatPlanVersion: null,
     chatActiveSkillId: activeSkill?.id ?? null,
-    chatOpenrouterSpendUsd: openrouterSpendUsd,
+    chatOpenrouterSpendUsd: llmSpend.totalUsd,
     chatAgentStreamItems: activeChatAgentItems,
     onOpenAgentInFlow: (agentId: string) => {
       setSelectedAgentId(agentId);
@@ -1583,7 +1586,8 @@ export default function App() {
         chatDocked={chatDocked}
         chatDock={chatDock}
         activeModel={activeModel}
-        openrouterSpendUsd={openrouterSpendUsd}
+        llmSpend={llmSpend}
+        buildDisplay={appVersion}
         gamifyEnabled={gamifySettings.enabled}
         onOpenAchievements={openAchievements}
         hudTilesConfig={hudTilesConfig}

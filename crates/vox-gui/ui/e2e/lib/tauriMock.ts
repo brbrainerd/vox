@@ -274,8 +274,32 @@ export function installTauriMock(viewKey: string): void {
           return { nodeId: 'node-abc', algorithm: 'ed25519', fingerprint: 'fp-deadbeef', pubkeyHex: '00', present: true };
         case 'get_user_config': return null;
         case 'get_llm_config': return {};
+        // M3: without these, get_initial_view=mercatus rendered the null path
+        // and every review screenshot of this surface graded a blank void.
+        case 'mercatus_config_path':
+          return '/home/tester/.config/storage-tier/price-watch/price-watch.config.json';
+        case 'mercatus_load_config':
+          return {
+            _meta: {
+              sources: {
+                newegg: { enabled: true, costUsd: 0.0, cadenceHours: 6, tier: 'api' },
+                amazon: { enabled: true, costUsd: 0.0025, cadenceHours: 12, tier: 'paid' },
+                ebay: { enabled: true, costUsd: 0.0, cadenceHours: 6, tier: 'api' },
+                microcenter: { enabled: false, costUsd: 0.0025, cadenceHours: 24, tier: 'paid' },
+              },
+            },
+            watchlist: [
+              { id: 'gpu-a', role: 'gpu', model: 'RTX 4090 48GB blower', sources: ['newegg', 'amazon'], ids: { newegg: 'N82E16814137770' }, target_usd: 4099 },
+              { id: 'cpu-a', role: 'cpu', model: 'AMD EPYC 7443P', sources: ['newegg', 'ebay'], ids: { newegg: 'N82E16819113702', ebay: '116477031617' }, target_usd: 1100 },
+              { id: 'mb-a', role: 'motherboard', model: 'ASRock Rack ROMED8-2T', sources: ['newegg'], ids: {}, target_usd: 670 },
+              { id: 'ram-a', role: 'memory', model: 'OWC 16GB DDR4-3200 ECC RDIMM', sources: ['newegg', 'amazon'], ids: { newegg: '1X5-005D-00133' }, target_usd: 139 },
+              { id: 'psu-a', role: 'psu', model: 'Seasonic PRIME TX-1600 Noctua Edition', sources: ['amazon'], ids: {}, target_usd: 600 },
+            ],
+          };
         case 'get_llm_spend':
-          return { sessionUsd: 0, dayUsd: 0, totalUsd: 0, dailyBudgetUsd: 50, perSessionBudgetUsd: 10 };
+          // Mirrors Rust LlmSpendDto; warnThresholdPct drives the status bar's
+          // amber state and must stay present or the tile silently never warns.
+          return { sessionUsd: 0, dayUsd: 0, totalUsd: 0, dailyBudgetUsd: 50, perSessionBudgetUsd: 10, warnThresholdPct: 0.8 };
         case 'pty_spawn':
         case 'pty_write':
         case 'pty_resize':

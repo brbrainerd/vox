@@ -474,6 +474,7 @@ fn all_secret_ids_have_spec_entries() {
 
 #[test]
 #[allow(unsafe_code)]
+#[cfg(feature = "secrets-vox-vault")]
 fn store_secret_round_trips_user_rsa_nanopub_key_via_temp_vault() {
     // Hermetic: isolate the vault DB to a temp dir via VOX_SECRETS_VAULT_PATH and
     // pin a throwaway VOX_ACCOUNT_ID, mirroring the backend round-trip test in
@@ -790,6 +791,7 @@ fn expo_token_is_a_registered_resolvable_secret() {
 }
 
 #[test]
+#[cfg(feature = "secrets-vox-vault")]
 fn derive_master_key_is_stable_across_calls() {
     // Two calls with the same (stubbed) keyring entry must return the same 32-byte key.
     // Uses a temp directory as the file fallback home so no real keyring is needed.

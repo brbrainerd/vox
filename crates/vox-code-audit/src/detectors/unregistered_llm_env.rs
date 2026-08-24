@@ -86,7 +86,7 @@ impl DetectionRule for UnregisteredLlmEnvDetector {
     fn detect(
         &self,
         file: &SourceFile,
-        _ctx: Option<&crate::analysis::RustFileContext>,
+        ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
         for (i, line) in file.lines.iter().enumerate() {
@@ -99,6 +99,14 @@ impl DetectionRule for UnregisteredLlmEnvDetector {
                 if !self.llm_shape.is_match(name)
                     || Self::is_secret_shaped(name)
                     || self.is_registered(name)
+                {
+                    continue;
+                }
+                // `env::var(` must be code. Inside a string literal it is a test
+                // fixture or a doc example quoting the violation, not a real read.
+                let call_start = cap.get(0).map(|m| m.start()).unwrap_or(0);
+                if let Some(c) = ctx
+                    && !c.is_code_at(&file.content, i + 1, call_start)
                 {
                     continue;
                 }
@@ -185,6 +193,30 @@ let direct = std::env::var("GEMINI_DIRECT_MODEL").ok();"#);
             d.detect(&f, None).is_empty(),
             "Band-B keys registered in vox-secrets must not be flagged"
         );
+    }
+
+    // Regression: the detector reported its own fixtures, where the env read is
+    // quoted inside a raw string rather than executed.
+    #[test]
+    fn ignores_env_call_inside_string_literal() {
+        let d = UnregisteredLlmEnvDetector::new();
+        let code = "fn f() { let fixture = r#\"std::env::var(\"OLLAMA_TUNING_MYSTERY\")\"#; }";
+        let f = rs(code);
+        let ctx = crate::analysis::RustFileContext::parse(code);
+        assert!(
+            d.detect(&f, Some(&ctx)).is_empty(),
+            "env read quoted in a literal is fixture text"
+        );
+    }
+
+    // Companion: real reads must still fire when the context is supplied.
+    #[test]
+    fn still_flags_real_env_call_with_context() {
+        let d = UnregisteredLlmEnvDetector::new();
+        let code = "fn f() { let x = std::env::var(\"OLLAMA_TUNING_MYSTERY\").ok(); }";
+        let f = rs(code);
+        let ctx = crate::analysis::RustFileContext::parse(code);
+        assert_eq!(d.detect(&f, Some(&ctx)).len(), 1, "real read must fire");
     }
 
     #[test]

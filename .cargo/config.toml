@@ -13,7 +13,12 @@ vox-schola-dev       = "run -p vox-schola --"
 # Or per-user: add `[build] rustc-wrapper = "sccache"` to ~/.cargo/config.toml
 #
 [build]
-jobs = 24
+# No `jobs` override: cargo defaults to the logical CPU count. A hard-coded
+# value is wrong on every machine but the one it was tuned on, and this repo is
+# routinely built from several git worktrees at once (agent sessions) — N
+# concurrent cargos x a fixed job count oversubscribes the box badly. Measured
+# 2026-08-23 on a 12-core host: `jobs = 24` meant 4 concurrent worktree builds
+# could ask for 96 rustc processes.
 rustdocflags = ["-D", "warnings"]
 
 # Bumped from cargo's default of 2 after a self-hosted nightly CI runner hit
@@ -42,10 +47,31 @@ rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 # `vox doctor`'s linker check guards this; revert to the default link.exe only if the
 # lock recurs.
 linker = "lld-link"
-rustflags = ["-C", "link-arg=/DEBUG:NONE", "-C", "link-arg=/STACK:8388608"]
+# `-Cdebuginfo=0` first: `/DEBUG:NONE` means lld-link emits NO PDB, and MSVC
+# symbolication reads the PDB — so the `debug = 1` line tables that [profile.dev]
+# asks for are emitted into every object and then discarded at link time
+# (measured: 35.6% of section bytes in libvox_compiler.rlib). Cargo profiles
+# cannot be target-conditional, so the override lives here; Linux keeps debug=1.
+# Config rustflags are appended after cargo's own `-Cdebuginfo=1` and rustc takes
+# the last one, so this wins. Verified 2026-08-23 (rustc 1.96, lld-link 22.1.8):
+#   ["-Cdebuginfo=0"]                    -> dbgtest.pdb, 1,282,048 bytes
+#   ["-Cdebuginfo=0", "/DEBUG:NONE"]     -> no PDB
+# Both flags are required: `/DEBUG:NONE` alone wastes the codegen, `-Cdebuginfo=0`
+# alone still emits a PDB. To actually debug on Windows, override for one build:
+#   $env:RUSTFLAGS = "-Cdebuginfo=1"   (note: replaces this whole array, so
+#   re-add /STACK:8388608 if the target needs the bigger main-thread stack).
+rustflags = ["-C", "debuginfo=0", "-C", "link-arg=/DEBUG:NONE", "-C", "link-arg=/STACK:8388608"]
 
 [env]
-SCCACHE_DIR = { value = ".sccache", relative = true }
+# No SCCACHE_DIR here. `relative = true` resolves per worktree, and sccache's
+# server is a per-user singleton that reads SCCACHE_DIR only at startup — so
+# whichever worktree spawns the server first silently owns the cache for all the
+# others, nondeterministically. Letting sccache use its own per-user default
+# (%LOCALAPPDATA%Mozillasccache on Windows, ~/.cache/sccache on Linux) is
+# genuinely shared across worktrees. CI pins SCCACHE_DIR=/cache/sccache in the
+# workflow env, which already overrode this line (a non-`force` [env] entry only
+# applies when the variable is unset), so removing it is CI-neutral.
+# Measured hit rates and setup: docs/src/ci/shared-compile-cache.md
 # Pin every cargo build/test invocation (including scripts) to a single `target/`
 # dir per checkout, instead of letting tools scatter `target-agent/`,
 # `target-doc-inv/`, etc. across the tree.

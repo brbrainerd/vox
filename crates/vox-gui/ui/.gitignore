@@ -1,3 +1,5 @@
 e2e/screens/
 playwright-report/
 review-bundle/
+
+test-results/

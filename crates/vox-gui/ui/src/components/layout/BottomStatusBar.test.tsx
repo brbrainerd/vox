@@ -148,3 +148,115 @@ describe('BottomStatusBar', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Budget wiring + configurability. The spend tile used to render lifetime
+// spend with no cap; the cap the guard actually enforces is the daily one.
+// ---------------------------------------------------------------------------
+
+const baseProps = {
+  kpis: INITIAL_KPIS,
+  onNavigate: vi.fn(),
+  lastOrchEventAt: null,
+  orchUsesPolling: false,
+  liveFreshMs: 10_000,
+};
+
+const spend = (over: Partial<Record<string, number | string | null>> = {}) => ({
+  sessionUsd: 0.1,
+  dayUsd: 1.0,
+  totalUsd: 42.0,
+  dailyBudgetUsd: 10,
+  perSessionBudgetUsd: 2,
+  warnThresholdPct: 0.8,
+  error: null,
+  ...over,
+});
+
+describe('BottomStatusBar LLM spend tile', () => {
+  it('shows daily spend against the daily cap, not lifetime spend', () => {
+    render(<BottomStatusBar {...baseProps} hudTilesConfig={defaultHudTiles()} llmSpend={spend()} />);
+    const tile = screen.getByTestId('bottom-status-bar-openrouter');
+    expect(tile).toHaveTextContent('$1.00/$10.00');
+    expect(tile).not.toHaveTextContent('42');
+  });
+
+  it('is labeled LLM Spend, since the figure sums every provider', () => {
+    render(<BottomStatusBar {...baseProps} hudTilesConfig={defaultHudTiles()} llmSpend={spend()} />);
+    expect(screen.getByTestId('bottom-status-bar-openrouter')).toHaveTextContent(/LLM Spend/i);
+  });
+
+  it('goes to the warn tone at the configured threshold, not a hardcoded one', () => {
+    // 8.0/10 == the 0.8 threshold the budget guard warns at.
+    render(<BottomStatusBar {...baseProps} hudTilesConfig={defaultHudTiles()} llmSpend={spend({ dayUsd: 8.0 })} />);
+    expect(screen.getByTestId('bottom-status-bar-openrouter')).toHaveAttribute('data-tone', 'warn');
+  });
+
+  it('respects a threshold change rather than assuming 0.8', () => {
+    render(<BottomStatusBar {...baseProps} hudTilesConfig={defaultHudTiles()} llmSpend={spend({ dayUsd: 8.0, warnThresholdPct: 0.95 })} />);
+    expect(screen.getByTestId('bottom-status-bar-openrouter')).toHaveAttribute('data-tone', 'ok');
+  });
+
+  it('goes to the over tone at or past the cap that blocks dispatch', () => {
+    render(<BottomStatusBar {...baseProps} hudTilesConfig={defaultHudTiles()} llmSpend={spend({ dayUsd: 10 })} />);
+    expect(screen.getByTestId('bottom-status-bar-openrouter')).toHaveAttribute('data-tone', 'over');
+  });
+
+  it('shows a distinct error tone rather than looking unconfigured', () => {
+    render(<BottomStatusBar {...baseProps} hudTilesConfig={defaultHudTiles()} llmSpend={spend({ dayUsd: null, dailyBudgetUsd: null, error: 'store unavailable' })} />);
+    const tile = screen.getByTestId('bottom-status-bar-openrouter');
+    expect(tile).toHaveAttribute('data-tone', 'error');
+    expect(tile).toHaveAttribute('title', expect.stringContaining('store unavailable'));
+  });
+
+  it('uses theme status tokens, not hardcoded Tailwind color literals', () => {
+    render(<BottomStatusBar {...baseProps} hudTilesConfig={defaultHudTiles()} llmSpend={spend({ dayUsd: 8.0 })} />);
+    const cls = screen.getByTestId('bottom-status-bar-openrouter').className;
+    expect(cls).toContain('status-warn');
+    expect(cls).not.toMatch(/\b(emerald|amber|red|green)-\d{3}\b/);
+  });
+});
+
+describe('BottomStatusBar configurability', () => {
+  const withTiles = (kinds: string[]) => {
+    const cfg = defaultHudTiles();
+    cfg.tiles = cfg.tiles.map((t) => ({ ...t, enabled: kinds.includes(t.kind) }));
+    return cfg;
+  };
+
+  it('renders the mesh VRAM tile from live orchestrator status', () => {
+    const kpis = { ...INITIAL_KPIS, mesh: { ...INITIAL_KPIS.mesh, vramGb: 48 } };
+    render(<BottomStatusBar {...baseProps} kpis={kpis} hudTilesConfig={withTiles(['vram_total'])} />);
+    expect(screen.getByTestId('bottom-status-bar-vram')).toHaveTextContent('48');
+  });
+
+  it('renders the session spend tile against the per-session cap', () => {
+    render(<BottomStatusBar {...baseProps} hudTilesConfig={withTiles(['session_spend'])} llmSpend={spend()} />);
+    expect(screen.getByTestId('bottom-status-bar-session-spend')).toHaveTextContent('$0.10/$2.00');
+  });
+
+  it('renders the build version tile', () => {
+    render(<BottomStatusBar {...baseProps} hudTilesConfig={withTiles(['build_version'])} buildDisplay="0.6.0+local (dev)" />);
+    expect(screen.getByTestId('bottom-status-bar-build')).toHaveTextContent('0.6.0+local (dev)');
+  });
+
+  it('compact density drops tile labels but keeps values', () => {
+    const cfg = defaultHudTiles();
+    cfg.options = { ...cfg.options, density: 'compact' };
+    render(<BottomStatusBar {...baseProps} hudTilesConfig={cfg} llmSpend={spend()} />);
+    expect(screen.queryByText('Agents')).not.toBeInTheDocument();
+    expect(screen.getByTestId('bottom-status-bar-agents')).toHaveTextContent('0');
+  });
+
+  it('hides the freshness pill when the option is off', () => {
+    const cfg = defaultHudTiles();
+    cfg.options = { ...cfg.options, showFreshness: false };
+    render(<BottomStatusBar {...baseProps} hudTilesConfig={cfg} />);
+    expect(screen.queryByTestId('bottom-status-bar-freshness')).not.toBeInTheDocument();
+  });
+
+  it('labels the orchestrator run cap distinctly from LLM spend', () => {
+    render(<BottomStatusBar {...baseProps} hudTilesConfig={defaultHudTiles()} llmSpend={spend()} />);
+    expect(screen.getByTestId('bottom-status-bar-budget')).toHaveTextContent(/Run Cap/i);
+  });
+});

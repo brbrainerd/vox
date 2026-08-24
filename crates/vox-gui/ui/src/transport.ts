@@ -252,6 +252,9 @@ export interface LlmSpendDto {
   totalUsd: number;
   dailyBudgetUsd: number;
   perSessionBudgetUsd: number;
+  /** Fraction of a cap at which spend is "warning"; the same threshold the
+   *  Rust budget guard warns at, so the UI can't drift from enforcement. */
+  warnThresholdPct: number;
 }
 
 export interface GamifySettingsDto {
@@ -638,6 +641,10 @@ class VoxTransport {
 
   mercatusLoadConfig(): Promise<unknown> {
     return safeInvoke('mercatus_load_config');
+  }
+
+  mercatusConfigPath(): Promise<string> {
+    return safeInvoke('mercatus_config_path');
   }
 
   mercatusSaveConfig(config: unknown): Promise<void> {

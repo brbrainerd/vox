@@ -27,20 +27,37 @@ interface PriceWatchConfig {
 
 type LoadState = 'loading' | 'ok' | 'error';
 
+/**
+ * First-run / absent-config shape. The backend already returns this on
+ * ENOENT (see mercatus_load_config), but any other null-ish payload used to
+ * fall through the render guard and leave the surface completely blank, so
+ * the coercion happens here too rather than trusting one caller.
+ */
+const EMPTY_CONFIG: PriceWatchConfig = { _meta: { sources: {} }, watchlist: [] };
+
 export function Mercatus({ condensed }: { condensed?: boolean }) {
   const navLabel = useLabel('mercatus');
   const [cfg, setCfg] = useState<PriceWatchConfig | null>(null);
   const [state, setState] = useState<LoadState>('loading');
   const [err, setErr] = useState('');
+  const [configPath, setConfigPath] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     setState('loading');
     voxTransport.mercatusLoadConfig()
-      .then((c) => { setCfg(c as PriceWatchConfig); setState('ok'); })
+      .then((c) => { setCfg((c as PriceWatchConfig | null) ?? EMPTY_CONFIG); setState('ok'); })
       .catch((e) => { setErr(sanitizeErrorForToast(e)); setState('error'); });
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
+
+  // Best-effort: the empty state is more useful with the path, but a failure
+  // here must not take the surface down with it.
+  useEffect(() => {
+    voxTransport.mercatusConfigPath()
+      .then((p) => setConfigPath(p))
+      .catch(() => setConfigPath(null));
+  }, []);
 
   const sources = cfg?._meta?.sources ?? {};
   const parts = cfg?.watchlist ?? [];
@@ -78,7 +95,24 @@ export function Mercatus({ condensed }: { condensed?: boolean }) {
         </div>
       )}
 
-      {state === 'ok' && cfg && (
+      {state === 'ok' && parts.length === 0 && (
+        <div
+          data-testid="mercatus-empty"
+          className="rounded-lg border border-dashed border-border-subtle bg-overlay-subtle px-4 py-6 text-center text-[11px] text-text-muted"
+        >
+          <p className="text-text-secondary">No parts are being tracked yet.</p>
+          <p className="mt-1">
+            Add entries to the price-watch config to start comparing prices across sources.
+          </p>
+          {configPath && (
+            <p className="mt-2 font-mono text-[10px] text-text-muted/80 break-all" data-testid="mercatus-config-path">
+              {configPath}
+            </p>
+          )}
+        </div>
+      )}
+
+      {state === 'ok' && parts.length > 0 && (
         <>
           {/* Coverage matrix */}
           <div className="overflow-x-auto rounded-lg border border-border-subtle">

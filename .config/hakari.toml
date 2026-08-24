@@ -60,7 +60,55 @@ third-party = [
     # Tauri; excluding here keeps it out of every non-GUI build (vox-cli default
     # 833 -> 790 crates). See docs/src/architecture build-time audit (2026-06).
     { name = "tauri-utils" },
-    { name = "tauri-build" }
+    { name = "tauri-build" },
+
+    # --- Build-time audit 2026-08-23 ---
+    # Heavy, narrowly-needed trees that were riding in workspace-hack and so were
+    # pulled by all 77 hack-dependent crates. Measured from `cargo check --workspace
+    # --all-targets --timings`; recorded in docs/src/architecture/build-time-log.md:
+    #   windows 0.62.2  843 s  (sysinfo, process-wrap)
+    #   windows 0.61.3  798 s  (tauri / wry / tao -> vox-gui, vox-tauri-stt only)
+    #   gix     0.84.0  326 s  + gix-transport 119 s  (vox-git -> vox-cli-review only)
+    #   wasmtime-environ 242 s (vox-wasm-engine, vox-plugin-runtime-wasm only)
+    # Excluding them from the hack leaves them to the crates that actually name
+    # them, instead of every crate in the workspace.
+    # NOTE: windows-sys and reqwest are deliberately NOT excluded — those are
+    # genuinely shared (tokio/rustix/vox-http-client) and unification pays there.
+    { name = "tauri" },
+    { name = "windows" },
+    { name = "windows-core" },
+    { name = "gix" },
+    { name = "gix-diff" },
+    { name = "gix-features" },
+    { name = "gix-pack" },
+    { name = "gix-packetline" },
+    { name = "gix-protocol" },
+    { name = "gix-revision" },
+    { name = "gix-tempfile" },
+    { name = "gix-transport" },
+    { name = "wasmtime-environ" },
+    { name = "wasmtime-internal-core" },
+
+    # --- Build-time audit 2026-08-23, follow-up: wasmtime-environ's neighbours ---
+    # The pass above excluded wasmtime-environ but left the rest of the same tree
+    # in the hack, so all 77 hack-dependent crates still paid for it. Verified with
+    # `cargo tree -i`: the ONLY workspace crates naming wasmtime are
+    # vox-wasm-engine, vox-plugin-runtime-wasm, and vox-cli (optional feature) —
+    # every other path to these packages runs through workspace-hack itself.
+    # Costs from the same `cargo check --workspace --all-targets --timings` run:
+    #   wasmparser 0.248     558 s + 166 s (2nd unit) — pulled in solely by the
+    #                        hack's `wasm-encoder = { features = ["wasmparser"] }`
+    #   pulley-interpreter   132 s  (cranelift/wasmtime interpreter backend)
+    # gimli 0.33 (read+std+write) and object 0.39 (write) ride the same tree —
+    # their only parents are addr2line/cranelift-codegen/wasmtime/wasmtime-environ.
+    # `object` is version-scoped on purpose: object 0.37 (read+std) comes in via
+    # `backtrace` on unix/mac and IS genuinely shared, so it stays unified — same
+    # reasoning as windows-sys/reqwest above.
+    { name = "wasm-encoder" },
+    { name = "wasmparser" },
+    { name = "pulley-interpreter" },
+    { name = "gimli" },
+    { name = "object", version = "0.39" }
 ]
 # Don't add `workspace-hack = ...` to these — they're truly leaf and shouldn't
 # pay the workspace-hack compile cost.

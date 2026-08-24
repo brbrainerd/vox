@@ -50,7 +50,7 @@ fn check_sidecar_binaries(gui_dir: &Path) -> Result<Vec<(PathBuf, String)>, Stri
 /// dependency this can't self-heal, and is checked independently elsewhere.
 fn autobuild_sidecar(sidecar: &Path, bin_name: &str) -> Result<(), String> {
     println!(
-        "cargo:warning=vox-gui: sidecar binary {} missing, running `cargo build -p vox-cli --release --bin {bin_name}` to build it (one-time per fresh worktree; set VOX_GUI_SKIP_SIDECAR_AUTOBUILD=1 to disable)",
+        "cargo:warning=vox-gui: sidecar binary {} missing, running `cargo build -p vox-cli --release --bin {bin_name}` (opt-in via VOX_GUI_AUTOBUILD_SIDECAR; this is a full release build of the heaviest crate in the workspace and takes tens of minutes)",
         sidecar.display()
     );
     let status = std::process::Command::new(env!("CARGO"))
@@ -91,10 +91,16 @@ fn main() {
     let gui_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let missing = check_sidecar_binaries(&gui_dir).unwrap_or_else(|e| panic!("{e}"));
 
-    let skip_autobuild = std::env::var("VOX_GUI_SKIP_SIDECAR_AUTOBUILD").is_ok();
+    // Opt-in only: a nested `cargo build -p vox-cli --release` here is a full
+    // release codegen of the heaviest crate in the workspace (917 deps). It ran
+    // *inside* a plain `cargo check --workspace`, where it measured at 76 of the
+    // 87 minutes of the whole run and serialized every dependent unit behind it.
+    // Default is now a fast, actionable failure naming `scripts/gui-build.vox`.
+    println!("cargo:rerun-if-env-changed=VOX_GUI_AUTOBUILD_SIDECAR");
+    let autobuild = std::env::var("VOX_GUI_AUTOBUILD_SIDECAR").is_ok_and(|v| v != "0");
     let mut still_missing = Vec::new();
     for (sidecar, bin_name) in missing {
-        if skip_autobuild {
+        if !autobuild {
             still_missing.push(sidecar);
             continue;
         }
@@ -117,10 +123,11 @@ fn main() {
              or manually:\n\n  \
              cargo build -p vox-cli --release --bin vox\n  \
              # then copy target/release/vox<ext> to the path(s) listed above",
-            if skip_autobuild {
-                "skipped via VOX_GUI_SKIP_SIDECAR_AUTOBUILD"
-            } else {
+            if autobuild {
                 "attempted and failed — see warnings above"
+            } else {
+                "off by default; set VOX_GUI_AUTOBUILD_SIDECAR=1 to build it here instead — \
+                 it is a full release build of vox-cli and takes tens of minutes"
             }
         );
     }

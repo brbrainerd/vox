@@ -83,6 +83,12 @@ pub mod infisical;
 #[cfg(feature = "secrets-vault")]
 pub mod vault;
 
+#[cfg(feature = "secrets-vox-vault")]
+pub mod vox_vault;
+
+/// Loud `BackendUnavailable` stand-in when the vault backend is not compiled in.
+#[cfg(not(feature = "secrets-vox-vault"))]
+#[path = "vox_vault_disabled.rs"]
 pub mod vox_vault;
 
 #[cfg(test)]

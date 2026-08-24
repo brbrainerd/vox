@@ -97,6 +97,7 @@ export function installOperatorShellMock(opts: OperatorShellMockOptions = {}): v
             totalUsd: 1.25,
             dailyBudgetUsd: 50,
             perSessionBudgetUsd: 10,
+            warnThresholdPct: 0.8,
           };
         case 'get_gamify_settings':
           return { enabled: false, mode: 'off' };

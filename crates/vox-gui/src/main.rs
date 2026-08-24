@@ -222,6 +222,7 @@ async fn main() {
             commands::memory::mnemosyne_recall,
             commands::memory::mnemosyne_reindex,
             commands::mercatus::mercatus_load_config,
+            commands::mercatus::mercatus_config_path,
             commands::mercatus::mercatus_save_config,
             commands::preferences::get_gui_preference,
             commands::preferences::set_gui_preference,

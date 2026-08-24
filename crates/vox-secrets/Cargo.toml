@@ -10,9 +10,14 @@ description = "Clavis: central secret resolution and OS-keyring vault, from the 
 readme = "README.md"
 
 [features]
-default = []
+default = ["secrets-vox-vault"]
 secrets-infisical = []
 secrets-vault = []
+# Clavis vault backend (turso-backed). ON by default: turning it off replaces the
+# vault backend with a loud `BackendUnavailable` stub, it does NOT silently fall
+# back to env-only. Only turn it off for crates that never touch the vault
+# (e.g. vox-config), to keep `turso_core` off their scoped-build critical path.
+secrets-vox-vault = ["dep:turso"]
 
 [dependencies]
 secrecy = { workspace = true }
@@ -22,7 +27,7 @@ thiserror = { workspace = true }
 keyring = { workspace = true }
 tracing = { workspace = true }
 vox-bounded-fs = { workspace = true }
-turso = { workspace = true }
+turso = { workspace = true, optional = true }
 aho-corasick = { workspace = true }
 vox-crypto = { workspace = true }
 rand = { workspace = true }

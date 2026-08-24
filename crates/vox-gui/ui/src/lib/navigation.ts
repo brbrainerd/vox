@@ -1,3 +1,5 @@
+import { LEXICON, labelFor, currentLang } from './lexicon';
+
 /**
  * Resolve a view key to its top-level nav parent and optional child tab.
  * Intent-first grouping: Direct(chat) → Review(runs) → Agents → Knowledge →
@@ -124,48 +126,21 @@ export function orderedChildren(parent: string, children: string[]): string[] {
   );
 }
 
-/** Human-readable labels for breadcrumb segments. */
-export const NAV_LABELS: Record<string, string> = {
-  chat: 'Chat',
-  runs: 'Review',
-  agents: 'Agents',
-  knowledge: 'Knowledge',
-  workspace: 'Workspace',
-  commands: 'Commands',
-  compute: 'Compute',
-  mercatus: 'Mercatus',
-  settings: 'Settings',
-  dashboard: 'Dashboard',
-  flow: 'Flow',
-  tasks: 'Tasks',
-  approvals: 'Approvals',
-  'needs-you': 'Needs You',
-  policies: 'Policies',
-  repository: 'Repository',
-  browser: 'Browser',
-  harness: 'Harness',
-  console: 'Console',
-  coderabbit: 'CodeRabbit',
-  catalog: 'Catalog',
-  skills: 'Skills',
-  memory: 'Memory',
-  research: 'Research',
-  scientia: 'Findings',
-  activity: 'Discovery',
-  'vox-search': 'Search Index',
-  publications: 'Publications',
-  models: 'Models',
-  mens: 'Training',
-  populi: 'Nodes',
-  oratio: 'Voice',
-  mesh: 'Mesh',
-  'sub-agents': 'Sub-Agents',
-  coverage: 'Coverage',
-  gamify: 'Gamify',
-};
-
+/**
+ * Human-readable label for a nav key (breadcrumbs, tab chips, sidebar children).
+ *
+ * Resolves through the lexicon, which is the single source of truth for the
+ * en/la dimension of user-facing labels. A parallel NAV_LABELS map used to live
+ * here; it drifted (it said 'Mercatus' while the lexicon and the surface header
+ * said 'Market'), so the breadcrumb disagreed with the page you had just
+ * clicked. Prefer a `nav:<key>` entry when one exists — some keys read
+ * differently in the nav than in prose (runs: 'Runs' vs nav:runs: 'Review').
+ */
 export function labelForNavKey(key: string): string {
-  return NAV_LABELS[key] ?? key.replace(/-/g, ' ');
+  const lang = currentLang();
+  if (LEXICON['nav:' + key]) return labelFor('nav:' + key, lang);
+  if (LEXICON[key]) return labelFor(key, lang);
+  return key.replace(/-/g, ' ');
 }
 
 /** Short label for workbench tab bar chips. */

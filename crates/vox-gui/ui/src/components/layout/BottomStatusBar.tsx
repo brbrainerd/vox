@@ -6,10 +6,15 @@ import { useFreshness } from '../../hooks/useFreshness';
 import {
   resolveVisibleHudTiles,
   toggleHudTile,
+  setHudOption,
   HUD_TILE_LABELS,
+  HUD_DENSITIES,
+  defaultHudOptions,
   type HudTilesConfig,
   type HudTileKind,
+  type HudDensity,
 } from '../../hooks/useHudTiles';
+import type { LlmSpendState } from '../../hooks/useLlmSpend';
 import { INITIAL_KPIS } from '../../data/initialState';
 import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../lib/domIds';
 import type { MeshNode } from '../surfaces/Mesh/MeshView';
@@ -25,7 +30,9 @@ export interface BottomStatusBarProps {
   orchUsesPolling: boolean;
   liveFreshMs: number;
   activeModel?: string | null;
-  openrouterSpendUsd?: number | null;
+  /** Full spend + caps payload; see useLlmSpend. */
+  llmSpend?: LlmSpendState | null;
+  buildDisplay?: string | null;
   pendingApprovals?: number | null;
   meshNodes?: MeshNode[];
   gamifyEnabled?: boolean;
@@ -35,15 +42,15 @@ export interface BottomStatusBarProps {
 function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
   if (tone === 'live') {
     return {
-      pill: 'border-emerald-400/20 bg-emerald-400/[0.04] text-emerald-300',
-      dot: 'bg-emerald-400',
+      pill: 'border-status-pass/20 bg-status-pass/[0.06] text-status-pass',
+      dot: 'bg-status-pass',
       label: 'Live',
     };
   }
   if (tone === 'poll') {
     return {
-      pill: 'border-amber-400/20 bg-amber-400/[0.04] text-amber-300',
-      dot: 'bg-amber-400',
+      pill: 'border-status-warn/20 bg-status-warn/[0.06] text-status-warn',
+      dot: 'bg-status-warn',
       label: 'Poll',
     };
   }
@@ -54,26 +61,76 @@ function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
   };
 }
 
+/** Severity of a value relative to the cap that governs it. */
+export type SegmentTone = 'ok' | 'warn' | 'over' | 'error';
+
+/**
+ * Tone -> theme token class. Every entry resolves through `--color-status-*`,
+ * which Style Dictionary emits into all three theme scopes, so the bar follows
+ * [data-theme]. Hardcoded Tailwind literals (emerald-400/amber-400) do not:
+ * they stay put under high-contrast, which is what the visual review kept
+ * flagging as a contrast failure on this bar.
+ */
+const TONE_CLASS: Record<SegmentTone, string> = {
+  ok: 'text-text-secondary',
+  warn: 'text-status-warn',
+  over: 'text-status-fail',
+  error: 'text-status-fail',
+};
+
+/**
+ * Classify `spent` against `cap`. `null` cap means "no cap configured" — not a
+ * pass; the value is simply uncapped, so it stays neutral rather than being
+ * scored against a number nobody set.
+ */
+export function toneForSpend(
+  spent: number | null,
+  cap: number | null,
+  warnThresholdPct: number | null,
+): SegmentTone {
+  if (spent == null || cap == null || cap <= 0) return 'ok';
+  if (spent >= cap) return 'over';
+  const threshold = warnThresholdPct ?? 1;
+  // Mirrors budget_guard's proportional tolerance: warnThresholdPct round-trips
+  // through f32 on the Rust side, so an exact-cent spend can land a few ULPs
+  // under the "true" threshold and miss the warning.
+  if (spent >= cap * threshold - Math.abs(cap) * 1e-6) return 'warn';
+  return 'ok';
+}
+
 function Segment({
   testId,
   label,
   value,
   onClick,
+  density,
+  tone = 'ok',
+  title,
 }: {
   testId: string;
   label: string;
   value: string;
   onClick: () => void;
+  density: HudDensity;
+  tone?: SegmentTone;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       data-testid={testId}
+      data-tone={tone}
+      title={title}
+      aria-label={density === 'labeled' ? undefined : `${label}: ${value}`}
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+      className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition ${TONE_CLASS[tone]}`}
     >
-      <span className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
-      <span className="font-mono tabular-nums text-text-secondary">{value}</span>
+      {density === 'labeled' && (
+        <span className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
+      )}
+      <span className={`font-mono tabular-nums ${tone === 'ok' ? 'text-text-secondary' : ''}`}>
+        {value}
+      </span>
     </button>
   );
 }
@@ -87,7 +144,8 @@ export function BottomStatusBar({
   orchUsesPolling,
   liveFreshMs,
   activeModel = null,
-  openrouterSpendUsd = null,
+  llmSpend = null,
+  buildDisplay = null,
   pendingApprovals = null,
   meshNodes,
   gamifyEnabled = false,
@@ -99,6 +157,10 @@ export function BottomStatusBar({
   });
   const fresh = freshnessClasses(tone);
   const visible = resolveVisibleHudTiles(hudTilesConfig);
+  // v1 configs migrate on read, but a hand-built config object in a test or a
+  // caller that predates v2 can still arrive without options.
+  const options = hudTilesConfig.options ?? defaultHudOptions();
+  const density = options.density;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -133,6 +195,15 @@ export function BottomStatusBar({
   );
   const budgetValue = `$${kpis.budgetBurn.value.toFixed(2)}/${capDisplay}`;
 
+  const money = (v: number | null) => (v == null ? '—' : `$${v.toFixed(2)}`);
+  const warnPct = llmSpend?.warnThresholdPct ?? null;
+  const spendTone: SegmentTone = llmSpend?.error
+    ? 'error'
+    : toneForSpend(llmSpend?.dayUsd ?? null, llmSpend?.dailyBudgetUsd ?? null, warnPct);
+  const sessionTone: SegmentTone = llmSpend?.error
+    ? 'error'
+    : toneForSpend(llmSpend?.sessionUsd ?? null, llmSpend?.perSessionBudgetUsd ?? null, warnPct);
+
   const renderSegment = (kind: HudTileKind): React.ReactNode => {
     switch (kind) {
       case 'active_agents':
@@ -140,6 +211,7 @@ export function BottomStatusBar({
           <Segment
             key={kind}
             testId="bottom-status-bar-agents"
+            density={density}
             label="Agents"
             value={String(kpis.activeAgents.value)}
             onClick={() => onNavigate('agents')}
@@ -150,6 +222,7 @@ export function BottomStatusBar({
           <Segment
             key={kind}
             testId="bottom-status-bar-queue"
+            density={density}
             label="Queue"
             value={String(kpis.queueDepth.value)}
             onClick={() => onNavigate('runs')}
@@ -160,8 +233,10 @@ export function BottomStatusBar({
           <Segment
             key={kind}
             testId="bottom-status-bar-budget"
-            label="Budget"
+            label="Run Cap"
             value={budgetValue}
+            density={density}
+            title="Orchestrator per-run financial cost cap (financial_cost_budget_micros). Distinct from LLM Spend, which is the daily cross-provider spend cap."
             onClick={() => onNavigate('settings')}
           />
         );
@@ -180,6 +255,7 @@ export function BottomStatusBar({
           <Segment
             key={kind}
             testId="bottom-status-bar-mesh"
+            density={density}
             label="Mesh"
             value={meshValue}
             onClick={() => onNavigate('mesh')}
@@ -191,18 +267,77 @@ export function BottomStatusBar({
           <Segment
             key={kind}
             testId="bottom-status-bar-model"
+            density={density}
             label="Model"
             value={activeModel ?? 'auto-route'}
             onClick={() => onNavigate('models')}
           />
         );
       case 'openrouter_spend':
+        // Daily spend against daily_budget_usd — the pair the budget guard
+        // actually blocks dispatch on. This tile previously showed *lifetime*
+        // spend against no cap, which said nothing about whether the next
+        // request would be refused. Named "LLM Spend" because
+        // `llm_spend_summary` sums every provider, not just OpenRouter.
         return (
           <Segment
             key={kind}
             testId="bottom-status-bar-openrouter"
-            label="OR Spend"
-            value={openrouterSpendUsd == null ? '—' : `$${openrouterSpendUsd.toFixed(2)}`}
+            label="LLM Spend"
+            value={
+              llmSpend?.error
+                ? '!'
+                : `${money(llmSpend?.dayUsd ?? null)}/${money(llmSpend?.dailyBudgetUsd ?? null)}`
+            }
+            tone={spendTone}
+            density={density}
+            title={
+              llmSpend?.error
+                ? `LLM spend unavailable: ${llmSpend.error}`
+                : `Today's spend across all providers vs daily_budget_usd. Lifetime: ${money(llmSpend?.totalUsd ?? null)}.`
+            }
+            onClick={() => onNavigate('settings')}
+          />
+        );
+      case 'session_spend':
+        return (
+          <Segment
+            key={kind}
+            testId="bottom-status-bar-session-spend"
+            label="Session"
+            value={
+              llmSpend?.error
+                ? '!'
+                : `${money(llmSpend?.sessionUsd ?? null)}/${money(llmSpend?.perSessionBudgetUsd ?? null)}`
+            }
+            tone={sessionTone}
+            density={density}
+            title="This session's LLM spend vs per_session_budget_usd."
+            onClick={() => onNavigate('settings')}
+          />
+        );
+      case 'vram_total':
+        // total_vram_gb has always been fetched from the orchestrator status
+        // and plumbed into kpis.mesh.vramGb; nothing rendered it until now.
+        return (
+          <Segment
+            key={kind}
+            testId="bottom-status-bar-vram"
+            label="VRAM"
+            value={`${kpis.mesh.vramGb ?? 0} GB`}
+            density={density}
+            title="Total VRAM reported across mesh peers."
+            onClick={() => onNavigate('mesh')}
+          />
+        );
+      case 'build_version':
+        return (
+          <Segment
+            key={kind}
+            testId="bottom-status-bar-build"
+            label="Build"
+            value={buildDisplay ?? '—'}
+            density={density}
             onClick={() => onNavigate('settings')}
           />
         );
@@ -211,6 +346,7 @@ export function BottomStatusBar({
           <Segment
             key={kind}
             testId="bottom-status-bar-approvals"
+            density={density}
             label="Approvals"
             value={String(pendingApprovals ?? 0)}
             onClick={() => onNavigate('approvals')}
@@ -274,16 +410,52 @@ export function BottomStatusBar({
                 {HUD_TILE_LABELS[tile.kind]}
               </label>
             ))}
+
+            <div className="my-1 h-px bg-border-subtle" />
+
+            <label className="flex items-center justify-between gap-2 rounded px-2 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle">
+              Density
+              <select
+                aria-label="Status bar density"
+                value={options.density}
+                onChange={(e) =>
+                  onHudTilesChange(setHudOption(hudTilesConfig, 'density', e.target.value as HudDensity))
+                }
+                className="rounded border border-border-subtle bg-bg-base px-1 py-0.5 font-mono text-[10px] text-text-secondary"
+              >
+                {HUD_DENSITIES.map((d) => (
+                  <option key={d} value={d}>{d.replace('_', ' ')}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex items-center gap-2 rounded px-2 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle">
+              <input
+                type="checkbox"
+                checked={options.showFreshness}
+                onChange={(e) =>
+                  onHudTilesChange(setHudOption(hudTilesConfig, 'showFreshness', e.target.checked))
+                }
+                className="rounded border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
+              />
+              Freshness pill
+            </label>
+
+            <p className="px-2 pt-1 text-[10px] leading-snug text-text-muted">
+              Budget caps live in Settings → Runtime (they govern dispatch, not just display).
+            </p>
           </div>
         ) : null}
       </div>
-      <div
-        data-testid="bottom-status-bar-freshness"
-        className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded border px-2 py-0.5 ${fresh.pill}`}
-      >
-        <span className={`size-1.5 rounded-full ${fresh.dot}`} />
-        <span className="uppercase tracking-[0.14em]">{fresh.label}</span>
-      </div>
+      {options.showFreshness && (
+        <div
+          data-testid="bottom-status-bar-freshness"
+          className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded border px-2 py-0.5 ${fresh.pill}`}
+        >
+          <span className={`size-1.5 rounded-full ${fresh.dot}`} />
+          <span className="uppercase tracking-[0.14em]">{fresh.label}</span>
+        </div>
+      )}
 
       {/* Fixed home for surface-level chrome that needs to sit inline with
           persistent app chrome rather than in the per-surface content area

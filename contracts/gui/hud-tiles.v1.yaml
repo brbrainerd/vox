@@ -1,9 +1,11 @@
 x-vox-version: 1
-schema_version: 1
+schema_version: 2
 description: >
-  TopHud tile catalog and layout schema for the vox-gui dashboard.
-  Runtime configs are validated client-side via useHudTiles.ts and persisted
-  under gui.hud.tiles.v1 (see shell-persistence.v1.yaml).
+  Status-bar tile catalog and layout schema for the vox-gui shell. The tiles
+  render in BottomStatusBar (they were originally a top HUD; the name is kept
+  for config compatibility). Runtime configs are validated client-side via
+  useHudTiles.ts and persisted under gui.hud.tiles.v1 (see
+  shell-persistence.v1.yaml). v1 configs are migrated forward on read.
 
 tile_kinds:
   - active_agents
@@ -13,6 +15,9 @@ tile_kinds:
   - active_model
   - openrouter_spend
   - pending_approvals
+  - vram_total
+  - session_spend
+  - build_version
 
 data_bindings:
   active_agents:
@@ -36,19 +41,44 @@ data_bindings:
   pending_approvals:
     source: orchestrator_status
     field: approvals_pending
+  vram_total:
+    source: orchestrator_status
+    field: total_vram_gb
+  session_spend:
+    source: transport
+    method: get_llm_spend
+  build_version:
+    source: transport
+    method: get_build_info
 
 tile_shape:
   id: string # must match a tile_kinds entry
   kind: string # one of tile_kinds
   enabled: boolean
 
+# Bar-level display options. Deliberately excluded: budget cap values (owned by
+# VoxConfig / `vox config set` — the caps the budget guard enforces; a second
+# editor here would fork that SSOT), freshness thresholds (derived from daemon
+# event cadence), and tile->data bindings (this file is their SSOT).
+options_shape:
+  density: string          # labeled | compact
+  show_freshness: boolean  # the live/poll/offline pill
+  spend_poll_seconds: int  # 10..3600, cadence for get_llm_spend
+
 config_shape:
-  version: 1
+  version: 2
   tiles:
     - tile_shape
+  options:
+    - options_shape
+
+default_options:
+  density: labeled
+  show_freshness: true
+  spend_poll_seconds: 60
 
 default_profile:
-  version: 1
+  version: 2
   tiles:
     - id: active_agents
       kind: active_agents
@@ -71,3 +101,16 @@ default_profile:
     - id: pending_approvals
       kind: pending_approvals
       enabled: true
+    - id: vram_total
+      kind: vram_total
+      enabled: false
+    - id: session_spend
+      kind: session_spend
+      enabled: false
+    - id: build_version
+      kind: build_version
+      enabled: false
+  options:
+    density: labeled
+    show_freshness: true
+    spend_poll_seconds: 60

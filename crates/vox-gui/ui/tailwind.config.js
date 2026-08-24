@@ -26,6 +26,15 @@ export default {
         'overlay-subtle': 'var(--color-overlay-subtle)',
         'overlay-hover': 'var(--color-overlay-hover)',
         'overlay-solid': 'var(--color-overlay-solid)',
+        // Status ramp — already emitted per-theme by Style Dictionary into all
+        // three scopes (base, high-contrast, travertine). Mapping them here is
+        // what lets status UI (freshness pill, budget warn/over) follow the
+        // active theme instead of hardcoding Tailwind's emerald/amber literals,
+        // which stay put under [data-theme] and break contrast.
+        'status-pass': 'var(--color-status-pass)',
+        'status-warn': 'var(--color-status-warn)',
+        'status-fail': 'var(--color-status-fail)',
+        'status-info': 'var(--color-status-info)',
       },
       fontFamily: {
         display: ['Cinzel', 'Georgia', 'serif'],

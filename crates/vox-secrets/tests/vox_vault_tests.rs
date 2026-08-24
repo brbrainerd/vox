@@ -1,3 +1,6 @@
+//! Vault integration tests; only meaningful when the vault backend is compiled in.
+#![cfg(feature = "secrets-vox-vault")]
+
 use secrecy::ExposeSecret;
 use vox_secrets::backend::SecretBackend;
 use vox_secrets::backend::vox_vault::VoxCloudBackend;

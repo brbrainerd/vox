@@ -109,10 +109,25 @@ pub fn print_next_step(message: &str) {
     }
 }
 
+/// The backtrace hint text for the current platform.
+///
+/// On Windows MSVC, `RUST_BACKTRACE=1` alone yields nothing useful: the
+/// `/DEBUG:NONE` link-arg in `.cargo/config.toml` emits no PDB, and MSVC
+/// symbolication reads the PDB, so every frame renders as `<unknown>`. Getting
+/// real frames needs a rebuild with debug info, so say that rather than sending
+/// the user somewhere useless.
+fn backtrace_hint_text() -> &'static str {
+    if cfg!(all(windows, target_env = "msvc")) {
+        "Run with `RUST_BACKTRACE=1` for a full backtrace. On Windows, frames show as `<unknown>` unless the binary is rebuilt with debug info: `$env:RUSTFLAGS = '-Cdebuginfo=1'; cargo build -p vox-cli`."
+    } else {
+        "Run with `RUST_BACKTRACE=1` for a full backtrace."
+    }
+}
+
 /// Print a suggestion to run with backtrace enabled when an error occurs.
 pub fn print_backtrace_hint() {
     if std::env::var("RUST_BACKTRACE").is_err() {
-        print_hint("Run with `RUST_BACKTRACE=1` for a full backtrace.");
+        print_hint(backtrace_hint_text());
     }
 }
 
@@ -251,5 +266,24 @@ mod tests {
             did_you_mean("build", &candidates),
             Some("build".to_string())
         );
+    }
+
+    #[test]
+    fn backtrace_hint_names_the_windows_rebuild_step() {
+        let hint = backtrace_hint_text();
+        assert!(hint.contains("RUST_BACKTRACE=1"));
+        // On Windows MSVC `/DEBUG:NONE` means no PDB, so RUST_BACKTRACE alone
+        // yields `<unknown>` frames — the hint must name the rebuild.
+        if cfg!(all(windows, target_env = "msvc")) {
+            assert!(
+                hint.contains("debuginfo=1"),
+                "windows hint must name the rebuild: {hint}"
+            );
+        } else {
+            assert!(
+                !hint.contains("debuginfo=1"),
+                "non-windows hint should stay short: {hint}"
+            );
+        }
     }
 }

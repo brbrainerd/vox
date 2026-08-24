@@ -1473,6 +1473,14 @@ jobs:
         run: cargo build -p vox-orchestrator-d
 
       - name: Build vox-gui (Rust crate only, no Tauri UI bundle)
+        # The sidecar autobuild in crates/vox-gui/build.rs is opt-in as of
+        # 2026-08-23 — by default a missing sidecar fails fast instead of
+        # silently running a full release build of vox-cli (measured: 76 of 87
+        # minutes of a workspace check). This job has no sidecar staged, so it
+        # needs the autobuild explicitly. Jobs that stage the sidecar themselves
+        # (gui-cross-build, ci-fallback-hosted, release-gui) do not.
+        env:
+          VOX_GUI_AUTOBUILD_SIDECAR: "1"
         run: cargo build -p vox-gui
 
       - name: Relaunch smoke (CR-U6) — daemon relaunch + version parity
@@ -1632,10 +1640,14 @@ jobs:
       - name: Cache Cargo
         uses: actions/cache@v5
         with:
+          # No `target`: compiled artifacts come from sccache (shared MinIO —
+          # docs/src/ci/shared-compile-cache.md, 91.9% warm hit rate). A multi-GB
+          # per-job `target` tarball is redundant with it and blows the 10 GB
+          # repo-wide Actions cache budget, evicting the small `~/.cargo/git`
+          # entries every other job in this workflow restores.
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: ${{ runner.os }}-cargo-browser-smoke-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-browser-smoke-
@@ -1756,10 +1768,11 @@ jobs:
       - name: Cache Cargo
         uses: actions/cache@v5
         with:
+          # No `target` — see the browser-smoke cache step above (sccache covers
+          # compiled artifacts; a `target` tarball just evicts the shared keys).
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: ${{ runner.os }}-cargo-gui-playwright-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-gui-playwright-
@@ -1819,10 +1832,12 @@ jobs:
       - name: Cache Cargo
         uses: actions/cache@v5
         with:
+          # No `target` — see the browser-smoke cache step above. Worst offender:
+          # 24 matrix legs × one multi-GB `target` each, against a 10 GB repo-wide
+          # Actions cache budget, so these saves mostly evict each other.
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: ${{ runner.os }}-cargo-matrix-${{ matrix.crate }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-matrix-${{ matrix.crate }}-
