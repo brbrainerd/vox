@@ -1,7 +1,7 @@
 ---
 title: "Market data layer and catalog (Mercatus piece A) — design"
 description: "Typed catalog, source adapters, freshness policy, evidence-class reconciliation, constraint filtering with explainable scoring, and a staged discovery pipeline — turning Mercatus from a config viewer into a live comparison tool."
-category: "Architecture SSOTs"
+category: "architecture"
 ---
 
 # Market data layer and catalog — piece A design
