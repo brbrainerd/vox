@@ -226,7 +226,7 @@ pub async fn check_workspace(state: &ServerState) -> String {
                 ToolResult::ok("workspace check passed".to_string()).to_json()
             } else {
                 ToolResult::<String>::err_with_remediation(
-                    format!("check failed:\n{stderr}"),
+                    format!("check failed:\n{stderr}{}", failure_note(&stderr)),
                     REM_CARGO_CHECK,
                 )
                 .to_json()
@@ -237,6 +237,35 @@ pub async fn check_workspace(state: &ServerState) -> String {
             REM_CARGO_SPAWN,
         )
         .to_json(),
+    }
+}
+
+/// A short note appended to a failed `cargo check`'s output when the failure is
+/// probably NOT a code defect.
+///
+/// Agents have twice lost time editing working code after a contention failure —
+/// rustc exiting with no diagnostic at all — because the tooling reports it
+/// identically to a real compile error. The classifier returns the diagnostics it
+/// found, so the note can state its evidence and be overruled at a glance.
+/// Returns an empty string for a genuine compile error, leaving output unchanged.
+fn failure_note(stderr: &str) -> String {
+    use vox_foundation::build_failure::{BuildFailureKind, classify_build_failure};
+
+    let verdict = classify_build_failure(stderr, false);
+    match verdict.kind {
+        BuildFailureKind::Real => String::new(),
+        BuildFailureKind::Contention => format!(
+            "\n\nNOTE: this looks like host contention, not a code defect \
+             ({} source diagnostics found). Re-run when the machine is quiet before \
+             editing anything.",
+            verdict.diagnostics.len()
+        ),
+        BuildFailureKind::Corruption => format!(
+            "\n\nNOTE: this looks like stale or truncated build artifacts, not a code \
+             defect ({} source diagnostics found). Check free disk space, then \
+             `cargo clean -p <crate>` for the crates named above.",
+            verdict.diagnostics.len()
+        ),
     }
 }
 
@@ -962,7 +991,7 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
             if let Ok(output) = cmd.output().await {
                 if !output.status.success() {
                     let stderr = String::from_utf8_lossy(&output.stderr);
-                    error_feedback = stderr.to_string();
+                    error_feedback = format!("{stderr}{}", failure_note(&stderr));
                 }
             } else {
                 error_feedback = "Failed to run cargo check".to_string();
