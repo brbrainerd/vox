@@ -25,6 +25,7 @@ vox-orchestrator-driver = { workspace = true, optional = true }
 vox-foundation = { workspace = true }
 vox-secrets = { workspace = true }
 serde_yaml = { workspace = true }
+thiserror = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 owo-colors = { workspace = true }

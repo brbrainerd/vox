@@ -1,0 +1,47 @@
+x-vox-version: 1
+schema_version: 1
+description: >
+  Categories and typed attributes for the hardware market catalog. Attribute
+  kinds carry TTL and volatility class; vox-cli-core::market asserts these TTLs
+  against its compiled constants so the two cannot drift.
+
+attribute_kinds:
+  spec:         { ttl_hours: null }   # immutable: an A6000 is always 48 GB
+  price:        { ttl_hours: 6 }
+  stock:        { ttl_hours: 0.25 }
+  availability: { ttl_hours: 6 }
+
+# Applied to every category. Price and stock are not category-specific, and
+# leaving them implicit is how a schema ends up with two spellings of "price".
+# `required: false` throughout — a price exists only after a successful fetch,
+# so requiring it would bar exactly the items whose vendors block automation.
+universal_attributes:
+  price_usd:    { kind: price,        type: number, unit: USD,   required: false }
+  stock_count:  { kind: stock,        type: number, unit: count, required: false }
+  availability:
+    kind: availability
+    type: enum
+    required: false
+    values: [in_stock, out_of_stock, quote_only, backorder, unknown]
+
+categories:
+  laptop:
+    attributes:
+      total_memory_gb:
+        kind: spec
+        type: number
+        unit: GB
+        required: true
+        note: "as advertised by the vendor"
+      gpu_accessible_gb:
+        kind: spec
+        type: number
+        unit: GB
+        required: true
+        note: "unified memory reserves ~25% for the OS, so a 64GB machine exposes ~48GB"
+      tdp_w:     { kind: spec, type: number, unit: W,  required: false }
+      weight_kg: { kind: spec, type: number, unit: kg, required: false }
+  gpu:
+    attributes:
+      vram_gb: { kind: spec, type: number, unit: GB, required: true }
+      tdp_w:   { kind: spec, type: number, unit: W,  required: false }
