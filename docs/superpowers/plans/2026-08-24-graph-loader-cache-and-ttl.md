@@ -548,6 +548,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>" -- crates/vox-gui/ui/src/
 - Modify: `crates/vox-orchestrator-mcp/src/input_schemas.rs:490` (arm after `vox_search_rebuild`)
 - Modify: `crates/vox-orchestrator-mcp/src/dispatch.rs:882` (arm after `vox_search_rebuild`)
 - Modify: `crates/vox-orchestrator-mcp/tests/vox_search_dispatch.rs:22` (extend the name guard)
+- Modify: `assets/skills/vox-graph/SKILL.md:31` (agent-facing tool table)
 - Regenerated (never hand-edited): `contracts/mcp/tool-registry.canonical.yaml`, `contracts/cli/command-registry.yaml`, `contracts/capability/capability-registry.yaml`, `contracts/capability/model-manifest.generated.json`, `contracts/reports/gui-surface-coverage.v1.json`
 - Test: `crates/vox-config/src/graphify.rs` (existing `#[cfg(test)] mod`)
 
@@ -882,6 +883,17 @@ that currently ends at `"\"vox_search_rebuild\"",` (line 22):
         "\"vox_search_set_ttl\"",
 ```
 
+- [ ] **Step 11b: Keep the agent-facing skill in parity**
+
+`assets/skills/vox-graph/SKILL.md` carries a table of the registered tools that
+agents read to decide what exists. It is not gate-enforced, and line 52 records
+that this exact file has drifted from the dispatch before. Add a row after the
+`vox_search_rebuild` row (line 31), matching the table's existing style:
+
+```md
+| `vox_search_set_ttl` | Set the corpus staleness TTL in days (writes the shared registry contract) |
+```
+
 - [ ] **Step 12: Run the full gate set**
 
 ```bash
@@ -923,7 +935,7 @@ GUI, the CLI, and the CI freshness gate all read one value. vox_search_status
 now reports the effective TTL, the contract value, and whether an env var is
 forcing it.
 
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>" -- crates/vox-config/src/graphify.rs crates/vox-orchestrator-mcp/src/graph_tools.rs crates/vox-orchestrator-mcp/src/input_schemas.rs crates/vox-orchestrator-mcp/src/dispatch.rs crates/vox-orchestrator-mcp/tests/vox_search_dispatch.rs contracts/operations/catalog.v1.yaml contracts/mcp/tool-registry.canonical.yaml contracts/cli/command-registry.yaml contracts/capability/capability-registry.yaml contracts/capability/model-manifest.generated.json contracts/reports/gui-surface-coverage.v1.json
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>" -- crates/vox-config/src/graphify.rs crates/vox-orchestrator-mcp/src/graph_tools.rs crates/vox-orchestrator-mcp/src/input_schemas.rs crates/vox-orchestrator-mcp/src/dispatch.rs crates/vox-orchestrator-mcp/tests/vox_search_dispatch.rs contracts/operations/catalog.v1.yaml contracts/mcp/tool-registry.canonical.yaml contracts/cli/command-registry.yaml contracts/capability/capability-registry.yaml contracts/capability/model-manifest.generated.json contracts/reports/gui-surface-coverage.v1.json assets/skills/vox-graph/SKILL.md
 ```
 
 If `git status` shows a generated contract file still dirty after this commit,
