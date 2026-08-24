@@ -187,8 +187,30 @@ pub fn run_frontend_str_with_options(
     // 4. Type-check HIR (populates inferred types). When we have a real file
     // path on disk, route through `_with_path` so intra-project local-file
     // imports can be eagerly resolved into the type environment.
-    let mut diagnostics =
-        crate::typeck::typecheck_hir_module_with_path(source, &mut hir, typeck_path);
+    //
+    // AST-level lints (`lint_ast_declarations`) run first. Before 2026-08-23
+    // this pipeline called `typecheck_hir_module_with_path` alone, which
+    // skips them entirely -- `typecheck_ast_module` (the wrapper that *does*
+    // run them) was only reachable via `crates/vox-lsp`, never via `vox
+    // check`/`vox build`/`vox run`, all three of which share this exact
+    // function. The gap was silent: `@distributed_train`, `@training_step`,
+    // `@inference`, `@remote`, `@pii`/`@embed`, `@offline_capable`, and
+    // `@collaborative` all parse and reach HIR but have no Rust-codegen
+    // execution path, and `check_mens_decorator_unimplemented`/friends exist
+    // specifically to hard-error that combination -- but a CLI build never
+    // saw the error, so those decorators silently no-op'd in generated
+    // output instead of failing loudly. Measured blast radius before wiring
+    // this in (task_c7b05879, 2026-08-23): 0 new failures across
+    // examples/golden/*.vox (72 files), 0 across scripts/**/*.vox (84 files;
+    // its 4 pre-existing failures are unrelated parse/typecheck errors, not
+    // this lint family), 0 across every `vox` fence `vox ci doctest-md`
+    // exercises (919 files).
+    let mut diagnostics = crate::typeck::lint_ast_declarations(&module, source);
+    diagnostics.extend(crate::typeck::typecheck_hir_module_with_path(
+        source,
+        &mut hir,
+        typeck_path,
+    ));
 
     extend_with_parse_warnings(&mut diagnostics, &parse_warnings, source);
 
@@ -287,7 +309,12 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
     match crate::parser::parse_and_warnings(tokens) {
         Ok((module, parse_warnings)) => {
             let mut hir = crate::hir::lower_module(&module);
-            let mut diagnostics = crate::typeck::typecheck_hir_module(source, &mut hir);
+            // See the identical comment in `run_frontend_str_with_options` --
+            // `check_file` is a second, independently-duplicated pipeline
+            // (used by `vox doctor`, `vox dev`/compilerd, and the CLI's
+            // `--for-llm` JSON diagnostics path) that had the same gap.
+            let mut diagnostics = crate::typeck::lint_ast_declarations(&module, source);
+            diagnostics.extend(crate::typeck::typecheck_hir_module(source, &mut hir));
 
             extend_with_parse_warnings(&mut diagnostics, &parse_warnings, source);
 
@@ -560,6 +587,53 @@ workflow checkout(amount: int) to int { return charge(amount) }
         let source = r#"@scheduled("1h") fn tick() to int { return 0 }"#;
         let diagnostics = check_file(source, "test.vox");
         assert_no_adr028_reservation_error(&diagnostics);
+    }
+
+    // `lint_ast_declarations` (the AST-level lints, including
+    // `check_mens_decorator_unimplemented`) previously ran only via
+    // `crates/vox-lsp`, never through this pipeline -- `vox check`/`vox
+    // build`/`vox run` all share `run_frontend_str_with_options`, which
+    // called `typecheck_hir_module_with_path` alone. A `.vox` file using
+    // `@distributed_train`/`@training_step` compiled cleanly with zero
+    // diagnostics through the real CLI, silently no-opping the decorator in
+    // generated Rust instead of erroring. These two pin the fix through
+    // `check_file` -- the actual pipeline entry point, not the raw
+    // `parse`+lint call `mens_decorators.rs`'s tests already used (those
+    // passed the whole time; the bug was downstream of the parser).
+    #[test]
+    fn test_distributed_train_unimplemented_error_reaches_check_file() {
+        let source = r#"
+@distributed_train(strategy = "data_parallel", peers = 4)
+workflow Train() to Unit {
+    return Unit
+}
+"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.error_code
+                    == crate::typeck::diagnostics::codes::MENS_DECORATOR_UNIMPLEMENTED),
+            "expected MENS_DECORATOR_UNIMPLEMENTED via check_file, got: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn test_training_step_unimplemented_error_reaches_check_file() {
+        let source = r#"
+@training_step
+fn step(x: int) to int {
+    return x
+}
+"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.error_code
+                    == crate::typeck::diagnostics::codes::MENS_DECORATOR_UNIMPLEMENTED),
+            "expected MENS_DECORATOR_UNIMPLEMENTED via check_file, got: {diagnostics:?}"
+        );
     }
 
     #[test]
