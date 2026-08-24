@@ -1332,6 +1332,7 @@
     "list_subagent_tree",
     "list_trusted_nodes",
     "log_frontend",
+    "mercatus_config_path",
     "mercatus_load_config",
     "mercatus_save_config",
     "migrate_auth_store",
