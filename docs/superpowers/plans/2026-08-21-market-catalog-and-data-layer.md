@@ -1,59 +1,178 @@
 ---
-title: "Market catalog and data layer — implementation plan"
-description: "Task-by-task plan building the vox-market crate: contract-driven catalog schema, evidence-class reconciliation, append-only store, eBay adapter, TTL scheduler, constraint filtering with explainable scoring, vox-search corpus, and the vox market CLI."
-category: "Architecture SSOTs"
+title: "Market catalog and constraint layer — implementation plan"
+description: "Three-task plan reaching the laptop acceptance query: a contract-driven catalog schema, three-valued constraint evaluation with explained exclusions, and a derived unified-memory capacity. The fetch layer is deferred with its blocking findings attached."
+category: "architecture"
 ---
 
-# Market Catalog and Data Layer Implementation Plan
+# Market Catalog and Constraint Layer Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build `vox-market` — a contract-driven catalog of purchasable items with provenance-tracked attributes, live price fetching, and constraint filtering with explainable ranking — so `vox market` can answer "which laptops have ≥64 GB of GPU-accessible memory" correctly and say why others were excluded.
+**Goal:** Answer `gpu_accessible_gb >= 64` over a laptop catalog with an explanation that names *why* a 64 GB machine only exposes 48 GB — the 2026-08-21 query, reproduced without hand-holding.
 
-**Architecture:** A new L1 leaf crate. Categories and attributes are defined in a YAML contract, not Rust types, so adding a category is a config edit. Every attribute value carries provenance and an `EvidenceClass`; when sources disagree the highest class wins and losers are retained as alternates. Observations are append-only; a materialized `market_current` table holds reconciliation winners. Search reuses `vox-search` as a corpus rather than a bespoke index.
+**Architecture:** A contract-defined attribute schema plus a three-valued constraint evaluator, as one module in an existing L1 crate. No new crate, no database, no network, no scheduler.
 
-**Tech Stack:** Rust, `serde` + `serde_yaml`, `vox-db` (Turso/libSQL), `vox-http-client`, `vox-secrets`, `vox-search`, `tokio`.
+**Tech Stack:** Rust, `serde_yaml` (aliased `serde_yaml_ng`), `contracts/market/*.v1.yaml`.
 
 **Spec:** [`docs/superpowers/specs/2026-08-21-market-data-layer-design.md`](../specs/2026-08-21-market-data-layer-design.md)
 
-**Scope note:** This plan covers the spec through its acceptance test. The **discovery pipeline** (spec §Discovery) is deliberately excluded — it is flag-gated on this plan's acceptance test passing, and becomes a separate plan.
+---
 
-## Global Constraints
+## Revision note — 2026-08-24
 
-- **New crate needs a layer assignment.** Add `"vox-market": 1` to `contracts/ci/crate-layers.v1.json` in Task 1. Dependencies point same-layer or down.
-- **Crate-edge exceptions are USER-AUTHORIZED-ONLY.** `vox-market` introduces two new L4→L1 edges (`vox-gui`→`vox-market`, `vox-cli`→`vox-market`). Per AGENTS.md you must **propose** these in the PR description and stop — never write an `exceptions` entry or regenerate `crate-edges.allow.v1.json` yourself. Tightening (`vox ci crate-edges --tighten`) is always allowed.
-- **Test-first is enforced.** Every new `pub fn` in `crates/*/src/**` requires a test in the same file before the commit lands (`skeleton/untested-pub-api`, pre-commit `tdd-guard`).
-- **No direct secret reads.** Credentials resolve through `vox_secrets::resolve_secret(...)`. A new `env::var` for an API key will fail `vox ci secret-env-guard`.
-- **Formatting:** `vox run scripts/fmt.vox`. **Never** `cargo fmt --all` — it overflows the Windows command line (os error 206).
-- **Build with `-j 4` on a ≤16 GB host.** `.cargo/config.toml` sets `jobs = 24`, which OOMs a 16 GB machine and produces misleading "cannot find trait `Extend`" errors.
-- **No LLM calls outside the facade.** If any task reaches for a model, it goes through `vox_actor_runtime::llm`.
+This plan previously had nine tasks building a `vox-market` crate with a
+database, an eBay adapter, a refresh scheduler, and a vox-search corpus. A
+seven-track parallel critique against the codebase found that version
+unbuildable and, where buildable, wrong. It is replaced rather than patched.
+
+| Finding | Confirmed by | Change |
+|---|---|---|
+| `vox-market` at L1 is arithmetically impossible (`vox-db: 2`, `vox-search: 3`, downward-only rule) | Tracks 1, 2, 5 + verified directly | No crate. Module in `vox-cli-core` (L1). |
+| The acceptance test touches no store, adapter, scheduler, search, or CLI | Track 5 | Nine tasks to three. |
+| **The plan never builds a writer.** No fetch loop, no `vox market add` — a store with nothing to put in it | Track 7 | Deferred section states this as the entry-point blocker. |
+| 3,746 lines already solve this shape in `vox-populi/src/mens/cloud/` | Track 5 + verified directly | Prior-art section added to the spec. |
+| `crates/vox-db/migrations/` does not exist, and the drafted instruction (a `Migration` at a non-baseline version) makes the next `connect` fail `LegacySchemaChain` | Tracks 1, 2, 7 + verified directly | Store deferred; DDL goes in `vox-db/src/schema/domains/`. |
+| Raw SQL from a leaf crate fails `sql-surface-guard` **and** `turso-import-guard` | Track 1 | Deferred with the store. |
+| Stale `Transactable` outranks fresh `MerchantPage` forever | Track 3 | Spec §Reconciliation rewritten: freshness gates precedence. |
+| `ScoredItem::from_pairs` carries no `EvidenceClass`, so "an unverified attribute cannot win" is unimplementable in the plan's own types | Track 4 | `Value` carries `Evidence` from Task 2. |
+| The acceptance test asserts `48 < 64` on hand-typed literals and never asserts the stated criterion | Tracks 3, 4 | Task 3 asserts the reason text; the 48 is derived. |
+| Axis skipping was per-item, so the least-documented item wins | Track 3 | Set-scoped in the spec. |
+| `market_current` specced, never built; `current()` scans all history | Tracks 3, 5, 7 | Table deleted from the spec. |
+| `attribute_kinds` discarded by serde while Rust hardcodes the same TTLs | Tracks 1, 4, 5, 7 | Task 1 deserializes it and tests for drift. |
+| Free-tier quota, not disk, is the binding limit: ~52 items saturates eBay's 5,000/day | Track 7 | Recorded in the deferred scheduler section. |
+| Edge count was 2; the ratchet is an exact set, so 6, plus 4 fan-in bumps | Track 2 | Moot — no crate. |
+
+**One critique finding not adopted.** Track 7 reported that
+`model_route_policy::budget_guard` does not exist in this workspace. It does —
+`crates/vox-gui/src/commands/user_config.rs` and three files under
+`crates/vox-orchestrator-mcp/` reference it. The spec's citation stands.
+
+**Net effect:** the acceptance gate is reached by ~200 lines with no I/O, no new
+crate edges, and no user-authorized baseline changes.
 
 ---
 
-### Task 1: Crate scaffold and catalog schema contract
+## Global Constraints
+
+- **No new crate.** Code lands in `crates/vox-cli-core/src/market.rs`, already
+  L1 and already the shared-logic home. New dependency: `serde_yaml` only
+  (already in `[workspace.dependencies]`, aliased to `serde_yaml_ng` 0.10 — the
+  plain name is the correct spelling).
+- **Do not create `crates/vox-market/`.** If a later piece needs this from the
+  GUI process, promote then — a file move, with the shape known rather than
+  guessed. Promotion lands at **L3**.
+- **Test-first, per AGENTS.md.** Every new `pub fn` needs a test in the same
+  file before the commit lands; the lefthook `tdd-guard` hook blocks otherwise.
+  `market.rs` exceeds 30 non-blank lines, so it needs `#[cfg(test)] mod tests`
+  from its first commit.
+- **New contract files** need an `x-vox-version: 1` first line (house style, see
+  `contracts/gui/hud-tiles.v1.yaml`) and a `contracts/index.yaml` row.
+- **Formatting:** `vox run scripts/fmt.vox` — never `cargo fmt --all` (Windows
+  `CreateProcess` limit, os error 206). Single crate: `cargo fmt -p vox-cli-core`.
+- **Builds:** `-j 4`. This host OOMs at the repo default of 24 jobs.
+- **Before pushing:** `vox ci pre-push --complete`. The default fast tier skips
+  clippy, which is the largest single source of post-merge fixups in this repo.
+
+---
+
+### Task 1: Catalog schema contract and loader
 
 **Files:**
-- Create: `crates/vox-market/Cargo.toml`
-- Create: `crates/vox-market/src/lib.rs`
-- Create: `crates/vox-market/src/schema.rs`
 - Create: `contracts/market/catalog-schema.v1.yaml`
-- Modify: `Cargo.toml` (workspace `members`)
-- Modify: `contracts/ci/crate-layers.v1.json`
+- Create: `crates/vox-cli-core/src/market.rs`
+- Modify: `crates/vox-cli-core/src/lib.rs` (add `pub mod market;`)
+- Modify: `contracts/index.yaml`
+- Modify: `crates/vox-cli-core/Cargo.toml` (add `serde_yaml`)
 
 **Interfaces:**
-- Consumes: nothing.
-- Produces: `CatalogSchema::load_from_str(&str) -> Result<CatalogSchema, SchemaError>`, `CatalogSchema::attribute(&self, category: &str, name: &str) -> Option<&AttributeDef>`, `AttributeDef { kind: AttrKind, ty: AttrType, unit: Option<String>, required: bool }`, `AttrKind { Spec, Price, Stock, Availability }`, `AttrKind::ttl_hours(&self) -> Option<f64>`.
+- Produces: `CatalogSchema::load_from_str(&str) -> Result<CatalogSchema, SchemaError>`;
+  `CatalogSchema::attribute(&self, category: &str, name: &str) -> Option<&AttributeDef>`;
+  `CatalogSchema::declared_ttl_hours(&self, kind: &str) -> Option<Option<f64>>`;
+  `CatalogSchema::required_attributes(&self, category: &str) -> Vec<&str>`;
+  `AttributeDef { kind, ty, unit, required, note }`;
+  `AttrKind::{Spec, Price, Stock, Availability}` with `ttl_hours()`.
+
+**Why `note` exists:** Task 3 must assert that the exclusion explains *why* a
+64 GB machine exposes 48 GB. Without a per-attribute note the reason is a
+generic `"48 GB < required 64 GB"`, which states the numbers and not the cause —
+and the spec's acceptance criterion is the cause.
+
+**On `include_str!`:** the tests read the shipped contract at compile time. That
+is correct for a test asserting the *shipped* file, but it does not make the
+schema runtime-loadable, and the spec's claim "adding a category is a config
+edit, no Rust change" is therefore not yet true — it is a recompile. Resolving
+that needs a runtime load path, which arrives with the CLI in the deferred work.
+Recorded rather than papered over.
 
 - [ ] **Step 1: Write the failing test**
 
-In `crates/vox-market/src/schema.rs`:
+In `crates/vox-cli-core/src/market.rs`:
 
 ```rust
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const MINIMAL: &str = r#"
+    #[test]
+    fn the_shipped_contract_parses_and_exposes_its_categories() {
+        let yaml = include_str!("../../../contracts/market/catalog-schema.v1.yaml");
+        let s = CatalogSchema::load_from_str(yaml).expect("shipped contract must parse");
+        assert!(s.attribute("laptop", "gpu_accessible_gb").is_some());
+        // Universal attributes apply to every category without being restated.
+        assert!(s.attribute("laptop", "price_usd").is_some());
+        assert!(s.attribute("gpu", "price_usd").is_some());
+    }
+
+    #[test]
+    fn an_unknown_category_or_attribute_is_none_rather_than_a_panic() {
+        let yaml = include_str!("../../../contracts/market/catalog-schema.v1.yaml");
+        let s = CatalogSchema::load_from_str(yaml).unwrap();
+        assert!(s.attribute("spaceship", "warp_factor").is_none());
+        assert!(s.attribute("laptop", "warp_factor").is_none());
+    }
+
+    /// The contract declares TTLs in YAML and `AttrKind::ttl_hours()` declares
+    /// them in Rust. Asserting the Rust constant against a Rust literal — which
+    /// the first draft did — tests nothing that can break. What CAN break is the
+    /// two drifting: as originally drafted `CatalogSchema` had no
+    /// `attribute_kinds` field at all, so serde discarded the block and the
+    /// contract could say 24 while the code used 6, forever, silently. That also
+    /// made the operator's only lever over fetch volume inert.
+    #[test]
+    fn declared_ttls_in_the_contract_match_the_compiled_ttls() {
+        let yaml = include_str!("../../../contracts/market/catalog-schema.v1.yaml");
+        let s = CatalogSchema::load_from_str(yaml).unwrap();
+        for (name, kind) in [
+            ("spec", AttrKind::Spec),
+            ("price", AttrKind::Price),
+            ("stock", AttrKind::Stock),
+            ("availability", AttrKind::Availability),
+        ] {
+            let declared = s
+                .declared_ttl_hours(name)
+                .unwrap_or_else(|| panic!("contract declares no attribute_kind `{name}`"));
+            assert_eq!(
+                declared,
+                kind.ttl_hours(),
+                "drift: contract says {name}={declared:?}, code says {:?}",
+                kind.ttl_hours()
+            );
+        }
+        assert!(AttrKind::Spec.ttl_hours().is_none(), "an A6000 is always 48GB");
+        assert!(
+            AttrKind::Stock.ttl_hours().unwrap() < AttrKind::Price.ttl_hours().unwrap(),
+            "stock moves faster than price"
+        );
+    }
+
+    /// `attribute()` resolves category-specific over universal. This rule had no
+    /// coverage in the first draft, and the drafted `required_attributes` broke
+    /// it: chaining the category map with the universal map let an overridden
+    /// name leak back in from the universal side and report as required.
+    #[test]
+    fn a_category_attribute_overrides_the_universal_one_of_the_same_name() {
+        const OVERRIDE: &str = r#"
+x-vox-version: 1
 schema_version: 1
 attribute_kinds:
   spec:  { ttl_hours: null }
@@ -61,107 +180,147 @@ attribute_kinds:
 universal_attributes:
   price_usd: { kind: price, type: number, unit: USD, required: true }
 categories:
+  bundle:
+    attributes:
+      price_usd: { kind: price, type: number, unit: EUR, required: false }
   laptop:
     attributes:
       gpu_accessible_gb: { kind: spec, type: number, unit: GB, required: true }
 "#;
+        let s = CatalogSchema::load_from_str(OVERRIDE).unwrap();
+        assert_eq!(s.attribute("bundle", "price_usd").unwrap().unit.as_deref(), Some("EUR"));
+        assert_eq!(s.attribute("laptop", "price_usd").unwrap().unit.as_deref(), Some("USD"));
 
-    #[test]
-    fn universal_attributes_apply_to_every_category() {
-        let s = CatalogSchema::load_from_str(MINIMAL).expect("parse");
-        // price_usd is declared once, globally, but resolves per category.
-        let p = s.attribute("laptop", "price_usd").expect("price_usd on laptop");
-        assert_eq!(p.kind, AttrKind::Price);
-        assert_eq!(p.unit.as_deref(), Some("USD"));
-        assert!(p.required);
+        let req = s.required_attributes("bundle");
+        assert_eq!(
+            req.iter().filter(|n| **n == "price_usd").count(),
+            0,
+            "the override is not required; the universal one must not leak back in: {req:?}"
+        );
     }
 
     #[test]
-    fn spec_attributes_never_expire_but_prices_do() {
-        let s = CatalogSchema::load_from_str(MINIMAL).expect("parse");
-        assert_eq!(s.attribute("laptop", "gpu_accessible_gb").unwrap().kind.ttl_hours(), None);
-        assert_eq!(s.attribute("laptop", "price_usd").unwrap().kind.ttl_hours(), Some(6.0));
-    }
-
-    #[test]
-    fn unknown_category_or_attribute_is_none_not_panic() {
-        let s = CatalogSchema::load_from_str(MINIMAL).expect("parse");
-        assert!(s.attribute("gpu", "vram_gb").is_none());
-        assert!(s.attribute("laptop", "nonexistent").is_none());
+    fn a_malformed_contract_names_what_it_could_not_read() {
+        let e = CatalogSchema::load_from_str("categories: [not, a, map]")
+            .unwrap_err()
+            .to_string();
+        assert!(e.to_lowercase().contains("categories"), "got: {e}");
     }
 }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -j 4 -p vox-market schema`
+Run: `cargo test -j 4 -p vox-cli-core market:: 2>&1 | tail -20`
 Expected: FAIL — `cannot find type CatalogSchema`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [ ] **Step 3: Write the contract**
 
-`crates/vox-market/Cargo.toml`:
+`contracts/market/catalog-schema.v1.yaml`:
 
-```toml
-[package]
-name = "vox-market"
-version.workspace = true
-edition.workspace = true
-description = "Catalog of purchasable items with provenance-tracked attributes and live pricing."
+```yaml
+x-vox-version: 1
+schema_version: 1
+description: >
+  Categories and typed attributes for the hardware market catalog. Attribute
+  kinds carry TTL and volatility class; vox-cli-core::market asserts these TTLs
+  against its compiled constants so the two cannot drift.
 
-[dependencies]
-serde = { workspace = true, features = ["derive"] }
-serde_yaml = { workspace = true }
-thiserror = { workspace = true }
+attribute_kinds:
+  spec:         { ttl_hours: null }   # immutable: an A6000 is always 48 GB
+  price:        { ttl_hours: 6 }
+  stock:        { ttl_hours: 0.25 }
+  availability: { ttl_hours: 6 }
+
+# Applied to every category. Price and stock are not category-specific, and
+# leaving them implicit is how a schema ends up with two spellings of "price".
+# `required: false` throughout — a price exists only after a successful fetch,
+# so requiring it would bar exactly the items whose vendors block automation.
+universal_attributes:
+  price_usd:    { kind: price,        type: number, unit: USD,   required: false }
+  stock_count:  { kind: stock,        type: number, unit: count, required: false }
+  availability:
+    kind: availability
+    type: enum
+    required: false
+    values: [in_stock, out_of_stock, quote_only, backorder, unknown]
+
+categories:
+  laptop:
+    attributes:
+      total_memory_gb:
+        kind: spec
+        type: number
+        unit: GB
+        required: true
+        note: "as advertised by the vendor"
+      gpu_accessible_gb:
+        kind: spec
+        type: number
+        unit: GB
+        required: true
+        note: "unified memory reserves ~25% for the OS, so a 64GB machine exposes ~48GB"
+      tdp_w:     { kind: spec, type: number, unit: W,  required: false }
+      weight_kg: { kind: spec, type: number, unit: kg, required: false }
+  gpu:
+    attributes:
+      vram_gb: { kind: spec, type: number, unit: GB, required: true }
+      tdp_w:   { kind: spec, type: number, unit: W,  required: false }
 ```
 
-`crates/vox-market/src/schema.rs`:
+`in_stock` is deliberately absent: it restates `stock_count > 0`, and three
+spellings of one fact give three chances to disagree — in a system whose
+motivating failure *was* a disagreement about stock.
+
+Add to `contracts/index.yaml`:
+
+```yaml
+  - id: market-catalog-schema
+    path: contracts/market/catalog-schema.v1.yaml
+    owner: vox-cli-core
+    kind: yaml
+    description: Categories and typed attributes for the hardware market catalog.
+    enforced_by: [vox ci contracts-index]
+```
+
+- [ ] **Step 4: Write the loader**
 
 ```rust
-//! Catalog schema. Categories and attributes are defined in
-//! `contracts/market/catalog-schema.v1.yaml`, not in Rust, so adding a
-//! category is a config edit rather than a code change and a migration.
+//! Hardware market catalog: schema and constraint evaluation.
+//!
+//! The schema is a contract (`contracts/market/catalog-schema.v1.yaml`), not
+//! Rust types. TTLs are declared there and asserted against the compiled
+//! constants by the tests below, rather than restated in two places that drift.
 
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SchemaError {
-    #[error("schema parse failed: {0}")]
-    Parse(String),
-    #[error("attribute {attr} references unknown kind {kind}")]
-    UnknownKind { attr: String, kind: String },
+    #[error("catalog schema: {0}")]
+    Parse(#[from] serde_yaml::Error),
+    #[error("`{0}` is a derived attribute and cannot be asserted by a source")]
+    AssertedDerived(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AttrKind {
-    Spec,
-    Price,
-    Stock,
-    Availability,
-}
+pub enum AttrKind { Spec, Price, Stock, Availability }
 
 impl AttrKind {
-    /// `None` means "never expires". A spec is immutable: an A6000 is always
-    /// 48 GB. Prices, stock and availability decay at very different rates, so
-    /// a single TTL for the whole record would be wrong in both directions.
+    /// `None` = never expires. Asserted against the contract in tests.
     pub fn ttl_hours(&self) -> Option<f64> {
         match self {
             AttrKind::Spec => None,
-            AttrKind::Price => Some(6.0),
+            AttrKind::Price | AttrKind::Availability => Some(6.0),
             AttrKind::Stock => Some(0.25),
-            AttrKind::Availability => Some(6.0),
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AttrType {
-    Number,
-    Text,
-    Enum,
-}
+pub enum AttrType { Number, Text, Enum }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AttributeDef {
@@ -172,1169 +331,472 @@ pub struct AttributeDef {
     pub unit: Option<String>,
     #[serde(default)]
     pub required: bool,
+    /// Human-readable cause, surfaced in exclusion reasons. This is what turns
+    /// "48 GB < 64 GB" into "…because unified memory reserves ~25%".
     #[serde(default)]
-    pub values: Vec<String>,
+    pub note: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-struct CategoryDef {
+#[derive(Debug, Clone, Default, Deserialize)]
+struct KindDef {
+    #[serde(default)]
+    ttl_hours: Option<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct Category {
     #[serde(default)]
     attributes: BTreeMap<String, AttributeDef>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CatalogSchema {
-    pub schema_version: u32,
+    #[serde(default)]
+    attribute_kinds: BTreeMap<String, KindDef>,
     #[serde(default)]
     universal_attributes: BTreeMap<String, AttributeDef>,
     #[serde(default)]
-    categories: BTreeMap<String, CategoryDef>,
+    categories: BTreeMap<String, Category>,
 }
 
 impl CatalogSchema {
     pub fn load_from_str(yaml: &str) -> Result<Self, SchemaError> {
-        serde_yaml::from_str(yaml).map_err(|e| SchemaError::Parse(e.to_string()))
+        Ok(serde_yaml::from_str(yaml)?)
     }
 
-    /// Resolve an attribute for a category. Universal attributes are visible on
-    /// every category; a category-specific attribute of the same name wins.
+    /// A category-specific attribute of the same name wins over the universal one.
     pub fn attribute(&self, category: &str, name: &str) -> Option<&AttributeDef> {
-        let cat = self.categories.get(category)?;
-        cat.attributes
-            .get(name)
+        self.categories
+            .get(category)
+            .and_then(|c| c.attributes.get(name))
             .or_else(|| self.universal_attributes.get(name))
     }
 
-    pub fn categories(&self) -> impl Iterator<Item = &str> {
-        self.categories.keys().map(String::as_str)
+    /// Outer `None` = the contract does not declare this kind.
+    /// Inner `None` = declared `ttl_hours: null`, i.e. never expires.
+    pub fn declared_ttl_hours(&self, kind: &str) -> Option<Option<f64>> {
+        self.attribute_kinds.get(kind).map(|k| k.ttl_hours)
     }
 
-    /// Attribute names that must be present for an item of this category.
+    /// Required names for a category, deduplicated. Resolve-then-filter rather
+    /// than chaining two maps, so a category override with `required: false`
+    /// cannot have the universal `required: true` leak back in.
     pub fn required_attributes(&self, category: &str) -> Vec<&str> {
-        let Some(cat) = self.categories.get(category) else {
-            return Vec::new();
-        };
-        cat.attributes
-            .iter()
-            .chain(self.universal_attributes.iter())
-            .filter(|(_, d)| d.required)
-            .map(|(n, _)| n.as_str())
-            .collect()
-    }
-}
-```
-
-`crates/vox-market/src/lib.rs`:
-
-```rust
-//! Market catalog and data layer. See
-//! `docs/superpowers/specs/2026-08-21-market-data-layer-design.md`.
-pub mod schema;
-```
-
-Write `contracts/market/catalog-schema.v1.yaml` with the full contract from the spec §"The catalog schema is a contract, not Rust types" (both `gpu` and `laptop` categories, all four `attribute_kinds`, all four `universal_attributes`).
-
-Add `"crates/vox-market"` to the workspace `members` in the root `Cargo.toml`, and `"vox-market": 1` to `contracts/ci/crate-layers.v1.json`.
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cargo test -j 4 -p vox-market schema`
-Expected: PASS, 3 tests.
-
-- [ ] **Step 5: Verify the shipped contract parses**
-
-Add to `crates/vox-market/src/schema.rs` tests:
-
-```rust
-#[test]
-fn shipped_contract_parses_and_declares_both_categories() {
-    let yaml = include_str!("../../../contracts/market/catalog-schema.v1.yaml");
-    let s = CatalogSchema::load_from_str(yaml).expect("shipped contract must parse");
-    let cats: Vec<&str> = s.categories().collect();
-    assert!(cats.contains(&"gpu"), "got {cats:?}");
-    assert!(cats.contains(&"laptop"), "got {cats:?}");
-    // The field is deliberately gpu_accessible_gb, not vram_gb: a 64GB laptop
-    // exposes only ~48GB to the GPU, so the name encodes the real question.
-    assert!(s.attribute("laptop", "gpu_accessible_gb").is_some());
-    assert!(s.attribute("laptop", "vram_gb").is_none());
-}
-```
-
-Run: `cargo test -j 4 -p vox-market schema`
-Expected: PASS, 4 tests.
-
-- [ ] **Step 6: Commit**
-
-```bash
-vox run scripts/fmt.vox
-git add crates/vox-market contracts/market Cargo.toml contracts/ci/crate-layers.v1.json
-git commit -m "feat(market): contract-driven catalog schema
-
-Categories and attributes live in contracts/market/catalog-schema.v1.yaml
-so adding a category is a config edit, not a code change plus a store
-migration. TTL is a property of the attribute kind: specs never expire,
-prices are hours, stock is minutes.
-
-Laptops use gpu_accessible_gb rather than vram_gb because unified-memory
-machines reserve ~25% for the OS, so a 64GB laptop offers ~48GB and would
-wrongly satisfy a >=64GB filter."
-```
-
----
-
-### Task 2: Provenance, evidence classes, and reconciliation
-
-**Files:**
-- Create: `crates/vox-market/src/attribute.rs`
-- Create: `crates/vox-market/src/reconcile.rs`
-- Modify: `crates/vox-market/src/lib.rs`
-
-**Interfaces:**
-- Consumes: `AttrKind` from Task 1.
-- Produces: `EvidenceClass { Aggregator, SearchIndex, MerchantPage, Transactable }` (ordered, `Ord`), `AttrValue { Number(f64), Text(String) }`, `Attribute { value: AttrValue, unit: Option<String>, source_id: String, source_url: Option<String>, observed_at_ms: i64, evidence: EvidenceClass }`, `reconcile(observations: &[Attribute]) -> Option<Reconciled>`, `Reconciled { winner: Attribute, alternates: Vec<Attribute> }`.
-
-- [ ] **Step 1: Write the failing test**
-
-In `crates/vox-market/src/reconcile.rs`:
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::attribute::{AttrValue, Attribute, EvidenceClass};
-
-    fn attr(price: f64, ev: EvidenceClass, at: i64, src: &str) -> Attribute {
-        Attribute {
-            value: AttrValue::Number(price),
-            unit: Some("USD".into()),
-            source_id: src.into(),
-            source_url: None,
-            observed_at_ms: at,
-            evidence: ev,
-        }
-    }
-
-    /// The real 2026-08-21 conflict. A tracker said $3,999, a fetched listing
-    /// with stock said $3,599.99, a third source said $4,799.99. Ranking on
-    /// price alone picks $3,599.99 by luck; ranking on evidence picks it
-    /// because it is the only transactable one.
-    #[test]
-    fn transactable_wins_even_when_it_is_not_the_cheapest() {
-        let obs = vec![
-            attr(3999.00, EvidenceClass::Aggregator, 100, "gpudojo"),
-            attr(3599.99, EvidenceClass::Transactable, 90, "ebay"),
-            attr(4799.99, EvidenceClass::MerchantPage, 110, "newegg"),
-        ];
-        let r = reconcile(&obs).expect("some winner");
-        assert_eq!(r.winner.value, AttrValue::Number(3599.99));
-        assert_eq!(r.winner.source_id, "ebay");
-        assert_eq!(r.alternates.len(), 2, "losers are retained, never discarded");
-    }
-
-    /// A cheaper aggregator figure must never displace a verified one, but it
-    /// must stay visible so a human can decide to phone the vendor.
-    #[test]
-    fn cheaper_weak_evidence_is_retained_as_an_alternate() {
-        let obs = vec![
-            attr(660.20, EvidenceClass::SearchIndex, 100, "compsource"),
-            attr(710.00, EvidenceClass::Transactable, 100, "rackmountnet"),
-        ];
-        let r = reconcile(&obs).unwrap();
-        assert_eq!(r.winner.value, AttrValue::Number(710.00));
-        assert!(r
-            .alternates
-            .iter()
-            .any(|a| a.value == AttrValue::Number(660.20)));
-    }
-
-    #[test]
-    fn same_class_breaks_on_recency() {
-        let obs = vec![
-            attr(100.0, EvidenceClass::MerchantPage, 100, "a"),
-            attr(200.0, EvidenceClass::MerchantPage, 500, "b"),
-        ];
-        assert_eq!(reconcile(&obs).unwrap().winner.source_id, "b");
-    }
-
-    #[test]
-    fn empty_input_yields_no_winner() {
-        assert!(reconcile(&[]).is_none());
-    }
-}
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cargo test -j 4 -p vox-market reconcile`
-Expected: FAIL — `cannot find function reconcile`.
-
-- [ ] **Step 3: Write minimal implementation**
-
-`crates/vox-market/src/attribute.rs`:
-
-```rust
-//! Attribute values and their provenance.
-//!
-//! A bare number cannot distinguish "$3,999 from a price tracker" from
-//! "$3,599.99 from a listing with 5 in stock". Storing both identically is
-//! what nearly produced a wrong $1,200 decision during the manual pricing
-//! pass on 2026-08-21, so every value carries where it came from and how
-//! strong that evidence is.
-
-use serde::{Deserialize, Serialize};
-
-/// How much a source's claim can be trusted. **Ordering IS the precedence
-/// rule** — `Ord` is derived deliberately and `reconcile` depends on it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum EvidenceClass {
-    /// Price tracker or aggregator; no merchant page was loaded.
-    Aggregator = 1,
-    /// Search-result snippet; the page itself was never fetched.
-    SearchIndex = 2,
-    /// Merchant page fetched, but no stock text present.
-    MerchantPage = 3,
-    /// Merchant page fetched with add-to-cart live AND stock stated.
-    Transactable = 4,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum AttrValue {
-    Number(f64),
-    Text(String),
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Attribute {
-    pub value: AttrValue,
-    pub unit: Option<String>,
-    pub source_id: String,
-    pub source_url: Option<String>,
-    pub observed_at_ms: i64,
-    pub evidence: EvidenceClass,
-}
-
-impl Attribute {
-    /// True when this value is too weakly evidenced to win a ranking.
-    /// Used by the scorer: an unverified attribute may be displayed, but it
-    /// must not outrank a verified competitor.
-    pub fn is_weak(&self) -> bool {
-        self.evidence < EvidenceClass::MerchantPage
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn evidence_classes_order_from_weakest_to_strongest() {
-        assert!(EvidenceClass::Aggregator < EvidenceClass::SearchIndex);
-        assert!(EvidenceClass::SearchIndex < EvidenceClass::MerchantPage);
-        assert!(EvidenceClass::MerchantPage < EvidenceClass::Transactable);
-    }
-
-    #[test]
-    fn aggregator_and_search_index_are_weak_merchant_and_above_are_not() {
-        let mk = |e| Attribute {
-            value: AttrValue::Number(1.0),
-            unit: None,
-            source_id: "s".into(),
-            source_url: None,
-            observed_at_ms: 0,
-            evidence: e,
-        };
-        assert!(mk(EvidenceClass::Aggregator).is_weak());
-        assert!(mk(EvidenceClass::SearchIndex).is_weak());
-        assert!(!mk(EvidenceClass::MerchantPage).is_weak());
-        assert!(!mk(EvidenceClass::Transactable).is_weak());
-    }
-}
-```
-
-`crates/vox-market/src/reconcile.rs`:
-
-```rust
-//! Reconciliation across disagreeing sources.
-//!
-//! Disagreement is the normal case, not an error path: on 2026-08-21 every
-//! single line of a workstation build had at least two sources that did not
-//! agree. The rule is highest evidence class wins, ties break on recency, and
-//! losers are retained so a human can still see a cheaper unverified option.
-
-use crate::attribute::Attribute;
-
-#[derive(Debug, Clone)]
-pub struct Reconciled {
-    pub winner: Attribute,
-    /// Every non-winning observation, strongest first. Retained rather than
-    /// discarded so the UI can render "seen at $X (unverified) — call to confirm".
-    pub alternates: Vec<Attribute>,
-}
-
-pub fn reconcile(observations: &[Attribute]) -> Option<Reconciled> {
-    if observations.is_empty() {
-        return None;
-    }
-    let mut sorted = observations.to_vec();
-    // Strongest evidence first; within a class, most recent first.
-    sorted.sort_by(|a, b| {
-        b.evidence
-            .cmp(&a.evidence)
-            .then(b.observed_at_ms.cmp(&a.observed_at_ms))
-    });
-    let winner = sorted.remove(0);
-    Some(Reconciled { winner, alternates: sorted })
-}
-```
-
-Add `pub mod attribute;` and `pub mod reconcile;` to `lib.rs`.
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cargo test -j 4 -p vox-market`
-Expected: PASS — 4 reconcile tests, 2 attribute tests, 4 schema tests.
-
-- [ ] **Step 5: Commit**
-
-```bash
-vox run scripts/fmt.vox
-git add crates/vox-market/src
-git commit -m "feat(market): evidence-class provenance and reconciliation
-
-Sources disagree as the normal case. Highest EvidenceClass wins, ties
-break on recency, and losing observations are retained as alternates so a
-cheaper-but-unverified price stays visible without being able to drive a
-recommendation.
-
-Tests are the real 2026-08-21 conflicts: the \$3,999 tracker vs \$3,599.99
-transactable listing vs \$4,799.99 merchant page, and the \$660.20 blocked
-vendor vs \$710 live cart."
-```
-
----
-
-### Task 3: Append-only store
-
-**Files:**
-- Create: `crates/vox-market/src/store.rs`
-- Create: `crates/vox-db/migrations/NNNN_market_catalog.sql` (use the next free number)
-- Modify: `crates/vox-market/Cargo.toml` (add `vox-db`, `tokio`)
-- Modify: `crates/vox-market/src/lib.rs`
-
-**Interfaces:**
-- Consumes: `Attribute`, `EvidenceClass`, `reconcile` from Task 2.
-- Produces: `MarketStore::new(db: Arc<VoxDb>) -> Self`, `MarketStore::upsert_item(&self, item_id: &str, category: &str) -> Result<()>`, `MarketStore::record(&self, item_id: &str, attribute: &str, a: &Attribute) -> Result<()>`, `MarketStore::current(&self, item_id: &str, attribute: &str) -> Result<Option<Reconciled>>`, `MarketStore::history(&self, item_id: &str, attribute: &str, since_ms: i64) -> Result<Vec<Attribute>>`.
-
-- [ ] **Step 1: Write the failing test**
-
-In `crates/vox-market/src/store.rs`:
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::attribute::{AttrValue, Attribute, EvidenceClass};
-
-    async fn store() -> MarketStore {
-        // In-memory Turso; mirrors how vox-db tests bootstrap elsewhere.
-        let db = vox_db::VoxDb::connect_in_memory().await.expect("db");
-        let s = MarketStore::new(std::sync::Arc::new(db));
-        s.migrate().await.expect("migrate");
-        s
-    }
-
-    fn attr(v: f64, ev: EvidenceClass, at: i64, src: &str) -> Attribute {
-        Attribute {
-            value: AttrValue::Number(v),
-            unit: Some("USD".into()),
-            source_id: src.into(),
-            source_url: None,
-            observed_at_ms: at,
-            evidence: ev,
-        }
-    }
-
-    #[tokio::test]
-    async fn recording_twice_keeps_both_observations() {
-        let s = store().await;
-        s.upsert_item("a6000", "gpu").await.unwrap();
-        s.record("a6000", "price_usd", &attr(3999.0, EvidenceClass::Aggregator, 100, "tracker"))
-            .await
-            .unwrap();
-        s.record("a6000", "price_usd", &attr(3599.99, EvidenceClass::Transactable, 200, "ebay"))
-            .await
-            .unwrap();
-
-        // Append-only: a card moved $1,710 in 24h, and last-write-wins would
-        // destroy exactly the signal that makes history worth keeping.
-        let h = s.history("a6000", "price_usd", 0).await.unwrap();
-        assert_eq!(h.len(), 2);
-    }
-
-    #[tokio::test]
-    async fn current_returns_the_reconciled_winner_not_the_latest_write() {
-        let s = store().await;
-        s.upsert_item("a6000", "gpu").await.unwrap();
-        s.record("a6000", "price_usd", &attr(3599.99, EvidenceClass::Transactable, 100, "ebay"))
-            .await
-            .unwrap();
-        // Written later, but weaker evidence — must NOT become current.
-        s.record("a6000", "price_usd", &attr(3499.0, EvidenceClass::Aggregator, 900, "tracker"))
-            .await
-            .unwrap();
-
-        let cur = s.current("a6000", "price_usd").await.unwrap().expect("current");
-        assert_eq!(cur.winner.value, AttrValue::Number(3599.99));
-        assert_eq!(cur.alternates.len(), 1);
-    }
-
-    #[tokio::test]
-    async fn history_respects_the_since_bound() {
-        let s = store().await;
-        s.upsert_item("x", "gpu").await.unwrap();
-        s.record("x", "price_usd", &attr(1.0, EvidenceClass::MerchantPage, 100, "a")).await.unwrap();
-        s.record("x", "price_usd", &attr(2.0, EvidenceClass::MerchantPage, 500, "a")).await.unwrap();
-        assert_eq!(s.history("x", "price_usd", 300).await.unwrap().len(), 1);
-    }
-}
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cargo test -j 4 -p vox-market store`
-Expected: FAIL — `cannot find type MarketStore`.
-
-- [ ] **Step 3: Write the migration**
-
-`crates/vox-db/migrations/NNNN_market_catalog.sql`:
-
-```sql
-CREATE TABLE IF NOT EXISTS market_items (
-    item_id       TEXT PRIMARY KEY,
-    category      TEXT NOT NULL,
-    created_at_ms INTEGER NOT NULL
-);
-
--- Append-only. Never UPDATE, never DELETE.
-CREATE TABLE IF NOT EXISTS market_observations (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    item_id        TEXT NOT NULL,
-    attribute      TEXT NOT NULL,
-    value_num      REAL,
-    value_text     TEXT,
-    unit           TEXT,
-    source_id      TEXT NOT NULL,
-    source_url     TEXT,
-    evidence_class INTEGER NOT NULL,
-    observed_at_ms INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_market_obs_lookup
-    ON market_observations (item_id, attribute, observed_at_ms DESC);
-```
-
-- [ ] **Step 4: Write minimal implementation**
-
-`crates/vox-market/src/store.rs`:
-
-```rust
-//! Persistence. Observations are append-only; "current" is computed by
-//! reconciling every observation for an (item, attribute) pair rather than
-//! being a mutable cell, so a late write from a weak source cannot silently
-//! become the answer.
-
-use crate::attribute::{AttrValue, Attribute, EvidenceClass};
-use crate::reconcile::{reconcile, Reconciled};
-use std::sync::Arc;
-
-pub struct MarketStore {
-    db: Arc<vox_db::VoxDb>,
-}
-
-impl MarketStore {
-    pub fn new(db: Arc<vox_db::VoxDb>) -> Self {
-        Self { db }
-    }
-
-    pub async fn migrate(&self) -> anyhow::Result<()> {
-        self.db
-            .execute_batch(include_str!(
-                "../../vox-db/migrations/NNNN_market_catalog.sql"
-            ))
-            .await?;
-        Ok(())
-    }
-
-    pub async fn upsert_item(&self, item_id: &str, category: &str) -> anyhow::Result<()> {
-        self.db
-            .execute(
-                "INSERT INTO market_items (item_id, category, created_at_ms)
-                 VALUES (?1, ?2, ?3)
-                 ON CONFLICT(item_id) DO UPDATE SET category = excluded.category",
-                vox_db::params![item_id, category, now_ms()],
+        let mut names: Vec<&str> = self
+            .universal_attributes
+            .keys()
+            .map(String::as_str)
+            .chain(
+                self.categories
+                    .get(category)
+                    .into_iter()
+                    .flat_map(|c| c.attributes.keys().map(String::as_str)),
             )
-            .await?;
-        Ok(())
+            .collect();
+        names.sort_unstable();
+        names.dedup();
+        names.retain(|n| self.attribute(category, n).is_some_and(|d| d.required));
+        names
     }
-
-    pub async fn record(
-        &self,
-        item_id: &str,
-        attribute: &str,
-        a: &Attribute,
-    ) -> anyhow::Result<()> {
-        let (num, text) = match &a.value {
-            AttrValue::Number(n) => (Some(*n), None),
-            AttrValue::Text(t) => (None, Some(t.clone())),
-        };
-        self.db
-            .execute(
-                "INSERT INTO market_observations
-                 (item_id, attribute, value_num, value_text, unit, source_id,
-                  source_url, evidence_class, observed_at_ms)
-                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
-                vox_db::params![
-                    item_id, attribute, num, text, a.unit, a.source_id,
-                    a.source_url, a.evidence as i64, a.observed_at_ms
-                ],
-            )
-            .await?;
-        Ok(())
-    }
-
-    pub async fn history(
-        &self,
-        item_id: &str,
-        attribute: &str,
-        since_ms: i64,
-    ) -> anyhow::Result<Vec<Attribute>> {
-        let mut rows = self
-            .db
-            .query(
-                "SELECT value_num, value_text, unit, source_id, source_url,
-                        evidence_class, observed_at_ms
-                 FROM market_observations
-                 WHERE item_id = ?1 AND attribute = ?2 AND observed_at_ms >= ?3
-                 ORDER BY observed_at_ms DESC",
-                vox_db::params![item_id, attribute, since_ms],
-            )
-            .await?;
-        let mut out = Vec::new();
-        while let Some(r) = rows.next().await? {
-            out.push(row_to_attribute(&r)?);
-        }
-        Ok(out)
-    }
-
-    pub async fn current(
-        &self,
-        item_id: &str,
-        attribute: &str,
-    ) -> anyhow::Result<Option<Reconciled>> {
-        Ok(reconcile(&self.history(item_id, attribute, 0).await?))
-    }
-}
-
-fn row_to_attribute(r: &vox_db::Row) -> anyhow::Result<Attribute> {
-    let value = match r.get::<Option<f64>>(0)? {
-        Some(n) => AttrValue::Number(n),
-        None => AttrValue::Text(r.get::<Option<String>>(1)?.unwrap_or_default()),
-    };
-    Ok(Attribute {
-        value,
-        unit: r.get::<Option<String>>(2)?,
-        source_id: r.get::<String>(3)?,
-        source_url: r.get::<Option<String>>(4)?,
-        evidence: match r.get::<i64>(5)? {
-            4 => EvidenceClass::Transactable,
-            3 => EvidenceClass::MerchantPage,
-            2 => EvidenceClass::SearchIndex,
-            _ => EvidenceClass::Aggregator,
-        },
-        observed_at_ms: r.get::<i64>(6)?,
-    })
-}
-
-fn now_ms() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
 }
 ```
-
-Add `vox-db`, `tokio` (features `macros`, `rt-multi-thread`), and `anyhow` to `Cargo.toml`; add `pub mod store;` to `lib.rs`. If `vox_db` does not expose `connect_in_memory`, `execute_batch`, `params!` or `Row` under these exact names, adapt to the real API — read `crates/vox-db/src/lib.rs` first and keep the test semantics identical.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `cargo test -j 4 -p vox-market store`
-Expected: PASS, 3 tests.
+Run: `cargo test -j 4 -p vox-cli-core market::`
+Expected: 5 passed.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Verify the contract gate, then format**
 
 ```bash
-vox run scripts/fmt.vox
-git add crates/vox-market crates/vox-db/migrations
-git commit -m "feat(market): append-only observation store
+cargo run -q -j 4 -p vox-cli -- ci contracts-index
+```
 
-current() reconciles the full observation set rather than reading a
-mutable cell, so a later write from a weaker source cannot become the
-answer. History is never overwritten because price movement is the
-signal, not noise."
+Then `vox run scripts/fmt.vox`.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add contracts/market/catalog-schema.v1.yaml contracts/index.yaml crates/vox-cli-core/src/market.rs crates/vox-cli-core/src/lib.rs crates/vox-cli-core/Cargo.toml
+git commit -m "feat(market): catalog schema contract and loader"
 ```
 
 ---
 
-### Task 4: Source adapter trait and the eBay Browse adapter
+### Task 2: Three-valued constraints with explained exclusions
 
 **Files:**
-- Create: `crates/vox-market/src/source.rs`
-- Create: `crates/vox-market/src/sources/ebay.rs`
-- Create: `crates/vox-market/src/sources/mod.rs`
-- Create: `crates/vox-market/tests/fixtures/ebay_browse_a6000.json`
-- Modify: `crates/vox-secrets/src/spec/ids.rs` and `crates/vox-secrets/src/spec/registry/` (add `EbayAppId`)
-- Modify: `crates/vox-market/src/lib.rs`
+- Modify: `crates/vox-cli-core/src/market.rs`
 
 **Interfaces:**
-- Consumes: `Attribute`, `EvidenceClass` from Task 2.
-- Produces: `trait MarketSource { fn id(&self) -> &'static str; fn cost_usd(&self) -> f64; fn is_available(&self) -> bool; fn evidence_class(&self) -> EvidenceClass; async fn fetch(&self, item: &CatalogItemRef) -> Result<Vec<(String, Attribute)>, MarketError>; }`, `MarketError { NotFound, Blocked, Timeout, ParseFailed, NoCredentials }`, `MarketError::is_retryable(&self) -> bool`, `EbaySource::new() -> Self`, `EbaySource::parse_browse_response(&self, body: &str) -> Result<Vec<(String, Attribute)>, MarketError>`, `CatalogItemRef { item_id: String, category: String, source_ids: BTreeMap<String, String> }`.
+- Consumes: `CatalogSchema`, `AttributeDef` from Task 1.
+- Produces: `Evidence::{Aggregator, SearchIndex, MerchantPage, Transactable, Derived}`;
+  `Value { number: f64, unit: Option<String>, evidence: Evidence }`;
+  `CatalogItem { item_id, category, attributes: BTreeMap<String, Value> }`;
+  `CmpOp::{Gte, Lte, Eq}`; `Constraint::{gte, lte, eq}(attribute, value, unit)`;
+  `apply(&CatalogSchema, &[CatalogItem], &[Constraint]) -> Outcome`;
+  `Outcome { passed, excluded, indeterminate }`; `Excluded { item_id, reason }`.
 
-**Why eBay first:** its API is free and needs a single app ID, and it covers the used market where prices move fastest and where six automated fetch attempts failed during the manual pass. It proves the whole path end to end at zero per-request cost.
+**Why three-valued:** the spec names the failure — *"a constraint filter over a
+null field silently drops candidates rather than erroring, the failure where a
+qualifying machine never appears and nobody notices."* Both binary defaults are
+wrong: silently excluded is that failure; silently included fails at checkout.
+
+**Why `Value` carries `Evidence`:** the spec's rule *"an unverified attribute
+cannot win a comparison"* is not expressible over a bare `f64`. The first draft
+built `Attribute::is_weak()` and then consumed it nowhere, because
+`ScoredItem::from_pairs` had no field to put it in. Carrying it from the start
+costs one field; retrofitting it costs every call site.
 
 - [ ] **Step 1: Write the failing test**
 
-In `crates/vox-market/src/sources/ebay.rs`:
+Add inside `mod tests`:
 
 ```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::attribute::{AttrValue, EvidenceClass};
-
-    const FIXTURE: &str = include_str!("../../tests/fixtures/ebay_browse_a6000.json");
-
-    #[test]
-    fn parses_price_and_stock_from_a_browse_response() {
-        let s = EbaySource::new();
-        let attrs = s.parse_browse_response(FIXTURE).expect("parse");
-        let by: std::collections::BTreeMap<_, _> = attrs.into_iter().collect();
-
-        assert_eq!(by["price_usd"].value, AttrValue::Number(3599.99));
-        assert_eq!(by["stock_count"].value, AttrValue::Number(5.0));
+    fn v(n: f64, unit: &str) -> Value {
+        Value { number: n, unit: Some(unit.into()), evidence: Evidence::MerchantPage }
     }
 
-    /// A listing with add-to-cart AND a stated quantity is the strongest
-    /// evidence the system recognises.
-    #[test]
-    fn a_buy_it_now_listing_with_stock_is_transactable() {
-        let s = EbaySource::new();
-        let by: std::collections::BTreeMap<_, _> =
-            s.parse_browse_response(FIXTURE).unwrap().into_iter().collect();
-        assert_eq!(by["price_usd"].evidence, EvidenceClass::Transactable);
+    fn item(id: &str, attrs: &[(&str, Value)]) -> CatalogItem {
+        CatalogItem {
+            item_id: id.into(),
+            category: "laptop".into(),
+            attributes: attrs.iter().map(|(k, v)| (k.to_string(), v.clone())).collect(),
+        }
     }
 
-    /// Best-Offer-only listings cannot be bought at the shown price, so they
-    /// must not claim Transactable. The 2026-08-21 pass hit exactly this: the
-    /// cheapest motherboard was Best-Offer-only and unbuyable.
-    #[test]
-    fn best_offer_without_buy_it_now_is_only_a_merchant_page() {
-        let s = EbaySource::new();
-        let body = FIXTURE.replace(r#""buyingOptions":["FIXED_PRICE"]"#, r#""buyingOptions":["BEST_OFFER"]"#);
-        let by: std::collections::BTreeMap<_, _> =
-            s.parse_browse_response(&body).unwrap().into_iter().collect();
-        assert_eq!(by["price_usd"].evidence, EvidenceClass::MerchantPage);
+    fn schema() -> CatalogSchema {
+        CatalogSchema::load_from_str(include_str!(
+            "../../../contracts/market/catalog-schema.v1.yaml"
+        ))
+        .unwrap()
     }
 
     #[test]
-    fn an_empty_result_set_is_not_found_not_a_parse_error() {
-        let s = EbaySource::new();
-        let err = s.parse_browse_response(r#"{"itemSummaries":[]}"#).unwrap_err();
-        assert!(matches!(err, MarketError::NotFound));
+    fn a_measured_miss_is_excluded_with_both_numbers_and_the_cause() {
+        let items = vec![item("mbp14", &[("gpu_accessible_gb", v(48.0, "GB"))])];
+        let out = apply(&schema(), &items, &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")]);
+
+        assert!(out.passed.is_empty());
+        assert_eq!(out.excluded.len(), 1);
+        let r = &out.excluded[0].reason;
+        // Both numbers in the right roles. `contains("48") && contains("64")`
+        // alone also passes if they are swapped into "64 < required 48".
+        assert!(r.contains("48"), "must state the actual value: {r}");
+        assert!(r.contains("64"), "must state the requirement: {r}");
+        // The schema `note` is what turns a comparison into an explanation.
+        assert!(
+            r.contains("unified") || r.contains("reserves"),
+            "must explain WHY 64GB exposes only 48GB: {r}"
+        );
+    }
+
+    /// The spec's named silent-drop failure. An item that simply lacks the
+    /// attribute must be distinguishable from one measured and found short: the
+    /// two demand different action — close a data gap, or move on.
+    #[test]
+    fn an_absent_attribute_is_indeterminate_not_a_measured_failure() {
+        let items = vec![
+            item("roomy", &[("gpu_accessible_gb", v(96.0, "GB"))]),
+            item("cramped", &[("gpu_accessible_gb", v(48.0, "GB"))]),
+            item("unknown", &[("price_usd", v(4200.0, "USD"))]),
+        ];
+        let out = apply(&schema(), &items, &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")]);
+
+        assert_eq!(out.passed.len(), 1);
+        assert_eq!(out.passed[0].item_id, "roomy");
+        assert_eq!(out.excluded.len(), 1, "only the measured miss");
+        assert_eq!(out.excluded[0].item_id, "cramped");
+
+        assert_eq!(out.indeterminate.len(), 1);
+        let r = out.indeterminate[0].reason.to_lowercase();
+        assert!(r.contains("unknown") || r.contains("not recorded"), "got: {r}");
+        assert!(!r.contains('<'), "must not claim a comparison it never made: {r}");
+    }
+
+    /// 96 >= 64 numerically, so only unit-checking produces this exclusion.
+    #[test]
+    fn a_value_in_the_wrong_unit_is_indeterminate_not_silently_compared() {
+        let items = vec![item("euro-spec", &[("gpu_accessible_gb", v(96.0, "GiB"))])];
+        let out = apply(&schema(), &items, &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")]);
+        assert!(out.passed.is_empty(), "GiB and GB differ by 7.4%");
+        assert_eq!(out.indeterminate.len(), 1);
+        assert!(out.indeterminate[0].reason.contains("GiB"), "{:?}", out.indeterminate[0]);
     }
 
     #[test]
-    fn blocked_and_timeout_retry_but_not_found_does_not() {
-        assert!(MarketError::Blocked.is_retryable());
-        assert!(MarketError::Timeout.is_retryable());
-        assert!(!MarketError::NotFound.is_retryable());
-        assert!(!MarketError::NoCredentials.is_retryable());
+    fn every_comparison_operator_works_at_its_boundary() {
+        let items = vec![item("edge", &[("gpu_accessible_gb", v(64.0, "GB"))])];
+        let s = schema();
+        for (c, should_pass) in [
+            (Constraint::gte("gpu_accessible_gb", 64.0, "GB"), true),
+            (Constraint::lte("gpu_accessible_gb", 64.0, "GB"), true),
+            (Constraint::eq("gpu_accessible_gb", 64.0, "GB"), true),
+            (Constraint::gte("gpu_accessible_gb", 65.0, "GB"), false),
+            (Constraint::lte("gpu_accessible_gb", 63.0, "GB"), false),
+        ] {
+            let out = apply(&s, &items, &[c]);
+            assert_eq!(out.passed.len(), usize::from(should_pass), "at the boundary");
+        }
     }
-}
+
+    /// Constraints eliminate in conjunction; the reason must name the one that
+    /// actually did it, not the first one checked.
+    #[test]
+    fn multiple_constraints_report_the_one_that_eliminated_the_item() {
+        let items = vec![item(
+            "heavy",
+            &[("gpu_accessible_gb", v(96.0, "GB")), ("tdp_w", v(2000.0, "W"))],
+        )];
+        let out = apply(
+            &schema(),
+            &items,
+            &[
+                Constraint::gte("gpu_accessible_gb", 64.0, "GB"),
+                Constraint::lte("tdp_w", 1600.0, "W"),
+            ],
+        );
+        assert_eq!(out.excluded.len(), 1);
+        let r = &out.excluded[0].reason;
+        assert!(r.contains("tdp_w"), "must name the failing constraint: {r}");
+        assert!(!r.contains("gpu_accessible_gb"), "must not blame a passing one: {r}");
+    }
+
+    #[test]
+    fn a_constraint_on_an_attribute_the_schema_does_not_know_is_loud() {
+        let items = vec![item("x", &[("gpu_accessible_gb", v(96.0, "GB"))])];
+        let out = apply(&schema(), &items, &[Constraint::gte("warp_factor", 9.0, "c")]);
+        assert!(out.passed.is_empty());
+        assert_eq!(out.indeterminate.len(), 1);
+        assert!(
+            out.indeterminate[0].reason.contains("warp_factor"),
+            "a typo'd attribute must be loud, not a silent empty set: {:?}",
+            out.indeterminate[0]
+        );
+    }
 ```
-
-Write `crates/vox-market/tests/fixtures/ebay_browse_a6000.json` as a trimmed real eBay Browse `item_summary/search` response containing one item with `"price":{"value":"3599.99","currency":"USD"}`, `"estimatedAvailabilities":[{"estimatedAvailableQuantity":5}]`, and `"buyingOptions":["FIXED_PRICE"]`.
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -j 4 -p vox-market ebay`
-Expected: FAIL — `cannot find type EbaySource`.
+Run: `cargo test -j 4 -p vox-cli-core market::`
+Expected: FAIL — `cannot find function apply`.
 
-- [ ] **Step 3: Write minimal implementation**
-
-`crates/vox-market/src/source.rs`:
+- [ ] **Step 3: Write the implementation**
 
 ```rust
-//! Source adapters. `evidence_class()` lives on the adapter, not the
-//! observation: a source's maximum trust is a property of what it can see. An
-//! aggregator cannot emit Transactable however fresh its data is.
-
-use crate::attribute::{Attribute, EvidenceClass};
-use std::collections::BTreeMap;
-
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum MarketError {
-    #[error("item not listed at this source")]
-    NotFound,
-    #[error("source blocked the request (403/429/captcha)")]
-    Blocked,
-    #[error("request timed out")]
-    Timeout,
-    #[error("response did not parse: {0}")]
-    ParseFailed(String),
-    #[error("no credentials configured for this source")]
-    NoCredentials,
+/// Trust tier of an observed value. Ordering IS the precedence rule.
+///
+/// Scoped to market attributes (price, stock, availability) when it gates a
+/// comparison: an A6000's 48 GB is 48 GB whether a search snippet or a checkout
+/// page reported it. Applying an evidence ladder to a physical spec is a
+/// category error.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Evidence {
+    Aggregator = 1,   // price tracker, no merchant page
+    SearchIndex = 2,  // search snippet, page never loaded
+    MerchantPage = 3, // page fetched, no stock text
+    Transactable = 4, // page fetched, cart live, stock stated
+    Derived = 5,      // computed from an observation by a named, versioned rule
 }
 
-impl MarketError {
-    /// Retry only what can succeed later. NotFound will not change until the
-    /// catalog does; NoCredentials is a configuration problem to surface, not
-    /// a transient fault to bury in a retry loop.
-    pub fn is_retryable(&self) -> bool {
-        matches!(self, MarketError::Blocked | MarketError::Timeout)
+#[derive(Debug, Clone, PartialEq)]
+pub struct Value {
+    pub number: f64,
+    pub unit: Option<String>,
+    pub evidence: Evidence,
+}
+
+#[derive(Debug, Clone)]
+pub struct CatalogItem {
+    pub item_id: String,
+    pub category: String,
+    pub attributes: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CmpOp { Gte, Lte, Eq }
+
+#[derive(Debug, Clone)]
+pub struct Constraint {
+    pub attribute: String,
+    pub op: CmpOp,
+    pub value: f64,
+    pub unit: String,
+}
+
+impl Constraint {
+    pub fn gte(attribute: &str, value: f64, unit: &str) -> Self {
+        Self::new(attribute, CmpOp::Gte, value, unit)
+    }
+    pub fn lte(attribute: &str, value: f64, unit: &str) -> Self {
+        Self::new(attribute, CmpOp::Lte, value, unit)
+    }
+    pub fn eq(attribute: &str, value: f64, unit: &str) -> Self {
+        Self::new(attribute, CmpOp::Eq, value, unit)
+    }
+
+    fn new(attribute: &str, op: CmpOp, value: f64, unit: &str) -> Self {
+        Self { attribute: attribute.into(), op, value, unit: unit.into() }
+    }
+
+    fn satisfied_by(&self, v: f64) -> bool {
+        match self.op {
+            CmpOp::Gte => v >= self.value,
+            CmpOp::Lte => v <= self.value,
+            // ponytail: exact f64 equality. Both sides are literals — one from a
+            // contract, one from a caller — never arithmetic results. Switch to
+            // an epsilon if a derivation ever feeds this path.
+            CmpOp::Eq => v == self.value,
+        }
+    }
+
+    fn describe(&self) -> &'static str {
+        match self.op { CmpOp::Gte => ">=", CmpOp::Lte => "<=", CmpOp::Eq => "==" }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct CatalogItemRef {
+pub struct Excluded {
     pub item_id: String,
-    pub category: String,
-    /// source_id -> that source's identifier for this item (SKU, item number).
-    pub source_ids: BTreeMap<String, String>,
+    pub reason: String,
 }
 
-#[async_trait::async_trait]
-pub trait MarketSource: Send + Sync {
-    fn id(&self) -> &'static str;
-    fn cost_usd(&self) -> f64;
-    fn is_available(&self) -> bool;
-    fn evidence_class(&self) -> EvidenceClass;
-    async fn fetch(
-        &self,
-        item: &CatalogItemRef,
-    ) -> Result<Vec<(String, Attribute)>, MarketError>;
-}
-```
-
-`crates/vox-market/src/sources/ebay.rs` implements `EbaySource` with `parse_browse_response` extracting `price_usd` and `stock_count`, setting `EvidenceClass::Transactable` only when `buyingOptions` contains `FIXED_PRICE` **and** an availability quantity is present, otherwise `MerchantPage`; returning `MarketError::NotFound` for an empty `itemSummaries`. `is_available()` returns `vox_secrets::resolve_secret(SecretId::EbayAppId).is_ok()`. `cost_usd()` returns `0.0`.
-
-Register `SecretId::EbayAppId` in `crates/vox-secrets/src/spec/ids.rs` and add its `SecretSpec` entry under `crates/vox-secrets/src/spec/registry/`.
-
-- [ ] **Step 4: Run tests to verify they pass**
-
-Run: `cargo test -j 4 -p vox-market ebay`
-Expected: PASS, 5 tests.
-
-- [ ] **Step 5: Verify the secret surface**
-
-Run: `cargo run -q -p vox-cli -- ci secret-env-guard && cargo run -q -p vox-cli -- ci secrets-parity`
-Expected: both pass.
-
-- [ ] **Step 6: Commit**
-
-```bash
-vox run scripts/fmt.vox
-git add crates/vox-market crates/vox-secrets
-git commit -m "feat(market): MarketSource trait and eBay Browse adapter
-
-eBay first because it is free, needs one app ID, and covers the used
-market where prices move fastest.
-
-Transactable requires FIXED_PRICE plus a stated quantity. A Best-Offer
-listing is only MerchantPage: the 2026-08-21 pass found the cheapest
-motherboard was Best-Offer-only and could not actually be bought at the
-shown price."
-```
-
----
-
-### Task 5: TTL and the refresh scheduler
-
-**Files:**
-- Create: `crates/vox-market/src/scheduler.rs`
-- Modify: `crates/vox-market/src/lib.rs`
-
-**Interfaces:**
-- Consumes: `AttrKind` (Task 1), `MarketStore` (Task 3), `MarketSource`, `MarketError` (Task 4).
-- Produces: `is_stale(kind: AttrKind, observed_at_ms: i64, now_ms: i64) -> bool`, `Backoff::next_delay_secs(&mut self) -> u64`, `RefreshPlan::build(schema, items, store, now_ms) -> Vec<RefreshJob>`, `RefreshJob { item_id: String, attribute: String, source_id: String }`.
-
-- [ ] **Step 1: Write the failing test**
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::schema::AttrKind;
-
-    const HOUR: i64 = 3_600_000;
-
-    #[test]
-    fn specs_never_go_stale() {
-        // An A6000 is always 48GB. Re-fetching it forever wastes the budget.
-        assert!(!is_stale(AttrKind::Spec, 0, 100 * 365 * 24 * HOUR));
-    }
-
-    #[test]
-    fn stock_goes_stale_in_minutes_and_price_in_hours() {
-        let now = 100 * HOUR;
-        // A listing moved 6 -> 5 available mid-session, so 15 minutes is the
-        // budget for stock.
-        assert!(is_stale(AttrKind::Stock, now - (HOUR / 2), now));
-        assert!(!is_stale(AttrKind::Stock, now - (HOUR / 8), now));
-        assert!(!is_stale(AttrKind::Price, now - (2 * HOUR), now));
-        assert!(is_stale(AttrKind::Price, now - (7 * HOUR), now));
-    }
-
-    #[test]
-    fn backoff_grows_and_then_caps() {
-        let mut b = Backoff::default();
-        let a = b.next_delay_secs();
-        let c = b.next_delay_secs();
-        assert!(c > a, "delay must grow: {a} -> {c}");
-        for _ in 0..20 {
-            b.next_delay_secs();
-        }
-        assert!(b.next_delay_secs() <= 3600, "must cap at an hour");
-    }
-}
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cargo test -j 4 -p vox-market scheduler`
-Expected: FAIL — `cannot find function is_stale`.
-
-- [ ] **Step 3: Write minimal implementation**
-
-```rust
-//! Refresh scheduling. TTL is a property of the attribute kind, not the item:
-//! re-fetching a GPU's VRAM every six hours is pure waste, and re-fetching its
-//! stock every six hours is far too slow.
-
-use crate::schema::AttrKind;
-
-pub fn is_stale(kind: AttrKind, observed_at_ms: i64, now_ms: i64) -> bool {
-    match kind.ttl_hours() {
-        None => false,
-        Some(h) => (now_ms - observed_at_ms) as f64 > h * 3_600_000.0,
-    }
-}
-
-/// Exponential backoff for `MarketError::Blocked` / `Timeout`, capped so a
-/// permanently-blocked source does not drift to a delay measured in days.
+/// `indeterminate` is deliberately separate from `excluded`. Folding them loses
+/// the distinction between "measured, falls short" and "never measured" — and
+/// only the second is a data gap someone can close.
 #[derive(Debug, Default)]
-pub struct Backoff {
-    attempts: u32,
+pub struct Outcome {
+    pub passed: Vec<CatalogItem>,
+    pub excluded: Vec<Excluded>,
+    pub indeterminate: Vec<Excluded>,
 }
 
-impl Backoff {
-    pub fn next_delay_secs(&mut self) -> u64 {
-        self.attempts = self.attempts.saturating_add(1);
-        let d = 30u64.saturating_mul(1 << self.attempts.min(7));
-        d.min(3600)
+enum Verdict { Passed, Excluded(String), Indeterminate(String) }
+
+fn evaluate(schema: &CatalogSchema, item: &CatalogItem, c: &Constraint) -> Verdict {
+    let Some(def) = schema.attribute(&item.category, &c.attribute) else {
+        return Verdict::Indeterminate(format!(
+            "`{}` is not an attribute of category `{}` in the catalog schema",
+            c.attribute, item.category
+        ));
+    };
+    let Some(v) = item.attributes.get(&c.attribute) else {
+        return Verdict::Indeterminate(format!(
+            "`{}` is unknown for this item — not recorded by any source",
+            c.attribute
+        ));
+    };
+    // String equality, not conversion. GiB vs GB is a real 7.4% difference, and
+    // guessing which was meant is how a wrong answer looks confident.
+    if v.unit.as_deref() != Some(c.unit.as_str()) {
+        return Verdict::Indeterminate(format!(
+            "`{}` is recorded in {} but the constraint is in {} — no conversion is defined",
+            c.attribute,
+            v.unit.as_deref().unwrap_or("no unit"),
+            c.unit
+        ));
     }
-    pub fn reset(&mut self) {
-        self.attempts = 0;
+    if c.satisfied_by(v.number) {
+        return Verdict::Passed;
     }
+    let mut reason = format!(
+        "{} is {} {}, which fails {} {} {}",
+        c.attribute, v.number, c.unit, c.attribute, c.describe(), c.value
+    );
+    if let Some(note) = def.note.as_deref() {
+        reason.push_str(&format!(" ({note})"));
+    }
+    Verdict::Excluded(reason)
+}
+
+/// Hard filters. Constraints eliminate; they never score.
+pub fn apply(
+    schema: &CatalogSchema,
+    items: &[CatalogItem],
+    constraints: &[Constraint],
+) -> Outcome {
+    let mut out = Outcome::default();
+    'items: for item in items {
+        for c in constraints {
+            match evaluate(schema, item, c) {
+                Verdict::Passed => {}
+                Verdict::Excluded(r) => {
+                    out.excluded.push(Excluded { item_id: item.item_id.clone(), reason: r });
+                    continue 'items;
+                }
+                Verdict::Indeterminate(r) => {
+                    out.indeterminate.push(Excluded { item_id: item.item_id.clone(), reason: r });
+                    continue 'items;
+                }
+            }
+        }
+        out.passed.push(item.clone());
+    }
+    out
 }
 ```
-
-Add the `RefreshPlan::build` function that walks catalog items, resolves each attribute's kind from the schema, reads the current observation's `observed_at_ms` from the store, and emits a `RefreshJob` per stale (item, attribute, source) triple — skipping sources where `is_available()` is false.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cargo test -j 4 -p vox-market scheduler`
-Expected: PASS, 3 tests.
+Run: `cargo test -j 4 -p vox-cli-core market::`
+Expected: 11 passed.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-vox run scripts/fmt.vox
-git add crates/vox-market/src/scheduler.rs crates/vox-market/src/lib.rs
-git commit -m "feat(market): per-kind TTL and refresh scheduling
-
-Specs never expire, prices are hours, stock is minutes. Sequential
-per-source fetch with capped exponential backoff; no work queue, because
-the real load is single-digit requests per hour."
+git add crates/vox-cli-core/src/market.rs
+git commit -m "feat(market): three-valued constraints with explained exclusions"
 ```
 
 ---
 
-### Task 6: Constraints and explainable scoring
+### Task 3: Acceptance test — the laptop query, with a derived value
 
 **Files:**
-- Create: `crates/vox-market/src/constraints.rs`
-- Create: `crates/vox-market/src/scoring.rs`
-- Create: `contracts/market/scoring.v1.yaml`
-- Modify: `crates/vox-market/src/lib.rs`
+- Create: `crates/vox-cli-core/tests/fixtures/laptops_seed.yaml`
+- Create: `crates/vox-cli-core/tests/market_acceptance.rs`
+- Modify: `crates/vox-cli-core/src/market.rs`
 
 **Interfaces:**
-- Consumes: `CatalogSchema`, `AttributeDef` (Task 1); `Attribute`, `AttrValue` (Task 2).
-- Produces: `Constraint { attribute: String, op: CmpOp, value: f64, unit: Option<String> }`, `CmpOp { Gte, Lte, Eq }`, `apply(items: &[ScoredItem], constraints: &[Constraint]) -> FilterOutcome`, `FilterOutcome { passed: Vec<ScoredItem>, excluded: Vec<Exclusion> }`, `Exclusion { item_id: String, reason: String }`, `rank(items: Vec<ScoredItem>, axes: &[Axis]) -> Vec<Ranked>`, `Ranked { item_id: String, score: f64, explanation: String, unavailable_axes: Vec<String> }`.
+- Consumes: everything from Tasks 1 and 2.
+- Produces: `Arch::{AppleUnified, StrixHalo, Discrete}`;
+  `derive_gpu_accessible_gb(total_gb: f64, arch: Arch) -> Value`;
+  `seed_from_yaml(&CatalogSchema, &str) -> Result<Vec<CatalogItem>, SchemaError>`.
+
+**Why a derivation and not a literal:** the first draft hand-seeded
+`gpu_accessible_gb: 48` and asserted `48 < 64` — Rust's `<` operator on two
+numbers a human typed. It also stamped that number `MerchantPage`, though no
+merchant page states it. The figure is a rule of thumb, so it is stored as one:
+`Derived`, from an observed `total_memory_gb`, by a named rule. The reserve is
+per-architecture because it is not a universal 25% — Apple's is adjustable via
+`iogpu.wired_limit_percent`, and Strix Halo's is a UEFI setting.
 
 - [ ] **Step 1: Write the failing test**
 
+`crates/vox-cli-core/tests/market_acceptance.rs`:
+
 ```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
+//! The 2026-08-21 laptop query, end to end. This is the gate that unlocks the
+//! discovery pipeline, so it asserts the criterion the spec actually states —
+//! that the answer EXPLAINS the unified-memory reservation — not merely 48 < 64.
 
-    fn laptop(id: &str, gb: f64, price: f64) -> ScoredItem {
-        ScoredItem::from_pairs(id, &[("gpu_accessible_gb", gb, "GB"), ("price_usd", price, "USD")])
-    }
+use vox_cli_core::market::*;
 
-    /// The acceptance query. A 64GB machine exposes ~48GB to the GPU, so it
-    /// must NOT satisfy >=64, and the caller must be told why.
-    #[test]
-    fn a_64gb_machine_is_excluded_with_a_stated_reason() {
-        let items = vec![laptop("mbp-64", 48.0, 3699.0), laptop("mbp-128", 96.0, 6999.0)];
-        let out = apply(&items, &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")]);
-
-        assert_eq!(out.passed.len(), 1);
-        assert_eq!(out.passed[0].item_id, "mbp-128");
-        assert_eq!(out.excluded.len(), 1);
-        assert!(
-            out.excluded[0].reason.contains("48") && out.excluded[0].reason.contains("64"),
-            "reason must name both numbers, got: {}",
-            out.excluded[0].reason
-        );
-    }
-
-    /// Comparing GB against W is a category error, not a close call.
-    #[test]
-    fn mismatched_units_are_rejected_rather_than_silently_compared() {
-        let items = vec![laptop("x", 96.0, 1000.0)];
-        let out = apply(&items, &[Constraint::gte("gpu_accessible_gb", 64.0, "W")]);
-        assert!(out.passed.is_empty());
-        assert!(out.excluded[0].reason.to_lowercase().contains("unit"));
-    }
-
-    #[test]
-    fn ranking_explains_its_arithmetic() {
-        let items = vec![laptop("cheap", 96.0, 2999.0), laptop("dear", 96.0, 6999.0)];
-        let axes = vec![Axis::lower_is_better("dollars_per_gb", "price_usd / gpu_accessible_gb")];
-        let r = rank(items, &axes);
-        assert_eq!(r[0].item_id, "cheap");
-        assert!(r[0].explanation.contains("dollars_per_gb"), "got: {}", r[0].explanation);
-    }
-
-    /// An axis whose inputs are absent is reported as unavailable, never
-    /// scored as zero — which would look like a tie rather than a missing input.
-    #[test]
-    fn an_axis_with_missing_inputs_is_skipped_and_named() {
-        let items = vec![laptop("a", 96.0, 2999.0)];
-        let axes = vec![Axis::higher_is_better("tokens_per_dollar", "tg_tok_s / (price_usd / 1000)")];
-        let r = rank(items, &axes);
-        assert!(r[0].unavailable_axes.contains(&"tokens_per_dollar".to_string()));
-    }
+fn schema() -> CatalogSchema {
+    CatalogSchema::load_from_str(include_str!(
+        "../../../contracts/market/catalog-schema.v1.yaml"
+    ))
+    .expect("shipped contract parses")
 }
-```
 
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cargo test -j 4 -p vox-market constraints scoring`
-Expected: FAIL — `cannot find function apply`.
-
-- [ ] **Step 3: Write minimal implementation**
-
-Implement `Constraint::gte/lte/eq` builders; `apply` compares only when the constraint's unit matches the attribute's declared unit and otherwise emits an `Exclusion` naming the mismatch; exclusion reasons interpolate both the actual and required values (`"gpu_accessible_gb 48 GB < required 64 GB"`). `rank` evaluates each axis's expression over the item's attributes, skips axes whose referenced attributes are absent and records them in `unavailable_axes`, normalises each available axis to 0..1, averages with equal weights, and renders `explanation` as a comma-separated list of `axis=value`. Write `contracts/market/scoring.v1.yaml` with the three axes from the spec including the `requires: [tg_tok_s]` guard on `tokens_per_dollar`.
-
-- [ ] **Step 4: Run tests to verify they pass**
-
-Run: `cargo test -j 4 -p vox-market constraints scoring`
-Expected: PASS, 4 tests.
-
-- [ ] **Step 5: Commit**
-
-```bash
-vox run scripts/fmt.vox
-git add crates/vox-market/src/constraints.rs crates/vox-market/src/scoring.rs contracts/market/scoring.v1.yaml crates/vox-market/src/lib.rs
-git commit -m "feat(market): constraint filtering and explainable scoring
-
-Constraints eliminate and never score; ranking shows its arithmetic. Unit
-mismatches are rejected rather than compared. An axis whose inputs are
-absent is named as unavailable rather than scored zero, which would read
-as a tie instead of a missing input."
-```
-
----
-
-### Task 7: vox-search corpus
-
-**Files:**
-- Create: `crates/vox-market/src/search_corpus.rs`
-- Modify: `crates/vox-market/Cargo.toml` (add `vox-search`)
-- Modify: `crates/vox-market/src/lib.rs`
-
-**Interfaces:**
-- Consumes: `MarketStore` (Task 3), `CatalogSchema` (Task 1).
-- Produces: `MarketCorpus::index_item(&self, item: &CatalogItemRef, attrs: &BTreeMap<String, Attribute>) -> Result<()>`, `MarketCorpus::search(&self, query: &str, limit: usize) -> Result<Vec<MarketHit>>`, `MarketHit { item_id: String, category: String, score: f32 }`.
-
-- [ ] **Step 1: Write the failing test**
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn indexed_items_are_findable_by_model_name() {
-        let c = MarketCorpus::in_memory().await.unwrap();
-        c.index_text("a6000", "gpu", "NVIDIA RTX A6000 48GB GDDR6 workstation").await.unwrap();
-        c.index_text("mbp16", "laptop", "Apple MacBook Pro 16 M5 Max 128GB").await.unwrap();
-
-        let hits = c.search("A6000", 10).await.unwrap();
-        assert_eq!(hits.len(), 1);
-        assert_eq!(hits[0].item_id, "a6000");
-    }
-
-    #[tokio::test]
-    async fn search_returns_the_category_so_results_can_be_faceted() {
-        let c = MarketCorpus::in_memory().await.unwrap();
-        c.index_text("mbp16", "laptop", "Apple MacBook Pro 16 M5 Max 128GB").await.unwrap();
-        assert_eq!(c.search("MacBook", 10).await.unwrap()[0].category, "laptop");
-    }
+fn seeded() -> Vec<CatalogItem> {
+    seed_from_yaml(&schema(), include_str!("fixtures/laptops_seed.yaml")).expect("seed")
 }
-```
 
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cargo test -j 4 -p vox-market search_corpus`
-Expected: FAIL — `cannot find type MarketCorpus`.
-
-- [ ] **Step 3: Write minimal implementation**
-
-Build a document per item — model name, category, and the text-valued attributes — and index it through `vox-search`'s existing lexical indexer. **Do not build a bespoke index**: AGENTS.md requires richer retrieval to build on the existing hybrid stack, and `vox_search_query` already returns `facets_by_source` / `facets_by_kind`. Read `crates/vox-search/src/lexical_tantivy.rs` and `ingest.rs` first and follow their construction pattern. Numeric constraints are **not** expressed in the query string — they apply as post-filters via Task 6, because lexical search cannot express `>= 64`.
-
-- [ ] **Step 4: Run tests to verify they pass**
-
-Run: `cargo test -j 4 -p vox-market search_corpus`
-Expected: PASS, 2 tests.
-
-- [ ] **Step 5: Commit**
-
-```bash
-vox run scripts/fmt.vox
-git add crates/vox-market
-git commit -m "feat(market): index the catalog as a vox-search corpus
-
-Adds a corpus rather than an index, per the AGENTS.md retrieval policy.
-Numeric constraints stay in the constraint layer because lexical search
-cannot express >= 64."
-```
-
----
-
-### Task 8: `vox market` CLI and IPC commands
-
-**Files:**
-- Create: `crates/vox-cli/src/commands/market/mod.rs`
-- Create: `crates/vox-cli/src/commands/market/list.rs`
-- Create: `crates/vox-cli/src/commands/market/sources.rs`
-- Create: `crates/vox-gui/src/commands/market.rs`
-- Modify: `crates/vox-cli/src/commands/mod.rs`, the CLI command enum, `crates/vox-gui/src/main.rs` (invoke_handler)
-- Modify: `contracts/gui/surface-registry.v1.yaml` (set mercatus `cli_group: market`)
-
-**Interfaces:**
-- Consumes: everything from Tasks 1–7.
-- Produces: CLI subcommands `list`, `show`, `history`, `fetch`, `sources`, each with `--json`; Tauri commands `market_list_items`, `market_item_detail`, `market_history`, `market_sources`.
-
-- [ ] **Step 1: Write the failing test**
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// `vox market sources` is the diagnostic that makes a keyless install
-    /// comprehensible: it must list every adapter and say which are usable.
-    #[test]
-    fn sources_report_names_unconfigured_adapters_rather_than_hiding_them() {
-        let rows = source_rows(&[("ebay", false, 0.0), ("brightdata", false, 0.0025)]);
-        assert_eq!(rows.len(), 2);
-        assert!(rows.iter().all(|r| !r.available));
-        assert!(rows.iter().any(|r| r.id == "ebay"));
-    }
-
-    /// An empty catalog is a first-run state, not a failure.
-    #[test]
-    fn an_empty_catalog_renders_guidance_not_an_error() {
-        let out = render_list(&[], "laptop");
-        assert!(out.to_lowercase().contains("no items"));
-        assert!(!out.to_lowercase().contains("error"));
-    }
-}
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cargo test -j 4 -p vox-cli market`
-Expected: FAIL — `cannot find function source_rows`.
-
-- [ ] **Step 3: Write minimal implementation**
-
-Implement the subcommands over `MarketStore` + `apply` + `rank`. `vox market sources` prints id, cost per fetch, evidence class, and whether credentials resolve. `vox market list --where 'gpu_accessible_gb >= 64'` parses simple `attr op value unit` triples into `Constraint`s. Every subcommand supports `--json`. Mirror the same four reads as Tauri commands in `crates/vox-gui/src/commands/market.rs` and register them in `main.rs`'s `invoke_handler`.
-
-- [ ] **Step 4: Run tests and regenerate the command surface**
-
-Run: `cargo test -j 4 -p vox-cli market`
-Expected: PASS, 2 tests.
-
-Run: `cargo run -q -p vox-cli -- ci command-sync`
-Expected: regenerates `docs/src/reference/cli-command-surface.generated.md`; commit the regenerated file with the change.
-
-- [ ] **Step 5: Commit**
-
-```bash
-vox run scripts/fmt.vox
-git add crates/vox-cli crates/vox-gui contracts/gui/surface-registry.v1.yaml docs/src/reference/cli-command-surface.generated.md
-git commit -m "feat(market): vox market CLI and IPC read surface
-
-Closes the cli_group: null gap on the mercatus surface. sources is the
-diagnostic that makes a keyless install legible: it names every adapter
-and which have credentials, rather than silently returning nothing."
-```
-
----
-
-### Task 9: Acceptance test — the laptop query end to end
-
-**Files:**
-- Create: `crates/vox-market/tests/acceptance_laptop_memory.rs`
-- Create: `crates/vox-market/tests/fixtures/laptops_seed.yaml`
-
-**Interfaces:**
-- Consumes: everything from Tasks 1–8.
-- Produces: the passing gate that unlocks the discovery flag (spec §Discovery).
-
-- [ ] **Step 1: Write the failing test**
-
-`crates/vox-market/tests/acceptance_laptop_memory.rs`:
-
-```rust
-//! Acceptance gate from the spec. Reproduces the 2026-08-21 manual finding:
-//! no 64GB laptop clears a 64GB GPU-memory requirement, because Apple and AMD
-//! unified-memory machines reserve ~25% for the OS.
-
-use vox_market::constraints::{apply, Constraint};
-use vox_market::testkit::seed_from_yaml;
-
-#[tokio::test]
-async fn only_128gb_machines_satisfy_a_64gb_gpu_memory_constraint() {
-    let items = seed_from_yaml(include_str!("fixtures/laptops_seed.yaml"))
-        .await
-        .expect("seed");
-
-    let out = apply(&items, &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")]);
+#[test]
+fn only_128gb_machines_satisfy_a_64gb_gpu_memory_constraint() {
+    let out = apply(&schema(), &seeded(), &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")]);
 
     let passed: Vec<&str> = out.passed.iter().map(|i| i.item_id.as_str()).collect();
     assert!(passed.contains(&"mbp16-m5max-128"), "got {passed:?}");
@@ -1344,66 +806,420 @@ async fn only_128gb_machines_satisfy_a_64gb_gpu_memory_constraint() {
         "a 64GB machine exposes ~48GB and must not pass: {passed:?}"
     );
 
-    // The useful answer is not an empty-ish list, it is WHY the others went.
     let why = out
         .excluded
         .iter()
         .find(|e| e.item_id == "mbp14-m5pro-64")
-        .expect("exclusion recorded");
-    assert!(why.reason.contains("48"), "reason must state the actual value: {}", why.reason);
+        .expect("a measured miss, not an indeterminate");
+
+    let r = why.reason.to_lowercase();
+    assert!(r.contains("48"), "must state the derived value: {}", why.reason);
+    assert!(r.contains("64"), "must state the requirement: {}", why.reason);
+    // The criterion the spec states. A generic
+    // "gpu_accessible_gb 48 GB < required 64 GB" satisfies the two lines above
+    // and fails this one — deliberately.
+    assert!(
+        r.contains("unified") || r.contains("reserves"),
+        "must explain WHY a 64GB machine offers 48GB: {}",
+        why.reason
+    );
 }
 
-#[tokio::test]
-async fn an_impossible_constraint_explains_itself_rather_than_returning_empty() {
-    let items = seed_from_yaml(include_str!("fixtures/laptops_seed.yaml")).await.unwrap();
-    let out = apply(&items, &[Constraint::gte("gpu_accessible_gb", 512.0, "GB")]);
+/// The seed states `total_memory_gb`, which a vendor page really does say. The
+/// 48 must come from the derivation, so a source claiming
+/// `gpu_accessible_gb: 64` outright cannot quietly become the catalog's answer.
+#[test]
+fn gpu_accessible_memory_is_derived_from_total_memory_not_asserted() {
+    let items = seeded();
+    let mbp = items.iter().find(|i| i.item_id == "mbp14-m5pro-64").unwrap();
+
+    let total = mbp.attributes.get("total_memory_gb").expect("observed");
+    assert_eq!(total.number, 64.0);
+    assert_eq!(total.evidence, Evidence::MerchantPage, "a page really does state 64GB");
+
+    let derived = mbp.attributes.get("gpu_accessible_gb").expect("derived");
+    assert_eq!(derived.number, 48.0);
+    assert_eq!(
+        derived.evidence,
+        Evidence::Derived,
+        "no merchant page states 48GB — it must not borrow a page's provenance"
+    );
+}
+
+#[test]
+fn a_source_may_not_assert_a_derived_attribute() {
+    const CHEATING: &str = r#"
+items:
+  - item_id: liar
+    category: laptop
+    arch: apple_unified
+    attributes:
+      total_memory_gb:   { number: 64, unit: GB, evidence: merchant_page }
+      gpu_accessible_gb: { number: 64, unit: GB, evidence: merchant_page }
+"#;
+    let e = seed_from_yaml(&schema(), CHEATING).unwrap_err().to_string();
+    assert!(e.contains("gpu_accessible_gb"), "got: {e}");
+}
+
+#[test]
+fn the_reserve_is_per_architecture_not_a_flat_quarter() {
+    // Apple's reserve and Strix Halo's are set by different mechanisms
+    // (iogpu.wired_limit_percent vs a UEFI setting), so one shared constant
+    // would be a coincidence rather than a rule. Asserted separately so a
+    // future per-architecture correction touches one line and one assertion.
+    assert_eq!(derive_gpu_accessible_gb(64.0, Arch::AppleUnified).number, 48.0);
+    assert_eq!(derive_gpu_accessible_gb(128.0, Arch::AppleUnified).number, 96.0);
+    assert_eq!(derive_gpu_accessible_gb(128.0, Arch::StrixHalo).number, 96.0);
+    // A discrete GPU's VRAM is not carved out of system memory at all.
+    assert_eq!(derive_gpu_accessible_gb(64.0, Arch::Discrete).number, 64.0);
+}
+
+#[test]
+fn an_impossible_constraint_explains_itself_rather_than_returning_empty() {
+    let items = seeded();
+    let out = apply(&schema(), &items, &[Constraint::gte("gpu_accessible_gb", 512.0, "GB")]);
+
     assert!(out.passed.is_empty());
-    assert_eq!(out.excluded.len(), items.len(), "every item must carry a reason");
+    assert_eq!(out.excluded.len(), items.len(), "every item carries a reason");
+    for e in &out.excluded {
+        // "Explains itself" was previously unasserted: the first draft checked
+        // only that the exclusion list was the right LENGTH, which an
+        // implementation emitting empty strings satisfies.
+        assert!(!e.reason.trim().is_empty(), "empty reason for {}", e.item_id);
+        assert!(e.reason.contains("512"), "must name the requirement: {}", e.reason);
+    }
+    // The closest candidate must be legible, so the reader learns how far off
+    // the requirement is rather than only that nothing matched.
+    assert!(
+        out.excluded.iter().any(|e| e.reason.contains("96")),
+        "the best machine in the catalog must be visible: {:?}",
+        out.excluded
+    );
 }
 ```
 
-Write `fixtures/laptops_seed.yaml` with at least: `mbp14-m5pro-64` (gpu_accessible_gb 48, price 3699), `mbp16-m5max-128` (96, 6999), `rog-flow-z13-128` (96, 3299.99), `proart-px13-128` (96, 2999.99).
+- [ ] **Step 2: Write the fixture**
 
-- [ ] **Step 2: Run test to verify it fails**
+`crates/vox-cli-core/tests/fixtures/laptops_seed.yaml`:
 
-Run: `cargo test -j 4 -p vox-market --test acceptance_laptop_memory`
+```yaml
+# Observed values only. `gpu_accessible_gb` is absent by design — it is derived
+# at load time from `total_memory_gb` and `arch`, and carries Evidence::Derived.
+items:
+  - item_id: mbp14-m5pro-64
+    category: laptop
+    arch: apple_unified
+    attributes:
+      total_memory_gb: { number: 64,   unit: GB,  evidence: merchant_page }
+      price_usd:       { number: 3699, unit: USD, evidence: merchant_page }
+      weight_kg:       { number: 1.55, unit: kg,  evidence: merchant_page }
+  - item_id: mbp16-m5max-128
+    category: laptop
+    arch: apple_unified
+    attributes:
+      total_memory_gb: { number: 128,  unit: GB,  evidence: merchant_page }
+      price_usd:       { number: 5999, unit: USD, evidence: merchant_page }
+      weight_kg:       { number: 2.15, unit: kg,  evidence: merchant_page }
+  - item_id: rog-flow-z13-128
+    category: laptop
+    arch: strix_halo
+    attributes:
+      total_memory_gb: { number: 128,  unit: GB,  evidence: merchant_page }
+      price_usd:       { number: 2799, unit: USD, evidence: merchant_page }
+      weight_kg:       { number: 1.20, unit: kg,  evidence: merchant_page }
+```
+
+- [ ] **Step 3: Run test to verify it fails**
+
+Run: `cargo test -j 4 -p vox-cli-core --test market_acceptance`
 Expected: FAIL — `cannot find function seed_from_yaml`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [ ] **Step 4: Write the derivation and loader**
 
-Add `pub mod testkit;` behind `#[cfg(any(test, feature = "testkit"))]` exposing `seed_from_yaml(&str) -> Result<Vec<ScoredItem>>` that parses the fixture into catalog items with `EvidenceClass::MerchantPage` attributes.
+Append to `crates/vox-cli-core/src/market.rs`:
 
-- [ ] **Step 4: Run tests to verify they pass**
+```rust
+/// Memory architecture, which decides how much of installed RAM the GPU can
+/// actually address.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Arch { AppleUnified, StrixHalo, Discrete }
 
-Run: `cargo test -j 4 -p vox-market --test acceptance_laptop_memory`
-Expected: PASS, 2 tests.
+/// `unified_memory_reserve_v1`.
+///
+/// Neither reserve is a hardware constant: Apple's is adjustable via
+/// `iogpu.wired_limit_percent`, Strix Halo's is a UEFI/driver setting. These
+/// are the shipped defaults, which is what a buyer gets out of the box — and
+/// why the output is `Evidence::Derived` with the rule named and versioned,
+/// rather than a figure wearing a merchant page's provenance.
+pub fn derive_gpu_accessible_gb(total_gb: f64, arch: Arch) -> Value {
+    let usable = match arch {
+        Arch::AppleUnified | Arch::StrixHalo => (total_gb * 0.75).floor(),
+        // A discrete GPU's VRAM is not carved out of system memory.
+        Arch::Discrete => total_gb,
+    };
+    Value { number: usable, unit: Some("GB".into()), evidence: Evidence::Derived }
+}
 
-- [ ] **Step 5: Run the whole gate**
+#[derive(Deserialize)]
+struct SeedValue {
+    number: f64,
+    #[serde(default)]
+    unit: Option<String>,
+    evidence: Evidence,
+}
 
-Run: `cargo test -j 4 -p vox-market && cargo run -q -p vox-arch-check && cargo run -q -p vox-cli -- ci crate-edges`
-Expected: tests pass; `crate-edges` **fails** on the two new L4→L1 edges. **Do not fix this by editing the allow-list.** Record the failure and propose the edges in the PR description per AGENTS.md.
+#[derive(Deserialize)]
+struct SeedItem {
+    item_id: String,
+    category: String,
+    #[serde(default = "discrete")]
+    arch: Arch,
+    #[serde(default)]
+    attributes: BTreeMap<String, SeedValue>,
+}
 
-- [ ] **Step 6: Commit**
+fn discrete() -> Arch { Arch::Discrete }
+
+#[derive(Deserialize)]
+struct Seed { items: Vec<SeedItem> }
+
+/// Loads observed values and computes derived ones.
+///
+/// A seed that asserts a derived attribute directly is rejected: letting a
+/// source hand-write `gpu_accessible_gb` is precisely the unprovenanced number
+/// this layer exists to stop.
+pub fn seed_from_yaml(
+    schema: &CatalogSchema,
+    yaml: &str,
+) -> Result<Vec<CatalogItem>, SchemaError> {
+    let seed: Seed = serde_yaml::from_str(yaml)?;
+    let mut items = Vec::with_capacity(seed.items.len());
+    for s in seed.items {
+        let mut attributes: BTreeMap<String, Value> = s
+            .attributes
+            .into_iter()
+            .map(|(k, v)| (k, Value { number: v.number, unit: v.unit, evidence: v.evidence }))
+            .collect();
+
+        if attributes.contains_key("gpu_accessible_gb") {
+            return Err(SchemaError::AssertedDerived("gpu_accessible_gb".into()));
+        }
+        if let Some(total) = attributes.get("total_memory_gb") {
+            let derived = derive_gpu_accessible_gb(total.number, s.arch);
+            attributes.insert("gpu_accessible_gb".into(), derived);
+        }
+        // Reserved: required-attribute checking belongs at promotion time,
+        // which arrives with the store. Named here so the parameter is not
+        // mistaken for an oversight.
+        let _ = schema;
+        items.push(CatalogItem { item_id: s.item_id, category: s.category, attributes });
+    }
+    Ok(items)
+}
+```
+
+- [ ] **Step 5: Run tests to verify they pass**
+
+Run: `cargo test -j 4 -p vox-cli-core`
+Expected: all pass — 11 unit, 5 acceptance.
+
+- [ ] **Step 6: Run the gates**
 
 ```bash
-vox run scripts/fmt.vox
-git add crates/vox-market/tests crates/vox-market/src
-git commit -m "test(market): acceptance gate for the 64GB laptop query
-
-Reproduces the 2026-08-21 finding: no 64GB laptop clears a 64GB GPU-memory
-constraint because unified-memory machines reserve ~25% for the OS. The
-test asserts both the filtering and the explanation, because an
-unexplained empty result is the failure mode this layer exists to prevent.
-
-Passing this gate is what unlocks the discovery flag."
+vox run scripts/fmt.vox && cargo run -q -j 4 -p vox-cli -- ci pre-push --complete
 ```
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add crates/vox-cli-core/src/market.rs crates/vox-cli-core/tests/
+git commit -m "feat(market): acceptance test with derived unified-memory capacity"
+```
+
+---
+
+## Deferred: the fetch layer
+
+Everything below was Tasks 2–5, 7, and 8 of the first draft. It is real work and
+it is not on the path to the acceptance gate. Each item carries the critique
+findings that must be addressed *before* it is written, so they are not
+rediscovered.
+
+**Two things to settle before any of it starts:**
+
+1. **Read `crates/vox-populi/src/mens/cloud/`** and decide whether this belongs
+   alongside `vast.rs` / `runpod_provider.rs` rather than in a parallel adapter
+   registry. That decision changes everything below it.
+2. **Decide who fetches.** The spec's open question ("recommend daemon-only,
+   decided before implementation") was never decided, and the first draft built
+   both the CLI and the GUI IPC surface with no owner. Two schedulers means
+   duplicate fetches, which halves the quota ceiling below, and two budget
+   counters means no enforcement at all. One paragraph, not work.
+
+### No writer exists — the entry-point blocker
+The first draft had no fetch loop, no `vox market add`, and no catalog file
+format. Nothing could put a row in `market_items` except a test seed. Whatever
+lands first must include a way to populate the catalog, or the feature has no
+entry point.
+
+### Quota, not disk, is the binding limit
+One eBay fetch returns price + stock + availability together, so the 0.25 h
+stock TTL sets the cadence at 96 fetches/item/day. Against the free tier's
+5,000 calls/day that is **52 items** — 26 if two processes fetch. Nothing in the
+first draft mentioned a rate limit, a daily counter, or a cadence backstop.
+Derive max catalog size from the quota, or refuse to build an oversized
+`RefreshPlan`.
+
+Disk is the slower problem but still real: 73,000 observations/item/year/source
+at ~175 B/row is 128 MB/yr at 10 items, 1.28 GB/yr at 100 — landing in the
+shared `.vox/store.db`. `contracts/db/retention-policy.yaml` already exists and
+supports `kind: ms_days`; one entry fixes it.
+
+### Store
+- No `crates/vox-db/migrations/` exists. DDL is a `SchemaFragment` const in
+  `crates/vox-db/src/schema/domains/market.rs`, registered in `manifest.rs`,
+  with `BASELINE_VERSION` 90 → 91 and a changelog comment.
+- **The drafted instruction actively bricks the DB.** A `Migration` at any
+  version other than `BASELINE_VERSION` makes the next ordinary `VoxDb::connect`
+  return `StoreError::LegacySchemaChain`. "Use the next free number" is the one
+  instruction that must not be followed.
+- `VoxDb::connect(DbConfig::Memory)`, not `connect_in_memory()`. Needs
+  `features = ["local"]`. `turso::params!`, not `vox_db::params!`.
+- Raw SQL outside `vox-db` fails `sql-surface-guard` and `turso-import-guard`.
+  Expose typed `impl VoxDb` accessors in `store/ops_market.rs`.
+- `current()` must not scan full history: `ORDER BY observed_at_ms DESC LIMIT 50`
+  turns O(all rows) into O(sources). Without it the UI is unusable at ~2 months
+  with 10 items, and it holds the process-wide `GuardedConnection` mutex while
+  doing it — starving every other DB consumer, chat writes included.
+- Cap `alternates` at one per source, or `market_item_detail` returns ~20 MB of
+  JSON per IPC call at one year.
+- Write only on change, so `observed_at_ms` means "last changed" rather than
+  "last polled" — which the recency tie-break already assumes.
+- `record()` must retry on cross-process `Busy`; today the observation is lost
+  after the HTTP call was already spent.
+- Wrap item + attributes in one transaction and validate `required_attributes()`
+  before committing. That method exists and is called by nobody.
+- Test append-only as **immutability**, not a row count — a count check passes
+  an implementation that appends *and* rewrites.
+- `since_ms` inclusivity needs a row exactly on the bound to be tested at all.
+- Attribute renames silently orphan history (`WHERE attribute = ?` on the new
+  name returns nothing). `vram_gb` → `gpu_accessible_gb` already happened once.
+
+### Offers, not prices
+`market_offers(item_id, source_id, vendor, condition, currency, price, shipping, ...)`,
+reconciled within `(item, source, condition)`. See spec §Price is a property of
+an offer. A schema change now that costs a rewrite later.
+
+### eBay adapter
+- `resolve_secret` returns `ResolvedSecret`; use `.is_present()`, not `.is_ok()`.
+- Append the `SecretSpec` to an existing `SPECS_*` const; a new file also needs
+  `ALL_REGISTRIES` wiring in `spec/mod.rs`.
+- Run `vox ci secrets-contracts` and commit the regenerated
+  `contracts/secrets/managed-env-names.v1.json` **before** `secrets-parity` runs.
+  Update `docs/src/reference/secrets-ssot.md`.
+- `is_available()` calls `resolve_secret` per (item, attribute, source) — a
+  Credential Manager round-trip per attribute per tick on Windows. Resolve once
+  at construction.
+- Item identity is a keyword search: a "$59 A6000 cooling shroud" becomes the
+  item's `Transactable` price and wins reconciliation outright. Require an exact
+  per-source identifier and record the match rule as provenance.
+- `estimatedAvailableQuantity` is documented as an *estimate*, often bucketed.
+  Map it to `in_stock: yes`, never a numeric `stock_count` — this is the
+  "99,999 vs 4" failure with a different label.
+- Test FIXED_PRICE-*without*-quantity: the spec says a cart button alone is not
+  `Transactable`, and nothing tested it.
+- Guard fixture `.replace()` calls with `assert_ne!(body, FIXTURE)`, or a
+  pretty-printed fixture makes the substitution a silent no-op.
+
+### Scheduler
+- `Backoff` duplicates `vox_foundation::primitives::backoff` and ignores
+  `vox_http_client::parse_retry_after` — the documented SSOT, and the only thing
+  that matters for a 429.
+- `RefreshPlan::build` had zero tests. Needs: keyless source skipped not failed,
+  cold-start (never-observed) attributes scheduled, specs never scheduled.
+- Staleness must be computed from last **attempt**, not last **success**, or a
+  `NotFound` item is re-fetched every tick forever — the spec's own failure
+  table says "do not retry until config changes", and nothing implements it.
+- `now_ms().unwrap_or(0)` records 1970 on a clock error: stale forever, and
+  loses every recency tie-break. Refuse to write instead.
+- `is_stale` goes negative on a backwards clock step and the attribute **freezes**.
+  Treat a negative delta as stale and self-heal.
+- No jitter anywhere. Seven days asleep means every attribute is stale on wake
+  and the plan emits them all in one pass.
+- The budget ceiling was deferred while stock TTL is 0.25 h. Ship the guard with
+  the first metered adapter, or make `is_available()` false for any
+  `cost_usd() > 0.0` source until it exists. `BudgetLedger::check_capacity`
+  already exists in `vox-populi`.
+- `cost_usd()` is a trait method with no consumer, though Decision 1 claims it
+  drives source ordering. Implement it or drop the claim.
+- No health output at all: "no credentials", "blocked since Tuesday",
+  "scheduler panicked", and "working fine" all render identically.
+  `SELECT source_id, MAX(observed_at_ms) ... GROUP BY source_id` is one indexed
+  query and the highest value-per-line item in the whole critique.
+
+### Search corpus
+- `SearchCorpus` is a **closed enum** in L0 `vox-db-types`. There is no
+  registration API. Use `persist_text_document_chunk` with a `market:` URI
+  prefix over `DocumentChunks`, or accept an L0 change.
+- `lexical_tantivy` exposes only `rebuild(dir, &[docs])` — full rebuild, no
+  incremental add. Per-observation rebuild is ~5,000 full rebuilds/day.
+- Index staleness is bounded by catalog *membership* churn, not observation
+  churn, because the document holds no price or stock. Rebuild on membership
+  change and say so in the spec.
+- Defer regardless: lexical search over ~10 hand-entered items is `.contains()`.
+
+### CLI and IPC
+- `crates/vox-gui/src/commands/mercatus.rs` already exists and is already
+  registered — do not create a parallel `market.rs`.
+- The gate chain is five commands, not one: `operations-sync --target cli
+  --write` → `command-sync --write` → `UPDATE_CLI_CATALOG_BASELINE=1 cargo test
+  -p vox-cli --test command_catalog_paths_baseline` → `gui-surface-registry
+  --write` + `gui-surface-coverage --write` → `ssot-drift`.
+- PowerShell has no inline env-var prefix:
+  `$env:UPDATE_CLI_CATALOG_BASELINE = '1'; cargo test …`.
+- Dispatch needs arms in **three** places in `cli_dispatch/mod.rs`, not one.
+- The `--where` parser is the surface a user types into and had no tests. A
+  unitless expression must be rejected, not guessed — otherwise `tdp_w <= 1600`
+  and `vram_gb >= 1600` become the same comparison.
+- `--json` is a contract; assert its shape, including that `evidence` and
+  `observed_at_ms` reach consumers.
+- This is where the runtime schema load path belongs, which is what makes the
+  spec's "adding a category is a config edit" true rather than a recompile.
+
+### If the crate is eventually created
+- Layer **3**, not 1, in `contracts/ci/crate-layers.v1.json`.
+- Also needs: `layers.toml` row, `where-things-live.md` row, `workspace-hack`
+  dep, `cargo hakari manage-deps && cargo hakari generate`, and
+  `vox ci affected-crates --regen --out contracts/ci/crate-graph.v1.json` —
+  this last one is in the *fast* pre-push tier, so it fails first.
+- Six crate-edge exceptions and four `fan-in-snapshot.v1.json` bumps. Both
+  baselines are **USER-AUTHORIZED-ONLY**: propose in the PR description and stop.
+- `vox-arch-check`'s `orphan = "error"` fires from crate creation until the
+  first consumer is wired. Do not paper over it with a fake consumer.
 
 ---
 
 ## Self-Review
 
-**Spec coverage.** Crate placement → T1. Catalog schema, units, `required` → T1. Provenance, `EvidenceClass`, reconciliation → T2. Persistence, append-only, `market_current` semantics → T3. Adapter trait, `MarketError`, credentials, eBay-first → T4. TTL, scheduler, backoff → T5. Constraints, scoring, unavailable axes, surprising-result-is-a-finding → T6. vox-search corpus → T7. IPC + CLI, `cli_group` gap → T8. Acceptance test → T9. **Gap accepted deliberately:** the budget ceiling (spec §Scheduler) is not implemented — it needs the paid Bright Data adapter, which this plan does not build, so it belongs with that adapter rather than being written against no paid source. **Excluded by scope:** the discovery pipeline, which becomes its own plan.
+**Spec coverage.** Tasks 1–3 cover the schema contract, three-valued
+constraints, unit checking, the derivation, and the acceptance gate. Everything
+else in the spec is explicitly deferred above with its blocking findings
+attached — not silently dropped.
 
-**Placeholder scan.** No TBD/TODO. Tasks 6, 7 and 8 describe implementations in prose rather than full code blocks — these are the tasks whose implementation must follow existing in-repo patterns (`vox-search` ingestion, the CLI command registry, the Tauri handler), and the plan names the exact files to read first. Every test step carries real, runnable code.
+**Placeholder scan.** No TBDs. Every step has runnable code or a runnable
+command. The `let _ = schema;` in `seed_from_yaml` is a commented parameter
+reservation, not a stub.
 
-**Type consistency.** `Attribute`, `AttrValue`, `EvidenceClass` (T2) flow unchanged into T3/T4/T7. `AttrKind` (T1) is consumed by T5's `is_stale`. `CatalogItemRef` (T4) is used by T7. `ScoredItem` is introduced in T6 and reused in T9. `Constraint::gte(attr, value, unit)` has one signature throughout. `MarketStore::current` returns `Option<Reconciled>` in T3 and is consumed as such in T8.
+**Type consistency.** `Evidence`, `Value`, `CatalogItem`, `Arch`, `CmpOp`,
+`Constraint`, `Outcome`, `Excluded` are each defined once and used consistently.
+`Evidence` carries `Deserialize` + `rename_all = "snake_case"` from Task 2 so
+the Task 3 fixture parses. `SchemaError::AssertedDerived` is declared in Task 1
+and used in Task 3.
+
+**Known weak point.** `derive_gpu_accessible_gb` uses 0.75 for both Apple and
+Strix Halo. Those are shipped defaults from two different mechanisms, and the
+test asserts them separately so a future per-architecture correction changes one
+line and one assertion rather than a shared constant. The rule is versioned
+(`_v1`) so that if a measured figure contradicts either, the old values stay
+attributable rather than being silently restated.
