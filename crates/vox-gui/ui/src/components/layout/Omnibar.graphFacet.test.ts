@@ -27,15 +27,23 @@ describe('parseDiscoverResults', () => {
 
   it('still reads the legacy results[] key', () => {
     const res = { result: { results: [{ node_id: 'n1' }] } };
-    expect(parseDiscoverResults(res)).toHaveLength(1);
+    const rows = parseDiscoverResults(res);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe('n1');
   });
 
-  it('maps surface: ids to a viewKey', () => {
+  it('maps surface: ids to a viewKey but keeps the real label', () => {
     const res = { result: { hits: [{ node_id: 'surface:voxgraph', label: 'VoxGraph' }] } };
-    expect(parseDiscoverResults(res)[0].viewKey).toBe('voxgraph');
+    const row = parseDiscoverResults(res)[0];
+    expect(row.viewKey).toBe('voxgraph');
+    // `label ?? vk ?? id`: a supplied label outranks the derived view key.
+    expect(row.label).toBe('VoxGraph');
   });
 
-  it('returns [] on an error envelope', () => {
-    expect(parseDiscoverResults({ is_error: true })).toEqual([]);
+  it('returns [] on an error envelope even when a payload rides along', () => {
+    // The payload matters: without it this case passes with the is_error guard
+    // deleted, because the parser falls through to an empty array anyway.
+    const res = { is_error: true, result: { hits: [{ node_id: 'x', label: 'X' }] } };
+    expect(parseDiscoverResults(res)).toEqual([]);
   });
 });

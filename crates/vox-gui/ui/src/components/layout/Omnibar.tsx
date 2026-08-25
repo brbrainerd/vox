@@ -195,9 +195,10 @@ export function Omnibar({
     [effectiveQ],
   );
 
-  // GRAPH facet: graph-discover MCP tool, independently fallible. Parses the
-  // master-spec discover output (`result.results[]`) — see parseDiscoverResults.
-  // Pre-VG-1 this resolves to honest empty/error (no graph-discover tool exists).
+  // GRAPH facet: graph-discover MCP tool, independently fallible. The tool is
+  // vox_search_structural and its response is `result.hits[]` (the legacy
+  // `result.results[]` is still tolerated) — see parseDiscoverResults.
+  // A failure here is a real search failure, not an absent capability.
   useEffect(() => {
     if (!open || !debouncedQ.trim()) {
       setGraph({ rows: [], error: null });
@@ -210,14 +211,14 @@ export function Omnibar({
         if (cancelled) return;
         const r = res as { is_error?: boolean };
         if (r?.is_error) {
-          setGraph({ rows: [], error: 'graph facet pending VG-1 — graph-discover tool unavailable' });
+          setGraph({ rows: [], error: 'graph search failed' });
           return;
         }
         setGraph({ rows: parseDiscoverResults(res), error: null });
       })
       .catch(() => {
         if (!cancelled) {
-          setGraph({ rows: [], error: 'graph facet pending VG-1 — graph-discover tool unavailable' });
+          setGraph({ rows: [], error: 'graph search unreachable' });
         }
       });
     return () => {
