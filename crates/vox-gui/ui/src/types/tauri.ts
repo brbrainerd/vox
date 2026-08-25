@@ -245,6 +245,12 @@ export interface CorpusStatusDto {
 
 export interface GraphifyStatusDto {
   default_corpus_id: string;
+  /** Effective staleness TTL in days after env > contract precedence.
+   *  Optional: older backends omit it, and the editor hides itself when absent. */
+  ttl_days?: number;
+  /** True when VOX_GRAPHIFY_TTL_DAYS is forcing `ttl_days`, so a stored
+   *  contract value would have no local effect. */
+  ttl_days_env_forced?: boolean;
   corpora: CorpusStatusDto[];
 }
 

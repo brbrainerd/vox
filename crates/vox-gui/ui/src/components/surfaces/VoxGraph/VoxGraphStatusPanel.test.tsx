@@ -121,6 +121,144 @@ describe('VoxGraphStatusPanel', () => {
     });
   });
 
+  it('shows the effective TTL and saves an edited value', async () => {
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        default_corpus_id: 'repo-code-graph',
+        ttl_days: 30,
+        ttl_days_env_forced: false,
+        corpora: [STALE_CORPUS],
+      },
+    });
+    renderWithClient(<VoxGraphStatusPanel />);
+
+    const input = screen.getByLabelText('Staleness TTL in days') as HTMLInputElement;
+    expect(input.value).toBe('30');
+
+    fireEvent.change(input, { target: { value: '7' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save TTL' }));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('invoke_mcp_tool', {
+        tool: 'vox_search_set_ttl',
+        args: { ttl_days: 7 },
+        permissionMode: null,
+      });
+    });
+  });
+
+  it('tells the user the save wrote a tracked file that needs committing', async () => {
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        default_corpus_id: 'repo-code-graph',
+        ttl_days: 30,
+        ttl_days_env_forced: false,
+        corpora: [STALE_CORPUS],
+      },
+    });
+    // Real shape: `invoke_mcp_tool` (crates/vox-gui/src/commands/mcp.rs) wraps
+    // the daemon's own `{ success, data }` envelope under `result` — `data` is
+    // graphify_set_ttl's payload from graph_tools.rs.
+    mockInvoke.mockResolvedValue({
+      tool: 'vox_search_set_ttl',
+      is_error: false,
+      result: {
+        success: true,
+        data: {
+          ttl_days_written: 7,
+          ttl_days_effective: 7,
+          env_override_active: false,
+          contract_path: 'contracts/retrieval/vox-graph-corpora.v1.yaml',
+          requires_commit: true,
+        },
+      },
+    });
+    renderWithClient(<VoxGraphStatusPanel />);
+
+    fireEvent.change(screen.getByLabelText('Staleness TTL in days'), { target: { value: '7' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save TTL' }));
+
+    // The TTL lives in a TRACKED contract. A user who is not told will not commit,
+    // and CI will keep enforcing the old value.
+    expect(
+      await screen.findByText(/contracts\/retrieval\/vox-graph-corpora\.v1\.yaml/),
+    ).toBeInTheDocument();
+  });
+
+  it('reports a failed save instead of looking like it worked', async () => {
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        default_corpus_id: 'repo-code-graph',
+        ttl_days: 30,
+        ttl_days_env_forced: false,
+        corpora: [STALE_CORPUS],
+      },
+    });
+    // The tool reports failure in-band (`success: false`), it does not throw.
+    mockInvoke.mockResolvedValue({
+      tool: 'vox_search_set_ttl',
+      is_error: true,
+      result: { success: false, error: 'write ttl: permission denied' },
+    });
+    renderWithClient(<VoxGraphStatusPanel />);
+
+    fireEvent.change(screen.getByLabelText('Staleness TTL in days'), { target: { value: '7' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save TTL' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/permission denied/);
+  });
+
+  it('rejects an out-of-range TTL without calling the backend', async () => {
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        default_corpus_id: 'repo-code-graph',
+        ttl_days: 30,
+        ttl_days_env_forced: false,
+        corpora: [STALE_CORPUS],
+      },
+    });
+    renderWithClient(<VoxGraphStatusPanel />);
+
+    fireEvent.change(screen.getByLabelText('Staleness TTL in days'), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save TTL' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/between 1 and 3650/);
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it('tells the user when an env var overrides the stored TTL', () => {
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        default_corpus_id: 'repo-code-graph',
+        ttl_days: 5,
+        ttl_days_env_forced: true,
+        corpora: [STALE_CORPUS],
+      },
+    });
+    renderWithClient(<VoxGraphStatusPanel />);
+    expect(screen.getByText(/VOX_GRAPHIFY_TTL_DAYS/)).toBeInTheDocument();
+  });
+
+  it('omits the TTL editor entirely when the backend sends no ttl_days', () => {
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { default_corpus_id: 'repo-code-graph', corpora: [STALE_CORPUS] },
+    });
+    renderWithClient(<VoxGraphStatusPanel />);
+    expect(screen.queryByLabelText('Staleness TTL in days')).toBeNull();
+  });
+
   it('shows loading state', () => {
     mockUse.mockReturnValue({ isLoading: true, isError: false });
     renderWithClient(<VoxGraphStatusPanel />);
