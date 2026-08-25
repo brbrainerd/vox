@@ -1033,9 +1033,11 @@ jobs:
 
       - name: Graphify corpus freshness gate (warning)
         if: needs.setup.outputs.full == 'true'
+        # No VOX_GRAPHIFY_TTL_DAYS pin: the staleness window comes from
+        # ttl_days_default in contracts/retrieval/vox-graph-corpora.v1.yaml,
+        # the same value the GUI editor writes and `vox graphify status`
+        # reports. Guarded by crates/vox-config/tests/graphify_ttl_parity.rs.
         run: ./target/debug/vox graphify status --strict
-        env:
-          VOX_GRAPHIFY_TTL_DAYS: "7"
         continue-on-error: true
 
 
