@@ -20,19 +20,20 @@ import {
   type OmnibarRow,
 } from '../../lib/omnibarFacets';
 import { recordGamifyGuiEvent } from '../../lib/gamifyGuiEvents';
+import { unwrapMcpEnvelope } from '../../lib/mcpToolResult';
 
 const FACET_ORDER: FacetKey[] = ['surfaces', 'commands', 'onScreen', 'graph', 'docs'];
 
 const SETTINGS_SEED_KEY = 'vox_settings_seed';
 
 /**
- * VG-1-owned graph-discover MCP tool name. There is NO `vox_discover` MCP tool
- * today (dispatch.rs registers only `vox_graphify_*`). Until VG-1 renames a graph
- * tool, point this at the real existing tool and let the parser consume the
- * master-spec discover output (`result.results[]`). When VG-1 lands its
- * graph-discover tool, change this one constant.
+ * Graph-discover MCP tool. `vox_graphify_query` was renamed to the `vox_search_*`
+ * family (dispatch.rs registers vox_search_{status,structural,neighbors,path,
+ * callers,callees,compare,rebuild}); this constant was left pointing at the old
+ * name, so the facet errored on every keystroke. `vox_search_structural` is the
+ * only graph tool that takes a lexical query string.
  */
-const GRAPH_DISCOVER_TOOL = 'vox_graphify_query';
+const GRAPH_DISCOVER_TOOL = 'vox_search_structural';
 
 /** VG-1-owned neighbor-expansion MCP tool (umbrella spec §3.1: { corpus, node_ids, max_depth }). */
 const GRAPH_NEIGHBORS_TOOL = 'vox_search_neighbors';
@@ -57,23 +58,32 @@ function federatedKindsForMode(mode: PalettePrefixMode): FederatedIndexKind[] {
 }
 
 /**
- * Parse a graph-discover MCP response into GraphNeighbor[] against the MASTER
- * SPEC output shape (umbrella spec §2.6/§3.1): `{ seeds[], results[{ node_id,
- * fused_score, components, hops, community, reachability_class, provenance }] }`.
- * There is NO `result.neighbors`, NO `view_key`, NO `label` on a result —
- * derive the label from the node_id and the viewKey from a `surface:<vk>` prefix.
+ * Parse a graph-tool response into rows. `invoke_mcp_tool` returns the daemon's
+ * whole `ToolResult` under `result`, so the payload of both
+ * `vox_search_structural` and `vox_search_neighbors` lives at `result.data`, and
+ * the hits at `result.data.hits[]`. `results[]` is accepted as a legacy
+ * fallback. Reading `result.hits` (no envelope unwrap) made the facet silently
+ * return zero rows on every keystroke.
  */
-function parseDiscoverResults(res: unknown): GraphNeighbor[] {
-  const r = res as { is_error?: boolean; result?: { results?: unknown[] } };
-  if (r?.is_error || !Array.isArray(r?.result?.results)) return [];
-  return r.result!.results!
-    .map((n) => n as { node_id?: string; id?: string })
-    .map((n) => n.node_id ?? n.id)
-    .filter((id): id is string => typeof id === 'string' && id.length > 0)
-    .map((id) => {
-      const vk = id.startsWith('surface:') ? id.slice('surface:'.length) : undefined;
-      return { id, label: vk ?? id, viewKey: vk };
-    });
+export function parseDiscoverResults(res: unknown): GraphNeighbor[] {
+  const r = res as { is_error?: boolean; result?: unknown };
+  if (r?.is_error) return [];
+  const data = unwrapMcpEnvelope(r?.result) as
+    | { hits?: unknown[]; results?: unknown[] }
+    | null
+    | undefined;
+  const raw = Array.isArray(data?.hits)
+    ? data.hits
+    : Array.isArray(data?.results)
+      ? data.results
+      : [];
+  return raw.flatMap((raw0) => {
+    const n = raw0 as { node_id?: string; id?: string; label?: string };
+    const id = n.node_id ?? n.id;
+    if (typeof id !== 'string' || id.length === 0) return [];
+    const vk = id.startsWith('surface:') ? id.slice('surface:'.length) : undefined;
+    return [{ id, label: n.label ?? vk ?? id, viewKey: vk }];
+  });
 }
 
 interface OmnibarProps {
@@ -189,9 +199,11 @@ export function Omnibar({
     [effectiveQ],
   );
 
-  // GRAPH facet: graph-discover MCP tool, independently fallible. Parses the
-  // master-spec discover output (`result.results[]`) — see parseDiscoverResults.
-  // Pre-VG-1 this resolves to honest empty/error (no graph-discover tool exists).
+  // GRAPH facet: graph-discover MCP tool, independently fallible. The tool is
+  // vox_search_structural. Its payload sits behind the daemon's ToolResult
+  // envelope, at `result.data.hits[]` (the legacy `results[]` is still
+  // tolerated) — see parseDiscoverResults, which unwraps it.
+  // A failure here is a real search failure, not an absent capability.
   useEffect(() => {
     if (!open || !debouncedQ.trim()) {
       setGraph({ rows: [], error: null });
@@ -204,14 +216,14 @@ export function Omnibar({
         if (cancelled) return;
         const r = res as { is_error?: boolean };
         if (r?.is_error) {
-          setGraph({ rows: [], error: 'graph facet pending VG-1 — graph-discover tool unavailable' });
+          setGraph({ rows: [], error: 'graph search failed' });
           return;
         }
         setGraph({ rows: parseDiscoverResults(res), error: null });
       })
       .catch(() => {
         if (!cancelled) {
-          setGraph({ rows: [], error: 'graph facet pending VG-1 — graph-discover tool unavailable' });
+          setGraph({ rows: [], error: 'graph search unreachable' });
         }
       });
     return () => {
@@ -298,9 +310,10 @@ export function Omnibar({
   const expandGraphNeighbors = useCallback((row: OmnibarRow) => {
     if (row.activate.type !== 'graph') return;
     const seed = row.activate.node;
-    // X2: vox_search_neighbors is the real neighbor primitive:
-    // { corpus, node_ids, max_depth }. Gated behind a VG-1-owned constant so it
-    // fails-soft pre-VG-1. Parse with the master-spec `result.results[]` shape.
+    // vox_search_neighbors is the real neighbor primitive:
+    // { corpus, node_ids, max_depth }. Its payload sits behind the daemon's
+    // ToolResult envelope, at `result.data.hits[]` — parseDiscoverResults
+    // unwraps it, so do not reach for `result.hits` here.
     // TODO(VG-1): pass `corpus` once the omnibar carries an active/seed corpus.
     // The discover call (GRAPH_DISCOVER_TOOL) also omits corpus today and relies
     // on the tool default; both should be threaded the same active corpus.

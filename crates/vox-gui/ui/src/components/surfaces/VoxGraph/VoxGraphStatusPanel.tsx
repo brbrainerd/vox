@@ -68,6 +68,147 @@ function RebuildButton({ corpusId }: { corpusId: string }) {
   );
 }
 
+/** Range mirrors validate_ttl_days in crates/vox-config/src/graphify.rs. */
+const TTL_DAYS_MIN = 1;
+const TTL_DAYS_MAX = 3650;
+
+/**
+ * Editable staleness TTL. TTL is a global registry setting, so this lives in the
+ * panel header rather than on a corpus card. Writes go through
+ * `vox_search_set_ttl`, which edits `ttl_days_default` in the tracked contract
+ * `contracts/retrieval/vox-graph-corpora.v1.yaml` — the same value the CLI and
+ * the CI freshness gate read, so the save leaves an uncommitted change.
+ */
+function TtlEditor({
+  ttlDays,
+  effectiveTtlDays,
+  envForced,
+}: {
+  /** The CONTRACT value — what Save writes, so what the control must show. */
+  ttlDays: number;
+  /** The value actually in force after env precedence, shown when it differs. */
+  effectiveTtlDays: number;
+  envForced: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [value, setValue] = useState(String(ttlDays));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [wrotePath, setWrotePath] = useState<string | null>(null);
+
+  // Resync when a refetch brings a different TTL (a save, or an env-forced
+  // value winning). Comparing against the last prop seen rather than syncing in
+  // an effect means typing is never clobbered: the input only resets when the
+  // incoming number actually changes.
+  const [lastTtlDays, setLastTtlDays] = useState(ttlDays);
+  if (ttlDays !== lastTtlDays) {
+    setLastTtlDays(ttlDays);
+    setValue(String(ttlDays));
+  }
+
+  const handleSave = useCallback(async () => {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < TTL_DAYS_MIN || parsed > TTL_DAYS_MAX) {
+      setError(`TTL must be a whole number between ${TTL_DAYS_MIN} and ${TTL_DAYS_MAX}`);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setWrotePath(null);
+    try {
+      // `invoke_mcp_tool` returns `{ is_error, result }` where `result` is the
+      // daemon's own `{ success, data, error? }` envelope — both already parsed
+      // objects (see crates/vox-gui/src/commands/mcp.rs).
+      const res = (await voxTransport.invokeMcpTool('vox_search_set_ttl', {
+        ttl_days: parsed,
+      })) as {
+        result?: {
+          success?: boolean;
+          error?: string;
+          data?: { requires_commit?: boolean; contract_path?: string };
+        };
+      };
+      // A failed write reports in-band rather than throwing; silence here would
+      // look exactly like a successful save.
+      if (res?.result?.success === false) {
+        setError(sanitizeErrorForToast(res.result.error ?? 'Failed to set TTL'));
+        return;
+      }
+      // The tool edits a TRACKED contract file, so the save dirties the working
+      // tree. Saying so is not decoration: a user who is not told will not commit,
+      // and CI will keep enforcing the old TTL.
+      if (res?.result?.data?.requires_commit) {
+        setWrotePath(res.result.data.contract_path ?? null);
+      }
+      await queryClient.invalidateQueries({ queryKey: VOX_GRAPH_STATUS_QUERY_KEY });
+    } catch (e) {
+      setError(sanitizeErrorForToast((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  }, [value, queryClient]);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        <label htmlFor="vg-ttl-days" className="text-[9px] uppercase tracking-wider text-zinc-500">
+          TTL (days)
+        </label>
+        {/* h-7 (28px) clears the WCAG 2.2 SC 2.5.8 24x24 target minimum; do not
+            shrink it to match the 10px type scale around it. */}
+        <input
+          id="vg-ttl-days"
+          type="number"
+          inputMode="numeric"
+          min={TTL_DAYS_MIN}
+          max={TTL_DAYS_MAX}
+          value={value}
+          disabled={busy}
+          aria-label="Staleness TTL in days"
+          // The confirmation describes the value that was written, so it must
+          // not outlive an edit to that value.
+          onChange={(e) => {
+            setValue(e.target.value);
+            setWrotePath(null);
+            setError(null);
+          }}
+          className="h-7 w-20 rounded-md border border-white/10 bg-zinc-950/40 px-2 font-mono text-[11px] text-zinc-200 disabled:opacity-50"
+        />
+        <button
+          type="button"
+          disabled={busy}
+          aria-label="Save TTL"
+          onClick={handleSave}
+          className="h-7 rounded-md border border-white/10 bg-white/5 px-3 text-[11px] font-medium text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
+        >
+          {busy ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+      {envForced && (
+        <span className="text-[10px] text-amber-400">
+          VOX_GRAPHIFY_TTL_DAYS is set and overrides this value.
+        </span>
+      )}
+      {effectiveTtlDays !== ttlDays && (
+        <span className="text-[10px] text-zinc-400">
+          Currently in force: {effectiveTtlDays} days.
+        </span>
+      )}
+      {wrotePath && (
+        <span className="text-[10px] text-zinc-400">
+          Wrote <code className="font-mono">{wrotePath}</code> — commit it so the CLI and CI
+          use this TTL too.
+        </span>
+      )}
+      {error && (
+        <span role="alert" className="text-[10px] text-red-400">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {}) {
   const { data, isLoading, isError, error } = useVoxGraphStatus();
   const corpusHealthLabel = useLabel('vg-corpus-health');
@@ -111,11 +252,23 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <h2 className="ds-section-head">{corpusHealthLabel}</h2>
-        <span className="font-mono text-[10px] text-zinc-500">
-          Default: {data.default_corpus_id}
-        </span>
+        <div className="flex items-center gap-4">
+          {typeof data.ttl_days === 'number' && (
+            <TtlEditor
+              // Prefill what Save WRITES (the contract), not the env-resolved
+              // effective value: prefilling the effective TTL meant one Save
+              // rewrote the tracked contract to a number the user never chose.
+              ttlDays={data.ttl_days_contract ?? data.ttl_days}
+              effectiveTtlDays={data.ttl_days}
+              envForced={data.ttl_days_env_forced === true}
+            />
+          )}
+          <span className="font-mono text-[10px] text-zinc-500">
+            Default: {data.default_corpus_id}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2">

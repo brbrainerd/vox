@@ -852,6 +852,7 @@
     "graph.query",
     "graph.rebuild",
     "graph.search",
+    "graph.set.ttl",
     "graph.status",
     "gui.components",
     "gui.rules",

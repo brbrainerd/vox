@@ -87,6 +87,16 @@ impl GraphifyReader {
     ///
     /// Returns [`GraphifyReaderError::MissingNodes`] if the `"nodes"` key is absent or not an array.
     pub fn from_value(value: serde_json::Value) -> Result<Self, GraphifyReaderError> {
+        Self::from_ref(&value)
+    }
+
+    /// Construct by borrowing a parsed `serde_json::Value`.
+    ///
+    /// Identical to [`Self::from_value`] but leaves the input intact, so a caller
+    /// that must retain the raw `Value` (for example to serve a lexical search)
+    /// does not have to clone it. The graph is ~126 MB in this repo, so that
+    /// clone is the difference between ~650 MB and ~1.15 GB of peak commit.
+    pub fn from_ref(value: &serde_json::Value) -> Result<Self, GraphifyReaderError> {
         let nodes_arr = value
             .get("nodes")
             .and_then(|n| n.as_array())
@@ -299,6 +309,39 @@ mod directed_tests {
         assert!(
             r.shortest_path("A", "C", Direction::In).is_none(),
             "regression guard: callers-direction must not reach forward"
+        );
+    }
+
+    #[test]
+    fn from_ref_builds_the_graph_and_leaves_input_reusable() {
+        let value = serde_json::json!({
+            "nodes": [
+                {"id": "a", "label": "Alpha"},
+                {"id": "b", "label": "Beta"}
+            ],
+            "links": [{"source": "a", "target": "b"}]
+        });
+        let by_ref = GraphifyReader::from_ref(&value).expect("from_ref builds");
+
+        // Real structure, not a self-comparison: two nodes, one edge, and a
+        // depth-1 hop from "a" that reaches exactly "b" with its label.
+        assert_eq!(by_ref.node_count(), 2);
+        assert_eq!(by_ref.edge_count(), 1);
+        let hits = by_ref.bfs_from_seeds(&["a"], 1, 100, Direction::Both);
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].node_id, "b");
+        assert_eq!(hits[0].label, "Beta");
+        assert_eq!(hits[0].depth, 1);
+        assert_eq!(hits[0].path, vec!["a".to_string(), "b".to_string()]);
+
+        // Retention: the same `value` still builds an equivalent reader, which is
+        // exactly what `get_graph` relies on when it caches Value and reader both.
+        let again = GraphifyReader::from_ref(&value).expect("input still usable");
+        assert_eq!(again.node_count(), 2);
+        assert_eq!(again.edge_count(), 1);
+        assert_eq!(
+            again.shortest_path("a", "b", Direction::Out),
+            Some(vec!["a".to_string(), "b".to_string()])
         );
     }
 

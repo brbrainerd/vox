@@ -3,6 +3,7 @@
 use chrono::Utc;
 use serde::Deserialize;
 use std::fs;
+use std::sync::Arc;
 use vox_graph_reader;
 
 use crate::git_exec::{GitExec, GitExecError};
@@ -41,6 +42,60 @@ pub struct GraphifySearchParams {
 
 fn default_persist_true() -> bool {
     true
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphifySetTtlParams {
+    pub ttl_days: u64,
+}
+
+/// `vox_search_set_ttl`: set the corpora registry's global staleness TTL.
+///
+/// Writes `contracts/retrieval/vox-graph-corpora.v1.yaml`, which is the same
+/// value the CLI and the CI freshness gate read — so the GUI, `vox graphify
+/// status`, and CI cannot disagree. The edit is a tracked file change and
+/// shows up in `git status`; the response says so.
+pub async fn graphify_set_ttl(state: &ServerState, params: GraphifySetTtlParams) -> String {
+    let repo_root = &state.repository.root;
+    let days = match vox_config::graphify::validate_ttl_days(params.ttl_days) {
+        Ok(d) => d,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY)
+                .to_json();
+        }
+    };
+    if let Err(e) = vox_config::graphify::set_ttl_days(repo_root, days) {
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            format!("write ttl: {e}"),
+            REM_GRAPHIFY,
+        )
+        .to_json();
+    }
+    // Re-read through the normal loader so the response reflects the same
+    // precedence every other caller sees (env > contract).
+    let reg = match load_graphify_corpora(repo_root) {
+        Ok(r) => r,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let effective = vox_config::graphify::resolve_ttl_days(reg.ttl_days_default);
+    ToolResult::ok(serde_json::json!({
+        "ttl_days_written": days,
+        "ttl_days_effective": effective,
+        // Presence of the env var, not `effective != days`: setting it to the
+        // same number still means the env var is in control of the runtime value.
+        "env_override_active": vox_config::graphify::ttl_env_override_active_now(),
+        // Resolved, not the constant: a checkout on the legacy registry name
+        // must be told the file it actually has to commit.
+        "contract_path": vox_config::graphify::corpora_rel_path(repo_root),
+        "requires_commit": true,
+    }))
+    .to_json()
 }
 
 fn corpus_by_id<'a>(
@@ -188,9 +243,20 @@ pub async fn graphify_status(state: &ServerState, params: GraphifyStatusParams) 
             v
         })
         .collect();
+    let ttl_days = vox_config::graphify::resolve_ttl_days(reg.ttl_days_default);
     let payload = serde_json::json!({
         "head_git_sha": head,
         "default_corpus_id": reg.default_corpus_id,
+        // Effective TTL after env > contract precedence, the contract value
+        // itself, and where it lives — so a UI can distinguish "you set this"
+        // from "an env var is forcing this" without hardcoding a path.
+        // `ttl_days_env_forced` keys off the env var's presence, not
+        // `ttl_days != ttl_days_contract`: setting it to the same number is
+        // still an active override that will survive an edit to the contract.
+        "ttl_days": ttl_days,
+        "ttl_days_contract": reg.ttl_days_default,
+        "ttl_days_env_forced": vox_config::graphify::ttl_env_override_active_now(),
+        "ttl_contract_path": vox_config::graphify::corpora_rel_path(repo_root),
         "corpora": corpora,
     });
     ToolResult::ok(payload).to_json()
@@ -249,29 +315,15 @@ pub async fn graphify_search(state: &ServerState, params: GraphifySearchParams) 
             .to_json();
         }
     };
-    let graph_path = repo_root.join(&corpus.graph_path);
-    let raw = match fs::read_to_string(&graph_path) {
-        Ok(s) => s,
+    let entry = match get_graph(state, &corpus_id, corpus, repo_root).await {
+        Ok(e) => e,
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(
-                format!("read {}: {e}", graph_path.display()),
-                REM_GRAPHIFY,
-            )
-            .to_json();
-        }
-    };
-    let graph: serde_json::Value = match serde_json::from_str(&raw) {
-        Ok(v) => v,
-        Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(
-                format!("parse {}: {e}", graph_path.display()),
-                REM_GRAPHIFY,
-            )
-            .to_json();
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY)
+                .to_json();
         }
     };
     let limit = params.limit.unwrap_or(DEFAULT_SEARCH_LIMIT).max(1);
-    let hits = lexical_search_graph(&graph, &corpus_id, &params.query, limit as usize);
+    let hits = lexical_search_graph(&entry.value, &corpus_id, &params.query, limit as usize);
 
     // Record searched_at before any async work.
     let searched_at = chrono::Utc::now().to_rfc3339();
@@ -407,14 +459,64 @@ pub struct GraphifyCompareParams {
     pub corpus_b: String,
 }
 
-/// Load and parse a corpus graph.json from disk.
-fn load_graph_json(
-    repo_root: &std::path::Path,
+/// Load a corpus graph, serving from `state.graph_cache` when `graph.json` is
+/// unchanged. Keyed on corpus id + mtime + length, so an out-of-GUI
+/// `graphify update .` invalidates it without any explicit signal.
+async fn get_graph(
+    state: &ServerState,
+    corpus_id: &str,
     corpus: &vox_config::graphify::GraphifyCorpus,
-) -> Result<serde_json::Value, String> {
+    repo_root: &std::path::Path,
+) -> Result<crate::server_state::CachedGraph, String> {
     let p = repo_root.join(&corpus.graph_path);
-    let raw = fs::read_to_string(&p).map_err(|e| format!("read {}: {e}", p.display()))?;
-    serde_json::from_str(&raw).map_err(|e| format!("parse {}: {e}", p.display()))
+    let meta = fs::metadata(&p).map_err(|e| format!("stat {}: {e}", p.display()))?;
+    let mtime = meta
+        .modified()
+        .map_err(|e| format!("mtime {}: {e}", p.display()))?;
+    let len = meta.len();
+
+    {
+        let cache = state.graph_cache.read().await;
+        if let Some(cached) = &*cache {
+            if cached.key.matches(corpus_id, mtime, len) {
+                // Clone is cheap: both payloads are behind Arc.
+                return Ok(cached.clone());
+            }
+        }
+    }
+
+    // spawn_blocking: a miss costs ~10 s of synchronous read + parse + HashMap
+    // build on a 126 MB file. Running that inline would pin a tokio worker for
+    // the whole duration and stall every other tool call scheduled on it.
+    let load_path = p.clone();
+    let (value, reader) = tokio::task::spawn_blocking(
+        move || -> Result<(serde_json::Value, vox_graph_reader::GraphifyReader), String> {
+            let raw = fs::read_to_string(&load_path)
+                .map_err(|e| format!("read {}: {e}", load_path.display()))?;
+            let value: serde_json::Value = serde_json::from_str(&raw)
+                .map_err(|e| format!("parse {}: {e}", load_path.display()))?;
+            // from_ref, not from_value: cloning the 126 MB Value here would push
+            // peak commit on a miss above the spike this cache exists to remove.
+            let reader =
+                vox_graph_reader::GraphifyReader::from_ref(&value).map_err(|e| e.to_string())?;
+            Ok((value, reader))
+        },
+    )
+    .await
+    .map_err(|e| format!("graph load task failed for {}: {e}", p.display()))??;
+    let entry = crate::server_state::CachedGraph {
+        key: crate::server_state::GraphCacheKey {
+            corpus_id: corpus_id.to_string(),
+            mtime,
+            len,
+        },
+        value: Arc::new(value),
+        reader: Arc::new(reader),
+    };
+
+    let mut cache = state.graph_cache.write().await;
+    *cache = Some(entry.clone());
+    Ok(entry)
 }
 
 /// Core BFS neighbor expansion; `forced` pins direction, `filter_noise` drops constructor hits.
@@ -445,28 +547,20 @@ async fn graphify_query_core(
             .to_json();
         }
     };
-    let graph = match load_graph_json(repo_root, corpus) {
-        Ok(v) => v,
+    let entry = match get_graph(state, &corpus_id, corpus, repo_root).await {
+        Ok(e) => e,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY)
                 .to_json();
-        }
-    };
-    let reader = match vox_graph_reader::GraphifyReader::from_value(graph) {
-        Ok(r) => r,
-        Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(
-                e.to_string(),
-                REM_GRAPHIFY,
-            )
-            .to_json();
         }
     };
     let max_depth = params.max_depth.unwrap_or(2).min(5);
     let limit = params.limit.unwrap_or(20).max(1) as usize;
     let seeds: Vec<&str> = params.seeds.iter().map(String::as_str).collect();
     let direction = forced.unwrap_or_else(|| parse_direction(&params.direction));
-    let hits = reader.bfs_from_seeds(&seeds, max_depth, limit, direction);
+    let hits = entry
+        .reader
+        .bfs_from_seeds(&seeds, max_depth, limit, direction);
     let hits: Vec<_> = if filter_noise {
         hits.into_iter()
             .filter(|h| !is_noise(&h.node_id, &h.label))
@@ -536,25 +630,17 @@ pub async fn graphify_path(state: &ServerState, params: GraphifyPathParams) -> S
             .to_json();
         }
     };
-    let graph = match load_graph_json(repo_root, corpus) {
-        Ok(v) => v,
+    let entry = match get_graph(state, &corpus_id, corpus, repo_root).await {
+        Ok(e) => e,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY)
                 .to_json();
         }
     };
-    let reader = match vox_graph_reader::GraphifyReader::from_value(graph) {
-        Ok(r) => r,
-        Err(e) => {
-            return ToolResult::<serde_json::Value>::err_with_remediation(
-                e.to_string(),
-                REM_GRAPHIFY,
-            )
-            .to_json();
-        }
-    };
     let direction = parse_direction(&params.direction);
-    let path = reader.shortest_path(&params.from, &params.to, direction);
+    let path = entry
+        .reader
+        .shortest_path(&params.from, &params.to, direction);
     let reachable = path.is_some();
     let head = resolve_head_sha(state).await;
     let corpus_health = corpus_health_block(repo_root, &reg, corpus, head.as_deref());
@@ -733,13 +819,26 @@ pub async fn graphify_rebuild(state: &ServerState, params: GraphifyRebuildParams
         .to_json();
     }
 
+    // Explicitly clear the cache before the count read: the filesystem mtime
+    // resolution may be too coarse to register that graph.json just changed,
+    // and a stale cache hit here would report pre-rebuild counts.
+    {
+        let mut cache = state.graph_cache.write().await;
+        *cache = None;
+    }
+
     // Re-read the freshly written graph to report node/edge counts.
-    let (node_count, edge_count) = match load_graph_json(repo_root, corpus) {
-        Ok(g) => {
-            let n = g.get("nodes").and_then(|v| v.as_array()).map(|a| a.len());
-            let e = g
+    let (node_count, edge_count) = match get_graph(state, &corpus_id, corpus, repo_root).await {
+        Ok(entry) => {
+            let n = entry
+                .value
+                .get("nodes")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len());
+            let e = entry
+                .value
                 .get("links")
-                .or_else(|| g.get("edges"))
+                .or_else(|| entry.value.get("edges"))
                 .and_then(|v| v.as_array())
                 .map(|a| a.len());
             (n, e)
@@ -760,6 +859,7 @@ pub async fn graphify_rebuild(state: &ServerState, params: GraphifyRebuildParams
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::server_state::GraphCacheKey;
     use std::fs;
     use std::path::Path;
     use std::sync::Arc;
@@ -824,6 +924,26 @@ mod tests {
             Arc::new(Mutex::new(session_manager)),
             new_registry_arc(),
         )
+    }
+
+    #[test]
+    fn graph_cache_key_rejects_mtime_change() {
+        use std::time::{Duration, SystemTime};
+        let base = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000);
+        let key = GraphCacheKey {
+            corpus_id: "repo-code-graph".to_string(),
+            mtime: base,
+            len: 42,
+        };
+        assert!(key.matches("repo-code-graph", base, 42));
+        // A rebuild rewrites graph.json: mtime moves, so the cache must miss.
+        assert!(!key.matches("repo-code-graph", base + Duration::from_secs(1), 42));
+        // Same mtime but a different size (possible on coarse filesystems) must miss.
+        assert!(!key.matches("repo-code-graph", base, 43));
+        // A different corpus must never hit: resolve_search_corpus can pick a
+        // different corpus per call, so without corpus_id the cache would serve
+        // one corpus's graph for another corpus's request.
+        assert!(!key.matches("docs-graph", base, 42));
     }
 
     #[test]
@@ -1274,6 +1394,73 @@ mod tests {
                 "rebuild_recommended present: {c}"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn graphify_status_exposes_ttl_keys() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_status(&state, GraphifyStatusParams { corpus: None }).await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        let data = &parsed["data"];
+        for key in [
+            "ttl_days",
+            "ttl_days_contract",
+            "ttl_days_env_forced",
+            "ttl_contract_path",
+        ] {
+            assert!(!data[key].is_null(), "missing `{key}` in status: {json}");
+        }
+        assert_eq!(
+            data["ttl_contract_path"],
+            serde_json::json!(vox_config::graphify::CORPORA_REL_PATH)
+        );
+    }
+
+    /// The guard must run *before* the write, not merely appear first in the source.
+    #[tokio::test]
+    async fn graphify_set_ttl_rejects_zero_without_touching_the_contract() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let path = tmp.path().join(vox_config::graphify::CORPORA_REL_PATH);
+        let before = fs::read(&path).unwrap();
+
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_set_ttl(&state, GraphifySetTtlParams { ttl_days: 0 }).await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(
+            parsed["success"],
+            serde_json::json!(false),
+            "ttl_days: 0 must be rejected: {json}"
+        );
+        assert_eq!(
+            fs::read(&path).unwrap(),
+            before,
+            "contract must be byte-identical after a rejected write"
+        );
+    }
+
+    #[tokio::test]
+    async fn graphify_set_ttl_writes_and_reports_commit_requirement() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_set_ttl(&state, GraphifySetTtlParams { ttl_days: 7 }).await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(parsed["success"], serde_json::json!(true), "{json}");
+        let data = &parsed["data"];
+        assert_eq!(data["ttl_days_written"], serde_json::json!(7));
+        // Key names are only checked here; a typo'd key otherwise compiles and ships.
+        for key in ["env_override_active", "requires_commit", "contract_path"] {
+            assert!(!data[key].is_null(), "missing `{key}` in payload: {json}");
+        }
+        assert_eq!(data["requires_commit"], serde_json::json!(true));
+        // And the value actually landed in the temp repo's contract.
+        assert_eq!(
+            load_graphify_corpora(tmp.path()).unwrap().ttl_days_default,
+            7
+        );
     }
 
     #[tokio::test]

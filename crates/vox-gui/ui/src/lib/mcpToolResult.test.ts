@@ -44,6 +44,43 @@ describe('mcpToolResult', () => {
     expect(text).toContain('diff --git');
   });
 
+  // The parse layer rebuilds the status object field by field, so a key it
+  // forgets to forward is invisible to every panel test that mocks the hook.
+  // That is exactly how the TTL editor shipped dead: the backend emitted
+  // ttl_days, the parse dropped it, and the panel's presence guard was always
+  // false. This case fails if any TTL key stops being forwarded.
+  it('forwards the TTL keys from the vox_search_status envelope', () => {
+    const status = parseGraphifyStatus({
+      tool: 'vox_search_status',
+      is_error: false,
+      result: {
+        success: true,
+        data: {
+          default_corpus_id: 'vox',
+          corpora: [],
+          ttl_days: 14,
+          ttl_days_contract: 30,
+          ttl_days_env_forced: true,
+          ttl_contract_path: 'contracts/retrieval/vox-graph-corpora.v1.yaml',
+        },
+      },
+    });
+    expect(status.ttl_days).toBe(14);
+    expect(status.ttl_days_contract).toBe(30);
+    expect(status.ttl_days_env_forced).toBe(true);
+    expect(status.ttl_contract_path).toBe('contracts/retrieval/vox-graph-corpora.v1.yaml');
+  });
+
+  it('leaves ttl_days undefined when the backend omits it', () => {
+    const status = parseGraphifyStatus({
+      tool: 'vox_search_status',
+      is_error: false,
+      result: { success: true, data: { default_corpus_id: 'vox', corpora: [] } },
+    });
+    expect(status.ttl_days).toBeUndefined();
+    expect(status.default_corpus_id).toBe('vox');
+  });
+
   // F-02: invokeMcpTool's Promise<{...}> signature lies about non-nullability
   // - it's a thin passthrough to Tauri invoke() which can resolve null. These
   // three helpers must not throw a raw TypeError when handed a null envelope.

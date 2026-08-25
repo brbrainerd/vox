@@ -9945,6 +9945,24 @@ curated:
   mcp_tool: vox_search_rebuild
   cli_path: null
   parameters: null
+- id: mcp.vox_search_set_ttl
+  title: Vox Search Set TTL
+  description_human: null
+  description_model: Set the Vox Search corpora staleness TTL in days, writing the shared registry contract that the CLI and CI freshness gate also read (write).
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: false
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_search_set_ttl
+  cli_path: null
+  parameters: null
 - id: mcp.vox_search_status
   title: Vox Search Status
   description_human: null

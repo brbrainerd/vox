@@ -47,6 +47,12 @@ export function parsePendingApprovals(
 export interface GraphifyStatusPayload {
   default_corpus_id: string;
   corpora: unknown[];
+  /** Effective TTL after env > contract precedence. Optional: a backend that
+   *  omits it must still parse, and the panel hides the TTL editor then. */
+  ttl_days?: number;
+  ttl_days_contract?: number;
+  ttl_days_env_forced?: boolean;
+  ttl_contract_path?: string;
 }
 
 /** Parse the `vox_search_status` envelope into the panel's status shape. */
@@ -60,9 +66,20 @@ export function parseGraphifyStatus(
     throw new Error('vox_search_status reported an error');
   }
   const data = unwrapMcpEnvelope(invokeResult.result) as Partial<GraphifyStatusPayload> | null;
+  // Deliberate pick, not a spread: every field is type-checked here so a
+  // malformed payload cannot reach the panel. Each TTL key is forwarded only
+  // when it has the right type, so an older backend that omits them yields
+  // `undefined` and the panel's presence guard hides the editor.
   return {
     default_corpus_id: data?.default_corpus_id ?? '',
     corpora: Array.isArray(data?.corpora) ? data.corpora : [],
+    ttl_days: typeof data?.ttl_days === 'number' ? data.ttl_days : undefined,
+    ttl_days_contract:
+      typeof data?.ttl_days_contract === 'number' ? data.ttl_days_contract : undefined,
+    ttl_days_env_forced:
+      typeof data?.ttl_days_env_forced === 'boolean' ? data.ttl_days_env_forced : undefined,
+    ttl_contract_path:
+      typeof data?.ttl_contract_path === 'string' ? data.ttl_contract_path : undefined,
   };
 }
 
