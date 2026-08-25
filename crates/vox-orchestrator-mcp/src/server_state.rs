@@ -19,6 +19,33 @@ pub struct CachedCatalog {
     pub manifest_mtime: std::time::SystemTime,
 }
 
+/// Cache key for the parsed graphify graph. `corpus_id` is part of the key
+/// because `graphify_compare` loads two corpora in one call and a single-slot
+/// cache keyed only on mtime would thrash between them.
+#[derive(Debug, Clone)]
+pub struct GraphCacheKey {
+    pub corpus_id: String,
+    pub mtime: std::time::SystemTime,
+    pub len: u64,
+}
+
+impl GraphCacheKey {
+    pub fn matches(&self, corpus_id: &str, mtime: std::time::SystemTime, len: u64) -> bool {
+        self.corpus_id == corpus_id && self.mtime == mtime && self.len == len
+    }
+}
+
+/// Parsed graphify graph, cached to avoid a ~10 s / ~500 MB re-parse per call.
+/// Holds both representations: `value` serves `lexical_search_graph`, `reader`
+/// serves BFS/path traversal. `GraphifyReader::from_value` consumes its input,
+/// so keeping only one would force a full clone to serve the other.
+#[derive(Clone)]
+pub struct CachedGraph {
+    pub key: GraphCacheKey,
+    pub value: Arc<serde_json::Value>,
+    pub reader: Arc<vox_graph_reader::GraphifyReader>,
+}
+
 /// Chosen orchestrator backend for the current MCP operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum OrchestratorBackendMode {
@@ -53,6 +80,9 @@ pub struct ServerState {
 
     /// Cache for repo catalog.
     pub catalog_cache: Arc<TokRwLock<Option<CachedCatalog>>>,
+
+    /// Cache for the parsed graphify graph. See [`CachedGraph`].
+    pub graph_cache: Arc<TokRwLock<Option<CachedGraph>>>,
 
     /// Atomic sticky bit: set to true if `vox-orchestrator-d` was reachable at boot and shared our `repository_id`.
     pub orch_daemon_repo_id_aligned: Arc<AtomicBool>,
@@ -274,6 +304,7 @@ impl ServerState {
             plugin_registry,
             questioning_attention_spent_ms: Arc::new(PrRwLock::new(HashMap::new())),
             catalog_cache: Arc::new(TokRwLock::new(None)),
+            graph_cache: Arc::new(TokRwLock::new(None)),
             orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
             clarification_db_inbox_poll_join: Arc::new(PrRwLock::new(None)),
             populi_poll_join: Arc::new(PrRwLock::new(None)),
@@ -337,6 +368,7 @@ impl ServerState {
             plugin_registry: Arc::new(TokRwLock::new(vox_plugin_host::registry::Registry::new())),
             questioning_attention_spent_ms: Arc::new(PrRwLock::new(HashMap::new())),
             catalog_cache: Arc::new(TokRwLock::new(None)),
+            graph_cache: Arc::new(TokRwLock::new(None)),
             orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
             clarification_db_inbox_poll_join: Arc::new(PrRwLock::new(None)),
             populi_poll_join: Arc::new(PrRwLock::new(None)),
@@ -646,6 +678,7 @@ impl ServerState {
             plugin_registry: Arc::new(TokRwLock::new(vox_plugin_host::registry::Registry::new())),
             questioning_attention_spent_ms: Arc::new(PrRwLock::new(HashMap::new())),
             catalog_cache: Arc::new(TokRwLock::new(None)),
+            graph_cache: Arc::new(TokRwLock::new(None)),
             orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
             clarification_db_inbox_poll_join: Arc::new(PrRwLock::new(None)),
             populi_poll_join: Arc::new(PrRwLock::new(None)),

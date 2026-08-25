@@ -87,6 +87,16 @@ impl GraphifyReader {
     ///
     /// Returns [`GraphifyReaderError::MissingNodes`] if the `"nodes"` key is absent or not an array.
     pub fn from_value(value: serde_json::Value) -> Result<Self, GraphifyReaderError> {
+        Self::from_ref(&value)
+    }
+
+    /// Construct by borrowing a parsed `serde_json::Value`.
+    ///
+    /// Identical to [`Self::from_value`] but leaves the input intact, so a caller
+    /// that must retain the raw `Value` (for example to serve a lexical search)
+    /// does not have to clone it. The graph is ~126 MB in this repo, so that
+    /// clone is the difference between ~650 MB and ~1.15 GB of peak commit.
+    pub fn from_ref(value: &serde_json::Value) -> Result<Self, GraphifyReaderError> {
         let nodes_arr = value
             .get("nodes")
             .and_then(|n| n.as_array())
@@ -300,6 +310,28 @@ mod directed_tests {
             r.shortest_path("A", "C", Direction::In).is_none(),
             "regression guard: callers-direction must not reach forward"
         );
+    }
+
+    #[test]
+    fn from_ref_matches_from_value_and_leaves_input_intact() {
+        let value = serde_json::json!({
+            "nodes": [
+                {"id": "a", "label": "Alpha"},
+                {"id": "b", "label": "Beta"}
+            ],
+            "links": [{"source": "a", "target": "b"}]
+        });
+        let by_ref = GraphifyReader::from_ref(&value).expect("from_ref builds");
+        // The input must still be usable after from_ref — that is the whole point.
+        assert!(value.get("nodes").is_some());
+        let by_val = GraphifyReader::from_value(value).expect("from_value builds");
+        let ids = |r: &GraphifyReader| -> Vec<String> {
+            r.bfs_from_seeds(&["a"], 1, 100, Direction::Both)
+                .iter()
+                .map(|h| h.node_id.clone())
+                .collect()
+        };
+        assert_eq!(ids(&by_ref), ids(&by_val));
     }
 
     #[test]
