@@ -200,8 +200,9 @@ export function Omnibar({
   );
 
   // GRAPH facet: graph-discover MCP tool, independently fallible. The tool is
-  // vox_search_structural and its response is `result.hits[]` (the legacy
-  // `result.results[]` is still tolerated) — see parseDiscoverResults.
+  // vox_search_structural. Its payload sits behind the daemon's ToolResult
+  // envelope, at `result.data.hits[]` (the legacy `results[]` is still
+  // tolerated) — see parseDiscoverResults, which unwraps it.
   // A failure here is a real search failure, not an absent capability.
   useEffect(() => {
     if (!open || !debouncedQ.trim()) {
@@ -309,9 +310,10 @@ export function Omnibar({
   const expandGraphNeighbors = useCallback((row: OmnibarRow) => {
     if (row.activate.type !== 'graph') return;
     const seed = row.activate.node;
-    // X2: vox_search_neighbors is the real neighbor primitive:
-    // { corpus, node_ids, max_depth }. Gated behind a VG-1-owned constant so it
-    // fails-soft pre-VG-1. Its response is `result.hits[]` (see parseDiscoverResults).
+    // vox_search_neighbors is the real neighbor primitive:
+    // { corpus, node_ids, max_depth }. Its payload sits behind the daemon's
+    // ToolResult envelope, at `result.data.hits[]` — parseDiscoverResults
+    // unwraps it, so do not reach for `result.hits` here.
     // TODO(VG-1): pass `corpus` once the omnibar carries an active/seed corpus.
     // The discover call (GRAPH_DISCOVER_TOOL) also omits corpus today and relies
     // on the tool default; both should be threaded the same active corpus.

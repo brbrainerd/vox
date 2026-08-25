@@ -90,7 +90,9 @@ pub async fn graphify_set_ttl(state: &ServerState, params: GraphifySetTtlParams)
         // Presence of the env var, not `effective != days`: setting it to the
         // same number still means the env var is in control of the runtime value.
         "env_override_active": vox_config::graphify::ttl_env_override_active_now(),
-        "contract_path": vox_config::graphify::CORPORA_REL_PATH,
+        // Resolved, not the constant: a checkout on the legacy registry name
+        // must be told the file it actually has to commit.
+        "contract_path": vox_config::graphify::corpora_rel_path(repo_root),
         "requires_commit": true,
     }))
     .to_json()
@@ -254,7 +256,7 @@ pub async fn graphify_status(state: &ServerState, params: GraphifyStatusParams) 
         "ttl_days": ttl_days,
         "ttl_days_contract": reg.ttl_days_default,
         "ttl_days_env_forced": vox_config::graphify::ttl_env_override_active_now(),
-        "ttl_contract_path": vox_config::graphify::CORPORA_REL_PATH,
+        "ttl_contract_path": vox_config::graphify::corpora_rel_path(repo_root),
         "corpora": corpora,
     });
     ToolResult::ok(payload).to_json()
@@ -483,12 +485,25 @@ async fn get_graph(
         }
     }
 
-    let raw = fs::read_to_string(&p).map_err(|e| format!("read {}: {e}", p.display()))?;
-    let value: serde_json::Value =
-        serde_json::from_str(&raw).map_err(|e| format!("parse {}: {e}", p.display()))?;
-    // from_ref, not from_value: cloning the 126 MB Value here would push peak
-    // commit on a miss above the spike this cache exists to remove.
-    let reader = vox_graph_reader::GraphifyReader::from_ref(&value).map_err(|e| e.to_string())?;
+    // spawn_blocking: a miss costs ~10 s of synchronous read + parse + HashMap
+    // build on a 126 MB file. Running that inline would pin a tokio worker for
+    // the whole duration and stall every other tool call scheduled on it.
+    let load_path = p.clone();
+    let (value, reader) = tokio::task::spawn_blocking(
+        move || -> Result<(serde_json::Value, vox_graph_reader::GraphifyReader), String> {
+            let raw = fs::read_to_string(&load_path)
+                .map_err(|e| format!("read {}: {e}", load_path.display()))?;
+            let value: serde_json::Value = serde_json::from_str(&raw)
+                .map_err(|e| format!("parse {}: {e}", load_path.display()))?;
+            // from_ref, not from_value: cloning the 126 MB Value here would push
+            // peak commit on a miss above the spike this cache exists to remove.
+            let reader =
+                vox_graph_reader::GraphifyReader::from_ref(&value).map_err(|e| e.to_string())?;
+            Ok((value, reader))
+        },
+    )
+    .await
+    .map_err(|e| format!("graph load task failed for {}: {e}", p.display()))??;
     let entry = crate::server_state::CachedGraph {
         key: crate::server_state::GraphCacheKey {
             corpus_id: corpus_id.to_string(),

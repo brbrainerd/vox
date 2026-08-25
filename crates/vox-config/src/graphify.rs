@@ -173,15 +173,24 @@ impl std::error::Error for GraphifyError {
 }
 
 /// Load the corpora registry from the repo contract file.
-pub fn load_graphify_corpora(repo_root: &Path) -> Result<GraphifyCorporaRegistry, GraphifyError> {
-    let path = repo_root.join(CORPORA_REL_PATH);
-    // One-release back-compat (VG-1 G4): if the new path is absent, try the legacy name.
-    let path = if path.exists() {
-        path
+/// Repo-relative path of the corpora registry actually in use.
+///
+/// One-release back-compat (VG-1 G4): the legacy name is honoured when the new
+/// one is absent. Readers AND writers must both go through this — resolving the
+/// path in only one of them lets `set_ttl_days` write a different file from the
+/// one `load_graphify_corpora` read.
+pub fn corpora_rel_path(repo_root: &Path) -> &'static str {
+    if repo_root.join(CORPORA_REL_PATH).exists() {
+        CORPORA_REL_PATH
+    } else if repo_root.join(LEGACY_CORPORA_REL_PATH).exists() {
+        LEGACY_CORPORA_REL_PATH
     } else {
-        let legacy = repo_root.join(LEGACY_CORPORA_REL_PATH);
-        if legacy.exists() { legacy } else { path }
-    };
+        CORPORA_REL_PATH
+    }
+}
+
+pub fn load_graphify_corpora(repo_root: &Path) -> Result<GraphifyCorporaRegistry, GraphifyError> {
+    let path = repo_root.join(corpora_rel_path(repo_root));
     let raw = fs::read_to_string(&path).map_err(|source| GraphifyError::Io {
         path: path.clone(),
         source,
@@ -226,7 +235,9 @@ pub fn validate_ttl_days(days: u64) -> Result<u64, String> {
 /// Errors if the key is absent, because `ttl_days_default` is serde-defaulted
 /// and a missing key would otherwise make this a silent no-op.
 pub fn set_ttl_days(repo_root: &Path, days: u64) -> std::io::Result<()> {
-    let path = repo_root.join(CORPORA_REL_PATH);
+    // Same resolution the loader uses: writing CORPORA_REL_PATH unconditionally
+    // would fail with a confusing NotFound on a checkout still on the legacy name.
+    let path = repo_root.join(corpora_rel_path(repo_root));
     let raw = fs::read_to_string(&path)?;
     let mut found = false;
     let mut out = String::with_capacity(raw.len());
