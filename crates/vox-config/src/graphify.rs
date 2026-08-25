@@ -40,6 +40,23 @@ pub fn resolve_ttl_days(default_ttl: u64) -> u64 {
     default_ttl
 }
 
+/// True when `raw` (the value of `VOX_GRAPHIFY_TTL_DAYS`) is what `resolve_ttl_days`
+/// will return — i.e. the env var, not the contract, is in control.
+///
+/// Keyed off presence, never off the resolved value differing from the contract:
+/// setting the env var to the same number is still an active override.
+/// Pure over the raw value so it is testable without mutating process-wide env.
+#[must_use]
+pub fn ttl_env_override_active(raw: Option<&str>) -> bool {
+    raw.is_some_and(|v| v.parse::<u64>().is_ok())
+}
+
+/// [`ttl_env_override_active`] applied to the current process environment.
+#[must_use]
+pub fn ttl_env_override_active_now() -> bool {
+    ttl_env_override_active(std::env::var(GRAPHIFY_TTL_DAYS_ENV).ok().as_deref())
+}
+
 #[derive(Debug, Clone, Deserialize)]
 struct CorporaFile {
     default_corpus_id: String,
@@ -235,7 +252,11 @@ pub fn set_ttl_days(repo_root: &Path, days: u64) -> std::io::Result<()> {
             ),
         ));
     }
-    fs::write(&path, out)
+    // Write-then-rename: `fs::write` truncates first, so an interruption would
+    // leave the user's tracked contract empty or half-written.
+    let tmp_path = path.with_extension("yaml.tmp");
+    fs::write(&tmp_path, out)?;
+    fs::rename(&tmp_path, &path)
 }
 
 /// First corpus id whose `default_for_intents` contains `intent`, if any.
@@ -755,6 +776,18 @@ mod tests {
             std::fs::read_to_string(&path).unwrap(),
             "x-vox-version: 1\ndefault_corpus_id: a\ncorpora: []\n"
         );
+    }
+
+    #[test]
+    fn ttl_env_override_keys_off_presence_not_value() {
+        // Present and parseable => active, even when it equals the contract value.
+        assert!(ttl_env_override_active(Some("30")));
+        assert!(ttl_env_override_active(Some("7")));
+        // Absent => inactive.
+        assert!(!ttl_env_override_active(None));
+        // Present but unparseable => resolve_ttl_days ignores it, so not active.
+        assert!(!ttl_env_override_active(Some("")));
+        assert!(!ttl_env_override_active(Some("soon")));
     }
 
     #[test]

@@ -87,7 +87,9 @@ pub async fn graphify_set_ttl(state: &ServerState, params: GraphifySetTtlParams)
     ToolResult::ok(serde_json::json!({
         "ttl_days_written": days,
         "ttl_days_effective": effective,
-        "env_override_active": effective != days,
+        // Presence of the env var, not `effective != days`: setting it to the
+        // same number still means the env var is in control of the runtime value.
+        "env_override_active": vox_config::graphify::ttl_env_override_active_now(),
         "contract_path": vox_config::graphify::CORPORA_REL_PATH,
         "requires_commit": true,
     }))
@@ -246,9 +248,12 @@ pub async fn graphify_status(state: &ServerState, params: GraphifyStatusParams) 
         // Effective TTL after env > contract precedence, the contract value
         // itself, and where it lives — so a UI can distinguish "you set this"
         // from "an env var is forcing this" without hardcoding a path.
+        // `ttl_days_env_forced` keys off the env var's presence, not
+        // `ttl_days != ttl_days_contract`: setting it to the same number is
+        // still an active override that will survive an edit to the contract.
         "ttl_days": ttl_days,
         "ttl_days_contract": reg.ttl_days_default,
-        "ttl_days_env_forced": ttl_days != reg.ttl_days_default,
+        "ttl_days_env_forced": vox_config::graphify::ttl_env_override_active_now(),
         "ttl_contract_path": vox_config::graphify::CORPORA_REL_PATH,
         "corpora": corpora,
     });
@@ -1374,6 +1379,73 @@ mod tests {
                 "rebuild_recommended present: {c}"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn graphify_status_exposes_ttl_keys() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_status(&state, GraphifyStatusParams { corpus: None }).await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        let data = &parsed["data"];
+        for key in [
+            "ttl_days",
+            "ttl_days_contract",
+            "ttl_days_env_forced",
+            "ttl_contract_path",
+        ] {
+            assert!(!data[key].is_null(), "missing `{key}` in status: {json}");
+        }
+        assert_eq!(
+            data["ttl_contract_path"],
+            serde_json::json!(vox_config::graphify::CORPORA_REL_PATH)
+        );
+    }
+
+    /// The guard must run *before* the write, not merely appear first in the source.
+    #[tokio::test]
+    async fn graphify_set_ttl_rejects_zero_without_touching_the_contract() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let path = tmp.path().join(vox_config::graphify::CORPORA_REL_PATH);
+        let before = fs::read(&path).unwrap();
+
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_set_ttl(&state, GraphifySetTtlParams { ttl_days: 0 }).await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(
+            parsed["success"],
+            serde_json::json!(false),
+            "ttl_days: 0 must be rejected: {json}"
+        );
+        assert_eq!(
+            fs::read(&path).unwrap(),
+            before,
+            "contract must be byte-identical after a rejected write"
+        );
+    }
+
+    #[tokio::test]
+    async fn graphify_set_ttl_writes_and_reports_commit_requirement() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_registry(tmp.path());
+        let state = test_state_for_repo(tmp.path().to_path_buf());
+        let json = graphify_set_ttl(&state, GraphifySetTtlParams { ttl_days: 7 }).await;
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(parsed["success"], serde_json::json!(true), "{json}");
+        let data = &parsed["data"];
+        assert_eq!(data["ttl_days_written"], serde_json::json!(7));
+        // Key names are only checked here; a typo'd key otherwise compiles and ships.
+        for key in ["env_override_active", "requires_commit", "contract_path"] {
+            assert!(!data[key].is_null(), "missing `{key}` in payload: {json}");
+        }
+        assert_eq!(data["requires_commit"], serde_json::json!(true));
+        // And the value actually landed in the temp repo's contract.
+        assert_eq!(
+            load_graphify_corpora(tmp.path()).unwrap().ttl_days_default,
+            7
+        );
     }
 
     #[tokio::test]
