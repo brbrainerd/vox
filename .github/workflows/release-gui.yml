@@ -18,7 +18,7 @@ jobs:
   build-tauri:
     name: Build Tauri GUI
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
@@ -34,8 +34,15 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not the floating alias: dtolnay/rust-toolchain's floating
+        # form exports RUSTUP_TOOLCHAIN, which OVERRIDES rust-toolchain.toml —
+        # so the shipped GUI would be built by whatever stable is current,
+        # not the channel every CI gate ran against. See AGENTS.md's
+        # Perennial Bug Patterns for the toolchain-bump lint-wave class this
+        # avoids.
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.96.0"
           # universal-apple-darwin is a Tauri meta-target, not a real rustup
           # triple. The x86_64-apple-darwin cross target is added separately
           # below via `rustup target add` (not here) because this repo pins
@@ -82,39 +89,39 @@ jobs:
         run: |
           # rustup target add (no channel arg) always targets whatever
           # toolchain cargo will actually use here — the repo's pinned
-          # rust-toolchain.toml channel — regardless of what toolchain the
-          # earlier dtolnay/rust-toolchain@stable step installed under the
-          # "stable" alias. Installing this via the action's `targets:` input
-          # instead left x86_64-apple-darwin's core/std missing at build time.
+          # rust-toolchain.toml channel, matching the toolchain installed by
+          # the pinned dtolnay/rust-toolchain step above. Installing this via
+          # the action's `targets:` input instead left x86_64-apple-darwin's
+          # core/std missing at build time.
           rustup target add x86_64-apple-darwin
-          cargo build -p vox-cli --release --target aarch64-apple-darwin
-          cargo build -p vox-cli --release --target x86_64-apple-darwin
-          mkdir -p target/release
+          cargo build -p vox-cli --profile dist --target aarch64-apple-darwin
+          cargo build -p vox-cli --profile dist --target x86_64-apple-darwin
+          mkdir -p "$(dirname target/release/vox-universal-apple-darwin)"
           # Universal builds compile each arch separately (TARGET=<real triple>),
           # so the per-arch sidecar names must exist for cargo/build.rs, and the
           # lipo'd universal name must exist for the final bundling pass.
-          cp target/aarch64-apple-darwin/release/vox target/release/vox-aarch64-apple-darwin
-          cp target/x86_64-apple-darwin/release/vox target/release/vox-x86_64-apple-darwin
+          cp target/aarch64-apple-darwin/dist/vox target/release/vox-aarch64-apple-darwin
+          cp target/x86_64-apple-darwin/dist/vox target/release/vox-x86_64-apple-darwin
           lipo -create -output target/release/vox-universal-apple-darwin \
-            target/aarch64-apple-darwin/release/vox \
-            target/x86_64-apple-darwin/release/vox
+            target/aarch64-apple-darwin/dist/vox \
+            target/x86_64-apple-darwin/dist/vox
 
       - name: Build vox CLI sidecar (release)
         if: matrix.target != 'universal-apple-darwin'
-        run: cargo build -p vox-cli --release --target ${{ matrix.target }}
+        run: cargo build -p vox-cli --profile dist --target ${{ matrix.target }}
 
       - name: Stage Tauri external sidecar (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force target/release | Out-Null
-          Copy-Item target/${{ matrix.target }}/release/vox.exe target/release/vox-${{ matrix.target }}.exe -Force
+          New-Item -ItemType Directory -Force (Split-Path "target/release/vox-${{ matrix.target }}.exe") | Out-Null
+          Copy-Item target/${{ matrix.target }}/dist/vox.exe target/release/vox-${{ matrix.target }}.exe -Force
 
       - name: Stage Tauri external sidecar (Linux)
         if: runner.os == 'Linux'
         run: |
-          mkdir -p target/release
-          cp target/${{ matrix.target }}/release/vox target/release/vox-${{ matrix.target }}
+          mkdir -p "$(dirname "target/release/vox-${{ matrix.target }}")"
+          cp target/${{ matrix.target }}/dist/vox target/release/vox-${{ matrix.target }}
 
       - name: Build Tauri Application
         uses: tauri-apps/tauri-action@v1

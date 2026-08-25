@@ -1,6 +1,6 @@
 ---
 title: "Binary release artifact contract"
-description: "SSOT for GitHub Release binary names, archive layout, checksum manifest, and supported host triples for `vox-bootstrap` and `vox ci release-build`."
+description: "SSOT for GitHub Release binary names, archive layout, checksum manifest, and supported host triples for `voxup` and `vox ci release-build`."
 category: "CI & Quality"
 training_eligible: true
 
@@ -11,10 +11,10 @@ schema_type: "TechArticle"
 
 This document is the **authoritative contract** for **release binaries** (names, archives, **`checksums.txt`**) between:
 
-- **`crates/vox-install-policy`** (Rust SSOT for supported triples, default GitHub org/repo, and `cargo install --locked --path …` argv shared by bootstrap / `vox upgrade` / compliance guards),
+- **`crates/vox-install-policy`** (Rust SSOT for supported triples, default GitHub org/repo, and `cargo install --locked --path …` argv shared by the installer / `vox upgrade` / compliance guards),
 - [`vox ci release-build`](../reference/cli.md) (packaging in CI / locally),
 - [`.github/workflows/release-binaries.yml`](../../../.github/workflows/release-binaries.yml) (tag-triggered publish),
-- [`vox-bootstrap`](../reference/cli.md) (binary-first install),
+- **`voxup`** (`scripts/install.sh` / `scripts/install.ps1`, binary-first install),
 - **`vox upgrade --source release`** (operator self-update; same manifest verification).
 
 The **`vox upgrade --source repo`** lane rebuilds from a local checkout and does **not** consume this checksum manifest (trust model = your git ref + Cargo lock in-tree).
@@ -30,7 +30,7 @@ These triples are built and published for each release **tag** `v*`:
 | `x86_64-apple-darwin` | macOS Intel |
 | `aarch64-apple-darwin` | macOS Apple Silicon |
 
-`vox-bootstrap` maps the **compile-time host** to one of these triples. If no matching asset exists published for that tag, binary install **fails** and the installer falls back to **`cargo install --locked --path crates/vox-cli`** (requires repo root; uses the workspace lockfile).
+`voxup` maps the **compile-time host** to one of these triples. If no matching asset exists published for that tag, binary install **fails** and the installer falls back to **`cargo install --locked --path crates/vox-cli`** (requires repo root; uses the workspace lockfile).
 
 ## Asset file names
 
@@ -38,8 +38,6 @@ For a Git tag `<tag>` (for example `v1.2.3`), each artifact **basename** is:
 
 - **CLI (Unix)**: `vox-<tag>-<target>.tar.gz`
 - **CLI (Windows)**: `vox-<tag>-<target>.zip`
-- **Bootstrap (Unix)**: `vox-bootstrap-<tag>-<target>.tar.gz`
-- **Bootstrap (Windows)**: `vox-bootstrap-<tag>-<target>.zip`
 
 Example: `vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz`
 
@@ -49,8 +47,6 @@ Example: `vox-v1.2.3-x86_64-unknown-linux-gnu.tar.gz`
 |----------|-------------------|
 | Unix archives | `vox` (executable) |
 | Windows zip | `vox.exe` |
-| Unix bootstrap archives | `vox-bootstrap` (executable) |
-| Windows bootstrap zip | `vox-bootstrap.exe` |
 
 No nested directory prefix inside the archive for the executable entry.
 
@@ -64,7 +60,22 @@ No nested directory prefix inside the archive for the executable entry.
 
 - Per-job `dist/checksums.txt` from `release-build` is for **local debugging** only; release downloads should use the root `checksums.txt` attached to the GitHub Release.
 
-## Download URLs (bootstrap)
+## Build profile
+
+Every shipped artifact is built with **`--profile dist`**, not `--release`. `[profile.dist]` in the
+workspace `Cargo.toml` sets `lto = "fat"`, `codegen-units = 1`, and `strip = "symbols"`; plain
+`--release` is thin-LTO and retains debuginfo.
+
+`[profile.dist]` deliberately does **not** set `panic = "abort"`. Three non-test paths in the shipped
+binary depend on unwinding for panic containment — `vox-actor-runtime`'s `spawn_supervised`
+(`JoinError::is_panic`), `vox-vcs`'s `guarded!` macro (`catch_unwind` around `jj-lib`, which ships via
+`vox-orchestrator`'s default features), and `vox-search`'s `memory_cache` (`resume_unwind`). Abort
+would convert each containment point into a process kill. Do not add it back.
+
+The profile is enforced by `shipped_build_steps_use_the_dist_profile` and
+`dist_profile_does_not_abort_on_panic` in `crates/vox-cli/src/commands/ci/release_build.rs`.
+
+## Download URLs (voxup)
 
 - Tagged asset: `https://github.com/vox-foundation/vox/releases/download/<tag>/<basename>`
 - Latest asset: `https://github.com/vox-foundation/vox/releases/latest/download/<basename>`
@@ -78,18 +89,17 @@ The **basename** for `latest` must match the **actual** filename on the latest r
 Before artifacts are uploaded from a matrix build, each platform job extracts the produced archives and runs {
 
 - `vox --version` / `vox.exe --version`
-- `vox-bootstrap --help` / `vox-bootstrap.exe --help`
 
 If any job fails smoke, **do not** consider the release green.
 
 ## Source fallback contract
 
-`vox-bootstrap --install` is binary-first. If binary download/verify/extract fails, source fallback uses:
+`voxup` is binary-first. If binary download/verify/extract fails, source fallback uses:
 
 - `cargo install --locked --path crates/vox-cli`
 - repo root discovery (`VOX_REPO_ROOT` or upward search for `crates/vox-cli/Cargo.toml`)
 
-Therefore source fallback requires a local repo checkout and Cargo. Users running only a downloaded standalone `vox-bootstrap` binary should treat fallback failure as expected unless they provide a repo + Cargo environment.
+Therefore source fallback requires a local repo checkout and Cargo. Users running only a downloaded standalone `voxup` binary should treat fallback failure as expected unless they provide a repo + Cargo environment.
 
 ## PM provenance (registry packages)
 
@@ -104,6 +114,6 @@ If a bad release is published: delete or edit the GitHub Release assets, or ship
 Before shipping a real tag:
 
 1. Locally: `cargo run -p vox-cli -- ci release-build --target <host-triple>` (optional `--version`), extract the archive, run `./vox --version`.
-2. `cargo test -p vox-cli release_build`, `cargo test -p vox-bootstrap`, `cargo run -p vox-cli -- ci command-compliance`.
+2. `cargo test -p vox-cli release_build`, `cargo run -p vox-cli -- ci command-compliance`.
 3. CI: push a disposable test tag `v0.0.0-test.<timestamp>`, confirm all matrix jobs + publish; then delete the test tag/release if it was only for verification.
 

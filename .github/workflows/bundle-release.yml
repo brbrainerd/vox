@@ -4,7 +4,9 @@ name: Build Distribution Bundles
 # Produces one tarball per (bundle-id x platform) matrix cell, verifies
 # each with `vox bundle verify`, and uploads as release artifacts.
 #
-# Matrix: 8 bundles x 2 platforms = 16 jobs per run.
+# Matrix: 7 bundles x 2 platforms = 14 jobs per run.
+# vox-ml-metal (Apple Metal) and vox-mobile (alpha, v0.8) are excluded — see
+# MATRIX_EXCLUDED_BUNDLES in crates/vox-cli/src/commands/ci/release_build.rs.
 
 on:
   release:
@@ -22,19 +24,18 @@ jobs:
   build-bundles:
     name: ${{ matrix.bundle }} @ ${{ matrix.target }}
     runs-on: ${{ fromJson(matrix.runs_on) }}
-    timeout-minutes: 60
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
         bundle:
           - vox-base
-          - vox-fullstack
-          - vox-ml
-          - vox-mesh
-          - vox-server
-          - vox-edge
-          - vox-cloud-only
           - vox-dev
+          - vox-edge
+          - vox-fullstack
+          - vox-mesh
+          - vox-ml
+          - vox-server
         target:
           - x86_64-unknown-linux-gnu
           - x86_64-pc-windows-msvc
@@ -47,8 +48,12 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not @stable: shipped artifacts must be built by the same compiler
+        # CI gates use (rust-toolchain.toml). @stable also imports each new
+        # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.96.0"
           targets: ${{ matrix.target }}
 
       - name: Cache Cargo Registry & Target
@@ -64,7 +69,20 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Build vox CLI
-        run: cargo build --release --locked -p vox-cli --target ${{ matrix.target }}
+        run: cargo build --profile dist --locked -p vox-cli --target ${{ matrix.target }}
+
+      - name: Set VOX_BIN
+        # `vox bundle build` tars std::env::current_exe() as bin/vox, so the
+        # bundler MUST run from the --profile dist binary above, not a
+        # `cargo run --release` (thin-LTO) build — otherwise every tarball
+        # ships a non-dist binary.
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            echo "VOX_BIN=target/${{ matrix.target }}/dist/vox.exe" >> "$GITHUB_ENV"
+          else
+            echo "VOX_BIN=target/${{ matrix.target }}/dist/vox" >> "$GITHUB_ENV"
+          fi
+        shell: bash
 
       - name: Apply bundle (install plugins into VOX_PLUGINS_DIR)
         # For bundles with plugins, pre-install them into a local dir so
@@ -73,40 +91,51 @@ jobs:
         env:
           VOX_PLUGINS_DIR: ${{ github.workspace }}/bundle-plugins
         run: |
-          cargo run --release --locked -p vox-cli -- bundle apply ${{ matrix.bundle }} --yes
+          "$VOX_BIN" bundle apply ${{ matrix.bundle }} --yes
         shell: bash
         continue-on-error: true   # warn but proceed; build step reports missing plugins
 
       - name: Build bundle tarball
         env:
           VOX_PLUGINS_DIR: ${{ github.workspace }}/bundle-plugins
+          BUNDLE_ARTIFACT: ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
         run: |
-          cargo run --release --locked -p vox-cli -- \
+          "$VOX_BIN" \
             bundle build ${{ matrix.bundle }} \
-            --out bundle.tar.gz
+            --out "$BUNDLE_ARTIFACT"
         shell: bash
 
       - name: Verify bundle integrity
         env:
           VOX_PLUGINS_DIR: ${{ github.workspace }}/bundle-plugins
-        run: cargo run --release --locked -p vox-cli -- bundle verify bundle.tar.gz
+          BUNDLE_ARTIFACT: ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+        run: |
+          "$VOX_BIN" bundle verify "$BUNDLE_ARTIFACT"
         shell: bash
 
-      - name: Report tarball size
-        run: ls -lh bundle.tar.gz
+      - name: Checksum bundle
+        env:
+          BUNDLE_ARTIFACT: ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+        run: |
+          ls -lh "$BUNDLE_ARTIFACT"
+          sha256sum "$BUNDLE_ARTIFACT" > "$BUNDLE_ARTIFACT.sha256"
         shell: bash
 
       - name: Upload bundle artifact
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.bundle }}-${{ matrix.target }}
-          path: bundle.tar.gz
+          path: |
+            ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+            ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz.sha256
           retention-days: 30
 
       - name: Attach to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v3
         with:
-          files: bundle.tar.gz
+          files: |
+            ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+            ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

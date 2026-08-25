@@ -5,17 +5,16 @@ use std::path::PathBuf;
 
 /// Release-build target tier (used by [`CiCmd::ReleaseBuild`]); the guard logic lives
 /// in vox-cli's `commands::ci::release_build`, which imports this back.
+///
+/// `Bootstrap` and `Both` were removed: `vox-bootstrap` is retired
+/// (contracts/distribution/profiles.v1.yaml) and building it failed every release.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 pub enum ReleasePackage {
     /// Core `vox` CLI only (lean install — no ML/scientia plugins).
     Vox,
-    /// Standalone `vox-bootstrap` installer used by `scripts/install.{sh,ps1}`.
-    Bootstrap,
-    /// `vox` core + `vox-bootstrap` (legacy "Both" tier — pre-plugin packaging).
-    Both,
     /// `vox-ml-cli` plugin: ML/oratio/speech/populi/train subcommands (heavy: Candle).
     Mens,
-    /// Every artifact: vox + bootstrap + every plugin binary. The "full" tier.
+    /// Every artifact: vox + every plugin binary. The "full" tier.
     All,
 }
 

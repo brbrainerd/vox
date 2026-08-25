@@ -421,12 +421,24 @@ strip = "debuginfo"
 # Produces the smallest, fastest binaries for shipping.
 # Use: cargo build --profile dist -p vox-cli
 # (Keep --release for fast local builds; --profile dist is for CI ship artifacts.)
+#
+# Deliberately does NOT set `panic = "abort"`. The workspace relies on unwinding
+# in three non-test paths: vox-actor-runtime's spawn_supervised
+# (JoinError::is_panic), vox-vcs's `guarded!` macro (catch_unwind around jj-lib,
+# which ships via vox-orchestrator's default features), and vox-search's
+# memory_cache (resume_unwind). Abort would turn each containment point into a
+# process kill.
+#
+# `strip = "symbols"` does cost symbolicated backtraces on Linux/macOS (release
+# strips only debuginfo). Nothing in the workspace captures a Backtrace, sets a
+# panic hook, or asserts on backtrace content, so the only loss is
+# RUST_BACKTRACE=1 quality in a user-reported panic. Switch to
+# `strip = "debuginfo"` if that becomes a support burden.
 [profile.dist]
 inherits = "release"
 lto = "fat"
 codegen-units = 1
 strip = "symbols"
-panic = "abort"
 
 
 
