@@ -141,7 +141,7 @@ describe('Omnibar', () => {
     renderOmnibar();
     const input = screen.getByPlaceholderText(/search/i);
     const discoverCalls = () =>
-      invokeMcpTool.mock.calls.filter((c) => c[0] === 'vox_graphify_query');
+      invokeMcpTool.mock.calls.filter((c) => c[0] === 'vox_search_structural');
     // Type a 4-char burst fast (well within the 200ms debounce window).
     for (const v of ['z', 'zn', 'zno', 'znod']) {
       fireEvent.change(input, { target: { value: v } });

@@ -26,13 +26,13 @@ const FACET_ORDER: FacetKey[] = ['surfaces', 'commands', 'onScreen', 'graph', 'd
 const SETTINGS_SEED_KEY = 'vox_settings_seed';
 
 /**
- * VG-1-owned graph-discover MCP tool name. There is NO `vox_discover` MCP tool
- * today (dispatch.rs registers only `vox_graphify_*`). Until VG-1 renames a graph
- * tool, point this at the real existing tool and let the parser consume the
- * master-spec discover output (`result.results[]`). When VG-1 lands its
- * graph-discover tool, change this one constant.
+ * Graph-discover MCP tool. `vox_graphify_query` was renamed to the `vox_search_*`
+ * family (dispatch.rs registers vox_search_{status,structural,neighbors,path,
+ * callers,callees,compare,rebuild}); this constant was left pointing at the old
+ * name, so the facet errored on every keystroke. `vox_search_structural` is the
+ * only graph tool that takes a lexical query string.
  */
-const GRAPH_DISCOVER_TOOL = 'vox_graphify_query';
+const GRAPH_DISCOVER_TOOL = 'vox_search_structural';
 
 /** VG-1-owned neighbor-expansion MCP tool (umbrella spec §3.1: { corpus, node_ids, max_depth }). */
 const GRAPH_NEIGHBORS_TOOL = 'vox_search_neighbors';
@@ -57,23 +57,29 @@ function federatedKindsForMode(mode: PalettePrefixMode): FederatedIndexKind[] {
 }
 
 /**
- * Parse a graph-discover MCP response into GraphNeighbor[] against the MASTER
- * SPEC output shape (umbrella spec §2.6/§3.1): `{ seeds[], results[{ node_id,
- * fused_score, components, hops, community, reachability_class, provenance }] }`.
- * There is NO `result.neighbors`, NO `view_key`, NO `label` on a result —
- * derive the label from the node_id and the viewKey from a `surface:<vk>` prefix.
+ * Parse a graph-tool response into rows. Both `vox_search_structural` and
+ * `vox_search_neighbors` return `result.hits[]`; `results[]` is accepted as a
+ * legacy fallback. Reading only `results` made the neighbor path silently
+ * return zero rows.
  */
-function parseDiscoverResults(res: unknown): GraphNeighbor[] {
-  const r = res as { is_error?: boolean; result?: { results?: unknown[] } };
-  if (r?.is_error || !Array.isArray(r?.result?.results)) return [];
-  return r.result!.results!
-    .map((n) => n as { node_id?: string; id?: string })
-    .map((n) => n.node_id ?? n.id)
-    .filter((id): id is string => typeof id === 'string' && id.length > 0)
-    .map((id) => {
-      const vk = id.startsWith('surface:') ? id.slice('surface:'.length) : undefined;
-      return { id, label: vk ?? id, viewKey: vk };
-    });
+export function parseDiscoverResults(res: unknown): GraphNeighbor[] {
+  const r = res as {
+    is_error?: boolean;
+    result?: { hits?: unknown[]; results?: unknown[] };
+  };
+  if (r?.is_error) return [];
+  const raw = Array.isArray(r?.result?.hits)
+    ? r.result!.hits!
+    : Array.isArray(r?.result?.results)
+      ? r.result!.results!
+      : [];
+  return raw.flatMap((raw0) => {
+    const n = raw0 as { node_id?: string; id?: string; label?: string };
+    const id = n.node_id ?? n.id;
+    if (typeof id !== 'string' || id.length === 0) return [];
+    const vk = id.startsWith('surface:') ? id.slice('surface:'.length) : undefined;
+    return [{ id, label: n.label ?? vk ?? id, viewKey: vk }];
+  });
 }
 
 interface OmnibarProps {
@@ -300,7 +306,7 @@ export function Omnibar({
     const seed = row.activate.node;
     // X2: vox_search_neighbors is the real neighbor primitive:
     // { corpus, node_ids, max_depth }. Gated behind a VG-1-owned constant so it
-    // fails-soft pre-VG-1. Parse with the master-spec `result.results[]` shape.
+    // fails-soft pre-VG-1. Its response is `result.hits[]` (see parseDiscoverResults).
     // TODO(VG-1): pass `corpus` once the omnibar carries an active/seed corpus.
     // The discover call (GRAPH_DISCOVER_TOOL) also omits corpus today and relies
     // on the tool default; both should be threaded the same active corpus.
