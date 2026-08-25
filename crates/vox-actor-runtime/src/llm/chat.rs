@@ -122,6 +122,7 @@ pub async fn llm_chat(
                 model: config.model.clone(),
                 base_url_override: config.base_url.clone(),
                 timeout_ms: config.timeout_ms,
+                api_key_override: config.api_key.clone(),
             };
             let ereq = match vox_config::resolve_egress::resolve_egress(&input) {
                 Ok(r) => r,

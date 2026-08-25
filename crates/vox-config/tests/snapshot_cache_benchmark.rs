@@ -57,6 +57,7 @@ fn cached_100_calls_resolve_egress_complete_under_50ms() {
         model: "bench-model".into(),
         base_url_override: None,
         timeout_ms: None,
+        api_key_override: None,
     };
 
     // Warm.

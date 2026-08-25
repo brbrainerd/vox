@@ -27,6 +27,7 @@ pub async fn llm_stream(
         base_url_override: config.base_url.clone(),
         // Resolved but ignored by stream_once (a whole-request deadline would sever SSE).
         timeout_ms: config.timeout_ms,
+        api_key_override: config.api_key.clone(),
     };
     let ereq = vox_config::resolve_egress::resolve_egress(&input)?;
     let wire_msgs: Vec<vox_llm_egress::ChatMessage> = messages
