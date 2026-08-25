@@ -1398,6 +1398,11 @@ tools:
   product_lane: platform
   http_read_role_eligible: false
   tier: core
+- name: vox_search_set_ttl
+  description: Set the Vox Search corpora staleness TTL in days, writing the shared registry contract that the CLI and CI freshness gate also read (write).
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
 - name: vox_search_status
   description: Report Vox Search structural-index freshness (read-only; `--strict` fails when stale).
   product_lane: platform

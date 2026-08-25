@@ -6400,6 +6400,28 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: graph.set.ttl
+  title: Vox Search Set TTL
+  description: Set the Vox Search corpora staleness TTL in days, writing the shared registry contract that the CLI and CI freshness gate also read (write).
+  description_human: null
+  product_lane: platform
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  preferred_for_models: false
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_search_set_ttl
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: get.active.model
   title: Get Active Model
   description: Show sticky MCP chat override and resolved ModelSpec (no LLM call).

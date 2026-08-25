@@ -29,6 +29,7 @@ The Vox Graph engine indexes the codebase as a structural graph (fn, struct, sur
 | `vox_search_path` | Shortest path between two node IDs |
 | `vox_search_compare` | Diff two corpus manifests (node/edge/community delta) |
 | `vox_search_rebuild` | Rebuild the structural graph for a corpus |
+| `vox_search_set_ttl` | Set the corpus staleness TTL in days (writes the shared registry contract) |
 
 ## Graph verbs (CLI)
 

@@ -180,6 +180,64 @@ pub fn load_graphify_corpora(repo_root: &Path) -> Result<GraphifyCorporaRegistry
     })
 }
 
+/// Accepted TTL range for the corpora registry, in days.
+/// Zero would mark every corpus permanently stale; the upper bound is ten
+/// years, past which the value is certainly a typo rather than an intent.
+const TTL_DAYS_MIN: u64 = 1;
+const TTL_DAYS_MAX: u64 = 3650;
+
+/// Validate a TTL in days. Pure — callable from a command boundary before any
+/// write, so an absurd value is rejected with a message rather than persisted
+/// and discovered later.
+pub fn validate_ttl_days(days: u64) -> Result<u64, String> {
+    if (TTL_DAYS_MIN..=TTL_DAYS_MAX).contains(&days) {
+        Ok(days)
+    } else {
+        Err(format!(
+            "ttl_days must be between {TTL_DAYS_MIN} and {TTL_DAYS_MAX} (got {days})"
+        ))
+    }
+}
+
+/// Rewrite `ttl_days_default` in the corpora contract, leaving every other byte
+/// of the file untouched.
+///
+/// This is a surgical single-line edit rather than a `serde_yaml` round-trip on
+/// purpose: the contract is hand-authored with comments and a deliberate key
+/// order, and reserializing it would strip both for a one-number change.
+///
+/// Errors if the key is absent, because `ttl_days_default` is serde-defaulted
+/// and a missing key would otherwise make this a silent no-op.
+pub fn set_ttl_days(repo_root: &Path, days: u64) -> std::io::Result<()> {
+    let path = repo_root.join(CORPORA_REL_PATH);
+    let raw = fs::read_to_string(&path)?;
+    let mut found = false;
+    let mut out = String::with_capacity(raw.len());
+    for line in raw.split_inclusive('\n') {
+        let body = line.strip_suffix('\n').unwrap_or(line);
+        let body = body.strip_suffix('\r').unwrap_or(body);
+        // Top-level key only (no leading whitespace), first occurrence only.
+        if !found && body.starts_with("ttl_days_default:") {
+            found = true;
+            out.push_str(&format!("ttl_days_default: {days}"));
+            // Preserve whatever line ending the file already uses.
+            out.push_str(&line[body.len()..]);
+        } else {
+            out.push_str(line);
+        }
+    }
+    if !found {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "ttl_days_default key not found in {}; refusing to write",
+                path.display()
+            ),
+        ));
+    }
+    fs::write(&path, out)
+}
+
 /// First corpus id whose `default_for_intents` contains `intent`, if any.
 /// Activates the otherwise-dormant intent-routing field.
 pub fn select_corpus_for_intent(reg: &GraphifyCorporaRegistry, intent: &str) -> Option<String> {
@@ -636,6 +694,68 @@ pub fn assess_corpus_status(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn validate_ttl_days_rejects_zero_and_absurd() {
+        assert_eq!(validate_ttl_days(30), Ok(30));
+        assert_eq!(validate_ttl_days(1), Ok(1));
+        assert_eq!(validate_ttl_days(3650), Ok(3650));
+        assert!(validate_ttl_days(0).is_err());
+        assert!(validate_ttl_days(3651).is_err());
+    }
+
+    #[test]
+    fn set_ttl_days_rewrites_one_line_and_preserves_comments() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join(CORPORA_REL_PATH);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        // Shape copied from the real contract, comments included.
+        std::fs::write(
+            &path,
+            "x-vox-version: 1\nschema_version: 1\n\n# Named Graphify knowledge-graph corpora.\n# See docs/...\n\ndefault_corpus_id: repo-code-graph\nttl_days_default: 30\n\ncorpora:\n  - id: repo-code-graph\n    title: Repository code graph\n    scope_path: \".\"\n    graph_path: \"g\"\n    manifest_path: \"m\"\n",
+        )
+        .unwrap();
+
+        set_ttl_days(tmp.path(), 7).unwrap();
+
+        let after = std::fs::read_to_string(&path).unwrap();
+        assert!(after.contains("ttl_days_default: 7"), "value not updated");
+        assert!(
+            !after.contains("ttl_days_default: 30"),
+            "old value still present"
+        );
+        // Everything else must survive byte-for-byte.
+        assert!(after.contains("# Named Graphify knowledge-graph corpora."));
+        assert!(after.contains("# See docs/..."));
+        assert!(after.contains("default_corpus_id: repo-code-graph"));
+        assert!(after.contains("    title: Repository code graph"));
+        // And the file must still parse.
+        let reg = load_graphify_corpora(tmp.path()).unwrap();
+        assert_eq!(reg.ttl_days_default, 7);
+    }
+
+    #[test]
+    fn set_ttl_days_errors_when_key_absent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join(CORPORA_REL_PATH);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        // No ttl_days_default line: the key is serde-defaulted, so it can be missing.
+        std::fs::write(
+            &path,
+            "x-vox-version: 1\ndefault_corpus_id: a\ncorpora: []\n",
+        )
+        .unwrap();
+        let err = set_ttl_days(tmp.path(), 7)
+            .expect_err("must not silently no-op when the key is absent");
+        // Must be the refusal, not an incidental IO error on a missing fixture.
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        assert!(err.to_string().contains("ttl_days_default key not found"));
+        // And the file must be untouched.
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "x-vox-version: 1\ndefault_corpus_id: a\ncorpora: []\n"
+        );
+    }
 
     #[test]
     fn graph_stats_empty_graph() {

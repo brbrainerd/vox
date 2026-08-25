@@ -20,6 +20,7 @@ fn dispatch_routes_vox_search_keys_not_graphify() {
         "\"vox_search_callees\"",
         "\"vox_search_compare\"",
         "\"vox_search_rebuild\"",
+        "\"vox_search_set_ttl\"",
     ] {
         assert!(dispatch.contains(k), "dispatch missing {k}");
         assert!(schemas.contains(k), "schemas missing {k}");

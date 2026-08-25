@@ -44,6 +44,56 @@ fn default_persist_true() -> bool {
     true
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphifySetTtlParams {
+    pub ttl_days: u64,
+}
+
+/// `vox_search_set_ttl`: set the corpora registry's global staleness TTL.
+///
+/// Writes `contracts/retrieval/vox-graph-corpora.v1.yaml`, which is the same
+/// value the CLI and the CI freshness gate read — so the GUI, `vox graphify
+/// status`, and CI cannot disagree. The edit is a tracked file change and
+/// shows up in `git status`; the response says so.
+pub async fn graphify_set_ttl(state: &ServerState, params: GraphifySetTtlParams) -> String {
+    let repo_root = &state.repository.root;
+    let days = match vox_config::graphify::validate_ttl_days(params.ttl_days) {
+        Ok(d) => d,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(e, REM_GRAPHIFY)
+                .to_json();
+        }
+    };
+    if let Err(e) = vox_config::graphify::set_ttl_days(repo_root, days) {
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            format!("write ttl: {e}"),
+            REM_GRAPHIFY,
+        )
+        .to_json();
+    }
+    // Re-read through the normal loader so the response reflects the same
+    // precedence every other caller sees (env > contract).
+    let reg = match load_graphify_corpora(repo_root) {
+        Ok(r) => r,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err_with_remediation(
+                e.to_string(),
+                REM_GRAPHIFY,
+            )
+            .to_json();
+        }
+    };
+    let effective = vox_config::graphify::resolve_ttl_days(reg.ttl_days_default);
+    ToolResult::ok(serde_json::json!({
+        "ttl_days_written": days,
+        "ttl_days_effective": effective,
+        "env_override_active": effective != days,
+        "contract_path": vox_config::graphify::CORPORA_REL_PATH,
+        "requires_commit": true,
+    }))
+    .to_json()
+}
+
 fn corpus_by_id<'a>(
     reg: &'a vox_config::graphify::GraphifyCorporaRegistry,
     id: &str,
@@ -189,9 +239,17 @@ pub async fn graphify_status(state: &ServerState, params: GraphifyStatusParams) 
             v
         })
         .collect();
+    let ttl_days = vox_config::graphify::resolve_ttl_days(reg.ttl_days_default);
     let payload = serde_json::json!({
         "head_git_sha": head,
         "default_corpus_id": reg.default_corpus_id,
+        // Effective TTL after env > contract precedence, the contract value
+        // itself, and where it lives — so a UI can distinguish "you set this"
+        // from "an env var is forcing this" without hardcoding a path.
+        "ttl_days": ttl_days,
+        "ttl_days_contract": reg.ttl_days_default,
+        "ttl_days_env_forced": ttl_days != reg.ttl_days_default,
+        "ttl_contract_path": vox_config::graphify::CORPORA_REL_PATH,
         "corpora": corpora,
     });
     ToolResult::ok(payload).to_json()
