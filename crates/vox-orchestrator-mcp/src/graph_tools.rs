@@ -862,8 +862,9 @@ mod tests {
         assert!(!key.matches("repo-code-graph", base + Duration::from_secs(1), 42));
         // Same mtime but a different size (possible on coarse filesystems) must miss.
         assert!(!key.matches("repo-code-graph", base, 43));
-        // A different corpus must never hit: graphify_compare loads two corpora
-        // and a single-slot cache would otherwise thrash between them.
+        // A different corpus must never hit: resolve_search_corpus can pick a
+        // different corpus per call, so without corpus_id the cache would serve
+        // one corpus's graph for another corpus's request.
         assert!(!key.matches("docs-graph", base, 42));
     }
 

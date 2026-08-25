@@ -313,7 +313,7 @@ mod directed_tests {
     }
 
     #[test]
-    fn from_ref_matches_from_value_and_leaves_input_intact() {
+    fn from_ref_builds_the_graph_and_leaves_input_reusable() {
         let value = serde_json::json!({
             "nodes": [
                 {"id": "a", "label": "Alpha"},
@@ -322,16 +322,27 @@ mod directed_tests {
             "links": [{"source": "a", "target": "b"}]
         });
         let by_ref = GraphifyReader::from_ref(&value).expect("from_ref builds");
-        // The input must still be usable after from_ref — that is the whole point.
-        assert!(value.get("nodes").is_some());
-        let by_val = GraphifyReader::from_value(value).expect("from_value builds");
-        let ids = |r: &GraphifyReader| -> Vec<String> {
-            r.bfs_from_seeds(&["a"], 1, 100, Direction::Both)
-                .iter()
-                .map(|h| h.node_id.clone())
-                .collect()
-        };
-        assert_eq!(ids(&by_ref), ids(&by_val));
+
+        // Real structure, not a self-comparison: two nodes, one edge, and a
+        // depth-1 hop from "a" that reaches exactly "b" with its label.
+        assert_eq!(by_ref.node_count(), 2);
+        assert_eq!(by_ref.edge_count(), 1);
+        let hits = by_ref.bfs_from_seeds(&["a"], 1, 100, Direction::Both);
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].node_id, "b");
+        assert_eq!(hits[0].label, "Beta");
+        assert_eq!(hits[0].depth, 1);
+        assert_eq!(hits[0].path, vec!["a".to_string(), "b".to_string()]);
+
+        // Retention: the same `value` still builds an equivalent reader, which is
+        // exactly what `get_graph` relies on when it caches Value and reader both.
+        let again = GraphifyReader::from_ref(&value).expect("input still usable");
+        assert_eq!(again.node_count(), 2);
+        assert_eq!(again.edge_count(), 1);
+        assert_eq!(
+            again.shortest_path("a", "b", Direction::Out),
+            Some(vec!["a".to_string(), "b".to_string()])
+        );
     }
 
     #[test]

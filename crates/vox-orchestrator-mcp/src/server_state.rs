@@ -19,9 +19,10 @@ pub struct CachedCatalog {
     pub manifest_mtime: std::time::SystemTime,
 }
 
-/// Cache key for the parsed graphify graph. `corpus_id` is part of the key
-/// because `graphify_compare` loads two corpora in one call and a single-slot
-/// cache keyed only on mtime would thrash between them.
+/// Cache key for the parsed graphify graph. `corpus_id` is part of the key for
+/// correctness, not speed: `resolve_search_corpus` can pick a different corpus
+/// on different calls, so a key of mtime + len alone could serve corpus A's
+/// cached graph in answer to a request for corpus B.
 #[derive(Debug, Clone)]
 pub struct GraphCacheKey {
     pub corpus_id: String,
@@ -37,8 +38,9 @@ impl GraphCacheKey {
 
 /// Parsed graphify graph, cached to avoid a ~10 s / ~500 MB re-parse per call.
 /// Holds both representations: `value` serves `lexical_search_graph`, `reader`
-/// serves BFS/path traversal. `GraphifyReader::from_value` consumes its input,
-/// so keeping only one would force a full clone to serve the other.
+/// serves BFS/path traversal. Both are kept because caching only the `Value`
+/// would force a `from_ref` rebuild — seconds of HashMap construction — on
+/// every BFS/path call.
 #[derive(Clone)]
 pub struct CachedGraph {
     pub key: GraphCacheKey,
