@@ -3,6 +3,7 @@ use vox_compiler::hir::{HirIndex, HirModule, HirTable, HirType};
 use vox_secrets::SecretId;
 use vox_sql::BackendKind;
 use vox_sql::SqlDialect;
+use vox_sql::build::equality_predicate_sql;
 use vox_sql::build::placeholder_sql;
 
 use super::super::types::emit_type;
@@ -360,8 +361,8 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
     }
     let set_clause = col_names
         .iter()
-        .zip(placeholders.iter())
-        .map(|(col, ph)| format!("{col} = {ph}"))
+        .enumerate()
+        .map(|(i, col)| equality_predicate_sql(&dialect, col, i + 1))
         .collect::<Vec<_>>()
         .join(", ");
     let update_binds = emit_turso_positional_binds(

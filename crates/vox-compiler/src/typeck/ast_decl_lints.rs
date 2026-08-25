@@ -1547,6 +1547,23 @@ mod http_decorator_misuse_tests {
         lint_ast_declarations(&module, src)
     }
 
+    /// Shared assertion for the "exactly one decorator-misuse diagnostic,
+    /// mentioning these substrings" shape used by most cases below.
+    fn assert_single_decorator_misuse_diag(diags: &[Diagnostic], expect_in_message: &[&str]) {
+        let matches: Vec<_> = diags
+            .iter()
+            .filter(|d| d.code.as_deref() == Some(codes::TYPECK_DECORATOR_REQUIRES_ENDPOINT))
+            .collect();
+        assert_eq!(
+            matches.len(),
+            1,
+            "expected exactly one decorator-misuse diagnostic, got: {diags:?}"
+        );
+        for needle in expect_in_message {
+            assert!(matches[0].message.contains(needle));
+        }
+    }
+
     /// The bug this test guards: `@rate_limit` parses cleanly on a `tool`
     /// declaration's inner function (same headless-fn parser HTTP endpoints
     /// use) but is never read by the MCP tool codegen path -- only by
@@ -1561,17 +1578,7 @@ mod http_decorator_misuse_tests {
                  return a\n\
              }\n",
         );
-        let matches: Vec<_> = diags
-            .iter()
-            .filter(|d| d.code.as_deref() == Some(codes::TYPECK_DECORATOR_REQUIRES_ENDPOINT))
-            .collect();
-        assert_eq!(
-            matches.len(),
-            1,
-            "expected exactly one decorator-misuse diagnostic, got: {diags:?}"
-        );
-        assert!(matches[0].message.contains("@rate_limit"));
-        assert!(matches[0].message.contains("tool"));
+        assert_single_decorator_misuse_diag(&diags, &["@rate_limit", "tool"]);
     }
 
     /// Same bug, same fix, on `resource` -- its inner function goes through
@@ -1586,17 +1593,7 @@ mod http_decorator_misuse_tests {
                  return \"\"\n\
              }\n",
         );
-        let matches: Vec<_> = diags
-            .iter()
-            .filter(|d| d.code.as_deref() == Some(codes::TYPECK_DECORATOR_REQUIRES_ENDPOINT))
-            .collect();
-        assert_eq!(
-            matches.len(),
-            1,
-            "expected exactly one decorator-misuse diagnostic, got: {diags:?}"
-        );
-        assert!(matches[0].message.contains("@pii"));
-        assert!(matches[0].message.contains("resource"));
+        assert_single_decorator_misuse_diag(&diags, &["@pii", "resource"]);
     }
 
     /// The pre-existing bare-`fn` case must keep working after the
@@ -1610,15 +1607,7 @@ mod http_decorator_misuse_tests {
                  return a\n\
              }\n",
         );
-        let matches: Vec<_> = diags
-            .iter()
-            .filter(|d| d.code.as_deref() == Some(codes::TYPECK_DECORATOR_REQUIRES_ENDPOINT))
-            .collect();
-        assert_eq!(
-            matches.len(),
-            1,
-            "expected exactly one decorator-misuse diagnostic, got: {diags:?}"
-        );
+        assert_single_decorator_misuse_diag(&diags, &[]);
     }
 
     /// A `mutation` carrying `@rate_limit` is the legitimate case -- it must

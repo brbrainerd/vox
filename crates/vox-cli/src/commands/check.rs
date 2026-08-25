@@ -46,6 +46,13 @@ fn is_script_like(source: &str) -> bool {
     // whose grammar requires a `workflow` line to immediately follow -- was
     // silently misclassified as a script and routed through VoxScript-mode
     // parsing instead of full-module parsing.
+    // Mirrors the union of `vox_language_surface::DECLARATION_KEYWORDS` and
+    // `WEB_REACTIVE_KEYWORDS` (the actor/workflow/activity/component subset and
+    // the table/query/mutation/server/tool/resource/form subset) plus `routes`,
+    // which lives in neither list (recognized positionally, no lexer token) —
+    // duplicated here per the Defactor policy (crate-edges is CI-gated and a
+    // new vox-cli -> vox-language-surface edge needs a user-authorized
+    // exception) rather than taking a new crate dependency for ~15 literals.
     let decl_keywords = [
         "table ",
         "query ",
@@ -57,6 +64,8 @@ fn is_script_like(source: &str) -> bool {
         "workflow ",
         "activity ",
         "actor ",
+        "tool ",
+        "resource ",
     ];
     let has_decl_keyword = source.lines().any(|line| {
         decl_keywords
