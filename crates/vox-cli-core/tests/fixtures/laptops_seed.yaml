@@ -1,0 +1,24 @@
+# Observed values only. `gpu_accessible_gb` is absent by design — it is derived
+# at load time from `total_memory_gb` and `arch`, and carries Evidence::Derived.
+items:
+  - item_id: mbp14-m5pro-64
+    category: laptop
+    arch: apple_unified
+    attributes:
+      total_memory_gb: { number: 64,   unit: GB,  evidence: merchant_page }
+      price_usd:       { number: 3699, unit: USD, evidence: merchant_page }
+      weight_kg:       { number: 1.55, unit: kg,  evidence: merchant_page }
+  - item_id: mbp16-m5max-128
+    category: laptop
+    arch: apple_unified
+    attributes:
+      total_memory_gb: { number: 128,  unit: GB,  evidence: merchant_page }
+      price_usd:       { number: 5999, unit: USD, evidence: merchant_page }
+      weight_kg:       { number: 2.15, unit: kg,  evidence: merchant_page }
+  - item_id: rog-flow-z13-128
+    category: laptop
+    arch: strix_halo
+    attributes:
+      total_memory_gb: { number: 128,  unit: GB,  evidence: merchant_page }
+      price_usd:       { number: 2799, unit: USD, evidence: merchant_page }
+      weight_kg:       { number: 1.20, unit: kg,  evidence: merchant_page }

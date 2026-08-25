@@ -297,6 +297,107 @@ pub fn apply(schema: &CatalogSchema, items: &[CatalogItem], constraints: &[Const
     out
 }
 
+/// Memory architecture, which decides how much of installed RAM the GPU can
+/// actually address.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Arch {
+    AppleUnified,
+    StrixHalo,
+    Discrete,
+}
+
+/// `unified_memory_reserve_v1`.
+///
+/// Neither reserve is a hardware constant: Apple's is adjustable via
+/// `iogpu.wired_limit_percent`, Strix Halo's is a UEFI/driver setting. These
+/// are the shipped defaults, which is what a buyer gets out of the box — and
+/// why the output is `Evidence::Derived` with the rule named and versioned,
+/// rather than a figure wearing a merchant page's provenance.
+pub fn derive_gpu_accessible_gb(total_gb: f64, arch: Arch) -> Value {
+    let usable = match arch {
+        Arch::AppleUnified | Arch::StrixHalo => (total_gb * 0.75).floor(),
+        // A discrete GPU's VRAM is not carved out of system memory.
+        Arch::Discrete => total_gb,
+    };
+    Value {
+        number: usable,
+        unit: Some("GB".into()),
+        evidence: Evidence::Derived,
+    }
+}
+
+#[derive(Deserialize)]
+struct SeedValue {
+    number: f64,
+    #[serde(default)]
+    unit: Option<String>,
+    evidence: Evidence,
+}
+
+#[derive(Deserialize)]
+struct SeedItem {
+    item_id: String,
+    category: String,
+    #[serde(default = "discrete")]
+    arch: Arch,
+    #[serde(default)]
+    attributes: BTreeMap<String, SeedValue>,
+}
+
+fn discrete() -> Arch {
+    Arch::Discrete
+}
+
+#[derive(Deserialize)]
+struct Seed {
+    items: Vec<SeedItem>,
+}
+
+/// Loads observed values and computes derived ones.
+///
+/// A seed that asserts a derived attribute directly is rejected: letting a
+/// source hand-write `gpu_accessible_gb` is precisely the unprovenanced number
+/// this layer exists to stop.
+pub fn seed_from_yaml(schema: &CatalogSchema, yaml: &str) -> Result<Vec<CatalogItem>, SchemaError> {
+    let seed: Seed = serde_yaml::from_str(yaml)?;
+    let mut items = Vec::with_capacity(seed.items.len());
+    for s in seed.items {
+        let mut attributes: BTreeMap<String, Value> = s
+            .attributes
+            .into_iter()
+            .map(|(k, v)| {
+                (
+                    k,
+                    Value {
+                        number: v.number,
+                        unit: v.unit,
+                        evidence: v.evidence,
+                    },
+                )
+            })
+            .collect();
+
+        if attributes.contains_key("gpu_accessible_gb") {
+            return Err(SchemaError::AssertedDerived("gpu_accessible_gb".into()));
+        }
+        if let Some(total) = attributes.get("total_memory_gb") {
+            let derived = derive_gpu_accessible_gb(total.number, s.arch);
+            attributes.insert("gpu_accessible_gb".into(), derived);
+        }
+        // Reserved: required-attribute checking belongs at promotion time,
+        // which arrives with the store. Named here so the parameter is not
+        // mistaken for an oversight.
+        let _ = schema;
+        items.push(CatalogItem {
+            item_id: s.item_id,
+            category: s.category,
+            attributes,
+        });
+    }
+    Ok(items)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
