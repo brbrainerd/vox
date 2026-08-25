@@ -1122,8 +1122,9 @@ const TTL_DAYS_MAX = 3650;
 /**
  * Editable staleness TTL. TTL is a global registry setting, so this lives in the
  * panel header rather than on a corpus card. Writes go through
- * `vox_search_set_ttl`, which persists a user-local override in gitignored
- * `.vox/cache` — never the tracked contract YAML.
+ * `vox_search_set_ttl`, which edits `ttl_days_default` in the tracked contract
+ * `contracts/retrieval/vox-graph-corpora.v1.yaml` — the same value the CLI and
+ * the CI freshness gate read, so the save leaves an uncommitted change.
  */
 function TtlEditor({ ttlDays, envForced }: { ttlDays: number; envForced: boolean }) {
   const queryClient = useQueryClient();
