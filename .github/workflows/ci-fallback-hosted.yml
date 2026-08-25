@@ -49,7 +49,16 @@ jobs:
     name: Check, Build, and Test (Rust)
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'fleet-down')
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # TEMPORARY: raised from 45 — this job (fmt + clippy --workspace + nextest
+    # --workspace, ~11.2k tests + doctests + deny + audit, all sequential on a
+    # 4-core hosted runner) has been cancelled by its own timeout at the exact
+    # 45-minute mark on every observed run: main's nightly schedule on 2026-08-23
+    # and 2026-08-24, and this PR's fleet-down run on 2026-08-25 — the last one
+    # cut mid-`cargo build`, before nextest even started, at a 50% sccache hit
+    # rate. Same cold-cache-vs-timeout failure the `gui-windows-build-smoke` job
+    # below already documents; mirroring its fix. Revert toward 45 once a few
+    # runs confirm the GHA sccache/rust-cache entries are warm and stable.
+    timeout-minutes: 90
     env:
       # Shared compile cache via the GitHub Actions cache service. Incremental
       # compilation is disabled because sccache cannot cache incremental
