@@ -30,9 +30,7 @@ artifacts per supported target triple, each as its own archive on the
 | `--package` value | Produces | Use for |
 |---|---|---|
 | `vox` | `vox-<ver>-<target>.{tar.gz,zip}` | Lean install — compiler, package manager, orchestrator. No ML, no scientia. |
-| `bootstrap` | `vox-bootstrap-<ver>-<target>.{tar.gz,zip}` | Standalone installer used by `scripts/install.{sh,ps1}`. |
 | `mens` | `vox-ml-cli-<ver>-<target>.{tar.gz,zip}` | ML / speech / populi / train plugin (heavy: Candle + Whisper). |
-| `both` | `vox` + `vox-bootstrap` | Legacy pre-plugin tier (kept for backwards compatibility). |
 | `all` | Everything above | Full install for CI / dogfood. |
 
 Download a plugin archive, extract the binary onto `PATH`, and `vox` will
@@ -240,7 +238,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `policy-allowlist-parity` | Verifies `allow_direct_access` in `contracts/db/data-storage-policy.v1.yaml` matches [`docs/agents/turso-import-allowlist.txt`](../../../docs/agents/turso-import-allowlist.txt). |
 | `retirement-audit` | Enforces removal of `vox-deprecated-since` markers whose `retire-by` version has been reached. Scans workspace Rust sources; fails when any marker's `retire-by` semver ≤ current workspace version. |
 | `secrets-parity` | Verifies Secrets SSOT parity between managed secret specs and [`secrets-ssot.md`](secrets-ssot.md). Visible alias: **`clavis-parity`**. |
-| `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|bootstrap\|both]` | Build and package allowlisted release artifacts (`cargo build --locked --release`): `vox`, `vox-bootstrap`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
+| `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|mens\|all]` | Build and package allowlisted release artifacts (`cargo build --locked --profile dist`): `vox`, `vox-ml-cli`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, CLI reference (`docs/src/reference/cli.md` or legacy `ref-cli.md`), reachability SSOT, compilerd/dei RPC names, MCP tool registry, script duals, and **`contracts/operations/completion-policy.v1.yaml`** (JSON Schema) — blocks orphan CLI drift |
 | `completion-audit [--scan-extra <DIR>]…` | Scans **`crates/`** (always) plus optional extra directories under the repo (generated apps, codegen trees). Same detectors; paths must exist and resolve under the repository root. Writes **`contracts/reports/completion-audit.v1.json`**. CI uses **`--features completion-toestub`** to merge TOESTUB `victory-claim` (Tier C). |
 | `completion-gates [--mode warn\|enforce]` | Applies Tier A hard blocks and Tier B regression limits from **`contracts/reports/completion-baseline.v1.json`** to the last audit report (CI uses **`enforce`**) |
@@ -808,6 +806,41 @@ Use one canonical command description in clap for each command, then reuse it in
 4. Run **`vox ci operations-verify`** and **`vox ci command-compliance`** before merge (also enforced in CI).
 
 
+## Command index — not yet covered in detail
+
+The sections above document 50 of the 76 top-level `vox` commands. The remaining 26 are listed here with the description clap already carries, so the surface is at least discoverable while the prose catches up. Run `vox <command> --help` for flags and subcommands.
+
+<!-- ponytail: hand-written index, sourced from `vox commands --format json` on 2026-08-23. It will drift as commands are added. The durable fix is generating this table from `build_catalog()` (which reflects the clap tree directly) and gating it in `ssot-drift`; see docs/src/api/DOC_GAPS.md. -->
+
+| Command | What it does |
+|---------|--------------|
+| `vox audit` | Run quality-gate checks from `contracts/ci/check-targets.v1.yaml` (`vox audit`) |
+| `vox bundle-app` | Bundle a Vox source file into a complete web application (use `vox fab bundle` or `vox fabrica bundle`) |
+| `vox catalog` | Manage the `.vox/repositories.yaml` cross-repo catalog |
+| `vox chat` | Send one message through the harness's chat pipeline and print the reply (`vox chat`) |
+| `vox component` | Vendor a shadcn/ui component into the project (fetches source from ui.shadcn.com and writes it under your `components.json` aliases) |
+| `vox config` | Manage global configuration and preferences |
+| `vox container` | Manage OCI containers: build/run the current project with resource limits |
+| `vox dispatch` | Dispatch-time routing preview — project what the dispatcher would do (P2-T6) |
+| `vox drift-check` | Workspace drift and pattern-repetition linter |
+| `vox ext` | Extensions lane — unified entry for legacy and ML subcommands (`ext`) |
+| `vox grammar` | Export the Vox language grammar in various formats for MENS training |
+| `vox harness` | Evaluate the harness itself (not a model) against a golden task set with a pass^k multi-sample gate (`vox harness eval`) |
+| `vox llm` | LLM-native context and prompt generation tools (`vox llm prompt`) |
+| `vox model` | Manage models: discovery, scoreboard, and explainability (`vox model`) |
+| `vox new` | Scaffold a new Vox application from opinionated presets (`vox new web`) |
+| `vox plan` | Agentic Planning tools: Create, replan, and bypass planning steps (`vox plan`) |
+| `vox play` | Scaffold and immediately run a temporary Vox project (`vox play`) |
+| `vox plugin` | Install, remove, list, and inspect Vox plugins |
+| `vox policy` | View the unified policy catalog (CI gates, language rules, audits) |
+| `vox repair` | Automatically repair syntax and type errors in a `.vox` file via LLM (`vox repair`) |
+| `vox repl` | Interactive Vox expression REPL (read-eval-print loop) |
+| `vox rollback` | Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger |
+| `vox snapshot` | Insta snapshot helpers: detect and clean up orphaned `.snap` files (`vox snapshot orphans [--clean]`) |
+| `vox stop` | Emergency stop the orchestrator (MCP/daemon local stop request) |
+| `vox term` | Headless-capable ratatui terminal UI — block-model shell + AI agent strip |
+| `vox wasm` | Raw precompiled WASI module execution (needs `--features script-wasi`) |
+
 ## CLI command reachability
 
 This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../crates/vox-cli/src/lib.rs) -> their **implementation modules** under [`crates/vox-cli/src/commands/`](../../../crates/vox-cli/src/commands).
@@ -866,6 +899,26 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `review` | `coderabbit` | `commands::review` |
 | `train` | `gpu` + `mens-dei` | `commands::ai::train` |
 | `dei` | `dei` | `commands::dei` (alias `orchestrator`) |
+| `bundle-app` | default | `commands::bundle` |
+| `chat` | default | `commands::chat` |
+| `component` | default | `commands::add_component` |
+| `config` | default | `commands::config` |
+| `container` | default | `commands::container` |
+| `dispatch` | default | `commands::dispatch` |
+| `drift-check` | default | `commands::drift_check` |
+| `emit` | default | `commands::emit` |
+| `ext` | default | `commands::ext` |
+| `grammar` | default | `commands::grammar::handle` |
+| `harness` | default | `commands::harness` |
+| `llm` | default | `commands::llm` |
+| `new` | default | `commands::new` |
+| `play` | default | `commands::play` |
+| `plugin` | default | `commands::plugin` |
+| `policy` | default | `commands::policy` |
+| `repair` | default | `commands::repair` |
+| `rollback` | default | `commands::rollback` |
+| `term` | default | `vox_term::app::run` |
+| `wasm` | `script-wasi` | `commands::wasm` |
 
 ### `vox-compilerd` RPC (not CLI variants)
 

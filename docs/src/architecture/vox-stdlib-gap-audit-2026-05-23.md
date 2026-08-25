@@ -73,7 +73,7 @@ on every script and have no breadcrumb to the workaround.
 ### #2 — `!` operator is a no-op (P0 silent wrong output)
 
 ```vox
-// vox:skip
+// vox:skip -- historical: reproduces a since-fixed lexer bug where bare `!` was silently dropped
 fn main() {
     let t = true;
     let f = false;
@@ -111,7 +111,7 @@ maps that to `UnOp::Not`.
 ### #3a — `fs.list_recursive` does not exist
 
 ```vox
-// vox:skip
+// vox:skip -- historical: audit snapshot of 0.5.0 gap; fs.list_recursive's signature has since changed
 fn main() { let xs = fs.list_recursive(".", "*.md"); print("ok"); }
 ```
 → `Error: Eval failed calling main: AssertionFailed("Method list_recursive not found")`
@@ -123,8 +123,10 @@ Used in [`scripts/migrate-arrows.vox`](../../../scripts/migrate-arrows.vox),
 ### #3b — `path.extension` does not exist
 
 ```vox
-// vox:skip
-fn main() { let e = path.extension("foo/bar.txt"); print("ok"); }
+fn main() {
+    let e = path.extension("foo/bar.txt")
+    print("ok")
+}
 ```
 → `Error: Eval failed calling main: AssertionFailed("Method extension not found")`
 
@@ -134,8 +136,11 @@ Documented as existing in [`docs/src/reference/ref-builtins-stdlib.md`](../refer
 ### #3c — `str.split_lines(s)` (free form) does not exist
 
 ```vox
-// vox:skip
-fn main() { let ls = str.split_lines("a\nb\nc"); print("ok"); }
+// vox:skip -- historical: audit finding, str.split_lines does not exist at runtime
+fn main() {
+    let ls = str.split_lines("a\nb\nc")
+    print("ok")
+}
 ```
 → `Error: Eval failed calling main: AssertionFailed("Method split_lines not found")`
 
@@ -145,8 +150,10 @@ Workaround used in the cf-migration session: `s.split("\n")`.
 ### #3d — `regex.*` namespace does not exist
 
 ```vox
-// vox:skip
-fn main() { let r = regex.replace("hello world", "world", "vox"); print(r); }
+fn main() {
+    let r = regex.replace("hello world", "world", "vox")
+    print(r)
+}
 ```
 → `Error: Eval failed calling main: UndefinedVariable("regex")`
 
@@ -158,8 +165,12 @@ purpose is regex-driven corpus migration).
 ### #3e — `list.*` namespace does not exist
 
 ```vox
-// vox:skip
-fn main() { let xs = [1,2,3]; list.push(xs, 4); print(xs.len()); }
+// vox:skip -- historical: audit finding, list.* free-function namespace does not exist at runtime
+fn main() {
+    let xs = [1,2,3]
+    list.push(xs, 4)
+    print(xs.len())
+}
 ```
 → `Error: Eval failed calling main: UndefinedVariable("list")`
 
@@ -169,11 +180,11 @@ fn main() { let xs = [1,2,3]; list.push(xs, 4); print(xs.len()); }
 ### #4 — Method-vs-free function inconsistency
 
 ```vox
-// vox:skip
+// vox:skip -- historical: audit finding, str.trim (free-function form) does not exist at runtime
 fn main() {
-    let s = "  hello  ";
-    print("method: [" + s.trim() + "]");      // works → "method: [hello]"
-    print("free:   [" + str.trim(s) + "]");   // fails with "Method trim not found"
+    let s = "  hello  "
+    print("method: [" + s.trim() + "]")      // works → "method: [hello]"
+    print("free:   [" + str.trim(s) + "]")   // fails with "Method trim not found"
 }
 ```
 
@@ -1000,7 +1011,7 @@ for each scripts/**/*.vox failing `vox check`:
 Bucket-A banner header template:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: banner template for scripts targeting an unimplemented feature
 // ============================================================
 // ASPIRATIONAL — targets a future Vox version.
 //
@@ -1362,7 +1373,7 @@ each.
 Today's spelling:
 
 ```vox
-// vox:skip
+// vox:skip -- historical: this audit is what retired @endpoint
 @endpoint(kind: query) fn list_items() to list[Item] { … }
 @endpoint(kind: mutation) fn add_item(name: str) to Result[Item] { … }
 ```
@@ -1388,7 +1399,7 @@ decorators; deprecate `@endpoint(kind: …)` and migrate corpus.**
 Replacement shape:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed decorator shape with `{ … }` placeholder body, not real code
 query list_items() to list[Item]              { … }
 mutation add_item(name: str) to Result[Item]     { … }
 ```

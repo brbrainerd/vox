@@ -25,9 +25,9 @@ Version: **v1** (logical contract version). Current compiler paths are under **`
 
 | Concern | Rule |
 |---|---|
-| Host and path roots | HTTPS base `https://<host>/`. Endpoints live under **`/api/`** with **no `/v1` segment** in current compiler output: **`/api/query/<name>`** (query), **`/api/mutation/<name>`** (mutation), **`/api/<name>`** (server fn). Constants: [`web_prefixes.rs`](../../../crates/vox-compiler/src/web_prefixes.rs). A future breaking generation would move under **`/api/v2/`** (see §7). |
-| Query endpoints (`@endpoint(kind: query)`) | HTTP `GET`; parameters as query string (see §2.1) |
-| Mutation/server endpoints (`@endpoint(kind: mutation)`, `@endpoint(kind: server)`) | HTTP `POST`; JSON body |
+| Host and path roots | HTTPS base `https://<host>/`. Endpoints live under **`/api/`** with **no `/v1` segment** in current compiler output: **`/api/query/<name>`** (query), **`/api/mutation/<name>`** (mutation), **`/api/<name>`** (server). Constants: [`web_prefixes.rs`](../../../crates/vox-compiler/src/web_prefixes.rs). A future breaking generation would move under **`/api/v2/`** (see §7). |
+| Query endpoints (`query`) | HTTP `GET`; parameters as query string (see §2.1) |
+| Mutation/server endpoints (`mutation`, `server`) | HTTP `POST`; JSON body |
 | Request `Content-Type` | `application/json` |
 | Response `Content-Type` | `application/json; charset=utf-8` |
 | Character encoding | UTF-8 throughout |
@@ -35,14 +35,14 @@ Version: **v1** (logical contract version). Current compiler paths are under **`
 
 ### 2.1 Query parameter encoding
 
-`@endpoint(kind: query)` endpoint parameters are serialized as a query string with keys in **sorted lexicographic order**. Each value is `encodeURIComponent(JSON.stringify(value))`.
+`query` endpoint parameters are serialized as a query string with keys in **sorted lexicographic order**. Each value is `encodeURIComponent(JSON.stringify(value))`.
 
 **OpenAPI:** generated specs describe each query parameter with a `schema` for the logical type **after** URI decoding and `JSON.parse`. Parameter descriptions reference this section. Tools that generate clients from OpenAPI alone must still apply JSON parsing per value (not treat raw query tokens as primitive strings).
 
 ```vox
-// vox:skip — illustrative endpoint definition
-@endpoint(kind: query)
-fn search_items(filter: str, limit: int) to str { return "" }
+query search_items(filter: str, limit: int) to str {
+    return ""
+}
 ```
 
 Wire URL:
@@ -53,18 +53,46 @@ GET /api/query/search_items?filter=%22books%22&limit=20
 
 ### 2.2 Mutation body encoding
 
-`@endpoint(kind: mutation)` and `@endpoint(kind: server)` endpoints receive a JSON object whose keys are the parameter names.
+`mutation` and `server` endpoints receive a JSON object whose keys are the parameter names.
 
 ```vox
-// vox:skip — illustrative endpoint definition
-@endpoint(kind: mutation)
-fn create_order(item_id: str, quantity: int) to bool { return true }
+mutation create_order(item_id: str, quantity: int) to bool {
+    return true
+}
 ```
 
-Wire request body:
+Wire request:
+```
+POST /api/mutation/create_order
+```
 ```json
 { "item_id": "abc123", "quantity": 3 }
 ```
+
+`server` endpoints encode parameters identically -- the only wire difference
+is the path root (§2.0: `/api/<name>`, no `/mutation/` segment) and that a
+`server` write is never wrapped in a DB transaction (§Transactional
+boundaries in [ref-db-surface.md](../reference/ref-db-surface.md#transactional-boundaries-query-vs-mutation-vs-server)).
+
+```vox
+server charge_card(customer_id: str, amount_cents: int) to bool {
+    return true
+}
+```
+
+Wire request:
+```
+POST /api/charge_card
+```
+```json
+{ "customer_id": "cus_123", "amount_cents": 1999 }
+```
+
+Verified against `emit_server_fn_handler` in
+[`crates/vox-codegen/src/codegen_rust/emit/http.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/http.rs):
+`mutation` and `server` share this exact emitter, and both extract each
+declared parameter with `request["<param_name>"].clone()` -- a flat
+top-level JSON-object lookup, not destructuring or positional binding.
 
 ---
 
@@ -119,11 +147,10 @@ Wire request body:
 **Rule:** `Option<T>` serializes as an **absent key** when the value is `None`. It never serializes as JSON `null`.
 
 ```vox
-// vox:skip
 type UserProfile {
     id: string
     display_name: string
-    bio: Option<string>
+    bio: Option[string]
 }
 ```
 
@@ -140,11 +167,11 @@ Wire JSON when `bio` is absent:
 **`@nullable` override:** applying `@nullable` to an `Option<T>` field instructs the emitter to serialize `None` as JSON `null` and keep the key present. Use only for interop with consumers that require explicit nulls (e.g., some SQL-backed ORMs).
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed @nullable field decorator, not implemented
 type LegacyRow {
     id: string
     @nullable
-    deprecated_field: Option<string>
+    deprecated_field: Option[string]
 }
 ```
 
@@ -162,7 +189,7 @@ The `@nullable` override is explicit opt-in. The default is always absent-key.
 All Vox sum types encode as a discriminated union using a `_tag` string-literal field. The `_tag` value is the exact variant name as declared in Vox source.
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: sum-type variant syntax shown here is not valid Vox `type` declaration syntax
 type Shape {
     Circle { radius: Decimal }
     Rectangle { width: Decimal, height: Decimal }

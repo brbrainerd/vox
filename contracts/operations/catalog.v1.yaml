@@ -14243,6 +14243,526 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
+- id: bundle-app
+  title: Bundle App
+  description: Bundle a Vox source file into a complete web application (use `vox fab bundle` or `vox fabrica bundle`)
+  description_human: null
+  product_lane: app
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - bundle-app
+    status: active
+    latin_ns: fabrica
+    handler_rust: commands::bundle
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: chat
+  title: Chat
+  description: Send one message through the harness's chat pipeline and print the reply (`vox chat`)
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - chat
+    status: active
+    latin_ns: null
+    handler_rust: commands::chat
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: component
+  title: Component
+  description: Vendor a shadcn/ui component into the project (fetches source from ui.shadcn.com and writes it under your `components.json` aliases)
+  description_human: null
+  product_lane: app
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - component
+    status: active
+    latin_ns: null
+    handler_rust: commands::add_component
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: config
+  title: Config
+  description: Manage global configuration and preferences
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - config
+    status: active
+    latin_ns: null
+    handler_rust: commands::config
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: container
+  title: Container
+  description: 'Manage OCI containers: build/run the current project with resource limits'
+  description_human: null
+  product_lane: app
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - container
+    status: active
+    latin_ns: null
+    handler_rust: commands::container
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: dispatch
+  title: Dispatch
+  description: 'Dispatch-time routing preview — project what the dispatcher would do (P2-T6)'
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - dispatch
+    status: active
+    latin_ns: null
+    handler_rust: commands::dispatch
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: drift-check
+  title: Drift Check
+  description: Workspace drift and pattern-repetition linter
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - drift-check
+    status: active
+    latin_ns: null
+    handler_rust: commands::drift_check
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: emit
+  title: Emit
+  description: 'Emit focused codegen artifacts (`emit client`, …)'
+  description_human: null
+  product_lane: app
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - emit
+    status: active
+    latin_ns: null
+    handler_rust: commands::emit
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: ext
+  title: Ext
+  description: 'Extensions lane — unified entry for legacy and ML subcommands (`ext`)'
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ext
+    status: active
+    latin_ns: null
+    handler_rust: commands::ext
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: grammar
+  title: Grammar
+  description: Export the Vox language grammar in various formats for MENS training
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - grammar
+    status: active
+    latin_ns: null
+    handler_rust: commands::grammar::handle
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: harness
+  title: Harness
+  description: 'Evaluate the harness itself (not a model) against a golden task set with a pass^k multi-sample gate (`vox harness eval`)'
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - harness
+    status: active
+    latin_ns: null
+    handler_rust: commands::harness
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: llm
+  title: Llm
+  description: 'LLM-native context and prompt generation tools (`vox llm prompt`)'
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - llm
+    status: active
+    latin_ns: null
+    handler_rust: commands::llm
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: new
+  title: New
+  description: 'Scaffold a new Vox application from opinionated presets (`vox new web`)'
+  description_human: null
+  product_lane: app
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - new
+    status: active
+    latin_ns: null
+    handler_rust: commands::new
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: play
+  title: Play
+  description: 'Scaffold and immediately run a temporary Vox project (`vox play`)'
+  description_human: null
+  product_lane: app
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - play
+    status: active
+    latin_ns: null
+    handler_rust: commands::play
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: plugin
+  title: Plugin
+  description: Install, remove, list, and inspect Vox plugins
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - plugin
+    status: active
+    latin_ns: null
+    handler_rust: commands::plugin
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: policy
+  title: Policy
+  description: View the unified policy catalog (CI gates, language rules, audits)
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - policy
+    status: active
+    latin_ns: null
+    handler_rust: commands::policy
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: repair
+  title: Repair
+  description: 'Automatically repair syntax and type errors in a `.vox` file via LLM (`vox repair`)'
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - repair
+    status: active
+    latin_ns: null
+    handler_rust: commands::repair
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: rollback
+  title: Rollback
+  description: Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - rollback
+    status: active
+    latin_ns: null
+    handler_rust: commands::rollback
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: term
+  title: Term
+  description: Headless-capable ratatui terminal UI — block-model shell + AI agent strip
+  description_human: null
+  product_lane: app
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - term
+    status: active
+    latin_ns: null
+    handler_rust: vox_term::app::run
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: wasm
+  title: Wasm
+  description: 'Raw precompiled WASI module execution (needs `--features script-wasi`)'
+  description_human: null
+  product_lane: app
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - wasm
+    status: active
+    latin_ns: null
+    handler_rust: commands::wasm
+    feature_gate: script-wasi
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 exemptions:
   mcp_tools: []
   cli_paths:

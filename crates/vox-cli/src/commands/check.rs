@@ -34,11 +34,25 @@ fn is_script_like(source: &str) -> bool {
         "@server",
         "@component",
         "@table",
-        "@workflow",
         "@form",
         "@push",
     ];
     let has_at_marker = app_markers.iter().any(|m| source.contains(m));
+    // `workflow`/`activity`/`actor` never had an `@`-prefixed spelling (unlike
+    // table/query/mutation/server, which moved from `@endpoint(kind: ...)` /
+    // `@table` to bare keywords on 2026-06-30) and were missing here entirely,
+    // so a `.vox` file containing nothing else recognizable -- a bare
+    // `workflow`/`activity`/`actor` decl, e.g. under `@distributed_train`,
+    // whose grammar requires a `workflow` line to immediately follow -- was
+    // silently misclassified as a script and routed through VoxScript-mode
+    // parsing instead of full-module parsing.
+    // Mirrors the union of `vox_language_surface::DECLARATION_KEYWORDS` and
+    // `WEB_REACTIVE_KEYWORDS` (the actor/workflow/activity/component subset and
+    // the table/query/mutation/server/tool/resource/form subset) plus `routes`,
+    // which lives in neither list (recognized positionally, no lexer token) —
+    // duplicated here per the Defactor policy (crate-edges is CI-gated and a
+    // new vox-cli -> vox-language-surface edge needs a user-authorized
+    // exception) rather than taking a new crate dependency for ~15 literals.
     let decl_keywords = [
         "table ",
         "query ",
@@ -47,6 +61,11 @@ fn is_script_like(source: &str) -> bool {
         "component ",
         "routes ",
         "routes{",
+        "workflow ",
+        "activity ",
+        "actor ",
+        "tool ",
+        "resource ",
     ];
     let has_decl_keyword = source.lines().any(|line| {
         decl_keywords
@@ -136,4 +155,49 @@ pub async fn run(args: &CheckArgs) -> Result<()> {
 
     println!("Check passed with {warning_count} warning(s)");
     Ok(())
+}
+
+#[cfg(test)]
+mod is_script_like_tests {
+    use super::is_script_like;
+
+    /// The bug this guards: `workflow`/`activity`/`actor` never had an
+    /// `@`-prefixed spelling and were missing from `decl_keywords` entirely,
+    /// so a file containing nothing else recognizable was silently routed
+    /// through VoxScript-mode parsing instead of full-module parsing --
+    /// `vox check` failed to parse valid module-level source with no
+    /// rendered error, even though the underlying parser (and its own unit
+    /// tests) handled it correctly all along.
+    #[test]
+    fn bare_workflow_decl_is_not_script_like() {
+        assert!(!is_script_like(
+            "workflow Train() to Unit {\n    return Unit\n}\n"
+        ));
+    }
+
+    #[test]
+    fn bare_activity_decl_is_not_script_like() {
+        assert!(!is_script_like(
+            "activity DoWork() to Unit {\n    return Unit\n}\n"
+        ));
+    }
+
+    #[test]
+    fn bare_actor_decl_is_not_script_like() {
+        assert!(!is_script_like(
+            "actor Counter {\n    state n: int = 0\n}\n"
+        ));
+    }
+
+    #[test]
+    fn distributed_train_workflow_is_not_script_like() {
+        assert!(!is_script_like(
+            "@distributed_train(strategy = \"data_parallel\", peers = 4)\nworkflow Train() to Unit {\n    return Unit\n}\n"
+        ));
+    }
+
+    #[test]
+    fn actual_script_is_still_script_like() {
+        assert!(is_script_like("print(\"hello\")\nlet x = 1 + 2\n"));
+    }
 }

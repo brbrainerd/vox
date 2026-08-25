@@ -1,0 +1,26 @@
+bin = []
+
+[package]
+name = "test_app"
+version = "0.1.0"
+kind = "application"
+description = "A Vox application"
+license = "Apache-2.0"
+authors = []
+keywords = []
+targets = []
+
+[dependencies]
+
+[dev-dependencies]
+
+[features]
+
+[skills]
+
+[deploy]
+target = "fly"
+runtime = "auto"
+
+[deploy.fly]
+# app_name = "my-app"

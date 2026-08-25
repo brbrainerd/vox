@@ -101,14 +101,25 @@ fn validate_json_against_schema(
     validate(instance, &validator, label).map_err(|e| anyhow!("{e}"))
 }
 
-fn glob_match_count(root: &Path, pattern: &str) -> Result<usize> {
+/// Whether a glob pattern matches at least one path.
+///
+/// Short-circuits at the first match. The previous implementation materialised
+/// every match into a Vec purely to test the count against zero -- with the
+/// inventory's `crates/**` pattern that is ~6,000 entries, inside
+/// `ssot-drift`'s 60-second fast pre-push budget, on every push.
+///
+/// Behaviour change: a `GlobError` encountered *after* the first match is no
+/// longer surfaced. That is the right trade for a "does anything match"
+/// predicate, but it is a change, not purely a speedup.
+fn glob_has_match(root: &Path, pattern: &str) -> Result<bool> {
     let full = root.join(pattern);
     let pat = full.to_string_lossy().to_string();
-    let entries: Vec<_> = glob(&pat)
-        .with_context(|| format!("invalid glob pattern {pat:?}"))?
-        .collect::<Result<Vec<_>, _>>()
-        .with_context(|| format!("glob iteration failed for {pat:?}"))?;
-    Ok(entries.len())
+    let mut entries = glob(&pat).with_context(|| format!("invalid glob pattern {pat:?}"))?;
+    match entries.next() {
+        None => Ok(false),
+        Some(Ok(_)) => Ok(true),
+        Some(Err(e)) => Err(anyhow!("glob iteration failed for {pat:?}: {e}")),
+    }
 }
 
 fn verify_paths_for_claim(root: &Path, claim: &ClaimRow) -> Result<()> {
@@ -136,13 +147,13 @@ fn verify_paths_for_claim(root: &Path, claim: &ClaimRow) -> Result<()> {
     }
     for globs in [&h.code_globs, &h.tests_globs].into_iter().flatten() {
         for g in globs {
-            let n = glob_match_count(root, g).with_context(|| {
+            let matched = glob_has_match(root, g).with_context(|| {
                 format!(
                     "inventory claim {}: glob expansion failed for {g:?}",
                     claim.id
                 )
             })?;
-            if n == 0 {
+            if !matched {
                 anyhow::bail!(
                     "inventory claim {}: glob matched 0 paths (expected ≥1): {g}",
                     claim.id
@@ -253,6 +264,42 @@ pub fn run_verify(root: &Path) -> Result<()> {
     verify_inventory_paths(root, &inv)?;
     verify_findings_consistency(root, &inv, &findings)?;
 
+    // Metrics must match what the inputs imply. Without this a stale
+    // metrics.v1.json is a green build -- which is how the committed file sat
+    // unnoticed for three months. `generated_at` is deliberately excluded:
+    // compute_metrics never emits it.
+    let expected_metrics = compute_metrics(&inv, &findings);
+    let Value::Object(expected) = &expected_metrics else {
+        unreachable!("compute_metrics always returns a JSON object")
+    };
+    for (key, want) in expected {
+        let got = metrics_val.get(key);
+        if got != Some(want) {
+            anyhow::bail!(
+                "metrics.v1.json is stale: field {:?} is {} but inputs imply {}. \
+                 Run `vox ci docs-reality-audit metrics --write`.",
+                key,
+                got.map(|v| v.to_string())
+                    .unwrap_or_else(|| "absent".to_string()),
+                want
+            );
+        }
+    }
+    // The loop above only checks expected -> actual, so a field REMOVED from
+    // compute_metrics but still present in the committed file passes silently.
+    if let Some(actual) = metrics_val.as_object() {
+        let extra: Vec<&String> = actual
+            .keys()
+            .filter(|k| k.as_str() != "generated_at" && !expected.contains_key(*k))
+            .collect();
+        if !extra.is_empty() {
+            anyhow::bail!(
+                "metrics.v1.json has stale fields no longer emitted: {extra:?}. \
+                 Run `vox ci docs-reality-audit metrics --write`."
+            );
+        }
+    }
+
     println!(
         "docs-reality-audit verify OK ({} claims, {} findings)",
         inv.claims.len(),
@@ -261,21 +308,51 @@ pub fn run_verify(root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn rollout_milestone_pct(inv_claims: usize, findings: &[FindingRow]) -> u8 {
-    if inv_claims == 0 {
-        return 0;
+/// Metrics object derived purely from inventory + findings.
+///
+/// Deliberately omits `generated_at` so the value is a pure function of the
+/// inputs and can be compared against the committed file.
+fn compute_metrics(inv: &InventoryFile, findings: &FindingsFile) -> Value {
+    let mut counts_class: HashMap<String, i32> = HashMap::new();
+    let mut counts_status: HashMap<String, i32> = HashMap::new();
+    let mut counts_band: HashMap<String, i32> = HashMap::new();
+    let mut open_p0 = 0i32;
+    let mut open_p1 = 0i32;
+    let terminal = HashSet::from(["closed", "verified"]);
+
+    for f in &findings.findings {
+        *counts_class.entry(f.classification.clone()).or_insert(0) += 1;
+        *counts_status.entry(f.status.clone()).or_insert(0) += 1;
+        *counts_band.entry(f.priority_band.clone()).or_insert(0) += 1;
+        if !terminal.contains(f.status.as_str()) {
+            if f.priority_band == "P0" {
+                open_p0 += 1;
+            }
+            if f.priority_band == "P1" {
+                open_p1 += 1;
+            }
+        }
     }
-    if findings.is_empty() {
-        return 25;
-    }
-    let total = findings.len() as f64;
+
     let closed = findings
+        .findings
         .iter()
-        .filter(|f| f.status == "closed" || f.status == "verified")
-        .count() as f64;
-    let extra = (closed / total) * 75.0;
-    let pct = 25.0 + extra;
-    pct.round().clamp(0.0, 100.0) as u8
+        .filter(|f| terminal.contains(f.status.as_str()))
+        .count();
+    let open = findings.findings.len().saturating_sub(closed);
+
+    serde_json::json!({
+        "schema_version": 1,
+        "inventory_claim_count": inv.claims.len(),
+        "findings_total": findings.findings.len(),
+        "findings_open": open,
+        "findings_closed": closed,
+        "counts_by_classification": counts_class,
+        "counts_by_status": counts_status,
+        "counts_by_priority_band": counts_band,
+        "open_p0": open_p0,
+        "open_p1": open_p1
+    })
 }
 
 /// Recompute `metrics.v1.json` from findings + inventory (optional `--write`).
@@ -305,52 +382,9 @@ pub fn run_metrics(root: &Path, write: bool) -> Result<()> {
     let findings: FindingsFile =
         serde_json::from_value(findings_val).context("deserialize findings")?;
 
-    let mut counts_class: HashMap<String, i32> = HashMap::new();
-    let mut counts_status: HashMap<String, i32> = HashMap::new();
-    let mut counts_band: HashMap<String, i32> = HashMap::new();
-    let mut open_p0 = 0i32;
-    let mut open_p1 = 0i32;
-    let terminal = HashSet::from(["closed", "verified"]);
-
-    for f in &findings.findings {
-        *counts_class.entry(f.classification.clone()).or_insert(0) += 1;
-        *counts_status.entry(f.status.clone()).or_insert(0) += 1;
-        *counts_band.entry(f.priority_band.clone()).or_insert(0) += 1;
-        if !terminal.contains(f.status.as_str()) {
-            if f.priority_band == "P0" {
-                open_p0 += 1;
-            }
-            if f.priority_band == "P1" {
-                open_p1 += 1;
-            }
-        }
-    }
-
-    let closed = findings
-        .findings
-        .iter()
-        .filter(|f| terminal.contains(f.status.as_str()))
-        .count();
-    let open = findings.findings.len().saturating_sub(closed);
-    let milestone = rollout_milestone_pct(inv.claims.len(), &findings.findings);
-
+    let mut metrics = compute_metrics(&inv, &findings);
     let generated_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-
-    let metrics = serde_json::json!({
-        "schema_version": 1,
-        "generated_at": generated_at,
-        "inventory_claim_count": inv.claims.len(),
-        "findings_total": findings.findings.len(),
-        "findings_open": open,
-        "findings_closed": closed,
-        "counts_by_classification": counts_class,
-        "counts_by_status": counts_status,
-        "counts_by_priority_band": counts_band,
-        "open_p0": open_p0,
-        "open_p1": open_p1,
-        "rollout_milestone_pct": milestone,
-        "rollout_notes": "Computed by `vox ci docs-reality-audit metrics`; see contracts/documentation/docs-reality-audit.program.v1.yaml."
-    });
+    metrics["generated_at"] = Value::String(generated_at);
 
     validate_json_against_schema(
         root,
@@ -391,10 +425,5 @@ mod tests {
         assert_eq!(priority_band_from_score(29), "P0");
         assert_eq!(priority_band_from_score(21), "P1");
         assert_eq!(priority_band_from_score(13), "P2");
-    }
-
-    #[test]
-    fn rollout_milestone_empty_findings_is_25_when_inventory_nonempty() {
-        assert_eq!(rollout_milestone_pct(10, &[]), 25);
     }
 }

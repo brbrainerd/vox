@@ -236,7 +236,7 @@ Phase 5's "Vox imports React" should not introduce an `import react …` keyword
 existing `extern fn` primitive generalizes to:
 
 ```vox
-// vox:skip
+// vox:skip -- proposed future syntax; `extern component` is not implemented, only `extern fn`
 extern component MyButton(label: str, on_click: fn()) = "../ui/MyButton.tsx"
 ```
 

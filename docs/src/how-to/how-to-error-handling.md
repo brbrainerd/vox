@@ -16,9 +16,8 @@ Learn the best practices for error management in Vox to build robust, fault-tole
 Vox uses the functional `Result[T, E]` type for operations that can fail, rather than standard exceptions.
 
 ```vox
-// vox:skip
 fn find_user(id: str) to Result[str] {
-    if id == "" {
+    if id is "" {
         return Error("Invalid ID")
     }
     return Ok(id)
@@ -30,7 +29,6 @@ fn find_user(id: str) to Result[str] {
 The `?` operator provides ergonomic error propagation. If an expression evaluates to `Error`, the surrounding function returns that error immediately.
 
 ```vox
-// vox:skip
 fn process_order(id: str) to Result[bool] {
     let user = find_user(id)?
     // `check_balance` might also return a Result
@@ -44,12 +42,11 @@ fn process_order(id: str) to Result[bool] {
 Vox allows you to handle `Result` types directly using exhaustive pattern matching. (Error display in UI is covered in the islands tutorial).
 
 ```vox
-// vox:skip
 let result = find_user("123")
 
-match result {
-    Ok(user)   -> println("Found { " + user)
-    Error(msg) -> println("Failed: " + msg)
+let message = match result {
+    Ok(user)   => "Found: " + user
+    Error(msg) => "Failed: " + msg
 }
 ```
 
@@ -58,10 +55,9 @@ match result {
 You can transform results using functional combinators or explicit pattern matching.
 
 ```vox
-// vox:skip
 fn get_user_name(id: str) to Result[str] {
-    let user = find_user(id).map_err(|e| "User fetch failed: " + e)?
-    return Ok(user.name)
+    let user = find_user(id).map_err(fn(e) "User fetch failed: " + e)?
+    return Ok(user)
 }
 ```
 
@@ -70,7 +66,7 @@ fn get_user_name(id: str) to Result[str] {
 For invariant safety (assertions that must hold for a type to be valid), use the `@require` decorator. This acts as a construction-time guard.
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative future syntax; @require only decorates fn today, not type
 @require(self.age >= 18)
 type Adult {
     name: str

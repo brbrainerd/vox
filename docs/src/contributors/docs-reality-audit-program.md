@@ -51,6 +51,14 @@ Add secondary tags (e.g. `naming-drift`, `security-policy`) in the finding row w
 
 ## Operating cadence
 
+**Status: dormant.** The cadence below is the intended operating model, not a
+description of current practice. As of 2026-08-22 the backlog holds zero
+findings and `contracts/reports/docs-reality-audit/findings.v1.json` has
+exactly one commit in its history (`3295a3bee`, 2026-05-12). Treat any metric
+derived from it as "not started" rather than "healthy".
+
+Intended cycles, when the program is resumed:
+
 - **Weekly:** extend inventory / findings for files touched in the branch; re-run `verify`
 - **Monthly:** full pass over `docs/src/` claims and hygiene of closed vs open findings
 - **Release:** focus on `docs/src/reference/cli.md`, env vars, and operations catalog parity

@@ -36,7 +36,10 @@
 //!      reconnect-loop self-heal, so this file's fallback poller was removed
 //!      — see
 //!      `docs/.../vox-axis-harness-reliability-spec-plan-2026-07-02.md` T3.1).
-//!      A regression reintroducing `setInterval` in this file fails the guard.
+//!      A regression reintroducing a *timer-driven status re-fetch* in this
+//!      file fails the guard. A bare `setInterval` does not: the file also
+//!      polls `getOrchestratorVersionMismatch` (T2/Task 2), which T3.1 never
+//!      touched, so the check requires a timer AND a status re-fetch.
 //!    - Every other file under `crates/vox-gui/ui/src`: diagnostic-only, as
 //!      before — T3.1's scope was the orchestrator-status polling fallback
 //!      specifically, not a blanket `setInterval` ban (most other hits are
@@ -440,17 +443,27 @@ fn scan_orchestrator_status_polling_removed(repo_root: &Path) -> Result<()> {
         // step will catch a broken import; don't fail the guard on it.
         return Ok(());
     };
-    let has_call_site = body
-        .lines()
-        .any(|line| line.contains("setInterval(") && !line.trim_start().starts_with("//"));
-    if has_call_site {
+    let code = |needle: &str| {
+        body.lines()
+            .any(|line| line.contains(needle) && !line.trim_start().starts_with("//"))
+    };
+    // A timer alone is not the retired fallback. The file legitimately polls
+    // `getOrchestratorVersionMismatch` (T2/Task 2), which T3.1 never touched.
+    // What T3.1 removed was a timer that re-fetched the *status query*:
+    //   setInterval(() => queryClient.invalidateQueries({ queryKey: ORCH_STATUS_QUERY_KEY }),
+    //               ORCH_POLL_FALLBACK_MS)
+    // so require both a timer and a status re-fetch before failing.
+    //
+    // ponytail: whole-file conjunction, not per-callback scoping — deliberately
+    // robust to a named callback (`setInterval(check, ms)`) at the cost of
+    // missing a re-added poll that re-fetches via `setQueryData` instead of
+    // `invalidateQueries`. Scope it to the callback body if that ever happens.
+    let has_timer = code("setInterval(");
+    let has_status_refetch =
+        code("invalidateQueries") || code("refetch(") || code("ORCH_POLL_FALLBACK_MS");
+    if has_timer && has_status_refetch {
         return Err(anyhow!(
-            "harness-trust-guard: setInterval(...) call found in \
-             crates/vox-gui/ui/src/hooks/useOrchestratorStatus.ts — T3.1 removed the \
-             orchestrator-status polling fallback because the backend PersistentDaemon \
-             reconnect loop now self-heals a mid-session daemon death; re-adding a \
-             client-side poll here is a regression, not a fix. See \
-             docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md T3.1."
+            "harness-trust-guard: timer-driven orchestrator-status re-fetch found in crates/vox-gui/ui/src/hooks/useOrchestratorStatus.ts — T3.1 removed the orchestrator-status polling fallback because the backend PersistentDaemon reconnect loop now self-heals a mid-session daemon death; re-adding a client-side poll here is a regression, not a fix. See docs/src/architecture/vox-axis-harness-reliability-spec-plan-2026-07-02.md T3.1."
         ));
     }
     Ok(())
@@ -933,17 +946,32 @@ mod tests {
             "a bare comment mentioning polling must not trip the enforcing check"
         );
 
-        // Regression: an actual setInterval(...) call site — must fail with
-        // a message identifying the file and why it's a regression.
+        // A timer that is NOT a status re-fetch must NOT fail: the real file
+        // polls `getOrchestratorVersionMismatch` (T2/Task 2), which T3.1 never
+        // touched. This case is why the check is a conjunction -- a whole-file
+        // `setInterval(` ban failed the guard on main from 2026-07-22, reading
+        // an unrelated feature as a T3.1 regression.
         std::fs::write(
             &file,
-            "export function useOrchestratorStatus() {\n  setInterval(() => {}, 2000);\n}\n",
+            "const check = () => voxTransport.getOrchestratorVersionMismatch();\n  const id = setInterval(check, 5_000);\n",
+        )
+        .unwrap();
+        assert!(
+            scan_orchestrator_status_polling_removed(&dir).is_ok(),
+            "a timer that does not re-fetch the status query must not trip the check"
+        );
+
+        // Regression: a timer that re-fetches the status query -- what T3.1
+        // actually removed -- must fail, naming the file.
+        std::fs::write(
+            &file,
+            "export function useOrchestratorStatus() {\n  setInterval(() => {\n    void queryClient.invalidateQueries({ queryKey: ORCH_STATUS_QUERY_KEY });\n  }, ORCH_POLL_FALLBACK_MS);\n}\n",
         )
         .unwrap();
         let result = scan_orchestrator_status_polling_removed(&dir);
         assert!(
             result.is_err(),
-            "a real setInterval(...) call site in useOrchestratorStatus.ts must fail the guard"
+            "a timer-driven status re-fetch in useOrchestratorStatus.ts must fail the guard"
         );
         let msg = result.unwrap_err().to_string();
         assert!(

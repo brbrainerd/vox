@@ -26,7 +26,6 @@ This page provides the canonical structural layout for Vox language syntax align
 Variable assignments are immutable by default in Vox. Prefix with `mut` for mutability.
 
 ```vox
-// vox:skip
 // ANCHOR: variables
 fn demo_vars() {
     let x = 10
@@ -39,14 +38,13 @@ fn demo_vars() {
 Functions mapping natively to networking, storage, or internal agentic constraints.
 
 ```vox
-// vox:skip
 // ANCHOR: functions
 fn add(a: int, b: int) to int {
     return a + b
 }
 
 component Button(label: str) {
-    view: <button>{label}</button>
+    view: button() { label }
 }
 // ANCHOR_END: functions
 ```
@@ -61,14 +59,12 @@ tool "search: Search the knowledge base" search(query: str) to List[str] {
 Lexical constraints and properties can be modeled strictly using Abstract Data Types (ADTs) and Table definitions.
 
 ```vox
-// vox:skip
 type Shape =
     | Circle(radius: float)
     | Rect(w: float, h: float)
 ```
 
 ```vox
-// vox:skip
 table Task {
     title: str
     done: bool
@@ -78,7 +74,6 @@ table Task {
 
 ### Branching
 ```vox
-// vox:skip
 fn check(n: int) to str {
     if n > 0 {
         return "positive"
@@ -90,7 +85,6 @@ fn check(n: int) to str {
 
 ### Pattern Matching (`match`)
 ```vox
-// vox:skip
 fn area(s: Shape) to float {
     match s {
         Circle(r) => 3.14 * r * r
@@ -102,33 +96,45 @@ fn area(s: Shape) to float {
 ### Pipe Operator (`|>`)
 The `|>` operator passes the expression on the left as the first argument to the function on the right. Works with any function.
 ```vox
-// vox:skip
-let value = " 123 " |> trim |> parse_int |> double
-// Compiles to: double(parse_int(trim(" 123 ")))
+fn trim_str(s: str) to str { return s.trim() }
+fn parse_int(s: str) to int { return int(s) }
+fn doubled(n: int) to int { return n * 2 }
+
+fn demo_pipe() to int {
+    return " 123 " |> trim_str |> parse_int |> doubled
+    // Compiles to: doubled(parse_int(trim_str(" 123 ")))
+}
 ```
 
 ### Loops
 ```vox
-// vox:skip
-loop {
-    if should_exit() { break }
-    continue
+fn should_exit() to bool { return true }
+
+fn demo_loop() {
+    loop {
+        if should_exit() { break }
+        continue
+    }
 }
 ```
 
 ### Comments
 Comments use `//`. Block comments and `#` comments are not supported.
 ```vox
-// vox:skip
-// This is a comment
-let x = 1
+fn demo_comment() {
+    // This is a comment
+    let x = 1
+}
 ```
 
 ### Error Propagation (`?`)
 The `?` suffix unpacks an `Ok` result, returning early if the result is an `Error(e)`.
 
 ```vox
-// vox:skip
+fn get_data() to Result[str] {
+    return Ok("data")
+}
+
 fn build_report() to Result[str] {
     let raw_data = get_data()?
     return Ok("Report { " + raw_data)
@@ -138,7 +144,6 @@ fn build_report() to Result[str] {
 Actors operate isolated asynchronous loops responding to discrete event handler payloads via `on`. 
 
 ```vox
-// vox:skip
 fn Counter_increment(count: int, n: int) to int {
     return count + n
 }
@@ -149,7 +154,7 @@ fn Counter_get(count: int) to int {
 ```
 
 ```vox
-// vox:skip
+// vox:skip -- native spawn/send actor grammar not yet restored (see examples/golden/ref_actors.vox)
 let c = spawn Counter_increment(0, 5)
 let val = Counter_get(c)
 ```
@@ -159,7 +164,7 @@ let val = Counter_get(c)
 Agents define LLM-backed roles with systematic instructions and toolsets.
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative future syntax; the @llm agent decorator is not implemented yet
 @llm(model="claude-3-opus")
 fn summarize(text: str) to str
 ```
@@ -167,12 +172,16 @@ fn summarize(text: str) to str
 Use `workflow` to group state machine processes that survive process restarts. Use `activity` to dictate atomic, retry-able execution sequences.
 
 ```vox
-// vox:skip
-query get_notes() to List[Note] {
-    return db.Note.all()
+table Note {
+    title: str
+    content: str
 }
 
-mutation create_note(title: str, content: str) to Result[Id[Note]] {
+query get_notes() to Result[List[Note]] {
+    return Ok(db.Note.all()?)
+}
+
+mutation create_note(title: str, content: str) to Result[int] {
     let id = db.Note.insert({ title: title, content: content })?
     return Ok(id)
 }
@@ -185,9 +194,14 @@ external frontend to import. (`@island` was retired 2026-05-03 — see
 [architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).)
 
 ```vox
-// vox:skip
 component TaskList(tasks: list[Task]) {
-    view: <ul></ul>
+    view: column() {
+        text() { "tasks" }
+    }
+}
+
+component AboutPage() {
+    view: text() { "About" }
 }
 
 // Web Routing Layout Mapping
@@ -201,7 +215,6 @@ routes {
 `return` is the canonical way to return a value from a function.
 
 ```vox
-// vox:skip
 fn double(x: int) to int { return x * 2 }
 fn square(x: int) to int { return x * x }
 ```
@@ -209,7 +222,7 @@ fn square(x: int) to int { return x * x }
 Vox imports use fully qualified paths. Use `import rust:<crate>` for native interop.
 
 ```vox
-// vox:skip
+// vox:skip -- import rust: always emits an unavoidable doctest-failing metadata-pin warning
 import react.use_state
 import rust:serde_json as json
 ```

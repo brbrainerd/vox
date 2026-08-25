@@ -138,7 +138,7 @@ A Sonnet 4.6 agent picking up a graft from this document must complete all of th
 
 **2. State-drift verification.** This document was audited on 2026-05-09. Code may have changed since. Run these commands to confirm the GA's premises still hold before starting:
 
-```pwsh
+```powershell
 # Confirm the lexer tokens the GA assumes still exist (or do not)
 cargo run -p vox-cli -- ci grep-token AtForm AtRequire AtAi AtTool AtPush AtDeepLink AtCancellable AtLoading
 # Or directly:
@@ -270,7 +270,7 @@ Apply these in order and stop at the first match:
 5. `cargo run -p vox-arch-check` passes.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-compiler async_state
 cargo test -p vox-codegen async_state
 cargo run -p vox-cli -- check examples/golden/async_state_basic.vox
@@ -323,7 +323,7 @@ cargo run -p vox-arch-check
 5. `cargo run -p vox-arch-check` confirms `crates/vox-codegen` no longer references the old `emit/types.rs` hand-rolled paths.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-wire-format
 cargo test -p vox-wire-format-validator
 cargo test -p vox-codegen wire_format_round_trip
@@ -375,7 +375,7 @@ cargo run -p vox-arch-check
 5. Per C4, there is exactly one form-binding shape — no `Form` value alongside `@form` decorator.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-compiler form
 cargo test -p vox-codegen form
 cargo run -p vox-cli -- check examples/golden/form_basic.vox
@@ -429,7 +429,7 @@ cargo run -p vox-cli -- build --target=fullstack examples/golden/form_basic.vox
 4. Audit-log entries are emitted automatically when a capability is exercised — coupled into [CC-09 audit](web-app-archetype-coverage-2026.md) (test stub OK if CC-09 hasn't landed).
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-compiler capability
 cargo test -p vox-codegen auth
 cargo run -p vox-cli -- check examples/golden/auth_capability.vox
@@ -481,7 +481,7 @@ cargo run -p vox-cli -- build --target=server examples/golden/auth_capability.vo
 5. The symmetric `vox/effect/unjustified-net-decl` warning fires when `@uses(net)` is declared on a function that demonstrably does not perform net I/O.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-compiler effects
 cargo test -p vox-actor-runtime effect_policies
 cargo test -p vox-actor-runtime resilient_http  # confirm no behavior regression
@@ -525,7 +525,7 @@ cargo run -p vox-cli -- check examples/golden/effect_net_retry.vox
 4. Per C4, there is no parallel "raw `Tower::Layer`" escape hatch in user code unless `// vox:skip`-ed.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-compiler http_ergonomics
 cargo test -p vox-codegen http_ergonomics
 cargo run -p vox-cli -- check examples/golden/http_ergonomics.vox
@@ -560,7 +560,7 @@ cargo run -p vox-cli -- check examples/golden/http_ergonomics.vox
 3. Spec-only PR — no parser changes.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo run -p vox-cli -- ci docs-quality
 ```
 
@@ -597,7 +597,7 @@ cargo run -p vox-cli -- ci docs-quality
 3. Analytics-event slugs match the route names (no manual mapping).
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-compiler routes
 cargo test -p vox-codegen href sitemap
 cargo run -p vox-cli -- build --target=fullstack examples/golden/routes_typed.vox
@@ -646,7 +646,7 @@ cargo run -p vox-cli -- build --target=fullstack examples/golden/routes_typed.vo
 4. Missed-run policy is structural: a `@scheduled(missed: skip)` function does not catch up; `missed: catch_up` runs every missed bucket; `missed: run_now` runs the latest one only. No flag magic — must be a typed enum on the decorator.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-workflow-runtime scheduler durable
 cargo test -p vox-codegen durability
 cargo run -p vox-cli -- check examples/golden/durable_email.vox
@@ -688,7 +688,7 @@ cargo run -p vox-cli -- check examples/golden/durable_email.vox
 4. CC-19 image-derivative pipeline (AVIF/WebP/JPEG at declared widths) is invokable from the upload's completion event.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-blob-store
 cargo test -p vox-codegen upload
 cargo run -p vox-cli -- build --target=fullstack examples/golden/file_upload.vox
@@ -728,7 +728,7 @@ cargo run -p vox-cli -- build --target=fullstack examples/golden/file_upload.vox
 4. Backpressure: bounded mpsc; no unbounded queues.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-actor-runtime channel
 cargo test -p vox-codegen channel asyncapi
 ```
@@ -773,7 +773,7 @@ cargo test -p vox-codegen channel asyncapi
 3. Bounce/open webhooks slot under GA-16 (stub trait OK if GA-16 hasn't shipped).
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-notify
 ```
 
@@ -809,7 +809,7 @@ cargo test -p vox-notify
 3. Conflict-free merge is automatic; user code does not see two values to reconcile.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-codegen service_worker
 cargo test -p vox-crdt
 ```
@@ -847,7 +847,7 @@ cargo test -p vox-crdt
 4. Per C4, no `@webhook` + manual HMAC pair — there is one canonical shape.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-webhook verifiers
 cargo test -p vox-codegen webhook
 ```
@@ -880,7 +880,7 @@ cargo test -p vox-codegen webhook
 3. Wire format SSOT documents the cursor codec; GA-02's drift-checker enforces it.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-actor-runtime pagination
 cargo test -p vox-codegen paginated
 ```
@@ -927,7 +927,7 @@ cargo test -p vox-codegen paginated
 3. Keyboard nav matches the WAI-ARIA Authoring Practices Guide for each primitive.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-compiler semantic_ui
 cargo test -p vox-codegen semantic_ui
 ```
@@ -956,7 +956,7 @@ cargo test -p vox-codegen semantic_ui
 3. `@dark` variant required for every token that has a `@light` (and vice versa).
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-compiler tokens contrast
 ```
 
@@ -1004,7 +1004,7 @@ cargo test -p vox-compiler tokens contrast
 5. `@ai` requires `@uses(net)` on the same function (after GA-05 lands) — diagnostic `vox/ai/missing-uses-net`.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-actor-runtime llm
 cargo test -p vox-compiler prompt
 ```
@@ -1042,7 +1042,7 @@ cargo test -p vox-compiler prompt
 3. The symmetric `vox/taint/unjustified-pii` warning fires when `@pii` is declared on a value that demonstrably does not carry PII.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-compiler taint
 ```
 
@@ -1074,7 +1074,7 @@ cargo test -p vox-compiler taint
 3. `db.search(by: similarity(query_vec, top_k: 10))` returns a typed `[SearchResult[T]]`.
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-search vector
 cargo test -p vox-compiler vector embed
 ```
@@ -1140,7 +1140,7 @@ cargo test -p vox-compiler vector embed
 6. The generated CSS embeds exactly seven layered `data-vox-layer="…"` selectors with a fixed z-index ladder; the ladder is **not user-extensible from `.vox` source** (per C4, one canonical ordering).
 
 **Verification commands.**
-```pwsh
+```powershell
 cargo test -p vox-compiler layer
 cargo test -p vox-codegen layer_emit overlay
 cargo run -p vox-cli -- check examples/golden/layer_modal_tooltip.vox
@@ -1174,7 +1174,7 @@ cargo run -p vox-cli -- check examples/golden/layer_modal_tooltip.vox
 
 This document was code-audited on 2026-05-09 against the worktree at `cc_bdesktop2/goofy-yonath-db8222`. To verify the document has not drifted from current code before relying on it, run:
 
-```pwsh
+```powershell
 # 1. Confirm lexer tokens still match the audit's assumptions
 rg -nE "Token::(AtForm|AtRequire|AtAi|AtTool|AtPush|AtDeepLink|AtCancellable|AtLoading|AtBackButton|AtScheduled|AtTable|AtEndpoint|AtPure|AtMcpTool|AtMcpResource)" crates/vox-compiler/src/lexer/token.rs
 

@@ -24,7 +24,11 @@ export default defineConfig({
       editLink: {
         baseUrl: 'https://github.com/vox-foundation/vox/edit/main/docs/src/',
       },
-      // Sidebar is dynamically generated from SUMMARY.md to maintain SSOT
+      // Sidebar is generated from each page's frontmatter (category /
+      // sort_order / title) by src/utils/sidebar.mjs; section order comes
+      // from contracts/documentation/docs-sidebar-section-order.v1.json.
+      // SUMMARY.md is gitignored and only ever EXCLUDED (content.config.ts,
+      // routeData.ts) -- it is never read as input.
       sidebar: getSidebar(),
       expressiveCode: {
         shiki: {

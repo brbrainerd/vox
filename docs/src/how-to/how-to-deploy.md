@@ -45,7 +45,7 @@ You can define your deployment environment directly in your `.vox` files using `
 For applications that run directly on Linux servers without Docker, set `base` to `"bare-metal"` and Vox will generate a systemd `.service` file instead of a Dockerfile:
 
 ```vox
-// vox:skip
+// vox:skip -- historical: `environment` blocks are tombstoned; use a Dockerfile or CI pipeline
 environment server {
     base "bare-metal"
     workdir "/opt/my-app"

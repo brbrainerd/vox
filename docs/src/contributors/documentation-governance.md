@@ -40,17 +40,24 @@ Use one of these `category` values in frontmatter:
 
 | `category` | Meaning |
 | --- | --- |
-| `getting-started` | first-stop pages and front-door onboarding |
-| `tutorial` | guided learning |
-| `how-to` | goal-oriented instructions |
-| `explanation` | conceptual understanding |
-| `reference` | stable lookup information |
-| `adr` | architecture decisions |
-| `architecture` | current architecture, authority maps, research indexes, roadmaps |
-| `ci` | CI and quality-specific references |
-| `contributor` | contributor-facing governance and process docs |
+| `Getting Started` | first-stop pages and front-door onboarding |
+| `Tutorials` | guided learning |
+| `How-To Guides` | goal-oriented instructions |
+| `Concepts` | conceptual understanding |
+| `Language Reference` | stable lookup information |
+| `API Reference — Crates` | per-crate API surface |
+| `Examples` | worked examples |
+| `Architecture Decisions (ADRs)` | architecture decisions |
+| `Architecture SSOTs` | current architecture, authority maps, research indexes, roadmaps |
+| `CI & Quality` | CI and quality-specific references |
+| `Contributors` | contributor-facing governance and process docs |
+| `Operations` | runbooks and operational catalogs |
+| `archive` | tombstoned pages (excluded from the sidebar) |
 
-Alias compatibility exists for a few legacy values, but new docs should use the canonical forms above.
+These display labels are the enforced vocabulary — `VALID_CATEGORIES` in
+`crates/vox-doc-pipeline/src/pipeline/lint.rs` matches them exactly, with no
+alias normalisation. They must stay in sync with the `sections` array in
+`contracts/documentation/docs-sidebar-section-order.v1.json`.
 
 ### Status vocabulary
 

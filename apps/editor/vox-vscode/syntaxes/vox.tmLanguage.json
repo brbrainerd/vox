@@ -32,6 +32,11 @@
     "decorators": {
       "patterns": [
         {
+          "_comment": "Hard parse errors since 2026-06-30 (cd7cc96874). Listed before the valid-decorator rule so retired syntax never renders as live.",
+          "name": "invalid.deprecated.vox",
+          "match": "@(table|query|mutation|index|server|tool|resource|form)\\b"
+        },
+        {
           "name": "entity.name.function.decorator.vox",
           "match": "@(/*SSOT_TM_DEC*/table|query|mutation|action|collection|index|vector_index|search_index|layout|loading|not_found|error_boundary|test|fixture|mock|trace|health|metric|scheduled|mcp\\.tool|mcp\\.resource|agent_def|skill|v0|py_import|deprecated|pure|require|theme|keyframes|server/*END_SSOT_TM_DEC*/)\\b"
         },
@@ -80,7 +85,7 @@
         },
         {
           "name": "keyword.operator.logical.vox",
-          "match": "\\b(and|or|not|isnt)\\b"
+          "match": "\\b(and|or|not|is)\\b"
         },
         {
           "name": "keyword.operator.comparison.vox",
@@ -104,7 +109,7 @@
         },
         {
           "name": "storage.type.vox",
-          "match": "\\b(/*SSOT_TM_ALL*/fn|component|type|actor|workflow|activity|struct|enum|trait|impl|message|state|routes|on|to|from|import|use|str|int|float|bool|Unit|Result|Option|List|Map|Id|style/*END_SSOT_TM_ALL*/)\\b"
+          "match": "\\b(/*SSOT_TM_ALL*/fn|component|type|actor|workflow|activity|struct|enum|trait|impl|message|state|routes|on|to|from|import|use|table|query|mutation|server|tool|resource|form|index|str|int|float|bool|Unit|Result|Option|List|Map|Id|style/*END_SSOT_TM_ALL*/)\\b"
         },
         {
           "name": "storage.modifier.vox",
@@ -112,7 +117,7 @@
         },
         {
           "name": "keyword.control.vox",
-          "match": "\\b(if|else|for|while|match|return|as|try|catch|throw|await|with|spawn|yield)\\b"
+          "match": "\\b(if|else|for|while|match|return|let|loop|break|continue|in|as|try|catch|throw|await|with|spawn|yield)\\b"
         },
         {
           "name": "keyword.other.http-method.vox",

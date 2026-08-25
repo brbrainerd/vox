@@ -105,7 +105,6 @@ All training pairs follow this JSONL schema (must match across all tools):
 - **Total vocab**: 133 tokens
 
 ```vox
-// vox:skip
 // Vox example — tokenized natively using VoxTokenizer
 fn greet(name: str) to str {
     return "Hello, " + name

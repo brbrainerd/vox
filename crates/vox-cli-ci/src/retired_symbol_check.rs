@@ -133,6 +133,31 @@ fn is_historical_or_audit_doc(rel_path: &Path) -> bool {
     false
 }
 
+/// For a markdown table row, return everything after the first data cell.
+///
+/// Policy files list the retired symbol in the first column on purpose, so that
+/// cell is skipped — but the replacement column must stay scannable, because a
+/// replacement that names a retired form is exactly the defect we are hunting.
+///
+/// `\|` inside a cell is escaped content, not a delimiter (the AGENTS.md
+/// `@endpoint` row contains two), so it is masked before splitting.
+fn first_cell_only(line: &str) -> Option<&str> {
+    let trimmed = line.trim_start();
+    let mut rest = trimmed.strip_prefix('|')?;
+    let mut consumed = trimmed.len() - rest.len();
+    loop {
+        let i = rest.find('|')?;
+        if rest[..i].ends_with('\\') {
+            // An escaped pipe inside the cell (e.g. AGENTS.md's `@endpoint`
+            // row) -- not a column delimiter. Keep scanning past it.
+            consumed += i + 1;
+            rest = &rest[i + 1..];
+            continue;
+        }
+        return Some(&trimmed[consumed + i..]);
+    }
+}
+
 fn scan_source_lines(
     path: &Path,
     root: &Path,
@@ -147,17 +172,47 @@ fn scan_source_lines(
     let mut in_frontmatter = false;
     let mut frontmatter_closed = false;
     let mut in_fence = false;
+    // Section-scoped carve-out: a "## Retired ..." / "### Historical" / "#### Superseded"
+    // heading legitimately names retired symbols until the next heading at the
+    // same or shallower level. This is narrower than `is_history_doc` (whole-file)
+    // and catches the common case of a single Retired/Historical subsection inside
+    // an otherwise-current, otherwise-prescriptive page -- e.g. a reference page's
+    // "## Retired: `@endpoint`" migration note, or a roadmap's dated "Superseded"
+    // callout -- without silencing the rest of the page.
+    let mut in_retired_section = false;
+    let mut retired_section_level = 0usize;
 
     for (line_idx, line) in body.lines().enumerate() {
-        if cfg.skip_md_table_rows && line.trim_start().starts_with('|') {
-            continue;
-        }
+        let line: &str = if cfg.skip_md_table_rows {
+            first_cell_only(line).unwrap_or(line)
+        } else {
+            line
+        };
         if cfg.is_rust && should_skip_rust_line(line) {
             continue;
         }
 
         if cfg.is_md {
             let t = line.trim();
+            if !in_fence && t.starts_with('#') {
+                let level = t.bytes().take_while(|b| *b == b'#').count();
+                let heading = t[level..].trim();
+                if in_retired_section && level <= retired_section_level {
+                    in_retired_section = false;
+                }
+                let lower = heading.to_lowercase();
+                if lower.starts_with("retired")
+                    || lower.starts_with("historical")
+                    || lower.starts_with("superseded")
+                    || lower.contains("retired:")
+                    || lower.contains("(retired)")
+                    || lower.contains("(historical)")
+                    || lower.contains("(superseded)")
+                {
+                    in_retired_section = true;
+                    retired_section_level = level;
+                }
+            }
             if t.starts_with("```") {
                 in_fence = !in_fence;
                 continue;
@@ -194,7 +249,7 @@ fn scan_source_lines(
             // plans, dated architectural snapshots) intentionally mention
             // retired symbols while explaining what replaced them. Skip the
             // policy check for those whole files.
-            if is_history_doc {
+            if is_history_doc || in_retired_section {
                 continue;
             }
 
@@ -376,6 +431,15 @@ pub fn run(root: &Path) -> Result<()> {
                 if filename == "legacy-tombstone-remediation-ledger-2026.md" {
                     continue;
                 }
+                // A changelog is a historical record by construction: every retired
+                // symbol legitimately appears in the entry that introduced or removed
+                // it, describing the tree as it stood at that release. This file is
+                // synced verbatim from the repository-root CHANGELOG.md, which is
+                // outside every scan root, so before the sync the same text was
+                // simply invisible rather than compliant.
+                if filename == "changelog.md" {
+                    continue;
+                }
                 if filename.starts_with("2026-05-08-crate-org-followup") {
                     continue;
                 }
@@ -530,11 +594,33 @@ pub fn run(root: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::should_skip_rust_line;
+    use super::{first_cell_only, should_skip_rust_line};
 
     #[test]
     fn rust_skip_skips_line_comments() {
         assert!(should_skip_rust_line("// vox-dei"));
         assert!(!should_skip_rust_line(r#"let _ = "vox-dei";"#));
+    }
+
+    #[test]
+    fn first_cell_only_exposes_the_replacement_column() {
+        // The real AGENTS.md row: escaped pipes inside the first cell must not
+        // be treated as column separators.
+        let row = r"| `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `server fn` / `query fn` / `mutation fn` |";
+        let rest = first_cell_only(row).expect("table row");
+        assert!(
+            !rest.contains("@endpoint"),
+            "the retired form lives in the first cell and must be skipped, got: {rest}"
+        );
+        assert!(
+            rest.contains("server fn"),
+            "the replacement column must remain scannable, got: {rest}"
+        );
+    }
+
+    #[test]
+    fn first_cell_only_returns_none_for_non_table_lines() {
+        assert!(first_cell_only("plain prose line").is_none());
+        assert!(first_cell_only("").is_none());
     }
 }

@@ -1729,6 +1729,19 @@ impl BuiltinTypes {
                         )),
                     ))
                 }
+                "update" => {
+                    // update(pk: <resolved primary-key type>, item: Record) -> Result[Unit]
+                    // Full-record replace, mirroring insert's structural-over-all-fields Record.
+                    let key_ty = primary_key
+                        .as_ref()
+                        .map(|(_, ty)| ty.as_ref().clone())
+                        .unwrap_or(Ty::Int);
+                    let item_ty = Ty::Record(fields.clone());
+                    Some(Ty::Fn(
+                        vec![key_ty, item_ty],
+                        Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
+                    ))
+                }
                 "delete" => {
                     // delete(pk: <resolved primary-key type>) -> Result[Unit]
                     let key_ty = primary_key

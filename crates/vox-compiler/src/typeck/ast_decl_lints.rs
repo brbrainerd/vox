@@ -595,9 +595,31 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
     // P4-A: HTTP/security decorators applied to bare fn (not an endpoint or component).
     // @webhook, @cors, @rate_limit, @pii require @query/@mutation/@server.
     // @layer requires a component declaration (not a bare fn).
+    //
+    // `tool` and `resource` declarations share this class of bug: both lower their inner
+    // function through `parse_fn_decl_headless` (the same headless-fn parser HTTP endpoints
+    // use) but codegen emits them via the plain `emit_fn` path in
+    // `crates/vox-codegen/src/codegen_rust/emit/workflow.rs`, never through
+    // `emit_server_fn_handler`/`emit_query_fn_handler` -- the only readers of `.rate_limit`,
+    // `.cors_spec`, `.pii`, `.webhook`, and `.layer`. Those fields parse cleanly on a `tool`/
+    // `resource` and are then silently dropped, identical to the bare-`fn` case this lint
+    // already caught -- just uncaught for these two declaration kinds until now.
     for decl in &module.declarations {
-        if let Decl::Function(f) = decl {
-            check_http_decorator_on_bare_fn(f, &mut diags);
+        match decl {
+            Decl::Function(f) => {
+                check_http_decorator_misuse(f, "not an endpoint or component", &mut diags)
+            }
+            Decl::McpTool(m) => check_http_decorator_misuse(
+                &m.func,
+                "MCP `tool` declarations compile through the same path as a bare `fn`",
+                &mut diags,
+            ),
+            Decl::McpResource(m) => check_http_decorator_misuse(
+                &m.func,
+                "MCP `resource` declarations compile through the same path as a bare `fn`",
+                &mut diags,
+            ),
+            _ => {}
         }
     }
 
@@ -691,7 +713,12 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
 ///
 /// These decorators are silently dropped during lowering when placed on bare functions (Pattern C).
 /// This lint surfaces the mistake before lowering so the user gets a clear error.
-fn check_http_decorator_on_bare_fn(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
+/// `reason` describes, at the call site, why HTTP/security decorators have no
+/// effect on this particular `FnDecl` (a bare `fn`, or the inner function of a
+/// `tool`/`resource` declaration) -- interpolated into a diagnostic that is
+/// otherwise identical regardless of which declaration kind hit it, since the
+/// underlying bug (decorator parses, codegen never reads it) is the same one.
+fn check_http_decorator_misuse(f: &FnDecl, reason: &str, diags: &mut Vec<Diagnostic>) {
     if f.webhook.is_some() || f.cors_spec.is_some() || f.rate_limit.is_some() || f.pii.is_some() {
         let decorator = if f.webhook.is_some() {
             "@webhook"
@@ -704,8 +731,8 @@ fn check_http_decorator_on_bare_fn(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
         };
         diags.push(Diagnostic {
             message: format!(
-                "fn `{}`: `{decorator}` requires `@query`, `@mutation`, or `@server` on the function — \
-                 HTTP/security decorators are silently dropped on bare functions.",
+                "`{}`: `{decorator}` has no effect here ({reason}) — \
+                 HTTP/security decorators are silently dropped outside `@query`/`@mutation`/`@server`.",
                 f.name
             ),
             span: f.span,
@@ -713,9 +740,7 @@ fn check_http_decorator_on_bare_fn(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
             expected_type: None,
             found_type: None,
             context: None,
-            suggestions: vec![
-                format!("Add `@query`, `@mutation`, or `@server` to `{}`, or remove `{decorator}`.", f.name),
-            ],
+            suggestions: vec![format!("Remove `{decorator}` from `{}`.", f.name)],
             category: DiagnosticCategory::Typecheck,
             code: Some(codes::TYPECK_DECORATOR_REQUIRES_ENDPOINT.into()),
             fixes: vec![],
@@ -728,8 +753,8 @@ fn check_http_decorator_on_bare_fn(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
     if f.layer.is_some() {
         diags.push(Diagnostic {
             message: format!(
-                "fn `{}`: `@layer` requires a `component` declaration — \
-                 `@layer` is silently dropped on bare functions.",
+                "`{}`: `@layer` has no effect here ({reason}) — \
+                 `@layer` requires a `component` declaration.",
                 f.name
             ),
             span: f.span,
@@ -737,10 +762,7 @@ fn check_http_decorator_on_bare_fn(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
             expected_type: None,
             found_type: None,
             context: None,
-            suggestions: vec![format!(
-                "Convert `{}` to a `component`, or remove `@layer`.",
-                f.name
-            )],
+            suggestions: vec![format!("Remove `@layer` from `{}`.", f.name)],
             category: DiagnosticCategory::Typecheck,
             code: Some(codes::TYPECK_DECORATOR_REQUIRES_ENDPOINT.into()),
             fixes: vec![],
@@ -1510,5 +1532,102 @@ mod semcov_wave1c_tests {
         check_workflow_stmt_determinism(&stmt, "wf", &mut diags);
 
         assert!(diags.is_empty(), "deterministic call must not be flagged");
+    }
+}
+
+#[cfg(test)]
+mod http_decorator_misuse_tests {
+    use super::*;
+    use crate::lexer::lex;
+    use crate::parser::parse;
+
+    fn lint(src: &str) -> Vec<Diagnostic> {
+        let tokens = lex(src);
+        let module = parse(tokens).expect("parse error");
+        lint_ast_declarations(&module, src)
+    }
+
+    /// Shared assertion for the "exactly one decorator-misuse diagnostic,
+    /// mentioning these substrings" shape used by most cases below.
+    fn assert_single_decorator_misuse_diag(diags: &[Diagnostic], expect_in_message: &[&str]) {
+        let matches: Vec<_> = diags
+            .iter()
+            .filter(|d| d.code.as_deref() == Some(codes::TYPECK_DECORATOR_REQUIRES_ENDPOINT))
+            .collect();
+        assert_eq!(
+            matches.len(),
+            1,
+            "expected exactly one decorator-misuse diagnostic, got: {diags:?}"
+        );
+        for needle in expect_in_message {
+            assert!(matches[0].message.contains(needle));
+        }
+    }
+
+    /// The bug this test guards: `@rate_limit` parses cleanly on a `tool`
+    /// declaration's inner function (same headless-fn parser HTTP endpoints
+    /// use) but is never read by the MCP tool codegen path -- only by
+    /// `emit_server_fn_handler`/`emit_query_fn_handler`. Before this lint
+    /// covered `Decl::McpTool`, this was a silent no-op.
+    #[test]
+    fn rate_limit_on_tool_is_flagged() {
+        let diags = lint(
+            "tool \"does a thing\"\n\
+             @rate_limit(max_requests: 1, window_secs: 60)\n\
+             foo(a: int) to int {\n\
+                 return a\n\
+             }\n",
+        );
+        assert_single_decorator_misuse_diag(&diags, &["@rate_limit", "tool"]);
+    }
+
+    /// Same bug, same fix, on `resource` -- its inner function goes through
+    /// the identical headless-fn parser and the identical plain `emit_fn`
+    /// codegen path as `tool`.
+    #[test]
+    fn pii_on_resource_is_flagged() {
+        let diags = lint(
+            "resource \"a resource\" \"desc\"\n\
+             @pii(class: email)\n\
+             list_things() to str {\n\
+                 return \"\"\n\
+             }\n",
+        );
+        assert_single_decorator_misuse_diag(&diags, &["@pii", "resource"]);
+    }
+
+    /// The pre-existing bare-`fn` case must keep working after the
+    /// generalisation from `check_http_decorator_on_bare_fn` to
+    /// `check_http_decorator_misuse`.
+    #[test]
+    fn rate_limit_on_bare_fn_is_still_flagged() {
+        let diags = lint(
+            "@rate_limit(max_requests: 1, window_secs: 60)\n\
+             fn foo(a: int) to int {\n\
+                 return a\n\
+             }\n",
+        );
+        assert_single_decorator_misuse_diag(&diags, &[]);
+    }
+
+    /// A `mutation` carrying `@rate_limit` is the legitimate case -- it must
+    /// NOT be flagged, since HTTP endpoints are exactly where these
+    /// decorators are consumed.
+    #[test]
+    fn rate_limit_on_mutation_is_not_flagged() {
+        let diags = lint(
+            "@rate_limit(max_requests: 1, window_secs: 60)\n\
+             mutation foo(a: int) to int {\n\
+                 return a\n\
+             }\n",
+        );
+        let matches: Vec<_> = diags
+            .iter()
+            .filter(|d| d.code.as_deref() == Some(codes::TYPECK_DECORATOR_REQUIRES_ENDPOINT))
+            .collect();
+        assert!(
+            matches.is_empty(),
+            "a mutation carrying @rate_limit must not be flagged, got: {diags:?}"
+        );
     }
 }

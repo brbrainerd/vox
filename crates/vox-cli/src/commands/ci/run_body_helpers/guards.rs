@@ -382,7 +382,6 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-secrets/",
         "crates/vox-config/src/inference.rs",
         "crates/vox-db/src/config.rs",
-        "crates/vox-bootstrap/",
         "crates/vox-cli/",
         "crates/vox-compiler/",
         "crates/vox-search/",
@@ -424,7 +423,6 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
     const HARD_CUT_ALLOWLIST: &[&str] = &[
         "crates/vox-secrets/",
         "crates/vox-db/src/config.rs",
-        "crates/vox-bootstrap/",
         "crates/vox-cli/",
         "crates/vox-compiler/",
         "crates/vox-search/",

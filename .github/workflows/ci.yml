@@ -1606,7 +1606,7 @@ jobs:
     # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, docker]
-    timeout-minutes: 30
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - name: docker build default image
@@ -1804,7 +1804,6 @@ jobs:
           - vox-ml-cli
           - vox-gamify
           - vox-oratio
-          - vox-schola
           - vox-skills
           - vox-scientia-ingest
           - vox-doc-pipeline

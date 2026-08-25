@@ -68,7 +68,7 @@ This is the *summary* of findings. The phase-by-phase steps below have the opera
 
 Before any phase, confirm the working tree is clean and verify the inventory has not drifted.
 
-```pwsh
+```powershell
 # 1. Working tree clean
 git status
 
@@ -126,7 +126,7 @@ Files (verified as of 2026-05-08):
 
 ### A.2 Verification
 
-```pwsh
+```powershell
 # Should return zero hits in the files above (use Grep tool, not raw rg)
 # After: Grep for "crates/vox-clavis" in repo, output_mode=files_with_matches
 # Expect: only matches in CHANGELOG.md (intentional history) and any *.archive/* docs
@@ -679,7 +679,7 @@ Likely commands (verify in AGENTS.md before running):
 
 ### L.2 Run
 
-```pwsh
+```powershell
 # Run each generator. Inspect git diff after each, do not commit corrupted output.
 cargo run -p vox-doc-pipeline
 git diff -- docs/src/SUMMARY.md docs/src/architecture/architecture-index.md docs/src/feed.xml '*.generated.md'

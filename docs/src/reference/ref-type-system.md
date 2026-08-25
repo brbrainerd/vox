@@ -42,14 +42,19 @@ In Vox, `null` and `undefined` do not exist. Absence must be modeled explicitly 
 A named collection of fields.
 
 ```vox
-// vox:skip
 table Task {
-    id:       Id[Task]
-    title:    str
-    done:     bool
-    priority: int
+    parent_id: Id[Task]
+    title:     str
+    done:      bool
+    priority:  int
 }
 ```
+
+`table` always adds its own surrogate `_id` primary key, so a user-declared field literally
+named `id` collides with it and triggers a compiler warning
+(`crates/vox-compiler/src/typeck/ast_decl_lints.rs`) — this example uses `parent_id` to
+demonstrate an `Id[T]`-typed field (a self-reference, e.g. a subtask's parent) without
+shadowing the real primary key.
 
 ### Enums (Sum Types / Tagged Unions)
 Types that can be one of several variants, potentially carrying extra data.
@@ -72,9 +77,11 @@ Vox uses the `match` keyword for exhaustive destructuring of ADTs. The compiler 
 Used for values that might be missing.
 
 ```vox
-// vox:skip
-fn find_user(id: int) to Option[User] {
-    return db.User.find(id)
+fn find_user(id: int) to Option[str] {
+    if id is 1 {
+        return Some("alice@example.com")
+    }
+    return None
 }
 ```
 
@@ -82,13 +89,12 @@ fn find_user(id: int) to Option[User] {
 Used for operations that can fail.
 
 ```vox
-// vox:skip
-server update_task(id: Id[Task], title: str) to Result[Unit, str] {
-    if title.len() == 0 {
-        return Err("Title cannot be empty")
+server remove_task(id: Id[Task], title: str) to Result[str] {
+    if title.len() is 0 {
+        return Error("Title cannot be empty")
     }
-    db.patch(id, { title: title })
-    return Ok(())
+    db.Task.delete(id)?
+    return Ok("removed")
 }
 ```
 
@@ -97,10 +103,9 @@ server update_task(id: Id[Task], title: str) to Result[Unit, str] {
 Similar to Rust, the `?` operator can be used to early-return on `None` or `Err`.
 
 ```vox
-// vox:skip
 fn get_user_email(id: int) to Option[str] {
-    let user = find_user(id)? // If None, returns None early
-    return Some(user.email)
+    let email = find_user(id)? // If None, returns None early
+    return Some(email)
 }
 ```
 
@@ -119,16 +124,51 @@ Vox supports **type constructors** such as `list[T]`, `map[K, V]`, `Option[T]`, 
 You rarely need Type annotations for local variables. Vox infers them from the right-hand side or from how the variable is used.
 
 ```vox
-// vox:skip
-let x = 10                  // inferred as int
-let names = ["Alice", "Bob"] // inferred as list[str]
-let result = add_task("Hi")  // inferred from add_task signature
+fn add_task(title: str) to int {
+    return 1
+}
+
+fn demo_inference() {
+    let x = 10                  // inferred as int
+    let names = ["Alice", "Bob"] // inferred as list[str]
+    let result = add_task("Hi")  // inferred from add_task signature
+}
 ```
 
 Explicit types are **required** on:
 1. Function parameters
 2. Function return types
 3. `table` and `type` definitions
+
+### How generic types get resolved (instantiation)
+
+Verified against `crates/vox-compiler/src/typeck/unify.rs`. A generic type
+like `list[T]` is stored internally with a placeholder (`Ty::GenericParam`).
+Every time that generic is *used* — a call to a generic builtin, a generic
+field access — the checker calls `instantiate()`, which walks the type
+structurally and replaces each `GenericParam` with a **fresh type variable**
+(`fresh_var()`, a new numbered `Ty::TypeVar`). "Fresh" is the key word: two
+separate uses of the same generic function get two independent sets of type
+variables, so `list[T].append` called once with `int` and again with `str`
+in the same file doesn't cross-contaminate — each call site solves its own
+`T` independently. This is why annotating one call site's generic argument
+never affects type inference at a different call site.
+
+Those fresh variables get pinned down by **unification** (`unify()`): as the
+checker walks the expression, it unifies the type variable against whatever
+concrete type shows up (an argument's actual type, a return position's
+expected type). Unification includes an **occurs check** — it refuses to
+solve a type variable to a type that contains itself, which is what
+prevents an infinite type from silently type-checking. Once solved,
+`resolve()` follows the substitution chain to get the concrete type back out
+for diagnostics and codegen.
+
+The doc comment on `instantiate()` notes it "matches the AST pipeline's
+instantiate so builtins like `use_state` and `List::append` unify correctly
+in the HIR Checker" — the same algorithm has to agree between two
+type-checking entry points (an older AST-level pass and the HIR-level
+`Checker`) precisely so a generic builtin resolves the same way regardless
+of which pass reaches it first.
 
 ---
 

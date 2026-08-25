@@ -1062,7 +1062,7 @@ fn emit_floating_endpoint_call(expr: &HirExpr, ctx: &EmitCtx<'_>, name: &str, pa
 
 /// Lower a `db.<Table>.<op>(...)` call to a `voxRuntime` journal call for the
 /// on-device local-execution path. Insert/All/Count are wired to the append-only
-/// seam; richer ops (Get/Filter/Delete/raw) are deferred — endpoints that use
+/// seam; richer ops (Get/Update/Filter/Delete/raw) are deferred — endpoints that use
 /// them are classified non-local-executable (see `is_endpoint_locally_executable`)
 /// and never reach this with those ops, but we emit an explicit throw as a
 /// belt-and-suspenders so output is never silently wrong.
@@ -1087,6 +1087,7 @@ fn emit_local_db_op(plan: &HirDbQueryPlan, args: &[HirArg], ctx: &EmitCtx<'_>) -
             format!("Ok(__vox_len(await voxRuntime.replayTable(\"{table}\")))")
         }
         HirDbTableOp::Get
+        | HirDbTableOp::Update
         | HirDbTableOp::Delete
         | HirDbTableOp::FilterRecord
         | HirDbTableOp::UnsafeQueryRawClause => format!(

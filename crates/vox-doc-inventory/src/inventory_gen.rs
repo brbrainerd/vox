@@ -57,7 +57,11 @@ pub fn generate(root: &Path, out_path: &Path) -> Result<DocInventory> {
             "AGENTS.md".into(),
             "docs/agents/orchestrator.md".into(),
             "docs/src/reference/cli.md".into(),
-            "crates/vox-mcp/src/tools/mod.rs".into(),
+            // vox-mcp was renamed vox-orchestrator-mcp and its `tools/`
+            // subdirectory flattened; lib.rs is now the tool registry and
+            // dispatcher (see its module doc). The old path was hardcoded
+            // here, so regenerating the inventory reproduced the dead entry.
+            "crates/vox-orchestrator-mcp/src/lib.rs".into(),
             "docs/agents/doc-inventory.json".into(),
         ],
         files,

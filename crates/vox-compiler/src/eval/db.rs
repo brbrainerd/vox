@@ -222,6 +222,35 @@ pub fn execute_db_plan(
                 .map(row_to_object);
             Ok(ok(VoxValue::Option(found.map(Box::new))))
         }
+        HirDbTableOp::Update => {
+            let id = args.first().map(|(_, v)| v.clone());
+            let record = args
+                .get(1)
+                .and_then(|(_, v)| match v {
+                    VoxValue::Object(fields) => Some(fields.clone()),
+                    _ => None,
+                })
+                .unwrap_or_default();
+            let key_field = plan.primary_key.as_deref().unwrap_or("_id");
+            let table = interp.db.table_mut(&plan.table);
+            if let Some(row) = table
+                .rows
+                .iter_mut()
+                .find(|r| field(r, key_field) == id.as_ref())
+            {
+                // Full-record replace: keep the key field as-is (it isn't part
+                // of the update payload), overwrite every other column from
+                // `record`, mirroring the generated `UPDATE ... SET` codegen.
+                for (k, v) in row.iter_mut() {
+                    if k != key_field
+                        && let Some((_, new_v)) = record.iter().find(|(rk, _)| rk == k)
+                    {
+                        *v = new_v.clone();
+                    }
+                }
+            }
+            Ok(ok(VoxValue::Null))
+        }
         HirDbTableOp::Delete => {
             let id = args.first().map(|(_, v)| v.clone());
             let key_field = plan.primary_key.as_deref().unwrap_or("_id");

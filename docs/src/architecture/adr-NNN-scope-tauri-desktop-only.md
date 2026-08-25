@@ -11,6 +11,13 @@ related:
   - codegen-ssot-unification-design-2026.md
 ---
 
+> **Filename note.** This file is still named `adr-NNN-…` and lives under
+> `architecture/` rather than `adr/`. It declares `supersedes: adr-037` and
+> `status: current`, but assigning it a real ADR number is a decision about
+> whether it is an accepted ADR or a proposal — deliberately left to a human.
+> Next free ADR numbers as of 2026-08-22: 046+ (044 and 045 were taken by the
+> three-way 037 collision fix).
+
 # ADR-NNN: Scope Tauri to desktop only; pick React Native + Expo + uniffi for mobile
 
 ## Status
@@ -27,7 +34,7 @@ are filed. The RN target itself has since shipped (`vox build --target=mobile`,
 
 ## Context
 
-ADR-037 (2026-05-11, not yet filed as a doc) declared Tauri 2 the canonical Vox shell for desktop, Android, and iOS. That decision predated:
+ADR-037 ([Tauri convergence](../adr/037-tauri-convergence.md), 2026-05-11) declared Tauri 2 the canonical Vox shell for desktop, Android, and iOS. That decision predated:
 
 1. **Hands-on bake-off (2026-05-27)** on a representative Windows-host workflow. `cargo tauri android dev` produced an APK successfully but the dev orchestration hung for 30+ minutes after Kotlin compile, never installed or launched the app, with zero further log output and idle gradle. Manual `adb install` of the produced APK worked, demonstrating the build path itself is sound; the developer-experience orchestration is what failed.
 2. **Upstream Tauri team positioning** [in the 2.0 stable announcement](https://v2.tauri.app/blog/tauri-20/): *"after the stable release the focus is shifting to providing feature parity wherever possible and to improve the development process for mobile."* Mobile is explicitly not yet first-class even by Tauri's own characterization.
@@ -107,7 +114,7 @@ A quarterly tracking note should be maintained at `docs/src/architecture/rn-taur
 | `crates/vox-compiler/src/typeck/...` (struct-literal-in-fn) | Bug fix is a precondition. Tracked separately. |
 | New: end-to-end CLI integration test harness | Phase 0 deliverable; precondition of mobile work, not gated by this ADR but blocks downstream phases. |
 | Documentation: [tauri-convergence-migration-plan-2026.md](tauri-convergence-migration-plan-2026.md) | Phase 5+ rewritten to reference [mobile-rn-expo-architecture-and-migration-2026.md](mobile-rn-expo-architecture-and-migration-2026.md). |
-| Documentation: `adr-037-tauri-canonical-platform.md` (not yet filed) | Status changed from "Accepted" to "Superseded by ADR-NNN (this doc) for the mobile scope; remains in force for desktop." |
+| Documentation: [`037-tauri-convergence.md`](../adr/037-tauri-convergence.md) | Status changed from "Accepted" to "Superseded by ADR-NNN (this doc) for the mobile scope; remains in force for desktop." |
 
 ## Notes for the Acceptance review
 

@@ -1,0 +1,259 @@
+// vox:caps fs
+// scripts/docs-corpus-census.vox
+//
+// Every number the docs-corpus-repair spec quotes, computed instead of authored.
+//
+// WHY THIS EXISTS: revision 1 of that spec carried 7 wrong counts; revision 2
+// "corrected" them and introduced 14 more, including one that changed a correct
+// figure to a wrong one and three that silently re-included docs/src/archive/.
+// Three review rounds did not converge because ~40 hand-maintained numbers about
+// a moving corpus is itself the drift class the spec exists to fix. So the spec
+// now cites DEFINITIONS AND THIS COMMAND, never values.
+//
+// Usage (from the repo root):
+//   vox run scripts/docs-corpus-census.vox
+//
+// NOTE: the NATIVE tier is required. `vox run --interp` fails with
+// StepLimitExceeded partway through the decorator pass: a single pass over the
+// 622 live docs exceeds the 10,000,000-step ceiling hardcoded at
+// crates/vox-cli/src/commands/run.rs:63, which has no flag and no env override.
+// Native compiles once and is content-hash cached thereafter.
+//
+// Scope rule, applied uniformly and stated on every line of output:
+//   LIVE    = docs/src/**/*.md excluding any path containing "/archive/"
+//   ARCHIVE = the excluded remainder
+//   ALLDOCS = docs/**/*.md excluding "/archive/" (adds docs/agents, docs/superpowers, ...)
+//
+// Every count is an OCCURRENCE count unless the label says "files".
+
+import fs;
+
+fn norm(p: str) to str {
+    return p.replace("\\", "/");
+}
+
+fn is_archive(p: str) to bool {
+    return norm(p).contains("/archive/");
+}
+
+// Count non-overlapping occurrences of `needle` in `hay`.
+fn count_occ(hay: str, needle: str) to int {
+    if needle.len() == 0 { return 0 }
+    let parts = hay.split(needle);
+    return parts.len() - 1;
+}
+
+fn read_or_empty(path: str) to str {
+    let c = fs.read(path);
+    if c.is_err() { return "" }
+    return c.unwrap();
+}
+
+// A fence opener for `lang`: optional leading whitespace, 3+ backticks, then lang.
+fn is_fence_open(line: str, lang: str) to bool {
+    let t = line.trim();
+    if not t.starts_with("```") { return false }
+    let rest = t.replace("`", "");
+    return rest.trim() == lang;
+}
+
+fn is_fence_close(line: str) to bool {
+    let t = line.trim();
+    if not t.starts_with("```") { return false }
+    return t.replace("`", "").trim() == "";
+}
+
+fn banner(title: str) {
+    print("");
+    print("== " + title + " ==");
+}
+
+fn main() {
+    let g = fs.glob("docs/src/**/*.md");
+    if g.is_err() {
+        log.error("census: glob docs/src/**/*.md failed (run from the repo root)");
+        process.exit(1);
+    }
+    let all_src = g.unwrap();
+
+    let mut live = [];
+    let mut arch = [];
+    for f in all_src {
+        if is_archive(f) { arch = arch.push(f) } else { live = live.push(f) }
+    }
+
+    // Read every LIVE file exactly once. Re-reading inside each metric loop
+    // costs ~5,000 redundant reads and trips the interpreter step limit.
+    let mut live_body = [];
+    for f in live { live_body = live_body.push(read_or_empty(f)); }
+
+    banner("corpus size (files)");
+    print("docs/src total .md            : " + str(all_src.len()));
+    print("  LIVE (excl. /archive/)      : " + str(live.len()));
+    print("  ARCHIVE                     : " + str(arch.len()));
+
+    // ── mermaid fences ──────────────────────────────────────────────────────
+    let mut mm_live = 0;
+    let mut mm_live_files = 0;
+    let mut mm_arch = 0;
+    for b in live_body {
+        let n = count_occ(b, "```mermaid");
+        if n > 0 { mm_live_files = mm_live_files + 1 }
+        mm_live = mm_live + n;
+    }
+    for f in arch {
+        mm_arch = mm_arch + count_occ(read_or_empty(f), "```mermaid");
+    }
+
+    banner("mermaid fences (occurrences of the literal ```mermaid)");
+    print("LIVE fences                   : " + str(mm_live));
+    print("LIVE files containing >=1     : " + str(mm_live_files));
+    print("ARCHIVE fences                : " + str(mm_arch));
+
+    // ── vox fences and vox:skip ─────────────────────────────────────────────
+    // A skip marker COUNTS AGAINST A FENCE only when it appears between a
+    // ```vox opener and its closer. Markers in prose are reported separately,
+    // because conflating the two is what produced the spec's impossible
+    // "260 markers / 257 bare + 77 reasoned = 334" arithmetic.
+    let mut vox_fences = 0;
+    let mut vox_fences_skipped = 0;
+    let mut skip_in_fence = 0;
+    let mut skip_in_prose = 0;
+    let mut skip_bare = 0;
+    let mut skip_reasoned = 0;
+
+    for content in live_body {
+        if content.len() == 0 { continue }
+        let lines = content.split("\n");
+        let mut in_vox = false;
+        let mut in_any = false;
+        let mut this_fence_skipped = false;
+
+        for raw in lines {
+            let line = raw;
+            if in_any {
+                if is_fence_close(line) {
+                    if in_vox {
+                        vox_fences = vox_fences + 1;
+                        if this_fence_skipped { vox_fences_skipped = vox_fences_skipped + 1 }
+                    }
+                    in_any = false;
+                    in_vox = false;
+                    this_fence_skipped = false;
+                    continue;
+                }
+                if line.contains("vox:skip") {
+                    if in_vox {
+                        skip_in_fence = skip_in_fence + 1;
+                        this_fence_skipped = true;
+                    } else {
+                        skip_in_prose = skip_in_prose + 1;
+                    }
+                    // bare == the marker is the whole trimmed comment
+                    if line.trim() == "// vox:skip" {
+                        skip_bare = skip_bare + 1;
+                    } else {
+                        skip_reasoned = skip_reasoned + 1;
+                    }
+                }
+                continue;
+            }
+            if is_fence_open(line, "vox") {
+                in_any = true;
+                in_vox = true;
+                this_fence_skipped = false;
+                continue;
+            }
+            if line.trim().starts_with("```") {
+                in_any = true;
+                in_vox = false;
+                continue;
+            }
+            if line.contains("vox:skip") {
+                skip_in_prose = skip_in_prose + 1;
+                if line.trim() == "// vox:skip" {
+                    skip_bare = skip_bare + 1;
+                } else {
+                    skip_reasoned = skip_reasoned + 1;
+                }
+            }
+        }
+    }
+
+    banner("vox fences and skip markers (LIVE only)");
+    print("vox fences                    : " + str(vox_fences));
+    print("  carrying a skip marker      : " + str(vox_fences_skipped));
+    print("  compiled (no marker)        : " + str(vox_fences - vox_fences_skipped));
+    print("skip markers inside vox fences: " + str(skip_in_fence));
+    print("skip markers elsewhere        : " + str(skip_in_prose));
+    print("  bare (`// vox:skip` alone)  : " + str(skip_bare));
+    print("  with a trailing reason      : " + str(skip_reasoned));
+
+    // ── retired-surface references ──────────────────────────────────────────
+    let symbols = [
+        "crates/vox-dashboard",
+        "crates/vox-oratio",
+        "vox-dei-shim",
+        "@endpoint"
+    ];
+
+    banner("retired-surface occurrences (LIVE docs/src)");
+    for sym in symbols {
+        let mut n = 0;
+        let mut nf = 0;
+        for b in live_body {
+            if not b.contains(sym) { continue }
+            let c = count_occ(b, sym);
+            if c > 0 { nf = nf + 1 }
+            n = n + c;
+        }
+        print(sym + "  occurrences=" + str(n) + " files=" + str(nf));
+    }
+
+    // ── retired data-layer decorators ───────────────────────────────────────
+    // TWO definitions, reported separately and never summed. The spec's "46"
+    // was a blend of both, which is why no single regex reproduced it.
+    //   STRICT = `@X ` immediately followed by `fn ` or `type ` (a declaration)
+    //   LOOSE  = `@X ` followed by any letter (includes prose like "@form rigor")
+    let decorators = ["@table", "@query", "@mutation", "@server", "@tool", "@resource", "@form", "@index"];
+
+    banner("retired data-layer decorators (LIVE docs/src)");
+    print("definition STRICT = '<dec> fn' or '<dec> type'; LOOSE = '<dec> ' + any letter");
+    let mut strict_total = 0;
+    let mut loose_total = 0;
+    for d in decorators {
+        let mut s = 0;
+        let mut l = 0;
+        for f in live {
+            let c = read_or_empty(f);
+            if c.len() == 0 { continue }
+            s = s + count_occ(c, d + " fn ") + count_occ(c, d + " type ");
+            for line in c.split("\n") {
+                if line.contains(d + " ") { l = l + count_occ(line, d + " ") }
+            }
+        }
+        strict_total = strict_total + s;
+        loose_total = loose_total + l;
+        print(d + "  strict=" + str(s) + " loose=" + str(l));
+    }
+    print("TOTAL strict=" + str(strict_total) + "  loose=" + str(loose_total));
+
+    // ── superpowers corpus ──────────────────────────────────────────────────
+    let pg = fs.glob("docs/superpowers/plans/*.md");
+    let pgr = fs.glob("docs/superpowers/plans/**/*.md");
+    let sg = fs.glob("docs/superpowers/specs/*.md");
+    let mut p_top = 0;
+    let mut p_rec = 0;
+    let mut s_top = 0;
+    if not pg.is_err() { p_top = pg.unwrap().len() }
+    if not pgr.is_err() { p_rec = pgr.unwrap().len() }
+    if not sg.is_err() { s_top = sg.unwrap().len() }
+
+    banner("docs/superpowers");
+    print("plans (top level)             : " + str(p_top));
+    print("plans (recursive)             : " + str(p_rec));
+    print("specs (top level)             : " + str(s_top));
+
+    print("");
+    print("census complete. Cite this command in the spec, not these values.");
+}

@@ -268,6 +268,40 @@ curated:
   cli_path:
   - bundle
   parameters: null
+- id: cli.bundle-app
+  title: Bundle App
+  description_human: null
+  description_model: Bundle a Vox source file into a complete web application (use `vox fab bundle` or `vox fabrica bundle`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - bundle-app
+  parameters: null
+- id: cli.chat
+  title: Chat
+  description_human: null
+  description_model: Send one message through the harness's chat pipeline and print the reply (`vox chat`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - chat
+  parameters: null
 - id: cli.check
   title: Check
   description_human: CLI operation `vox check`
@@ -2020,6 +2054,57 @@ curated:
   cli_path:
   - completions
   parameters: null
+- id: cli.component
+  title: Component
+  description_human: null
+  description_model: Vendor a shadcn/ui component into the project (fetches source from ui.shadcn.com and writes it under your `components.json` aliases)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - component
+  parameters: null
+- id: cli.config
+  title: Config
+  description_human: null
+  description_model: Manage global configuration and preferences
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - config
+  parameters: null
+- id: cli.container
+  title: Container
+  description_human: null
+  description_model: 'Manage OCI containers: build/run the current project with resource limits'
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - container
+  parameters: null
 - id: cli.db
   title: Db
   description_human: null
@@ -2454,6 +2539,23 @@ curated:
   cli_path:
   - diag
   parameters: null
+- id: cli.dispatch
+  title: Dispatch
+  description_human: null
+  description_model: Dispatch-time routing preview — project what the dispatcher would do (P2-T6)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - dispatch
+  parameters: null
 - id: cli.doctor
   title: Doctor
   description_human: null
@@ -2470,6 +2572,57 @@ curated:
   mcp_tool: null
   cli_path:
   - doctor
+  parameters: null
+- id: cli.drift-check
+  title: Drift Check
+  description_human: null
+  description_model: Workspace drift and pattern-repetition linter
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - drift-check
+  parameters: null
+- id: cli.emit
+  title: Emit
+  description_human: null
+  description_model: Emit focused codegen artifacts (`emit client`, …)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - emit
+  parameters: null
+- id: cli.ext
+  title: Ext
+  description_human: null
+  description_model: Extensions lane — unified entry for legacy and ML subcommands (`ext`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ext
   parameters: null
 - id: cli.fabrica
   title: Fabrica
@@ -2540,6 +2693,23 @@ curated:
   - gamify
   - hud
   parameters: null
+- id: cli.grammar
+  title: Grammar
+  description_human: null
+  description_model: Export the Vox language grammar in various formats for MENS training
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - grammar
+  parameters: null
 - id: cli.graph
   title: Vox Graph
   description_human: null
@@ -2579,6 +2749,23 @@ curated:
   - graph
   - ingest
   parameters: null
+- id: cli.harness
+  title: Harness
+  description_human: null
+  description_model: Evaluate the harness itself (not a model) against a golden task set with a pass^k multi-sample gate (`vox harness eval`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - harness
+  parameters: null
 - id: cli.init
   title: Init
   description_human: vox init scaffolds a new project or skill file in the current directory (shared logic with vox_project_init).
@@ -2616,6 +2803,23 @@ curated:
   mcp_tool: null
   cli_path:
   - live
+  parameters: null
+- id: cli.llm
+  title: Llm
+  description_human: null
+  description_model: LLM-native context and prompt generation tools (`vox llm prompt`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - llm
   parameters: null
 - id: cli.lock
   title: Lock
@@ -3378,6 +3582,23 @@ curated:
   - model
   - show
   parameters: null
+- id: cli.new
+  title: New
+  description_human: null
+  description_model: Scaffold a new Vox application from opinionated presets (`vox new web`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - new
+  parameters: null
 - id: cli.openclaw
   title: Openclaw
   description_human: null
@@ -3523,6 +3744,40 @@ curated:
   - openclaw
   - sidecar
   - stop
+  parameters: null
+- id: cli.play
+  title: Play
+  description_human: null
+  description_model: Scaffold and immediately run a temporary Vox project (`vox play`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - play
+  parameters: null
+- id: cli.plugin
+  title: Plugin
+  description_human: null
+  description_model: Install, remove, list, and inspect Vox plugins
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - plugin
   parameters: null
 - id: cli.pm
   title: Pm
@@ -3723,6 +3978,23 @@ curated:
   - pm
   - yank
   parameters: null
+- id: cli.policy
+  title: Policy
+  description_human: null
+  description_model: View the unified policy catalog (CI gates, language rules, audits)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - policy
+  parameters: null
 - id: cli.populi
   title: Populi
   description_human: null
@@ -3863,6 +4135,23 @@ curated:
   mcp_tool: null
   cli_path:
   - remove
+  parameters: null
+- id: cli.repair
+  title: Repair
+  description_human: null
+  description_model: Automatically repair syntax and type errors in a `.vox` file via LLM (`vox repair`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - repair
   parameters: null
 - id: cli.repo
   title: Repo
@@ -4070,6 +4359,23 @@ curated:
   mcp_tool: null
   cli_path:
   - review
+  parameters: null
+- id: cli.rollback
+  title: Rollback
+  description_human: null
+  description_model: Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - rollback
   parameters: null
 - id: cli.run
   title: Run
@@ -5014,6 +5320,23 @@ curated:
   - telemetry
   - upload
   parameters: null
+- id: cli.term
+  title: Term
+  description_human: null
+  description_model: Headless-capable ratatui terminal UI — block-model shell + AI agent strip
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - term
+  parameters: null
 - id: cli.test
   title: Test
   description_human: null
@@ -5107,6 +5430,23 @@ curated:
   cli_path:
   - visus
   - baseline
+  parameters: null
+- id: cli.wasm
+  title: Wasm
+  description_human: null
+  description_model: Raw precompiled WASI module execution (needs `--features script-wasi`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - wasm
   parameters: null
 - id: mcp.vox_a2a_ack
   title: A2a Ack

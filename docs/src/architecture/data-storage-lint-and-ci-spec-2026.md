@@ -513,4 +513,3 @@ done
 ```
 
 Green ledger → this spec is faithful to HEAD. Red ledger → fix the spec before merging (do not silently retcon paths).
- 

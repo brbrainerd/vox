@@ -28,7 +28,7 @@ Authoritative pipeline map (sources → compiler → goldens → corpus → Mens
 The following **Vox-shaped pseudocode** sketches how training might be expressed in source; the **supported path today** is **`vox mens train`** (see [mens-training.md](../reference/mens-training.md)).
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative pseudocode, not the shipped CLI; see `vox mens train`
 // Illustrative imports — operator workflow uses: vox mens train …
 import vox.mens.training
 import vox.mens.qlora

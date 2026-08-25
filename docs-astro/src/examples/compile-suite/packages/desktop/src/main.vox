@@ -1,0 +1,8 @@
+component App() {
+    state n: int = 0
+    view: text() { "compile-suite desktop" }
+}
+
+routes {
+    "/" to App
+}

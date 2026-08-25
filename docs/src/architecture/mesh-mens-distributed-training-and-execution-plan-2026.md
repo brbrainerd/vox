@@ -382,14 +382,29 @@ This means:
 ### 4.4 Annotations
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: comment-only bodies, and `->` here is not Vox
+// return-arrow syntax (Vox uses `to`) -- not the annotations themselves.
+// `@training_step`/`@distributed_train` are real, verified 2026-08-23:
+// - Parser: crates/vox-compiler/src/parser/descent/decl/mid.rs
+//   (`parse_distributed_train_workflow_decl`) and head_fn.rs (`f.training_step`).
+// - HIR: `hir/lower/decl.rs::lower_workflow` materializes `(strategy, peers)`
+//   and attaches Spawn/Net/GpuCompute/Random/Mutate capabilities.
+// - Test: crates/vox-compiler/tests/mens_decorators.rs
+//   (`distributed_train_workflow_parses_metadata`, already passing).
+// - Lint: `typeck/ast_decl_lints.rs::check_mens_decorator_unimplemented`
+//   hard-errors both with MENS_DECORATOR_UNIMPLEMENTED, redirecting to the
+//   vox-populi MENS runtime -- Rust codegen has no execution path for them.
+// That lint is wired into crates/vox-lsp but not into `vox check`/`vox build`
+// (both call `typecheck_hir_module` directly, bypassing the AST-lint wrapper
+// `typecheck_ast_module`), so a CLI build silently no-ops both decorators
+// today rather than erroring. Tracked as a follow-up, not yet fixed.
 @training_step
-fn step(model: Llama, batch: Batch) -> StepResult {
+fn step(model: Llama, batch: Batch) to StepResult {
     // standard forward/backward, returns loss + grads
 }
 
 @distributed_train(strategy = "data_parallel", peers = 4)
-workflow train_run(cfg: TrainConfig) -> ModelBundle {
+workflow train_run(cfg: TrainConfig) to ModelBundle {
     // emits GradientShard envelopes; expects 4 ranks
 }
 ```

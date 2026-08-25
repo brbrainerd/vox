@@ -12,7 +12,7 @@ training_eligible: false
 > backend, frontend infra) plus firsthand verification of the load-bearing claims.
 > Successor to [`vox-gui-capability-audit-2026.md`](vox-gui-capability-audit-2026.md)
 > (2026-05-28): the audit diagnosed; this plan sequences the work into executable,
-> TDD-ready tasks. Strategic frame is [ADR-037](../adr/037-tauri-gui-replaces-axum-dashboard.md).
+> TDD-ready tasks. Strategic frame is [ADR-045](../adr/045-tauri-gui-replaces-axum-dashboard.md).
 
 ## Context
 

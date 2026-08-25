@@ -55,7 +55,7 @@ This is the **minimum viable module system** for Vox. Scope:
 
 The existing `import` keyword gets a 4th path-kind:
 
-```bnf
+```text
 import-decl   := "import" import-path ("," import-path)*
 import-path   := symbol-path     // existing: `import std.http`
               |  react-import    // existing: `import react X from "./X.tsx"`

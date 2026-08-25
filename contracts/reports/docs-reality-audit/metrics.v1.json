@@ -9,7 +9,5 @@
   "inventory_claim_count": 10,
   "open_p0": 0,
   "open_p1": 0,
-  "rollout_milestone_pct": 25,
-  "rollout_notes": "Computed by `vox ci docs-reality-audit metrics`; see contracts/documentation/docs-reality-audit.program.v1.yaml.",
   "schema_version": 1
 }

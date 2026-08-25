@@ -179,6 +179,28 @@ operations:
   handler_rust: commands::plugin_bundle
 - surface: vox-cli
   path:
+  - bundle-app
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::bundle
+- surface: vox-cli
+  path:
+  - chat
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::chat
+- surface: vox-cli
+  path:
   - check
   status: active
   latin_ns: fabrica
@@ -1346,6 +1368,39 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
+  - component
+  status: active
+  latin_ns: null
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::add_component
+- surface: vox-cli
+  path:
+  - config
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::config
+- surface: vox-cli
+  path:
+  - container
+  status: active
+  latin_ns: null
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::container
+- surface: vox-cli
+  path:
   - db
   status: active
   latin_ns: codex
@@ -1636,6 +1691,17 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
+  - dispatch
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::dispatch
+- surface: vox-cli
+  path:
   - doctor
   status: active
   latin_ns: diag
@@ -1645,6 +1711,39 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::diagnostics::doctor
+- surface: vox-cli
+  path:
+  - drift-check
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::drift_check
+- surface: vox-cli
+  path:
+  - emit
+  status: active
+  latin_ns: null
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::emit
+- surface: vox-cli
+  path:
+  - ext
+  status: active
+  latin_ns: null
+  product_lane: interop
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::ext
 - surface: vox-cli
   path:
   - fabrica
@@ -1692,6 +1791,17 @@ operations:
   handler_rust: commands::extras::ludus_cli
 - surface: vox-cli
   path:
+  - grammar
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::grammar::handle
+- surface: vox-cli
+  path:
   - graph
   status: active
   latin_ns: pm
@@ -1715,6 +1825,17 @@ operations:
   handler_rust: commands::graphify
 - surface: vox-cli
   path:
+  - harness
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::harness
+- surface: vox-cli
+  path:
   - init
   status: active
   latin_ns: pm
@@ -1735,6 +1856,17 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::live
+- surface: vox-cli
+  path:
+  - llm
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::llm
 - surface: vox-cli
   path:
   - lock
@@ -2258,6 +2390,17 @@ operations:
   handler_rust: commands::model::show
 - surface: vox-cli
   path:
+  - new
+  status: active
+  latin_ns: null
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::new
+- surface: vox-cli
+  path:
   - openclaw
   status: active
   latin_ns: ars
@@ -2354,6 +2497,28 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: null
+- surface: vox-cli
+  path:
+  - play
+  status: active
+  latin_ns: null
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::play
+- surface: vox-cli
+  path:
+  - plugin
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::plugin
 - surface: vox-cli
   path:
   - pm
@@ -2489,6 +2654,17 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
+  - policy
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::policy
+- surface: vox-cli
+  path:
   - populi
   status: active
   latin_ns: null
@@ -2580,6 +2756,17 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::remove
+- surface: vox-cli
+  path:
+  - repair
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::repair
 - surface: vox-cli
   path:
   - repo
@@ -2715,6 +2902,17 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::review
+- surface: vox-cli
+  path:
+  - rollback
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::rollback
 - surface: vox-cli
   path:
   - run
@@ -3342,6 +3540,17 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
+  - term
+  status: active
+  latin_ns: null
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: vox_term::app::run
+- surface: vox-cli
+  path:
   - test
   status: active
   latin_ns: fabrica
@@ -3408,6 +3617,17 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::visus::dispatch
+- surface: vox-cli
+  path:
+  - wasm
+  status: active
+  latin_ns: null
+  product_lane: app
+  feature_gate: script-wasi
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::wasm
 - surface: compilerd
   path:
   - build

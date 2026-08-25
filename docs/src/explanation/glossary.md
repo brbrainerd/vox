@@ -21,7 +21,6 @@ fn CounterActor_Increment(current: int, amount: int) to int {
 ### ADT (Algebraic Data Type)
 A composite type formed by combining other types. In Vox, this primarily refers to **Structs** (product types) and **Enums** (sum types/tagged unions).
 ```vox
-// vox:skip
 type Status = | Pending | Active(user: str)
 ```
 
@@ -44,7 +43,7 @@ The ability of a program (specifically a **Workflow**) to persist its state and 
 The semantic representation of Vox source code used for type checking and initial lowering phases.
 
 ### MCP (Model Context Protocol)
-An open standard that enables AI models to safely interact with local data and tools. Vox provides first-class support for exporting functions as MCP tools via the bare `tool` keyword (the older `@tool` / `@mcp.tool` decorator forms still parse but emit a `vox/decorator/mcp-tool-deprecated` warning).
+An open standard that enables AI models to safely interact with local data and tools. Vox provides first-class support for exporting functions as MCP tools via the bare `tool` keyword (`@tool` is a hard parse error; the dotted `@mcp.tool` still parses but emits a `vox/decorator/mcp-tool-deprecated` warning).
 ```vox
 tool "Search KB" search_kb(topic: str) to str { return "ok" }
 ```

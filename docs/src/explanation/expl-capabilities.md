@@ -23,8 +23,9 @@ By default, the global HTTP policy (controlled via `vox-reqwest-defaults`) denie
 `std.fs` targets are strictly bounded to the workspace's `%TEMP%` alias and sandboxed virtual roots. If an LLM-invoked execution attempts:
 
 ```vox
-// vox:skip
-std.fs.read("/etc/passwd")?
+fn read_secret_file() to Result[str] {
+    std.fs.read("/etc/passwd")?
+}
 ```
 
 The runtime immediately terminates the WASI execution step with a Capability Violation.
@@ -37,13 +38,12 @@ All generated data abstractions via Codex are strongly typed. Agents cannot arbi
 If you require an Agent or task to legitimately reach the outside network or modify sensitive tables, you establish explicit boundary `tool` functions that validate inputs using `@require` and encapsulate the permissioned operation securely.
 
 ```vox
-// vox:skip
 tool "Upload telemetry data to approved vendor"
 @require(auth.is_trusted(caller))
-upload_telemetry(data: str) to Result[Unit] {
+upload_telemetry(data: str) to Result[str] {
     // This runs in the Trusted context
     let res = std.http.post_json("https://trusted-vendor.com/ingest", data)?
-    return Ok(())
+    return Ok("uploaded")
 }
 ```
 

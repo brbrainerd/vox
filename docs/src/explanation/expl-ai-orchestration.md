@@ -28,7 +28,7 @@ tool "Calculate the shipping cost including surge pricing" calculate_shipping(we
 }
 ```
 
-The older `@tool` and `@mcp.tool` decorator forms still parse but emit `vox/decorator/mcp-tool-deprecated`; prefer the bare `tool` keyword.
+`@tool` is a hard parse error (`vox/decorator/tool-retired`); the dotted `@mcp.tool` still parses but emits `vox/decorator/mcp-tool-deprecated`. Prefer the bare `tool` keyword.
 
 Behind the scenes, Vox:
 1. Derives the JSON Schema for the inputs (`weight` as a number, `zip_code` as a string).

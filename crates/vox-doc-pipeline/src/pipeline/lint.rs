@@ -13,8 +13,9 @@ use super::anchors::{extract_marked_block, readme_anchor};
 use super::types::{LintError, LintKind};
 
 // These must match the `sections` array in contracts/documentation/docs-sidebar-section-order.v1.json.
-// Display-label format (e.g. "Language Reference") is canonical; slug aliases are kept for grep-safety
-// but all new files must use the display-label form.
+// Display labels are the only accepted form — validation at `collect_lint_errors_*`
+// is an exact `contains` check with no alias normalisation. `suggest()` maps a
+// wrong value to the nearest label for the error message only.
 pub(crate) const VALID_CATEGORIES: &[&str] = &[
     // ── Canonical display labels (SSOT — match sidebar JSON exactly) ──────────
     "Getting Started",
@@ -1034,6 +1035,68 @@ mod tests {
         assert!(
             errors.is_empty(),
             "expected no drift after the html-attribute crate-link transform, got: {errors:?}"
+        );
+    }
+
+    /// The governance doc is the SSOT AGENTS.md points contributors at. Every
+    /// category it advertises must be one `VALID_CATEGORIES` accepts, because
+    /// validation at lint.rs:395 is an exact match with no alias map.
+    #[test]
+    fn governance_doc_advertises_only_enforced_categories() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("repo root")
+            .join("docs/src/contributors/documentation-governance.md");
+        let doc = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+
+        let start = doc
+            .find("### Category vocabulary")
+            .expect("governance doc must have a '### Category vocabulary' section");
+        let rest = &doc[start..];
+        // Stop at the next heading of any level, not just "### ".
+        let end = ["\n### ", "\n## "]
+            .iter()
+            .filter_map(|h| rest[3..].find(h).map(|i| i + 3))
+            .min()
+            .unwrap_or(rest.len());
+        let table = &rest[..end];
+
+        let mut advertised = Vec::new();
+        for line in table.lines() {
+            let trimmed = line.trim();
+            if !trimmed.starts_with('|') {
+                continue;
+            }
+            let cols: Vec<&str> = trimmed.split('|').collect();
+            if cols.len() < 3 {
+                continue;
+            }
+            let raw = cols[1].trim();
+            // Take the first backtick-delimited span so "`X` (note)" yields "X".
+            let value = raw.split('`').nth(1).unwrap_or(raw).trim();
+            if value.is_empty()
+                || value == "category"
+                || value.chars().all(|c| c == '-' || c == ':')
+            {
+                continue;
+            }
+            advertised.push(value.to_string());
+        }
+
+        assert!(
+            !advertised.is_empty(),
+            "parsed zero categories — the table shape changed and this guard is inert"
+        );
+
+        let unknown: Vec<&String> = advertised
+            .iter()
+            .filter(|v| !VALID_CATEGORIES.contains(&v.as_str()))
+            .collect();
+        assert!(
+            unknown.is_empty(),
+            "documentation-governance.md advertises categories the lint rejects: {unknown:?}"
         );
     }
 }

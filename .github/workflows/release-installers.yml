@@ -18,7 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not @stable: shipped artifacts must be built by the same compiler
+        # CI gates use (rust-toolchain.toml). @stable also imports each new
+        # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
       - name: Build voxup
         run: cargo build --release -p voxup
       - name: Smoke — voxup --help (all branches)
@@ -56,23 +61,36 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not @stable: shipped artifacts must be built by the same compiler
+        # CI gates use (rust-toolchain.toml). @stable also imports each new
+        # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
       - name: Install cargo-wix
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-wix
       - name: Build MSI
-        run: cargo wix --no-build --package vox-cli
-        # Note: In a real pipeline, `cargo build --release --locked -p vox-cli` 
-        # would be run first to populate target/release/vox.exe.
+        run: cargo wix --no-build --profile dist --package vox-cli
+        # Note: In a real pipeline, `cargo build --profile dist --locked -p vox-cli`
+        # would be run first to populate target/dist/vox.exe.
 
   build-linux-deb:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # cargo-deb builds the crate itself (no --no-build), and --profile dist means
+    # lto="fat" + codegen-units=1 — a measured 86m on this workspace. 30m was the
+    # thin-LTO budget; raised to match the other single-fat-LTO-link jobs.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not @stable: shipped artifacts must be built by the same compiler
+        # CI gates use (rust-toolchain.toml). @stable also imports each new
+        # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
       - name: Install cargo-deb
         uses: taiki-e/install-action@v2
         with:
@@ -80,18 +98,20 @@ jobs:
       - name: Install system deps (libdbus/GTK)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - name: Build DEB
-        run: cargo deb -p vox-cli
+        run: cargo deb -p vox-cli --profile dist
 
   publish-macos-brew:
     runs-on: macos-latest
-    timeout-minutes: 30
+    # --profile dist is lto="fat" + codegen-units=1; the 30m budget was sized for
+    # thin LTO and would cancel this job before the tarball is ever produced.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - name: Build Release
-        run: cargo build --release --locked -p vox-cli
+        run: cargo build --profile dist --locked -p vox-cli
       - name: Archive and Hash
         run: |
-          tar -czvf vox-darwin.tar.gz -C target/release vox
+          tar -czvf vox-darwin.tar.gz -C target/dist vox
           shasum -a 256 vox-darwin.tar.gz > checksum.txt
       - name: Upload to Homebrew Tap
         run: |
@@ -113,7 +133,12 @@ jobs:
           echo "install.sh syntax OK"
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not @stable: shipped artifacts must be built by the same compiler
+        # CI gates use (rust-toolchain.toml). @stable also imports each new
+        # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
 
       - name: Build voxup (for E2E bootstrap test)
         run: cargo build --release -p voxup

@@ -74,11 +74,15 @@ curl -X POST http://localhost:8080/api/tools/search_docs -d '{"query": "actors"}
 By default, a `tool` has the same permissions as your compiled Vox binary. Use the `@require` decorator to add runtime guardrails:
 
 ```vox
-// vox:skip
+table User {
+    name: str
+}
+
+tool "Delete user data"
 @require(auth.is_admin(caller))
-tool "Delete user data" delete_data(id: int) to Result[Unit] {
-    db.delete(id)
-    return Ok(())
+delete_data(id: Id[User]) to Result[str] {
+    db.User.delete(id)
+    return Ok("deleted")
 }
 ```
 

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_at": "2026-04-19T13:45:00Z",
+  "updated_at": "2026-08-22T00:00:00Z",
   "keywords": [
     {
       "name": "fn",
@@ -14,7 +14,6 @@
       "name": "match",
       "example": "match x { 10 => print(\"ten\"), _ => print(\"other\") }"
     },
-
     {
       "name": "return",
       "example": "return x"
@@ -22,28 +21,32 @@
   ],
   "decorators": [
     {
-      "name": "@server",
-      "example": "@server fn save_user(name: str) { ... }"
+      "name": "@pure",
+      "example": "@pure fn checksum(payload: bytes) { ... }"
     },
     {
-      "name": "@island",
-      "example": "@island fn Navigation() { ... }"
+      "name": "@uses",
+      "example": "@uses(net) fn fetch_remote() { ... }"
     },
     {
-      "name": "@table",
-      "example": "@table struct User { id: int, name: str }"
+      "name": "@auth",
+      "example": "@auth(scheme: bearer) table Task { ... }"
     },
     {
-      "name": "@query",
-      "example": "@query fn get_users() -> Vec<User> { ... }"
+      "name": "@durable",
+      "example": "@durable fn run_pipeline() { ... }"
     },
     {
-      "name": "@mutation",
-      "example": "@mutation fn update_user(id: int, name: str) { ... }"
+      "name": "@scheduled",
+      "example": "@scheduled(\"0 9 * * *\") fn nightly() { ... }"
     },
     {
-      "name": "@tool",
-      "example": "@tool(\"web_search\") fn search(q: str) -> str { ... }"
+      "name": "@test",
+      "example": "@test fn adds_two_numbers() { ... }"
+    },
+    {
+      "name": "@deprecated",
+      "example": "@deprecated fn old_api() { ... }"
     }
   ],
   "builtins": [
@@ -59,5 +62,14 @@
       "name": "now",
       "example": "let t = now()"
     }
-  ]
+  ],
+  "data_layer_keywords": {
+    "note": "Bare-keyword declarations, NOT decorators. The @-prefixed spellings (@table, @query, @mutation, @server, @tool, @resource, @form, @index) became hard parse errors on 2026-06-30 (cd7cc96874).",
+    "examples": [
+      "table User { id: int, name: str, active: bool }",
+      "query user_count() to int { return len(db.User.all()) }",
+      "mutation seed_user(name: str) to str { db.User.insert({ name: name, active: true })\n    return \"created\" }",
+      "server sync_now() to bool { return true }"
+    ]
+  }
 }

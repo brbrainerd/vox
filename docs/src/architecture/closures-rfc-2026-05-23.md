@@ -25,7 +25,7 @@ The stdlib-gap audit found that **~25 of the 35 failing `scripts/`
 entries** fail because they want to write:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed closure syntax, not implemented (RFC status: research)
 let names = files.map(|f| f.path)
 let big = items.filter(|x| x.size > threshold)
 let m = result.map(|v| transform(v))
@@ -47,7 +47,7 @@ it becomes the full Rust-ish API surface.
 
 ### §2.1 — Closure literal
 
-```bnf
+```text
 closure-expr := "|" param-list "|" closure-body
 param-list   := ε
              |  param ("," param)*
@@ -59,7 +59,7 @@ closure-body := expr                              // single-expression form
 Examples:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed closure-literal syntax, not implemented (RFC status: research)
 |x| x * 2
 |x: int| x.to_string()
 |x, y| x + y
@@ -81,7 +81,7 @@ closure; otherwise (a literal, an open-paren, etc.) it's an or.
 ### §2.2 — Zero-argument closures
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed zero-arg closure syntax, not implemented (RFC status: research)
 let lazy = || expensive_compute()
 ```
 
@@ -95,7 +95,7 @@ need to either split that or special-case the closure parser to accept
 Optional but supported, matching Rust:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed closure param syntax, not implemented (RFC status: research)
 xs.filter(|x: User| x.is_active)
 ```
 
@@ -190,7 +190,7 @@ env with the param binding, and runs the body.
 Closures become arrow functions:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: pseudocode mapping proposed closure syntax to TS emit, not valid Vox
 |x| x * 2     →    (x: T) => x * 2
 |x| { ... }   →    (x: T) => { ... }
 ```
@@ -203,7 +203,7 @@ functions; closures reuse that path.
 Closures become Rust closures:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: pseudocode mapping proposed closure syntax to Rust emit, not valid Vox
 |x| x * 2     →    |x: T| x * 2
 ```
 
@@ -356,7 +356,7 @@ Rationale (health > ergonomics):
 Example shapes:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: bare call-site fragment (undefined `xs`), not a compilable program
 xs.map(fn(x) { x * 2 })
 xs.filter(fn(x) { x.is_active })
 xs.fold(0, fn(acc, x) { acc + x.cost })
@@ -427,7 +427,7 @@ behavior.
 the return value, matching named-`fn` behavior.**
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: bare anonymous-fn fragment, not a compilable program
 fn(x) {
     let doubled = x * 2
     doubled + 1            // ← return value
@@ -451,7 +451,7 @@ strictly anonymous; recursive functions are named.
 **Decision: NO automatic currying. Use explicit closures for partial application.**
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: second line is deliberately rejected syntax (currying, not supported)
 let add_one = fn(y) { add(1, y) }    // ✓ canonical
 let add_one = add(1, _)              // ✗ not supported
 ```

@@ -46,20 +46,17 @@ Migration is mechanical:
 
 | Retired (≤ v0.5)               | Canonical (v0.6+) |
 |--------------------------------|-------------------|
-| `@endpoint(kind: server)`      | `@server`         |
-| `@endpoint(kind: query)`       | `@query`          |
-| `@endpoint(kind: mutation)`    | `@mutation`       |
+| `@endpoint(kind: server)`      | `server`          |
+| `@endpoint(kind: query)`       | `query`           |
+| `@endpoint(kind: mutation)`    | `mutation`        |
 
 See also: [migration guide 0.5 → 0.6](./migration-0.5-to-0.6.md).
 
 ### `@scheduled`
-> [!NOTE]
-> Planned — not yet parseable.
 - **Goal**: Run a background task periodically.
 - **Effect**: Compiles to a Tokio timer loop or cron job scheduling block.
 - **Usage**:
 ```vox
-// vox:skip
 @scheduled("0 * * * *")
 fn hourly_task() { 
     // Logic here
@@ -119,22 +116,27 @@ Tables are declared with the bare `table` keyword (not a decorator); `@table` wa
 - **Usage**:
 ```vox
 table MyRecord {
-    id: str
+    external_id: str
 }
 ```
+
+Vox `table` always adds its own surrogate `_id` primary key; a user-declared field literally
+named `id` collides with it and gets a compiler warning
+(`crates/vox-compiler/src/typeck/ast_decl_lints.rs`), which is why this example uses
+`external_id` instead.
 
 ### `index` (Keyword)
 Indexes are declared with the bare `index` keyword (not a decorator); `@index` was retired in v0.6.0.
 - **Goal**: Creates a database index.
 - **Effect**: Generates SQL for fast lookup on specified properties.
-- **Usage**: `index MyRecord.by_id on (id)`
+- **Usage**: `index MyRecord.by_external_id on (external_id)`
 
 ### `@require`
 - **Goal**: Adds runtime validation guards.
 - **Effect**: Injects validation checks before assignment/constructor.
 - **Usage**:
 ```vox
-// vox:skip
+// vox:skip -- illustrative future syntax; @require only decorates fn today, not type
 @require(len(self.pwd) > 8)
 type User {
     pwd: str
@@ -187,7 +189,7 @@ fn assistant_greet(name: str) to str {
 }
 ```
 ### `tool` (Keyword)
-Tools are declared with the bare `tool` keyword (not a decorator). `@tool` and the older dotted `@mcp.tool` are both deprecated aliases that emit a `vox/decorator/mcp-tool-deprecated` warning.
+Tools are declared with the bare `tool` keyword (not a decorator). `@tool` is a **hard parse error** (`vox/decorator/tool-retired`). The older dotted `@mcp.tool` still parses but emits a `vox/decorator/mcp-tool-deprecated` warning.
 - **Goal**: Exports a function as an MCP tool.
 - **Effect**: Registered with the MCP server for discovery by AI agents.
 - **Usage**:
@@ -197,8 +199,17 @@ tool "Calculate the sum of two integers" sum(a: int, b: int) to int {
 }
 ```
 
+**Rate limits and user confirmation are not `tool` options.** `tool "description" name(...)` accepts nothing beyond the description string — verified against `parse_tool_kw` in `crates/vox-compiler/src/parser/descent/decl/head.rs`. The inner function *can* carry a generic `@rate_limit(by: user_id|api_key|ip, window_secs: N, max_requests: N)` decorator, or `@cors`/`@pii`/`@webhook`/`@layer` — these parse into the same `FnDecl` fields HTTP endpoints use, since `tool`/`resource` share the identical headless-fn parser. **As of 2026-08-23 this is a compile error, not a silent no-op**: `tool`/`resource` codegen emits through the plain `emit_fn` path (`crates/vox-codegen/src/codegen_rust/emit/workflow.rs`), never through `emit_server_fn_handler`/`emit_query_fn_handler` — the only readers of those fields anywhere in the codebase — so writing one of these decorators on a `tool` or `resource` now fails typecheck (`vox/typeck/decorator-requires-endpoint`) rather than parsing cleanly and doing nothing.
+
+User confirmation for MCP tool calls is not a per-tool schema at all — it is a runtime policy layer, entirely outside the `.vox` source, documented in [`contracts/orchestration/permission-modes.v1.yaml`](../../../contracts/orchestration/permission-modes.v1.yaml) and implemented in `crates/vox-orchestrator-mcp/src/dispatch.rs`'s dangerous-tool gate:
+
+- Each gated tool is classified by `safety_class` (`read_only`/`mutating`/`destructive`/`unknown`) and `reversible` in the contract's `risk_classes` list; an unlisted tool defaults to `unknown` and is never auto-approved.
+- Three `PermissionMode`s decide which `(safety_class, reversible)` pairs skip the human-approval park: `ask` (default; auto-approves nothing), `accept_edits` (mutating + reversible only), `accept_all` (everything except any tool flagged `always_requires_approval: true`, which never auto-approves under any mode).
+- A per-`(repository_id, tool_name)` persisted "always allow" allowlist (`crates/vox-orchestrator-mcp/src/approval_allowlist.rs`) can additionally auto-approve under `ask` mode, checked only after the permission-mode tier says "still park".
+- The contract documents a 5-tier precedence for the eventual unified decision (`explicit_deny` > `permission_mode` > `persisted_allowlist` > `risk_confidence_matrix_hitl_actions` > `attention_auto_approve_tier`); as of this writing only tiers 2 and 3 are wired into the gate, and the file says so explicitly rather than implying a finished system.
+
 ### `resource` (Keyword)
-Resources are declared with the bare `resource` keyword (not a decorator). `@resource` and the older dotted `@mcp.resource` are both deprecated aliases.
+Resources are declared with the bare `resource` keyword (not a decorator). `@resource` is a **hard parse error** (`vox/decorator/resource-retired`). The dotted `@mcp.resource` remains valid, non-deprecated syntax, though bare `resource` is preferred for new code.
 - **Goal**: Exposes dynamic readable content to MCP.
 - **Effect**: Registers a resource URI endpoint via `getResources`.
 - **Usage**:

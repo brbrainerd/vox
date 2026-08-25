@@ -22,7 +22,6 @@ This guide is the practical companion to [`gui-authoring-syntax-2026.md`](../arc
 ## Your first view
 
 ```vox
-// vox:skip
 component Greeting(name: str) {
     view: column(pad=4, gap=2) {
         text(size="lg", weight="bold") { "Hello, " }
@@ -43,7 +42,7 @@ What's happening:
 A view-call without children doesn't need an empty block. Three trigger forms all sugar to a self-closing element:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative fragment classifying call forms, not runnable code
 ComposerPanel()                      // capitalized — always a view-call
 panel(w=2, h=2, bg="zinc.600")       // recognized primitive — always a view-call
 input(attr_type="checkbox")          // lowercase + named-only args — view-call
@@ -97,7 +96,6 @@ Any primitive accepts these kwargs. Values resolve to Tailwind classes via a typ
 Style kwargs can take `if`/`else` expressions. The compiler lowers them to runtime ternaries inside `className`:
 
 ```vox
-// vox:skip
 component Bubble(role: str) {
     view: panel(
         bg=if role is "user" { "blue.600/20" } else { "white/5" },
@@ -127,7 +125,7 @@ Other expression shapes (function calls, complex computations) on a typed kwarg 
 Event kwargs use snake_case. The compiler renames to React-style camelCase at emit:
 
 ```vox
-// vox:skip
+// vox:skip -- excerpt of a view body; count/handle come from the enclosing component
 button(on_click={count = count + 1}) { "Increment" }
 input(on_change={fn(e) handle(e)}, attr_type="text")
 ```
@@ -139,7 +137,7 @@ Supported events: `on_click`, `on_change`, `on_input`, `on_submit`, `on_keydown`
 HTML attributes whose names collide with Vox keywords (`type`, `for`, …) use the `attr_` prefix:
 
 ```vox
-// vox:skip
+// vox:skip -- excerpt of a view body; `t` comes from the enclosing component
 input(attr_type="checkbox", checked=t.done)
 label(attr_for="email") { "Email" }
 ```
@@ -158,7 +156,7 @@ Each statement-position expression inside a trailing block is one child. Express
 - **`tasks.map(fn(t) { … })`** — list comprehensions.
 
 ```vox
-// vox:skip
+// vox:skip -- excerpt of a view body; Dashboard/LoginForm/TaskRow are other components
 column() {
     if logged_in {
         Dashboard(user=current_user)
@@ -176,7 +174,7 @@ column() {
 Capitalized callees + named-only args sugar to JSX self-closing. To call an existing React component, just call it:
 
 ```vox
-// vox:skip
+// vox:skip -- excerpt calling external React components not defined in this file
 ComposerPanel()
 DataChart(data=[1, 2, 3])
 ChatMessage(role="user", content=msg) {
@@ -204,7 +202,7 @@ When typed kwargs don't cover what you need:
 ### Conditional rendering
 
 ```vox
-// vox:skip
+// vox:skip -- excerpt of a view body; items/ItemRow come from the enclosing component
 column() {
     if items.is_empty() {
         text(color="zinc.500") { "Nothing here yet." }
@@ -219,7 +217,7 @@ column() {
 ### Active-tab styling
 
 ```vox
-// vox:skip
+// vox:skip -- excerpt of a view body; active_tab comes from the enclosing component
 button(
     raw_class="tab-btn",
     bg=if active_tab is "speak" { "blue.600" } else { "transparent" },
@@ -230,7 +228,7 @@ button(
 ### Surfaces (foreground/background pair)
 
 ```vox
-// vox:skip
+// vox:skip -- excerpt of a view body; mine/content come from the enclosing component
 panel(surface=if mine { "chat.user" } else { "chat.assistant" }) {
     text() { content }
 }

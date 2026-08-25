@@ -156,7 +156,7 @@ free-function namespace calls. This is a deliberate K-complexity choice:
 one canonical form per operation, matching the Python / Rust / Swift prior.
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: the ✗ lines are deliberately invalid, shown as counter-examples
 let trimmed = s.trim();              // ✓ canonical
 let trimmed = str.trim(s);           // ✗ parse-time / eval-time error with hint
 

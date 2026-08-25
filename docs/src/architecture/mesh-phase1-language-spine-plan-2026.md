@@ -411,7 +411,7 @@ Expected: both tests PASS.
 Create `crates/vox-stdlib/src/durable_promise.vox`:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed @intrinsic decorator and generic type decl, not implemented
 // `DurablePromise[T]` — the canonical awaitable primitive for distributed
 // durable work. The compiler treats this declaration as documentation;
 // the actual lowering is built-in (see crates/vox-codegen + the Rust
@@ -2791,7 +2791,10 @@ fn render_step(s: &PreviewedActivity, indent: usize) {
 Create `tests/fixtures/workflow_preview/simple_two_step.vox`:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed @remote, not implemented at plan time
+// (verified 2026-08-23: crates/vox-compiler/tests/remote_annotation.rs and
+// the workflow.rs emit path this plan cites don't exist; same status as the
+// two sibling fixtures below, which already carry this marker)
 @remote fn fetch_url(u: str) to str { return u }
 activity parse_json(s: str) to str { return s }
 
@@ -2805,7 +2808,7 @@ workflow process(u: str) to str {
 Create `tests/fixtures/workflow_preview/with_side_effect.vox`:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed side_effect block + i32 type, not implemented at plan time
 @remote fn step(x: i32) to i32 { return x + 1 }
 
 workflow main() to i64 {
@@ -2818,7 +2821,7 @@ workflow main() to i64 {
 Create `tests/fixtures/workflow_preview/with_signal.vox`:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed `uses spawn` effect syntax, not implemented
 @remote fn fan_out(items: List[i32]) to List[i32] uses spawn { return items }
 activity reduce(xs: List[i32]) to i32 { return 0 }
 

@@ -33,36 +33,41 @@ This document records the comprehensive research findings and action plan produc
 
 ---
 
-## 2. Landing Page Gap Analysis
+## 2. Landing Page Gap Analysis — RESOLVED
 
-### Current State (`docs/src/index.md`)
-The existing landing page was designed for mdBook's HTML pass-through rendering. It uses:
-- Raw `{{#include ../../../README.md:anchor}}` directives — **BROKEN in Starlight** (Starlight does not support mdBook `{{#include}}` syntax).
-- Inline HTML divs relying on mdBook's CSS variables (`var(--table-border-color)`) — **BROKEN** in Starlight context.
-- Hardcoded `.md` links — need to be converted to Starlight-style slug paths.
+> **Status audit, 2026-08-22.** This section analysed `docs/src/index.md`, which
+> no longer exists. It was replaced by [`docs/src/index.mdx`](../index.mdx). The
+> original analysis is summarised below with the outcome of each point, rather
+> than left in the present tense describing a deleted file.
 
-### Critical Issue: README ↔ Docs Portal SSOT
-The `docs/src/index.md` currently pulls sections from `README.md` via `{{#include}}` anchors:
-- `{{#include ../../../README.md:why_vox}}`
-- `{{#include ../../../README.md:tier_table}}`
-- `{{#include ../../../README.md:community_license}}`
+### What was wrong (historical)
+The mdBook-era `index.md` used raw `{{#include ../../../README.md:anchor}}`
+directives, inline HTML relying on mdBook CSS variables
+(`var(--table-border-color)`), and hardcoded `.md` links.
 
-**This is broken in Starlight.** We need a new approach to the SSOT problem.
+### What actually shipped
+`index.mdx` is hand-written MDX. It uses Starlight's own CSS custom properties
+(`--sl-color-accent`, `--sl-color-gray-2`), Starlight slug links
+(`/tutorials/tut-getting-started/`), and imports the local `VoxPlayground.astro`
+component. It does **not** use `template: splash`, `<CardGrid>`, or `<LinkCard>` —
+the "required redesign" below was proposed, not adopted.
 
-### Recommended SSOT Pattern: Starlight-Native
-Rather than `{{#include}}`, use a **build-time content injection step** in `vox-doc-pipeline`:
-1. The `README.md` anchors (`<!-- ANCHOR: why_vox -->` ... `<!-- ANCHOR_END: why_vox -->`) remain the source of truth.
-2. `vox-doc-pipeline` extracts anchored sections at generation time and writes them into a dedicated `docs/src/_partials/` directory as standalone `.md` snippets.
-3. The Starlight `index.mdx` imports those partials via native MDX `import`.
+### The README ↔ landing page SSOT question
+Two options were weighed: extract README anchors into `docs/src/_partials/` via
+`vox-doc-pipeline` and import them from MDX, or accept controlled duplication.
 
-Alternatively: **Accept controlled duplication** — maintain `docs/src/index.md` as a maintained-in-parallel landing page that mirrors the README's core narrative, updated by the doc pipeline when content changes.
+**The second was taken.** `index.mdx` restates the README's narrative in its own
+words; no partial-extraction step exists, and the page pulls nothing from
+`README.md`. That is a real, accepted duplication: the landing page and the
+README can drift, and nothing detects it. `README.md` still carries the
+`<!-- ANCHOR: why_vox -->` markers from the old mechanism, but `tier_table` and
+`community_license` were removed and no consumer references any of them.
 
-### Required Landing Page Redesign
-The landing page must be rewritten as a **Starlight splash page** using `template: splash`:
-- `template: splash` removes the sidebar on the index page (full-width marketing layout)
-- `hero:` frontmatter configures a pre-styled hero with CTA buttons
-- MDX `<CardGrid>` and `<LinkCard>` components provide the Diátaxis quadrant navigation
-- Links must use Starlight slug format (`/tutorials/tut-getting-started/` not `.md`)
+Note the premise that forced this choice — "Starlight does not support mdBook
+`{{#include}}` syntax" — is no longer true. `remark-vox-include.mjs` adds that
+support, and 21 `vox` fences depend on it today (see Gap 7). Revisiting the
+partials approach is therefore viable if the duplication becomes a problem; it
+is not blocked by the platform.
 
 ---
 
@@ -98,48 +103,62 @@ Current gap:
 
 ## 4. Gaps: Unexploited Astro/Starlight Capabilities
 
-### Gap 1: No MDX Landing Page (CRITICAL)
-The current `index.md` uses raw HTML and mdBook directives. It needs to become `index.mdx` using Starlight's built-in component library.
+> **Status audit, 2026-08-22.** Seven of the eight gaps below were closed after
+> this document was written; it had continued to present them as open, while
+> carrying `status: current` and `training_eligible: true`. Each entry now
+> records the evidence that settles it. Only Gap 3 is still open.
 
-**Impact:** Users hitting `voxlang.org` see a broken layout. First impression is damaged.
+### Gap 1: No MDX Landing Page — RESOLVED
+*Originally CRITICAL.* The landing page is now [`docs/src/index.mdx`](../index.mdx);
+the mdBook-era `index.md` no longer exists.
 
-### Gap 2: No Automatic `llms.txt` Generation (HIGH)
-The `llms.txt` and `llms-full.txt` files are **manually maintained stubs** that are already out of date (wrong domain `vox.foundation` vs `voxlang.org`, missing content).
+### Gap 2: No Automatic `llms.txt` Generation — RESOLVED
+*Originally HIGH.* `starlight-llms-txt` is installed and configured in
+[`docs-astro/astro.config.mjs`](../../../docs-astro/astro.config.mjs) with
+`llmsFullTxt: true`, so `/llms.txt` and `/llms-full.txt` are generated from the
+live sidebar at build time.
 
-**Fix:** Install `starlight-llms-txt` plugin. It auto-generates `/llms.txt` and `/llms-full.txt` from the live sidebar at build time.
+### Gap 3: No Open Graph Image Generation (MEDIUM) — OPEN
+Every page shares the same default OG image when shared on social media. This is
+a missed opportunity for branded, page-specific social cards.
 
-```bash
-pnpm add starlight-llms-txt
-```
+**Fix:** install `astro-og-canvas` and configure `routeMiddleware` to inject
+per-page OG image meta tags. Nothing in `astro.config.mjs` or `package.json`
+references OG generation today.
 
-This directly feeds: AI agent discoverability, the "Ask the Docs" RAG pipeline in `vox scientia`, and future MENS corpus ingestion.
+### Gap 4: Archive Content Pollutes Search and Sidebar — RESOLVED
+*Originally MEDIUM.* [`content.config.ts`](../../../docs-astro/src/content.config.ts)
+excludes `archive/**` from the `docs` collection, so the 296 archived documents
+are never built into pages and therefore never reach Pagefind or the sidebar.
+This is stronger than the proposed `pagefind: false` frontmatter sweep, and it
+matches the AGENTS.md §Archival Protocol tombstone rule.
 
-### Gap 3: No Open Graph Image Generation (MEDIUM)
-Every page in the Starlight site shares the same default OG image when shared on social media (GitHub, Twitter/X, LinkedIn). This is a missed opportunity for branded, page-specific social cards.
+### Gap 5: Broken Internal Links Due to URL Shape Change — RESOLVED
+*Originally HIGH.* [`docs-astro/public/_redirects`](../../../docs-astro/public/_redirects)
+ships the `*.html` → `*/` mapping for Cloudflare Pages.
 
-**Fix:** Install `astro-og-canvas` + configure `routeMiddleware` to inject per-page OG image meta tags.
+### Gap 6: `llms.txt` Domain Mismatch — RESOLVED
+*Originally HIGH.* [`docs/src/.well-known/llms.txt`](../.well-known/llms.txt)
+uses `voxlang.org`, matching `site: 'https://voxlang.org/'` in the Astro config.
+No `vox.foundation` references remain.
 
-### Gap 4: Archive Content Pollutes Search and Sidebar (MEDIUM)
-The `docs/src/archive/` directory contains 50+ archived research documents that are included in Pagefind's search index and the generated sidebar. Users searching for current docs will surface stale archive material.
+### Gap 7: `{{#include}}` Directives in `index.md` — RESOLVED
+*Originally CRITICAL.* Two independent things closed this: `docs/src/index.md`
+was replaced by `index.mdx`, and
+[`remark-vox-include.mjs`](../../../docs-astro/src/plugins/remark-vox-include.mjs)
+now resolves the mdBook `#include` directive (`path:anchor` syntax) inside fenced code blocks at build time.
 
-**Fix:**
-- Add `pagefind: false` to all archive directory frontmatter via `vox-doc-pipeline`
-- Add a `data-pagefind-ignore` wrapper in a custom Starlight component
-- Exclude archive from SUMMARY.md sidebar or move it to a collapsed group
+The plugin **throws** on an unresolved path or anchor rather than emitting the
+raw directive as visible text, so a broken include fails the build instead of
+shipping. That makes the 21 remaining include-backed `vox` fences a working
+single-source-of-truth mechanism — the code is pulled from `examples/golden/*.vox`,
+which the golden corpus compiles directly. They should **not** be inlined:
+inlining would duplicate compiled source into prose and reintroduce exactly the
+split-brain drift the include prevents.
 
-### Gap 5: Broken Internal Links Due to URL Shape Change (HIGH)
-mdBook generated URLs like `/architecture/foo.html`. Starlight generates `/architecture/foo/`. Any bookmarked or externally linked URLs from the old site will 404.
-
-**Fix:** Generate a `_redirects` file in `docs-astro/public/` mapping `*.html` → `*/` for GitHub Pages / Cloudflare Pages.
-
-### Gap 6: `llms.txt` Domain Mismatch (HIGH)
-All links in `llms.txt` point to `vox.foundation` not `voxlang.org`. This will cause 404s for AI agents trying to follow those references.
-
-### Gap 7: `{{#include}}` Directives in `index.md` (CRITICAL)
-The landing page `docs/src/index.md` contains mdBook-specific `{{#include ../../../README.md:anchor}}` directives that Starlight will render as literal text. This is the most visible regression.
-
-### Gap 8: Content Collection Config Duplicated (LOW)
-Both `docs-astro/src/content/config.ts` and `docs-astro/src/content.config.ts` appear to exist. Only one should be authoritative.
+### Gap 8: Content Collection Config Duplicated — RESOLVED
+*Originally LOW.* Only [`docs-astro/src/content.config.ts`](../../../docs-astro/src/content.config.ts)
+exists; there is no `src/content/config.ts`.
 
 ---
 

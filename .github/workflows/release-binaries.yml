@@ -16,7 +16,14 @@ jobs:
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ fromJson(matrix.runs_on) }}
-    timeout-minutes: 60
+    timeout-minutes: 240
+    # This job performs three serial fat-LTO links (vox-cli with
+    # heavy-retrieval, vox-ml-cli, voxup) on 4-core/14-16GB hosted runners.
+    # CARGO_BUILD_JOBS caps the dep-compile phase's parallelism to protect
+    # peak RSS during the link, matching the dist-verify lane's budget for a
+    # single such link (see below).
+    env:
+      CARGO_BUILD_JOBS: "2"
     strategy:
       fail-fast: false
       matrix:
@@ -33,17 +40,21 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned, not @stable: shipped artifacts must be built by the same compiler
+        # CI gates use (rust-toolchain.toml). @stable also imports each new
+        # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.96.0"
           targets: ${{ matrix.target }}
 
-      - name: Build and package release artifacts (core + bootstrap + plugins)
-        # `--package all` produces: vox, vox-bootstrap, vox-ml-cli, vox-schola
+      - name: Build and package release artifacts (core + plugins)
+        # `--package all` produces: vox, vox-ml-cli. voxup is built separately below.
         # Each ships as its own archive so users opt into the heavy ML/scientia plugins.
         run: cargo run --locked -p vox-cli ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist --package all
 
       - name: Build voxup
-        run: cargo build --release --locked -p voxup --target ${{ matrix.target }}
+        run: cargo build --profile dist --locked -p voxup --target ${{ matrix.target }}
 
       - name: Package voxup (Unix)
         if: runner.os != 'Windows'
@@ -51,7 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          cd target/${{ matrix.target }}/release
+          cd target/${{ matrix.target }}/dist
           tar -czf "../../../dist/voxup-${{ github.ref_name }}-${{ matrix.target }}.tar.gz" voxup
           echo "Packaged: voxup-${{ github.ref_name }}-${{ matrix.target }}.tar.gz"
 
@@ -61,7 +72,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Compress-Archive `
-            -Path "target\${{ matrix.target }}\release\voxup.exe" `
+            -Path "target\${{ matrix.target }}\dist\voxup.exe" `
             -DestinationPath "dist\voxup-${{ github.ref_name }}-${{ matrix.target }}.zip" `
             -Force
           Write-Host "Packaged: voxup-${{ github.ref_name }}-${{ matrix.target }}.zip"
@@ -90,20 +101,10 @@ jobs:
             tar -xzf "$f"
             ./vox --version
           done
-          for f in vox-bootstrap-*.tar.gz; do
-            rm -f vox-bootstrap
-            tar -xzf "$f"
-            ./vox-bootstrap --help >/dev/null
-          done
           for f in vox-ml-cli-*.tar.gz; do
             rm -f vox-ml-cli
             tar -xzf "$f"
             ./vox-ml-cli --help >/dev/null
-          done
-          for f in vox-schola-*.tar.gz; do
-            rm -f vox-schola
-            tar -xzf "$f"
-            ./vox-schola --help >/dev/null
           done
 
       - name: Smoke test packaged binary (Windows)
@@ -116,20 +117,10 @@ jobs:
             Expand-Archive -Path $_.FullName -DestinationPath _smoke -Force
             & ".\_smoke\vox.exe" --version
           }
-          Get-ChildItem -Filter 'vox-bootstrap-*.zip' | ForEach-Object {
-            if (Test-Path _smoke_boot) { Remove-Item -Recurse -Force _smoke_boot }
-            Expand-Archive -Path $_.FullName -DestinationPath _smoke_boot -Force
-            & ".\_smoke_boot\vox-bootstrap.exe" --help | Out-Null
-          }
           Get-ChildItem -Filter 'vox-ml-cli-*.zip' | ForEach-Object {
             if (Test-Path _smoke_mens) { Remove-Item -Recurse -Force _smoke_mens }
             Expand-Archive -Path $_.FullName -DestinationPath _smoke_mens -Force
             & ".\_smoke_mens\vox-ml-cli.exe" --help | Out-Null
-          }
-          Get-ChildItem -Filter 'vox-schola-*.zip' | ForEach-Object {
-            if (Test-Path _smoke_schola) { Remove-Item -Recurse -Force _smoke_schola }
-            Expand-Archive -Path $_.FullName -DestinationPath _smoke_schola -Force
-            & ".\_smoke_schola\vox-schola.exe" --help | Out-Null
           }
 
       - name: Smoke test voxup (Unix)
@@ -164,17 +155,51 @@ jobs:
           name: release-${{ matrix.target }}
           path: |
             dist/vox-${{ github.ref_name }}-${{ matrix.target }}.*
-            dist/vox-bootstrap-${{ github.ref_name }}-${{ matrix.target }}.*
             dist/vox-ml-cli-${{ github.ref_name }}-${{ matrix.target }}.*
-            dist/vox-schola-${{ github.ref_name }}-${{ matrix.target }}.*
             dist/voxup-${{ github.ref_name }}-${{ matrix.target }}.*
           if-no-files-found: error
+
+  # Verifies the SHIPPED optimization level (spec F8) and GATES publish on it.
+  #
+  # A job here, not a standalone workflow: tag pushes cannot be gated by GitHub
+  # required checks (those apply to branch/PR refs), so two independent
+  # `push: tags` workflows have no ordering and the release would publish while
+  # verification ran, and publish unaffected if it failed.
+  #
+  # One lane only: `cargo test --profile dist` across the workspace would
+  # fat-LTO-link each of the 80+ integration targets against a 1656-package
+  # graph, exceeding the 14 GB runner budget (runner_scale.rs MEM_PER_RUNNER,
+  # whose own test cites a measured ~12 GB peak at THIN LTO).
+  #
+  # No rust-toolchain step: the fleet image ships the pinned 1.96.0 toolchain
+  # and rust-toolchain.toml is authoritative.
+  dist-verify:
+    name: dist verification (fat LTO)
+    runs-on: [self-hosted, linux, x64]
+    # ~90-180m dep compile at codegen-units=1 + a serial fat-LTO link + the e2e
+    # test target. CARGO_BUILD_JOBS caps the dep phase for RSS headroom.
+    timeout-minutes: 240
+    permissions:
+      contents: read
+    env:
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the real dist binary
+        # Feature set MUST match release_build.rs::build_and_package_binary.
+        run: cargo build -p vox-cli --profile dist --locked --features heavy-retrieval
+
+      - name: Black-box E2E against the dist binary
+        env:
+          VOX_DIST_BIN: ${{ github.workspace }}/target/dist/vox
+        run: cargo test -p vox-cli --test dist_binary_e2e --locked -- --nocapture
 
   publish:
     name: Publish GitHub release
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
-    needs: build
+    needs: [build, dist-verify]
     steps:
       - uses: actions/checkout@v7
 

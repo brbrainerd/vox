@@ -23,7 +23,7 @@ surfaces:
     status: retired
     role: Retired Axum SPA dashboard; migrated into the shipped Tauri vox-gui surface (ADR-037). Retained only as a migration-history alias.
     source_of_truth:
-      - docs/src/adr/037-tauri-gui-replaces-axum-dashboard.md
+      - docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md
       - docs/src/adr/024-dashboard-axum-spa.md
     ownership:
       team: platform-gui

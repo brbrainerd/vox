@@ -20,7 +20,6 @@ Learn how to build modern, reactive user interfaces with Vox. This tutorial cove
 Vox UI components are declared with the `component` keyword. The body holds state, derived values, effects, and a `view:` expression that produces the rendered tree.
 
 ```vox
-// vox:skip
 component Profile(name: str, bio: str) {
     view: panel(pad=6, bg="white", shadow=true, radius="lg") {
         heading(level=2, size="xl", weight="bold") { name }
@@ -36,7 +35,6 @@ The view is a single expression: a `panel` view-call with two children. Style is
 Components compose by calling each other. Capitalized callees with named-only args become self-closing automatically; add a trailing block for children.
 
 ```vox
-// vox:skip
 component UserProfile() {
     view: column() {
         heading(level=1) { "User Profile" }
@@ -54,7 +52,6 @@ routes {
 A trailing block can contain `if`/`else`, `match`, and `.map(...)` expressions. Each must produce view-shaped values.
 
 ```vox
-// vox:skip
 component UserList(users: list[str]) {
     view: list() {
         users.map(fn(user) {
@@ -67,7 +64,6 @@ component UserList(users: list[str]) {
 Conditional render:
 
 ```vox
-// vox:skip
 component MaybeBanner(show: bool) {
     view: column() {
         if show {
@@ -86,18 +82,34 @@ component MaybeBanner(show: bool) {
 The true power of Vox is technical unification. UI event handlers can call bare `mutation` or `server` functions directly. Use snake_case event kwargs (`on_click`, `on_change`, `on_submit`); the compiler renames to React's camelCase at emit.
 
 ```vox
-// vox:skip
+table Task {
+    task_id: Id[Task]
+    title:   str
+    done:    bool
+}
+
+mutation complete_task(task_id: Id[Task]) to Result[str] {
+    db.Task.delete(task_id)?
+    return Ok("completed")
+}
+
 component TaskRow(t: Task) {
     view: row(items="center", gap=2) {
         button(
             attr_type="checkbox",
             checked=t.done,
-            on_change={fn() complete_task(t.id)}
+            on_change={fn() complete_task(t.task_id)}
         )
         text() { t.title }
     }
 }
 ```
+
+`table` always adds its own surrogate `_id` primary key, but it isn't exposed as a Vox-source
+field access (`t._id` doesn't typecheck) — so a component that needs to reference a row's
+identity, like the delete-button handler here, declares its own `Id[Task]` field. It just can't
+be literally named `id`: that collides with the auto-added `_id` and triggers a compiler
+warning (`crates/vox-compiler/src/typeck/ast_decl_lints.rs`).
 
 The `attr_` prefix on `attr_type` strips at parse time so the emitted HTML attribute is `type="checkbox"` — needed because `type` is a Vox keyword.
 
@@ -106,7 +118,10 @@ The `attr_` prefix on `attr_type` strips at parse time so the emitted HTML attri
 Map URLs to top-level components in the `routes { }` block:
 
 ```vox
-// vox:skip
+component NewsletterForm() {
+    view: text() { "Subscribe" }
+}
+
 routes {
     "/" to NewsletterForm
     "/profile" to UserProfile
@@ -131,12 +146,17 @@ You will not write Tailwind class strings in `.vox` source. Style is a series of
 Dynamic values (`if` expressions) work directly:
 
 ```vox
-// vox:skip
-button(
-    bg=if is_primary { "blue.600" } else { "white/5" },
-    color=if is_primary { "white" } else { "zinc.400" },
-    on_click={submit()}
-) { "Send" }
+fn submit() {
+    print("submitted")
+}
+
+component SubmitButton(is_primary: bool) {
+    view: button(
+        bg=if is_primary { "blue.600" } else { "white/5" },
+        color=if is_primary { "white" } else { "zinc.400" },
+        on_click={submit()}
+    ) { "Send" }
+}
 ```
 
 For escapes, use `raw_class="…"` to drop in Tailwind utilities verbatim. Use sparingly — `raw_class` content is invisible to the compiler.

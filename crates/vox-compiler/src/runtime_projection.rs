@@ -49,6 +49,7 @@ fn hir_db_table_op_label(op: crate::hir::HirDbTableOp) -> &'static str {
     match op {
         HirDbTableOp::Insert => "insert",
         HirDbTableOp::Get => "get",
+        HirDbTableOp::Update => "update",
         HirDbTableOp::Delete => "delete",
         HirDbTableOp::All => "all",
         HirDbTableOp::FilterRecord => "filter_record",

@@ -3085,6 +3085,26 @@
       "curated": true
     },
     {
+      "capability_id": "cli.bundle-app",
+      "cli_path": [
+        "bundle-app"
+      ],
+      "implicit": false,
+      "title": "Bundle App",
+      "description_model": "Bundle a Vox source file into a complete web application (use `vox fab bundle` or `vox fabrica bundle`)",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.chat",
+      "cli_path": [
+        "chat"
+      ],
+      "implicit": false,
+      "title": "Chat",
+      "description_model": "Send one message through the harness's chat pipeline and print the reply (`vox chat`)",
+      "curated": true
+    },
+    {
       "capability_id": "cli.check",
       "cli_path": [
         "check"
@@ -4161,6 +4181,36 @@
       "curated": true
     },
     {
+      "capability_id": "cli.component",
+      "cli_path": [
+        "component"
+      ],
+      "implicit": false,
+      "title": "Component",
+      "description_model": "Vendor a shadcn/ui component into the project (fetches source from ui.shadcn.com and writes it under your `components.json` aliases)",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.config",
+      "cli_path": [
+        "config"
+      ],
+      "implicit": false,
+      "title": "Config",
+      "description_model": "Manage global configuration and preferences",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.container",
+      "cli_path": [
+        "container"
+      ],
+      "implicit": false,
+      "title": "Container",
+      "description_model": "Manage OCI containers: build/run the current project with resource limits",
+      "curated": true
+    },
+    {
       "capability_id": "cli.db",
       "cli_path": [
         "db"
@@ -4427,6 +4477,16 @@
       "curated": true
     },
     {
+      "capability_id": "cli.dispatch",
+      "cli_path": [
+        "dispatch"
+      ],
+      "implicit": false,
+      "title": "Dispatch",
+      "description_model": "Dispatch-time routing preview — project what the dispatcher would do (P2-T6)",
+      "curated": true
+    },
+    {
       "capability_id": "cli.doctor",
       "cli_path": [
         "doctor"
@@ -4434,6 +4494,36 @@
       "implicit": false,
       "title": "Doctor",
       "description_model": "CLI operation `vox doctor`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.drift-check",
+      "cli_path": [
+        "drift-check"
+      ],
+      "implicit": false,
+      "title": "Drift Check",
+      "description_model": "Workspace drift and pattern-repetition linter",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.emit",
+      "cli_path": [
+        "emit"
+      ],
+      "implicit": false,
+      "title": "Emit",
+      "description_model": "Emit focused codegen artifacts (`emit client`, …)",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ext",
+      "cli_path": [
+        "ext"
+      ],
+      "implicit": false,
+      "title": "Ext",
+      "description_model": "Extensions lane — unified entry for legacy and ML subcommands (`ext`)",
       "curated": true
     },
     {
@@ -4478,6 +4568,16 @@
       "curated": true
     },
     {
+      "capability_id": "cli.grammar",
+      "cli_path": [
+        "grammar"
+      ],
+      "implicit": false,
+      "title": "Grammar",
+      "description_model": "Export the Vox language grammar in various formats for MENS training",
+      "curated": true
+    },
+    {
       "capability_id": "cli.graph",
       "cli_path": [
         "graph"
@@ -4519,6 +4619,16 @@
       "curated": true
     },
     {
+      "capability_id": "cli.harness",
+      "cli_path": [
+        "harness"
+      ],
+      "implicit": false,
+      "title": "Harness",
+      "description_model": "Evaluate the harness itself (not a model) against a golden task set with a pass^k multi-sample gate (`vox harness eval`)",
+      "curated": true
+    },
+    {
       "capability_id": "cli.init",
       "cli_path": [
         "init"
@@ -4549,6 +4659,16 @@
       "implicit": false,
       "title": "Live",
       "description_model": "CLI operation `vox live`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.llm",
+      "cli_path": [
+        "llm"
+      ],
+      "implicit": false,
+      "title": "Llm",
+      "description_model": "LLM-native context and prompt generation tools (`vox llm prompt`)",
       "curated": true
     },
     {
@@ -5019,6 +5139,16 @@
       "curated": true
     },
     {
+      "capability_id": "cli.new",
+      "cli_path": [
+        "new"
+      ],
+      "implicit": false,
+      "title": "New",
+      "description_model": "Scaffold a new Vox application from opinionated presets (`vox new web`)",
+      "curated": true
+    },
+    {
       "capability_id": "cli.openclaw",
       "cli_path": [
         "openclaw"
@@ -5106,6 +5236,26 @@
       "implicit": false,
       "title": "Openclaw Sidecar Stop",
       "description_model": "CLI operation `vox openclaw sidecar stop`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.play",
+      "cli_path": [
+        "play"
+      ],
+      "implicit": false,
+      "title": "Play",
+      "description_model": "Scaffold and immediately run a temporary Vox project (`vox play`)",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.plugin",
+      "cli_path": [
+        "plugin"
+      ],
+      "implicit": false,
+      "title": "Plugin",
+      "description_model": "Install, remove, list, and inspect Vox plugins",
       "curated": true
     },
     {
@@ -5231,6 +5381,16 @@
       "curated": true
     },
     {
+      "capability_id": "cli.policy",
+      "cli_path": [
+        "policy"
+      ],
+      "implicit": false,
+      "title": "Policy",
+      "description_model": "View the unified policy catalog (CI gates, language rules, audits)",
+      "curated": true
+    },
+    {
       "capability_id": "cli.populi",
       "cli_path": [
         "populi"
@@ -5313,6 +5473,16 @@
       "implicit": false,
       "title": "Remove",
       "description_model": "CLI operation `vox remove`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.repair",
+      "cli_path": [
+        "repair"
+      ],
+      "implicit": false,
+      "title": "Repair",
+      "description_model": "Automatically repair syntax and type errors in a `.vox` file via LLM (`vox repair`)",
       "curated": true
     },
     {
@@ -5461,6 +5631,16 @@
       "implicit": false,
       "title": "Review",
       "description_model": "CLI operation `vox review`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.rollback",
+      "cli_path": [
+        "rollback"
+      ],
+      "implicit": false,
+      "title": "Rollback",
+      "description_model": "Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger",
       "curated": true
     },
     {
@@ -6036,6 +6216,16 @@
       "curated": true
     },
     {
+      "capability_id": "cli.term",
+      "cli_path": [
+        "term"
+      ],
+      "implicit": false,
+      "title": "Term",
+      "description_model": "Headless-capable ratatui terminal UI — block-model shell + AI agent strip",
+      "curated": true
+    },
+    {
       "capability_id": "cli.test",
       "cli_path": [
         "test"
@@ -6098,6 +6288,16 @@
         "baseline"
       ],
       "mens_planner_visible": true,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.wasm",
+      "cli_path": [
+        "wasm"
+      ],
+      "implicit": false,
+      "title": "Wasm",
+      "description_model": "Raw precompiled WASI module execution (needs `--features script-wasi`)",
       "curated": true
     }
   ],

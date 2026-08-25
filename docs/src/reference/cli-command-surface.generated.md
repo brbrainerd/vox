@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 285
+**schema_version:** `1` · **vox-cli operations:** 305
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -40,6 +40,8 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox auth whoami` | active | — | ars | platform | — |
 | `vox build` | active | — | fabrica | app | — |
 | `vox bundle` | active | — | fabrica | platform | — |
+| `vox bundle-app` | active | — | fabrica | app | — |
+| `vox chat` | active | — | — | ai | — |
 | `vox check` | active | — | fabrica | app | — |
 | `vox ci` | active | — | ci | platform | — |
 | `vox ci ai-fixtures-coverage` | active | — | — | platform | — |
@@ -137,6 +139,9 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox commands` | active | — | — | platform | — |
 | `vox compile` | active | — | fabrica | app | — |
 | `vox completions` | active | — | fabrica | app | — |
+| `vox component` | active | — | — | app | — |
+| `vox config` | active | — | — | platform | — |
+| `vox container` | active | — | — | app | — |
 | `vox db` | active | — | codex | data | — |
 | `vox db audit` | active | — | codex | data | — |
 | `vox db mirror-search-corpus` | active | — | codex | data | — |
@@ -161,15 +166,22 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox deploy` | active | — | fabrica | app | — |
 | `vox dev` | active | — | fabrica | app | — |
 | `vox diag` | active | — | diag | platform | — |
+| `vox dispatch` | active | — | — | platform | — |
 | `vox doctor` | active | — | diag | platform | — |
+| `vox drift-check` | active | — | — | platform | — |
+| `vox emit` | active | — | — | app | — |
+| `vox ext` | active | — | — | interop | — |
 | `vox fabrica` | active | — | fabrica | app | — |
 | `vox fmt` | active | — | fabrica | app | — |
 | `vox gamify` | active | extras-ludus | ars | ai | — |
 | `vox gamify hud` | active | ludus-hud | ars | ai | — |
+| `vox grammar` | active | — | — | ai | — |
 | `vox graph` | active | — | pm | platform | — |
 | `vox graph ingest` | active | — | pm | platform | — |
+| `vox harness` | active | — | — | ai | — |
 | `vox init` | active | — | pm | platform | — |
 | `vox live` | active | live | — | ai | — |
+| `vox llm` | active | — | — | ai | — |
 | `vox lock` | active | — | pm | platform | — |
 | `vox login` | active | — | ars | platform | — |
 | `vox logout` | active | — | ars | platform | — |
@@ -213,6 +225,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox model rollup` | active | — | — | ai | — |
 | `vox model scoreboard` | active | — | — | ai | — |
 | `vox model show` | active | — | — | ai | — |
+| `vox new` | active | — | — | app | — |
 | `vox openclaw` | active | ars | ars | interop | — |
 | `vox openclaw doctor` | active | ars | ars | interop | — |
 | `vox openclaw gateway-call` | active | ars | ars | interop | — |
@@ -221,6 +234,8 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox openclaw sidecar start` | active | ars | ars | interop | — |
 | `vox openclaw sidecar status` | active | ars | ars | interop | — |
 | `vox openclaw sidecar stop` | active | ars | ars | interop | — |
+| `vox play` | active | — | — | app | — |
+| `vox plugin` | active | — | — | platform | — |
 | `vox pm` | active | — | pm | platform | — |
 | `vox pm cache` | active | — | pm | platform | — |
 | `vox pm cache clear` | active | — | pm | platform | — |
@@ -232,6 +247,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox pm vendor` | active | — | pm | platform | — |
 | `vox pm verify` | active | — | pm | platform | — |
 | `vox pm yank` | active | — | pm | platform | — |
+| `vox policy` | active | — | — | platform | — |
 | `vox populi` | active | populi | — | workflow | — |
 | `vox populi down` | active | populi | — | workflow | — |
 | `vox populi registry-snapshot` | active | populi | — | workflow | — |
@@ -240,6 +256,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox populi up` | active | populi | — | workflow | — |
 | `vox recensio` | active | coderabbit | recensio | ai | — |
 | `vox remove` | active | — | pm | platform | — |
+| `vox repair` | active | — | — | ai | — |
 | `vox repo` | active | — | codex | platform | — |
 | `vox repo catalog` | active | — | codex | platform | — |
 | `vox repo catalog list` | active | — | codex | platform | — |
@@ -251,6 +268,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox repo status` | active | — | codex | platform | — |
 | `vox research run` | active | — | — | ai | — |
 | `vox review` | active | coderabbit | recensio | ai | — |
+| `vox rollback` | active | — | — | platform | — |
 | `vox run` | active | — | fabrica | app | — |
 | `vox scientia` | active | — | codex | data | — |
 | `vox scientia collection-transform-preview` | active | — | codex | data | — |
@@ -304,9 +322,11 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox telemetry export` | active | — | ci | platform | — |
 | `vox telemetry status` | active | — | ci | platform | — |
 | `vox telemetry upload` | active | — | ci | platform | — |
+| `vox term` | active | — | — | app | — |
 | `vox test` | active | — | fabrica | app | — |
 | `vox train` | deprecated | gpu+mens-dei | mens | ai | — |
 | `vox update` | active | — | pm | platform | — |
 | `vox upgrade` | active | — | pm | platform | — |
 | `vox visus audit` | active | dei | dei | ai | — |
 | `vox visus baseline` | active | dei | dei | ai | — |
+| `vox wasm` | active | script-wasi | — | app | — |

@@ -88,7 +88,7 @@ Minimum required keys (full template and the canonical `category` / `status` voc
 ---
 title: "Page title"
 description: "One specific sentence about what this page covers."
-category: "architecture"   # one of the canonical category values in the governance doc
+category: "Architecture SSOTs"   # one of the canonical category values in the governance doc
 ---
 ```
 
@@ -411,7 +411,7 @@ Details: `docs/src/ci/local-first-ci.md`.
 - **Toolchain-bump lint waves (the #1 perennial).** Every `rust-toolchain.toml` bump (1.92→1.95→1.96…) introduces new `clippy`/`rustdoc` lints that fire workspace-wide and need a cleanup commit (e.g. `manual_is_multiple_of`, `field_reassign_with_default` arrived in 1.96). **Cached clippy hides them.** When bumping the toolchain, run a FRESH check before merging the bump: `CARGO_INCREMENTAL=0 cargo clippy --workspace --all-targets -- -D warnings` and `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps`. A CI gate that does this when `rust-toolchain.toml` changes is the durable catch.
 - **Pre-push clippy gap.** The `fast`/default pre-push hook does **not** run clippy (only `--complete` and above do) — ~45 fixes were clippy errors that landed then got cleaned up. Before pushing Rust changes, run `vox ci pre-push --complete` or `cargo clippy -p <touched-crate> -- -D warnings`. Recurring offenders: `unused_mut`, `field_reassign_with_default`, `len_zero`, `needless_range_loop`.
 - **Doc fences compiled as unintended doctests.** A bare or `rust`-tagged fence in docs is compiled as a doctest; example snippets that aren't meant to compile fail the rustdoc gate ("annotate as `text` so it isn't compiled as Rust" recurs). Mark non-compiling examples ` ```text `; for `vox` excerpts use ` ```vox ` + a leading `// vox:skip` with a reason (see §Markdown Hygiene).
-- **Async handler / async-test regression (codegen).** `@query`/`@mutation` handler emission must `await` (handler_await); and merges have silently reverted async tests to sync (`vox-vcs` cas_fallback). On a merge that touches async code/tests, re-confirm they're still `async` before pushing.
+- **Async handler / async-test regression (codegen).** `query`/`mutation` handler emission must `await` (handler_await); and merges have silently reverted async tests to sync (`vox-vcs` cas_fallback). On a merge that touches async code/tests, re-confirm they're still `async` before pushing.
 - **SSOT / schema drift** (largest class, 103 fixes) — already gated by `vox ci ssot-drift` (+ the `ssot-autoregen` PR bot). Don't hand-regenerate after merge; see §Local CI Gate Tiers.
 - **`vox-gui` sidecar missing in a fresh worktree.** `cargo build`/`test -p vox-gui` fails inside `tauri-build` ("resource path ... doesn't exist") the first time ANY `git worktree add` builds it — each worktree gets its own `target/` (per-worktree by design, see `.cargo/config.toml`), so the release `vox` binary Tauri bundles as an `externalBin` sidecar doesn't exist yet. `crates/vox-gui/build.rs` and `vox doctor` both name the missing path and the fix: run `vox run scripts/gui-build.vox` (or `cargo build -p vox-cli --release` then copy `target/release/vox[.exe]` to the triple-suffixed sidecar path) once per worktree before building `vox-gui`.
 - **Parallel-agent fmt drift.** When multiple agents/worktrees touch overlapping crates concurrently, `rustfmt` drift from one session's edits routinely lands unformatted in another's commit. Before merging work assembled from parallel sessions, run `vox run scripts/fmt.vox` (or `VOX_FMT_CHECK=1 vox run scripts/fmt.vox` to check only).
@@ -451,7 +451,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `vox-ludus` | `vox-gamify` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |
-| `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `@server fn` / `@query fn` / `@mutation fn` |
+| `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `server name(...) to T` / `query name(...) to T` / `mutation name(...) to T` (bare-keyword, no `fn`; the at-prefixed forms became hard parse errors 2026-06-30, `cd7cc96874`) |
 | `@py.import` (Python interop) | Removed — Python is no longer a Vox glue surface (see §VoxScript-First Glue Code) |
 | `@native` (decorator) | `@place(native)` |
 | `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
@@ -459,6 +459,10 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `@capacitor/*`, `npx cap sync` | `@tauri-apps/plugin-*`, `cargo tauri build` |
 | `axum::serve`, `rust-embed` (for generated desktop/mobile apps) | Tauri 2 runtime (Axum is retained for native-binary/server targets only) |
 | `vox-sherpa-transcribe` (Capacitor plugin) | `vox-tauri-stt` (native Tauri STT plugin) |
+| `crates/vox-dashboard` (deleted 2026-05-12, `af5f26278`; Axum dashboard retired per ADR-037) | `crates/vox-gui` (Tauri 2) |
+| `crates/vox-oratio` (crate renamed `81681e81b`; the `vox speech` command keeps `oratio` as a visible alias) | `crates/vox-speech` |
+| `vox-dei-shim` (renamed `5463bc16c`) | `vox-research-shim` |
+| `vox-bootstrap` (crate, deleted) | `voxup` (`crates/voxup/`) / `scripts/install.{sh,ps1}` |
 
 Memory-write APIs are not a simple retirement pair: for writing facts, use `MemoryManager::persist_fact`; `sync_to_db()` bulk-syncs `MEMORY.md` → DB only and is **not** a drop-in replacement for `persist_fact`.
 
@@ -491,12 +495,12 @@ Agents and contributors must strictly adhere to architectural invariants. Ensure
 These rules apply to `.vox` source files and are enforced by `vox stub-check` (static) and the Vox runtime (dynamic). Agents writing Vox code MUST follow them.
 
 **Effect declarations (Phase 5):**
-- Any `pub fn`, `@query fn`, `@mutation fn`, or `@server fn` that calls `http.*`, `net.*`, `fetch(`, `populi.*`, or `std.http.*` MUST carry `@uses(net)` in the preceding decorator list.
+- Any `pub fn`, `query fn`, `mutation fn`, or `server fn` that calls `http.*`, `net.*`, `fetch(`, `populi.*`, or `std.http.*` MUST carry `@uses(net)` in the preceding decorator list.
 - A `@pure fn` MUST NOT call `http`, `net`, `fs`, `db`, `random`, `time`, `log`, or any `async/await` — the compiler will reject it.
 - Workflow bodies (`workflow { }`) MUST NOT call non-deterministic builtins: `time.now()`, `random.*()`, `uuid()`, `crypto.random_bytes()`. Use `activity` functions for side-effectful work instead.
 
 **Type boundaries (Phase 3):**
-- ID parameters on `@query`, `@mutation`, `@server`, `@activity`, or actor-message functions MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`.
+- ID parameters on `query`, `mutation`, `server`, or `activity` functions, or actor-message functions, MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`.
 - Error types on public boundaries MUST be named ADTs — `Result[T, str]` is flagged by `vox/types/anonymous-error-type`.
 
 **Decorator position (Phase 2):**
@@ -504,7 +508,7 @@ These rules apply to `.vox` source files and are enforced by `vox stub-check` (s
 - See the Grammar Unification section above for the full keyword table.
 
 **Auth / access control:**
-- Every `@query fn`, `@mutation fn`, or `@server fn` should carry either `@auth(...)` for authenticated routes or an explicit open-access annotation. The legacy `vox/auth/endpoint-missing-decorator` lint targeted `@endpoint fn`, which was removed in v0.6.0; auth decoration enforcement for the bare-form decorators is tracked in Phase 6 of the language-rules plan.
+- Every `query`, `mutation`, or `server` declaration should carry either `@auth(...)` for authenticated routes or an explicit open-access annotation. The legacy `vox/auth/endpoint-missing-decorator` lint targeted `@endpoint fn`, which was removed in v0.6.0; auth decoration enforcement for the bare-form decorators is tracked in Phase 6 of the language-rules plan.
 
 **State machines:**
 - Every state in a `state_machine { }` block must have at least one `->` outgoing transition, or be marked as a terminal state with a `// terminal` comment. Flagged by `vox/state-machine/unreachable-state`.

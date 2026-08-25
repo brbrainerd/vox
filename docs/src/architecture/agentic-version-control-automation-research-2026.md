@@ -152,7 +152,7 @@ Capability values are constructed only by the orchestrator's `mint_capability(..
 Vox's grammar already mandates *bare-keyword blocks declare scope; decorators modify declarations* ([AGENTS.md §Grammar Unification](../../../AGENTS.md)). VCS effects fit cleanly as decorators on `fn`:
 
 ```vox
-// vox:skip
+// vox:skip -- proposed future syntax; @vcs.* decorators are not implemented yet
 @vcs.read_only fn list_recent_changes() -> Vec<Change> { /* … */ }
 
 @vcs.requires(WorkingTreeWrite)

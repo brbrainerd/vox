@@ -1,0 +1,43 @@
+# Validate with: docker compose -f examples/mesh-compose.yml config
+# CI: .github/workflows/ci.yml — mesh-compose-config
+#
+# Pair with root Dockerfile: build `vox` with Populi transport + script execution.
+# See docs/src/reference/deployment-compose.md
+#
+# Example (local, after building images):
+#   docker compose -f examples/mesh-compose.yml --profile demo up
+#
+# Optional profile `demo` runs a no-op script against the local control plane once `mesh-ctrl` is up.
+
+services:
+  mesh-ctrl:
+    build:
+      # Compose resolves `context` relative to this file's directory (`examples/`).
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        VOX_CLI_FEATURES: populi,script-execution
+    command: ["vox", "populi", "serve", "--bind", "0.0.0.0:9847"]
+    ports:
+      - "9847:9847"
+    volumes:
+      - mesh-registry:/root/.vox
+
+  mesh-worker:
+    profiles: [demo]
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        VOX_CLI_FEATURES: populi,script-execution
+    depends_on:
+      - mesh-ctrl
+    environment:
+      VOX_MESH_ENABLED: "1"
+      VOX_MESH_CONTROL_ADDR: "http://mesh-ctrl:9847"
+    volumes:
+      - mesh-registry:/root/.vox
+    command: ["vox", "run", "--mode", "script", "/opt/vox/mesh-noop.vox"]
+
+volumes:
+  mesh-registry:

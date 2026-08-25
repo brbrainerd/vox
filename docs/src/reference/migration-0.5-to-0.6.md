@@ -13,28 +13,35 @@ This guide lists every language-surface change between Vox `0.5.x` and `0.6.0` t
 
 ## Removed surface
 
-### `@endpoint(kind: …)` decorator → bare-form decorators
+### `@endpoint(kind: …)` decorator → bare keywords
 
 **Status:** removed in v0.6.0 (`vox-stdlib-gap-audit-2026-05-23.md §Phase H step 18`).
 
-The `@endpoint(kind: server|query|mutation)` decorator no longer lexes. The
-canonical bare-form decorators `@server`, `@query`, `@mutation` — introduced
-in Phase B (audit doc §11.2, 2026-05-23) — are now the only endpoint
-declaration surface. All three produce the same `Decl::Endpoint` AST node;
-nothing changed in HIR, codegen, or runtime semantics.
+The `@endpoint(kind: server|query|mutation)` decorator no longer lexes.
 
-| Retired (≤ v0.5)                       | Canonical (v0.6+) |
-|----------------------------------------|-------------------|
-| `@endpoint(kind: server) fn h(...) {}` | `@server fn h(...) {}`   |
-| `@endpoint(kind: query) fn h(...) {}`  | `@query fn h(...) {}`    |
-| `@endpoint(kind: mutation) fn h(...) {}` | `@mutation fn h(...) {}` |
+> **Two migrations, not one.** `@endpoint` was first replaced by the
+> at-prefixed decorators `@server` / `@query` / `@mutation` (Phase B, audit
+> doc §11.2, 2026-05-23). Those were themselves retired on 2026-06-30
+> (`cd7cc96874`) and are now **hard parse errors**. If you are coming from
+> v0.5, migrate straight to the bare keywords below — do not stop at the
+> at-prefixed forms.
+
+The canonical surface is a bare keyword in declaration-head position, with no
+`@` and no `fn`. All three produce the same `Decl::Endpoint` AST node; nothing
+changed in HIR, codegen, or runtime semantics.
+
+| Retired (≤ v0.5)                         | Also retired (2026-06-30) | Canonical |
+|------------------------------------------|---------------------------|-----------|
+| `@endpoint(kind: server) fn h(...) {}`   | `@server fn h(...) {}`    | `server h(...) to T { }`   |
+| `@endpoint(kind: query) fn h(...) {}`    | `@query fn h(...) {}`     | `query h(...) to T { }`    |
+| `@endpoint(kind: mutation) fn h(...) {}` | `@mutation fn h(...) {}`  | `mutation h(...) to T { }` |
 
 **Migration recipe** (mechanical):
 
 ```diff
 - @endpoint(kind: server)
-+ @server
-  fn list_items() to List[Item] {
+- fn list_items() to List[Item] {
++ server list_items() to List[Item] {
       return db.Item.all()
   }
 ```
@@ -63,8 +70,12 @@ The legacy fallible-`Option` `Json` accessors returned `Option[Str]` / `Option[I
 For nested paths use `pointer` (RFC 6901):
 
 ```vox
-// vox:skip
-let username = response.pointer("/user/profile/username")?.as_str()
+fn read_username(payload_json: str) to Option[str] {
+    return match std.json.parse(payload_json) {
+        Ok(data) => data.pointer("/user/profile/username").and_then(fn(j: Json) to Option[str] { j.as_str() })
+        Error(_) => None
+    }
+}
 ```
 
 ## New surface
@@ -101,9 +112,10 @@ See `docs/src/architecture/rfc-json-as-2026-05-24.md` (planned) for the design r
 Raw string literals do not process escape sequences. Hash-padded form `r#"…"#` lets the literal contain `"` characters.
 
 ```vox
-// vox:skip
-let path = r"C:\Users\me\Documents"
-let regex = r#"^([a-z]+):"([^"]+)"$"#
+fn demo_raw_strings() {
+    let path = r"C:\Users\me\Documents"
+    let regex = r#"^([a-z]+):"([^"]+)"$"#
+}
 ```
 
 ### Intra-project imports (`import "./relative.vox"`)
@@ -115,7 +127,7 @@ let regex = r#"^([a-z]+):"([^"]+)"$"#
 module system without the build-system overhead.
 
 ```vox
-// vox:skip
+// vox:skip -- cross-file example; multi-file import typecheck differs from in-file lookup as of v0.6
 // src/util.vox
 pub fn slugify(s: Str) to Str {
     return s.to_lower().replace(" ", "-")

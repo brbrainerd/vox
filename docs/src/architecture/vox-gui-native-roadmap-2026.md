@@ -1209,10 +1209,15 @@ different constraints. Unification reduces the decorator surface from 14 to
 12 and consolidates three HIR buckets (`query_fns`, `mutation_fns`,
 `server_fns`) into one.
 
-**Target syntax**:
+**Target syntax** (as of April 2026 — superseded):
+
+> This unification shipped as `@endpoint(kind: …)`, which was then removed in
+> v0.6.0 and replaced by the bare keywords `query` / `mutation` / `server`.
+> The at-prefixed spellings below are hard parse errors as of 2026-06-30
+> (`cd7cc96874`). Kept to record the design rationale, not as a target.
 
 ```vox
-// vox:skip
+// vox:skip -- superseded design: @endpoint was removed in v0.6.0
 @endpoint(kind: query)    fn recent_tasks() to list[Task] { ... }
 @endpoint(kind: mutation) fn add_task(t: NewTask) to Id[Task] { ... }
 @endpoint(kind: server)   fn privileged_action() to Result[Unit] { ... }
@@ -1530,8 +1535,7 @@ with exhaustiveness enforcement kills an entire bug class.
 **Target syntax**:
 
 ```vox
-// vox:skip
-state_machine AgentLifecycle {
+partial state_machine AgentLifecycle {
   state Idle
   state Working(task: Task)
   state Paused(reason: str)
@@ -1706,7 +1710,7 @@ graph and compile-time link verification.
 **Target syntax**:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed `url` block primitive and typed-link syntax, not implemented
 url Path {
   Home
   Task(id: Id[Task])
@@ -2133,7 +2137,7 @@ guaranteed by construction.
 **Target syntax**:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed `surface:` primitive and `:` call-arg syntax, not implemented
 panel(surface: primary) {
   text(size: body) "Hello"
 }
@@ -2164,7 +2168,7 @@ rudimentary AABB non-overlap check at declared breakpoints.
 **Target syntax**:
 
 ```vox
-// vox:skip
+// vox:skip -- illustrative: proposed `overlay` block primitive, not implemented; `...` placeholder body
 overlay {
   toast(z: 100, position: top_right) { ... }
   drawer(z: 90, position: left) { ... }

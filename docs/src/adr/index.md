@@ -49,7 +49,14 @@ This directory contains ADRs for the Vox project.
 | [035](035-swc-parser-alternatives-eval.md) | **SWC parser vs alternatives** (evaluation only; no silent migration) |
 | [036](036-webir-hir-unification-compare-both.md) | **WebIR vs HIR unification (compare-both)** — core+projection decision, rubric, capability wiring |
 | [037](037-tauri-convergence.md) | **Tauri convergence** — generated desktop/mobile app shell, Capacitor retirement, Sherpa plugin port |
+| [038](038-ai-fixture-prompt-decorator.md) | **AI fixture `@prompt` decorator** |
+| [039](039-ai-fixture-hole-decorator.md) | **AI fixture `@hole` decorator** |
+| [040](040-ai-fixture-search-decorator.md) | **AI fixture `@search` decorator** |
 | [041](041-durable-functions-completion-2026.md) | **Durable functions completion** — closes ADR-028; `workflow`/`activity`/`@scheduled`/`actor` now backed by real runtime (Stable for ADR-019 subset) |
+| [042](../architecture/adr-042-vox-populi-types.md) | **Extract `NodeRecord` into `vox-populi-types` (L2)** (filed under `architecture/`) |
+| [043](../architecture/adr-043-quantized-safetensors-ondisk-format.md) | **Quantized SafeTensors on-disk format** (filed under `architecture/`) |
+| [044](044-ai-fixture-subagent-decorator.md) | **AI fixture `@subagent` decorator** (renumbered from a three-way 037 collision) |
+| [045](045-tauri-gui-replaces-axum-dashboard.md) | **Tauri GUI replaces the Axum dashboard** (renumbered from a three-way 037 collision) |
 
 See also: [Internal Web IR implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [WebIR supplemental execution map](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [Acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [WebIR appendix — tooling registry](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [WebIR K-metric appendix](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [Codex vNext schema](../archive/research-2026-q1/codex-vnext-schema.md), [Codex BaaS](../archive/research-2026-q1/codex-baas.md).
 

@@ -121,7 +121,7 @@ Two more declaration kinds you'll reach for as the app grows:
 
 | Declaration | What it does |
 |---|---|
-| `server fn(...)` | A server-side function that isn't a direct db read/write (e.g. calling an external API) |
+| `server name(...) to T` | A server-side function that isn't a direct db read/write (e.g. calling an external API) |
 | `tool "description" fn(...)` | Exposes a function to any Model Context Protocol client — the same function an HTTP caller uses, now callable by an agent |
 
 Full grammar reference: [decorators and bare keywords](../reference/ref-decorators.md).
