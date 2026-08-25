@@ -20,6 +20,7 @@ fn only_128gb_machines_satisfy_a_64gb_gpu_memory_constraint() {
     let out = apply(
         &schema(),
         &seeded(),
+        "laptop",
         &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")],
     );
 
@@ -86,6 +87,37 @@ fn gpu_accessible_memory_is_derived_from_total_memory_not_asserted() {
     );
 }
 
+/// `derive_gpu_accessible_gb` only ever runs on a value already confirmed to
+/// be in GB. A seed reporting the total in MB (a real vendor-spec-sheet unit)
+/// must not silently feed that number through the GB-shaped formula and come
+/// out stamped `Evidence::Derived` — the highest trust tier in the system.
+#[test]
+fn a_total_memory_not_stated_in_gb_is_not_derived_from() {
+    const WRONG_UNIT: &str = r#"
+items:
+  - item_id: mb-reported
+    category: laptop
+    arch: apple_unified
+    attributes:
+      total_memory_gb: { number: 65536, unit: MB, evidence: merchant_page }
+"#;
+    let items = seed_from_yaml(&schema(), WRONG_UNIT).expect("seed");
+    let item = &items[0];
+    assert!(
+        !item.attributes.contains_key("gpu_accessible_gb"),
+        "must not guess GB from an MB-reported total: {item:?}"
+    );
+
+    // Absence routes to `Indeterminate`, not a wrong-but-confident pass/fail.
+    let out = apply(
+        &schema(),
+        &items,
+        "laptop",
+        &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")],
+    );
+    assert_eq!(out.indeterminate.len(), 1);
+}
+
 #[test]
 fn a_source_may_not_assert_a_derived_attribute() {
     const CHEATING: &str = r#"
@@ -129,6 +161,7 @@ fn an_impossible_constraint_explains_itself_rather_than_returning_empty() {
     let out = apply(
         &schema(),
         &items,
+        "laptop",
         &[Constraint::gte("gpu_accessible_gb", 512.0, "GB")],
     );
 

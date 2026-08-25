@@ -270,9 +270,20 @@ fn evaluate(schema: &CatalogSchema, item: &CatalogItem, c: &Constraint) -> Verdi
 }
 
 /// Hard filters. Constraints eliminate; they never score.
-pub fn apply(schema: &CatalogSchema, items: &[CatalogItem], constraints: &[Constraint]) -> Outcome {
+///
+/// Scoped to a single `category`: an item of a different category is dropped
+/// from the result entirely (not into any of the three buckets), rather than
+/// landing in `indeterminate` with a reason indistinguishable from a genuine
+/// data gap (e.g. "not an attribute of category `gpu`" reading identically to
+/// "we never measured this").
+pub fn apply(
+    schema: &CatalogSchema,
+    items: &[CatalogItem],
+    category: &str,
+    constraints: &[Constraint],
+) -> Outcome {
     let mut out = Outcome::default();
-    'items: for item in items {
+    'items: for item in items.iter().filter(|i| i.category == category) {
         for c in constraints {
             match evaluate(schema, item, c) {
                 Verdict::Passed => {}
@@ -381,7 +392,12 @@ pub fn seed_from_yaml(schema: &CatalogSchema, yaml: &str) -> Result<Vec<CatalogI
         if attributes.contains_key("gpu_accessible_gb") {
             return Err(SchemaError::AssertedDerived("gpu_accessible_gb".into()));
         }
-        if let Some(total) = attributes.get("total_memory_gb") {
+        // Only derive when the input is actually in GB: guessing past a unit
+        // mismatch is exactly what this layer exists to refuse (see the GiB-vs-GB
+        // check in `evaluate()`). Absence routes to `Indeterminate` downstream.
+        if let Some(total) = attributes.get("total_memory_gb")
+            && total.unit.as_deref() == Some("GB")
+        {
             let derived = derive_gpu_accessible_gb(total.number, s.arch);
             attributes.insert("gpu_accessible_gb".into(), derived);
         }
@@ -537,6 +553,7 @@ categories:
         let out = apply(
             &schema(),
             &items,
+            "laptop",
             &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")],
         );
 
@@ -567,6 +584,7 @@ categories:
         let out = apply(
             &schema(),
             &items,
+            "laptop",
             &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")],
         );
 
@@ -594,6 +612,7 @@ categories:
         let out = apply(
             &schema(),
             &items,
+            "laptop",
             &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")],
         );
         assert!(out.passed.is_empty(), "GiB and GB differ by 7.4%");
@@ -616,7 +635,7 @@ categories:
             (Constraint::gte("gpu_accessible_gb", 65.0, "GB"), false),
             (Constraint::lte("gpu_accessible_gb", 63.0, "GB"), false),
         ] {
-            let out = apply(&s, &items, &[c]);
+            let out = apply(&s, &items, "laptop", &[c]);
             assert_eq!(
                 out.passed.len(),
                 usize::from(should_pass),
@@ -639,6 +658,7 @@ categories:
         let out = apply(
             &schema(),
             &items,
+            "laptop",
             &[
                 Constraint::gte("gpu_accessible_gb", 64.0, "GB"),
                 Constraint::lte("tdp_w", 1600.0, "W"),
@@ -653,12 +673,40 @@ categories:
         );
     }
 
+    /// An item outside the query's category must not appear in any bucket. If it
+    /// fell into `indeterminate` (e.g. "not an attribute of category `gpu`") that
+    /// reads identically to a genuine data gap and defeats the point of the
+    /// three-way split.
+    #[test]
+    fn an_item_of_a_different_category_is_dropped_not_bucketed() {
+        let mut gpu = item("a6000", &[("gpu_accessible_gb", v(48.0, "GB"))]);
+        gpu.category = "gpu".into();
+        let items = vec![item("mbp14", &[("gpu_accessible_gb", v(96.0, "GB"))]), gpu];
+
+        let out = apply(
+            &schema(),
+            &items,
+            "laptop",
+            &[Constraint::gte("gpu_accessible_gb", 64.0, "GB")],
+        );
+
+        assert_eq!(out.passed.len(), 1);
+        assert_eq!(out.passed[0].item_id, "mbp14");
+        assert!(out.excluded.is_empty());
+        assert!(
+            out.indeterminate.is_empty(),
+            "the gpu item must be dropped, not indeterminate: {:?}",
+            out.indeterminate
+        );
+    }
+
     #[test]
     fn a_constraint_on_an_attribute_the_schema_does_not_know_is_loud() {
         let items = vec![item("x", &[("gpu_accessible_gb", v(96.0, "GB"))])];
         let out = apply(
             &schema(),
             &items,
+            "laptop",
             &[Constraint::gte("warp_factor", 9.0, "c")],
         );
         assert!(out.passed.is_empty());
