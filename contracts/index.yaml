@@ -1579,3 +1579,11 @@ contracts:
     enforced_by:
       - cargo test -p vox-code-audit --lib retirement_parity
       - vox ci retirement-audit    # planned P1.5
+
+  - id: market-catalog-schema
+    path: contracts/market/catalog-schema.v1.yaml
+    owner: vox-cli-core
+    kind: yaml
+    description: Categories and typed attributes for the hardware market catalog.
+    enforced_by:
+      - vox ci contracts-index
