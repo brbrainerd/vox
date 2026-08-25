@@ -953,7 +953,7 @@ fine locally.
 - Test: `crates/vox-gui/ui/src/components/surfaces/VoxGraph/VoxGraphStatusPanel.test.tsx` (append cases; change no existing case)
 
 **Interfaces:**
-- Consumes: `vox_search_set_ttl { ttl_days: number }` and the `ttl_days` / `ttl_days_env_forced` keys on `vox_search_status`, both from Task 3.
+- Consumes: `vox_search_set_ttl { ttl_days: number }` — whose result carries `ttl_days_written`, `ttl_days_effective`, `env_override_active`, `contract_path`, `requires_commit` — and the `ttl_days` / `ttl_days_contract` / `ttl_days_env_forced` / `ttl_contract_path` keys on `vox_search_status`. All from Task 3, which is committed at 38d8beaf3; read `graphify_set_ttl` and `graphify_status` in `crates/vox-orchestrator-mcp/src/graph_tools.rs` to confirm the exact keys before writing fixtures.
 - Produces: nothing consumed by later tasks.
 
 **Do not break the existing panel test.** `VoxGraphStatusPanel.test.tsx` supplies
@@ -993,6 +993,40 @@ already carries the jsdom environment docblock on line 1 — do not add a second
     const call = mockInvoke.mock.calls.at(-1);
     expect(JSON.stringify(call)).toContain('vox_search_set_ttl');
     expect(JSON.stringify(call)).toContain('"ttl_days":7');
+  });
+
+  it('tells the user the save wrote a tracked file that needs committing', async () => {
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        default_corpus_id: 'repo-code-graph',
+        ttl_days: 30,
+        ttl_days_env_forced: false,
+        corpora: [STALE_CORPUS],
+      },
+    });
+    // Shape returned by graphify_set_ttl — see graph_tools.rs.
+    mockInvoke.mockResolvedValue({
+      is_error: false,
+      result: {
+        ttl_days_written: 7,
+        ttl_days_effective: 7,
+        env_override_active: false,
+        contract_path: 'contracts/retrieval/vox-graph-corpora.v1.yaml',
+        requires_commit: true,
+      },
+    });
+    renderWithClient(<VoxGraphStatusPanel />);
+
+    fireEvent.change(screen.getByLabelText('Staleness TTL in days'), { target: { value: '7' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save TTL' }));
+
+    // The TTL lives in a TRACKED contract. A user who is not told will not commit,
+    // and CI will keep enforcing the old value.
+    expect(
+      await screen.findByText(/contracts\/retrieval\/vox-graph-corpora\.v1\.yaml/),
+    ).toBeInTheDocument();
   });
 
   it('rejects an out-of-range TTL without calling the backend', async () => {
@@ -1096,6 +1130,7 @@ function TtlEditor({ ttlDays, envForced }: { ttlDays: number; envForced: boolean
   const [value, setValue] = useState(String(ttlDays));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [wrotePath, setWrotePath] = useState<string | null>(null);
 
   const handleSave = useCallback(async () => {
     const parsed = Number(value);
@@ -1105,8 +1140,16 @@ function TtlEditor({ ttlDays, envForced }: { ttlDays: number; envForced: boolean
     }
     setBusy(true);
     setError(null);
+    setWrotePath(null);
     try {
-      await voxTransport.invokeMcpTool('vox_search_set_ttl', { ttl_days: parsed });
+      const res = await voxTransport.invokeMcpTool('vox_search_set_ttl', { ttl_days: parsed });
+      // The tool edits a TRACKED contract file, so the save dirties the working
+      // tree. Saying so is not decoration: a user who is not told will not commit,
+      // and CI will keep enforcing the old TTL.
+      const r = res as { result?: { requires_commit?: boolean; contract_path?: string } };
+      if (r?.result?.requires_commit) {
+        setWrotePath(r.result.contract_path ?? null);
+      }
       await queryClient.invalidateQueries({ queryKey: VOX_GRAPH_STATUS_QUERY_KEY });
     } catch (e) {
       setError(sanitizeErrorForToast((e as Error)?.message ?? e));
@@ -1146,6 +1189,12 @@ function TtlEditor({ ttlDays, envForced }: { ttlDays: number; envForced: boolean
       {envForced && (
         <span className="text-[10px] text-amber-400">
           VOX_GRAPHIFY_TTL_DAYS is set and overrides this value.
+        </span>
+      )}
+      {wrotePath && (
+        <span className="text-[10px] text-zinc-400">
+          Wrote <code className="font-mono">{wrotePath}</code> — commit it so the CLI and CI
+          use this TTL too.
         </span>
       )}
       {error && (
@@ -1190,7 +1239,7 @@ cd crates/vox-gui/ui && pnpm vitest run src/components/surfaces/VoxGraph/VoxGrap
 cd crates/vox-gui/ui && pnpm typecheck
 ```
 
-Expected: all seven cases PASS (three pre-existing, four new); typecheck clean.
+Expected: all eight cases PASS (three pre-existing, five new); typecheck clean.
 
 - [ ] **Step 7: Commit**
 
