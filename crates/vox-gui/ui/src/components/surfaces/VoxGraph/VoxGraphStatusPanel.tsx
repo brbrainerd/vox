@@ -86,6 +86,16 @@ function TtlEditor({ ttlDays, envForced }: { ttlDays: number; envForced: boolean
   const [error, setError] = useState<string | null>(null);
   const [wrotePath, setWrotePath] = useState<string | null>(null);
 
+  // Resync when a refetch brings a different TTL (a save, or an env-forced
+  // value winning). Comparing against the last prop seen rather than syncing in
+  // an effect means typing is never clobbered: the input only resets when the
+  // incoming number actually changes.
+  const [lastTtlDays, setLastTtlDays] = useState(ttlDays);
+  if (ttlDays !== lastTtlDays) {
+    setLastTtlDays(ttlDays);
+    setValue(String(ttlDays));
+  }
+
   const handleSave = useCallback(async () => {
     const parsed = Number(value);
     if (!Number.isInteger(parsed) || parsed < TTL_DAYS_MIN || parsed > TTL_DAYS_MAX) {
@@ -145,7 +155,13 @@ function TtlEditor({ ttlDays, envForced }: { ttlDays: number; envForced: boolean
           value={value}
           disabled={busy}
           aria-label="Staleness TTL in days"
-          onChange={(e) => setValue(e.target.value)}
+          // The confirmation describes the value that was written, so it must
+          // not outlive an edit to that value.
+          onChange={(e) => {
+            setValue(e.target.value);
+            setWrotePath(null);
+            setError(null);
+          }}
           className="h-7 w-20 rounded-md border border-white/10 bg-zinc-950/40 px-2 font-mono text-[11px] text-zinc-200 disabled:opacity-50"
         />
         <button
