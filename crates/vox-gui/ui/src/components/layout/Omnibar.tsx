@@ -20,6 +20,7 @@ import {
   type OmnibarRow,
 } from '../../lib/omnibarFacets';
 import { recordGamifyGuiEvent } from '../../lib/gamifyGuiEvents';
+import { unwrapMcpEnvelope } from '../../lib/mcpToolResult';
 
 const FACET_ORDER: FacetKey[] = ['surfaces', 'commands', 'onScreen', 'graph', 'docs'];
 
@@ -57,21 +58,24 @@ function federatedKindsForMode(mode: PalettePrefixMode): FederatedIndexKind[] {
 }
 
 /**
- * Parse a graph-tool response into rows. Both `vox_search_structural` and
- * `vox_search_neighbors` return `result.hits[]`; `results[]` is accepted as a
- * legacy fallback. Reading only `results` made the neighbor path silently
- * return zero rows.
+ * Parse a graph-tool response into rows. `invoke_mcp_tool` returns the daemon's
+ * whole `ToolResult` under `result`, so the payload of both
+ * `vox_search_structural` and `vox_search_neighbors` lives at `result.data`, and
+ * the hits at `result.data.hits[]`. `results[]` is accepted as a legacy
+ * fallback. Reading `result.hits` (no envelope unwrap) made the facet silently
+ * return zero rows on every keystroke.
  */
 export function parseDiscoverResults(res: unknown): GraphNeighbor[] {
-  const r = res as {
-    is_error?: boolean;
-    result?: { hits?: unknown[]; results?: unknown[] };
-  };
+  const r = res as { is_error?: boolean; result?: unknown };
   if (r?.is_error) return [];
-  const raw = Array.isArray(r?.result?.hits)
-    ? r.result!.hits!
-    : Array.isArray(r?.result?.results)
-      ? r.result!.results!
+  const data = unwrapMcpEnvelope(r?.result) as
+    | { hits?: unknown[]; results?: unknown[] }
+    | null
+    | undefined;
+  const raw = Array.isArray(data?.hits)
+    ? data.hits
+    : Array.isArray(data?.results)
+      ? data.results
       : [];
   return raw.flatMap((raw0) => {
     const n = raw0 as { node_id?: string; id?: string; label?: string };

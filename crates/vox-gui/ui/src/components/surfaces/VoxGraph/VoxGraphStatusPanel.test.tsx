@@ -149,6 +149,28 @@ describe('VoxGraphStatusPanel', () => {
     });
   });
 
+  it('prefills the contract TTL, not the env-resolved effective one', () => {
+    // Save writes the contract, so the control must show the contract value.
+    // Prefilling the effective 7 would let one click rewrite ttl_days_default
+    // from 30 to 7 in a tracked file the user never chose to change.
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        default_corpus_id: 'repo-code-graph',
+        ttl_days: 7,
+        ttl_days_contract: 30,
+        ttl_days_env_forced: true,
+        corpora: [STALE_CORPUS],
+      },
+    });
+    renderWithClient(<VoxGraphStatusPanel />);
+
+    expect((screen.getByLabelText('Staleness TTL in days') as HTMLInputElement).value).toBe('30');
+    // The effective value stays visible so the user can see what is in force.
+    expect(screen.getByText(/Currently in force: 7 days/)).toBeInTheDocument();
+  });
+
   it('tells the user the save wrote a tracked file that needs committing', async () => {
     mockUse.mockReturnValue({
       isLoading: false,

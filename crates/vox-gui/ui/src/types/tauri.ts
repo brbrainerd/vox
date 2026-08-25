@@ -248,6 +248,9 @@ export interface GraphifyStatusDto {
   /** Effective staleness TTL in days after env > contract precedence.
    *  Optional: older backends omit it, and the editor hides itself when absent. */
   ttl_days?: number;
+  /** The stored contract value (`ttl_days_default`), before env precedence —
+   *  i.e. what a TTL save actually overwrites. */
+  ttl_days_contract?: number;
   /** True when VOX_GRAPHIFY_TTL_DAYS is forcing `ttl_days`, so a stored
    *  contract value would have no local effect. */
   ttl_days_env_forced?: boolean;

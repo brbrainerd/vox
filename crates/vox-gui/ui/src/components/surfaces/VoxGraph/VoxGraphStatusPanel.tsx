@@ -79,7 +79,17 @@ const TTL_DAYS_MAX = 3650;
  * `contracts/retrieval/vox-graph-corpora.v1.yaml` — the same value the CLI and
  * the CI freshness gate read, so the save leaves an uncommitted change.
  */
-function TtlEditor({ ttlDays, envForced }: { ttlDays: number; envForced: boolean }) {
+function TtlEditor({
+  ttlDays,
+  effectiveTtlDays,
+  envForced,
+}: {
+  /** The CONTRACT value — what Save writes, so what the control must show. */
+  ttlDays: number;
+  /** The value actually in force after env precedence, shown when it differs. */
+  effectiveTtlDays: number;
+  envForced: boolean;
+}) {
   const queryClient = useQueryClient();
   const [value, setValue] = useState(String(ttlDays));
   const [busy, setBusy] = useState(false);
@@ -179,6 +189,11 @@ function TtlEditor({ ttlDays, envForced }: { ttlDays: number; envForced: boolean
           VOX_GRAPHIFY_TTL_DAYS is set and overrides this value.
         </span>
       )}
+      {effectiveTtlDays !== ttlDays && (
+        <span className="text-[10px] text-zinc-400">
+          Currently in force: {effectiveTtlDays} days.
+        </span>
+      )}
       {wrotePath && (
         <span className="text-[10px] text-zinc-400">
           Wrote <code className="font-mono">{wrotePath}</code> — commit it so the CLI and CI
@@ -241,7 +256,14 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
         <h2 className="ds-section-head">{corpusHealthLabel}</h2>
         <div className="flex items-center gap-4">
           {typeof data.ttl_days === 'number' && (
-            <TtlEditor ttlDays={data.ttl_days} envForced={data.ttl_days_env_forced === true} />
+            <TtlEditor
+              // Prefill what Save WRITES (the contract), not the env-resolved
+              // effective value: prefilling the effective TTL meant one Save
+              // rewrote the tracked contract to a number the user never chose.
+              ttlDays={data.ttl_days_contract ?? data.ttl_days}
+              effectiveTtlDays={data.ttl_days}
+              envForced={data.ttl_days_env_forced === true}
+            />
           )}
           <span className="font-mono text-[10px] text-zinc-500">
             Default: {data.default_corpus_id}

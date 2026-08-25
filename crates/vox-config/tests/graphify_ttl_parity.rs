@@ -66,6 +66,13 @@ fn contract_ttl_is_the_value_every_caller_resolves() {
         reg.ttl_days_default > 0,
         "contract ttl_days_default must be a real window"
     );
+    // The relation the test name promises. Safe as written: this is its own test
+    // binary and nothing in it touches VOX_GRAPHIFY_TTL_DAYS.
+    assert_eq!(
+        vox_config::graphify::resolve_ttl_days(reg.ttl_days_default),
+        reg.ttl_days_default,
+        "with the env var unset, resolve_ttl_days must return the contract value"
+    );
     assert!(
         !vox_config::graphify::ttl_env_override_active(None),
         "with the env var unset the contract must be in control"
