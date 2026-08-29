@@ -103,12 +103,12 @@ Operators editing the YAML believe they are changing scoring behavior. They are 
 
 ---
 
-### Bug 7 — `quality_weights` in YAML Is Completely Ignored
+### Bug 7 (RESOLVED) — `quality_weights` in YAML is consumed
 
 | File | Lines |
 |---|---|
 | `contracts/orchestration/model-routing.v1.yaml` | 8–13 |
-| `models/scoring.rs` | 249–254 |
+| `models/scoring.rs` | 58–108 |
 
 ```yaml
 quality_weights:
@@ -119,9 +119,28 @@ quality_weights:
   cost_inverse: 0.2
 ```
 
-`auto_score_model()` uses `AutoRoutingPriority::from_env()` (VOX_ROUTE_* env vars). The YAML `quality_weights` block is dead config — declared but never consumed. This is the highest-priority maintainability issue because it creates a false belief that the YAML controls quality ranking.
+This section previously claimed the block was "dead config — declared but never
+consumed". That is no longer true. `scoreboard_feedback_boost` takes a
+`&vox_config::model_routing::QualityWeightsConfig` and applies all five weights
+to the scoreboard signals, normalising by their sum:
 
-**Fix:** Either consume `quality_weights` in the scoring path, or remove it from the contract and explicitly document that `scoring.weights` is the authoritative block.
+```text
+(socrates_factuality * quality_score
+ + contradiction_inverse * (1 - min(1 - success_rate, 1))
+ + success_rate        * success_rate
+ + p50_latency_inverse * latency_band_score(p50_latency_ms)
+ + cost_inverse        * 1/(1 + 100 * cost_per_success_usd))
+/ sum(weights) * 0.15
+```
+
+`AutoRoutingPriority::from_env()` (the `VOX_ROUTE_*` vars) still governs the
+*separate* priority axis; it is not a substitute for these weights.
+
+**Caveat that does still hold:** the `quality_score` this blend reads is
+`COALESCE(AVG(llm_feedback.rating) / 5.0, 1.0)` over a table with zero rows, so
+the `socrates_factuality` term currently contributes a constant. Fixing that is
+Task M2 of the chat-harness-unification plan; the weight plumbing itself is
+correct.
 
 ---
 
