@@ -1,7 +1,7 @@
 [plugin]
 id = "mens-candle-metal"
 name = "Mens (Candle + Metal)"
-version = "0.1.0"
+version = "0.6.0"
 description = "ML training backend using Candle with Metal acceleration."
 license = "Apache-2.0"
 

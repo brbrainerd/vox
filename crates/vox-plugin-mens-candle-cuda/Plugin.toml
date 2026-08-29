@@ -1,7 +1,7 @@
 [plugin]
 id = "mens-candle-cuda"
 name = "Mens (Candle + CUDA)"
-version = "0.1.0"
+version = "0.6.0"
 description = "ML training backend using Candle with CUDA acceleration."
 license = "Apache-2.0"
 
