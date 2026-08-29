@@ -140,6 +140,20 @@ impl crate::VoxDb {
                 async move {
                     // This query aggregates interactions and joins feedback (averaging ratings if present)
                     // rating is 0..1 (binary) or 0..5 (thumbs/stars), we normalize it to quality.
+                    //
+                    // p50/p99 used to be `AVG(latency_ms)` and `MAX(latency_ms)` — neither is a
+                    // percentile, and the REAL that `AVG` wrote into the INTEGER
+                    // `p50_latency_ms` column also made `get_model_scoreboard` panic inside
+                    // turso on read-back. They are inserted NULL here and filled by the
+                    // nearest-rank pass below; turso 0.6 rejects the correlated subquery that
+                    // would compute them in this statement ("no such table: s").
+                    //
+                    // WARNING (Task M2): `quality_score` below is NOT a quality signal. It is
+                    // `AVG(llm_feedback.rating)/5.0` with a `COALESCE(..., 1.0)` default, and
+                    // `llm_feedback` has zero rows in practice — so every model scores a flat
+                    // 1.0. The other writer (`record_llm_outcome`) defaults it to 1.0 too, and
+                    // the only caller that sets it passed `success ? 1.0 : 0.0`. Do not rank,
+                    // render, or reward on this column until M2 replaces its definition.
                     let sql = format!(
                         "INSERT INTO model_scoreboard (
                             model_id, task_category, strength_tag, window_days,
@@ -171,8 +185,8 @@ impl crate::VoxDb {
                             ?1,
                             COUNT(*),
                             AVG(CAST(s.success AS REAL)),
-                            AVG(CAST(s.latency_ms AS REAL)),
-                            MAX(s.latency_ms),
+                            NULL,
+                            NULL,
                             SUM(s.cost_usd) / NULLIF(SUM(s.success), 0) as cost_per_success_usd,
                             COALESCE(AVG(CAST(f.rating AS REAL) / 5.0), 1.0),
                             ?2,
@@ -195,6 +209,64 @@ impl crate::VoxDb {
                     );
 
                     let affected = conn.execute(&sql, params![window_days, now_ms]).await?;
+
+                    // Nearest-rank percentile pass. Streams the window's latencies grouped and
+                    // sorted by the SQL engine, so only one group is held in memory at a time.
+                    // ponytail: one UPDATE per group; batch it if group counts ever get large.
+                    let mut rows = conn
+                        .query(
+                            &format!(
+                                "SELECT model_version, task_category, strength_tag, latency_ms
+                                   FROM llm_interactions
+                                  WHERE created_at >= datetime('now', '-{window_days} days')
+                                    AND latency_ms IS NOT NULL
+                                  ORDER BY model_version, task_category, strength_tag, latency_ms"
+                            ),
+                            (),
+                        )
+                        .await?;
+
+                    let mut group: Option<(String, String, String)> = None;
+                    let mut latencies: Vec<i64> = Vec::new();
+                    let mut pending: Vec<((String, String, String), i64, i64)> = Vec::new();
+                    while let Some(row) = rows.next().await? {
+                        let key = (row.get(0)?, row.get(1)?, row.get(2)?);
+                        let latency: i64 = row.get(3)?;
+                        if group.as_ref() != Some(&key) {
+                            if let (Some(k), Some((p50, p99))) =
+                                (group.take(), percentiles_p50_p99(&latencies))
+                            {
+                                pending.push((k, p50, p99));
+                            }
+                            latencies.clear();
+                            group = Some(key);
+                        }
+                        latencies.push(latency);
+                    }
+                    if let (Some(k), Some((p50, p99))) =
+                        (group.take(), percentiles_p50_p99(&latencies))
+                    {
+                        pending.push((k, p50, p99));
+                    }
+
+                    for ((model_id, task_category, strength_tag), p50, p99) in pending {
+                        conn.execute(
+                            "UPDATE model_scoreboard
+                                SET p50_latency_ms = ?1, p99_latency_ms = ?2
+                              WHERE model_id = ?3 AND task_category = ?4
+                                AND strength_tag = ?5 AND window_days = ?6",
+                            params![
+                                p50,
+                                p99,
+                                model_id.as_str(),
+                                task_category.as_str(),
+                                strength_tag.as_str(),
+                                window_days
+                            ],
+                        )
+                        .await?;
+                    }
+
                     Ok(affected as usize)
                 }
             })
@@ -365,5 +437,50 @@ impl crate::VoxDb {
                 }
             })
             .await
+    }
+}
+
+/// Nearest-rank p50/p99 of an **ascending-sorted** latency slice.
+///
+/// Nearest rank: the `ceil(p * n)`-th element, 1-based. Returns `None` for an
+/// empty slice.
+fn percentiles_p50_p99(sorted: &[i64]) -> Option<(i64, i64)> {
+    let n = sorted.len();
+    if n == 0 {
+        return None;
+    }
+    // Integer ceil(a/b) = (a + b - 1) / b.
+    let p50_idx = n.div_ceil(2) - 1;
+    let p99_idx = (99 * n).div_ceil(100) - 1;
+    Some((sorted[p50_idx], sorted[p99_idx]))
+}
+
+#[cfg(test)]
+mod percentile_tests {
+    use super::percentiles_p50_p99;
+
+    #[test]
+    fn empty_has_no_percentiles() {
+        assert_eq!(percentiles_p50_p99(&[]), None);
+    }
+
+    #[test]
+    fn single_sample_is_both_percentiles() {
+        assert_eq!(percentiles_p50_p99(&[42]), Some((42, 42)));
+    }
+
+    #[test]
+    fn skewed_sample_is_not_mean_or_max() {
+        // 98 x 10ms, one 500ms, one 5000ms: mean 64.8, max 5000.
+        let mut v = vec![10_i64; 98];
+        v.push(500);
+        v.push(5000);
+        assert_eq!(percentiles_p50_p99(&v), Some((10, 500)));
+    }
+
+    #[test]
+    fn uniform_1_to_100() {
+        let v: Vec<i64> = (1..=100).collect();
+        assert_eq!(percentiles_p50_p99(&v), Some((50, 99)));
     }
 }
