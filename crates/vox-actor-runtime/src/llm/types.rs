@@ -320,6 +320,16 @@ pub struct LlmResponse {
     /// mirroring the `cost_usd` addition above.
     #[serde(default)]
     pub tool_calls: Option<Vec<vox_llm_egress::EgressToolCall>>,
+    /// Wall-clock latency of the egress call in milliseconds, as measured by
+    /// `vox_llm_egress`. Surfaced here so multi-candidate callers such as
+    /// `infer_with_retry` can record the real elapsed time instead of the
+    /// hardcoded `0` they used to write to `llm_interactions.latency_ms`.
+    #[serde(default)]
+    pub latency_ms: u64,
+    /// Cache-read prompt tokens the provider reported, threaded through for the
+    /// same reason as `latency_ms`.
+    #[serde(default)]
+    pub cache_read_tokens: u32,
 }
 
 #[cfg(test)]
@@ -339,6 +349,8 @@ mod tests {
             model: "test-model".into(),
             cost_usd: Some(0.0123),
             tool_calls: None,
+            latency_ms: 42,
+            cache_read_tokens: 7,
         };
         let json = serde_json::to_string(&resp).expect("serialize");
         let back: LlmResponse = serde_json::from_str(&json).expect("deserialize");
@@ -350,6 +362,10 @@ mod tests {
         let legacy_resp: LlmResponse = serde_json::from_str(legacy).expect("legacy deserialize");
         assert_eq!(legacy_resp.cost_usd, None);
         assert_eq!(legacy_resp.tool_calls, None);
+        assert_eq!(legacy_resp.latency_ms, 0);
+        assert_eq!(legacy_resp.cache_read_tokens, 0);
+        assert_eq!(back.latency_ms, 42);
+        assert_eq!(back.cache_read_tokens, 7);
     }
 
     #[test]
@@ -365,6 +381,8 @@ mod tests {
                 name: "get_weather".into(),
                 arguments: serde_json::json!({"city": "Paris"}),
             }]),
+            latency_ms: 0,
+            cache_read_tokens: 0,
         };
         let json = serde_json::to_string(&resp).expect("serialize");
         let back: LlmResponse = serde_json::from_str(&json).expect("deserialize");

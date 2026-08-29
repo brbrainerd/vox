@@ -204,6 +204,8 @@ pub async fn llm_chat(
                         model: resp.model,
                         cost_usd,
                         tool_calls: resp.tool_calls,
+                        latency_ms: resp.latency_ms,
+                        cache_read_tokens: resp.cache_read_tokens,
                     }))
                 }
                 Err(e) => {
@@ -310,6 +312,11 @@ async fn record_telemetry_outcome(
                     context_utilization_pct: None,
                     success,
                     cost_usd,
+                    // WARNING (Task M2): this is not a quality signal. It is a restatement
+                    // of `success`, and the only other writer of
+                    // `model_scoreboard.quality_score` is `COALESCE(AVG(llm_feedback.rating)
+                    // / 5.0, 1.0)` over a table with zero rows, i.e. a constant 1.0. Do not
+                    // rank, render, or reward on it until M2 gives it a definition.
                     quality_score: Some(if success { 1.0 } else { 0.0 }),
                 };
 
@@ -393,7 +400,10 @@ pub async fn infer_with_retry(
 
         match llm_chat(options, messages.clone(), candidate.clone()).await {
             ActivityResult::Ok(Ok(response)) => {
-                // Record final interaction success
+                // Record final interaction success. `latency_ms` and
+                // `cache_read_tokens` used to be hardcoded `0` here, which dragged
+                // every latency aggregate in `model_scoreboard` toward zero; they now
+                // come from the egress response the served candidate produced.
                 let _ = record_telemetry_outcome(
                     &candidate,
                     &messages,
@@ -401,9 +411,9 @@ pub async fn infer_with_retry(
                     &response.model,
                     response.prompt_tokens as i64,
                     response.completion_tokens as i64,
-                    0,
+                    response.cache_read_tokens as i64,
                     response.cost_usd,
-                    0,
+                    response.latency_ms as i64,
                     true,
                 )
                 .await;
@@ -531,5 +541,75 @@ mod rate_limited_prefix_tests {
 
         let (msg, _, _) = map_egress_error(&vox_llm_egress::EgressError::Decode("bad json".into()));
         assert!(!msg.starts_with(RATE_LIMITED_PREFIX));
+    }
+}
+
+/// Regression: `infer_with_retry` must record the real elapsed time.
+///
+/// Its success arm passed a literal `0` for both `latency_ms` and
+/// `cache_read_tokens` into `record_telemetry_outcome`, so every
+/// `llm_interactions.latency_ms` row written through the retry/fallback path
+/// (the path the orchestrator actually uses) was zero.
+#[cfg(test)]
+mod infer_with_retry_latency_tests {
+    use super::*;
+    use crate::llm::types::LlmConfig;
+
+    fn mock_config(base_url: String) -> LlmConfig {
+        LlmConfig {
+            provider: "openrouter".into(),
+            model: "test-model".into(),
+            cost_per_1k: None,
+            base_url: Some(base_url),
+            api_key: Some("test-key".into()),
+            temperature: None,
+            top_p: None,
+            max_tokens: None,
+            response_format: None,
+            tools: None,
+            tool_choice: None,
+            timeout_ms: None,
+            telemetry_session_id: None,
+            telemetry_user_id: None,
+            telemetry_task_category: None,
+            telemetry_strength_tag: None,
+            telemetry_trace_id: None,
+            telemetry_attempt_number: None,
+            telemetry_skip_interaction: true,
+        }
+    }
+
+    #[tokio::test]
+    async fn served_response_carries_nonzero_latency() {
+        use wiremock::matchers::method;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        let body = serde_json::json!({
+            "model": "test-model",
+            "choices": [{"message": {"role": "assistant", "content": "hi"}}],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 1}
+        });
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(body)
+                    .set_delay(std::time::Duration::from_millis(120)),
+            )
+            .mount(&server)
+            .await;
+
+        let cfg = mock_config(format!("{}/chat/completions", server.uri()));
+        let result = infer_with_retry(&ActivityOptions::new(), vec![], vec![cfg]).await;
+
+        let (response, _cfg) = match result {
+            ActivityResult::Ok(Ok(pair)) => pair,
+            other => panic!("expected a served response, got {other:?}"),
+        };
+        assert!(
+            response.latency_ms >= 100,
+            "infer_with_retry must surface the real elapsed time, got {}ms",
+            response.latency_ms
+        );
     }
 }
