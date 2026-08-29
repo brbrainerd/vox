@@ -195,6 +195,117 @@ jobs:
   # 2026-05-26 self-hosted attempt queued forever and never reached the
   # link step. ubuntu-latest is nominally 16 GB; if this job OOMs there,
   # that is new, useful information the self-hosted hang never gave us.
+  gpu-plugin-metal:
+    name: Build mens-candle-metal plugin (${{ matrix.triple }})
+    runs-on: macos-latest
+    timeout-minutes: 240
+    # Non-blocking: a plugin build failure must never take down the core
+    # vox/vox-ml-cli/voxup release. Job-level continue-on-error sets the job
+    # conclusion to success for `needs:` resolution, so publish still WAITS
+    # for it (no race where checksums.txt is built before the zip exists)
+    # without being blocked by it.
+    continue-on-error: true
+    # Both arches: Plugin.toml declares macos-aarch64 AND macos-x86_64, and
+    # current_target_triple() will resolve to macos-x86_64 on an Intel Mac.
+    # Building only the runner's native arch guarantees a 404 for those users.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - triple: macos-aarch64
+            rust_target: aarch64-apple-darwin
+          - triple: macos-x86_64
+            rust_target: x86_64-apple-darwin
+    env:
+      # Same RSS reason as the build/dist-verify jobs: .cargo/config.toml sets
+      # [build] jobs = 24 repo-wide, which would run 24 rustc processes on a
+      # 4-core hosted runner against a fat-LTO, codegen-units=1 profile.
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+          targets: ${{ matrix.rust_target }}
+
+      - name: Build the Metal cdylib
+        run: cargo build -p vox-plugin-mens-candle-metal --profile dist --features metal --target ${{ matrix.rust_target }}
+
+      - name: Package the plugin zip
+        # Flat by construction: Plugin.toml and the cdylib go into an empty
+        # staging dir and are zipped with -j (junk paths). install_from_path
+        # reads ONLY top-level files -- anything nested extracts fine and is
+        # then silently ignored, producing an install that appears to succeed.
+        run: |
+          set -euo pipefail
+          version="$(cargo pkgid -p vox-plugin-mens-candle-metal | sed -E 's/.*[#@]//')"
+          staging="$(mktemp -d)"
+          cp crates/vox-plugin-mens-candle-metal/Plugin.toml "$staging/"
+          cp "target/${{ matrix.rust_target }}/dist/libvox_plugin_mens_candle_metal.dylib" "$staging/"
+          mkdir -p dist
+          zip -j "dist/mens-candle-metal-v${version}-${{ matrix.triple }}.zip" "$staging"/*
+          echo "Packaged: mens-candle-metal-v${version}-${{ matrix.triple }}.zip"
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-gpu-metal-${{ matrix.triple }}
+          path: dist/mens-candle-metal-v*.zip
+          if-no-files-found: error
+
+  gpu-plugin-cuda:
+    name: Build mens-candle-cuda plugin
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    # See gpu-plugin-metal -- same non-blocking contract. CUDA is the least
+    # proven part of this plan: no workflow in this repo has ever installed a
+    # CUDA toolkit on a hosted runner, and the only CUDA-compiling job in CI
+    # runs on the self-hosted fleet this whole effort routes around.
+    continue-on-error: true
+    env:
+      CARGO_BUILD_JOBS: "2"
+      # candle-kernels/bindgen_cuda derives the target compute capability from
+      # this env var or from nvidia-smi. A hosted runner has no GPU and no
+      # nvidia-smi, so without this the build fails even when the toolkit
+      # installs cleanly. 80 = Ampere (A100/A10), a reasonable default target.
+      CUDA_COMPUTE_CAP: "80"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+
+      - name: Install CUDA toolkit
+        uses: Jimver/cuda-toolkit@v0.2.24
+        with:
+          cuda: "12.4.0"
+          method: "network"
+
+      - name: Build the CUDA cdylib
+        run: cargo build -p vox-plugin-mens-candle-cuda --profile dist --features cuda
+
+      - name: Package the plugin zip
+        run: |
+          set -euo pipefail
+          version="$(cargo pkgid -p vox-plugin-mens-candle-cuda | sed -E 's/.*[#@]//')"
+          staging="$(mktemp -d)"
+          cp crates/vox-plugin-mens-candle-cuda/Plugin.toml "$staging/"
+          cp target/dist/libvox_plugin_mens_candle_cuda.so "$staging/"
+          mkdir -p dist
+          zip -j "dist/mens-candle-cuda-v${version}-linux-x86_64.zip" "$staging"/*
+          echo "Packaged: mens-candle-cuda-v${version}-linux-x86_64.zip"
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-gpu-cuda
+          path: dist/mens-candle-cuda-v*.zip
+          if-no-files-found: error
+
   dist-verify:
     name: dist verification (fat LTO)
     runs-on: ubuntu-latest
@@ -239,7 +350,10 @@ jobs:
     name: Publish GitHub release
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [build, dist-verify]
+    # gpu-plugin-* are continue-on-error, so listing them here only makes
+    # publish WAIT (so checksums.txt is generated after their zips exist) --
+    # it does not make publish depend on their success.
+    needs: [build, dist-verify, gpu-plugin-metal, gpu-plugin-cuda]
     permissions:
       contents: write
     steps:
