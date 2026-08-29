@@ -21,6 +21,13 @@ pub struct EgressResolveInput {
     /// Per-request timeout in ms; `Some(>0)` wins, else the SSOT
     /// `vox_config::timeouts::HTTP_REQUEST` default. Applied to unary calls only.
     pub timeout_ms: Option<u64>,
+    /// Already-resolved key from the caller's `LlmConfig` (e.g. `LlmConfig::from_registry`
+    /// already resolved one via `vox_secrets`, or a test/BYOK caller set one explicitly).
+    /// `Some(non-empty)` wins over this module's own per-provider resolution; `None` or
+    /// empty falls back to it. Without this, a caller-supplied key was silently discarded
+    /// and re-resolved from scratch, so a config built with an explicit key (or a test
+    /// double) still required a real secret to be configured in the environment.
+    pub api_key_override: Option<String>,
 }
 
 /// Resolve the unary request timeout (ms). Precedence: explicit positive `timeout_ms`
@@ -144,7 +151,10 @@ fn resolve_max_concurrent(provider: &str) -> usize {
 /// The ONE place that resolves provider key + base-url + attribution headers +
 /// concurrency, producing a fully-resolved [`EgressRequest`] for the egress crate.
 pub fn resolve_egress(input: &EgressResolveInput) -> Result<EgressRequest, String> {
-    let api_key = resolve_api_key(&input.provider);
+    let api_key = match input.api_key_override.as_deref() {
+        Some(k) if !k.is_empty() => k.to_string(),
+        _ => resolve_api_key(&input.provider),
+    };
     if chat_requires_nonempty_api_key(&input.provider) && api_key.is_empty() {
         return Err("No API key available for LLM provider".to_string());
     }
@@ -186,6 +196,7 @@ mod tests {
             model: "x".into(),
             base_url_override: None,
             timeout_ms: None,
+            api_key_override: None,
         };
         let req = resolve_egress(&input).expect("resolve");
         assert!(req.base_url.contains("huggingface"), "got {}", req.base_url);
@@ -202,6 +213,7 @@ mod tests {
             model: "x".into(),
             base_url_override: None,
             timeout_ms: Some(5_000),
+            api_key_override: None,
         };
         let req = resolve_egress(&input).expect("resolve");
         assert_eq!(req.timeout_ms, Some(5_000));
@@ -214,6 +226,7 @@ mod tests {
             model: "x".into(),
             base_url_override: Some("https://custom/v1/chat/completions".into()),
             timeout_ms: None,
+            api_key_override: None,
         };
         let req = resolve_egress(&input).expect("resolve");
         assert_eq!(req.base_url, "https://custom/v1/chat/completions");
@@ -259,6 +272,7 @@ mod tests {
             model: "x".into(),
             base_url_override: None,
             timeout_ms: None,
+            api_key_override: None,
         };
         match resolve_egress(&input) {
             Ok(req) => assert_eq!(req.throttle_key, "openrouter"),

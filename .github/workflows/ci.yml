@@ -1455,6 +1455,11 @@ jobs:
   gui-orchestrator-relaunch-smoke:
     name: GUI/orchestrator relaunch smoke (CR-U6)
     needs: setup
+    # Tiered off merge_group: the merge-queue box caps self-hosted
+    # linux,x64 fan-out at DEFAULT_MAX_RUNNERS (2); with setup and tests
+    # already in that bucket, this job pushed it to 3. ci-summary treats
+    # `skipped` as passing, so this is a no-op for the required gate.
+    if: github.event_name != 'merge_group'
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     steps:
