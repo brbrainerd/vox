@@ -27,7 +27,11 @@ description = "ML training backend using Candle with CUDA acceleration."
 status = "beta"
 extension-points = ["MlBackend"]
 requires-tag = "nvidia-gpu"
-default-source = "github:vox-foundation/vox-plugin-mens-candle-cuda"
+# Ships as a release asset of vox's own repo, not a separate plugin repo --
+# see install_from_catalog's FIRST_PARTY_PLUGIN_REPO check. No version or
+# sha256 pinned here: both derive at install time from the running binary's
+# version and that release's checksums.txt.
+default-source = "github:vox-foundation/vox"
 bundled-in = ["vox-ml", "vox-dev"]
 
 [[plugin]]
@@ -37,7 +41,8 @@ description = "ML training backend using Candle with Metal acceleration."
 status = "beta"
 extension-points = ["MlBackend"]
 requires-tag = "apple-silicon"
-default-source = "local:crates/vox-plugin-mens-candle-metal"
+# Same first-party release-asset model as mens-candle-cuda above.
+default-source = "github:vox-foundation/vox"
 bundled-in = ["vox-ml-metal", "vox-dev"]
 
 # ── Audio / speech ─────────────────────────────────────────────────────────────
