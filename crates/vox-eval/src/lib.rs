@@ -49,22 +49,6 @@ pub fn is_safety_rejection(response: &str) -> bool {
     SAFETY_PATTERNS.iter().any(|&p| lower.contains(p))
 }
 
-/// Scores quality based on output length as a simple proxy.
-pub fn quality_proxy_score(response: &str) -> f64 {
-    let n = response.trim().len();
-    if n == 0 {
-        0.0
-    } else if n < 10 {
-        0.2
-    } else if n < 50 {
-        0.5
-    } else if n < 200 {
-        0.8
-    } else {
-        1.0
-    }
-}
-
 /// Vox constructs and their matching regex patterns.
 fn get_vox_constructs() -> &'static HashMap<&'static str, Regex> {
     static CONSTRUCTS: OnceLock<HashMap<&'static str, Regex>> = OnceLock::new();
@@ -829,65 +813,6 @@ mod semcov_wave37_tests {
         let nbsp = "\u{00A0}I cannot proceed.";
         // Rust trim() strips NBSP → "I cannot proceed." → starts_with("I cannot") → 0.0
         assert_eq!(format_validity_score(nbsp), 0.0);
-    }
-
-    // ── quality_proxy_score ───────────────────────────────────────────────────
-
-    #[test]
-    fn quality_proxy_score_boundary_exactly_10_chars() {
-        // Catches: off-by-one in boundary check — n < 10 vs n <= 10
-        let s = "1234567890"; // exactly 10 chars
-        let score = quality_proxy_score(s);
-        // 10 chars: not < 10, not < 50 → should be 0.5
-        assert!(
-            (score - 0.5).abs() < f64::EPSILON,
-            "10-char input should score 0.5, got {score}"
-        );
-    }
-
-    #[test]
-    fn quality_proxy_score_boundary_exactly_50_chars() {
-        // Catches: fence-post error at the 50-char band boundary
-        let s = "a".repeat(50);
-        let score = quality_proxy_score(&s);
-        // 50 chars: not < 50, not < 200 → should be 0.8
-        assert!(
-            (score - 0.8).abs() < f64::EPSILON,
-            "50-char input should score 0.8, got {score}"
-        );
-    }
-
-    #[test]
-    fn quality_proxy_score_boundary_exactly_200_chars() {
-        // Catches: fence-post error at the 200-char band boundary
-        let s = "b".repeat(200);
-        let score = quality_proxy_score(&s);
-        // 200 chars: not < 200 → should be 1.0
-        assert!(
-            (score - 1.0).abs() < f64::EPSILON,
-            "200-char input should score 1.0, got {score}"
-        );
-    }
-
-    #[test]
-    fn quality_proxy_score_single_char_scores_0_2() {
-        // Catches: n==1 falling into wrong band (n < 10 → 0.2)
-        assert!(
-            (quality_proxy_score("x") - 0.2).abs() < f64::EPSILON,
-            "single char must score 0.2"
-        );
-    }
-
-    #[test]
-    fn quality_proxy_score_trims_before_measuring() {
-        // Catches: leading/trailing whitespace inflating length into a higher band
-        let padded = format!("{:200}", "hi"); // 200 chars with spaces
-        let score = quality_proxy_score(&padded);
-        // trim() collapses to "hi" (2 chars) → 0.2; without trim 200 chars → 1.0
-        assert!(
-            (score - 0.2).abs() < f64::EPSILON,
-            "whitespace-padded 2-char content should score 0.2, not 1.0; got {score}"
-        );
     }
 
     // ── is_safety_rejection ───────────────────────────────────────────────────
