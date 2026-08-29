@@ -1266,6 +1266,7 @@
     "chat_list_sessions",
     "chat_rename_session",
     "chat_send_message",
+    "chat_turn",
     "chat_unarchive_session",
     "clear_task_policy_override",
     "coderabbit_plan",

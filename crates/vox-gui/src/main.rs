@@ -161,6 +161,7 @@ async fn main() {
             commands::chat::chat_get_messages,
             commands::chat::chat_append_message,
             commands::chat::chat_send_message,
+            commands::chat_turn::chat_turn,
             commands::chat::secretary_confirm_task,
             commands::chat::chat_rename_session,
             commands::chat::chat_archive_session,

@@ -395,18 +395,20 @@ pub struct ChatSendInput {
 
 /// Parsed reply extracted from a `vox_chat_message` `ToolResult` envelope.
 #[derive(Debug)]
-struct ParsedChatReply {
-    content: String,
-    model_id: Option<String>,
-    latency_ms: Option<u64>,
-    selection_reason: Option<String>,
+pub(crate) struct ParsedChatReply {
+    pub(crate) content: String,
+    pub(crate) model_id: Option<String>,
+    pub(crate) latency_ms: Option<u64>,
+    pub(crate) selection_reason: Option<String>,
 }
 
 /// Extracts a [`ParsedChatReply`] from a `vox_chat_message` `ToolResult`
 /// envelope (`{"success", "data": {"message": {..., "content"}, "model_used"}}`
 /// or `{"success": false, "error"}`) as returned directly by
 /// `OrchDaemonClient::call(TOOL_CALL, ...)`.
-fn parse_chat_message_envelope(envelope: &serde_json::Value) -> Result<ParsedChatReply, String> {
+pub(crate) fn parse_chat_message_envelope(
+    envelope: &serde_json::Value,
+) -> Result<ParsedChatReply, String> {
     let success = envelope
         .get("success")
         .and_then(|v| v.as_bool())
@@ -463,7 +465,7 @@ fn parse_chat_message_envelope(envelope: &serde_json::Value) -> Result<ParsedCha
 /// Both writes happen on every `chat_send_message` call — that duplication
 /// is correct, not a bug: do not remove either write thinking it duplicates
 /// the other.
-async fn persist_assistant_reply(
+pub(crate) async fn persist_assistant_reply(
     db: &VoxDb,
     conv_id: i64,
     content: &str,

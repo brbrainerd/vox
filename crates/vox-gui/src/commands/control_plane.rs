@@ -7,7 +7,7 @@ use vox_orchestrator::{FileAffinity, TaskPriority};
 
 use crate::commands::daemon::PersistentDaemon;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SubmitTaskInput {
     pub description: String,
     #[serde(default)]
@@ -43,6 +43,10 @@ pub struct SubmitTaskInput {
     /// docs/superpowers/plans/2026-07-20-chat-flow-docking-redesign.md Phase D).
     /// `None`/absent leaves the daemon's default (off) in place.
     pub grounding_check_enabled: Option<bool>,
+    /// Originating chat session, for delegation lineage (Phase D1). `None` for
+    /// non-chat callers (Tasks surface, hopper).
+    #[serde(default)]
+    pub chat_session_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -89,6 +93,7 @@ fn submit_task_params(input: SubmitTaskInput) -> serde_json::Value {
         "active_skill": input.active_skill.filter(|s| !s.trim().is_empty()),
         "task_category": input.task_category.filter(|s| !s.trim().is_empty()),
         "grounding_check_enabled": input.grounding_check_enabled,
+        "chat_session_id": input.chat_session_id.filter(|s| !s.trim().is_empty()),
     });
     // Carry composer mode/tier/pick through as enqueue hints (tier →
     // model_preference; explicit pick → model_override). Only attach the key
@@ -529,6 +534,7 @@ mod submit_params_tests {
             model_override: model_override.map(str::to_string),
             task_category: None,
             grounding_check_enabled: None,
+            chat_session_id: None,
         }
     }
 
