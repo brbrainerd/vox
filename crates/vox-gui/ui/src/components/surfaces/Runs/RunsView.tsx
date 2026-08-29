@@ -134,11 +134,15 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
       header: '$/succ',
       render: (r: ScoreboardRow) => <span>{r.cost_per_success_usd != null ? `$${r.cost_per_success_usd.toFixed(4)}` : '—'}</span>
     },
-    { 
-      key: 'quality_score', 
-      header: 'Q', 
-      render: (r: ScoreboardRow) => <span className="font-mono font-bold text-brass">{r.quality_score.toFixed(2)}</span> 
-    },
+    // No `Q` (quality_score) column: the value is a constant, not a measurement.
+    // Its two writers are `success ? 1.0 : 0.0` per call and
+    // `COALESCE(AVG(llm_feedback.rating)/5.0, 1.0)` over a table with zero rows
+    // (`FeedbackCollector` is constructed nowhere outside its own doctest), so
+    // every model scored a flat 1.00 — rendered here in bold brass, the most
+    // prominent styling in the table. Restore this column when the completeness
+    // gate gives `quality_score` a real definition (plan Task M2); until then a
+    // dash would wrongly read as "no data yet" rather than "this measures
+    // nothing".
   ];
 
   const runsCols = [
