@@ -125,9 +125,38 @@ fn registry_from_cache() -> ModelRegistry {
     ModelRegistry::from_cache()
 }
 
+/// `registry_from_cache` plus the persisted scoreboard, the way `vox model explain`
+/// (`crates/vox-cli/src/commands/model/explain.rs`) already builds it.
+///
+/// Without this the registry's `scoreboard_snapshot()` is an empty map, so every
+/// per-model observed statistic on the Models surface rendered as a blank. Degrades to
+/// the bare cached registry when no workspace DB is reachable — a GUI surface must not
+/// fail to list models just because telemetry is unavailable.
+async fn registry_with_scoreboard() -> ModelRegistry {
+    let mut reg = registry_from_cache();
+    let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    else {
+        return reg;
+    };
+    if let Ok(rows) = db.get_model_scoreboard(7).await {
+        reg.inject_scoreboard(
+            rows.into_iter()
+                .map(|row| {
+                    (
+                        row.model_id.clone(),
+                        vox_orchestrator::models::ModelScore::from(row),
+                    )
+                })
+                .collect(),
+        );
+    }
+    reg
+}
+
 #[tauri::command]
 pub async fn list_model_cards(limit: Option<usize>) -> Result<Vec<ModelCardDto>, String> {
-    let reg = registry_from_cache();
+    let reg = registry_with_scoreboard().await;
     let limit = limit.unwrap_or(200);
     let mut models = reg.list_models();
     models.sort_by(|a, b| a.id.cmp(&b.id));
@@ -146,7 +175,12 @@ pub async fn list_model_cards(limit: Option<usize>) -> Result<Vec<ModelCardDto>,
                 is_free: m.is_free,
                 latency_p50_ms: m.capabilities.latency_p50_ms,
                 success_rate: sb.map(|s| s.success_rate),
-                quality_score: sb.map(|s| s.quality_score),
+                // Deliberately not surfaced (Task M0/M2): `model_scoreboard.quality_score`
+                // is `COALESCE(AVG(llm_feedback.rating)/5.0, 1.0)` over a table with zero
+                // rows, i.e. a constant 1.0 for every model. Rendering it would put a
+                // confident-looking number on a value that carries no information. The
+                // UI already renders `—` for null. Restore once M2 defines the gate.
+                quality_score: None,
             }
         })
         .collect())
