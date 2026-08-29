@@ -87,11 +87,11 @@ impl Orchestrator {
                 .unwrap_or_default();
             let campaign_id = queue.current_task().and_then(|t| t.campaign_id.clone());
             let benchmark_tier = queue.current_task().and_then(|t| t.benchmark_tier);
-            let bandit_model_id = queue.current_task().and_then(|t| {
-                t.model_override
-                    .clone()
-                    .or_else(|| t.model_preference.clone())
-            });
+            // Same served-vs-requested bug as the success path: a failure must penalise
+            // the arm that actually ran, not the one that was asked for and fell back.
+            let bandit_model_id = queue
+                .current_task()
+                .and_then(|t| super::success::bandit_credit_model_id(None, t));
             let tenant_id = queue.current_task().and_then(|t| t.tenant_id.clone());
             if failed_desc.contains("[PHASE:SHARD_VALIDATE]") {
                 queue.recent_shard_validation_failures =

@@ -36,6 +36,35 @@ fn enrich_attestation_with_attribution(
     att
 }
 
+/// The model id the Thompson bandit should credit for a task outcome: the model that
+/// **served** the task, not the one that was requested.
+///
+/// This used to be `model_override.or(model_preference)` — the *request*. When a
+/// cascade fell back (requested model unavailable, rate-limited, or unroutable under
+/// the privacy mode), the reward or penalty went to the arm that was asked rather than
+/// the arm that answered, which is exactly backwards for a bandit: a model that never
+/// runs accumulates the credit for whatever ran in its place.
+///
+/// Precedence: the attestation's `completing_model` (the completing client's own claim,
+/// already enriched from the task's `SelectedModelRecord` by
+/// [`enrich_attestation_with_attribution`]), then the `SelectedModelRecord` written at
+/// the dispatch site, and only then the requested ids as a last resort — a task that
+/// recorded neither has no served-model evidence at all.
+pub(crate) fn bandit_credit_model_id(
+    attestation: Option<&CompletionAttestation>,
+    task: &crate::types::AgentTask,
+) -> Option<String> {
+    attestation
+        .and_then(|a| a.completing_model.clone())
+        .or_else(|| {
+            task.selected_model_record
+                .as_ref()
+                .map(|r| r.model_id.clone())
+        })
+        .or_else(|| task.model_override.clone())
+        .or_else(|| task.model_preference.clone())
+}
+
 impl Orchestrator {
     pub async fn complete_task(&self, task_id: TaskId) -> Result<(), OrchestratorError> {
         self.complete_task_with_attestation(task_id, None).await
@@ -465,10 +494,7 @@ impl Orchestrator {
                 _ => None,
             };
             queue.mark_complete(task_id);
-            let bandit_model_id = current
-                .model_override
-                .clone()
-                .or_else(|| current.model_preference.clone());
+            let bandit_model_id = bandit_credit_model_id(completion_attestation.as_ref(), &current);
             (
                 write_files,
                 current.session_id.clone(),
@@ -673,6 +699,70 @@ mod attribution_tests {
         assert_eq!(att.provider.as_deref(), Some("anthropic"));
         assert_eq!(att.selection_reason.as_deref(), Some("scored"));
         assert_eq!(att.latency_ms, Some(1234));
+    }
+
+    /// Regression: the bandit must credit the model that **served** the task.
+    ///
+    /// The call site passed `model_override.or(model_preference)` — the requested
+    /// model — so a cascade fallback credited "requested/unavailable-model" for work
+    /// "anthropic/claude-opus-4-5" actually did.
+    #[test]
+    fn bandit_credits_served_model_not_requested_model() {
+        let mut task = crate::types::AgentTask::new(
+            crate::types::TaskId(1),
+            "cascade fallback task".to_string(),
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        task.model_override = Some("requested/unavailable-model".to_string());
+        task.model_preference = Some("free".to_string());
+        task.selected_model_record = Some(record());
+
+        assert_eq!(
+            bandit_credit_model_id(None, &task).as_deref(),
+            Some("anthropic/claude-opus-4-5"),
+            "the served model must get the credit, not the requested one"
+        );
+    }
+
+    #[test]
+    fn bandit_prefers_the_attestation_completing_model() {
+        let mut task = crate::types::AgentTask::new(
+            crate::types::TaskId(2),
+            "attested task".to_string(),
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        task.model_override = Some("requested/unavailable-model".to_string());
+        task.selected_model_record = Some(record());
+        let att = CompletionAttestation {
+            completing_model: Some("served/by-the-client".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            bandit_credit_model_id(Some(&att), &task).as_deref(),
+            Some("served/by-the-client")
+        );
+    }
+
+    #[test]
+    fn bandit_falls_back_to_the_request_when_no_served_evidence() {
+        let mut task = crate::types::AgentTask::new(
+            crate::types::TaskId(3),
+            "unattributed task".to_string(),
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        task.model_preference = Some("free".to_string());
+        assert_eq!(bandit_credit_model_id(None, &task).as_deref(), Some("free"));
+
+        let bare = crate::types::AgentTask::new(
+            crate::types::TaskId(4),
+            "bare task".to_string(),
+            crate::types::TaskPriority::Normal,
+            vec![],
+        );
+        assert_eq!(bandit_credit_model_id(None, &bare), None);
     }
 
     #[test]
