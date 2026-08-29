@@ -103,15 +103,15 @@ describe('App shell', () => {
   // `dispatchErrorToast` in App.tsx and `isBudgetExceededError` in
   // lib/backendGuard.ts. The error text matches `BudgetGuardError::Exceeded`'s
   // `Display` impl (`crates/vox-orchestrator-mcp/.../budget_guard.rs`).
-  it('a budget-exceeded chat_send_message error produces a distinct "Budget limit reached" toast', async () => {
+  it('a budget-exceeded chat_turn error produces a distinct "Budget limit reached" toast', async () => {
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
-      if (cmd === 'chat_send_message') {
+      if (cmd === 'chat_turn') {
         // Tauri v2 rejects `Result<T, String>` commands with the raw String,
-        // not a wrapped Error (see chat_send_message's signature in
-        // crates/vox-gui/src/commands/chat.rs) — matches BudgetGuardError's
+        // not a wrapped Error (see chat_turn's signature in
+        // crates/vox-gui/src/commands/chat_turn.rs) — matches BudgetGuardError's
         // Display text propagated verbatim through enforce_budget_guard.
         return Promise.reject('Daily budget of $5.00 exceeded (spent $5.12)');
       }
@@ -127,7 +127,7 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
     await waitFor(() => {
       expect(screen.getByText('Budget limit reached')).toBeInTheDocument();
@@ -138,16 +138,15 @@ describe('App shell', () => {
     expect(screen.getAllByText(/Daily budget of \$5\.00 exceeded/).length).toBeGreaterThan(0);
   });
 
-  // Same distinct handling must apply to the other real dispatch mechanism a
-  // chat message can take — `submit_orchestrator_task` (e.g. Act mode) — since
-  // the budget guard is wired into both server-side, not just the synchronous
-  // chat_send_message path.
-  it('a budget-exceeded submit_orchestrator_task error produces a distinct "Budget limit reached" toast, not "Dispatch Failed"', async () => {
+  // Same distinct handling must apply to the other lifecycle a chat message
+  // can take — the background execution (`/spawn`) — since the budget guard
+  // is wired into both server-side, not just the synchronous one.
+  it('a budget-exceeded background error produces a distinct "Budget limit reached" toast, not "Dispatch Failed"', async () => {
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
-      if (cmd === 'submit_orchestrator_task') {
+      if (cmd === 'chat_turn') {
         return Promise.reject('Session budget of $2.00 exceeded (spent $2.01)');
       }
       return Promise.resolve(null);
@@ -162,7 +161,7 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
     await waitFor(() => {
       expect(screen.getByText('Budget limit reached')).toBeInTheDocument();
@@ -177,13 +176,13 @@ describe('App shell', () => {
   // lib/backendGuard.ts. The error text carries the `RATE_LIMITED_PREFIX`
   // marker prepended by `vox_actor_runtime::llm::chat::llm_chat`
   // (crates/vox-actor-runtime/src/llm/chat.rs), the funnel behind
-  // `chat_send_message`'s `try_run_agent_turn` tool-calling loop.
-  it('a rate-limited chat_send_message error produces a distinct "Free tier limit reached" toast', async () => {
+  // `chat_turn`'s `try_run_agent_turn` tool-calling loop.
+  it('a rate-limited chat_turn error produces a distinct "Free tier limit reached" toast', async () => {
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
-      if (cmd === 'chat_send_message') {
+      if (cmd === 'chat_turn') {
         return Promise.reject('RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h');
       }
       return Promise.resolve(null);
@@ -198,7 +197,7 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
     await waitFor(() => {
       expect(screen.getByText('Free tier limit reached')).toBeInTheDocument();
@@ -211,16 +210,16 @@ describe('App shell', () => {
   });
 
   // Same distinct handling must apply to the other real dispatch mechanism a
-  // chat message can take — `submit_orchestrator_task` (e.g. Act mode) — since
+  // chat message can take — the background execution (`/spawn`) — since
   // `mcp_infer_tool_completion` (crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs)
   // is the separate HTTP-issuing funnel that path goes through, and it now
   // prepends the same `RATE_LIMITED_PREFIX` marker on its own terminal failure.
-  it('a rate-limited submit_orchestrator_task error produces a distinct "Free tier limit reached" toast, not "Dispatch Failed"', async () => {
+  it('a rate-limited background error produces a distinct "Free tier limit reached" toast, not "Dispatch Failed"', async () => {
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
-      if (cmd === 'submit_orchestrator_task') {
+      if (cmd === 'chat_turn') {
         return Promise.reject('RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h');
       }
       return Promise.resolve(null);
@@ -235,7 +234,7 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
     await waitFor(() => {
       expect(screen.getByText('Free tier limit reached')).toBeInTheDocument();
@@ -246,8 +245,8 @@ describe('App shell', () => {
   // Non-blocking budget-warn toast: distinct from "Budget limit reached"
   // (the hard-block toast above) — fires once spend crosses
   // `budget_warn_threshold_pct` but before the hard cap, after a SUCCESSFUL
-  // chat_send_message dispatch. See `checkBudgetWarn` in App.tsx.
-  it('a successful chat_send_message past the warn threshold produces an "Approaching budget limit" toast', async () => {
+  // chat_turn dispatch. See `checkBudgetWarn` in App.tsx.
+  it('a successful chat_turn past the warn threshold produces an "Approaching budget limit" toast', async () => {
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
@@ -262,7 +261,7 @@ describe('App shell', () => {
           sessionUsd: 0, dayUsd: 4.25, totalUsd: 4.25, dailyBudgetUsd: 5.0, perSessionBudgetUsd: 2.0,
         });
       }
-      if (cmd === 'chat_send_message') {
+      if (cmd === 'chat_turn') {
         return Promise.resolve({ id: 'reply-1', text: 'hi there', modelId: null, latencyMs: 10, selectionReason: null });
       }
       return Promise.resolve(null);
@@ -277,7 +276,7 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
     await waitFor(() => {
       expect(screen.getByText('Approaching budget limit')).toBeInTheDocument();
@@ -285,7 +284,7 @@ describe('App shell', () => {
     expect(screen.getByText(/85% of your daily budget/)).toBeInTheDocument();
   });
 
-  it('a successful chat_send_message below the warn threshold produces no budget-warn toast', async () => {
+  it('a successful chat_turn below the warn threshold produces no budget-warn toast', async () => {
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
@@ -300,7 +299,7 @@ describe('App shell', () => {
           sessionUsd: 0, dayUsd: 1.0, totalUsd: 1.0, dailyBudgetUsd: 5.0, perSessionBudgetUsd: 2.0,
         });
       }
-      if (cmd === 'chat_send_message') {
+      if (cmd === 'chat_turn') {
         return Promise.resolve({ id: 'reply-1', text: 'hi there', modelId: null, latencyMs: 10, selectionReason: null });
       }
       return Promise.resolve(null);
@@ -315,7 +314,7 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
     await waitFor(() =>
       expect(invokeMock).toHaveBeenCalledWith('get_llm_spend', expect.anything()),
@@ -339,7 +338,7 @@ describe('App shell', () => {
           sessionUsd: 0, dayUsd: 4.25, totalUsd: 4.25, dailyBudgetUsd: 5.0, perSessionBudgetUsd: 2.0,
         });
       }
-      if (cmd === 'chat_send_message') {
+      if (cmd === 'chat_turn') {
         replySeq += 1;
         return Promise.resolve({ id: `reply-${replySeq}`, text: 'hi there', modelId: null, latencyMs: 10, selectionReason: null });
       }
@@ -363,7 +362,7 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock.mock.calls.filter((c) => c[0] === 'chat_send_message').length).toBeGreaterThanOrEqual(2),
+      expect(invokeMock.mock.calls.filter((c) => c[0] === 'chat_turn').length).toBeGreaterThanOrEqual(2),
     );
     expect(screen.getAllByText('Approaching budget limit').length).toBe(1);
   });
@@ -492,7 +491,7 @@ describe('App shell', () => {
     expect(toastRegion.textContent).not.toMatch(/__TAURI_INTERNALS__|\binvoke\b/);
   });
 
-  // Fix Task 2 (chat-harness audit): /spawn dispatches via submit_orchestrator_task
+  // Fix Task 2 (chat-harness audit): /spawn dispatches via chat_turn with execution: 'background'
   // with no explicit session_id, which used to default to activeSessionId — making
   // it look like part of the ongoing chat session in the GUI transcript while the
   // orchestrator's own chat_history:{session_id} context store (only written to by
@@ -503,7 +502,7 @@ describe('App shell', () => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'chat-session-abc' });
-      if (cmd === 'submit_orchestrator_task') return Promise.resolve({ task_id: '1', duplicate_of: null });
+      if (cmd === 'chat_turn') return Promise.resolve({ task_id: '1', duplicate_of: null });
       return Promise.resolve(null);
     });
     window.location.hash = '#view=chat';
@@ -516,14 +515,14 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
-    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'submit_orchestrator_task');
+    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'chat_turn');
     expect(submitCall![1].input.session_id).not.toBe('chat-session-abc');
   });
 
   // Fix Task 2 (chat-harness audit): same bug, second call site — deploying an
-  // installed skill from the Omnibar dispatches via submit_orchestrator_task too,
+  // installed skill from the Omnibar dispatches via chat_turn too,
   // and must not silently borrow the active chat session's identity either.
   it('Deploy skill (Omnibar) does not reuse the active chat session id', async () => {
     invokeMock.mockImplementation((cmd: string, args: any) => {
@@ -535,7 +534,7 @@ describe('App shell', () => {
           result: [{ id: 'skill-1', name: 'my-test-skill', description: 'A test skill' }],
         });
       }
-      if (cmd === 'submit_orchestrator_task') return Promise.resolve({ task_id: '1', duplicate_of: null });
+      if (cmd === 'chat_turn') return Promise.resolve({ task_id: '1', duplicate_of: null });
       return Promise.resolve(null);
     });
     window.location.hash = '#view=chat';
@@ -564,22 +563,23 @@ describe('App shell', () => {
     await user.click(skillRow!);
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
-    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'submit_orchestrator_task');
+    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'chat_turn');
     expect(submitCall![1].input.session_id).not.toBe('chat-session-abc');
   });
 
-  // Plan Task 2 (gui-chat-agent-loop-wiring): a plain chat send (Loquela's
-  // normal Enter-to-send path, which tags task_category: 'chat') must go
-  // through the synchronous chat_send_message command, not the background
-  // submit_orchestrator_task dispatch loop used by every other category.
-  it('a plain chat send calls chat_send_message and not submit_orchestrator_task', async () => {
+  // Task A3: the old command-name fork is gone. Both send modes now reach the
+  // SAME `chat_turn` command; the distinction is the payload's `execution`
+  // field plus which store lifecycle App runs. A plain chat send is
+  // `execution: 'sync'` — a terminal request/response whose reply text
+  // settles the pending bubble (chatPending -> chatReplySettled).
+  it("a plain chat send dispatches chat_turn with execution: 'sync' and settles the reply bubble", async () => {
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
-      if (cmd === 'chat_send_message') {
+      if (cmd === 'chat_turn') {
         return Promise.resolve({
           id: 42,
           role: 'assistant',
@@ -601,24 +601,29 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
+    const turnCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'chat_turn');
+    expect(turnCall![1].input.execution).toBe('sync');
+    // The deleted fork: no second dispatch command exists any more.
     expect(invokeMock).not.toHaveBeenCalledWith('submit_orchestrator_task', expect.anything());
+    expect(invokeMock).not.toHaveBeenCalledWith('chat_send_message', expect.anything());
+    // Sync lifecycle: the reply text lands in the transcript.
     await waitFor(() => {
       expect(screen.getByText('hello back')).toBeInTheDocument();
     });
   });
 
   // GroundingCheckToggle fix: the composer's opt-in grounding-check toggle
-  // (default off) must actually reach `chat_send_message`'s
+  // (default off) must actually reach `chat_turn`'s
   // `grounding_check_enabled` arg for a plain chat send — before this fix the
   // toggle's state was never threaded into the synchronous send path at all.
-  it('enabling the grounding check toggle forwards grounding_check_enabled=true to chat_send_message', async () => {
+  it('enabling the grounding check toggle forwards grounding_check_enabled=true to chat_turn', async () => {
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
-      if (cmd === 'chat_send_message') {
+      if (cmd === 'chat_turn') {
         return Promise.resolve({
           id: 43,
           role: 'assistant',
@@ -649,25 +654,27 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
-    const sendCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'chat_send_message');
+    const sendCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'chat_turn');
     expect(sendCall![1].input.grounding_check_enabled).toBe(true);
   });
 
-  // Fix Task 4 (gui-axis-chat-harness-fixes): a visible toggle in the composer
-  // now lets the user choose "Quick chat" (the default, unchanged behavior
-  // above) vs "Background task" — which reuses the same working
-  // submit_orchestrator_task -> AiTaskProcessor pipeline /spawn already uses,
-  // rather than the now-deleted ChatTaskProcessor.
-  it('background-task mode calls submit_orchestrator_task, not chat_send_message', async () => {
+  // Task A3 counterpart of the test above: the composer's "Background task"
+  // toggle position reaches the SAME `chat_turn` command, differing only in
+  // `execution: 'background'`. Its store lifecycle is submit -> submitResolved
+  // (the sole writer of taskToSession), NOT chatPending/chatReplySettled — the
+  // background response carries a task_id and no answer text, so settling it
+  // 'done' would strand an empty bubble the pending watchdog cannot rescue.
+  it("background-task mode dispatches the same chat_turn command with execution: 'background'", async () => {
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
       if (cmd === 'chat_append_message') return Promise.resolve(1);
-      if (cmd === 'submit_orchestrator_task') {
-        return Promise.resolve({ task_id: '1', duplicate_of: null });
+      if (cmd === 'chat_turn') {
+        // What run_background actually returns: a task id, no assistant row.
+        return Promise.resolve({ id: 0, role: 'assistant', content: '', created_at: '', task_id: '1', duplicate_of: null });
       }
       return Promise.resolve(null);
     });
@@ -687,9 +694,21 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
+    const turnCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'chat_turn');
+    expect(turnCall![1].input.execution).toBe('background');
+    expect(invokeMock).not.toHaveBeenCalledWith('submit_orchestrator_task', expect.anything());
     expect(invokeMock).not.toHaveBeenCalledWith('chat_send_message', expect.anything());
+    // Background lifecycle proof: the sync branch is the only one that marks
+    // the session in-flight, so a second Enter here must dispatch again rather
+    // than being refused with the "Please wait" toast.
+    await user.type(composer, 'and another one');
+    await user.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(invokeMock.mock.calls.filter(([cmd]) => cmd === 'chat_turn').length).toBe(2),
+    );
+    expect(screen.queryByText('Please wait')).toBeNull();
   });
 
   // Code-review fix: the composer's "Background task" toggle went through a
@@ -703,7 +722,7 @@ describe('App shell', () => {
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'chat-session-abc' });
       if (cmd === 'chat_append_message') return Promise.resolve(1);
-      if (cmd === 'submit_orchestrator_task') {
+      if (cmd === 'chat_turn') {
         return Promise.resolve({ task_id: '1', duplicate_of: null });
       }
       return Promise.resolve(null);
@@ -724,18 +743,21 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('submit_orchestrator_task', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
-    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'submit_orchestrator_task');
+    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'chat_turn');
     expect(submitCall![1].input.session_id).not.toBe('chat-session-abc');
   });
 
-  it('quick-chat mode (the toggle default) still calls chat_send_message, not submit_orchestrator_task', async () => {
+  // Task A3: the toggle default must still be the sync lifecycle. `execution`
+  // is emitted explicitly by Loquela for BOTH positions — it is never derived
+  // from the absence of the retired `task_category: 'chat'` sentinel.
+  it("quick-chat mode (the toggle default) sends execution: 'sync'", async () => {
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
-      if (cmd === 'chat_send_message') {
+      if (cmd === 'chat_turn') {
         return Promise.resolve({
           id: 43,
           role: 'assistant',
@@ -758,12 +780,18 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
+    const turnCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'chat_turn');
+    expect(turnCall![1].input.execution).toBe('sync');
     expect(invokeMock).not.toHaveBeenCalledWith('submit_orchestrator_task', expect.anything());
+    expect(invokeMock).not.toHaveBeenCalledWith('chat_send_message', expect.anything());
+    await waitFor(() => {
+      expect(screen.getByText('default mode reply')).toBeInTheDocument();
+    });
   });
 
-  // Code-review follow-up (8448c477a1): chat_send_message already persists
+  // Code-review follow-up (8448c477a1): chat_turn already persists
   // the assistant reply server-side. The pre-existing "persist assistant
   // transcript rows" effect sweeps chatStore.sessions for any 'done'/'failed'
   // assistant message not yet in persistedAssistantIdsRef and calls
@@ -777,7 +805,7 @@ describe('App shell', () => {
       if (cmd === 'chat_list_sessions') return Promise.resolve([]);
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
-      if (cmd === 'chat_send_message') {
+      if (cmd === 'chat_turn') {
         return Promise.resolve({
           id: 99,
           role: 'assistant',
@@ -813,7 +841,7 @@ describe('App shell', () => {
   });
 
   // Fix Task 1 (gui-chat-harness-fixes): nothing prevented a user from
-  // pressing Enter a second time while a prior chat_send_message() call was
+  // pressing Enter a second time while a prior chat_turn() call was
   // still pending — two independent tempIds each got their own
   // chatPending/chatReplySettled lifecycle, settling out of order with no
   // user-visible indication. A send-lock keyed by sessionId must block the
@@ -826,7 +854,7 @@ describe('App shell', () => {
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
       if (cmd === 'chat_append_message') return Promise.resolve(1);
-      if (cmd === 'chat_send_message') return pending;
+      if (cmd === 'chat_turn') return pending;
       return Promise.resolve(null);
     });
     window.location.hash = '#view=chat';
@@ -840,20 +868,20 @@ describe('App shell', () => {
     await user.keyboard('{Enter}');
 
     await waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith('chat_send_message', expect.anything()),
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
     );
 
     await user.click(composer);
     await user.type(composer, 'second message');
     await user.keyboard('{Enter}');
 
-    const chatSendCalls = invokeMock.mock.calls.filter(([cmd]: [string]) => cmd === 'chat_send_message');
+    const chatSendCalls = invokeMock.mock.calls.filter(([cmd]: [string]) => cmd === 'chat_turn');
     expect(chatSendCalls.length).toBe(1);
     // Code-review fix: the send-lock guard must be checked BEFORE
     // chat_append_message persists anything -- otherwise the rejected second
     // send still writes an orphaned user-message row with no reply ever
     // generated for it (only caught by inspecting chat_append_message's own
-    // call args, not just chat_send_message's count).
+    // call args, not just chat_turn's count).
     expect(
       invokeMock.mock.calls.filter(
         ([cmd, args]: [string, any]) =>

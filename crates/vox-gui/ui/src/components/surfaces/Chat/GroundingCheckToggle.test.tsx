@@ -56,12 +56,15 @@ describe('GroundingCheckToggle toolbar placement wiring', () => {
 // reach the params the daemon receives for SUBMIT_TASK as
 // `grounding_check_enabled`, not just sit inert in the composer.
 describe('grounding_check_enabled submit-payload wiring', () => {
-  it('App.tsx threads the toggle state into the submit_orchestrator_task input', () => {
+  it('App.tsx threads the toggle state into the chat_turn input', () => {
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
     // The composer call site injects the persisted toggle state into the payload…
     expect(appSrc).toMatch(/grounding_check_enabled:\s*groundingCheckEnabled/);
-    // …and handleLoquelaSubmit forwards the payload field into the daemon input.
-    expect(appSrc).toMatch(/grounding_check_enabled:\s*payload\.grounding_check_enabled/);
+    // …and handleLoquelaSubmit passes it to the single payload builder, which
+    // maps it for BOTH executions (Task A3 — it used to reach only one branch).
+    expect(appSrc).toMatch(/groundingCheckEnabled,/);
+    const builderSrc = readFileSync(path.resolve(__dirname, '../../../lib/buildChatTurn.ts'), 'utf8');
+    expect(builderSrc).toMatch(/grounding_check_enabled:\s*ctx\.groundingCheckEnabled\s*\?\?\s*null/);
   });
 
   it('the wired field name matches what the backend orchestrator parses off SUBMIT_TASK params', () => {

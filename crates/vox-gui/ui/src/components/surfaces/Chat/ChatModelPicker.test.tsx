@@ -140,53 +140,52 @@ describe('ChatModelPicker toolbar placement wiring', () => {
 // Wiring guard (readFileSync idiom, mirroring Phase 1's ErrorBoundary.test.tsx):
 // the picked model must reach the submit payload App sends to the daemon.
 describe('model_override submit-payload wiring', () => {
-  it('App.tsx threads the pick into the submit_orchestrator_task input', () => {
+  it('buildChatTurn threads the pick into the chat_turn input, for BOTH executions', () => {
+    // Task A3 moved the mapping out of App.tsx's two forked branches into the
+    // single builder — which is exactly why the pick now reaches a quick chat
+    // too, not just a background task.
+    const builderSrc = readFileSync(path.resolve(__dirname, '../../../lib/buildChatTurn.ts'), 'utf8');
+    expect(builderSrc).toMatch(/model_override:\s*payload\.model_override\s*\?\?\s*ctx\.modelOverride\s*\?\?\s*null/);
+    // …and App.tsx injects the picker state at the composer call site and as
+    // the builder's fallback context.
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
-    // handleLoquelaSubmit maps the payload field into the daemon input…
-    expect(appSrc).toMatch(/model_override:\s*payload\.model_override\s*\?\?\s*null/);
-    // …and the composer call site injects the picker state into the payload.
     expect(appSrc).toMatch(/model_override:\s*chatModelOverride/);
+    expect(appSrc).toMatch(/modelOverride:\s*chatModelOverride/);
   });
 });
 
-// Wiring guard: free-text chat submissions must be tagged `task_category:
-// 'chat'` so the daemon routes them through the one-shot chat fast path
-// instead of the 6-phase agentic pipeline — but NOT `/spawn`, which reuses
-// this exact submit path to dispatch a real sub-agent.
+// Wiring guard: which lifecycle a submission takes must be stated EXPLICITLY
+// by every call site as `execution_mode`, never inferred from the absence of a
+// sentinel. The retired encoding (`task_category: 'chat' | undefined`) made
+// "background" the value you got by forgetting to say anything, so a new call
+// site silently dispatched a task.
 //
-// Historical note: this used to be derived in App.tsx from
-// `payload.mode === 'act'`, which was silently always false in practice —
-// Loquela's composer defaults its own internal `mode` state to "act" for
-// EVERY normal submission (see Loquela.tsx's `useState("act")`), not just
-// for /spawn, so real chat messages were never tagged 'chat' and always
-// fell through to the full agentic pipeline. task_category is now set
-// explicitly at each real call site instead, and App.tsx just forwards it.
-//
-// Fix Task 4 (gui-axis-chat-harness-fixes) made this a user-visible choice:
-// Loquela's composer now exposes an explicit "Quick chat" / "Background
-// task" toggle (`executionMode`), defaulting to 'chat', and only tags
-// task_category: 'chat' when that mode is selected.
-describe('task_category submit-payload wiring', () => {
-  it('App.tsx forwards payload.task_category verbatim, not derived from mode', () => {
-    const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
-    expect(appSrc).toMatch(/task_category:\s*payload\.task_category\s*\?\?\s*undefined/);
-    expect(appSrc).not.toMatch(/task_category:\s*payload\.mode/);
+// Historical note: before that it was derived from `payload.mode === 'act'`,
+// which was silently always true — Loquela defaults its internal `mode` to
+// "act" for EVERY submission — so real chat messages always fell through to
+// the full agentic pipeline.
+describe('execution_mode submit-payload wiring', () => {
+  it('buildChatTurn maps execution_mode to `execution`, defaulting to sync', () => {
+    const builderSrc = readFileSync(path.resolve(__dirname, '../../../lib/buildChatTurn.ts'), 'utf8');
+    expect(builderSrc).toMatch(/execution:\s*payload\.execution_mode === 'task' \? 'background' : 'sync'/);
+    expect(builderSrc).not.toMatch(/^\s*task_category:/m);
   });
 
-  it("Loquela's composer send() tags 'chat' submissions via the executionMode toggle", () => {
+  it("Loquela's composer send() emits execution_mode for BOTH toggle positions", () => {
     const loquelaSrc = readFileSync(
       path.resolve(__dirname, '../Loquela/Loquela.tsx'),
       'utf8',
     );
-    expect(loquelaSrc).toMatch(/task_category:\s*executionMode === 'chat' \? 'chat' : undefined/);
+    expect(loquelaSrc).toMatch(/execution_mode:\s*executionMode,/);
+    expect(loquelaSrc).not.toMatch(/^\s*task_category:/m);
   });
 
-  it("/spawn's direct dispatch payload does not set task_category, leaving it agentic", () => {
+  it("/spawn's direct dispatch says execution_mode: 'task' rather than omitting it", () => {
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
     const spawnBlockMatch = appSrc.match(
       /base === '\/spawn'\) \{\s*void handleLoquelaSubmit\(\{[^}]*\}\);/,
     );
     expect(spawnBlockMatch).not.toBeNull();
-    expect(spawnBlockMatch?.[0]).not.toMatch(/task_category/);
+    expect(spawnBlockMatch?.[0]).toMatch(/execution_mode: 'task'/);
   });
 });

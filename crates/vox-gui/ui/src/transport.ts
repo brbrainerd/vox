@@ -977,20 +977,38 @@ export function hopperMarkDone(itemId: string): Promise<HopperTaskDto> {
 }
 
 // ---------------------------------------------------------------------------
-// Chat send transport wrapper.
+// Chat turn transport wrapper.
 // ---------------------------------------------------------------------------
 
-export interface ChatSendInput {
+/** Mirrors Rust `ChatTurnInput` (`commands/chat_turn.rs`). Built exclusively by
+ *  `lib/buildChatTurn.ts` so every composer control reaches the backend on both
+ *  execution paths. */
+export interface ChatTurnInput {
   session_id: string;
   content: string;
+  /** Sync = terminal request/response. Background = orchestrator task with a
+   *  correlated event stream. Set from the composer's send-mode toggle. */
+  execution: 'sync' | 'background';
+  model_override?: string | null;
+  /** Composer "Run on" tier: local|mesh|cloud|auto. NOT `cognitive_profile`. */
+  tier?: string | null;
+  clutch?: string | null;
+  risk?: string | null;
+  context_files: string[];
   active_skill?: string | null;
+  skill_exclusions: string[];
   /** Opt-in, non-blocking post-reply grounding/hallucination check (see
-   *  `GroundingCheckToggle.tsx` and Rust `ChatSendInput::grounding_check_enabled`). */
+   *  `GroundingCheckToggle.tsx` and Rust `ChatTurnInput::grounding_check_enabled`). */
   grounding_check_enabled?: boolean | null;
+  priority?: string | null;
+  dry_run?: boolean | null;
+  allow_duplicate?: boolean | null;
 }
 
-/** Mirrors Rust `ChatMessageDto` returned by `chat_send_message`. */
-export interface ChatMessageDto {
+/** Mirrors Rust `ChatTurnDto` returned by `chat_turn`. On the background branch
+ *  only `task_id` / `duplicate_of` are meaningful — that path persists no
+ *  assistant row (`id` is 0, `content` empty). */
+export interface ChatTurnDto {
   id: number;
   role: string;
   content: string;
@@ -1001,16 +1019,18 @@ export interface ChatMessageDto {
   selection_reason?: string;
   /** True when the opt-in grounding check flagged this reply as low-confidence. */
   grounding_flagged?: boolean;
+  /** Set (with a null `task_id`) when the daemon refused a near-duplicate. */
+  duplicate_of?: string | null;
 }
 
 /**
- * Calls the real agent loop for a plain chat message; the reply is already
- * persisted server-side by `chat_send_message` (with a real, non-blank
- * `created_at`). Throws on failure — see `lib/chatSend.ts` for the
- * higher-level `sendChatMessage` wrapper consumed by `App.tsx`.
+ * The single chat dispatch. `execution: 'sync'` runs the agent loop and returns
+ * the persisted reply; `execution: 'background'` enqueues an orchestrator task
+ * and returns its `task_id`. Throws on failure — see `lib/chatSend.ts` for the
+ * higher-level `sendChatTurn` wrapper consumed by `App.tsx`.
  */
-export function chatSendMessage(input: ChatSendInput): Promise<ChatMessageDto> {
-  return safeInvoke<ChatMessageDto>('chat_send_message', { input });
+export function chatTurn(input: ChatTurnInput): Promise<ChatTurnDto> {
+  return safeInvoke<ChatTurnDto>('chat_turn', { input });
 }
 
 // ---------------------------------------------------------------------------

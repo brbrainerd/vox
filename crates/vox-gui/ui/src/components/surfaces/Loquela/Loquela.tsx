@@ -197,13 +197,9 @@ export function Loquela({
 
   const [skillOpen, setSkillOpen] = useState(false);
   const [tierOpen,  setTierOpen]  = useState(false);
-  // Fix Task 4 (gui-axis-chat-harness-fixes): explicit, user-visible choice
-  // between the synchronous "quick chat" reply path (chat_send_message) and
-  // dispatching this as a background task (submit_orchestrator_task, the
-  // same working pipeline /spawn already uses). Previously this distinction
-  // was invisible -- every composer send silently tagged task_category:
-  // 'chat', so a user had no way to deliberately ask for a background task
-  // from the composer itself.
+  // Explicit, user-visible choice between the synchronous "quick chat" reply
+  // path and dispatching this as a background orchestrator task. Both go to
+  // the same `chat_turn` command; this only picks `execution`.
   const [executionMode, setExecutionMode] = useState<'chat' | 'task'>('chat');
   const [modeOpen, setModeOpen] = useState(false);
   const [slashOpen, setSlashOpen] = useState(false);
@@ -484,12 +480,11 @@ export function Loquela({
       clutch: control.clutch,
       risk: control.risk,
       context: chips.map(c => ({ kind: c.kind, ref: c.label })),
-      // 'chat' short-circuits client-side (App.tsx::handleLoquelaSubmit) to
-      // the synchronous chat_send_message path before submit_orchestrator_task
-      // is ever called. Any other value -- including undefined, the
-      // "Background task" toggle position -- takes the normal background-task
-      // dispatch path, exactly like /spawn's direct dispatch does today.
-      task_category: executionMode === 'chat' ? 'chat' : undefined,
+      // Emitted explicitly for BOTH toggle positions: `buildChatTurn` maps it
+      // to `execution`, and both go to the same `chat_turn` command. Never
+      // derived from the absence of a sentinel -- the old
+      // `task_category: 'chat' | undefined` encoding is gone.
+      execution_mode: executionMode,
     };
     onSubmit(payload);
     setHistory(h => [text.trim(), ...h].slice(0, COMPOSER_HISTORY_CAP));

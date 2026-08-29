@@ -45,7 +45,9 @@ import {
   type SessionChatStore,
 } from './lib/sessionChatStore';
 import { mapAgentEvent } from './lib/mapAgentEvent';
-import { sendChatMessage } from './lib/chatSend';
+import { sendChatTurn } from './lib/chatSend';
+import type { ChatTurnDto } from './lib/chatSend';
+import { buildChatTurn } from './lib/buildChatTurn';
 import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
@@ -81,7 +83,6 @@ import type {
   RawLudusAlert,
   RawStreamEvent,
   Session,
-  SubmitTaskResult,
   Toast,
 } from './types/tauri';
 import { INITIAL_DATA, INITIAL_KPIS } from './data/initialState';
@@ -158,9 +159,9 @@ function isKnownView(v: unknown): v is View {
 }
 
 /**
- * Both real chat-dispatch mechanisms (the synchronous `chat_send_message`
- * path and the background `submit_orchestrator_task` path — see the two
- * catch blocks in `handleLoquelaSubmit` below) funnel through
+ * Both chat lifecycles (the synchronous reply and the background task — one
+ * `chat_turn` command, two store lifecycles; see the two catch blocks in
+ * `handleLoquelaSubmit` below) funnel through
  * `vox-orchestrator-mcp`'s budget guard. A budget-exceeded failure is
  * actionable in a way a generic backend error isn't (the user can raise
  * their cap in Settings), so it gets a distinct title/body instead of the
@@ -930,17 +931,29 @@ export default function App() {
   }, [pushToast]);
 
   const handleLoquelaSubmit = useCallback(async (payload: ChatPayload) => {
-    let runId = '';
     const sessionId = payload.session_id ?? activeSessionId;
     if (!sessionId) {
       pushToast({ tone: 'warn', title: 'No chat session', body: 'Create or select a chat session first.', cause: 'validation' });
       return;
     }
+    // ONE payload, ONE command (`chat_turn`) — the dispatch fork now lives in
+    // Rust. The frontend still branches below, but only on STORE LIFECYCLE:
+    // `submitResolved` is the sole writer of `taskToSession`, the map that
+    // routes every task_*/token_streamed frame to a bubble and replays the
+    // 30s pending buffer. See spec §6.
+    const turn = buildChatTurn(payload, {
+      sessionId,
+      modelOverride: chatModelOverride,
+      groundingCheckEnabled,
+      activeSkillId: activeSkill?.id ?? null,
+      allowDuplicate: false,
+    });
+
     // Checked BEFORE chat_append_message persists anything: a second send
     // while the first is still in flight must not write an orphaned user
     // message row that nothing will ever reply to (the persisted row would
     // otherwise survive the early-return below with no assistant turn).
-    if (payload.task_category === 'chat' && chatSendInFlightRef.current.has(sessionId)) {
+    if (turn.execution === 'sync' && chatSendInFlightRef.current.has(sessionId)) {
       pushToast({
         tone: 'warn',
         title: 'Please wait',
@@ -955,166 +968,131 @@ export default function App() {
     }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
     recordGamifyGuiEvent('chat_message_sent', { session_id: sessionId }, { enabled: gamifySettings.enabled });
 
-    // Plain chat sends go through the synchronous chat_send_message path
-    // (real agent-loop reply, no background task to poll) instead of the
-    // submit_orchestrator_task dispatch loop below, which is for every
-    // other task_category.
-    if (payload.task_category === 'chat') {
-      chatSendInFlightRef.current.add(sessionId);
-      const tempId = nextGuiRunId();
-      dispatchSessionChat({
-        type: 'chatPending',
-        sessionId,
-        tempId,
-        userText: String(payload.description ?? ''),
-      });
-      try {
-        const reply = await sendChatMessage({
-          session_id: sessionId,
-          content: payload.description,
-          active_skill: payload.active_skill ?? activeSkill?.id ?? null,
-          grounding_check_enabled: payload.grounding_check_enabled ?? undefined,
-        });
-        // chat_send_message already persisted this exact reply server-side
-        // (that's the point of the synchronous path — see chatSend.ts). Mark
-        // it as already-persisted BEFORE dispatching, so the "persist
-        // assistant transcript rows" effect below (which sweeps
-        // chatStore.sessions for status 'done'/'failed' messages not yet in
-        // persistedAssistantIdsRef) doesn't re-persist it via
-        // chat_append_message and double the row on reload.
-        let persisted = persistedAssistantIdsRef.current.get(sessionId);
-        if (!persisted) {
-          persisted = new Set();
-          persistedAssistantIdsRef.current.set(sessionId, persisted);
-        }
-        persisted.add(reply.id);
-        dispatchSessionChat({
-          type: 'chatReplySettled',
-          sessionId,
-          tempId,
-          result: {
-            ok: true,
-            message: {
-              id: reply.id,
-              role: 'assistant',
-              text: reply.text,
-              status: 'done',
-              runId: tempId,
-              // No real task_id for a synchronous chat reply (there is no
-              // background task to correlate against) — left unset
-              // intentionally, unlike background-task-path bubbles.
-              modelId: reply.modelId,
-              latencyMs: reply.latencyMs,
-              selectionReason: reply.selectionReason,
-              groundingFlagged: reply.groundingFlagged,
-            },
+    if (turn.execution === 'background') {
+      // Long-lived correlated stream. `submitResolved` is the ONLY writer of
+      // taskToSession, which routes every task_*/token_streamed frame to this
+      // bubble and replays the 30s pending buffer. Do not collapse this into
+      // chatPending/chatReplySettled: a background dispatch returns a task_id
+      // and no answer text, so settling it 'done' would strand an empty bubble
+      // the pending watchdog cannot rescue.
+      let runId = '';
+      const dispatchAttempt = (allowDuplicate: boolean) =>
+        // The one place GUI run-ids and orchestrator task-ids meet — the join
+        // key `runs.rs` uses for cost/token telemetry.
+        executeIpcWithRun<ChatTurnDto>(
+          'chat_turn',
+          { input: { ...turn, allow_duplicate: allowDuplicate } },
+          'gui.loquela.submit',
+          // Mint the runId and create the bubbles BEFORE the invoke resolves
+          // so streamed tokens correlate to a live transcript entry.
+          (id) => {
+            runId = id;
+            dispatchSessionChat({
+              type: 'submit',
+              sessionId,
+              runId: id,
+              prompt: String(payload.description ?? ''),
+            });
           },
-        });
-        checkBudgetWarn(sessionId);
+        );
+
+      try {
+        let result = await dispatchAttempt(false);
+        // Refused as a near-duplicate: retract the optimistic bubble and ask.
+        if (result?.task_id == null && result?.duplicate_of) {
+          if (runId) {
+            dispatchSessionChat({
+              type: 'failRun',
+              sessionId,
+              runId,
+              error: `Skipped — near-duplicate of task #${result.duplicate_of}`,
+            });
+          }
+          const proceed = window.confirm(
+            `This looks like a near-duplicate of task #${result.duplicate_of}.\n\nSubmit it anyway?`,
+          );
+          if (!proceed) {
+            pushToast({ tone: 'info', title: 'Duplicate skipped', body: `Kept existing task #${result.duplicate_of}.`, cause: 'backend-ok' });
+            return;
+          }
+          result = await dispatchAttempt(true);
+        }
+        if (runId && result?.task_id != null) {
+          dispatchSessionChat({
+            type: 'submitResolved',
+            sessionId,
+            runId,
+            taskId: String(result.task_id),
+          });
+          recordGamifyGuiEvent(
+            'task_submitted',
+            { session_id: sessionId, task_id: String(result.task_id) },
+            { enabled: gamifySettings.enabled },
+          );
+          checkBudgetWarn(sessionId);
+        }
       } catch (err) {
-        const errorText = sanitizeErrorForToast(err);
-        dispatchSessionChat({
-          type: 'chatReplySettled',
-          sessionId,
-          tempId,
-          result: { ok: false, error: errorText },
-        });
-        pushToast(dispatchErrorToast(errorText, 'Chat reply failed'));
-      } finally {
-        chatSendInFlightRef.current.delete(sessionId);
+        pushToast(dispatchErrorToast(sanitizeErrorForToast(err), 'Dispatch Failed'));
       }
       return;
     }
 
-    const contextFiles = contextRefsFromPayload(payload);
-
-    // One submit attempt. `allowDuplicate=false` lets the daemon refuse a
-    // near-duplicate (returning `duplicate_of` with a null task_id) so we can
-    // ask the user instead of silently enqueuing the same work twice.
-    const dispatchAttempt = (allowDuplicate: boolean) =>
-      executeIpcWithRun<SubmitTaskResult>(
-        'submit_orchestrator_task',
-        {
-          input: {
-            description: payload.description,
-            files: contextFiles,
-            priority: payload.priority ?? null,
-            session_id: sessionId || null,
-            mode: payload.mode ?? null,
-            model_hint: payload.model_hint ?? payload.tier ?? null,
-            model_override: payload.model_override ?? null,
-            dry_run: payload.dry_run ?? null,
-            active_skill: payload.active_skill ?? activeSkill?.id ?? null,
-            allow_duplicate: allowDuplicate,
-            clutch: payload.clutch ?? null,
-            risk: payload.risk ?? null,
-            // Forward whatever the call site set. Previously derived this
-            // from `payload.mode === 'act'`, which was silently always
-            // undefined in practice: Loquela's composer defaults its own
-            // internal `mode` state to "act" for every normal submission
-            // (see Loquela.tsx's `useState("act")`), not just for /spawn —
-            // so real chat messages typed into the composer were NEVER
-            // tagged 'chat' and always fell through to the full 6-phase
-            // agentic pipeline. task_category is now set explicitly at each
-            // real call site instead: 'chat' in Loquela's send() (the normal
-            // composer path), left unset for /spawn's direct dispatch.
-            task_category: payload.task_category ?? undefined,
-            grounding_check_enabled: payload.grounding_check_enabled ?? undefined,
-          }
-        },
-        'gui.loquela.submit',
-        // Mint the runId and create the user/assistant bubbles BEFORE the invoke
-        // resolves so streamed tokens correlate to a live transcript entry.
-        (id) => {
-          runId = id;
-          dispatchSessionChat({
-            type: 'submit',
-            sessionId,
-            runId: id,
-            prompt: String(payload.description ?? ''),
-          });
-        },
-      );
-
+    // Sync: terminal request/response, no task to correlate against.
+    chatSendInFlightRef.current.add(sessionId);
+    const tempId = nextGuiRunId();
+    dispatchSessionChat({
+      type: 'chatPending',
+      sessionId,
+      tempId,
+      userText: String(payload.description ?? ''),
+    });
     try {
-      let result = await dispatchAttempt(false);
-      // Refused as a near-duplicate: retract the optimistic bubble and ask.
-      if (result?.task_id == null && result?.duplicate_of) {
-        if (runId) {
-          dispatchSessionChat({
-            type: 'failRun',
-            sessionId,
-            runId,
-            error: `Skipped — near-duplicate of task #${result.duplicate_of}`,
-          });
-        }
-        const proceed = window.confirm(
-          `This looks like a near-duplicate of task #${result.duplicate_of}.\n\nSubmit it anyway?`,
-        );
-        if (!proceed) {
-          pushToast({ tone: 'info', title: 'Duplicate skipped', body: `Kept existing task #${result.duplicate_of}.`, cause: 'backend-ok' });
-          return;
-        }
-        result = await dispatchAttempt(true);
+      const reply = await sendChatTurn(turn);
+      // `chat_turn` already persisted this exact reply server-side. Mark it as
+      // already-persisted BEFORE dispatching, so the "persist assistant
+      // transcript rows" effect below (which sweeps chatStore.sessions for
+      // status 'done'/'failed' messages not yet in persistedAssistantIdsRef)
+      // doesn't re-persist it via chat_append_message and double the row on
+      // reload. `ChatMessage.id` is a string — never Number() it.
+      let persisted = persistedAssistantIdsRef.current.get(sessionId);
+      if (!persisted) {
+        persisted = new Set<string>();
+        persistedAssistantIdsRef.current.set(sessionId, persisted);
       }
-      if (runId && result?.task_id != null && sessionId) {
-        dispatchSessionChat({
-          type: 'submitResolved',
-          sessionId,
-          runId,
-          taskId: String(result.task_id),
-        });
-        recordGamifyGuiEvent(
-          'task_submitted',
-          { session_id: sessionId, task_id: String(result.task_id) },
-          { enabled: gamifySettings.enabled },
-        );
-        checkBudgetWarn(sessionId);
-      }
+      persisted.add(reply.id);
+      dispatchSessionChat({
+        type: 'chatReplySettled',
+        sessionId,
+        tempId,
+        result: {
+          ok: true,
+          message: {
+            id: reply.id,
+            role: 'assistant',
+            text: reply.text,
+            status: 'done',
+            runId: tempId,
+            modelId: reply.modelId,
+            latencyMs: reply.latencyMs,
+            selectionReason: reply.selectionReason,
+            groundingFlagged: reply.groundingFlagged,
+          },
+        },
+      });
+      checkBudgetWarn(sessionId);
     } catch (err) {
-      pushToast(dispatchErrorToast(sanitizeErrorForToast(err), 'Dispatch Failed'));
+      const errorText = sanitizeErrorForToast(err);
+      dispatchSessionChat({
+        type: 'chatReplySettled',
+        sessionId,
+        tempId,
+        result: { ok: false, error: errorText },
+      });
+      pushToast(dispatchErrorToast(errorText, 'Chat reply failed'));
+    } finally {
+      chatSendInFlightRef.current.delete(sessionId);
     }
-  }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill, gamifySettings.enabled, checkBudgetWarn]);
+  }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill, gamifySettings.enabled, checkBudgetWarn, chatModelOverride, groundingCheckEnabled]);
 
   const handleLoquelaSlash = useCallback(async (
     cmd: string,
@@ -1134,7 +1112,11 @@ export default function App() {
       void handleLoquelaSubmit({
         description: 'Spawn a sub-agent on the current branch to pursue this task in parallel.',
         mode: 'act',
-        // Own session id (not activeSessionId): submit_orchestrator_task never
+        // Explicit, not inferred: `execution_mode` defaults to 'chat' when
+        // omitted, so /spawn must say 'task' or it would silently become a
+        // synchronous reply.
+        execution_mode: 'task',
+        // Own session id (not activeSessionId): the background path never
         // writes to the orchestrator's chat_history context store, only
         // vox_chat_message does, so borrowing the chat session id here would
         // silently desync that store from the GUI transcript.
@@ -1359,6 +1341,7 @@ export default function App() {
         handleLoquelaSubmit({
           description: `Deploy skill: ${s.command}`,
           active_skill: deployId,
+          execution_mode: 'task',
           session_id: newBackgroundSessionId(),
         });
       }
@@ -1440,12 +1423,12 @@ export default function App() {
         ...p,
         // 'chat' mode (the composer's default) stays part of the active
         // chat session, same as before. The "Background task" toggle
-        // position (task_category left undefined by Loquela's send())
-        // must NOT reuse activeSessionId -- same fix as /spawn and
-        // Deploy-skill below, for the same reason (submit_orchestrator_task
-        // never writes to the orchestrator's chat_history:{session_id}
-        // context store, so folding it into the active session desyncs it).
-        session_id: p.task_category === 'chat' ? activeSessionId : newBackgroundSessionId(),
+        // position (execution_mode: 'task') must NOT reuse activeSessionId --
+        // same fix as /spawn and Deploy-skill below, for the same reason (the
+        // background path never writes to the orchestrator's
+        // chat_history:{session_id} context store, so folding it into the
+        // active session desyncs it).
+        session_id: p.execution_mode === 'task' ? newBackgroundSessionId() : activeSessionId,
         model_override: chatModelOverride,
         grounding_check_enabled: groundingCheckEnabled,
       })}
@@ -1696,7 +1679,7 @@ export default function App() {
         onSubmitTask={() => handleSubmitTaskAction(navigateTo, focusComposer)}
         onSendToChat={(query) => {
           navigateTo('chat');
-          handleLoquelaSubmit({ description: query, session_id: activeSessionId, task_category: 'chat' });
+          handleLoquelaSubmit({ description: query, session_id: activeSessionId, execution_mode: 'chat' });
         }}
         onOpenDoc={(path) => openDocTab(path)}
         agents={data.agents}
