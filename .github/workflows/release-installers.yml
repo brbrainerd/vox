@@ -310,7 +310,13 @@ jobs:
       - name: Attach to release
         uses: softprops/action-gh-release@v3
         with:
-          files: installer-artifacts/*/*
+          # Not installer-artifacts/*/* -- confirmed via a real tag push that
+          # the .deb artifact preserves cargo-deb's full nested output path
+          # (target/<target-triple>/debian/*.deb) inside the uploaded
+          # artifact, so a 2-level glob silently missed it entirely and
+          # fail_on_unmatched_files: false let the job report success anyway
+          # with the .deb never attached to the release.
+          files: installer-artifacts/**/*
           fail_on_unmatched_files: false
           # This job attaches to the SAME tag's release release-binaries.yml
           # publishes -- softprops/action-gh-release is idempotent per tag,
