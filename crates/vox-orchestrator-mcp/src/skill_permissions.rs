@@ -18,6 +18,13 @@ fn is_skill_infrastructure_tool(tool_name: &str) -> bool {
             | "vox_skill_remove"
             | "vox_skill_run"
             | "vox_workspace_mcp_refresh"
+            // Delegation tools: a skill narrows *which* domain tools an agent
+            // may call, not whether it may hand work to another agent. Without
+            // these, pinning a skill would silently strip the chat turn's
+            // delegation surface a second time (after the tool-selection cap).
+            | "vox_spawn_agent"
+            | "vox_submit_task"
+            | "vox_task_status"
     ) || tool_name.starts_with("vox_chat_")
 }
 
@@ -92,6 +99,18 @@ mod tests {
             check_skill_tool_permission(&reg, Some("git-skill"), "vox_workspace_mcp_refresh")
                 .is_none()
         );
+    }
+
+    #[test]
+    fn allows_delegation_tools_when_skill_omits_them() {
+        let reg = new_registry_arc();
+        install_git_skill(&reg);
+        for tool in ["vox_spawn_agent", "vox_submit_task", "vox_task_status"] {
+            assert!(
+                check_skill_tool_permission(&reg, Some("git-skill"), tool).is_none(),
+                "{tool} must stay reachable while a restrictive skill is active"
+            );
+        }
     }
 
     #[test]

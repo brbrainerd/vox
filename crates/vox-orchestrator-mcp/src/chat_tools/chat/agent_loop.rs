@@ -216,6 +216,19 @@ pub(crate) async fn run_agent_turn(
         // `DEFAULT_MAX_TOOLS` usable tools and could push a genuinely useful tool
         // just past the cap boundary out of reach).
         exclude_name_prefixes: vec!["vox_chat_"],
+        // Registry order is alphabetical, so the plain `.take(max_tools)`
+        // truncation made the delegation tools unreachable on every chat turn:
+        // after the ai/app lane filter `vox_spawn_agent` is candidate ~166 of
+        // ~188 and the cut lands at 40. Pin them so a chat turn can actually
+        // delegate.
+        //
+        // This is not free: the cap is fixed, so each pin evicts the tool that
+        // previously held the last slot. These three pins displaced
+        // `vox_check_file_owner`, `vox_check_mood`, and `vox_check_workspace`
+        // (previously slots 38-40, the cut ending at `vox_check_workspace`).
+        // Every further pin costs another tool the same way — the real fix is
+        // relevance ranking before truncation, not a longer pin list.
+        pin_names: vec!["vox_spawn_agent", "vox_submit_task", "vox_task_status"],
     };
     let selected = select_tools_for_turn(TOOL_REGISTRY, &state.skill_registry, &turn_ctx);
     let tool_defs: Vec<LlmToolDef> = selected

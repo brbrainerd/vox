@@ -82,6 +82,18 @@ pub struct TurnContext {
     /// `max_tools` and can drop a genuinely useful tool that only lost its cap
     /// slot to an excluded one. Empty by default (no exclusion).
     pub exclude_name_prefixes: Vec<&'static str>,
+    /// Tool names hoisted to the front of the candidate list, applied BEFORE
+    /// the `max_tools` cap. Registry order is alphabetical, so a plain
+    /// truncation silently makes late-alphabet tools unreachable no matter how
+    /// relevant they are — `vox_spawn_agent` sits at index ~166 of the ~188
+    /// candidates a default chat turn produces, well past the 40-tool cut.
+    /// Listing a name here guarantees it a cap slot.
+    ///
+    /// Pins are subject to every other filter (read-only permission, lane,
+    /// active-skill allowlist, prefix exclusion) — a pin is a priority hint,
+    /// not a permission bypass. Names not present in the registry, or filtered
+    /// out by an earlier step, are simply ignored.
+    pub pin_names: Vec<&'static str>,
 }
 
 impl Default for TurnContext {
@@ -94,6 +106,7 @@ impl Default for TurnContext {
             active_skill_id: None,
             max_tools: DEFAULT_MAX_TOOLS,
             exclude_name_prefixes: Vec::new(),
+            pin_names: Vec::new(),
         }
     }
 }
@@ -121,24 +134,26 @@ impl TurnContext {
 ///    they always survive this step regardless of the active skill).
 /// 4. Name-prefix exclusion — drops any tool whose name starts with one of
 ///    `ctx.exclude_name_prefixes` (no-op if empty).
-/// 5. Cap — truncates to the first `ctx.max_tools` survivors, in registry
-///    order.
+/// 5. Pin hoist — moves any survivor named in `ctx.pin_names` to the front,
+///    preserving registry order within each group (no-op if empty).
+/// 6. Cap — truncates to the first `ctx.max_tools` survivors.
 ///
-/// The exclusion filter runs BEFORE the cap so that excluded tools never
-/// consume a cap slot: capping first and filtering after would both shrink
-/// the effective tool count below `max_tools` and could bump a genuinely
-/// usable tool out of the offered set for no benefit.
+/// Both the exclusion filter and the pin hoist run BEFORE the cap: excluded
+/// tools never consume a cap slot, and pinned tools are always inside it.
+/// Capping first and adjusting after would shrink the effective tool count
+/// below `max_tools` and could bump a genuinely usable tool out for no benefit.
 ///
-/// Step 5 is deliberately a plain truncation, not a relevance ranking.
-/// Building a scoring/prioritization system is out of scope for this task;
-/// a future task may want to sort by relevance before truncating.
+/// Apart from the pin hoist, step 6 is a plain truncation over registry
+/// (alphabetical) order, not a relevance ranking. `pin_names` exists precisely
+/// because that makes late-alphabet tools unreachable; a future task may want
+/// a real relevance sort instead.
 #[must_use]
 pub fn select_tools_for_turn(
     registry: &'static [McpToolRegistryEntry],
     skill_registry: &SkillRegistry,
     ctx: &TurnContext,
 ) -> Vec<&'static McpToolRegistryEntry> {
-    registry
+    let (pinned, rest): (Vec<_>, Vec<_>) = registry
         .iter()
         .filter(|entry| !ctx.is_read_only() || entry.http_read_role_eligible)
         .filter(|entry| ctx.lane_allowed(entry.product_lane))
@@ -151,8 +166,8 @@ pub fn select_tools_for_turn(
                 .iter()
                 .any(|prefix| entry.name.starts_with(prefix))
         })
-        .take(ctx.max_tools)
-        .collect()
+        .partition(|entry| ctx.pin_names.contains(&entry.name));
+    pinned.into_iter().chain(rest).take(ctx.max_tools).collect()
 }
 
 #[cfg(test)]
@@ -198,6 +213,7 @@ mod tests {
             active_skill_id: None,
             max_tools: TOOL_REGISTRY.len(),
             exclude_name_prefixes: vec![],
+            pin_names: vec![],
         };
         let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
         assert!(!selected.is_empty());
@@ -214,6 +230,7 @@ mod tests {
             active_skill_id: None,
             max_tools: TOOL_REGISTRY.len(),
             exclude_name_prefixes: vec![],
+            pin_names: vec![],
         };
         let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
         assert!(!selected.is_empty());
@@ -237,6 +254,7 @@ mod tests {
             active_skill_id: None,
             max_tools: TOOL_REGISTRY.len(),
             exclude_name_prefixes: vec![],
+            pin_names: vec![],
         };
         let ctx_with_skill = TurnContext {
             active_skill_id: Some("narrow-skill".to_string()),
@@ -257,6 +275,7 @@ mod tests {
             active_skill_id: Some("narrow-skill".to_string()),
             max_tools: TOOL_REGISTRY.len(),
             exclude_name_prefixes: vec![],
+            pin_names: vec![],
         };
         let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
         let selected_names: HashSet<&str> = selected.iter().map(|t| t.name).collect();
@@ -317,6 +336,7 @@ mod tests {
             active_skill_id: None,
             max_tools: small_cap,
             exclude_name_prefixes: vec!["vox_chat_"],
+            pin_names: vec![],
         };
         let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
 
@@ -332,5 +352,122 @@ mod tests {
              expected usable tools",
             selected.len()
         );
+    }
+
+    /// The three delegation tools the chat agent loop pins.
+    const DELEGATION_TOOLS: [&str; 3] = ["vox_spawn_agent", "vox_submit_task", "vox_task_status"];
+
+    /// Regression for the reachability bug this pin hatch exists to fix: on a
+    /// default chat turn (`ai`+`app` lanes, cap 40) registry order is
+    /// alphabetical, so `vox_spawn_agent` sat at candidate index ~166 of ~188
+    /// and was never offered. Fails without `pin_names`.
+    #[test]
+    fn default_chat_turn_offers_the_delegation_tools_when_pinned() {
+        let reg = new_registry_arc();
+        let ctx = TurnContext {
+            pin_names: DELEGATION_TOOLS.to_vec(),
+            exclude_name_prefixes: vec!["vox_chat_"],
+            ..TurnContext::default()
+        };
+        let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
+        let names: HashSet<&str> = selected.iter().map(|t| t.name).collect();
+        for tool in DELEGATION_TOOLS {
+            assert!(
+                names.contains(tool),
+                "pinned delegation tool {tool} missing from a default chat turn's \
+                 offered set ({} tools)",
+                selected.len()
+            );
+        }
+    }
+
+    #[test]
+    fn pinning_does_not_exceed_the_cap() {
+        let reg = new_registry_arc();
+        let unpinned = select_tools_for_turn(TOOL_REGISTRY, &reg, &TurnContext::default());
+        let ctx = TurnContext {
+            pin_names: DELEGATION_TOOLS.to_vec(),
+            ..TurnContext::default()
+        };
+        let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
+        assert_eq!(selected.len(), unpinned.len());
+        assert_eq!(selected.len(), ctx.max_tools);
+    }
+
+    #[test]
+    fn pinning_a_tool_already_inside_the_cap_does_not_duplicate_it() {
+        let reg = new_registry_arc();
+        let base = select_tools_for_turn(TOOL_REGISTRY, &reg, &TurnContext::default());
+        let already_in = base[0].name;
+        let ctx = TurnContext {
+            pin_names: vec![already_in],
+            ..TurnContext::default()
+        };
+        let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
+        assert_eq!(
+            selected.iter().filter(|t| t.name == already_in).count(),
+            1,
+            "pinned tool {already_in} appeared more than once"
+        );
+        assert_eq!(selected.len(), base.len());
+    }
+
+    #[test]
+    fn pinning_is_applied_before_the_cap() {
+        let reg = new_registry_arc();
+        let ctx = TurnContext {
+            max_tools: 1,
+            pin_names: vec!["vox_spawn_agent"],
+            ..TurnContext::default()
+        };
+        let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].name, "vox_spawn_agent");
+    }
+
+    /// The bug itself, pinned down so it cannot silently return.
+    ///
+    /// Without `pin_names`, a default chat turn's alphabetical truncation drops
+    /// every delegation tool — which is why `run_agent_turn` pins them. If this
+    /// ever starts failing it means the cap, the registry order, or the
+    /// candidate count changed enough to make the pin redundant: verify that,
+    /// then delete this test and the pin together. It is a canary for *why* the
+    /// pin exists, not a requirement that the truncation stay broken.
+    #[test]
+    fn unpinned_chat_turn_cannot_reach_the_delegation_tools() {
+        let reg = new_registry_arc();
+        let ctx = TurnContext {
+            exclude_name_prefixes: vec!["vox_chat_"],
+            ..TurnContext::default()
+        };
+        let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
+        let names: HashSet<&str> = selected.iter().map(|t| t.name).collect();
+        for tool in DELEGATION_TOOLS {
+            assert!(
+                !names.contains(tool),
+                "{tool} is now reachable unpinned — the alphabetical-truncation \
+                 bug the pin works around may be gone; re-verify before removing \
+                 the pin (offered set was {} tools)",
+                selected.len()
+            );
+        }
+    }
+
+    #[test]
+    fn delegation_tools_survive_a_restrictive_active_skill() {
+        let reg = new_registry_arc();
+        install_restrictive_skill(&reg);
+        let ctx = TurnContext {
+            active_skill_id: Some("narrow-skill".to_string()),
+            pin_names: DELEGATION_TOOLS.to_vec(),
+            ..TurnContext::default()
+        };
+        let names: HashSet<&str> = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx)
+            .iter()
+            .map(|t| t.name)
+            .collect();
+        for tool in DELEGATION_TOOLS {
+            assert!(names.contains(tool), "{tool} removed by the active skill");
+        }
     }
 }

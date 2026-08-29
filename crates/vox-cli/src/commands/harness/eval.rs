@@ -257,6 +257,7 @@ fn tool_cap_never_exceeds_cap_task() -> Result<()> {
         active_skill_id: None,
         max_tools: DEFAULT_MAX_TOOLS,
         exclude_name_prefixes: vec!["vox_chat_"],
+        pin_names: vec![],
     };
     let reg = new_registry_arc_for_eval();
     let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
