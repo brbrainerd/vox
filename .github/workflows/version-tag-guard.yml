@@ -37,8 +37,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          tag="${GITHUB_REF_NAME}"          # e.g. v0.7.0
-          tag_version="${tag#v}"            # strip leading v -> 0.7.0
+          tag="${GITHUB_REF_NAME}"          # e.g. v0.7.0, v0.6.0-rc.4735
+          tag_core="${tag#v}"               # strip leading v -> 0.7.0, 0.6.0-rc.4735
+          # Strip semver prerelease/build metadata so v0.6.0-rc.4735 and
+          # v0.6.0-nightly.4735 compare equal to Cargo.toml's plain "0.6.0".
+          # This only WIDENS what passes; a real mismatch (v0.7.0 tagged
+          # against a 0.6.0 Cargo.toml) still fails, suffix or not.
+          # Strip '-' first then '+': in semver, build metadata follows the
+          # prerelease, so cutting at the first '-' already removes both.
+          tag_version="${tag_core%%-*}"
+          tag_version="${tag_version%%+*}"   # bare 0.6.0+build.9 (no prerelease)
 
           # Extract the FIRST `version = "..."` under the [workspace.package]
           # table only, so we don't accidentally read a dependency's version.
@@ -56,7 +64,7 @@ jobs:
             ' Cargo.toml
           )"
 
-          echo "git tag        : ${tag} (version ${tag_version})"
+          echo "git tag        : ${tag} (core version ${tag_version})"
           echo "Cargo.toml ver : ${cargo_version}"
 
           if [ -z "${cargo_version}" ]; then
