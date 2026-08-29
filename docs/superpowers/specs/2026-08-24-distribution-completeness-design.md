@@ -20,6 +20,51 @@ recommendation to split them. They are kept as independently
 implementable, independently verifiable phases so that a failure in one
 does not block the others.
 
+## Phase 0 — Versioning and tag strategy
+
+Every phase above needs a tag push to verify, and the current tagging
+rules make that needlessly expensive. `version-tag-guard.yml` strips only
+a leading `v` and then string-compares against `[workspace.package]
+version`, so **`v0.6.0` is the only tag that can ever pass**. Every
+prerelease form fails identically — `v0.6.0-rc.1` is rejected exactly as
+hard as `v0.0.0-test`. Two consequences, one of them previously
+unrecognised:
+
+1. Verification runs had to use a tag that fails the guard, producing a
+   permanently red check that had to be explained away on every run.
+2. **Nightly releases are structurally impossible, not merely
+   unimplemented.** No `v*` tag carrying a date or build suffix can pass
+   the guard, so no nightly tag can exist. `distribution-ssot.md`'s
+   "release + nightly" claim could not have been true.
+
+**Change:** compare only the **core** version — strip any `-prerelease`
+and `+build` metadata before matching. This preserves the guard's real
+purpose (a `v0.7.0` tag against a `0.6.0` Cargo.toml still fails) while
+admitting prereleases.
+
+**Tag scheme.** `VOX_BUILD_NUMBER` is already `git rev-list --count HEAD`
+(`crates/vox-build-meta`, currently ~4735) — monotonic, unique per commit,
+auto-incrementing on merge. It gives collision-free tags for free:
+
+| Tag | Guard | Publish behavior |
+|---|---|---|
+| `v0.6.0` | passes | real release, becomes `latest` |
+| `v0.6.0-rc.<buildnum>` | passes after the fix | prerelease, never `latest` |
+| `v0.6.0-nightly.<buildnum>` | passes after the fix | prerelease, never `latest` |
+
+This composes exactly with the `prerelease`/`make_latest` rule already
+shipped in both publish jobs (hyphen ⇒ prerelease; no hyphen ⇒ latest) —
+no new publish logic is required.
+
+**Decision:** verify Phases 1–3 on `v0.6.0-rc.<buildnum>` tags, and cut
+the real `v0.6.0` only once the GUI bundle, the `.deb`, and the GPU assets
+are all proven. The GUI bundler has never once produced an artifact, so
+the probability of a clean first run is low; burning the real `0.6.0` tag
+on it would force either a force-moved public tag or a version bump.
+
+Wiring an actual scheduled nightly trigger is **not** in scope here — but
+after this change it becomes possible, which it was not before.
+
 ## Phase 1 — Desktop GUI (`axis`) bundling
 
 `release-gui.yml` has failed **6 of 6 runs**, always with
@@ -88,21 +133,68 @@ which is a release-asset URL. Repointing the catalog at
 This also collapses the plugin trust root into the one users already trust
 to ship `vox` itself — the stated rationale in the security-floor plan.
 
+### No hardcoded versions or hashes anywhere in the chain
+
+A version or hash pinned by hand in committed source has to be re-edited
+on every bump, and silently rots when someone forgets. The whole chain is
+therefore derived, not pinned. Current state and the fix, layer by layer:
+
+| Layer | Today | Dynamic source |
+|---|---|---|
+| Plugin crate `Cargo.toml` | `version.workspace = true` — **already SSOT-correct** | no change needed |
+| `Plugin.toml` `version` | hardcoded `0.1.0` — stale duplicate | stamped at package time from `CARGO_PKG_VERSION`, plus a drift gate |
+| `catalog.toml` `version` | absent | derived at install from the running `vox` binary's own version |
+| `catalog.toml` `sha256` | absent | read from the release's own `checksums.txt` |
+| Release asset name | n/a | built from the same workspace version in CI |
+
+The `Plugin.toml` fix is the smallest: the crates already inherit the
+workspace version, so `version = "0.1.0"` is a hand-maintained copy of a
+number Cargo already knows. It gets stamped during packaging and guarded
+by a drift check, in the same SSOT-plus-drift idiom the repo already uses
+everywhere else. Nothing about a future `0.6.0 → 0.7.0` bump then requires
+touching either plugin.
+
+**Why first-party plugins may read `checksums.txt`, when third-party ones
+may not.** The security-floor plan rejected fetch-at-install hashing
+because the catalog spans many independent `github:owner/repo` trust
+roots, and pinning collapses them to the one root users already trust.
+That argument does not apply to a first-party plugin shipped *as an asset
+of vox's own release*: it has the same repo, the same release, and the
+same trust root as the `vox` binary the user is already running — which is
+exactly the situation in which `voxup` already fetches `checksums.txt` to
+verify the `vox` binary itself. So this reuses a proven mechanism within
+its existing trust boundary rather than widening it. Third-party
+`github:OWNER/REPO` plugins keep the pinned-hash model unchanged, still
+fail-closed.
+
+This removes the "two-release bootstrap" wart entirely: assets and their
+verification arrive in the same release, so `vox plugin install
+mens-candle-metal` works on the first one.
+
+**Cost, stated plainly:** this requires a change to `install_from_catalog`
+in `install.rs` — a fail-closed security path. The change does not weaken
+verification (an archive is still refused unless its hash matches a hash
+obtained from the release); it only changes *where* the expected hash
+comes from, and only for first-party sources. It must be reviewed as a
+security change, not a convenience one.
+
 ### Structural problem A: version/URL mismatch
 
 The resolved URL embeds the **catalog entry's `version`** in both the
 release tag and the filename. Both plugins' `Plugin.toml` declare
-`version = "0.1.0"`, but they would ship as assets of the main `v0.6.0`
-release — so the URL would target a `v0.1.0` release that does not exist.
+`version = "0.1.0"`, but they ship as assets of the main release — so a
+catalog `version` of `0.1.0` would target a `v0.1.0` release that does not
+exist.
 
-**Decision:** first-party GPU plugins track the workspace release version.
-This is a deliberate, documented exception to AGENTS.md's "plugin crates
-version independently" rule, and it is narrow: it applies only to
-first-party plugins that ship *inside* the main release, precisely because
-their asset URL is derived from the release tag. Third-party and
-separately-released plugins keep independent versioning. Chosen over
-adding a `release_tag` catalog field because it requires no change to
-`install.rs` — less code, less risk on a fail-closed security path.
+**This largely dissolves under the versioning decision below.** Once the
+release tag is `v0.6.0` — the same string as the workspace version — a
+catalog `version` of `0.6.0` resolves correctly by construction, with no
+`release_tag` field and no change to `install.rs`. What remains is a
+tidy-up, not a rule exception: bump the two plugins' `Plugin.toml` from
+`0.1.0` to the workspace version so the *installed* directory
+(`plugins/<id>/<version>`, taken from `Plugin.toml`, not from the asset
+name) agrees with the asset it came from. Leaving them at `0.1.0` would
+still install and run; it would just be confusing.
 
 ### Structural problem B: CUDA cannot build where we need it
 
@@ -148,13 +240,14 @@ This follows the intent already recorded in
 model, which was deliberately not chosen for plugins because they span
 many independent trust roots.
 
-**Honest consequence:** a release publishes the assets, and the catalog
-pin lands in a follow-up commit, because the hash of a built zip is not
-knowable until after the build. Until pinned, `vox plugin install
-mens-candle-metal` correctly refuses. That is the fail-closed design
-working as intended, not a regression — but it does mean GPU plugin
-install is a two-step bootstrap on first ship, and that must be documented
-rather than discovered.
+**Superseded by the derived-hash design above.** Pinning the hash in
+committed source would mean the hash of a built zip is unknowable until
+after the build, forcing a two-release bootstrap (assets first, catalog
+pin second) with install correctly refusing in between. Reading the hash
+from the release's own `checksums.txt` for first-party plugins removes
+that: assets and their verification ship together, and install works on
+the first release. Third-party plugins keep the pinned model and its
+bootstrap requirement.
 
 ## Phase 4 — Homebrew formula audit harness
 
@@ -185,8 +278,10 @@ Each phase is verified by its own real signal, not by workflow status:
 | 3 — GPU | Plugin zip present on the release, flat-structured, and (post-pin) `vox plugin install` succeeds without `--allow-unverified` |
 | 4 — Homebrew | `brew audit --strict` passes against the generated formula in WSL2 |
 
-Phases 1–3 share a single verification tag push. Phase 4 is local-only and
-needs no tag.
+Phases 1–3 share a verification tag push (`v0.6.0-rc.<buildnum>`, per
+Phase 0); iterating costs a new rc tag, not a burned release version.
+Phase 4 is local-only and needs no tag. The real `v0.6.0` is cut only
+after all three are proven.
 
 ## Non-Goals
 
@@ -198,9 +293,10 @@ needs no tag.
   with the jobs that create the release, so they fail on every release.
   Real, permanent, and out of scope here: fixing it needs cross-workflow
   ordering (`workflow_run`/`repository_dispatch`), which is its own design.
-- A nightly/scheduled release trigger. It has never existed;
-  `distribution-ssot.md`'s "release + nightly" claim remains aspirational
-  prose and is not made true by this design.
+- Wiring a nightly/scheduled release trigger. Phase 0 removes the guard
+  that made nightly tags *impossible*, but no scheduled workflow is added
+  here. `distribution-ssot.md`'s "release + nightly" claim remains
+  aspirational prose; this design unblocks it without fulfilling it.
 
 ## Risks
 
@@ -211,5 +307,15 @@ needs no tag.
   necessary but may surface per-platform bundling errors (icon formats,
   Linux `.deb`/AppImage deps) that have never run once. First real signal
   comes from the tag push.
-- **GPU plugin install is a two-release bootstrap** (assets first, catalog
-  pin second) — see Phase 3 Checksums.
+- **The `install.rs` change is on a fail-closed security path.** Deriving
+  the expected hash from the release's `checksums.txt` for first-party
+  sources must be reviewed as a security change. The invariant to hold: an
+  archive is still refused unless its computed hash matches one obtained
+  from the release, and third-party `github:OWNER/REPO` sources keep the
+  pinned-hash path untouched. A bug here converts a fail-closed check into
+  a fail-open one, which is strictly worse than the gap it replaces.
+- **`checksums.txt` must actually contain the plugin zips.** It is
+  generated over files staged into `release-*` artifact directories, so a
+  plugin build job that stages its zip elsewhere would produce a release
+  whose plugins can never be verified. The packaging step and the checksum
+  step have to agree on the staging path.
