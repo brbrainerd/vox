@@ -308,6 +308,132 @@ fn extract_plugin_zip_capped(data: &[u8], dest: &Path, max_uncompressed_bytes: u
     Ok(())
 }
 
+/// The repo whose own GitHub Release first-party plugins ship as assets of.
+/// `install_from_catalog` compares a `github:` source against this to decide
+/// whether the dynamic, checksums.txt-verified path below applies instead of
+/// requiring a hand-pinned version+sha256.
+const FIRST_PARTY_PLUGIN_REPO: &str = "vox-foundation/vox";
+
+/// Override for the release TAG a first-party plugin is fetched from.
+///
+/// The plugin's version (and therefore its asset filename) always comes from
+/// this binary's own `CARGO_PKG_VERSION`. The release it lives in is normally
+/// `v<that version>` -- but a prerelease verification run publishes to e.g.
+/// `v0.6.0-rc.4735` while the binary still reports `0.6.0`. Without this
+/// override the install path cannot be exercised before the final release
+/// exists, which would leave a fail-closed security path shipping unproven.
+/// Verification-only; never needed for a normal install.
+pub(crate) const PLUGIN_RELEASE_TAG_ENV: &str = "VOX_PLUGIN_RELEASE_TAG";
+
+/// Parse a `checksums.txt` body (`sha256sum` output: `<hash>  <filename>`)
+/// into filename -> lowercase hex sha256.
+///
+// vox:defactored-from voxup 2026-08-24 (voxup::download::parse_checksums, ~13 lines)
+fn parse_checksums(text: &str) -> std::collections::HashMap<String, String> {
+    text.lines()
+        .filter(|l| !l.trim().is_empty())
+        .filter_map(|line| {
+            let (hash, rest) = line.split_once("  ")?;
+            let name = rest.trim().to_string();
+            let hash = hash.trim().to_lowercase();
+            if hash.len() != 64 {
+                return None;
+            }
+            Some((name, hash))
+        })
+        .collect()
+}
+
+/// Asset URL, checksums URL, and asset filename for a first-party plugin
+/// published under release tag `tag`. Pure and deterministic.
+fn first_party_plugin_urls_tagged(
+    id: &str,
+    version: &str,
+    triple: &str,
+    tag: &str,
+) -> (String, String, String) {
+    let asset_name = format!("{id}-v{version}-{triple}.zip");
+    let base = format!("https://github.com/{FIRST_PARTY_PLUGIN_REPO}/releases/download/{tag}");
+    (
+        format!("{base}/{asset_name}"),
+        format!("{base}/checksums.txt"),
+        asset_name,
+    )
+}
+
+/// Same, for the normal case where the release tag is `v<version>`.
+fn first_party_plugin_urls(id: &str, version: &str, triple: &str) -> (String, String, String) {
+    first_party_plugin_urls_tagged(id, version, triple, &format!("v{version}"))
+}
+
+/// Fetch `checksums.txt` and return the hash recorded for `asset_name`.
+///
+/// Fail-closed: a network error, malformed body, or missing entry is always
+/// an `Err`. Whether that is fatal is the caller's decision, made solely
+/// from the explicit `allow_unverified` flag -- never inferred here.
+async fn fetch_first_party_checksum(checksums_url: &str, asset_name: &str) -> Result<String> {
+    let client = vox_http_client::client();
+    let text = client
+        .get(checksums_url)
+        .send()
+        .await
+        .with_context(|| format!("GET {checksums_url}"))?
+        .error_for_status()
+        .with_context(|| format!("HTTP error fetching {checksums_url}"))?
+        .text()
+        .await
+        .context("reading checksums.txt")?;
+
+    parse_checksums(&text).remove(asset_name).with_context(|| {
+        format!(
+            "no checksums.txt entry found for {asset_name} at {checksums_url}. \
+             If this plugin's build was skipped for this release (e.g. the CUDA \
+             job is allowed to fail), no asset was published for your platform."
+        )
+    })
+}
+
+/// Install a first-party plugin shipped as a release asset of vox's own repo.
+///
+/// Neither version nor sha256 is pinned in catalog.toml: the plugin ships in
+/// the SAME release as this running binary, so its version is this binary's
+/// own `CARGO_PKG_VERSION` and its expected hash comes from that release's
+/// `checksums.txt` -- the mechanism `voxup` already uses to verify the `vox`
+/// binary itself. This stays inside the trust boundary the running binary is
+/// already in; it does not widen it to arbitrary `github:` sources.
+async fn install_first_party_plugin(
+    id: &str,
+    triple: &str,
+    yes: bool,
+    allow_unverified: bool,
+) -> Result<()> {
+    let version = env!("CARGO_PKG_VERSION");
+    let (asset_url, checksums_url, asset_name) = match std::env::var(PLUGIN_RELEASE_TAG_ENV) {
+        Ok(tag) if !tag.trim().is_empty() => {
+            eprintln!(
+                "ℹ {PLUGIN_RELEASE_TAG_ENV}={tag} -- fetching {id} from that release \
+                 instead of v{version}."
+            );
+            first_party_plugin_urls_tagged(id, version, triple, tag.trim())
+        }
+        _ => first_party_plugin_urls(id, version, triple),
+    };
+
+    // Always ATTEMPT the fetch, even with --allow-unverified: the flag means
+    // "install despite a failed check", not "skip looking". A user who opts
+    // out still gets told what the recorded hash was, or why there wasn't one.
+    let expected_sha256 = match fetch_first_party_checksum(&checksums_url, &asset_name).await {
+        Ok(hash) => Some(hash),
+        Err(e) if allow_unverified => {
+            eprintln!("⚠ could not obtain a recorded checksum ({e:#}); continuing because --allow-unverified was passed.");
+            None
+        }
+        Err(e) => return Err(e),
+    };
+
+    install_from_url(&asset_url, yes, expected_sha256.as_deref(), allow_unverified).await
+}
+
 /// Verify a downloaded plugin archive and return its lowercase hex SHA-256.
 ///
 /// Fail-closed: with no `expected` hash this REFUSES unless `allow_unverified`.
@@ -419,9 +545,18 @@ async fn install_from_catalog(id: &str, yes: bool, allow_unverified: bool) -> Re
         let local_path = std::path::Path::new(rel);
         install_from_path(local_path, yes)
     } else if let Some(gh) = source.strip_prefix("github:") {
+        let triple = vox_plugin_host::current_target_triple_key();
+
+        // First-party plugins shipped inside vox's own release derive both
+        // version and checksum dynamically -- see install_first_party_plugin.
+        if gh == FIRST_PARTY_PLUGIN_REPO {
+            return install_first_party_plugin(id, triple, yes, allow_unverified).await;
+        }
+
+        // Third-party sources keep the pinned-hash model, unchanged: no
+        // dynamic lookup for a repo this binary shares no release with.
         // Pinned, not `latest`: the bytes behind a floating asset change, so no
         // recorded hash could ever match it.
-        let triple = vox_plugin_host::current_target_triple_key();
         let version = entry.version.as_deref().with_context(|| {
             format!(
                 "plugin '{id}' has a github: source but no pinned `version` in \
@@ -765,7 +900,12 @@ version = \"../../..\"
     async fn catalog_local_source_is_refused_without_the_opt_in() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
-        let err = install_from_catalog("mens-candle-metal", true, false)
+        // nvml-probe, not mens-candle-metal: the GPU plugins now ship as
+        // first-party release assets (github:vox-foundation/vox), so they no
+        // longer exercise the `local:` refusal this test exists to guard --
+        // and routing them here would make a live network call from a unit
+        // test. nvml-probe is still a `local:` entry in catalog.toml.
+        let err = install_from_catalog("nvml-probe", true, false)
             .await
             .expect_err("a CWD-relative local: source must not install by default");
         let m = err.to_string();
@@ -846,6 +986,74 @@ version = \"../../..\"
         assert!(
             m.contains("no pinned `version`") || m.contains("no sha256"),
             "expected a pre-network refusal, got: {m}"
+        );
+    }
+
+    #[test]
+    fn parse_checksums_extracts_name_to_hash_pairs() {
+        let text = "\
+aaaa000000000000000000000000000000000000000000000000000000001111  mens-candle-metal-v0.6.0-macos-aarch64.zip
+bbbb000000000000000000000000000000000000000000000000000000002222  checksums.txt
+";
+        let got = parse_checksums(text);
+        assert_eq!(
+            got.get("mens-candle-metal-v0.6.0-macos-aarch64.zip")
+                .map(String::as_str),
+            Some("aaaa000000000000000000000000000000000000000000000000000000001111")
+        );
+        assert_eq!(got.len(), 2);
+    }
+
+    #[test]
+    fn parse_checksums_skips_short_and_blank_lines() {
+        let text = "\n   \nnothash  file.zip\n";
+        let got = parse_checksums(text);
+        assert!(
+            got.is_empty(),
+            "malformed/short hash lines must be skipped, got {got:?}"
+        );
+    }
+
+    #[test]
+    fn first_party_plugin_urls_are_built_from_the_running_binary_version() {
+        let (asset_url, checksums_url, asset_name) =
+            first_party_plugin_urls("mens-candle-metal", "0.6.0", "macos-aarch64");
+        assert_eq!(asset_name, "mens-candle-metal-v0.6.0-macos-aarch64.zip");
+        assert_eq!(
+            asset_url,
+            "https://github.com/vox-foundation/vox/releases/download/v0.6.0/mens-candle-metal-v0.6.0-macos-aarch64.zip"
+        );
+        assert_eq!(
+            checksums_url,
+            "https://github.com/vox-foundation/vox/releases/download/v0.6.0/checksums.txt"
+        );
+    }
+
+    /// The release tag and the plugin's own version are separate inputs: a
+    /// prerelease (v0.6.0-rc.4735) ships a plugin whose version is still
+    /// 0.6.0, so the asset NAME and the release TAG must be allowed to
+    /// differ. Without this the security-critical install path cannot be
+    /// exercised on any rc tag.
+    #[test]
+    fn a_release_tag_override_changes_only_the_tag_not_the_asset_name() {
+        let (asset_url, checksums_url, asset_name) = first_party_plugin_urls_tagged(
+            "mens-candle-metal",
+            "0.6.0",
+            "macos-aarch64",
+            "v0.6.0-rc.4735",
+        );
+        assert_eq!(asset_name, "mens-candle-metal-v0.6.0-macos-aarch64.zip");
+        assert!(
+            asset_url.contains("/download/v0.6.0-rc.4735/"),
+            "got {asset_url}"
+        );
+        assert!(
+            asset_url.ends_with("mens-candle-metal-v0.6.0-macos-aarch64.zip"),
+            "got {asset_url}"
+        );
+        assert_eq!(
+            checksums_url,
+            "https://github.com/vox-foundation/vox/releases/download/v0.6.0-rc.4735/checksums.txt"
         );
     }
 }
