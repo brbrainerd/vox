@@ -19,8 +19,8 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 | id | extension points | default-source | bundled-in |
 |----|------------------|----------------|------------|
 | `nvml-probe` | `HardwareProbe` | `local:crates/vox-plugin-nvml-probe` | `vox-ml`, `vox-dev` |
-| `mens-candle-cuda` | `MlBackend` | `github:vox-foundation/vox-plugin-mens-candle-cuda` | `vox-ml`, `vox-dev` |
-| `mens-candle-metal` | `MlBackend` | `local:crates/vox-plugin-mens-candle-metal` | `vox-ml-metal`, `vox-dev` |
+| `mens-candle-cuda` | `MlBackend` | `github:vox-foundation/vox` | `vox-ml`, `vox-dev` |
+| `mens-candle-metal` | `MlBackend` | `github:vox-foundation/vox` | `vox-ml-metal`, `vox-dev` |
 | `oratio` | `AudioCapture`, `SpeechToText` | `github:vox-foundation/vox-plugin-oratio` | `vox-dev` |
 | `webhook` | `HttpListener` | `local:crates/vox-plugin-webhook` | `vox-server`, `vox-dev` |
 | `browser` | `BrowserAutomation` | `github:vox-foundation/vox-plugin-browser` | `vox-dev` |
