@@ -396,6 +396,11 @@ mod routing_tests {
             temperature: None,
             top_p: None,
             skill: None,
+            model_override: None,
+            tier: None,
+            clutch: None,
+            risk: None,
+            skill_exclusions: vec![],
             force_research: None,
             research_scope: None,
         };
@@ -418,6 +423,11 @@ mod routing_tests {
             temperature: None,
             top_p: None,
             skill: None,
+            model_override: None,
+            tier: None,
+            clutch: None,
+            risk: None,
+            skill_exclusions: vec![],
             force_research: None,
             research_scope: None,
         };

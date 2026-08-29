@@ -39,6 +39,46 @@ struct AgentTurnResult {
     selection_reason: Option<String>,
 }
 
+/// Model preference for this turn: per-request pick, then the process-global
+/// override, then nothing (the auto-selector runs). Blanks are not picks — the
+/// resolver treats `""` as an explicit, unresolvable model id, so an empty
+/// composer field must neither shadow the global nor reach it.
+pub fn effective_model_pref(request: Option<&str>, global: Option<&str>) -> Option<String> {
+    request
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .or_else(|| global.map(str::trim).filter(|s| !s.is_empty()))
+        .map(str::to_string)
+}
+
+/// Composer tier -> resolution constraints. Deliberately NOT `cognitive_profile`:
+/// that field's values are `fast|reasoning|creative` and setting it switches the
+/// turn off the agent loop onto `mcp_infer_completion`, losing tool calls and
+/// the selection rationale.
+pub fn resolution_for_tier(
+    tier: Option<&str>,
+    base: McpChatModelResolution,
+) -> McpChatModelResolution {
+    match tier.map(str::trim) {
+        Some("local") => McpChatModelResolution {
+            enforce_free_tier_only: true,
+            ..base
+        },
+        Some("mesh") => McpChatModelResolution {
+            free_tier_latency_critical: true,
+            ..base
+        },
+        Some("cloud") => McpChatModelResolution {
+            allow_cheapest_fallback: false,
+            ..base
+        },
+        _ => McpChatModelResolution {
+            allow_cheapest_fallback: true,
+            ..base
+        },
+    }
+}
+
 /// Task 1.3d (F24 wiring): attempt the tool-calling agent loop
 /// ([`super::agent_loop::run_agent_turn`]) for the default (non-`cognitive_profile`)
 /// `vox_chat_message` path.
@@ -70,6 +110,10 @@ async fn try_run_agent_turn(
     has_attachment: bool,
     temperature: Option<f32>,
     top_p: Option<f32>,
+    request_model_override: Option<&str>,
+    tier: Option<&str>,
+    clutch: Option<&str>,
+    risk: Option<&str>,
 ) -> Option<Result<AgentTurnResult, String>> {
     if has_attachment {
         return None;
@@ -88,20 +132,25 @@ async fn try_run_agent_turn(
         return Some(Err(e));
     }
 
-    let pref = match crate::sync_poison::poison_rw_read(
+    let global_pref = match crate::sync_poison::poison_rw_read(
         state.mcp_chat_model_override.read(),
         "mcp_chat_model_override",
     ) {
         Ok(g) => g.clone(),
         Err(e) => return Some(Err(e.to_string())),
     };
+    let pref = effective_model_pref(request_model_override, global_pref.as_deref());
     let context_fill_ratio =
         crate::llm_bridge::mcp_global_llm_context_fill_ratio(&state.orchestrator);
-    let resolution_template = McpChatModelResolution {
-        allow_cheapest_fallback: true,
-        context_fill_ratio,
-        ..Default::default()
-    };
+    let resolution_template = resolution_for_tier(
+        tier,
+        McpChatModelResolution {
+            context_fill_ratio,
+            clutch: clutch.and_then(vox_orchestrator::mode::ClutchProfile::from_label),
+            risk: risk.and_then(vox_orchestrator::mode::RiskPosture::from_label),
+            ..Default::default()
+        },
+    );
     let choice = match crate::llm_bridge::resolve_mcp_chat_model_with_rationale(
         state,
         user_prompt,
@@ -516,13 +565,17 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             }
         };
     // F3: resolve sticky model override to pass as model_key for profile injection.
-    let sticky_model_key: Option<String> = match crate::sync_poison::poison_rw_read(
-        state.mcp_chat_model_override.read(),
-        "mcp_chat_model_override",
-    ) {
-        Ok(g) => g.clone(),
-        Err(_) => None,
-    };
+    let sticky_model_key: Option<String> = effective_model_pref(
+        params.model_override.as_deref(),
+        match crate::sync_poison::poison_rw_read(
+            state.mcp_chat_model_override.read(),
+            "mcp_chat_model_override",
+        ) {
+            Ok(g) => g.clone(),
+            Err(_) => None,
+        }
+        .as_deref(),
+    );
     let system_prompt = format!(
         "{}{}\n\n{}",
         build_system_prompt_with_skill(
@@ -563,16 +616,20 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 .await
                 {
                     Ok((model, free_only)) => {
-                        let pref = match crate::sync_poison::poison_rw_read(
-                            state.mcp_chat_model_override.read(),
-                            "mcp_chat_model_override",
-                        ) {
-                            Ok(g) => g.clone(),
-                            Err(e) => {
-                                tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
-                                None
+                        let pref = effective_model_pref(
+                            params.model_override.as_deref(),
+                            match crate::sync_poison::poison_rw_read(
+                                state.mcp_chat_model_override.read(),
+                                "mcp_chat_model_override",
+                            ) {
+                                Ok(g) => g.clone(),
+                                Err(e) => {
+                                    tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
+                                    None
+                                }
                             }
-                        };
+                            .as_deref(),
+                        );
                         let max_tokens =
                             crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
                         let routing = McpInferRouting {
@@ -658,6 +715,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 params.attachment_manifest.is_some(),
                 params.temperature,
                 params.top_p,
+                params.model_override.as_deref(),
+                params.tier.as_deref(),
+                params.clutch.as_deref(),
+                params.risk.as_deref(),
             )
             .await
             {
@@ -1224,6 +1285,10 @@ mod tests {
             false,
             None,
             None,
+            None,
+            None,
+            None,
+            None,
         )
         .await;
 
@@ -1395,5 +1460,66 @@ mod tests {
              Orchestrator::record_chat_attention so the GUI meter moves; \
              before={spent_before} after={spent_after}"
         );
+    }
+
+    // ── Task A2: per-request model override + composer tier ──────────────
+
+    #[test]
+    fn request_override_beats_process_global() {
+        assert_eq!(
+            effective_model_pref(Some("req"), Some("glob")),
+            Some("req".into())
+        );
+    }
+
+    #[test]
+    fn falls_back_to_process_global() {
+        assert_eq!(
+            effective_model_pref(None, Some("glob")),
+            Some("glob".into())
+        );
+    }
+
+    #[test]
+    fn blank_request_override_is_not_a_pick() {
+        // A blank must not shadow the global, and must never reach the
+        // resolver -- which treats "" as an explicit, unresolvable model id.
+        assert_eq!(
+            effective_model_pref(Some("  "), Some("glob")),
+            Some("glob".into())
+        );
+        assert_eq!(effective_model_pref(Some(""), None), None);
+    }
+
+    #[test]
+    fn tier_maps_to_resolution_not_cognitive_profile() {
+        let r = resolution_for_tier(Some("local"), McpChatModelResolution::default());
+        assert!(r.enforce_free_tier_only || r.allow_cheapest_fallback);
+        let auto = resolution_for_tier(None, McpChatModelResolution::default());
+        assert!(auto.allow_cheapest_fallback);
+    }
+
+    /// The trap: `cognitive_profile` takes `fast|reasoning|creative` and a
+    /// non-`None` value switches the whole turn off the agent loop onto
+    /// `mcp_infer_completion` (losing tool calls and `selection_reason`). A
+    /// composer tier must therefore never land in it. Pinned at the only place
+    /// a tier can enter the daemon: `ChatMessageParams` deserialization.
+    #[test]
+    fn tier_never_populates_cognitive_profile() {
+        for tier in ["local", "mesh", "cloud", "auto"] {
+            let params: ChatMessageParams = serde_json::from_value(serde_json::json!({
+                "prompt": "hi",
+                "tier": tier,
+                "clutch": "genius",
+                "risk": "low",
+                "model_override": "some/model",
+            }))
+            .expect("composer payload must deserialize");
+            assert_eq!(params.tier.as_deref(), Some(tier));
+            assert_eq!(
+                params.cognitive_profile, None,
+                "tier {tier:?} must not set cognitive_profile -- doing so would                  route the turn to mcp_infer_completion and kill tool calls"
+            );
+        }
     }
 }

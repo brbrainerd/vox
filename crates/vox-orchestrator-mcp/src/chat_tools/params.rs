@@ -86,6 +86,26 @@ pub struct ChatMessageParams {
     /// models (MENS) follow it without a tool round-trip.
     #[serde(default, alias = "active_skill")]
     pub skill: Option<String>,
+    /// Per-request model pick from the GUI's ChatModelPicker. Takes precedence
+    /// over the daemon's process-global `mcp_chat_model_override`, which stays
+    /// for MCP clients with no per-request channel.
+    #[serde(default)]
+    pub model_override: Option<String>,
+    /// Composer runtime tier: `local|mesh|cloud|auto`. Feeds
+    /// [`McpChatModelResolution`](crate::llm_bridge::McpChatModelResolution),
+    /// NOT `cognitive_profile` — that field takes `fast|reasoning|creative` and
+    /// setting it switches the turn off the agent loop.
+    #[serde(default)]
+    pub tier: Option<String>,
+    /// Composer clutch profile ("how much gas"): `free|efficiency|balanced|genius`.
+    #[serde(default)]
+    pub clutch: Option<String>,
+    /// Composer risk posture: `high|moderate|low`.
+    #[serde(default)]
+    pub risk: Option<String>,
+    /// Session-scoped skills the user rejected in the transcript (Phase E).
+    #[serde(default)]
+    pub skill_exclusions: Vec<String>,
     /// Optional override to force trigger autonomous research (true/false)
     #[serde(default)]
     pub force_research: Option<bool>,
