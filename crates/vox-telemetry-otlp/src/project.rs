@@ -1,5 +1,50 @@
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use vox_telemetry::TelemetryEvent;
+
+/// Salt-hash an open/growing identifier before it leaves the process, using the same
+/// `install_salt` + SHA-256 + lowercase-hex pattern as `skill_id_hash`
+/// (`vox-orchestrator-mcp/src/chat_tools/mod.rs`). Used for fields whose real value
+/// space cannot be a bounded taxonomy enum (model ids, lint rule ids).
+fn salted_hash(raw: &str) -> String {
+    let salt = vox_telemetry::config::install_salt();
+    let mut hasher = Sha256::new();
+    hasher.update(salt);
+    hasher.update(raw.as_bytes());
+    hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+/// Bucket a free-form `ErrorEvent.subsystem` path (e.g. `"llm.http"`, `"orch.circuit_breaker"`)
+/// onto the bounded `errors.subsystem` taxonomy enum. Unrecognized/future subsystem strings
+/// fall back to `"unknown"` rather than leaking the raw dot-path.
+fn normalize_error_subsystem(raw: &str) -> &'static str {
+    if raw.starts_with("llm.") {
+        "llm_http"
+    } else if raw == "orch.circuit_breaker" {
+        "task_lifecycle"
+    } else {
+        "unknown"
+    }
+}
+
+/// Bucket a free-form `ErrorEvent.error_class` tag (e.g. `"rate-limited"`,
+/// `"connection-timeout"`) onto the bounded `errors.error_class` taxonomy enum.
+/// Unrecognized/future error-class strings fall back to `"unknown"`.
+fn normalize_error_class(raw: &str) -> &'static str {
+    match raw {
+        "rate-limited" => "rate_limited",
+        "server-error" | "llm-api-error" => "server_error",
+        "client-error" => "client_error",
+        "transport-error" | "stream-connect-error" => "transport_error",
+        "connection-timeout" => "timeout",
+        "context-exceeded" => "validation",
+        _ => "unknown",
+    }
+}
 
 /// Maps a `TelemetryEvent` to its collection `(category, flat_map)`, applying privacy
 /// transforms. Returns `None` for variants with no product-relevant mapping (not uploaded).
@@ -8,6 +53,10 @@ use vox_telemetry::TelemetryEvent;
 /// - `session_id` → prefix kept as enum under `session_prefix`; suffix is salt-hashed
 ///   under `session_suffix_hash` (salt comes from `vox_telemetry::config::install_salt`).
 /// - `metadata_json` and any free-form `String` → dropped entirely.
+/// - Open/growing identifiers (`model_id`, `rule_id`) → salt-hashed via [`salted_hash`],
+///   matching the `skill_id_hash` pattern.
+/// - `ErrorEvent`'s free-form `subsystem`/`error_class` → bucketed onto the same bounded
+///   enums as `ErrorSurfaceEvent` via [`normalize_error_subsystem`]/[`normalize_error_class`].
 /// - Numeric/enum/bool fields → passed through under their taxonomy field name.
 pub fn project_event(event: &TelemetryEvent) -> Option<(String, serde_json::Map<String, Value>)> {
     match event {
@@ -28,7 +77,7 @@ pub fn project_event(event: &TelemetryEvent) -> Option<(String, serde_json::Map<
 
         TelemetryEvent::ModelCall(e) => {
             let mut map = serde_json::Map::new();
-            map.insert("model_id".into(), Value::String(e.model.clone()));
+            map.insert("model_id_hash".into(), Value::String(salted_hash(&e.model)));
             map.insert("provider".into(), Value::String(e.provider.clone()));
             map.insert(
                 "duration_bucket".into(),
@@ -51,8 +100,14 @@ pub fn project_event(event: &TelemetryEvent) -> Option<(String, serde_json::Map<
 
         TelemetryEvent::Error(e) => {
             let mut map = serde_json::Map::new();
-            map.insert("subsystem".into(), Value::String(e.subsystem.clone()));
-            map.insert("error_class".into(), Value::String(e.error_class.clone()));
+            map.insert(
+                "subsystem".into(),
+                Value::String(normalize_error_subsystem(&e.subsystem).to_string()),
+            );
+            map.insert(
+                "error_class".into(),
+                Value::String(normalize_error_class(&e.error_class).to_string()),
+            );
             map.insert("recoverable".into(), Value::Bool(e.retried));
             // trace_id / model / provider dropped.
             Some(("errors".into(), map))
@@ -102,7 +157,10 @@ pub fn project_event(event: &TelemetryEvent) -> Option<(String, serde_json::Map<
 
         TelemetryEvent::LintFinding(e) => {
             let mut map = serde_json::Map::new();
-            map.insert("rule_id".into(), Value::String(e.rule_id.clone()));
+            map.insert(
+                "rule_id_hash".into(),
+                Value::String(salted_hash(&e.rule_id)),
+            );
             map.insert("severity".into(), Value::String(e.severity.clone()));
             map.insert("autofix_available".into(), Value::Bool(e.autofix_available));
             // relative_path / repository_id dropped.
@@ -143,7 +201,10 @@ pub fn project_event(event: &TelemetryEvent) -> Option<(String, serde_json::Map<
         TelemetryEvent::SelectionDecision(e) => {
             let mut map = serde_json::Map::new();
             map.insert("task".into(), Value::String(e.task.clone()));
-            map.insert("chosen_model".into(), Value::String(e.chosen_model.clone()));
+            map.insert(
+                "chosen_model_id_hash".into(),
+                Value::String(salted_hash(&e.chosen_model)),
+            );
             map.insert("reason".into(), Value::String(e.reason.clone()));
             // repository_id dropped.
             Some(("model_calls".into(), map))
