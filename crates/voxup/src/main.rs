@@ -26,6 +26,12 @@ enum Commands {
     Install {
         #[arg(default_value = "default")]
         profile: String,
+        /// Install a specific release tag instead of the latest stable
+        /// release — e.g. a nightly prerelease (`v0.6.0-nightly.4812`) built
+        /// by `.github/workflows/nightly-tag.yml`. `/releases/latest`
+        /// excludes prereleases, so this is the only way to fetch one.
+        #[arg(long)]
+        tag: Option<String>,
     },
     /// Check for a newer Vox release and upgrade if one is available.
     Update,
@@ -62,9 +68,9 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
     match &cli.command {
-        Commands::Install { profile } => {
+        Commands::Install { profile, tag } => {
             info!("Installing Vox (profile: {profile})");
-            install::run_install(profile).await?;
+            install::run_install(profile, tag.as_deref()).await?;
         }
         Commands::Update => {
             info!("Checking for Vox updates…");

@@ -47,7 +47,7 @@ fn staging_dir_for(cache_dir: &Path, version: &str) -> std::path::PathBuf {
     cache_dir.join(format!("vox-{version}.incoming"))
 }
 
-pub async fn run_install(profile: &str) -> Result<()> {
+pub async fn run_install(profile: &str, tag: Option<&str>) -> Result<()> {
     // Validate tier before touching the network.
     crate::profiles::validate_tier(crate::profiles::PROFILES_YAML, profile)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -64,10 +64,18 @@ pub async fn run_install(profile: &str) -> Result<()> {
     fs::create_dir_all(&bin_dir)?;
     fs::create_dir_all(&cache_dir)?;
 
-    info!("Fetching latest Vox release from GitHub…");
     let client = crate::channel::make_client()?;
-    let release = crate::channel::fetch_latest(&client).await?;
-    info!("Latest release: {} ({})", release.tag, release.version);
+    let release = match tag {
+        Some(tag) => {
+            info!("Fetching release '{tag}' from GitHub…");
+            crate::channel::fetch_by_tag(&client, tag).await?
+        }
+        None => {
+            info!("Fetching latest Vox release from GitHub…");
+            crate::channel::fetch_latest(&client).await?
+        }
+    };
+    info!("Release: {} ({})", release.tag, release.version);
 
     // Download and parse checksums.txt
     let ck_asset = release

@@ -17,6 +17,8 @@ Vox is installed, released, and (eventually) published.
 - **Publish set** — the crates.io publish list (leaf-first), reconciled against
   `crates/_public.toml`. `publish.enabled: false` keeps the public flip deferred.
 - **Binaries** — what release + nightly build (`vox`, `vox-ml-cli`, `voxup`).
+  Nightly tagging/pruning and local nightly install are documented in
+  [nightly-builds-ssot.md](nightly-builds-ssot.md), not here.
 - **agy containment** — `agy` is runtime-optional in the `full` tier only;
   `vox-orchestrator-mcp` is non-publishable. Enforced by the parity test.
 
