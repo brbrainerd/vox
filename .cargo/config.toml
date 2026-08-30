@@ -2,6 +2,13 @@
 # Dedicated vox-schola binary (Candle QLoRA + CUDA by default) — fastest incremental (~15 s).
 vox-schola-dev       = "run -p vox-schola --"
 
+# vox-gui specifically cannot link with the workspace-default lld-link (see the
+# [target.x86_64-pc-windows-msvc] comment below) — use these instead of plain
+# `cargo build/test/check -p vox-gui`.
+gui-build = "build -p vox-gui --config target.x86_64-pc-windows-msvc.linker=\"link.exe\""
+gui-test  = "test -p vox-gui --config target.x86_64-pc-windows-msvc.linker=\"link.exe\""
+gui-check = "check -p vox-gui --config target.x86_64-pc-windows-msvc.linker=\"link.exe\""
+
 # ---------------------------------------------------------------------------
 # Optional: sccache (shared compiler cache across worktrees / CI)
 # ---------------------------------------------------------------------------
@@ -39,8 +46,23 @@ rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 # lld-link bug; fixed via the orphan cleanup + process-hygiene work. Re-verified:
 # 15/15 trivial-crate relinks + 5/5 real-crate (run-the-tests) relinks, zero lock.
 # lld-link links the large (~115 MB) vox binaries much faster than MSVC link.exe.
-# `vox doctor`'s linker check guards this; revert to the default link.exe only if the
-# lock recurs.
+# `vox doctor`'s linker check guards lld-link being MISSING from PATH — it does not,
+# and cannot cheaply, catch the class of failure below.
+#
+# NOTE this default does not cover vox-gui (2026-08-30 investigation). Its link
+# needs BOTH ucrt.lib (dynamic CRT import stubs — required by aws-lc-sys/zstd-sys,
+# whose objects reference _wassert/clock/bsearch/qsort_s/clearerr as
+# __declspec(dllimport)) AND libucrt.lib (static CRT math — required directly by
+# Rust's own f64/f32 intrinsics and by candle-core's float path). link.exe
+# reconciles the overlap between those two libraries (e.g. both define _wctype)
+# silently; lld-link 22.1.8 hard-errors on it, and no combination of
+# /DEFAULTLIB / /NODEFAULTLIB / /FORCE:MULTIPLE resolved it — each fix surfaced a
+# new lld-link-specific error on a different symbol (_wctype, then 13 undefined
+# math intrinsics with libucrt.lib excluded, then __acrt_iob_func "was replaced"
+# once /FORCE:MULTIPLE was added). Verified pre-existing, not caused by any
+# change to this workspace's Rust code. Use `cargo gui-build` / `cargo gui-test` /
+# `cargo gui-check` (below) for vox-gui, which override to link.exe — plain
+# `cargo build/test -p vox-gui` will fail to link.
 linker = "lld-link"
 rustflags = ["-C", "link-arg=/DEBUG:NONE", "-C", "link-arg=/STACK:8388608"]
 

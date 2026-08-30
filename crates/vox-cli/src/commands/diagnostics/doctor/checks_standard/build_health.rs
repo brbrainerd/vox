@@ -28,6 +28,7 @@ pub(crate) const KNOWN_DIAGNOSIS_IDS: &[&str] = &[
     "sccache.shadowed_shim",
     "vox.schema_drift",
     "linker.lld_missing",
+    "linker.gui_carveout_missing",
     "ci.hook_guard_stale_binary",
 ];
 
@@ -451,7 +452,7 @@ pub(crate) fn check_kind_for_diag(id: &str) -> Option<DiagCheckKind> {
         "docker.wsl_wedged" | "docker.daemon_down" | "docker.absent" => Some(DiagCheckKind::Docker),
         "sccache.pathological" | "sccache.shadowed_shim" => Some(DiagCheckKind::Sccache),
         "vox.schema_drift" => Some(DiagCheckKind::Schema),
-        "linker.lld_missing" => Some(DiagCheckKind::Linker),
+        "linker.lld_missing" | "linker.gui_carveout_missing" => Some(DiagCheckKind::Linker),
         "ci.hook_guard_stale_binary" => Some(DiagCheckKind::HookGuard),
         _ => None,
     }
@@ -501,7 +502,9 @@ async fn execute_heal(action: &HealAction) {
 }
 
 /// On Windows the build uses `lld-link` (`.cargo/config.toml`); if it vanished from
-/// PATH, links fail confusingly. Elsewhere this is a no-op pass.
+/// PATH, links fail confusingly. Also runs [`gui_linker_carveout_health`], which
+/// guards the separate vox-gui-specific `link.exe` carve-out. Elsewhere (non-Windows)
+/// this is a no-op pass.
 pub(crate) async fn linker_health(checks: &mut Vec<Check>) {
     if !cfg!(target_os = "windows") {
         return;
@@ -520,6 +523,63 @@ pub(crate) async fn linker_health(checks: &mut Vec<Check>) {
             "`.cargo/config.toml` sets linker = \"lld-link\" but it is not on PATH — links will fail",
             "install LLVM (lld-link) or drop the `linker = \"lld-link\"` line to fall back to MSVC link.exe",
             false))
+    });
+
+    gui_linker_carveout_health(checks).await;
+}
+
+/// vox-gui cannot link with the workspace-default lld-link (2026-08-30
+/// investigation, see the `.cargo/config.toml` comment above `linker = "lld-link"`):
+/// its link needs both `ucrt.lib` and `libucrt.lib` simultaneously, and lld-link
+/// 22.1.8 hard-errors on the overlap between them (no combination of
+/// `/DEFAULTLIB`/`/NODEFAULTLIB`/`/FORCE:MULTIPLE` resolved it — each attempt
+/// surfaced a new lld-link-specific error on a different symbol). The `gui-build`
+/// / `gui-test` / `gui-check` cargo aliases carve out `link.exe` for vox-gui only.
+///
+/// This does NOT attempt a real link (that's the ~20+ minute reproduction the
+/// investigation itself needed) — it only guards the two cheap preconditions
+/// for the carve-out to keep working: the aliases are still present in
+/// `.cargo/config.toml`, and `link.exe` (MSVC Build Tools) is still on PATH.
+/// Losing either would silently turn `cargo gui-test` back into the same
+/// unlinkable failure `cargo test -p vox-gui` hits today.
+async fn gui_linker_carveout_health(checks: &mut Vec<Check>) {
+    let config_path = crate::commands::ci::repo_root().join(".cargo/config.toml");
+    let aliases_present = std::fs::read_to_string(&config_path)
+        .map(|s| s.contains("gui-build") && s.contains("gui-test"))
+        .unwrap_or(false);
+    let link_exe_ok = quiet("link.exe")
+        .arg("/?")
+        .output()
+        .await
+        .map(|o| o.status.code().is_some())
+        .unwrap_or(false);
+
+    checks.push(if aliases_present && link_exe_ok {
+        Check::pass(
+            "linker: vox-gui carve-out",
+            "gui-build/gui-test aliases present, link.exe on PATH",
+        )
+    } else {
+        let missing = match (aliases_present, link_exe_ok) {
+            (false, false) => "the gui-* aliases in .cargo/config.toml AND link.exe on PATH",
+            (false, true) => "the gui-* aliases in .cargo/config.toml",
+            (true, false) => "link.exe on PATH (MSVC Build Tools)",
+            (true, true) => unreachable!("checked above"),
+        };
+        Check::fail(
+            "linker: vox-gui carve-out",
+            diag(
+                "linker.gui_carveout_missing",
+                "warn",
+                &format!(
+                    "vox-gui cannot link with lld-link (the workspace default) and is missing {missing}"
+                ),
+                "restore the gui-build/gui-test/gui-check aliases in .cargo/config.toml \
+                 and/or install MSVC Build Tools (link.exe) — see the comment above \
+                 [target.x86_64-pc-windows-msvc] for the full root cause",
+                false,
+            ),
+        )
     });
 }
 
