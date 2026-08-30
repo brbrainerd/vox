@@ -71,15 +71,13 @@ jobs:
         with:
           node-version: '20'
 
-      # Pinned to 9 to match the nine other workflows that use
-      # pnpm/action-setup. This step used to be `npm install -g pnpm`, which
-      # resolves to whatever is latest — pnpm 11 at time of writing. pnpm 11
-      # stopped reading `pnpm.overrides` from package.json and reads
-      # pnpm-workspace.yaml instead, so it computed a different overrides set
-      # than the pnpm-9-generated lockfile records, and every Linux and macOS
-      # run of this workflow died at `pnpm install` with
-      # ERR_PNPM_LOCKFILE_CONFIG_MISMATCH. This was the sole workflow not
-      # pinning pnpm, and it is the reason this workflow has never succeeded.
+      # Pinned to 11 to match the other eighteen workflows using
+      # pnpm/action-setup, and to match crates/vox-gui/ui/pnpm-workspace.yaml,
+      # which carries pnpm-11-only settings (`allowBuilds`, and the `overrides`
+      # block that pnpm 11 reads from this file instead of package.json#pnpm).
+      # This step used to be `npm install -g pnpm`, which resolves to whatever
+      # is latest and left the workflow's pnpm major unpinned -- it was the sole
+      # workflow not pinning, and the reason it had never succeeded.
       - uses: pnpm/action-setup@v6
         with:
           version: 11
