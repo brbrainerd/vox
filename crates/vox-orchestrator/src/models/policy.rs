@@ -500,11 +500,22 @@ mod tests {
 
     #[test]
     #[serial]
+    #[allow(unsafe_code)]
     // EmphasizeAxis-driven scoring reads the process-global BASE_AXES via
     // base_routing_weights() (scoring.rs); #[serial] keeps this mutually
     // exclusive with scoring::tests::install_base_routing_priority_is_observed_then_cleared,
     // which installs/clears that global without a thread-local override.
+    //
+    // The scorer path this exercises (`run_scorer_with_axes` ->
+    // `select_via_scorer_public`) also runs the B3 key-gated candidate filter
+    // (`ModelRegistry::key_is_present_for`) over both fixture models, which are
+    // `ProviderType::OpenRouter`. On a runner with no OPENROUTER_API_KEY both
+    // get rejected regardless of axis emphasis, so set a test key here —
+    // mirrors `key_gate_admits_provider_when_key_present` in select.rs.
     fn emphasize_intelligence_vs_efficiency_differ() {
+        let prior = std::env::var("OPENROUTER_API_KEY").ok();
+        // SAFETY: #[serial]; prior value restored below.
+        unsafe { std::env::set_var("OPENROUTER_API_KEY", "test-key") };
         let r = fixture();
         let intel = SelectionPolicy {
             steps: vec![SelectionStep::EmphasizeAxis {
@@ -518,8 +529,16 @@ mod tests {
                 weight: 90,
             }],
         };
-        let a = resolve_policy(&intel, &intent(), &r, &ctx()).expect("intel selects");
-        let b = resolve_policy(&eff, &intent(), &r, &ctx()).expect("eff selects");
+        let a = resolve_policy(&intel, &intent(), &r, &ctx());
+        let b = resolve_policy(&eff, &intent(), &r, &ctx());
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        let a = a.expect("intel selects");
+        let b = b.expect("eff selects");
         // Intelligence-first should prefer the premium model; efficiency-first
         // should prefer the free/cheap one. They must differ.
         assert_ne!(

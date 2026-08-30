@@ -1134,13 +1134,30 @@ mod tests {
 
     #[test]
     #[serial]
+    #[allow(unsafe_code)]
     fn select_with_premium_alias_honors_alias_when_intelligence_high() {
+        // The premium alias for codegen (anthropic/claude-opus-4.7) is gated by
+        // the key-present check added in the B3 key-gated candidate filter
+        // (`select_via_premium_alias` -> `ModelRegistry::key_is_present_for`).
+        // A hosted CI runner with no ANTHROPIC_API_KEY configured must still be
+        // able to exercise the premium-alias *routing* logic in isolation, so
+        // set a test key here (mirrors `key_gate_admits_provider_when_key_present`).
+        let prior = std::env::var("ANTHROPIC_API_KEY").ok();
+        // SAFETY: #[serial]; prior value restored below.
+        unsafe { std::env::set_var("ANTHROPIC_API_KEY", "test-key") };
         let registry = ModelRegistry::new();
         let intent = SelectionIntent {
             axes: SelectionAxes::QUALITY_FIRST,
             ..SelectionIntent::for_task(TaskCategory::CodeGen)
         };
-        let outcome = select(&intent, &registry).expect("a model exists");
+        let outcome = select(&intent, &registry);
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("ANTHROPIC_API_KEY", v),
+                None => std::env::remove_var("ANTHROPIC_API_KEY"),
+            }
+        }
+        let outcome = outcome.expect("a model exists");
         // With QUALITY_FIRST axes (intelligence=70), premium alias should fire.
         // The alias for codegen is `anthropic/claude-opus-4.7` per current routing.yaml.
         match outcome.reason {
@@ -1352,16 +1369,36 @@ mod tests {
     // flip mid-test, making the two calls' candidate sets diverge.
     #[test]
     #[serial]
+    #[allow(unsafe_code)]
     fn select_with_empty_policy_falls_through_to_cascade() {
+        // BALANCED axes (this intent's default) resolve to `CostPreference::Performance`
+        // (cost=33 <= intelligence+responsiveness=67), which excludes every
+        // free-tier model from the scorer (`registry.rs::best_for_internal`)
+        // unless `allow_free_in_performance_mode` is set — and every paid
+        // candidate is separately excluded by the B3 key-gated candidate filter
+        // when no provider key is configured. On a hosted runner with no
+        // ANTHROPIC_API_KEY, that leaves zero eligible candidates for either
+        // call below. Set a test key so a real paid candidate is selectable,
+        // matching `key_gate_admits_provider_when_key_present`'s pattern.
+        let prior = std::env::var("ANTHROPIC_API_KEY").ok();
+        // SAFETY: #[serial]; prior value restored below.
+        unsafe { std::env::set_var("ANTHROPIC_API_KEY", "test-key") };
         let registry = ModelRegistry::new();
         let intent = SelectionIntent::for_task(TaskCategory::CodeGen);
         // An empty policy carries no steps, so the resolver yields nothing and
         // `select_with_policy` falls through to the pre-existing `select` cascade.
         let policy = crate::models::policy::SelectionPolicy::default();
         let ctx = crate::models::policy::PolicyContext::default();
-        let via_policy = select_with_policy(&intent, &registry, &policy, &ctx)
-            .expect("a model exists for codegen");
-        let via_cascade = select(&intent, &registry).expect("a model exists for codegen");
+        let via_policy = select_with_policy(&intent, &registry, &policy, &ctx);
+        let via_cascade = select(&intent, &registry);
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("ANTHROPIC_API_KEY", v),
+                None => std::env::remove_var("ANTHROPIC_API_KEY"),
+            }
+        }
+        let via_policy = via_policy.expect("a model exists for codegen");
+        let via_cascade = via_cascade.expect("a model exists for codegen");
         assert_eq!(via_policy.model_id, via_cascade.model_id);
     }
 
@@ -1424,7 +1461,17 @@ mod tests {
     // candidate under local_only, not just best_for_internal's own callers.
     #[test]
     #[serial]
+    #[allow(unsafe_code)]
     fn decide_excludes_cloud_candidate_under_local_only_privacy() {
+        // This test targets the *privacy* rejection path specifically, so the
+        // cloud candidate must clear the (separate, earlier-in-the-loop) B3
+        // key-gated candidate filter first — otherwise on a runner with no
+        // OPENROUTER_API_KEY it is rejected as "missing provider key" instead
+        // of "privacy mode excludes cloud", and the assertion below fails for
+        // the wrong reason. Mirrors `key_gate_admits_provider_when_key_present`.
+        let prior = std::env::var("OPENROUTER_API_KEY").ok();
+        // SAFETY: #[serial]; prior value restored below.
+        unsafe { std::env::set_var("OPENROUTER_API_KEY", "test-key") };
         crate::route_policy::set_test_privacy_override(Some("local_only"));
         let mut registry = ModelRegistry::default();
         registry.register(key_gate_spec("cloud-test", ProviderType::OpenRouter));
@@ -1436,6 +1483,12 @@ mod tests {
             ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
         let d = decide(&req, &registry);
         crate::route_policy::set_test_privacy_override(None);
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
         let d = d.expect("local candidate must still be selectable under local_only");
         assert_eq!(d.selected_model, "ollama-local-privacy-test");
         assert!(
