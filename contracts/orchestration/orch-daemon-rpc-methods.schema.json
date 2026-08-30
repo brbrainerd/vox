@@ -54,7 +54,11 @@
         "orch.vcs_isolation_status",
         "orch.vcs_isolation_set_strategy",
         "orch.subagent_tree",
-        "orch.set_mesh_policy"
+        "orch.set_mesh_policy",
+        "orch.safety_budget_signals",
+        "orch.safety_ledger",
+        "orch.safety_locks",
+        "orch.attention_snapshot"
       ]
     },
     "params": {
