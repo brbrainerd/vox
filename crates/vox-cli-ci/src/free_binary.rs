@@ -61,10 +61,11 @@ fn should_reap(
 
     // Guard 4: only `vox` and its managed siblings (vox-orchestrator-d, ...)
     // are reapable; build scripts are excluded.
-    let file = exe
-        .file_name()
-        .map(|n| n.to_string_lossy().to_lowercase())
-        .unwrap_or_default();
+    // Split on both `/` and `\` instead of `Path::file_name()`: the latter is
+    // OS-native and treats a Windows-style path as one opaque component on
+    // Linux (no `/` to split on), which breaks both real Windows paths in
+    // production and the `handles_windows_paths` cross-platform test.
+    let file = exe_s.rsplit('/').next().unwrap_or_default().to_string();
     file == "vox" || file == "vox.exe" || (file.starts_with("vox-") && !file.ends_with("-build"))
 }
 

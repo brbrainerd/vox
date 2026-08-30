@@ -492,7 +492,7 @@ module.exports = grammar({
     // @v0 @ai @prompt @subagent @search @hole @cancellable @form
     // @back_button @deep_link @push @tokens @cors @rate_limit @uses
     // @pii @embed @webhook @public @auth @offline_capable @collaborative
-    // @layer @remote @inference @training_step @distributed_train
+    // @layer @remote @inference @training_step @distributed_train @traced
     decorator: $ => /@[a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*/,
     string: $ => choice(
       // standard double/single-quoted string

@@ -1,17 +1,16 @@
 // ---
 // title: "Advanced Database Queries"
 // description: "Aggregation and composition of database operations via db.*"
-// syntax_version: "0.5.0"
+// syntax_version: "0.6.0"
 // status: golden
 // category: example
-// constructs: [@table, db, match, fn, @query, @mutation]
-// last_validated: 2026-05-13
+// constructs: [table, db, match, fn, query, mutation]
+// last_validated: 2026-08-23
 // training_eligible: true
 // training_weight: 1.0
 // difficulty: intermediate
 // ---
-// @training_prompt: Show database operations in Vox: all(), insert(), get(), and aggregations via len().
-// Note: db.Table.filter() is not yet implemented; filtering is done application-side via len() guards.
+// @training_prompt: Show database operations in Vox: all(), insert(), update(), and typed filter()/where().
 // ANCHOR: display
 table Product {
     name: str
@@ -24,10 +23,8 @@ query product_count() to int {
     return len(db.Product.all())
 }
 
-query all_products() to int {
-    // Returns total count — application-side filtering for category/stock applies
-    let all = db.Product.all()
-    return len(all)
+query in_stock_products() to Result[list[Product], str] {
+    return db.Product.filter({ in_stock: true })
 }
 
 mutation restock(name: str, price: int) to Result[str] {
@@ -38,5 +35,10 @@ mutation restock(name: str, price: int) to Result[str] {
 mutation add_product(name: str, category: str, price: int) to Result[str] {
     db.Product.insert({ name: name, category: category, price: price, in_stock: true })?
     return Ok("added")
+}
+
+mutation mark_out_of_stock(id: int, name: str, category: str, price: int) to Result[str] {
+    db.Product.update(id, { name: name, category: category, price: price, in_stock: false })?
+    return Ok("updated")
 }
 // ANCHOR_END: display

@@ -164,6 +164,13 @@ mod tests {
     /// env vars, so they cannot run concurrently with each other.
     static TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+    // These tests force `VOX_ORATIO_BACKEND=whisper` (or exercise the "auto"
+    // fallback path that lands on Candle Whisper), so they require the
+    // `stt-candle` feature — which is NOT a default feature (see the
+    // `[features]` doc comment in Cargo.toml: heavy ML deps are opt-in).
+    // Without it, `create_backend()` correctly errors, which these tests
+    // would otherwise misreport as a bug.
+    #[cfg(feature = "stt-candle")]
     #[test]
     fn with_cached_backend_constructs_once() {
         let _guard = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
@@ -193,6 +200,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "stt-candle")]
     #[test]
     fn with_cached_backend_retries_after_failure() {
         let _guard = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
@@ -242,6 +250,7 @@ mod tests {
     /// so a regression here fails by hanging rather than by a flaky timing
     /// assumption. Bounded by a channel + `recv_timeout` so CI fails fast
     /// (as a normal test failure) instead of hanging indefinitely.
+    #[cfg(feature = "stt-candle")]
     #[test]
     fn with_cached_backend_does_not_serialize_concurrent_calls() {
         let _guard = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
@@ -285,6 +294,9 @@ mod tests {
         }
     }
 
+    // Asserts the "auto" mode falls back to Candle Whisper when Sherpa init
+    // fails — that fallback only exists when `stt-candle` is compiled in.
+    #[cfg(feature = "stt-candle")]
     #[test]
     fn create_backend_auto_falls_back_to_candle_when_sherpa_init_fails() {
         // Held for the duration of the test: see `crate::env_test_lock` (Task
