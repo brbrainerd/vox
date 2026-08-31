@@ -401,6 +401,9 @@ mod routing_tests {
             clutch: None,
             risk: None,
             skill_exclusions: vec![],
+            mode: None,
+            priority: None,
+            dry_run: None,
             force_research: None,
             research_scope: None,
         };
@@ -428,6 +431,9 @@ mod routing_tests {
             clutch: None,
             risk: None,
             skill_exclusions: vec![],
+            mode: None,
+            priority: None,
+            dry_run: None,
             force_research: None,
             research_scope: None,
         };
