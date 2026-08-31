@@ -141,6 +141,95 @@ pub struct AgentTurnOutcome {
     /// across every `llm_chat` round-trip made during this turn (for transcript
     /// bookkeeping — `message.rs` records this alongside the persisted turn).
     pub total_tokens: u64,
+    /// Chat-turn-visible events derived from tool RESULTS during this turn (see
+    /// [`turn_event_for_result`]) — e.g. a skill activation chip. Empty unless a
+    /// dispatched tool call both matches a known event-worthy tool AND actually
+    /// succeeded.
+    pub events: Vec<serde_json::Value>,
+}
+
+/// Max chars of a model-authored string (e.g. a raw skill id) echoed into a
+/// turn event. Events render in trusted, system-styled chrome, so anything
+/// derived from model/tool-call content must be bounded before it reaches
+/// the UI, independent of the id-shape validation below.
+const TURN_EVENT_STRING_CAP: usize = 200;
+
+/// A skill id is only ever a short slug (see `SkillManifest::id` producers —
+/// installer-assigned, never user/model free text at creation time). Reject
+/// anything else (path separators, `..`, whitespace, control chars) rather
+/// than echoing it into system-styled UI: a model can put an arbitrary string
+/// in a tool call's `id` argument (including content it read from untrusted
+/// tool output earlier in the transcript), so this is a format allowlist, not
+/// a registry lookup — [`run_agent_turn`]'s call site additionally confirms
+/// the id resolves in the real skill registry before trusting it further.
+fn is_plausible_skill_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= TURN_EVENT_STRING_CAP
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+/// Derive a chat-turn-visible event from a dispatched tool call's RESULT —
+/// never from the call's arguments alone. `success` must reflect whether the
+/// dispatch actually succeeded (e.g. `!tool_json_envelope_is_error(&content)`
+/// at the call site), not merely whether the model requested the call.
+///
+/// Security rationale (see module docs and
+/// `docs/superpowers/plans/2026-08-28-chat-harness-unification.md` Phase E
+/// Task E1): a model can put anything in `args`, including text an earlier,
+/// untrusted tool result injected into the conversation. Gating purely on
+/// `success` — which is derived from what the tool dispatcher actually did,
+/// not from what the model claimed — is what keeps a denied/errored/unknown
+/// call from rendering a trusted-looking "skill activated" chip.
+///
+/// Returns `None` when `success` is `false`, or when `tool_name` is not a
+/// tool this function knows how to turn into an event.
+pub(crate) fn turn_event_for_result(
+    tool_name: &str,
+    args: &serde_json::Value,
+    success: bool,
+) -> Option<serde_json::Value> {
+    if !success {
+        return None;
+    }
+    match tool_name {
+        "vox_skill_use" => {
+            let raw_id = args.get("id").and_then(|v| v.as_str()).unwrap_or("");
+            let skill_id = if is_plausible_skill_id(raw_id) {
+                raw_id.to_string()
+            } else {
+                "unknown".to_string()
+            };
+            Some(serde_json::json!({
+                "kind": "skill_activated",
+                "skill_id": skill_id,
+            }))
+        }
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod turn_event_tests {
+    use super::turn_event_for_result;
+    use serde_json::json;
+
+    #[test]
+    fn skill_event_comes_from_the_result_not_the_call() {
+        // Emitting from args would render "skill activated · X" for a call that
+        // was denied, unknown, or errored — letting injected content assert in
+        // system-styled UI that a trusted skill ran.
+        assert!(turn_event_for_result("vox_skill_use", &json!({"id":"ponytail"}), true).is_some());
+        assert!(turn_event_for_result("vox_skill_use", &json!({"id":"ponytail"}), false).is_none());
+    }
+
+    #[test]
+    fn unknown_skill_ids_are_labelled_unknown() {
+        let ev = turn_event_for_result("vox_skill_use", &json!({"id":"../../etc/passwd"}), true)
+            .expect("event");
+        assert_eq!(ev["skill_id"], "unknown");
+    }
 }
 
 /// Run one user turn of the tool-calling agent loop to completion.
@@ -244,6 +333,7 @@ pub(crate) async fn run_agent_turn(
     let mut model_used = String::new();
     let mut tool_calls_made = 0usize;
     let mut total_tokens = 0u64;
+    let mut events: Vec<serde_json::Value> = Vec::new();
 
     for iteration in 0..max_iterations {
         let mut config = llm_config_template.clone();
@@ -282,10 +372,23 @@ pub(crate) async fn run_agent_turn(
                         permission_mode,
                     )
                     .await;
+                    let dispatch_ok = result.is_ok();
                     let content = match result {
                         Ok(s) => s,
                         Err(e) => format!("Error: {e}"),
                     };
+                    let call_succeeded = dispatch_ok
+                        && !content.starts_with("Error:")
+                        && !crate::server_state::tool_json_envelope_is_error(&content);
+                    // Derived from the RESULT (`call_succeeded`, computed above from
+                    // what dispatch actually did), never from `call.arguments` alone
+                    // — see `turn_event_for_result`'s doc comment for why that
+                    // distinction is security-load-bearing.
+                    if let Some(ev) =
+                        turn_event_for_result(&call.name, &call.arguments, call_succeeded)
+                    {
+                        events.push(ev);
+                    }
 
                     if harness_detection_enabled {
                         let is_error = content.starts_with("Error:")
@@ -414,6 +517,7 @@ pub(crate) async fn run_agent_turn(
                         tool_calls_made,
                         hit_iteration_limit: true,
                         total_tokens,
+                        events,
                     });
                 }
                 // Otherwise loop: ask the model again with the tool results appended.
@@ -425,6 +529,7 @@ pub(crate) async fn run_agent_turn(
                     tool_calls_made,
                     hit_iteration_limit: false,
                     total_tokens,
+                    events,
                 });
             }
         }
@@ -440,6 +545,7 @@ pub(crate) async fn run_agent_turn(
         tool_calls_made,
         hit_iteration_limit: true,
         total_tokens,
+        events,
     })
 }
 

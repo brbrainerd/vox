@@ -97,6 +97,10 @@ pub struct ChatTurnDto {
     pub grounding_flagged: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duplicate_of: Option<String>,
+    /// Turn events derived from tool results this turn (Phase E Task E1) —
+    /// empty on the background branch, which persists no assistant row.
+    #[serde(default)]
+    pub events: Vec<serde_json::Value>,
 }
 
 /// Wrapper every real dispatch call site applies (`format!("LLM error: {e}")`
@@ -305,6 +309,7 @@ async fn run_sync(
         selection_reason: dto.selection_reason,
         grounding_flagged: dto.grounding_flagged,
         duplicate_of: None,
+        events: reply.events,
     })
 }
 
@@ -333,6 +338,7 @@ async fn run_background(
         selection_reason: None,
         grounding_flagged: None,
         duplicate_of: result.duplicate_of,
+        events: vec![],
     })
 }
 

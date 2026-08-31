@@ -5,6 +5,8 @@
 //! `task_completed`/`task_failed` finalize. See
 //! `docs/src/architecture/vox-gui-harness-buildout-plan-2026.md` (B4-chat).
 
+import type { TurnEventDto } from '../types/dashboard';
+
 export type ChatRole = 'user' | 'assistant' | 'system';
 export type ChatStatus = 'pending' | 'streaming' | 'done' | 'failed';
 
@@ -31,6 +33,9 @@ export interface ChatMessage {
   groundingFlagged?: boolean;
   /** Wall-clock ms when the bubble was created (drives the pending watchdog). */
   createdAtMs?: number;
+  /** Turn events derived from tool RESULTS (synchronous chat path only —
+   *  see `lib/chatSend.ts`'s `ParsedChatReply` and Rust `turn_event_for_result`). */
+  events?: TurnEventDto[];
 }
 
 /** How long an assistant bubble may sit in `pending` before the client-side

@@ -1191,6 +1191,7 @@ export default function App() {
             latencyMs: reply.latencyMs,
             selectionReason: reply.selectionReason,
             groundingFlagged: reply.groundingFlagged,
+            events: reply.events,
           },
         },
       });

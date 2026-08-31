@@ -1,5 +1,6 @@
 import { chatTurn as transportChatTurn } from '../transport';
 import type { ChatTurnInput, ChatTurnDto } from '../transport';
+import type { TurnEventDto } from '../types/dashboard';
 
 export type { ChatTurnInput, ChatTurnDto } from '../transport';
 
@@ -14,6 +15,9 @@ export interface ParsedChatReply {
   /** True when the opt-in post-reply grounding check flagged this reply as
    *  low-confidence (only set when the caller passed `grounding_check_enabled`). */
   groundingFlagged?: boolean;
+  /** Turn events derived from tool results this turn (e.g. a skill-activation
+   *  chip) — see Rust `turn_event_for_result`. */
+  events?: TurnEventDto[];
 }
 
 export function parseSendReply(dto: ChatTurnDto): ParsedChatReply {
@@ -26,6 +30,7 @@ export function parseSendReply(dto: ChatTurnDto): ParsedChatReply {
     selectionReason: dto.selection_reason,
     createdAt: dto.created_at,
     groundingFlagged: dto.grounding_flagged,
+    events: dto.events,
   };
 }
 

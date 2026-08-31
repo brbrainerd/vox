@@ -111,6 +111,11 @@ struct AgentTurnResult {
     /// when the rationale-carrying resolver produced one. Surfaced to the GUI as
     /// `data.selection_reason` for `ModelBadge`'s tooltip.
     selection_reason: Option<String>,
+    /// Chat-turn-visible events derived from tool results this turn (Phase E
+    /// Task E1) — empty on every path except the real agent loop
+    /// ([`super::agent_loop::run_agent_turn`]), which is the only path that
+    /// dispatches tool calls at all.
+    events: Vec<Value>,
 }
 
 /// Model preference for this turn: per-request pick, then the process-global
@@ -355,6 +360,7 @@ async fn try_run_agent_turn(
                 model_used: outcome.model_used,
                 tokens: outcome.total_tokens,
                 selection_reason,
+                events: outcome.events,
             }))
         }
         Err(e) => Some(Err(e)),
@@ -711,6 +717,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             None,
             params.skill.as_deref(),
             sticky_model_key.as_deref(),
+            &params.skill_exclusions,
         )
         .await,
         session_ts,
@@ -718,7 +725,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     );
     let llm_started = std::time::Instant::now();
 
-    let (response_text, model_used, tokens, selection_reason) =
+    let (response_text, model_used, tokens, selection_reason, events) =
         match params.cognitive_profile.as_deref() {
             Some(profile) => {
                 let resolution_template = McpChatModelResolution {
@@ -797,6 +804,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                                 Some(format!(
                                     "cognitive profile '{profile}' \u{2192} complexity {profile_complexity}; rationale not surfaced"
                                 )),
+                                vec![],
                             ),
                             Err(e) => {
                                 return ToolResult::<String>::err_with_remediation(
@@ -832,6 +840,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                                 Some(format!(
                                     "Fallback: cognitive-profile resolution failed ({e})"
                                 )),
+                                vec![],
                             ),
                             Err(e2) => {
                                 return ToolResult::<String>::err_with_remediation(
@@ -867,7 +876,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             )
             .await
             {
-                Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason),
+                Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason, r.events),
                 Some(Err(e)) => {
                     return ToolResult::<String>::err_with_remediation(
                         format!("LLM error: {e}"),
@@ -909,6 +918,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         r.1,
                         r.2,
                         Some("Fallback: attachment present, or provider shape unmapped".to_string()),
+                        vec![],
                     ),
                     Err(e) => {
                         return ToolResult::<String>::err_with_remediation(
@@ -1307,6 +1317,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         "session_id": session_id,
         "socrates": soc,
         "retrieval": retrieval_evidence,
+        "events": events,
     });
 
     ToolResult::ok(result).to_json()

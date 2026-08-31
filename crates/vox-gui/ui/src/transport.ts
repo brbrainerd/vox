@@ -11,6 +11,7 @@ import type {
 } from './types/tauri';
 import type { TaskRow } from './components/surfaces/Tasks/tasksHelpers';
 import type { TownScan } from './components/gamify/urbs/types';
+import type { TurnEventDto } from './types/dashboard';
 
 // `OpenLocator` / `OpenOutcome` (the `open_locator` IPC DTOs) live in ./types/tauri
 // alongside the other Tauri command types; re-exported here for callers of the hub.
@@ -1028,6 +1029,9 @@ export interface ChatTurnDto {
   grounding_flagged?: boolean;
   /** Set (with a null `task_id`) when the daemon refused a near-duplicate. */
   duplicate_of?: string | null;
+  /** Turn events derived from tool results this turn (e.g. a skill-activation
+   *  chip) — empty on the background branch. See Rust `turn_event_for_result`. */
+  events?: TurnEventDto[];
 }
 
 /**
