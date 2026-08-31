@@ -160,6 +160,26 @@ function isKnownView(v: unknown): v is View {
 }
 
 /**
+ * Task C1: `chat_turn`'s typed `ChatTurnError` (see `dispatchErrorToast`
+ * below) carries the human-readable text in its `message` field, not in
+ * `String(err)` (which would stringify the whole `{kind, message}` object to
+ * `"[object Object]"`). Used both by `dispatchErrorToast` and by the
+ * chat-store `error:` field so the failed transcript bubble shows the same
+ * text as the toast.
+ */
+function chatTurnErrorMessage(err: unknown): string {
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'kind' in err &&
+    typeof (err as { message?: unknown }).message === 'string'
+  ) {
+    return (err as { message: string }).message;
+  }
+  return sanitizeErrorForToast(err);
+}
+
+/**
  * Both chat lifecycles (the synchronous reply and the background task — one
  * `chat_turn` command, two store lifecycles; see the two catch blocks in
  * `handleLoquelaSubmit` below) funnel through
@@ -177,13 +197,46 @@ function isKnownView(v: unknown): v is View {
  * so it gets its own distinct toast — checked alongside (not instead of) the
  * budget check, since the two conditions are mutually exclusive.
  *
- * Task C1: takes the raw `err` (not a pre-sanitized string) so classification
- * runs against the real wire shape. `sanitizeErrorForToast` is only invoked
- * on the fallthrough/unrecognized-error path — the known kinds above are
- * already-safe, app-authored strings (never raw IPC internals), so there's
- * nothing to strip.
+ * Task C1: `chat_turn` (crates/vox-gui/src/commands/chat_turn.rs) now returns
+ * `Result<ChatTurnDto, ChatTurnError>` — a `#[serde(tag = "kind", ...)]`
+ * enum — so Tauri v2 rejects the invoke() promise with the deserialized
+ * `{kind, message}` object itself, not a display string. `err` is matched on
+ * `kind` first; the string-pattern checks below are a fallback for the
+ * (still-`Result<_, String>`) other commands and for non-chat_turn error
+ * shapes. `sanitizeErrorForToast` is only invoked on the fully-unrecognized
+ * fallthrough — every known kind above is an already-safe, app-authored
+ * string (never raw IPC internals), so there's nothing to strip.
  */
 function dispatchErrorToast(err: unknown, fallbackTitle: string): Toast {
+  if (typeof err === 'object' && err !== null && 'kind' in err) {
+    const { kind, message } = err as { kind: string; message?: string };
+    const text = typeof message === 'string' ? message : String(err);
+    switch (kind) {
+      case 'budget_exceeded':
+        return {
+          tone: 'warn',
+          title: 'Budget limit reached',
+          body: `${text} Adjust your daily/session budget caps in Settings.`,
+          cause: 'backend-error',
+        };
+      case 'rate_limited':
+        return {
+          tone: 'warn',
+          title: 'Free tier limit reached',
+          body: `${stripRateLimitedPrefix(text)} Add your own API key or wait for the limit to reset.`,
+          cause: 'backend-error',
+        };
+      case 'context_exceeded':
+        return {
+          tone: 'warn',
+          title: 'Message too long',
+          body: `${text} Trim your context or start a new session.`,
+          cause: 'backend-error',
+        };
+      default:
+        return { tone: 'warn', title: fallbackTitle, body: sanitizeErrorForToast(text), cause: 'backend-error' };
+    }
+  }
   const errorText = String(err);
   if (isBudgetExceededError(errorText)) {
     return {
@@ -1091,7 +1144,7 @@ export default function App() {
             type: 'failRun',
             sessionId,
             runId,
-            error: sanitizeErrorForToast(err),
+            error: chatTurnErrorMessage(err),
           });
         }
         pushToast(dispatchErrorToast(err, 'Dispatch Failed'));
@@ -1143,7 +1196,7 @@ export default function App() {
       });
       checkBudgetWarn(sessionId);
     } catch (err) {
-      const errorText = sanitizeErrorForToast(err);
+      const errorText = chatTurnErrorMessage(err);
       dispatchSessionChat({
         type: 'chatReplySettled',
         sessionId,

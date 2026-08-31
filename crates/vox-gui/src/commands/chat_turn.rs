@@ -228,23 +228,30 @@ pub fn background_input(input: &ChatTurnInput) -> SubmitTaskInput {
     }
 }
 
+/// The one place a raw backend error string becomes a typed [`ChatTurnError`]
+/// before crossing the Tauri IPC boundary — `run_sync`/`run_background` keep
+/// returning `Result<_, String>` internally (every `?` site inside them stays
+/// untouched), and this command classifies the final string once, so Tauri
+/// serializes the tagged JSON (`{"kind": "...", ...}`) to the frontend
+/// instead of a plain display string.
 #[tauri::command]
 pub async fn chat_turn(
     app_handle: tauri::AppHandle,
     input: ChatTurnInput,
     pool: State<'_, GuiDbPool>,
     daemon: State<'_, Arc<PersistentDaemon>>,
-) -> Result<ChatTurnDto, String> {
+) -> Result<ChatTurnDto, ChatTurnError> {
     if input.session_id.trim().is_empty() {
-        return Err("session_id must not be empty".to_string());
+        return Err(classify_turn_error("session_id must not be empty"));
     }
     if input.content.trim().is_empty() {
-        return Err("content must not be empty".to_string());
+        return Err(classify_turn_error("content must not be empty"));
     }
-    match input.execution {
+    let result = match input.execution {
         Execution::Sync => run_sync(input, pool, daemon).await,
         Execution::Background => run_background(app_handle, input, daemon).await,
-    }
+    };
+    result.map_err(|e| classify_turn_error(&e))
 }
 
 async fn run_sync(
