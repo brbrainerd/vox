@@ -52,16 +52,41 @@ Executes the un-run steps of the 2026-06-19 plan (Task 2 Steps 3–4) and the 20
 
 - [ ] **Step 1: Confirm the box is quiet, then collect timings**
 
-Contention inflates per-crate self-time. Verify nothing else is compiling first:
+Contention inflates per-crate self-time, and this repo is routinely worked by
+more than one agent session at a time on the same machine — separate worktrees
+still share CPU and RAM.
 
-```bash
-tasklist //FI "IMAGENAME eq rustc.exe" //NH | grep -c rustc
-tasklist //FI "IMAGENAME eq cargo.exe" //NH | grep -c cargo
+**Do not use `tasklist` for this check.** It is not on `PATH` in the Git Bash
+shell this harness provides. `tasklist //FI "IMAGENAME eq rustc.exe" //NH |
+grep -c rustc` does not error — it prints `0` regardless of what is running,
+because `grep -c` counts matches in empty output. That false "idle" reading
+caused a duplicate workspace build to be launched on top of a live one during
+this plan's own authoring. Use the PowerShell tool:
+
+```powershell
+Get-CimInstance Win32_Process -Filter "Name='cargo.exe' OR Name='rustc.exe'" |
+  Select-Object ProcessId,Name,@{n='MB';e={[int]($_.WorkingSetSize/1MB)}},
+    @{n='Cmd';e={$_.CommandLine.Substring(0,[Math]::Min(110,$_.CommandLine.Length))}} |
+  Format-Table -Wrap -AutoSize
 ```
 
-Expected: `0` and `0`. If not, wait — do not proceed.
+Expected: no rows. If rows appear, read the `Cmd` column — a peer session's
+build is a reason to wait and coordinate, not to proceed. Proceeding produces
+a number that looks authoritative and is not, which is the exact failure this
+plan exists to end.
 
-Then collect. `-j 6` (rather than the default 12) reduces peak memory; full-parallelism builds on this workspace have repeatedly died with `STATUS_STACK_BUFFER_OVERRUN` (exit `0xc0000409`), which corrupts incremental artifacts and forces a `cargo clean -p <crate>`:
+Then collect. `-j 6` (rather than the default 12) reduces peak memory. Full-parallelism
+builds on this workspace repeatedly die with exit `0xc0000409`. Do not be misled by
+the symbolic name Windows prints for that code: `STATUS_STACK_BUFFER_OVERRUN` is
+what `__fastfail` reports, and Rust's OOM handler routes through it via `abort()`.
+The backtrace is explicit — `memory allocation of 2097152 bytes failed` →
+`rust_oom` → `handle_alloc_error` → `<rustc_arena::DroplessArena>::grow` — i.e.
+rustc's type-interning arena running out of memory, **not** stack exhaustion.
+Raising `RUST_MIN_STACK` does not help and marginally hurts (larger per-thread
+reservations add memory pressure); the committed `RUST_MIN_STACK = "8388608"` at
+`.cargo/config.toml:100` addresses a genuinely different failure,
+`STATUS_STACK_OVERFLOW` (`0xC00000FD`) in libtest's spawned threads. Lower `-j`
+and fewer concurrent builds are the fix:
 
 ```bash
 cargo build --timings --workspace -j 6
