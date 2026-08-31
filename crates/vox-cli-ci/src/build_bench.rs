@@ -171,6 +171,24 @@ pub fn compute_deltas(base: &Snapshot, new: &Snapshot) -> Vec<DeltaRow> {
     rows
 }
 
+/// True when `base` is a committed *placeholder* rather than a real measurement:
+/// it has at least one `ok` record and every `ok` record is `wall_ms == 0`.
+///
+/// This matters because [`compute_deltas`] defines `pct` as `0.0` whenever the
+/// base is zero, so an unpopulated baseline makes every scenario report a 0%
+/// delta and the gate can never fail. A real `cargo check` scenario cannot
+/// measure 0 ms, so all-zero is unambiguously "never filled in".
+pub fn baseline_is_unpopulated(base: &Snapshot) -> bool {
+    let mut saw_ok = false;
+    for r in base.records.iter().filter(|r| r.ok) {
+        saw_ok = true;
+        if r.wall_ms > 0 {
+            return false;
+        }
+    }
+    saw_ok
+}
+
 pub fn format_delta_markdown(label: &str, rows: &[DeltaRow]) -> String {
     let mut out =
         format!("### {label}\n\n| Scenario | Base | New | Δ | Δ% |\n|---|--:|--:|--:|--:|\n");
@@ -265,6 +283,18 @@ pub fn run_build_bench(
             .with_context(|| format!("read baseline {base_path}"))?;
         let base: Snapshot = serde_json::from_str(&base_str)
             .with_context(|| format!("parse baseline {base_path}"))?;
+        // FAIL LOUD on a placeholder baseline — a green gate that cannot fail is
+        // worse than none (same rule as `vox ci crate-budget`'s
+        // `has_compile_times=false` guard). Without this, every delta reads 0%
+        // and a real regression lands unnoticed.
+        if baseline_is_unpopulated(&base) {
+            anyhow::bail!(
+                "baseline {base_path} is a placeholder: every ok record has wall_ms=0, \
+                 so every delta would report 0% and this gate could never fail. \
+                 Regenerate it on a quiesced machine with \
+                 `vox ci build-bench --repeat 3 --write {base_path}`."
+            );
+        }
         let rows = compute_deltas(&base, &snap);
         let md = format_delta_markdown(&label, &rows);
         print!("{md}");
@@ -327,6 +357,35 @@ mod tests {
                 })
                 .collect(),
         }
+    }
+
+    #[test]
+    fn all_zero_baseline_is_detected_as_unpopulated() {
+        // The exact shape `contracts/ci/build-bench-baseline.v1.json` shipped
+        // with: every scenario ok, every wall_ms 0. compute_deltas would report
+        // 0% for all of them, so the gate must refuse to run instead.
+        let base = snap(
+            "baseline",
+            &[("check_vox_db", true, 0), ("check_vox_cli", true, 0)],
+        );
+        assert!(baseline_is_unpopulated(&base));
+        let new = snap("ci", &[("check_vox_db", true, 9_999)]);
+        assert_eq!(
+            compute_deltas(&base, &new)[0].pct,
+            0.0,
+            "a 9.999s regression against a zero baseline reads as 0% — why the guard exists"
+        );
+    }
+
+    #[test]
+    fn populated_or_empty_baseline_is_not_flagged() {
+        // One real measurement is enough to make the comparison meaningful.
+        let mixed = snap("b", &[("a", true, 0), ("b", true, 1_200)]);
+        assert!(!baseline_is_unpopulated(&mixed));
+        // A baseline with no ok records has nothing to compare; compute_deltas
+        // skips those pairs entirely, so it is not the placeholder case.
+        assert!(!baseline_is_unpopulated(&snap("b", &[("a", false, 0)])));
+        assert!(!baseline_is_unpopulated(&snap("b", &[])));
     }
 
     #[test]

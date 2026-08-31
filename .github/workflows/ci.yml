@@ -1010,6 +1010,11 @@ jobs:
         run: ./target/debug/vox --quiet run --mode interp scripts/plugin-candidacy.vox
         continue-on-error: true
 
+      # Blocking on purpose. `continue-on-error: true` here is what let the
+      # baseline sit at all-zeros for months while every run reported a green
+      # 0% delta. build-bench now refuses to compare against a placeholder
+      # baseline, so a failure here means "the baseline is unpopulated" (fix:
+      # regenerate it) or "a scenario regressed" — both are real signal.
       - name: Build-bench (wall-clock scenarios vs committed baseline — ROUGH signal)
         if: needs.setup.outputs.full == 'true'
         run: |
@@ -1018,7 +1023,6 @@ jobs:
             --repeat 1 \
             --compare contracts/ci/build-bench-baseline.v1.json \
             --write graphify-out/build-bench/ci-snapshot.json
-        continue-on-error: true
 
       - name: Upload build-time maps
         if: needs.setup.outputs.full == 'true'
