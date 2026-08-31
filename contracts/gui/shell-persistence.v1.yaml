@@ -63,4 +63,12 @@ preference_keys:
     type: string
     description: Memory surface auto-recall toggle
 
+  - key: vox_chat_model.v1
+    type: string
+    default: null
+    description: >
+      Sticky per-request chat model pin (ChatModelPicker). Validated against
+      listModels() on mount and cleared when the pinned model has left the
+      registry, so a stale pick never silently classifies as UserOverride.
+
 spark_series_prefix: vox.spark.kpi.

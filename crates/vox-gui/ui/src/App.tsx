@@ -317,7 +317,34 @@ export default function App() {
   );
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [openPlanSessionId, setOpenPlanSessionId] = useState<string | null>(null);
-  const [chatModelOverride, setChatModelOverride] = useState<string | null>(null);
+  const [chatModelOverride, setChatModelOverride] = useLocalStorage<string | null>(
+    SHELL_PREFERENCE_KEYS.chatModelOverride,
+    null,
+  );
+  // Phase B / Task B2: a pin persisted from a previous session may name a model
+  // that has since left the registry — validate once on mount and clear it
+  // rather than letting `SelectionSource::classify` silently read `Fallback`
+  // forever with no way for the user to see why. Runs once; ChatModelPicker's
+  // own listModels() calls stay independent (its own on-demand fetch).
+  useEffect(() => {
+    if (!chatModelOverride) return;
+    let cancelled = false;
+    voxTransport
+      .listModels(120)
+      .then((models: any) => {
+        if (cancelled || !Array.isArray(models)) return;
+        const stillPresent = models.some((m: any) => m.id === chatModelOverride || m.model_id === chatModelOverride);
+        if (!stillPresent) setChatModelOverride(null);
+      })
+      .catch(() => {
+        // Transport failure here is not this effect's problem to report — leave
+        // the pin as-is and let the next real chat turn surface a resolver error.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- validate once on mount only
+  }, []);
   const [groundingCheckEnabled, setGroundingCheckEnabled] = useGroundingCheck(activeSessionId);
   const {
     tasks: chatTasks,
