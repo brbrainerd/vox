@@ -96,13 +96,54 @@ Expected: completes; `target/cargo-timings/cargo-timing-*.html` exists.
 
 - [ ] **Step 2: Verify the HTML actually carries durations**
 
-The ingest parses an embedded `UNIT_DATA` JS array. A build that was fully cached emits rows with `duration: 0`, which the parser drops — yielding an empty audit and silently re-creating the all-zero problem this task exists to fix.
+The ingest parses an embedded `UNIT_DATA` JS array. A build that was fully cached
+emits rows with `duration: 0`, which the parser drops — yielding a near-empty
+audit and silently re-creating the all-zero problem this task exists to fix.
+Checking that `UNIT_DATA` merely *exists* is not enough; count the non-zero rows:
 
 ```bash
-ls -t target/cargo-timings/*.html | head -1 | xargs grep -c "UNIT_DATA"
+python -c "
+import json
+h = open(r'target/cargo-timings/cargo-timing.html', encoding='utf-8', errors='replace').read()
+i = h.find('UNIT_DATA = ')
+s = h[i + len('UNIT_DATA = '):]
+arr = json.loads(s[:s.find('];') + 1])
+nz = [u for u in arr if (u.get('duration') or 0) > 0]
+print(f'units={len(arr)} nonzero={len(nz)}')
+assert len(nz) > 100, 'mostly cached — this measures nothing; see the cold-build note below'
+print('OK')
+"
 ```
 
-Expected: `1`. If `0`, the HTML is malformed — re-run Step 1.
+Expected: `OK`, with `nonzero` in the hundreds.
+
+**The measurement requires a cold build.** An incremental build over a warm
+`target/` recompiles only what changed. Observed while authoring this plan: a
+full `cargo build --timings --workspace` after a day of scoped `cargo check`
+runs produced **1505 units with only 31 non-zero durations** — roughly a quarter
+of the workspace's crates, useless as a blast-radius map. If `nonzero` is low,
+the fix is a cold `target/`, not a re-run.
+
+Two further hazards seen in that same run, both of which the executor should
+expect:
+
+- `vox-gui` fails to link on Windows with `lld-link: error: undefined symbol`
+  for `qsort_s` / `clearerr` (pulled via `zstd-sys` / `aws-lc-sys`). The build
+  still writes a timings report, so this does not block the measurement, but
+  `vox-gui` will appear with a nonsense duration (2916s observed — it includes
+  its `build.rs` auto-building the missing `vox` release sidecar). Exclude it:
+  `--workspace --exclude vox-gui`.
+- Cold-building the full workspace is where the `0xc0000409` OOM aborts occur.
+  Keep `-j 6` and do not run anything else concurrently.
+
+If a cold full build is not affordable, `cargo check --timings` is a legitimate
+alternative: it skips codegen and linking, so it is several times faster, avoids
+the `vox-gui` link failure entirely, and greatly reduces OOM risk. It yields
+*check* times rather than *build* times — a different absolute scale, but a
+valid and internally consistent **ranking**, which is what Task 3 consumes.
+Record which one was used in `measured_on` alongside the host triple (e.g.
+`"x86_64-pc-windows-msvc (cargo check)"`), because mixing the two scales across
+runs would be as misleading as mixing hosts.
 
 - [ ] **Step 3: Generate the audit dataset**
 
