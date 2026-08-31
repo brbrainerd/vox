@@ -25,6 +25,80 @@ use vox_orchestrator::session_context_envelope_key;
 const REM_CHAT_CANONICAL: &str = "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
 const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
 
+/// Honest classification of *why* the resolved model is what it is, derived
+/// from the resolved model id (never the requested one) — see Phase B of
+/// `docs/superpowers/plans/2026-08-28-chat-harness-unification.md`. Classifying
+/// from the request meant a pinned model the resolver silently ignored still
+/// read "Your pick" in `ModelBadge`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SelectionSource {
+    /// `requested == resolved`: the user's pin was honored.
+    UserOverride,
+    /// No per-request pref, but the process-global sticky override matches
+    /// the resolved model.
+    Global,
+    /// No pref at all; the auto-selector chose.
+    AutoRouted,
+    /// A pref was requested but the resolved model differs from it (removed
+    /// from the registry, capability mismatch, etc.).
+    Fallback,
+}
+
+impl SelectionSource {
+    /// Classify from the RESOLVED model, not the requested one — that is the
+    /// whole point of this type. `requested` is the per-request pin (if any),
+    /// `resolved` is the model id the turn actually used, `global` is the
+    /// process-global sticky override (if any).
+    #[must_use]
+    pub fn classify(
+        requested: Option<&str>,
+        resolved: Option<&str>,
+        global: Option<&str>,
+    ) -> Self {
+        match (requested, resolved) {
+            (Some(r), Some(res)) if r == res => SelectionSource::UserOverride,
+            (Some(_), Some(_)) => SelectionSource::Fallback,
+            (None, Some(res)) if global == Some(res) => SelectionSource::Global,
+            _ => SelectionSource::AutoRouted,
+        }
+    }
+}
+
+/// Envelope payload for `ModelBadge`: the resolved model, an honest
+/// [`SelectionSource`], and — for anything other than a plain user pin — the
+/// rationale explaining why.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SelectionDto {
+    pub model: String,
+    pub source: SelectionSource,
+    pub rationale: Option<String>,
+}
+
+impl SelectionDto {
+    fn new(
+        requested: Option<&str>,
+        resolved: &str,
+        global: Option<&str>,
+        rationale: Option<String>,
+    ) -> Self {
+        Self {
+            model: resolved.to_string(),
+            source: SelectionSource::classify(requested, Some(resolved), global),
+            rationale,
+        }
+    }
+
+    /// A fallback selection always carries a rationale — never a silent `None`.
+    fn fallback(model: impl Into<String>, rationale: impl Into<String>) -> Self {
+        Self {
+            model: model.into(),
+            source: SelectionSource::Fallback,
+            rationale: Some(rationale.into()),
+        }
+    }
+}
+
 /// [`try_run_agent_turn`]'s success payload. A named struct (rather than a
 /// 4-tuple) now that the model-selection rationale rides along too — see
 /// Fix Task 7.
@@ -203,8 +277,21 @@ async fn try_run_agent_turn(
     {
         Ok(c) => c,
         // Model resolution failing here is not this function's problem to report —
-        // let the existing `call_llm` path attempt (and correctly surface) it.
-        Err(_) => return None,
+        // let the existing `call_llm` path attempt (and correctly surface) it. But
+        // when the caller pinned a model, don't swallow the reason it couldn't be
+        // honored entirely: log it so it's debug-visible instead of vanishing
+        // silently into an unrelated auto-selected fallback.
+        Err(e) => {
+            if request_model_override.is_some() {
+                tracing::warn!(
+                    target: "vox_mcp::model_selection",
+                    pref = ?pref,
+                    error = %e,
+                    "user-supplied model pref failed to resolve; falling back to call_llm pipeline"
+                );
+            }
+            return None;
+        }
     };
     let model = choice.model;
     let selection_reason = choice.rationale;
@@ -643,6 +730,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     },
                     ..Default::default()
                 };
+                let profile_complexity = resolution_template.complexity;
                 let base_temperature = if profile == "creative" {
                     0.8_f32
                 } else {
@@ -699,8 +787,17 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         {
                             // `mcp_infer_completion` doesn't surface a selection rationale
                             // (its `McpInferRouting.selection_rationale` above is `None`
-                            // on the cognitive-profile path) — no `selection_reason` here.
-                            Ok(r) => (r.0, r.1, r.2, None),
+                            // on the cognitive-profile path); record a truthful reason for
+                            // *why* there's no rationale rather than leaving it a silent
+                            // `None` — see Phase B Task B1.
+                            Ok(r) => (
+                                r.0,
+                                r.1,
+                                r.2,
+                                Some(format!(
+                                    "cognitive profile '{profile}' \u{2192} complexity {profile_complexity}; rationale not surfaced"
+                                )),
+                            ),
                             Err(e) => {
                                 return ToolResult::<String>::err_with_remediation(
                                     format!("LLM error: {e}"),
@@ -728,7 +825,14 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         )
                         .await
                         {
-                            Ok(r) => (r.0, r.1, r.2, None),
+                            Ok(r) => (
+                                r.0,
+                                r.1,
+                                r.2,
+                                Some(format!(
+                                    "Fallback: cognitive-profile resolution failed ({e})"
+                                )),
+                            ),
                             Err(e2) => {
                                 return ToolResult::<String>::err_with_remediation(
                                     format!("LLM error: {e2}"),
@@ -798,9 +902,14 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     // `call_llm_with_pref` resolves via the rationale-carrying resolver
                     // internally but doesn't return the rationale through its
                     // `(String, String, u64)` return type — out of scope for this task
-                    // (see `try_run_agent_turn`'s doc comment); `selection_reason` is
-                    // `None` on this fallback path.
-                    Ok(r) => (r.0, r.1, r.2, None),
+                    // (see `try_run_agent_turn`'s doc comment). Record a truthful reason
+                    // for the missing detail rather than a silent `None`.
+                    Ok(r) => (
+                        r.0,
+                        r.1,
+                        r.2,
+                        Some("Fallback: attachment present, or provider shape unmapped".to_string()),
+                    ),
                     Err(e) => {
                         return ToolResult::<String>::err_with_remediation(
                             format!("LLM error: {e}"),
@@ -1165,6 +1274,28 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         Some(session_key.clone()),
         Some(user_prompt.clone()),
     );
+    // Honest selection classification (Phase B Task B1): derive `source` from the
+    // RESOLVED model (`model_used`), never the requested one — see
+    // `SelectionSource::classify`'s doc comment for why.
+    let requested_model_for_selection = params
+        .model_override
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let global_model_for_selection = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(_) => None,
+    };
+    let selection = SelectionDto::new(
+        requested_model_for_selection,
+        &model_used,
+        global_model_for_selection.as_deref(),
+        selection_reason.clone(),
+    );
+
     let result = serde_json::json!({
         "message": asst_msg,
         "history": history,
@@ -1172,6 +1303,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         "tokens": tokens,
         "latency_ms": llm_started.elapsed().as_millis() as u64,
         "selection_reason": selection_reason,
+        "selection": selection,
         "session_id": session_id,
         "socrates": soc,
         "retrieval": retrieval_evidence,
@@ -1552,6 +1684,42 @@ mod tests {
         assert!(r.enforce_free_tier_only || r.allow_cheapest_fallback);
         let auto = resolution_for_tier(None, McpChatModelResolution::default());
         assert!(auto.allow_cheapest_fallback);
+    }
+
+    // ── Phase B / Task B1: honest selection classification ───────────────
+    // Nested so `cargo test -p vox-orchestrator-mcp selection` (the plan's
+    // documented command) matches these by module path.
+    mod selection {
+        use super::*;
+
+        #[test]
+        fn source_is_classified_from_the_resolved_model_not_the_request() {
+            // The honesty bug: classifying from the request means a pinned model
+            // that the resolver silently ignored still reads "Your pick".
+            assert_eq!(
+                SelectionSource::classify(Some("m"), Some("m"), None),
+                SelectionSource::UserOverride
+            );
+            assert_eq!(
+                SelectionSource::classify(Some("gone"), Some("other"), None),
+                SelectionSource::Fallback
+            );
+            assert_eq!(
+                SelectionSource::classify(None, Some("auto"), None),
+                SelectionSource::AutoRouted
+            );
+            assert_eq!(
+                SelectionSource::classify(None, Some("g"), Some("g")),
+                SelectionSource::Global
+            );
+        }
+
+        #[test]
+        fn fallback_always_carries_a_rationale() {
+            let d = SelectionDto::fallback("free-x", "requested `gone` is not in the registry");
+            assert_eq!(d.source, SelectionSource::Fallback);
+            assert!(d.rationale.expect("rationale").contains("not in the registry"));
+        }
     }
 
     /// Regression test for the bug the assertion above was too weak to catch:
