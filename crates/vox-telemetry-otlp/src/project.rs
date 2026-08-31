@@ -6,8 +6,15 @@ use vox_telemetry::TelemetryEvent;
 /// `install_salt` + SHA-256 + lowercase-hex pattern as `skill_id_hash`
 /// (`vox-orchestrator-mcp/src/chat_tools/mod.rs`). Used for fields whose real value
 /// space cannot be a bounded taxonomy enum (model ids, lint rule ids).
+///
+/// The salt is memoized: `config::install_salt()` does an uncached
+/// `read_to_string` (and writes a freshly generated salt on read failure), and
+/// `project_event` runs synchronously inside `SpoolSink::record` for *every*
+/// event — `LintFinding` alone fires once per diagnostic. Same `OnceLock`
+/// pattern as `redact::allowlist()`.
 fn salted_hash(raw: &str) -> String {
-    let salt = vox_telemetry::config::install_salt();
+    static SALT: std::sync::OnceLock<[u8; 16]> = std::sync::OnceLock::new();
+    let salt = SALT.get_or_init(vox_telemetry::config::install_salt);
     let mut hasher = Sha256::new();
     hasher.update(salt);
     hasher.update(raw.as_bytes());
@@ -42,6 +49,15 @@ fn normalize_error_class(raw: &str) -> &'static str {
         "transport-error" | "stream-connect-error" => "transport_error",
         "connection-timeout" => "timeout",
         "context-exceeded" => "validation",
+        // `orch.circuit_breaker` trips carry a `TripReason` Display string
+        // (crates/vox-orchestrator/src/circuit_breaker.rs). That is a closed
+        // 5-variant enum, so map it 1:1 rather than collapsing every trip to
+        // "unknown" — which would make trip reasons unanalyzable in aggregate.
+        "no-progress" => "trip_no_progress",
+        "same-error" => "trip_same_error",
+        "tool-thrash" => "trip_tool_thrash",
+        "ngram-overlap" => "trip_ngram_overlap",
+        "semantic-drift" => "trip_semantic_drift",
         _ => "unknown",
     }
 }

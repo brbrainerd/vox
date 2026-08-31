@@ -61,11 +61,12 @@ fn should_reap(
 
     // Guard 4: only `vox` and its managed siblings (vox-orchestrator-d, ...)
     // are reapable; build scripts are excluded.
-    // Split on both `/` and `\` instead of `Path::file_name()`: the latter is
-    // OS-native and treats a Windows-style path as one opaque component on
-    // Linux (no `/` to split on), which breaks both real Windows paths in
-    // production and the `handles_windows_paths` cross-platform test.
-    let file = exe_s.rsplit('/').next().unwrap_or_default().to_string();
+    // Split the already-normalized `exe_s` (Guard 3 lowercased it and folded
+    // `\` → `/`) rather than calling `Path::file_name()` on the raw path:
+    // `file_name()` is OS-native, so on Linux it treats a Windows-style path as
+    // one opaque component and yields the whole string — breaking both real
+    // Windows paths and the `handles_windows_paths` cross-platform test.
+    let file = exe_s.rsplit('/').next().unwrap_or("");
     file == "vox" || file == "vox.exe" || (file.starts_with("vox-") && !file.ends_with("-build"))
 }
 
