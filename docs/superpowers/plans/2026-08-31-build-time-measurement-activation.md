@@ -363,20 +363,34 @@ instead of fixed."
 `--top-cuts` ranks single-edge cuts by total `blast_s` saved. It is meaningless against a zero-valued map, which is why this task depends on Task 1:
 
 ```bash
-vox graphify crate-map --top-cuts 40 > contracts/reports/crate-top-cuts.v1.json
+./target/debug/vox graphify crate-map --top-cuts 400 \
+  > contracts/reports/crate-top-cuts.v1.json
 ```
+
+**Rank deeply — `--top-cuts 40` is not enough.** The intersection in Step 3 treats
+any edge absent from the ranking as "no measured benefit", so a shallow ranking
+manufactures false negatives. Measured: at `--top-cuts 40`, only 9 of the 29
+grandfathered edges appeared and 20 looked unevidenced; at `--top-cuts 400`, 19
+appeared. Ranking 40 would have condemned ten edges that do save time.
+
+Note the emitted shape is `{"schema_version", "provenance", "result": [...]}`,
+and each entry carries `description` (`"cut A -> B"`) plus
+`total_blast_s_before` / `total_blast_s_after` — there is no `from`/`to` or
+`blast_s_saved` field. Saving is the difference, and the edge must be parsed out
+of `description`.
 
 - [ ] **Step 2: Verify the ranking is non-degenerate**
 
 ```bash
 python -c "
 import json; d = json.load(open('contracts/reports/crate-top-cuts.v1.json'))
-cuts = d if isinstance(d, list) else d.get('cuts', d.get('top_cuts', []))
+cuts = d['result']
 assert cuts, 'empty ranking'
-nz = [c for c in cuts if float(c.get('blast_s_saved') or c.get('saved') or 0) > 0]
-assert nz, 'every cut saves 0.0 — the map is still count-only'
+nz = [c for c in cuts if c['total_blast_s_before'] - c['total_blast_s_after'] > 0]
+assert nz, 'every cut saves 0.0 - the map is still count-only'
 print(f'{len(cuts)} cuts, {len(nz)} with non-zero saving')
-for c in cuts[:10]: print(' ', c)
+for c in cuts[:10]:
+    print(f\"  {c['total_blast_s_before'] - c['total_blast_s_after']:8.1f}s  {c['description']}\")
 "
 ```
 
@@ -384,25 +398,39 @@ Expected: a non-empty list with non-zero savings.
 
 - [ ] **Step 3: Intersect the ranking with the 29 grandfathered edges**
 
-This is the deliverable: which grandfathered edges are actually worth the decoupling work, and which are cheap to keep.
+This is the deliverable: which grandfathered edges are actually worth the
+decoupling work, and which are cheap to keep.
 
 ```bash
 python -c "
-import json
+import json, re
 allow = json.load(open('contracts/ci/crate-edges.allow.v1.json'))
 p2 = {(x['from'], x['to']) for x in allow.get('exceptions', []) if 'Phase 2' in str(x.get('reason',''))}
 d = json.load(open('contracts/reports/crate-top-cuts.v1.json'))
-cuts = d if isinstance(d, list) else d.get('cuts', d.get('top_cuts', []))
-def saved(c): return float(c.get('blast_s_saved') or c.get('saved') or 0)
-ranked = {(c.get('from'), c.get('to')): saved(c) for c in cuts}
+ranked = {}
+for c in d['result']:
+    m = re.match(r'cut (\S+) -> (\S+)', c['description'])
+    if m: ranked[(m.group(1), m.group(2))] = c['total_blast_s_before'] - c['total_blast_s_after']
+print(f'ranked cuts returned: {len(ranked)}')
 hits = sorted(((ranked.get(e, 0.0), e) for e in p2), reverse=True)
-print(f'{len(p2)} Phase-2 edges; {sum(1 for s,_ in hits if s > 0)} appear in the top-40 ranking')
+nz = [h for h in hits if h[0] > 0]
+print(f'{len(p2)} Phase-2 edges; {len(nz)} have a measured saving')
 for s, e in hits:
-    print(f'  {s:>8.1f}s  {e[0]} -> {e[1]}' + ('' if s > 0 else '   <- no measured build-time benefit'))
+    print(f'  {s:8.1f}s  {e[0]} -> {e[1]}' + ('' if s > 0 else '   <- no measured build-time benefit'))
 "
 ```
 
-Expected: a ranked list. Edges printing `0.0` with the trailing marker have **no measured build-time justification** for decoupling — surface them, do not cut them on the strength of a label.
+Expected: a ranked list. Edges printing `0.0` have **no measured build-time
+justification** for decoupling — surface them, do not cut them on the strength
+of a label.
+
+**Interpret with the churn caveat.** `blast_s` is churn-blind, as
+`contracts/ci/crate-budget.v1.json`'s own comment notes: a high-fan-in leaf that
+almost never changes ranks high while costing little in practice, because the
+rebuild it triggers rarely happens. A large saving is necessary evidence for
+decoupling, not sufficient — weigh it against how often the source crate
+actually changes (`git log --oneline --since=6.months -- crates/<crate>/ | wc -l`)
+before committing to the work.
 
 - [ ] **Step 4: Commit the evidence artifact**
 
