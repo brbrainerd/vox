@@ -31,6 +31,7 @@ pub const ROUTING_FIELDS: &[&str] = &[
     "allow_duplicate",
     "grounding_check_enabled",
     "chat_session_id",
+    "mode",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -72,6 +73,13 @@ pub struct ChatTurnInput {
     pub allow_duplicate: Option<bool>,
     #[serde(default)]
     pub chat_session_id: Option<String>,
+    /// Interaction mode from the composer (plan|act|verify). Was dropped
+    /// end-to-end pre-fix: forwarded server-side onto
+    /// `SubmitTaskInput::mode` -> `enqueue_hints.mode` (see
+    /// `control_plane::submit_task_params`) on the background path only —
+    /// the sync path has no `mode` concept in `vox_chat_message`.
+    #[serde(default)]
+    pub mode: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,10 +130,18 @@ pub fn sync_tool_args(input: &ChatTurnInput) -> serde_json::Value {
         ("clutch", non_blank(&input.clutch)),
         ("risk", non_blank(&input.risk)),
         ("active_skill", non_blank(&input.active_skill)),
+        ("priority", non_blank(&input.priority)),
     ] {
         if let Some(v) = val {
             obj.insert(key.into(), serde_json::json!(v));
         }
+    }
+    // `ChatMessageParams` (crates/vox-orchestrator-mcp/src/chat_tools/params.rs)
+    // needs a `dry_run: Option<bool>` field for the daemon to actually read
+    // this — cross-file dependency on the parallel params.rs work. Emitted
+    // here regardless so the wire carries it once that lands.
+    if let Some(v) = input.dry_run {
+        obj.insert("dry_run".into(), serde_json::json!(v));
     }
     args
 }
@@ -137,7 +153,7 @@ pub fn background_input(input: &ChatTurnInput) -> SubmitTaskInput {
         files: input.context_files.clone(),
         priority: input.priority.clone(),
         session_id: Some(input.session_id.clone()),
-        mode: None,
+        mode: input.mode.clone(),
         tier: input.tier.clone(),
         // `model_hint` is dead on the wire: the daemon's SUBMIT_TASK handler
         // never reads it. Only `tier` -> enqueue_hints.model_preference works.
@@ -150,7 +166,15 @@ pub fn background_input(input: &ChatTurnInput) -> SubmitTaskInput {
         model_override: input.model_override.clone(),
         task_category: None,
         grounding_check_enabled: input.grounding_check_enabled,
-        chat_session_id: Some(input.session_id.clone()),
+        // The real originating chat session when the caller sent one
+        // (App.tsx's `activeSessionId`) — falls back to `session_id` only
+        // when absent, since `session_id` itself can be a synthetic,
+        // throwaway background-dispatch id (see `newBackgroundSessionId`
+        // call sites in App.tsx) that points at no real transcript.
+        chat_session_id: input
+            .chat_session_id
+            .clone()
+            .or_else(|| Some(input.session_id.clone())),
     }
 }
 
@@ -309,7 +333,8 @@ mod tests {
             "tier": "cloud",
             "context_files": ["crates/vox-crypto/src/lib.rs"],
             "active_skill": "ponytail",
-            "clutch": "genius", "risk": "low"
+            "clutch": "genius", "risk": "low",
+            "priority": "urgent", "dry_run": true
         }))
         .expect("input");
         let args = sync_tool_args(&input);
@@ -319,6 +344,9 @@ mod tests {
         assert_eq!(args["context_files"][0], "crates/vox-crypto/src/lib.rs");
         assert_eq!(args["active_skill"], "ponytail");
         assert_eq!(args["clutch"], "genius");
+        // Bug 2: priority/dry_run were silently dropped on the sync path.
+        assert_eq!(args["priority"], "urgent");
+        assert_eq!(args["dry_run"], true);
         // `cognitive_profile` must NEVER be set from the tier: its values are
         // fast|reasoning|creative, and setting it switches the turn off the
         // agent loop onto mcp_infer_completion, killing tool calls and
@@ -345,7 +373,8 @@ mod tests {
             "model_override": "m1", "tier": "mesh",
             "clutch": "efficiency", "risk": "moderate",
             "context_files": ["a.rs", "b.rs"], "priority": "urgent",
-            "dry_run": true, "active_skill": "ponytail", "allow_duplicate": false
+            "dry_run": true, "active_skill": "ponytail", "allow_duplicate": false,
+            "mode": "act"
         }))
         .expect("input");
         let out = background_input(&input);
@@ -357,6 +386,40 @@ mod tests {
         assert_eq!(out.priority.as_deref(), Some("urgent"));
         assert_eq!(out.allow_duplicate, Some(false));
         assert_eq!(out.chat_session_id.as_deref(), Some("s1"));
+        // Bug 1: mode (e.g. `/spawn`'s "act") must reach SubmitTaskInput.mode
+        // -> control_plane::submit_task_params -> enqueue_hints.mode.
+        assert_eq!(out.mode.as_deref(), Some("act"));
         assert!(out.task_category.is_none());
+    }
+
+    /// Bug 3 regression test. The naive `assert_eq!(out.chat_session_id.as_deref(),
+    /// Some("s1"))` in the test above happens to pass even with the old
+    /// `chat_session_id: Some(input.session_id.clone())` bug, because its
+    /// fixture's `session_id` ("s1") IS the value under test — the bug (always
+    /// echoing `session_id`, ignoring any real `chat_session_id`) is invisible
+    /// unless the two differ, as they do for every real background dispatch
+    /// (`session_id` is a synthetic `newBackgroundSessionId()`, `chat_session_id`
+    /// is the real originating chat session).
+    #[test]
+    fn background_input_prefers_chat_session_id_over_session_id() {
+        let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "bg-synthetic-1", "content": "spawn a sub-agent",
+            "execution": "background",
+            "chat_session_id": "real-chat-session-42"
+        }))
+        .expect("input");
+        let out = background_input(&input);
+        assert_eq!(out.chat_session_id.as_deref(), Some("real-chat-session-42"));
+
+        // Fallback: a caller that never sets chat_session_id (e.g. any future
+        // dispatch path that forgets it) still gets a usable value rather than
+        // None.
+        let input_no_chat_session: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "bg-synthetic-2", "content": "spawn a sub-agent",
+            "execution": "background"
+        }))
+        .expect("input");
+        let out2 = background_input(&input_no_chat_session);
+        assert_eq!(out2.chat_session_id.as_deref(), Some("bg-synthetic-2"));
     }
 }

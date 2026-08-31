@@ -947,6 +947,11 @@ export default function App() {
       groundingCheckEnabled,
       activeSkillId: activeSkill?.id ?? null,
       allowDuplicate: false,
+      // The real originating chat session -- distinct from `sessionId` above
+      // on the background path, where it's a synthetic throwaway id (see
+      // `newBackgroundSessionId` call sites). Carries delegation lineage to
+      // the backend even when the dispatch session itself is disposable.
+      chatSessionId: activeSessionId,
     });
 
     // Checked BEFORE chat_append_message persists anything: a second send
@@ -1032,6 +1037,20 @@ export default function App() {
           checkBudgetWarn(sessionId);
         }
       } catch (err) {
+        // Covers BOTH the first attempt and the post-confirm duplicate retry
+        // (`dispatchAttempt(true)` above) -- either can throw here, and
+        // either would otherwise leave the optimistic pending bubble minted
+        // by `dispatchAttempt`'s onStart callback stuck with no terminal
+        // state until the multi-minute pendingTimeout watchdog eventually
+        // flips it to a generic timeout message.
+        if (runId) {
+          dispatchSessionChat({
+            type: 'failRun',
+            sessionId,
+            runId,
+            error: sanitizeErrorForToast(err),
+          });
+        }
         pushToast(dispatchErrorToast(sanitizeErrorForToast(err), 'Dispatch Failed'));
       }
       return;

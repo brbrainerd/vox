@@ -242,6 +242,50 @@ describe('App shell', () => {
     expect(screen.queryByText('Dispatch Failed')).toBeNull();
   });
 
+  // Bug 4 (chat-harness review): the background dispatch branch mints its
+  // pending bubble via `onRun` BEFORE the `chat_turn` invoke resolves. Its
+  // catch block previously only called `pushToast` -- it never dispatched
+  // `failRun` for that runId, so a dispatch failure left the bubble stuck
+  // 'pending' with no terminal state until the multi-minute `pendingTimeout`
+  // watchdog eventually flipped it to a GENERIC message (`PENDING_TIMEOUT_MESSAGE`
+  // in lib/chatCorrelation.ts), discarding the real error. Proof here: the
+  // "persist assistant transcript rows" effect only persists 'done'/'failed'
+  // assistant messages (`assistantMessagesReadyToPersist`) -- so an immediate
+  // `chat_append_message` carrying the REAL dispatch error means `failRun`
+  // fired synchronously in the catch, not the watchdog minutes later.
+  it('a background dispatch failure settles the pending bubble as failed (not stuck pending) with the real error', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_append_message') return Promise.resolve(1);
+      if (cmd === 'chat_turn') {
+        return Promise.reject('daemon unreachable: connection refused');
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/spawn');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
+    );
+    await waitFor(() => {
+      const persistCall = invokeMock.mock.calls.find(
+        ([cmd, args]: [string, any]) =>
+          cmd === 'chat_append_message' && args?.input?.role === 'assistant',
+      );
+      expect(persistCall).toBeDefined();
+      expect(persistCall![1].input.content).toContain('daemon unreachable: connection refused');
+    });
+  });
+
   // Non-blocking budget-warn toast: distinct from "Budget limit reached"
   // (the hard-block toast above) — fires once spend crosses
   // `budget_warn_threshold_pct` but before the hard cap, after a SUCCESSFUL

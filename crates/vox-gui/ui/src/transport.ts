@@ -1003,6 +1003,13 @@ export interface ChatTurnInput {
   priority?: string | null;
   dry_run?: boolean | null;
   allow_duplicate?: boolean | null;
+  /** Interaction mode from the composer (plan|act|verify); forwarded as the
+   *  `mode` enqueue hint on the background path. */
+  mode?: string | null;
+  /** The real originating chat session, distinct from `session_id` above
+   *  (which can be a synthetic background-session id). See Rust
+   *  `ChatTurnInput::chat_session_id`. */
+  chat_session_id?: string | null;
 }
 
 /** Mirrors Rust `ChatTurnDto` returned by `chat_turn`. On the background branch
