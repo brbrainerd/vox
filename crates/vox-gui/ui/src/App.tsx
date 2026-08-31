@@ -3,6 +3,7 @@ import {
   sanitizeErrorForToast,
   isBudgetExceededError,
   isRateLimitedError,
+  isContextExceededError,
   stripRateLimitedPrefix,
 } from './lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
@@ -175,8 +176,15 @@ function isKnownView(v: unknown): v is View {
  * That's actionable too (add your own API key, or wait for the cap to reset),
  * so it gets its own distinct toast — checked alongside (not instead of) the
  * budget check, since the two conditions are mutually exclusive.
+ *
+ * Task C1: takes the raw `err` (not a pre-sanitized string) so classification
+ * runs against the real wire shape. `sanitizeErrorForToast` is only invoked
+ * on the fallthrough/unrecognized-error path — the known kinds above are
+ * already-safe, app-authored strings (never raw IPC internals), so there's
+ * nothing to strip.
  */
-function dispatchErrorToast(errorText: string, fallbackTitle: string): Toast {
+function dispatchErrorToast(err: unknown, fallbackTitle: string): Toast {
+  const errorText = String(err);
   if (isBudgetExceededError(errorText)) {
     return {
       tone: 'warn',
@@ -193,7 +201,15 @@ function dispatchErrorToast(errorText: string, fallbackTitle: string): Toast {
       cause: 'backend-error',
     };
   }
-  return { tone: 'warn', title: fallbackTitle, body: errorText, cause: 'backend-error' };
+  if (isContextExceededError(errorText)) {
+    return {
+      tone: 'warn',
+      title: 'Message too long',
+      body: `${errorText} Trim your context or start a new session.`,
+      cause: 'backend-error',
+    };
+  }
+  return { tone: 'warn', title: fallbackTitle, body: sanitizeErrorForToast(err), cause: 'backend-error' };
 }
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
@@ -1078,7 +1094,7 @@ export default function App() {
             error: sanitizeErrorForToast(err),
           });
         }
-        pushToast(dispatchErrorToast(sanitizeErrorForToast(err), 'Dispatch Failed'));
+        pushToast(dispatchErrorToast(err, 'Dispatch Failed'));
       }
       return;
     }
@@ -1134,7 +1150,7 @@ export default function App() {
         tempId,
         result: { ok: false, error: errorText },
       });
-      pushToast(dispatchErrorToast(errorText, 'Chat reply failed'));
+      pushToast(dispatchErrorToast(err, 'Chat reply failed'));
     } finally {
       chatSendInFlightRef.current.delete(sessionId);
     }

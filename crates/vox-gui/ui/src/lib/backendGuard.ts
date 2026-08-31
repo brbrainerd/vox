@@ -113,6 +113,18 @@ export function isRateLimitedError(text: string): boolean {
   return unwrapLlmErrorPrefix(text).startsWith(RATE_LIMITED_PREFIX);
 }
 
+/**
+ * Mirrors `vox_actor_runtime::llm::CONTEXT_EXCEEDED_PREFIX`
+ * (`crates/vox-actor-runtime/src/llm/chat.rs`) — the marker `llm_chat`
+ * prepends when the underlying provider failure is a context-window
+ * overflow. Same detection shape as `isRateLimitedError`/`isBudgetExceededError`.
+ */
+const CONTEXT_EXCEEDED_PREFIX = 'CONTEXT_LENGTH_EXCEEDED: ';
+
+export function isContextExceededError(text: string): boolean {
+  return unwrapLlmErrorPrefix(text).startsWith(CONTEXT_EXCEEDED_PREFIX);
+}
+
 /** Strips both the `LLM error: ` wrapper (if present) and the detection-only
  *  `RATE_LIMITED_PREFIX` marker, leaving the human-readable egress error
  *  message (e.g. "OpenRouter rate limit exceeded, try again in 24h") to show

@@ -99,6 +99,55 @@ pub struct ChatTurnDto {
     pub duplicate_of: Option<String>,
 }
 
+/// Wrapper every real dispatch call site applies (`format!("LLM error: {e}")`
+/// — see `crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs` and
+/// siblings) before a backend error string reaches the GUI. Stripped before
+/// classification so detection matches the wire shape, not the raw source.
+const LLM_ERROR_WRAPPER_PREFIX: &str = "LLM error: ";
+
+/// Typed classification of a `chat_turn` dispatch failure, for a GUI toast
+/// that can react to the failure kind instead of pattern-matching a raw
+/// string itself. `#[serde(tag = "kind", ...)]` so a future JSON-carrying
+/// error surface can round-trip this directly; today it's Rust-internal.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ChatTurnError {
+    RateLimited { message: String },
+    ContextExceeded { message: String },
+    BudgetExceeded { message: String },
+    /// Fallback: anything not recognized as one of the above.
+    Backend { message: String },
+}
+
+/// Classifies a backend error string (as it actually reaches the GUI — see
+/// `LLM_ERROR_WRAPPER_PREFIX`) into a [`ChatTurnError`]. Matches against the
+/// real prefixes/`Display` formats production emits:
+/// - `vox_actor_runtime::llm::RATE_LIMITED_PREFIX`
+/// - `vox_actor_runtime::llm::CONTEXT_EXCEEDED_PREFIX`
+/// - `BudgetGuardError::Exceeded`'s Display (`"{Daily|Session} budget of $…
+///   exceeded (spent $…)"`, `crates/vox-orchestrator-mcp/.../budget_guard.rs`)
+pub fn classify_turn_error(text: &str) -> ChatTurnError {
+    let unwrapped = text.strip_prefix(LLM_ERROR_WRAPPER_PREFIX).unwrap_or(text);
+    if unwrapped.starts_with(vox_actor_runtime::llm::RATE_LIMITED_PREFIX) {
+        return ChatTurnError::RateLimited {
+            message: unwrapped.to_string(),
+        };
+    }
+    if unwrapped.starts_with(vox_actor_runtime::llm::CONTEXT_EXCEEDED_PREFIX) {
+        return ChatTurnError::ContextExceeded {
+            message: unwrapped.to_string(),
+        };
+    }
+    if unwrapped.starts_with("Daily budget of $") || unwrapped.starts_with("Session budget of $") {
+        return ChatTurnError::BudgetExceeded {
+            message: unwrapped.to_string(),
+        };
+    }
+    ChatTurnError::Backend {
+        message: text.to_string(),
+    }
+}
+
 fn non_blank(v: &Option<String>) -> Option<&str> {
     v.as_deref().map(str::trim).filter(|s| !s.is_empty())
 }
@@ -314,6 +363,33 @@ mod tests {
             missing_from_submit.is_empty(),
             "SubmitTaskInput is missing routing fields: {missing_from_submit:?}"
         );
+    }
+
+    #[test]
+    fn classifies_the_strings_production_actually_emits() {
+        // Every error is wrapped as `format!("LLM error: {e}")` before it
+        // reaches the GUI — hence `contains`, not `starts_with`.
+        assert!(matches!(
+            classify_turn_error("LLM error: RATE_LIMITED: openrouter free tier 50/day"),
+            ChatTurnError::RateLimited { .. }
+        ));
+        assert!(matches!(
+            classify_turn_error("LLM error: CONTEXT_LENGTH_EXCEEDED: 200000 > 128000"),
+            ChatTurnError::ContextExceeded { .. }
+        ));
+        // Real BudgetGuardError Display, NOT the invented "budget exceeded: …".
+        assert!(matches!(
+            classify_turn_error("Session budget of $5.00 exceeded (spent $5.10)"),
+            ChatTurnError::BudgetExceeded { .. }
+        ));
+        assert!(matches!(
+            classify_turn_error("Daily budget of $20.00 exceeded (spent $20.03)"),
+            ChatTurnError::BudgetExceeded { .. }
+        ));
+        assert!(matches!(
+            classify_turn_error("connection refused"),
+            ChatTurnError::Backend { .. }
+        ));
     }
 
     #[test]
