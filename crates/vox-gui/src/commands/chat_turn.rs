@@ -20,6 +20,7 @@ use crate::commands::daemon::PersistentDaemon; // NB: commands::daemon, not crat
 use crate::commands::gui_db_pool::{GuiDbPool, map_db_err};
 
 /// Routing fields that must exist on both input structs.
+#[cfg(test)]
 pub const ROUTING_FIELDS: &[&str] = &[
     "priority",
     "model_override",
