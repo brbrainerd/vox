@@ -406,28 +406,108 @@ grep -oE "^([a-z0-9-]+)\s*=\s*\{[^}]*max_loc\s*=\s*[0-9_]+" docs/src/architectur
 
 Expected: several `OVER` rows. If none, this task is moot — stop and report.
 
-- [ ] **Step 2: Demote the guard**
+**Do not simply delete the per-crate `max_loc` values.** Verified against the
+tree: `parse_strictness` (`crates/vox-arch-check/src/main.rs:869`) accepts only
+`error`/`strict` and `warn`/`warning`, falling through to the default for
+anything else — so writing `loc_budget = "off"` today silently means `"warn"`
+and the noise continues. And *both* the absolute check (`:1270`) and Rule 13
+`loc_delta` (`:1505`) `continue` when `entry.max_loc.is_none()`, so deleting the
+budgets to silence the absolute check would disable the trend check as well —
+removing the very guard this task nominates as the replacement.
+
+The correct shape: keep every `max_loc` value, reframed as the **growth
+baseline** Rule 13 measures against, and give the absolute check a real off
+switch.
+
+- [ ] **Step 2: Write the failing test**
+
+Add to the `#[cfg(test)] mod tests` in `crates/vox-arch-check/src/main.rs`:
+
+```rust
+#[test]
+fn loc_budget_off_disables_only_the_absolute_check() {
+    assert!(loc_budget_disabled(Some(&"off".to_string())));
+    assert!(loc_budget_disabled(Some(&"none".to_string())));
+    // Existing values keep their meaning.
+    assert!(!loc_budget_disabled(Some(&"warn".to_string())));
+    assert!(!loc_budget_disabled(Some(&"error".to_string())));
+    // Absent -> enabled, so removing the key cannot silently disable the guard.
+    assert!(!loc_budget_disabled(None));
+}
+```
+
+- [ ] **Step 3: Run the test to verify it fails**
+
+```bash
+cargo test -p vox-arch-check loc_budget_off
+```
+
+Expected: FAIL, `cannot find function loc_budget_disabled`.
+
+- [ ] **Step 4: Implement the off switch**
+
+Add near `parse_strictness` in `crates/vox-arch-check/src/main.rs`:
+
+```rust
+/// True when the `loc_budget` guard is explicitly switched off.
+///
+/// Disables ONLY the absolute `max_loc` threshold check. The per-crate
+/// `max_loc` values are deliberately retained: Rule 13 (`loc_delta`) skips any
+/// crate whose `max_loc` is `None` (see the `entry.max_loc.is_none()` guard in
+/// the delta pass), so deleting them to silence the absolute check would also
+/// disable growth detection. Under `off`, `max_loc` stops meaning "must be
+/// under this" and means "growth past this baseline is the signal".
+fn loc_budget_disabled(setting: Option<&String>) -> bool {
+    matches!(setting.map(|s| s.as_str()), Some("off") | Some("none"))
+}
+```
+
+Then guard the absolute-check loop. Immediately before `let budget = match entry.max_loc {` (~`:1270`), add an early skip driven by the parsed config:
+
+```rust
+        if loc_budget_off {
+            continue;
+        }
+```
+
+binding `loc_budget_off` alongside the other guard flags where `strict_loc` is
+computed (~`:1015`):
+
+```rust
+        loc_budget_off: loc_budget_disabled(layers.guards.loc_budget.as_ref()),
+```
+
+and adding the field to the report struct next to `strict_loc` (~`:387`):
+
+```rust
+    loc_budget_off: bool,
+```
+
+- [ ] **Step 5: Run the test to verify it passes**
+
+```bash
+cargo test -p vox-arch-check loc_budget_off
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Switch the guard off in the SSOT**
 
 In `docs/src/architecture/layers.toml`, replace the `loc_budget` line in `[guards]`:
 
 ```toml
-# Reported, never blocking. Per-crate LoC is a weak proxy for both goals it was
-# serving: build cost is measured directly by blast_s (contracts/ci/crate-build-map.v1.json,
-# gated by `vox ci crate-budget`), and agent read/write ergonomics are a per-FILE
-# property enforced by arch/god_object (Error at 500 non-blank lines). The
-# per-crate number bound nothing: vox-orchestrator's budget was raised
-# 55K -> 60K -> 70K and is still exceeded at ~85.5K. Rule 13 (`loc_delta`)
-# catches god-crate drift better, because growth is the real signal.
+# Off: reported by Rule 13 as a trend, never as an absolute ceiling. Per-crate
+# LoC is a weak proxy for both goals it served. Build cost is measured directly
+# by blast_s (contracts/ci/crate-build-map.v1.json, gated by `vox ci
+# crate-budget`); agent read/write ergonomics are a per-FILE property enforced
+# by arch/god_object (Error at 500 non-blank lines). The per-crate number bound
+# nothing: vox-orchestrator's budget was raised 55K -> 60K -> 70K and is still
+# exceeded at ~85.5K. The `max_loc` values below are RETAINED as Rule 13's
+# growth baseline — deleting them would disable loc_delta too.
 loc_budget        = "off"
 ```
 
-Verify `"off"` is an accepted value; if the parser only accepts `warn`/`error`, keep `warn` and delete the per-crate `max_loc` values instead, leaving `loc_delta` as the trend guard:
-
-```bash
-grep -n "loc_budget\|fn.*guard\|\"warn\"\|\"error\"\|\"off\"" crates/vox-arch-check/src/main.rs | head -20
-```
-
-- [ ] **Step 3: Record the rationale where contributors read it**
+- [ ] **Step 7: Record the rationale where contributors read it**
 
 Append to the "God Object Limit (Multi-Tier)" section of `docs/agents/governance.md`:
 
@@ -453,13 +533,29 @@ Growth still matters: Rule 13 (`loc_delta`) warns when a budgeted crate grows
 >15% against the last release tag.
 ```
 
-- [ ] **Step 4: Verify arch-check still passes and commit**
+- [ ] **Step 8: Verify arch-check still passes and commit**
 
 ```bash
 cargo run -q -p vox-arch-check
 ```
 
-Expected: runs clean; no `loc_budget` findings.
+Expected: runs clean, with **no** `[warn] LoC budget exceeded` block. Rule 13
+(`loc_delta`) must still be active — confirm by checking that the run does not
+report `loc_delta` as skipped, and that the JSON report still carries a
+`loc_delta` entry:
+
+```bash
+cargo run -q -p vox-arch-check -- --json 2>/dev/null | python -c "
+import json,sys; d=json.load(sys.stdin)
+names={r.get('rule') or r.get('name') for r in (d if isinstance(d,list) else d.get('rules',[]))}
+assert 'loc_delta' in names, f'loc_delta vanished — max_loc was probably deleted: {sorted(names)}'
+print('loc_delta still reported: OK')
+"
+```
+
+If `--json` is not a supported flag, fall back to asserting on stderr that a
+`loc_delta` line is still emitted. Do not skip this check: it is the specific
+regression this task's design exists to avoid.
 
 **Note for the executor:** `layers.toml` lives under `docs/src/architecture/`, which triggers the whole-`crates/` TOESTUB sweep in `enforce-warn` mode (`.github/workflows/ci.yml:764`). Commit `5ece1c52f` removed `@generated` files from that scan set, but ~315 hand-written files still exceed 500 non-blank lines. They are grandfathered by *scoping* (the per-PR gate at `ci.yml:745` only scans changed files), not by suppression — so expect this PR's sweep to surface them. If it blocks, that is a pre-existing condition to report, **not** something to fix by suppressing findings or reverting this task.
 
