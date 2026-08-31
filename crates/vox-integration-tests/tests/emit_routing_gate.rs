@@ -52,8 +52,8 @@ fn classify(field: &str) -> Option<Arm> {
         "mcp_resources" => RustArm,  // MCP resource handlers run as Rust
         "agents" => RustArm,         // native agents run as Rust
         "environments" => RustArm,   // container env specs are backend infra
-        "consts" => Both,            // top-level const/let bindings emit to Rust consts + consts.ts (codegen/emit/workflow.rs, codegen-ts/src/emitter.rs)
-        "messages" => RustArm,       // inter-agent message payload shapes for actor mailboxes (backend-only, mirrors `agents`)
+        "consts" => Both, // top-level const/let bindings emit to Rust consts + consts.ts (codegen/emit/workflow.rs, codegen-ts/src/emitter.rs)
+        "messages" => RustArm, // inter-agent message payload shapes for actor mailboxes (backend-only, mirrors `agents`)
 
         // --- browser / GUI → TypeScript ---
         "components" => TsArm,       // reactive UI components
@@ -68,7 +68,7 @@ fn classify(field: &str) -> Option<Arm> {
         "push" => TsArm,             // push-notification UI wiring
         "token_decls" => TsArm,      // design tokens consumed by UI emit
         "route_ids" => TsArm,        // typed route ids → codegen-ts route module
-        "themes" => TsArm,           // @theme light/dark token pairs are UI-only, parallels token_decls
+        "themes" => TsArm, // @theme light/dark token pairs are UI-only, parallels token_decls
 
         _ => return None,
     };
@@ -82,10 +82,10 @@ const IGNORED_KEYS: &[&str] = &[
     "rust_imports",     // declared Rust crate imports (passthrough metadata)
     "inferred_types",   // type-checker span→type map (codegen optimization metadata)
     "legacy_ast_nodes", // not-yet-typed decls (future/unknown kinds, no stable arm)
-    "configs",          // resolved from Vox.toml at runtime, never emitted (see HirConfig doc comment)
-    "skills",           // fn_name+span only; the underlying fn is already routed via `functions`
-    "agent_defs",       // fn_name+span only; the underlying fn is already routed via `functions`
-    "lower_warnings",   // HIR-lowering diagnostics, drained into the diagnostic stream (typeck/mod.rs), never emitted
+    "configs", // resolved from Vox.toml at runtime, never emitted (see HirConfig doc comment)
+    "skills",  // fn_name+span only; the underlying fn is already routed via `functions`
+    "agent_defs", // fn_name+span only; the underlying fn is already routed via `functions`
+    "lower_warnings", // HIR-lowering diagnostics, drained into the diagnostic stream (typeck/mod.rs), never emitted
 ];
 
 /// Enumerate the top-level field names of a representative `HirModule` via a
