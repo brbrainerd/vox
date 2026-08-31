@@ -318,6 +318,8 @@ interface ChatSurfaceProps {
   pendingApprovals?: number;
   /** Currently pinned skill id (App.tsx `activeSkill`), threaded into secretary task submission. */
   activeSkillId?: string | null;
+  /** "not this one" on a skill-activation chip — see `ChatTranscript`/`ChatTurnEventRow`. */
+  onExcludeSkill?: (skillId: string) => void;
 }
 
 export function ChatSurface({
@@ -348,6 +350,7 @@ export function ChatSurface({
   onOpenFeedbackContext,
   pendingApprovals = 0,
   activeSkillId,
+  onExcludeSkill,
 }: ChatSurfaceProps) {
   // Task 9: session switching lives in the global Sidebar
   // (SessionSidebarSection) now, backed by App.tsx's single owning call to
@@ -678,6 +681,7 @@ export function ChatSurface({
           messages={messages}
           agentStreamItems={agentStreamItems}
           sessionId={activeId}
+          onExcludeSkill={onExcludeSkill}
         />
       )}
       {composer != null ? (

@@ -354,6 +354,17 @@ export default function App() {
   const [filterKind, setFilterKind] = useState('all');
   const [chips, setChips] = useState<ContextChip[]>([]);
   const [activeSkill, setActiveSkill] = useState<ActiveSkill | null>(null);
+  // Skills the user rejected via "not this one" (ChatTurnEventRow). Session-scoped
+  // in the same (global-not-per-session) way `activeSkill` already is — see
+  // `excludeSkillAndRetry` below for the append-and-redispatch wiring.
+  const [skillExclusions, setSkillExclusions] = useState<string[]>([]);
+  const skillExclusionsRef = useRef<string[]>([]);
+  useEffect(() => {
+    skillExclusionsRef.current = skillExclusions;
+  }, [skillExclusions]);
+  // Last submitted chat payload, so `excludeSkillAndRetry` can re-dispatch the
+  // same turn immediately after excluding a skill.
+  const lastChatPayloadRef = useRef<ChatPayload | null>(null);
   const [deployedSet, setDeployedSet] = useState(new Set<string>());
   const [selectedAgentId, setSelectedAgentId] = useState('ROOT');
   const [appVersion, setAppVersion] = useState<string>('loading…');
@@ -1026,12 +1037,13 @@ export default function App() {
     }
   }, [pushToast]);
 
-  const handleLoquelaSubmit = useCallback(async (payload: ChatPayload) => {
+  const handleLoquelaSubmit = useCallback(async (payload: ChatPayload, skillExclusionsOverride?: string[]) => {
     const sessionId = payload.session_id ?? activeSessionId;
     if (!sessionId) {
       pushToast({ tone: 'warn', title: 'No chat session', body: 'Create or select a chat session first.', cause: 'validation' });
       return;
     }
+    lastChatPayloadRef.current = payload;
     // ONE payload, ONE command (`chat_turn`) — the dispatch fork now lives in
     // Rust. The frontend still branches below, but only on STORE LIFECYCLE:
     // `submitResolved` is the sole writer of `taskToSession`, the map that
@@ -1042,6 +1054,11 @@ export default function App() {
       modelOverride: chatModelOverride,
       groundingCheckEnabled,
       activeSkillId: activeSkill?.id ?? null,
+      // `skillExclusionsOverride` lets `excludeSkillAndRetry` re-dispatch with
+      // the freshly-excluded id included immediately, instead of racing this
+      // callback's own closed-over `skillExclusions` state (which would still
+      // read the pre-exclusion value on the very next tick).
+      skillExclusions: skillExclusionsOverride ?? skillExclusions,
       allowDuplicate: false,
       // The real originating chat session -- distinct from `sessionId` above
       // on the background path, where it's a synthetic throwaway id (see
@@ -1208,7 +1225,23 @@ export default function App() {
     } finally {
       chatSendInFlightRef.current.delete(sessionId);
     }
-  }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill, gamifySettings.enabled, checkBudgetWarn, chatModelOverride, groundingCheckEnabled]);
+  }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill, gamifySettings.enabled, checkBudgetWarn, chatModelOverride, groundingCheckEnabled, skillExclusions]);
+
+  // "not this one" (ChatTurnEventRow, via ChatSurface -> ChatTranscript):
+  // append the skill to session-scoped exclusions AND immediately re-dispatch
+  // the last turn so the excluded skill is absent from the system prompt on
+  // the retry. Both actions matter — a first draft of this feature added the
+  // `skill_exclusions` field end-to-end but nothing ever appended to it or
+  // re-ran the turn, so excluding a skill silently did nothing.
+  const excludeSkillAndRetry = useCallback((skillId: string) => {
+    const next = skillExclusionsRef.current.includes(skillId)
+      ? skillExclusionsRef.current
+      : [...skillExclusionsRef.current, skillId];
+    skillExclusionsRef.current = next;
+    setSkillExclusions(next);
+    const last = lastChatPayloadRef.current;
+    if (last) handleLoquelaSubmit(last, next);
+  }, [handleLoquelaSubmit]);
 
   const handleLoquelaSlash = useCallback(async (
     cmd: string,
@@ -1622,6 +1655,7 @@ export default function App() {
     chatPlanSessionId: openPlanSessionId,
     chatPlanVersion: null,
     chatActiveSkillId: activeSkill?.id ?? null,
+    onExcludeSkill: excludeSkillAndRetry,
     chatOpenrouterSpendUsd: openrouterSpendUsd,
     chatAgentStreamItems: activeChatAgentItems,
     onOpenAgentInFlow: (agentId: string) => {

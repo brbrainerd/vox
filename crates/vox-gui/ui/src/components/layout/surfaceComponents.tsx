@@ -76,6 +76,7 @@ export interface SurfaceProps {
   chatPlanSessionId?: string | null;
   chatPlanVersion?: number | null;
   chatActiveSkillId?: string | null;
+  onExcludeSkill?: (skillId: string) => void;
 }
 
 export function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
@@ -210,6 +211,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           planSessionId={props.chatPlanSessionId}
           planVersion={props.chatPlanVersion}
           activeSkillId={props.chatActiveSkillId}
+          onExcludeSkill={props.onExcludeSkill}
         />
       );
     default:
