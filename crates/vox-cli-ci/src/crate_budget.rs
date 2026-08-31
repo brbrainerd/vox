@@ -14,7 +14,40 @@ use std::path::Path;
 pub struct BudgetFile {
     #[allow(dead_code)]
     pub schema_version: u32,
+    /// Host triple + measurement mode the ceilings were derived on, e.g.
+    /// `"x86_64-unknown-linux-gnu (cargo build)"`. `None` in files predating
+    /// provenance tracking.
+    #[serde(default)]
+    pub measured_on: Option<String>,
     pub keystones: Vec<KeystoneBudget>,
+}
+
+/// Warn when the blast-radius map and the ceilings were measured under different
+/// conditions.
+///
+/// `blast_s` scales with both the machine and the measurement mode: `cargo check`
+/// skips codegen and linking, so its numbers are on a different scale from
+/// `cargo build`, and a slower or busier host inflates everything uniformly.
+/// Grading a map produced under one set of conditions against ceilings derived
+/// under another reports that difference as regression.
+///
+/// Returns `None` when either side is unknown. That is deliberate: files
+/// predating provenance tracking carry no `measured_on`, and a warning that
+/// fires on every run is one people learn to ignore — the failure mode that let
+/// the build-bench gate sit disabled behind `continue-on-error` for months.
+fn host_mismatch_warning(map_host: Option<&str>, ceiling_host: Option<&str>) -> Option<String> {
+    match (map_host, ceiling_host) {
+        (Some(m), Some(c)) if m != c => Some(format!(
+            "crate-build-map was measured on '{m}' but the ceilings in \
+             contracts/ci/crate-budget.v1.json derive from '{c}'. blast_s scales \
+             with host and measurement mode, so any OVER verdict below may be \
+             that difference rather than a regression. Re-measure on '{c}', or \
+             re-derive the ceilings on '{m}', before treating a failure as real \
+             — do NOT simply raise the ceilings to match, which resets the \
+             ratchet to whatever the current run produced."
+        )),
+        _ => None,
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -92,6 +125,15 @@ pub fn run_crate_budget(root: &Path, exit_zero: bool) -> Result<()> {
         );
     }
 
+    // Surface a provenance mismatch BEFORE the verdicts, so an OVER line is
+    // never read as a regression when it is really a host/mode difference.
+    if let Some(w) = host_mismatch_warning(
+        summary.get("measured_on").and_then(|v| v.as_str()),
+        budget.measured_on.as_deref(),
+    ) {
+        eprintln!("WARN: {w}");
+    }
+
     let blast_map = blast_map_from_summary(&summary);
 
     for k in &budget.keystones {
@@ -140,6 +182,7 @@ mod tests {
     fn make_budget(keystones: Vec<(&str, f64)>) -> BudgetFile {
         BudgetFile {
             schema_version: 1,
+            measured_on: None,
             keystones: keystones
                 .into_iter()
                 .map(|(name, ceiling)| KeystoneBudget {
@@ -187,6 +230,35 @@ mod tests {
         let budget = make_budget(vec![("vox-db", 370.0)]);
         let map = make_map(vec![("vox-db", 370.0)]);
         assert!(check_keystones(&budget, &map).is_empty());
+    }
+
+    #[test]
+    fn warns_when_map_host_differs_from_ceiling_host() {
+        let w = host_mismatch_warning(
+            Some("x86_64-pc-windows-msvc (cargo check)"),
+            Some("x86_64-unknown-linux-gnu (cargo build)"),
+        )
+        .expect("differing provenance must warn");
+        assert!(
+            w.contains("x86_64-pc-windows-msvc"),
+            "names the map host: {w}"
+        );
+        assert!(
+            w.contains("x86_64-unknown-linux-gnu"),
+            "names the ceiling host: {w}"
+        );
+    }
+
+    #[test]
+    fn no_warning_when_provenance_matches_or_is_unknown() {
+        let same = "x86_64-unknown-linux-gnu (cargo build)";
+        assert!(host_mismatch_warning(Some(same), Some(same)).is_none());
+        // Absent provenance must NOT warn: files predating provenance tracking
+        // carry none, and a warning that fires on every run trains people to
+        // ignore it — which is how the build-bench gate got disabled.
+        assert!(host_mismatch_warning(None, Some(same)).is_none());
+        assert!(host_mismatch_warning(Some(same), None).is_none());
+        assert!(host_mismatch_warning(None, None).is_none());
     }
 
     #[test]
