@@ -385,6 +385,9 @@ struct Report {
     strict_layer: bool,
     strict_fan_in: bool,
     strict_loc: bool,
+    /// `loc_budget = "off"`: skip the absolute `max_loc` threshold entirely.
+    /// Distinct from `!strict_loc`, which still collects and prints warnings.
+    loc_budget_off: bool,
     strict_orphan: bool,
     strict_docstring: bool,
     strict_description: bool,
@@ -866,6 +869,22 @@ impl Report {
     }
 }
 
+/// True when the `loc_budget` guard is explicitly switched off.
+///
+/// Disables ONLY the absolute `max_loc` threshold check. The per-crate `max_loc`
+/// values are deliberately retained, because Rule 13 (`loc_delta`) skips any
+/// crate whose `max_loc` is `None` — deleting the budgets to silence the
+/// absolute check would also disable growth detection, removing the guard that
+/// replaces it. Under `off`, `max_loc` stops meaning "must be under this" and
+/// means "growth past this baseline is the signal".
+///
+/// Note this cannot be folded into [`parse_strictness`], which returns a bool
+/// and maps any unrecognised value to its default — so `"off"` there would
+/// silently resolve to `"warn"` and keep printing.
+fn loc_budget_disabled(setting: Option<&String>) -> bool {
+    matches!(setting.map(|s| s.as_str()), Some("off") | Some("none"))
+}
+
 fn parse_strictness(setting: Option<&String>, default_strict: bool) -> bool {
     match setting.map(|s| s.as_str()) {
         Some("error") | Some("strict") => true,
@@ -1013,6 +1032,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         strict_layer: !warn_only_flag,
         strict_fan_in: parse_strictness(layers.guards.fan_in.as_ref(), false),
         strict_loc: parse_strictness(layers.guards.loc_budget.as_ref(), false),
+        loc_budget_off: loc_budget_disabled(layers.guards.loc_budget.as_ref()),
         strict_orphan: parse_strictness(layers.guards.orphan.as_ref(), false),
         strict_docstring: parse_strictness(layers.guards.docstring.as_ref(), false),
         strict_description: parse_strictness(layers.guards.description.as_ref(), false),
@@ -1261,7 +1281,17 @@ fn run(warn_only_flag: bool) -> Result<Report> {
 
     prof("rules 1+2+15 (layer/fan-in/wsdep)", &mut prof_last);
     // ── Rule 3: LoC budget ──
-    for pkg in metadata_full.workspace_packages() {
+    // Skipped wholesale when `loc_budget = "off"`. Rule 13 (`loc_delta`, below)
+    // still runs and still reads the same `max_loc` values as its growth
+    // baseline — that is the whole reason the budgets stay in layers.toml.
+    if report.loc_budget_off {
+        prof("rule 3 (loc budget) — skipped, guard off", &mut prof_last);
+    }
+    for pkg in metadata_full
+        .workspace_packages()
+        .into_iter()
+        .filter(|_| !report.loc_budget_off)
+    {
         let name = pkg.name.as_str();
         let entry = match layers.crates.get(name) {
             Some(e) => e,
@@ -2238,5 +2268,31 @@ layer = 2
         let forbidden = vec!["vox-gui".to_string(), "vox-gamify".to_string()];
         let violations = check_profile_forbidden("lean", &lean_tree, &forbidden);
         assert_eq!(violations.len(), 2);
+    }
+}
+
+#[cfg(test)]
+mod loc_budget_guard_tests {
+    use super::loc_budget_disabled;
+
+    #[test]
+    fn loc_budget_off_disables_only_the_absolute_check() {
+        assert!(loc_budget_disabled(Some(&"off".to_string())));
+        assert!(loc_budget_disabled(Some(&"none".to_string())));
+        // Existing values keep their meaning.
+        assert!(!loc_budget_disabled(Some(&"warn".to_string())));
+        assert!(!loc_budget_disabled(Some(&"error".to_string())));
+        // Absent -> enabled, so removing the key cannot silently disable a guard.
+        assert!(!loc_budget_disabled(None));
+    }
+
+    #[test]
+    fn unrecognised_values_do_not_disable_the_guard() {
+        // parse_strictness maps anything unknown to its default, so a typo like
+        // "OFF" or "disabled" must NOT be treated as off — failing closed keeps
+        // a misspelling from silently removing a gate.
+        assert!(!loc_budget_disabled(Some(&"OFF".to_string())));
+        assert!(!loc_budget_disabled(Some(&"disabled".to_string())));
+        assert!(!loc_budget_disabled(Some(&String::new())));
     }
 }
