@@ -1284,34 +1284,36 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     // Skipped wholesale when `loc_budget = "off"`. Rule 13 (`loc_delta`, below)
     // still runs and still reads the same `max_loc` values as its growth
     // baseline — that is the whole reason the budgets stay in layers.toml.
-    if report.loc_budget_off {
-        prof("rule 3 (loc budget) — skipped, guard off", &mut prof_last);
-    }
-    for pkg in metadata_full
-        .workspace_packages()
-        .into_iter()
-        .filter(|_| !report.loc_budget_off)
-    {
-        let name = pkg.name.as_str();
-        let entry = match layers.crates.get(name) {
-            Some(e) => e,
-            None => continue,
-        };
-        let budget = match entry.max_loc {
-            Some(b) => b,
-            None => continue,
-        };
-        let manifest_dir = Path::new(pkg.manifest_path.as_str())
-            .parent()
-            .unwrap_or(Path::new("."));
-        let src_dir = manifest_dir.join("src");
-        let loc = count_loc(&src_dir, &prune_dirs).unwrap_or(0);
-        if loc > budget {
-            report.loc_warns.push((name.to_string(), loc, budget));
+    if !report.loc_budget_off {
+        for pkg in metadata_full.workspace_packages() {
+            let name = pkg.name.as_str();
+            let entry = match layers.crates.get(name) {
+                Some(e) => e,
+                None => continue,
+            };
+            let budget = match entry.max_loc {
+                Some(b) => b,
+                None => continue,
+            };
+            let manifest_dir = Path::new(pkg.manifest_path.as_str())
+                .parent()
+                .unwrap_or(Path::new("."));
+            let src_dir = manifest_dir.join("src");
+            let loc = count_loc(&src_dir, &prune_dirs).unwrap_or(0);
+            if loc > budget {
+                report.loc_warns.push((name.to_string(), loc, budget));
+            }
         }
     }
 
-    prof("rule 3 (LoC budget)", &mut prof_last);
+    prof(
+        if report.loc_budget_off {
+            "rule 3 (LoC budget) — skipped, guard off"
+        } else {
+            "rule 3 (LoC budget)"
+        },
+        &mut prof_last,
+    );
     // ── Rule 4: Orphan detector ──
     for (name, entry) in &layers.crates {
         if entry.kind != "library" || entry.orphan_exempt {

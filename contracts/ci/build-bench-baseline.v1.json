@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "label": "baseline-20260831",
+  "measured_on": "x86_64-windows",
   "records": [
     {
       "id": "check_vox_db",
