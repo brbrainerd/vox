@@ -648,10 +648,41 @@ build starting mid-run corrupts this more severely than it does Task 1.
 one-off scheduler noise:
 
 ```bash
-cargo run -q -p vox-cli -- ci build-bench --repeat 3 \
+./target/debug/vox ci build-bench --repeat 3 \
   --label "baseline-$(date +%Y%m%d)" \
   --write contracts/ci/build-bench-baseline.v1.json
 ```
+
+**Expect a staleness refusal here, and do not reflexively override it.**
+Task 1 Step 8 commits `crate-build-map.v1.json`, which advances the commit
+count past the one the `vox` binary was built at. Every `vox ci` subcommand
+then refuses to run:
+
+> `Error: installed vox is stale: built at commit N, but the working tree is at
+> commit N+1. Its guard logic and allowlists may be outdated.`
+
+That guard is correct in general — a gate's verdict is meaningless if the binary
+predates the source it is grading. It is safe to override here **only** because
+the intervening commit touched data files, not code. Prove that before
+overriding, rather than assuming it:
+
+```bash
+git diff <binary-build-commit>..HEAD --stat -- '*.rs' 'crates/**/Cargo.toml'
+```
+
+Empty output means no Rust source or manifest changed, so the binary's logic is
+current and only committed data moved. Only then:
+
+```bash
+VOX_SKIP_FRESHNESS_CHECK=1 ./target/debug/vox ci build-bench --repeat 3 \
+  --label "baseline-$(date +%Y%m%d)" \
+  --write contracts/ci/build-bench-baseline.v1.json
+```
+
+If that diff is **not** empty, rebuild instead (`cargo build -p vox-cli --bin
+vox`) — do not set the override. Note the rebuild itself perturbs `target/`,
+though harmlessly here: build-bench times incremental scenarios, and a rebuilt
+`vox-cli` leaves the tree warm, which is the precondition this task needs anyway.
 
 - [ ] **Step 3: Verify the baseline is genuinely populated**
 
