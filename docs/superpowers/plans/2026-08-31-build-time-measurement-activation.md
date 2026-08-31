@@ -612,12 +612,99 @@ Error at 500 lines). Both already exist and both are enforced."
 
 ---
 
+## Task 5: Populate the build-bench baseline in the same quiet window
+
+`contracts/ci/build-bench-baseline.v1.json` ships with all six records at
+`wall_ms: 0`. Commit `4cca4f84c` made `vox ci build-bench` refuse a placeholder
+baseline (previously `compute_deltas` reported a green `0%` for any regression,
+under `continue-on-error: true`), so the gate now fails loudly until this runs.
+
+**This task must run immediately after Task 1, in the same quiesced window, and
+the order is not interchangeable.** Task 1 needs a **cold** `target/` — an
+incremental run recompiles almost nothing (observed: 1505 units, 31 non-zero).
+Build-bench needs a **warm** `target/` — each scenario touches one file and times
+an *incremental* `cargo check`, so against a cold tree it would measure a
+from-scratch build and record a wildly inflated baseline that every later run
+"beats". Task 1 leaves the tree warm, which is exactly build-bench's
+precondition. Running these on separate days, or in the other order, silently
+corrupts one of them.
+
+**Files:**
+- Modify: `contracts/ci/build-bench-baseline.v1.json`
+
+**Interfaces:**
+- Consumes: the warm `target/` left behind by Task 1.
+- Produces: a populated baseline that `vox ci build-bench --compare` grades against.
+
+- [ ] **Step 1: Re-confirm the box is still quiet**
+
+Use the `Get-CimInstance` check from Task 1 Step 1 — not `tasklist`. Wall-clock
+scenarios are far more contention-sensitive than per-crate self-times, so a peer
+build starting mid-run corrupts this more severely than it does Task 1.
+
+- [ ] **Step 2: Measure, taking the minimum of three runs**
+
+`run_scenario` already keeps the best of `--repeat` runs, which suppresses
+one-off scheduler noise:
+
+```bash
+cargo run -q -p vox-cli -- ci build-bench --repeat 3 \
+  --label "baseline-$(date +%Y%m%d)" \
+  --write contracts/ci/build-bench-baseline.v1.json
+```
+
+- [ ] **Step 3: Verify the baseline is genuinely populated**
+
+```bash
+python -c "
+import json; d = json.load(open('contracts/ci/build-bench-baseline.v1.json'))
+recs = d['records']
+zero = [r for r in recs if r['ok'] and r['wall_ms'] == 0]
+assert not zero, f'still placeholder rows: {zero}'
+for r in recs: print(f\"  {r['id']:<32} ok={r['ok']} {r['wall_ms']:>8} ms\")
+print('OK')
+"
+```
+
+Expected: `OK`, every `ok` record with a non-zero `wall_ms`.
+
+- [ ] **Step 4: Confirm the gate now passes instead of bailing**
+
+```bash
+cargo run -q -p vox-cli -- ci build-bench --repeat 1 \
+  --compare contracts/ci/build-bench-baseline.v1.json
+```
+
+Expected: a delta table rather than the `baseline ... is a placeholder` bail.
+Percentages will be small and noisy — that is fine and expected; the gate exists
+to catch large regressions, not to certify small wins.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add contracts/ci/build-bench-baseline.v1.json
+git commit -m "contracts: populate the build-bench baseline
+
+Measured on a quiesced host with a warm target/ left by the crate-map
+timings run, min-of-3 per scenario. Every record previously read
+wall_ms: 0, which made compute_deltas report 0% for any regression."
+```
+
+---
+
 ## Self-Review
 
-**Spec coverage.** The two predecessor plans' un-run steps are covered by Task 1 (2026-06-19 Task 2 Steps 3–4; 2026-06-15 Task 0.1 Step 3). Three items had no plan at all and are covered here: host-provenance (Task 2), the 29 unevidenced Phase 2 labels (Task 3), the LoC gate (Task 4). Deliberately **not** covered: populating `build-bench-baseline.v1.json`, which needs repeated wall-clock runs on a quiesced host and cannot be produced honestly on a contended one — commit `4cca4f84c` made that gate refuse a placeholder baseline rather than report a false 0%, so it fails loudly until someone measures it properly.
+**Spec coverage.** The two predecessor plans' un-run steps are covered by Task 1 (2026-06-19 Task 2 Steps 3–4; 2026-06-15 Task 0.1 Step 3). Four items had no plan at all and are covered here: host-provenance (Task 2), the 29 unevidenced Phase 2 labels (Task 3), the LoC gate (Task 4), and the empty build-bench baseline (Task 5). Task 5 was initially scoped **out** on the grounds that it needed a quiesced host unavailable at authoring time; that constraint lifted once concurrent sessions agreed to hold their builds, and the cold-then-warm ordering makes Task 1 and Task 5 natural partners in one window rather than separate efforts.
 
 **Placeholder scan.** No TBD/TODO. Every step carries a runnable command and an expected result. Task 3's *output values* are necessarily unknown before Task 1 runs, but its procedure and its pass/fail assertions are exact; the verification asserts non-degeneracy rather than any specific number.
 
 **Type consistency.** `host_mismatch_warning(Option<&str>, Option<&str>) -> Option<String>` is defined once in Task 2 Step 3 and used with that signature in Step 1's tests and in the `run_crate_budget` call site. `BudgetFile::measured_on` is `Option<String>`, read via `.as_deref()`. The map side is read via `summary.get("measured_on").and_then(|v| v.as_str())`, matching the existing `has_compile_times` access pattern in the same function.
 
-**Ordering.** Task 1 → Task 2 → Task 3 is a hard chain (each consumes the prior's artifact). Task 4 is independent and may run first or in parallel.
+**Ordering.** Task 1 → Task 2 → Task 3 is a hard chain (each consumes the prior's artifact). Task 5 must follow Task 1 **in the same quiet window**, because it depends on the warm `target/` Task 1 leaves behind and on the box still being uncontended — it is the one ordering constraint that cannot be recovered by re-running later. Task 4 is independent of all of them and may run first or in parallel.
+
+**Known-good invocation.** The measurement in Task 1 was validated as
+`VOX_GUI_SKIP_SIDECAR_AUTOBUILD=1 cargo check --timings --workspace -j 6` on a
+cold tree. The env var matters: `vox-gui`'s `build.rs` otherwise auto-builds the
+missing `vox` release sidecar mid-measurement, spawning a nested
+`cargo build -p vox-cli --release` that both contends with the run and injects a
+meaningless multi-thousand-second `vox-gui` row into the dataset.
