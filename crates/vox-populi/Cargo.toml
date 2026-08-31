@@ -60,6 +60,8 @@ mens-candle-qlora = [
     "dep:tokenizers",
     "dep:qlora-rs",
     "dep:reqwest",
+    # Gates `src/inference/` (lib.rs:428), the only consumer of vox-quantize.
+    "dep:vox-quantize",
 ]
 inference = ["mens-candle-qlora"]
 mens-candle-qlora-cuda = [
@@ -149,7 +151,12 @@ hex = { workspace = true }
 sha3.workspace = true
 uuid.workspace = true
 vox-package.workspace = true
-vox-quantize = { workspace = true }
+# Optional: every `vox_quantize::` call in this crate lives under `src/inference/`,
+# which is itself `#[cfg(feature = "mens-candle-qlora")]` (lib.rs:428). Left
+# non-optional, it dragged `candle-core` into EVERY build that touched
+# vox-populi — including the default `vox` binary, which never enables
+# mens-candle-qlora. Gated under that same feature so the dep tracks its consumer.
+vox-quantize = { workspace = true, optional = true }
 vox-orchestrator-queue.workspace = true
 
 [dev-dependencies]
