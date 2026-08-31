@@ -12,7 +12,7 @@ use crate::chat_socrates_meta::{
     spawn_socrates_telemetry_with_llm,
 };
 use crate::journey_envelope;
-use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm};
+use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm, call_llm_with_pref};
 use crate::memory::{
     RetrievalTriggerMode, run_retrieval_bundle, should_trigger_autonomous_research,
 };
@@ -62,17 +62,58 @@ pub fn resolution_for_tier(
     match tier.map(str::trim) {
         Some("local") => McpChatModelResolution {
             enforce_free_tier_only: true,
+            // Restore the pre-tier-routing degradation path (previously
+            // unconditional for every call site). This is safe to keep on for
+            // `local`: `enforce_free_tier_if_needed` (model_route_policy/policy.rs)
+            // gates every returned model through free-tier enforcement, so
+            // `allow_cheapest_fallback` here can only ever widen which *free*
+            // model gets picked when the primary `decide()` selection comes up
+            // empty -- it can never leak a paid model back out.
+            allow_cheapest_fallback: true,
             ..base
         },
         Some("mesh") => McpChatModelResolution {
             free_tier_latency_critical: true,
+            // Same reasoning as `local` above -- restore the fallback rather
+            // than silently dropping it just because a tier was named.
+            allow_cheapest_fallback: true,
             ..base
         },
         Some("cloud") => McpChatModelResolution {
+            // Explicitly paid-preferring and observably different from both
+            // "auto" (`_` arm, which always allows degrading to a cheap/free
+            // fallback) and from `McpChatModelResolution::default()`: never let
+            // a failed/absent primary pick quietly degrade to the cheapest free
+            // model, and bias `decide()`'s `SelectionRequest.intent.complexity`
+            // (resolve.rs `build_selection_request`) toward stronger models so a
+            // "cloud" pick doesn't land on a weak model by the scorer's default.
             allow_cheapest_fallback: false,
+            enforce_free_tier_only: false,
+            complexity: base.complexity.max(8),
             ..base
         },
-        _ => McpChatModelResolution {
+        Some(other) => {
+            // Unknown/typo'd tier (e.g. "Cloud", "remote"): `tier` is a
+            // free-text `Option<String>` at the Rust type level even though the
+            // composer only ever sends "local"/"mesh"/"cloud"/omitted, so a typo
+            // is representable. Explicit decision (not silent aliasing): treat
+            // it exactly like "no tier" (auto/default), and log it so the typo
+            // is debug-visible instead of just quietly "working" with no trace.
+            // Known gap: this function has no channel back to the caller's
+            // `selection_reason`/rationale to surface the typo in the GUI (see
+            // `try_run_agent_turn`'s `selection_reason` plumbing) -- wiring
+            // that through is out of scope for this fix.
+            tracing::warn!(
+                target: "vox_mcp::chat_tier",
+                tier = other,
+                "unrecognized chat tier; falling back to auto/default resolution"
+            );
+            McpChatModelResolution {
+                allow_cheapest_fallback: true,
+                ..base
+            }
+        }
+        None => McpChatModelResolution {
             allow_cheapest_fallback: true,
             ..base
         },
@@ -730,7 +771,18 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     )
                     .to_json();
                 }
-                None => match call_llm(
+                // Bug 2 fix: `try_run_agent_turn` already resolved (or tried to
+                // resolve) this turn's model using `params.model_override` /
+                // `params.tier`. Falling through to plain `call_llm` here used to
+                // silently discard both and re-resolve from only the
+                // process-global override with `allow_cheapest_fallback: true`
+                // unconditionally and no free-tier enforcement -- a different
+                // model could be picked with no error surfaced, and a `tier:
+                // "local"` request could silently escape free-tier enforcement.
+                // `call_llm_with_pref` threads the same per-request pref/tier
+                // through so this fallback resolves consistently with the path
+                // that just failed, instead of picking an unrelated model.
+                None => match call_llm_with_pref(
                     state,
                     &system_prompt,
                     &user_prompt,
@@ -738,13 +790,16 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     params.temperature,
                     params.top_p,
                     params.attachment_manifest.clone(),
+                    params.model_override.as_deref(),
+                    params.tier.as_deref(),
                 )
                 .await
                 {
-                    // `call_llm` resolves via the rationale-carrying resolver internally
-                    // but doesn't return the rationale through its `(String, String, u64)`
-                    // return type — out of scope for this task (see `try_run_agent_turn`'s
-                    // doc comment); `selection_reason` is `None` on this fallback path.
+                    // `call_llm_with_pref` resolves via the rationale-carrying resolver
+                    // internally but doesn't return the rationale through its
+                    // `(String, String, u64)` return type — out of scope for this task
+                    // (see `try_run_agent_turn`'s doc comment); `selection_reason` is
+                    // `None` on this fallback path.
                     Ok(r) => (r.0, r.1, r.2, None),
                     Err(e) => {
                         return ToolResult::<String>::err_with_remediation(
@@ -1497,6 +1552,95 @@ mod tests {
         assert!(r.enforce_free_tier_only || r.allow_cheapest_fallback);
         let auto = resolution_for_tier(None, McpChatModelResolution::default());
         assert!(auto.allow_cheapest_fallback);
+    }
+
+    /// Regression test for the bug the assertion above was too weak to catch:
+    /// `r.enforce_free_tier_only || r.allow_cheapest_fallback` can never fail for
+    /// `"local"` even when `allow_cheapest_fallback` silently regressed to
+    /// `false`, because `enforce_free_tier_only` alone satisfies the OR. Pin
+    /// both fields explicitly, and require the whole struct to differ from
+    /// `McpChatModelResolution::default()` in at least one field -- the
+    /// independent-review finding was that `"cloud"` produced a byte-identical
+    /// no-op vs default.
+    #[test]
+    fn tier_local_sets_free_tier_and_keeps_cheapest_fallback() {
+        let base = McpChatModelResolution::default();
+        let r = resolution_for_tier(Some("local"), McpChatModelResolution::default());
+        assert!(r.enforce_free_tier_only, "local must force free-tier-only");
+        assert!(
+            r.allow_cheapest_fallback,
+            "local must not silently drop the pre-existing cheapest-fallback \
+             degradation path just because a tier was named -- \
+             enforce_free_tier_if_needed always re-swaps to a free model anyway, \
+             so this can never leak a paid pick"
+        );
+        assert_ne!(
+            r.enforce_free_tier_only, base.enforce_free_tier_only,
+            "local's resolution must be observably different from default()"
+        );
+    }
+
+    #[test]
+    fn tier_mesh_sets_latency_critical_and_keeps_cheapest_fallback() {
+        let base = McpChatModelResolution::default();
+        let r = resolution_for_tier(Some("mesh"), McpChatModelResolution::default());
+        assert!(r.free_tier_latency_critical);
+        assert!(
+            r.allow_cheapest_fallback,
+            "mesh must not silently drop the cheapest-fallback degradation path"
+        );
+        assert_ne!(r.free_tier_latency_critical, base.free_tier_latency_critical);
+    }
+
+    /// Regression test for the specific "cloud is a no-op" finding:
+    /// `McpChatModelResolution::default()` already has `allow_cheapest_fallback:
+    /// false`, so the old `cloud` arm (which only ever set that field to
+    /// `false`) produced a struct indistinguishable from doing nothing. The
+    /// fixed arm must differ from both `default()` and from "auto" (`None`,
+    /// which always allows cheapest-fallback).
+    #[test]
+    fn tier_cloud_is_not_a_no_op() {
+        let base = McpChatModelResolution::default();
+        let auto = resolution_for_tier(None, McpChatModelResolution::default());
+        let cloud = resolution_for_tier(Some("cloud"), McpChatModelResolution::default());
+
+        assert!(
+            !cloud.allow_cheapest_fallback,
+            "cloud must not degrade to the cheapest free/paid fallback"
+        );
+        assert_ne!(
+            cloud.allow_cheapest_fallback, auto.allow_cheapest_fallback,
+            "cloud must be observably different from auto/unset tier"
+        );
+        assert_ne!(
+            cloud.complexity, base.complexity,
+            "cloud must be observably different from McpChatModelResolution::default() \
+             in at least one field -- the reviewed bug was a byte-identical no-op"
+        );
+    }
+
+    /// An unrecognized/typo'd tier string (`tier` is free-text at the Rust type
+    /// level) must be an explicit, documented alias for auto/default -- not an
+    /// accidental match of a *different* recognized tier's behavior. This pins
+    /// the documented decision in `resolution_for_tier`'s `Some(other) =>` arm.
+    #[test]
+    fn unknown_tier_is_documented_alias_for_auto_not_a_recognized_tier() {
+        let auto = resolution_for_tier(None, McpChatModelResolution::default());
+        let typo = resolution_for_tier(Some("Cloud"), McpChatModelResolution::default());
+
+        assert_eq!(typo.allow_cheapest_fallback, auto.allow_cheapest_fallback);
+        assert_eq!(typo.enforce_free_tier_only, auto.enforce_free_tier_only);
+        assert_eq!(
+            typo.free_tier_latency_critical,
+            auto.free_tier_latency_critical
+        );
+
+        let local = resolution_for_tier(Some("local"), McpChatModelResolution::default());
+        assert_ne!(
+            typo.enforce_free_tier_only, local.enforce_free_tier_only,
+            "a typo'd tier must never silently behave like a *different* \
+             recognized tier"
+        );
     }
 
     /// The trap: `cognitive_profile` takes `fast|reasoning|creative` and a
