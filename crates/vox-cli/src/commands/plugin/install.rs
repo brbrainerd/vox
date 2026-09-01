@@ -425,13 +425,21 @@ async fn install_first_party_plugin(
     let expected_sha256 = match fetch_first_party_checksum(&checksums_url, &asset_name).await {
         Ok(hash) => Some(hash),
         Err(e) if allow_unverified => {
-            eprintln!("⚠ could not obtain a recorded checksum ({e:#}); continuing because --allow-unverified was passed.");
+            eprintln!(
+                "⚠ could not obtain a recorded checksum ({e:#}); continuing because --allow-unverified was passed."
+            );
             None
         }
         Err(e) => return Err(e),
     };
 
-    install_from_url(&asset_url, yes, expected_sha256.as_deref(), allow_unverified).await
+    install_from_url(
+        &asset_url,
+        yes,
+        expected_sha256.as_deref(),
+        allow_unverified,
+    )
+    .await
 }
 
 /// Verify a downloaded plugin archive and return its lowercase hex SHA-256.
