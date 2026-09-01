@@ -90,6 +90,7 @@ impl SelectionDto {
     }
 
     /// A fallback selection always carries a rationale — never a silent `None`.
+    #[cfg(test)]
     fn fallback(model: impl Into<String>, rationale: impl Into<String>) -> Self {
         Self {
             model: model.into(),
