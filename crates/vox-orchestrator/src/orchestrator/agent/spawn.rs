@@ -54,10 +54,21 @@ impl crate::orchestrator::Orchestrator {
 
     /// Spawn a transient (dynamic) agent, marking it for automatic retirement when idle.
     pub fn spawn_dynamic_agent(&self, name: &str) -> Result<AgentId, OrchestratorError> {
-        self.spawn_dynamic_agent_with_parent(name, None, None, None, None)
+        self.spawn_dynamic_agent_with_parent(name, None, None, None, None, None, None)
     }
 
     /// Spawn a transient agent with an optional explicit parent binding.
+    ///
+    /// `chat_session_id`/`origin_turn_id` carry chat-harness delegation lineage
+    /// (Phase D Task D1): when the spawn was caused by a `vox_spawn_agent` /
+    /// `vox_submit_task` tool call inside a chat turn, these identify which chat
+    /// session and which provider tool-call id originated it. They are stored on
+    /// the in-memory [`crate::topology::AgentDelegationBinding`] AND persisted via
+    /// [`Self::record_lineage_event`] (`kind = "task_delegated"`) so the edge
+    /// survives a daemon restart even though the in-memory binding does not —
+    /// `chat_session_id` becomes the lineage row's `session_id` column,
+    /// `origin_turn_id` rides in the JSON payload.
+    #[allow(clippy::too_many_arguments)]
     pub fn spawn_dynamic_agent_with_parent(
         &self,
         name: &str,
@@ -65,6 +76,8 @@ impl crate::orchestrator::Orchestrator {
         reason: Option<&str>,
         source_task_id: Option<TaskId>,
         hints: Option<crate::contract::TaskCapabilityHints>,
+        chat_session_id: Option<String>,
+        origin_turn_id: Option<String>,
     ) -> Result<AgentId, OrchestratorError> {
         if let Some(parent) = parent_agent_id {
             let parent_exists = crate::sync_lock::rw_read(&*self.agents).contains_key(&parent);
@@ -74,6 +87,19 @@ impl crate::orchestrator::Orchestrator {
         }
         let agent_id = self.spawn_agent_with_hints(name, hints)?;
         crate::sync_lock::rw_write(&*self.dynamic_agents).insert(agent_id);
+        // Phase D Task D3: reuse the same `agent_session_id` link the primary
+        // chat agent uses (`map_agent_session`, set via `queue.set_agent_session`)
+        // so a delegated agent is also discoverable by chat session — this is
+        // what lets a GUI-side `agentsForSession` filter find it instead of
+        // guessing from the fleet-wide agent list.
+        if let Some(ref session) = chat_session_id {
+            if let Err(e) = self.map_agent_session(agent_id, session.clone()) {
+                tracing::debug!(
+                    error = %e,
+                    "failed to link chat_session_id to newly spawned agent"
+                );
+            }
+        }
         let spawn_reason = reason
             .map(str::trim)
             .filter(|s| !s.is_empty())
@@ -91,6 +117,8 @@ impl crate::orchestrator::Orchestrator {
                 parent_agent_id: parent,
                 source_task_id,
                 reason: spawn_reason.clone(),
+                chat_session_id: chat_session_id.clone(),
+                origin_turn_id: origin_turn_id.clone(),
             };
             crate::sync_lock::rw_write(&*self.agent_delegations).insert(agent_id, binding);
 
@@ -98,13 +126,14 @@ impl crate::orchestrator::Orchestrator {
                 "task_delegated",
                 source_task_id,
                 Some(agent_id),
-                None,
+                chat_session_id.clone(),
                 None,
                 None,
                 None,
                 Some(serde_json::json!({
                     "reason": spawn_reason,
-                    "is_dynamic": true
+                    "is_dynamic": true,
+                    "origin_turn_id": origin_turn_id,
                 })),
             );
         }

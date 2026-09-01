@@ -141,6 +141,7 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         && params.clutch.is_none()
         && params.risk.is_none()
         && params.trigger_source.is_none()
+        && params.chat_session_id.is_none()
     {
         return None;
     }
@@ -173,6 +174,7 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         grounding_check_enabled: None,
         risk: params.risk.clone(),
         trigger_source: params.trigger_source.clone(),
+        chat_session_id: params.chat_session_id.clone(),
     })
 }
 

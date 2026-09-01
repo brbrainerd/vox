@@ -1255,8 +1255,15 @@ export default function App() {
       return true;
     }
     if (base === '/spawn') {
+      // Phase D Task D3: carry the user's actual typed text (e.g. "/spawn fix
+      // the login bug") through to the spawned agent's task description
+      // instead of always sending the same generic placeholder — a model or
+      // reviewer reading the delegated task later has no way to recover what
+      // was actually asked for otherwise. Falls back to the original generic
+      // description only when no text follows `/spawn`.
+      const spawnGoal = cmd.slice(base.length).trim();
       void handleLoquelaSubmit({
-        description: 'Spawn a sub-agent on the current branch to pursue this task in parallel.',
+        description: spawnGoal || 'Spawn a sub-agent on the current branch to pursue this task in parallel.',
         mode: 'act',
         // Explicit, not inferred: `execution_mode` defaults to 'chat' when
         // omitted, so /spawn must say 'task' or it would silently become a

@@ -575,6 +575,35 @@ describe('App shell', () => {
     expect(submitCall![1].input.session_id).not.toBe('chat-session-abc');
   });
 
+  // Phase D Task D3: before this fix, `/spawn <anything>` always sent the same
+  // hardcoded generic description, discarding whatever the user actually
+  // typed — a delegated agent (and anyone reading its task later) had no way
+  // to recover the real ask. Bare `/spawn` (no trailing text) still falls
+  // back to the generic description, covered by the test above.
+  it('/spawn carries the user\'s actual typed text as the task description', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'chat-session-abc' });
+      if (cmd === 'chat_turn') return Promise.resolve({ task_id: '1', duplicate_of: null });
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/spawn fix the login bug');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
+    );
+    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'chat_turn');
+    expect(submitCall![1].input.content).toBe('fix the login bug');
+  });
+
   // Fix Task 2 (chat-harness audit): same bug, second call site — deploying an
   // installed skill from the Omnibar dispatches via chat_turn too,
   // and must not silently borrow the active chat session's identity either.

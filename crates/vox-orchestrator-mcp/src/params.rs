@@ -293,6 +293,13 @@ pub struct SubmitTaskParams {
     #[serde(default)]
     #[schemars(length(max = 32))]
     pub trigger_source: Option<String>,
+    /// Chat session that issued this submit call (Phase D Task D1 durable
+    /// lineage). Injected server-side by `run_agent_turn` for calls dispatched
+    /// inside a chat turn; distinct from `session_id` above (Mens telemetry
+    /// grouping). Not intended to be hand-supplied by the model.
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub chat_session_id: Option<String>,
 }
 
 /// Heuristic plan-adequacy snapshot for direct [`SubmitTaskParams`] submits when shadow mode is on.
@@ -881,6 +888,17 @@ pub struct SpawnAgentParams {
     pub delegation_reason: Option<String>,
     /// Optional source task id for topology lineage.
     pub source_task_id: Option<u64>,
+    /// Chat session that caused this spawn (Phase D Task D1 durable lineage).
+    /// Injected server-side by `run_agent_turn` for calls dispatched inside a
+    /// chat turn; not intended to be hand-supplied by the model.
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub chat_session_id: Option<String>,
+    /// Provider tool-call id of the spawn request, for correlating the
+    /// resulting delegation edge back to the exact turn (Phase D Task D1).
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub origin_turn_id: Option<String>,
 }
 
 /// Single `agent_id` argument for lifecycle helpers.

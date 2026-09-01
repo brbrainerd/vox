@@ -1539,6 +1539,8 @@ impl AgentFleet {
                             Some("scaling_load"),
                             None,
                             None,
+                            None,
+                            None,
                         );
                         self.spawns_this_tick
                             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);

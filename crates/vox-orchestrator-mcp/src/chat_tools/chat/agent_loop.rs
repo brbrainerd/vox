@@ -183,11 +183,17 @@ fn is_plausible_skill_id(id: &str) -> bool {
 /// not from what the model claimed — is what keeps a denied/errored/unknown
 /// call from rendering a trusted-looking "skill activated" chip.
 ///
+/// `result_content` is the raw dispatch response body (a [`crate::params::ToolResult`]
+/// JSON envelope, e.g. `{"success":true,"data":{"agent_id":7,...}}`) — needed for
+/// the delegation event (Phase D Task D3) because the spawned `agent_id` is
+/// server-generated and only exists in the RESULT, never in `args`.
+///
 /// Returns `None` when `success` is `false`, or when `tool_name` is not a
 /// tool this function knows how to turn into an event.
 pub(crate) fn turn_event_for_result(
     tool_name: &str,
     args: &serde_json::Value,
+    result_content: &str,
     success: bool,
 ) -> Option<serde_json::Value> {
     if !success {
@@ -206,6 +212,21 @@ pub(crate) fn turn_event_for_result(
                 "skill_id": skill_id,
             }))
         }
+        "vox_spawn_agent" | "vox_submit_task" => {
+            // Phase D Task D3: a "delegation" transcript row correlating this
+            // turn to the agent/task it spawned. `agent_id` is always present
+            // on both tools' success payloads (`SpawnAgentParams`'s handler and
+            // `SubmitTaskResponse`); `task_id` only on `vox_submit_task`.
+            let envelope: serde_json::Value = serde_json::from_str(result_content).ok()?;
+            let data = envelope.get("data")?;
+            let agent_id = data.get("agent_id").and_then(serde_json::Value::as_u64)?;
+            Some(serde_json::json!({
+                "kind": "delegation_spawned",
+                "tool": tool_name,
+                "agent_id": agent_id,
+                "task_id": data.get("task_id").and_then(serde_json::Value::as_u64),
+            }))
+        }
         _ => None,
     }
 }
@@ -220,15 +241,58 @@ mod turn_event_tests {
         // Emitting from args would render "skill activated · X" for a call that
         // was denied, unknown, or errored — letting injected content assert in
         // system-styled UI that a trusted skill ran.
-        assert!(turn_event_for_result("vox_skill_use", &json!({"id":"ponytail"}), true).is_some());
-        assert!(turn_event_for_result("vox_skill_use", &json!({"id":"ponytail"}), false).is_none());
+        assert!(
+            turn_event_for_result("vox_skill_use", &json!({"id":"ponytail"}), "", true).is_some()
+        );
+        assert!(
+            turn_event_for_result("vox_skill_use", &json!({"id":"ponytail"}), "", false).is_none()
+        );
     }
 
     #[test]
     fn unknown_skill_ids_are_labelled_unknown() {
-        let ev = turn_event_for_result("vox_skill_use", &json!({"id":"../../etc/passwd"}), true)
+        let ev = turn_event_for_result("vox_skill_use", &json!({"id":"../../etc/passwd"}), "", true)
             .expect("event");
         assert_eq!(ev["skill_id"], "unknown");
+    }
+
+    /// Phase D Task D3: a successful `vox_spawn_agent` call must produce a
+    /// transcript-visible delegation event carrying the spawned `agent_id` —
+    /// read from the dispatch RESULT (never from `args`, which a model
+    /// controls and which never contains the server-assigned id anyway).
+    #[test]
+    fn spawn_agent_success_emits_delegation_event_with_agent_id() {
+        let result = r#"{"success":true,"data":{"agent_id":42,"name":"child","dynamic":true}}"#;
+        let ev = turn_event_for_result("vox_spawn_agent", &json!({}), result, true)
+            .expect("delegation event");
+        assert_eq!(ev["kind"], "delegation_spawned");
+        assert_eq!(ev["tool"], "vox_spawn_agent");
+        assert_eq!(ev["agent_id"], 42);
+        assert!(ev["task_id"].is_null());
+    }
+
+    #[test]
+    fn submit_task_success_emits_delegation_event_with_task_and_agent_id() {
+        let result = r#"{"success":true,"data":{"task_id":9,"agent_id":3}}"#;
+        let ev = turn_event_for_result("vox_submit_task", &json!({}), result, true)
+            .expect("delegation event");
+        assert_eq!(ev["agent_id"], 3);
+        assert_eq!(ev["task_id"], 9);
+    }
+
+    #[test]
+    fn failed_spawn_emits_no_delegation_event() {
+        // Same rationale as the skill test above: a denied/errored call must
+        // not render a trusted-looking "delegated" chip.
+        let result = r#"{"success":false,"error":"boom"}"#;
+        assert!(turn_event_for_result("vox_spawn_agent", &json!({}), result, false).is_none());
+    }
+
+    #[test]
+    fn malformed_result_body_yields_no_event_rather_than_panicking() {
+        assert!(
+            turn_event_for_result("vox_spawn_agent", &json!({}), "not json", true).is_none()
+        );
     }
 }
 
@@ -365,10 +429,37 @@ pub(crate) async fn run_agent_turn(
 
                 for call in &calls {
                     tool_calls_made += 1;
+                    // Phase D Task D1: inject the chat session id (and this
+                    // call's own provider id as the delegation "origin turn")
+                    // into the OUTGOING dispatch args only — never into
+                    // `call.arguments` itself, which is what gets recorded into
+                    // `messages`/`events`/the harness scorer below. Only
+                    // `vox_spawn_agent`/`vox_submit_task` params structs declare
+                    // these fields; every other tool's `deny_unknown_fields`
+                    // schema would reject them, so this is scoped to the two
+                    // delegation tools rather than injected unconditionally.
+                    let mut dispatch_args = call.arguments.clone();
+                    if matches!(call.name.as_str(), "vox_spawn_agent" | "vox_submit_task") {
+                        if let Some(session) = session_id.filter(|s| !s.is_empty()) {
+                            if dispatch_args.is_null() {
+                                dispatch_args = serde_json::Value::Object(serde_json::Map::new());
+                            }
+                            if let Some(obj) = dispatch_args.as_object_mut() {
+                                obj.insert(
+                                    "chat_session_id".to_string(),
+                                    serde_json::Value::String(session.to_string()),
+                                );
+                                obj.insert(
+                                    "origin_turn_id".to_string(),
+                                    serde_json::Value::String(call.id.clone()),
+                                );
+                            }
+                        }
+                    }
                     let result = crate::dispatch::handle_tool_call_with_mode(
                         state,
                         &call.name,
-                        call.arguments.clone(),
+                        dispatch_args,
                         permission_mode,
                     )
                     .await;
@@ -384,9 +475,12 @@ pub(crate) async fn run_agent_turn(
                     // what dispatch actually did), never from `call.arguments` alone
                     // — see `turn_event_for_result`'s doc comment for why that
                     // distinction is security-load-bearing.
-                    if let Some(ev) =
-                        turn_event_for_result(&call.name, &call.arguments, call_succeeded)
-                    {
+                    if let Some(ev) = turn_event_for_result(
+                        &call.name,
+                        &call.arguments,
+                        &content,
+                        call_succeeded,
+                    ) {
                         events.push(ev);
                     }
 

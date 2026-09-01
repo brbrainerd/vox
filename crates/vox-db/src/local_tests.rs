@@ -758,3 +758,54 @@ async fn migrate_adds_archived_at_to_a_pre_existing_conversations_table() {
         "migrate() must add archived_at to a pre-existing conversations table"
     );
 }
+
+/// Phase D Task D1 (chat-harness delegation lineage durability): a delegation
+/// edge's `chat_session_id`/`origin_turn_id` must survive a daemon restart.
+/// `spawn_dynamic_agent_with_parent` writes them via
+/// `append_orchestration_lineage_event` (kind = "task_delegated"); this test
+/// proves that row is readable from a *fresh* `VoxDb::connect` against the same
+/// file — i.e. the process that wrote it can die and a new one can read it
+/// back, unlike the in-memory `agent_delegations` HashMap it also populates.
+#[tokio::test]
+async fn delegation_lineage_survives_reconnect() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("lineage.db").to_string_lossy().into_owned();
+
+    {
+        let db = VoxDb::connect(DbConfig::Local { path: path.clone() })
+            .await
+            .expect("open db (writer)");
+        db.append_orchestration_lineage_event(
+            "repo-d1",
+            "task_delegated",
+            42,
+            Some(7),
+            Some("chat-session-abc"),
+            None,
+            None,
+            None,
+            Some(r#"{"reason":"delegate research","is_dynamic":true,"origin_turn_id":"call_xyz"}"#),
+        )
+        .await
+        .expect("append lineage event");
+        // `db` (and its connection) is dropped here, simulating the daemon
+        // process exiting.
+    }
+
+    // A brand-new VoxDb — no shared in-memory state with the writer above —
+    // opened against the same on-disk file, standing in for the daemon restart.
+    let reopened = VoxDb::connect(DbConfig::Local { path }).await.expect("reopen db");
+    let events = reopened
+        .list_orchestration_lineage_events("repo-d1", Some("task_delegated"), 10)
+        .await
+        .expect("list lineage events");
+    assert_eq!(events.len(), 1, "delegation edge must survive reconnect");
+    let ev = &events[0];
+    assert_eq!(ev["session_id"], "chat-session-abc");
+    assert_eq!(ev["agent_id"], 7);
+    let payload: serde_json::Value =
+        serde_json::from_str(ev["payload_json"].as_str().expect("payload_json is a string"))
+            .expect("payload parses");
+    assert_eq!(payload["origin_turn_id"], "call_xyz");
+    assert_eq!(payload["reason"], "delegate research");
+}
