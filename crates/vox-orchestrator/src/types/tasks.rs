@@ -1401,6 +1401,7 @@ mod tests {
             risk: None,
             grounding_check_enabled: None,
             trigger_source: None,
+            chat_session_id: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");
