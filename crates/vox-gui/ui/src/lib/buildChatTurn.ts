@@ -34,7 +34,7 @@ export interface BuildChatTurnCtx {
  *  dispatch type. */
 export interface ChatTurnSource {
   description: string;
-  execution_mode?: 'chat' | 'task';
+  execution_mode?: 'chat' | 'task' | 'plan';
   model_override?: string | null;
   tier?: string | null;
   clutch?: string | null;
@@ -53,7 +53,12 @@ export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): C
   return {
     session_id: ctx.sessionId,
     content: payload.description,
-    execution: payload.execution_mode === 'task' ? 'background' : 'sync',
+    execution:
+      payload.execution_mode === 'task'
+        ? 'background'
+        : payload.execution_mode === 'plan'
+          ? 'plan'
+          : 'sync',
     model_override: payload.model_override ?? ctx.modelOverride ?? null,
     tier: payload.tier ?? null,
     clutch: payload.clutch ?? null,

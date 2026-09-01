@@ -269,6 +269,12 @@ pub struct PlanParams {
     /// When set with an attached Codex DB, upserts `plan_sessions` and records iterative telemetry.
     #[serde(default)]
     pub plan_telemetry_session_id: Option<String>,
+    /// When true, plan nodes are inserted `blocked_on_approval` instead of `pending` —
+    /// nothing dispatches until `approve_plan_inner` flips them. Defaults false so
+    /// `ai.plan.execute`, `goal.rs`'s submit path, and successor-node scheduling all
+    /// keep working unchanged; only the GUI's `/plan` sets this.
+    #[serde(default)]
+    pub require_approval: Option<bool>,
     /// Optional link into `question_sessions.question_session_id` for unified analytics.
     #[serde(default)]
     pub question_link_session_id: Option<String>,
@@ -400,6 +406,14 @@ pub struct PlanResult {
     /// is omitted from the wire when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content_blocks: Vec<vox_orchestrator::planning::ContentBlock>,
+    /// Plan session id the nodes above were persisted under, when a Codex DB is
+    /// attached — lets a GUI caller point `PlanPanel` at the live DAG without a
+    /// second round trip.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_session_id: Option<String>,
+    /// Plan version the nodes above were persisted at.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_version: Option<i64>,
 }
 
 /// Parameters for the `vox_ghost_text` MCP tool.

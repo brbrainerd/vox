@@ -70,6 +70,12 @@ pub struct InsertPlanNodeInput {
 /// dependency graph `enqueue_runnable_plan_nodes` walks — becomes runnable
 /// as soon as its `depends_on` entries complete, same as any agent-created
 /// node.
+///
+/// Gated: if any existing node in this plan/version is still
+/// `blocked_on_approval`, the plan hasn't been approved yet, so the new node
+/// is inserted `blocked_on_approval` too — otherwise the GUI could create a
+/// node the scheduler dispatches immediately, bypassing the approval gate
+/// entirely.
 #[tauri::command]
 pub async fn insert_plan_node(
     pool: State<'_, GuiDbPool>,
@@ -77,6 +83,16 @@ pub async fn insert_plan_node(
 ) -> Result<(), String> {
     let db = pool_db(&pool)?;
     let deps_json = serde_json::to_string(&input.depends_on).map_err(|e| e.to_string())?;
+    let existing = db
+        .load_plan_nodes_with_status(&input.plan_session_id, input.plan_version)
+        .await
+        .map_err(map_db_err)?;
+    let plan_unapproved = existing.iter().any(|r| r.status == "blocked_on_approval");
+    let status = if plan_unapproved {
+        "blocked_on_approval"
+    } else {
+        "pending"
+    };
     db.upsert_plan_node(
         &input.plan_session_id,
         input.plan_version,
@@ -84,7 +100,7 @@ pub async fn insert_plan_node(
         &input.description,
         &deps_json,
         "{}",
-        "pending",
+        status,
         None,
     )
     .await
@@ -116,6 +132,23 @@ pub async fn plan_open_task_counts(
 ) -> Result<std::collections::HashMap<String, i64>, String> {
     let db = pool_db(&pool)?;
     db.open_task_counts_for_sessions(&session_ids)
+        .await
+        .map_err(map_db_err)
+}
+
+/// Approve every `blocked_on_approval` node in a plan session so the scheduler
+/// picks them up — the `PlanPanel` footer's "Approve" button. One-line
+/// delegation to the same primitive `approve_plan_inner`
+/// (`vox-orchestrator-mcp/src/chat_tools/plan.rs`) uses for the MCP/CLI path;
+/// duplicated here rather than adding a `vox-gui` -> `vox-orchestrator-mcp`
+/// crate edge for a single SQL call.
+#[tauri::command]
+pub async fn approve_plan_nodes(
+    pool: State<'_, GuiDbPool>,
+    plan_session_id: String,
+) -> Result<u64, String> {
+    let db = pool_db(&pool)?;
+    db.approve_all_blocked_plan_nodes(&plan_session_id)
         .await
         .map_err(map_db_err)
 }
@@ -214,6 +247,53 @@ mod tests {
         let added = rows.iter().find(|r| r.node_id == "n-new").unwrap();
         assert_eq!(added.description, "a step the user added");
         assert_eq!(added.status, "pending");
+    }
+
+    #[tokio::test]
+    async fn insert_plan_node_is_gated_when_the_plan_is_still_unapproved() {
+        let app = tauri::test::mock_app();
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let pool = app.state::<GuiDbPool>();
+        let db = pool.handle().unwrap();
+
+        db.create_plan_session("ps-gate", None, "test goal", "sequential")
+            .await
+            .unwrap();
+        db.append_plan_version("ps-gate", 1, None, None, None)
+            .await
+            .unwrap();
+        db.upsert_plan_node(
+            "ps-gate",
+            1,
+            "n1",
+            "first step",
+            "[]",
+            "{}",
+            "blocked_on_approval",
+            None,
+        )
+        .await
+        .unwrap();
+
+        insert_plan_node(
+            pool,
+            InsertPlanNodeInput {
+                plan_session_id: "ps-gate".to_string(),
+                plan_version: 1,
+                node_id: "n-new".to_string(),
+                description: "a step added before approval".to_string(),
+                depends_on: vec![],
+            },
+        )
+        .await
+        .unwrap();
+
+        let rows = db.load_plan_nodes_with_status("ps-gate", 1).await.unwrap();
+        let added = rows.iter().find(|r| r.node_id == "n-new").unwrap();
+        assert_eq!(
+            added.status, "blocked_on_approval",
+            "a node inserted into an unapproved plan must not be immediately runnable"
+        );
     }
 
     #[tokio::test]

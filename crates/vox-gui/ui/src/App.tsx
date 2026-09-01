@@ -52,7 +52,7 @@ import { buildChatTurn } from './lib/buildChatTurn';
 import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
-import { voxTransport, listenAgentEvents, type AgentEventFrame } from './transport';
+import { voxTransport, listenAgentEvents, chatTurn as sendChatTurnRaw, type AgentEventFrame } from './transport';
 import { useAttentionInbox } from './hooks/useAttentionInbox';
 import { useKeybinds } from './hooks/useKeybinds';
 import { parseBindings, DEFAULT_BINDINGS, type Bindings } from './lib/keybinds';
@@ -168,13 +168,9 @@ function isKnownView(v: unknown): v is View {
  * text as the toast.
  */
 function chatTurnErrorMessage(err: unknown): string {
-  if (
-    typeof err === 'object' &&
-    err !== null &&
-    'kind' in err &&
-    typeof (err as { message?: unknown }).message === 'string'
-  ) {
-    return (err as { message: string }).message;
+  if (typeof err === 'object' && err !== null && 'kind' in err) {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
   }
   return sanitizeErrorForToast(err);
 }
@@ -397,6 +393,7 @@ export default function App() {
   );
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [openPlanSessionId, setOpenPlanSessionId] = useState<string | null>(null);
+  const [openPlanVersion, setOpenPlanVersion] = useState<number | null>(null);
   const [chatModelOverride, setChatModelOverride] = useLocalStorage<string | null>(
     SHELL_PREFERENCE_KEYS.chatModelOverride,
     null,
@@ -1273,6 +1270,38 @@ export default function App() {
       });
       return true;
     }
+    if (base === '/plan') {
+      const goal = cmd.slice(base.length).trim();
+      if (!goal) {
+        pushToast({ tone: 'warn', title: '/plan needs a goal', body: 'Try: /plan add a health endpoint', cause: 'validation' });
+        return true;
+      }
+      const sessionId = activeSessionId ?? newBackgroundSessionId();
+      ctx.setText('');
+      void (async () => {
+        try {
+          // Bypasses handleLoquelaSubmit deliberately: that path persists a
+          // chat_append_message row and tracks sync/background dedup state,
+          // neither of which applies here — `execution: 'plan'` returns no
+          // assistant row (see chat_turn.rs's run_plan), just the plan DAG's
+          // session id/version to point PlanPanel at.
+          const dto = await sendChatTurnRaw({
+            session_id: sessionId,
+            content: goal,
+            execution: 'plan',
+            context_files: [],
+            skill_exclusions: [],
+          });
+          if (dto.plan_session_id) {
+            setOpenPlanSessionId(dto.plan_session_id);
+            setOpenPlanVersion(dto.plan_version ?? null);
+          }
+        } catch (err) {
+          pushToast({ tone: 'warn', title: '/plan failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+        }
+      })();
+      return true;
+    }
     if (base === '/rollback') {
       void (async () => {
         try {
@@ -1653,7 +1682,11 @@ export default function App() {
     // `latest_plan_session_for_chat` against the real origin_session_id link. Null renders
     // PlanPanel's honest empty state until a badge has been clicked.
     chatPlanSessionId: openPlanSessionId,
-    chatPlanVersion: null,
+    chatPlanVersion: openPlanVersion,
+    onDiscardPlan: () => {
+      setOpenPlanSessionId(null);
+      setOpenPlanVersion(null);
+    },
     chatActiveSkillId: activeSkill?.id ?? null,
     onExcludeSkill: excludeSkillAndRetry,
     chatOpenrouterSpendUsd: openrouterSpendUsd,

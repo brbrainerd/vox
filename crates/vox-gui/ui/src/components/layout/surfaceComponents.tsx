@@ -75,6 +75,7 @@ export interface SurfaceProps {
   attention?: AttentionInbox;
   chatPlanSessionId?: string | null;
   chatPlanVersion?: number | null;
+  onDiscardPlan?: () => void;
   chatActiveSkillId?: string | null;
   onExcludeSkill?: (skillId: string) => void;
 }
@@ -210,6 +211,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           blockedTasks={props.attention?.blockedTasksCount}
           planSessionId={props.chatPlanSessionId}
           planVersion={props.chatPlanVersion}
+          onDiscardPlan={props.onDiscardPlan}
           activeSkillId={props.chatActiveSkillId}
           onExcludeSkill={props.onExcludeSkill}
         />

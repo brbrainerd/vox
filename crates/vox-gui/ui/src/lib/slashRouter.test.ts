@@ -13,16 +13,18 @@ describe('slashRouter', () => {
   });
 
   it('resolves internal mode slashes', () => {
-    expect(resolveInternalModeSlash('/plan')).toBe('plan');
     expect(resolveInternalModeSlash('/verify run')).toBe('verify');
     expect(resolveInternalModeSlash('/act')).toBe('act');
     expect(resolveInternalModeSlash('/spawn')).toBeNull();
+    // /plan moved to APP_SLASH_COMMANDS (Task F1) — it dispatches a real
+    // vox_plan turn now, not just an internal Loquela mode switch.
+    expect(resolveInternalModeSlash('/plan')).toBeNull();
   });
 
   it('detects app-level slash commands', () => {
     expect(isAppSlashCommand('/memory')).toBe(true);
     expect(isAppSlashCommand('/rollback now')).toBe(true);
-    expect(isAppSlashCommand('/plan')).toBe(false);
+    expect(isAppSlashCommand('/plan')).toBe(true);
   });
 
   it('formats session budget for display', () => {

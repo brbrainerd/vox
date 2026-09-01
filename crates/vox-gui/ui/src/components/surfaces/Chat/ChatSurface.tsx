@@ -311,6 +311,7 @@ interface ChatSurfaceProps {
   /** Live plan-DAG identity for this session, if the current task has synthesized a plan. */
   planSessionId?: string | null;
   planVersion?: number | null;
+  onDiscardPlan?: () => void;
   /** Shared attention inbox (App owns polling) — sources the opt-in Needs You dock panel. */
   attention?: AttentionInbox;
   onOpenFeedbackContext?: (id: string) => void;
@@ -346,6 +347,7 @@ export function ChatSurface({
   blockedTasks = 0,
   planSessionId,
   planVersion,
+  onDiscardPlan,
   attention,
   onOpenFeedbackContext,
   pendingApprovals = 0,
@@ -642,7 +644,14 @@ export function ChatSurface({
     />
   );
 
-  const todosNode = <PlanPanel planSessionId={planSessionId} planVersion={planVersion} nodes={planNodes} />;
+  const todosNode = (
+    <PlanPanel
+      planSessionId={planSessionId}
+      planVersion={planVersion}
+      nodes={planNodes}
+      onDiscard={onDiscardPlan}
+    />
+  );
 
   const needsYouNode = (
     <NeedsYouSurface

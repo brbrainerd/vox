@@ -816,7 +816,8 @@ export type PlanNodeStatus =
   | 'completed'
   | 'failed'
   | 'cancelled'
-  | 'superseded';
+  | 'superseded'
+  | 'blocked_on_approval';
 
 export interface PlanNodeDto {
   node_id: string;
@@ -855,6 +856,13 @@ export function insertPlanNode(
       depends_on: dependsOn,
     },
   });
+}
+
+/** Flips every `blocked_on_approval` node in `planSessionId` back to
+ *  `pending` — the `PlanPanel` footer's "Approve" button. Returns the
+ *  number of nodes affected. */
+export function approvePlanNodes(planSessionId: string): Promise<number> {
+  return safeInvoke<number>('approve_plan_nodes', { planSessionId });
 }
 
 export interface ActivityRowDto {
@@ -988,8 +996,9 @@ export interface ChatTurnInput {
   session_id: string;
   content: string;
   /** Sync = terminal request/response. Background = orchestrator task with a
-   *  correlated event stream. Set from the composer's send-mode toggle. */
-  execution: 'sync' | 'background';
+   *  correlated event stream. Plan = `vox_plan` with `require_approval: true`,
+   *  the GUI's `/plan`. Set from the composer's send-mode toggle. */
+  execution: 'sync' | 'background' | 'plan';
   model_override?: string | null;
   /** Composer "Run on" tier: local|mesh|cloud|auto. NOT `cognitive_profile`. */
   tier?: string | null;
@@ -1032,6 +1041,10 @@ export interface ChatTurnDto {
   /** Turn events derived from tool results this turn (e.g. a skill-activation
    *  chip) — empty on the background branch. See Rust `turn_event_for_result`. */
   events?: TurnEventDto[];
+  /** Set on the `execution: 'plan'` branch only — the DAG `PlanPanel` should
+   *  point at. */
+  plan_session_id?: string | null;
+  plan_version?: number | null;
 }
 
 /**

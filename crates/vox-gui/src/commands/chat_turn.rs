@@ -41,6 +41,10 @@ pub enum Execution {
     #[default]
     Sync,
     Background,
+    /// GUI's `/plan` slash command: issues `vox_plan` with `require_approval:
+    /// true` instead of `vox_chat_message`, and returns a `plan_session_id`/
+    /// `plan_version` the frontend points `PlanPanel` at.
+    Plan,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -101,6 +105,12 @@ pub struct ChatTurnDto {
     /// empty on the background branch, which persists no assistant row.
     #[serde(default)]
     pub events: Vec<serde_json::Value>,
+    /// Set on the `Execution::Plan` branch only — lets the frontend point
+    /// `PlanPanel` at the DAG `vox_plan` just persisted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_version: Option<i64>,
 }
 
 /// Wrapper every real dispatch call site applies (`format!("LLM error: {e}")`
@@ -254,6 +264,7 @@ pub async fn chat_turn(
     let result = match input.execution {
         Execution::Sync => run_sync(input, pool, daemon).await,
         Execution::Background => run_background(app_handle, input, daemon).await,
+        Execution::Plan => run_plan(input, daemon).await,
     };
     result.map_err(|e| classify_turn_error(&e))
 }
@@ -310,6 +321,8 @@ async fn run_sync(
         grounding_flagged: dto.grounding_flagged,
         duplicate_of: None,
         events: reply.events,
+        plan_session_id: None,
+        plan_version: None,
     })
 }
 
@@ -339,7 +352,90 @@ async fn run_background(
         grounding_flagged: None,
         duplicate_of: result.duplicate_of,
         events: vec![],
+        plan_session_id: None,
+        plan_version: None,
     })
+}
+
+/// `vox_plan` args for the GUI's `/plan` path. Exactly `{goal, session_id,
+/// require_approval: true}` — `vox_plan`'s schema is `additionalProperties:
+/// false`, so a stray `mode`/`prompt` key (present on `ChatTurnInput` for the
+/// other two execution branches) is a hard reject, not a silently-ignored
+/// extra.
+pub fn plan_tool_args(input: &ChatTurnInput) -> serde_json::Value {
+    serde_json::json!({
+        "goal": input.content,
+        "session_id": input.session_id,
+        "require_approval": true,
+    })
+}
+
+/// `vox_plan`'s `ToolResult<PlanResult>` envelope has a flat `data` object
+/// (unlike `vox_chat_message`'s `data.message.content`) — a dedicated,
+/// minimal parser rather than overloading `parse_chat_message_envelope` with
+/// a second response shape.
+fn parse_plan_envelope(envelope: &serde_json::Value) -> Result<ChatTurnDto, String> {
+    let success = envelope
+        .get("success")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if !success {
+        return Err(envelope
+            .get("error")
+            .and_then(|v| v.as_str())
+            .unwrap_or("vox_plan failed with no error detail")
+            .to_string());
+    }
+    let data = envelope
+        .get("data")
+        .ok_or_else(|| "vox_plan succeeded with no data".to_string())?;
+    let plan_md = data
+        .get("plan_md")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let plan_session_id = data
+        .get("plan_session_id")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+    let plan_version = data.get("plan_version").and_then(|v| v.as_i64());
+    Ok(ChatTurnDto {
+        id: 0,
+        role: "assistant".to_string(),
+        content: plan_md,
+        created_at: String::new(),
+        task_id: None,
+        model_id: None,
+        latency_ms: None,
+        selection_reason: None,
+        grounding_flagged: None,
+        duplicate_of: None,
+        events: vec![],
+        plan_session_id,
+        plan_version,
+    })
+}
+
+/// Dispatch a `/plan` turn: calls `vox_plan` (not `vox_chat_message`) and
+/// returns the `plan_session_id`/`plan_version` it persisted, instead of an
+/// assistant reply — there is no chat message to persist here.
+async fn run_plan(
+    input: ChatTurnInput,
+    daemon: State<'_, Arc<PersistentDaemon>>,
+) -> Result<ChatTurnDto, String> {
+    let addr = daemon.ensure().await?;
+    let client = match daemon.token().await {
+        Some(token) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, token),
+        None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
+    };
+    let envelope = client
+        .call(
+            vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
+            serde_json::json!({ "name": "vox_plan", "args": plan_tool_args(&input) }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    parse_plan_envelope(&envelope)
 }
 
 #[cfg(test)]
@@ -403,6 +499,26 @@ mod tests {
             classify_turn_error("connection refused"),
             ChatTurnError::Backend { .. }
         ));
+    }
+
+    #[test]
+    fn plan_tool_args_carries_exactly_goal_session_id_require_approval() {
+        let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "s1", "content": "add a health endpoint", "mode": "plan"
+        }))
+        .expect("input");
+        let args = plan_tool_args(&input);
+        assert_eq!(args["goal"], "add a health endpoint");
+        assert_eq!(args["session_id"], "s1");
+        assert_eq!(args["require_approval"], true);
+        let obj = args.as_object().expect("json! object");
+        assert_eq!(
+            obj.len(),
+            3,
+            "vox_plan's schema is additionalProperties:false — a stray key is a hard reject: {obj:?}"
+        );
+        assert!(obj.get("mode").is_none());
+        assert!(obj.get("prompt").is_none());
     }
 
     #[test]
