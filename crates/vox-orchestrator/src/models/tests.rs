@@ -130,14 +130,14 @@ mod key_guard_tests {
     use crate::models::ModelRegistry;
     use crate::types::TaskCategory;
     // registry.best_for() flows into best_for_internal(), which reads the
-    // process-global TEST_PRIVACY_OVERRIDE (route_policy.rs). #[serial] keeps
+    // process-global TEST_PRIVACY_OVERRIDE (route_policy.rs). #[file_serial] keeps
     // this test mutually exclusive with the registry_filter_tests /
     // explain_selection_complexity_tests tests below that mutate that same
     // global via set_test_privacy_override, matching their own convention.
-    use serial_test::serial;
+    use serial_test::file_serial;
 
     #[test]
-    #[serial]
+    #[file_serial]
     fn premium_alias_resolves_to_available_model_when_anthropic_key_absent() {
         // SAFETY: standard test env modification
         #[allow(unsafe_code)]
@@ -193,16 +193,16 @@ mod registry_filter_tests {
     use crate::config::CostPreference;
     use crate::models::{ModelRegistry, ModelSpec, ProviderType};
     use crate::types::TaskCategory;
-    // TEST_PRIVACY_OVERRIDE is process-global (route_policy.rs); #[serial] on
+    // TEST_PRIVACY_OVERRIDE is process-global (route_policy.rs); #[file_serial] on
     // the one test below that touches it avoids racing other threads' calls
     // into best_for_internal (mirrors models/select.rs's own convention).
-    use serial_test::serial;
+    use serial_test::file_serial;
 
     // best_for_with_filter now applies the privacy hard-filter too; this test
     // expects a specific cloud (GoogleDirect) pick, so it must not race the
     // local_only privacy-override test below.
     #[test]
-    #[serial]
+    #[file_serial]
     fn best_free_for_with_filter_skips_ollama() {
         let mut r = ModelRegistry::default();
         r.register(ModelSpec {
@@ -257,7 +257,7 @@ mod registry_filter_tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
     fn best_for_internal_excludes_cloud_models_under_local_only_privacy() {
         let mut r = ModelRegistry::default();
         r.register(ModelSpec {
@@ -318,9 +318,9 @@ mod registry_filter_tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
     // best_for_with_filter -> best_for_internal reads the process-global
-    // TEST_PRIVACY_OVERRIDE (route_policy.rs); without #[serial] this races
+    // TEST_PRIVACY_OVERRIDE (route_policy.rs); without #[file_serial] this races
     // against other tests in this module that mutate it, transiently
     // excluding candidates it never itself sets/resets.
     fn best_for_with_filter_admits_free_model_when_explicitly_allowed() {
@@ -476,8 +476,8 @@ mod explain_selection_complexity_tests {
     // (route_policy::privacy_allows_model_for_mode); both tests below use
     // cloud (OpenRouter) fixture models and assert on candidate counts, so
     // they'd flake if TEST_PRIVACY_OVERRIDE is non-None from a concurrently
-    // running test (see registry_filter_tests's own #[serial] comment).
-    use serial_test::serial;
+    // running test (see registry_filter_tests's own #[file_serial] comment).
+    use serial_test::file_serial;
 
     /// A cheap, low-capability model: wins when efficiency is weighted heavily
     /// (trivial/low-complexity tasks), loses when precision dominates.
@@ -528,7 +528,7 @@ mod explain_selection_complexity_tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
     fn explain_selection_ranking_changes_between_trivial_and_hard_complexity() {
         let mut r = ModelRegistry::default();
         r.register(cheap_model());
@@ -571,7 +571,7 @@ mod explain_selection_complexity_tests {
     /// varies with the caller's complexity/category, instead of the previous
     /// byte-identical top-5 for "hi" and a hard concurrency-design task.
     #[test]
-    #[serial]
+    #[file_serial]
     fn explain_selection_varies_across_five_real_world_task_descriptions() {
         let r = ModelRegistry::new();
 
@@ -756,10 +756,10 @@ mod semcov_wave34_tests {
     // best_for_returns_none_when_registry_is_empty below calls
     // ModelRegistry::best_for(), which flows into best_for_internal() and
     // reads the process-global TEST_PRIVACY_OVERRIDE (route_policy.rs);
-    // #[serial] keeps it mutually exclusive with tests elsewhere that mutate
+    // #[file_serial] keeps it mutually exclusive with tests elsewhere that mutate
     // that override via set_test_privacy_override (registry_filter_tests'
-    // own #[serial] comment documents the same convention).
-    use serial_test::serial;
+    // own #[file_serial] comment documents the same convention).
+    use serial_test::file_serial;
 
     // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -1208,7 +1208,7 @@ mod semcov_wave34_tests {
     // ── 13. best_for returns None on empty registry ───────────────────────────
 
     #[test]
-    #[serial]
+    #[file_serial]
     fn best_for_returns_none_when_registry_is_empty() {
         // Catches: unwrap() or default fallback returning a ghost spec on empty registry
         let mut r = ModelRegistry::default();
