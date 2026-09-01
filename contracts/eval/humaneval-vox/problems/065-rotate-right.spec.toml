@@ -8,7 +8,7 @@ If the list is empty or k is 0, return the list unchanged.
 k may be larger than the list length (use k % len).
 """
 signature = "fn rotate_right(xs: list[int], k: int) to list[int]"
-training_eligible = true
+training_eligible = false
 provenance = "original"
 difficulty = "medium"
 tags = []

@@ -1,3 +1,4 @@
+// training_eligible: false
 fn binary_search(xs: list[int], target: int) to int {
     let mut lo: int = 0
     let mut hi: int = xs.len() - 1

@@ -1,3 +1,4 @@
+// training_eligible: false
 fn reverse_list(xs: list[int]) to list[int] {
     let mut result: list[int] = []
     let n: int = xs.len()

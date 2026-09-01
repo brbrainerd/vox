@@ -5,7 +5,7 @@ prompt = """
 Run-length encode a string: replace each run of consecutive identical characters with the character followed by its count. For example, "aaabbc" -> "a3b2c1". An empty string returns "".
 """
 signature = "fn str_compress(s: str) to str"
-training_eligible = true
+training_eligible = false
 provenance = "original"
 difficulty = "medium"
 tags = ["strings", "encoding"]

@@ -1,0 +1,27 @@
+fn count_substring(s: str, sub: str) to int {
+    let n: int = s.len()
+    let m: int = sub.len()
+    if m == 0 {
+        return 0
+    }
+    if m > n {
+        return 0
+    }
+    let mut count: int = 0
+    let mut i: int = 0
+    while i + m <= n {
+        if s.slice(i, i + m) == sub {
+            count = count + 1
+        }
+        i = i + 1
+    }
+    return count
+}
+
+fn main() to str {
+    assert(count_substring("banana", "an") == 2)
+    assert(count_substring("aaaa", "aa") == 3)
+    assert(count_substring("vox", "z") == 0)
+    assert(count_substring("abc", "") == 0)
+    return "ok"
+}

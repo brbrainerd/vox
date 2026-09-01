@@ -1,3 +1,4 @@
+// training_eligible: false
 fn to_hex(n: int) to str {
     if n == 0 {
         return "0"

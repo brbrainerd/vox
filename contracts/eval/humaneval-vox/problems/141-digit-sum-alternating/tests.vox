@@ -1,0 +1,23 @@
+fn digit_sum_alternating(n: int) to int {
+    let s: str = str(n)
+    let mut total: int = 0
+    let mut idx: int = 0
+    for ch in s.chars() {
+        let d: int = int(ch)
+        if idx % 2 == 0 {
+            total = total + d
+        } else {
+            total = total - d
+        }
+        idx = idx + 1
+    }
+    return total
+}
+
+fn main() to str {
+    assert(digit_sum_alternating(12345) == 3)
+    assert(digit_sum_alternating(0) == 0)
+    assert(digit_sum_alternating(9) == 9)
+    assert(digit_sum_alternating(1111) == 0)
+    return "ok"
+}

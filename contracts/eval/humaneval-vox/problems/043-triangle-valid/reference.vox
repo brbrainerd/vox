@@ -1,3 +1,4 @@
+// training_eligible: false
 fn triangle_valid(a: int, b: int, c: int) to bool {
     return a + b > c and b + c > a and a + c > b
 }

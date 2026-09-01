@@ -5,7 +5,7 @@ prompt = """
 Write a Vox function hamming_distance(a: str, b: str) to int that returns the number of positions at which the corresponding characters differ. Both strings have equal length.
 """
 signature = "fn hamming_distance(a: str, b: str) to int"
-training_eligible = true
+training_eligible = false
 provenance = "original"
 difficulty = "easy"
 tags = ["strings"]

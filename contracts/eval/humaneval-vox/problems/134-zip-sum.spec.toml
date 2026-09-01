@@ -1,0 +1,11 @@
+[problem]
+id = "134"
+title = "zip_sum"
+prompt = """
+Given two lists of integers, return a list where element i is the sum of the i-th elements of both lists. Stop at the shorter list's length.
+"""
+signature = "fn zip_sum(xs: list[int], ys: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

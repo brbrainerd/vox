@@ -1,3 +1,4 @@
+// training_eligible: false
 fn is_sorted_unique(xs: list[int]) to bool {
     let n: int = xs.len()
     if n <= 1 {
