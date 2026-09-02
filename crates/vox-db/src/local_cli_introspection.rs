@@ -5,9 +5,14 @@
 use crate::VoxDb;
 use crate::sql_util::validate_identifier;
 use crate::store::types::StoreError;
-use serde_json::{Map, Value, json};
+#[cfg(feature = "host-integration")]
+use serde_json::json;
+use serde_json::{Map, Value};
+#[cfg(feature = "host-integration")]
 use turso::Connection;
 
+/// Only used by [`audit_database_json`] (gated behind `host-integration`).
+#[cfg(feature = "host-integration")]
 fn sqlite_quote_ident(name: &str) -> String {
     let mut s = String::with_capacity(name.len() + 2);
     s.push('"');
@@ -22,6 +27,8 @@ fn sqlite_quote_ident(name: &str) -> String {
     s
 }
 
+/// Only used by [`audit_database_json`] (gated behind `host-integration`).
+#[cfg(feature = "host-integration")]
 async fn sqlite_pragma_i64(conn: &Connection, sql: &str) -> Result<i64, StoreError> {
     let mut rows = conn.query(sql, ()).await?;
     let Some(row) = rows.next().await? else {
@@ -30,6 +37,8 @@ async fn sqlite_pragma_i64(conn: &Connection, sql: &str) -> Result<i64, StoreErr
     Ok(row.get(0)?)
 }
 
+/// Only used by [`audit_database_json`] (gated behind `host-integration`).
+#[cfg(feature = "host-integration")]
 async fn sqlite_pragma_text(conn: &Connection, sql: &str) -> Result<String, StoreError> {
     let mut rows = conn.query(sql, ()).await?;
     let Some(row) = rows.next().await? else {
@@ -38,6 +47,8 @@ async fn sqlite_pragma_text(conn: &Connection, sql: &str) -> Result<String, Stor
     Ok(row.get(0)?)
 }
 
+/// Only used by [`audit_database_json`] (gated behind `host-integration`).
+#[cfg(feature = "host-integration")]
 fn pick_time_audit_column(col_names: &[String]) -> Option<String> {
     const PREFERRED: &[&str] = &[
         "updated_at_ms",
@@ -77,6 +88,11 @@ pub(crate) fn turso_cell_value_to_json(v: turso::Value) -> Value {
 }
 
 /// JSON document printed by `vox db audit`.
+///
+/// Needs `crate::paths`/`VoxDb::data_dir()`, both gated behind
+/// `host-integration` — this function is exercised only by `vox-cli`, which
+/// already enables that feature.
+#[cfg(feature = "host-integration")]
 pub async fn audit_database_json(db: &VoxDb, timestamps: bool) -> Result<Value, StoreError> {
     let version = db.schema_version().await?;
     let data_dir = crate::VoxDb::data_dir()

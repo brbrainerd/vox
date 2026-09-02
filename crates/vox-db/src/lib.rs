@@ -66,6 +66,7 @@ pub mod codex_chat;
 /// Research sessions, conversation versions/edges, topic evolution (manifest `v17`).
 mod codex_conversation_graph;
 /// Canonical connect policy helpers (strict vs optional degraded surfaces).
+#[cfg(feature = "host-integration")]
 pub mod connect_policy;
 pub mod history_store;
 /// Explicit namespace for migration-era and cutover-only pathways.
@@ -81,6 +82,7 @@ pub mod store;
 pub mod telemetry_sink;
 
 /// Canonical Codex storage policy (`vox.db` vs project store vs training sidecar).
+#[cfg(feature = "host-integration")]
 pub mod canonical_store;
 #[cfg(feature = "legacy-import")]
 #[deprecated(
@@ -102,7 +104,9 @@ pub mod exec_time_telemetry;
 mod local_cli_introspection;
 pub mod sql_util;
 pub use exec_time_telemetry::{ExecOutcome, ExecTimeRecord, TimedExecution, ToolLatencyProfile};
-pub use local_cli_introspection::{audit_database_json, sample_table_json_objects};
+#[cfg(feature = "host-integration")]
+pub use local_cli_introspection::audit_database_json;
+pub use local_cli_introspection::sample_table_json_objects;
 pub mod hash {
     //! SHA3-512 Base32Hex hashing utilities.
     use data_encoding::BASE32HEX_NOPAD;
@@ -158,6 +162,7 @@ pub mod normalize;
 /// Data directory and per-user id helpers (delegates to `vox_config`).
 pub mod writer_actor;
 pub use writer_actor::{DbWriteCmd, VoxWriteHandle};
+#[cfg(feature = "host-integration")]
 pub mod paths;
 pub mod pool;
 pub use pool::VoxDbPool;
@@ -165,9 +170,12 @@ pub mod outcome_recorder;
 /// Mens control-plane audit (`populi_control_event` in `research_metrics`).
 pub mod populi_control_telemetry;
 /// Opt-in mens local-registry publish rows (`VOX_MESH_CODEX_TELEMETRY`).
+#[cfg(feature = "host-integration")]
 pub mod populi_registry_telemetry;
 /// Registry-scoped user preferences (stored as JSON in the local config directory).
+#[cfg(feature = "host-integration")]
 pub mod preferences;
+#[cfg(feature = "host-integration")]
 pub mod project_store;
 mod questioning_telemetry;
 mod research;
@@ -178,6 +186,7 @@ pub use vox_db_types::retrieval;
 /// AST → [`crate::SchemaDigest`] for LLM context and codegen.
 pub mod schema_digest;
 /// OS keyring helpers for API tokens and similar secrets.
+#[cfg(feature = "host-integration")]
 pub mod secrets;
 mod socrates_telemetry;
 mod sync_invocables;
@@ -192,6 +201,7 @@ pub mod types;
 /// Interpreted workflow journal (`workflow_journal_entry` in `research_metrics`).
 pub mod workflow_journal;
 /// Workspace journey store resolution (`.vox/store.db` vs canonical) for repo-backed MCP/daemon flows.
+#[cfg(feature = "host-integration")]
 pub mod workspace_journey_store;
 
 pub mod mesh_exec_leases;
@@ -204,6 +214,7 @@ pub mod oratio_eval;
 pub mod plugin_state_backend;
 
 pub use auto_migrate::AutoMigrator;
+#[cfg(feature = "host-integration")]
 pub use canonical_store::{resolve_canonical_config, user_global_sqlite_path};
 pub use circuit_breaker::{CircuitBreakerError, CircuitState, DbCircuitBreaker};
 pub use codex_chat::WorkspaceTranscriptTurnRow;
@@ -211,7 +222,10 @@ pub use codex_schema::{
     CodexApiReadiness, evaluate_codex_api_readiness, missing_codex_reactivity_tables,
 };
 pub use collection::Collection;
-pub use config::{DbConfig, resolve_app_db_url, resolve_codex_db_url};
+pub use config::DbConfig;
+#[cfg(feature = "host-integration")]
+pub use config::{resolve_app_db_url, resolve_codex_db_url};
+#[cfg(feature = "host-integration")]
 pub use connect_policy::{
     DbConnectSurface, REMEDIATION_CANONICAL_DB, connect_canonical_optional,
     connect_canonical_strict, format_degraded_optional_connect,
@@ -227,6 +241,7 @@ pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
 pub use oratio_eval::{OratioEvalRunRecord, OratioEvalRunStartParams, OratioEvalSampleRecord};
 pub use outcome_recorder::UnifiedLlmTurnRowIds;
+#[cfg(feature = "host-integration")]
 pub use project_store::{open_project_db, open_project_db_at_root};
 pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
 pub use redact::redact;
@@ -283,6 +298,7 @@ pub use vox_db_types::{
     DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId,
     ResearchArtifactRecord, ResearchSessionRecord, ResearchSessionSummary,
 };
+#[cfg(feature = "host-integration")]
 pub use workspace_journey_store::{
     WorkspaceJourneyStoreMode, connect_workspace_journey_optional,
     connect_workspace_journey_optional_at, workspace_journey_diagnostics_json,

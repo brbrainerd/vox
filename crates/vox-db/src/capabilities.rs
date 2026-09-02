@@ -66,10 +66,17 @@ pub fn embedding_candidate_cap(
     default_multiplier: i64,
     probe: Option<&SqliteProbeSnapshot>,
 ) -> i64 {
-    let mut mult = vox_config::env_parse::resolve_config_u64(
-        "VOX_EMBEDDING_SEARCH_CANDIDATE_MULT",
-        default_multiplier as u64,
-    ) as i64;
+    // Inlined rather than calling `vox_config::env_parse::resolve_config_u64`
+    // (env-var portion only, matching its parse semantics): this crate's
+    // `vox-config` dependency is `optional` behind `host-integration`, and
+    // this tuning knob is read by non-host-integration consumers too.
+    // Intentionally drops that function's secondary fallback to a user TOML
+    // config file — a personal config file is itself host-integration
+    // territory, so this falls straight through to `default_multiplier`.
+    let mut mult = std::env::var("VOX_EMBEDDING_SEARCH_CANDIDATE_MULT")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .unwrap_or(default_multiplier as u64) as i64;
     if let Some(p) = probe
         && !p.fts5_reported
     {

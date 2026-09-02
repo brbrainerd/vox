@@ -1,6 +1,4 @@
-use crate::{
-    AutoMigrator, StoreError, auto_migrate, collection, paths, schema_digest::SchemaDigest,
-};
+use crate::{AutoMigrator, StoreError, auto_migrate, collection, schema_digest::SchemaDigest};
 
 impl crate::VoxDb {
     /// Apply a [`SchemaDigest`]-driven plan: create missing tables/columns/indexes, never drop.
@@ -11,8 +9,12 @@ impl crate::VoxDb {
     }
 
     /// Return the platform-specific data directory (if resolvable).
+    ///
+    /// Needs `crate::paths`, gated behind `host-integration` — this function
+    /// is exercised only by `vox-cli`, which already enables that feature.
+    #[cfg(feature = "host-integration")]
     pub fn data_dir() -> Option<std::path::PathBuf> {
-        paths::data_dir()
+        crate::paths::data_dir()
     }
 
     // ── Collection & Schema Methods ─────────────────────

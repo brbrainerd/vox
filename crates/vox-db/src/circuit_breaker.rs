@@ -68,9 +68,20 @@ pub struct DbCircuitBreaker {
 
 impl DbCircuitBreaker {
     /// Returns `true` when `VOX_DB_CIRCUIT_BREAKER=1` (or `true`).
+    ///
+    /// Inlined rather than calling `vox_config::db_circuit_breaker_env_enabled()`
+    /// (mirrors that function exactly): this crate's `vox-config` dependency is
+    /// `optional` behind the `host-integration` feature, and the circuit
+    /// breaker is used by non-host-integration consumers (e.g.
+    /// `vox-orchestrator`) that still need to read this one env var.
     #[must_use]
     pub fn enabled_from_env() -> bool {
-        vox_config::db_circuit_breaker_env_enabled()
+        std::env::var("VOX_DB_CIRCUIT_BREAKER")
+            .map(|v| {
+                let v = v.trim().to_ascii_lowercase();
+                v == "1" || v == "true"
+            })
+            .unwrap_or(false)
     }
 
     /// Create with explicit settings.
@@ -89,7 +100,7 @@ impl DbCircuitBreaker {
     /// Create from `VOX_DB_CIRCUIT_BREAKER` env with sensible defaults (5 failures, 30 s reset).
     #[must_use]
     pub fn from_env() -> Self {
-        Self::new(5, vox_config::timeouts::D_30S, Self::enabled_from_env())
+        Self::new(5, Duration::from_secs(30), Self::enabled_from_env())
     }
 
     /// Current circuit state (without advancing the state machine).

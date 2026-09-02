@@ -25,7 +25,7 @@ pub struct VoxDbPool {
 
 impl VoxDbPool {
     /// Create a new pool using the project's canonical store configuration.
-    #[cfg(feature = "local")]
+    #[cfg(all(feature = "local", feature = "host-integration"))]
     pub async fn new_canonical() -> Result<Self, StoreError> {
         let config = DbConfig::resolve_canonical().map_err(StoreError::NotFound)?;
         Self::new(config).await
