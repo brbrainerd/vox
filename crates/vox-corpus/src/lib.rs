@@ -9,6 +9,7 @@ pub mod corpus;
 pub mod dataset_snapshot;
 pub mod external_review_replay;
 pub mod flywheel;
+pub mod humaneval_runner;
 pub mod research_gen;
 pub mod rust_to_vox;
 #[cfg(test)]
