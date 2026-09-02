@@ -463,14 +463,33 @@ impl GuardedConnection {
     }
 
     /// Guarded [`turso::Connection::query`].
+    ///
+    /// Returns [`GuardedRows`] rather than a bare `turso::Rows`. The bare cursor is lazy, so a
+    /// guard dropped when this function returns (before the caller reads a single row) would let
+    /// row-streaming race other tasks' `execute`/`query` on the same connection. Holding the guard
+    /// on the *returned* value instead (rather than only inside this function) is not an option
+    /// either: `tokio::sync::Mutex` isn't reentrant, and this crate's callers routinely do
+    /// `let mut rows = conn.query(...).await?;` then, later in the same scope, another guarded
+    /// call on `conn` (e.g. `claim_skill_identity`'s SELECT-then-INSERT) — `rows` would still be
+    /// lexically alive at that point (Rust drops locals at end of scope, not at last use), so a
+    /// guard tied to it would self-deadlock. Instead, drain every row into an owned buffer while
+    /// still holding the guard, then release it before returning — the lock covers the entire
+    /// real connection access and nothing outlives this function.
     #[inline]
     pub async fn query(
         &self,
         sql: impl AsRef<str>,
         params: impl turso::IntoParams,
-    ) -> turso::Result<turso::Rows> {
+    ) -> turso::Result<GuardedRows> {
         let _guard = self.lock.lock().await;
-        self.inner.query(sql, params).await
+        let mut cursor = self.inner.query(sql, params).await?;
+        let mut rows = Vec::new();
+        while let Some(row) = cursor.next().await? {
+            rows.push(row);
+        }
+        Ok(GuardedRows {
+            rows: rows.into_iter(),
+        })
     }
 
     /// Guarded [`turso::Connection::execute`].
@@ -508,6 +527,24 @@ impl std::ops::Deref for GuardedConnection {
 
     fn deref(&self) -> &turso::Connection {
         &self.inner
+    }
+}
+
+/// Rows fully drained from [`GuardedConnection::query`] while its mutex guard was held, so
+/// nothing about iterating this value can race (or deadlock against) another guarded call on the
+/// same [`GuardedConnection`] — see the guard-lifetime note on `query` for why a lazy, still-locked
+/// cursor isn't safe here.
+pub struct GuardedRows {
+    rows: std::vec::IntoIter<turso::Row>,
+}
+
+impl GuardedRows {
+    /// Mirrors [`turso::Rows::next`]'s signature (`async fn` returning a `Result`) purely so
+    /// existing `rows.next().await?` call sites keep compiling unchanged; the buffer is already
+    /// fully materialized, so this never actually awaits or errors.
+    #[inline]
+    pub async fn next(&mut self) -> turso::Result<Option<turso::Row>> {
+        Ok(self.rows.next())
     }
 }
 

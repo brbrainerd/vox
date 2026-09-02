@@ -27,7 +27,7 @@ pub struct LegacyVerification {
 }
 
 async fn table_exists(store: &crate::VoxDb, name: &str) -> Result<bool, StoreError> {
-    let mut rows: turso::Rows = store
+    let mut rows: crate::GuardedRows = store
         .connection()
         .query(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1 LIMIT 1",
@@ -366,7 +366,7 @@ pub async fn export_legacy_jsonl<W: Write>(
     let mut count = 0u64;
     for table in LEGACY_EXPORT_TABLES {
         let pragma = format!("PRAGMA table_info({table})");
-        let mut cols_rows: turso::Rows = store.connection().query(&pragma, ()).await?;
+        let mut cols_rows: crate::GuardedRows = store.connection().query(&pragma, ()).await?;
         let mut columns = Vec::new();
         while let Some(r) = cols_rows.next().await? {
             let name: String = r.get(1)?;
@@ -376,7 +376,7 @@ pub async fn export_legacy_jsonl<W: Write>(
             continue;
         }
         let select = format!("SELECT {} FROM {}", columns.join(", "), table);
-        let mut rows: turso::Rows = store
+        let mut rows: crate::GuardedRows = store
             .connection()
             .query(&select, ())
             .await

@@ -593,7 +593,7 @@ impl crate::VoxDb {
     // ── Private helpers ───────────────────────────────────────────────────────
 
     async fn collect_pattern_rows(
-        rows: &mut turso::Rows,
+        rows: &mut crate::GuardedRows,
     ) -> Result<Vec<LearnedPatternEntry>, StoreError> {
         let mut out = Vec::new();
         while let Some(row) = rows.next().await? {
