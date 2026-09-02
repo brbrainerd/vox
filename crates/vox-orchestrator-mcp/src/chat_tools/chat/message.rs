@@ -329,6 +329,12 @@ async fn try_run_agent_turn(
         active_skill_id,
         llm_config,
         super::agent_loop::DEFAULT_MAX_ITERATIONS,
+        // Task G1: stream tokens over the existing agent-events bus as they
+        // arrive, carrying this turn's session_id so the GUI's
+        // `resolveSessionForEvent` can route the frame straight to the
+        // quick-chat bubble instead of only updating once the full reply is
+        // back.
+        true,
     ))
     .await
     {

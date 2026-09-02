@@ -91,6 +91,18 @@ export function resolveSessionForEvent(store: SessionChatStore, event: AgentEven
     return String(kind.session_id);
   }
 
+  // Task G1: the sync chat path (`chat_turn`'s `run_sync` -> `vox_chat_message`
+  // -> `run_agent_turn`) streams tokens with no background task/agent
+  // correlation at all -- there is no `task_started`/`submitResolved` for a
+  // sync turn to populate `agentToTask`/`taskToSession` with. When the
+  // orchestrator sets `TokenStreamed.session_id` (real for the sync path,
+  // `None`/absent for the pre-existing background `AiTaskProcessor` stream),
+  // route directly to that session instead of falling through to the
+  // agent-scan below, which would never find anything for a sync turn.
+  if (type === 'token_streamed' && kind.session_id != null && String(kind.session_id)) {
+    return String(kind.session_id);
+  }
+
   if (
     type === 'token_streamed' ||
     type === 'tool_timed_out' ||
