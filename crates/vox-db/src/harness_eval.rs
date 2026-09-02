@@ -116,6 +116,10 @@ impl VoxDb {
         Ok(self.conn.last_insert_rowid())
     }
 
+    /// Excludes `triggered_by = 'live_chat'` rows (written by [`Self::record_live_chat_turn`]
+    /// for Task M1's per-turn join) — `run_history`/`run_report`/the GUI's recent-runs view
+    /// all read "recent runs" through this, and one row per live chat turn would flood real
+    /// `vox harness eval --live` runs out of the window.
     pub async fn list_harness_eval_runs(
         &self,
         limit: usize,
@@ -128,6 +132,7 @@ impl VoxDb {
                         config_version, samples_per_task, task_count, pass_count, fail_count,
                         skip_count, total_cost_usd, started_at_ms, finished_at_ms
                  FROM harness_eval_run
+                 WHERE triggered_by != 'live_chat'
                  ORDER BY started_at_ms DESC
                  LIMIT ?1",
                 params![lim],
@@ -275,6 +280,73 @@ impl VoxDb {
         }
         Ok(out)
     }
+
+    /// Task M1: writes the three-axis join (`harness_eval_run` + `harness_eval_task_result` +
+    /// `model_selection_event`, all keyed on the same synthesized `run_id`/`task_id` pair) for
+    /// one normal `vox_chat_message` turn, tagged `triggered_by = "live_chat"` so
+    /// [`Self::list_harness_eval_runs`] (and everything built on it: `run_history`,
+    /// `run_report`, the GUI's recent-runs view) can keep reading real
+    /// `vox harness eval --live` runs without live traffic drowning them out.
+    ///
+    /// `success` is a rough proxy (did the turn produce a final answer, not the iteration-limit
+    /// cutoff) — Task M2 owns the real `completeness_ok`/`success` definition and TTFT/TPOT;
+    /// this just makes the row exist and be joinable.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn record_live_chat_turn(
+        &self,
+        task_id: &str,
+        model_id: &str,
+        cost_tier: &str,
+        selection_reason: &str,
+        cost_usd: Option<f64>,
+        latency_ms: Option<i64>,
+        success: bool,
+        now_ms: i64,
+    ) -> Result<(), StoreError> {
+        let run_id = format!("live-{task_id}");
+        self.record_harness_eval_run(&HarnessEvalRunRecord {
+            run_id: run_id.clone(),
+            triggered_by: "live_chat".to_string(),
+            git_sha: String::new(),
+            git_branch: String::new(),
+            changed_files: vec![],
+            config_version: None,
+            samples_per_task: 1,
+            task_count: 1,
+            pass_count: i64::from(success),
+            fail_count: i64::from(!success),
+            skip_count: 0,
+            total_cost_usd: cost_usd.unwrap_or(0.0),
+            started_at_ms: now_ms,
+            finished_at_ms: now_ms,
+        })
+        .await?;
+        self.record_harness_eval_task_result(&HarnessEvalTaskResultRecord {
+            run_id: run_id.clone(),
+            task_id: task_id.to_string(),
+            category: "chat".to_string(),
+            checker_kind: "live_chat".to_string(),
+            status: if success { "pass" } else { "fail" }.to_string(),
+            pass_samples: i64::from(success),
+            total_samples: 1,
+            latency_p50_ms: latency_ms,
+            cost_usd,
+            failure_detail: None,
+            recorded_at_ms: now_ms,
+        })
+        .await?;
+        self.record_model_selection_event(&ModelSelectionEventRecord {
+            run_id,
+            task_id: task_id.to_string(),
+            model_id: model_id.to_string(),
+            cost_tier: cost_tier.to_string(),
+            selection_reason: selection_reason.to_string(),
+            was_privacy_gated: false,
+            recorded_at_ms: now_ms,
+        })
+        .await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -373,6 +445,82 @@ mod tests {
             .await
             .expect("batched fetch on empty input");
         assert!(by_run.is_empty());
+    }
+
+    #[tokio::test]
+    async fn record_live_chat_turn_writes_a_joinable_run_task_result_and_selection_event() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+        db.record_live_chat_turn(
+            "turn-abc",
+            "anthropic/claude-sonnet-5",
+            "cheap",
+            "auto-selected: trivial task",
+            Some(0.002),
+            Some(450),
+            true,
+            1_700_000_000_000,
+        )
+        .await
+        .expect("record live chat turn");
+
+        let run_id = "live-turn-abc";
+        let task_results = db
+            .get_harness_eval_task_results(run_id)
+            .await
+            .expect("task results");
+        assert_eq!(task_results.len(), 1);
+        assert_eq!(task_results[0].task_id, "turn-abc");
+        assert_eq!(task_results[0].status, "pass");
+
+        let events = db
+            .get_model_selection_events(run_id)
+            .await
+            .expect("selection events");
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].model_id, "anthropic/claude-sonnet-5");
+        assert_eq!(events[0].run_id, task_results[0].run_id, "must join on run_id");
+    }
+
+    #[tokio::test]
+    async fn list_harness_eval_runs_excludes_live_chat_rows() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+        db.record_harness_eval_run(&HarnessEvalRunRecord {
+            run_id: "ci-run-1".to_string(),
+            triggered_by: "ci-nightly".to_string(),
+            git_sha: "abc1234".to_string(),
+            git_branch: "main".to_string(),
+            changed_files: vec![],
+            config_version: None,
+            samples_per_task: 1,
+            task_count: 1,
+            pass_count: 1,
+            fail_count: 0,
+            skip_count: 0,
+            total_cost_usd: 0.0,
+            started_at_ms: 1000,
+            finished_at_ms: 2000,
+        })
+        .await
+        .expect("record ci run");
+
+        db.record_live_chat_turn(
+            "turn-1",
+            "model-x",
+            "free",
+            "auto",
+            None,
+            None,
+            true,
+            3000,
+        )
+        .await
+        .expect("record live chat turn");
+
+        let runs = db.list_harness_eval_runs(50).await.expect("list runs");
+        assert_eq!(runs.len(), 1, "live_chat rows must not appear here");
+        assert_eq!(runs[0].run_id, "ci-run-1");
     }
 
     #[tokio::test]

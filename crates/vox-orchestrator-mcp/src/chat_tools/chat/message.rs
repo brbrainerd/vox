@@ -300,6 +300,7 @@ async fn try_run_agent_turn(
         }
     };
     let model = choice.model;
+    let is_free = choice.is_free;
     let selection_reason = choice.rationale;
 
     let mut llm_config = super::agent_loop::model_spec_to_llm_config(&model)?;
@@ -362,6 +363,41 @@ async fn try_run_agent_turn(
             } else {
                 outcome.final_text
             };
+
+            // Task M1: fire-and-forget the three-axis join (harness_eval_run +
+            // harness_eval_task_result + model_selection_event) for this turn, tagged
+            // `triggered_by = "live_chat"` so `list_harness_eval_runs` keeps excluding it
+            // from real `vox harness eval --live` reporting. `success` here is a rough
+            // proxy (did the turn produce a final answer) — Task M2 owns the real
+            // completeness gate.
+            if let Some(db) = state.db.clone() {
+                let task_id = format!(
+                    "{session_id}-{}",
+                    vox_telemetry::current_trace_ctx().trace_id
+                );
+                let model_id = model.id.clone();
+                let blended = vox_orchestrator::models::blended_cost_per_1k(&model);
+                let cost_tier = vox_orchestrator::models::cost_tier_for_blended(is_free, blended)
+                    .as_str()
+                    .to_string();
+                let selection_reason_for_event = selection_reason.clone().unwrap_or_default();
+                let success = !outcome.hit_iteration_limit;
+                tokio::spawn(async move {
+                    let _ = db
+                        .record_live_chat_turn(
+                            &task_id,
+                            &model_id,
+                            &cost_tier,
+                            &selection_reason_for_event,
+                            None,
+                            None,
+                            success,
+                            chrono::Utc::now().timestamp_millis(),
+                        )
+                        .await;
+                });
+            }
+
             Some(Ok(AgentTurnResult {
                 text: final_text,
                 model_used: outcome.model_used,
