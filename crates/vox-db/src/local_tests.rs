@@ -256,6 +256,8 @@ async fn unified_llm_turn_writes_llm_and_socrates() {
         success: true,
         cost_usd: Some(0.001),
         quality_score: Some(1.0),
+        ttft_ms: None,
+        tpot_ms: None,
     };
     let ids = db
         .record_unified_llm_turn(
@@ -298,6 +300,9 @@ async fn list_model_arm_stats_aggregates_scoreboard_rows() {
             updated_at_ms: now,
             success_count: 0,
             cumulative_cost_usd: 0.0,
+            p95_ttft_ms: None,
+            p95_tpot_ms: None,
+            goodput_tokens_per_sec: None,
         })
         .await
         .expect("upsert");

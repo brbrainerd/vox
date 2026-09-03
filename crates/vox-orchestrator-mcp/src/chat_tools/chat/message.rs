@@ -1552,6 +1552,8 @@ mod tests {
             success: true,
             cost_usd: Some(0.02),
             quality_score: Some(1.0),
+            ttft_ms: None,
+            tpot_ms: None,
         })
         .await
         .expect("record spend");

@@ -71,6 +71,9 @@ pub async fn run(args: ScoreboardArgs) -> anyhow::Result<()> {
         "p50 ms",
         "p99 ms",
         "Cost/Succ",
+        "p95 TTFT",
+        "p95 TPOT",
+        "Goodput tok/s",
     ]);
 
     for row in rows {
@@ -94,6 +97,13 @@ pub async fn run(args: ScoreboardArgs) -> anyhow::Result<()> {
             // practice, i.e. a constant 1.0 for every model — see the GUI's
             // `crates/vox-gui/src/commands/models.rs::list_model_cards`, which already omits
             // it for the same reason. Restore once a real quality gate defines it.
+            row.p95_ttft_ms.map(|v| v.to_string()).unwrap_or_default(),
+            row.p95_tpot_ms
+                .map(|v| format!("{v:.1}"))
+                .unwrap_or_default(),
+            row.goodput_tokens_per_sec
+                .map(|v| format!("{v:.1}"))
+                .unwrap_or_default(),
         ]);
     }
 

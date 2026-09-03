@@ -134,6 +134,16 @@ CREATE TABLE IF NOT EXISTS model_scoreboard (
     p99_latency_ms        INTEGER,
     cost_per_success_usd  REAL,
     quality_score         REAL    NOT NULL DEFAULT 1.0,
+    -- Task M3: filled by the same nearest-rank batch pass as p50/p99_latency_ms (see
+    -- VoxDb::refresh_model_scoreboard in ops_scientia.rs), from llm_interactions rows that
+    -- have ttft_ms/tpot_ms recorded. NULL until that batch pass has run at least once for a
+    -- window with at least one such row.
+    p95_ttft_ms           INTEGER,
+    p95_tpot_ms           REAL,
+    -- Task M3: mean successful-call throughput (output_tokens / (latency_ms / 1000.0)) over
+    -- the window -- "goodput" in the LLM-serving sense: throughput of tokens that were part
+    -- of an actually-successful response, not raw wire throughput including failed retries.
+    goodput_tokens_per_sec REAL,
     updated_at_ms         INTEGER NOT NULL,
     PRIMARY KEY (model_id, task_category, strength_tag, window_days)
 );

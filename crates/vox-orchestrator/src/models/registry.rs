@@ -20,6 +20,12 @@ pub struct ModelScore {
     pub p50_latency_ms: Option<i64>,
     pub n_calls: i64,
     pub success_count: i64,
+    /// Task M3: p95 time-to-first-token, ms. See [`vox_db::store::types::ModelScoreboardRow::p95_ttft_ms`].
+    pub p95_ttft_ms: Option<i64>,
+    /// Task M3: p95 time-per-output-token, ms.
+    pub p95_tpot_ms: Option<f64>,
+    /// Task M3: mean successful-call throughput, tokens/sec ("goodput").
+    pub goodput_tokens_per_sec: Option<f64>,
 }
 
 impl From<vox_db::store::types::ModelScoreboardRow> for ModelScore {
@@ -31,6 +37,9 @@ impl From<vox_db::store::types::ModelScoreboardRow> for ModelScore {
             p50_latency_ms: row.p50_latency_ms,
             n_calls: row.n_calls,
             success_count: row.success_count,
+            p95_ttft_ms: row.p95_ttft_ms,
+            p95_tpot_ms: row.p95_tpot_ms,
+            goodput_tokens_per_sec: row.goodput_tokens_per_sec,
         }
     }
 }
