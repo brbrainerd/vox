@@ -24,7 +24,7 @@ This file tracks the single source of truth for Vox architecture, research findi
 ## Strategic & Value Proposition
 
 - [Windows-to-macOS application handoff (September 2026)](windows-macos-application-handoff-findings-2026-09.md) — Evidence-based Windows workstation software inventory across Winget, Program Files, and Appx registrations, with a macOS continuity/replacement matrix and data-transfer checklist.
-- [Cross-project environment variable handoff (September 2026)](cross-project-environment-variable-handoff-findings-2026-09.md) — Values-free catalog of declared Vox, FableForge, and GigMe/GIGME environment-variable names with project-specific ownership and secret-boundary guidance.
+- [Cross-project environment variable handoff (September 2026)](cross-project-environment-variable-handoff-findings-2026-09-01.md) — Values-free catalog of declared Vox, FableForge, and GigMe/GIGME environment-variable names with project-specific ownership and secret-boundary guidance.
 
 - [Vox GUI Browser Support (2026)](vox-gui-browser-support-2026.md) — Embedded app preview (iframe + Vite guard), agent CDP live view (`vox://browser-frame`), Playwright validation harness; reuses `vox-plugin-browser` + orchestrator `vox_browser_*` MCP tools.
 - [Platform parity vs Cursor / Claude Code (2026-08-31)](../../superpowers/specs/2026-08-31-platform-parity-design.md) — Spec + six track plans. **Original-ID coverage (no handwaving):** [`docs/superpowers/specs/2026-08-31-platform-parity-id-coverage.md`](../../superpowers/specs/2026-08-31-platform-parity-id-coverage.md) quotes every canvas `gap`/`fix` and names files + tests. Sequencer: [`docs/superpowers/plans/2026-08-31-platform-parity-program.md`](../../superpowers/plans/2026-08-31-platform-parity-program.md).
