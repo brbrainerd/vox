@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use anyhow::{Context, Result};
 use clap::{Subcommand, ValueEnum};
 use tracing::{error, info};
@@ -5,21 +7,12 @@ use vox_identity::trust::TrustedNodeRegistry;
 use vox_mesh_types::A2ADeliverRequest;
 use vox_mesh_types::SecretsSyncEnvelope;
 
-fn redact_value(value: &str) -> String {
-    if value.chars().count() > 6 {
-        let head: String = value.chars().take(4).collect();
-        let tail: String = value
-            .chars()
-            .rev()
-            .take(2)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect();
-        format!("{head}…{tail} (redacted)")
-    } else {
-        "***".to_string()
-    }
+fn managed_secret_id(canonical_env: &str) -> Result<vox_secrets::SecretId> {
+    vox_secrets::secret_id_for_canonical_env(canonical_env).ok_or_else(|| {
+        anyhow::anyhow!(
+            "`{canonical_env}` is not a canonical managed secret name; use `vox secrets status` to inspect registered secrets"
+        )
+    })
 }
 
 fn local_inference_allows_no_cloud_key() -> bool {
@@ -153,18 +146,22 @@ pub enum SecretsCmd {
         #[arg(long, value_enum, default_value_t = OutputFormat::Human)]
         format: OutputFormat,
     },
-    /// Store a registry token in ~/.vox/auth.json (compat mode).
+    /// Store a managed secret in the Clavis vault from standard input.
     Set {
-        registry: String,
-        token: String,
+        /// Canonical managed environment name, for example OPENROUTER_API_KEY.
+        canonical_env: String,
+        /// Read exactly one secret value from standard input.
         #[arg(long)]
-        username: Option<String>,
+        stdin: bool,
     },
-    /// Read a registry token from resolution sources.
-    Get { registry: String },
+    /// Show the redacted resolution status for a managed secret.
+    Get {
+        /// Canonical managed environment name, for example OPENROUTER_API_KEY.
+        canonical_env: String,
+    },
     /// Show backend mode and current availability state.
     BackendStatus,
-    /// Migrate plaintext `auth.json` tokens into secure local store.
+    /// Migrate recognized legacy `auth.json` tokens into the Clavis vault.
     MigrateAuthStore,
     /// Fetch unmanaged legacy signals (.env) and inject into secure storage.
     #[command(name = "import-env")]
@@ -202,7 +199,7 @@ pub async fn run(cmd: SecretsCmd) -> Result<()> {
                 let key = vox_oauth_pkce::openrouter::run_openrouter_flow()
                     .await
                     .map_err(|e| anyhow::anyhow!("OAuth flow failed: {e}"))?;
-                vox_secrets::set_registry_token("openrouter", &key, None)
+                vox_secrets::store_secret(vox_secrets::SecretId::OpenRouterApiKey, &key, None)
                     .map_err(|e| anyhow::anyhow!("failed to store key: {e}"))?;
                 println!("OpenRouter API key provisioned and stored.");
                 Ok(())
@@ -218,22 +215,38 @@ pub async fn run(cmd: SecretsCmd) -> Result<()> {
             format,
         } => run_doctor(workflow, profile, mode, bundle, format).await,
         SecretsCmd::Set {
-            registry,
-            token,
-            username,
+            canonical_env,
+            stdin,
         } => {
-            let path = vox_secrets::set_registry_token(&registry, &token, username)
-                .map_err(|e| anyhow::anyhow!("{e}"))?;
-            println!("Stored token for `{registry}` in {}", path.display());
+            if !stdin {
+                anyhow::bail!(
+                    "refusing positional secret input; use `vox secrets set {canonical_env} --stdin`"
+                );
+            }
+            let secret_id = managed_secret_id(&canonical_env)?;
+            let mut value = String::new();
+            std::io::stdin()
+                .read_to_string(&mut value)
+                .context("failed to read secret from standard input")?;
+            let value = value.trim();
+            if value.is_empty() {
+                anyhow::bail!("secret value from standard input must not be empty");
+            }
+            vox_secrets::store_secret(secret_id, value, None)
+                .map_err(|e| anyhow::anyhow!("failed to store managed secret: {e}"))?;
+            let resolved = vox_secrets::resolve_secret_for_cli(secret_id);
+            if !resolved.is_present() {
+                anyhow::bail!(
+                    "secret was stored but cannot be resolved through the active Clavis profile"
+                );
+            }
+            println!("Stored managed secret `{canonical_env}` in the Clavis vault.");
             Ok(())
         }
-        SecretsCmd::Get { registry } => {
-            match vox_secrets::get_registry_token(&registry) {
-                Some(token) => {
-                    println!("{registry}: {}", redact_value(&token));
-                }
-                None => println!("{registry}: (missing)"),
-            }
+        SecretsCmd::Get { canonical_env } => {
+            let secret_id = managed_secret_id(&canonical_env)?;
+            let resolved = vox_secrets::resolve_secret_for_cli(secret_id);
+            println!("{canonical_env}: {}", resolved.redacted());
             Ok(())
         }
         SecretsCmd::BackendStatus => {
@@ -270,7 +283,7 @@ pub async fn run(cmd: SecretsCmd) -> Result<()> {
         SecretsCmd::MigrateAuthStore => {
             let moved = vox_secrets::migrate_auth_store_to_secure_store()
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
-            println!("migrated {moved} auth entries to secure store");
+            println!("migrated {moved} legacy auth entries to the Clavis vault");
             Ok(())
         }
         SecretsCmd::ImportEnv { file, dry_run } => {
@@ -912,5 +925,42 @@ mod oauth_login_cli_tests {
             }
             _ => panic!("expected Cli::Secrets{{ cmd: SecretsCmd::Login }}"),
         }
+    }
+
+    #[test]
+    fn managed_set_requires_stdin_and_canonical_name() {
+        let root = crate::VoxCliRoot::try_parse_from([
+            "vox",
+            "secrets",
+            "set",
+            "OPENROUTER_API_KEY",
+            "--stdin",
+        ])
+        .expect("managed set syntax parses");
+        match root.cmd {
+            crate::Cli::Secrets {
+                cmd:
+                    super::SecretsCmd::Set {
+                        canonical_env,
+                        stdin,
+                    },
+            } => {
+                assert_eq!(canonical_env, "OPENROUTER_API_KEY");
+                assert!(stdin);
+            }
+            _ => panic!("expected managed secrets set command"),
+        }
+
+        assert!(
+            crate::VoxCliRoot::try_parse_from([
+                "vox",
+                "secrets",
+                "set",
+                "OPENROUTER_API_KEY",
+                "token-on-command-line",
+            ])
+            .is_err(),
+            "positional token input must be rejected by the command shape"
+        );
     }
 }

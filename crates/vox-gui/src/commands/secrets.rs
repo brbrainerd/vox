@@ -58,19 +58,17 @@ pub fn list_secret_status() -> Vec<SecretStatusDto> {
         .collect()
 }
 
-/// Resolve the spec whose canonical env name matches `key`. The GUI sends the
-/// `canonical_env` shown in the table.
+/// Resolve the managed secret whose canonical env name matches `key`. The GUI
+/// sends the `canonical_env` shown in the table.
 fn spec_for_key(key: &str) -> Result<&'static SecretSpec, String> {
-    vox_secrets::all_specs()
-        .into_iter()
-        .find(|s| s.canonical_env == key)
-        .ok_or_else(|| format!("unknown secret key: {key}"))
+    vox_secrets::secret_id_for_canonical_env(key)
+        .map(|id| id.spec())
+        .ok_or_else(|| format!("unknown canonical managed secret key: {key}"))
 }
 
-/// Write a secret value. Routes auth.json registry-token keys to the auth
-/// store, everything else to the Clavis vault. Returns the resulting
-/// `is_present` (always `true` on success) — NEVER the value, which is
-/// dropped as soon as it is persisted.
+/// Write a managed secret value to the Clavis vault. Returns the resulting
+/// `is_present` (always `true` on success) — NEVER the value, which is dropped
+/// as soon as it is persisted.
 #[command]
 // toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_secrets/vox_vault backends; redaction + routing covered by vox-secrets tests
 pub fn set_secret(key: String, value: String) -> Result<bool, String> {
@@ -79,16 +77,7 @@ pub fn set_secret(key: String, value: String) -> Result<bool, String> {
     }
     let spec = spec_for_key(&key)?;
 
-    if let Some(registry) = spec.auth_registry {
-        vox_secrets::set_registry_token(registry, &value, None).map_err(|e| e.to_string())?;
-    } else {
-        let backend_key = spec.backend_key.unwrap_or(spec.canonical_env);
-        let backend =
-            vox_secrets::backend::vox_vault::VoxCloudBackend::new().map_err(|e| e.to_string())?;
-        backend
-            .write_secret(backend_key, &value)
-            .map_err(|e| e.to_string())?;
-    }
+    vox_secrets::store_secret(spec.id, &value, None).map_err(|e| e.to_string())?;
 
     // Re-resolve presence only; the value is never read back to the UI.
     Ok(vox_secrets::resolve_secret(spec.id).is_present())
@@ -178,32 +167,22 @@ pub fn import_env(path: Option<String>, apply: bool) -> Result<ImportEnvResultDt
     })
 }
 
-/// Migrate plaintext `auth.json` registry tokens into the secure store. Returns
-/// the number of entries moved. No token material is returned.
+/// Migrate recognized plaintext `auth.json` registry tokens into the Clavis
+/// vault. Returns the number of entries moved. No token material is returned.
 #[command]
 // toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_secrets::migrate_auth_store_to_secure_store
 pub fn migrate_auth_store() -> Result<usize, String> {
     vox_secrets::migrate_auth_store_to_secure_store().map_err(|e| e.to_string())
 }
 
-/// Remove a secret. Routes auth.json registry-token keys to
-/// `remove_registry_token`, everything else to the vault `delete_secret`.
-/// Returns `is_present` (`false` on success) — never any value.
+/// Remove a managed secret from the Clavis vault. Returns `is_present` (`false`
+/// on success) — never any value.
 #[command]
 // toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_secrets/vox_vault backends; redaction + routing covered by vox-secrets tests
 pub fn remove_secret(key: String) -> Result<bool, String> {
     let spec = spec_for_key(&key)?;
 
-    if let Some(registry) = spec.auth_registry {
-        vox_secrets::remove_registry_token(registry).map_err(|e| e.to_string())?;
-    } else {
-        let backend_key = spec.backend_key.unwrap_or(spec.canonical_env);
-        let backend =
-            vox_secrets::backend::vox_vault::VoxCloudBackend::new().map_err(|e| e.to_string())?;
-        backend
-            .delete_secret(backend_key)
-            .map_err(|e| e.to_string())?;
-    }
+    vox_secrets::delete_secret(spec.id).map_err(|e| e.to_string())?;
 
     Ok(vox_secrets::resolve_secret(spec.id).is_present())
 }

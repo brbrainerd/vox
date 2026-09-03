@@ -232,19 +232,51 @@ pub fn remove_registry_token(registry: &str) -> Result<bool, SecretError> {
 pub fn migrate_to_secure_store() -> Result<usize, SecretError> {
     let path = auth_path();
     let mut creds = read_credentials_file(&path)?;
-    let mut migrated = 0usize;
-    for (registry, auth) in &mut creds.registries {
+    let specs = crate::all_specs();
+    let mut managed_entries: Vec<(String, crate::SecretId, String)> = Vec::new();
+    for (registry, auth) in &creds.registries {
         if auth.token.trim().is_empty() || auth.token == SECURE_SENTINEL {
             continue;
         }
-        write_secure_token(registry, &auth.token)?;
-        auth.token = SECURE_SENTINEL.to_string();
-        migrated += 1;
+        match specs.iter().find(|spec| spec.auth_registry == Some(registry.as_str())) {
+            Some(spec) => managed_entries.push((registry.clone(), spec.id, auth.token.clone())),
+            None => tracing::warn!(
+                registry = %registry,
+                "auth.json registry has no matching managed SecretId; leaving its token in \
+                 auth.json unmigrated (not recognized by the current secret registry)"
+            ),
+        }
     }
-    if migrated > 0 {
+
+    for (_, secret_id, token) in &managed_entries {
+        crate::store_secret(*secret_id, token, None)?;
+    }
+    for (registry, _, _) in &managed_entries {
+        creds.registries.remove(registry);
+    }
+    if !managed_entries.is_empty() {
         write_credentials_file(&path, &creds)?;
     }
-    Ok(migrated)
+    Ok(managed_entries.len())
+}
+
+#[cfg(test)]
+mod migration_tests {
+
+    #[test]
+    fn migration_only_selects_registered_auth_backed_secrets() {
+        let specs = crate::all_specs();
+        let openrouter = specs
+            .iter()
+            .find(|spec| spec.auth_registry == Some("openrouter"))
+            .expect("OpenRouter is a managed auth-backed secret");
+        assert_eq!(openrouter.id, crate::SecretId::OpenRouterApiKey);
+        assert!(
+            specs
+                .iter()
+                .all(|spec| spec.auth_registry != Some("unmanaged-registry"))
+        );
+    }
 }
 
 #[cfg(test)]
