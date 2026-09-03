@@ -41,8 +41,8 @@ async fn acquire_then_replay_from_db() {
 //   3. An immediate re-SELECT on that SAME call's connection confirms the
 //      row is gone (`still_present=false`).
 //   4. Yet this test's `db` handle — proven to Arc-share the exact same
-//      underlying `turso::Connection` as `mgr`'s clone (verified against
-//      turso 0.6.1's `Connection::clone()` impl, which clones an
+//      underlying Turso `Connection` as `mgr`'s clone (verified against
+//      Turso 0.6.1's `Connection::clone()` impl, which clones an
 //      `Arc<TursoConnection>`) — still sees the pre-delete row on its next
 //      query.
 //
