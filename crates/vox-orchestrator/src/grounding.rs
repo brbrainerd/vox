@@ -183,7 +183,7 @@ pub fn assess_reply_confidence(reply: &str) -> GroundingCheckResult {
 /// truncated mid-answer. ` ``` ` markers must appear an even number of times.
 #[must_use]
 pub fn has_unbalanced_fence(text: &str) -> bool {
-    text.matches("```").count() % 2 != 0
+    !text.matches("```").count().is_multiple_of(2)
 }
 
 /// Task M2: phrases a user's follow-up commonly uses when the prior answer didn't land.
