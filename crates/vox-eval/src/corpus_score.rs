@@ -52,12 +52,28 @@ pub fn pass_at_k(n: usize, c: usize, k: usize) -> f64 {
 }
 
 /// Corpus pass@k: the mean of per-problem unbiased estimates.
+///
+/// A fixture with `n == 0` (every attempt hit an infra error, so nothing was
+/// ever pushed to its `attempts`) carries no information about the model —
+/// scoring it would mean asserting or fabricating a 0%/100% result from zero
+/// data. Such fixtures are excluded from both the numerator and denominator
+/// of the mean, matching how infra errors are excluded from the model's
+/// judgment everywhere else in this pipeline (see `is_infra_error` at the
+/// call site). `pass_at_k` itself still asserts `n >= k` for any fixture that
+/// DID produce samples — that assertion is a real precondition violation
+/// (`k` larger than the sample count), not something this function should
+/// paper over.
 #[must_use]
 pub fn corpus_pass_at_k(outcomes: &[FixtureOutcome], k: usize) -> f64 {
-    if outcomes.is_empty() {
+    let scored: Vec<f64> = outcomes
+        .iter()
+        .filter(|f| f.n > 0)
+        .map(|f| pass_at_k(f.n, f.c, k))
+        .collect();
+    if scored.is_empty() {
         return 0.0;
     }
-    outcomes.iter().map(|f| pass_at_k(f.n, f.c, k)).sum::<f64>() / outcomes.len() as f64
+    scored.iter().sum::<f64>() / scored.len() as f64
 }
 
 /// Published axes for one (model, harness, condition) row.
@@ -163,6 +179,28 @@ pub fn score_corpus(outcomes: &[FixtureOutcome], k: usize, measured: bool) -> Co
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn fixture(id: &str, n: usize, c: usize) -> FixtureOutcome {
+        FixtureOutcome {
+            fixture_id: id.to_string(),
+            n,
+            c,
+            attempts: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn corpus_pass_at_k_excludes_zero_attempt_fixtures_instead_of_panicking() {
+        // A fixture where every attempt hit an infra error ends up with n=0.
+        // pass_at_k(0, 0, 1) would violate its own `n >= k` precondition;
+        // corpus_pass_at_k must skip it rather than propagate the panic.
+        let outcomes = vec![fixture("a", 0, 0), fixture("b", 4, 4)];
+        assert_eq!(corpus_pass_at_k(&outcomes, 1), 1.0);
+
+        // All fixtures infra-only: no scorable data, defined as 0.0, no panic.
+        let all_empty = vec![fixture("a", 0, 0), fixture("b", 0, 0)];
+        assert_eq!(corpus_pass_at_k(&all_empty, 1), 0.0);
+    }
 
     #[test]
     fn pass_at_k_matches_the_closed_form_and_is_stable_at_scale() {

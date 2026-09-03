@@ -358,7 +358,14 @@ fn sql_value_to_json(v: SqlValue) -> serde_json::Value {
     }
 }
 
-/// Stream one JSON object per line: `{"table":"…","columns":[…],"row":{…}}`.
+/// Write one JSON object per line: `{"table":"…","columns":[…],"row":{…}}`.
+///
+/// Despite the line-delimited output shape, this does NOT stream row-by-row
+/// from the database: `GuardedConnection::query` (see its doc comment)
+/// materializes a table's full result set into memory before this function
+/// ever sees the first row, to keep the connection's mutex guard scoped to
+/// the actual query instead of the caller's iteration. A very large legacy
+/// table is read entirely into memory per `SELECT`, one table at a time.
 pub async fn export_legacy_jsonl<W: Write>(
     store: &crate::VoxDb,
     writer: &mut W,
