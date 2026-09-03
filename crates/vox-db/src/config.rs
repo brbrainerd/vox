@@ -38,7 +38,6 @@ use vox_secrets::SecretId;
 #[cfg(feature = "host-integration")]
 static LEGACY_TURSO_ENV_WARN: std::sync::Once = std::sync::Once::new();
 #[cfg(feature = "host-integration")]
-
 fn try_remote_from_compat_env() -> Option<DbConfig> {
     let hard_cut_strict = std::env::var("VOX_SECRETS_HARD_CUT")
         .ok()
