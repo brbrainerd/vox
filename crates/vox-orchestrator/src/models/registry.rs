@@ -67,9 +67,20 @@ pub fn wilson_score_interval(successes: i64, n: i64) -> Option<(f64, f64)> {
     Some(((center - margin).max(0.0), (center + margin).min(1.0)))
 }
 
-/// Task M3: below this many calls, a bare success-rate percentage is too noisy to rank
-/// confidently — display the full [`wilson_score_interval`] and a low-confidence marker
-/// instead.
+/// Task M3: below this many observed *calls*, a model holds no rank position — see
+/// `vox model explain`'s `partition_by_rank_confidence`.
+///
+/// Deliberately distinct from `vox model scoreboard`'s `COST_PER_SUCCESS_MIN_SUCCESSES` (10):
+/// these gate different statistics on different denominators. Ranking needs enough *calls* to
+/// place a model relative to others; a cost-per-success *ratio* needs enough *successes* in
+/// its denominator before one expensive fallback swings it by an order of magnitude.
+/// Equalizing them would make one of the two wrong.
+///
+/// The two surfaces also read it differently, deliberately: `explain` **suppresses**
+/// sub-threshold models from its ranked list (a rank position is a claim), while `scoreboard`
+/// only **marks** them — a scoreboard is a full inventory keyed (model, category, strength),
+/// and hiding thin rows would hide what a reader queries it for. Neither surface will mark a
+/// sub-threshold row Pareto-optimal.
 pub const MIN_CALLS_FOR_CONFIDENT_RANK: i64 = 5;
 
 #[cfg(test)]

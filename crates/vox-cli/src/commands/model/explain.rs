@@ -2,7 +2,10 @@ use clap::Parser;
 use owo_colors::OwoColorize;
 use std::collections::HashMap;
 use vox_db::{DbConfig, VoxDb};
-use vox_orchestrator::models::{ModelRegistry, ModelScore};
+use vox_orchestrator::models::{
+    MIN_CALLS_FOR_CONFIDENT_RANK, ModelRegistry, ModelScore, ModelSpec, pareto_frontier,
+    pareto_point_for,
+};
 use vox_orchestrator::types::TaskCategory;
 
 /// Explain model selection for a given task description.
@@ -71,6 +74,93 @@ fn render_free_tier(
         .collect()
 }
 
+/// Task M3 ("suppress ranks below minimum-N"): splits candidates into those with enough
+/// observations to hold a rank position and those without. `e497a82fb` only *marked* low-N
+/// rows, so a 2-call model still printed as rank #1 — the false confidence the requirement
+/// targets. `None` (no scoreboard row) is unranked: no data is not evidence of rank-worthiness.
+fn partition_by_rank_confidence<'a>(
+    candidates: &'a [ModelSpec],
+    n_calls_of: impl Fn(&str) -> Option<i64>,
+) -> (Vec<&'a ModelSpec>, Vec<&'a ModelSpec>) {
+    candidates
+        .iter()
+        .partition(|m| n_calls_of(&m.id).is_some_and(|n| n >= MIN_CALLS_FOR_CONFIDENT_RANK))
+}
+
+/// Annotation for the `Selection:` line when the router's pick is not rankable. The pick
+/// itself is never changed — the ranked list is ordered by observed performance while the
+/// selection is what the priority scorer chose, and they legitimately differ. Printing the
+/// ranked leader as "Selection" would fabricate a routing claim.
+fn selection_note(n_calls: i64) -> String {
+    if n_calls >= MIN_CALLS_FOR_CONFIDENT_RANK {
+        String::new()
+    } else {
+        format!(
+            " (unranked: {n_calls} observed call(s) < {MIN_CALLS_FOR_CONFIDENT_RANK}; the list \
+             above is ordered by observed performance, the selection is not)"
+        )
+    }
+}
+
+/// Pure render of both candidate sections, extracted so the partition *and* its presentation
+/// are testable — `run()` is async and touches the DB and env, so it never can be.
+fn render_candidate_sections(
+    ranked: &[&ModelSpec],
+    unranked: &[&ModelSpec],
+    score_of: impl Fn(&str) -> Option<ModelScore>,
+) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::new();
+
+    // Frontier over the ranked half only: `partition_by_rank_confidence` already excluded
+    // unobserved rows, so this is confidence-gated by construction.
+    let points: Vec<_> = ranked
+        .iter()
+        .map(|m| pareto_point_for(score_of(&m.id).as_ref()))
+        .collect();
+    let frontier = pareto_frontier(&points);
+
+    let _ = writeln!(
+        out,
+        "Top Candidates (ranked; models with < {MIN_CALLS_FOR_CONFIDENT_RANK} observed calls are \
+         listed separately):"
+    );
+    for (i, entry) in ranked.iter().take(5).enumerate() {
+        let prefix = match i {
+            0 => "🥇",
+            1 => "🥈",
+            2 => "🥉",
+            _ => "  ",
+        };
+        let mut details = vec![format!("Tier: {:?}", entry.capabilities.tier)];
+        if let Some(score) = score_of(&entry.id) {
+            details.push(success_rate_display(score.success_count, score.n_calls));
+        }
+        let mark = if frontier.contains(&i) {
+            " [pareto-optimal]"
+        } else {
+            ""
+        };
+        let _ = writeln!(out, "{prefix} {}: {}{mark}", entry.id, details.join(", "));
+    }
+    if ranked.is_empty() {
+        let _ = writeln!(out, "  (no model has enough observations to rank yet)");
+    }
+
+    if !unranked.is_empty() {
+        let _ = writeln!(
+            out,
+            "\nInsufficient data to rank ({} model(s)):",
+            unranked.len()
+        );
+        for entry in unranked.iter().take(5) {
+            let n = score_of(&entry.id).map_or(0, |s| s.n_calls);
+            let _ = writeln!(out, "  - {}: {n} observed call(s)", entry.id);
+        }
+    }
+    out
+}
+
 pub async fn run(args: ExplainArgs) -> anyhow::Result<()> {
     // 1. Setup Registry
     let mut registry = ModelRegistry::new();
@@ -135,35 +225,22 @@ pub async fn run(args: ExplainArgs) -> anyhow::Result<()> {
         return Ok(());
     }
 
+    let (ranked, unranked) =
+        partition_by_rank_confidence(&candidates, |id| registry.get_score(id).map(|s| s.n_calls));
     println!(
-        "{} Top Candidates (sorted by priority score):",
-        " RANK ".on_green().black().bold()
+        "{} {}",
+        " RANK ".on_green().black().bold(),
+        render_candidate_sections(&ranked, &unranked, |id| registry.get_score(id).cloned())
     );
-    for (i, entry) in candidates.iter().take(5).enumerate() {
-        let prefix = if i == 0 {
-            "🥇"
-        } else if i == 1 {
-            "🥈"
-        } else if i == 2 {
-            "🥉"
-        } else {
-            "  "
-        };
 
-        let mut details = Vec::new();
-        details.push(format!("Tier: {:?}", entry.capabilities.tier));
-
-        if let Some(score) = registry.get_score(&entry.id) {
-            // Deliberately not surfaced (Task M0/M2/M3): `quality_score` is a constant 1.0
-            // for every model in practice (llm_feedback has zero rows) — see the GUI's
-            // list_model_cards and `vox model scoreboard`, which already dropped it.
-            details.push(success_rate_display(score.success_count, score.n_calls));
-        }
-
-        println!("{} {}: {}", prefix, entry.id.bold(), details.join(", "));
-    }
-
-    println!("\nSelection: {}", candidates[0].id.green().bold());
+    let selected_calls = registry
+        .get_score(&candidates[0].id)
+        .map_or(0, |s| s.n_calls);
+    println!(
+        "\nSelection: {}{}",
+        candidates[0].id.green().bold(),
+        selection_note(selected_calls).yellow()
+    );
 
     // 4b. Free-tier router rationale (opt-in) — surfaces WHY each free model is
     // chosen, using the same FreeTierRouter the MCP selection path uses.
@@ -204,9 +281,13 @@ pub async fn run(args: ExplainArgs) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{render_free_tier, success_rate_display};
+    use super::{
+        MIN_CALLS_FOR_CONFIDENT_RANK, partition_by_rank_confidence, render_candidate_sections,
+        render_free_tier, selection_note, success_rate_display,
+    };
     use vox_orchestrator::models::{
-        ModelCapabilities, ModelSpec, ModelTier, PricingSource, ProviderType, StrengthTag,
+        ModelCapabilities, ModelScore, ModelSpec, ModelTier, PricingSource, ProviderType,
+        StrengthTag,
     };
     use vox_orchestrator::types::TaskCategory;
     use vox_research_shim::selection::FreeTierRouteRequest;
@@ -299,5 +380,150 @@ mod tests {
             max_candidates: 5,
         };
         assert!(render_free_tier(&req, &[]).is_empty());
+    }
+
+    #[test]
+    fn partition_by_rank_confidence_demotes_low_call_models_out_of_the_ranked_list() {
+        let models = vec![
+            free_spec("a/low-n", ProviderType::OpenRouter, ModelTier::Pro),
+            free_spec("b/confident", ProviderType::OpenRouter, ModelTier::Pro),
+        ];
+        let (ranked, unranked) = partition_by_rank_confidence(&models, |id| match id {
+            "a/low-n" => Some(2),
+            "b/confident" => Some(40),
+            _ => None,
+        });
+        assert_eq!(
+            ranked.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(),
+            vec!["b/confident"]
+        );
+        assert_eq!(
+            unranked.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(),
+            vec!["a/low-n"]
+        );
+    }
+
+    #[test]
+    fn partition_by_rank_confidence_treats_a_missing_scoreboard_row_as_unranked() {
+        let models = vec![free_spec(
+            "novel/model",
+            ProviderType::OpenRouter,
+            ModelTier::Pro,
+        )];
+        let (ranked, unranked) = partition_by_rank_confidence(&models, |_| None);
+        assert!(
+            ranked.is_empty(),
+            "no data is not evidence of rank-worthiness"
+        );
+        assert_eq!(unranked.len(), 1);
+    }
+
+    #[test]
+    fn partition_by_rank_confidence_admits_exactly_at_the_threshold() {
+        // Uses the symbolic constant: a hardcoded `n >= 5` that drifts when the constant changes
+        // would still pass a literal-valued test.
+        let models = vec![free_spec(
+            "edge/model",
+            ProviderType::OpenRouter,
+            ModelTier::Pro,
+        )];
+        let (ranked, _) =
+            partition_by_rank_confidence(&models, |_| Some(MIN_CALLS_FOR_CONFIDENT_RANK));
+        assert_eq!(ranked.len(), 1, "the threshold is inclusive");
+        let (ranked, _) =
+            partition_by_rank_confidence(&models, |_| Some(MIN_CALLS_FOR_CONFIDENT_RANK - 1));
+        assert!(
+            ranked.is_empty(),
+            "one call below the threshold is not rankable"
+        );
+    }
+
+    #[test]
+    fn partition_by_rank_confidence_preserves_input_order_within_each_half() {
+        let models = vec![
+            free_spec("a/hi", ProviderType::OpenRouter, ModelTier::Pro),
+            free_spec("b/lo", ProviderType::OpenRouter, ModelTier::Pro),
+            free_spec("c/hi", ProviderType::OpenRouter, ModelTier::Pro),
+            free_spec("d/lo", ProviderType::OpenRouter, ModelTier::Pro),
+        ];
+        let (ranked, unranked) = partition_by_rank_confidence(&models, |id| {
+            if id.ends_with("/hi") {
+                Some(50)
+            } else {
+                Some(1)
+            }
+        });
+        assert_eq!(
+            ranked.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(),
+            vec!["a/hi", "c/hi"]
+        );
+        assert_eq!(
+            unranked.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(),
+            vec!["b/lo", "d/lo"]
+        );
+    }
+
+    #[test]
+    fn partition_by_rank_confidence_handles_an_empty_candidate_list() {
+        let (ranked, unranked) = partition_by_rank_confidence(&[], |_| Some(99));
+        assert!(ranked.is_empty() && unranked.is_empty());
+    }
+
+    #[test]
+    fn render_candidate_sections_never_puts_a_medal_on_an_unranked_model() {
+        // The defect e497a82fb shipped: present-but-marked is not suppression.
+        let models = vec![
+            free_spec("a/low-n", ProviderType::OpenRouter, ModelTier::Pro),
+            free_spec("b/confident", ProviderType::OpenRouter, ModelTier::Pro),
+        ];
+        let (ranked, unranked) = partition_by_rank_confidence(&models, |id| {
+            if id == "b/confident" {
+                Some(40)
+            } else {
+                Some(2)
+            }
+        });
+        let out = render_candidate_sections(&ranked, &unranked, |_| None::<ModelScore>);
+        let medal_line = out
+            .lines()
+            .find(|l| l.contains('🥇'))
+            .expect("a medal is rendered");
+        assert!(
+            medal_line.contains("b/confident"),
+            "medal must go to the ranked model: {medal_line}"
+        );
+        assert!(
+            out.contains("a/low-n"),
+            "the demoted model must still be listed"
+        );
+        let low_n_line = out.lines().find(|l| l.contains("a/low-n")).expect("listed");
+        assert!(
+            !low_n_line.contains('🥇') && !low_n_line.contains('🥈') && !low_n_line.contains('🥉'),
+            "a 2-call model must hold no rank position: {low_n_line}"
+        );
+    }
+
+    #[test]
+    fn render_candidate_sections_says_so_when_nothing_is_rankable() {
+        let models = vec![free_spec("x/new", ProviderType::OpenRouter, ModelTier::Pro)];
+        let (ranked, unranked) = partition_by_rank_confidence(&models, |_| None);
+        let out = render_candidate_sections(&ranked, &unranked, |_| None::<ModelScore>);
+        assert!(out.contains("no model has enough observations"), "{out}");
+        assert!(
+            !out.contains('🥇'),
+            "an empty ranked half renders no medals: {out}"
+        );
+    }
+
+    #[test]
+    fn selection_note_flags_a_selection_that_is_not_rankable() {
+        // The router's pick is reported as-is (changing it would fabricate a routing claim), but
+        // it must not read as endorsed when it sits in the UNRANKED section.
+        assert!(
+            selection_note(2).contains("unranked"),
+            "{}",
+            selection_note(2)
+        );
+        assert_eq!(selection_note(MIN_CALLS_FOR_CONFIDENT_RANK), "");
     }
 }
