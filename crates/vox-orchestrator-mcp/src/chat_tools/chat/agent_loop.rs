@@ -150,6 +150,17 @@ pub struct AgentTurnOutcome {
     /// dispatched tool call both matches a known event-worthy tool AND actually
     /// succeeded.
     pub events: Vec<serde_json::Value>,
+    /// Wall-clock latency of the final iteration's `llm_chat`/`stream_final_answer` call, in
+    /// ms. `None` only if every iteration failed before any response was received (in which
+    /// case the turn as a whole already errored out before `AgentTurnOutcome` is built).
+    pub latency_ms: Option<u64>,
+    /// Task M3: time to first token, in ms, from the final iteration's response. Only real on
+    /// the streaming path (`stream_tokens: true`); the non-streaming path reports
+    /// `latency_ms` here (see [`LlmResponse::ttft_ms`]'s doc comment).
+    pub ttft_ms: Option<u64>,
+    /// Task M3: time per output token, in ms, from the final iteration's response. `None`
+    /// when that iteration had zero completion tokens.
+    pub tpot_ms: Option<f64>,
 }
 
 /// Max chars of a model-authored string (e.g. a raw skill id) echoed into a
@@ -351,12 +362,20 @@ async fn stream_final_answer(
 
     let bus = state.orchestrator.event_bus();
     let agent_id = AgentId(0); // chat's pseudo-agent id, matching message.rs's convention.
+    let start = std::time::Instant::now();
+    let mut ttft_ms: Option<u64> = None;
     let mut content = String::new();
     while let Some(item) = stream.next().await {
         match item {
             Ok(chunk) => {
                 if chunk.is_empty() {
                     continue;
+                }
+                // Task M3: the FIRST non-empty chunk is the only meaningful "time to first
+                // token" reading — later chunks are generation throughput, not connect+queue
+                // latency.
+                if ttft_ms.is_none() {
+                    ttft_ms = Some(start.elapsed().as_millis() as u64);
                 }
                 content.push_str(&chunk);
                 bus.emit(AgentEventKind::TokenStreamed {
@@ -373,8 +392,19 @@ async fn stream_final_answer(
     if content.trim().is_empty() {
         return None;
     }
+    // `latency_ms` used to be hardcoded `0` here (Task M3) -- same class of bug Task M0
+    // fixed for the non-streaming path's `infer_with_retry`, just undiscovered until this
+    // task went looking for a place to measure TTFT.
+    let latency_ms = start.elapsed().as_millis() as u64;
     let completion_tokens =
         vox_orchestrator::compaction::CompactionEngine::estimate_tokens(&content) as u32;
+    // Generation-phase throughput: time AFTER the first token arrived, divided across the
+    // tokens that followed it. `ttft_ms` is always `Some` here (content is non-empty, so the
+    // loop above set it on the first chunk).
+    let tpot_ms = ttft_ms.and_then(|t| {
+        (completion_tokens > 0)
+            .then(|| latency_ms.saturating_sub(t) as f64 / completion_tokens as f64)
+    });
     Some(LlmResponse {
         content,
         prompt_tokens: 0,
@@ -382,8 +412,10 @@ async fn stream_final_answer(
         model,
         cost_usd: None,
         tool_calls: None,
-        latency_ms: 0,
+        latency_ms,
         cache_read_tokens: 0,
+        ttft_ms,
+        tpot_ms,
     })
 }
 
@@ -505,6 +537,9 @@ pub(crate) async fn run_agent_turn(
     let mut tool_calls_made = 0usize;
     let mut total_tokens = 0u64;
     let mut events: Vec<serde_json::Value> = Vec::new();
+    let mut latency_ms: Option<u64> = None;
+    let mut ttft_ms: Option<u64> = None;
+    let mut tpot_ms: Option<f64> = None;
 
     for iteration in 0..max_iterations {
         let mut config = llm_config_template.clone();
@@ -538,6 +573,9 @@ pub(crate) async fn run_agent_turn(
         };
         model_used = resp.model.clone();
         total_tokens += u64::from(resp.prompt_tokens) + u64::from(resp.completion_tokens);
+        latency_ms = Some(resp.latency_ms);
+        ttft_ms = resp.ttft_ms;
+        tpot_ms = resp.tpot_ms;
 
         match resp.tool_calls {
             Some(calls) if !calls.is_empty() => {
@@ -733,6 +771,9 @@ pub(crate) async fn run_agent_turn(
                         hit_iteration_limit: true,
                         total_tokens,
                         events,
+                        latency_ms,
+                        ttft_ms,
+                        tpot_ms,
                     });
                 }
                 // Otherwise loop: ask the model again with the tool results appended.
@@ -745,6 +786,9 @@ pub(crate) async fn run_agent_turn(
                     hit_iteration_limit: false,
                     total_tokens,
                     events,
+                    latency_ms,
+                    ttft_ms,
+                    tpot_ms,
                 });
             }
         }
@@ -761,6 +805,9 @@ pub(crate) async fn run_agent_turn(
         hit_iteration_limit: true,
         total_tokens,
         events,
+        latency_ms,
+        ttft_ms,
+        tpot_ms,
     })
 }
 
@@ -1600,6 +1647,18 @@ mod tests {
 
         assert_eq!(outcome.final_text, "Hi there");
         assert_eq!(outcome.tool_calls_made, 0);
+        assert!(
+            outcome.latency_ms.is_some(),
+            "Task M3: streaming latency_ms must no longer be the hardcoded 0"
+        );
+        assert!(
+            outcome.ttft_ms.is_some(),
+            "Task M3: a genuinely streamed reply must report a real time-to-first-token"
+        );
+        assert!(
+            outcome.tpot_ms.is_some(),
+            "Task M3: a genuinely streamed reply with completion tokens must report tpot_ms"
+        );
 
         let mut streamed_text = String::new();
         let mut saw_session_id = false;

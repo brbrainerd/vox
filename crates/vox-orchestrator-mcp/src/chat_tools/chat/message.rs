@@ -395,6 +395,11 @@ async fn try_run_agent_turn(
                     && !vox_orchestrator::grounding::has_unbalanced_fence(&final_text);
                 let session_run_prefix = session_id.to_string();
                 let user_prompt_owned = user_prompt.to_string();
+                // `outcome.latency_ms` used to have no path to this call at all -- this
+                // record_live_chat_turn call passed a hardcoded `None` for both cost_usd and
+                // latency_ms since Task M1. cost_usd genuinely isn't computed anywhere on
+                // this path yet (a separate gap); latency_ms is now real (Task M3).
+                let turn_latency_ms = outcome.latency_ms.map(|v| v as i64);
                 tokio::spawn(async move {
                     // Rescore this session's still-pending prior turns against this turn's
                     // prompt first — cheap (at most 2 rows), and keeps each pending row's
@@ -418,7 +423,7 @@ async fn try_run_agent_turn(
                             &cost_tier,
                             &selection_reason_for_event,
                             None,
-                            None,
+                            turn_latency_ms,
                             completeness_ok,
                             now_ms,
                         )

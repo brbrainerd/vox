@@ -197,6 +197,10 @@ pub async fn llm_chat(
                         .await;
                     }
 
+                    // Non-streaming: no partial data exists, so "first token" and "whole
+                    // response" arrive at the same instant.
+                    let tpot_ms = (resp.completion_tokens > 0)
+                        .then(|| resp.latency_ms as f64 / resp.completion_tokens as f64);
                     Ok(Ok(LlmResponse {
                         content: resp.content,
                         prompt_tokens: resp.prompt_tokens,
@@ -206,6 +210,8 @@ pub async fn llm_chat(
                         tool_calls: resp.tool_calls,
                         latency_ms: resp.latency_ms,
                         cache_read_tokens: resp.cache_read_tokens,
+                        ttft_ms: Some(resp.latency_ms),
+                        tpot_ms,
                     }))
                 }
                 Err(e) => {
