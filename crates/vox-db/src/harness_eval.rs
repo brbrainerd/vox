@@ -288,9 +288,15 @@ impl VoxDb {
     /// `run_report`, the GUI's recent-runs view) can keep reading real
     /// `vox harness eval --live` runs without live traffic drowning them out.
     ///
-    /// `success` is a rough proxy (did the turn produce a final answer, not the iteration-limit
-    /// cutoff) — Task M2 owns the real `completeness_ok`/`success` definition and TTFT/TPOT;
-    /// this just makes the row exist and be joinable.
+    /// `completeness_ok` is caller-computed (the caller already depends on
+    /// `vox_orchestrator::grounding`; this crate must not depend back on it) from what's known
+    /// synchronously at turn-completion time — currently just
+    /// `!grounding::has_unbalanced_fence(reply)`. It does NOT yet fold in `finish_reason` (not
+    /// captured anywhere between the wire response and `AgentTurnOutcome` today — a real gap,
+    /// left for a follow-up rather than a blind cross-crate wire-parsing change) or "user
+    /// re-asked within 2 turns" (that needs lookahead the caller doesn't have yet — see
+    /// [`Self::queue_live_chat_reask_check`]/[`Self::rescore_pending_live_chat_reask`], which
+    /// AND that signal in retroactively once it's knowable).
     #[allow(clippy::too_many_arguments)]
     pub async fn record_live_chat_turn(
         &self,
@@ -300,9 +306,10 @@ impl VoxDb {
         selection_reason: &str,
         cost_usd: Option<f64>,
         latency_ms: Option<i64>,
-        success: bool,
+        completeness_ok: bool,
         now_ms: i64,
-    ) -> Result<(), StoreError> {
+    ) -> Result<String, StoreError> {
+        let success = completeness_ok;
         let run_id = format!("live-{task_id}");
         self.record_harness_eval_run(&HarnessEvalRunRecord {
             run_id: run_id.clone(),
@@ -336,7 +343,7 @@ impl VoxDb {
         })
         .await?;
         self.record_model_selection_event(&ModelSelectionEventRecord {
-            run_id,
+            run_id: run_id.clone(),
             task_id: task_id.to_string(),
             model_id: model_id.to_string(),
             cost_tier: cost_tier.to_string(),
@@ -345,8 +352,147 @@ impl VoxDb {
             recorded_at_ms: now_ms,
         })
         .await?;
-        Ok(())
+        Ok(run_id)
     }
+
+    /// Task M2: queue a `live_chat` turn (whose `completeness_ok` passed [`Self::record_live_chat_turn`]'s
+    /// synchronous checks) for the "user re-asked within 2 turns" retroactive check. A turn that
+    /// already failed synchronously (`completeness_ok = false`) must NOT be queued — `AND`
+    /// already short-circuited it to `false`, and this pass can only ever move a row from
+    /// pass to fail, never back.
+    pub async fn queue_live_chat_reask_check(
+        &self,
+        run_id: &str,
+        task_id: &str,
+        session_run_prefix: &str,
+        user_prompt: &str,
+        now_ms: i64,
+    ) -> Result<(), StoreError> {
+        let (run_id, task_id, session_run_prefix, user_prompt) = (
+            run_id.to_string(),
+            task_id.to_string(),
+            session_run_prefix.to_string(),
+            user_prompt.to_string(),
+        );
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO live_chat_completeness_pending (
+                        run_id, task_id, session_run_prefix, user_prompt, checks_remaining, recorded_at_ms
+                    ) VALUES (?1, ?2, ?3, ?4, 2, ?5)",
+                    params![run_id, task_id, session_run_prefix, user_prompt, now_ms],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Task M2: up to the 2 most recent still-pending `live_chat` turns in this session (same
+    /// `session_run_prefix`), most-recent first — the caller compares each `user_prompt`
+    /// against the new turn's prompt via `vox_orchestrator::grounding::looks_like_reask` and
+    /// reports the verdict back through [`Self::resolve_live_chat_reask_check`].
+    pub async fn pending_live_chat_reask_checks(
+        &self,
+        session_run_prefix: &str,
+    ) -> Result<Vec<PendingLiveChatReaskCheck>, StoreError> {
+        let mut rows = self
+            .connection()
+            .query(
+                "SELECT run_id, task_id, user_prompt, checks_remaining
+                 FROM live_chat_completeness_pending
+                 WHERE session_run_prefix = ?1
+                 ORDER BY recorded_at_ms DESC
+                 LIMIT 2",
+                params![session_run_prefix.to_string()],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push(PendingLiveChatReaskCheck {
+                run_id: row.get(0)?,
+                task_id: row.get(1)?,
+                user_prompt: row.get(2)?,
+                checks_remaining: row.get(3)?,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Task M2: apply the caller's re-ask verdict for one pending check.
+    ///
+    /// `matched = true` (a genuine re-ask): the turn's `completeness_ok` flips from pass to
+    /// fail retroactively — updates `harness_eval_task_result.status`/`pass_samples` and moves
+    /// one count from `harness_eval_run.pass_count` to `fail_count`, then removes the pending
+    /// row (resolved).
+    ///
+    /// `matched = false`: decrements `checks_remaining`; once it reaches 0 the turn's original
+    /// "pass" verdict is final (2 clean turns with no re-ask), and the pending row is removed.
+    pub async fn resolve_live_chat_reask_check(
+        &self,
+        run_id: &str,
+        matched: bool,
+    ) -> Result<(), StoreError> {
+        let run_id = run_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(move || {
+                let run_id = run_id.clone();
+                async move {
+                    if matched {
+                        conn.execute(
+                            "UPDATE harness_eval_task_result
+                                SET status = 'fail', pass_samples = 0,
+                                    failure_detail = 'user re-asked within 2 turns (Task M2 retroactive rescore)'
+                              WHERE run_id = ?1",
+                            params![run_id.as_str()],
+                        )
+                        .await?;
+                        conn.execute(
+                            "UPDATE harness_eval_run
+                                SET pass_count = pass_count - 1, fail_count = fail_count + 1
+                              WHERE run_id = ?1 AND pass_count > 0",
+                            params![run_id.as_str()],
+                        )
+                        .await?;
+                        conn.execute(
+                            "DELETE FROM live_chat_completeness_pending WHERE run_id = ?1",
+                            params![run_id.as_str()],
+                        )
+                        .await?;
+                    } else {
+                        conn.execute(
+                            "UPDATE live_chat_completeness_pending
+                                SET checks_remaining = checks_remaining - 1
+                              WHERE run_id = ?1",
+                            params![run_id.as_str()],
+                        )
+                        .await?;
+                        conn.execute(
+                            "DELETE FROM live_chat_completeness_pending
+                              WHERE run_id = ?1 AND checks_remaining <= 0",
+                            params![run_id.as_str()],
+                        )
+                        .await?;
+                    }
+                    Ok::<(), StoreError>(())
+                }
+            })
+            .await
+    }
+}
+
+/// One still-pending `live_chat` turn awaiting the "re-asked within 2 turns" check — see
+/// [`VoxDb::pending_live_chat_reask_checks`].
+#[derive(Debug, Clone)]
+pub struct PendingLiveChatReaskCheck {
+    pub run_id: String,
+    pub task_id: String,
+    pub user_prompt: String,
+    pub checks_remaining: i64,
 }
 
 #[cfg(test)]
@@ -480,6 +626,130 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].model_id, "anthropic/claude-sonnet-5");
         assert_eq!(events[0].run_id, task_results[0].run_id, "must join on run_id");
+    }
+
+    #[tokio::test]
+    async fn resolve_live_chat_reask_check_matched_flips_pass_to_fail_and_drains_run_counts() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+        let run_id = db
+            .record_live_chat_turn(
+                "turn-1", "model-x", "free", "auto", None, None, true, 1000,
+            )
+            .await
+            .expect("record turn");
+        db.queue_live_chat_reask_check(&run_id, "turn-1", "session-a", "how do I fix X?", 1000)
+            .await
+            .expect("queue reask check");
+
+        let pending = db
+            .pending_live_chat_reask_checks("session-a")
+            .await
+            .expect("pending checks");
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].run_id, run_id);
+        assert_eq!(pending[0].checks_remaining, 2);
+
+        db.resolve_live_chat_reask_check(&run_id, true)
+            .await
+            .expect("resolve matched");
+
+        let task_results = db
+            .get_harness_eval_task_results(&run_id)
+            .await
+            .expect("task results");
+        assert_eq!(task_results[0].status, "fail");
+        assert_eq!(task_results[0].pass_samples, 0);
+
+        let runs = db
+            .list_harness_eval_runs(50)
+            .await
+            .expect("list runs (empty, live_chat excluded, just checking no error)");
+        assert!(runs.is_empty());
+
+        let still_pending = db
+            .pending_live_chat_reask_checks("session-a")
+            .await
+            .expect("pending after resolve");
+        assert!(still_pending.is_empty(), "resolved row must be removed");
+    }
+
+    #[tokio::test]
+    async fn resolve_live_chat_reask_check_unmatched_twice_finalizes_and_removes_pending_row() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+        let run_id = db
+            .record_live_chat_turn(
+                "turn-1", "model-x", "free", "auto", None, None, true, 1000,
+            )
+            .await
+            .expect("record turn");
+        db.queue_live_chat_reask_check(&run_id, "turn-1", "session-b", "how do I fix X?", 1000)
+            .await
+            .expect("queue reask check");
+
+        db.resolve_live_chat_reask_check(&run_id, false)
+            .await
+            .expect("resolve unmatched #1");
+        let pending = db
+            .pending_live_chat_reask_checks("session-b")
+            .await
+            .expect("pending after first unmatched");
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].checks_remaining, 1);
+
+        db.resolve_live_chat_reask_check(&run_id, false)
+            .await
+            .expect("resolve unmatched #2");
+        let pending = db
+            .pending_live_chat_reask_checks("session-b")
+            .await
+            .expect("pending after second unmatched");
+        assert!(pending.is_empty(), "row must be removed once checks_remaining hits 0");
+
+        let task_results = db
+            .get_harness_eval_task_results(&run_id)
+            .await
+            .expect("task results");
+        assert_eq!(
+            task_results[0].status, "pass",
+            "original pass verdict stands when no re-ask matched within 2 turns"
+        );
+    }
+
+    #[tokio::test]
+    async fn pending_live_chat_reask_checks_scopes_by_session_and_caps_at_two() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+        for (i, task_id) in ["t1", "t2", "t3"].iter().enumerate() {
+            let run_id = db
+                .record_live_chat_turn(
+                    task_id, "model-x", "free", "auto", None, None, true, 1000 + i as i64,
+                )
+                .await
+                .expect("record turn");
+            db.queue_live_chat_reask_check(&run_id, task_id, "session-c", "prompt", 1000 + i as i64)
+                .await
+                .expect("queue check");
+        }
+        // Different session entirely — must not leak into session-c's results.
+        let other_run = db
+            .record_live_chat_turn(
+                "other", "model-x", "free", "auto", None, None, true, 2000,
+            )
+            .await
+            .expect("record other-session turn");
+        db.queue_live_chat_reask_check(&other_run, "other", "session-z", "prompt", 2000)
+            .await
+            .expect("queue other-session check");
+
+        let pending = db
+            .pending_live_chat_reask_checks("session-c")
+            .await
+            .expect("pending checks");
+        assert_eq!(pending.len(), 2, "capped at the 2 most recent");
+        assert_eq!(pending[0].task_id, "t3", "most recent first");
+        assert_eq!(pending[1].task_id, "t2");
     }
 
     #[tokio::test]

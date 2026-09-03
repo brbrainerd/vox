@@ -58,4 +58,26 @@ CREATE TABLE IF NOT EXISTS model_selection_event (
 
 CREATE INDEX IF NOT EXISTS idx_model_selection_event_run
     ON model_selection_event(run_id, model_id);
+
+-- Task M2: bookkeeping for the retroactive "user re-asked within 2 turns" rescore of
+-- `triggered_by = 'live_chat'` rows only (see `VoxDb::record_live_chat_turn` and
+-- `VoxDb::rescore_pending_live_chat_reask`). Deliberately a separate table rather than new
+-- columns on `harness_eval_task_result`/`harness_eval_run` -- those are shared with the real
+-- `vox harness eval --live` path (9+ existing construction sites across report/publish/live_eval),
+-- and this bookkeeping is meaningless for eval rows.
+CREATE TABLE IF NOT EXISTS live_chat_completeness_pending (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id                TEXT    NOT NULL UNIQUE,
+    task_id               TEXT    NOT NULL,
+    session_run_prefix    TEXT    NOT NULL,
+    user_prompt           TEXT    NOT NULL,
+    -- Counts down 2 -> 1 -> 0 as later same-session turns arrive without matching the
+    -- re-ask heuristic. A row is deleted once fully resolved (matched, or reached 0).
+    checks_remaining      INTEGER NOT NULL,
+    recorded_at_ms        INTEGER NOT NULL,
+    FOREIGN KEY(run_id) REFERENCES harness_eval_run(run_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_live_chat_completeness_pending_session
+    ON live_chat_completeness_pending(session_run_prefix, recorded_at_ms);
 "#;

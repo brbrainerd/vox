@@ -364,12 +364,22 @@ async fn try_run_agent_turn(
                 outcome.final_text
             };
 
-            // Task M1: fire-and-forget the three-axis join (harness_eval_run +
+            // Task M1/M2: fire-and-forget the three-axis join (harness_eval_run +
             // harness_eval_task_result + model_selection_event) for this turn, tagged
             // `triggered_by = "live_chat"` so `list_harness_eval_runs` keeps excluding it
-            // from real `vox harness eval --live` reporting. `success` here is a rough
-            // proxy (did the turn produce a final answer) — Task M2 owns the real
-            // completeness gate.
+            // from real `vox harness eval --live` reporting.
+            //
+            // `completeness_ok` here is `!hit_iteration_limit && !has_unbalanced_fence` — the
+            // two `completeness_ok` components knowable synchronously at turn-completion time.
+            // `hit_iteration_limit` stands in for the plan's `finish_reason == 'length'` check
+            // (no wire finish_reason is captured anywhere between the egress response and
+            // `AgentTurnOutcome` today — a real gap, left for a follow-up rather than a blind
+            // cross-crate wire-parsing change); a turn that was cut off before a final answer
+            // is the same failure shape either way. The third component, "user re-asked within
+            // 2 turns", genuinely can't be known yet — it's queued via
+            // `queue_live_chat_reask_check` and resolved retroactively below, by the NEXT
+            // turn's own write (each new turn rescores its session's still-pending prior
+            // turns before recording itself).
             if let Some(db) = state.db.clone() {
                 let task_id = format!(
                     "{session_id}-{}",
@@ -381,9 +391,27 @@ async fn try_run_agent_turn(
                     .as_str()
                     .to_string();
                 let selection_reason_for_event = selection_reason.clone().unwrap_or_default();
-                let success = !outcome.hit_iteration_limit;
+                let completeness_ok = !outcome.hit_iteration_limit
+                    && !vox_orchestrator::grounding::has_unbalanced_fence(&final_text);
+                let session_run_prefix = session_id.to_string();
+                let user_prompt_owned = user_prompt.to_string();
                 tokio::spawn(async move {
-                    let _ = db
+                    // Rescore this session's still-pending prior turns against this turn's
+                    // prompt first — cheap (at most 2 rows), and keeps each pending row's
+                    // window tight to "the next 2 actual user turns" rather than drifting if a
+                    // later write races ahead of an earlier one.
+                    if let Ok(pending) = db.pending_live_chat_reask_checks(&session_run_prefix).await {
+                        for check in pending {
+                            let matched = vox_orchestrator::grounding::looks_like_reask(
+                                &check.user_prompt,
+                                &user_prompt_owned,
+                            );
+                            let _ = db.resolve_live_chat_reask_check(&check.run_id, matched).await;
+                        }
+                    }
+
+                    let now_ms = chrono::Utc::now().timestamp_millis();
+                    let Ok(run_id) = db
                         .record_live_chat_turn(
                             &task_id,
                             &model_id,
@@ -391,10 +419,24 @@ async fn try_run_agent_turn(
                             &selection_reason_for_event,
                             None,
                             None,
-                            success,
-                            chrono::Utc::now().timestamp_millis(),
+                            completeness_ok,
+                            now_ms,
                         )
-                        .await;
+                        .await
+                    else {
+                        return;
+                    };
+                    if completeness_ok {
+                        let _ = db
+                            .queue_live_chat_reask_check(
+                                &run_id,
+                                &task_id,
+                                &session_run_prefix,
+                                &user_prompt_owned,
+                                now_ms,
+                            )
+                            .await;
+                    }
                 });
             }
 
