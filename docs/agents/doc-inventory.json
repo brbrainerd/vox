@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-08-23T17:45:39.314Z",
+  "generated_at": "2026-09-03T20:29:16.537Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -24,8 +24,8 @@
     {
       "path": "crates/vox-db/src/lib.rs",
       "kind": "rust",
-      "lines_total": 602,
-      "lines_triple_slash": 114,
+      "lines_total": 655,
+      "lines_triple_slash": 133,
       "lines_inner_doc": 54,
       "lines_plain_comment": 3,
       "lines_other_doc_signal": 0,
@@ -112,7 +112,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/chat_tools/mod.rs",
       "kind": "rust",
-      "lines_total": 482,
+      "lines_total": 492,
       "lines_triple_slash": 13,
       "lines_inner_doc": 4,
       "lines_plain_comment": 23,
@@ -176,9 +176,20 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-09-01-vox-efficacy-benchmark-and-leaderboard.md",
+      "kind": "markdown",
+      "lines_total": 3298,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 146,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/mesh-phase1-language-spine-plan-2026.md",
       "kind": "markdown",
-      "lines_total": 3208,
+      "lines_total": 3212,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
@@ -550,6 +561,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/architecture/mesh-mens-distributed-training-and-execution-plan-2026.md",
+      "kind": "markdown",
+      "lines_total": 1789,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 94,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/2026-06-26-vox-search-dataflow-layer.md",
       "kind": "markdown",
       "lines_total": 1778,
@@ -557,17 +579,6 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 81,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/src/architecture/mesh-mens-distributed-training-and-execution-plan-2026.md",
-      "kind": "markdown",
-      "lines_total": 1774,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 94,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -612,6 +623,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 80,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-01-vox-efficacy-benchmark-v2.md",
+      "kind": "markdown",
+      "lines_total": 1726,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 115,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -792,6 +814,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-08-24-graph-loader-cache-and-ttl.md",
+      "kind": "markdown",
+      "lines_total": 1463,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 23,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/agentic-vcs-automation-impl-plan-phase1-2026.md",
       "kind": "markdown",
       "lines_total": 1441,
@@ -902,6 +935,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-08-20-dist-profile-and-release-verification.md",
+      "kind": "markdown",
+      "lines_total": 1326,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 72,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/2026-06-06-policy-registry-phase-1c-status-overlay.md",
       "kind": "markdown",
       "lines_total": 1325,
@@ -942,6 +986,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 100,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-08-21-market-catalog-and-data-layer.md",
+      "kind": "markdown",
+      "lines_total": 1280,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 77,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -1008,6 +1063,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 51,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-08-20-distribution-security-floor.md",
+      "kind": "markdown",
+      "lines_total": 1247,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 47,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -1140,6 +1206,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 25,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-08-28-chat-harness-unification.md",
+      "kind": "markdown",
+      "lines_total": 1139,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 76,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -1311,7 +1388,7 @@
     {
       "path": "crates/vox-gui/ui/src/transport.ts",
       "kind": "typescript",
-      "lines_total": 1047,
+      "lines_total": 1067,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 34,
@@ -1419,6 +1496,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/architecture/cross-project-environment-variable-handoff-findings-2026-09-01.md",
+      "kind": "markdown",
+      "lines_total": 997,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 10,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/2026-06-18-orchestrator-model-agnosticism.md",
       "kind": "markdown",
       "lines_total": 992,
@@ -1518,9 +1606,20 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-08-31-trust-loop-approvals-apply-agent.md",
+      "kind": "markdown",
+      "lines_total": 955,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 33,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/reference/cli.md",
       "kind": "markdown",
-      "lines_total": 953,
+      "lines_total": 951,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
@@ -1661,6 +1760,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-09-01-openrouter-model-lifecycle.md",
+      "kind": "markdown",
+      "lines_total": 876,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 59,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/tooling/2026-05-09-astro-migration-and-doc-cleanup.md",
       "kind": "markdown",
       "lines_total": 875,
@@ -1778,6 +1888,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 39,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-08-21-market-data-layer-design.md",
+      "kind": "markdown",
+      "lines_total": 835,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 38,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -1947,6 +2068,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-08-31-build-time-measurement-activation.md",
+      "kind": "markdown",
+      "lines_total": 769,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 22,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/2026-05-28-vox-orchestrator-core-extraction.md",
       "kind": "markdown",
       "lines_total": 766,
@@ -2020,6 +2152,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 33,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-08-31-vox-llm-target-hardening-design.md",
+      "kind": "markdown",
+      "lines_total": 732,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 34,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -2416,6 +2559,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 35,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-08-28-chat-harness-unification-design.md",
+      "kind": "markdown",
+      "lines_total": 659,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 42,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -2860,6 +3014,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/specs/2026-08-20-vox-distribution-system-design.md",
+      "kind": "markdown",
+      "lines_total": 571,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 45,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/context-window-management-design-2026-06-20.md",
       "kind": "markdown",
       "lines_total": 568,
@@ -2867,6 +3032,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 25,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-08-31-vox-llm-target-hardening.md",
+      "kind": "markdown",
+      "lines_total": 567,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 37,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -3938,6 +4114,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/architecture/llm-target-reliability-audit-2026-08-31.md",
+      "kind": "markdown",
+      "lines_total": 408,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 16,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/2026-06-29-secrets-gui-search-codegen.md",
       "kind": "markdown",
       "lines_total": 406,
@@ -4158,6 +4345,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-08-31-gui-product-axis.md",
+      "kind": "markdown",
+      "lines_total": 381,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 36,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/2026-06-18-handoff-ledger-ci-lint.md",
       "kind": "markdown",
       "lines_total": 380,
@@ -4187,6 +4385,28 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 66,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-08-31-language-ai-authorship.md",
+      "kind": "markdown",
+      "lines_total": 378,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 28,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/architecture/windows-macos-application-handoff-findings-2026-09.md",
+      "kind": "markdown",
+      "lines_total": 377,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 33,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -4264,6 +4484,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 14,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-08-31-platform-parity-design.md",
+      "kind": "markdown",
+      "lines_total": 372,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 24,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -4774,6 +5005,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/architecture/model-catalog-ssot-2026.md",
+      "kind": "markdown",
+      "lines_total": 333,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 23,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/populi-mesh-north-star-2026.md",
       "kind": "markdown",
       "lines_total": 333,
@@ -5027,17 +5269,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "docs/src/architecture/model-catalog-ssot-2026.md",
-      "kind": "markdown",
-      "lines_total": 314,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 23,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
       "path": "docs/src/archive/research-2026-q1/telemetry-unification-research-findings-2026.md",
       "kind": "markdown",
       "lines_total": 314,
@@ -5045,6 +5276,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 33,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/architecture/research-index.md",
+      "kind": "markdown",
+      "lines_total": 311,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 25,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -5137,17 +5379,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "docs/src/architecture/research-index.md",
-      "kind": "markdown",
-      "lines_total": 304,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 25,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
       "path": "docs/src/architecture/multi-agent-vcs-replication-spec-2026.md",
       "kind": "markdown",
       "lines_total": 303,
@@ -5155,6 +5386,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 24,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/architecture/vox-efficacy-benchmark-adversarial-audit-2026-09-01.md",
+      "kind": "markdown",
+      "lines_total": 303,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 15,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -6358,6 +6600,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-08-31-harness-productization.md",
+      "kind": "markdown",
+      "lines_total": 235,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 21,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/archive/research-2026-q1/vox-gui-vision-virtuous-cycle-implementation-plan-2026.md",
       "kind": "markdown",
       "lines_total": 234,
@@ -6435,6 +6688,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/explanation/expl-actors-workflows.md",
+      "kind": "markdown",
+      "lines_total": 229,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 16,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/how-to/how-to-cli-ecosystem.md",
       "kind": "markdown",
       "lines_total": 229,
@@ -6464,6 +6728,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 20,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-08-31-runtime-cross-platform-honesty.md",
+      "kind": "markdown",
+      "lines_total": 228,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 24,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -6556,6 +6831,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/reference/ref-decorators.md",
+      "kind": "markdown",
+      "lines_total": 220,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 25,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/specs/2026-06-26-voxmens-gui-cli-parity-design.md",
       "kind": "markdown",
       "lines_total": 220,
@@ -6568,17 +6854,6 @@
     },
     {
       "path": "docs/src/architecture/codegen-ssot-and-split-brain-audit-2026.md",
-      "kind": "markdown",
-      "lines_total": 218,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 15,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/src/explanation/expl-actors-workflows.md",
       "kind": "markdown",
       "lines_total": 218,
       "lines_triple_slash": 0,
@@ -6633,6 +6908,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-08-31-model-router-local-cloud.md",
+      "kind": "markdown",
+      "lines_total": 216,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 21,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/specs/2026-06-19-centralized-telemetry-design.md",
       "kind": "markdown",
       "lines_total": 216,
@@ -6651,17 +6937,6 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 13,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/src/reference/ref-decorators.md",
-      "kind": "markdown",
-      "lines_total": 215,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 25,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -6974,6 +7249,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/reference/ref-type-system.md",
+      "kind": "markdown",
+      "lines_total": 197,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 15,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/2026-06-19-dockable-workspace-context-memory-ssot.md",
       "kind": "markdown",
       "lines_total": 197,
@@ -7194,13 +7480,13 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "docs/src/reference/ref-type-system.md",
+      "path": "docs/agents/governance.md",
       "kind": "markdown",
-      "lines_total": 191,
+      "lines_total": 190,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 15,
+      "lines_other_doc_signal": 23,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -7293,6 +7579,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-08-31-platform-parity-program.md",
+      "kind": "markdown",
+      "lines_total": 183,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 9,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/harness-research-adversarial-crosscheck-2026-07-30.md",
       "kind": "markdown",
       "lines_total": 181,
@@ -7355,6 +7652,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 10,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/reference/secrets-ssot.md",
+      "kind": "markdown",
+      "lines_total": 179,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 11,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -7645,17 +7953,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "docs/src/reference/secrets-ssot.md",
-      "kind": "markdown",
-      "lines_total": 164,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 11,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
       "path": "docs/superpowers/specs/2026-06-29-coderabbit-review-gui-and-sweep-design.md",
       "kind": "markdown",
       "lines_total": 164,
@@ -7817,17 +8114,6 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 8,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/agents/governance.md",
-      "kind": "markdown",
-      "lines_total": 157,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 22,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -8096,6 +8382,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/architecture/vox-mens-comparative-efficacy-benchmarking-research-2026-09-01.md",
+      "kind": "markdown",
+      "lines_total": 150,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 16,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/reference/plugin-manifest.md",
       "kind": "markdown",
       "lines_total": 150,
@@ -8323,6 +8620,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 16,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-08-31-platform-parity-id-coverage.md",
+      "kind": "markdown",
+      "lines_total": 136,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 8,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -8910,6 +9218,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/ci/binary-release-contract.md",
+      "kind": "markdown",
+      "lines_total": 119,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 12,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/combat-knowledge-graph-research-2026.md",
       "kind": "markdown",
       "lines_total": 118,
@@ -9318,17 +9637,6 @@
     },
     {
       "path": "docs/src/archive/research-2026-q1/nomenclature-migration-map.md",
-      "kind": "markdown",
-      "lines_total": 109,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 11,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/src/ci/binary-release-contract.md",
       "kind": "markdown",
       "lines_total": 109,
       "lines_triple_slash": 0,
@@ -10481,6 +10789,17 @@
       "lines_other_doc_signal": 13,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/test-setup.ts",
+      "kind": "typescript",
+      "lines_total": 79,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 19,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 2,
+      "notes": "approx // and block comments"
     },
     {
       "path": "docs/src/adr/036-webir-hir-unification-compare-both.md",
@@ -11827,7 +12146,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/input_schemas.rs",
       "kind": "rust",
-      "lines_total": 1126,
+      "lines_total": 1129,
       "lines_triple_slash": 1,
       "lines_inner_doc": 12,
       "lines_plain_comment": 35,
@@ -11849,22 +12168,11 @@
     {
       "path": "AGENTS.md",
       "kind": "markdown",
-      "lines_total": 532,
+      "lines_total": 533,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 29,
-      "hotspot_tier": 1,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/src/api/DOC_GAPS.md",
-      "kind": "markdown",
-      "lines_total": 60,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 6,
       "hotspot_tier": 1,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -11876,6 +12184,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 7,
+      "hotspot_tier": 1,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/api/DOC_GAPS.md",
+      "kind": "markdown",
+      "lines_total": 57,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 6,
       "hotspot_tier": 1,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -11893,8 +12212,8 @@
     {
       "path": "crates/vox-cli-ci/src/cmd_enums.rs",
       "kind": "rust",
-      "lines_total": 1508,
-      "lines_triple_slash": 456,
+      "lines_total": 1507,
+      "lines_triple_slash": 457,
       "lines_inner_doc": 1,
       "lines_plain_comment": 4,
       "lines_other_doc_signal": 0,
@@ -11957,6 +12276,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-cli-ci/src/harness_trust_guard.rs",
+      "kind": "rust",
+      "lines_total": 1044,
+      "lines_triple_slash": 171,
+      "lines_inner_doc": 47,
+      "lines_plain_comment": 51,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/config/orchestrator_fields.rs",
       "kind": "rust",
       "lines_total": 1775,
@@ -11968,12 +12298,12 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-cli-ci/src/harness_trust_guard.rs",
+      "path": "crates/vox-arch-check/src/main.rs",
       "kind": "rust",
-      "lines_total": 984,
-      "lines_triple_slash": 155,
-      "lines_inner_doc": 47,
-      "lines_plain_comment": 51,
+      "lines_total": 2300,
+      "lines_triple_slash": 141,
+      "lines_inner_doc": 63,
+      "lines_plain_comment": 108,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12007,17 +12337,6 @@
       "lines_triple_slash": 169,
       "lines_inner_doc": 23,
       "lines_plain_comment": 213,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-arch-check/src/main.rs",
-      "kind": "rust",
-      "lines_total": 2242,
-      "lines_triple_slash": 127,
-      "lines_inner_doc": 63,
-      "lines_plain_comment": 100,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12058,10 +12377,10 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs",
       "kind": "rust",
-      "lines_total": 1216,
+      "lines_total": 1229,
       "lines_triple_slash": 140,
       "lines_inner_doc": 21,
-      "lines_plain_comment": 81,
+      "lines_plain_comment": 92,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12113,7 +12432,7 @@
     {
       "path": "crates/vox-codegen-ts/src/hir_emit/mod.rs",
       "kind": "rust",
-      "lines_total": 2224,
+      "lines_total": 2225,
       "lines_triple_slash": 133,
       "lines_inner_doc": 12,
       "lines_plain_comment": 193,
@@ -12155,12 +12474,34 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator-mcp/src/chat_tools/params.rs",
+      "kind": "rust",
+      "lines_total": 475,
+      "lines_triple_slash": 144,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-ml-cli/src/commands/populi_cli.rs",
       "kind": "rust",
       "lines_total": 1687,
       "lines_triple_slash": 142,
       "lines_inner_doc": 1,
       "lines_plain_comment": 33,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-compiler/src/hir/nodes/stmt_expr.rs",
+      "kind": "rust",
+      "lines_total": 396,
+      "lines_triple_slash": 143,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12177,34 +12518,12 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-compiler/src/hir/nodes/stmt_expr.rs",
-      "kind": "rust",
-      "lines_total": 394,
-      "lines_triple_slash": 142,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-rn-codegen/src/component.rs",
       "kind": "rust",
       "lines_total": 2103,
       "lines_triple_slash": 125,
       "lines_inner_doc": 12,
       "lines_plain_comment": 144,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator-mcp/src/chat_tools/params.rs",
-      "kind": "rust",
-      "lines_total": 455,
-      "lines_triple_slash": 134,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12256,10 +12575,10 @@
     {
       "path": "crates/vox-orchestrator/src/models/select.rs",
       "kind": "rust",
-      "lines_total": 1701,
+      "lines_total": 1754,
       "lines_triple_slash": 109,
       "lines_inner_doc": 21,
-      "lines_plain_comment": 148,
+      "lines_plain_comment": 172,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12293,6 +12612,17 @@
       "lines_triple_slash": 127,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/src/llm_bridge/tool_selection.rs",
+      "kind": "rust",
+      "lines_total": 473,
+      "lines_triple_slash": 110,
+      "lines_inner_doc": 14,
+      "lines_plain_comment": 7,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12465,7 +12795,7 @@
     {
       "path": "crates/vox-cli/src/commands/harness/eval.rs",
       "kind": "rust",
-      "lines_total": 753,
+      "lines_total": 754,
       "lines_triple_slash": 74,
       "lines_inner_doc": 35,
       "lines_plain_comment": 31,
@@ -12520,10 +12850,10 @@
     {
       "path": "crates/vox-orchestrator/src/models/policy.rs",
       "kind": "rust",
-      "lines_total": 609,
+      "lines_total": 628,
       "lines_triple_slash": 86,
       "lines_inner_doc": 21,
-      "lines_plain_comment": 35,
+      "lines_plain_comment": 42,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12705,17 +13035,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator-mcp/src/llm_bridge/tool_selection.rs",
-      "kind": "rust",
-      "lines_total": 336,
-      "lines_triple_slash": 84,
-      "lines_inner_doc": 14,
-      "lines_plain_comment": 7,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-vcs/src/jj_actor.rs",
       "kind": "rust",
       "lines_total": 576,
@@ -12782,6 +13101,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-secrets/src/lib.rs",
+      "kind": "rust",
+      "lines_total": 814,
+      "lines_triple_slash": 90,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 18,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-scientia/src/review/mod.rs",
       "kind": "rust",
       "lines_total": 480,
@@ -12810,6 +13140,17 @@
       "lines_triple_slash": 82,
       "lines_inner_doc": 7,
       "lines_plain_comment": 11,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-config/src/graphify.rs",
+      "kind": "rust",
+      "lines_total": 1069,
+      "lines_triple_slash": 85,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 34,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12914,6 +13255,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-actor-runtime/src/llm/types.rs",
+      "kind": "rust",
+      "lines_total": 488,
+      "lines_triple_slash": 81,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 10,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-cli/src/commands/mod.rs",
       "kind": "rust",
       "lines_total": 212,
@@ -12931,6 +13283,28 @@
       "lines_triple_slash": 76,
       "lines_inner_doc": 5,
       "lines_plain_comment": 15,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli/src/commands/model/eval_corpus.rs",
+      "kind": "rust",
+      "lines_total": 650,
+      "lines_triple_slash": 62,
+      "lines_inner_doc": 19,
+      "lines_plain_comment": 7,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs",
+      "kind": "rust",
+      "lines_total": 1525,
+      "lines_triple_slash": 80,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 98,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13037,7 +13411,7 @@
     {
       "path": "crates/vox-gui/src/commands/chat.rs",
       "kind": "rust",
-      "lines_total": 981,
+      "lines_total": 983,
       "lines_triple_slash": 75,
       "lines_inner_doc": 1,
       "lines_plain_comment": 40,
@@ -13063,17 +13437,6 @@
       "lines_triple_slash": 62,
       "lines_inner_doc": 14,
       "lines_plain_comment": 14,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-actor-runtime/src/llm/types.rs",
-      "kind": "rust",
-      "lines_total": 470,
-      "lines_triple_slash": 75,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 10,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13118,17 +13481,6 @@
       "lines_triple_slash": 23,
       "lines_inner_doc": 51,
       "lines_plain_comment": 20,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-secrets/src/lib.rs",
-      "kind": "rust",
-      "lines_total": 737,
-      "lines_triple_slash": 72,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 11,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13299,6 +13651,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-actor-runtime/src/llm/chat.rs",
+      "kind": "rust",
+      "lines_total": 615,
+      "lines_triple_slash": 46,
+      "lines_inner_doc": 23,
+      "lines_plain_comment": 23,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/attention/routing.rs",
       "kind": "rust",
       "lines_total": 541,
@@ -13398,17 +13761,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs",
-      "kind": "rust",
-      "lines_total": 1399,
-      "lines_triple_slash": 67,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 95,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-cli-ci/src/config_hygiene.rs",
       "kind": "rust",
       "lines_total": 780,
@@ -13488,10 +13840,10 @@
     {
       "path": "crates/vox-cli/src/commands/repair.rs",
       "kind": "rust",
-      "lines_total": 1046,
+      "lines_total": 1051,
       "lines_triple_slash": 65,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 89,
+      "lines_plain_comment": 93,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13503,6 +13855,17 @@
       "lines_triple_slash": 34,
       "lines_inner_doc": 31,
       "lines_plain_comment": 76,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli-core/src/market.rs",
+      "kind": "rust",
+      "lines_total": 720,
+      "lines_triple_slash": 60,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 21,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13585,23 +13948,23 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-speech/src/backend_dispatch.rs",
+      "kind": "rust",
+      "lines_total": 331,
+      "lines_triple_slash": 61,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 27,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator-queue/src/oplog/persist.rs",
       "kind": "rust",
       "lines_total": 326,
       "lines_triple_slash": 54,
       "lines_inner_doc": 10,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-speech/src/backend_dispatch.rs",
-      "kind": "rust",
-      "lines_total": 321,
-      "lines_triple_slash": 61,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 17,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13635,17 +13998,6 @@
       "lines_triple_slash": 60,
       "lines_inner_doc": 3,
       "lines_plain_comment": 11,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-actor-runtime/src/llm/chat.rs",
-      "kind": "rust",
-      "lines_total": 534,
-      "lines_triple_slash": 40,
-      "lines_inner_doc": 23,
-      "lines_plain_comment": 15,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13774,21 +14126,10 @@
     {
       "path": "crates/vox-codegen/src/codegen_rust/emit/method_emit.rs",
       "kind": "rust",
-      "lines_total": 1197,
+      "lines_total": 1215,
       "lines_triple_slash": 59,
       "lines_inner_doc": 1,
       "lines_plain_comment": 100,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-config/src/graphify.rs",
-      "kind": "rust",
-      "lines_total": 905,
-      "lines_triple_slash": 57,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 20,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13959,12 +14300,34 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-compiler/src/typeck/ast_decl_lints.rs",
+      "kind": "rust",
+      "lines_total": 1633,
+      "lines_triple_slash": 56,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 42,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/catalog.rs",
       "kind": "rust",
       "lines_total": 970,
       "lines_triple_slash": 57,
       "lines_inner_doc": 0,
       "lines_plain_comment": 33,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli/src/commands/ci/release_build.rs",
+      "kind": "rust",
+      "lines_total": 705,
+      "lines_triple_slash": 57,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 29,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14031,6 +14394,17 @@
       "lines_triple_slash": 56,
       "lines_inner_doc": 0,
       "lines_plain_comment": 77,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/build_health.rs",
+      "kind": "rust",
+      "lines_total": 813,
+      "lines_triple_slash": 45,
+      "lines_inner_doc": 11,
+      "lines_plain_comment": 37,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14113,17 +14487,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-compiler/src/typeck/ast_decl_lints.rs",
-      "kind": "rust",
-      "lines_total": 1644,
-      "lines_triple_slash": 54,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 42,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-cli/src/commands/migrate/mod.rs",
       "kind": "rust",
       "lines_total": 472,
@@ -14179,6 +14542,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-db/src/circuit_breaker.rs",
+      "kind": "rust",
+      "lines_total": 233,
+      "lines_triple_slash": 22,
+      "lines_inner_doc": 33,
+      "lines_plain_comment": 6,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-codegen-ts/src/emitter.rs",
       "kind": "rust",
       "lines_total": 926,
@@ -14196,6 +14570,17 @@
       "lines_triple_slash": 47,
       "lines_inner_doc": 7,
       "lines_plain_comment": 64,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/src/server_state.rs",
+      "kind": "rust",
+      "lines_total": 753,
+      "lines_triple_slash": 54,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 20,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14240,17 +14625,6 @@
       "lines_triple_slash": 51,
       "lines_inner_doc": 2,
       "lines_plain_comment": 77,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-eval/src/lib.rs",
-      "kind": "rust",
-      "lines_total": 1073,
-      "lines_triple_slash": 50,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 71,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14317,6 +14691,28 @@
       "lines_triple_slash": 30,
       "lines_inner_doc": 23,
       "lines_plain_comment": 3,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/src/graph_tools.rs",
+      "kind": "rust",
+      "lines_total": 1485,
+      "lines_triple_slash": 51,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 50,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-eval/src/lib.rs",
+      "kind": "rust",
+      "lines_total": 1000,
+      "lines_triple_slash": 49,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 61,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14663,17 +15059,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-db/src/circuit_breaker.rs",
-      "kind": "rust",
-      "lines_total": 222,
-      "lines_triple_slash": 16,
-      "lines_inner_doc": 33,
-      "lines_plain_comment": 6,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-populi/src/mens/healing.rs",
       "kind": "rust",
       "lines_total": 181,
@@ -14691,6 +15076,17 @@
       "lines_triple_slash": 47,
       "lines_inner_doc": 1,
       "lines_plain_comment": 83,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/src/commands/models.rs",
+      "kind": "rust",
+      "lines_total": 695,
+      "lines_triple_slash": 47,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 14,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14731,7 +15127,7 @@
     {
       "path": "crates/vox-db/src/config.rs",
       "kind": "rust",
-      "lines_total": 411,
+      "lines_total": 421,
       "lines_triple_slash": 48,
       "lines_inner_doc": 0,
       "lines_plain_comment": 1,
@@ -14757,6 +15153,17 @@
       "lines_triple_slash": 31,
       "lines_inner_doc": 17,
       "lines_plain_comment": 22,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-graph-reader/src/lib.rs",
+      "kind": "rust",
+      "lines_total": 358,
+      "lines_triple_slash": 37,
+      "lines_inner_doc": 11,
+      "lines_plain_comment": 13,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14973,10 +15380,10 @@
     {
       "path": "crates/vox-compiler/src/pipeline.rs",
       "kind": "rust",
-      "lines_total": 582,
+      "lines_total": 656,
       "lines_triple_slash": 41,
       "lines_inner_doc": 5,
-      "lines_plain_comment": 39,
+      "lines_plain_comment": 71,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14999,6 +15406,17 @@
       "lines_triple_slash": 27,
       "lines_inner_doc": 19,
       "lines_plain_comment": 44,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-eval/src/corpus_score.rs",
+      "kind": "rust",
+      "lines_total": 384,
+      "lines_triple_slash": 37,
+      "lines_inner_doc": 9,
+      "lines_plain_comment": 14,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -15180,17 +15598,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator-mcp/src/server_state.rs",
-      "kind": "rust",
-      "lines_total": 718,
-      "lines_triple_slash": 44,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 20,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-db/src/store/ops_codex/codex_graph.rs",
       "kind": "rust",
       "lines_total": 601,
@@ -15263,17 +15670,6 @@
       "lines_triple_slash": 5,
       "lines_inner_doc": 39,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator-mcp/src/graph_tools.rs",
-      "kind": "rust",
-      "lines_total": 1298,
-      "lines_triple_slash": 42,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 22,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -15362,17 +15758,6 @@
       "lines_triple_slash": 26,
       "lines_inner_doc": 17,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gui/src/commands/secrets.rs",
-      "kind": "rust",
-      "lines_total": 209,
-      "lines_triple_slash": 36,
-      "lines_inner_doc": 7,
-      "lines_plain_comment": 7,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -15488,17 +15873,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-graph-reader/src/lib.rs",
-      "kind": "rust",
-      "lines_total": 315,
-      "lines_triple_slash": 31,
-      "lines_inner_doc": 11,
-      "lines_plain_comment": 9,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator-mcp/tests/stdio_daemon_routing_tests.rs",
       "kind": "rust",
       "lines_total": 315,
@@ -15576,6 +15950,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/success/mod.rs",
+      "kind": "rust",
+      "lines_total": 981,
+      "lines_triple_slash": 41,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 54,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-corpus/src/corpus/extract_docs.rs",
       "kind": "rust",
       "lines_total": 764,
@@ -15593,17 +15978,6 @@
       "lines_triple_slash": 37,
       "lines_inner_doc": 4,
       "lines_plain_comment": 18,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gui/src/commands/models.rs",
-      "kind": "rust",
-      "lines_total": 661,
-      "lines_triple_slash": 40,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 9,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -15664,6 +16038,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/src/commands/secrets.rs",
+      "kind": "rust",
+      "lines_total": 188,
+      "lines_triple_slash": 34,
+      "lines_inner_doc": 7,
+      "lines_plain_comment": 7,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-ml-cli/src/commands/mens/populi/action_prelude.rs",
       "kind": "rust",
       "lines_total": 176,
@@ -15681,17 +16066,6 @@
       "lines_triple_slash": 36,
       "lines_inner_doc": 4,
       "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/build_health.rs",
-      "kind": "rust",
-      "lines_total": 753,
-      "lines_triple_slash": 29,
-      "lines_inner_doc": 11,
-      "lines_plain_comment": 37,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -15758,6 +16132,17 @@
       "lines_triple_slash": 9,
       "lines_inner_doc": 31,
       "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-eval/src/corpus_stats.rs",
+      "kind": "rust",
+      "lines_total": 274,
+      "lines_triple_slash": 30,
+      "lines_inner_doc": 10,
+      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16082,6 +16467,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-cli-ci/src/corpus_integrity.rs",
+      "kind": "rust",
+      "lines_total": 287,
+      "lines_triple_slash": 27,
+      "lines_inner_doc": 11,
+      "lines_plain_comment": 9,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-rn-codegen/src/lib.rs",
       "kind": "rust",
       "lines_total": 237,
@@ -16368,6 +16764,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-db/src/codex_legacy.rs",
+      "kind": "rust",
+      "lines_total": 592,
+      "lines_triple_slash": 36,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 10,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/circuit_breaker.rs",
       "kind": "rust",
       "lines_total": 559,
@@ -16445,23 +16852,23 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-compiler/src/eval/db.rs",
+      "kind": "rust",
+      "lines_total": 343,
+      "lines_triple_slash": 23,
+      "lines_inner_doc": 13,
+      "lines_plain_comment": 13,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-cli/src/commands/harness/publish.rs",
       "kind": "rust",
       "lines_total": 342,
       "lines_triple_slash": 31,
       "lines_inner_doc": 5,
       "lines_plain_comment": 5,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-compiler/src/eval/db.rs",
-      "kind": "rust",
-      "lines_total": 314,
-      "lines_triple_slash": 23,
-      "lines_inner_doc": 13,
-      "lines_plain_comment": 10,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16599,6 +17006,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-cli-ci/src/build_bench.rs",
+      "kind": "rust",
+      "lines_total": 537,
+      "lines_triple_slash": 30,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 23,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-telemetry/src/aggregator.rs",
       "kind": "rust",
       "lines_total": 467,
@@ -16711,7 +17129,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
       "kind": "rust",
-      "lines_total": 2138,
+      "lines_total": 2141,
       "lines_triple_slash": 28,
       "lines_inner_doc": 6,
       "lines_plain_comment": 137,
@@ -16891,6 +17309,17 @@
       "lines_triple_slash": 15,
       "lines_inner_doc": 18,
       "lines_plain_comment": 7,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/src/commands/control_plane.rs",
+      "kind": "rust",
+      "lines_total": 585,
+      "lines_triple_slash": 33,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 8,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -17096,10 +17525,10 @@
     {
       "path": "crates/vox-cli-ci/src/free_binary.rs",
       "kind": "rust",
-      "lines_total": 357,
+      "lines_total": 359,
       "lines_triple_slash": 25,
       "lines_inner_doc": 7,
-      "lines_plain_comment": 24,
+      "lines_plain_comment": 29,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -17276,17 +17705,6 @@
       "lines_triple_slash": 30,
       "lines_inner_doc": 1,
       "lines_plain_comment": 7,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gui/src/commands/control_plane.rs",
-      "kind": "rust",
-      "lines_total": 579,
-      "lines_triple_slash": 31,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 8,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -17875,17 +18293,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-db/src/codex_legacy.rs",
-      "kind": "rust",
-      "lines_total": 585,
-      "lines_triple_slash": 29,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 10,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator/src/orchestrator/catalog_refresh.rs",
       "kind": "rust",
       "lines_total": 512,
@@ -17974,6 +18381,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-graph-reader/src/registry.rs",
+      "kind": "rust",
+      "lines_total": 279,
+      "lines_triple_slash": 27,
+      "lines_inner_doc": 2,
+      "lines_plain_comment": 11,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-publisher/src/scholarly/software_heritage.rs",
       "kind": "rust",
       "lines_total": 269,
@@ -18035,6 +18453,17 @@
       "lines_triple_slash": 11,
       "lines_inner_doc": 18,
       "lines_plain_comment": 5,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli/src/commands/check.rs",
+      "kind": "rust",
+      "lines_total": 203,
+      "lines_triple_slash": 28,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 19,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -18205,6 +18634,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-telemetry-otlp/src/project.rs",
+      "kind": "rust",
+      "lines_total": 384,
+      "lines_triple_slash": 28,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 24,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-db/src/mesh_locks.rs",
       "kind": "rust",
       "lines_total": 318,
@@ -18222,6 +18662,17 @@
       "lines_triple_slash": 28,
       "lines_inner_doc": 0,
       "lines_plain_comment": 18,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-config/src/resolve_egress.rs",
+      "kind": "rust",
+      "lines_total": 282,
+      "lines_triple_slash": 20,
+      "lines_inner_doc": 8,
+      "lines_plain_comment": 11,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -18359,23 +18810,23 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-integration-tests/tests/emit_routing_gate.rs",
+      "kind": "rust",
+      "lines_total": 154,
+      "lines_triple_slash": 15,
+      "lines_inner_doc": 13,
+      "lines_plain_comment": 6,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-compiler/benches/eval_memory.rs",
       "kind": "rust",
       "lines_total": 151,
       "lines_triple_slash": 12,
       "lines_inner_doc": 16,
       "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-integration-tests/tests/emit_routing_gate.rs",
-      "kind": "rust",
-      "lines_total": 147,
-      "lines_triple_slash": 15,
-      "lines_inner_doc": 13,
-      "lines_plain_comment": 6,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -18469,6 +18920,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-db/src/facade/workflow.rs",
+      "kind": "rust",
+      "lines_total": 703,
+      "lines_triple_slash": 27,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-integration-tests/tests/orchestrator_e2e_test.rs",
       "kind": "rust",
       "lines_total": 682,
@@ -18530,6 +18992,17 @@
       "lines_triple_slash": 14,
       "lines_inner_doc": 13,
       "lines_plain_comment": 10,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/src/commands/chat_turn.rs",
+      "kind": "rust",
+      "lines_total": 362,
+      "lines_triple_slash": 16,
+      "lines_inner_doc": 11,
+      "lines_plain_comment": 9,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -18645,6 +19118,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-corpus/src/humaneval_runner/manifest.rs",
+      "kind": "rust",
+      "lines_total": 186,
+      "lines_triple_slash": 22,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-compiler/tests/eval_cow_semantics_test.rs",
       "kind": "rust",
       "lines_total": 182,
@@ -18733,6 +19217,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-corpus/src/humaneval_runner/canary.rs",
+      "kind": "rust",
+      "lines_total": 110,
+      "lines_triple_slash": 13,
+      "lines_inner_doc": 14,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-codegen/src/web_ir/async_state.rs",
       "kind": "rust",
       "lines_total": 109,
@@ -18790,7 +19285,7 @@
     {
       "path": "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
       "kind": "rust",
-      "lines_total": 1462,
+      "lines_total": 1460,
       "lines_triple_slash": 26,
       "lines_inner_doc": 0,
       "lines_plain_comment": 44,
@@ -18823,7 +19318,7 @@
     {
       "path": "crates/vox-compiler/src/typeck/checker/mod.rs",
       "kind": "rust",
-      "lines_total": 913,
+      "lines_total": 914,
       "lines_triple_slash": 25,
       "lines_inner_doc": 1,
       "lines_plain_comment": 31,
@@ -19008,6 +19503,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-corpus/src/humaneval_runner/verify.rs",
+      "kind": "rust",
+      "lines_total": 296,
+      "lines_triple_slash": 15,
+      "lines_inner_doc": 11,
+      "lines_plain_comment": 4,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-compiler/src/typeck/contrast.rs",
       "kind": "rust",
       "lines_total": 293,
@@ -19043,7 +19549,7 @@
     {
       "path": "crates/vox-actor-runtime/src/llm/stream.rs",
       "kind": "rust",
-      "lines_total": 248,
+      "lines_total": 249,
       "lines_triple_slash": 25,
       "lines_inner_doc": 1,
       "lines_plain_comment": 9,
@@ -19080,6 +19586,17 @@
       "lines_triple_slash": 22,
       "lines_inner_doc": 4,
       "lines_plain_comment": 5,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-corpus/src/humaneval_runner/conditions.rs",
+      "kind": "rust",
+      "lines_total": 205,
+      "lines_triple_slash": 9,
+      "lines_inner_doc": 17,
+      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -19668,23 +20185,23 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-cli-ci/src/crate_budget.rs",
+      "kind": "rust",
+      "lines_total": 277,
+      "lines_triple_slash": 18,
+      "lines_inner_doc": 6,
+      "lines_plain_comment": 9,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-db/src/schema/manifest.rs",
       "kind": "rust",
       "lines_total": 263,
       "lines_triple_slash": 20,
       "lines_inner_doc": 4,
       "lines_plain_comment": 25,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-graph-reader/src/registry.rs",
-      "kind": "rust",
-      "lines_total": 258,
-      "lines_triple_slash": 22,
-      "lines_inner_doc": 2,
-      "lines_plain_comment": 11,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -19718,6 +20235,17 @@
       "lines_triple_slash": 10,
       "lines_inner_doc": 14,
       "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-code-audit/src/scanner.rs",
+      "kind": "rust",
+      "lines_total": 231,
+      "lines_triple_slash": 24,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 16,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -19971,17 +20499,6 @@
       "lines_triple_slash": 22,
       "lines_inner_doc": 1,
       "lines_plain_comment": 18,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-db/src/facade/workflow.rs",
-      "kind": "rust",
-      "lines_total": 699,
-      "lines_triple_slash": 23,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -20394,17 +20911,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator/src/orchestrator/task_dispatch/complete/success/mod.rs",
-      "kind": "rust",
-      "lines_total": 891,
-      "lines_triple_slash": 22,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 54,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-compiler/src/parser/descent/decl/head_import.rs",
       "kind": "rust",
       "lines_total": 552,
@@ -20543,17 +21049,6 @@
       "lines_triple_slash": 18,
       "lines_inner_doc": 4,
       "lines_plain_comment": 10,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-config/src/resolve_egress.rs",
-      "kind": "rust",
-      "lines_total": 268,
-      "lines_triple_slash": 14,
-      "lines_inner_doc": 8,
-      "lines_plain_comment": 11,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -20702,17 +21197,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-cli/src/commands/check.rs",
-      "kind": "rust",
-      "lines_total": 139,
-      "lines_triple_slash": 21,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-git/src/read_cmd.rs",
       "kind": "rust",
       "lines_total": 132,
@@ -20845,12 +21329,23 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-codegen/src/codegen_rust/emit/tables/codegen.rs",
+      "path": "crates/vox-cli/src/commands/secrets.rs",
       "kind": "rust",
-      "lines_total": 765,
+      "lines_total": 966,
       "lines_triple_slash": 21,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 29,
+      "lines_plain_comment": 10,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-codegen/src/codegen_rust/emit/tables/codegen.rs",
+      "kind": "rust",
+      "lines_total": 851,
+      "lines_triple_slash": 21,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 33,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -21703,6 +22198,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-speech/src/lib.rs",
+      "kind": "rust",
+      "lines_total": 122,
+      "lines_triple_slash": 15,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 4,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-skills/src/sandbox/fallback.rs",
       "kind": "rust",
       "lines_total": 97,
@@ -22222,10 +22728,10 @@
     {
       "path": "crates/vox-db/src/capabilities.rs",
       "kind": "rust",
-      "lines_total": 80,
+      "lines_total": 87,
       "lines_triple_slash": 12,
       "lines_inner_doc": 7,
-      "lines_plain_comment": 0,
+      "lines_plain_comment": 7,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -22352,17 +22858,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-cli/src/commands/secrets.rs",
-      "kind": "rust",
-      "lines_total": 916,
-      "lines_triple_slash": 18,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 10,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator/tests/orchestrator_daemon_tcp.rs",
       "kind": "rust",
       "lines_total": 773,
@@ -22451,23 +22946,23 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-secrets/src/sources/auth_json.rs",
+      "kind": "rust",
+      "lines_total": 402,
+      "lines_triple_slash": 18,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 13,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-populi/src/mens/tensor/hf_keymap.rs",
       "kind": "rust",
       "lines_total": 401,
       "lines_triple_slash": 15,
       "lines_inner_doc": 3,
       "lines_plain_comment": 3,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-secrets/src/sources/auth_json.rs",
-      "kind": "rust",
-      "lines_total": 367,
-      "lines_triple_slash": 18,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 13,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -22651,7 +23146,7 @@
     {
       "path": "crates/vox-compiler/src/runtime_projection.rs",
       "kind": "rust",
-      "lines_total": 198,
+      "lines_total": 199,
       "lines_triple_slash": 14,
       "lines_inner_doc": 4,
       "lines_plain_comment": 0,
@@ -23311,7 +23806,7 @@
     {
       "path": "crates/vox-db/src/facade/connect.rs",
       "kind": "rust",
-      "lines_total": 204,
+      "lines_total": 207,
       "lines_triple_slash": 17,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
@@ -23447,6 +23942,17 @@
       "lines_triple_slash": 13,
       "lines_inner_doc": 4,
       "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli/src/commands/model/mod.rs",
+      "kind": "rust",
+      "lines_total": 84,
+      "lines_triple_slash": 16,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -24112,17 +24618,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-cli/src/commands/model/mod.rs",
-      "kind": "rust",
-      "lines_total": 80,
-      "lines_triple_slash": 15,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-populi/src/mens/tensor/operator_messages.rs",
       "kind": "rust",
       "lines_total": 75,
@@ -24607,6 +25102,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-corpus/src/humaneval_runner/compose.rs",
+      "kind": "rust",
+      "lines_total": 169,
+      "lines_triple_slash": 7,
+      "lines_inner_doc": 8,
+      "lines_plain_comment": 3,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-plugin-mens-candle-cuda/src/qlora_weights.rs",
       "kind": "rust",
       "lines_total": 156,
@@ -24734,17 +25240,6 @@
       "lines_triple_slash": 15,
       "lines_inner_doc": 0,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-speech/src/lib.rs",
-      "kind": "rust",
-      "lines_total": 117,
-      "lines_triple_slash": 10,
-      "lines_inner_doc": 5,
-      "lines_plain_comment": 4,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -24898,6 +25393,17 @@
       "lines_total": 57,
       "lines_triple_slash": 7,
       "lines_inner_doc": 8,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-db/src/facade/schema.rs",
+      "kind": "rust",
+      "lines_total": 52,
+      "lines_triple_slash": 15,
+      "lines_inner_doc": 0,
       "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -25071,7 +25577,7 @@
     {
       "path": "crates/vox-compiler/src/hir/lower/expr_db.rs",
       "kind": "rust",
-      "lines_total": 529,
+      "lines_total": 530,
       "lines_triple_slash": 13,
       "lines_inner_doc": 1,
       "lines_plain_comment": 2,
@@ -25163,17 +25669,6 @@
       "lines_triple_slash": 9,
       "lines_inner_doc": 5,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-cli-ci/src/build_bench.rs",
-      "kind": "rust",
-      "lines_total": 417,
-      "lines_triple_slash": 9,
-      "lines_inner_doc": 5,
-      "lines_plain_comment": 10,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -25311,6 +25806,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-db/src/local_cli_introspection.rs",
+      "kind": "rust",
+      "lines_total": 225,
+      "lines_triple_slash": 11,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-db/src/store/ops_news.rs",
       "kind": "rust",
       "lines_total": 217,
@@ -25427,6 +25933,17 @@
       "lines_triple_slash": 6,
       "lines_inner_doc": 8,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli/tests/dist_binary_e2e.rs",
+      "kind": "rust",
+      "lines_total": 129,
+      "lines_triple_slash": 7,
+      "lines_inner_doc": 7,
+      "lines_plain_comment": 6,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -26578,10 +27095,10 @@
     {
       "path": "crates/vox-compiler/src/typeck/builtins.rs",
       "kind": "rust",
-      "lines_total": 1865,
+      "lines_total": 1878,
       "lines_triple_slash": 12,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 204,
+      "lines_plain_comment": 206,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -26615,6 +27132,17 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 12,
       "lines_plain_comment": 49,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-db/src/store/ops_scientia.rs",
+      "kind": "rust",
+      "lines_total": 486,
+      "lines_triple_slash": 11,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 20,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -27126,6 +27654,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-codegen/tests/frontend_coverage_ledger.rs",
+      "kind": "rust",
+      "lines_total": 84,
+      "lines_triple_slash": 4,
+      "lines_inner_doc": 8,
+      "lines_plain_comment": 3,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-compiler/tests/eval_scope_restore_test.rs",
       "kind": "rust",
       "lines_total": 83,
@@ -27154,17 +27693,6 @@
       "lines_triple_slash": 7,
       "lines_inner_doc": 5,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-codegen/tests/frontend_coverage_ledger.rs",
-      "kind": "rust",
-      "lines_total": 82,
-      "lines_triple_slash": 4,
-      "lines_inner_doc": 8,
-      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -27308,17 +27836,6 @@
       "lines_triple_slash": 11,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-db/src/facade/schema.rs",
-      "kind": "rust",
-      "lines_total": 50,
-      "lines_triple_slash": 12,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -28661,6 +29178,17 @@
       "lines_triple_slash": 5,
       "lines_inner_doc": 5,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli-core/tests/market_acceptance.rs",
+      "kind": "rust",
+      "lines_total": 196,
+      "lines_triple_slash": 7,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 14,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -30701,17 +31229,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-db/src/store/ops_scientia.rs",
-      "kind": "rust",
-      "lines_total": 369,
-      "lines_triple_slash": 7,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 3,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-compiler/src/typeck/state_machine_check.rs",
       "kind": "rust",
       "lines_total": 358,
@@ -30795,17 +31312,6 @@
       "lines_triple_slash": 7,
       "lines_inner_doc": 1,
       "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-telemetry-otlp/src/project.rs",
-      "kind": "rust",
-      "lines_total": 307,
-      "lines_triple_slash": 8,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 20,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -30959,17 +31465,6 @@
       "lines_total": 206,
       "lines_triple_slash": 1,
       "lines_inner_doc": 7,
-      "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-cli-ci/src/crate_budget.rs",
-      "kind": "rust",
-      "lines_total": 205,
-      "lines_triple_slash": 2,
-      "lines_inner_doc": 6,
       "lines_plain_comment": 4,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -31341,7 +31836,7 @@
     {
       "path": "crates/vox-cli-ci/src/lib.rs",
       "kind": "rust",
-      "lines_total": 108,
+      "lines_total": 109,
       "lines_triple_slash": 7,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
@@ -31473,7 +31968,7 @@
     {
       "path": "crates/vox-cli-core/src/lib.rs",
       "kind": "rust",
-      "lines_total": 83,
+      "lines_total": 84,
       "lines_triple_slash": 7,
       "lines_inner_doc": 1,
       "lines_plain_comment": 4,
@@ -32516,17 +33011,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-code-audit/src/scanner.rs",
-      "kind": "rust",
-      "lines_total": 169,
-      "lines_triple_slash": 7,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 12,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-cli-share/src/backends/localhost_run.rs",
       "kind": "rust",
       "lines_total": 168,
@@ -33429,6 +33913,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-codegen/tests/webhook_emit_test.rs",
+      "kind": "rust",
+      "lines_total": 31,
+      "lines_triple_slash": 7,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 8,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-openclaw-runtime/src/executor.rs",
       "kind": "rust",
       "lines_total": 31,
@@ -33457,17 +33952,6 @@
       "lines_triple_slash": 6,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-codegen/tests/webhook_emit_test.rs",
-      "kind": "rust",
-      "lines_total": 28,
-      "lines_triple_slash": 7,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 5,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -33726,17 +34210,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-cli/src/commands/ci/release_build.rs",
-      "kind": "rust",
-      "lines_total": 340,
-      "lines_triple_slash": 6,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-cli/src/commands/ci/gui_surface_registry.rs",
       "kind": "rust",
       "lines_total": 334,
@@ -33952,17 +34425,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 6,
       "lines_plain_comment": 16,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-db/src/local_cli_introspection.rs",
-      "kind": "rust",
-      "lines_total": 209,
-      "lines_triple_slash": 3,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -34524,6 +34986,17 @@
       "lines_triple_slash": 1,
       "lines_inner_doc": 5,
       "lines_plain_comment": 8,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-db/tests/model_scoreboard_percentiles.rs",
+      "kind": "rust",
+      "lines_total": 74,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 6,
+      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -35882,23 +36355,23 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-config/tests/snapshot_cache_benchmark.rs",
+      "kind": "rust",
+      "lines_total": 117,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 7,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-ml-cli/src/commands/mens/system_prompt_template.rs",
       "kind": "rust",
       "lines_total": 117,
       "lines_triple_slash": 1,
       "lines_inner_doc": 4,
       "lines_plain_comment": 3,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-config/tests/snapshot_cache_benchmark.rs",
-      "kind": "rust",
-      "lines_total": 116,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 5,
-      "lines_plain_comment": 7,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -36229,6 +36702,17 @@
       "lines_triple_slash": 4,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-config/tests/graphify_ttl_parity.rs",
+      "kind": "rust",
+      "lines_total": 84,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 9,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -37026,6 +37510,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-corpus/src/humaneval_runner/mod.rs",
+      "kind": "rust",
+      "lines_total": 16,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-plugin-speech/src/lib.rs",
       "kind": "rust",
       "lines_total": 16,
@@ -37193,10 +37688,10 @@
     {
       "path": "crates/vox-db/src/local_tests.rs",
       "kind": "rust",
-      "lines_total": 760,
+      "lines_total": 797,
       "lines_triple_slash": 3,
       "lines_inner_doc": 1,
-      "lines_plain_comment": 31,
+      "lines_plain_comment": 65,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -40348,6 +40843,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator-mcp/src/skill_permissions.rs",
+      "kind": "rust",
+      "lines_total": 122,
+      "lines_triple_slash": 2,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 4,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-repository/src/workspace_path_migration.rs",
       "kind": "rust",
       "lines_total": 116,
@@ -40474,17 +40980,6 @@
       "lines_total": 103,
       "lines_triple_slash": 3,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator-mcp/src/skill_permissions.rs",
-      "kind": "rust",
-      "lines_total": 103,
-      "lines_triple_slash": 2,
-      "lines_inner_doc": 1,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -41756,6 +42251,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-corpus/src/lib.rs",
+      "kind": "rust",
+      "lines_total": 20,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/memory/time.rs",
       "kind": "rust",
       "lines_total": 20,
@@ -41773,17 +42279,6 @@
       "lines_triple_slash": 2,
       "lines_inner_doc": 1,
       "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-corpus/src/lib.rs",
-      "kind": "rust",
-      "lines_total": 19,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -42201,7 +42696,7 @@
       "lines_total": 518,
       "lines_triple_slash": 2,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 4,
+      "lines_plain_comment": 6,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -43307,23 +43802,23 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-actor-runtime/src/llm/embed.rs",
+      "kind": "rust",
+      "lines_total": 75,
+      "lines_triple_slash": 1,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-integration-tests/tests/deploy_test.rs",
       "kind": "rust",
       "lines_total": 75,
       "lines_triple_slash": 0,
       "lines_inner_doc": 2,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-actor-runtime/src/llm/embed.rs",
-      "kind": "rust",
-      "lines_total": 74,
-      "lines_triple_slash": 1,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -44110,23 +44605,23 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator-mcp/tests/vox_search_dispatch.rs",
+      "kind": "rust",
+      "lines_total": 28,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 2,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-plugin-catalog/tests/component_load.rs",
       "kind": "rust",
       "lines_total": 28,
       "lines_triple_slash": 0,
       "lines_inner_doc": 2,
       "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator-mcp/tests/vox_search_dispatch.rs",
-      "kind": "rust",
-      "lines_total": 27,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 2,
-      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -45718,10 +46213,10 @@
     {
       "path": "crates/vox-integration-tests/tests/speech_audit_contract_test.rs",
       "kind": "rust",
-      "lines_total": 121,
+      "lines_total": 120,
       "lines_triple_slash": 0,
       "lines_inner_doc": 1,
-      "lines_plain_comment": 0,
+      "lines_plain_comment": 3,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -45733,6 +46228,17 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-populi/src/mens/tensor/mod.rs",
+      "kind": "rust",
+      "lines_total": 117,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 22,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -45865,17 +46371,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-populi/src/mens/tensor/mod.rs",
-      "kind": "rust",
-      "lines_total": 104,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 9,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -46228,6 +46723,17 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 1,
       "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-queue/tests/persisted_locks.rs",
+      "kind": "rust",
+      "lines_total": 83,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 31,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -47097,17 +47603,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator-queue/tests/persisted_locks.rs",
-      "kind": "rust",
-      "lines_total": 49,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -49436,10 +49931,10 @@
     {
       "path": ".github/workflows/ci.yml",
       "kind": "yaml",
-      "lines_total": 1831,
+      "lines_total": 1841,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 313,
+      "lines_plain_comment": 326,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "comments + structure"
@@ -49487,6 +49982,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/ui/playwright-report/data/2333142e0155cb94742eacd31649140c527cbd5c.md",
+      "kind": "markdown",
+      "lines_total": 760,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 5,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
       "path": "crates/vox-secrets/src/spec/registry/llm.rs",
@@ -49907,23 +50413,23 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "crates/vox-gui/src/main.rs",
+      "kind": "rust",
+      "lines_total": 327,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 25,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/orchestrator/persistence/replay.rs",
       "kind": "rust",
       "lines_total": 327,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gui/src/main.rs",
-      "kind": "rust",
-      "lines_total": 326,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 25,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -50182,6 +50688,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/ui/src/types/tauri.ts",
+      "kind": "typescript",
+      "lines_total": 256,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 3,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "crates/vox-gui/ui/src/transport.test.ts",
       "kind": "typescript",
       "lines_total": 255,
@@ -50226,17 +50743,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-gui/ui/src/types/tauri.ts",
-      "kind": "typescript",
-      "lines_total": 250,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 3,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
       "path": "crates/vox-gui/ui/src/lib/sessionChatStore.test.ts",
       "kind": "typescript",
       "lines_total": 249,
@@ -50257,6 +50763,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": ".github/workflows/release-binaries.yml",
+      "kind": "yaml",
+      "lines_total": 245,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 42,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-compiler/src/contract_ir/tests.rs",
@@ -50457,12 +50974,12 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": ".github/workflows/release-binaries.yml",
+      "path": ".github/workflows/ci-fallback-hosted.yml",
       "kind": "yaml",
-      "lines_total": 220,
+      "lines_total": 219,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 17,
+      "lines_plain_comment": 81,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "comments + structure"
@@ -50523,6 +51040,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": ".github/workflows/release-installers.yml",
+      "kind": "yaml",
+      "lines_total": 213,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 20,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
       "path": "crates/vox-integration-tests/tests/parity_contracts_test.rs",
       "kind": "rust",
       "lines_total": 213,
@@ -50554,17 +51082,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": ".github/workflows/ci-fallback-hosted.yml",
-      "kind": "yaml",
-      "lines_total": 210,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 72,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-integration-tests/tests/pipeline/includes/include_02.rs",
@@ -50741,17 +51258,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": ".github/workflows/release-installers.yml",
-      "kind": "yaml",
-      "lines_total": 188,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 3,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-gui/ui/e2e/workbench-tabs.spec.ts",
@@ -51029,6 +51535,61 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/ui/playwright-report/data/5217b13b91b941168457cfc446ac76be16db1103.md",
+      "kind": "markdown",
+      "lines_total": 169,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 4,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "crates/vox-gui/ui/playwright-report/data/5be286dc8d6cca4781169ebe0d642a4c80af49fb.md",
+      "kind": "markdown",
+      "lines_total": 169,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 4,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "crates/vox-gui/ui/playwright-report/data/71a60fa4cac6db52f693bb4d0514f3393d10a245.md",
+      "kind": "markdown",
+      "lines_total": 169,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 4,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "crates/vox-gui/ui/playwright-report/data/a4d15c15ef0cfa42d3e18339beef2597f9b456a0.md",
+      "kind": "markdown",
+      "lines_total": 169,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 4,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/tutorials/tut-ui-integration.md",
+      "kind": "markdown",
+      "lines_total": 169,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 7,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "crates/vox-gui/ui/e2e/lib/tauriMockRich.ts",
       "kind": "typescript",
       "lines_total": 168,
@@ -51139,17 +51700,6 @@
       "notes": "approx // and block comments"
     },
     {
-      "path": "docs/src/tutorials/tut-ui-integration.md",
-      "kind": "markdown",
-      "lines_total": 163,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 7,
-      "hotspot_tier": 0,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
       "path": "crates/vox-orchestrator-mcp/src/http_gateway/eval.rs",
       "kind": "rust",
       "lines_total": 162,
@@ -51192,6 +51742,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": ".github/workflows/release-gui.yml",
+      "kind": "yaml",
+      "lines_total": 159,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 34,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-db/tests/ops_external_review_tests.rs",
@@ -51359,17 +51920,6 @@
       "notes": "comments + structure"
     },
     {
-      "path": ".github/workflows/release-gui.yml",
-      "kind": "yaml",
-      "lines_total": 152,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 28,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": "crates/vox-package-types/src/resolver/tests.rs",
       "kind": "rust",
       "lines_total": 152,
@@ -51502,6 +52052,17 @@
       "notes": "comments + structure"
     },
     {
+      "path": ".github/workflows/bundle-release.yml",
+      "kind": "yaml",
+      "lines_total": 141,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 17,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
       "path": "crates/vox-corpus/src/corpus/augment/tests_mod.rs",
       "kind": "rust",
       "lines_total": 141,
@@ -51544,6 +52105,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "docs/src/reference/ref-db-surface.md",
+      "kind": "markdown",
+      "lines_total": 140,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 7,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
       "path": "crates/vox-gui/ui/e2e/review/capture.spec.ts",
@@ -51931,6 +52503,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "scripts/install.sh",
+      "kind": "shell",
+      "lines_total": 121,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 18,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments"
+    },
+    {
       "path": "crates/vox-cli-ci/src/deploy_status.rs",
       "kind": "rust",
       "lines_total": 120,
@@ -51995,17 +52578,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
-    },
-    {
-      "path": "scripts/install.sh",
-      "kind": "shell",
-      "lines_total": 119,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 16,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments"
     },
     {
       "path": "crates/vox-publisher/src/scholarly/external/sync.rs",
@@ -52171,28 +52743,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "docs/src/reference/ref-db-surface.md",
-      "kind": "markdown",
-      "lines_total": 113,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 7,
-      "hotspot_tier": 0,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": ".github/workflows/bundle-release.yml",
-      "kind": "yaml",
-      "lines_total": 112,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 8,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-code-audit/src/detectors/scaling_tests.rs",
@@ -52534,6 +53084,28 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/lib/mcpToolResult.test.ts",
+      "kind": "typescript",
+      "lines_total": 100,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 8,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/lib/mcpToolResult.ts",
+      "kind": "typescript",
+      "lines_total": 100,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 4,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
     },
     {
       "path": "docs/src/architecture/semantic-coverage-status-2026-06-15.md",
@@ -53282,17 +53854,6 @@
       "lines_other_doc_signal": 6,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/lib/mcpToolResult.ts",
-      "kind": "typescript",
-      "lines_total": 83,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
     },
     {
       "path": "crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/policy.rs",
@@ -54105,6 +54666,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 7,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/ledgers/frontend-coverage-ledger.md",
+      "kind": "markdown",
+      "lines_total": 73,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 2,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -55121,17 +55693,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "docs/superpowers/ledgers/frontend-coverage-ledger.md",
-      "kind": "markdown",
-      "lines_total": 64,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 2,
-      "hotspot_tier": 0,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
       "path": "crates/vox-codegen/tests/deep_link_test.rs",
       "kind": "rust",
       "lines_total": 63,
@@ -55149,17 +55710,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 6,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/lib/mcpToolResult.test.ts",
-      "kind": "typescript",
-      "lines_total": 63,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 3,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
@@ -55227,6 +55777,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 4,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/archive/research-2026-q1/retired-syntax-prose-lint-investigation-2026-08-23.md",
+      "kind": "markdown",
+      "lines_total": 63,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 1,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -55605,6 +56166,17 @@
       "notes": "approx // and block comments"
     },
     {
+      "path": "crates/vox-gui/ui/src/components/layout/Omnibar.graphFacet.test.ts",
+      "kind": "typescript",
+      "lines_total": 59,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 7,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "crates/vox-gui/ui/src/components/surfaces/Scientia/costRollup.ts",
       "kind": "typescript",
       "lines_total": 59,
@@ -55721,6 +56293,17 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/lib/buildChatTurn.ts",
+      "kind": "typescript",
+      "lines_total": 58,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 5,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
@@ -56496,6 +57079,17 @@
       "notes": "approx // and block comments"
     },
     {
+      "path": "crates/vox-gui/src/commands/mod.rs",
+      "kind": "rust",
+      "lines_total": 53,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-gui/ui/src/hooks/useActiveView.ts",
       "kind": "typescript",
       "lines_total": 53,
@@ -56659,17 +57253,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "comments + structure"
-    },
-    {
-      "path": "crates/vox-gui/src/commands/mod.rs",
-      "kind": "rust",
-      "lines_total": 52,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
     },
     {
       "path": "crates/vox-gui/ui/e2e/models.spec.ts",
@@ -57211,6 +57794,17 @@
       "notes": "approx // and block comments"
     },
     {
+      "path": "crates/vox-gui/ui/src/lib/buildChatTurn.test.ts",
+      "kind": "typescript",
+      "lines_total": 48,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 4,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "crates/vox-integration-tests/tests/skill_install_test.rs",
       "kind": "rust",
       "lines_total": 48,
@@ -57421,6 +58015,17 @@
     },
     {
       "path": "crates/vox-gui/ui/src/lib/searchableRegistry.test.ts",
+      "kind": "typescript",
+      "lines_total": 47,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/test-setup.localstorage.test.ts",
       "kind": "typescript",
       "lines_total": 47,
       "lines_triple_slash": 0,
@@ -58674,6 +59279,17 @@
       "notes": "approx // and block comments"
     },
     {
+      "path": "crates/vox-orchestrator-mcp/tests/autonomous_chat_research_test.rs",
+      "kind": "rust",
+      "lines_total": 40,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/tests/a2a_integration_test.rs",
       "kind": "rust",
       "lines_total": 40,
@@ -59643,17 +60259,6 @@
     },
     {
       "path": "crates/vox-ml-cli/tests/quantize_cli.rs",
-      "kind": "rust",
-      "lines_total": 35,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator-mcp/tests/autonomous_chat_research_test.rs",
       "kind": "rust",
       "lines_total": 35,
       "lines_triple_slash": 0,
@@ -60896,17 +61501,6 @@
       "notes": "approx // and block comments"
     },
     {
-      "path": "crates/vox-gui/ui/src/test-setup.ts",
-      "kind": "typescript",
-      "lines_total": 28,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 8,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
       "path": "crates/vox-integration-tests/tests/stream_emit_test.rs",
       "kind": "rust",
       "lines_total": 28,
@@ -61466,6 +62060,17 @@
       "lines_other_doc_signal": 5,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "crates/vox-cli-core/tests/fixtures/laptops_seed.yaml",
+      "kind": "yaml",
+      "lines_total": 24,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-db/tests/ops_planning_tests.rs",
@@ -63501,6 +64106,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/.vox/memory/global/MEMORY.md",
+      "kind": "markdown",
+      "lines_total": 4,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 1,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
       "path": "crates/vox-orchestrator/.vox/memory/global/MEMORY.md",
