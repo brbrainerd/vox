@@ -86,7 +86,10 @@ mod wilson_interval_tests {
         let (lo, hi) = wilson_score_interval(3, 3).expect("n=3");
         assert!(lo > 0.0, "lo={lo}");
         assert!(hi <= 1.0, "hi={hi}");
-        assert!(hi - lo > 0.1, "small n must leave real uncertainty, got {lo}..{hi}");
+        assert!(
+            hi - lo > 0.1,
+            "small n must leave real uncertainty, got {lo}..{hi}"
+        );
     }
 
     #[test]
@@ -102,8 +105,14 @@ mod wilson_interval_tests {
     #[test]
     fn interval_is_centered_near_the_observed_rate_for_large_n() {
         let (lo, hi) = wilson_score_interval(800, 1000).expect("n=1000");
-        assert!(lo < 0.8 && hi > 0.8, "0.8 observed rate should sit inside its own interval: {lo}..{hi}");
-        assert!(hi - lo < 0.05, "n=1000 should give a tight interval, got {lo}..{hi}");
+        assert!(
+            lo < 0.8 && hi > 0.8,
+            "0.8 observed rate should sit inside its own interval: {lo}..{hi}"
+        );
+        assert!(
+            hi - lo < 0.05,
+            "n=1000 should give a tight interval, got {lo}..{hi}"
+        );
     }
 }
 

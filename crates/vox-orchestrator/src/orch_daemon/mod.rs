@@ -1346,9 +1346,7 @@ mod isolation_dispatch_tests {
             ),
         )
         .await;
-        let task_id = result_value(&resp)["task_id"]
-            .as_u64()
-            .expect("task_id");
+        let task_id = result_value(&resp)["task_id"].as_u64().expect("task_id");
         let task = orch
             .all_tasks()
             .into_iter()

@@ -252,10 +252,7 @@ mod orch_smoke {
 
         // Task D3: same agent_session_id link the primary chat agent uses, so
         // a session-scoped GUI query can find this delegate too.
-        assert_eq!(
-            orch.agent_for_session_id("chat-session-xyz"),
-            Some(child)
-        );
+        assert_eq!(orch.agent_for_session_id("chat-session-xyz"), Some(child));
     }
 
     /// A spawn with no `chat_session_id` (e.g. scaling/handoff spawns) must
