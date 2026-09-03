@@ -16,8 +16,8 @@ pub struct ScoreboardArgs {
     /// Output format (default: table).
     #[arg(long, default_value = "table")]
     pub format: String,
-    /// Task M3: spend ceiling in USD per success. When set, names the most reliable
-    /// Pareto-optimal row costing no more than this. Advisory only — routing does not read it.
+    /// Spend ceiling in USD per success. When set, names the most reliable Pareto-optimal row
+    /// costing no more than this. Advisory only — routing does not read it.
     #[arg(long)]
     pub budget: Option<f64>,
 }
@@ -75,8 +75,12 @@ fn frontier_marker(frontier: &[usize], position: usize, n_calls: i64) -> &'stati
 /// Only frontier positions are candidates — recommending a dominated row would contradict the
 /// `*` marks in the same table. A row with unknown cost is never recommended: a recommendation
 /// commits the reader to a spend, and "we don't know what this costs" is not affordability.
-/// Ties on reliability break toward the cheaper row, then toward the lower position, because
-/// `get_model_scoreboard` has no `ORDER BY` and row order is not reproducible across runs.
+/// Ties break on a **total** order — reliability, then cheapest, then fastest, then lowest
+/// position — because `get_model_scoreboard` has no `ORDER BY` and row order is not reproducible
+/// across runs. All four keys are load-bearing: two rows can tie on reliability *and* cost while
+/// differing on latency (an unknown latency is incomparable, so both stay on the frontier), and
+/// without the latency key the winner would be whichever the database happened to return first.
+/// An unknown latency sorts last rather than first — it is not evidence of being fast.
 fn budget_recommendation(points: &[ParetoPoint], frontier: &[usize], budget: f64) -> Option<usize> {
     if !budget.is_finite() || budget <= 0.0 {
         return None;
@@ -85,19 +89,23 @@ fn budget_recommendation(points: &[ParetoPoint], frontier: &[usize], budget: f64
         .iter()
         .copied()
         .filter_map(|i| {
-            let cost = points.get(i)?.cost_usd.filter(|&c| c <= budget)?;
-            Some((i, cost))
+            let point = points.get(i)?;
+            let cost = point.cost_usd.filter(|&c| c <= budget)?;
+            Some((i, point.quality, cost, point.latency_ms.unwrap_or(i64::MAX)))
         })
         .reduce(|best, cur| {
-            let (bq, cq) = (points[best.0].quality, points[cur.0].quality);
-            // `>` (not `>=`) keeps the earlier row on a total tie, so output is stable.
-            if cq > bq || (cq == bq && cur.1 < best.1) {
-                cur
-            } else {
-                best
-            }
+            // Position is a real fourth key, not just "whichever the fold saw first". Today
+            // `pareto_frontier` yields ascending indices, so the two coincide — but that is the
+            // caller's invariant, and a tie-break whose stability depends on its caller is the
+            // same defect one level up.
+            let better = cur.1 > best.1
+                || (cur.1 == best.1
+                    && (cur.2 < best.2
+                        || (cur.2 == best.2
+                            && (cur.3 < best.3 || (cur.3 == best.3 && cur.0 < best.0)))));
+            if better { cur } else { best }
         })
-        .map(|(i, _)| i)
+        .map(|(i, ..)| i)
 }
 
 /// Task M3: the advisory line printed under the table when `--budget` is set.
@@ -109,8 +117,8 @@ fn render_budget_line(
 ) -> String {
     match budget_recommendation(points, frontier, budget).and_then(|i| labels.get(i)) {
         Some(label) => format!(
-            "Within ${budget:.4}/success: {label} — highest observed success rate among \
-             Pareto-optimal rows."
+            "Within ${budget:.4}/success: {label} — highest Wilson lower bound on success rate \
+             among Pareto-optimal rows."
         ),
         None => format!("Within ${budget:.4}/success: no Pareto-optimal row qualifies."),
     }
@@ -121,10 +129,15 @@ fn render_budget_line(
 /// States the strict-domination clause explicitly. "At least as good on all axes" alone would be
 /// wrong — two identical rows are each at least as good as the other, yet neither is dominated,
 /// so both are correctly marked.
-fn pareto_legend() -> String {
+///
+/// The last two sentences are not decoration. "Success counts non-error provider responses" is
+/// the sentence that stops a reader reading `*` as *answer* quality, and naming the Wilson lower
+/// bound stops them trying to reproduce the ranking from the raw `Success %` column beside it.
+fn pareto_legend() -> &'static str {
     "* Pareto-optimal: no other row is at least as good on success rate, cost and latency \
-     while being strictly better on at least one."
-        .to_string()
+     while being strictly better on at least one. Ranked on the Wilson lower bound of the \
+     success rate, not the raw percentage shown. Success counts non-error provider responses, \
+     not answer correctness. Rows below the observation threshold are never marked."
 }
 
 pub async fn run(args: ScoreboardArgs) -> anyhow::Result<()> {
@@ -133,7 +146,22 @@ pub async fn run(args: ScoreboardArgs) -> anyhow::Result<()> {
 
     let rows = db.get_model_scoreboard(args.window).await?;
 
+    if let Some(budget) = args.budget {
+        // Rejected here as well as inside `budget_recommendation`: the inner guard returns `None`,
+        // which renders as "no row qualifies" — indistinguishable from a real negative result. A
+        // reader who typed `--budget -5` deserves to be told the input was nonsense.
+        anyhow::ensure!(
+            budget.is_finite() && budget > 0.0,
+            "--budget must be a finite positive number of USD per success (got {budget})"
+        );
+    }
+
     if args.format == "json" {
+        if args.budget.is_some() {
+            eprintln!(
+                "note: --budget applies to the table output only; ignored with --format json"
+            );
+        }
         println!("{}", serde_json::to_string_pretty(&rows)?);
         return Ok(());
     }
@@ -208,12 +236,12 @@ pub async fn run(args: ScoreboardArgs) -> anyhow::Result<()> {
     }
 
     println!("{}", table);
-    if !frontier.is_empty() {
-        println!("{}", pareto_legend());
-    }
+    // Printed unconditionally: when nothing is marked, the legend's closing sentence is what
+    // explains the absence.
+    println!("\n{}", pareto_legend());
     if let Some(budget) = args.budget {
         println!(
-            "{}",
+            "\n{}",
             render_budget_line(&labels, &points, &frontier, budget)
         );
     }
@@ -328,6 +356,56 @@ mod tests {
         ];
         let frontier = pareto_frontier(&points);
         assert_eq!(budget_recommendation(&points, &frontier, 10.0), Some(0));
+    }
+
+    #[test]
+    fn budget_recommendation_breaks_a_cost_tie_on_latency_regardless_of_row_order() {
+        // Regression for a two-key (quality, cost) tie-break, which passed every other tie test
+        // here while leaving the winner to database row order — the exact irreproducibility the
+        // tie-break exists to prevent. An unknown latency is incomparable, so BOTH rows sit on
+        // the frontier, and equal (success_count, n_calls) makes the Wilson bounds bit-identical.
+        let fast = score(9, 10, Some(0.02), Some(100));
+        let unknown_latency = score(9, 10, Some(0.02), None);
+
+        let ab = [
+            pareto_point_for(Some(&unknown_latency)),
+            pareto_point_for(Some(&fast)),
+        ];
+        let ba = [
+            pareto_point_for(Some(&fast)),
+            pareto_point_for(Some(&unknown_latency)),
+        ];
+        assert_eq!(
+            pareto_frontier(&ab),
+            vec![0, 1],
+            "precondition: neither dominates"
+        );
+
+        // The fast row wins from either order; an unknown latency is not evidence of speed.
+        assert_eq!(budget_recommendation(&ab, &[0, 1], 1.0), Some(1));
+        assert_eq!(budget_recommendation(&ba, &[0, 1], 1.0), Some(0));
+    }
+
+    #[test]
+    fn budget_recommendation_is_stable_when_every_key_ties() {
+        // Total tie on all three axes must resolve to the lowest position, not to row order.
+        let points = vec![
+            pareto_point_for(Some(&score(9, 10, Some(0.02), Some(100)))),
+            pareto_point_for(Some(&score(9, 10, Some(0.02), Some(100)))),
+        ];
+        assert_eq!(budget_recommendation(&points, &[0, 1], 1.0), Some(0));
+        assert_eq!(budget_recommendation(&points, &[1, 0], 1.0), Some(0));
+    }
+
+    #[test]
+    fn pareto_legend_discloses_what_success_means_and_that_low_n_rows_are_unmarked() {
+        // These sentences are the mitigation for the plan's headline constraint: without them a
+        // reader can read `*` as answer quality, or try to reproduce the ranking from the raw
+        // `Success %` column instead of the Wilson lower bound the mark is actually computed on.
+        let legend = pareto_legend();
+        assert!(legend.contains("not answer correctness"), "{legend}");
+        assert!(legend.contains("Wilson lower bound"), "{legend}");
+        assert!(legend.contains("observation threshold"), "{legend}");
     }
 
     #[test]
