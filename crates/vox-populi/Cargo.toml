@@ -146,7 +146,7 @@ futures = { workspace = true }
 vox-eval = { workspace = true, optional = true }
 vox-compiler = { workspace = true, optional = true }
 vox-publisher = { workspace = true, optional = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 hex = { workspace = true }
 sha3.workspace = true
 uuid.workspace = true

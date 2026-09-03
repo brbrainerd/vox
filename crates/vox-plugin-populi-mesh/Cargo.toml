@@ -19,7 +19,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 hex = { workspace = true }
 
 # Transport heavy deps (moved from vox-populi transport feature)

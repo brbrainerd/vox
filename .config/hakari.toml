@@ -35,7 +35,9 @@ platforms = [
 [traversal-excludes]
 workspace-members = [
     "vox-orchestrator-types",
+    "vox-db",
     "vox-db-types",
+    "vox-telemetry",
     "vox-foundation",
     "vox-mesh-types",
     "vox-plugin-types",

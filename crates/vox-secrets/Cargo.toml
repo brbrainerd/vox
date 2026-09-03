@@ -31,6 +31,7 @@ blake3 = { workspace = true }
 aes-gcm = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 hex = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

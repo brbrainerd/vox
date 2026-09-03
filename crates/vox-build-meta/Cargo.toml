@@ -7,3 +7,6 @@ description = "Build-time helper that emits VOX_BUILD_NUMBER and VOX_GIT_HASH. A
 
 [lints]
 workspace = true
+
+[dependencies]
+workspace-hack = { version = "0.6", path = "../workspace-hack" }

@@ -29,7 +29,7 @@ vox-gamify = { workspace = true, optional = true }
 vox-bounded-fs = { workspace = true }
 vox-secrets.workspace = true
 anyhow = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 insta = { workspace = true }

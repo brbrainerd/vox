@@ -182,7 +182,7 @@ vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
 vox-oauth-pkce = { workspace = true }
-vox-db = { workspace = true, features = ["legacy-import"] }
+vox-db = { workspace = true, features = ["host-integration", "legacy-import"] }
 vox-sql = { workspace = true, features = ["postgres", "mysql"] }
 vox-research-events = { workspace = true }
 vox-term             = { path = "../vox-term" }
@@ -295,7 +295,7 @@ self_update = { workspace = true, features = [
 ] }
 semver = { workspace = true }
 keyring = { workspace = true, optional = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 vox-rule-pack = { workspace = true }
 vox-telemetry      = { workspace = true }
 vox-telemetry-otlp = { workspace = true }

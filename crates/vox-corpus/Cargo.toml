@@ -33,6 +33,7 @@ rayon = { workspace = true }
 xxhash-rust = { workspace = true }
 syn = { workspace = true, features = ["full", "visit", "extra-traits"] }
 quote = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [build-dependencies]
 syn = { workspace = true, features = ["full", "visit", "extra-traits"] }

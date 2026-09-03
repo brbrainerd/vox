@@ -18,7 +18,7 @@ serde_json = { workspace = true }
 syn = { workspace = true, features = ["full"] }
 typify = { workspace = true }
 walkdir = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [lints]
 workspace = true

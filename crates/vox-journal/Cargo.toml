@@ -16,6 +16,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 # NOTE: workspace-hack is deliberately NOT a dep of this crate.
 # Same rationale as vox-runtime / vox-runtime-rn: workspace-hack transitively

@@ -15,6 +15,7 @@ path = "src/lib.rs"
 tempfile = "3"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 # Declared so cargo builds the `vox` binary before running tests.

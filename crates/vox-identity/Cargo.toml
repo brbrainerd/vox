@@ -17,3 +17,4 @@ rand = { workspace = true }
 dirs = { workspace = true }
 chrono = { workspace = true }
 hex = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }

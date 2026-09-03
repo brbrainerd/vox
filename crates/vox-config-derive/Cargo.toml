@@ -11,6 +11,7 @@ proc-macro = true
 syn = { version = "2", features = ["full"] }
 quote = "1"
 proc-macro2 = "1"
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 trybuild = "1"

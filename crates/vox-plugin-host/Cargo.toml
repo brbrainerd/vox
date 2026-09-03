@@ -24,7 +24,7 @@ vox-plugin-types = { workspace = true }
 vox-telemetry = { workspace = true }
 async-trait = "0.1.89"
 tokio = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 tempfile = { workspace = true }
 
 [dev-dependencies]

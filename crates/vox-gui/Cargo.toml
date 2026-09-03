@@ -62,6 +62,7 @@ base64 = { workspace = true }
 dirs = { workspace = true }
 ignore = { workspace = true }
 similar = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

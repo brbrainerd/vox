@@ -38,7 +38,7 @@ regex = { workspace = true }
 # network I/O in interp, not just codegen). Inherits the workspace rustls-tls
 # stack; `blocking` is run on a worker thread (interp executes inside tokio).
 reqwest = { workspace = true, features = ["blocking"] }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 vox-foundation.workspace = true
 tokio = { workspace = true }
 csv = { workspace = true }

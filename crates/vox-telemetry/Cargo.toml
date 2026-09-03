@@ -15,7 +15,6 @@ thiserror    = { workspace = true }
 tokio        = { workspace = true, features = ["rt", "macros"] }
 tracing      = { workspace = true }
 uuid         = { workspace = true }
-workspace-hack = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }

@@ -37,6 +37,7 @@ ctrlc = { workspace = true }
 owo-colors = { workspace = true }
 rand = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "sync"] }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [features]
 default = []

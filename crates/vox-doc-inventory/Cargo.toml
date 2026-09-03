@@ -16,7 +16,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 walkdir = "2"
 vox-bounded-fs = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [[bin]]
 name = "doc-inventory-generate"
