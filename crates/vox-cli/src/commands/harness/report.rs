@@ -38,6 +38,42 @@ fn pass_rate(run: &vox_db::HarnessEvalRunRecord) -> f64 {
     (run.pass_count as f64 / graded as f64) * 100.0
 }
 
+/// Task M3: unbiased pass@k estimator (Chen et al. 2021, "Evaluating Large Language Models
+/// Trained on Code", eq. 1) for one task's `n` total samples and `c` passing ones. Using
+/// `c/n >= threshold` instead would need `k` *independently drawn* reruns to be unbiased;
+/// this needs only the single `n`-sample batch already recorded.
+///
+/// Returns `None` when `k > n` — not enough samples were drawn to estimate at that `k`.
+fn pass_at_k(n: i64, c: i64, k: i64) -> Option<f64> {
+    if k > n || n <= 0 || k <= 0 {
+        return None;
+    }
+    if n - c < k {
+        // Fewer than k failures exist, so every size-k sample includes at least one pass.
+        return Some(1.0);
+    }
+    let mut prob_all_fail = 1.0;
+    for i in 0..k {
+        prob_all_fail *= (n - c - i) as f64 / (n - i) as f64;
+    }
+    Some(1.0 - prob_all_fail)
+}
+
+/// Task M3: mean pass@k across every task in a run for which `k <= total_samples` — tasks
+/// sampled fewer than `k` times are excluded rather than treated as 0, since "not enough
+/// samples to know" and "known to always fail" are different facts. `None` when no task in
+/// the run has enough samples for this `k`.
+fn mean_pass_at_k(task_results: &[vox_db::HarnessEvalTaskResultRecord], k: i64) -> Option<f64> {
+    let scores: Vec<f64> = task_results
+        .iter()
+        .filter_map(|t| pass_at_k(t.total_samples, t.pass_samples, k))
+        .collect();
+    if scores.is_empty() {
+        return None;
+    }
+    Some(scores.iter().sum::<f64>() / scores.len() as f64)
+}
+
 fn free_cheap_ratio(events: &[vox_db::ModelSelectionEventRecord]) -> f64 {
     let non_privacy_forced: Vec<_> = events.iter().filter(|e| !e.was_privacy_gated).collect();
     if non_privacy_forced.is_empty() {
@@ -264,6 +300,17 @@ pub async fn run_report(args: ReportArgs) -> anyhow::Result<()> {
         &current_events,
         &changed_files,
     );
+    match (
+        mean_pass_at_k(&current_task_results, 1),
+        mean_pass_at_k(&current_task_results, 3),
+    ) {
+        (Some(p1), Some(p3)) => println!("pass@1: {:.1}%  pass@3: {:.1}%", p1 * 100.0, p3 * 100.0),
+        (Some(p1), None) => println!(
+            "pass@1: {:.1}%  pass@3: insufficient data (no task sampled >= 3x)",
+            p1 * 100.0
+        ),
+        _ => {}
+    }
     if flags.is_empty() {
         println!(
             "no regressions detected between {} and {}",
@@ -340,6 +387,63 @@ mod tests {
             failure_detail: None,
             recorded_at_ms: 1000,
         }
+    }
+
+    #[test]
+    fn pass_at_k_returns_none_when_k_exceeds_samples_drawn() {
+        assert_eq!(pass_at_k(1, 1, 3), None);
+        assert_eq!(pass_at_k(2, 0, 3), None);
+    }
+
+    #[test]
+    fn pass_at_k_matches_naive_ratio_when_k_equals_1() {
+        // pass@1 with n samples and c passes reduces to the plain success ratio.
+        assert_eq!(pass_at_k(4, 2, 1), Some(0.5));
+        assert_eq!(pass_at_k(5, 5, 1), Some(1.0));
+        assert_eq!(pass_at_k(5, 0, 1), Some(0.0));
+    }
+
+    #[test]
+    fn pass_at_k_is_one_when_failures_are_fewer_than_k() {
+        // Only 1 failure exists among 5 samples, so every 3-sample draw includes a pass.
+        assert_eq!(pass_at_k(5, 4, 3), Some(1.0));
+    }
+
+    #[test]
+    fn pass_at_k_of_all_failures_is_zero() {
+        assert_eq!(pass_at_k(5, 0, 3), Some(0.0));
+    }
+
+    #[test]
+    fn mean_pass_at_k_excludes_undersampled_tasks_rather_than_scoring_them_zero() {
+        let results = vec![
+            {
+                let mut t = task_result("t1", "pass");
+                t.total_samples = 1;
+                t.pass_samples = 1;
+                t
+            },
+            {
+                let mut t = task_result("t2", "pass");
+                t.total_samples = 3;
+                t.pass_samples = 3;
+                t
+            },
+        ];
+        // pass@3 only has one task with >= 3 samples (t2, always passes) -- t1 must be
+        // excluded, not counted as a 0.
+        assert_eq!(mean_pass_at_k(&results, 3), Some(1.0));
+    }
+
+    #[test]
+    fn mean_pass_at_k_is_none_when_no_task_has_enough_samples() {
+        let results = vec![{
+            let mut t = task_result("t1", "pass");
+            t.total_samples = 1;
+            t.pass_samples = 1;
+            t
+        }];
+        assert_eq!(mean_pass_at_k(&results, 3), None);
     }
 
     #[test]
