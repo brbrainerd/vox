@@ -50,7 +50,7 @@ pub enum ModelCmd {
     /// Run a small built-in benchmark to measure intelligence/tokens/latency and write back.
     Eval(eval::EvalArgs),
     /// Score a model or external harness against the held-out HumanEval-Vox corpus.
-    EvalCorpus(eval_corpus::EvalCorpusArgs),
+    EvalCorpus(Box<eval_corpus::EvalCorpusArgs>),
     /// Show detailed cost reporting.
     Costs(costs::CostsArgs),
     /// Manage and view observed pricing SSOT.
@@ -74,7 +74,7 @@ pub async fn run(cmd: ModelCmd) -> anyhow::Result<()> {
         ModelCmd::Preferences(args) => preferences::run(args).await,
         ModelCmd::Explain(args) => explain::run(args).await,
         ModelCmd::Eval(args) => eval::run(args).await,
-        ModelCmd::EvalCorpus(args) => eval_corpus::run(args).await,
+        ModelCmd::EvalCorpus(args) => eval_corpus::run(*args).await,
         ModelCmd::Costs(args) => costs::run(args).await,
         ModelCmd::Pricing(args) => pricing::run(args).await,
         ModelCmd::Classify(args) => classify::run(args).await,
