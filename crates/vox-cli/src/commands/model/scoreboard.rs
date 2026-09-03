@@ -29,6 +29,27 @@ fn cost_per_success_display(cost_per_success_usd: Option<f64>, success_count: i6
         .unwrap_or_default()
 }
 
+/// Task M3: colored success-rate percentage plus a `(low-N)` marker below
+/// [`vox_orchestrator::models::MIN_CALLS_FOR_CONFIDENT_RANK`] calls. The full Wilson credible
+/// interval isn't crammed into this table cell (the "Calls" column already lets a reader judge
+/// confidence, and `--format json` exposes `n_calls`/`success_count` for anything that wants to
+/// compute its own interval) — `vox model explain` renders the full interval per-candidate.
+fn success_rate_cell(success_rate: f64, n_calls: i64) -> String {
+    let pct = format!("{:.1}%", success_rate * 100.0);
+    let colored = if success_rate > 0.95 {
+        pct.green().to_string()
+    } else if success_rate > 0.8 {
+        pct.yellow().to_string()
+    } else {
+        pct.red().to_string()
+    };
+    if n_calls < vox_orchestrator::models::MIN_CALLS_FOR_CONFIDENT_RANK {
+        format!("{colored} (low-N)")
+    } else {
+        colored
+    }
+}
+
 pub async fn run(args: ScoreboardArgs) -> anyhow::Result<()> {
     let db_config = DbConfig::resolve_canonical().map_err(anyhow::Error::msg)?;
     let db = VoxDb::connect(db_config).await?;
@@ -53,21 +74,14 @@ pub async fn run(args: ScoreboardArgs) -> anyhow::Result<()> {
     ]);
 
     for row in rows {
-        let success_rate = format!("{:.1}%", row.success_rate * 100.0);
-        let success_color = if row.success_rate > 0.95 {
-            success_rate.green().to_string()
-        } else if row.success_rate > 0.8 {
-            success_rate.yellow().to_string()
-        } else {
-            success_rate.red().to_string()
-        };
+        let success_cell = success_rate_cell(row.success_rate, row.n_calls);
 
         table.add_row(vec![
             row.model_id,
             row.task_category,
             row.strength_tag,
             row.n_calls.to_string(),
-            success_color,
+            success_cell,
             row.p50_latency_ms
                 .map(|v| v.to_string())
                 .unwrap_or_default(),
@@ -106,5 +120,19 @@ mod tests {
     #[test]
     fn cost_per_success_display_handles_missing_value_above_threshold() {
         assert_eq!(cost_per_success_display(None, 20), "");
+    }
+
+    #[test]
+    fn success_rate_cell_flags_low_n_below_the_threshold() {
+        let cell = success_rate_cell(1.0, 2);
+        assert!(cell.contains("100.0%"), "{cell}");
+        assert!(cell.contains("(low-N)"), "{cell}");
+    }
+
+    #[test]
+    fn success_rate_cell_omits_marker_at_and_above_the_threshold() {
+        let cell = success_rate_cell(0.9, 20);
+        assert!(cell.contains("90.0%"), "{cell}");
+        assert!(!cell.contains("low-N"), "{cell}");
     }
 }

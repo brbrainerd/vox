@@ -798,6 +798,7 @@ mod semcov_wave34_tests {
             cost_per_success_usd: None,
             p50_latency_ms: p50,
             n_calls: n,
+            success_count: (success_rate * n as f64).round() as i64,
         }
     }
 

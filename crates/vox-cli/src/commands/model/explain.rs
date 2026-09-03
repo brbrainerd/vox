@@ -28,6 +28,36 @@ pub struct ExplainArgs {
     pub fim: bool,
 }
 
+/// Task M3: renders a model's success rate with its 95% Wilson credible interval, and a
+/// low-confidence marker below [`vox_orchestrator::models::MIN_CALLS_FOR_CONFIDENT_RANK`]
+/// calls — a bare "Success: 100%" off 2 calls reads as far more certain than it is.
+fn success_rate_display(success_count: i64, n_calls: i64) -> String {
+    let Some((lo, hi)) = vox_orchestrator::models::wilson_score_interval(success_count, n_calls)
+    else {
+        return "Success: no data yet".to_string();
+    };
+    let point = if n_calls > 0 {
+        success_count as f64 / n_calls as f64
+    } else {
+        0.0
+    };
+    if n_calls < vox_orchestrator::models::MIN_CALLS_FOR_CONFIDENT_RANK {
+        format!(
+            "Success: {:.0}% (low confidence, n={n_calls}, 95% CI {:.0}-{:.0}%)",
+            point * 100.0,
+            lo * 100.0,
+            hi * 100.0
+        )
+    } else {
+        format!(
+            "Success: {:.1}% (95% CI {:.0}-{:.0}%, n={n_calls})",
+            point * 100.0,
+            lo * 100.0,
+            hi * 100.0
+        )
+    }
+}
+
 /// Pure helper: rank free models via the FreeTierRouter and return each
 /// candidate's id paired with its rationale. No I/O — unit-testable.
 fn render_free_tier(
@@ -124,8 +154,10 @@ pub async fn run(args: ExplainArgs) -> anyhow::Result<()> {
         details.push(format!("Tier: {:?}", entry.capabilities.tier));
 
         if let Some(score) = registry.get_score(&entry.id) {
-            details.push(format!("Success: {:.1}%", score.success_rate * 100.0));
-            details.push(format!("Quality: {:.2}", score.quality_score));
+            // Deliberately not surfaced (Task M0/M2/M3): `quality_score` is a constant 1.0
+            // for every model in practice (llm_feedback has zero rows) — see the GUI's
+            // list_model_cards and `vox model scoreboard`, which already dropped it.
+            details.push(success_rate_display(score.success_count, score.n_calls));
         }
 
         println!("{} {}: {}", prefix, entry.id.bold(), details.join(", "));
@@ -172,12 +204,31 @@ pub async fn run(args: ExplainArgs) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::render_free_tier;
+    use super::{render_free_tier, success_rate_display};
     use vox_orchestrator::models::{
         ModelCapabilities, ModelSpec, ModelTier, PricingSource, ProviderType, StrengthTag,
     };
     use vox_orchestrator::types::TaskCategory;
     use vox_research_shim::selection::FreeTierRouteRequest;
+
+    #[test]
+    fn success_rate_display_flags_low_confidence_below_the_threshold() {
+        let s = success_rate_display(2, 2);
+        assert!(s.contains("low confidence"), "{s}");
+        assert!(s.contains("100%"), "{s}");
+    }
+
+    #[test]
+    fn success_rate_display_omits_low_confidence_marker_at_and_above_the_threshold() {
+        let s = success_rate_display(18, 20);
+        assert!(!s.contains("low confidence"), "{s}");
+        assert!(s.contains("90.0%"), "{s}");
+    }
+
+    #[test]
+    fn success_rate_display_handles_no_data() {
+        assert_eq!(success_rate_display(0, 0), "Success: no data yet");
+    }
 
     fn free_spec(id: &str, provider_type: ProviderType, tier: ModelTier) -> ModelSpec {
         ModelSpec {
