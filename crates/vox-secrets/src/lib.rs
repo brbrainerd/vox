@@ -525,7 +525,10 @@ mod managed_secret_tests {
         }
 
         if let Some((deleted_first, deleted_again)) = outcome {
-            assert!(deleted_first, "delete should report the stored row was removed");
+            assert!(
+                deleted_first,
+                "delete should report the stored row was removed"
+            );
             assert!(
                 !deleted_again,
                 "deleting an already-absent secret must report no row removed, not error"

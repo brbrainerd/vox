@@ -238,7 +238,10 @@ pub fn migrate_to_secure_store() -> Result<usize, SecretError> {
         if auth.token.trim().is_empty() || auth.token == SECURE_SENTINEL {
             continue;
         }
-        match specs.iter().find(|spec| spec.auth_registry == Some(registry.as_str())) {
+        match specs
+            .iter()
+            .find(|spec| spec.auth_registry == Some(registry.as_str()))
+        {
             Some(spec) => managed_entries.push((registry.clone(), spec.id, auth.token.clone())),
             None => tracing::warn!(
                 registry = %registry,
