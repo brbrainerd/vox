@@ -78,10 +78,10 @@ fn render_free_tier(
 /// observations to hold a rank position and those without. `e497a82fb` only *marked* low-N
 /// rows, so a 2-call model still printed as rank #1 — the false confidence the requirement
 /// targets. `None` (no scoreboard row) is unranked: no data is not evidence of rank-worthiness.
-fn partition_by_rank_confidence<'a>(
-    candidates: &'a [ModelSpec],
+fn partition_by_rank_confidence(
+    candidates: &[ModelSpec],
     n_calls_of: impl Fn(&str) -> Option<i64>,
-) -> (Vec<&'a ModelSpec>, Vec<&'a ModelSpec>) {
+) -> (Vec<&ModelSpec>, Vec<&ModelSpec>) {
     candidates
         .iter()
         .partition(|m| n_calls_of(&m.id).is_some_and(|n| n >= MIN_CALLS_FOR_CONFIDENT_RANK))
