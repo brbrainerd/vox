@@ -115,7 +115,14 @@ main() {
     say "Downloading checksums.txt..."
     curl --proto '=https' --tlsv1.2 -sSfL "$_checksums_url" -o "$_tmpdir/checksums.txt"
 
-    _checksum="$(grep "  ${_archive}$" "$_tmpdir/checksums.txt" | cut -d ' ' -f1)"
+    # Exact field match, not a regex: `$_archive` contains `.` characters, which
+    # grep would treat as wildcards. With sibling assets whose names differ only
+    # where a `.` sits, that matches several lines, `cut` returns all of their
+    # hashes, the non-empty guard below still passes, and verify_checksum then
+    # compares one hash against a multi-line string — a guaranteed, and
+    # thoroughly misleading, "SHA-256 mismatch". checksums.txt is written as
+    # "<sum>  <basename>" (release-binaries.yml), so field 2 is the filename.
+    _checksum="$(awk -v f="$_archive" '$2 == f { print $1; exit }' "$_tmpdir/checksums.txt")"
     [ -n "$_checksum" ] || err "No checksum found for '$_archive' in checksums.txt"
 
     verify_checksum "$_tmpdir/$_archive" "$_checksum"
