@@ -32,6 +32,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         # Pinned, not the floating alias: dtolnay/rust-toolchain's floating

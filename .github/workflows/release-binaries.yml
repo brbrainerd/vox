@@ -38,6 +38,11 @@ jobs:
             runs_on: '["macos-latest"]'
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
@@ -185,6 +190,11 @@ jobs:
       CARGO_BUILD_JOBS: "2"
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
 
       - name: Build the real dist binary
         # Feature set MUST match release_build.rs::build_and_package_binary.
@@ -202,6 +212,11 @@ jobs:
     needs: [build, dist-verify]
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
 
       - uses: actions/download-artifact@v8
         with:

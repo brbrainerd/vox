@@ -17,6 +17,11 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
       - name: Install Rust
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
         # CI gates use (rust-toolchain.toml). @stable also imports each new
@@ -60,6 +65,11 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
       - name: Install Rust
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
         # CI gates use (rust-toolchain.toml). @stable also imports each new
@@ -84,6 +94,11 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
       - name: Install Rust
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
         # CI gates use (rust-toolchain.toml). @stable also imports each new
@@ -107,6 +122,11 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
       - name: Build Release
         run: cargo build --profile dist --locked -p vox-cli
       - name: Archive and Hash
@@ -126,6 +146,11 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
 
       - name: Verify install.sh POSIX syntax
         run: |
@@ -169,6 +194,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
 
       - name: Verify install.ps1 parses
         shell: pwsh
