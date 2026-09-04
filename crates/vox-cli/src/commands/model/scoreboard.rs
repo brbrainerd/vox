@@ -70,7 +70,34 @@ fn frontier_marker(frontier: &[usize], position: usize, n_calls: i64) -> &'stati
     }
 }
 
-/// Task M3: position of the most reliable frontier row costing no more than `budget`.
+/// Task M3: frontier positions the budget line is allowed to name.
+///
+/// Both gates are load-bearing and neither implies the other:
+/// - `n_calls >= MIN_CALLS_FOR_CONFIDENT_RANK`, because [`frontier_marker`] withholds `*` from a
+///   sub-threshold row. Without this gate the budget line calls a row "Pareto-optimal" in prose
+///   directly beneath a table that pointedly does not mark it.
+/// - `success_count >= COST_PER_SUCCESS_MIN_SUCCESSES`, because [`cost_per_success_display`]
+///   prints "insufficient data" below it. Without this gate the recommendation matches on a
+///   cost the same table refuses to show.
+fn recommendable_positions(scores: &[ModelScore], frontier: &[usize]) -> Vec<usize> {
+    frontier
+        .iter()
+        .copied()
+        .filter(|&i| {
+            scores.get(i).is_some_and(|s| {
+                s.n_calls >= MIN_CALLS_FOR_CONFIDENT_RANK
+                    && s.success_count >= COST_PER_SUCCESS_MIN_SUCCESSES
+            })
+        })
+        .collect()
+}
+
+/// Task M3: position of the most reliable recommendable row costing no more than `budget`.
+///
+/// `recommendable` must be the output of [`recommendable_positions`] — frontier positions that
+/// cleared both confidence gates. The parameter is named for that precondition rather than
+/// taking a raw frontier, so a caller cannot silently reintroduce an unmarked, "insufficient
+/// data" row into a line that calls it Pareto-optimal.
 ///
 /// Only frontier positions are candidates — recommending a dominated row would contradict the
 /// `*` marks in the same table. A row with unknown cost is never recommended: a recommendation
@@ -81,11 +108,15 @@ fn frontier_marker(frontier: &[usize], position: usize, n_calls: i64) -> &'stati
 /// differing on latency (an unknown latency is incomparable, so both stay on the frontier), and
 /// without the latency key the winner would be whichever the database happened to return first.
 /// An unknown latency sorts last rather than first — it is not evidence of being fast.
-fn budget_recommendation(points: &[ParetoPoint], frontier: &[usize], budget: f64) -> Option<usize> {
+fn budget_recommendation(
+    points: &[ParetoPoint],
+    recommendable: &[usize],
+    budget: f64,
+) -> Option<usize> {
     if !budget.is_finite() || budget <= 0.0 {
         return None;
     }
-    frontier
+    recommendable
         .iter()
         .copied()
         .filter_map(|i| {
@@ -109,13 +140,16 @@ fn budget_recommendation(points: &[ParetoPoint], frontier: &[usize], budget: f64
 }
 
 /// Task M3: the advisory line printed under the table when `--budget` is set.
+///
+/// `recommendable` carries [`budget_recommendation`]'s precondition: frontier positions that
+/// cleared both confidence gates.
 fn render_budget_line(
     labels: &[String],
     points: &[ParetoPoint],
-    frontier: &[usize],
+    recommendable: &[usize],
     budget: f64,
 ) -> String {
-    match budget_recommendation(points, frontier, budget).and_then(|i| labels.get(i)) {
+    match budget_recommendation(points, recommendable, budget).and_then(|i| labels.get(i)) {
         Some(label) => format!(
             "Within ${budget:.4}/success: {label} — highest Wilson lower bound on success rate \
              among Pareto-optimal rows."
@@ -133,7 +167,7 @@ fn render_budget_line(
 /// The last two sentences are not decoration. "Success counts non-error provider responses" is
 /// the sentence that stops a reader reading `*` as *answer* quality, and naming the Wilson lower
 /// bound stops them trying to reproduce the ranking from the raw `Success %` column beside it.
-fn pareto_legend() -> &'static str {
+pub(super) fn pareto_legend() -> &'static str {
     "* Pareto-optimal: no other row is at least as good on success rate, cost and latency \
      while being strictly better on at least one. Ranked on the Wilson lower bound of the \
      success rate, not the raw percentage shown. Success counts non-error provider responses, \
@@ -240,9 +274,10 @@ pub async fn run(args: ScoreboardArgs) -> anyhow::Result<()> {
     // explains the absence.
     println!("\n{}", pareto_legend());
     if let Some(budget) = args.budget {
+        let recommendable = recommendable_positions(&scores, &frontier);
         println!(
             "\n{}",
-            render_budget_line(&labels, &points, &frontier, budget)
+            render_budget_line(&labels, &points, &recommendable, budget)
         );
     }
     Ok(())
@@ -531,6 +566,50 @@ mod tests {
         assert!(legend.contains("strictly better"), "{legend}");
         // Global Constraint, enforced mechanically rather than by prose: the axis is reliability.
         assert!(!legend.to_lowercase().contains("quality"), "{legend}");
+    }
+
+    #[test]
+    fn recommendable_positions_excludes_rows_the_table_itself_refuses_to_vouch_for() {
+        // 0: qualifies. 1: low-N — the table prints "(low-N)" and withholds `*`. 2: only 9
+        // successes — the table prints "insufficient data" in the very cell the budget matches on.
+        let scores = vec![
+            score(20, 40, Some(0.01), Some(100)),
+            score(20, MIN_CALLS_FOR_CONFIDENT_RANK - 1, Some(0.01), Some(100)),
+            score(
+                COST_PER_SUCCESS_MIN_SUCCESSES - 1,
+                40,
+                Some(0.01),
+                Some(100),
+            ),
+        ];
+        assert_eq!(recommendable_positions(&scores, &[0, 1, 2]), vec![0]);
+        assert_eq!(
+            recommendable_positions(&scores, &[1, 2]),
+            Vec::<usize>::new(),
+            "no frontier row clears both gates"
+        );
+    }
+
+    #[test]
+    fn budget_line_declines_when_only_sub_threshold_rows_are_affordable() {
+        // The F1 defect: a cheap low-N row was named "Pareto-optimal" in prose beneath a table
+        // that pointedly did not mark it.
+        let labels = vec![
+            "a/rich (codegen/pro)".to_string(),
+            "b/low-n (codegen/pro)".to_string(),
+        ];
+        let scores = vec![
+            score(20, 40, Some(0.90), Some(100)),
+            score(2, 2, Some(0.01), Some(100)),
+        ];
+        let points: Vec<ParetoPoint> = scores.iter().map(|s| pareto_point_for(Some(s))).collect();
+        let frontier = pareto_frontier(&points);
+        assert!(frontier.contains(&1), "precondition: low-N row is on it");
+
+        let recommendable = recommendable_positions(&scores, &frontier);
+        let line = render_budget_line(&labels, &points, &recommendable, 0.05);
+        assert!(!line.contains("b/low-n"), "{line}");
+        assert!(line.contains("no Pareto-optimal row qualifies"), "{line}");
     }
 
     #[test]
