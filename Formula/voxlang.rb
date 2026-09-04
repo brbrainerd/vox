@@ -28,6 +28,15 @@ class Voxlang < Formula
   version "0.6.0-rc.4748"
   license "Apache-2.0"
 
+  # Without this, `brew livecheck` falls back to the Git strategy and scrapes ref
+  # names for anything version-shaped — it reported the latest version as "6", a
+  # single character, which sorts ABOVE 0.6.0-rc.4748 and makes the formula read
+  # as perpetually outdated. `brew bump-formula-pr` would act on that garbage.
+  livecheck do
+    url :stable
+    strategy :github_latest
+  end
+
   on_macos do
     on_arm do
       url "https://github.com/vox-foundation/vox/releases/download/v0.6.0-rc.4748/vox-v0.6.0-rc.4748-aarch64-apple-darwin.tar.gz"

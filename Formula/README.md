@@ -13,10 +13,17 @@ success while installing a media player instead of the toolchain. Verified
 third-party tap; `brew install` fails outright without it. That is a property of
 taps in general, not a judgement on this one.
 
-**This step is temporary and should be deleted, not inherited.** It disappears
-once `voxlang` is accepted into homebrew-core (`brew install voxlang`, no tap, no
-trust). Submission is blocked until a stable non-prerelease `vX.Y.Z` exists —
-homebrew-core rejects prereleases and applies notability requirements.
+**This step is permanent for this tap, and that is now a settled fact.** An
+earlier note here claimed it would disappear once `voxlang` reached
+homebrew-core. That was wrong: homebrew-core does not accept binary-only
+formulae, and this formula installs a prebuilt binary rather than building from
+source. There is no core submission to wait for, so `brew trust` is simply part
+of the install and the instruction must stay.
+
+(Corrected 2026-09-04 after auditing Homebrew's own formula_auditor: the stricter
+`--new` rules that a core submission faces are gated behind `@core_tap` and never
+fire in a third-party tap, and core's binary-formula policy is separate from the
+audit anyway.)
 
 ## Why a formula at all
 

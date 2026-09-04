@@ -62,20 +62,43 @@ impl ReleaseAssets {
 /// Format is `sha256sum`'s: `<64 hex>  <basename>` (two spaces). Lines that do
 /// not match are ignored rather than erroring, so a future header or a blank
 /// line cannot break a release.
-pub fn parse_checksums(text: &str) -> BTreeMap<String, String> {
-    let mut out = BTreeMap::new();
+pub fn parse_checksums(text: &str) -> Result<BTreeMap<String, String>, String> {
+    let mut out: BTreeMap<String, String> = BTreeMap::new();
+    // `str::lines()` strips a trailing \r, so CRLF input needs no special case.
     for line in text.lines() {
-        let mut parts = line.split_whitespace();
-        let (Some(sum), Some(name)) = (parts.next(), parts.next()) else {
+        // Split on the FIRST separator and take the rest verbatim. Using
+        // `split_whitespace().next()` for the name silently truncated any
+        // filename containing a space to its first token — the asset then
+        // appeared "missing" while a bogus key sat in the map. sha256sum writes
+        // two spaces (or " *" in binary mode); accept a single space too.
+        let Some((sum, rest)) = line
+            .split_once("  ")
+            .or_else(|| line.split_once(" *"))
+            .or_else(|| line.split_once(' '))
+        else {
             continue;
         };
-        // A sha256 is exactly 64 lowercase hex characters. Anything else is not
-        // a checksum line — this is what skips headers and stray prose.
-        if sum.len() == 64 && sum.bytes().all(|b| b.is_ascii_hexdigit()) {
-            out.insert(name.to_string(), sum.to_string());
+        let sum = sum.trim();
+        let name = rest.trim();
+        // A sha256 is exactly 64 hex characters. Anything else is not a checksum
+        // line — this is what skips headers and stray prose. Case-insensitive:
+        // sha256sum emits lowercase, some tools emit uppercase.
+        if name.is_empty() || sum.len() != 64 || !sum.bytes().all(|b| b.is_ascii_hexdigit()) {
+            continue;
         }
+        // A duplicate filename is a broken release (a re-upload, or two assets
+        // colliding). Silently keeping the last one would pin an arbitrary
+        // digest, so refuse rather than guess.
+        if let Some(prev) = out.get(name)
+            && prev != &sum.to_ascii_lowercase()
+        {
+            return Err(format!(
+                "checksums.txt lists '{name}' twice with different digests ({prev} and {sum})"
+            ));
+        }
+        out.insert(name.to_string(), sum.to_ascii_lowercase());
     }
-    out
+    Ok(out)
 }
 
 /// Resolve the three CLI assets a tag must publish.
@@ -83,7 +106,7 @@ pub fn parse_checksums(text: &str) -> BTreeMap<String, String> {
 /// Returns the *missing* asset names on failure rather than a generic error, so
 /// a release that forgot a target says which one.
 pub fn resolve_assets(tag: &str, checksums: &str) -> Result<ReleaseAssets, Vec<String>> {
-    let map = parse_checksums(checksums);
+    let map = parse_checksums(checksums).map_err(|e| vec![e])?;
     let want = |triple: &str| format!("vox-{tag}-{triple}.tar.gz");
 
     let mut missing = Vec::new();
@@ -212,7 +235,7 @@ da632656969b441b5b37c047366535a948a432468ad82699de5e6ab7202f5659  vox-v0.6.0-rc.
 
     #[test]
     fn parses_only_real_checksum_lines() {
-        let map = parse_checksums(&format!("# a header\n\n{FIXTURE}"));
+        let map = parse_checksums(&format!("# a header\n\n{FIXTURE}")).expect("valid");
         assert_eq!(map.len(), 5, "header and blank line must be ignored");
         assert_eq!(
             map.get("vox-v0.6.0-rc.4748-aarch64-apple-darwin.tar.gz").unwrap(),
