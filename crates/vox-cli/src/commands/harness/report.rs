@@ -334,22 +334,29 @@ pub async fn run_report(args: ReportArgs) -> anyhow::Result<()> {
         &current_events,
         &changed_files,
     );
-    match (
-        mean_pass_at_k(&current_task_results, 1),
-        mean_pass_at_k(&current_task_results, 3),
-        mean_pass_hat_k(&current_task_results, 3),
-    ) {
-        (Some(p1), Some(at3), Some(hat3)) => println!(
-            "pass@1: {:.1}%  pass@3: {:.1}%  pass^3: {:.1}%",
+    // Reported per metric rather than under one shared reason: both need a task sampled >= 3x,
+    // but `pass_hat_k` additionally rejects records with `pass_samples > total_samples` (DB data,
+    // explicitly not an invariant), so `pass^3` can be unavailable while `pass@3` is not — in
+    // which case a shared "no task sampled >= 3x" would be a false reason.
+    if let Some(p1) = mean_pass_at_k(&current_task_results, 1) {
+        let pct_or = |v: Option<f64>, reason: &str| {
+            v.map_or_else(
+                || format!("insufficient data ({reason})"),
+                |x| format!("{:.1}%", x * 100.0),
+            )
+        };
+        println!(
+            "pass@1: {:.1}%  pass@3: {}  pass^3: {}",
             p1 * 100.0,
-            at3 * 100.0,
-            hat3 * 100.0
-        ),
-        (Some(p1), _, _) => println!(
-            "pass@1: {:.1}%  pass@3/pass^3: insufficient data (no task sampled >= 3x)",
-            p1 * 100.0
-        ),
-        _ => {}
+            pct_or(
+                mean_pass_at_k(&current_task_results, 3),
+                "no task sampled >= 3x"
+            ),
+            pct_or(
+                mean_pass_hat_k(&current_task_results, 3),
+                "no task has 3+ samples with a valid pass count"
+            )
+        );
     }
     if flags.is_empty() {
         println!(
