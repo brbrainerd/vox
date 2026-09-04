@@ -11,10 +11,10 @@ pub fn advise(
             "sccache is not installed — install it with: cargo install sccache".to_string(),
         ];
     }
-    // `rustc-wrapper` is commonly set to an absolute path (e.g.
-    // "/opt/homebrew/bin/sccache" from `~/.cargo/config.toml`), and on Windows it
-    // carries a `.exe` suffix. Compare the file stem so a correctly-configured
-    // wrapper is not reported as missing.
+    // `rustc-wrapper` is commonly set to an absolute path (a Homebrew or cargo bin
+    // directory, via `~/.cargo/config.toml`), and on Windows it carries a `.exe`
+    // suffix. Compare the file stem so a correctly-configured wrapper is not
+    // reported as missing.
     let wrapper_name = rustc_wrapper.map(|v| {
         std::path::Path::new(v)
             .file_stem()
