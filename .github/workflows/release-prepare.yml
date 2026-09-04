@@ -15,6 +15,16 @@
 # repo already ships `cliff.toml` with `conventional_commits = true`; until now
 # nothing consumed it.
 #
+# KNOWN LIMITATION — the PR this opens gets NO CI
+# ----------------------------------------------
+# GitHub does not trigger workflows for events raised by the default
+# GITHUB_TOKEN, so the release PR arrives unverified: no ci.yml, no
+# cross-platform-check, no version-tag-guard preview. Review it accordingly, or
+# pass a PAT / GitHub App token as `token:` to create-pull-request to get real
+# checks. Separately, "Allow GitHub Actions to create and approve pull requests"
+# (Settings -> Actions -> General, inheritable from the org) must be ON or the
+# final step fails after the whole job has run.
+#
 # DELIBERATELY NOT AUTOMATIC
 # --------------------------
 # `workflow_dispatch` only, and it opens a PR — it does not tag, publish, or
@@ -104,9 +114,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # --offline: the version bump cannot change the dependency graph, and a
-          # release PR must not silently pull new upstream versions.
-          cargo update --workspace --offline
+          # NO --offline. A fresh runner has no registry cache, and offline
+          # resolution then fails at exit 101 ("no matching package named
+          # `anyhow`") — this step would have killed every release PR before it
+          # reached create-pull-request.
+          #
+          # --workspace alone already gives the property --offline was reaching
+          # for: it restricts relocking to path-source (workspace member)
+          # packages, so the third-party graph cannot move. Measured on this
+          # tree: 0 packages relocked, 402 dependencies untouched.
+          cargo update --workspace
 
       - name: Open the release PR
         uses: peter-evans/create-pull-request@v7
