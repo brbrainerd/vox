@@ -6,6 +6,14 @@
 # machine — minutes at best, and it needs the pinned 1.96.0 toolchain. The
 # release already publishes per-triple binaries; this serves those.
 #
+# WHY `voxlang`, NOT `vox`
+# ------------------------
+# `brew install vox` resolves to an unrelated public cask — the VOX music player
+# (homebrew-cask, ~3.7.7). Naming this formula `vox` meant a user following the
+# install docs silently got a media player in /Applications instead of the
+# toolchain, with brew reporting success. The formula is `voxlang` (matching
+# voxlang.org); the installed command is still `vox`.
+#
 # WHY THIS SIDESTEPS GATEKEEPER
 # -----------------------------
 # `brew` fetches over curl, and curl does not set `com.apple.quarantine` —
@@ -14,7 +22,7 @@
 # only ad-hoc (linker) signed rather than notarized, macOS kills them silently.
 # Installing via this formula avoids that path entirely, with no Apple Developer
 # Program membership required.
-class Vox < Formula
+class Voxlang < Formula
   desc "Language toolchain and CLI for the Vox programming language"
   homepage "https://voxlang.org"
   version "0.6.0-rc.4748"

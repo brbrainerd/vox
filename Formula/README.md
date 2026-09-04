@@ -1,7 +1,16 @@
 # Homebrew formula
 
-`vox.rb` is the formula for the Vox CLI. It is **kept here, in the main repo**;
-it is not yet published to a tap.
+`voxlang.rb` is the canonical formula for the Vox CLI. It is published to
+`vox-foundation/homebrew-vox` (the `vox-foundation/vox` tap); this copy is the
+source of truth.
+
+**The formula is `voxlang`, not `vox`.** `brew install vox` resolves to an
+unrelated cask in homebrew-cask — the VOX music player — and brew reports
+success while installing a media player instead of the toolchain. Verified
+2026-09-04. The installed command is still `vox`.
+
+**Homebrew 6 requires `brew trust vox-foundation/vox`** before it will load any
+third-party tap; `brew install` fails outright without it.
 
 ## Why a formula at all
 
@@ -25,14 +34,11 @@ Against the existing `v0.6.0-rc.4748` assets, via a throwaway local tap:
 | `xattr` on the installed binary | `com.apple.provenance` only — **no quarantine** |
 | `codesign -dv` | `adhoc, linker-signed`, and it runs |
 
-## Publishing it
+## Publishing
 
-Not done yet, deliberately — it needs a public `vox-foundation/homebrew-vox`
-repository, which is a release decision.
+The tap exists and is published. To update it after a release:
 
-When that repo exists:
-
-1. Copy `vox.rb` into its `Formula/` directory.
+1. Copy `voxlang.rb` into its `Formula/` directory.
 2. Replace the `echo "Simulating Homebrew Tap update..."` placeholder in
    `.github/workflows/release-installers.yml` with a `repository_dispatch` to it.
 3. Have that dispatch rewrite `version`, both `url`s and both `sha256`s from the
