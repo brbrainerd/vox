@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-04T19:16:25.828Z",
+  "generated_at": "2026-09-04T19:48:26.370Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -8048,6 +8048,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 13,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/2026-09-04-windows-to-fast-pc-handoff.md",
+      "kind": "markdown",
+      "lines_total": 162,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 12,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -16854,7 +16865,7 @@
     {
       "path": "crates/vox-db/src/codex_legacy.rs",
       "kind": "rust",
-      "lines_total": 593,
+      "lines_total": 596,
       "lines_triple_slash": 36,
       "lines_inner_doc": 0,
       "lines_plain_comment": 10,
@@ -18394,10 +18405,10 @@
     {
       "path": "crates/vox-cli/src/commands/model/explain.rs",
       "kind": "rust",
-      "lines_total": 635,
+      "lines_total": 641,
       "lines_triple_slash": 29,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 30,
+      "lines_plain_comment": 35,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"

@@ -306,8 +306,9 @@ pub fn scoreboard_row_from_corpus(
         success_count: (score.pass_at_1 * score.n_fixtures as f64).round() as i64,
         cumulative_cost_usd: score.cumulative_cost_usd.unwrap_or(0.0),
         // The corpus harness measures pass@1, p50 latency and cost; it never observes
-        // streaming timings. `None` is "not measured", which the Pareto surfaces treat as
-        // incomparable rather than as a zero that would win these axes by default.
+        // streaming timings. `None` is "not measured" — the honest value, and the one the
+        // scoreboard renders as an empty cell rather than as a confident `0.0`. (These three
+        // are display-only columns; the Pareto axes are reliability, cost and p50 latency.)
         p95_ttft_ms: None,
         p95_tpot_ms: None,
         goodput_tokens_per_sec: None,

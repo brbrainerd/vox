@@ -118,6 +118,12 @@ fn render_candidate_sections(
 
     // Frontier over the ranked half only: `partition_by_rank_confidence` already excluded
     // unobserved rows, so this is confidence-gated by construction.
+    //
+    // Deliberately computed over ALL ranked candidates, not only the five printed below. A
+    // displayed row can therefore lack the mark because something outside the top five
+    // dominates it. That is the honest direction to err: scoring only the printed five would
+    // hand out marks a wider view contradicts, and the legend claims "no other row", not
+    // "no other row shown".
     let points: Vec<_> = ranked
         .iter()
         .map(|m| pareto_point_for(score_of(&m.id).as_ref()))
