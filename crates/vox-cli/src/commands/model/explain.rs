@@ -87,17 +87,21 @@ fn partition_by_rank_confidence(
         .partition(|m| n_calls_of(&m.id).is_some_and(|n| n >= MIN_CALLS_FOR_CONFIDENT_RANK))
 }
 
-/// Annotation for the `Selection:` line when the router's pick is not rankable. The pick
-/// itself is never changed — the ranked list is ordered by observed performance while the
-/// selection is what the priority scorer chose, and they legitimately differ. Printing the
-/// ranked leader as "Selection" would fabricate a routing claim.
+/// Annotation for the `Selection:` line when the router's pick is not rankable. The pick itself
+/// is never changed — printing the listed leader as "Selection" would fabricate a routing claim.
+///
+/// The note must not claim the list is ordered by measurement: `render_candidate_sections`
+/// renders an order-preserving filter of `explain_selection`, which sorts by `auto_score_model`'s
+/// composite priority (tier, cost, strength and scoreboard signal combined), not by observed
+/// performance.
 fn selection_note(n_calls: i64) -> String {
     if n_calls >= MIN_CALLS_FOR_CONFIDENT_RANK {
         String::new()
     } else {
         format!(
             " (unranked: {n_calls} observed call(s) < {MIN_CALLS_FOR_CONFIDENT_RANK}; the list \
-             above is ordered by observed performance, the selection is not)"
+             above is ordered by the router's composite priority score, not by observed \
+             performance)"
         )
     }
 }
@@ -122,8 +126,8 @@ fn render_candidate_sections(
 
     let _ = writeln!(
         out,
-        "Top Candidates (ranked; models with < {MIN_CALLS_FOR_CONFIDENT_RANK} observed calls are \
-         listed separately):"
+        "Top Candidates (sorted by the router's composite priority score; models with < \
+         {MIN_CALLS_FOR_CONFIDENT_RANK} observed calls are listed separately):"
     );
     for (i, entry) in ranked.iter().take(5).enumerate() {
         let prefix = match i {
@@ -145,6 +149,25 @@ fn render_candidate_sections(
     }
     if ranked.is_empty() {
         let _ = writeln!(out, "  (no model has enough observations to rank yet)");
+    } else {
+        // The `[pareto-optimal]` mark needs the same disclosures the scoreboard's `*` needs:
+        // which axes, that the ranking axis is the Wilson lower bound rather than the raw rate
+        // printed beside it, and that "success" is a non-error provider response. Reused
+        // verbatim so the two surfaces cannot drift into explaining the same mark differently.
+        let _ = writeln!(
+            out,
+            "\n{}",
+            crate::commands::model::scoreboard::pareto_legend()
+        );
+        // Honesty about the slice these figures come from: `run()` injects the scoreboard via
+        // `ModelRegistry::inject_scoreboard`, whose registry-side API is keyed by `model_id`
+        // alone, so each model's counts are whichever (task_category, strength_tag) row landed
+        // last. `vox model scoreboard` renders the triples separately.
+        let _ = writeln!(
+            out,
+            "Per-model figures above are one arbitrary (task_category, strength_tag) scoreboard \
+             slice, not a per-model total — see `vox model scoreboard` for the per-triple rows."
+        );
     }
 
     if !unranked.is_empty() {
@@ -513,6 +536,89 @@ mod tests {
             !out.contains('🥇'),
             "an empty ranked half renders no medals: {out}"
         );
+    }
+
+    fn model_score(success_count: i64, n_calls: i64, cost: f64, p50: i64) -> ModelScore {
+        ModelScore {
+            success_count,
+            n_calls,
+            cost_per_success_usd: Some(cost),
+            p50_latency_ms: Some(p50),
+            ..ModelScore::default()
+        }
+    }
+
+    /// Renders both candidates as ranked, with real scores on every axis — the state `run()`
+    /// actually produces. The pre-existing tests pass `|_| None`, which makes every point
+    /// all-unknown, hence incomparable, hence trivially marked.
+    fn marks_with_scores(a: ModelScore, b: ModelScore) -> (bool, bool) {
+        let models = vec![
+            free_spec("a/x", ProviderType::OpenRouter, ModelTier::Pro),
+            free_spec("b/y", ProviderType::OpenRouter, ModelTier::Pro),
+        ];
+        let (ranked, unranked) = partition_by_rank_confidence(&models, |_| Some(100));
+        assert!(unranked.is_empty(), "both candidates must be rankable");
+        let out = render_candidate_sections(&ranked, &unranked, |id| match id {
+            "a/x" => Some(a.clone()),
+            "b/y" => Some(b.clone()),
+            _ => None,
+        });
+        let marked = |id: &str| {
+            out.lines()
+                .find(|l| l.contains(id))
+                .unwrap_or_else(|| panic!("{id} listed:\n{out}"))
+                .contains("[pareto-optimal]")
+        };
+        (marked("a/x"), marked("b/y"))
+    }
+
+    #[test]
+    fn render_candidate_sections_withholds_the_mark_from_a_dominated_candidate() {
+        // a/x is better on all three axes, so b/y is dominated and must lose the mark.
+        let (a, b) = marks_with_scores(
+            model_score(95, 100, 0.01, 100),
+            model_score(50, 100, 0.10, 900),
+        );
+        assert!(a, "the dominating candidate keeps the mark");
+        assert!(
+            !b,
+            "a dominated candidate must not be marked pareto-optimal"
+        );
+    }
+
+    #[test]
+    fn render_candidate_sections_marks_both_halves_of_a_genuine_tradeoff() {
+        // a/x is more reliable, b/y is cheaper and faster: neither dominates, so both are marked.
+        let (a, b) = marks_with_scores(
+            model_score(95, 100, 0.10, 900),
+            model_score(50, 100, 0.01, 100),
+        );
+        assert!(a && b, "a trade-off pair are both on the frontier");
+    }
+
+    #[test]
+    fn render_candidate_sections_legend_explains_the_pareto_mark() {
+        // The mark shipped with no legend (F3): the reader's only nearby number is the raw
+        // success rate, which is not what the mark is computed from.
+        let models = vec![free_spec("a/x", ProviderType::OpenRouter, ModelTier::Pro)];
+        let (ranked, unranked) = partition_by_rank_confidence(&models, |_| Some(100));
+        let out = render_candidate_sections(&ranked, &unranked, |_| {
+            Some(model_score(95, 100, 0.01, 100))
+        });
+        assert!(out.contains("[pareto-optimal]"), "{out}");
+        assert!(out.contains("Wilson lower bound"), "{out}");
+        assert!(out.contains("not answer correctness"), "{out}");
+        // F4: the per-model figures are one arbitrary triple slice, and must say so.
+        assert!(out.contains("(task_category, strength_tag)"), "{out}");
+    }
+
+    #[test]
+    fn selection_note_does_not_claim_the_list_is_ordered_by_measurement() {
+        // `explain_selection` sorts by `auto_score_model`'s composite priority, not by observed
+        // performance.
+        let note = selection_note(2);
+        assert!(note.contains("composite priority score"), "{note}");
+        assert!(!note.contains("ordered by observed performance"), "{note}");
     }
 
     #[test]
