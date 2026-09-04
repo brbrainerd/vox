@@ -122,6 +122,11 @@ pub fn run_frontend_str_with_options(
                 .iter()
                 .any(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error)
             {
+                // See Cargo.toml: `vox-gamify` is now a declared feature
+                // (`vox-gamify = ["dep:vox-gamify"]`). Before that it named no
+                // feature — `dep:vox-gamify` suppresses the implicit one — so
+                // this gamified-feature detection never ran. Kept gated so the
+                // dependency stays optional for lean builds.
                 #[cfg(feature = "vox-gamify")]
                 {
                     let mut has_remote = false;

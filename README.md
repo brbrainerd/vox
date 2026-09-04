@@ -57,16 +57,20 @@ Vox collapses the massive fragmentation of modern web and AI development into a 
 
 ## Install
 
-Vox is currently in pre-1.0 active development. Official installation packages (`voxup`, `.msi`, `.deb`, Homebrew) are configured in the CI pipeline but have not yet been formally released.
-
-### Building from Source
-**Prerequisites:** Ensure you have [Rust and Cargo](https://rustup.rs/) installed.
+Vox is in pre-1.0 active development. `voxup` downloads a checksum-verified
+release binary:
 
 ```bash
-git clone https://github.com/vox-foundation/vox.git
-cd vox
-cargo install --path crates/vox-cli
+curl --proto '=https' --tlsv1.2 -sSf https://voxlang.org/voxup | sh
 ```
+
+Windows, building from source, prerequisites, `vox doctor`, Docker, and the
+optional subsystems: **[Installing Vox](docs/src/reference/installation.md)** —
+the canonical page.
+
+Homebrew, `.msi`, and `.deb` are **planned, not yet published**: the release
+workflow has jobs for them, but the Homebrew tap update is a placeholder, the
+MSI job has no binary to package, and the `.deb` is built but never uploaded.
 
 ### Quick Start
 ```bash

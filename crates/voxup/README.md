@@ -4,21 +4,12 @@ Hermetic toolchain installer and multiplexer for Vox — modelled after `rustup`
 
 ## Install
 
-### macOS / Linux
 ```sh
-curl --proto '=https' --tlsv1.2 -sSf https://voxlang.org/install | sh
+curl --proto '=https' --tlsv1.2 -sSf https://voxlang.org/voxup | sh
 ```
 
-### Windows (PowerShell)
-```powershell
-irm https://voxlang.org/install.ps1 | iex
-```
-
-### From source (development)
-```sh
-cargo install --path crates/voxup --locked
-voxup install default
-```
+Windows, source builds, and everything else:
+[Installing Vox](../../docs/src/reference/installation.md) — the canonical page.
 
 ## What `voxup install` does
 

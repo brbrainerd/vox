@@ -30,9 +30,8 @@ Canonical reference: [`docs/src/reference/cli.md`](../../docs/src/reference/cli.
 ## Usage
 
 ```bash
-# Install from source
 cargo install --locked --path crates/vox-cli
-
-# Or build for development
-cargo build -p vox-cli
 ```
+
+Prebuilt binaries, Windows, prerequisites, and the optional subsystems:
+[Installing Vox](../../docs/src/reference/installation.md) — the canonical page.

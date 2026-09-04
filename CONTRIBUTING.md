@@ -28,7 +28,7 @@ either — `vox doctor` will keep reporting them as missing until you add them:
 
 | Subsystem | Install | Needed for |
 |---|---|---|
-| ML / mesh CLI | `cargo install --path crates/vox-ml-cli` | `vox mens`, `vox populi` (both delegate to it) |
+| ML / mesh CLI | `cargo install --locked --path crates/vox-ml-cli --features populi` | `vox mens`, `vox populi` (both delegate to it; `populi` is **not** a default feature — a bare install yields a mesh-less binary) |
 | Orchestrator daemon | `cargo install --path crates/vox-orchestrator-d` | Axis; otherwise the GUI retries the spawn forever |
 | Mesh transport | `vox plugin install populi-mesh --yes` | Mesh control plane / A2A dispatch |
 | GPU backend | `vox plugin install mens-candle-metal --yes` (Apple Silicon)<br>`vox plugin install mens-candle-cuda --yes` (NVIDIA) | Accelerated inference |
