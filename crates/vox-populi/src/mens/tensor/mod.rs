@@ -44,7 +44,13 @@ pub mod checkpoint_state;
 //
 // candle_qlora_merge deleted: plugin owns merge impl; vox-ml-cli/merge_qlora.rs dispatches via plugin.
 pub mod adapter_card;
-#[cfg(feature = "mens-train")]
+// `mens`, not `mens-train`: this module is pure serde over `training_config`
+// types with no tensor/candle linkage, and `vox ci spoke-check` (vox-cli's
+// default pre-push tier) needs it. Gating it behind `mens-train` forced
+// vox-cli to enable the whole QLoRA training stack — candle-core, candle-nn,
+// qlora-rs, safetensors, tokenizers, hf-hub — in every default build just to
+// read a YAML profile. `mens-train` implies `mens`, so this is strictly wider.
+#[cfg(feature = "mens")]
 pub mod domain_profiles;
 pub mod domain_router;
 #[cfg(feature = "mens-train")]
@@ -65,15 +71,22 @@ pub mod operator_messages;
 pub mod preflight_train;
 #[cfg(any(feature = "mens-train", feature = "mens-cloud"))]
 pub mod preset_schema;
-#[cfg(feature = "mens-train")]
+// `mens`: serde + HashMap only (a YAML overlay loader). `spoke_validate`
+// calls its `load_overlay`, so it widens alongside.
+#[cfg(feature = "mens")]
 pub mod spoke_base_resolver;
-#[cfg(feature = "mens-train")]
+// `mens`: pure validation over `domain_profiles` + `std::path`; see the note
+// on `domain_profiles` above. Consumed by `vox ci spoke-check`.
+#[cfg(feature = "mens")]
 pub mod spoke_validate;
 #[cfg(feature = "mens-train")]
 pub mod train_backend;
 #[cfg(feature = "mens-train")]
 pub mod train_jsonl_preflight;
-#[cfg(feature = "mens-train")]
+// `mens`: `#[derive(Serialize, Deserialize)]` config structs with no imports
+// outside their test module. `domain_profiles` depends on it, so it has to
+// widen alongside.
+#[cfg(feature = "mens")]
 pub mod training_config;
 
 // Private backend dispatch; anchor for unwired-module scans.

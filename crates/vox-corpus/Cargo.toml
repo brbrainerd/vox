@@ -25,6 +25,7 @@ chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+toml = { workspace = true }
 regex = { workspace = true }
 rand = { workspace = true }
 tracing = { workspace = true }
@@ -32,6 +33,7 @@ rayon = { workspace = true }
 xxhash-rust = { workspace = true }
 syn = { workspace = true, features = ["full", "visit", "extra-traits"] }
 quote = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [build-dependencies]
 syn = { workspace = true, features = ["full", "visit", "extra-traits"] }

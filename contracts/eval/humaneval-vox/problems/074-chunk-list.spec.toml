@@ -7,7 +7,7 @@ If xs has fewer than k elements, return all of them.
 If k <= 0 or xs is empty, return an empty list.
 """
 signature = "fn chunk_list(xs: list[int], k: int) to list[int]"
-training_eligible = true
+training_eligible = false
 provenance = "original"
 difficulty = "easy"
 tags = []

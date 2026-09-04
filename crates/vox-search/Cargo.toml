@@ -35,7 +35,7 @@ reqwest = { workspace = true }
 vox-http-client = { workspace = true }
 scraper = { workspace = true, optional = true }
 html2text = { workspace = true, optional = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 tavily = { workspace = true, optional = true }
 
 [dev-dependencies]

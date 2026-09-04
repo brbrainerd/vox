@@ -8,7 +8,7 @@ For example: 6 = 1 + 2 + 3, 28 = 1 + 2 + 4 + 7 + 14.
 Return false for n <= 1.
 """
 signature = "fn is_perfect(n: int) to bool"
-training_eligible = true
+training_eligible = false
 provenance = "original"
 difficulty = "easy"
 tags = []

@@ -43,7 +43,7 @@ which = "8"
 xxhash-rust = { workspace = true }
 blake3 = { workspace = true }
 rust_decimal = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 regex = { workspace = true }

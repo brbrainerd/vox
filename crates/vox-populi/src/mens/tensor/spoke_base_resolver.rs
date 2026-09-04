@@ -209,7 +209,7 @@ mod tests {
     fn placeholder_id_rejected_on_real_path() {
         // BLOCKER 3: a resolved id whose revision is a placeholder must fail-closed
         // before any download / dispatch on the real train path.
-        let resolved = "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18";
+        let resolved = "Qwen/Qwen3-14B@PLACEHOLDER-c4e8f122";
         let err = ensure_not_placeholder(resolved).unwrap_err();
         assert!(
             err.to_string().to_lowercase().contains("placeholder"),

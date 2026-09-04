@@ -1,0 +1,11 @@
+[problem]
+id = "153"
+title = "count_substring"
+prompt = """
+Count how many times sub occurs in s, including overlapping occurrences. An empty sub returns 0.
+"""
+signature = "fn count_substring(s: str, sub: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

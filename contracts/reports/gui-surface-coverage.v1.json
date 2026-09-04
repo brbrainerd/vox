@@ -390,6 +390,7 @@
     "model council-report",
     "model discover",
     "model eval",
+    "model eval-corpus",
     "model explain",
     "model list",
     "model preferences",

@@ -18,19 +18,20 @@ impl crate::VoxDb {
     ///
     /// Same as [`Self::connect_canonical`]. Uses [`DbConfig::resolve_canonical`] so `VOX_DB_PATH`,
     /// remote/replica env, and platform `vox.db` behave consistently with [`DbConfig::resolve_standalone`].
-    #[cfg(feature = "local")]
+    #[cfg(all(feature = "local", feature = "host-integration"))]
     pub async fn connect_default() -> Result<Self, StoreError> {
         Self::connect_canonical().await
     }
 
     /// Connect to the canonical user-global Codex store ([`DbConfig::resolve_canonical`]).
+    #[cfg(feature = "host-integration")]
     pub async fn connect_canonical() -> Result<Self, StoreError> {
         let config = DbConfig::resolve_canonical().map_err(StoreError::NotFound)?;
         Self::connect(config).await
     }
 
     /// Blocking [`Self::connect_default`] for `std::thread` workers without a Tokio handle.
-    #[cfg(feature = "local")]
+    #[cfg(all(feature = "local", feature = "host-integration"))]
     pub fn connect_default_sync() -> Result<Self, StoreError> {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -137,6 +138,8 @@ impl crate::VoxDb {
                         res.sync_db,
                         #[cfg(feature = "local")]
                         res.local_db,
+                        #[cfg(not(feature = "local"))]
+                        None,
                     ));
                 }
                 Err(e) if attempts < max_retries => {

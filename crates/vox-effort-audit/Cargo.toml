@@ -26,6 +26,7 @@ regex             = { workspace = true }
 dirs              = { workspace = true }
 async-trait       = { workspace = true }
 anyhow            = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 insta             = { workspace = true, features = ["json", "yaml"] }

@@ -32,7 +32,7 @@ impl crate::VoxDb {
         &self,
         key: &str,
     ) -> Result<Option<T>, StoreError> {
-        let mut rows: turso::Rows = self
+        let mut rows: crate::GuardedRows = self
             .connection()
             .query(
                 "SELECT value FROM actor_state WHERE key = ?1",

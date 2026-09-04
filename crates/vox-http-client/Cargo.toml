@@ -22,7 +22,7 @@ reqwest = { workspace = true }
 reqwest-middleware = { workspace = true, optional = true }
 reqwest-retry = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 

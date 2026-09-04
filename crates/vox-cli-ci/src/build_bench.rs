@@ -124,7 +124,39 @@ pub struct BenchRecord {
 pub struct Snapshot {
     pub schema_version: u32,
     pub label: String,
+    /// Host triple the scenarios were timed on, e.g. `"x86_64-pc-windows-msvc"`.
+    /// `None` in snapshots predating provenance tracking.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub measured_on: Option<String>,
     pub records: Vec<BenchRecord>,
+}
+
+/// Host identifier for a snapshot written now, e.g. `"x86_64-windows"`.
+///
+/// `arch-os` rather than the full target triple: `std::env::consts` gives these
+/// without a build script, and the distinction that matters for wall-clock
+/// comparison is the machine class, not the ABI suffix.
+pub fn current_host() -> String {
+    format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS)
+}
+
+/// Warn when a baseline was timed on a different host than the current run.
+///
+/// Scenario wall-clock is host-bound far more strongly than per-crate self-time:
+/// a Windows-measured baseline compared against a Linux CI run produces a large
+/// delta on every scenario that reflects the machine, not the code. Returns
+/// `None` when the baseline predates provenance, so pre-existing files do not
+/// emit a warning on every run — the dynamic that gets warnings ignored.
+pub fn host_mismatch_warning(baseline_host: Option<&str>, current: &str) -> Option<String> {
+    match baseline_host {
+        Some(b) if b != current => Some(format!(
+            "build-bench baseline was measured on '{b}' but this run is on \
+             '{current}'. Scenario wall-clock is host-bound, so the deltas below \
+             largely reflect that difference rather than any code change. \
+             Re-measure the baseline on '{current}' before reading them as signal."
+        )),
+        _ => None,
+    }
 }
 
 impl Snapshot {
@@ -169,6 +201,24 @@ pub fn compute_deltas(base: &Snapshot, new: &Snapshot) -> Vec<DeltaRow> {
         }
     }
     rows
+}
+
+/// True when `base` is a committed *placeholder* rather than a real measurement:
+/// it has at least one `ok` record and every `ok` record is `wall_ms == 0`.
+///
+/// This matters because [`compute_deltas`] defines `pct` as `0.0` whenever the
+/// base is zero, so an unpopulated baseline makes every scenario report a 0%
+/// delta and the gate can never fail. A real `cargo check` scenario cannot
+/// measure 0 ms, so all-zero is unambiguously "never filled in".
+pub fn baseline_is_unpopulated(base: &Snapshot) -> bool {
+    let mut saw_ok = false;
+    for r in base.records.iter().filter(|r| r.ok) {
+        saw_ok = true;
+        if r.wall_ms > 0 {
+            return false;
+        }
+    }
+    saw_ok
 }
 
 pub fn format_delta_markdown(label: &str, rows: &[DeltaRow]) -> String {
@@ -248,6 +298,7 @@ pub fn run_build_bench(
     let snap = Snapshot {
         schema_version: 1,
         label: label.clone(),
+        measured_on: Some(current_host()),
         records,
     };
 
@@ -265,6 +316,23 @@ pub fn run_build_bench(
             .with_context(|| format!("read baseline {base_path}"))?;
         let base: Snapshot = serde_json::from_str(&base_str)
             .with_context(|| format!("parse baseline {base_path}"))?;
+        // FAIL LOUD on a placeholder baseline — a green gate that cannot fail is
+        // worse than none (same rule as `vox ci crate-budget`'s
+        // `has_compile_times=false` guard). Without this, every delta reads 0%
+        // and a real regression lands unnoticed.
+        if baseline_is_unpopulated(&base) {
+            anyhow::bail!(
+                "baseline {base_path} is a placeholder: every ok record has wall_ms=0, \
+                 so every delta would report 0% and this gate could never fail. \
+                 Regenerate it on a quiesced machine with \
+                 `vox ci build-bench --repeat 3 --write {base_path}`."
+            );
+        }
+        // Surface a host mismatch BEFORE the table, so a large delta is never
+        // read as a regression when it is really a different machine.
+        if let Some(w) = host_mismatch_warning(base.measured_on.as_deref(), &current_host()) {
+            eprintln!("WARN: {w}");
+        }
         let rows = compute_deltas(&base, &snap);
         let md = format_delta_markdown(&label, &rows);
         print!("{md}");
@@ -318,6 +386,7 @@ mod tests {
         Snapshot {
             schema_version: 1,
             label: label.into(),
+            measured_on: None,
             records: recs
                 .iter()
                 .map(|(id, ok, ms)| BenchRecord {
@@ -327,6 +396,57 @@ mod tests {
                 })
                 .collect(),
         }
+    }
+
+    #[test]
+    fn warns_when_baseline_host_differs_from_current() {
+        let w = host_mismatch_warning(Some("x86_64-windows"), "x86_64-linux")
+            .expect("differing hosts must warn");
+        assert!(w.contains("x86_64-windows"), "names the baseline host: {w}");
+        assert!(w.contains("x86_64-linux"), "names the current host: {w}");
+    }
+
+    #[test]
+    fn no_host_warning_when_matching_or_absent() {
+        assert!(host_mismatch_warning(Some("x86_64-linux"), "x86_64-linux").is_none());
+        // Baselines predating provenance must not warn on every run.
+        assert!(host_mismatch_warning(None, "x86_64-linux").is_none());
+    }
+
+    #[test]
+    fn current_host_is_non_empty_and_hyphenated() {
+        let h = current_host();
+        assert!(h.contains('-'), "expected arch-os, got {h}");
+        assert!(!h.starts_with('-') && !h.ends_with('-'), "malformed: {h}");
+    }
+
+    #[test]
+    fn all_zero_baseline_is_detected_as_unpopulated() {
+        // The exact shape `contracts/ci/build-bench-baseline.v1.json` shipped
+        // with: every scenario ok, every wall_ms 0. compute_deltas would report
+        // 0% for all of them, so the gate must refuse to run instead.
+        let base = snap(
+            "baseline",
+            &[("check_vox_db", true, 0), ("check_vox_cli", true, 0)],
+        );
+        assert!(baseline_is_unpopulated(&base));
+        let new = snap("ci", &[("check_vox_db", true, 9_999)]);
+        assert_eq!(
+            compute_deltas(&base, &new)[0].pct,
+            0.0,
+            "a 9.999s regression against a zero baseline reads as 0% — why the guard exists"
+        );
+    }
+
+    #[test]
+    fn populated_or_empty_baseline_is_not_flagged() {
+        // One real measurement is enough to make the comparison meaningful.
+        let mixed = snap("b", &[("a", true, 0), ("b", true, 1_200)]);
+        assert!(!baseline_is_unpopulated(&mixed));
+        // A baseline with no ok records has nothing to compare; compute_deltas
+        // skips those pairs entirely, so it is not the placeholder case.
+        assert!(!baseline_is_unpopulated(&snap("b", &[("a", false, 0)])));
+        assert!(!baseline_is_unpopulated(&snap("b", &[])));
     }
 
     #[test]

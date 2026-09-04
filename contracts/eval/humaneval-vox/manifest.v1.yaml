@@ -27,11 +27,25 @@ corpus:
   measured_against_panel: "see contracts/eval/llm-panel.v1.yaml"
 
 # Fixtures (164 problems: 120 training-eligible, 44 held-out).
+# SSOT for `training_eligible` is THIS FILE. Each fixture's spec.toml and the
+# `// training_eligible: false` marker in its .vox files must agree with it;
+# `vox ci corpus-integrity` enforces all three and fails the build on drift.
+# (The marker matters because the training-corpus extractor reads file CONTENT,
+# not this manifest — see crates/vox-corpus/src/corpus/extract_vox/part_helpers.rs.)
+#
+# `added_at` is the contamination window and is derived from git history
+# (`git log --diff-filter=A`). NEVER back-date it: a fabricated window is worse
+# than no window, because it looks like evidence.
+#
+# No two fixtures may share a normalized reference body or a signature. A
+# duplicate straddling the split leaks a held-out answer into the training set
+# (as 072/141 did before 2026-09-01).
 fixtures:
   - id: "001"
     slug: "001-fizzbuzz"
     title: "fizzbuzz"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/001-fizzbuzz.spec.toml"
@@ -41,6 +55,7 @@ fixtures:
     slug: "002-factorial"
     title: "factorial"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/002-factorial.spec.toml"
@@ -50,6 +65,7 @@ fixtures:
     slug: "003-fibonacci"
     title: "fibonacci"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/003-fibonacci.spec.toml"
@@ -59,6 +75,7 @@ fixtures:
     slug: "004-is-palindrome"
     title: "is_palindrome"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/004-is-palindrome.spec.toml"
@@ -68,6 +85,7 @@ fixtures:
     slug: "005-count-vowels"
     title: "count_vowels"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/005-count-vowels.spec.toml"
@@ -77,6 +95,7 @@ fixtures:
     slug: "006-reverse-string"
     title: "reverse_string"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/006-reverse-string.spec.toml"
@@ -86,6 +105,7 @@ fixtures:
     slug: "007-sum-digits"
     title: "sum_digits"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/007-sum-digits.spec.toml"
@@ -95,6 +115,7 @@ fixtures:
     slug: "008-is-prime"
     title: "is_prime"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/008-is-prime.spec.toml"
@@ -104,6 +125,7 @@ fixtures:
     slug: "009-gcd"
     title: "gcd"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/009-gcd.spec.toml"
@@ -113,6 +135,7 @@ fixtures:
     slug: "010-celsius-to-fahrenheit"
     title: "celsius_to_fahrenheit"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/010-celsius-to-fahrenheit.spec.toml"
@@ -122,6 +145,7 @@ fixtures:
     slug: "011-word-count"
     title: "word_count"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/011-word-count.spec.toml"
@@ -131,6 +155,7 @@ fixtures:
     slug: "012-max-of-list"
     title: "max_of_list"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/012-max-of-list.spec.toml"
@@ -140,6 +165,7 @@ fixtures:
     slug: "013-sum-list"
     title: "sum_list"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/013-sum-list.spec.toml"
@@ -149,6 +175,7 @@ fixtures:
     slug: "014-remove-duplicates"
     title: "remove_duplicates"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/014-remove-duplicates.spec.toml"
@@ -158,6 +185,7 @@ fixtures:
     slug: "015-count-occurrences"
     title: "count_occurrences"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/015-count-occurrences.spec.toml"
@@ -167,6 +195,7 @@ fixtures:
     slug: "016-running-total"
     title: "running_total"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/016-running-total.spec.toml"
@@ -176,6 +205,7 @@ fixtures:
     slug: "017-is-sorted"
     title: "is_sorted"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/017-is-sorted.spec.toml"
@@ -185,6 +215,7 @@ fixtures:
     slug: "018-rotate-left"
     title: "rotate_left"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/018-rotate-left.spec.toml"
@@ -194,6 +225,7 @@ fixtures:
     slug: "019-alternating-sum"
     title: "alternating_sum"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/019-alternating-sum.spec.toml"
@@ -203,6 +235,7 @@ fixtures:
     slug: "020-flatten-one-level"
     title: "flatten_one_level"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/020-flatten-one-level.spec.toml"
@@ -212,6 +245,7 @@ fixtures:
     slug: "021-starts-with-capital"
     title: "starts_with_capital"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/021-starts-with-capital.spec.toml"
@@ -221,6 +255,7 @@ fixtures:
     slug: "022-repeat-str"
     title: "repeat_str"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/022-repeat-str.spec.toml"
@@ -230,6 +265,7 @@ fixtures:
     slug: "023-longest-word"
     title: "longest_word"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/023-longest-word.spec.toml"
@@ -239,6 +275,7 @@ fixtures:
     slug: "024-is-balanced-parens"
     title: "is_balanced_parens"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/024-is-balanced-parens.spec.toml"
@@ -248,6 +285,7 @@ fixtures:
     slug: "025-min-of-list"
     title: "min_of_list"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/025-min-of-list.spec.toml"
@@ -257,6 +295,7 @@ fixtures:
     slug: "026-average"
     title: "average"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/026-average.spec.toml"
@@ -266,6 +305,7 @@ fixtures:
     slug: "027-clamp"
     title: "clamp"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/027-clamp.spec.toml"
@@ -275,6 +315,7 @@ fixtures:
     slug: "028-abs-val"
     title: "abs_val"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/028-abs-val.spec.toml"
@@ -284,6 +325,7 @@ fixtures:
     slug: "029-lcm"
     title: "lcm"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/029-lcm.spec.toml"
@@ -293,6 +335,7 @@ fixtures:
     slug: "030-power"
     title: "power"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/030-power.spec.toml"
@@ -302,6 +345,7 @@ fixtures:
     slug: "031-count-chars"
     title: "count_chars"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/031-count-chars.spec.toml"
@@ -311,6 +355,7 @@ fixtures:
     slug: "032-is-even"
     title: "is_even"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/032-is-even.spec.toml"
@@ -320,6 +365,7 @@ fixtures:
     slug: "033-filter-evens"
     title: "filter_evens"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/033-filter-evens.spec.toml"
@@ -329,6 +375,7 @@ fixtures:
     slug: "034-list-to-str"
     title: "list_to_str"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/034-list-to-str.spec.toml"
@@ -338,6 +385,7 @@ fixtures:
     slug: "035-str-length"
     title: "str_length"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/035-str-length.spec.toml"
@@ -347,6 +395,7 @@ fixtures:
     slug: "036-double-list"
     title: "double_list"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/036-double-list.spec.toml"
@@ -356,6 +405,7 @@ fixtures:
     slug: "037-nth-element"
     title: "nth_element"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/037-nth-element.spec.toml"
@@ -365,6 +415,7 @@ fixtures:
     slug: "038-product-list"
     title: "product_list"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/038-product-list.spec.toml"
@@ -374,6 +425,7 @@ fixtures:
     slug: "039-zip-sums"
     title: "zip_sums"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/039-zip-sums.spec.toml"
@@ -383,6 +435,7 @@ fixtures:
     slug: "040-count-negatives"
     title: "count_negatives"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/040-count-negatives.spec.toml"
@@ -392,6 +445,7 @@ fixtures:
     slug: "041-nth-prime"
     title: "nth_prime"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/041-nth-prime.spec.toml"
@@ -401,6 +455,7 @@ fixtures:
     slug: "042-reverse-list"
     title: "reverse_list"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/042-reverse-list.spec.toml"
@@ -410,6 +465,7 @@ fixtures:
     slug: "043-triangle-valid"
     title: "triangle_valid"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/043-triangle-valid.spec.toml"
@@ -419,6 +475,7 @@ fixtures:
     slug: "044-digital-root"
     title: "digital_root"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/044-digital-root.spec.toml"
@@ -428,6 +485,7 @@ fixtures:
     slug: "045-caesar-shift"
     title: "caesar_shift"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/045-caesar-shift.spec.toml"
@@ -437,6 +495,7 @@ fixtures:
     slug: "046-count-primes-up-to"
     title: "count_primes_up_to"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/046-count-primes-up-to.spec.toml"
@@ -446,6 +505,7 @@ fixtures:
     slug: "047-partition-by-sign"
     title: "partition_by_sign"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/047-partition-by-sign.spec.toml"
@@ -455,6 +515,7 @@ fixtures:
     slug: "048-collatz-length"
     title: "collatz_length"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/048-collatz-length.spec.toml"
@@ -464,6 +525,7 @@ fixtures:
     slug: "049-merge-sorted"
     title: "merge_sorted"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/049-merge-sorted.spec.toml"
@@ -473,6 +535,7 @@ fixtures:
     slug: "050-selection-sort"
     title: "selection_sort"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/050-selection-sort.spec.toml"
@@ -482,6 +545,7 @@ fixtures:
     slug: "051-is-leap-year"
     title: "is_leap_year"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/051-is-leap-year.spec.toml"
@@ -491,6 +555,7 @@ fixtures:
     slug: "052-title-case"
     title: "title_case"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/052-title-case.spec.toml"
@@ -500,6 +565,7 @@ fixtures:
     slug: "053-is-anagram"
     title: "is_anagram"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/053-is-anagram.spec.toml"
@@ -509,6 +575,7 @@ fixtures:
     slug: "054-str-is-numeric"
     title: "str_is_numeric"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/054-str-is-numeric.spec.toml"
@@ -518,6 +585,7 @@ fixtures:
     slug: "055-remove-vowels"
     title: "remove_vowels"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/055-remove-vowels.spec.toml"
@@ -527,6 +595,7 @@ fixtures:
     slug: "056-count-words"
     title: "count_words"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/056-count-words.spec.toml"
@@ -536,6 +605,7 @@ fixtures:
     slug: "057-sum-of-squares"
     title: "sum_of_squares"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/057-sum-of-squares.spec.toml"
@@ -545,6 +615,7 @@ fixtures:
     slug: "058-is-armstrong"
     title: "is_armstrong"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/058-is-armstrong.spec.toml"
@@ -554,6 +625,7 @@ fixtures:
     slug: "059-count-divisors"
     title: "count_divisors"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/059-count-divisors.spec.toml"
@@ -563,6 +635,7 @@ fixtures:
     slug: "060-int-to-binary"
     title: "int_to_binary"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/060-int-to-binary.spec.toml"
@@ -572,6 +645,7 @@ fixtures:
     slug: "061-binary-to-int"
     title: "binary_to_int"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/061-binary-to-int.spec.toml"
@@ -581,24 +655,27 @@ fixtures:
     slug: "062-is-power-of-two"
     title: "is_power_of_two"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/062-is-power-of-two.spec.toml"
       reference: "problems/062-is-power-of-two/reference.vox"
       tests: "problems/062-is-power-of-two/tests.vox"
   - id: "063"
-    slug: "063-unique-elements"
-    title: "unique_elements"
+    slug: "063-is-isogram"
+    title: "is_isogram"
     training_eligible: true
+    added_at: "2026-09-01"
     provenance: "original"
     files:
-      spec: "problems/063-unique-elements.spec.toml"
-      reference: "problems/063-unique-elements/reference.vox"
-      tests: "problems/063-unique-elements/tests.vox"
+      spec: "problems/063-is-isogram.spec.toml"
+      reference: "problems/063-is-isogram/reference.vox"
+      tests: "problems/063-is-isogram/tests.vox"
   - id: "064"
     slug: "064-list-intersection"
     title: "list_intersection"
     training_eligible: true
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/064-list-intersection.spec.toml"
@@ -608,6 +685,7 @@ fixtures:
     slug: "065-rotate-right"
     title: "rotate_right"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/065-rotate-right.spec.toml"
@@ -617,6 +695,7 @@ fixtures:
     slug: "066-max-subarray-sum"
     title: "max_subarray_sum"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/066-max-subarray-sum.spec.toml"
@@ -626,6 +705,7 @@ fixtures:
     slug: "067-bubble-sort"
     title: "bubble_sort"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/067-bubble-sort.spec.toml"
@@ -635,6 +715,7 @@ fixtures:
     slug: "068-insertion-sort"
     title: "insertion_sort"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/068-insertion-sort.spec.toml"
@@ -644,6 +725,7 @@ fixtures:
     slug: "069-binary-search"
     title: "binary_search"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/069-binary-search.spec.toml"
@@ -653,6 +735,7 @@ fixtures:
     slug: "070-count-set-bits"
     title: "count_set_bits"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/070-count-set-bits.spec.toml"
@@ -662,6 +745,7 @@ fixtures:
     slug: "071-is-perfect"
     title: "is_perfect"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/071-is-perfect.spec.toml"
@@ -671,6 +755,7 @@ fixtures:
     slug: "072-triangular-number"
     title: "triangular_number"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/072-triangular-number.spec.toml"
@@ -680,6 +765,7 @@ fixtures:
     slug: "073-two-sum-exists"
     title: "two_sum_exists"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/073-two-sum-exists.spec.toml"
@@ -689,6 +775,7 @@ fixtures:
     slug: "074-chunk-list"
     title: "chunk_list"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/074-chunk-list.spec.toml"
@@ -698,6 +785,7 @@ fixtures:
     slug: "075-sum-even-squares"
     title: "sum_even_squares"
     training_eligible: false
+    added_at: "2026-05-26"
     provenance: "original"
     files:
       spec: "problems/075-sum-even-squares.spec.toml"
@@ -707,6 +795,7 @@ fixtures:
     slug: "076-is-palindrome-int"
     title: "is_palindrome_int"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/076-is-palindrome-int.spec.toml"
@@ -716,6 +805,7 @@ fixtures:
     slug: "077-sum-of-digits"
     title: "sum_of_digits"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/077-sum-of-digits.spec.toml"
@@ -725,6 +815,7 @@ fixtures:
     slug: "078-count-uppercase"
     title: "count_uppercase"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/078-count-uppercase.spec.toml"
@@ -734,6 +825,7 @@ fixtures:
     slug: "079-count-lowercase"
     title: "count_lowercase"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/079-count-lowercase.spec.toml"
@@ -743,6 +835,7 @@ fixtures:
     slug: "080-capitalize-first"
     title: "capitalize_first"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/080-capitalize-first.spec.toml"
@@ -752,6 +845,7 @@ fixtures:
     slug: "081-repeat-list"
     title: "repeat_list"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/081-repeat-list.spec.toml"
@@ -761,6 +855,7 @@ fixtures:
     slug: "082-list-min-max"
     title: "list_min_max"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/082-list-min-max.spec.toml"
@@ -770,6 +865,7 @@ fixtures:
     slug: "083-remove-negatives"
     title: "remove_negatives"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/083-remove-negatives.spec.toml"
@@ -779,6 +875,7 @@ fixtures:
     slug: "084-sum-odd"
     title: "sum_odd"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/084-sum-odd.spec.toml"
@@ -788,6 +885,7 @@ fixtures:
     slug: "085-count-even"
     title: "count_even"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/085-count-even.spec.toml"
@@ -797,6 +895,7 @@ fixtures:
     slug: "086-is-square"
     title: "is_square"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/086-is-square.spec.toml"
@@ -806,6 +905,7 @@ fixtures:
     slug: "087-int-reverse"
     title: "int_reverse"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/087-int-reverse.spec.toml"
@@ -815,6 +915,7 @@ fixtures:
     slug: "088-str-frequency"
     title: "char_frequency"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/088-str-frequency.spec.toml"
@@ -824,6 +925,7 @@ fixtures:
     slug: "089-flatten-nested"
     title: "flatten_nested"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/089-flatten-nested.spec.toml"
@@ -833,6 +935,7 @@ fixtures:
     slug: "090-sum-squares"
     title: "sum_squares"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/090-sum-squares.spec.toml"
@@ -842,6 +945,7 @@ fixtures:
     slug: "091-is-sorted-desc"
     title: "is_sorted_desc"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/091-is-sorted-desc.spec.toml"
@@ -851,6 +955,7 @@ fixtures:
     slug: "092-zip-products"
     title: "zip_products"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/092-zip-products.spec.toml"
@@ -860,6 +965,7 @@ fixtures:
     slug: "093-last-n"
     title: "last_n"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/093-last-n.spec.toml"
@@ -869,6 +975,7 @@ fixtures:
     slug: "094-first-n"
     title: "first_n"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/094-first-n.spec.toml"
@@ -878,6 +985,7 @@ fixtures:
     slug: "095-range-sum"
     title: "range_sum"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/095-range-sum.spec.toml"
@@ -887,6 +995,7 @@ fixtures:
     slug: "096-reverse-words"
     title: "reverse_words"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/096-reverse-words.spec.toml"
@@ -896,6 +1005,7 @@ fixtures:
     slug: "097-digit-product"
     title: "digit_product"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/097-digit-product.spec.toml"
@@ -905,6 +1015,7 @@ fixtures:
     slug: "098-is-power-of-n"
     title: "is_power_of_n"
     training_eligible: false
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/098-is-power-of-n.spec.toml"
@@ -914,6 +1025,7 @@ fixtures:
     slug: "099-hamming-distance"
     title: "hamming_distance"
     training_eligible: false
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/099-hamming-distance.spec.toml"
@@ -923,6 +1035,7 @@ fixtures:
     slug: "100-pangram-check"
     title: "is_pangram"
     training_eligible: false
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/100-pangram-check.spec.toml"
@@ -932,6 +1045,7 @@ fixtures:
     slug: "101-is-abundant"
     title: "is_abundant"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/101-is-abundant.spec.toml"
@@ -941,6 +1055,7 @@ fixtures:
     slug: "102-common-elements"
     title: "common_elements"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/102-common-elements.spec.toml"
@@ -950,6 +1065,7 @@ fixtures:
     slug: "103-remove-at-index"
     title: "remove_at_index"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/103-remove-at-index.spec.toml"
@@ -959,6 +1075,7 @@ fixtures:
     slug: "104-insert-at-index"
     title: "insert_at_index"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/104-insert-at-index.spec.toml"
@@ -968,6 +1085,7 @@ fixtures:
     slug: "105-str-repeat"
     title: "str_repeat"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/105-str-repeat.spec.toml"
@@ -977,6 +1095,7 @@ fixtures:
     slug: "106-count-words-long"
     title: "count_words_long"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/106-count-words-long.spec.toml"
@@ -986,6 +1105,7 @@ fixtures:
     slug: "107-nth-fibonacci"
     title: "nth_fibonacci"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/107-nth-fibonacci.spec.toml"
@@ -995,6 +1115,7 @@ fixtures:
     slug: "108-is-valid-bracket"
     title: "is_valid_bracket"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/108-is-valid-bracket.spec.toml"
@@ -1004,6 +1125,7 @@ fixtures:
     slug: "109-max-gap"
     title: "max_gap"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/109-max-gap.spec.toml"
@@ -1013,6 +1135,7 @@ fixtures:
     slug: "110-remove-spaces"
     title: "remove_spaces"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/110-remove-spaces.spec.toml"
@@ -1022,6 +1145,7 @@ fixtures:
     slug: "111-capitalize-words"
     title: "capitalize_words"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/111-capitalize-words.spec.toml"
@@ -1031,6 +1155,7 @@ fixtures:
     slug: "112-divisors-of"
     title: "divisors_of"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/112-divisors-of.spec.toml"
@@ -1040,6 +1165,7 @@ fixtures:
     slug: "113-multiply-list"
     title: "multiply_list"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/113-multiply-list.spec.toml"
@@ -1049,6 +1175,7 @@ fixtures:
     slug: "114-is-substring"
     title: "is_substring"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/114-is-substring.spec.toml"
@@ -1058,6 +1185,7 @@ fixtures:
     slug: "115-str-to-list"
     title: "str_to_list"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/115-str-to-list.spec.toml"
@@ -1067,6 +1195,7 @@ fixtures:
     slug: "116-sum-first-n"
     title: "sum_first_n"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/116-sum-first-n.spec.toml"
@@ -1076,6 +1205,7 @@ fixtures:
     slug: "117-reverse-str-words"
     title: "reverse_str_words"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/117-reverse-str-words.spec.toml"
@@ -1085,6 +1215,7 @@ fixtures:
     slug: "118-all-positive"
     title: "all_positive"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/118-all-positive.spec.toml"
@@ -1094,6 +1225,7 @@ fixtures:
     slug: "119-any-negative"
     title: "any_negative"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/119-any-negative.spec.toml"
@@ -1103,6 +1235,7 @@ fixtures:
     slug: "120-str-palindrome-ignore-case"
     title: "str_palindrome_ignore_case"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/120-str-palindrome-ignore-case.spec.toml"
@@ -1112,6 +1245,7 @@ fixtures:
     slug: "121-second-largest"
     title: "second_largest"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/121-second-largest.spec.toml"
@@ -1121,6 +1255,7 @@ fixtures:
     slug: "122-list-difference"
     title: "list_difference"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/122-list-difference.spec.toml"
@@ -1130,6 +1265,7 @@ fixtures:
     slug: "123-is-monotone"
     title: "is_monotone"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/123-is-monotone.spec.toml"
@@ -1139,6 +1275,7 @@ fixtures:
     slug: "124-median-of-three"
     title: "median_of_three"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/124-median-of-three.spec.toml"
@@ -1148,6 +1285,7 @@ fixtures:
     slug: "125-sum-above-avg"
     title: "sum_above_avg"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/125-sum-above-avg.spec.toml"
@@ -1157,6 +1295,7 @@ fixtures:
     slug: "126-first-duplicate"
     title: "first_duplicate"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/126-first-duplicate.spec.toml"
@@ -1166,6 +1305,7 @@ fixtures:
     slug: "127-count-digits"
     title: "count_digits"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/127-count-digits.spec.toml"
@@ -1175,6 +1315,7 @@ fixtures:
     slug: "128-caesar-decode"
     title: "caesar_decode"
     training_eligible: false
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/128-caesar-decode.spec.toml"
@@ -1184,6 +1325,7 @@ fixtures:
     slug: "129-square-list"
     title: "square_list"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/129-square-list.spec.toml"
@@ -1193,6 +1335,7 @@ fixtures:
     slug: "130-product-of-odds"
     title: "product_of_odds"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/130-product-of-odds.spec.toml"
@@ -1202,6 +1345,7 @@ fixtures:
     slug: "131-count-consonants"
     title: "count_consonants"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/131-count-consonants.spec.toml"
@@ -1211,6 +1355,7 @@ fixtures:
     slug: "132-remove-duplicates-str"
     title: "remove_duplicates_str"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/132-remove-duplicates-str.spec.toml"
@@ -1220,24 +1365,27 @@ fixtures:
     slug: "133-most-frequent"
     title: "most_frequent"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/133-most-frequent.spec.toml"
       reference: "problems/133-most-frequent/reference.vox"
       tests: "problems/133-most-frequent/tests.vox"
   - id: "134"
-    slug: "134-flatten-ints"
-    title: "flatten_ints"
+    slug: "134-zip-sum"
+    title: "zip_sum"
     training_eligible: true
+    added_at: "2026-09-01"
     provenance: "original"
     files:
-      spec: "problems/134-flatten-ints.spec.toml"
-      reference: "problems/134-flatten-ints/reference.vox"
-      tests: "problems/134-flatten-ints/tests.vox"
+      spec: "problems/134-zip-sum.spec.toml"
+      reference: "problems/134-zip-sum/reference.vox"
+      tests: "problems/134-zip-sum/tests.vox"
   - id: "135"
     slug: "135-list-spread"
     title: "list_spread"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/135-list-spread.spec.toml"
@@ -1247,6 +1395,7 @@ fixtures:
     slug: "136-count-distinct"
     title: "count_distinct"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/136-count-distinct.spec.toml"
@@ -1256,6 +1405,7 @@ fixtures:
     slug: "137-alternating-case"
     title: "alternating_case"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/137-alternating-case.spec.toml"
@@ -1265,6 +1415,7 @@ fixtures:
     slug: "138-remove-consecutive-dups"
     title: "remove_consecutive_dups"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/138-remove-consecutive-dups.spec.toml"
@@ -1274,6 +1425,7 @@ fixtures:
     slug: "139-str-starts-digits"
     title: "str_starts_digits"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/139-str-starts-digits.spec.toml"
@@ -1283,24 +1435,27 @@ fixtures:
     slug: "140-list-rotate-left"
     title: "list_rotate_left"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/140-list-rotate-left.spec.toml"
       reference: "problems/140-list-rotate-left/reference.vox"
       tests: "problems/140-list-rotate-left/tests.vox"
   - id: "141"
-    slug: "141-nth-triangular"
-    title: "nth_triangular"
+    slug: "141-digit-sum-alternating"
+    title: "digit_sum_alternating"
     training_eligible: true
+    added_at: "2026-09-01"
     provenance: "original"
     files:
-      spec: "problems/141-nth-triangular.spec.toml"
-      reference: "problems/141-nth-triangular/reference.vox"
-      tests: "problems/141-nth-triangular/tests.vox"
+      spec: "problems/141-digit-sum-alternating.spec.toml"
+      reference: "problems/141-digit-sum-alternating/reference.vox"
+      tests: "problems/141-digit-sum-alternating/tests.vox"
   - id: "142"
     slug: "142-is-prime-string"
     title: "is_prime_string"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/142-is-prime-string.spec.toml"
@@ -1310,24 +1465,27 @@ fixtures:
     slug: "143-sum-list-float"
     title: "sum_list_float"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/143-sum-list-float.spec.toml"
       reference: "problems/143-sum-list-float/reference.vox"
       tests: "problems/143-sum-list-float/tests.vox"
   - id: "144"
-    slug: "144-product-list"
-    title: "product_list"
+    slug: "144-running-max"
+    title: "running_max"
     training_eligible: true
+    added_at: "2026-09-01"
     provenance: "original"
     files:
-      spec: "problems/144-product-list.spec.toml"
-      reference: "problems/144-product-list/reference.vox"
-      tests: "problems/144-product-list/tests.vox"
+      spec: "problems/144-running-max.spec.toml"
+      reference: "problems/144-running-max/reference.vox"
+      tests: "problems/144-running-max/tests.vox"
   - id: "145"
     slug: "145-gcd-list"
     title: "gcd_list"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/145-gcd-list.spec.toml"
@@ -1337,6 +1495,7 @@ fixtures:
     slug: "146-lcm-list"
     title: "lcm_list"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/146-lcm-list.spec.toml"
@@ -1346,6 +1505,7 @@ fixtures:
     slug: "147-fibonacci-list"
     title: "fibonacci_list"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/147-fibonacci-list.spec.toml"
@@ -1355,6 +1515,7 @@ fixtures:
     slug: "148-is-sorted-unique"
     title: "is_sorted_unique"
     training_eligible: false
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/148-is-sorted-unique.spec.toml"
@@ -1364,6 +1525,7 @@ fixtures:
     slug: "149-count-div3"
     title: "count_div3"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/149-count-div3.spec.toml"
@@ -1373,6 +1535,7 @@ fixtures:
     slug: "150-insert-sorted"
     title: "insert_sorted"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/150-insert-sorted.spec.toml"
@@ -1382,6 +1545,7 @@ fixtures:
     slug: "151-int-to-digits"
     title: "int_to_digits"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/151-int-to-digits.spec.toml"
@@ -1391,24 +1555,27 @@ fixtures:
     slug: "152-digits-to-int"
     title: "digits_to_int"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/152-digits-to-int.spec.toml"
       reference: "problems/152-digits-to-int/reference.vox"
       tests: "problems/152-digits-to-int/tests.vox"
   - id: "153"
-    slug: "153-list-average"
-    title: "list_average"
+    slug: "153-count-substring"
+    title: "count_substring"
     training_eligible: true
+    added_at: "2026-09-01"
     provenance: "original"
     files:
-      spec: "problems/153-list-average.spec.toml"
-      reference: "problems/153-list-average/reference.vox"
-      tests: "problems/153-list-average/tests.vox"
+      spec: "problems/153-count-substring.spec.toml"
+      reference: "problems/153-count-substring/reference.vox"
+      tests: "problems/153-count-substring/tests.vox"
   - id: "154"
     slug: "154-remove-last"
     title: "remove_last"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/154-remove-last.spec.toml"
@@ -1418,6 +1585,7 @@ fixtures:
     slug: "155-str-count-words-unique"
     title: "str_count_words_unique"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/155-str-count-words-unique.spec.toml"
@@ -1427,6 +1595,7 @@ fixtures:
     slug: "156-power-sum"
     title: "power_sum"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/156-power-sum.spec.toml"
@@ -1436,6 +1605,7 @@ fixtures:
     slug: "157-min-index"
     title: "min_index"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/157-min-index.spec.toml"
@@ -1445,6 +1615,7 @@ fixtures:
     slug: "158-max-index"
     title: "max_index"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/158-max-index.spec.toml"
@@ -1454,6 +1625,7 @@ fixtures:
     slug: "159-ends-with-digit"
     title: "ends_with_digit"
     training_eligible: true
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/159-ends-with-digit.spec.toml"
@@ -1463,6 +1635,7 @@ fixtures:
     slug: "160-list-intersection-sorted"
     title: "list_intersection_sorted"
     training_eligible: false
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/160-list-intersection-sorted.spec.toml"
@@ -1472,6 +1645,7 @@ fixtures:
     slug: "161-to-hex"
     title: "to_hex"
     training_eligible: false
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/161-to-hex.spec.toml"
@@ -1481,6 +1655,7 @@ fixtures:
     slug: "162-from-hex"
     title: "from_hex"
     training_eligible: false
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/162-from-hex.spec.toml"
@@ -1490,6 +1665,7 @@ fixtures:
     slug: "163-str-compress"
     title: "str_compress"
     training_eligible: false
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/163-str-compress.spec.toml"
@@ -1499,6 +1675,7 @@ fixtures:
     slug: "164-str-decompress"
     title: "str_decompress"
     training_eligible: false
+    added_at: "2026-05-27"
     provenance: "original"
     files:
       spec: "problems/164-str-decompress.spec.toml"

@@ -5,7 +5,7 @@ prompt = """
 Decode a Caesar cipher: shift each lowercase letter backwards by k positions (wrapping around). Non-letter characters are unchanged.
 """
 signature = "fn caesar_decode(s: str, k: int) to str"
-training_eligible = true
+training_eligible = false
 provenance = "original"
 difficulty = "medium"
 tags = ["strings", "cipher"]

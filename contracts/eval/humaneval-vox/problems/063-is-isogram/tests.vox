@@ -1,0 +1,18 @@
+fn is_isogram(s: str) to bool {
+    let mut seen: list[str] = []
+    for ch in s.chars() {
+        if seen.contains(ch) {
+            return false
+        }
+        seen.push(ch)
+    }
+    return true
+}
+
+fn main() to str {
+    assert(is_isogram("vox") == true)
+    assert(is_isogram("hello") == false)
+    assert(is_isogram("") == true)
+    assert(is_isogram("abcabc") == false)
+    return "ok"
+}

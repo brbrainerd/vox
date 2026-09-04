@@ -1,3 +1,4 @@
+// training_eligible: false
 fn bubble_sort(xs: list[int]) to list[int] {
     let n: int = xs.len()
     let mut arr: list[int] = []

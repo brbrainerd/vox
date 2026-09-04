@@ -1,5 +1,4 @@
 use crate::StoreError;
-use crate::paths::local_user_id;
 use serde_json::Value;
 
 fn workflow_now_ms() -> i64 {
@@ -14,6 +13,11 @@ impl crate::VoxDb {
     ///
     /// The `user_preferences` path write is **best-effort**: failures are ignored so component
     /// registration still succeeds (check logs if paths do not persist).
+    ///
+    /// Needs `crate::paths::local_user_id`, gated behind `host-integration` —
+    /// this function is exercised only by `vox-cli`, which already enables
+    /// that feature.
+    #[cfg(feature = "host-integration")]
     pub async fn register_local_project(
         &self,
         name: &str,
@@ -32,7 +36,7 @@ impl crate::VoxDb {
         .await?;
 
         // Also store the path in user_preferences as a 'known_project'
-        let user_id = local_user_id();
+        let user_id = crate::paths::local_user_id();
         let key = format!("project.{}.path", name);
         let value = path_str.to_string();
         let breaker = self.breaker.clone();

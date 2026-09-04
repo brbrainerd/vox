@@ -142,7 +142,7 @@ dirs = { workspace = true }
 which = { workspace = true }
 crossbeam-queue = { workspace = true }
 globset = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 # Optional, gated by the `eval-gate` feature (default OFF): the eval-gate
 # check function purpose-built for `vox harness eval`
 # (`eval_gate_agent_loop_terminates_check` in chat_tools/chat/agent_loop.rs)

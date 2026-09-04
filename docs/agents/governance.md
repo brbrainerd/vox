@@ -74,6 +74,39 @@ Affected files as of March 2026:
 - `crates/vox-orchestrator/src/orchestrator.rs` (70 KB) → See ORCH-01 in plan
 - `crates/vox-orchestrator/src/memory.rs` (31 KB) → tracked
 
+### Why there is no per-crate LoC gate
+
+`max_loc` in `layers.toml` is documentation, not a gate (`[guards] loc_budget = "off"`).
+It conflated three unrelated goals and was a poor proxy for each:
+
+- **Build cost** is `blast_s` (compile_s × dependents), measured in
+  `contracts/ci/crate-build-map.v1.json` and gated by `vox ci crate-budget`.
+  LoC correlates weakly — 20K lines of serde structs compile faster than 5K
+  lines of heavy generics. Measured 2026-08-31 on a cold tree: **91% of this
+  workspace's compile time is third-party code** (6,727s of 7,408s), so
+  first-party LoC could not have been a build-time lever regardless of how it
+  was bounded.
+- **Agent read/write ergonomics** is a per-FILE property, enforced by
+  `arch/god_object` above (Error at 500 non-blank lines). An agent reads files,
+  not crates: a 60K-line crate of focused 300-line files is easier to work in
+  than a 20K-line crate of eight 2,500-line files. That guard is scoped to
+  changed files per PR, so it ratchets forward on code you touch rather than
+  demanding a repo-wide cleanup.
+- **Architectural discipline** is fan-in/fan-out plus `where-things-live.md`.
+
+The per-crate number also never bound anything: `vox-orchestrator`'s budget was
+raised 55K → 60K → 70K and is still exceeded at ~85.5K. A limit raised whenever
+it binds is a lagging indicator, not a constraint.
+
+Some crates are complex by necessity — `vox-compiler` is a compiler. Decomposing
+to satisfy an arbitrary crate-level number is work in service of a bad metric.
+Growth still matters, and is still caught: **Rule 13 (`loc_delta`) warns when a
+budgeted crate grows >15% against the last release tag.** That rule reads the
+same `max_loc` values as its baseline and skips any crate where `max_loc` is
+unset — which is why the budgets remain in `layers.toml` rather than being
+deleted. Under `off`, `max_loc` means "growth past this baseline is the signal",
+not "must be under this".
+
 ## Sprawl Guard
 
 No directory may contain more than **20 files**. When exceeded, sub-slice into

@@ -8,5 +8,6 @@ description = "Pure simhash/minhash/LSH near-duplicate similarity core for Vox d
 [dependencies]
 blake3 = { workspace = true }
 serde = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]

@@ -1,0 +1,769 @@
+# Build-Time Measurement Activation and Evidence-Ranked Decoupling Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Populate the two committed measurement SSOTs that already-shipped gates read but that nobody ever filled in, then use the resulting blast-radius data to replace 29 unevidenced "Phase 2 decoupling target" labels with a ranked, measured worklist — and retire the per-crate LoC budget that has been ratcheted upward three times without ever binding.
+
+**Architecture:** No new gates and no new tooling. Every gate and every command this plan needs already shipped from the 2026-06-15 and 2026-06-19 plans; what never ran was their *data-generation* steps. This plan executes those steps, calibrates the resulting numbers honestly for the host they were measured on, and then consumes them via the existing `crate-map --top-cuts` analysis to rank decoupling work by measured `blast_s` saved rather than by a two-month-old comment string.
+
+**Tech Stack:** Rust (`vox-cli-ci`, `vox-code-audit`, `vox-graph-reader`), VoxScript (`scripts/crate-build-audit.vox`), `cargo build --timings` HTML ingest, JSON contracts under `contracts/ci/`.
+
+**Spec:** No standalone design doc. This plan continues two existing plans whose code shipped but whose data steps did not — read both before starting:
+- [`docs/superpowers/plans/2026-06-19-crate-build-measurement-spine-hardening.md`](2026-06-19-crate-build-measurement-spine-hardening.md) — Tasks 1–3 shipped the `build_crate_summary` function, the `crate-map --write-summary` flag, and the fail-loud `crate-budget` gate. **Task 2 Steps 3–4 ("generate the real committed file", "verify the SSOT has real numbers") never ran.**
+- [`docs/superpowers/plans/2026-06-15-build-time-program-measured-phased.md`](2026-06-15-build-time-program-measured-phased.md) — Task 0.1 Step 3 ("record the blast-radius baseline") never ran; every phase-delta row still reads `PENDING-CI`.
+
+## Global Constraints
+
+- **Never fabricate a measurement.** Copied verbatim from the 2026-06-15 plan §"A note on running measurements": *"Do NOT skip the measurement and write a plausible number. If you genuinely cannot measure, say so in the task report and leave the delta cell as `PENDING-CI`."*
+- **Never run another cargo command while a timings build is in flight.** Contention corrupts the per-crate self-times being collected, which is the entire product of Task 1.
+- **Windows hosts:** never run `cargo fmt --all` (overflows `CreateProcess`; dies with os error 206). Use `cargo fmt -p <crate>`, or `vox run scripts/fmt.vox` for the workspace.
+- **Windows hosts:** never run unscoped recursive `rg`/`grep` from the repo root — scope to a crate subdirectory or use a glob.
+- **`graphify-out/graph.json` exists**, so a repo hook requires `graphify query "<question>"` for orientation before grepping or reading source files.
+- **`contracts/ci/crate-edges.allow.v1.json` `exceptions` entries are USER-AUTHORIZED-ONLY** (AGENTS.md §Dependency Discipline). This plan may *propose* and *rank* removals; it must never add an exception, and must never regenerate a baseline to admit an edge.
+- **Measurement-host provenance must be recorded with every number.** The existing ceilings in `contracts/ci/crate-budget.v1.json` were derived from Linux CI as `actual × 1.15`; numbers measured on a different host are valid for *ranking* but not for direct comparison against those ceilings. Task 2 exists solely to keep that distinction honest.
+
+---
+
+## File Structure
+
+| File | Status | Responsibility |
+|---|---|---|
+| `graphify-out/crate_audit.json` | Generated (gitignored) | Per-crate `compile_s` + LoC + layer, produced by `scripts/crate-build-audit.vox` from the newest `cargo build --timings` HTML. Input to `crate-map`. |
+| `contracts/ci/crate-build-map.v1.json` | Modify (committed SSOT) | The gate SSOT `vox ci crate-budget` grades against. Currently `has_compile_times: false`, all 125 crates at `blast_s: 0.0`. Task 1 populates it. |
+| `contracts/ci/crate-budget.v1.json` | Modify (committed SSOT) | Keystone `blast_s_ceiling` values. Task 2 adds host provenance so a cross-host comparison can never be made silently. |
+| `contracts/reports/crate-top-cuts.v1.json` | Create | Measured ranking of candidate dependency cuts by `blast_s` saved. The evidence artifact that replaces the 29 unevidenced "Phase 2 decoupling target" labels. |
+| `docs/src/architecture/layers.toml` | Modify | `[guards] loc_budget` demoted to a reported trend; per-crate `max_loc` values retained as documentation. Task 4. |
+| `docs/agents/governance.md` | Modify | Records why per-crate LoC is not a gate and which controls replace it. Task 4. |
+| `crates/vox-cli-ci/src/crate_budget.rs` | Modify | Gains a host-provenance mismatch warning. Task 2. |
+
+---
+
+## Task 1: Populate the two measurement SSOTs
+
+Executes the un-run steps of the 2026-06-19 plan (Task 2 Steps 3–4) and the 2026-06-15 plan (Task 0.1 Step 3). No code changes — this task produces *data*, which is exactly why it was skippable and therefore skipped.
+
+**Files:**
+- Create: `graphify-out/crate_audit.json` (gitignored intermediate)
+- Modify: `contracts/ci/crate-build-map.v1.json`
+
+**Interfaces:**
+- Consumes: a `target/cargo-timings/cargo-timing-*.html` produced by `cargo build --timings`.
+- Produces: `contracts/ci/crate-build-map.v1.json` with `has_compile_times: true` and non-zero `blast_s` for the 125 workspace crates. Tasks 2 and 3 both read this file.
+
+- [ ] **Step 1: Confirm the box is quiet, then collect timings**
+
+Contention inflates per-crate self-time, and this repo is routinely worked by
+more than one agent session at a time on the same machine — separate worktrees
+still share CPU and RAM.
+
+**Do not use `tasklist` for this check.** It is not on `PATH` in the Git Bash
+shell this harness provides. `tasklist //FI "IMAGENAME eq rustc.exe" //NH |
+grep -c rustc` does not error — it prints `0` regardless of what is running,
+because `grep -c` counts matches in empty output. That false "idle" reading
+caused a duplicate workspace build to be launched on top of a live one during
+this plan's own authoring. Use the PowerShell tool:
+
+```powershell
+Get-CimInstance Win32_Process -Filter "Name='cargo.exe' OR Name='rustc.exe'" |
+  Select-Object ProcessId,Name,@{n='MB';e={[int]($_.WorkingSetSize/1MB)}},
+    @{n='Cmd';e={$_.CommandLine.Substring(0,[Math]::Min(110,$_.CommandLine.Length))}} |
+  Format-Table -Wrap -AutoSize
+```
+
+Expected: no rows. If rows appear, read the `Cmd` column — a peer session's
+build is a reason to wait and coordinate, not to proceed. Proceeding produces
+a number that looks authoritative and is not, which is the exact failure this
+plan exists to end.
+
+Then collect. `-j 6` (rather than the default 12) reduces peak memory. Full-parallelism
+builds on this workspace repeatedly die with exit `0xc0000409`. Do not be misled by
+the symbolic name Windows prints for that code: `STATUS_STACK_BUFFER_OVERRUN` is
+what `__fastfail` reports, and Rust's OOM handler routes through it via `abort()`.
+The backtrace is explicit — `memory allocation of 2097152 bytes failed` →
+`rust_oom` → `handle_alloc_error` → `<rustc_arena::DroplessArena>::grow` — i.e.
+rustc's type-interning arena running out of memory, **not** stack exhaustion.
+Raising `RUST_MIN_STACK` does not help and marginally hurts (larger per-thread
+reservations add memory pressure); the committed `RUST_MIN_STACK = "8388608"` at
+`.cargo/config.toml:100` addresses a genuinely different failure,
+`STATUS_STACK_OVERFLOW` (`0xC00000FD`) in libtest's spawned threads. Lower `-j`
+and fewer concurrent builds are the fix:
+
+```bash
+cargo build --timings --workspace -j 6
+```
+
+Expected: completes; `target/cargo-timings/cargo-timing-*.html` exists.
+
+- [ ] **Step 2: Verify the HTML actually carries durations**
+
+The ingest parses an embedded `UNIT_DATA` JS array. A build that was fully cached
+emits rows with `duration: 0`, which the parser drops — yielding a near-empty
+audit and silently re-creating the all-zero problem this task exists to fix.
+Checking that `UNIT_DATA` merely *exists* is not enough; count the non-zero rows:
+
+```bash
+python -c "
+import json
+h = open(r'target/cargo-timings/cargo-timing.html', encoding='utf-8', errors='replace').read()
+i = h.find('UNIT_DATA = ')
+s = h[i + len('UNIT_DATA = '):]
+arr = json.loads(s[:s.find('];') + 1])
+nz = [u for u in arr if (u.get('duration') or 0) > 0]
+print(f'units={len(arr)} nonzero={len(nz)}')
+assert len(nz) > 100, 'mostly cached — this measures nothing; see the cold-build note below'
+print('OK')
+"
+```
+
+Expected: `OK`, with `nonzero` in the hundreds.
+
+**The measurement requires a cold build.** An incremental build over a warm
+`target/` recompiles only what changed. Observed while authoring this plan: a
+full `cargo build --timings --workspace` after a day of scoped `cargo check`
+runs produced **1505 units with only 31 non-zero durations** — roughly a quarter
+of the workspace's crates, useless as a blast-radius map. If `nonzero` is low,
+the fix is a cold `target/`, not a re-run.
+
+Two further hazards seen in that same run, both of which the executor should
+expect:
+
+- `vox-gui` fails to link on Windows with `lld-link: error: undefined symbol`
+  for `qsort_s` / `clearerr` (pulled via `zstd-sys` / `aws-lc-sys`). The build
+  still writes a timings report, so this does not block the measurement, but
+  `vox-gui` will appear with a nonsense duration (2916s observed — it includes
+  its `build.rs` auto-building the missing `vox` release sidecar). Exclude it:
+  `--workspace --exclude vox-gui`.
+- Cold-building the full workspace is where the `0xc0000409` OOM aborts occur.
+  Keep `-j 6` and do not run anything else concurrently.
+
+If a cold full build is not affordable, `cargo check --timings` is a legitimate
+alternative: it skips codegen and linking, so it is several times faster, avoids
+the `vox-gui` link failure entirely, and greatly reduces OOM risk. It yields
+*check* times rather than *build* times — a different absolute scale, but a
+valid and internally consistent **ranking**, which is what Task 3 consumes.
+Record which one was used in `measured_on` alongside the host triple (e.g.
+`"x86_64-pc-windows-msvc (cargo check)"`), because mixing the two scales across
+runs would be as misleading as mixing hosts.
+
+- [ ] **Step 3: Generate the audit dataset**
+
+```bash
+vox run --mode interp scripts/crate-build-audit.vox
+```
+
+Expected: writes `graphify-out/crate_audit.json` and `graphify-out/CRATE_BUILD_AUDIT.md`. Use `--mode interp`: the script does no heavy compute, and the native lane adds a multi-minute compile.
+
+- [ ] **Step 4: Verify the audit has non-zero compile times before writing the SSOT**
+
+This is the check whose absence let `has_compile_times: false` get committed. Do not skip it.
+
+```bash
+python -c "
+import json; d = json.load(open('graphify-out/crate_audit.json'))
+rows = d if isinstance(d, list) else d.get('crates', [])
+nz = [r for r in rows if float(r.get('compile_s') or 0) > 0]
+print(f'rows={len(rows)} nonzero_compile_s={len(nz)}')
+assert len(nz) > 50, 'audit is empty or near-empty — do NOT write the SSOT'
+print('OK')
+"
+```
+
+Expected: `OK`, with `nonzero_compile_s` in the hundreds.
+
+- [ ] **Step 5: Write the committed SSOT**
+
+```bash
+vox graphify crate-map --write-summary contracts/ci/crate-build-map.v1.json
+```
+
+- [ ] **Step 6: Verify the SSOT is genuinely populated**
+
+```bash
+python -c "
+import json; d = json.load(open('contracts/ci/crate-build-map.v1.json'))
+assert d['has_compile_times'] is True, 'still count-only — the gate stays toothless'
+assert d.get('crates_without_compile_times', 0) == 0, d.get('crates_without_compile_times')
+top = sorted(d['crates'], key=lambda c: -c['blast_s'])[:5]
+for c in top: print(f\"{c['crate']:<28} blast_s={c['blast_s']:>8.1f} compile_s={c['compile_s']:>6.1f} dependents={c['dependents']}\")
+"
+```
+
+Expected: `has_compile_times` is `True`, and five crates print with non-zero `blast_s`.
+
+- [ ] **Step 7: Run the gate that has been red-and-unrun**
+
+```bash
+cargo run -q -p vox-cli -- ci crate-budget
+```
+
+Expected: the gate now *evaluates* instead of bailing with `has_compile_times=false`. It may report `OVER` for one or more keystones — that is a real, actionable verdict and must NOT be silenced here. Record the exact output; Task 2 interprets it.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add contracts/ci/crate-build-map.v1.json
+git commit -m "contracts: populate crate-build-map with measured compile times
+
+Executes 2026-06-19-crate-build-measurement-spine-hardening Task 2
+Steps 3-4, which never ran: the code shipped but the committed SSOT
+stayed at has_compile_times=false with all 125 crates at blast_s 0.0,
+so the (correctly fail-loud) crate-budget gate could only ever bail.
+
+Source: cargo build --timings --workspace -j 6, quiesced host."
+```
+
+---
+
+## Task 2: Record measurement-host provenance so cross-host comparisons cannot happen silently
+
+The ceilings in `crate-budget.v1.json` were set as *"actual (2026-06-19) × 1.15"* from Linux CI. `blast_s` measured on a different host — a contended Windows box, a laptop on battery, a different core count — is valid for **ranking** but not for **absolute** comparison against those ceilings. Without provenance, a host difference reads as a regression and the gate gets disabled again.
+
+**Files:**
+- Modify: `contracts/ci/crate-build-map.v1.json` (add `measured_on`)
+- Modify: `crates/vox-cli-ci/src/crate_budget.rs`
+- Test: `crates/vox-cli-ci/src/crate_budget.rs` (inline `#[cfg(test)] mod tests`)
+
+**Interfaces:**
+- Consumes: `contracts/ci/crate-build-map.v1.json` from Task 1.
+- Produces: `fn host_mismatch_warning(map_host: Option<&str>, ceiling_host: Option<&str>) -> Option<String>` — returns `Some(warning)` when both are known and differ, `None` otherwise.
+
+- [ ] **Step 1: Write the failing test**
+
+Add to the existing `#[cfg(test)] mod tests` in `crates/vox-cli-ci/src/crate_budget.rs`:
+
+```rust
+#[test]
+fn warns_when_map_host_differs_from_ceiling_host() {
+    let w = host_mismatch_warning(Some("x86_64-pc-windows-msvc"), Some("x86_64-unknown-linux-gnu"))
+        .expect("differing hosts must warn");
+    assert!(w.contains("x86_64-pc-windows-msvc"), "warning names the map host: {w}");
+    assert!(w.contains("x86_64-unknown-linux-gnu"), "warning names the ceiling host: {w}");
+}
+
+#[test]
+fn no_warning_when_hosts_match_or_are_unknown() {
+    assert!(host_mismatch_warning(Some("x86_64-unknown-linux-gnu"), Some("x86_64-unknown-linux-gnu")).is_none());
+    // Absent provenance must not warn — pre-existing files have no `measured_on`,
+    // and a spurious warning on every run trains people to ignore it.
+    assert!(host_mismatch_warning(None, Some("x86_64-unknown-linux-gnu")).is_none());
+    assert!(host_mismatch_warning(Some("x86_64-pc-windows-msvc"), None).is_none());
+    assert!(host_mismatch_warning(None, None).is_none());
+}
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+```bash
+cargo test -p vox-cli-ci --lib crate_budget
+```
+
+Expected: FAIL, `cannot find function host_mismatch_warning`.
+
+- [ ] **Step 3: Implement**
+
+Add to `crates/vox-cli-ci/src/crate_budget.rs`:
+
+```rust
+/// Warn when the blast-radius map and the ceilings were measured on different
+/// hosts. `blast_s` scales with the machine, so a Windows-measured map graded
+/// against Linux-derived ceilings reports overage that is host variance, not
+/// regression. Both unknown or either absent -> no warning: pre-existing files
+/// carry no provenance, and a warning that fires every run gets ignored.
+fn host_mismatch_warning(map_host: Option<&str>, ceiling_host: Option<&str>) -> Option<String> {
+    match (map_host, ceiling_host) {
+        (Some(m), Some(c)) if m != c => Some(format!(
+            "crate-build-map was measured on '{m}' but the ceilings in \
+             contracts/ci/crate-budget.v1.json derive from '{c}'. blast_s scales \
+             with the host, so OVER verdicts below may be host variance rather \
+             than regression. Re-measure on '{c}', or re-derive the ceilings on \
+             '{m}', before treating a failure as real."
+        )),
+        _ => None,
+    }
+}
+```
+
+Then emit it in `run_crate_budget`, immediately after the `has_compile_times` guard and before the per-keystone loop:
+
+```rust
+    if let Some(w) = host_mismatch_warning(
+        summary.get("measured_on").and_then(|v| v.as_str()),
+        budget.measured_on.as_deref(),
+    ) {
+        eprintln!("WARN: {w}");
+    }
+```
+
+Add the field to `BudgetFile`:
+
+```rust
+    /// Host triple the ceilings were derived on. `None` for files predating
+    /// provenance tracking.
+    #[serde(default)]
+    pub measured_on: Option<String>,
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+```bash
+cargo test -p vox-cli-ci --lib crate_budget
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Stamp provenance into both contracts**
+
+Add to `contracts/ci/crate-budget.v1.json`, as a sibling of `schema_version`:
+
+```json
+  "measured_on": "x86_64-unknown-linux-gnu",
+```
+
+Add the host the Task 1 map was actually generated on to `contracts/ci/crate-build-map.v1.json` — read it from `rustc -vV`, do not assume:
+
+```bash
+rustc -vV | grep "^host:"
+```
+
+- [ ] **Step 6: Verify the warning fires when hosts differ, and commit**
+
+```bash
+cargo run -q -p vox-cli -- ci crate-budget
+```
+
+Expected: if Task 1 measured on Windows, a `WARN:` line naming both triples precedes the keystone table. If both are Linux, no warning.
+
+```bash
+cargo fmt -p vox-cli-ci
+git add crates/vox-cli-ci/src/crate_budget.rs contracts/ci/crate-budget.v1.json contracts/ci/crate-build-map.v1.json
+git commit -m "ci(crate-budget): warn when map and ceilings were measured on different hosts
+
+blast_s scales with the measuring machine. The ceilings derive from
+Linux CI (actual x 1.15); grading a Windows-measured map against them
+reports host variance as regression, which is how a gate gets disabled
+instead of fixed."
+```
+
+---
+
+## Task 3: Replace the 29 unevidenced "Phase 2 decoupling target" labels with a measured ranking
+
+`contracts/ci/crate-edges.allow.v1.json` holds 34 exceptions, 29 of which carry `reason: "...(pre-existing upward edge; Phase 2 decoupling target)"` dated 2026-07-03. No Phase 2 plan exists, and the ratchet has never been tightened. This task produces the evidence needed to decide which of those 29 are worth cutting — it does **not** cut any.
+
+**Files:**
+- Create: `contracts/reports/crate-top-cuts.v1.json`
+- Read only: `contracts/ci/crate-edges.allow.v1.json`
+
+**Interfaces:**
+- Consumes: `contracts/ci/crate-build-map.v1.json` (Task 1).
+- Produces: `contracts/reports/crate-top-cuts.v1.json` — the ranked cut list Task 4's successor work draws from.
+
+- [ ] **Step 1: Generate the ranked cut list**
+
+`--top-cuts` ranks single-edge cuts by total `blast_s` saved. It is meaningless against a zero-valued map, which is why this task depends on Task 1:
+
+```bash
+./target/debug/vox graphify crate-map --top-cuts 400 \
+  > contracts/reports/crate-top-cuts.v1.json
+```
+
+**Rank deeply — `--top-cuts 40` is not enough.** The intersection in Step 3 treats
+any edge absent from the ranking as "no measured benefit", so a shallow ranking
+manufactures false negatives. Measured: at `--top-cuts 40`, only 9 of the 29
+grandfathered edges appeared and 20 looked unevidenced; at `--top-cuts 400`, 19
+appeared. Ranking 40 would have condemned ten edges that do save time.
+
+Note the emitted shape is `{"schema_version", "provenance", "result": [...]}`,
+and each entry carries `description` (`"cut A -> B"`) plus
+`total_blast_s_before` / `total_blast_s_after` — there is no `from`/`to` or
+`blast_s_saved` field. Saving is the difference, and the edge must be parsed out
+of `description`.
+
+- [ ] **Step 2: Verify the ranking is non-degenerate**
+
+```bash
+python -c "
+import json; d = json.load(open('contracts/reports/crate-top-cuts.v1.json'))
+cuts = d['result']
+assert cuts, 'empty ranking'
+nz = [c for c in cuts if c['total_blast_s_before'] - c['total_blast_s_after'] > 0]
+assert nz, 'every cut saves 0.0 - the map is still count-only'
+print(f'{len(cuts)} cuts, {len(nz)} with non-zero saving')
+for c in cuts[:10]:
+    print(f\"  {c['total_blast_s_before'] - c['total_blast_s_after']:8.1f}s  {c['description']}\")
+"
+```
+
+Expected: a non-empty list with non-zero savings.
+
+- [ ] **Step 3: Intersect the ranking with the 29 grandfathered edges**
+
+This is the deliverable: which grandfathered edges are actually worth the
+decoupling work, and which are cheap to keep.
+
+```bash
+python -c "
+import json, re
+allow = json.load(open('contracts/ci/crate-edges.allow.v1.json'))
+p2 = {(x['from'], x['to']) for x in allow.get('exceptions', []) if 'Phase 2' in str(x.get('reason',''))}
+d = json.load(open('contracts/reports/crate-top-cuts.v1.json'))
+ranked = {}
+for c in d['result']:
+    m = re.match(r'cut (\S+) -> (\S+)', c['description'])
+    if m: ranked[(m.group(1), m.group(2))] = c['total_blast_s_before'] - c['total_blast_s_after']
+print(f'ranked cuts returned: {len(ranked)}')
+hits = sorted(((ranked.get(e, 0.0), e) for e in p2), reverse=True)
+nz = [h for h in hits if h[0] > 0]
+print(f'{len(p2)} Phase-2 edges; {len(nz)} have a measured saving')
+for s, e in hits:
+    print(f'  {s:8.1f}s  {e[0]} -> {e[1]}' + ('' if s > 0 else '   <- no measured build-time benefit'))
+"
+```
+
+Expected: a ranked list. Edges printing `0.0` have **no measured build-time
+justification** for decoupling — surface them, do not cut them on the strength
+of a label.
+
+**Interpret with the churn caveat.** `blast_s` is churn-blind, as
+`contracts/ci/crate-budget.v1.json`'s own comment notes: a high-fan-in leaf that
+almost never changes ranks high while costing little in practice, because the
+rebuild it triggers rarely happens. A large saving is necessary evidence for
+decoupling, not sufficient — weigh it against how often the source crate
+actually changes (`git log --oneline --since=6.months -- crates/<crate>/ | wc -l`)
+before committing to the work.
+
+- [ ] **Step 4: Commit the evidence artifact**
+
+```bash
+git add contracts/reports/crate-top-cuts.v1.json
+git commit -m "contracts: add measured top-cuts ranking for dependency decoupling
+
+29 exceptions in crate-edges.allow.v1.json carry a 'Phase 2 decoupling
+target' label from 2026-07-03 with no plan behind it and no evidence
+that cutting any of them saves build time. This ranks candidate cuts by
+measured blast_s saved so the work can be prioritised, or declined, on
+data. Cuts nothing; adds no exception (those are user-authorized-only)."
+```
+
+---
+
+## Task 4: Retire the per-crate LoC budget as a gate
+
+`[guards] loc_budget` in `layers.toml` is `warn`, so it produces noise nobody acts on. Eight crates are over budget by ~63K LoC combined, and `vox-orchestrator`'s budget was raised 55K → 60K → 70K and is *still* blown at 85.5K. A limit raised whenever it binds is a lagging indicator, not a constraint. The two controls that actually work already exist: per-file god-object (Error at 500 non-blank lines, enforced as a ratchet on changed files) for agent ergonomics, and `blast_s` (armed by Task 1) for build time.
+
+**Files:**
+- Modify: `docs/src/architecture/layers.toml`
+- Modify: `docs/agents/governance.md`
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: nothing consumed by later tasks. Independent of Tasks 1–3 and may be done first.
+
+- [ ] **Step 1: Confirm the claim before acting on it**
+
+Do not take the numbers on faith — regenerate them:
+
+```bash
+grep -oE "^([a-z0-9-]+)\s*=\s*\{[^}]*max_loc\s*=\s*[0-9_]+" docs/src/architecture/layers.toml \
+  | sed -E 's/\s*=\s*\{.*max_loc\s*=\s*/ /; s/_//g' \
+  | while read -r crate budget; do
+      d="crates/$crate/src"; [ -d "$d" ] || continue
+      actual=$(find "$d" -name '*.rs' -type f -exec cat {} + 2>/dev/null | wc -l)
+      [ "$actual" -gt "$budget" ] && printf "OVER %-24s %7d / %7d\n" "$crate" "$actual" "$budget"
+    done
+```
+
+Expected: several `OVER` rows. If none, this task is moot — stop and report.
+
+**Do not simply delete the per-crate `max_loc` values.** Verified against the
+tree: `parse_strictness` (`crates/vox-arch-check/src/main.rs:869`) accepts only
+`error`/`strict` and `warn`/`warning`, falling through to the default for
+anything else — so writing `loc_budget = "off"` today silently means `"warn"`
+and the noise continues. And *both* the absolute check (`:1270`) and Rule 13
+`loc_delta` (`:1505`) `continue` when `entry.max_loc.is_none()`, so deleting the
+budgets to silence the absolute check would disable the trend check as well —
+removing the very guard this task nominates as the replacement.
+
+The correct shape: keep every `max_loc` value, reframed as the **growth
+baseline** Rule 13 measures against, and give the absolute check a real off
+switch.
+
+- [ ] **Step 2: Write the failing test**
+
+Add to the `#[cfg(test)] mod tests` in `crates/vox-arch-check/src/main.rs`:
+
+```rust
+#[test]
+fn loc_budget_off_disables_only_the_absolute_check() {
+    assert!(loc_budget_disabled(Some(&"off".to_string())));
+    assert!(loc_budget_disabled(Some(&"none".to_string())));
+    // Existing values keep their meaning.
+    assert!(!loc_budget_disabled(Some(&"warn".to_string())));
+    assert!(!loc_budget_disabled(Some(&"error".to_string())));
+    // Absent -> enabled, so removing the key cannot silently disable the guard.
+    assert!(!loc_budget_disabled(None));
+}
+```
+
+- [ ] **Step 3: Run the test to verify it fails**
+
+```bash
+cargo test -p vox-arch-check loc_budget_off
+```
+
+Expected: FAIL, `cannot find function loc_budget_disabled`.
+
+- [ ] **Step 4: Implement the off switch**
+
+Add near `parse_strictness` in `crates/vox-arch-check/src/main.rs`:
+
+```rust
+/// True when the `loc_budget` guard is explicitly switched off.
+///
+/// Disables ONLY the absolute `max_loc` threshold check. The per-crate
+/// `max_loc` values are deliberately retained: Rule 13 (`loc_delta`) skips any
+/// crate whose `max_loc` is `None` (see the `entry.max_loc.is_none()` guard in
+/// the delta pass), so deleting them to silence the absolute check would also
+/// disable growth detection. Under `off`, `max_loc` stops meaning "must be
+/// under this" and means "growth past this baseline is the signal".
+fn loc_budget_disabled(setting: Option<&String>) -> bool {
+    matches!(setting.map(|s| s.as_str()), Some("off") | Some("none"))
+}
+```
+
+Then guard the absolute-check loop. Immediately before `let budget = match entry.max_loc {` (~`:1270`), add an early skip driven by the parsed config:
+
+```rust
+        if loc_budget_off {
+            continue;
+        }
+```
+
+binding `loc_budget_off` alongside the other guard flags where `strict_loc` is
+computed (~`:1015`):
+
+```rust
+        loc_budget_off: loc_budget_disabled(layers.guards.loc_budget.as_ref()),
+```
+
+and adding the field to the report struct next to `strict_loc` (~`:387`):
+
+```rust
+    loc_budget_off: bool,
+```
+
+- [ ] **Step 5: Run the test to verify it passes**
+
+```bash
+cargo test -p vox-arch-check loc_budget_off
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Switch the guard off in the SSOT**
+
+In `docs/src/architecture/layers.toml`, replace the `loc_budget` line in `[guards]`:
+
+```toml
+# Off: reported by Rule 13 as a trend, never as an absolute ceiling. Per-crate
+# LoC is a weak proxy for both goals it served. Build cost is measured directly
+# by blast_s (contracts/ci/crate-build-map.v1.json, gated by `vox ci
+# crate-budget`); agent read/write ergonomics are a per-FILE property enforced
+# by arch/god_object (Error at 500 non-blank lines). The per-crate number bound
+# nothing: vox-orchestrator's budget was raised 55K -> 60K -> 70K and is still
+# exceeded at ~85.5K. The `max_loc` values below are RETAINED as Rule 13's
+# growth baseline — deleting them would disable loc_delta too.
+loc_budget        = "off"
+```
+
+- [ ] **Step 7: Record the rationale where contributors read it**
+
+Append to the "God Object Limit (Multi-Tier)" section of `docs/agents/governance.md`:
+
+```markdown
+### Why there is no per-crate LoC gate
+
+Per-crate `max_loc` in `layers.toml` is documentation, not a gate. It conflated
+three unrelated goals and was a poor proxy for each:
+
+- **Build cost** is `blast_s` (compile_s x dependents), measured in
+  `contracts/ci/crate-build-map.v1.json` and gated by `vox ci crate-budget`.
+  LoC correlates weakly — 20K lines of serde structs compile faster than 5K
+  lines of heavy generics.
+- **Agent read/write ergonomics** is a per-FILE property, enforced by
+  `arch/god_object` (Error at 500 non-blank lines). An agent reads files, not
+  crates: a 60K-line crate of focused 300-line files is easier to work in than
+  a 20K-line crate of eight 2,500-line files.
+- **Architectural discipline** is fan-in/fan-out plus `where-things-live.md`.
+
+Some crates are complex by necessity — `vox-compiler` is a compiler. Decomposing
+to satisfy an arbitrary crate-level number is work in service of a bad metric.
+Growth still matters: Rule 13 (`loc_delta`) warns when a budgeted crate grows
+>15% against the last release tag.
+```
+
+- [ ] **Step 8: Verify arch-check still passes and commit**
+
+```bash
+cargo run -q -p vox-arch-check
+```
+
+Expected: runs clean, with **no** `[warn] LoC budget exceeded` block. Rule 13
+(`loc_delta`) must still be active — confirm by checking that the run does not
+report `loc_delta` as skipped, and that the JSON report still carries a
+`loc_delta` entry:
+
+```bash
+cargo run -q -p vox-arch-check -- --json 2>/dev/null | python -c "
+import json,sys; d=json.load(sys.stdin)
+names={r.get('rule') or r.get('name') for r in (d if isinstance(d,list) else d.get('rules',[]))}
+assert 'loc_delta' in names, f'loc_delta vanished — max_loc was probably deleted: {sorted(names)}'
+print('loc_delta still reported: OK')
+"
+```
+
+If `--json` is not a supported flag, fall back to asserting on stderr that a
+`loc_delta` line is still emitted. Do not skip this check: it is the specific
+regression this task's design exists to avoid.
+
+**Note for the executor:** `layers.toml` lives under `docs/src/architecture/`, which triggers the whole-`crates/` TOESTUB sweep in `enforce-warn` mode (`.github/workflows/ci.yml:764`). Commit `5ece1c52f` removed `@generated` files from that scan set, but ~315 hand-written files still exceed 500 non-blank lines. They are grandfathered by *scoping* (the per-PR gate at `ci.yml:745` only scans changed files), not by suppression — so expect this PR's sweep to surface them. If it blocks, that is a pre-existing condition to report, **not** something to fix by suppressing findings or reverting this task.
+
+```bash
+git add docs/src/architecture/layers.toml docs/agents/governance.md
+git commit -m "arch: stop gating on per-crate LoC; keep per-file and blast_s
+
+Per-crate max_loc bound nothing — vox-orchestrator's budget was raised
+three times (55K/60K/70K) and is still exceeded at 85.5K. Build cost is
+measured by blast_s; agent ergonomics is per-file (arch/god_object,
+Error at 500 lines). Both already exist and both are enforced."
+```
+
+---
+
+## Task 5: Populate the build-bench baseline in the same quiet window
+
+`contracts/ci/build-bench-baseline.v1.json` ships with all six records at
+`wall_ms: 0`. Commit `4cca4f84c` made `vox ci build-bench` refuse a placeholder
+baseline (previously `compute_deltas` reported a green `0%` for any regression,
+under `continue-on-error: true`), so the gate now fails loudly until this runs.
+
+**This task must run immediately after Task 1, in the same quiesced window, and
+the order is not interchangeable.** Task 1 needs a **cold** `target/` — an
+incremental run recompiles almost nothing (observed: 1505 units, 31 non-zero).
+Build-bench needs a **warm** `target/` — each scenario touches one file and times
+an *incremental* `cargo check`, so against a cold tree it would measure a
+from-scratch build and record a wildly inflated baseline that every later run
+"beats". Task 1 leaves the tree warm, which is exactly build-bench's
+precondition. Running these on separate days, or in the other order, silently
+corrupts one of them.
+
+**Files:**
+- Modify: `contracts/ci/build-bench-baseline.v1.json`
+
+**Interfaces:**
+- Consumes: the warm `target/` left behind by Task 1.
+- Produces: a populated baseline that `vox ci build-bench --compare` grades against.
+
+- [ ] **Step 1: Re-confirm the box is still quiet**
+
+Use the `Get-CimInstance` check from Task 1 Step 1 — not `tasklist`. Wall-clock
+scenarios are far more contention-sensitive than per-crate self-times, so a peer
+build starting mid-run corrupts this more severely than it does Task 1.
+
+- [ ] **Step 2: Measure, taking the minimum of three runs**
+
+`run_scenario` already keeps the best of `--repeat` runs, which suppresses
+one-off scheduler noise:
+
+```bash
+./target/debug/vox ci build-bench --repeat 3 \
+  --label "baseline-$(date +%Y%m%d)" \
+  --write contracts/ci/build-bench-baseline.v1.json
+```
+
+**Expect a staleness refusal here, and do not reflexively override it.**
+Task 1 Step 8 commits `crate-build-map.v1.json`, which advances the commit
+count past the one the `vox` binary was built at. Every `vox ci` subcommand
+then refuses to run:
+
+> `Error: installed vox is stale: built at commit N, but the working tree is at
+> commit N+1. Its guard logic and allowlists may be outdated.`
+
+That guard is correct in general — a gate's verdict is meaningless if the binary
+predates the source it is grading. It is safe to override here **only** because
+the intervening commit touched data files, not code. Prove that before
+overriding, rather than assuming it:
+
+```bash
+git diff <binary-build-commit>..HEAD --stat -- '*.rs' 'crates/**/Cargo.toml'
+```
+
+Empty output means no Rust source or manifest changed, so the binary's logic is
+current and only committed data moved. Only then:
+
+```bash
+VOX_SKIP_FRESHNESS_CHECK=1 ./target/debug/vox ci build-bench --repeat 3 \
+  --label "baseline-$(date +%Y%m%d)" \
+  --write contracts/ci/build-bench-baseline.v1.json
+```
+
+If that diff is **not** empty, rebuild instead (`cargo build -p vox-cli --bin
+vox`) — do not set the override. Note the rebuild itself perturbs `target/`,
+though harmlessly here: build-bench times incremental scenarios, and a rebuilt
+`vox-cli` leaves the tree warm, which is the precondition this task needs anyway.
+
+- [ ] **Step 3: Verify the baseline is genuinely populated**
+
+```bash
+python -c "
+import json; d = json.load(open('contracts/ci/build-bench-baseline.v1.json'))
+recs = d['records']
+zero = [r for r in recs if r['ok'] and r['wall_ms'] == 0]
+assert not zero, f'still placeholder rows: {zero}'
+for r in recs: print(f\"  {r['id']:<32} ok={r['ok']} {r['wall_ms']:>8} ms\")
+print('OK')
+"
+```
+
+Expected: `OK`, every `ok` record with a non-zero `wall_ms`.
+
+- [ ] **Step 4: Confirm the gate now passes instead of bailing**
+
+```bash
+cargo run -q -p vox-cli -- ci build-bench --repeat 1 \
+  --compare contracts/ci/build-bench-baseline.v1.json
+```
+
+Expected: a delta table rather than the `baseline ... is a placeholder` bail.
+Percentages will be small and noisy — that is fine and expected; the gate exists
+to catch large regressions, not to certify small wins.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add contracts/ci/build-bench-baseline.v1.json
+git commit -m "contracts: populate the build-bench baseline
+
+Measured on a quiesced host with a warm target/ left by the crate-map
+timings run, min-of-3 per scenario. Every record previously read
+wall_ms: 0, which made compute_deltas report 0% for any regression."
+```
+
+---
+
+## Self-Review
+
+**Spec coverage.** The two predecessor plans' un-run steps are covered by Task 1 (2026-06-19 Task 2 Steps 3–4; 2026-06-15 Task 0.1 Step 3). Four items had no plan at all and are covered here: host-provenance (Task 2), the 29 unevidenced Phase 2 labels (Task 3), the LoC gate (Task 4), and the empty build-bench baseline (Task 5). Task 5 was initially scoped **out** on the grounds that it needed a quiesced host unavailable at authoring time; that constraint lifted once concurrent sessions agreed to hold their builds, and the cold-then-warm ordering makes Task 1 and Task 5 natural partners in one window rather than separate efforts.
+
+**Placeholder scan.** No TBD/TODO. Every step carries a runnable command and an expected result. Task 3's *output values* are necessarily unknown before Task 1 runs, but its procedure and its pass/fail assertions are exact; the verification asserts non-degeneracy rather than any specific number.
+
+**Type consistency.** `host_mismatch_warning(Option<&str>, Option<&str>) -> Option<String>` is defined once in Task 2 Step 3 and used with that signature in Step 1's tests and in the `run_crate_budget` call site. `BudgetFile::measured_on` is `Option<String>`, read via `.as_deref()`. The map side is read via `summary.get("measured_on").and_then(|v| v.as_str())`, matching the existing `has_compile_times` access pattern in the same function.
+
+**Ordering.** Task 1 → Task 2 → Task 3 is a hard chain (each consumes the prior's artifact). Task 5 must follow Task 1 **in the same quiet window**, because it depends on the warm `target/` Task 1 leaves behind and on the box still being uncontended — it is the one ordering constraint that cannot be recovered by re-running later. Task 4 is independent of all of them and may run first or in parallel.
+
+**Known-good invocation.** The measurement in Task 1 was validated as
+`VOX_GUI_SKIP_SIDECAR_AUTOBUILD=1 cargo check --timings --workspace -j 6` on a
+cold tree. The env var matters: `vox-gui`'s `build.rs` otherwise auto-builds the
+missing `vox` release sidecar mid-measurement, spawning a nested
+`cargo build -p vox-cli --release` that both contends with the run and injects a
+meaningless multi-thousand-second `vox-gui` row into the dataset.

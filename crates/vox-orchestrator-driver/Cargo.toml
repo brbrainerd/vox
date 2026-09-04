@@ -9,7 +9,7 @@ license.workspace = true
 vox-orchestrator = { workspace = true }
 vox-repository = { workspace = true }
 tracing = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

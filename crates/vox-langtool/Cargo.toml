@@ -25,6 +25,7 @@ anyhow = { workspace = true }
 tokio = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 miette = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

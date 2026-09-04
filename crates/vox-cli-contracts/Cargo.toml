@@ -16,6 +16,7 @@ serde_json = { workspace = true }
 vox-config = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-jsonschema-util = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [lints]
 workspace = true

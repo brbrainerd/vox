@@ -15,13 +15,14 @@ mysql = ["sqlx/mysql"]
 
 [dependencies]
 async-trait = { workspace = true }
-vox-db = { workspace = true }
+vox-db = { workspace = true, features = ["host-integration"] }
 vox-secrets = { workspace = true }
 vox-ast = { workspace = true }
 turso = { workspace = true }
 sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio"] }
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["sync"] }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

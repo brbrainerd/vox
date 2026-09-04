@@ -199,55 +199,28 @@ export async function find_user(args: { name: string }, init?: RequestInit): Pro
 
 === openapi.json ===
 {
-  "components": {
-    "schemas": {
-      "ErrorEnvelope": {
-        "description": "Wire-format v1 error body (SSOT §6). Returned for 4xx/5xx endpoint failures.",
-        "properties": {
-          "code": {
-            "description": "Stable SCREAMING_SNAKE_CASE machine code",
-            "type": "string"
-          },
-          "details": {
-            "description": "Optional structured payload; shape is code-specific"
-          },
-          "message": {
-            "type": "string"
-          },
-          "ok": {
-            "const": false,
-            "type": "boolean"
-          },
-          "request_id": {
-            "description": "Optional trace / request correlation id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "ok",
-          "code",
-          "message"
-        ],
-        "type": "object"
-      }
-    }
-  },
-  "info": {
-    "description": "Generated from Vox source. Conforms to wire-format-v1.\n\nQuery (`GET`) parameters: each query value is JSON text after URI decoding — see wire-format-v1 SSOT §2.1. The `schema` on each parameter describes the logical type after `JSON.parse`; it is not the raw query-string token shape.",
-    "title": "vox-app",
-    "version": "0.1.0"
-  },
   "openapi": "3.1.0",
+  "info": {
+    "title": "vox-app",
+    "version": "0.1.0",
+    "description": "Generated from Vox source. Conforms to wire-format-v1.\n\nQuery (`GET`) parameters: each query value is JSON text after URI decoding — see wire-format-v1 SSOT §2.1. The `schema` on each parameter describes the logical type after `JSON.parse`; it is not the raw query-string token shape."
+  },
+  "servers": [
+    {
+      "url": ""
+    }
+  ],
   "paths": {
     "/api/query/find_user": {
       "get": {
         "operationId": "find_user",
+        "summary": "GET /api/query/find_user",
         "parameters": [
           {
-            "description": "JSON-encoded value after URI decoding (`JSON.parse`), per wire-format-v1 §2.1.",
-            "in": "query",
             "name": "name",
+            "in": "query",
             "required": true,
+            "description": "JSON-encoded value after URI decoding (`JSON.parse`), per wire-format-v1 §2.1.",
             "schema": {
               "type": "string"
             }
@@ -255,87 +228,69 @@ export async function find_user(args: { name: string }, init?: RequestInit): Pro
         ],
         "responses": {
           "200": {
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "string"
                 }
               }
-            },
-            "description": "Success"
+            }
           },
           "400": {
+            "description": "Bad request or malformed parameters",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Bad request or malformed parameters"
+            }
           },
           "429": {
+            "description": "Rate limited",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Rate limited"
+            }
           },
           "500": {
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Internal server error"
+            }
           },
           "default": {
+            "description": "Error — see wire-format-v1 §6",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Error — see wire-format-v1 §6"
+            }
           }
-        },
-        "summary": "GET /api/query/find_user"
+        }
       }
     },
     "/healthz": {
       "get": {
         "operationId": "healthz",
+        "summary": "GET /healthz",
         "responses": {
           "200": {
+            "description": "Service is healthy",
             "content": {
               "application/json": {
                 "schema": {
-                  "properties": {
-                    "backend": {
-                      "type": "string"
-                    },
-                    "baseline_digest": {
-                      "type": "string"
-                    },
-                    "missing_tables": {
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": "array"
-                    },
-                    "schema_version": {
-                      "type": "integer"
-                    },
-                    "status": {
-                      "type": "string"
-                    }
-                  },
+                  "type": "object",
                   "required": [
                     "status",
                     "backend",
@@ -343,64 +298,64 @@ export async function find_user(args: { name: string }, init?: RequestInit): Pro
                     "missing_tables",
                     "baseline_digest"
                   ],
-                  "type": "object"
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "backend": {
+                      "type": "string"
+                    },
+                    "schema_version": {
+                      "type": "integer"
+                    },
+                    "missing_tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "baseline_digest": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
-            },
-            "description": "Service is healthy"
+            }
           },
           "503": {
+            "description": "Service degraded/unavailable",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Service degraded/unavailable"
+            }
           },
           "default": {
+            "description": "Error — see wire-format-v1 §6",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Error — see wire-format-v1 §6"
+            }
           }
-        },
-        "summary": "GET /healthz"
+        }
       }
     },
     "/readyz": {
       "get": {
         "operationId": "readyz",
+        "summary": "GET /readyz",
         "responses": {
           "200": {
+            "description": "Service is healthy",
             "content": {
               "application/json": {
                 "schema": {
-                  "properties": {
-                    "backend": {
-                      "type": "string"
-                    },
-                    "baseline_digest": {
-                      "type": "string"
-                    },
-                    "missing_tables": {
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": "array"
-                    },
-                    "schema_version": {
-                      "type": "integer"
-                    },
-                    "status": {
-                      "type": "string"
-                    }
-                  },
+                  "type": "object",
                   "required": [
                     "status",
                     "backend",
@@ -408,40 +363,85 @@ export async function find_user(args: { name: string }, init?: RequestInit): Pro
                     "missing_tables",
                     "baseline_digest"
                   ],
-                  "type": "object"
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "backend": {
+                      "type": "string"
+                    },
+                    "schema_version": {
+                      "type": "integer"
+                    },
+                    "missing_tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "baseline_digest": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
-            },
-            "description": "Service is healthy"
+            }
           },
           "503": {
+            "description": "Service degraded/unavailable",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Service degraded/unavailable"
+            }
           },
           "default": {
+            "description": "Error — see wire-format-v1 §6",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Error — see wire-format-v1 §6"
+            }
           }
-        },
-        "summary": "GET /readyz"
+        }
       }
     }
   },
-  "servers": [
-    {
-      "url": ""
+  "components": {
+    "schemas": {
+      "ErrorEnvelope": {
+        "type": "object",
+        "description": "Wire-format v1 error body (SSOT §6). Returned for 4xx/5xx endpoint failures.",
+        "required": [
+          "ok",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": false
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable SCREAMING_SNAKE_CASE machine code"
+          },
+          "message": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "Optional trace / request correlation id"
+          },
+          "details": {
+            "description": "Optional structured payload; shape is code-specific"
+          }
+        }
+      }
     }
-  ]
+  }
 }

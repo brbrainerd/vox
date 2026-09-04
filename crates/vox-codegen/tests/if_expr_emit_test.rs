@@ -25,7 +25,7 @@ fn if_else_in_let_binding_emits_expression_arms() {
         .expect("shipping_cost");
     let emitted = emit_fn(f, Some(&hir.inferred_types), &[]).replace("\r\n", "\n");
     assert!(
-        emitted.contains("if (weight > 10) {\n    20\n    } else {\n    5\n    }"),
+        emitted.contains("if ((weight) > (10)) {\n    20\n    } else {\n    5\n    }"),
         "if/else arms must be tail expressions; got:\n{emitted}"
     );
     assert!(

@@ -53,7 +53,18 @@ extra_skip_dir_names = [
 # Strictness per rule. Layer ordering is implicitly strict (override with
 # the --warn-only CLI flag). The other seven default to warn.
 fan_in            = "warn"
-loc_budget        = "warn"
+# Off: reported by Rule 13 as a trend, never as an absolute ceiling. Per-crate
+# LoC is a weak proxy for both goals it served. Build cost is measured directly
+# by blast_s (contracts/ci/crate-build-map.v1.json, gated by `vox ci
+# crate-budget`); agent read/write ergonomics are a per-FILE property enforced
+# by arch/god_object (Error at 500 non-blank lines). Measured 2026-08-31: 91% of
+# workspace compile time is third-party, so per-crate first-party LoC could not
+# have been a build-time lever. The number also bound nothing in practice —
+# vox-orchestrator's budget was raised 55K -> 60K -> 70K and is still exceeded
+# at ~85.5K. The `max_loc` values below are RETAINED as Rule 13's growth
+# baseline: loc_delta skips any crate whose max_loc is None, so deleting them
+# would disable growth detection too.
+loc_budget        = "off"
 orphan            = "error"  # promoted from warn post-Tier-A; no legitimate orphan libraries should exist
 docstring         = "warn"
 description       = "error"

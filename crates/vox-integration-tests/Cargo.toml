@@ -51,7 +51,7 @@ workspace = true
 [dependencies]
 pulldown-cmark = "0.13"
 walkdir.workspace = true
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 # Needed by src/lib.rs (shared ts_emit_* test helpers: strict_tsconfig_json, run_tsc_noemit).
 serde_json = { workspace = true }
 

@@ -1,0 +1,17 @@
+fn running_max(xs: list[int]) to list[int] {
+    let mut result: list[int] = []
+    let mut best: int = 0
+    let mut started: bool = false
+    for x in xs {
+        if started == false {
+            best = x
+            started = true
+        } else {
+            if x > best {
+                best = x
+            }
+        }
+        result.push(best)
+    }
+    return result
+}

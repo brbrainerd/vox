@@ -20,21 +20,6 @@ use crate::commands::daemon::PersistentDaemon; // NB: commands::daemon, not crat
 use crate::commands::gui_db_pool::{GuiDbPool, map_db_err};
 
 /// Routing fields that must exist on both input structs.
-#[cfg(test)]
-pub const ROUTING_FIELDS: &[&str] = &[
-    "priority",
-    "model_override",
-    "tier",
-    "dry_run",
-    "active_skill",
-    "clutch",
-    "risk",
-    "allow_duplicate",
-    "grounding_check_enabled",
-    "chat_session_id",
-    "mode",
-];
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Execution {
@@ -450,6 +435,22 @@ async fn run_plan(
 mod tests {
     use super::*;
     use std::collections::BTreeSet;
+
+    /// Fields both `ChatTurnInput` and `SubmitTaskInput` must carry so routing
+    /// stays in sync between the two. Only this test reads it, so it lives here
+    /// rather than as a crate-public const nothing else consumes.
+    const ROUTING_FIELDS: &[&str] = &[
+        "priority",
+        "model_override",
+        "tier",
+        "dry_run",
+        "active_skill",
+        "clutch",
+        "risk",
+        "allow_duplicate",
+        "grounding_check_enabled",
+        "chat_session_id",
+    ];
 
     fn keys_of<T: serde::Serialize>(v: &T) -> BTreeSet<String> {
         serde_json::to_value(v)

@@ -31,6 +31,8 @@ fn filesystem_surfaces() -> BTreeSet<String> {
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_dir())
         .map(|e| e.file_name().to_string_lossy().into_owned())
+        // `__guards__`/`__tests__` are cross-surface infra, not surfaces themselves.
+        .filter(|name| !(name.starts_with("__") && name.ends_with("__")))
         .collect()
 }
 

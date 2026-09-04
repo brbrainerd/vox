@@ -10,7 +10,7 @@ description = "SSOT catalog of all first-party Vox plugins and distribution bund
 serde = { workspace = true, features = ["derive"] }
 toml = { workspace = true }
 thiserror = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [build-dependencies]
 serde = { workspace = true, features = ["derive"] }

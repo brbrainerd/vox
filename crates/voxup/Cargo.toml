@@ -29,7 +29,7 @@ hex        = { workspace = true }
 dirs       = { workspace = true }
 flate2     = { workspace = true }
 tar        = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [target.'cfg(windows)'.dependencies]
 zip = { workspace = true }

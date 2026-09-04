@@ -1,0 +1,24 @@
+fn running_max(xs: list[int]) to list[int] {
+    let mut result: list[int] = []
+    let mut best: int = 0
+    let mut started: bool = false
+    for x in xs {
+        if started == false {
+            best = x
+            started = true
+        } else {
+            if x > best {
+                best = x
+            }
+        }
+        result.push(best)
+    }
+    return result
+}
+
+fn main() to str {
+    assert(running_max([1, 3, 2, 5, 4]) == [1, 3, 3, 5, 5])
+    assert(running_max([]) == [])
+    assert(running_max([-2, -5, -1]) == [-2, -2, -1])
+    return "ok"
+}

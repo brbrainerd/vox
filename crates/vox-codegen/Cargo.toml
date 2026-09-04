@@ -20,7 +20,7 @@ standalone = []
 hex = { workspace = true }
 vox-compiler = { workspace = true }
 vox-tauri-codegen = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

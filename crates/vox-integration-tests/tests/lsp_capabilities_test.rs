@@ -19,8 +19,8 @@ fn initialize_capabilities_match_implemented_handlers() {
     assert!(caps.code_action_provider.is_some());
     assert!(caps.semantic_tokens_provider.is_some());
     assert!(
-        caps.document_formatting_provider.is_none(),
-        "document formatting is not implemented — do not advertise until wired"
+        caps.document_formatting_provider.is_some(),
+        "document formatting is implemented (Server::formatting) — advertise it"
     );
 }
 

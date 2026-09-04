@@ -14,9 +14,12 @@ fn webhook_is_not_silently_dropped() {
     // @webhook(provider: stripe) on a server with Vox return-type syntax.
     // Uses the stripe provider so no secret_var is required (avoids the
     // `vox/webhook/missing-secret-var` error from boilerplate_grafts.rs).
-    // @server must come first (the parser dispatches @server → parse_server_endpoint
-    // → parse_fn_decl; @webhook is consumed inside parse_fn_decl's decorator loop).
-    let src = "@server\n@webhook(provider: stripe)\nfn on_event() to str { return \"ok\" }\n";
+    // `server` is a bare-keyword declaration (Grammar Unification, 2026-06-30);
+    // the `@server` decorator spelling is now a hard parse error
+    // (`vox/decorator/server-retired`). Decorators precede the bare keyword,
+    // so `@webhook` comes first and `server` dispatches straight to
+    // `parse_endpoint_kw` → `parse_fn_decl`.
+    let src = "@webhook(provider: stripe)\nserver on_event() to str { return \"ok\" }\n";
     let tokens = lex(src);
     let module = parse(tokens).expect("@webhook + server must parse without errors");
     let diags = lint_ast_declarations(&module, src);

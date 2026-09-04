@@ -1,6 +1,5 @@
 ---
 source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
-assertion_line: 566
 expression: chat.1
 ---
 import React, { useState } from "react";
@@ -11,7 +10,7 @@ export function ChatWidget(): React.ReactElement {
   return (
     <div className="px-4">
     <div className={["flex", "flex-col", "chat"].filter(Boolean).join(" ")}>
-      <input aria-label={"Chat message"} className={"chat-input"} onChange={(e) => set_input(e.target.value)} value={input} />
+      <input aria-label={"Chat message"} className={["flex", "h-9", "w-full", "rounded-md", "border", "border-input", "bg-transparent", "px-3", "py-1", "text-sm", "shadow-sm", "focus-visible:outline-none", "focus-visible:ring-1", "focus-visible:ring-ring", "chat-input"].filter(Boolean).join(" ")} onChange={(e) => set_input(e.target.value)} value={input} />
       <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "send-btn"].filter(Boolean).join(" ")} onClick={((e) => (set_input("")))}>
         {"Send"}
       </button>

@@ -33,6 +33,7 @@ vox-git = { workspace = true }
 vox-graph-reader = { workspace = true }
 vox-http-client = { workspace = true }
 vox-secrets = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [lints]
 workspace = true

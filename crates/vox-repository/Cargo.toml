@@ -19,7 +19,7 @@ schemars = { workspace = true, optional = true }
 regex = { workspace = true }
 glob = { workspace = true }
 walkdir = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [features]
 default = []

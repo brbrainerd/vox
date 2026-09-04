@@ -7,7 +7,7 @@ For example: sum_even_squares(6) = 2^2 + 4^2 + 6^2 = 4 + 16 + 36 = 56.
 If n < 2, return 0.
 """
 signature = "fn sum_even_squares(n: int) to int"
-training_eligible = true
+training_eligible = false
 provenance = "original"
 difficulty = "easy"
 tags = []

@@ -16,6 +16,7 @@ path = "src/main.rs"
 [dependencies]
 blake3 = { workspace = true }
 anyhow = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

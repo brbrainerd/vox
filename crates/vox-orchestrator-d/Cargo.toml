@@ -28,7 +28,7 @@ vox-foundation = { workspace = true }
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
 uuid = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [[bin]]
 name = "vox-orchestrator-d"

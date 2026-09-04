@@ -1,3 +1,4 @@
+// training_eligible: false
 fn triangular_number(n: int) to int {
     return n * (n + 1) / 2
 }

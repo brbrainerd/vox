@@ -22,6 +22,7 @@ vox-journal      = { path = "../vox-journal" }
 vox-orchestrator = { path = "../vox-orchestrator" }
 serde_json       = { workspace = true }
 vox-redact       = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tokio          = { workspace = true, features = ["rt", "macros", "rt-multi-thread"] }

@@ -909,11 +909,11 @@ pub fn select_with_default_registry(intent: &SelectionIntent) -> Option<Selectio
 
 #[cfg(test)]
 mod tests {
-    // Rust 2024 made std::env::{set_var,remove_var} unsafe; #[serial] tests below.
+    // Rust 2024 made std::env::{set_var,remove_var} unsafe; #[file_serial] tests below.
     #![allow(unsafe_code)]
-    // Env-mutating tests exercise `from_env` cascades; they are `#[serial]` so no
+    // Env-mutating tests exercise `from_env` cascades; they are `#[file_serial]` so no
     // other env-mutating test runs concurrently, and each restores the prior value.
-    use serial_test::serial;
+    use serial_test::file_serial;
 
     use super::*;
 
@@ -971,7 +971,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
     #[allow(unsafe_code)]
     fn from_env_returns_default_when_unset() {
         // SAFETY: tests are gated by the parent test serialization; we restore.
@@ -986,7 +986,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
     #[allow(unsafe_code)]
     fn from_env_parses_custom_axes() {
         let prior = std::env::var("VOX_MODEL_AXES").ok();
@@ -1045,12 +1045,12 @@ mod tests {
         assert_eq!(i.axes, SelectionAxes::FAST);
     }
 
-    // #[serial]: calls decide() against the real bootstrap registry and
+    // #[file_serial]: calls decide() against the real bootstrap registry and
     // asserts on the resulting provider type; races against the privacy-
     // override tests below the same way select_with_empty_policy_falls_
     // through_to_cascade did (see its own comment).
     #[test]
-    #[serial]
+    #[file_serial]
     fn decide_respects_candidate_scope_cloud_only() {
         let registry = ModelRegistry::new();
         let req = ModelSelectionRequest {
@@ -1067,7 +1067,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
     fn decide_populates_non_placeholder_fields() {
         let registry = ModelRegistry::new();
         let req =
@@ -1101,7 +1101,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
     fn exploration_budget_gate_blocks_unknown_when_exhausted() {
         let prior_enable = std::env::var("VOX_ROUTING_ENABLE_EXPLORATION").ok();
         let prior_budget = std::env::var("VOX_EXPLORATION_BUDGET_EXHAUSTED").ok();
@@ -1133,14 +1133,31 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
+    #[allow(unsafe_code)]
     fn select_with_premium_alias_honors_alias_when_intelligence_high() {
+        // The premium alias for codegen (anthropic/claude-opus-4.7) is gated by
+        // the key-present check added in the B3 key-gated candidate filter
+        // (`select_via_premium_alias` -> `ModelRegistry::key_is_present_for`).
+        // A hosted CI runner with no ANTHROPIC_API_KEY configured must still be
+        // able to exercise the premium-alias *routing* logic in isolation, so
+        // set a test key here (mirrors `key_gate_admits_provider_when_key_present`).
+        let prior = std::env::var("ANTHROPIC_API_KEY").ok();
+        // SAFETY: #[file_serial]; prior value restored below.
+        unsafe { std::env::set_var("ANTHROPIC_API_KEY", "test-key") };
         let registry = ModelRegistry::new();
         let intent = SelectionIntent {
             axes: SelectionAxes::QUALITY_FIRST,
             ..SelectionIntent::for_task(TaskCategory::CodeGen)
         };
-        let outcome = select(&intent, &registry).expect("a model exists");
+        let outcome = select(&intent, &registry);
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("ANTHROPIC_API_KEY", v),
+                None => std::env::remove_var("ANTHROPIC_API_KEY"),
+            }
+        }
+        let outcome = outcome.expect("a model exists");
         // With QUALITY_FIRST axes (intelligence=70), premium alias should fire.
         // The alias for codegen is `anthropic/claude-opus-4.7` per current routing.yaml.
         match outcome.reason {
@@ -1154,7 +1171,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
     fn select_falls_back_to_scorer_when_intelligence_low() {
         let registry = ModelRegistry::new();
         let intent = SelectionIntent {
@@ -1261,7 +1278,7 @@ mod tests {
         }
 
         #[test]
-        #[serial]
+        #[file_serial]
         #[allow(unsafe_code)]
         fn from_env_ignores_unknown_key_without_panicking() {
             // Catches: unknown keys in VOX_MODEL_AXES causing a panic or
@@ -1279,7 +1296,7 @@ mod tests {
         }
 
         #[test]
-        #[serial]
+        #[file_serial]
         #[allow(unsafe_code)]
         fn from_env_invalid_numeric_value_falls_back_to_default_for_that_axis() {
             // Catches: invalid parse (e.g. "cost:abc") panicking instead of
@@ -1312,7 +1329,7 @@ mod tests {
         }
 
         #[test]
-        #[serial]
+        #[file_serial]
         fn decide_returns_none_when_no_candidates_match_scope_and_capability() {
             // Catches: decide() panicking or returning a model that violates scope,
             // rather than returning None, when every registry model is filtered out.
@@ -1346,22 +1363,42 @@ mod tests {
         }
     }
 
-    // #[serial]: this test's two select() calls must observe the same
+    // #[file_serial]: this test's two select() calls must observe the same
     // TEST_PRIVACY_OVERRIDE state (or lack of it) across both calls; without
     // this it can race the privacy-override tests above and see the override
     // flip mid-test, making the two calls' candidate sets diverge.
     #[test]
-    #[serial]
+    #[file_serial]
+    #[allow(unsafe_code)]
     fn select_with_empty_policy_falls_through_to_cascade() {
+        // BALANCED axes (this intent's default) resolve to `CostPreference::Performance`
+        // (cost=33 <= intelligence+responsiveness=67), which excludes every
+        // free-tier model from the scorer (`registry.rs::best_for_internal`)
+        // unless `allow_free_in_performance_mode` is set — and every paid
+        // candidate is separately excluded by the B3 key-gated candidate filter
+        // when no provider key is configured. On a hosted runner with no
+        // ANTHROPIC_API_KEY, that leaves zero eligible candidates for either
+        // call below. Set a test key so a real paid candidate is selectable,
+        // matching `key_gate_admits_provider_when_key_present`'s pattern.
+        let prior = std::env::var("ANTHROPIC_API_KEY").ok();
+        // SAFETY: #[file_serial]; prior value restored below.
+        unsafe { std::env::set_var("ANTHROPIC_API_KEY", "test-key") };
         let registry = ModelRegistry::new();
         let intent = SelectionIntent::for_task(TaskCategory::CodeGen);
         // An empty policy carries no steps, so the resolver yields nothing and
         // `select_with_policy` falls through to the pre-existing `select` cascade.
         let policy = crate::models::policy::SelectionPolicy::default();
         let ctx = crate::models::policy::PolicyContext::default();
-        let via_policy = select_with_policy(&intent, &registry, &policy, &ctx)
-            .expect("a model exists for codegen");
-        let via_cascade = select(&intent, &registry).expect("a model exists for codegen");
+        let via_policy = select_with_policy(&intent, &registry, &policy, &ctx);
+        let via_cascade = select(&intent, &registry);
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("ANTHROPIC_API_KEY", v),
+                None => std::env::remove_var("ANTHROPIC_API_KEY"),
+            }
+        }
+        let via_policy = via_policy.expect("a model exists for codegen");
+        let via_cascade = via_cascade.expect("a model exists for codegen");
         assert_eq!(via_policy.model_id, via_cascade.model_id);
     }
 
@@ -1391,10 +1428,10 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
     #[allow(unsafe_code)]
     fn key_gate_excludes_keyless_provider_and_reports_rejection() {
-        // SAFETY: #[serial] serializes env mutation; mirrors models/tests.rs:133-140.
+        // SAFETY: #[file_serial] serializes env mutation; mirrors models/tests.rs:133-140.
         unsafe {
             std::env::remove_var("ANTHROPIC_API_KEY");
             std::env::remove_var("VOX_ANTHROPIC_API_KEY");
@@ -1423,8 +1460,18 @@ mod tests {
     // added directly to `decide()`'s candidate loop actually excludes a cloud
     // candidate under local_only, not just best_for_internal's own callers.
     #[test]
-    #[serial]
+    #[file_serial]
+    #[allow(unsafe_code)]
     fn decide_excludes_cloud_candidate_under_local_only_privacy() {
+        // This test targets the *privacy* rejection path specifically, so the
+        // cloud candidate must clear the (separate, earlier-in-the-loop) B3
+        // key-gated candidate filter first — otherwise on a runner with no
+        // OPENROUTER_API_KEY it is rejected as "missing provider key" instead
+        // of "privacy mode excludes cloud", and the assertion below fails for
+        // the wrong reason. Mirrors `key_gate_admits_provider_when_key_present`.
+        let prior = std::env::var("OPENROUTER_API_KEY").ok();
+        // SAFETY: #[file_serial]; prior value restored below.
+        unsafe { std::env::set_var("OPENROUTER_API_KEY", "test-key") };
         crate::route_policy::set_test_privacy_override(Some("local_only"));
         let mut registry = ModelRegistry::default();
         registry.register(key_gate_spec("cloud-test", ProviderType::OpenRouter));
@@ -1436,6 +1483,12 @@ mod tests {
             ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
         let d = decide(&req, &registry);
         crate::route_policy::set_test_privacy_override(None);
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
         let d = d.expect("local candidate must still be selectable under local_only");
         assert_eq!(d.selected_model, "ollama-local-privacy-test");
         assert!(
@@ -1454,7 +1507,7 @@ mod tests {
     // under local_only it must be skipped so `select_inner` falls through to
     // the scorer path instead.
     #[test]
-    #[serial]
+    #[file_serial]
     fn select_skips_cloud_premium_alias_under_local_only_privacy() {
         crate::route_policy::set_test_privacy_override(Some("local_only"));
         let registry = ModelRegistry::new();
@@ -1471,11 +1524,11 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
     #[allow(unsafe_code)]
     fn key_gate_admits_provider_when_key_present() {
         let prior = std::env::var("ANTHROPIC_API_KEY").ok();
-        // SAFETY: #[serial]; prior value restored below.
+        // SAFETY: #[file_serial]; prior value restored below.
         unsafe { std::env::set_var("ANTHROPIC_API_KEY", "test-key") };
         let mut registry = ModelRegistry::default();
         registry.register(key_gate_spec(
@@ -1496,7 +1549,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
     #[allow(unsafe_code)]
     fn select_via_scorer_excludes_keyless_provider() {
         unsafe {
@@ -1533,7 +1586,7 @@ mod tests {
     // keyless candidate leaks through, and a present key is still admitted.
 
     #[test]
-    #[serial]
+    #[file_serial]
     #[allow(unsafe_code)]
     fn select_via_scorer_falls_back_gracefully_for_non_research_intent_when_key_missing() {
         unsafe {
@@ -1566,7 +1619,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[file_serial]
     #[allow(unsafe_code)]
     fn select_admits_non_research_intent_when_key_present() {
         let prior = std::env::var("ANTHROPIC_API_KEY").ok();

@@ -5,7 +5,7 @@ prompt = """
 Convert a lowercase hexadecimal string (no "0x" prefix) to a non-negative integer. For example, "ff" -> 255, "0" -> 0.
 """
 signature = "fn from_hex(s: str) to int"
-training_eligible = true
+training_eligible = false
 provenance = "original"
 difficulty = "medium"
 tags = ["math", "strings"]

@@ -1,0 +1,11 @@
+[problem]
+id = "063"
+title = "is_isogram"
+prompt = """
+Return true if every character in the string is distinct (no repeats). The empty string is an isogram.
+"""
+signature = "fn is_isogram(s: str) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

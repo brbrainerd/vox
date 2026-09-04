@@ -37,7 +37,7 @@ tracing = { workspace = true }
 vox-mesh-types = { workspace = true }
 schemars = { workspace = true }
 xxhash-rust = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

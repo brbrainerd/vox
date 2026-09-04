@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use tauri::command;
 use turso::params;
-use vox_db::{DbConnectSurface, connect_workspace_journey_optional};
+use vox_db::{DbConnectSurface, GuardedRows, connect_workspace_journey_optional};
 use vox_orchestrator::bootstrap::{discover_repository_from_cwd, repo_scoped_orchestrator_config};
 use vox_orchestrator::memory::MemoryManager;
 use vox_search::memory_hybrid::MemorySearchEngine;
@@ -72,7 +72,7 @@ pub async fn get_memory_status() -> Result<MemoryStatusPayload, String> {
 
     macro_rules! count_query {
         ($sql:expr) => {{
-            let res: Result<turso::Rows, turso::Error> = conn.query($sql, params![]).await;
+            let res: Result<GuardedRows, turso::Error> = conn.query($sql, params![]).await;
             match res {
                 Ok(mut rows) => {
                     let next_res: Result<Option<turso::Row>, turso::Error> = rows.next().await;

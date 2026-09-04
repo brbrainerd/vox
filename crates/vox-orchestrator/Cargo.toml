@@ -134,7 +134,7 @@ vox-mesh-types.workspace = true
 vox-mesh-policy = { workspace = true }
 blake3.workspace = true
 crossbeam-queue = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 axum = { workspace = true, features = ["tokio", "http1", "json"], optional = true }
 glob.workspace = true
 ignore = { workspace = true }
