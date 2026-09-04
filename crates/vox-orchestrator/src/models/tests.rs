@@ -685,6 +685,9 @@ mod scoreboard_latency_injection_tests {
             updated_at_ms: 0,
             success_count: 38,
             cumulative_cost_usd: 0.4,
+            p95_ttft_ms: None,
+            p95_tpot_ms: None,
+            goodput_tokens_per_sec: None,
         }
     }
 
@@ -798,6 +801,10 @@ mod semcov_wave34_tests {
             cost_per_success_usd: None,
             p50_latency_ms: p50,
             n_calls: n,
+            success_count: (success_rate * n as f64).round() as i64,
+            p95_ttft_ms: None,
+            p95_tpot_ms: None,
+            goodput_tokens_per_sec: None,
         }
     }
 
@@ -1342,6 +1349,9 @@ mod semcov_wave34_tests {
             updated_at_ms: 0,
             success_count: 1,
             cumulative_cost_usd: 0.0,
+            p95_ttft_ms: None,
+            p95_tpot_ms: None,
+            goodput_tokens_per_sec: None,
         };
         let updated = r.inject_scoreboard_latency(&[row]);
         assert_eq!(updated, 1, "extreme positive i64 must still be accepted");

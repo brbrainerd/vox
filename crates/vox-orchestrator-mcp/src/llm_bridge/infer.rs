@@ -835,6 +835,9 @@ pub async fn mcp_infer_tool_completion(
 }
 
 /// High-level chat used by `vox_chat_message`.
+///
+/// Sibling of [`call_llm_with_pref`] with no per-request model
+/// override/tier — see that function's doc comment for why the two exist.
 pub async fn call_llm(
     state: &ServerState,
     system_prompt: &str,
@@ -844,21 +847,121 @@ pub async fn call_llm(
     top_p_override: Option<f32>,
     attachment_manifest: Option<vox_orchestrator::attachment_manifest::AttachmentManifest>,
 ) -> Result<(String, String, u64), String> {
-    let pref = match crate::sync_poison::poison_rw_read(
+    call_llm_with_pref(
+        state,
+        system_prompt,
+        user_prompt,
+        user_id,
+        temperature_override,
+        top_p_override,
+        attachment_manifest,
+        None,
+        None,
+    )
+    .await
+}
+
+// vox:defactored-from chat_tools::chat::message 2026-08-31 -- `chat_tools::chat::message`
+// is a private submodule of `chat_tools::chat` (only `chat_message` is
+// re-exported), so its `effective_model_pref`/`resolution_for_tier` helpers
+// cannot be called from here without widening that module's visibility, which
+// is out of scope for this bugfix. These are exact copies of the fixed logic;
+// keep in sync with
+// `crate::chat_tools::chat::message::{effective_model_pref, resolution_for_tier}`
+// (see that module's doc comments for the full rationale of each tier arm).
+fn fallback_effective_model_pref(request: Option<&str>, global: Option<&str>) -> Option<String> {
+    request
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .or_else(|| global.map(str::trim).filter(|s| !s.is_empty()))
+        .map(str::to_string)
+}
+
+fn fallback_resolution_for_tier(
+    tier: Option<&str>,
+    base: McpChatModelResolution,
+) -> McpChatModelResolution {
+    match tier.map(str::trim) {
+        Some("local") => McpChatModelResolution {
+            enforce_free_tier_only: true,
+            allow_cheapest_fallback: true,
+            ..base
+        },
+        Some("mesh") => McpChatModelResolution {
+            free_tier_latency_critical: true,
+            allow_cheapest_fallback: true,
+            ..base
+        },
+        Some("cloud") => McpChatModelResolution {
+            allow_cheapest_fallback: false,
+            enforce_free_tier_only: false,
+            complexity: base.complexity.max(8),
+            ..base
+        },
+        Some(other) => {
+            tracing::warn!(
+                target: "vox_mcp::chat_tier",
+                tier = other,
+                "unrecognized chat tier; falling back to auto/default resolution"
+            );
+            McpChatModelResolution {
+                allow_cheapest_fallback: true,
+                ..base
+            }
+        }
+        None => McpChatModelResolution {
+            allow_cheapest_fallback: true,
+            ..base
+        },
+    }
+}
+
+/// Bug 2 fix (chat-harness-bugfix-and-completion, already-merged-code review):
+/// sibling of [`call_llm`] that also accepts the per-request model override and
+/// composer tier that `try_run_agent_turn` (`chat_tools::chat::message`)
+/// resolves with.
+///
+/// Before this, when `try_run_agent_turn` failed to resolve a model (e.g. its
+/// pick wasn't in the registry, or `enforce_free_tier_only` made a paid pick
+/// unresolvable) and `chat_message` fell through to plain `call_llm`, the
+/// user's per-request `model_override`/`tier` were silently discarded:
+/// `call_llm` resolved using ONLY `state.mcp_chat_model_override` (the
+/// process-global override) with `allow_cheapest_fallback: true`
+/// unconditionally and no free-tier enforcement. A turn could therefore
+/// resolve to a completely different model than the one the user picked (or
+/// silently escape a `tier: "local"` free-tier-only request) with no error
+/// surfaced. Threading the same preference through both resolution paths
+/// means a turn either resolves consistently via one shared preference, or
+/// fails consistently -- no more silent substitution.
+pub async fn call_llm_with_pref(
+    state: &ServerState,
+    system_prompt: &str,
+    user_prompt: &str,
+    user_id: Option<&str>,
+    temperature_override: Option<f32>,
+    top_p_override: Option<f32>,
+    attachment_manifest: Option<vox_orchestrator::attachment_manifest::AttachmentManifest>,
+    request_model_override: Option<&str>,
+    tier: Option<&str>,
+) -> Result<(String, String, u64), String> {
+    let global_pref = match crate::sync_poison::poison_rw_read(
         state.mcp_chat_model_override.read(),
         "mcp_chat_model_override",
     ) {
         Ok(g) => g.clone(),
         Err(e) => return Err(e.to_string()),
     };
+    let pref = fallback_effective_model_pref(request_model_override, global_pref.as_deref());
     let (model, free_only, resolution_template, selection_rationale) = {
         let orch = &state.orchestrator;
         let context_fill_ratio = super::model_route_policy::mcp_global_llm_context_fill_ratio(orch);
-        let resolution_template = McpChatModelResolution {
-            allow_cheapest_fallback: true,
-            context_fill_ratio,
-            ..Default::default()
-        };
+        let resolution_template = fallback_resolution_for_tier(
+            tier,
+            McpChatModelResolution {
+                context_fill_ratio,
+                ..Default::default()
+            },
+        );
         let choice = super::model_route_policy::resolve_mcp_chat_model_with_rationale(
             state,
             user_prompt,
@@ -974,6 +1077,8 @@ mod tests {
             success: true,
             cost_usd: Some(0.02),
             quality_score: Some(1.0),
+            ttft_ms: None,
+            tpot_ms: None,
         })
         .await
         .expect("record spend");
@@ -1212,5 +1317,95 @@ mod tests {
             );
             assert_eq!(msg, "some error");
         }
+    }
+
+    /// Bug 2 regression test: `call_llm` used to resolve using ONLY
+    /// `state.mcp_chat_model_override` (the process-global override), discarding
+    /// any per-request pick. Registers two distinct OpenRouter models, sets the
+    /// *global* override to one and passes a *different* model id as the
+    /// per-request `request_model_override` to `call_llm_with_pref`, then
+    /// asserts the model actually dispatched to is the per-request pick — proving
+    /// the fallback path now honors the same preference `try_run_agent_turn`
+    /// would have used instead of silently substituting the global model.
+    #[tokio::test]
+    #[allow(unsafe_code)] // env var mutation under a process-wide lock, like other chat tests
+    #[allow(clippy::await_holding_lock)]
+    async fn call_llm_with_pref_honors_request_override_over_process_global() {
+        let _env_guard = crate::chat_tools::chat::agent_loop::CHAT_MESSAGE_ENV_LOCK
+            .lock()
+            .expect("env lock");
+        let server = wiremock::MockServer::start().await;
+        wiremock::Mock::given(wiremock::matchers::method("POST"))
+            .respond_with(
+                wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "id": "chatcmpl-test",
+                    "model": "test-model",
+                    "choices": [{
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "hi"},
+                        "finish_reason": "stop",
+                    }],
+                    "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+                })),
+            )
+            .mount(&server)
+            .await;
+
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let state = crate::server_state::ServerState::new_test().await;
+        let global_model_id = "call-llm-pref-test-global";
+        let request_model_id = "call-llm-pref-test-request";
+        {
+            let handle = state.orchestrator.models_handle();
+            let mut registry = handle.write().expect("models registry lock");
+            let mut global = dummy_model();
+            global.id = global_model_id.to_string();
+            global.canonical_slug = global_model_id.to_string();
+            registry.register(global);
+            let mut requested = dummy_model();
+            requested.id = request_model_id.to_string();
+            requested.canonical_slug = request_model_id.to_string();
+            registry.register(requested);
+        }
+        *state.mcp_chat_model_override.write() = Some(global_model_id.to_string());
+
+        let result = call_llm_with_pref(
+            &state,
+            "system",
+            "hello",
+            Some("call-llm-pref-test"),
+            None,
+            None,
+            None,
+            Some(request_model_id),
+            None,
+        )
+        .await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let (_, model_used, _) = result.expect("call_llm_with_pref should succeed");
+        assert_eq!(
+            model_used, request_model_id,
+            "the per-request model_override must win over the process-global override; \
+             got {model_used} — the global model was silently substituted instead"
+        );
     }
 }

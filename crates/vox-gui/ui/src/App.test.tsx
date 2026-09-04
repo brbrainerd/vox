@@ -109,11 +109,13 @@ describe('App shell', () => {
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
       if (cmd === 'chat_turn') {
-        // Tauri v2 rejects `Result<T, String>` commands with the raw String,
-        // not a wrapped Error (see chat_turn's signature in
-        // crates/vox-gui/src/commands/chat_turn.rs) — matches BudgetGuardError's
-        // Display text propagated verbatim through enforce_budget_guard.
-        return Promise.reject('Daily budget of $5.00 exceeded (spent $5.12)');
+        // Task C1: `chat_turn` returns `Result<ChatTurnDto, ChatTurnError>`
+        // (crates/vox-gui/src/commands/chat_turn.rs) — a
+        // `#[serde(tag = "kind", ...)]` enum — so Tauri v2 rejects invoke()
+        // with the deserialized `{kind, message}` object, not a plain
+        // string. `message` matches BudgetGuardError's Display text
+        // propagated verbatim through enforce_budget_guard.
+        return Promise.reject({ kind: 'budget_exceeded', message: 'Daily budget of $5.00 exceeded (spent $5.12)' });
       }
       return Promise.resolve(null);
     });
@@ -147,7 +149,7 @@ describe('App shell', () => {
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
       if (cmd === 'chat_turn') {
-        return Promise.reject('Session budget of $2.00 exceeded (spent $2.01)');
+        return Promise.reject({ kind: 'budget_exceeded', message: 'Session budget of $2.00 exceeded (spent $2.01)' });
       }
       return Promise.resolve(null);
     });
@@ -183,7 +185,11 @@ describe('App shell', () => {
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
       if (cmd === 'chat_turn') {
-        return Promise.reject('RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h');
+        // Task C1: real shape is the deserialized ChatTurnError object, not a string.
+        return Promise.reject({
+          kind: 'rate_limited',
+          message: 'RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h',
+        });
       }
       return Promise.resolve(null);
     });
@@ -220,7 +226,11 @@ describe('App shell', () => {
       if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
       if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
       if (cmd === 'chat_turn') {
-        return Promise.reject('RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h');
+        // Task C1: real shape is the deserialized ChatTurnError object, not a string.
+        return Promise.reject({
+          kind: 'rate_limited',
+          message: 'RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h',
+        });
       }
       return Promise.resolve(null);
     });
@@ -240,6 +250,50 @@ describe('App shell', () => {
       expect(screen.getByText('Free tier limit reached')).toBeInTheDocument();
     });
     expect(screen.queryByText('Dispatch Failed')).toBeNull();
+  });
+
+  // Bug 4 (chat-harness review): the background dispatch branch mints its
+  // pending bubble via `onRun` BEFORE the `chat_turn` invoke resolves. Its
+  // catch block previously only called `pushToast` -- it never dispatched
+  // `failRun` for that runId, so a dispatch failure left the bubble stuck
+  // 'pending' with no terminal state until the multi-minute `pendingTimeout`
+  // watchdog eventually flipped it to a GENERIC message (`PENDING_TIMEOUT_MESSAGE`
+  // in lib/chatCorrelation.ts), discarding the real error. Proof here: the
+  // "persist assistant transcript rows" effect only persists 'done'/'failed'
+  // assistant messages (`assistantMessagesReadyToPersist`) -- so an immediate
+  // `chat_append_message` carrying the REAL dispatch error means `failRun`
+  // fired synchronously in the catch, not the watchdog minutes later.
+  it('a background dispatch failure settles the pending bubble as failed (not stuck pending) with the real error', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'gui-test-session' });
+      if (cmd === 'chat_append_message') return Promise.resolve(1);
+      if (cmd === 'chat_turn') {
+        return Promise.reject('daemon unreachable: connection refused');
+      }
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/spawn');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
+    );
+    await waitFor(() => {
+      const persistCall = invokeMock.mock.calls.find(
+        ([cmd, args]: [string, any]) =>
+          cmd === 'chat_append_message' && args?.input?.role === 'assistant',
+      );
+      expect(persistCall).toBeDefined();
+      expect(persistCall![1].input.content).toContain('daemon unreachable: connection refused');
+    });
   });
 
   // Non-blocking budget-warn toast: distinct from "Budget limit reached"
@@ -519,6 +573,35 @@ describe('App shell', () => {
     );
     const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'chat_turn');
     expect(submitCall![1].input.session_id).not.toBe('chat-session-abc');
+  });
+
+  // Phase D Task D3: before this fix, `/spawn <anything>` always sent the same
+  // hardcoded generic description, discarding whatever the user actually
+  // typed — a delegated agent (and anyone reading its task later) had no way
+  // to recover the real ask. Bare `/spawn` (no trailing text) still falls
+  // back to the generic description, covered by the test above.
+  it('/spawn carries the user\'s actual typed text as the task description', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve([]);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'chat_create_session') return Promise.resolve({ session_id: 'chat-session-abc' });
+      if (cmd === 'chat_turn') return Promise.resolve({ task_id: '1', duplicate_of: null });
+      return Promise.resolve(null);
+    });
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/spawn fix the login bug');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()),
+    );
+    const submitCall = invokeMock.mock.calls.find(([cmd]) => cmd === 'chat_turn');
+    expect(submitCall![1].input.content).toBe('fix the login bug');
   });
 
   // Fix Task 2 (chat-harness audit): same bug, second call site — deploying an

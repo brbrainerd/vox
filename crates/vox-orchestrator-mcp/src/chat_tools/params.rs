@@ -106,6 +106,23 @@ pub struct ChatMessageParams {
     /// Session-scoped skills the user rejected in the transcript (Phase E).
     #[serde(default)]
     pub skill_exclusions: Vec<String>,
+    /// Composer interaction mode: `plan|act|verify`. Wire-compatible field —
+    /// nothing in the agent loop consumes it yet (that requires deciding what
+    /// e.g. "plan" means for a synchronous turn; tracked as follow-up scope).
+    #[serde(default)]
+    pub mode: Option<String>,
+    /// Composer priority hint (`urgent|normal|background`). Meaningful for the
+    /// background dispatch path's queue; wire-compatible on the sync tool for
+    /// now but not yet consumed here (a synchronous call has no queue to
+    /// prioritize within).
+    #[serde(default)]
+    pub priority: Option<String>,
+    /// When true, the composer intends no side-effecting tool execution.
+    /// Wire-compatible field — the agent loop does not yet gate tool dispatch
+    /// on this (tracked as follow-up scope; see `mode` above for the same
+    /// caveat).
+    #[serde(default)]
+    pub dry_run: Option<bool>,
     /// Optional override to force trigger autonomous research (true/false)
     #[serde(default)]
     pub force_research: Option<bool>,
@@ -252,6 +269,12 @@ pub struct PlanParams {
     /// When set with an attached Codex DB, upserts `plan_sessions` and records iterative telemetry.
     #[serde(default)]
     pub plan_telemetry_session_id: Option<String>,
+    /// When true, plan nodes are inserted `blocked_on_approval` instead of `pending` —
+    /// nothing dispatches until `approve_plan_inner` flips them. Defaults false so
+    /// `ai.plan.execute`, `goal.rs`'s submit path, and successor-node scheduling all
+    /// keep working unchanged; only the GUI's `/plan` sets this.
+    #[serde(default)]
+    pub require_approval: Option<bool>,
     /// Optional link into `question_sessions.question_session_id` for unified analytics.
     #[serde(default)]
     pub question_link_session_id: Option<String>,
@@ -383,6 +406,14 @@ pub struct PlanResult {
     /// is omitted from the wire when empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content_blocks: Vec<vox_orchestrator::planning::ContentBlock>,
+    /// Plan session id the nodes above were persisted under, when a Codex DB is
+    /// attached — lets a GUI caller point `PlanPanel` at the live DAG without a
+    /// second round trip.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_session_id: Option<String>,
+    /// Plan version the nodes above were persisted at.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_version: Option<i64>,
 }
 
 /// Parameters for the `vox_ghost_text` MCP tool.
@@ -471,5 +502,27 @@ mod chat_params_tests {
         let p: ChatMessageParams = serde_json::from_str(json).unwrap();
         assert_eq!(p.force_research, Some(true));
         assert_eq!(p.research_scope, Some("web".to_string()));
+    }
+
+    #[test]
+    fn parses_mode_priority_dry_run_from_json() {
+        let json = r#"{
+            "prompt": "hi",
+            "mode": "act",
+            "priority": "urgent",
+            "dry_run": true
+        }"#;
+        let p: ChatMessageParams = serde_json::from_str(json).unwrap();
+        assert_eq!(p.mode.as_deref(), Some("act"));
+        assert_eq!(p.priority.as_deref(), Some("urgent"));
+        assert_eq!(p.dry_run, Some(true));
+    }
+
+    #[test]
+    fn mode_priority_dry_run_default_absent() {
+        let p: ChatMessageParams = serde_json::from_str(r#"{"prompt": "hi"}"#).unwrap();
+        assert_eq!(p.mode, None);
+        assert_eq!(p.priority, None);
+        assert_eq!(p.dry_run, None);
     }
 }

@@ -356,7 +356,14 @@ impl AiTaskProcessor {
             match chunk_result {
                 Ok(text) => {
                     phase_text.push_str(&text);
-                    event_bus.emit(AgentEventKind::TokenStreamed { agent_id, text });
+                    event_bus.emit(AgentEventKind::TokenStreamed {
+                        agent_id,
+                        text,
+                        // Background AiTaskProcessor streaming has no chat
+                        // session concept — see Task G1's doc comment on
+                        // `AgentEventKind::TokenStreamed`.
+                        session_id: None,
+                    });
                 }
                 Err(e) => tracing::error!("AI stream error [{}]: {}", phase.as_str(), e),
             }
@@ -1539,6 +1546,8 @@ impl AgentFleet {
                             Some("scaling_load"),
                             None,
                             None,
+                            None,
+                            None,
                         );
                         self.spawns_this_tick
                             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -1861,7 +1870,7 @@ mod tests {
         // function's return value) carries the consolidated stack's deltas.
         let mut streamed_text = String::new();
         while let Ok(evt) = rx.try_recv() {
-            if let AgentEventKind::TokenStreamed { text, agent_id } = evt.kind {
+            if let AgentEventKind::TokenStreamed { text, agent_id, .. } = evt.kind {
                 assert_eq!(agent_id, crate::types::AgentId(1));
                 streamed_text.push_str(&text);
             }

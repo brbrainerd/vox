@@ -19,6 +19,13 @@ pub struct ModelScore {
     pub cost_per_success_usd: Option<f64>,
     pub p50_latency_ms: Option<i64>,
     pub n_calls: i64,
+    pub success_count: i64,
+    /// Task M3: p95 time-to-first-token, ms. See [`vox_db::store::types::ModelScoreboardRow::p95_ttft_ms`].
+    pub p95_ttft_ms: Option<i64>,
+    /// Task M3: p95 time-per-output-token, ms.
+    pub p95_tpot_ms: Option<f64>,
+    /// Task M3: mean successful-call throughput, tokens/sec ("goodput").
+    pub goodput_tokens_per_sec: Option<f64>,
 }
 
 impl From<vox_db::store::types::ModelScoreboardRow> for ModelScore {
@@ -29,7 +36,94 @@ impl From<vox_db::store::types::ModelScoreboardRow> for ModelScore {
             cost_per_success_usd: row.cost_per_success_usd,
             p50_latency_ms: row.p50_latency_ms,
             n_calls: row.n_calls,
+            success_count: row.success_count,
+            p95_ttft_ms: row.p95_ttft_ms,
+            p95_tpot_ms: row.p95_tpot_ms,
+            goodput_tokens_per_sec: row.goodput_tokens_per_sec,
         }
+    }
+}
+
+/// Task M3: 95% Wilson score interval for a success rate — unlike the naive normal
+/// approximation, stays well-behaved at small `n` and near 0%/100%, which is exactly the
+/// regime a freshly-onboarded or rarely-used model sits in. Returns `None` when `n == 0`
+/// (nothing to estimate).
+///
+/// Reporting-only: does not feed model *selection* (`ModelSelectionEngine`) — see
+/// `crates/vox-orchestrator/src/routing/engine.rs`'s `pick_with_auto_score_thompson`, which
+/// already runs its own Beta-Thompson exploration and is out of scope here.
+#[must_use]
+pub fn wilson_score_interval(successes: i64, n: i64) -> Option<(f64, f64)> {
+    if n <= 0 {
+        return None;
+    }
+    const Z: f64 = 1.96; // 95% confidence
+    let n = n as f64;
+    let p_hat = successes as f64 / n;
+    let z2 = Z * Z;
+    let denom = 1.0 + z2 / n;
+    let center = (p_hat + z2 / (2.0 * n)) / denom;
+    let margin = (Z * ((p_hat * (1.0 - p_hat) / n) + z2 / (4.0 * n * n)).sqrt()) / denom;
+    Some(((center - margin).max(0.0), (center + margin).min(1.0)))
+}
+
+/// Task M3: below this many observed *calls*, a model holds no rank position — see
+/// `vox model explain`'s `partition_by_rank_confidence`.
+///
+/// Deliberately distinct from `vox model scoreboard`'s `COST_PER_SUCCESS_MIN_SUCCESSES` (10):
+/// these gate different statistics on different denominators. Ranking needs enough *calls* to
+/// place a model relative to others; a cost-per-success *ratio* needs enough *successes* in
+/// its denominator before one expensive fallback swings it by an order of magnitude.
+/// Equalizing them would make one of the two wrong.
+///
+/// The two surfaces also read it differently, deliberately: `explain` **suppresses**
+/// sub-threshold models from its ranked list (a rank position is a claim), while `scoreboard`
+/// only **marks** them — a scoreboard is a full inventory keyed (model, category, strength),
+/// and hiding thin rows would hide what a reader queries it for. Neither surface will mark a
+/// sub-threshold row Pareto-optimal.
+pub const MIN_CALLS_FOR_CONFIDENT_RANK: i64 = 5;
+
+#[cfg(test)]
+mod wilson_interval_tests {
+    use super::wilson_score_interval;
+
+    #[test]
+    fn zero_calls_is_none() {
+        assert_eq!(wilson_score_interval(0, 0), None);
+    }
+
+    #[test]
+    fn perfect_record_interval_still_excludes_zero_and_stays_below_one() {
+        let (lo, hi) = wilson_score_interval(3, 3).expect("n=3");
+        assert!(lo > 0.0, "lo={lo}");
+        assert!(hi <= 1.0, "hi={hi}");
+        assert!(
+            hi - lo > 0.1,
+            "small n must leave real uncertainty, got {lo}..{hi}"
+        );
+    }
+
+    #[test]
+    fn interval_narrows_as_n_grows_for_the_same_rate() {
+        let (lo_small, hi_small) = wilson_score_interval(5, 10).expect("n=10");
+        let (lo_large, hi_large) = wilson_score_interval(500, 1000).expect("n=1000");
+        assert!(
+            (hi_large - lo_large) < (hi_small - lo_small),
+            "more data at the same rate must produce a tighter interval"
+        );
+    }
+
+    #[test]
+    fn interval_is_centered_near_the_observed_rate_for_large_n() {
+        let (lo, hi) = wilson_score_interval(800, 1000).expect("n=1000");
+        assert!(
+            lo < 0.8 && hi > 0.8,
+            "0.8 observed rate should sit inside its own interval: {lo}..{hi}"
+        );
+        assert!(
+            hi - lo < 0.05,
+            "n=1000 should give a tight interval, got {lo}..{hi}"
+        );
     }
 }
 

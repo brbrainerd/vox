@@ -1,14 +1,19 @@
-/** Mode slashes handled inside Loquela (no IPC). */
+/** Mode slashes handled inside Loquela (no IPC). `/plan` moved to
+ *  `APP_SLASH_COMMANDS` below — it now dispatches a real turn (`vox_plan`
+ *  via `Execution::Plan`) instead of just switching Loquela's mode chip. */
 export const INTERNAL_MODE_SLASHES = {
-  '/plan': 'plan',
   '/verify': 'verify',
   '/act': 'act',
 } as const;
 
+/** `'plan'` stays a valid mode id — the composer's mode chip and
+ *  `buildChatTurn`'s `mode` field both still use it — even though `/plan`
+ *  no longer resolves through `INTERNAL_MODE_SLASHES`. */
 export type LoquelaModeId = 'plan' | 'act' | 'verify';
 
 /** App-level slash commands routed through `onSlashCommand` in App.tsx. */
 export const APP_SLASH_COMMANDS = [
+  '/plan',
   '/memory',
   '/audit',
   '/spawn',

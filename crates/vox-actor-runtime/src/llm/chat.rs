@@ -179,6 +179,11 @@ pub async fn llm_chat(
                         })
                     });
                     let latency = resp.latency_ms as i64;
+                    // Non-streaming: no partial data exists, so "first token" and "whole
+                    // response" arrive at the same instant (mirrors the LlmResponse
+                    // construction below).
+                    let tpot_ms =
+                        (completion_tokens > 0).then(|| latency as f64 / completion_tokens as f64);
 
                     let _ = record_telemetry_attempt(&config, "success", latency, None).await;
                     if !config.telemetry_skip_interaction {
@@ -193,6 +198,8 @@ pub async fn llm_chat(
                             cost_usd,
                             latency,
                             true,
+                            Some(latency),
+                            tpot_ms,
                         )
                         .await;
                     }
@@ -206,6 +213,8 @@ pub async fn llm_chat(
                         tool_calls: resp.tool_calls,
                         latency_ms: resp.latency_ms,
                         cache_read_tokens: resp.cache_read_tokens,
+                        ttft_ms: Some(resp.latency_ms),
+                        tpot_ms,
                     }))
                 }
                 Err(e) => {
@@ -241,6 +250,8 @@ pub async fn llm_chat(
                             None,
                             0,
                             false,
+                            None,
+                            None,
                         )
                         .await;
                     }
@@ -255,6 +266,7 @@ pub async fn llm_chat(
 }
 
 #[allow(unused_variables)]
+#[allow(clippy::too_many_arguments)]
 async fn record_telemetry_outcome(
     config: &LlmConfig,
     messages: &[ChatMessage],
@@ -266,6 +278,8 @@ async fn record_telemetry_outcome(
     cost_usd: Option<f64>,
     latency_ms: i64,
     success: bool,
+    ttft_ms: Option<i64>,
+    tpot_ms: Option<f64>,
 ) -> Result<(), String> {
     #[cfg(feature = "database")]
     {
@@ -318,6 +332,8 @@ async fn record_telemetry_outcome(
                     // / 5.0, 1.0)` over a table with zero rows, i.e. a constant 1.0. Do not
                     // rank, render, or reward on it until M2 gives it a definition.
                     quality_score: Some(if success { 1.0 } else { 0.0 }),
+                    ttft_ms,
+                    tpot_ms,
                 };
 
                 let _ = db.record_unified_llm_turn(outcome, None).await;
@@ -415,6 +431,8 @@ pub async fn infer_with_retry(
                     response.cost_usd,
                     response.latency_ms as i64,
                     true,
+                    response.ttft_ms.map(|v| v as i64),
+                    response.tpot_ms,
                 )
                 .await;
 
@@ -449,6 +467,8 @@ pub async fn infer_with_retry(
             None,
             0,
             false,
+            None,
+            None,
         )
         .await;
     }

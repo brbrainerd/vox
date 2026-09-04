@@ -12,7 +12,7 @@ use crate::chat_socrates_meta::{
     spawn_socrates_telemetry_with_llm,
 };
 use crate::journey_envelope;
-use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm};
+use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm, call_llm_with_pref};
 use crate::memory::{
     RetrievalTriggerMode, run_retrieval_bundle, should_trigger_autonomous_research,
 };
@@ -24,6 +24,77 @@ use vox_orchestrator::session_context_envelope_key;
 
 const REM_CHAT_CANONICAL: &str = "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
 const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
+
+/// Honest classification of *why* the resolved model is what it is, derived
+/// from the resolved model id (never the requested one) — see Phase B of
+/// `docs/superpowers/plans/2026-08-28-chat-harness-unification.md`. Classifying
+/// from the request meant a pinned model the resolver silently ignored still
+/// read "Your pick" in `ModelBadge`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SelectionSource {
+    /// `requested == resolved`: the user's pin was honored.
+    UserOverride,
+    /// No per-request pref, but the process-global sticky override matches
+    /// the resolved model.
+    Global,
+    /// No pref at all; the auto-selector chose.
+    AutoRouted,
+    /// A pref was requested but the resolved model differs from it (removed
+    /// from the registry, capability mismatch, etc.).
+    Fallback,
+}
+
+impl SelectionSource {
+    /// Classify from the RESOLVED model, not the requested one — that is the
+    /// whole point of this type. `requested` is the per-request pin (if any),
+    /// `resolved` is the model id the turn actually used, `global` is the
+    /// process-global sticky override (if any).
+    #[must_use]
+    pub fn classify(requested: Option<&str>, resolved: Option<&str>, global: Option<&str>) -> Self {
+        match (requested, resolved) {
+            (Some(r), Some(res)) if r == res => SelectionSource::UserOverride,
+            (Some(_), Some(_)) => SelectionSource::Fallback,
+            (None, Some(res)) if global == Some(res) => SelectionSource::Global,
+            _ => SelectionSource::AutoRouted,
+        }
+    }
+}
+
+/// Envelope payload for `ModelBadge`: the resolved model, an honest
+/// [`SelectionSource`], and — for anything other than a plain user pin — the
+/// rationale explaining why.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SelectionDto {
+    pub model: String,
+    pub source: SelectionSource,
+    pub rationale: Option<String>,
+}
+
+impl SelectionDto {
+    fn new(
+        requested: Option<&str>,
+        resolved: &str,
+        global: Option<&str>,
+        rationale: Option<String>,
+    ) -> Self {
+        Self {
+            model: resolved.to_string(),
+            source: SelectionSource::classify(requested, Some(resolved), global),
+            rationale,
+        }
+    }
+
+    /// A fallback selection always carries a rationale — never a silent `None`.
+    #[cfg(test)]
+    fn fallback(model: impl Into<String>, rationale: impl Into<String>) -> Self {
+        Self {
+            model: model.into(),
+            source: SelectionSource::Fallback,
+            rationale: Some(rationale.into()),
+        }
+    }
+}
 
 /// [`try_run_agent_turn`]'s success payload. A named struct (rather than a
 /// 4-tuple) now that the model-selection rationale rides along too — see
@@ -37,6 +108,11 @@ struct AgentTurnResult {
     /// when the rationale-carrying resolver produced one. Surfaced to the GUI as
     /// `data.selection_reason` for `ModelBadge`'s tooltip.
     selection_reason: Option<String>,
+    /// Chat-turn-visible events derived from tool results this turn (Phase E
+    /// Task E1) — empty on every path except the real agent loop
+    /// ([`super::agent_loop::run_agent_turn`]), which is the only path that
+    /// dispatches tool calls at all.
+    events: Vec<Value>,
 }
 
 /// Model preference for this turn: per-request pick, then the process-global
@@ -62,17 +138,58 @@ pub fn resolution_for_tier(
     match tier.map(str::trim) {
         Some("local") => McpChatModelResolution {
             enforce_free_tier_only: true,
+            // Restore the pre-tier-routing degradation path (previously
+            // unconditional for every call site). This is safe to keep on for
+            // `local`: `enforce_free_tier_if_needed` (model_route_policy/policy.rs)
+            // gates every returned model through free-tier enforcement, so
+            // `allow_cheapest_fallback` here can only ever widen which *free*
+            // model gets picked when the primary `decide()` selection comes up
+            // empty -- it can never leak a paid model back out.
+            allow_cheapest_fallback: true,
             ..base
         },
         Some("mesh") => McpChatModelResolution {
             free_tier_latency_critical: true,
+            // Same reasoning as `local` above -- restore the fallback rather
+            // than silently dropping it just because a tier was named.
+            allow_cheapest_fallback: true,
             ..base
         },
         Some("cloud") => McpChatModelResolution {
+            // Explicitly paid-preferring and observably different from both
+            // "auto" (`_` arm, which always allows degrading to a cheap/free
+            // fallback) and from `McpChatModelResolution::default()`: never let
+            // a failed/absent primary pick quietly degrade to the cheapest free
+            // model, and bias `decide()`'s `SelectionRequest.intent.complexity`
+            // (resolve.rs `build_selection_request`) toward stronger models so a
+            // "cloud" pick doesn't land on a weak model by the scorer's default.
             allow_cheapest_fallback: false,
+            enforce_free_tier_only: false,
+            complexity: base.complexity.max(8),
             ..base
         },
-        _ => McpChatModelResolution {
+        Some(other) => {
+            // Unknown/typo'd tier (e.g. "Cloud", "remote"): `tier` is a
+            // free-text `Option<String>` at the Rust type level even though the
+            // composer only ever sends "local"/"mesh"/"cloud"/omitted, so a typo
+            // is representable. Explicit decision (not silent aliasing): treat
+            // it exactly like "no tier" (auto/default), and log it so the typo
+            // is debug-visible instead of just quietly "working" with no trace.
+            // Known gap: this function has no channel back to the caller's
+            // `selection_reason`/rationale to surface the typo in the GUI (see
+            // `try_run_agent_turn`'s `selection_reason` plumbing) -- wiring
+            // that through is out of scope for this fix.
+            tracing::warn!(
+                target: "vox_mcp::chat_tier",
+                tier = other,
+                "unrecognized chat tier; falling back to auto/default resolution"
+            );
+            McpChatModelResolution {
+                allow_cheapest_fallback: true,
+                ..base
+            }
+        }
+        None => McpChatModelResolution {
             allow_cheapest_fallback: true,
             ..base
         },
@@ -162,10 +279,24 @@ async fn try_run_agent_turn(
     {
         Ok(c) => c,
         // Model resolution failing here is not this function's problem to report —
-        // let the existing `call_llm` path attempt (and correctly surface) it.
-        Err(_) => return None,
+        // let the existing `call_llm` path attempt (and correctly surface) it. But
+        // when the caller pinned a model, don't swallow the reason it couldn't be
+        // honored entirely: log it so it's debug-visible instead of vanishing
+        // silently into an unrelated auto-selected fallback.
+        Err(e) => {
+            if request_model_override.is_some() {
+                tracing::warn!(
+                    target: "vox_mcp::model_selection",
+                    pref = ?pref,
+                    error = %e,
+                    "user-supplied model pref failed to resolve; falling back to call_llm pipeline"
+                );
+            }
+            return None;
+        }
     };
     let model = choice.model;
+    let is_free = choice.is_free;
     let selection_reason = choice.rationale;
 
     let mut llm_config = super::agent_loop::model_spec_to_llm_config(&model)?;
@@ -195,6 +326,12 @@ async fn try_run_agent_turn(
         active_skill_id,
         llm_config,
         super::agent_loop::DEFAULT_MAX_ITERATIONS,
+        // Task G1: stream tokens over the existing agent-events bus as they
+        // arrive, carrying this turn's session_id so the GUI's
+        // `resolveSessionForEvent` can route the frame straight to the
+        // quick-chat bubble instead of only updating once the full reply is
+        // back.
+        true,
     ))
     .await
     {
@@ -222,11 +359,98 @@ async fn try_run_agent_turn(
             } else {
                 outcome.final_text
             };
+
+            // Task M1/M2: fire-and-forget the three-axis join (harness_eval_run +
+            // harness_eval_task_result + model_selection_event) for this turn, tagged
+            // `triggered_by = "live_chat"` so `list_harness_eval_runs` keeps excluding it
+            // from real `vox harness eval --live` reporting.
+            //
+            // `completeness_ok` here is `!hit_iteration_limit && !has_unbalanced_fence` — the
+            // two `completeness_ok` components knowable synchronously at turn-completion time.
+            // `hit_iteration_limit` stands in for the plan's `finish_reason == 'length'` check
+            // (no wire finish_reason is captured anywhere between the egress response and
+            // `AgentTurnOutcome` today — a real gap, left for a follow-up rather than a blind
+            // cross-crate wire-parsing change); a turn that was cut off before a final answer
+            // is the same failure shape either way. The third component, "user re-asked within
+            // 2 turns", genuinely can't be known yet — it's queued via
+            // `queue_live_chat_reask_check` and resolved retroactively below, by the NEXT
+            // turn's own write (each new turn rescores its session's still-pending prior
+            // turns before recording itself).
+            if let Some(db) = state.db.clone() {
+                let task_id = format!(
+                    "{session_id}-{}",
+                    vox_telemetry::current_trace_ctx().trace_id
+                );
+                let model_id = model.id.clone();
+                let blended = vox_orchestrator::models::blended_cost_per_1k(&model);
+                let cost_tier = vox_orchestrator::models::cost_tier_for_blended(is_free, blended)
+                    .as_str()
+                    .to_string();
+                let selection_reason_for_event = selection_reason.clone().unwrap_or_default();
+                let completeness_ok = !outcome.hit_iteration_limit
+                    && !vox_orchestrator::grounding::has_unbalanced_fence(&final_text);
+                let session_run_prefix = session_id.to_string();
+                let user_prompt_owned = user_prompt.to_string();
+                // `outcome.latency_ms` used to have no path to this call at all -- this
+                // record_live_chat_turn call passed a hardcoded `None` for both cost_usd and
+                // latency_ms since Task M1. cost_usd genuinely isn't computed anywhere on
+                // this path yet (a separate gap); latency_ms is now real (Task M3).
+                let turn_latency_ms = outcome.latency_ms.map(|v| v as i64);
+                tokio::spawn(async move {
+                    // Rescore this session's still-pending prior turns against this turn's
+                    // prompt first — cheap (at most 2 rows), and keeps each pending row's
+                    // window tight to "the next 2 actual user turns" rather than drifting if a
+                    // later write races ahead of an earlier one.
+                    if let Ok(pending) =
+                        db.pending_live_chat_reask_checks(&session_run_prefix).await
+                    {
+                        for check in pending {
+                            let matched = vox_orchestrator::grounding::looks_like_reask(
+                                &check.user_prompt,
+                                &user_prompt_owned,
+                            );
+                            let _ = db
+                                .resolve_live_chat_reask_check(&check.run_id, matched)
+                                .await;
+                        }
+                    }
+
+                    let now_ms = chrono::Utc::now().timestamp_millis();
+                    let Ok(run_id) = db
+                        .record_live_chat_turn(
+                            &task_id,
+                            &model_id,
+                            &cost_tier,
+                            &selection_reason_for_event,
+                            None,
+                            turn_latency_ms,
+                            completeness_ok,
+                            now_ms,
+                        )
+                        .await
+                    else {
+                        return;
+                    };
+                    if completeness_ok {
+                        let _ = db
+                            .queue_live_chat_reask_check(
+                                &run_id,
+                                &task_id,
+                                &session_run_prefix,
+                                &user_prompt_owned,
+                                now_ms,
+                            )
+                            .await;
+                    }
+                });
+            }
+
             Some(Ok(AgentTurnResult {
                 text: final_text,
                 model_used: outcome.model_used,
                 tokens: outcome.total_tokens,
                 selection_reason,
+                events: outcome.events,
             }))
         }
         Err(e) => Some(Err(e)),
@@ -583,6 +807,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             None,
             params.skill.as_deref(),
             sticky_model_key.as_deref(),
+            &params.skill_exclusions,
         )
         .await,
         session_ts,
@@ -590,172 +815,213 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     );
     let llm_started = std::time::Instant::now();
 
-    let (response_text, model_used, tokens, selection_reason) =
-        match params.cognitive_profile.as_deref() {
-            Some(profile) => {
-                let resolution_template = McpChatModelResolution {
-                    allow_cheapest_fallback: profile == "fast",
-                    complexity: match profile {
-                        "reasoning" => 9,
-                        "creative" => 7,
-                        _ => 5,
-                    },
-                    ..Default::default()
-                };
-                let base_temperature = if profile == "creative" {
-                    0.8_f32
-                } else {
-                    0.3_f32
-                };
-                match resolve_chat_llm_model(
-                    state,
-                    &user_prompt,
-                    resolution_template.clone(),
-                    Some(session_id.as_str()),
-                )
-                .await
-                {
-                    Ok((model, free_only)) => {
-                        let pref = effective_model_pref(
-                            params.model_override.as_deref(),
-                            match crate::sync_poison::poison_rw_read(
-                                state.mcp_chat_model_override.read(),
-                                "mcp_chat_model_override",
-                            ) {
-                                Ok(g) => g.clone(),
-                                Err(e) => {
-                                    tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
-                                    None
-                                }
-                            }
-                            .as_deref(),
-                        );
-                        let max_tokens =
-                            crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
-                        let routing = McpInferRouting {
-                            user_prompt: &user_prompt,
-                            sticky_model_pref: pref.as_deref(),
-                            resolution_template,
-                            free_only,
-                            allow_cloud_ollama_fallback: true,
-                            selection_rationale: None,
-                            user_id: Some(session_id.as_str()),
-                        };
-                        match crate::llm_bridge::mcp_infer_completion(
-                            state,
-                            model,
-                            "vox_chat_message",
-                            &system_prompt,
-                            &routing,
-                            max_tokens,
-                            base_temperature,
-                            params.temperature,
-                            params.top_p,
-                            params.json_mode,
-                            params.attachment_manifest.clone(),
-                        )
-                        .await
-                        {
-                            // `mcp_infer_completion` doesn't surface a selection rationale
-                            // (its `McpInferRouting.selection_rationale` above is `None`
-                            // on the cognitive-profile path) — no `selection_reason` here.
-                            Ok(r) => (r.0, r.1, r.2, None),
+    let (response_text, model_used, tokens, selection_reason, events) = match params
+        .cognitive_profile
+        .as_deref()
+    {
+        Some(profile) => {
+            let resolution_template = McpChatModelResolution {
+                allow_cheapest_fallback: profile == "fast",
+                complexity: match profile {
+                    "reasoning" => 9,
+                    "creative" => 7,
+                    _ => 5,
+                },
+                ..Default::default()
+            };
+            let profile_complexity = resolution_template.complexity;
+            let base_temperature = if profile == "creative" {
+                0.8_f32
+            } else {
+                0.3_f32
+            };
+            match resolve_chat_llm_model(
+                state,
+                &user_prompt,
+                resolution_template.clone(),
+                Some(session_id.as_str()),
+            )
+            .await
+            {
+                Ok((model, free_only)) => {
+                    let pref = effective_model_pref(
+                        params.model_override.as_deref(),
+                        match crate::sync_poison::poison_rw_read(
+                            state.mcp_chat_model_override.read(),
+                            "mcp_chat_model_override",
+                        ) {
+                            Ok(g) => g.clone(),
                             Err(e) => {
-                                return ToolResult::<String>::err_with_remediation(
-                                    format!("LLM error: {e}"),
-                                    REM_LLM_COMPLETION,
-                                )
-                                .to_json();
+                                tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
+                                None
                             }
                         }
+                        .as_deref(),
+                    );
+                    let max_tokens =
+                        crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
+                    let routing = McpInferRouting {
+                        user_prompt: &user_prompt,
+                        sticky_model_pref: pref.as_deref(),
+                        resolution_template,
+                        free_only,
+                        allow_cloud_ollama_fallback: true,
+                        selection_rationale: None,
+                        user_id: Some(session_id.as_str()),
+                    };
+                    match crate::llm_bridge::mcp_infer_completion(
+                        state,
+                        model,
+                        "vox_chat_message",
+                        &system_prompt,
+                        &routing,
+                        max_tokens,
+                        base_temperature,
+                        params.temperature,
+                        params.top_p,
+                        params.json_mode,
+                        params.attachment_manifest.clone(),
+                    )
+                    .await
+                    {
+                        // `mcp_infer_completion` doesn't surface a selection rationale
+                        // (its `McpInferRouting.selection_rationale` above is `None`
+                        // on the cognitive-profile path); record a truthful reason for
+                        // *why* there's no rationale rather than leaving it a silent
+                        // `None` — see Phase B Task B1.
+                        Ok(r) => (
+                            r.0,
+                            r.1,
+                            r.2,
+                            Some(format!(
+                                "cognitive profile '{profile}' \u{2192} complexity {profile_complexity}; rationale not surfaced"
+                            )),
+                            vec![],
+                        ),
+                        Err(e) => {
+                            return ToolResult::<String>::err_with_remediation(
+                                format!("LLM error: {e}"),
+                                REM_LLM_COMPLETION,
+                            )
+                            .to_json();
+                        }
                     }
-                    Err(e) => {
-                        tracing::warn!(
-                            target: "vox_mcp::cognitive_routing",
-                            profile,
-                            error = %e,
-                            "cognitive profile model resolution failed — using standard routing"
-                        );
-                        match call_llm(
-                            state,
-                            &system_prompt,
-                            &user_prompt,
-                            Some(session_id.as_str()),
-                            params.temperature,
-                            params.top_p,
-                            params.attachment_manifest.clone(),
-                        )
-                        .await
-                        {
-                            Ok(r) => (r.0, r.1, r.2, None),
-                            Err(e2) => {
-                                return ToolResult::<String>::err_with_remediation(
-                                    format!("LLM error: {e2}"),
-                                    REM_LLM_COMPLETION,
-                                )
-                                .to_json();
-                            }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "vox_mcp::cognitive_routing",
+                        profile,
+                        error = %e,
+                        "cognitive profile model resolution failed — using standard routing"
+                    );
+                    match call_llm(
+                        state,
+                        &system_prompt,
+                        &user_prompt,
+                        Some(session_id.as_str()),
+                        params.temperature,
+                        params.top_p,
+                        params.attachment_manifest.clone(),
+                    )
+                    .await
+                    {
+                        Ok(r) => (
+                            r.0,
+                            r.1,
+                            r.2,
+                            Some(format!(
+                                "Fallback: cognitive-profile resolution failed ({e})"
+                            )),
+                            vec![],
+                        ),
+                        Err(e2) => {
+                            return ToolResult::<String>::err_with_remediation(
+                                format!("LLM error: {e2}"),
+                                REM_LLM_COMPLETION,
+                            )
+                            .to_json();
                         }
                     }
                 }
             }
-            // Default (no cognitive_profile) chat path: Task 1.3d (F24 wiring). Attempt
-            // the tool-calling agent loop (Task 1.3c) whenever the resolved model maps
-            // to a simple provider shape and no multimodal attachment is present (the
-            // mapper does not handle vision/attachment content — see
-            // `super::agent_loop::model_spec_to_llm_config`). Otherwise fall back to
-            // the existing `call_llm` -> `mcp_infer_completion` pipeline unchanged,
-            // which still handles every other provider plus vision/budget/fallback.
-            None => match try_run_agent_turn(
+        }
+        // Default (no cognitive_profile) chat path: Task 1.3d (F24 wiring). Attempt
+        // the tool-calling agent loop (Task 1.3c) whenever the resolved model maps
+        // to a simple provider shape and no multimodal attachment is present (the
+        // mapper does not handle vision/attachment content — see
+        // `super::agent_loop::model_spec_to_llm_config`). Otherwise fall back to
+        // the existing `call_llm` -> `mcp_infer_completion` pipeline unchanged,
+        // which still handles every other provider plus vision/budget/fallback.
+        None => match try_run_agent_turn(
+            state,
+            &system_prompt,
+            &user_prompt,
+            session_id.as_str(),
+            params.skill.clone(),
+            params.attachment_manifest.is_some(),
+            params.temperature,
+            params.top_p,
+            params.model_override.as_deref(),
+            params.tier.as_deref(),
+            params.clutch.as_deref(),
+            params.risk.as_deref(),
+        )
+        .await
+        {
+            Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason, r.events),
+            Some(Err(e)) => {
+                return ToolResult::<String>::err_with_remediation(
+                    format!("LLM error: {e}"),
+                    REM_LLM_COMPLETION,
+                )
+                .to_json();
+            }
+            // Bug 2 fix: `try_run_agent_turn` already resolved (or tried to
+            // resolve) this turn's model using `params.model_override` /
+            // `params.tier`. Falling through to plain `call_llm` here used to
+            // silently discard both and re-resolve from only the
+            // process-global override with `allow_cheapest_fallback: true`
+            // unconditionally and no free-tier enforcement -- a different
+            // model could be picked with no error surfaced, and a `tier:
+            // "local"` request could silently escape free-tier enforcement.
+            // `call_llm_with_pref` threads the same per-request pref/tier
+            // through so this fallback resolves consistently with the path
+            // that just failed, instead of picking an unrelated model.
+            None => match call_llm_with_pref(
                 state,
                 &system_prompt,
                 &user_prompt,
-                session_id.as_str(),
-                params.skill.clone(),
-                params.attachment_manifest.is_some(),
+                Some(session_id.as_str()),
                 params.temperature,
                 params.top_p,
+                params.attachment_manifest.clone(),
                 params.model_override.as_deref(),
                 params.tier.as_deref(),
-                params.clutch.as_deref(),
-                params.risk.as_deref(),
             )
             .await
             {
-                Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason),
-                Some(Err(e)) => {
+                // `call_llm_with_pref` resolves via the rationale-carrying resolver
+                // internally but doesn't return the rationale through its
+                // `(String, String, u64)` return type — out of scope for this task
+                // (see `try_run_agent_turn`'s doc comment). Record a truthful reason
+                // for the missing detail rather than a silent `None`.
+                Ok(r) => (
+                    r.0,
+                    r.1,
+                    r.2,
+                    Some("Fallback: attachment present, or provider shape unmapped".to_string()),
+                    vec![],
+                ),
+                Err(e) => {
                     return ToolResult::<String>::err_with_remediation(
                         format!("LLM error: {e}"),
                         REM_LLM_COMPLETION,
                     )
                     .to_json();
                 }
-                None => match call_llm(
-                    state,
-                    &system_prompt,
-                    &user_prompt,
-                    Some(session_id.as_str()),
-                    params.temperature,
-                    params.top_p,
-                    params.attachment_manifest.clone(),
-                )
-                .await
-                {
-                    // `call_llm` resolves via the rationale-carrying resolver internally
-                    // but doesn't return the rationale through its `(String, String, u64)`
-                    // return type — out of scope for this task (see `try_run_agent_turn`'s
-                    // doc comment); `selection_reason` is `None` on this fallback path.
-                    Ok(r) => (r.0, r.1, r.2, None),
-                    Err(e) => {
-                        return ToolResult::<String>::err_with_remediation(
-                            format!("LLM error: {e}"),
-                            REM_LLM_COMPLETION,
-                        )
-                        .to_json();
-                    }
-                },
             },
-        };
+        },
+    };
 
     // KB signal adapter: fire-and-forget after response is assembled
     if let Some(db) = state.db.clone() {
@@ -1110,6 +1376,28 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         Some(session_key.clone()),
         Some(user_prompt.clone()),
     );
+    // Honest selection classification (Phase B Task B1): derive `source` from the
+    // RESOLVED model (`model_used`), never the requested one — see
+    // `SelectionSource::classify`'s doc comment for why.
+    let requested_model_for_selection = params
+        .model_override
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let global_model_for_selection = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(_) => None,
+    };
+    let selection = SelectionDto::new(
+        requested_model_for_selection,
+        &model_used,
+        global_model_for_selection.as_deref(),
+        selection_reason.clone(),
+    );
+
     let result = serde_json::json!({
         "message": asst_msg,
         "history": history,
@@ -1117,9 +1405,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         "tokens": tokens,
         "latency_ms": llm_started.elapsed().as_millis() as u64,
         "selection_reason": selection_reason,
+        "selection": selection,
         "session_id": session_id,
         "socrates": soc,
         "retrieval": retrieval_evidence,
+        "events": events,
     });
 
     ToolResult::ok(result).to_json()
@@ -1264,6 +1554,8 @@ mod tests {
             success: true,
             cost_usd: Some(0.02),
             quality_score: Some(1.0),
+            ttft_ms: None,
+            tpot_ms: None,
         })
         .await
         .expect("record spend");
@@ -1497,6 +1789,138 @@ mod tests {
         assert!(r.enforce_free_tier_only || r.allow_cheapest_fallback);
         let auto = resolution_for_tier(None, McpChatModelResolution::default());
         assert!(auto.allow_cheapest_fallback);
+    }
+
+    // ── Phase B / Task B1: honest selection classification ───────────────
+    // Nested so `cargo test -p vox-orchestrator-mcp selection` (the plan's
+    // documented command) matches these by module path.
+    mod selection {
+        use super::*;
+
+        #[test]
+        fn source_is_classified_from_the_resolved_model_not_the_request() {
+            // The honesty bug: classifying from the request means a pinned model
+            // that the resolver silently ignored still reads "Your pick".
+            assert_eq!(
+                SelectionSource::classify(Some("m"), Some("m"), None),
+                SelectionSource::UserOverride
+            );
+            assert_eq!(
+                SelectionSource::classify(Some("gone"), Some("other"), None),
+                SelectionSource::Fallback
+            );
+            assert_eq!(
+                SelectionSource::classify(None, Some("auto"), None),
+                SelectionSource::AutoRouted
+            );
+            assert_eq!(
+                SelectionSource::classify(None, Some("g"), Some("g")),
+                SelectionSource::Global
+            );
+        }
+
+        #[test]
+        fn fallback_always_carries_a_rationale() {
+            let d = SelectionDto::fallback("free-x", "requested `gone` is not in the registry");
+            assert_eq!(d.source, SelectionSource::Fallback);
+            assert!(
+                d.rationale
+                    .expect("rationale")
+                    .contains("not in the registry")
+            );
+        }
+    }
+
+    /// Regression test for the bug the assertion above was too weak to catch:
+    /// `r.enforce_free_tier_only || r.allow_cheapest_fallback` can never fail for
+    /// `"local"` even when `allow_cheapest_fallback` silently regressed to
+    /// `false`, because `enforce_free_tier_only` alone satisfies the OR. Pin
+    /// both fields explicitly, and require the whole struct to differ from
+    /// `McpChatModelResolution::default()` in at least one field -- the
+    /// independent-review finding was that `"cloud"` produced a byte-identical
+    /// no-op vs default.
+    #[test]
+    fn tier_local_sets_free_tier_and_keeps_cheapest_fallback() {
+        let base = McpChatModelResolution::default();
+        let r = resolution_for_tier(Some("local"), McpChatModelResolution::default());
+        assert!(r.enforce_free_tier_only, "local must force free-tier-only");
+        assert!(
+            r.allow_cheapest_fallback,
+            "local must not silently drop the pre-existing cheapest-fallback \
+             degradation path just because a tier was named -- \
+             enforce_free_tier_if_needed always re-swaps to a free model anyway, \
+             so this can never leak a paid pick"
+        );
+        assert_ne!(
+            r.enforce_free_tier_only, base.enforce_free_tier_only,
+            "local's resolution must be observably different from default()"
+        );
+    }
+
+    #[test]
+    fn tier_mesh_sets_latency_critical_and_keeps_cheapest_fallback() {
+        let base = McpChatModelResolution::default();
+        let r = resolution_for_tier(Some("mesh"), McpChatModelResolution::default());
+        assert!(r.free_tier_latency_critical);
+        assert!(
+            r.allow_cheapest_fallback,
+            "mesh must not silently drop the cheapest-fallback degradation path"
+        );
+        assert_ne!(
+            r.free_tier_latency_critical,
+            base.free_tier_latency_critical
+        );
+    }
+
+    /// Regression test for the specific "cloud is a no-op" finding:
+    /// `McpChatModelResolution::default()` already has `allow_cheapest_fallback:
+    /// false`, so the old `cloud` arm (which only ever set that field to
+    /// `false`) produced a struct indistinguishable from doing nothing. The
+    /// fixed arm must differ from both `default()` and from "auto" (`None`,
+    /// which always allows cheapest-fallback).
+    #[test]
+    fn tier_cloud_is_not_a_no_op() {
+        let base = McpChatModelResolution::default();
+        let auto = resolution_for_tier(None, McpChatModelResolution::default());
+        let cloud = resolution_for_tier(Some("cloud"), McpChatModelResolution::default());
+
+        assert!(
+            !cloud.allow_cheapest_fallback,
+            "cloud must not degrade to the cheapest free/paid fallback"
+        );
+        assert_ne!(
+            cloud.allow_cheapest_fallback, auto.allow_cheapest_fallback,
+            "cloud must be observably different from auto/unset tier"
+        );
+        assert_ne!(
+            cloud.complexity, base.complexity,
+            "cloud must be observably different from McpChatModelResolution::default() \
+             in at least one field -- the reviewed bug was a byte-identical no-op"
+        );
+    }
+
+    /// An unrecognized/typo'd tier string (`tier` is free-text at the Rust type
+    /// level) must be an explicit, documented alias for auto/default -- not an
+    /// accidental match of a *different* recognized tier's behavior. This pins
+    /// the documented decision in `resolution_for_tier`'s `Some(other) =>` arm.
+    #[test]
+    fn unknown_tier_is_documented_alias_for_auto_not_a_recognized_tier() {
+        let auto = resolution_for_tier(None, McpChatModelResolution::default());
+        let typo = resolution_for_tier(Some("Cloud"), McpChatModelResolution::default());
+
+        assert_eq!(typo.allow_cheapest_fallback, auto.allow_cheapest_fallback);
+        assert_eq!(typo.enforce_free_tier_only, auto.enforce_free_tier_only);
+        assert_eq!(
+            typo.free_tier_latency_critical,
+            auto.free_tier_latency_critical
+        );
+
+        let local = resolution_for_tier(Some("local"), McpChatModelResolution::default());
+        assert_ne!(
+            typo.enforce_free_tier_only, local.enforce_free_tier_only,
+            "a typo'd tier must never silently behave like a *different* \
+             recognized tier"
+        );
     }
 
     /// The trap: `cognitive_profile` takes `fast|reasoning|creative` and a

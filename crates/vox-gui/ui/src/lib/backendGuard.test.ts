@@ -8,6 +8,7 @@ import {
   sanitizeErrorForToast,
   isBudgetExceededError,
   isRateLimitedError,
+  isContextExceededError,
   stripRateLimitedPrefix,
 } from './backendGuard';
 
@@ -189,5 +190,23 @@ describe('stripRateLimitedPrefix', () => {
     expect(stripRateLimitedPrefix('LLM error: RATE_LIMITED: OpenRouter rate limit exceeded, try again in 24h')).toBe(
       'OpenRouter rate limit exceeded, try again in 24h',
     );
+  });
+});
+
+// Task C1 (chat-harness-unification plan): mirrors the Rust-side
+// `classify_turn_error`'s `ContextExceeded` case
+// (`crates/vox-gui/src/commands/chat_turn.rs`), which matches
+// `vox_actor_runtime::llm::CONTEXT_EXCEEDED_PREFIX`.
+describe('isContextExceededError', () => {
+  it('matches a message carrying the CONTEXT_LENGTH_EXCEEDED marker', () => {
+    expect(isContextExceededError('CONTEXT_LENGTH_EXCEEDED: 200000 > 128000')).toBe(true);
+  });
+
+  it('matches the "LLM error: "-wrapped form production actually sends', () => {
+    expect(isContextExceededError('LLM error: CONTEXT_LENGTH_EXCEEDED: 200000 > 128000')).toBe(true);
+  });
+
+  it('does not match unrelated backend errors', () => {
+    expect(isContextExceededError('Network timeout')).toBe(false);
   });
 });

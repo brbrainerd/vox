@@ -35,6 +35,7 @@ fn base_params(description: &str) -> SubmitTaskParams {
         clutch: None,
         risk: None,
         trigger_source: None,
+        chat_session_id: None,
     }
 }
 

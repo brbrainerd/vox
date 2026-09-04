@@ -465,6 +465,37 @@ pub async fn dispatch_request(
             let ids: Vec<u64> = orch.agent_ids().into_iter().map(|a| a.0).collect();
             response_result(&req.id, serde_json::json!({ "agent_ids": ids }))
         }
+        orch_daemon_method::SUBAGENT_TREE => {
+            // Phase D Task D2: the daemon RPC counterpart of `vox-gui`'s
+            // `list_subagent_tree` Tauri command (crates/vox-gui/src/commands/mission_control.rs),
+            // which has been calling this method since it was added but had no
+            // handler here — every call previously fell through to the
+            // catch-all `Method not found` arm below, so the GUI's SubAgents
+            // surface always rendered empty. Field names/shapes here must match
+            // `SubagentTreeNode`/`SubagentTreeEdge` on the Tauri and TS sides:
+            // `task_id` mirrors those callers' existing 0-as-unset convention
+            // for an absent `source_task_id` (see `record_lineage_event`'s own
+            // `task_id.unwrap_or(0)` in orchestrator/core/lineage.rs).
+            // `chat_session_id`/`origin_turn_id` (Phase D Task D1) ride along
+            // as additional fields for D3 correlation surfaces to consume.
+            let snapshot = orch.topology_snapshot();
+            let tree: Vec<serde_json::Value> = snapshot
+                .delegation_edges
+                .iter()
+                .map(|e| {
+                    serde_json::json!({
+                        "task_id": e.source_task_id.map(|t| t.0).unwrap_or(0),
+                        "agent_id": e.child_agent_id.0,
+                        "parent_agent_id": e.parent_agent_id.0,
+                        "source_task_id": e.source_task_id.map(|t| t.0),
+                        "reason": e.reason,
+                        "chat_session_id": e.chat_session_id,
+                        "origin_turn_id": e.origin_turn_id,
+                    })
+                })
+                .collect();
+            response_result(&req.id, serde_json::json!({ "tree": tree }))
+        }
         orch_daemon_method::SUBMIT_TASK => {
             let Some(description) = req.params.get("description").and_then(|x| x.as_str()) else {
                 return response_err(&req.id, "params.description (string) required");
@@ -542,6 +573,25 @@ pub async fn dispatch_request(
                 enqueue_hints
                     .get_or_insert_with(TaskEnqueueHints::default)
                     .grounding_check_enabled = Some(enabled);
+            }
+            // Phase D Task D1/D3: `vox-gui`'s `submit_task_params`
+            // (crates/vox-gui/src/commands/control_plane.rs) has been sending
+            // this top-level `chat_session_id` key since it was added, but
+            // nothing here ever read it — every background `/spawn`/task-mode
+            // dispatch silently lost its originating chat session before this
+            // fix. Same null-safe idiom as `task_category`/`grounding_check_enabled`
+            // above.
+            let chat_session_id = req
+                .params
+                .get("chat_session_id")
+                .filter(|v| !v.is_null())
+                .and_then(|x| x.as_str())
+                .map(str::to_string)
+                .filter(|s| !s.trim().is_empty());
+            if let Some(chat_session_id) = chat_session_id {
+                enqueue_hints
+                    .get_or_insert_with(TaskEnqueueHints::default)
+                    .chat_session_id = Some(chat_session_id);
             }
             let session_id = req
                 .params
@@ -758,6 +808,16 @@ pub async fn dispatch_request(
                 .and_then(|x| x.as_u64())
                 .map(TaskId);
             let delegation_reason = req.params.get("delegation_reason").and_then(|x| x.as_str());
+            let chat_session_id = req
+                .params
+                .get("chat_session_id")
+                .and_then(|x| x.as_str())
+                .map(str::to_string);
+            let origin_turn_id = req
+                .params
+                .get("origin_turn_id")
+                .and_then(|x| x.as_str())
+                .map(str::to_string);
             let res = if dynamic {
                 orch.spawn_dynamic_agent_with_parent(
                     name,
@@ -765,6 +825,8 @@ pub async fn dispatch_request(
                     delegation_reason,
                     source_task_id,
                     None,
+                    chat_session_id,
+                    origin_turn_id,
                 )
             } else {
                 orch.spawn_agent(name)
@@ -1184,6 +1246,113 @@ mod isolation_dispatch_tests {
         )
         .await;
         assert!(matches!(resp.payload, DispatchPayload::Error { .. }));
+    }
+
+    /// Phase D Task D2: `orch.subagent_tree` had no handler at all — every real
+    /// call fell through to the catch-all "Method not found" arm, so
+    /// `vox-gui`'s `list_subagent_tree` Tauri command always resolved an empty
+    /// tree. This exercises the real `dispatch_request` RPC path (not the
+    /// underlying topology-building logic in isolation): spawn a parent agent,
+    /// spawn a dynamic child delegated from it (carrying the Phase D Task D1
+    /// `chat_session_id`/`origin_turn_id` fields), then call
+    /// `orch.subagent_tree` and confirm the edge comes back non-empty with
+    /// those fields intact.
+    #[tokio::test]
+    async fn subagent_tree_returns_edge_after_spawn() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+
+        let empty = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(orch_daemon_method::SUBAGENT_TREE, serde_json::json!({})),
+        )
+        .await;
+        assert_eq!(
+            result_value(&empty)["tree"].as_array().map(|a| a.len()),
+            Some(0),
+            "no spawns yet: tree must be empty, not an error or missing field"
+        );
+
+        let spawn_parent = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SPAWN_AGENT_EXT,
+                serde_json::json!({ "name": "parent-agent", "dynamic": false }),
+            ),
+        )
+        .await;
+        let parent_id = result_value(&spawn_parent)["agent_id"]
+            .as_u64()
+            .expect("parent agent_id");
+
+        let spawn_child = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SPAWN_AGENT_EXT,
+                serde_json::json!({
+                    "name": "delegated-child",
+                    "dynamic": true,
+                    "parent_agent_id": parent_id,
+                    "delegation_reason": "test delegation",
+                    "chat_session_id": "chat-session-d2",
+                    "origin_turn_id": "call_d2_test",
+                }),
+            ),
+        )
+        .await;
+        let child_id = result_value(&spawn_child)["agent_id"]
+            .as_u64()
+            .expect("child agent_id");
+
+        let tree_resp = dispatch_request(
+            "rid",
+            orch,
+            &req(orch_daemon_method::SUBAGENT_TREE, serde_json::json!({})),
+        )
+        .await;
+        let tree = result_value(&tree_resp)["tree"]
+            .as_array()
+            .expect("tree is an array");
+        assert_eq!(tree.len(), 1, "exactly one delegation edge after one spawn");
+        let edge = &tree[0];
+        assert_eq!(edge["agent_id"], child_id);
+        assert_eq!(edge["parent_agent_id"], parent_id);
+        assert_eq!(edge["reason"], "test delegation");
+        assert_eq!(edge["chat_session_id"], "chat-session-d2");
+        assert_eq!(edge["origin_turn_id"], "call_d2_test");
+    }
+
+    /// Phase D Task D1/D3: `vox-gui`'s `submit_task_params`
+    /// (crates/vox-gui/src/commands/control_plane.rs) sends a top-level
+    /// `chat_session_id` on every `orch.submit_task` call, but this RPC arm
+    /// never read it before this fix — the value was silently discarded, so
+    /// no submitted task (e.g. a `/spawn` background dispatch) ever carried
+    /// its originating chat session for correlation. Confirms it now lands on
+    /// `AgentTask::chat_session_id` via `TaskEnqueueHints`.
+    #[tokio::test]
+    async fn submit_task_chat_session_id_reaches_the_task() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({
+                    "description": "fix the login bug",
+                    "chat_session_id": "chat-session-d1d3",
+                }),
+            ),
+        )
+        .await;
+        let task_id = result_value(&resp)["task_id"].as_u64().expect("task_id");
+        let task = orch
+            .all_tasks()
+            .into_iter()
+            .find(|t| t.id.0 == task_id)
+            .expect("submitted task is findable");
+        assert_eq!(task.chat_session_id.as_deref(), Some("chat-session-d1d3"));
     }
 
     #[tokio::test]

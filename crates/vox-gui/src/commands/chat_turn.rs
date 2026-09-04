@@ -26,6 +26,10 @@ pub enum Execution {
     #[default]
     Sync,
     Background,
+    /// GUI's `/plan` slash command: issues `vox_plan` with `require_approval:
+    /// true` instead of `vox_chat_message`, and returns a `plan_session_id`/
+    /// `plan_version` the frontend points `PlanPanel` at.
+    Plan,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -59,6 +63,13 @@ pub struct ChatTurnInput {
     pub allow_duplicate: Option<bool>,
     #[serde(default)]
     pub chat_session_id: Option<String>,
+    /// Interaction mode from the composer (plan|act|verify). Was dropped
+    /// end-to-end pre-fix: forwarded server-side onto
+    /// `SubmitTaskInput::mode` -> `enqueue_hints.mode` (see
+    /// `control_plane::submit_task_params`) on the background path only —
+    /// the sync path has no `mode` concept in `vox_chat_message`.
+    #[serde(default)]
+    pub mode: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -75,6 +86,73 @@ pub struct ChatTurnDto {
     pub grounding_flagged: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duplicate_of: Option<String>,
+    /// Turn events derived from tool results this turn (Phase E Task E1) —
+    /// empty on the background branch, which persists no assistant row.
+    #[serde(default)]
+    pub events: Vec<serde_json::Value>,
+    /// Set on the `Execution::Plan` branch only — lets the frontend point
+    /// `PlanPanel` at the DAG `vox_plan` just persisted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan_version: Option<i64>,
+}
+
+/// Wrapper every real dispatch call site applies (`format!("LLM error: {e}")`
+/// — see `crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs` and
+/// siblings) before a backend error string reaches the GUI. Stripped before
+/// classification so detection matches the wire shape, not the raw source.
+const LLM_ERROR_WRAPPER_PREFIX: &str = "LLM error: ";
+
+/// Typed classification of a `chat_turn` dispatch failure, for a GUI toast
+/// that can react to the failure kind instead of pattern-matching a raw
+/// string itself. `#[serde(tag = "kind", ...)]` so a future JSON-carrying
+/// error surface can round-trip this directly; today it's Rust-internal.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ChatTurnError {
+    RateLimited {
+        message: String,
+    },
+    ContextExceeded {
+        message: String,
+    },
+    BudgetExceeded {
+        message: String,
+    },
+    /// Fallback: anything not recognized as one of the above.
+    Backend {
+        message: String,
+    },
+}
+
+/// Classifies a backend error string (as it actually reaches the GUI — see
+/// `LLM_ERROR_WRAPPER_PREFIX`) into a [`ChatTurnError`]. Matches against the
+/// real prefixes/`Display` formats production emits:
+/// - `vox_actor_runtime::llm::RATE_LIMITED_PREFIX`
+/// - `vox_actor_runtime::llm::CONTEXT_EXCEEDED_PREFIX`
+/// - `BudgetGuardError::Exceeded`'s Display (`"{Daily|Session} budget of $…
+///   exceeded (spent $…)"`, `crates/vox-orchestrator-mcp/.../budget_guard.rs`)
+pub fn classify_turn_error(text: &str) -> ChatTurnError {
+    let unwrapped = text.strip_prefix(LLM_ERROR_WRAPPER_PREFIX).unwrap_or(text);
+    if unwrapped.starts_with(vox_actor_runtime::llm::RATE_LIMITED_PREFIX) {
+        return ChatTurnError::RateLimited {
+            message: unwrapped.to_string(),
+        };
+    }
+    if unwrapped.starts_with(vox_actor_runtime::llm::CONTEXT_EXCEEDED_PREFIX) {
+        return ChatTurnError::ContextExceeded {
+            message: unwrapped.to_string(),
+        };
+    }
+    if unwrapped.starts_with("Daily budget of $") || unwrapped.starts_with("Session budget of $") {
+        return ChatTurnError::BudgetExceeded {
+            message: unwrapped.to_string(),
+        };
+    }
+    ChatTurnError::Backend {
+        message: text.to_string(),
+    }
 }
 
 fn non_blank(v: &Option<String>) -> Option<&str> {
@@ -109,10 +187,18 @@ pub fn sync_tool_args(input: &ChatTurnInput) -> serde_json::Value {
         ("clutch", non_blank(&input.clutch)),
         ("risk", non_blank(&input.risk)),
         ("active_skill", non_blank(&input.active_skill)),
+        ("priority", non_blank(&input.priority)),
     ] {
         if let Some(v) = val {
             obj.insert(key.into(), serde_json::json!(v));
         }
+    }
+    // `ChatMessageParams` (crates/vox-orchestrator-mcp/src/chat_tools/params.rs)
+    // needs a `dry_run: Option<bool>` field for the daemon to actually read
+    // this — cross-file dependency on the parallel params.rs work. Emitted
+    // here regardless so the wire carries it once that lands.
+    if let Some(v) = input.dry_run {
+        obj.insert("dry_run".into(), serde_json::json!(v));
     }
     args
 }
@@ -124,7 +210,7 @@ pub fn background_input(input: &ChatTurnInput) -> SubmitTaskInput {
         files: input.context_files.clone(),
         priority: input.priority.clone(),
         session_id: Some(input.session_id.clone()),
-        mode: None,
+        mode: input.mode.clone(),
         tier: input.tier.clone(),
         // `model_hint` is dead on the wire: the daemon's SUBMIT_TASK handler
         // never reads it. Only `tier` -> enqueue_hints.model_preference works.
@@ -137,27 +223,43 @@ pub fn background_input(input: &ChatTurnInput) -> SubmitTaskInput {
         model_override: input.model_override.clone(),
         task_category: None,
         grounding_check_enabled: input.grounding_check_enabled,
-        chat_session_id: Some(input.session_id.clone()),
+        // The real originating chat session when the caller sent one
+        // (App.tsx's `activeSessionId`) — falls back to `session_id` only
+        // when absent, since `session_id` itself can be a synthetic,
+        // throwaway background-dispatch id (see `newBackgroundSessionId`
+        // call sites in App.tsx) that points at no real transcript.
+        chat_session_id: input
+            .chat_session_id
+            .clone()
+            .or_else(|| Some(input.session_id.clone())),
     }
 }
 
+/// The one place a raw backend error string becomes a typed [`ChatTurnError`]
+/// before crossing the Tauri IPC boundary — `run_sync`/`run_background` keep
+/// returning `Result<_, String>` internally (every `?` site inside them stays
+/// untouched), and this command classifies the final string once, so Tauri
+/// serializes the tagged JSON (`{"kind": "...", ...}`) to the frontend
+/// instead of a plain display string.
 #[tauri::command]
 pub async fn chat_turn(
     app_handle: tauri::AppHandle,
     input: ChatTurnInput,
     pool: State<'_, GuiDbPool>,
     daemon: State<'_, Arc<PersistentDaemon>>,
-) -> Result<ChatTurnDto, String> {
+) -> Result<ChatTurnDto, ChatTurnError> {
     if input.session_id.trim().is_empty() {
-        return Err("session_id must not be empty".to_string());
+        return Err(classify_turn_error("session_id must not be empty"));
     }
     if input.content.trim().is_empty() {
-        return Err("content must not be empty".to_string());
+        return Err(classify_turn_error("content must not be empty"));
     }
-    match input.execution {
+    let result = match input.execution {
         Execution::Sync => run_sync(input, pool, daemon).await,
         Execution::Background => run_background(app_handle, input, daemon).await,
-    }
+        Execution::Plan => run_plan(input, daemon).await,
+    };
+    result.map_err(|e| classify_turn_error(&e))
 }
 
 async fn run_sync(
@@ -211,6 +313,9 @@ async fn run_sync(
         selection_reason: dto.selection_reason,
         grounding_flagged: dto.grounding_flagged,
         duplicate_of: None,
+        events: reply.events,
+        plan_session_id: None,
+        plan_version: None,
     })
 }
 
@@ -239,7 +344,91 @@ async fn run_background(
         selection_reason: None,
         grounding_flagged: None,
         duplicate_of: result.duplicate_of,
+        events: vec![],
+        plan_session_id: None,
+        plan_version: None,
     })
+}
+
+/// `vox_plan` args for the GUI's `/plan` path. Exactly `{goal, session_id,
+/// require_approval: true}` — `vox_plan`'s schema is `additionalProperties:
+/// false`, so a stray `mode`/`prompt` key (present on `ChatTurnInput` for the
+/// other two execution branches) is a hard reject, not a silently-ignored
+/// extra.
+pub fn plan_tool_args(input: &ChatTurnInput) -> serde_json::Value {
+    serde_json::json!({
+        "goal": input.content,
+        "session_id": input.session_id,
+        "require_approval": true,
+    })
+}
+
+/// `vox_plan`'s `ToolResult<PlanResult>` envelope has a flat `data` object
+/// (unlike `vox_chat_message`'s `data.message.content`) — a dedicated,
+/// minimal parser rather than overloading `parse_chat_message_envelope` with
+/// a second response shape.
+fn parse_plan_envelope(envelope: &serde_json::Value) -> Result<ChatTurnDto, String> {
+    let success = envelope
+        .get("success")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if !success {
+        return Err(envelope
+            .get("error")
+            .and_then(|v| v.as_str())
+            .unwrap_or("vox_plan failed with no error detail")
+            .to_string());
+    }
+    let data = envelope
+        .get("data")
+        .ok_or_else(|| "vox_plan succeeded with no data".to_string())?;
+    let plan_md = data
+        .get("plan_md")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let plan_session_id = data
+        .get("plan_session_id")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+    let plan_version = data.get("plan_version").and_then(|v| v.as_i64());
+    Ok(ChatTurnDto {
+        id: 0,
+        role: "assistant".to_string(),
+        content: plan_md,
+        created_at: String::new(),
+        task_id: None,
+        model_id: None,
+        latency_ms: None,
+        selection_reason: None,
+        grounding_flagged: None,
+        duplicate_of: None,
+        events: vec![],
+        plan_session_id,
+        plan_version,
+    })
+}
+
+/// Dispatch a `/plan` turn: calls `vox_plan` (not `vox_chat_message`) and
+/// returns the `plan_session_id`/`plan_version` it persisted, instead of an
+/// assistant reply — there is no chat message to persist here.
+async fn run_plan(
+    input: ChatTurnInput,
+    daemon: State<'_, Arc<PersistentDaemon>>,
+) -> Result<ChatTurnDto, String> {
+    let addr = daemon.ensure().await?;
+    let client = match daemon.token().await {
+        Some(token) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, token),
+        None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
+    };
+    let envelope = client
+        .call(
+            vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
+            serde_json::json!({ "name": "vox_plan", "args": plan_tool_args(&input) }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    parse_plan_envelope(&envelope)
 }
 
 #[cfg(test)]
@@ -295,6 +484,53 @@ mod tests {
     }
 
     #[test]
+    fn classifies_the_strings_production_actually_emits() {
+        // Every error is wrapped as `format!("LLM error: {e}")` before it
+        // reaches the GUI — hence `contains`, not `starts_with`.
+        assert!(matches!(
+            classify_turn_error("LLM error: RATE_LIMITED: openrouter free tier 50/day"),
+            ChatTurnError::RateLimited { .. }
+        ));
+        assert!(matches!(
+            classify_turn_error("LLM error: CONTEXT_LENGTH_EXCEEDED: 200000 > 128000"),
+            ChatTurnError::ContextExceeded { .. }
+        ));
+        // Real BudgetGuardError Display, NOT the invented "budget exceeded: …".
+        assert!(matches!(
+            classify_turn_error("Session budget of $5.00 exceeded (spent $5.10)"),
+            ChatTurnError::BudgetExceeded { .. }
+        ));
+        assert!(matches!(
+            classify_turn_error("Daily budget of $20.00 exceeded (spent $20.03)"),
+            ChatTurnError::BudgetExceeded { .. }
+        ));
+        assert!(matches!(
+            classify_turn_error("connection refused"),
+            ChatTurnError::Backend { .. }
+        ));
+    }
+
+    #[test]
+    fn plan_tool_args_carries_exactly_goal_session_id_require_approval() {
+        let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "s1", "content": "add a health endpoint", "mode": "plan"
+        }))
+        .expect("input");
+        let args = plan_tool_args(&input);
+        assert_eq!(args["goal"], "add a health endpoint");
+        assert_eq!(args["session_id"], "s1");
+        assert_eq!(args["require_approval"], true);
+        let obj = args.as_object().expect("json! object");
+        assert_eq!(
+            obj.len(),
+            3,
+            "vox_plan's schema is additionalProperties:false — a stray key is a hard reject: {obj:?}"
+        );
+        assert!(obj.get("mode").is_none());
+        assert!(obj.get("prompt").is_none());
+    }
+
+    #[test]
     fn execution_defaults_to_sync() {
         let input: ChatTurnInput =
             serde_json::from_value(serde_json::json!({"session_id":"s","content":"hi"}))
@@ -312,7 +548,8 @@ mod tests {
             "tier": "cloud",
             "context_files": ["crates/vox-crypto/src/lib.rs"],
             "active_skill": "ponytail",
-            "clutch": "genius", "risk": "low"
+            "clutch": "genius", "risk": "low",
+            "priority": "urgent", "dry_run": true
         }))
         .expect("input");
         let args = sync_tool_args(&input);
@@ -322,6 +559,9 @@ mod tests {
         assert_eq!(args["context_files"][0], "crates/vox-crypto/src/lib.rs");
         assert_eq!(args["active_skill"], "ponytail");
         assert_eq!(args["clutch"], "genius");
+        // Bug 2: priority/dry_run were silently dropped on the sync path.
+        assert_eq!(args["priority"], "urgent");
+        assert_eq!(args["dry_run"], true);
         // `cognitive_profile` must NEVER be set from the tier: its values are
         // fast|reasoning|creative, and setting it switches the turn off the
         // agent loop onto mcp_infer_completion, killing tool calls and
@@ -348,7 +588,8 @@ mod tests {
             "model_override": "m1", "tier": "mesh",
             "clutch": "efficiency", "risk": "moderate",
             "context_files": ["a.rs", "b.rs"], "priority": "urgent",
-            "dry_run": true, "active_skill": "ponytail", "allow_duplicate": false
+            "dry_run": true, "active_skill": "ponytail", "allow_duplicate": false,
+            "mode": "act"
         }))
         .expect("input");
         let out = background_input(&input);
@@ -360,6 +601,40 @@ mod tests {
         assert_eq!(out.priority.as_deref(), Some("urgent"));
         assert_eq!(out.allow_duplicate, Some(false));
         assert_eq!(out.chat_session_id.as_deref(), Some("s1"));
+        // Bug 1: mode (e.g. `/spawn`'s "act") must reach SubmitTaskInput.mode
+        // -> control_plane::submit_task_params -> enqueue_hints.mode.
+        assert_eq!(out.mode.as_deref(), Some("act"));
         assert!(out.task_category.is_none());
+    }
+
+    /// Bug 3 regression test. The naive `assert_eq!(out.chat_session_id.as_deref(),
+    /// Some("s1"))` in the test above happens to pass even with the old
+    /// `chat_session_id: Some(input.session_id.clone())` bug, because its
+    /// fixture's `session_id` ("s1") IS the value under test — the bug (always
+    /// echoing `session_id`, ignoring any real `chat_session_id`) is invisible
+    /// unless the two differ, as they do for every real background dispatch
+    /// (`session_id` is a synthetic `newBackgroundSessionId()`, `chat_session_id`
+    /// is the real originating chat session).
+    #[test]
+    fn background_input_prefers_chat_session_id_over_session_id() {
+        let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "bg-synthetic-1", "content": "spawn a sub-agent",
+            "execution": "background",
+            "chat_session_id": "real-chat-session-42"
+        }))
+        .expect("input");
+        let out = background_input(&input);
+        assert_eq!(out.chat_session_id.as_deref(), Some("real-chat-session-42"));
+
+        // Fallback: a caller that never sets chat_session_id (e.g. any future
+        // dispatch path that forgets it) still gets a usable value rather than
+        // None.
+        let input_no_chat_session: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "bg-synthetic-2", "content": "spawn a sub-agent",
+            "execution": "background"
+        }))
+        .expect("input");
+        let out2 = background_input(&input_no_chat_session);
+        assert_eq!(out2.chat_session_id.as_deref(), Some("bg-synthetic-2"));
     }
 }

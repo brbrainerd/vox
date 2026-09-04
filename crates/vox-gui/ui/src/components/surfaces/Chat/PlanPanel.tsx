@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { EmptyState } from '../../ui/EmptyState';
-import { updatePlanNode, insertPlanNode, type PlanNodeStatus, type PlanNodeDto } from '../../../transport';
+import {
+  updatePlanNode,
+  insertPlanNode,
+  approvePlanNodes,
+  type PlanNodeStatus,
+  type PlanNodeDto,
+} from '../../../transport';
 
 export type { PlanNodeStatus } from '../../../transport';
 export type PlanNodeView = PlanNodeDto;
@@ -9,6 +15,11 @@ interface PlanPanelProps {
   planSessionId: string | null | undefined;
   planVersion: number | null | undefined;
   nodes: PlanNodeView[];
+  /** Called when the user discards a still-unapproved plan (Task F2). No
+   *  backend primitive for "discard" exists — the blocked nodes simply never
+   *  dispatch — so this is a local dismissal the parent wires to clearing its
+   *  own `planSessionId`/`planVersion` state. */
+  onDiscard?: () => void;
 }
 
 const STATUS_ICON: Record<PlanNodeStatus, string> = {
@@ -19,6 +30,7 @@ const STATUS_ICON: Record<PlanNodeStatus, string> = {
   failed: '✕',
   cancelled: '−',
   superseded: '»',
+  blocked_on_approval: '⏸',
 };
 
 const STATUS_COLOR: Record<PlanNodeStatus, string> = {
@@ -29,6 +41,7 @@ const STATUS_COLOR: Record<PlanNodeStatus, string> = {
   failed: 'text-red-400',
   cancelled: 'text-text-muted line-through',
   superseded: 'text-text-muted line-through',
+  blocked_on_approval: 'text-amber-400',
 };
 
 const EDITABLE_STATUSES = new Set<PlanNodeStatus>(['pending']);
@@ -78,9 +91,10 @@ function PlanNodeRow({
   );
 }
 
-export function PlanPanel({ planSessionId, planVersion, nodes }: PlanPanelProps) {
+export function PlanPanel({ planSessionId, planVersion, nodes, onDiscard }: PlanPanelProps) {
   const [adding, setAdding] = useState(false);
   const [newDescription, setNewDescription] = useState('');
+  const [approving, setApproving] = useState(false);
 
   if (!planSessionId || planVersion == null) {
     return (
@@ -95,12 +109,22 @@ export function PlanPanel({ planSessionId, planVersion, nodes }: PlanPanelProps)
 
   const sessionId = planSessionId;
   const version = planVersion;
+  const blockedCount = nodes.filter(n => n.status === 'blocked_on_approval').length;
 
   const submitNew = () => {
     if (!newDescription.trim()) return;
     void insertPlanNode(sessionId, version, `n-${crypto.randomUUID()}`, newDescription, []);
     setNewDescription('');
     setAdding(false);
+  };
+
+  const approve = async () => {
+    setApproving(true);
+    try {
+      await approvePlanNodes(sessionId);
+    } finally {
+      setApproving(false);
+    }
   };
 
   return (
@@ -111,6 +135,33 @@ export function PlanPanel({ planSessionId, planVersion, nodes }: PlanPanelProps)
         nodes.map(n => (
           <PlanNodeRow key={n.node_id} node={n} planSessionId={sessionId} planVersion={version} />
         ))
+      )}
+      {blockedCount > 0 && (
+        <div
+          data-testid="plan-approval-footer"
+          className="mt-1 flex items-center justify-between gap-2 rounded border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[11px]"
+        >
+          <span className="text-amber-400">
+            {blockedCount} {blockedCount === 1 ? 'step' : 'steps'} awaiting approval
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void approve()}
+              disabled={approving}
+              className="text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
+            >
+              Approve
+            </button>
+            <button
+              type="button"
+              onClick={() => onDiscard?.()}
+              className="text-text-muted hover:text-red-400"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
       )}
       {adding ? (
         <input

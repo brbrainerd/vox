@@ -3,6 +3,7 @@ import {
   sanitizeErrorForToast,
   isBudgetExceededError,
   isRateLimitedError,
+  isContextExceededError,
   stripRateLimitedPrefix,
 } from './lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
@@ -51,7 +52,7 @@ import { buildChatTurn } from './lib/buildChatTurn';
 import { contextRefsFromPayload } from './lib/loquelaContext';
 import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
 import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
-import { voxTransport, listenAgentEvents, type AgentEventFrame } from './transport';
+import { voxTransport, listenAgentEvents, chatTurn as sendChatTurnRaw, type AgentEventFrame } from './transport';
 import { useAttentionInbox } from './hooks/useAttentionInbox';
 import { useKeybinds } from './hooks/useKeybinds';
 import { parseBindings, DEFAULT_BINDINGS, type Bindings } from './lib/keybinds';
@@ -159,6 +160,22 @@ function isKnownView(v: unknown): v is View {
 }
 
 /**
+ * Task C1: `chat_turn`'s typed `ChatTurnError` (see `dispatchErrorToast`
+ * below) carries the human-readable text in its `message` field, not in
+ * `String(err)` (which would stringify the whole `{kind, message}` object to
+ * `"[object Object]"`). Used both by `dispatchErrorToast` and by the
+ * chat-store `error:` field so the failed transcript bubble shows the same
+ * text as the toast.
+ */
+function chatTurnErrorMessage(err: unknown): string {
+  if (typeof err === 'object' && err !== null && 'kind' in err) {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return sanitizeErrorForToast(err);
+}
+
+/**
  * Both chat lifecycles (the synchronous reply and the background task — one
  * `chat_turn` command, two store lifecycles; see the two catch blocks in
  * `handleLoquelaSubmit` below) funnel through
@@ -175,8 +192,48 @@ function isKnownView(v: unknown): v is View {
  * That's actionable too (add your own API key, or wait for the cap to reset),
  * so it gets its own distinct toast — checked alongside (not instead of) the
  * budget check, since the two conditions are mutually exclusive.
+ *
+ * Task C1: `chat_turn` (crates/vox-gui/src/commands/chat_turn.rs) now returns
+ * `Result<ChatTurnDto, ChatTurnError>` — a `#[serde(tag = "kind", ...)]`
+ * enum — so Tauri v2 rejects the invoke() promise with the deserialized
+ * `{kind, message}` object itself, not a display string. `err` is matched on
+ * `kind` first; the string-pattern checks below are a fallback for the
+ * (still-`Result<_, String>`) other commands and for non-chat_turn error
+ * shapes. `sanitizeErrorForToast` is only invoked on the fully-unrecognized
+ * fallthrough — every known kind above is an already-safe, app-authored
+ * string (never raw IPC internals), so there's nothing to strip.
  */
-function dispatchErrorToast(errorText: string, fallbackTitle: string): Toast {
+function dispatchErrorToast(err: unknown, fallbackTitle: string): Toast {
+  if (typeof err === 'object' && err !== null && 'kind' in err) {
+    const { kind, message } = err as { kind: string; message?: string };
+    const text = typeof message === 'string' ? message : String(err);
+    switch (kind) {
+      case 'budget_exceeded':
+        return {
+          tone: 'warn',
+          title: 'Budget limit reached',
+          body: `${text} Adjust your daily/session budget caps in Settings.`,
+          cause: 'backend-error',
+        };
+      case 'rate_limited':
+        return {
+          tone: 'warn',
+          title: 'Free tier limit reached',
+          body: `${stripRateLimitedPrefix(text)} Add your own API key or wait for the limit to reset.`,
+          cause: 'backend-error',
+        };
+      case 'context_exceeded':
+        return {
+          tone: 'warn',
+          title: 'Message too long',
+          body: `${text} Trim your context or start a new session.`,
+          cause: 'backend-error',
+        };
+      default:
+        return { tone: 'warn', title: fallbackTitle, body: sanitizeErrorForToast(text), cause: 'backend-error' };
+    }
+  }
+  const errorText = String(err);
   if (isBudgetExceededError(errorText)) {
     return {
       tone: 'warn',
@@ -193,7 +250,15 @@ function dispatchErrorToast(errorText: string, fallbackTitle: string): Toast {
       cause: 'backend-error',
     };
   }
-  return { tone: 'warn', title: fallbackTitle, body: errorText, cause: 'backend-error' };
+  if (isContextExceededError(errorText)) {
+    return {
+      tone: 'warn',
+      title: 'Message too long',
+      body: `${errorText} Trim your context or start a new session.`,
+      cause: 'backend-error',
+    };
+  }
+  return { tone: 'warn', title: fallbackTitle, body: sanitizeErrorForToast(err), cause: 'backend-error' };
 }
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
@@ -285,6 +350,17 @@ export default function App() {
   const [filterKind, setFilterKind] = useState('all');
   const [chips, setChips] = useState<ContextChip[]>([]);
   const [activeSkill, setActiveSkill] = useState<ActiveSkill | null>(null);
+  // Skills the user rejected via "not this one" (ChatTurnEventRow). Session-scoped
+  // in the same (global-not-per-session) way `activeSkill` already is — see
+  // `excludeSkillAndRetry` below for the append-and-redispatch wiring.
+  const [skillExclusions, setSkillExclusions] = useState<string[]>([]);
+  const skillExclusionsRef = useRef<string[]>([]);
+  useEffect(() => {
+    skillExclusionsRef.current = skillExclusions;
+  }, [skillExclusions]);
+  // Last submitted chat payload, so `excludeSkillAndRetry` can re-dispatch the
+  // same turn immediately after excluding a skill.
+  const lastChatPayloadRef = useRef<ChatPayload | null>(null);
   const [deployedSet, setDeployedSet] = useState(new Set<string>());
   const [selectedAgentId, setSelectedAgentId] = useState('ROOT');
   const [appVersion, setAppVersion] = useState<string>('loading…');
@@ -317,7 +393,35 @@ export default function App() {
   );
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [openPlanSessionId, setOpenPlanSessionId] = useState<string | null>(null);
-  const [chatModelOverride, setChatModelOverride] = useState<string | null>(null);
+  const [openPlanVersion, setOpenPlanVersion] = useState<number | null>(null);
+  const [chatModelOverride, setChatModelOverride] = useLocalStorage<string | null>(
+    SHELL_PREFERENCE_KEYS.chatModelOverride,
+    null,
+  );
+  // Phase B / Task B2: a pin persisted from a previous session may name a model
+  // that has since left the registry — validate once on mount and clear it
+  // rather than letting `SelectionSource::classify` silently read `Fallback`
+  // forever with no way for the user to see why. Runs once; ChatModelPicker's
+  // own listModels() calls stay independent (its own on-demand fetch).
+  useEffect(() => {
+    if (!chatModelOverride) return;
+    let cancelled = false;
+    voxTransport
+      .listModels(120)
+      .then((models: any) => {
+        if (cancelled || !Array.isArray(models)) return;
+        const stillPresent = models.some((m: any) => m.id === chatModelOverride || m.model_id === chatModelOverride);
+        if (!stillPresent) setChatModelOverride(null);
+      })
+      .catch(() => {
+        // Transport failure here is not this effect's problem to report — leave
+        // the pin as-is and let the next real chat turn surface a resolver error.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- validate once on mount only
+  }, []);
   const [groundingCheckEnabled, setGroundingCheckEnabled] = useGroundingCheck(activeSessionId);
   const {
     tasks: chatTasks,
@@ -930,12 +1034,13 @@ export default function App() {
     }
   }, [pushToast]);
 
-  const handleLoquelaSubmit = useCallback(async (payload: ChatPayload) => {
+  const handleLoquelaSubmit = useCallback(async (payload: ChatPayload, skillExclusionsOverride?: string[]) => {
     const sessionId = payload.session_id ?? activeSessionId;
     if (!sessionId) {
       pushToast({ tone: 'warn', title: 'No chat session', body: 'Create or select a chat session first.', cause: 'validation' });
       return;
     }
+    lastChatPayloadRef.current = payload;
     // ONE payload, ONE command (`chat_turn`) — the dispatch fork now lives in
     // Rust. The frontend still branches below, but only on STORE LIFECYCLE:
     // `submitResolved` is the sole writer of `taskToSession`, the map that
@@ -946,7 +1051,17 @@ export default function App() {
       modelOverride: chatModelOverride,
       groundingCheckEnabled,
       activeSkillId: activeSkill?.id ?? null,
+      // `skillExclusionsOverride` lets `excludeSkillAndRetry` re-dispatch with
+      // the freshly-excluded id included immediately, instead of racing this
+      // callback's own closed-over `skillExclusions` state (which would still
+      // read the pre-exclusion value on the very next tick).
+      skillExclusions: skillExclusionsOverride ?? skillExclusions,
       allowDuplicate: false,
+      // The real originating chat session -- distinct from `sessionId` above
+      // on the background path, where it's a synthetic throwaway id (see
+      // `newBackgroundSessionId` call sites). Carries delegation lineage to
+      // the backend even when the dispatch session itself is disposable.
+      chatSessionId: activeSessionId,
     });
 
     // Checked BEFORE chat_append_message persists anything: a second send
@@ -1032,7 +1147,21 @@ export default function App() {
           checkBudgetWarn(sessionId);
         }
       } catch (err) {
-        pushToast(dispatchErrorToast(sanitizeErrorForToast(err), 'Dispatch Failed'));
+        // Covers BOTH the first attempt and the post-confirm duplicate retry
+        // (`dispatchAttempt(true)` above) -- either can throw here, and
+        // either would otherwise leave the optimistic pending bubble minted
+        // by `dispatchAttempt`'s onStart callback stuck with no terminal
+        // state until the multi-minute pendingTimeout watchdog eventually
+        // flips it to a generic timeout message.
+        if (runId) {
+          dispatchSessionChat({
+            type: 'failRun',
+            sessionId,
+            runId,
+            error: chatTurnErrorMessage(err),
+          });
+        }
+        pushToast(dispatchErrorToast(err, 'Dispatch Failed'));
       }
       return;
     }
@@ -1076,23 +1205,40 @@ export default function App() {
             latencyMs: reply.latencyMs,
             selectionReason: reply.selectionReason,
             groundingFlagged: reply.groundingFlagged,
+            events: reply.events,
           },
         },
       });
       checkBudgetWarn(sessionId);
     } catch (err) {
-      const errorText = sanitizeErrorForToast(err);
+      const errorText = chatTurnErrorMessage(err);
       dispatchSessionChat({
         type: 'chatReplySettled',
         sessionId,
         tempId,
         result: { ok: false, error: errorText },
       });
-      pushToast(dispatchErrorToast(errorText, 'Chat reply failed'));
+      pushToast(dispatchErrorToast(err, 'Chat reply failed'));
     } finally {
       chatSendInFlightRef.current.delete(sessionId);
     }
-  }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill, gamifySettings.enabled, checkBudgetWarn, chatModelOverride, groundingCheckEnabled]);
+  }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill, gamifySettings.enabled, checkBudgetWarn, chatModelOverride, groundingCheckEnabled, skillExclusions]);
+
+  // "not this one" (ChatTurnEventRow, via ChatSurface -> ChatTranscript):
+  // append the skill to session-scoped exclusions AND immediately re-dispatch
+  // the last turn so the excluded skill is absent from the system prompt on
+  // the retry. Both actions matter — a first draft of this feature added the
+  // `skill_exclusions` field end-to-end but nothing ever appended to it or
+  // re-ran the turn, so excluding a skill silently did nothing.
+  const excludeSkillAndRetry = useCallback((skillId: string) => {
+    const next = skillExclusionsRef.current.includes(skillId)
+      ? skillExclusionsRef.current
+      : [...skillExclusionsRef.current, skillId];
+    skillExclusionsRef.current = next;
+    setSkillExclusions(next);
+    const last = lastChatPayloadRef.current;
+    if (last) handleLoquelaSubmit(last, next);
+  }, [handleLoquelaSubmit]);
 
   const handleLoquelaSlash = useCallback(async (
     cmd: string,
@@ -1109,8 +1255,15 @@ export default function App() {
       return true;
     }
     if (base === '/spawn') {
+      // Phase D Task D3: carry the user's actual typed text (e.g. "/spawn fix
+      // the login bug") through to the spawned agent's task description
+      // instead of always sending the same generic placeholder — a model or
+      // reviewer reading the delegated task later has no way to recover what
+      // was actually asked for otherwise. Falls back to the original generic
+      // description only when no text follows `/spawn`.
+      const spawnGoal = cmd.slice(base.length).trim();
       void handleLoquelaSubmit({
-        description: 'Spawn a sub-agent on the current branch to pursue this task in parallel.',
+        description: spawnGoal || 'Spawn a sub-agent on the current branch to pursue this task in parallel.',
         mode: 'act',
         // Explicit, not inferred: `execution_mode` defaults to 'chat' when
         // omitted, so /spawn must say 'task' or it would silently become a
@@ -1122,6 +1275,38 @@ export default function App() {
         // silently desync that store from the GUI transcript.
         session_id: newBackgroundSessionId(),
       });
+      return true;
+    }
+    if (base === '/plan') {
+      const goal = cmd.slice(base.length).trim();
+      if (!goal) {
+        pushToast({ tone: 'warn', title: '/plan needs a goal', body: 'Try: /plan add a health endpoint', cause: 'validation' });
+        return true;
+      }
+      const sessionId = activeSessionId ?? newBackgroundSessionId();
+      ctx.setText('');
+      void (async () => {
+        try {
+          // Bypasses handleLoquelaSubmit deliberately: that path persists a
+          // chat_append_message row and tracks sync/background dedup state,
+          // neither of which applies here — `execution: 'plan'` returns no
+          // assistant row (see chat_turn.rs's run_plan), just the plan DAG's
+          // session id/version to point PlanPanel at.
+          const dto = await sendChatTurnRaw({
+            session_id: sessionId,
+            content: goal,
+            execution: 'plan',
+            context_files: [],
+            skill_exclusions: [],
+          });
+          if (dto.plan_session_id) {
+            setOpenPlanSessionId(dto.plan_session_id);
+            setOpenPlanVersion(dto.plan_version ?? null);
+          }
+        } catch (err) {
+          pushToast({ tone: 'warn', title: '/plan failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+        }
+      })();
       return true;
     }
     if (base === '/rollback') {
@@ -1504,8 +1689,13 @@ export default function App() {
     // `latest_plan_session_for_chat` against the real origin_session_id link. Null renders
     // PlanPanel's honest empty state until a badge has been clicked.
     chatPlanSessionId: openPlanSessionId,
-    chatPlanVersion: null,
+    chatPlanVersion: openPlanVersion,
+    onDiscardPlan: () => {
+      setOpenPlanSessionId(null);
+      setOpenPlanVersion(null);
+    },
     chatActiveSkillId: activeSkill?.id ?? null,
+    onExcludeSkill: excludeSkillAndRetry,
     chatOpenrouterSpendUsd: openrouterSpendUsd,
     chatAgentStreamItems: activeChatAgentItems,
     onOpenAgentInFlow: (agentId: string) => {

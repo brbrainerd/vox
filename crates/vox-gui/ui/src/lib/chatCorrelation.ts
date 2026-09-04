@@ -5,6 +5,8 @@
 //! `task_completed`/`task_failed` finalize. See
 //! `docs/src/architecture/vox-gui-harness-buildout-plan-2026.md` (B4-chat).
 
+import type { TurnEventDto } from '../types/dashboard';
+
 export type ChatRole = 'user' | 'assistant' | 'system';
 export type ChatStatus = 'pending' | 'streaming' | 'done' | 'failed';
 
@@ -31,6 +33,9 @@ export interface ChatMessage {
   groundingFlagged?: boolean;
   /** Wall-clock ms when the bubble was created (drives the pending watchdog). */
   createdAtMs?: number;
+  /** Turn events derived from tool RESULTS (synchronous chat path only —
+   *  see `lib/chatSend.ts`'s `ParsedChatReply` and Rust `turn_event_for_result`). */
+  events?: TurnEventDto[];
 }
 
 /** How long an assistant bubble may sit in `pending` before the client-side
@@ -268,11 +273,29 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           return mapAssistant(state, runId, (m) => (m.modelId ? m : { ...m, modelId: model }));
         }
         case 'token_streamed': {
+          const text = typeof kind.text === 'string' ? kind.text : '';
           const agentId = String(kind.agent_id);
           const taskId = state.agentToTask[agentId];
           const runId = taskId ? state.taskToRun[taskId] : undefined;
-          const text = typeof kind.text === 'string' ? kind.text : '';
-          return mapAssistant(state, runId, (m) => ({
+          if (runId) {
+            return mapAssistant(state, runId, (m) => ({
+              ...m,
+              text: m.text + text,
+              status: 'streaming',
+            }));
+          }
+          // Task G1: no background-task correlation for this frame (the sync
+          // `chat_turn` path never populates agentToTask/taskToRun -- there is
+          // no task_started for it). `sessionChatStore.resolveSessionForEvent`
+          // already routed us to the right session via the frame's
+          // `session_id`, so append to that session's single in-flight
+          // pending/streaming assistant bubble (the `chatPending` row) instead
+          // of dropping the token on the floor.
+          const target = [...state.messages]
+            .reverse()
+            .find((m) => m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming'));
+          if (!target) return state;
+          return mapAssistant(state, target.runId, (m) => ({
             ...m,
             text: m.text + text,
             status: 'streaming',

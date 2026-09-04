@@ -179,6 +179,78 @@ pub fn assess_reply_confidence(reply: &str) -> GroundingCheckResult {
     }
 }
 
+/// Task M2 (`completeness_ok`): a reply that opens a code fence and never closes it reads as
+/// truncated mid-answer. ` ``` ` markers must appear an even number of times.
+#[must_use]
+pub fn has_unbalanced_fence(text: &str) -> bool {
+    !text.matches("```").count().is_multiple_of(2)
+}
+
+/// Task M2: phrases a user's follow-up commonly uses when the prior answer didn't land.
+/// Deliberately small and literal (no fuzzy matching) — broadening this list later is easy;
+/// narrowing a false-positive-prone one after it has already shipped and started driving
+/// `completeness_ok` is not.
+const REASK_DISSATISFACTION_PHRASES: &[&str] = &[
+    "that's wrong",
+    "that is wrong",
+    "try again",
+    "that didn't work",
+    "that did not work",
+    "no, actually",
+    "not what i asked",
+    "that's not right",
+    "that is not right",
+    "doesn't work",
+    "does not work",
+    "still not working",
+    "still doesn't work",
+];
+
+fn reask_phrase_heuristic(followup_prompt: &str) -> bool {
+    let lower = followup_prompt.to_lowercase();
+    REASK_DISSATISFACTION_PHRASES
+        .iter()
+        .any(|phrase| lower.contains(phrase))
+}
+
+/// Jaccard-similarity threshold used by [`reask_similarity_heuristic`].
+const REASK_SIMILARITY_THRESHOLD: f64 = 0.5;
+
+/// Token-overlap (Jaccard) similarity over lowercased whitespace-split tokens, ignoring
+/// tokens under 3 chars (articles/prepositions dominate short prompts and would inflate
+/// overlap between genuinely unrelated questions).
+fn reask_similarity_heuristic(original_prompt: &str, followup_prompt: &str) -> bool {
+    fn tokenize(s: &str) -> std::collections::HashSet<String> {
+        s.to_lowercase()
+            .split_whitespace()
+            .map(|t| t.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
+            .filter(|t| t.chars().count() >= 3)
+            .collect()
+    }
+    let a = tokenize(original_prompt);
+    let b = tokenize(followup_prompt);
+    if a.is_empty() || b.is_empty() {
+        return false;
+    }
+    let union = a.union(&b).count();
+    if union == 0 {
+        return false;
+    }
+    (a.intersection(&b).count() as f64 / union as f64) >= REASK_SIMILARITY_THRESHOLD
+}
+
+/// Task M2 (`completeness_ok`'s "user re-asked within 2 turns" clause): flags a follow-up
+/// prompt as a re-ask of `original_prompt` when EITHER signal fires (design decision
+/// confirmed with the user) — a literal dissatisfaction phrase, or high token-overlap
+/// similarity to the original prompt. Combining the two trades precision for recall: a
+/// missed re-ask silently keeps crediting a bad answer as a success, which is the worse
+/// failure mode for a metric meant to catch bad answers.
+#[must_use]
+pub fn looks_like_reask(original_prompt: &str, followup_prompt: &str) -> bool {
+    reask_phrase_heuristic(followup_prompt)
+        || reask_similarity_heuristic(original_prompt, followup_prompt)
+}
+
 /// Split completion summaries into clauses for factual-mode scans.
 ///
 /// Uses newlines, `;`, `!`, `?`, and `.` only when the period ends a sentence (next char is
@@ -564,6 +636,37 @@ mod tests {
         let result = assess_reply_confidence("");
         assert!(!result.flagged);
         assert_eq!(result.confidence, 1.0);
+    }
+
+    #[test]
+    fn has_unbalanced_fence_detects_odd_marker_count() {
+        assert!(has_unbalanced_fence("```rust\nfn main() {}\n"));
+        assert!(!has_unbalanced_fence("```rust\nfn main() {}\n```"));
+        assert!(!has_unbalanced_fence("no fences here at all"));
+    }
+
+    #[test]
+    fn looks_like_reask_flags_dissatisfaction_phrase_even_for_dissimilar_topic() {
+        assert!(looks_like_reask(
+            "What's the capital of France?",
+            "That's wrong, please look it up again."
+        ));
+    }
+
+    #[test]
+    fn looks_like_reask_flags_high_token_overlap_without_a_phrase_match() {
+        assert!(looks_like_reask(
+            "How do I fix the null pointer exception in the parser?",
+            "How do I actually fix the null pointer exception in the parser module?"
+        ));
+    }
+
+    #[test]
+    fn looks_like_reask_does_not_flag_an_unrelated_new_question() {
+        assert!(!looks_like_reask(
+            "How do I fix the null pointer exception in the parser?",
+            "What's a good recipe for banana bread?"
+        ));
     }
 
     #[test]

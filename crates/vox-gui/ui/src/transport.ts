@@ -11,6 +11,7 @@ import type {
 } from './types/tauri';
 import type { TaskRow } from './components/surfaces/Tasks/tasksHelpers';
 import type { TownScan } from './components/gamify/urbs/types';
+import type { TurnEventDto } from './types/dashboard';
 
 // `OpenLocator` / `OpenOutcome` (the `open_locator` IPC DTOs) live in ./types/tauri
 // alongside the other Tauri command types; re-exported here for callers of the hub.
@@ -815,7 +816,8 @@ export type PlanNodeStatus =
   | 'completed'
   | 'failed'
   | 'cancelled'
-  | 'superseded';
+  | 'superseded'
+  | 'blocked_on_approval';
 
 export interface PlanNodeDto {
   node_id: string;
@@ -854,6 +856,13 @@ export function insertPlanNode(
       depends_on: dependsOn,
     },
   });
+}
+
+/** Flips every `blocked_on_approval` node in `planSessionId` back to
+ *  `pending` — the `PlanPanel` footer's "Approve" button. Returns the
+ *  number of nodes affected. */
+export function approvePlanNodes(planSessionId: string): Promise<number> {
+  return safeInvoke<number>('approve_plan_nodes', { planSessionId });
 }
 
 export interface ActivityRowDto {
@@ -987,8 +996,9 @@ export interface ChatTurnInput {
   session_id: string;
   content: string;
   /** Sync = terminal request/response. Background = orchestrator task with a
-   *  correlated event stream. Set from the composer's send-mode toggle. */
-  execution: 'sync' | 'background';
+   *  correlated event stream. Plan = `vox_plan` with `require_approval: true`,
+   *  the GUI's `/plan`. Set from the composer's send-mode toggle. */
+  execution: 'sync' | 'background' | 'plan';
   model_override?: string | null;
   /** Composer "Run on" tier: local|mesh|cloud|auto. NOT `cognitive_profile`. */
   tier?: string | null;
@@ -1003,6 +1013,13 @@ export interface ChatTurnInput {
   priority?: string | null;
   dry_run?: boolean | null;
   allow_duplicate?: boolean | null;
+  /** Interaction mode from the composer (plan|act|verify); forwarded as the
+   *  `mode` enqueue hint on the background path. */
+  mode?: string | null;
+  /** The real originating chat session, distinct from `session_id` above
+   *  (which can be a synthetic background-session id). See Rust
+   *  `ChatTurnInput::chat_session_id`. */
+  chat_session_id?: string | null;
 }
 
 /** Mirrors Rust `ChatTurnDto` returned by `chat_turn`. On the background branch
@@ -1021,6 +1038,13 @@ export interface ChatTurnDto {
   grounding_flagged?: boolean;
   /** Set (with a null `task_id`) when the daemon refused a near-duplicate. */
   duplicate_of?: string | null;
+  /** Turn events derived from tool results this turn (e.g. a skill-activation
+   *  chip) — empty on the background branch. See Rust `turn_event_for_result`. */
+  events?: TurnEventDto[];
+  /** Set on the `execution: 'plan'` branch only — the DAG `PlanPanel` should
+   *  point at. */
+  plan_session_id?: string | null;
+  plan_version?: number | null;
 }
 
 /**

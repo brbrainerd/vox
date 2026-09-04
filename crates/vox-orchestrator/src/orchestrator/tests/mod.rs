@@ -218,6 +218,71 @@ mod orch_smoke {
         assert!(orch.agent_queue(id).is_some());
     }
 
+    /// Phase D Task D1: `chat_session_id`/`origin_turn_id` supplied to
+    /// `spawn_dynamic_agent_with_parent` must land on both the in-memory
+    /// `AgentDelegationBinding` (via `topology_snapshot`'s `DelegationEdge`)
+    /// AND the spawned agent's own `agent_session_id` link (Task D3 —
+    /// `map_agent_session`, the same field the primary chat agent uses), not
+    /// just be accepted and dropped.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn spawn_with_parent_carries_chat_session_lineage() {
+        let orch = test_orchestrator();
+        let parent = orch.spawn_agent("parent").expect("spawn parent");
+        let child = orch
+            .spawn_dynamic_agent_with_parent(
+                "child",
+                Some(parent),
+                Some("delegate research"),
+                None,
+                None,
+                Some("chat-session-xyz".to_string()),
+                Some("call_abc".to_string()),
+            )
+            .expect("spawn child");
+
+        let snapshot = orch.topology_snapshot();
+        let edge = snapshot
+            .delegation_edges
+            .iter()
+            .find(|e| e.child_agent_id == child)
+            .expect("delegation edge for child");
+        assert_eq!(edge.parent_agent_id, parent);
+        assert_eq!(edge.chat_session_id.as_deref(), Some("chat-session-xyz"));
+        assert_eq!(edge.origin_turn_id.as_deref(), Some("call_abc"));
+
+        // Task D3: same agent_session_id link the primary chat agent uses, so
+        // a session-scoped GUI query can find this delegate too.
+        assert_eq!(orch.agent_for_session_id("chat-session-xyz"), Some(child));
+    }
+
+    /// A spawn with no `chat_session_id` (e.g. scaling/handoff spawns) must
+    /// not fabricate lineage — both new fields stay `None`.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn spawn_with_parent_and_no_chat_session_leaves_lineage_fields_none() {
+        let orch = test_orchestrator();
+        let parent = orch.spawn_agent("parent").expect("spawn parent");
+        let child = orch
+            .spawn_dynamic_agent_with_parent(
+                "child",
+                Some(parent),
+                Some("scaling_load"),
+                None,
+                None,
+                None,
+                None,
+            )
+            .expect("spawn child");
+
+        let snapshot = orch.topology_snapshot();
+        let edge = snapshot
+            .delegation_edges
+            .iter()
+            .find(|e| e.child_agent_id == child)
+            .expect("delegation edge for child");
+        assert!(edge.chat_session_id.is_none());
+        assert!(edge.origin_turn_id.is_none());
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn max_agents_enforced() {
         let orch = Orchestrator::new(OrchestratorConfig {

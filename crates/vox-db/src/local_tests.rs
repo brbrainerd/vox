@@ -256,6 +256,8 @@ async fn unified_llm_turn_writes_llm_and_socrates() {
         success: true,
         cost_usd: Some(0.001),
         quality_score: Some(1.0),
+        ttft_ms: None,
+        tpot_ms: None,
     };
     let ids = db
         .record_unified_llm_turn(
@@ -298,6 +300,9 @@ async fn list_model_arm_stats_aggregates_scoreboard_rows() {
             updated_at_ms: now,
             success_count: 0,
             cumulative_cost_usd: 0.0,
+            p95_ttft_ms: None,
+            p95_tpot_ms: None,
+            goodput_tokens_per_sec: None,
         })
         .await
         .expect("upsert");
@@ -482,43 +487,19 @@ mod legacy_tests {
         assert!(id > 0);
     }
 
-    // Suspected turso 0.6.1 execute_batch bug — NOT a Vox logic error — left genuinely
-    // open rather than shipping an unverified workaround. Evidence trail:
+    // Un-ignored 2026-09-04. This carried a long `#[ignore]` blaming a "suspected turso
+    // 0.6.1 execute_batch bug" for three `scientia_harness_*` tables. That diagnosis rested
+    // on the premise that `LEGACY_EXPORT_TABLES` *named* those three while `sqlite_master`
+    // lacked them after migrate. Re-checked against the current tree, the first half was
+    // simply not true: the list did not name them (0 occurrences, on `main` too), and
+    // `sqlite_master` does contain all three. The delta was a stale list, not a lost
+    // `CREATE TABLE`.
     //
-    //   1. `LEGACY_EXPORT_TABLES` names `scientia_harness_issues`,
-    //      `scientia_harness_decisions`, `scientia_harness_fix_proposals`; their
-    //      `CREATE TABLE IF NOT EXISTS` DDL is present, unconditionally, inside
-    //      `domains::scientia::SCHEMA_SCIENTIA` (schema/domains/scientia.rs), which is
-    //      registered unconditionally in `SCHEMA_FRAGMENTS` (schema/manifest.rs) — no
-    //      feature gate, no cfg, nothing that could exclude just these three tables.
-    //   2. After `VoxDb::connect(DbConfig::Memory)` (which runs the full concatenated
-    //      `baseline_sql()` through one `execute_batch` call), `sqlite_master` is
-    //      missing exactly these three tables — every other table from the same
-    //      `scientia` domain fragment (including ones defined both before and after
-    //      this block in source order) and every table from every domain fragment
-    //      registered after `scientia` in `SCHEMA_FRAGMENTS` (`harness_eval`,
-    //      `developer_journeys`, `visus`, `vox_mesh`, `discovery`, `activity_log`,
-    //      `history_entries`) is present — ruling out both "this whole domain fragment
-    //      failed" and "the batch aborted partway through and never resumed".
-    //   3. The exact same three `CREATE TABLE`/`CREATE INDEX` statements (copied
-    //      verbatim, including the partial unique index with an equality-conjunction
-    //      `WHERE` clause and the two `REFERENCES ... ON DELETE CASCADE` columns),
-    //      executed as their own standalone `execute_batch` call against an
-    //      already-`connect()`-ed (i.e. already-migrated) connection, succeed with
-    //      `Ok(())` — ruling out a SQL syntax problem. Partial indexes and inline
-    //      `ON DELETE CASCADE` both have working precedent elsewhere in this same
-    //      schema (`conversations.rs`, `agents.rs`, `ci_completion.rs`, etc.), so
-    //      neither construct is generically unsupported by turso 0.6.1.
-    //
-    // The failure is specific to these three statements' position inside one large
-    // concatenated multi-thousand-statement `execute_batch` string, not to their SQL
-    // content — consistent with the other turso 0.6.1 execute_batch/:memory:-mode
-    // quirks already documented in this crate (see `persisted_locks.rs`'s
-    // `release_propagates_to_db`). Root cause is likely inside turso's own batch
-    // executor, beyond what this crate's schema can safely work around blind (e.g.
-    // splitting `baseline_sql()` into multiple smaller `execute_batch` calls would be
-    // a real behavior change to every migration path, not a 3-table-scoped fix).
-    #[ignore = "suspected upstream turso 0.6.1 execute_batch bug — see comment above; not a Vox logic error"]
+    // Adding the three names — plus `live_chat_completeness_pending`, which `bd5c14e05`
+    // introduced without updating the SSOT — makes this pass. Verified repeatedly, and
+    // independently reproduced in review. If the batch-executor symptom ever returns it
+    // will now surface as a failure here rather than as a silently skipped gate, which is
+    // the point of keeping it live.
     #[tokio::test]
     async fn legacy_export_covers_all_baseline_tables() {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
@@ -794,4 +775,60 @@ async fn migrate_adds_archived_at_to_a_pre_existing_conversations_table() {
         found,
         "migrate() must add archived_at to a pre-existing conversations table"
     );
+}
+
+/// Phase D Task D1 (chat-harness delegation lineage durability): a delegation
+/// edge's `chat_session_id`/`origin_turn_id` must survive a daemon restart.
+/// `spawn_dynamic_agent_with_parent` writes them via
+/// `append_orchestration_lineage_event` (kind = "task_delegated"); this test
+/// proves that row is readable from a *fresh* `VoxDb::connect` against the same
+/// file — i.e. the process that wrote it can die and a new one can read it
+/// back, unlike the in-memory `agent_delegations` HashMap it also populates.
+#[tokio::test]
+async fn delegation_lineage_survives_reconnect() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("lineage.db").to_string_lossy().into_owned();
+
+    {
+        let db = VoxDb::connect(DbConfig::Local { path: path.clone() })
+            .await
+            .expect("open db (writer)");
+        db.append_orchestration_lineage_event(
+            "repo-d1",
+            "task_delegated",
+            42,
+            Some(7),
+            Some("chat-session-abc"),
+            None,
+            None,
+            None,
+            Some(r#"{"reason":"delegate research","is_dynamic":true,"origin_turn_id":"call_xyz"}"#),
+        )
+        .await
+        .expect("append lineage event");
+        // `db` (and its connection) is dropped here, simulating the daemon
+        // process exiting.
+    }
+
+    // A brand-new VoxDb — no shared in-memory state with the writer above —
+    // opened against the same on-disk file, standing in for the daemon restart.
+    let reopened = VoxDb::connect(DbConfig::Local { path })
+        .await
+        .expect("reopen db");
+    let events = reopened
+        .list_orchestration_lineage_events("repo-d1", Some("task_delegated"), 10)
+        .await
+        .expect("list lineage events");
+    assert_eq!(events.len(), 1, "delegation edge must survive reconnect");
+    let ev = &events[0];
+    assert_eq!(ev["session_id"], "chat-session-abc");
+    assert_eq!(ev["agent_id"], 7);
+    let payload: serde_json::Value = serde_json::from_str(
+        ev["payload_json"]
+            .as_str()
+            .expect("payload_json is a string"),
+    )
+    .expect("payload parses");
+    assert_eq!(payload["origin_turn_id"], "call_xyz");
+    assert_eq!(payload["reason"], "delegate research");
 }

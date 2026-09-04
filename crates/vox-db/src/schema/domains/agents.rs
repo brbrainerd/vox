@@ -57,6 +57,11 @@ CREATE TABLE IF NOT EXISTS llm_interactions (
     input_tokens INTEGER,
     output_tokens INTEGER,
     cost_usd REAL,
+    -- Task M3: time to first token / time per output token, ms. NULL for calls that
+    -- didn't measure them (most callers as of this column's introduction -- see
+    -- crates/vox-db-types/src/store_types/params.rs's ModelOutcome doc comment).
+    ttft_ms INTEGER,
+    tpot_ms REAL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

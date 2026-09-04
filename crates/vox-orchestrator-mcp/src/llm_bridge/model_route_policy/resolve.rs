@@ -349,6 +349,13 @@ fn resolve_mcp_chat_model_sync_inner(
                 let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
                 return Ok((m.clone(), m.is_free));
             }
+            // Requested-but-unresolved: the pref names a model id that isn't in the
+            // registry (removed, typo'd, or never existed). Previously this fell
+            // through to auto-selection silently, so `ModelBadge` still read "Your
+            // pick" over a model the user never got. Record the truthful reason
+            // before falling through so the caller can classify this turn as a
+            // fallback, not a user override.
+            *rationale_out = Some(format!("Fallback: requested `{id}` is not in the registry"));
         }
     }
 

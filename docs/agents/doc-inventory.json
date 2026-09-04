@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-04T00:06:27.249Z",
+  "generated_at": "2026-09-04T20:22:41.915Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -13,8 +13,8 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/params.rs",
       "kind": "rust",
-      "lines_total": 1088,
-      "lines_triple_slash": 250,
+      "lines_total": 1106,
+      "lines_triple_slash": 259,
       "lines_inner_doc": 9,
       "lines_plain_comment": 13,
       "lines_other_doc_signal": 0,
@@ -77,6 +77,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator-mcp/src/chat_tools/mod.rs",
+      "kind": "rust",
+      "lines_total": 564,
+      "lines_triple_slash": 26,
+      "lines_inner_doc": 4,
+      "lines_plain_comment": 30,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 2,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-research-shim/src/research/orchestrator/mod.rs",
       "kind": "rust",
       "lines_total": 36,
@@ -105,17 +116,6 @@
       "lines_triple_slash": 20,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 2,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator-mcp/src/chat_tools/mod.rs",
-      "kind": "rust",
-      "lines_total": 492,
-      "lines_triple_slash": 13,
-      "lines_inner_doc": 4,
-      "lines_plain_comment": 23,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 2,
       "notes": "rustdoc + inline //"
@@ -825,6 +825,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-09-03-m3-surface-pareto-reporting.md",
+      "kind": "markdown",
+      "lines_total": 1459,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 68,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/agentic-vcs-automation-impl-plan-phase1-2026.md",
       "kind": "markdown",
       "lines_total": 1441,
@@ -1287,6 +1298,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "crates/vox-gui/ui/src/transport.ts",
+      "kind": "typescript",
+      "lines_total": 1091,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 34,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 2,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "docs/superpowers/plans/2026-06-17-deep-research-phase1-phase2.md",
       "kind": "markdown",
       "lines_total": 1090,
@@ -1384,17 +1406,6 @@
       "lines_other_doc_signal": 41,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/transport.ts",
-      "kind": "typescript",
-      "lines_total": 1067,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 34,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 2,
-      "notes": "approx // and block comments"
     },
     {
       "path": "docs/src/archive/research-2026-q1/llm-target-language-gap-analysis-2026.md",
@@ -5005,17 +5016,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "docs/src/architecture/model-catalog-ssot-2026.md",
-      "kind": "markdown",
-      "lines_total": 333,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 23,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
       "path": "docs/src/architecture/populi-mesh-north-star-2026.md",
       "kind": "markdown",
       "lines_total": 333,
@@ -5023,6 +5023,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 31,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/architecture/model-catalog-ssot-2026.md",
+      "kind": "markdown",
+      "lines_total": 332,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 23,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -5282,7 +5293,7 @@
     {
       "path": "docs/src/architecture/research-index.md",
       "kind": "markdown",
-      "lines_total": 311,
+      "lines_total": 313,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
@@ -5608,6 +5619,17 @@
       "lines_other_doc_signal": 23,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/lib/sessionChatStore.test.ts",
+      "kind": "typescript",
+      "lines_total": 290,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 17,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 2,
+      "notes": "approx // and block comments"
     },
     {
       "path": "docs/src/architecture/agentic-version-control-automation-research-2026.md",
@@ -6622,6 +6644,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/architecture/vox-efficacy-benchmark-execution-handoff-2026-09-04.md",
+      "kind": "markdown",
+      "lines_total": 233,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 13,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/build-and-crate-org-improvement-plan-2026-06.md",
       "kind": "markdown",
       "lines_total": 232,
@@ -6972,6 +7005,17 @@
       "lines_other_doc_signal": 21,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/lib/backendGuard.test.ts",
+      "kind": "typescript",
+      "lines_total": 212,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 32,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 2,
+      "notes": "approx // and block comments"
     },
     {
       "path": "docs/superpowers/specs/2026-05-18-result-two-param-design.md",
@@ -7392,17 +7436,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "crates/vox-gui/ui/src/lib/backendGuard.test.ts",
-      "kind": "typescript",
-      "lines_total": 193,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 28,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 2,
-      "notes": "approx // and block comments"
-    },
-    {
       "path": "docs/superpowers/specs/2026-06-01-cli-gui-hybrid-spine-design.md",
       "kind": "markdown",
       "lines_total": 193,
@@ -7674,6 +7707,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 23,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/2026-09-04-windows-to-fast-pc-handoff.md",
+      "kind": "markdown",
+      "lines_total": 178,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 12,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -12091,8 +12135,8 @@
     {
       "path": "crates/vox-orchestrator/src/events.rs",
       "kind": "rust",
-      "lines_total": 1286,
-      "lines_triple_slash": 185,
+      "lines_total": 1349,
+      "lines_triple_slash": 201,
       "lines_inner_doc": 5,
       "lines_plain_comment": 63,
       "lines_other_doc_signal": 0,
@@ -12245,10 +12289,21 @@
     {
       "path": "crates/vox-orchestrator/src/runtime.rs",
       "kind": "rust",
-      "lines_total": 2212,
+      "lines_total": 2221,
       "lines_triple_slash": 291,
       "lines_inner_doc": 4,
-      "lines_plain_comment": 139,
+      "lines_plain_comment": 142,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs",
+      "kind": "rust",
+      "lines_total": 1751,
+      "lines_triple_slash": 248,
+      "lines_inner_doc": 21,
+      "lines_plain_comment": 136,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12267,8 +12322,8 @@
     {
       "path": "crates/vox-orchestrator/src/types/tasks.rs",
       "kind": "rust",
-      "lines_total": 1475,
-      "lines_triple_slash": 220,
+      "lines_total": 1493,
+      "lines_triple_slash": 226,
       "lines_inner_doc": 1,
       "lines_plain_comment": 12,
       "lines_other_doc_signal": 0,
@@ -12375,12 +12430,12 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs",
+      "path": "crates/vox-orchestrator-mcp/src/chat_tools/params.rs",
       "kind": "rust",
-      "lines_total": 1229,
-      "lines_triple_slash": 140,
-      "lines_inner_doc": 21,
-      "lines_plain_comment": 92,
+      "lines_total": 528,
+      "lines_triple_slash": 163,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12474,17 +12529,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator-mcp/src/chat_tools/params.rs",
-      "kind": "rust",
-      "lines_total": 475,
-      "lines_triple_slash": 144,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-ml-cli/src/commands/populi_cli.rs",
       "kind": "rust",
       "lines_total": 1687,
@@ -12524,6 +12568,17 @@
       "lines_triple_slash": 125,
       "lines_inner_doc": 12,
       "lines_plain_comment": 144,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator/src/orch_daemon/mod.rs",
+      "kind": "rust",
+      "lines_total": 1861,
+      "lines_triple_slash": 132,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 95,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12595,6 +12650,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-db-types/src/store_types/rows_core.rs",
+      "kind": "rust",
+      "lines_total": 346,
+      "lines_triple_slash": 129,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/models/scoring.rs",
       "kind": "rust",
       "lines_total": 1049,
@@ -12628,17 +12694,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-db-types/src/store_types/rows_core.rs",
-      "kind": "rust",
-      "lines_total": 338,
-      "lines_triple_slash": 124,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator/src/types/messages.rs",
       "kind": "rust",
       "lines_total": 479,
@@ -12650,12 +12705,23 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator/src/orch_daemon/mod.rs",
+      "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs",
       "kind": "rust",
-      "lines_total": 1692,
-      "lines_triple_slash": 116,
-      "lines_inner_doc": 5,
-      "lines_plain_comment": 76,
+      "lines_total": 1949,
+      "lines_triple_slash": 121,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 177,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs",
+      "kind": "rust",
+      "lines_total": 1411,
+      "lines_triple_slash": 114,
+      "lines_inner_doc": 7,
+      "lines_plain_comment": 69,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12782,6 +12848,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-db-types/src/store_types/params.rs",
+      "kind": "rust",
+      "lines_total": 514,
+      "lines_triple_slash": 103,
+      "lines_inner_doc": 8,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-populi/src/mens/tensor/memory_budget.rs",
       "kind": "rust",
       "lines_total": 899,
@@ -12810,17 +12887,6 @@
       "lines_triple_slash": 102,
       "lines_inner_doc": 6,
       "lines_plain_comment": 61,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-db-types/src/store_types/params.rs",
-      "kind": "rust",
-      "lines_total": 509,
-      "lines_triple_slash": 100,
-      "lines_inner_doc": 8,
-      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13046,12 +13112,12 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs",
+      "path": "crates/vox-orchestrator/src/models/registry.rs",
       "kind": "rust",
-      "lines_total": 1216,
-      "lines_triple_slash": 86,
-      "lines_inner_doc": 7,
-      "lines_plain_comment": 60,
+      "lines_total": 1357,
+      "lines_triple_slash": 93,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 65,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13107,6 +13173,17 @@
       "lines_triple_slash": 90,
       "lines_inner_doc": 1,
       "lines_plain_comment": 18,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-actor-runtime/src/llm/types.rs",
+      "kind": "rust",
+      "lines_total": 508,
+      "lines_triple_slash": 89,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 10,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13233,6 +13310,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/src/commands/chat_turn.rs",
+      "kind": "rust",
+      "lines_total": 640,
+      "lines_triple_slash": 73,
+      "lines_inner_doc": 11,
+      "lines_plain_comment": 27,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-code-audit/src/stdlib_parity.rs",
       "kind": "rust",
       "lines_total": 669,
@@ -13255,17 +13343,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-actor-runtime/src/llm/types.rs",
-      "kind": "rust",
-      "lines_total": 488,
-      "lines_triple_slash": 81,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 10,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-cli/src/commands/mod.rs",
       "kind": "rust",
       "lines_total": 212,
@@ -13279,7 +13356,7 @@
     {
       "path": "crates/vox-db/src/store/ops_agents.rs",
       "kind": "rust",
-      "lines_total": 999,
+      "lines_total": 1005,
       "lines_triple_slash": 76,
       "lines_inner_doc": 5,
       "lines_plain_comment": 15,
@@ -13290,21 +13367,21 @@
     {
       "path": "crates/vox-cli/src/commands/model/eval_corpus.rs",
       "kind": "rust",
-      "lines_total": 650,
+      "lines_total": 657,
       "lines_triple_slash": 62,
       "lines_inner_doc": 19,
-      "lines_plain_comment": 7,
+      "lines_plain_comment": 11,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs",
+      "path": "crates/vox-gui/src/commands/chat.rs",
       "kind": "rust",
-      "lines_total": 1525,
-      "lines_triple_slash": 80,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 98,
+      "lines_total": 994,
+      "lines_triple_slash": 79,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 40,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13409,17 +13486,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-gui/src/commands/chat.rs",
-      "kind": "rust",
-      "lines_total": 983,
-      "lines_triple_slash": 75,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 40,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-journal/src/file.rs",
       "kind": "rust",
       "lines_total": 897,
@@ -13437,6 +13503,17 @@
       "lines_triple_slash": 62,
       "lines_inner_doc": 14,
       "lines_plain_comment": 14,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator/src/grounding.rs",
+      "kind": "rust",
+      "lines_total": 1009,
+      "lines_triple_slash": 69,
+      "lines_inner_doc": 6,
+      "lines_plain_comment": 15,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13653,10 +13730,10 @@
     {
       "path": "crates/vox-actor-runtime/src/llm/chat.rs",
       "kind": "rust",
-      "lines_total": 615,
+      "lines_total": 635,
       "lines_triple_slash": 46,
       "lines_inner_doc": 23,
-      "lines_plain_comment": 23,
+      "lines_plain_comment": 26,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13695,20 +13772,9 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator/src/models/registry.rs",
-      "kind": "rust",
-      "lines_total": 1263,
-      "lines_triple_slash": 68,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 64,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator/src/orchestrator/accessors.rs",
       "kind": "rust",
-      "lines_total": 660,
+      "lines_total": 662,
       "lines_triple_slash": 68,
       "lines_inner_doc": 0,
       "lines_plain_comment": 4,
@@ -14179,17 +14245,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator/src/grounding.rs",
-      "kind": "rust",
-      "lines_total": 906,
-      "lines_triple_slash": 53,
-      "lines_inner_doc": 6,
-      "lines_plain_comment": 15,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator-mcp/tests/hitl_rehydrate_on_restart_tests.rs",
       "kind": "rust",
       "lines_total": 671,
@@ -14410,6 +14465,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-cli/src/commands/model/scoreboard.rs",
+      "kind": "rust",
+      "lines_total": 625,
+      "lines_triple_slash": 56,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 52,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-publisher/src/scientia_producers/code_uniqueness.rs",
       "kind": "rust",
       "lines_total": 535,
@@ -14570,6 +14636,17 @@
       "lines_triple_slash": 47,
       "lines_inner_doc": 7,
       "lines_plain_comment": 64,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-db/src/harness_eval.rs",
+      "kind": "rust",
+      "lines_total": 871,
+      "lines_triple_slash": 51,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 3,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14764,7 +14841,7 @@
     {
       "path": "crates/vox-cli/src/commands/model/eval.rs",
       "kind": "rust",
-      "lines_total": 577,
+      "lines_total": 580,
       "lines_triple_slash": 42,
       "lines_inner_doc": 9,
       "lines_plain_comment": 18,
@@ -14819,7 +14896,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/chat_model_resolve.rs",
       "kind": "rust",
-      "lines_total": 283,
+      "lines_total": 287,
       "lines_triple_slash": 20,
       "lines_inner_doc": 31,
       "lines_plain_comment": 29,
@@ -15851,6 +15928,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator/src/models/pareto.rs",
+      "kind": "rust",
+      "lines_total": 388,
+      "lines_triple_slash": 36,
+      "lines_inner_doc": 6,
+      "lines_plain_comment": 34,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/budget_gate.rs",
       "kind": "rust",
       "lines_total": 349,
@@ -16066,6 +16154,17 @@
       "lines_triple_slash": 36,
       "lines_inner_doc": 4,
       "lines_plain_comment": 4,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli/src/commands/harness/report.rs",
+      "kind": "rust",
+      "lines_total": 693,
+      "lines_triple_slash": 37,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 36,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16766,7 +16865,7 @@
     {
       "path": "crates/vox-db/src/codex_legacy.rs",
       "kind": "rust",
-      "lines_total": 592,
+      "lines_total": 596,
       "lines_triple_slash": 36,
       "lines_inner_doc": 0,
       "lines_plain_comment": 10,
@@ -17342,6 +17441,17 @@
       "lines_triple_slash": 33,
       "lines_inner_doc": 0,
       "lines_plain_comment": 15,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/src/commands/plan_panel.rs",
+      "kind": "rust",
+      "lines_total": 357,
+      "lines_triple_slash": 29,
+      "lines_inner_doc": 4,
+      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -17996,17 +18106,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-gui/src/commands/chat_turn.rs",
-      "kind": "rust",
-      "lines_total": 365,
-      "lines_triple_slash": 19,
-      "lines_inner_doc": 11,
-      "lines_plain_comment": 9,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-gamify/src/schema.rs",
       "kind": "rust",
       "lines_total": 347,
@@ -18141,7 +18240,7 @@
     {
       "path": "crates/vox-orchestrator/src/models/discovery_pipeline.rs",
       "kind": "rust",
-      "lines_total": 197,
+      "lines_total": 200,
       "lines_triple_slash": 17,
       "lines_inner_doc": 13,
       "lines_plain_comment": 1,
@@ -18299,6 +18398,17 @@
       "lines_triple_slash": 15,
       "lines_inner_doc": 14,
       "lines_plain_comment": 7,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli/src/commands/model/explain.rs",
+      "kind": "rust",
+      "lines_total": 641,
+      "lines_triple_slash": 29,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 35,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -18728,6 +18838,17 @@
       "lines_triple_slash": 28,
       "lines_inner_doc": 0,
       "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator/src/topology.rs",
+      "kind": "rust",
+      "lines_total": 247,
+      "lines_triple_slash": 23,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 3,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -19692,10 +19813,10 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs",
       "kind": "rust",
-      "lines_total": 642,
+      "lines_total": 649,
       "lines_triple_slash": 24,
       "lines_inner_doc": 1,
-      "lines_plain_comment": 64,
+      "lines_plain_comment": 70,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -20088,7 +20209,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/dei_tools/control.rs",
       "kind": "rust",
-      "lines_total": 513,
+      "lines_total": 515,
       "lines_triple_slash": 24,
       "lines_inner_doc": 0,
       "lines_plain_comment": 6,
@@ -20669,17 +20790,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator/src/topology.rs",
-      "kind": "rust",
-      "lines_total": 234,
-      "lines_triple_slash": 18,
-      "lines_inner_doc": 5,
-      "lines_plain_comment": 3,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-audit/src/core_gates.rs",
       "kind": "rust",
       "lines_total": 221,
@@ -20928,17 +21038,6 @@
       "lines_triple_slash": 17,
       "lines_inner_doc": 5,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-cli/src/commands/harness/report.rs",
-      "kind": "rust",
-      "lines_total": 427,
-      "lines_triple_slash": 19,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 5,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -21450,17 +21549,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-gui/src/commands/plan_panel.rs",
-      "kind": "rust",
-      "lines_total": 277,
-      "lines_triple_slash": 17,
-      "lines_inner_doc": 4,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-db/src/error_enrichment.rs",
       "kind": "rust",
       "lines_total": 252,
@@ -21610,6 +21698,17 @@
       "lines_triple_slash": 21,
       "lines_inner_doc": 0,
       "lines_plain_comment": 7,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/src/commands/mission_control.rs",
+      "kind": "rust",
+      "lines_total": 146,
+      "lines_triple_slash": 15,
+      "lines_inner_doc": 6,
+      "lines_plain_comment": 9,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -22321,7 +22420,7 @@
     {
       "path": "crates/vox-orchestrator/src/models/tests.rs",
       "kind": "rust",
-      "lines_total": 1356,
+      "lines_total": 1366,
       "lines_triple_slash": 19,
       "lines_inner_doc": 0,
       "lines_plain_comment": 105,
@@ -22860,7 +22959,7 @@
     {
       "path": "crates/vox-orchestrator/tests/orchestrator_daemon_tcp.rs",
       "kind": "rust",
-      "lines_total": 773,
+      "lines_total": 776,
       "lines_triple_slash": 15,
       "lines_inner_doc": 3,
       "lines_plain_comment": 29,
@@ -22886,6 +22985,17 @@
       "lines_triple_slash": 15,
       "lines_inner_doc": 3,
       "lines_plain_comment": 24,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-db/src/store/ops_scientia.rs",
+      "kind": "rust",
+      "lines_total": 633,
+      "lines_triple_slash": 17,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 25,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -23601,6 +23711,17 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 18,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/src/chat_tools/plan.rs",
+      "kind": "rust",
+      "lines_total": 1197,
+      "lines_triple_slash": 17,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 16,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -24508,17 +24629,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-gui/src/commands/mission_control.rs",
-      "kind": "rust",
-      "lines_total": 137,
-      "lines_triple_slash": 10,
-      "lines_inner_doc": 6,
-      "lines_plain_comment": 9,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-gui/src/commands/terminal_core.rs",
       "kind": "rust",
       "lines_total": 136,
@@ -25225,7 +25335,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/llm_bridge/mod.rs",
       "kind": "rust",
-      "lines_total": 119,
+      "lines_total": 122,
       "lines_triple_slash": 13,
       "lines_inner_doc": 2,
       "lines_plain_comment": 0,
@@ -25566,7 +25676,7 @@
     {
       "path": "crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/batch.rs",
       "kind": "rust",
-      "lines_total": 657,
+      "lines_total": 659,
       "lines_triple_slash": 14,
       "lines_inner_doc": 0,
       "lines_plain_comment": 21,
@@ -25647,17 +25757,6 @@
       "lines_triple_slash": 13,
       "lines_inner_doc": 1,
       "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-db/src/harness_eval.rs",
-      "kind": "rust",
-      "lines_total": 449,
-      "lines_triple_slash": 11,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -25911,6 +26010,17 @@
       "lines_triple_slash": 9,
       "lines_inner_doc": 5,
       "lines_plain_comment": 6,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator/src/orchestrator/agent/spawn.rs",
+      "kind": "rust",
+      "lines_total": 143,
+      "lines_triple_slash": 14,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 5,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -27137,17 +27247,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-db/src/store/ops_scientia.rs",
-      "kind": "rust",
-      "lines_total": 486,
-      "lines_triple_slash": 11,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 20,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-db/src/ddl/diff.rs",
       "kind": "rust",
       "lines_total": 446,
@@ -27986,7 +28085,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/chat_socrates_meta.rs",
       "kind": "rust",
-      "lines_total": 1026,
+      "lines_total": 1028,
       "lines_triple_slash": 5,
       "lines_inner_doc": 6,
       "lines_plain_comment": 1,
@@ -28001,6 +28100,17 @@
       "lines_triple_slash": 11,
       "lines_inner_doc": 0,
       "lines_plain_comment": 68,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-db/src/local_tests.rs",
+      "kind": "rust",
+      "lines_total": 834,
+      "lines_triple_slash": 10,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 47,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -29073,17 +29183,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-cli/src/commands/model/explain.rs",
-      "kind": "rust",
-      "lines_total": 252,
-      "lines_triple_slash": 10,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 8,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator-mcp/src/agy_exec.rs",
       "kind": "rust",
       "lines_total": 243,
@@ -29860,6 +29959,17 @@
       "lines_triple_slash": 8,
       "lines_inner_doc": 1,
       "lines_plain_comment": 8,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator/src/orchestrator/tests/mod.rs",
+      "kind": "rust",
+      "lines_total": 1058,
+      "lines_triple_slash": 9,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 14,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -31187,7 +31297,7 @@
     {
       "path": "crates/vox-db/src/schema/domains/agents.rs",
       "kind": "rust",
-      "lines_total": 489,
+      "lines_total": 494,
       "lines_triple_slash": 0,
       "lines_inner_doc": 8,
       "lines_plain_comment": 0,
@@ -32511,17 +32621,6 @@
       "lines_triple_slash": 2,
       "lines_inner_doc": 6,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator-mcp/src/chat_tools/plan.rs",
-      "kind": "rust",
-      "lines_total": 1118,
-      "lines_triple_slash": 7,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 9,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -34507,6 +34606,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator/src/services/topology_ingest.rs",
+      "kind": "rust",
+      "lines_total": 176,
+      "lines_triple_slash": 2,
+      "lines_inner_doc": 4,
+      "lines_plain_comment": 12,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-publisher/src/citation_cff.rs",
       "kind": "rust",
       "lines_total": 175,
@@ -34535,17 +34645,6 @@
       "lines_triple_slash": 5,
       "lines_inner_doc": 1,
       "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator/src/services/topology_ingest.rs",
-      "kind": "rust",
-      "lines_total": 168,
-      "lines_triple_slash": 2,
-      "lines_inner_doc": 4,
-      "lines_plain_comment": 9,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -34722,6 +34821,17 @@
       "lines_triple_slash": 6,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-db/tests/model_scoreboard_percentiles.rs",
+      "kind": "rust",
+      "lines_total": 118,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 6,
+      "lines_plain_comment": 7,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -34986,17 +35096,6 @@
       "lines_triple_slash": 1,
       "lines_inner_doc": 5,
       "lines_plain_comment": 8,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-db/tests/model_scoreboard_percentiles.rs",
-      "kind": "rust",
-      "lines_total": 74,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 6,
-      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -36619,6 +36718,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator/src/planning/schedule.rs",
+      "kind": "rust",
+      "lines_total": 93,
+      "lines_triple_slash": 2,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 5,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-search/src/memory_cache.rs",
       "kind": "rust",
       "lines_total": 92,
@@ -36668,17 +36778,6 @@
       "lines_total": 90,
       "lines_triple_slash": 4,
       "lines_inner_doc": 1,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator/src/planning/schedule.rs",
-      "kind": "rust",
-      "lines_total": 87,
-      "lines_triple_slash": 2,
-      "lines_inner_doc": 3,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -37677,21 +37776,10 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/task_tools/submission.rs",
       "kind": "rust",
-      "lines_total": 890,
+      "lines_total": 892,
       "lines_triple_slash": 4,
       "lines_inner_doc": 0,
       "lines_plain_comment": 11,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-db/src/local_tests.rs",
-      "kind": "rust",
-      "lines_total": 797,
-      "lines_triple_slash": 3,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 65,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -38511,17 +38599,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator/src/orchestrator/agent/spawn.rs",
-      "kind": "rust",
-      "lines_total": 114,
-      "lines_triple_slash": 4,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-publisher/tests/zenodo_autofill_sandbox_fixture_test.rs",
       "kind": "rust",
       "lines_total": 112,
@@ -38725,6 +38802,17 @@
       "lines_total": 84,
       "lines_triple_slash": 3,
       "lines_inner_doc": 1,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-db/src/schema/domains/harness_eval.rs",
+      "kind": "rust",
+      "lines_total": 83,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 4,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -39000,17 +39088,6 @@
       "lines_total": 62,
       "lines_triple_slash": 4,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-db/src/schema/domains/harness_eval.rs",
-      "kind": "rust",
-      "lines_total": 61,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 4,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -41415,17 +41492,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-cli/src/commands/model/scoreboard.rs",
-      "kind": "rust",
-      "lines_total": 72,
-      "lines_triple_slash": 3,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-rule-pack/tests/canonical_rules.rs",
       "kind": "rust",
       "lines_total": 72,
@@ -42174,6 +42240,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-actor-runtime/src/llm/mod.rs",
+      "kind": "rust",
+      "lines_total": 24,
+      "lines_triple_slash": 2,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/voxup/build.rs",
       "kind": "rust",
       "lines_total": 24,
@@ -42212,17 +42289,6 @@
       "lines_total": 22,
       "lines_triple_slash": 0,
       "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-actor-runtime/src/llm/mod.rs",
-      "kind": "rust",
-      "lines_total": 21,
-      "lines_triple_slash": 2,
-      "lines_inner_doc": 1,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -45232,17 +45298,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-orchestrator/src/orchestrator/tests/mod.rs",
-      "kind": "rust",
-      "lines_total": 993,
-      "lines_triple_slash": 1,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 12,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator/src/config/impl_env.rs",
       "kind": "rust",
       "lines_total": 958,
@@ -45388,7 +45443,7 @@
     {
       "path": "crates/vox-db/src/schema/domains/scientia.rs",
       "kind": "rust",
-      "lines_total": 427,
+      "lines_total": 437,
       "lines_triple_slash": 0,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
@@ -45606,6 +45661,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator/src/orchestrator/agent/handoff.rs",
+      "kind": "rust",
+      "lines_total": 249,
+      "lines_triple_slash": 1,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 3,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-code-audit/src/detectors/require_justification.rs",
       "kind": "rust",
       "lines_total": 248,
@@ -45623,17 +45689,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 1,
       "lines_plain_comment": 26,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator/src/orchestrator/agent/handoff.rs",
-      "kind": "rust",
-      "lines_total": 243,
-      "lines_triple_slash": 1,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 3,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -49984,17 +50039,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-gui/ui/playwright-report/data/2333142e0155cb94742eacd31649140c527cbd5c.md",
-      "kind": "markdown",
-      "lines_total": 760,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 5,
-      "hotspot_tier": 0,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
       "path": "crates/vox-secrets/src/spec/registry/llm.rs",
       "kind": "rust",
       "lines_total": 757,
@@ -50226,6 +50270,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "crates/vox-gui/ui/src/lib/chatCorrelation.ts",
+      "kind": "typescript",
+      "lines_total": 403,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 14,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "crates/vox-publisher/src/submission/validation.rs",
       "kind": "rust",
       "lines_total": 402,
@@ -50279,17 +50334,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/lib/chatCorrelation.ts",
-      "kind": "typescript",
-      "lines_total": 380,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 7,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
     },
     {
       "path": "crates/vox-sql/src/ddl.rs",
@@ -50415,7 +50459,7 @@
     {
       "path": "crates/vox-gui/src/main.rs",
       "kind": "rust",
-      "lines_total": 327,
+      "lines_total": 328,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 25,
@@ -50743,17 +50787,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-gui/ui/src/lib/sessionChatStore.test.ts",
-      "kind": "typescript",
-      "lines_total": 249,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 7,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
       "path": "crates/vox-orchestrator/tests/scaling_test.rs",
       "kind": "rust",
       "lines_total": 247,
@@ -50763,6 +50796,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/lib/sessionChatStore.ts",
+      "kind": "typescript",
+      "lines_total": 246,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 14,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
     },
     {
       "path": ".github/workflows/release-binaries.yml",
@@ -50848,17 +50892,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 13,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/lib/sessionChatStore.ts",
-      "kind": "typescript",
-      "lines_total": 234,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 6,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
@@ -51535,50 +51568,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-gui/ui/playwright-report/data/5217b13b91b941168457cfc446ac76be16db1103.md",
-      "kind": "markdown",
-      "lines_total": 169,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 4,
-      "hotspot_tier": 0,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "crates/vox-gui/ui/playwright-report/data/5be286dc8d6cca4781169ebe0d642a4c80af49fb.md",
-      "kind": "markdown",
-      "lines_total": 169,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 4,
-      "hotspot_tier": 0,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "crates/vox-gui/ui/playwright-report/data/71a60fa4cac6db52f693bb4d0514f3393d10a245.md",
-      "kind": "markdown",
-      "lines_total": 169,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 4,
-      "hotspot_tier": 0,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "crates/vox-gui/ui/playwright-report/data/a4d15c15ef0cfa42d3e18339beef2597f9b456a0.md",
-      "kind": "markdown",
-      "lines_total": 169,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 4,
-      "hotspot_tier": 0,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
       "path": "docs/src/tutorials/tut-ui-integration.md",
       "kind": "markdown",
       "lines_total": 169,
@@ -51690,6 +51679,17 @@
     },
     {
       "path": "crates/vox-gui/ui/src/hooks/useChatExecutionData.test.ts",
+      "kind": "typescript",
+      "lines_total": 165,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/lib/backendGuard.ts",
       "kind": "typescript",
       "lines_total": 165,
       "lines_triple_slash": 0,
@@ -51898,17 +51898,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "crates/vox-gui/ui/src/lib/backendGuard.ts",
-      "kind": "typescript",
-      "lines_total": 153,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
       "path": ".github/workflows/mobile-eas-build.yml",
       "kind": "yaml",
       "lines_total": 152,
@@ -51955,7 +51944,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/task_tools/tests.rs",
       "kind": "rust",
-      "lines_total": 147,
+      "lines_total": 148,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
@@ -52426,6 +52415,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator/src/planning/replan.rs",
+      "kind": "rust",
+      "lines_total": 124,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-gui/ui/e2e/lib/tauriMockShared.ts",
       "kind": "typescript",
       "lines_total": 123,
@@ -52435,17 +52435,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-orchestrator/src/planning/replan.rs",
-      "kind": "rust",
-      "lines_total": 123,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
     },
     {
       "path": ".github/workflows/gui-cross-build.yml",
@@ -52589,6 +52578,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "docs/src/adr/046-pareto-frontier-reporting.md",
+      "kind": "markdown",
+      "lines_total": 118,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 7,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
       "path": "crates/vox-gui/ui/src/components/surfaces/Console/osc633.ts",
@@ -52900,6 +52900,17 @@
     },
     {
       "path": "crates/vox-gui/ui/src/lib/dashboardBundleBudgetInProcess.ts",
+      "kind": "typescript",
+      "lines_total": 107,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/types/dashboard.ts",
       "kind": "typescript",
       "lines_total": 107,
       "lines_triple_slash": 0,
@@ -53356,17 +53367,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/types/dashboard.ts",
-      "kind": "typescript",
-      "lines_total": 93,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
@@ -53854,6 +53854,17 @@
       "lines_other_doc_signal": 6,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/components/surfaces/SubAgents/subAgentClient.ts",
+      "kind": "typescript",
+      "lines_total": 83,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 6,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
     },
     {
       "path": "crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/policy.rs",
@@ -54472,6 +54483,17 @@
       "notes": "approx // and block comments"
     },
     {
+      "path": "crates/vox-gui/ui/src/lib/buildChatTurn.ts",
+      "kind": "typescript",
+      "lines_total": 76,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 5,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "docs/src/archive/research-2026-q1/research-ts-hallucination-works-cited-2026.md",
       "kind": "markdown",
       "lines_total": 76,
@@ -54846,6 +54868,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/ui/src/components/surfaces/SubAgents/subAgentClient.test.ts",
+      "kind": "typescript",
+      "lines_total": 71,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 5,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "crates/vox-gui/ui/src/hooks/useActiveView.test.ts",
       "kind": "typescript",
       "lines_total": 71,
@@ -55009,17 +55042,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/components/surfaces/SubAgents/subAgentClient.ts",
-      "kind": "typescript",
-      "lines_total": 69,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 8,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
     },
     {
       "path": "crates/vox-research-shim/tests/scientia_phase_0a_claims_stub.rs",
@@ -55627,6 +55649,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/ui/src/lib/buildChatTurn.test.ts",
+      "kind": "typescript",
+      "lines_total": 64,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 11,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "crates/vox-gui/ui/src/lib/mapAgentEvent.test.ts",
       "kind": "typescript",
       "lines_total": 64,
@@ -55647,6 +55680,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "docs/src/adr/index.md",
+      "kind": "markdown",
+      "lines_total": 64,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 1,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
       "path": "docs/src/architecture/github-pages-redirects.md",
@@ -55746,17 +55790,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "docs/src/adr/index.md",
-      "kind": "markdown",
-      "lines_total": 63,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 1,
-      "hotspot_tier": 0,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
       "path": "docs/src/archive/research-2026-q1/actor-gc-implementation-blueprint-2026.md",
@@ -56293,17 +56326,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/lib/buildChatTurn.ts",
-      "kind": "typescript",
-      "lines_total": 58,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 5,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
@@ -57794,17 +57816,6 @@
       "notes": "approx // and block comments"
     },
     {
-      "path": "crates/vox-gui/ui/src/lib/buildChatTurn.test.ts",
-      "kind": "typescript",
-      "lines_total": 48,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
       "path": "crates/vox-integration-tests/tests/skill_install_test.rs",
       "kind": "rust",
       "lines_total": 48,
@@ -58025,6 +58036,17 @@
       "notes": "approx // and block comments"
     },
     {
+      "path": "crates/vox-gui/ui/src/lib/slashRouter.ts",
+      "kind": "typescript",
+      "lines_total": 47,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "crates/vox-gui/ui/src/test-setup.localstorage.test.ts",
       "kind": "typescript",
       "lines_total": 47,
@@ -58146,6 +58168,17 @@
       "notes": "approx // and block comments"
     },
     {
+      "path": "crates/vox-gui/ui/src/lib/chatSend.ts",
+      "kind": "typescript",
+      "lines_total": 46,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "crates/vox-gui/ui/src/lib/installedSkills.ts",
       "kind": "typescript",
       "lines_total": 46,
@@ -58169,6 +58202,17 @@
     },
     {
       "path": "crates/vox-orchestrator/src/config/merge_populi.rs",
+      "kind": "rust",
+      "lines_total": 46,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator/src/models/mod.rs",
       "kind": "rust",
       "lines_total": 46,
       "lines_triple_slash": 0,
@@ -58652,6 +58696,17 @@
       "notes": "approx // and block comments"
     },
     {
+      "path": "crates/vox-orchestrator-mcp/tests/autonomous_chat_research_test.rs",
+      "kind": "rust",
+      "lines_total": 43,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/tests/api_v2_health_test.rs",
       "kind": "rust",
       "lines_total": 43,
@@ -58815,28 +58870,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/lib/slashRouter.ts",
-      "kind": "typescript",
-      "lines_total": 42,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-orchestrator/src/models/mod.rs",
-      "kind": "rust",
-      "lines_total": 42,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
     },
     {
       "path": "crates/vox-orchestrator/tests/scope_test.rs",
@@ -59027,17 +59060,6 @@
     },
     {
       "path": "crates/vox-gui/ui/src/hooks/useHudTilesConfig.ts",
-      "kind": "typescript",
-      "lines_total": 41,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/lib/chatSend.ts",
       "kind": "typescript",
       "lines_total": 41,
       "lines_triple_slash": 0,
@@ -59279,17 +59301,6 @@
       "notes": "approx // and block comments"
     },
     {
-      "path": "crates/vox-orchestrator-mcp/tests/autonomous_chat_research_test.rs",
-      "kind": "rust",
-      "lines_total": 40,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator/tests/a2a_integration_test.rs",
       "kind": "rust",
       "lines_total": 40,
@@ -59332,6 +59343,17 @@
       "lines_other_doc_signal": 6,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "crates/vox-terminal-core/tests/agent.rs",
+      "kind": "rust",
+      "lines_total": 40,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
     },
     {
       "path": "docs/src/architecture/phase-numbering-index.md",
@@ -59508,17 +59530,6 @@
       "lines_other_doc_signal": 7,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "crates/vox-terminal-core/tests/agent.rs",
-      "kind": "rust",
-      "lines_total": 39,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
     },
     {
       "path": "docs/src/adr/020-populi-mesh-scaling-transport-default.md",
@@ -60434,17 +60445,6 @@
       "notes": "approx // and block comments"
     },
     {
-      "path": "crates/vox-gui/ui/src/components/surfaces/SubAgents/subAgentClient.test.ts",
-      "kind": "typescript",
-      "lines_total": 34,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
       "path": "crates/vox-gui/ui/src/components/surfaces/SubAgents/types.ts",
       "kind": "typescript",
       "lines_total": 34,
@@ -60682,6 +60682,17 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/lib/slashRouter.test.ts",
+      "kind": "typescript",
+      "lines_total": 33,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
@@ -61012,17 +61023,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/lib/slashRouter.test.ts",
-      "kind": "typescript",
-      "lines_total": 31,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
@@ -61666,6 +61666,17 @@
       "notes": "approx // and block comments"
     },
     {
+      "path": "crates/vox-gui/ui/src/lib/shellPersistence.ts",
+      "kind": "typescript",
+      "lines_total": 27,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "crates/vox-gui/ui/src/transport.console.test.ts",
       "kind": "typescript",
       "lines_total": 27,
@@ -61788,17 +61799,6 @@
     },
     {
       "path": "crates/vox-gui/ui/src/lib/ids.ts",
-      "kind": "typescript",
-      "lines_total": 26,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/lib/shellPersistence.ts",
       "kind": "typescript",
       "lines_total": 26,
       "lines_triple_slash": 0,
@@ -68785,8 +68785,71 @@
           "quality_tag": "mechanical"
         },
         {
+          "doc_line": 404,
+          "item_line": 412,
+          "item_preview": "session_id: Option<String>,",
+          "containing_symbol": null,
+          "doc_preview": "Chat session this token belongs to (Task G1). `None` for the",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
           "doc_line": 405,
-          "item_line": 408,
+          "item_line": 412,
+          "item_preview": "session_id: Option<String>,",
+          "containing_symbol": null,
+          "doc_preview": "pre-existing background-task streaming path",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 406,
+          "item_line": 412,
+          "item_preview": "session_id: Option<String>,",
+          "containing_symbol": null,
+          "doc_preview": "(`Orchestrator::run_phase_stream_with_bus`), which has no chat",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 407,
+          "item_line": 412,
+          "item_preview": "session_id: Option<String>,",
+          "containing_symbol": null,
+          "doc_preview": "session concept — only the sync `vox_chat_message` path",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 408,
+          "item_line": 412,
+          "item_preview": "session_id: Option<String>,",
+          "containing_symbol": null,
+          "doc_preview": "(`agent_loop::run_agent_turn`) sets this, so the frontend's",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 409,
+          "item_line": 412,
+          "item_preview": "session_id: Option<String>,",
+          "containing_symbol": null,
+          "doc_preview": "`resolveSessionForEvent` can route the frame directly instead of",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 410,
+          "item_line": 412,
+          "item_preview": "session_id: Option<String>,",
+          "containing_symbol": null,
+          "doc_preview": "falling back to the `agentToTask` scan.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 414,
+          "item_line": 417,
           "item_preview": "GroundingCheckCompleted {",
           "containing_symbol": null,
           "doc_preview": "Opt-in, non-blocking post-reply grounding/hallucination check",
@@ -68794,8 +68857,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 406,
-          "item_line": 408,
+          "doc_line": 415,
+          "item_line": 417,
           "item_preview": "GroundingCheckCompleted {",
           "containing_symbol": null,
           "doc_preview": "(chat gate policy) completed for a chat task. Never delays the",
@@ -68803,8 +68866,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 407,
-          "item_line": 408,
+          "doc_line": 416,
+          "item_line": 417,
           "item_preview": "GroundingCheckCompleted {",
           "containing_symbol": null,
           "doc_preview": "reply — it is emitted after the reply has already streamed.",
@@ -68812,8 +68875,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 415,
-          "item_line": 416,
+          "doc_line": 424,
+          "item_line": 425,
           "item_preview": "InjectionDetected {",
           "containing_symbol": null,
           "doc_preview": "Prompt injection / safety gate rejected input (MCP).",
@@ -68821,8 +68884,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 419,
-          "item_line": 420,
+          "doc_line": 428,
+          "item_line": 429,
           "item_preview": "PromptConflictDetected {",
           "containing_symbol": null,
           "doc_preview": "Canonicalized prompt produced warnings (MCP task submit).",
@@ -68830,8 +68893,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 424,
-          "item_line": 425,
+          "doc_line": 433,
+          "item_line": 434,
           "item_preview": "PlanningRouted {",
           "containing_symbol": null,
           "doc_preview": "Planning router chose a strategy for a submitted goal.",
@@ -68839,8 +68902,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 431,
-          "item_line": 432,
+          "doc_line": 440,
+          "item_line": 441,
           "item_preview": "PlanSessionCreated {",
           "containing_symbol": null,
           "doc_preview": "A new plan session was created.",
@@ -68848,8 +68911,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 437,
-          "item_line": 438,
+          "doc_line": 446,
+          "item_line": 447,
           "item_preview": "PlanVersionCreated {",
           "containing_symbol": null,
           "doc_preview": "A branch/replan version was created.",
@@ -68857,8 +68920,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 443,
-          "item_line": 444,
+          "doc_line": 452,
+          "item_line": 453,
           "item_preview": "ReplanTriggered {",
           "containing_symbol": null,
           "doc_preview": "Failure triggered a replan branch.",
@@ -68866,8 +68929,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 450,
-          "item_line": 451,
+          "doc_line": 459,
+          "item_line": 460,
           "item_preview": "WorkflowHandoffRequested {",
           "containing_symbol": null,
           "doc_preview": "Planner requested workflow runtime handoff.",
@@ -68875,8 +68938,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 455,
-          "item_line": 456,
+          "doc_line": 464,
+          "item_line": 465,
           "item_preview": "WorkflowHandoffCompleted {",
           "containing_symbol": null,
           "doc_preview": "Workflow handoff finished and yielded a task id.",
@@ -68884,8 +68947,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 460,
-          "item_line": 461,
+          "doc_line": 469,
+          "item_line": 470,
           "item_preview": "WorkflowStarted {",
           "containing_symbol": null,
           "doc_preview": "Durable workflow lifecycle (MCP / dashboard).",
@@ -68893,8 +68956,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 489,
-          "item_line": 490,
+          "doc_line": 498,
+          "item_line": 499,
           "item_preview": "EndpointReliabilityObservation {",
           "containing_symbol": null,
           "doc_preview": "Endpoint reliability observation from LLM call (feeds EWMA in Codex).",
@@ -68902,8 +68965,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 491,
-          "item_line": 492,
+          "doc_line": 500,
+          "item_line": 501,
           "item_preview": "endpoint_url: String,",
           "containing_symbol": null,
           "doc_preview": "Provider endpoint URL.",
@@ -68911,8 +68974,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 493,
-          "item_line": 494,
+          "doc_line": 502,
+          "item_line": 503,
           "item_preview": "model_id: String,",
           "containing_symbol": null,
           "doc_preview": "Model identifier.",
@@ -68920,8 +68983,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 495,
-          "item_line": 496,
+          "doc_line": 504,
+          "item_line": 505,
           "item_preview": "hallucination_proxy: f64,",
           "containing_symbol": null,
           "doc_preview": "Proxy signal for hallucination risk (0.0–1.0).",
@@ -68929,8 +68992,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 497,
-          "item_line": 498,
+          "doc_line": 506,
+          "item_line": 507,
           "item_preview": "contradiction_ratio: f64,",
           "containing_symbol": null,
           "doc_preview": "Ratio of contradictory claims detected (0.0–1.0).",
@@ -68938,8 +69001,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 499,
-          "item_line": 500,
+          "doc_line": 508,
+          "item_line": 509,
           "item_preview": "infra_failure: f64,",
           "containing_symbol": null,
           "doc_preview": "1.0 for infra failures (rate-limit/timeout), 0.0 otherwise.",
@@ -68947,8 +69010,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 501,
-          "item_line": 502,
+          "doc_line": 510,
+          "item_line": 511,
           "item_preview": "rate_limit_hit: bool,",
           "containing_symbol": null,
           "doc_preview": "True when the failure was a rate-limit response.",
@@ -68956,8 +69019,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 503,
-          "item_line": 504,
+          "doc_line": 512,
+          "item_line": 513,
           "item_preview": "timeout_hit: bool,",
           "containing_symbol": null,
           "doc_preview": "True when the call timed out.",
@@ -68965,8 +69028,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 506,
-          "item_line": 507,
+          "doc_line": 515,
+          "item_line": 516,
           "item_preview": "OrchestratorIdle {",
           "containing_symbol": null,
           "doc_preview": "The entire orchestrator (all agents) has been idle.",
@@ -68974,8 +69037,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 508,
-          "item_line": 509,
+          "doc_line": 517,
+          "item_line": 518,
           "item_preview": "idle_ms: u64,",
           "containing_symbol": null,
           "doc_preview": "Milliseconds of absolute silence across all agents.",
@@ -68983,8 +69046,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 511,
-          "item_line": 512,
+          "doc_line": 520,
+          "item_line": 521,
           "item_preview": "TaskExpired {",
           "containing_symbol": null,
           "doc_preview": "A task was timed out and removed from the queue.",
@@ -68992,8 +69055,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 513,
-          "item_line": 514,
+          "doc_line": 522,
+          "item_line": 523,
           "item_preview": "task_id: TaskId,",
           "containing_symbol": null,
           "doc_preview": "Expired task ID.",
@@ -69001,8 +69064,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 515,
-          "item_line": 516,
+          "doc_line": 524,
+          "item_line": 525,
           "item_preview": "agent_id: AgentId,",
           "containing_symbol": null,
           "doc_preview": "Agent ID that was holding it.",
@@ -69010,8 +69073,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 517,
-          "item_line": 518,
+          "doc_line": 526,
+          "item_line": 527,
           "item_preview": "age_ms: u64,",
           "containing_symbol": null,
           "doc_preview": "Age in milliseconds.",
@@ -69019,8 +69082,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 521,
-          "item_line": 522,
+          "doc_line": 530,
+          "item_line": 531,
           "item_preview": "MensObserverObservation {",
           "containing_symbol": null,
           "doc_preview": "OAPV Observer anomaly detected (mens_observer_observations) for MCP dashboards.",
@@ -69028,8 +69091,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 528,
-          "item_line": 529,
+          "doc_line": 537,
+          "item_line": 538,
           "item_preview": "AutoHealApplied {",
           "containing_symbol": null,
           "doc_preview": "AST Healing was applied automatically on a file.",
@@ -69037,8 +69100,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 531,
-          "item_line": 532,
+          "doc_line": 540,
+          "item_line": 541,
           "item_preview": "path: PathBuf,",
           "containing_symbol": null,
           "doc_preview": "Path of the healed file",
@@ -69046,8 +69109,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 533,
-          "item_line": 534,
+          "doc_line": 542,
+          "item_line": 543,
           "item_preview": "description: String,",
           "containing_symbol": null,
           "doc_preview": "Description of the healing action",
@@ -69055,8 +69118,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 535,
-          "item_line": 536,
+          "doc_line": 544,
+          "item_line": 545,
           "item_preview": "new_source: String,",
           "containing_symbol": null,
           "doc_preview": "The new source after healing",
@@ -69064,8 +69127,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 538,
-          "item_line": 539,
+          "doc_line": 547,
+          "item_line": 548,
           "item_preview": "AutoHealSuggested {",
           "containing_symbol": null,
           "doc_preview": "A fix was suggested automatically for a diagnostic error.",
@@ -69073,8 +69136,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 546,
-          "item_line": 547,
+          "doc_line": 555,
+          "item_line": 556,
           "item_preview": "AttentionBudgetAlert {",
           "containing_symbol": null,
           "doc_preview": "Attention budget threshold alert",
@@ -69082,8 +69145,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 553,
-          "item_line": 554,
+          "doc_line": 562,
+          "item_line": 563,
           "item_preview": "BudgetAlert {",
           "containing_symbol": null,
           "doc_preview": "A general budget alert for tokens/cost self-correction",
@@ -69091,8 +69154,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 558,
-          "item_line": 559,
+          "doc_line": 567,
+          "item_line": 568,
           "item_preview": "AttentionBudgetReset {",
           "containing_symbol": null,
           "doc_preview": "Attention budget was explicitly reset",
@@ -69100,8 +69163,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 564,
-          "item_line": 565,
+          "doc_line": 573,
+          "item_line": 574,
           "item_preview": "TrustOverride {",
           "containing_symbol": null,
           "doc_preview": "Agent trust level was manually overridden",
@@ -69109,8 +69172,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 570,
-          "item_line": 571,
+          "doc_line": 579,
+          "item_line": 580,
           "item_preview": "AttentionConfigReloaded,",
           "containing_symbol": null,
           "doc_preview": "Attention policy configuration was hot-reloaded",
@@ -69118,8 +69181,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 573,
-          "item_line": 574,
+          "doc_line": 582,
+          "item_line": 583,
           "item_preview": "ContextTruncated {",
           "containing_symbol": null,
           "doc_preview": "Warning emitted when context bytes are dropped due to limits",
@@ -69127,8 +69190,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 580,
-          "item_line": 581,
+          "doc_line": 589,
+          "item_line": 590,
           "item_preview": "LlmCallCompleted {",
           "containing_symbol": null,
           "doc_preview": "LLM request completed inside planning or context phases",
@@ -69136,8 +69199,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 587,
-          "item_line": 588,
+          "doc_line": 596,
+          "item_line": 597,
           "item_preview": "ObservationRecorded {",
           "containing_symbol": null,
           "doc_preview": "Observer recorded a structural health report for a file (Task 56).",
@@ -69145,8 +69208,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 597,
-          "item_line": 598,
+          "doc_line": 606,
+          "item_line": 607,
           "item_preview": "OrientCompleted {",
           "containing_symbol": null,
           "doc_preview": "The Orient phase completed its risk analysis.",
@@ -69154,8 +69217,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 604,
-          "item_line": 605,
+          "doc_line": 613,
+          "item_line": 614,
           "item_preview": "ResearchExecuted {",
           "containing_symbol": null,
           "doc_preview": "Autonomous research was performed (Tavily).",
@@ -69163,8 +69226,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 611,
-          "item_line": 612,
+          "doc_line": 620,
+          "item_line": 621,
           "item_preview": "ResearchSynthesisExecuted {",
           "containing_symbol": null,
           "doc_preview": "Lane G synthesized research evidence.",
@@ -69172,8 +69235,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 622,
-          "item_line": 623,
+          "doc_line": 631,
+          "item_line": 632,
           "item_preview": "DoubtReported {",
           "containing_symbol": null,
           "doc_preview": "A task was flagged for potential drift or doubt (Doom-loop protection).",
@@ -69181,8 +69244,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 628,
-          "item_line": 629,
+          "doc_line": 637,
+          "item_line": 638,
           "item_preview": "SemanticDriftDetected {",
           "containing_symbol": null,
           "doc_preview": "Semantic drift was confirmed; agent may be halted.",
@@ -69190,8 +69253,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 638,
-          "item_line": 641,
+          "doc_line": 647,
+          "item_line": 650,
           "item_preview": "BuildStage {",
           "containing_symbol": null,
           "doc_preview": "A compiler stage transitioned (lex → parse → hir → typecheck → codegen).",
@@ -69199,8 +69262,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 639,
-          "item_line": 641,
+          "doc_line": 648,
+          "item_line": 650,
           "item_preview": "BuildStage {",
           "containing_symbol": null,
           "doc_preview": "",
@@ -69208,8 +69271,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 640,
-          "item_line": 641,
+          "doc_line": 649,
+          "item_line": 650,
           "item_preview": "BuildStage {",
           "containing_symbol": null,
           "doc_preview": "Powers the Forge pipeline view on the dashboard.",
@@ -69217,8 +69280,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 649,
-          "item_line": 652,
+          "doc_line": 658,
+          "item_line": 661,
           "item_preview": "ThroughputTick {",
           "containing_symbol": null,
           "doc_preview": "Throttled ~1 Hz throughput tick for mesh activity / status-bar queue indicator.",
@@ -69226,8 +69289,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 650,
-          "item_line": 652,
+          "doc_line": 659,
+          "item_line": 661,
           "item_preview": "ThroughputTick {",
           "containing_symbol": null,
           "doc_preview": "",
@@ -69235,8 +69298,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 651,
-          "item_line": 652,
+          "doc_line": 660,
+          "item_line": 661,
           "item_preview": "ThroughputTick {",
           "containing_symbol": null,
           "doc_preview": "Powers the Mesh activity strip and status-bar queue indicator.",
@@ -69244,8 +69307,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 657,
-          "item_line": 660,
+          "doc_line": 666,
+          "item_line": 669,
           "item_preview": "CostTick {",
           "containing_symbol": null,
           "doc_preview": "Per-model cost tick emitted when cost crosses a batching boundary.",
@@ -69253,36 +69316,9 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 658,
-          "item_line": 660,
-          "item_preview": "CostTick {",
-          "containing_symbol": null,
-          "doc_preview": "",
-          "comment_type": "outer_doc",
-          "quality_tag": "mechanical"
-        },
-        {
-          "doc_line": 659,
-          "item_line": 660,
-          "item_preview": "CostTick {",
-          "containing_symbol": null,
-          "doc_preview": "Powers the Models cost horizon and status-bar cost display.",
-          "comment_type": "outer_doc",
-          "quality_tag": "mechanical"
-        },
-        {
-          "doc_line": 666,
-          "item_line": 669,
-          "item_preview": "FileDiagChanged {",
-          "containing_symbol": null,
-          "doc_preview": "A file's diagnostic counts changed.",
-          "comment_type": "outer_doc",
-          "quality_tag": "mechanical"
-        },
-        {
           "doc_line": 667,
           "item_line": 669,
-          "item_preview": "FileDiagChanged {",
+          "item_preview": "CostTick {",
           "containing_symbol": null,
           "doc_preview": "",
           "comment_type": "outer_doc",
@@ -69291,6 +69327,33 @@
         {
           "doc_line": 668,
           "item_line": 669,
+          "item_preview": "CostTick {",
+          "containing_symbol": null,
+          "doc_preview": "Powers the Models cost horizon and status-bar cost display.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 675,
+          "item_line": 678,
+          "item_preview": "FileDiagChanged {",
+          "containing_symbol": null,
+          "doc_preview": "A file's diagnostic counts changed.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 676,
+          "item_line": 678,
+          "item_preview": "FileDiagChanged {",
+          "containing_symbol": null,
+          "doc_preview": "",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 677,
+          "item_line": 678,
           "item_preview": "FileDiagChanged {",
           "containing_symbol": null,
           "doc_preview": "Powers the Code surface file-tree diagnostic dots.",
@@ -69298,8 +69361,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 674,
-          "item_line": 677,
+          "doc_line": 683,
+          "item_line": 686,
           "item_preview": "MeshTopologyChanged {",
           "containing_symbol": null,
           "doc_preview": "Mesh topology changed: agents joined/left or an edge became active/inactive.",
@@ -69307,8 +69370,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 675,
-          "item_line": 677,
+          "doc_line": 684,
+          "item_line": 686,
           "item_preview": "MeshTopologyChanged {",
           "containing_symbol": null,
           "doc_preview": "",
@@ -69316,8 +69379,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 676,
-          "item_line": 677,
+          "doc_line": 685,
+          "item_line": 686,
           "item_preview": "MeshTopologyChanged {",
           "containing_symbol": null,
           "doc_preview": "Powers the Mesh topology re-render on the dashboard.",
@@ -69325,8 +69388,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 686,
-          "item_line": 687,
+          "doc_line": 695,
+          "item_line": 696,
           "item_preview": "TaskReprioritized {",
           "containing_symbol": null,
           "doc_preview": "Emitted when a developer or policy reorders a task in flight.",
@@ -69334,8 +69397,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 696,
-          "item_line": 697,
+          "doc_line": 705,
+          "item_line": 706,
           "item_preview": "HopperItemAdmitted {",
           "containing_symbol": null,
           "doc_preview": "Emitted when the hopper admits an intake item and binds it to an agent queue.",
@@ -69343,8 +69406,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 705,
-          "item_line": 706,
+          "doc_line": 714,
+          "item_line": 715,
           "item_preview": "HopperItemOverridden {",
           "containing_symbol": null,
           "doc_preview": "Emitted when a developer overrides the orchestrator's classified priority.",
@@ -69352,8 +69415,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 713,
-          "item_line": 714,
+          "doc_line": 722,
+          "item_line": 723,
           "item_preview": "HopperItemCancelled {",
           "containing_symbol": null,
           "doc_preview": "Emitted when a developer cancels an item in the hopper.",
@@ -69361,8 +69424,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 721,
-          "item_line": 723,
+          "doc_line": 730,
+          "item_line": 732,
           "item_preview": "MeshNodeBudget {",
           "containing_symbol": null,
           "doc_preview": "Per-node budget tick — emitted at most once per second per node.",
@@ -69370,8 +69433,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 722,
-          "item_line": 723,
+          "doc_line": 731,
+          "item_line": 732,
           "item_preview": "MeshNodeBudget {",
           "containing_symbol": null,
           "doc_preview": "Powers the spend gauges (P4-T6) on the topology canvas.",
@@ -69379,8 +69442,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 730,
-          "item_line": 732,
+          "doc_line": 739,
+          "item_line": 741,
           "item_preview": "MeshActionCommitted {",
           "containing_symbol": null,
           "doc_preview": "A destructive mesh action (kill/pause/drain/replay) was committed.",
@@ -69388,8 +69451,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 731,
-          "item_line": 732,
+          "doc_line": 740,
+          "item_line": 741,
           "item_preview": "MeshActionCommitted {",
           "containing_symbol": null,
           "doc_preview": "Always paired with a signed audit-log entry.",
@@ -69397,8 +69460,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 742,
-          "item_line": 745,
+          "doc_line": 751,
+          "item_line": 754,
           "item_preview": "PavPhaseChanged {",
           "containing_symbol": null,
           "doc_preview": "A task's PAV (Plan/Act/Verify) phase advanced. Distinct from",
@@ -69406,8 +69469,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 743,
-          "item_line": 745,
+          "doc_line": 752,
+          "item_line": 754,
           "item_preview": "PavPhaseChanged {",
           "containing_symbol": null,
           "doc_preview": "`TaskPhaseChanged` which carries the OOPAV debug phase (`TaskPhase`).",
@@ -69415,8 +69478,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 744,
-          "item_line": 745,
+          "doc_line": 753,
+          "item_line": 754,
           "item_preview": "PavPhaseChanged {",
           "containing_symbol": null,
           "doc_preview": "The GUI subscribes via the same agent-events broadcast stream.",
@@ -69424,8 +69487,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 751,
-          "item_line": 754,
+          "doc_line": 760,
+          "item_line": 763,
           "item_preview": "pub enum MeshAction {",
           "containing_symbol": null,
           "doc_preview": "Destructive mesh actions that trigger a confirmation modal and signed audit-log entry.",
@@ -69433,8 +69496,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 793,
-          "item_line": 798,
+          "doc_line": 802,
+          "item_line": 807,
           "item_preview": "pub fn is_tier_a(kind: &AgentEventKind) -> bool {",
           "containing_symbol": null,
           "doc_preview": "Returns `true` if `kind` is a **Tier A** event: a dispatch-lifecycle",
@@ -69442,8 +69505,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 794,
-          "item_line": 798,
+          "doc_line": 803,
+          "item_line": 807,
           "item_preview": "pub fn is_tier_a(kind: &AgentEventKind) -> bool {",
           "containing_symbol": null,
           "doc_preview": "transition that must be durably recorded (via `Orchestrator::record_operation`)",
@@ -69451,8 +69514,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 795,
-          "item_line": 798,
+          "doc_line": 804,
+          "item_line": 807,
           "item_preview": "pub fn is_tier_a(kind: &AgentEventKind) -> bool {",
           "containing_symbol": null,
           "doc_preview": "*before* being broadcast on the [`EventBus`]. See the module-level tier",
@@ -69460,8 +69523,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 796,
-          "item_line": 798,
+          "doc_line": 805,
+          "item_line": 807,
           "item_preview": "pub fn is_tier_a(kind: &AgentEventKind) -> bool {",
           "containing_symbol": null,
           "doc_preview": "documentation above.",
@@ -69469,8 +69532,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 897,
-          "item_line": 911,
+          "doc_line": 906,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "Bare variant names of every Tier-B `AgentEventKind` (the `false` arms of",
@@ -69478,8 +69541,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 898,
-          "item_line": 911,
+          "doc_line": 907,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "[`is_tier_a`]), for consumers that need the set as strings rather than",
@@ -69487,8 +69550,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 899,
-          "item_line": 911,
+          "doc_line": 908,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "pattern-matchable values (e.g. `tests/tier_b_never_durable_guard.rs`'s",
@@ -69496,8 +69559,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 900,
-          "item_line": 911,
+          "doc_line": 909,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "source-grep, which checks for these names appearing as `OperationKind::`",
@@ -69505,8 +69568,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 901,
-          "item_line": 911,
+          "doc_line": 910,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "constructor arguments at durable-write call sites — `OperationKind` is a",
@@ -69514,8 +69577,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 902,
-          "item_line": 911,
+          "doc_line": 911,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "different, `#[non_exhaustive]` enum in another crate with no structural",
@@ -69523,8 +69586,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 903,
-          "item_line": 911,
+          "doc_line": 912,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "link to `AgentEventKind`, so this can't be derived via a shared trait/derive",
@@ -69532,8 +69595,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 904,
-          "item_line": 911,
+          "doc_line": 913,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "without adding an `EnumIter`-style dependency).",
@@ -69541,8 +69604,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 905,
-          "item_line": 911,
+          "doc_line": 914,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "",
@@ -69550,8 +69613,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 906,
-          "item_line": 911,
+          "doc_line": 915,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "**Keep in sync with [`is_tier_a`]'s match arms by hand** — there is no",
@@ -69559,8 +69622,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 907,
-          "item_line": 911,
+          "doc_line": 916,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "compiler enforcement linking this list to the match. If you add a new",
@@ -69568,8 +69631,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 908,
-          "item_line": 911,
+          "doc_line": 917,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "`AgentEventKind` variant, update `is_tier_a`'s match (compiler-enforced,",
@@ -69577,8 +69640,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 909,
-          "item_line": 911,
+          "doc_line": 918,
+          "item_line": 920,
           "item_preview": "pub const TIER_B_KIND_NAMES: &[&str] = &[",
           "containing_symbol": null,
           "doc_preview": "since it's exhaustive) *and*, if the variant is Tier B, add its name here.",
@@ -69586,8 +69649,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 938,
-          "item_line": 941,
+          "doc_line": 947,
+          "item_line": 950,
           "item_preview": "pub fn is_tier_b(kind: &AgentEventKind) -> bool {",
           "containing_symbol": null,
           "doc_preview": "Returns `true` if `kind` is a **Tier B** event (broadcast-only, never",
@@ -69595,8 +69658,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 939,
-          "item_line": 941,
+          "doc_line": 948,
+          "item_line": 950,
           "item_preview": "pub fn is_tier_b(kind: &AgentEventKind) -> bool {",
           "containing_symbol": null,
           "doc_preview": "durably journaled). The exact complement of [`is_tier_a`].",
@@ -69604,8 +69667,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 949,
-          "item_line": 954,
+          "doc_line": 958,
+          "item_line": 963,
           "item_preview": "pub struct EventBus {",
           "containing_symbol": null,
           "doc_preview": "Thread-safe event bus for broadcasting agent events.",
@@ -69613,8 +69676,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 950,
-          "item_line": 954,
+          "doc_line": 959,
+          "item_line": 963,
           "item_preview": "pub struct EventBus {",
           "containing_symbol": null,
           "doc_preview": "",
@@ -69622,8 +69685,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 951,
-          "item_line": 954,
+          "doc_line": 960,
+          "item_line": 963,
           "item_preview": "pub struct EventBus {",
           "containing_symbol": null,
           "doc_preview": "Uses a tokio broadcast channel under the hood. Multiple consumers",
@@ -69631,8 +69694,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 952,
-          "item_line": 954,
+          "doc_line": 961,
+          "item_line": 963,
           "item_preview": "pub struct EventBus {",
           "containing_symbol": null,
           "doc_preview": "(dashboard, monitor, gamify hooks) can subscribe independently.",
@@ -69640,8 +69703,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 960,
-          "item_line": 961,
+          "doc_line": 969,
+          "item_line": 970,
           "item_preview": "pub fn new(capacity: usize) -> Self {",
           "containing_symbol": null,
           "doc_preview": "Create a new event bus with the given channel capacity.",
@@ -69649,8 +69712,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 969,
-          "item_line": 970,
+          "doc_line": 978,
+          "item_line": 979,
           "item_preview": "pub fn emit(&self, kind: AgentEventKind) -> EventId {",
           "containing_symbol": null,
           "doc_preview": "Emit an event. Returns the assigned EventId.",
@@ -69658,8 +69721,8 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 988,
-          "item_line": 989,
+          "doc_line": 997,
+          "item_line": 998,
           "item_preview": "pub fn subscribe(&self) -> broadcast::Receiver<AgentEvent> {",
           "containing_symbol": null,
           "doc_preview": "Subscribe to events. Returns a receiver for all future events.",
@@ -69667,8 +69730,8 @@
           "quality_tag": "narrative"
         },
         {
-          "doc_line": 993,
-          "item_line": 994,
+          "doc_line": 1002,
+          "item_line": 1003,
           "item_preview": "pub fn subscriber_count(&self) -> usize {",
           "containing_symbol": null,
           "doc_preview": "Number of active subscribers.",
@@ -69676,11 +69739,92 @@
           "quality_tag": "mechanical"
         },
         {
-          "doc_line": 998,
-          "item_line": 999,
+          "doc_line": 1007,
+          "item_line": 1008,
           "item_preview": "pub fn next_event_id(&self) -> u64 {",
           "containing_symbol": null,
           "doc_preview": "Get the next event ID that will be assigned.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 1190,
+          "item_line": 1196,
+          "item_preview": "fn token_streamed_carries_session_id_when_set() {",
+          "containing_symbol": null,
+          "doc_preview": "Task G1: the sync chat path needs `TokenStreamed` to carry `session_id`",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 1191,
+          "item_line": 1196,
+          "item_preview": "fn token_streamed_carries_session_id_when_set() {",
+          "containing_symbol": null,
+          "doc_preview": "so the GUI's `resolveSessionForEvent` can route a frame directly to the",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 1192,
+          "item_line": 1196,
+          "item_preview": "fn token_streamed_carries_session_id_when_set() {",
+          "containing_symbol": null,
+          "doc_preview": "chat bubble, instead of only being reachable via the background-task",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 1193,
+          "item_line": 1196,
+          "item_preview": "fn token_streamed_carries_session_id_when_set() {",
+          "containing_symbol": null,
+          "doc_preview": "`agentToTask` scan. Field must serialize (not `skip_serializing_if`",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 1194,
+          "item_line": 1196,
+          "item_preview": "fn token_streamed_carries_session_id_when_set() {",
+          "containing_symbol": null,
+          "doc_preview": "away a `Some`) so the wire frame the GUI reads actually carries it.",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 1220,
+          "item_line": 1225,
+          "item_preview": "fn token_streamed_omits_session_id_when_absent() {",
+          "containing_symbol": null,
+          "doc_preview": "`session_id: None` (the pre-existing background-task streaming path)",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 1221,
+          "item_line": 1225,
+          "item_preview": "fn token_streamed_omits_session_id_when_absent() {",
+          "containing_symbol": null,
+          "doc_preview": "must NOT serialize a `session_id` key at all — additive change,",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 1222,
+          "item_line": 1225,
+          "item_preview": "fn token_streamed_omits_session_id_when_absent() {",
+          "containing_symbol": null,
+          "doc_preview": "existing consumers that don't know the field must see the same wire",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 1223,
+          "item_line": 1225,
+          "item_preview": "fn token_streamed_omits_session_id_when_absent() {",
+          "containing_symbol": null,
+          "doc_preview": "shape as before.",
           "comment_type": "outer_doc",
           "quality_tag": "mechanical"
         }

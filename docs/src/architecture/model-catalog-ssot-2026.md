@@ -88,18 +88,17 @@ Both define the exact same model-ID-to-task mappings. The YAML is never loaded a
 
 ---
 
-### Bug 6 — Scoring Constants Duplicated From YAML (One Copy Is Dead)
+### Bug 6 — Scoring Constants Duplicated From YAML (Resolved 2026-09-03: all four are read)
 
 | Constant | `scoring.rs` | `model-routing.v1.yaml` | Loaded at runtime? |
 |---|---|---|---|
-| `LATENCY_EXCELLENT_MS = 500.0` | line 25 | line 81 | ❌ Rust const only |
-| `LATENCY_POOR_MS = 8_000.0` | line 27 | line 82 | ❌ Rust const only |
-| `exploration.budget_usd_per_day: 50.0` | not present | line 21 | ❌ YAML only, never read |
-| `safety.max_cost_usd_per_request: 5.0` | not present | line 25 | ❌ YAML only, never read |
+| `LATENCY_EXCELLENT_MS = 500.0` | line 25 | line 81 | ✅ read at `crates/vox-orchestrator/src/models/scoring.rs:76-78` (via `latency_bands.excellent_ms`) |
+| `LATENCY_POOR_MS = 8_000.0` | line 27 | line 82 | ✅ read at `crates/vox-orchestrator/src/models/scoring.rs:76-78` (via `latency_bands.poor_ms`) |
+| `exploration.budget_usd_per_day: 50.0` | not present | line 21 | ✅ read at `crates/vox-orchestrator/src/runtime.rs:708-710` |
+| `safety.max_cost_usd_per_request: 5.0` | not present | line 25 | ✅ read at `crates/vox-orchestrator/src/models/registry.rs:838-840` (`safety_cap` in `best_for_task_with_filter`), enforced `:848-849` |
 
-Operators editing the YAML believe they are changing scoring behavior. They are not.
-
-**Fix:** Expose these through `vox_config::ModelRoutingConfig` loaded from the YAML. Replace the Rust `const` values with reads from this struct.
+As of 2026-09-03 all four are read through `vox_config::load_model_routing_config()`; this table
+previously rotted because nothing mechanically checks it against source.
 
 ---
 
