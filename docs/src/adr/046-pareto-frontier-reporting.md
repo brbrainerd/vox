@@ -30,7 +30,15 @@ selection or routing.
 - `crates/vox-cli/src/commands/model/explain.rs` partitions candidates by rank confidence
   (`partition_by_rank_confidence`) and renders a `selection_note` plus per-candidate sections
   (`render_candidate_sections`) so a low-sample-count row is shown as unranked rather than silently
-  outranked.
+  outranked. Ranked candidates carry a `[pareto-optimal]` marker over the same three axes, followed
+  by `scoreboard.rs`'s `pareto_legend` verbatim so the two surfaces cannot explain the same mark
+  differently. The candidate list is ordered by the router's composite priority score, and says so;
+  it is not ordered by observed performance.
+  **Known limitation:** `explain` reads scores through `ModelRegistry::inject_scoreboard`, whose
+  registry-side API is keyed by `model_id` alone, so each model's counts are whichever
+  `(task_category, strength_tag)` row landed last. The rendered output discloses this and points at
+  `vox model scoreboard`, which renders the triples separately. Re-keying the registry API would
+  reach into selection, which this ADR's reporting-only scope excludes.
 - The quality axis fed into `ParetoPoint` is the 95% Wilson lower bound on the observed success rate,
   not `model_scoreboard.quality_score` (a constant `1.0` in practice, and deliberately not surfaced).
   No rendered column or legend is headed "Quality" — the axis is labelled reliability throughout,
@@ -46,7 +54,13 @@ which is what guarantees `pareto_frontier` never returns empty for non-empty inp
 Two independent thresholds gate rank confidence for different purposes and are deliberately not
 unified: `MIN_CALLS_FOR_CONFIDENT_RANK = 5` (`models/registry.rs`) governs when a model's rank is
 shown as confident at all, while `COST_PER_SUCCESS_MIN_SUCCESSES = 10` (`scoreboard.rs`) governs when
-the budget recommendation's cost-per-success figure is trusted.
+a cost-per-success figure is shown as a number rather than "insufficient data".
+
+The `--budget` advisory is gated on **both**, via `recommendable_positions`, which narrows the
+frontier to rows clearing both thresholds before `budget_recommendation` sees them. Without the
+first gate the advisory could name a row the same table pointedly leaves unmarked; without the
+second it could match on a cost the same table prints as "insufficient data". When only
+sub-threshold rows are affordable, the line reads "no Pareto-optimal row qualifies".
 
 ## Why not a routing change
 
