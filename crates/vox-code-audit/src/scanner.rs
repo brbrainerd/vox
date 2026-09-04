@@ -135,7 +135,19 @@ impl Scanner {
                 .map(Language::from_extension)
                 .unwrap_or(Language::Unknown);
 
-            if lang == Language::Unknown {
+            // `Language::Unknown` is normally skipped, but a few files are scanned
+            // by NAME rather than by extension. Cargo manifests are the case that
+            // matters: `from_extension("toml")` is `Unknown`, so dropping every
+            // Unknown here silently made `CryptoBanDetector`'s Cargo branch
+            // unreachable — its `supported_langs` lists `Unknown` precisely so
+            // manifests would reach it, and its tests passed only because they
+            // construct `SourceFile` directly and bypass this loop.
+            let scanned_by_name = matches!(
+                path.file_name().and_then(|n| n.to_str()),
+                Some("Cargo.toml" | "Cargo.lock")
+            );
+
+            if lang == Language::Unknown && !scanned_by_name {
                 continue;
             }
 
@@ -227,5 +239,50 @@ mod generated_marker_tests {
     fn ordinary_source_is_not_generated() {
         assert!(!is_generated("//! Hand-written.\npub fn f() {}\n"));
         assert!(!is_generated(""));
+    }
+}
+
+#[cfg(test)]
+mod manifest_scanning_tests {
+    use super::Scanner;
+
+    /// Regression: `CryptoBanDetector` carries a Cargo-manifest branch and lists
+    /// `Language::Unknown` in `supported_langs` so manifests reach it — but the
+    /// scanner dropped every `Unknown` file, so that branch never executed in
+    /// production. Its own unit tests passed because they build `SourceFile`
+    /// directly and never go through `scan()`.
+    ///
+    /// This test goes through `scan()` on purpose. It is the check that was
+    /// missing, and it fails against the pre-fix scanner.
+    #[test]
+    fn scan_delivers_cargo_manifests_to_detectors() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("Cargo.toml"), "[package]\nname = \"x\"\n")
+            .expect("write manifest");
+        std::fs::write(dir.path().join("lib.rs"), "pub fn f() {}\n").expect("write rs");
+
+        let files = Scanner::new(vec![dir.path().to_path_buf()], &[], None).scan();
+
+        assert!(
+            files.iter().any(|f| f.path.ends_with("Cargo.toml")),
+            "Cargo.toml must reach detectors; a crypto gate that cannot see \
+             manifests is a gate that has never run"
+        );
+    }
+
+    /// The fix is by filename, not by "stop skipping Unknown" — a blanket change
+    /// would hand every detector every `.png`, `.lock`, and `.bin` in the tree.
+    #[test]
+    fn scan_still_skips_unrecognised_extensions() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("notes.md"), "# hi\n").expect("write md");
+        std::fs::write(dir.path().join("blob.bin"), "\x00\x01").expect("write bin");
+
+        let files = Scanner::new(vec![dir.path().to_path_buf()], &[], None).scan();
+
+        assert!(
+            !files.iter().any(|f| f.path.ends_with("blob.bin")),
+            "unrecognised extensions must still be skipped"
+        );
     }
 }

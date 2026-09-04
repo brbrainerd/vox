@@ -5894,7 +5894,6 @@ dependencies = [
  "indicatif",
  "libc",
  "log",
- "native-tls",
  "num_cpus",
  "rand 0.9.4",
  "reqwest 0.12.28",

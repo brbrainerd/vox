@@ -280,7 +280,15 @@ safetensors        = "0.7"
 tokenizers         = { version = "0.21", default-features = false, features = ["fancy-regex"] }
 memmap2            = "0.9"
 # 0.4+ resolves Hugging Face relative `Location` redirects in tokio metadata (0.3 breaks with `relative URL without a base`).
-hf-hub             = { version = "0.5" }
+# Narrowed to what vox actually uses: `api::sync::Api` (ureq) and
+# `api::tokio::Api` (tokio). `default` additionally pulls `default-tls` ->
+# `native-tls` -> `reqwest?/default`, which we do not use.
+#
+# This does NOT by itself remove native-tls or aws-lc-rs from the graph —
+# `reqwest/default` is still enabled by other paths. See
+# `contracts/crypto/transport-providers.v1.json` for the full provider
+# accounting and why two providers are currently unavoidable.
+hf-hub             = { version = "0.5", default-features = false, features = ["tokio", "ureq", "rustls-tls"] }
 keyring            = "3"
 qlora-rs           = "1.0.5"
 peft-rs            = "1.0"

@@ -156,6 +156,79 @@ needed; these are now execution steps.
   language surface; retiring it is a language-level breaking change. Resolves
   Task 3.4.
 
+### Task 0.4: Collapse reqwest to one major via hf-hub 1.0
+
+**Why this is a task and not a version bump.** The workspace builds two reqwest
+majors, and that is the root cause of shipping two TLS providers: 0.12's
+`rustls-tls` selects `ring`, 0.13's selects `aws-lc-rs`. Verified requirements:
+
+| Consumer | Requires |
+|---|---|
+| `hf-hub 0.5.0` | `reqwest ^0.12.2` |
+| `chromiumoxide 0.9.1` | `reqwest ^0.13` |
+| `gix-transport 0.57.1` (← `gix` ← `jj-lib` ← `vox-vcs`) | `reqwest ^0.13.2` |
+
+`hf-hub` is the only consumer on the 0.12 side, and **hf-hub 1.0.0 (2026-07-10)
+moved to `reqwest ^0.13`**. Upgrading collapses reqwest to one major, drops
+`native-tls`/`hyper-tls` and `ureq`, and is expected to leave `aws-lc-rs` as the
+sole provider — a real build-time and audit-surface win.
+
+**It is an API port, not a bump.** hf-hub 1.0 drops `ureq`, and four call sites
+use `hf_hub::api::sync::Api`:
+
+- `crates/vox-speech/src/backends/candle_whisper.rs`
+- `crates/vox-speech/src/backends/sherpa_model_config.rs` (two sites)
+- `crates/vox-plugin-speech/src/backends/candle_whisper.rs`
+
+plus one on `api::tokio::Api` in `crates/vox-populi/src/mens/hub.rs`. 1.0 also
+adds `hf-xet`, `bon`, and `hyper` as non-optional dependencies — measure those
+before assuming the build gets smaller.
+
+- [ ] **Step 1: Read the 1.0 API** and decide the replacement for `api::sync::Api`
+  (likely reqwest blocking, or make the four sites async).
+- [ ] **Step 2: Bump and port**, one crate at a time: `vox-speech`,
+  `vox-plugin-speech`, `vox-populi`.
+- [ ] **Step 3: Verify the collapse.** `cargo tree -d | rg reqwest` shows one
+  major; `cargo tree -i native-tls` and `-i ring` are empty.
+- [ ] **Step 4: Measure.** Clean-build wall time and `cargo tree | wc -l` before
+  and after. If `hf-xet` costs more than the removals save, keep the port but say
+  so in the ledger.
+- [ ] **Step 5: Update the ledger** — `contracts/crypto/transport-providers.v1.json`
+  `duplicates[reqwest]` becomes resolved, and `ring` moves out of
+  `allowed_providers` if nothing else selects it. **Ledger edits are
+  user-authorized; propose, do not write.**
+
+### Task 0.5: `vox ci crypto-provider-check` — the lockfile gate
+
+The source-text detector now runs (its scanner bug is fixed), but it **cannot see
+feature-mediated provider selection** — `rustls = { features = ["aws-lc-rs"] }`
+names no banned crate. The sound input is `Cargo.lock`.
+
+- [ ] **Step 1:** New gate in `crates/vox-cli-ci/`, ~120 lines, no cargo
+  invocation: parse `Cargo.lock`, intersect package names with the known provider
+  set, compare against `contracts/crypto/transport-providers.v1.json`.
+- [ ] **Step 2:** Fail on an unexpected provider, a vanished allowlisted one, a
+  version drift, or an unwaived duplicate-major.
+- [ ] **Step 3:** Wire into `vox ci pre-push` (fast tier) and CI `ssot-drift`.
+- [ ] **Step 4:** Add a `no-native-toolchain` CI lane on an image without cmake,
+  nasm, Go, perl, or libclang. The build-toolchain invariant is a property of the
+  build; only a build without those tools can verify it.
+
+### Task 0.6: Sequester HuggingFace behind one seam
+
+HF is already feature-gated (`vox-populi/mens-hf-hub`, `vox-speech/stt-sherpa`,
+`vox-plugin-speech`), but the download logic is duplicated across three crates
+and each names `hf_hub::` types directly — so Task 0.4's port touches all three.
+
+- [ ] **Step 1:** One `hf_download(repo, revision, file) -> PathBuf` seam, owned
+  by whichever crate the layer map allows, with the other two calling it.
+- [ ] **Step 2:** `hf_hub::` appears in exactly one file afterward. Verify:
+  `rg 'hf_hub::' crates/ | wc -l` == the seam's own count.
+- [ ] **Step 3:** Do this **before** Task 0.4 — it turns a three-crate port into
+  a one-file port, and makes the next upstream break equally cheap.
+
+---
+
 ---
 
 ## Phase 1 — The transport crate
