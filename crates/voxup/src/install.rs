@@ -141,7 +141,20 @@ pub async fn run_install(profile: &str) -> Result<()> {
     println!("   vox:   {}", canonical.display());
     println!("   voxup: {}", voxup_canonical.display());
     println!("   Run: vox --version");
-    println!("   Restart your shell or: source ~/.bashrc");
+    // Name the profile that was actually modified. Hardcoding ~/.bashrc told
+    // macOS users (zsh by default, and where voxup now creates ~/.zshrc on a
+    // pristine account) to source a file it had not touched — and which usually
+    // does not exist there.
+    match modified.first() {
+        Some(profile) => println!(
+            "   Restart your shell or: source {}",
+            profile.display()
+        ),
+        None => println!(
+            "   Add {} to your PATH, then restart your shell",
+            bin_dir.display()
+        ),
+    }
     Ok(())
 }
 

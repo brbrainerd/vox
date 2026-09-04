@@ -4,7 +4,13 @@ use anyhow::{Context, Result, bail};
 use reqwest::Client;
 use serde::Deserialize;
 
-const API_LATEST: &str = "https://api.github.com/repos/vox-foundation/vox/releases/latest";
+// NOT `/releases/latest`: that endpoint EXCLUDES pre-releases and 404s while every
+// published release is a pre-release, which is the case today — an end-to-end
+// install run failed here even after the shell wrapper was fixed, because the
+// wrapper and this binary each resolve the release independently. List releases
+// and pick the newest published, non-draft one instead.
+const API_RELEASES: &str =
+    "https://api.github.com/repos/vox-foundation/vox/releases?per_page=20";
 const CLIENT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 #[derive(Debug, Deserialize, Clone)]
@@ -59,19 +65,34 @@ pub async fn fetch_latest(client: &Client) -> Result<ReleaseInfo> {
     struct GhRelease {
         tag_name: String,
         assets: Vec<GhAsset>,
+        #[serde(default)]
+        draft: bool,
+        /// `None` while a release is still a draft. Ordering on this rather than
+        /// on the API's default `created_at` matters: `created_at` is the tag's
+        /// commit date, so a hotfix cut from an older commit would otherwise win.
+        #[serde(default)]
+        published_at: Option<String>,
     }
-    let rel: GhRelease = client
-        .get(API_LATEST)
+    let releases: Vec<GhRelease> = client
+        .get(API_RELEASES)
         .header("User-Agent", concat!("voxup/", env!("CARGO_PKG_VERSION")))
         .header("Accept", "application/vnd.github+json")
         .send()
         .await
-        .context("GET GitHub releases/latest")?
+        .context("GET GitHub releases")?
         .error_for_status()
         .context("GitHub API returned an error")?
         .json()
         .await
         .context("parse GitHub release JSON")?;
+
+    let rel = releases
+        .into_iter()
+        .filter(|r| !r.draft && r.published_at.is_some())
+        .max_by(|a, b| a.published_at.cmp(&b.published_at))
+        .context(
+            "no published release found (all drafts, or the repository has no releases yet)",
+        )?;
     let version = rel.tag_name.trim_start_matches('v').to_string();
     if version.is_empty() {
         bail!("release tag {:?} has no version after 'v'", rel.tag_name);
