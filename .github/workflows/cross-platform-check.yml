@@ -130,8 +130,9 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -140,12 +141,21 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
-      # Each `-p` is a separate resolve, matching what `cargo install --path` does.
+      # `-p` with no `--workspace`: each is a separate feature resolution, which is
+      # what `cargo install --path` does. `--all-targets` because plain `cargo check`
+      # skips tests and benches, where feature-gated code also rots.
       - name: cargo check (standalone, per-crate)
+        shell: bash
         run: |
-          cargo check -p vox-ml-cli
-          cargo check -p vox-gamify
-          cargo check -p vox-orchestrator-d
+          set -euo pipefail
+          cargo check --all-targets -p vox-ml-cli
+          cargo check --all-targets -p vox-ml-cli --features populi
+          cargo check --all-targets -p vox-gamify
+          cargo check --all-targets -p vox-orchestrator-d
+          # Installed by `vox plugin install`; both under-declared
+          # vox-db/host-integration and compiled only under feature unification.
+          cargo check --all-targets -p vox-plugin-mens-candle-metal
+          cargo check --all-targets -p vox-plugin-mens-candle-cuda
 
       # NOTE: the vox-gui asset guards deliberately do NOT run here. Compiling any
       # vox-gui target runs tauri-build, which embeds the gitignored `ui/dist` — it
