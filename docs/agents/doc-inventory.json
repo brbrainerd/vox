@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-04T19:48:26.370Z",
+  "generated_at": "2026-09-04T20:22:41.915Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -7711,6 +7711,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/2026-09-04-windows-to-fast-pc-handoff.md",
+      "kind": "markdown",
+      "lines_total": 178,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 12,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/planning-meta/12-question-gate-standard.md",
       "kind": "markdown",
       "lines_total": 177,
@@ -8048,17 +8059,6 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 13,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/superpowers/2026-09-04-windows-to-fast-pc-handoff.md",
-      "kind": "markdown",
-      "lines_total": 162,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 12,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -13367,10 +13367,10 @@
     {
       "path": "crates/vox-cli/src/commands/model/eval_corpus.rs",
       "kind": "rust",
-      "lines_total": 656,
+      "lines_total": 657,
       "lines_triple_slash": 62,
       "lines_inner_doc": 19,
-      "lines_plain_comment": 10,
+      "lines_plain_comment": 11,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -28094,23 +28094,23 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-db/src/local_tests.rs",
-      "kind": "rust",
-      "lines_total": 858,
-      "lines_triple_slash": 10,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 69,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-crypto/src/facades.rs",
       "kind": "rust",
       "lines_total": 850,
       "lines_triple_slash": 11,
       "lines_inner_doc": 0,
       "lines_plain_comment": 68,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-db/src/local_tests.rs",
+      "kind": "rust",
+      "lines_total": 834,
+      "lines_triple_slash": 10,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 47,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
