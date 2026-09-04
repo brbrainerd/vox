@@ -143,7 +143,7 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         None => Check {
             name: "Google AI Studio Key".to_string(),
             pass: false,
-            detail: "not found — run: vox login --registry google YOUR_KEY\n                          get a free key at: https://aistudio.google.com/apikey".to_string(),
+            detail: "not found — run: vox secrets set google YOUR_KEY\n                          get a free key at: https://aistudio.google.com/apikey".to_string(),
         },
     });
 
@@ -304,7 +304,11 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     });
 
     let mut reg_pass = false;
-    let mut reg_detail = "not registered — run: vox setup".to_string();
+    // NOTE: no CLI command currently writes `project.vox-workspace.path`, so this
+    // check cannot pass on a fresh install. Point at the real registration path
+    // rather than `vox setup`, which is not a subcommand.
+    let mut reg_detail = "not registered — run: vox repo init (registers .vox/repositories.yaml)"
+        .to_string();
     if let Ok(db) = vox_db::Codex::connect_default().await {
         let key = "project.vox-workspace.path".to_string();
         if let Ok(path) = db.get_object_metadata("vox-workspace", &key).await {

@@ -13,7 +13,9 @@
 #   sh scripts/install.sh
 set -eu
 
-GITHUB_API="https://api.github.com/repos/vox-foundation/vox/releases/latest"
+# NOTE: `/releases/latest` excludes pre-releases and 404s while every published
+# release is a pre-release. List releases instead and take the newest entry.
+GITHUB_API="https://api.github.com/repos/vox-foundation/vox/releases?per_page=1"
 GITHUB_DL="https://github.com/vox-foundation/vox/releases/download"
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -40,7 +42,13 @@ detect_target() {
         *)               err "Unsupported architecture: $_arch" ;;
     esac
 
+    # Only these targets are published (see SUPPORTED_RELEASE_TARGETS in vox-cli).
+    # aarch64 Linux has no release asset; fail with a clear message instead of
+    # letting the download 404 on a URL that was never built.
     if [ "$_os" = "Linux" ]; then
+        if [ "$_arch" = "aarch64" ]; then
+            err "No prebuilt release for aarch64 Linux yet. Build from source: cargo install --path crates/vox-cli"
+        fi
         printf "%s" "${_arch}-unknown-linux-gnu"
     else
         printf "%s" "${_arch}-apple-darwin"
@@ -79,13 +87,17 @@ main() {
     say "Target: $_target"
 
     say "Fetching latest release info..."
+    # `tr ',' '\n'` puts each JSON field on its own line so this works whether the
+    # API returns pretty-printed or compact JSON, and `[^"]*` keeps the match from
+    # running past the closing quote.
     _tag="$(curl -sSfL \
         -H "Accept: application/vnd.github+json" \
         -H "User-Agent: voxup-install.sh" \
         "$GITHUB_API" \
+        | tr ',' '\n' \
         | grep '"tag_name"' \
         | head -1 \
-        | sed 's/.*"tag_name": *"\(.*\)".*/\1/')"
+        | sed 's/.*"tag_name" *: *"\([^"]*\)".*/\1/')"
     [ -n "$_tag" ] || err "Could not determine latest release tag from GitHub API"
     say "Latest release: $_tag"
 

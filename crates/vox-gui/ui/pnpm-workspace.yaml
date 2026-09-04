@@ -1,0 +1,12 @@
+# pnpm 11 reads settings from this file; the `pnpm` field in package.json is
+# ignored once this file exists. The overrides below MUST mirror
+# package.json#pnpm.overrides — without them pnpm silently drops the floor and
+# resolves esbuild below the pinned minimum.
+overrides:
+  esbuild: '>=0.28.1'
+
+# esbuild ships a postinstall that fetches its platform binary. pnpm 11 blocks
+# dependency build scripts unless they are explicitly allowed; without this the
+# binary is never materialized and `pnpm build` fails with ERR_PNPM_IGNORED_BUILDS.
+allowBuilds:
+  esbuild: true

@@ -113,3 +113,42 @@ jobs:
         run: sccache --show-stats
       # Portability report (os_compat.py) removed from the per-merge path — the weekly
       # os-compat-report.yml is the canonical portability scan.
+
+  # The `cross-check` job above builds with `--workspace`, which unifies Cargo
+  # features across the entire graph — so a crate that under-declares a feature
+  # still compiles there. `vox-gamify` used `vox_db::paths` (gated behind vox-db's
+  # `host-integration`) without enabling it, and only broke when built from a graph
+  # that excludes vox-cli: `cargo install --path crates/vox-ml-cli` failed on a
+  # fresh macOS clone while all of CI stayed green.
+  #
+  # Build the installable leaf binaries STANDALONE (`-p`, no `--workspace`) so
+  # feature unification cannot mask an under-declared dependency again.
+  standalone-installables:
+    name: Standalone installable crates (no feature unification)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system deps (Linux — GTK/wry required)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+
+      # Each `-p` is a separate resolve, matching what `cargo install --path` does.
+      - name: cargo check (standalone, per-crate)
+        run: |
+          cargo check -p vox-ml-cli
+          cargo check -p vox-gamify
+          cargo check -p vox-orchestrator-d
+
+      # Asset-level guards for the Tauri shell (icon bit depth, sidecar paths).
+      # The macOS window icon must be 8-bit RGBA or tao aborts at launch; Windows
+      # loads icon.ico instead, so only a non-Windows runner catches it.
+      - name: vox-gui prerequisites (icon bit depth, sidecar paths)
+        run: cargo test -p vox-gui --test gui_tauri_prereqs
