@@ -1457,18 +1457,46 @@ jobs:
   # this proves flaky in practice on the self-hosted fleet, consider a
   # burn-in period as an advisory (non-required) job before re-promoting.
   gui-orchestrator-relaunch-smoke:
-    name: GUI/orchestrator relaunch smoke (CR-U6)
+    name: GUI/orchestrator relaunch smoke (CR-U6) — ${{ matrix.label }}
     needs: setup
     # Tiered off merge_group: the merge-queue box caps self-hosted
     # linux,x64 fan-out at DEFAULT_MAX_RUNNERS (2); with setup and tests
     # already in that bucket, this job pushed it to 3. ci-summary treats
     # `skipped` as passing, so this is a no-op for the required gate.
     if: github.event_name != 'merge_group'
-    runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 20
+    # Matrix over the RUNNER LABEL, not an `os:` string — an `os:` matrix would
+    # have to name `ubuntu-latest` for the first leg and would move it off the
+    # self-hosted fleet, contradicting the local-first compute policy. The label
+    # list IS the runs-on value.
+    #
+    # macOS matters here because gui_relaunch_smoke.rs is display-free BY
+    # CONSTRUCTION (it never builds a `tauri::Builder`), so it is the only lane
+    # that can exercise GUI→orchestrator process wiring on macOS without a
+    # window server. Until now this job had only ever run on Linux.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: [self-hosted, linux, x64]
+            label: self-hosted linux
+            timeout: 20
+          - runner: macos-latest
+            label: macOS
+            # Cold hosted runner: no warm target/, and the vox-gui build.rs
+            # sidecar step below is a full release build of vox-cli. 20m is a
+            # warm-fleet number and does not transfer.
+            timeout: 90
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ matrix.timeout }}
+    # BURN-IN: this job is in ci-summary's `needs`, and GitHub collapses a matrix
+    # into one result — so an unproven macOS leg would block the merge queue for
+    # everyone. Advisory until it has a green history, per this job's own note on
+    # introducing new legs. Remove this line to make macOS blocking.
+    continue-on-error: ${{ matrix.label == 'macOS' }}
     steps:
       - uses: actions/checkout@v7
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        if: runner.os == 'Linux'
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -1480,8 +1508,46 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      # Compiling ANY vox-gui target runs tauri-build, which embeds
+      # `crates/vox-gui/ui/dist` (frontendDist in tauri.conf.json). That
+      # directory is gitignored, so a fresh checkout does not have it and
+      # tauri_build::try_build fails. The Linux leg has been getting away with
+      # this only because the self-hosted workspace is persistent and carries a
+      # stale dist across checkouts; a hosted macOS runner has nothing. Same
+      # pnpm shape as gui-cross-build.yml.
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: crates/vox-gui/ui/pnpm-lock.yaml
+      - name: GUI frontend build (pnpm)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd crates/vox-gui/ui
+          pnpm install --prefer-offline
+          pnpm run build
+
       - name: Build vox-orchestrator-d
         run: cargo build -p vox-orchestrator-d
+
+      # vox-gui's build.rs hard-fails unless the triple-suffixed Tauri sidecar
+      # (bundle.externalBin) exists. It can self-heal by spawning a nested
+      # `cargo build` from inside a build script; stage it explicitly instead so
+      # a required lane does not depend on that path. Same staging as
+      # gui-cross-build.yml, with the triple read from rustc so one step covers
+      # both legs.
+      - name: Build + stage Tauri sidecar (vox CLI, release)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p vox-cli --release --bin vox
+          triple="$(rustc -vV | sed -n 's|^host: ||p')"
+          mkdir -p target/release
+          cp target/release/vox "target/release/vox-${triple}"
 
       - name: Build vox-gui (Rust crate only, no Tauri UI bundle)
         run: cargo build -p vox-gui
