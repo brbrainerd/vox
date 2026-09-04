@@ -69,7 +69,7 @@ Four independent reasons, each verified against source on 2026-09-03:
    is constructed at exactly one non-test call site — inside `resolve_model_with_registry_fallbacks`,
    which itself has zero production callers (its only callers are two test files and two re-exports).
    Live model selection runs through `models::select::decide` (`models/select.rs:87`),
-   `best_for_task_with_filter` (`registry.rs:718`), `FreeTierRouter`, and explicit pins. A frontier or
+   `best_for_task_with_filter` (`registry.rs:738`), `FreeTierRouter`, and explicit pins. A frontier or
    budget knob added to `ModelSelectionEngine` would change no production traffic while reading, to a
    reviewer, like a global routing switch.
 4. **`RoutingPolicy.algorithm` has no live rollback path.** `RoutingPolicy` is baked in at compile time
