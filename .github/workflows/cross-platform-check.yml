@@ -147,8 +147,8 @@ jobs:
           cargo check -p vox-gamify
           cargo check -p vox-orchestrator-d
 
-      # Asset-level guards for the Tauri shell (icon bit depth, sidecar paths).
-      # The macOS window icon must be 8-bit RGBA or tao aborts at launch; Windows
-      # loads icon.ico instead, so only a non-Windows runner catches it.
-      - name: vox-gui prerequisites (icon bit depth, sidecar paths)
-        run: cargo test -p vox-gui --test gui_tauri_prereqs
+      # NOTE: the vox-gui asset guards deliberately do NOT run here. Compiling any
+      # vox-gui target runs tauri-build, which embeds the gitignored `ui/dist` — it
+      # does not exist on a fresh checkout without a pnpm build, which is why the
+      # workspace check above excludes vox-gui too. Those guards live in
+      # gui-cross-build.yml, after its frontend build step.
