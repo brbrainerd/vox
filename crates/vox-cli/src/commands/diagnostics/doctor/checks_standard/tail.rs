@@ -67,7 +67,10 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     let mut lsp_detail = if lsp_bin {
         "found in PATH".to_string()
     } else {
-        "not built — run: cargo build -p vox-lsp --release".to_string()
+        // The lookup below is relative to current_exe(), i.e. the profile vox itself
+        // was built with. Advising --release sent people to target/release/ while the
+        // check kept reading target/debug/ and stayed red.
+        "not built — run: cargo build -p vox-lsp".to_string()
     };
 
     if !lsp_bin && auto_heal {
@@ -100,7 +103,9 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     let mut config_detail = if has_config {
         "found in ~/.vox/config.toml".to_string()
     } else {
-        "not found — run: vox login".to_string()
+        // `vox login` writes ~/.vox/login.toml; this check reads ~/.vox/config.toml,
+        // whose only writer is doctor's own auto-heal branch.
+        "not found — run: vox doctor --auto-heal".to_string()
     };
 
     if !has_config
@@ -336,25 +341,18 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         },
     });
 
-    let mut reg_pass = false;
-    // NOTE: no CLI command currently writes `project.vox-workspace.path`, so this
-    // check cannot pass on a fresh install. Point at the real registration path
-    // rather than `vox setup`, which is not a subcommand.
-    let mut reg_detail = "not registered — run: vox repo init (registers .vox/repositories.yaml)"
-        .to_string();
-    if let Ok(db) = vox_db::Codex::connect_default().await {
-        let key = "project.vox-workspace.path".to_string();
-        if let Ok(path) = db.get_object_metadata("vox-workspace", &key).await {
-            reg_pass = true;
-            reg_detail = format!("registered at {}", path);
-        } else if let Ok(path) = db.get_object_metadata("vox-workspace", "path").await {
-            reg_pass = true;
-            reg_detail = format!("registered at {}", path);
-        } else if let Ok(Some(val)) = db.get_user_preference_value_by_key(&key).await {
-            reg_pass = true;
-            reg_detail = format!("registered at {}", val);
-        }
-    }
+    // Check the artifact the remediation actually produces. This used to read
+    // `project.vox-workspace.path` from the DB — a key **nothing in the tree
+    // writes** — so the check could never pass and no advice could ever cure it.
+    // `vox repo init` writes `.vox/repositories.yaml`; that is the observable
+    // registration state, so check for it and the cure now matches the symptom.
+    let repo_yaml = std::path::Path::new(".vox/repositories.yaml");
+    let reg_pass = tokio::fs::try_exists(repo_yaml).await.unwrap_or(false);
+    let reg_detail = if reg_pass {
+        format!("registered — {} present", repo_yaml.display())
+    } else {
+        "not registered — run: vox repo init (writes .vox/repositories.yaml)".to_string()
+    };
 
     checks.push(Check {
         name: "Workspace Registration".to_string(),

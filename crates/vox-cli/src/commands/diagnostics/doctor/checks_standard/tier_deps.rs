@@ -55,7 +55,12 @@ fn dep_status(dep: &str) -> DepStatus {
                 hint: if present {
                     String::new()
                 } else {
-                    "Run `vox mens pull` to download model weights.".to_string()
+                    // `vox mens pull` is not a subcommand — `vox-ml-cli mens` exposes
+                    // pipeline/train/serve/corpus/probe and no download verb. Name the
+                    // real entry point rather than a command that cannot be run.
+                    "No model weights found. Fetch a corpus/model via `vox mens corpus` \
+                     or point VOX_MENS_MODEL_DIR at an existing weights directory."
+                        .to_string()
                 },
             }
         }
