@@ -65,9 +65,16 @@ verify_checksum() {
         _actual="$(sha256sum "$_file" | cut -d ' ' -f1)"
     elif command -v shasum >/dev/null 2>&1; then
         _actual="$(shasum -a 256 "$_file" | cut -d ' ' -f1)"
+    elif command -v openssl >/dev/null 2>&1; then
+        _actual="$(openssl dgst -sha256 "$_file" | awk '{print $NF}')"
     else
-        say "WARNING: no sha256 tool found — skipping integrity check"
-        return 0
+        # NOT a warning-and-continue. Every supported platform ships one of these:
+        # Linux has sha256sum (coreutils), macOS has shasum (bundled Perl). So this
+        # branch is unreachable in a healthy environment — its only realistic
+        # trigger is a stripped or attacker-shaped PATH, which is precisely when
+        # installing an unverified binary is least acceptable. In a `curl | sh`
+        # pipe the old warning simply scrolled past.
+        err "no sha256 tool found (need sha256sum, shasum, or openssl) — refusing to install unverified"
     fi
 
     if [ "$_actual" != "$_expected" ]; then
@@ -90,7 +97,11 @@ main() {
     # `tr ',' '\n'` puts each JSON field on its own line so this works whether the
     # API returns pretty-printed or compact JSON, and `[^"]*` keeps the match from
     # running past the closing quote.
-    _tag="$(curl -sSfL \
+    # --proto '=https' --tlsv1.2 here too: this response determines _tag, which
+    # selects the archive name and both download URLs. Without them, -L would
+    # follow a redirect to http:// and let an in-path attacker steer the install
+    # to an older or attacker-chosen release.
+    _tag="$(curl --proto '=https' --tlsv1.2 -sSfL \
         -H "Accept: application/vnd.github+json" \
         -H "User-Agent: voxup-install.sh" \
         "$GITHUB_API" \
