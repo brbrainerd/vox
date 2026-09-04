@@ -799,7 +799,9 @@ async fn delegation_lineage_survives_reconnect() {
 
     // A brand-new VoxDb — no shared in-memory state with the writer above —
     // opened against the same on-disk file, standing in for the daemon restart.
-    let reopened = VoxDb::connect(DbConfig::Local { path }).await.expect("reopen db");
+    let reopened = VoxDb::connect(DbConfig::Local { path })
+        .await
+        .expect("reopen db");
     let events = reopened
         .list_orchestration_lineage_events("repo-d1", Some("task_delegated"), 10)
         .await
@@ -808,9 +810,12 @@ async fn delegation_lineage_survives_reconnect() {
     let ev = &events[0];
     assert_eq!(ev["session_id"], "chat-session-abc");
     assert_eq!(ev["agent_id"], 7);
-    let payload: serde_json::Value =
-        serde_json::from_str(ev["payload_json"].as_str().expect("payload_json is a string"))
-            .expect("payload parses");
+    let payload: serde_json::Value = serde_json::from_str(
+        ev["payload_json"]
+            .as_str()
+            .expect("payload_json is a string"),
+    )
+    .expect("payload parses");
     assert_eq!(payload["origin_turn_id"], "call_xyz");
     assert_eq!(payload["reason"], "delegate research");
 }

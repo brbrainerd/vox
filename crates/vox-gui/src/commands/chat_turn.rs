@@ -126,11 +126,19 @@ const LLM_ERROR_WRAPPER_PREFIX: &str = "LLM error: ";
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ChatTurnError {
-    RateLimited { message: String },
-    ContextExceeded { message: String },
-    BudgetExceeded { message: String },
+    RateLimited {
+        message: String,
+    },
+    ContextExceeded {
+        message: String,
+    },
+    BudgetExceeded {
+        message: String,
+    },
     /// Fallback: anything not recognized as one of the above.
-    Backend { message: String },
+    Backend {
+        message: String,
+    },
 }
 
 /// Classifies a backend error string (as it actually reaches the GUI — see

@@ -625,7 +625,10 @@ mod tests {
             .expect("selection events");
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].model_id, "anthropic/claude-sonnet-5");
-        assert_eq!(events[0].run_id, task_results[0].run_id, "must join on run_id");
+        assert_eq!(
+            events[0].run_id, task_results[0].run_id,
+            "must join on run_id"
+        );
     }
 
     #[tokio::test]
@@ -633,9 +636,7 @@ mod tests {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
 
         let run_id = db
-            .record_live_chat_turn(
-                "turn-1", "model-x", "free", "auto", None, None, true, 1000,
-            )
+            .record_live_chat_turn("turn-1", "model-x", "free", "auto", None, None, true, 1000)
             .await
             .expect("record turn");
         db.queue_live_chat_reask_check(&run_id, "turn-1", "session-a", "how do I fix X?", 1000)
@@ -679,9 +680,7 @@ mod tests {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
 
         let run_id = db
-            .record_live_chat_turn(
-                "turn-1", "model-x", "free", "auto", None, None, true, 1000,
-            )
+            .record_live_chat_turn("turn-1", "model-x", "free", "auto", None, None, true, 1000)
             .await
             .expect("record turn");
         db.queue_live_chat_reask_check(&run_id, "turn-1", "session-b", "how do I fix X?", 1000)
@@ -705,7 +704,10 @@ mod tests {
             .pending_live_chat_reask_checks("session-b")
             .await
             .expect("pending after second unmatched");
-        assert!(pending.is_empty(), "row must be removed once checks_remaining hits 0");
+        assert!(
+            pending.is_empty(),
+            "row must be removed once checks_remaining hits 0"
+        );
 
         let task_results = db
             .get_harness_eval_task_results(&run_id)
@@ -724,19 +726,30 @@ mod tests {
         for (i, task_id) in ["t1", "t2", "t3"].iter().enumerate() {
             let run_id = db
                 .record_live_chat_turn(
-                    task_id, "model-x", "free", "auto", None, None, true, 1000 + i as i64,
+                    task_id,
+                    "model-x",
+                    "free",
+                    "auto",
+                    None,
+                    None,
+                    true,
+                    1000 + i as i64,
                 )
                 .await
                 .expect("record turn");
-            db.queue_live_chat_reask_check(&run_id, task_id, "session-c", "prompt", 1000 + i as i64)
-                .await
-                .expect("queue check");
+            db.queue_live_chat_reask_check(
+                &run_id,
+                task_id,
+                "session-c",
+                "prompt",
+                1000 + i as i64,
+            )
+            .await
+            .expect("queue check");
         }
         // Different session entirely — must not leak into session-c's results.
         let other_run = db
-            .record_live_chat_turn(
-                "other", "model-x", "free", "auto", None, None, true, 2000,
-            )
+            .record_live_chat_turn("other", "model-x", "free", "auto", None, None, true, 2000)
             .await
             .expect("record other-session turn");
         db.queue_live_chat_reask_check(&other_run, "other", "session-z", "prompt", 2000)
@@ -775,18 +788,9 @@ mod tests {
         .await
         .expect("record ci run");
 
-        db.record_live_chat_turn(
-            "turn-1",
-            "model-x",
-            "free",
-            "auto",
-            None,
-            None,
-            true,
-            3000,
-        )
-        .await
-        .expect("record live chat turn");
+        db.record_live_chat_turn("turn-1", "model-x", "free", "auto", None, None, true, 3000)
+            .await
+            .expect("record live chat turn");
 
         let runs = db.list_harness_eval_runs(50).await.expect("list runs");
         assert_eq!(runs.len(), 1, "live_chat rows must not appear here");

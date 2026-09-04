@@ -1176,7 +1176,13 @@ mod approval_gate_tests {
             .unwrap();
         approve_plan_inner(&db, "s", 1).await.expect("approve");
         let rows = db.load_plan_nodes_with_status("s", 1).await.unwrap();
-        let by = |id: &str| rows.iter().find(|r| r.node_id == id).unwrap().status.clone();
+        let by = |id: &str| {
+            rows.iter()
+                .find(|r| r.node_id == id)
+                .unwrap()
+                .status
+                .clone()
+        };
         assert_eq!(by("n1"), "pending");
         assert_eq!(by("n2"), "completed");
     }

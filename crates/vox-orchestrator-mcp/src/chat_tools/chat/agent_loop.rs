@@ -266,8 +266,9 @@ mod turn_event_tests {
 
     #[test]
     fn unknown_skill_ids_are_labelled_unknown() {
-        let ev = turn_event_for_result("vox_skill_use", &json!({"id":"../../etc/passwd"}), "", true)
-            .expect("event");
+        let ev =
+            turn_event_for_result("vox_skill_use", &json!({"id":"../../etc/passwd"}), "", true)
+                .expect("event");
         assert_eq!(ev["skill_id"], "unknown");
     }
 
@@ -305,9 +306,7 @@ mod turn_event_tests {
 
     #[test]
     fn malformed_result_body_yields_no_event_rather_than_panicking() {
-        assert!(
-            turn_event_for_result("vox_spawn_agent", &json!({}), "not json", true).is_none()
-        );
+        assert!(turn_event_for_result("vox_spawn_agent", &json!({}), "not json", true).is_none());
     }
 }
 
@@ -353,8 +352,7 @@ async fn stream_final_answer(
     use futures_util::StreamExt;
 
     let model = config.model.clone();
-    let mut stream = match llm_stream_activity(activity_options, messages.to_vec(), config).await
-    {
+    let mut stream = match llm_stream_activity(activity_options, messages.to_vec(), config).await {
         vox_actor_runtime::ActivityResult::Ok(s) => s,
         vox_actor_runtime::ActivityResult::Failed(_)
         | vox_actor_runtime::ActivityResult::Cancelled => return None,
@@ -550,7 +548,15 @@ pub(crate) async fn run_agent_turn(
         };
 
         let resp = if stream_tokens {
-            match stream_final_answer(state, &activity_options, &messages, config.clone(), session_id).await {
+            match stream_final_answer(
+                state,
+                &activity_options,
+                &messages,
+                config.clone(),
+                session_id,
+            )
+            .await
+            {
                 Some(r) => r,
                 None => match llm_chat(&activity_options, messages.clone(), config).await {
                     vox_actor_runtime::ActivityResult::Ok(Ok(r)) => r,
@@ -634,12 +640,9 @@ pub(crate) async fn run_agent_turn(
                     // what dispatch actually did), never from `call.arguments` alone
                     // — see `turn_event_for_result`'s doc comment for why that
                     // distinction is security-load-bearing.
-                    if let Some(ev) = turn_event_for_result(
-                        &call.name,
-                        &call.arguments,
-                        &content,
-                        call_succeeded,
-                    ) {
+                    if let Some(ev) =
+                        turn_event_for_result(&call.name, &call.arguments, &content, call_succeeded)
+                    {
                         events.push(ev);
                     }
 
@@ -1676,7 +1679,10 @@ mod tests {
                 saw_session_id = true;
             }
         }
-        assert!(saw_session_id, "expected at least one TokenStreamed event on the bus");
+        assert!(
+            saw_session_id,
+            "expected at least one TokenStreamed event on the bus"
+        );
         assert_eq!(streamed_text, "Hi there");
     }
 

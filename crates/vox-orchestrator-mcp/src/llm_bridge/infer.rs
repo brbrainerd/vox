@@ -1331,20 +1331,23 @@ mod tests {
     #[allow(unsafe_code)] // env var mutation under a process-wide lock, like other chat tests
     #[allow(clippy::await_holding_lock)]
     async fn call_llm_with_pref_honors_request_override_over_process_global() {
-        let _env_guard =
-            crate::chat_tools::chat::agent_loop::CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let _env_guard = crate::chat_tools::chat::agent_loop::CHAT_MESSAGE_ENV_LOCK
+            .lock()
+            .expect("env lock");
         let server = wiremock::MockServer::start().await;
         wiremock::Mock::given(wiremock::matchers::method("POST"))
-            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "id": "chatcmpl-test",
-                "model": "test-model",
-                "choices": [{
-                    "index": 0,
-                    "message": {"role": "assistant", "content": "hi"},
-                    "finish_reason": "stop",
-                }],
-                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
-            })))
+            .respond_with(
+                wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "id": "chatcmpl-test",
+                    "model": "test-model",
+                    "choices": [{
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "hi"},
+                        "finish_reason": "stop",
+                    }],
+                    "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+                })),
+            )
             .mount(&server)
             .await;
 

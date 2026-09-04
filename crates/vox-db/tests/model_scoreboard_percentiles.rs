@@ -13,12 +13,7 @@ async fn record(db: &VoxDb, latency_ms: i64) {
     record_full(db, latency_ms, None, None).await;
 }
 
-async fn record_full(
-    db: &VoxDb,
-    latency_ms: i64,
-    ttft_ms: Option<i64>,
-    tpot_ms: Option<f64>,
-) {
+async fn record_full(db: &VoxDb, latency_ms: i64, ttft_ms: Option<i64>, tpot_ms: Option<f64>) {
     db.record_llm_outcome(ModelOutcome {
         session_id: "sess_pct",
         user_id: None,
@@ -112,7 +107,11 @@ async fn rollup_writes_p95_ttft_tpot_and_goodput() {
         .find(|r| r.model_id == "test/model")
         .expect("scoreboard row for test/model");
 
-    assert_eq!(row.p95_ttft_ms, Some(900), "p95 must be the outlier, not an average");
+    assert_eq!(
+        row.p95_ttft_ms,
+        Some(900),
+        "p95 must be the outlier, not an average"
+    );
     assert_eq!(row.p95_tpot_ms, Some(90.0));
     // Every recorded call: output_tokens=1, latency_ms=100 -> 1 / 0.1 = 10.0 tokens/sec.
     assert_eq!(row.goodput_tokens_per_sec, Some(10.0));

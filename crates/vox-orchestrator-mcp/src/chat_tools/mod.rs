@@ -133,8 +133,7 @@ mod skill_exclusion_tests {
     #[test]
     fn excluded_skill_is_absent_and_therefore_unpinnable() {
         let manifests = vec![manifest("ponytail"), manifest("brainstorming")];
-        let filtered =
-            filter_excluded_skills(manifests, &["ponytail".to_string()]);
+        let filtered = filter_excluded_skills(manifests, &["ponytail".to_string()]);
         assert!(filtered.iter().all(|m| m.id != "ponytail"));
         assert!(filtered.iter().any(|m| m.id == "brainstorming"));
         // The pinned-skill lookup in `build_system_prompt_with_skill` is
