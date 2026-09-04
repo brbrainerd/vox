@@ -293,21 +293,79 @@ appropriately sized. Spark models it as a three-valued `DeterministicLevel`
 lattice; Ray states "tasks are assumed to be deterministic and idempotent"; Dask
 makes it the literal `pure=` parameter.
 
-**Where vox is genuinely better positioned.** Those systems assert purity because
-they cannot prove it — and the barrier is not Python's dynamism. Spark's
-`ClosureCleaner` does JVM bytecode analysis in statically-typed Scala and still
-only *approximates* what a closure captures, then tries serializing and reports
-`Task not serializable`. Vox has `HirEffectSet` and enforced `@pure`. **The
-assertion those systems ask the programmer to make, vox can check.**
+**Where vox could be better positioned — and is not yet.** Those systems assert
+purity because they cannot prove it, and the barrier is not Python's dynamism:
+Spark's `ClosureCleaner` does JVM bytecode analysis in statically-typed Scala and
+still only *approximates* capture.
 
-**What is attainable with zero new syntax:**
+An earlier draft of this section claimed "vox can check" the assertion those
+systems must ask for. **That was false, and it was the premise the whole section
+turned on.** Verified in `crates/vox-compiler/src/typeck/effect_check.rs`:
 
-1. **`map` / `filter` / `fold` over a collection** whose element closure is
-   provably pure and whose values are serializable, above a size threshold. This
-   is the Spark/Dask insight with the purity check made real.
-2. **`activity` blocks** — already a distribution boundary by design.
-3. **`@pure fn` above a cost threshold**, where the compiler emits relocatability
-   metadata and the runtime decides at call time.
+- `infer_expr_effects`'s `Call` arm (L413) recurses into the callee *expression*
+  — an `Ident`, a leaf — and the arguments. It never consults the callee's
+  `cap_map` entry or body. **Effects propagate exactly one hop.** A `@pure fn`
+  calling an undeclared helper that calls `http.get` passes with zero violations.
+- Effects are detected only by matching a method call whose receiver is in an
+  8-entry hardcoded allowlist (L497).
+- Inline lambdas passed to `map` *are* checked; a **named function reference is
+  not** — `xs.map(fetch_one)` is entirely ungoverned, and `vox-codegen`'s
+  `is_closure_arg` accepts it.
+
+So today vox checks *less* than `ClosureCleaner`. Bottom-up inference is planned
+as P1-T6 and has not landed; `effect_inference.rs`, `serializable.rs`, and
+`workflow_determinism.rs` do not exist. The fix is small — `placement.rs::infer`
+is already a real `while changed` fixpoint over call edges in the adjacent pass,
+and copying it is a day's work, not research.
+
+**And the corpus has no auto-distributable surface today.** Measured:
+
+| | |
+|---|---|
+| `.vox` files under `scripts/` | 84 |
+| …touching `fs.` / `process.` / `http.` | **74 (88%)** |
+| `.map(` / `.filter(` / `.fold(` in `scripts/` | **0** |
+| `for … in` loops in `scripts/` | **143** |
+| files declaring `@pure` in `scripts/` + `examples/` | **2** |
+
+Auto-parallelization attaches to combinators. This corpus is imperative loops
+over I/O-bound glue **by policy** — VoxScript-First is explicitly about CI prep,
+install helpers, and data migrations. A perfect implementation would light up
+**zero of the 84 scripts**, and that is not a defect to engineer around; it is
+what those scripts are for.
+
+**So the honest sequencing is three steps, and only the first is unconditional:**
+
+1. **Make purity real** (P1-T6). Replace the one-hop walk with the fixpoint
+   `placement.rs` already implements, and attribute effects to `Ident` arguments
+   in call position. **This pays for itself with no distribution story at all** —
+   it fixes `@pure`, `@place`, and workflow determinism, all of which are
+   currently unsound at two hops.
+2. **Intra-node parallelism.** `vox-codegen` emits `map` as
+   `.into_iter().map(f).collect()`; with a proven-pure element closure and a
+   `Send` element type, emit `.into_par_iter()`. Rayon is already a workspace
+   dependency. Roughly ten lines in one emitter — and it is *parallelization, not
+   distribution*, so it dodges partial failure, latency, and serialization
+   entirely. That is why it is cheap, and why it should ship first.
+3. **Distribution.** Only after the accounting in Part 6 shows shipping pays.
+
+**Two corrections to the earlier framing, both load-bearing:**
+
+- **Purity is not the mobility blocker; code identity is.** Haskell has the
+  strongest purity guarantee of any language here and still needed *more* syntax
+  — `static` / `mkClosure` / a static pointer table — because a closure is a code
+  address meaningless in another process. Unison solves it with content-addressed
+  hashes. Either answer is structural and expensive. Vox would need one.
+- **Waldo's impossibility argument is narrower than usually quoted.** §4 ranks
+  the four differences and calls latency "the least fundamental"; the
+  logical-impossibility claim is scoped to partial failure and concurrency, and
+  even there reads "does not even *seem* to be logically possible." §8 explicitly
+  carves out objects in different address spaces **under a single resource
+  manager**: "partial failure and the indeterminacy that it brings can be
+  avoided." A personal mesh with one originator per task and a single
+  authoritative failure detector sits inside that carve-out — which is also why
+  Spark, Dask, and Ray can offer near-transparent distribution where CORBA could
+  not. Cite §8, not a slogan.
 
 **What is not attainable, and should not be promised:** anything touching
 non-serializable state (file handles, sockets, GPU contexts, actor refs),
@@ -326,10 +384,18 @@ granularity — heartbeat scheduling — is **ex post**, and cannot port to an
 frequently made correctly-parallelized code *slower*.
 
 **Therefore: build the accounting first.** GHC reports sparks as
-converted / fizzled / GC'd / overflowed. Without per-decision accounting of
-"shipped it and lost," a runtime cost model is unfalsifiable folklore. That is
-the same conclusion Part 6 reaches from the operational side, and it is why the
-telemetry is the first deliverable rather than the last.
+converted / fizzled / GC'd / overflowed — a runtime telling you how often it
+declined your advice. Without per-decision accounting of "shipped it and lost,"
+a runtime cost model is unfalsifiable folklore. That is the same conclusion Part
+6 reaches from the operational side, and it is why the telemetry is the first
+deliverable rather than the last.
+
+Worth noting as a caution rather than a precedent: GHC's `par` has exactly the
+property this design wants — purity guaranteed by the type system, an advisory
+annotation, and a runtime free to decline — and it still proved hard to use well,
+because programmers could not predict granularity. The community moved to
+`Strategies` and then to explicit dataflow. **Purity was necessary and nowhere
+near sufficient.**
 
 **Scope for this document: none of it.** Part 7 records the finding so the
 question is settled with evidence. Language-level distribution is a separate
