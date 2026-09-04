@@ -44,6 +44,7 @@ feed-rs = "2.3.1"
 nanopub = { workspace = true }
 secrecy = { workspace = true }
 vox-secrets = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

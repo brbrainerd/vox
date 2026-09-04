@@ -24,6 +24,11 @@ async fn test_forced_autonomous_chat_research_triggers() {
         temperature: None,
         top_p: None,
         skill: None,
+        model_override: None,
+        tier: None,
+        clutch: None,
+        risk: None,
+        skill_exclusions: vec![],
         force_research: Some(true),
         research_scope: Some("web".to_string()),
     };

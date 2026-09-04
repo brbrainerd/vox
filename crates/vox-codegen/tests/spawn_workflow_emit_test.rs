@@ -44,7 +44,7 @@ fn workflow_version_emits_coded_error() {
         "compile_error! message must include change_id, got: {result}"
     );
     assert!(
-        result.contains("vox.codegen_rust.workflow_version_unimplemented"),
+        result.contains("vox/parity/unimplemented"),
         "compile_error! must include diagnostic code, got: {result}"
     );
 }

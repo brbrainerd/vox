@@ -8,7 +8,7 @@ license.workspace = true
 [dependencies]
 hex = { workspace = true }
 vox-ast = { workspace = true }
-vox-config.workspace = true
+vox-config = { workspace = true, optional = true }
 vox-db-types = { workspace = true }
 vox-orchestrator-types = { workspace = true }
 vox-plugin-types = { workspace = true }
@@ -18,8 +18,8 @@ tokio = { workspace = true }
 thiserror = { workspace = true }
 sha3 = { workspace = true }
 bincode = { workspace = true }
-vox-secrets = { workspace = true }
-vox-repository = { workspace = true }
+vox-secrets = { workspace = true, optional = true }
+vox-repository = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 strsim = { workspace = true }
@@ -27,17 +27,17 @@ tracing = { workspace = true }
 chrono = { workspace = true }
 blake3 = { workspace = true }
 data-encoding = { workspace = true }
-keyring = { workspace = true }
+keyring = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["v4", "serde"] }
 vox-mesh-types = { workspace = true }
 vox-telemetry = { workspace = true }
 regex = { workspace = true }
-workspace-hack = { workspace = true }
 
 [features]
 default = ["local"]
 local = []
 replication = []
+host-integration = ["dep:keyring", "dep:vox-config", "dep:vox-repository", "dep:vox-secrets"]
 # Implies `quarantine`: the legacy JSONL export/import path
 # (`codex_legacy::LEGACY_EXPORT_TABLES`) still lists the DORMANT/DEAD tables that
 # `quarantine` gates into the schema baseline — a legacy DB predating the

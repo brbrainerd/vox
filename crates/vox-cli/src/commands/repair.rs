@@ -626,6 +626,11 @@ fn discover_vox_files(root: &std::path::Path) -> Vec<std::path::PathBuf> {
             out.push(p.to_path_buf());
         }
     }
+    // WalkDir's enumeration order is filesystem-dependent (not guaranteed
+    // lexical), but files with no import relationship must still get a
+    // deterministic, lex-ordered fallback (order_by_import_graph only sorts
+    // *within* an SCC — independent SCCs keep this vector's input order).
+    out.sort();
     // Order files so that **dependencies repair first**: if A imports B,
     // repair B before A so that when A's repair runs, B is already clean.
     // Uses Tarjan's SCC over the project-local import graph to handle

@@ -1,67 +1,66 @@
 ---
 source: crates/vox-lsp/tests/diagnostic_snapshots.rs
-assertion_line: 32
 expression: diagnostic_summaries(&diags)
 ---
 [
   {
-    "code": null,
-    "data": {
-      "fixes": [],
-      "suggestions": []
-    },
-    "message": "Rust import 'serde_json' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
     "range": {
-      "end": {
-        "character": 0,
-        "line": 1
-      },
       "start": {
-        "character": 7,
-        "line": 0
+        "line": 0,
+        "character": 7
+      },
+      "end": {
+        "line": 1,
+        "character": 0
       }
     },
     "severity": "Warning",
-    "source": "vox-lsp"
+    "code": null,
+    "message": "Rust import 'serde_json' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
+    "source": "vox-lsp",
+    "data": {
+      "suggestions": [],
+      "fixes": []
+    }
   },
   {
-    "code": null,
-    "data": {
-      "fixes": [],
-      "suggestions": []
-    },
-    "message": "Rust import 'serde_json' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
     "range": {
-      "end": {
-        "character": 0,
-        "line": 2
-      },
       "start": {
-        "character": 7,
-        "line": 1
+        "line": 1,
+        "character": 7
+      },
+      "end": {
+        "line": 2,
+        "character": 0
       }
     },
     "severity": "Warning",
-    "source": "vox-lsp"
+    "code": null,
+    "message": "Rust import 'serde_json' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
+    "source": "vox-lsp",
+    "data": {
+      "suggestions": [],
+      "fixes": []
+    }
   },
   {
-    "code": null,
-    "data": {
-      "fixes": [],
-      "suggestions": []
-    },
-    "message": "Conflicting dependency specifications for rust crate 'serde_json': versions/path/git metadata must match across imports for the same crate name",
     "range": {
-      "end": {
-        "character": 0,
-        "line": 2
-      },
       "start": {
-        "character": 7,
-        "line": 1
+        "line": 1,
+        "character": 7
+      },
+      "end": {
+        "line": 2,
+        "character": 0
       }
     },
     "severity": "Error",
-    "source": "vox-lsp"
+    "code": null,
+    "message": "Conflicting dependency specifications for rust crate 'serde_json': versions/path/git metadata must match across imports for the same crate name",
+    "source": "vox-lsp",
+    "data": {
+      "suggestions": [],
+      "fixes": []
+    }
   }
 ]

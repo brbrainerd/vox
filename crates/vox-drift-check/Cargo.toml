@@ -33,7 +33,7 @@ swc_ecma_parser  = { workspace = true, optional = true }
 swc_ecma_ast     = { workspace = true, optional = true }
 swc_ecma_visit   = { workspace = true, optional = true }
 swc_common       = { workspace = true, optional = true }
-workspace-hack   = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [features]
 drift-typescript = ["dep:swc_ecma_parser", "dep:swc_ecma_ast", "dep:swc_ecma_visit", "dep:swc_common"]

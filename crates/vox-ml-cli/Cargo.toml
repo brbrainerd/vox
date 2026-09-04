@@ -97,6 +97,7 @@ vox-constrained-gen = { workspace = true }
 axum = { workspace = true, optional = true }
 chrono = { workspace = true }
 comfy-table = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }

@@ -102,10 +102,9 @@ fn speech_audit_docs_are_published_and_indexed() {
         let raw =
             fs::read_to_string(&abs).unwrap_or_else(|e| panic!("read {}: {e}", abs.display()));
         assert!(raw.contains("title:"), "{rel} must have frontmatter title");
-        assert!(
-            raw.contains("last_updated:"),
-            "{rel} must have frontmatter last_updated"
-        );
+        // Note: `last_updated` is intentionally NOT hand-authored in frontmatter —
+        // the doc pipeline derives it from Git history (see AGENTS.md §Auto-generated
+        // documentation files). Asserting its presence in the raw source is wrong.
     }
 
     let index_path = root.join("docs/src/architecture/research-index.md");

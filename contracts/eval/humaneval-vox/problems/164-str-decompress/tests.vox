@@ -1,3 +1,4 @@
+// training_eligible: false
 fn str_decompress(s: str) to str {
     let chars: list[str] = s.chars()
     let n: int = chars.len()

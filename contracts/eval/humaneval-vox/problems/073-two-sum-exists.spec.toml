@@ -7,7 +7,7 @@ Return true if any two distinct elements in xs sum to target.
 two different indices). Return false for a list with fewer than 2 elements.
 """
 signature = "fn two_sum_exists(xs: list[int], target: int) to bool"
-training_eligible = true
+training_eligible = false
 provenance = "original"
 difficulty = "medium"
 tags = []

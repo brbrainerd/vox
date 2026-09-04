@@ -481,6 +481,15 @@ pin = "e7a2d16476bf042e9add4699c9d018a90f86e4a6"
 bundle-path = "assets/skills/verification-before-completion"
 
 [[skill-bundle]]
+id = "vox-graph"
+description = "Vox Graph structural discovery: call vox_search / vox_discover BEFORE grep. Use this whenever tracing how code connects — call sites, surface coverage, dead-end commands, or 'what relates to X'."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/vox-foundation/vox"
+pin = "f0c7f14e3bc5"
+bundle-path = "assets/skills/vox-graph"
+
+[[skill-bundle]]
 id = "web-artifacts-builder"
 description = "Suite of tools for creating elaborate, multi-component claude.ai HTML artifacts using modern frontend web technologies (React, Tailwind CSS, shadcn/ui). Use for complex artifact..."
 status = "stable"

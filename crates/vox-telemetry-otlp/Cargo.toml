@@ -20,10 +20,11 @@ remote = ["dep:reqwest", "dep:governor", "dep:tokio"]
 vox-telemetry = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+sha2 = { workspace = true }
 reqwest = { workspace = true, optional = true }
 governor = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -14,9 +14,9 @@ expression: combined
       "signature": "fn() -> int"
     },
     {
-      "name": "all_products",
-      "route_path": "/api/query/all_products",
-      "signature": "fn() -> int"
+      "name": "in_stock_products",
+      "route_path": "/api/query/in_stock_products",
+      "signature": "fn() -> Result[List[Product]]"
     }
   ],
   "mutation_fns": [
@@ -30,6 +30,12 @@ expression: combined
       "name": "add_product",
       "route_path": "/api/mutation/add_product",
       "signature": "fn(name: str, category: str, price: int) -> Result[str]",
+      "wraps_db_transaction": true
+    },
+    {
+      "name": "mark_out_of_stock",
+      "route_path": "/api/mutation/mark_out_of_stock",
+      "signature": "fn(id: int, name: str, category: str, price: int) -> Result[str]",
       "wraps_db_transaction": true
     }
   ],
@@ -213,10 +219,10 @@ export async function product_count(init?: RequestInit): Promise<number> {
   return $get<number>("/api/query/product_count", z.number(), undefined, init);
 }
 
-/** @query `all_products` → `/api/query/all_products` (GET) */
-export async function all_products(init?: RequestInit): Promise<number> {
-  if (isTauri()) return $tauri<number>("all_products", {}, z.number());
-  return $get<number>("/api/query/all_products", z.number(), undefined, init);
+/** @query `in_stock_products` → `/api/query/in_stock_products` (GET) */
+export async function in_stock_products(init?: RequestInit): Promise<unknown> {
+  if (isTauri()) return $tauri<unknown>("in_stock_products", {}, z.any());
+  return $get<unknown>("/api/query/in_stock_products", z.any(), undefined, init);
 }
 
 /** Server fn `restock` → `/api/mutation/restock` (POST) */
@@ -229,6 +235,12 @@ export async function restock(args: { name: string, price: number }, init?: Requ
 export async function add_product(args: { name: string, category: string, price: number }, init?: RequestInit): Promise<unknown> {
   if (isTauri()) return $tauri<unknown>("add_product", { name: args.name, category: args.category, price: args.price }, z.any());
   return $post<unknown>("/api/mutation/add_product", z.any(), { name: args.name, category: args.category, price: args.price }, init);
+}
+
+/** Server fn `mark_out_of_stock` → `/api/mutation/mark_out_of_stock` (POST) */
+export async function mark_out_of_stock(args: { id: number, name: string, category: string, price: number }, init?: RequestInit): Promise<unknown> {
+  if (isTauri()) return $tauri<unknown>("mark_out_of_stock", { id: args.id, name: args.name, category: args.category, price: args.price }, z.any());
+  return $post<unknown>("/api/mutation/mark_out_of_stock", z.any(), { id: args.id, name: args.name, category: args.category, price: args.price }, init);
 }
 
 
@@ -269,6 +281,92 @@ export async function add_product(args: { name: string, category: string, price:
                   }
                 },
                 "required": [
+                  "name",
+                  "category",
+                  "price"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request or malformed parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error — see wire-format-v1 §6",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mutation/mark_out_of_stock": {
+      "post": {
+        "operationId": "mark_out_of_stock",
+        "summary": "POST /api/mutation/mark_out_of_stock",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "number"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "id",
                   "name",
                   "category",
                   "price"
@@ -407,19 +505,17 @@ export async function add_product(args: { name: string, category: string, price:
         }
       }
     },
-    "/api/query/all_products": {
+    "/api/query/in_stock_products": {
       "get": {
-        "operationId": "all_products",
-        "summary": "GET /api/query/all_products",
+        "operationId": "in_stock_products",
+        "summary": "GET /api/query/in_stock_products",
         "parameters": [],
         "responses": {
           "200": {
             "description": "Success",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "number"
-                }
+                "schema": {}
               }
             }
           },

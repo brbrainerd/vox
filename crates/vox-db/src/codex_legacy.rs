@@ -27,7 +27,7 @@ pub struct LegacyVerification {
 }
 
 async fn table_exists(store: &crate::VoxDb, name: &str) -> Result<bool, StoreError> {
-    let mut rows: turso::Rows = store
+    let mut rows: crate::GuardedRows = store
         .connection()
         .query(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1 LIMIT 1",
@@ -358,7 +358,14 @@ fn sql_value_to_json(v: SqlValue) -> serde_json::Value {
     }
 }
 
-/// Stream one JSON object per line: `{"table":"…","columns":[…],"row":{…}}`.
+/// Write one JSON object per line: `{"table":"…","columns":[…],"row":{…}}`.
+///
+/// Despite the line-delimited output shape, this does NOT stream row-by-row
+/// from the database: `GuardedConnection::query` (see its doc comment)
+/// materializes a table's full result set into memory before this function
+/// ever sees the first row, to keep the connection's mutex guard scoped to
+/// the actual query instead of the caller's iteration. A very large legacy
+/// table is read entirely into memory per `SELECT`, one table at a time.
 pub async fn export_legacy_jsonl<W: Write>(
     store: &crate::VoxDb,
     writer: &mut W,
@@ -366,7 +373,7 @@ pub async fn export_legacy_jsonl<W: Write>(
     let mut count = 0u64;
     for table in LEGACY_EXPORT_TABLES {
         let pragma = format!("PRAGMA table_info({table})");
-        let mut cols_rows: turso::Rows = store.connection().query(&pragma, ()).await?;
+        let mut cols_rows: crate::GuardedRows = store.connection().query(&pragma, ()).await?;
         let mut columns = Vec::new();
         while let Some(r) = cols_rows.next().await? {
             let name: String = r.get(1)?;
@@ -376,7 +383,7 @@ pub async fn export_legacy_jsonl<W: Write>(
             continue;
         }
         let select = format!("SELECT {} FROM {}", columns.join(", "), table);
-        let mut rows: turso::Rows = store
+        let mut rows: crate::GuardedRows = store
             .connection()
             .query(&select, ())
             .await

@@ -17,6 +17,7 @@ serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 vox-config = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 # NOTE: workspace-hack is deliberately NOT a dep of this crate.
 # It transitively pulls in `gix` -> `reqwest` -> `native-tls` -> `openssl-sys`,

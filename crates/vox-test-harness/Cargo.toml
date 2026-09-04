@@ -14,7 +14,7 @@ tempfile = { workspace = true }
 vox-compiler = { workspace = true }
 tokio = { workspace = true }
 vox-secrets = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [lints]
 workspace = true

@@ -188,7 +188,7 @@ impl crate::VoxDb {
 }
 
 async fn collect_knowledge_node_rows(
-    rows: &mut turso::Rows,
+    rows: &mut crate::GuardedRows,
 ) -> Result<Vec<(String, String, String)>, StoreError> {
     let mut out = Vec::new();
     while let Some(row) = rows.next().await? {

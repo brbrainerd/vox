@@ -1,3 +1,4 @@
+// training_eligible: false
 fn partition_by_sign(xs: list[int]) to list[list[int]] {
     let mut nonneg: list[int] = []
     let mut neg: list[int] = []

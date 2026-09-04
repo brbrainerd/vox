@@ -290,7 +290,7 @@ jsonschema         = { version = "0.46", default-features = false }
 openapiv3          = "2"
 governor           = "0.10"
 strum              = { version = "0.28", features = ["derive"] }
-serial_test        = "3"
+serial_test        = { version = "3", features = ["file_locks"] }
 wiremock           = "0.6"
 tantivy            = { version = "0.22", default-features = false }
 scraper            = "0.20"

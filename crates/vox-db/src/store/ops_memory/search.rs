@@ -286,7 +286,7 @@ impl crate::VoxDb {
 }
 
 async fn collect_search_chunk_rows(
-    rows: &mut turso::Rows,
+    rows: &mut crate::GuardedRows,
 ) -> Result<Vec<(i64, i64, String, String)>, StoreError> {
     let mut out = Vec::new();
     while let Some(row) = rows.next().await? {

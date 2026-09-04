@@ -30,7 +30,7 @@ semver       = { workspace = true }
 vox-secrets.workspace = true
 secrecy      = { workspace = true }
 dirs         = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [lints]
 workspace = true

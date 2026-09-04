@@ -14,9 +14,9 @@ expression: combined
       "signature": "fn() -> int"
     },
     {
-      "name": "all_products",
-      "route_path": "/api/query/all_products",
-      "signature": "fn() -> int"
+      "name": "in_stock_products",
+      "route_path": "/api/query/in_stock_products",
+      "signature": "fn() -> Result[List[Product]]"
     }
   ],
   "mutation_fns": [
@@ -30,6 +30,12 @@ expression: combined
       "name": "add_product",
       "route_path": "/api/mutation/add_product",
       "signature": "fn(name: str, category: str, price: int) -> Result[str]",
+      "wraps_db_transaction": true
+    },
+    {
+      "name": "mark_out_of_stock",
+      "route_path": "/api/mutation/mark_out_of_stock",
+      "signature": "fn(id: int, name: str, category: str, price: int) -> Result[str]",
       "wraps_db_transaction": true
     }
   ],
@@ -213,10 +219,10 @@ export async function product_count(init?: RequestInit): Promise<number> {
   return $get<number>("/api/query/product_count", z.number(), undefined, init);
 }
 
-/** @query `all_products` → `/api/query/all_products` (GET) */
-export async function all_products(init?: RequestInit): Promise<number> {
-  if (isTauri()) return $tauri<number>("all_products", {}, z.number());
-  return $get<number>("/api/query/all_products", z.number(), undefined, init);
+/** @query `in_stock_products` → `/api/query/in_stock_products` (GET) */
+export async function in_stock_products(init?: RequestInit): Promise<unknown> {
+  if (isTauri()) return $tauri<unknown>("in_stock_products", {}, z.any());
+  return $get<unknown>("/api/query/in_stock_products", z.any(), undefined, init);
 }
 
 /** Server fn `restock` → `/api/mutation/restock` (POST) */
@@ -231,62 +237,43 @@ export async function add_product(args: { name: string, category: string, price:
   return $post<unknown>("/api/mutation/add_product", z.any(), { name: args.name, category: args.category, price: args.price }, init);
 }
 
+/** Server fn `mark_out_of_stock` → `/api/mutation/mark_out_of_stock` (POST) */
+export async function mark_out_of_stock(args: { id: number, name: string, category: string, price: number }, init?: RequestInit): Promise<unknown> {
+  if (isTauri()) return $tauri<unknown>("mark_out_of_stock", { id: args.id, name: args.name, category: args.category, price: args.price }, z.any());
+  return $post<unknown>("/api/mutation/mark_out_of_stock", z.any(), { id: args.id, name: args.name, category: args.category, price: args.price }, init);
+}
+
 
 
 === openapi.json ===
 {
-  "components": {
-    "schemas": {
-      "ErrorEnvelope": {
-        "description": "Wire-format v1 error body (SSOT §6). Returned for 4xx/5xx endpoint failures.",
-        "properties": {
-          "code": {
-            "description": "Stable SCREAMING_SNAKE_CASE machine code",
-            "type": "string"
-          },
-          "details": {
-            "description": "Optional structured payload; shape is code-specific"
-          },
-          "message": {
-            "type": "string"
-          },
-          "ok": {
-            "const": false,
-            "type": "boolean"
-          },
-          "request_id": {
-            "description": "Optional trace / request correlation id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "ok",
-          "code",
-          "message"
-        ],
-        "type": "object"
-      }
-    }
-  },
-  "info": {
-    "description": "Generated from Vox source. Conforms to wire-format-v1.\n\nQuery (`GET`) parameters: each query value is JSON text after URI decoding — see wire-format-v1 SSOT §2.1. The `schema` on each parameter describes the logical type after `JSON.parse`; it is not the raw query-string token shape.",
-    "title": "vox-app",
-    "version": "0.1.0"
-  },
   "openapi": "3.1.0",
+  "info": {
+    "title": "vox-app",
+    "version": "0.1.0",
+    "description": "Generated from Vox source. Conforms to wire-format-v1.\n\nQuery (`GET`) parameters: each query value is JSON text after URI decoding — see wire-format-v1 SSOT §2.1. The `schema` on each parameter describes the logical type after `JSON.parse`; it is not the raw query-string token shape."
+  },
+  "servers": [
+    {
+      "url": ""
+    }
+  ],
   "paths": {
     "/api/mutation/add_product": {
       "post": {
         "operationId": "add_product",
+        "summary": "POST /api/mutation/add_product",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
+                "type": "object",
                 "properties": {
-                  "category": {
+                  "name": {
                     "type": "string"
                   },
-                  "name": {
+                  "category": {
                     "type": "string"
                   },
                   "price": {
@@ -297,73 +284,159 @@ export async function add_product(args: { name: string, category: string, price:
                   "name",
                   "category",
                   "price"
-                ],
-                "type": "object"
+                ]
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {}
               }
-            },
-            "description": "Success"
+            }
           },
           "400": {
+            "description": "Bad request or malformed parameters",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Bad request or malformed parameters"
+            }
           },
           "429": {
+            "description": "Rate limited",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Rate limited"
+            }
           },
           "500": {
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Internal server error"
+            }
           },
           "default": {
+            "description": "Error — see wire-format-v1 §6",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Error — see wire-format-v1 §6"
+            }
+          }
+        }
+      }
+    },
+    "/api/mutation/mark_out_of_stock": {
+      "post": {
+        "operationId": "mark_out_of_stock",
+        "summary": "POST /api/mutation/mark_out_of_stock",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "number"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "category",
+                  "price"
+                ]
+              }
+            }
           }
         },
-        "summary": "POST /api/mutation/add_product"
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request or malformed parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error — see wire-format-v1 §6",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/mutation/restock": {
       "post": {
         "operationId": "restock",
+        "summary": "POST /api/mutation/restock",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
+                "type": "object",
                 "properties": {
                   "name": {
                     "type": "string"
@@ -375,212 +448,190 @@ export async function add_product(args: { name: string, category: string, price:
                 "required": [
                   "name",
                   "price"
-                ],
-                "type": "object"
+                ]
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {}
               }
-            },
-            "description": "Success"
+            }
           },
           "400": {
+            "description": "Bad request or malformed parameters",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Bad request or malformed parameters"
+            }
           },
           "429": {
+            "description": "Rate limited",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Rate limited"
+            }
           },
           "500": {
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Internal server error"
+            }
           },
           "default": {
+            "description": "Error — see wire-format-v1 §6",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Error — see wire-format-v1 §6"
+            }
           }
-        },
-        "summary": "POST /api/mutation/restock"
+        }
       }
     },
-    "/api/query/all_products": {
+    "/api/query/in_stock_products": {
       "get": {
-        "operationId": "all_products",
+        "operationId": "in_stock_products",
+        "summary": "GET /api/query/in_stock_products",
         "parameters": [],
         "responses": {
           "200": {
+            "description": "Success",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "number"
-                }
+                "schema": {}
               }
-            },
-            "description": "Success"
+            }
           },
           "400": {
+            "description": "Bad request or malformed parameters",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Bad request or malformed parameters"
+            }
           },
           "429": {
+            "description": "Rate limited",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Rate limited"
+            }
           },
           "500": {
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Internal server error"
+            }
           },
           "default": {
+            "description": "Error — see wire-format-v1 §6",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Error — see wire-format-v1 §6"
+            }
           }
-        },
-        "summary": "GET /api/query/all_products"
+        }
       }
     },
     "/api/query/product_count": {
       "get": {
         "operationId": "product_count",
+        "summary": "GET /api/query/product_count",
         "parameters": [],
         "responses": {
           "200": {
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "number"
                 }
               }
-            },
-            "description": "Success"
+            }
           },
           "400": {
+            "description": "Bad request or malformed parameters",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Bad request or malformed parameters"
+            }
           },
           "429": {
+            "description": "Rate limited",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Rate limited"
+            }
           },
           "500": {
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Internal server error"
+            }
           },
           "default": {
+            "description": "Error — see wire-format-v1 §6",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Error — see wire-format-v1 §6"
+            }
           }
-        },
-        "summary": "GET /api/query/product_count"
+        }
       }
     },
     "/healthz": {
       "get": {
         "operationId": "healthz",
+        "summary": "GET /healthz",
         "responses": {
           "200": {
+            "description": "Service is healthy",
             "content": {
               "application/json": {
                 "schema": {
-                  "properties": {
-                    "backend": {
-                      "type": "string"
-                    },
-                    "baseline_digest": {
-                      "type": "string"
-                    },
-                    "missing_tables": {
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": "array"
-                    },
-                    "schema_version": {
-                      "type": "integer"
-                    },
-                    "status": {
-                      "type": "string"
-                    }
-                  },
+                  "type": "object",
                   "required": [
                     "status",
                     "backend",
@@ -588,64 +639,64 @@ export async function add_product(args: { name: string, category: string, price:
                     "missing_tables",
                     "baseline_digest"
                   ],
-                  "type": "object"
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "backend": {
+                      "type": "string"
+                    },
+                    "schema_version": {
+                      "type": "integer"
+                    },
+                    "missing_tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "baseline_digest": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
-            },
-            "description": "Service is healthy"
+            }
           },
           "503": {
+            "description": "Service degraded/unavailable",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Service degraded/unavailable"
+            }
           },
           "default": {
+            "description": "Error — see wire-format-v1 §6",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Error — see wire-format-v1 §6"
+            }
           }
-        },
-        "summary": "GET /healthz"
+        }
       }
     },
     "/readyz": {
       "get": {
         "operationId": "readyz",
+        "summary": "GET /readyz",
         "responses": {
           "200": {
+            "description": "Service is healthy",
             "content": {
               "application/json": {
                 "schema": {
-                  "properties": {
-                    "backend": {
-                      "type": "string"
-                    },
-                    "baseline_digest": {
-                      "type": "string"
-                    },
-                    "missing_tables": {
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": "array"
-                    },
-                    "schema_version": {
-                      "type": "integer"
-                    },
-                    "status": {
-                      "type": "string"
-                    }
-                  },
+                  "type": "object",
                   "required": [
                     "status",
                     "backend",
@@ -653,40 +704,85 @@ export async function add_product(args: { name: string, category: string, price:
                     "missing_tables",
                     "baseline_digest"
                   ],
-                  "type": "object"
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "backend": {
+                      "type": "string"
+                    },
+                    "schema_version": {
+                      "type": "integer"
+                    },
+                    "missing_tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "baseline_digest": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
-            },
-            "description": "Service is healthy"
+            }
           },
           "503": {
+            "description": "Service degraded/unavailable",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Service degraded/unavailable"
+            }
           },
           "default": {
+            "description": "Error — see wire-format-v1 §6",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorEnvelope"
                 }
               }
-            },
-            "description": "Error — see wire-format-v1 §6"
+            }
           }
-        },
-        "summary": "GET /readyz"
+        }
       }
     }
   },
-  "servers": [
-    {
-      "url": ""
+  "components": {
+    "schemas": {
+      "ErrorEnvelope": {
+        "type": "object",
+        "description": "Wire-format v1 error body (SSOT §6). Returned for 4xx/5xx endpoint failures.",
+        "required": [
+          "ok",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": false
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable SCREAMING_SNAKE_CASE machine code"
+          },
+          "message": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "Optional trace / request correlation id"
+          },
+          "details": {
+            "description": "Optional structured payload; shape is code-specific"
+          }
+        }
+      }
     }
-  ]
+  }
 }

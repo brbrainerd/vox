@@ -22,7 +22,7 @@ tracing = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "sync", "macros", "time", "fs"] }
 futures = { workspace = true }
 uuid = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [lints]
 workspace = true

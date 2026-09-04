@@ -1,0 +1,11 @@
+[problem]
+id = "144"
+title = "running_max"
+prompt = """
+Return a list where element i is the maximum of the first i+1 elements of the input. An empty input returns an empty list.
+"""
+signature = "fn running_max(xs: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

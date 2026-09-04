@@ -182,7 +182,7 @@ vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
 vox-oauth-pkce = { workspace = true }
-vox-db = { workspace = true, features = ["legacy-import"] }
+vox-db = { workspace = true, features = ["host-integration", "legacy-import"] }
 vox-sql = { workspace = true, features = ["postgres", "mysql"] }
 vox-research-events = { workspace = true }
 vox-term             = { path = "../vox-term" }
@@ -221,7 +221,14 @@ vox-plugin-host = { workspace = true }
 # Needed to construct ROption / RString when dispatching into plugin extension
 # trait methods (e.g. the Publication.ingest_tick signature).
 abi_stable = { workspace = true }
-vox-populi = { workspace = true, features = ["mens-train"] }
+# `mens`, NOT `mens-train`. vox-cli's only use of this is `vox ci spoke-check`
+# (run_body_helpers/guards.rs), which reads domain_profiles + spoke_validate —
+# both pure serde. `mens-train` additionally pulls mens-candle-qlora and
+# mens-hf-hub (candle-core, candle-nn, qlora-rs, safetensors, tokenizers,
+# hf-hub) into every default `vox` build for no benefit: `vox mens train` is a
+# passthrough that execs the separate vox-ml-cli binary (see main.rs), so
+# vox-cli gains zero command surface from the training stack.
+vox-populi = { workspace = true, features = ["mens"] }
 vox-mesh-types = { workspace = true }
 vox-workflow-runtime = { workspace = true, optional = true }
 
@@ -288,7 +295,7 @@ self_update = { workspace = true, features = [
 ] }
 semver = { workspace = true }
 keyring = { workspace = true, optional = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 vox-rule-pack = { workspace = true }
 vox-telemetry      = { workspace = true }
 vox-telemetry-otlp = { workspace = true }

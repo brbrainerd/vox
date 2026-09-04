@@ -1,0 +1,11 @@
+[problem]
+id = "141"
+title = "digit_sum_alternating"
+prompt = """
+Sum the decimal digits of a non-negative integer with alternating signs, starting positive from the leftmost digit. digit_sum_alternating(12345) = 1-2+3-4+5 = 3.
+"""
+signature = "fn digit_sum_alternating(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

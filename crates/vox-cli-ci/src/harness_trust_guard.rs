@@ -547,12 +547,71 @@ pub fn run(repo_root: &Path) -> Result<()> {
 mod tests {
     use super::*;
 
-    /// Both tests below touch the REAL `crates/vox-gui/src` tree (one reads
-    /// it clean, the other briefly injects a probe file into it) — this
-    /// mutex serializes them against `cargo test`'s default parallel
-    /// execution so the probe test's file write/cleanup can never race the
-    /// clean-repo test's scan of the same directory.
-    static REAL_TREE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    /// Five tests in this module touch the REAL `crates/vox-gui/src` /
+    /// `crates/vox-cli/src` trees (some read them clean, others briefly
+    /// inject a probe file). They must serialize against each other so a
+    /// probe test's file write/cleanup can never race another test's scan of
+    /// the same directory — otherwise a "must be clean" assertion can
+    /// observe a sibling test's still-present probe file and fail.
+    ///
+    /// An in-process `std::sync::Mutex` does NOT do this under
+    /// `cargo nextest`, which runs each test in its own OS process by
+    /// default (unlike plain `cargo test`'s thread-based parallelism this
+    /// was originally written for) — a process-local mutex provides zero
+    /// mutual exclusion across processes. Confirmed as the cause of
+    /// intermittent CI failures: `harness_trust_guard_catches_*` tests
+    /// failing their final "guard must pass again once the probe is
+    /// removed" check with "found 1 violation(s)", i.e. seeing a *different*
+    /// concurrently-running test's probe file. Use a real cross-process
+    /// advisory lock (atomic exclusive file creation) instead.
+    struct CrossProcessLock {
+        path: PathBuf,
+    }
+
+    impl CrossProcessLock {
+        /// Acquire the lock at `path`, spin-waiting until `timeout` elapses.
+        /// `path` must live outside every directory `run()` scans (`target/`
+        /// is never walked by the guard), or the lock file itself could be
+        /// misread as a probe artifact.
+        fn acquire(path: PathBuf, timeout: std::time::Duration) -> Self {
+            let start = std::time::Instant::now();
+            loop {
+                match std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(&path)
+                {
+                    Ok(_) => return Self { path },
+                    Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                        assert!(
+                            start.elapsed() <= timeout,
+                            "timed out after {timeout:?} waiting for cross-process test lock \
+                             at {} — a prior test run may have crashed while holding it; \
+                             delete the file and retry",
+                            path.display()
+                        );
+                        std::thread::sleep(std::time::Duration::from_millis(50));
+                    }
+                    Err(e) => panic!("failed to acquire lock file {}: {e}", path.display()),
+                }
+            }
+        }
+    }
+
+    impl Drop for CrossProcessLock {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+
+    fn real_tree_lock(root: &Path) -> CrossProcessLock {
+        let lock_dir = root.join("target");
+        std::fs::create_dir_all(&lock_dir).ok();
+        CrossProcessLock::acquire(
+            lock_dir.join(".harness_trust_guard_real_tree.lock"),
+            std::time::Duration::from_secs(30),
+        )
+    }
 
     fn real_repo_root() -> PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -566,8 +625,9 @@ mod tests {
     /// the guard's own "no false positives on today's tree" acceptance check.
     #[test]
     fn harness_trust_guard_passes_on_real_repo() {
-        let _guard = REAL_TREE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        run(&real_repo_root()).expect("harness-trust-guard must pass on the current repo");
+        let root = real_repo_root();
+        let _guard = real_tree_lock(&root);
+        run(&root).expect("harness-trust-guard must pass on the current repo");
     }
 
     /// RED test: inject a known violation — a temporary probe file under
@@ -581,8 +641,8 @@ mod tests {
     /// `Drop` guard so the probe is removed even if an assertion panics.
     #[test]
     fn harness_trust_guard_catches_injected_constructor_violation() {
-        let _guard = REAL_TREE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let root = real_repo_root();
+        let _guard = real_tree_lock(&root);
         let probe_path = root
             .join("crates/vox-gui/src")
             .join("__harness_trust_guard_probe__.rs");
@@ -643,8 +703,8 @@ mod tests {
         expect_needle: &str,
         scan_fn: impl Fn(&[PathBuf], &Path) -> Vec<String>,
     ) {
-        let _guard = REAL_TREE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let root = real_repo_root();
+        let _guard = real_tree_lock(&root);
         let probe_path = root.join(probe_dir_rel).join(probe_filename);
 
         struct CleanupProbe(PathBuf);

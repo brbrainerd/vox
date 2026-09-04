@@ -1,13 +1,22 @@
 ---
 source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
-assertion_line: 322
 expression: lib_rs
 ---
 use serde::{Serialize, Deserialize};
 use vox_db::Codex;
 pub fn as_string<T: serde::Serialize>(v: &T) -> String {
     let val = serde_json::to_value(v).expect("vox codegen: serde_json::to_value failed");
-    if let Some(s) = val.as_str() { s.to_string() } else { val.to_string() }
+    if let Some(s) = val.as_str() {
+        return s.to_string();
+    }
+    if val.is_f64() {
+        if let Some(f) = val.as_f64() {
+            if f.is_finite() && f.fract() == 0.0 {
+                return format!("{}", f as i64);
+            }
+        }
+    }
+    val.to_string()
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
@@ -22,17 +31,38 @@ impl Task {
         db.connection()
             .execute(
                 "INSERT INTO task (title, done, priority) VALUES (?1, ?2, ?3)",
-                turso::params![
-                    item.title.clone(), item.done.clone(), item.priority.clone()
-                ],
+                (
+                    turso::Value::Text(item.title.clone()),
+                    turso::Value::Integer(item.done as i64),
+                    turso::Value::Integer(item.priority),
+                ),
             )
             .await?;
         Ok(db.connection().last_insert_rowid())
     }
+    pub async fn update(
+        db: &Codex,
+        id: i64,
+        item: &Self,
+    ) -> Result<usize, turso::Error> {
+        let n = db
+            .connection()
+            .execute(
+                "UPDATE task SET title = ?1, done = ?2, priority = ?3 WHERE _id = ?4",
+                (
+                    turso::Value::Text(item.title.clone()),
+                    turso::Value::Integer(item.done as i64),
+                    turso::Value::Integer(item.priority),
+                    turso::Value::from(id),
+                ),
+            )
+            .await?;
+        Ok(n as usize)
+    }
     pub async fn get(db: &Codex, id: i64) -> Result<Option<Self>, turso::Error> {
         let mut rows = db
             .connection()
-            .query("SELECT * FROM task WHERE _id = ?1", turso::params![id])
+            .query("SELECT * FROM task WHERE _id = ?1", (id,))
             .await?;
         Ok(
             match rows.next().await? {
@@ -86,7 +116,7 @@ impl Task {
         let c: i64 = row.get(0)?;
         Ok(c)
     }
-    /// `WHERE` fragment uses `?1`, `?2`, … placeholders; bind with `turso::params!`.
+    /// `WHERE` fragment uses `?1`, `?2`, … placeholders; bind with a positional tuple or `params_from_iter`.
     pub async fn filter_where(
         db: &Codex,
         where_clause: &str,
@@ -136,10 +166,7 @@ impl Task {
         Ok(out)
     }
     pub async fn delete(db: &Codex, id: i64) -> Result<usize, turso::Error> {
-        let n = db
-            .connection()
-            .execute("DELETE FROM task WHERE _id = ?1", turso::params![id])
-            .await?;
+        let n = db.connection().execute("DELETE FROM task WHERE _id = ?1", (id,)).await?;
         Ok(n as usize)
     }
     fn from_row(row: &turso::Row) -> Result<Self, turso::Error> {

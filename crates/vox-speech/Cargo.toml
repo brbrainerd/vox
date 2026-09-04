@@ -80,7 +80,7 @@ byteorder = { workspace = true, optional = true }
 uuid = { workspace = true }
 tempfile = { workspace = true }
 sherpa-onnx = { workspace = true, optional = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 vox-secrets.workspace = true
 
 [dev-dependencies]

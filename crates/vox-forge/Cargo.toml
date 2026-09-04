@@ -27,7 +27,7 @@ async-trait = "0.1.89"
 # Pure-Rust HTTP + TLS. No OpenSSL, no C.
 reqwest = { workspace = true }
 vox-http-client = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }

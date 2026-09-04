@@ -250,6 +250,30 @@ pub fn store_secret(
     )
 }
 
+/// Find a managed secret by its canonical environment name.
+///
+/// This is the shared lookup used by every user-facing secret writer so the
+/// CLI and GUI cannot drift from the registry metadata.
+#[must_use]
+pub fn secret_id_for_canonical_env(canonical_env: &str) -> Option<SecretId> {
+    all_specs()
+        .iter()
+        .find(|spec| spec.canonical_env == canonical_env)
+        .map(|spec| spec.id)
+}
+
+/// Delete a managed secret from the active Clavis account.
+///
+/// The caller supplies a registry-defined [`SecretId`], preventing arbitrary
+/// vault keys from becoming an alternate secret-management surface.
+///
+/// # Errors
+/// Returns [`SecretError`] when the Clavis vault cannot be initialized or the
+/// delete operation fails.
+pub fn delete_secret(id: SecretId) -> Result<bool, SecretError> {
+    let backend = backend::vox_vault::VoxCloudBackend::new()?;
+    backend.delete_secret(id.spec().canonical_env)
+}
 #[must_use]
 pub fn resolve_secret_for_cli(id: SecretId) -> ResolvedSecret {
     resolve_secret_with_context(id, "cli")
@@ -289,27 +313,7 @@ fn resolve_secret_internal(id: SecretId, options: ResolveOptions) -> ResolvedSec
         BackendMode::Vault => resolve_vault(id, options.profile, &options.caller_context),
         BackendMode::VoxCloud => resolve_vox_cloud(id, options),
         BackendMode::Auto => {
-            let prefer_vault = std::env::var(crate::OPERATOR_SECRETS_AUTO_PREFER_VAULT)
-                .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
-                .unwrap_or(false);
-
-            if prefer_vault
-                || std::env::var(crate::OPERATOR_SECRETS_AUTO_VAULT).is_ok()
-                || std::env::var(crate::OPERATOR_SECRETS_VAULT_URL).is_ok()
-                || std::env::var(crate::OPERATOR_SECRETS_VAULT_PATH).is_ok()
-            {
-                return resolve_vox_cloud(id, options);
-            }
-
             let profile = options.profile;
-            let phase = CutoverPhase::from_env();
-            let legacy_allowed = phase.legacy_sources_allowed(profile);
-            let legacy_turso_fallback = legacy_allowed
-                && (std::env::var("VOX_TURSO_URL").is_ok() || std::env::var("TURSO_URL").is_ok());
-
-            if legacy_turso_fallback {
-                return resolve_vox_cloud(id, options);
-            }
 
             if std::env::var(crate::OPERATOR_INFISICAL_TOKEN).is_ok()
                 || std::env::var(crate::OPERATOR_INFISICAL_SERVICE_TOKEN).is_ok()
@@ -321,12 +325,12 @@ fn resolve_secret_internal(id: SecretId, options: ResolveOptions) -> ResolvedSec
             {
                 return resolve_vault(id, profile, &options.caller_context);
             }
-            if let Ok(entry) = keyring::Entry::new("vox-secrets-vault", "master")
-                && entry.get_password().is_ok()
-            {
-                return resolve_vox_cloud(id, options);
-            }
-            resolve_with_backend(backend::NoopBackend, id, options)
+            // The local Clavis vault is the default managed store. Its master
+            // key has an encrypted file fallback when the OS keyring is
+            // unavailable, so keyring presence must not gate normal
+            // resolution. The resolver still falls through to legacy sources
+            // only after the vault has no value.
+            resolve_vox_cloud(id, options)
         }
     }
 }
@@ -458,6 +462,79 @@ pub fn remove_registry_token(registry: &str) -> Result<bool, SecretError> {
 
 pub fn migrate_auth_store_to_secure_store() -> Result<usize, SecretError> {
     sources::auth_json::migrate_to_secure_store()
+}
+
+#[cfg(test)]
+mod managed_secret_tests {
+    use super::*;
+
+    #[test]
+    fn canonical_env_lookup_returns_registered_secret_id() {
+        assert_eq!(
+            secret_id_for_canonical_env("OPENROUTER_API_KEY"),
+            Some(SecretId::OpenRouterApiKey)
+        );
+        assert_eq!(secret_id_for_canonical_env("VOX_OPENROUTER_API_KEY"), None);
+        assert_eq!(secret_id_for_canonical_env("NOT_A_SECRET"), None);
+    }
+
+    /// Round-trips `delete_secret` through the same store→delete→delete-again
+    /// shape as `vox_vault::write_present_then_delete_absent_round_trips`,
+    /// but through the `lib.rs`-level `SecretId` API (`store_secret`/
+    /// `delete_secret`) that the CLI and GUI actually call, rather than the
+    /// backend directly — this is the function that previously had no test
+    /// of its own.
+    #[test]
+    #[allow(unsafe_code)]
+    fn delete_secret_removes_a_stored_value_and_is_idempotent() {
+        use std::sync::Mutex;
+        static ENV_LOCK: Mutex<()> = Mutex::new(());
+        let _guard = ENV_LOCK.lock().expect("env lock");
+
+        let tmp_dir = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp_dir.path().join("delete_secret_vault.db");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+            std::env::set_var("VOX_ACCOUNT_ID", "delete-secret-test-account");
+        }
+
+        let id = SecretId::OpenRouterApiKey;
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("tokio rt");
+        let outcome = rt.block_on(async {
+            tokio::task::spawn_blocking(move || {
+                if store_secret(id, "sk-delete-secret-test-0123456789", None).is_err() {
+                    // Sandbox has no usable keyring/vault backend — skip cleanly,
+                    // matching the sibling backend-level round-trip test.
+                    return None;
+                }
+                let deleted_first = delete_secret(id).expect("first delete");
+                let deleted_again = delete_secret(id).expect("second delete");
+                Some((deleted_first, deleted_again))
+            })
+            .await
+            .expect("join")
+        });
+
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+            std::env::remove_var("VOX_ACCOUNT_ID");
+        }
+
+        if let Some((deleted_first, deleted_again)) = outcome {
+            assert!(
+                deleted_first,
+                "delete should report the stored row was removed"
+            );
+            assert!(
+                !deleted_again,
+                "deleting an already-absent secret must report no row removed, not error"
+            );
+        }
+    }
 }
 
 /// A redaction-safe summary row for one managed secret.

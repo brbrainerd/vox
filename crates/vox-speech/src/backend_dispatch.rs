@@ -149,12 +149,20 @@ where
 /// `BACKEND` is a process-wide static shared by every test in this binary;
 /// without this, whichever test runs first "wins" the cache for the rest.
 /// Delegates to [`invalidate_cache`] — same operation, test-facing name.
-#[cfg(test)]
+#[cfg(all(test, feature = "stt-candle"))]
 fn reset_cache_for_test() {
     invalidate_cache();
 }
 
-#[cfg(test)]
+// Every test below forces `VOX_ORATIO_BACKEND=whisper` (or exercises the "auto"
+// fallback that lands on Candle Whisper), so the whole module requires the
+// `stt-candle` feature — which is NOT a default feature (see the `[features]`
+// doc comment in Cargo.toml: heavy ML deps are opt-in). Without it,
+// `create_backend()` correctly errors, which these tests would misreport as a
+// bug. Gated at the module (not per-`#[test]`) so the module's shared
+// `TEST_LOCK` / imports do not become unused items on the default feature set —
+// `cargo clippy --all-targets -- -D warnings` treats those as errors.
+#[cfg(all(test, feature = "stt-candle"))]
 mod tests {
     use super::*;
     use std::sync::atomic::Ordering;
@@ -285,6 +293,8 @@ mod tests {
         }
     }
 
+    // Asserts the "auto" mode falls back to Candle Whisper when Sherpa init
+    // fails — that fallback only exists when `stt-candle` is compiled in.
     #[test]
     fn create_backend_auto_falls_back_to_candle_when_sherpa_init_fails() {
         // Held for the duration of the test: see `crate::env_test_lock` (Task

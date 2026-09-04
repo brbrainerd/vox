@@ -1,0 +1,10 @@
+fn is_isogram(s: str) to bool {
+    let mut seen: list[str] = []
+    for ch in s.chars() {
+        if seen.contains(ch) {
+            return false
+        }
+        seen.push(ch)
+    }
+    return true
+}

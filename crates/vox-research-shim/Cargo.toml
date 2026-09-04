@@ -32,7 +32,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 vox-scientia = { workspace = true, optional = true }
 vox-gamify = { workspace = true, optional = true }
 vox-publisher = { workspace = true, optional = true }

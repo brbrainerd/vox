@@ -11,6 +11,7 @@ anyhow = { workspace = true }
 vox-scaling-policy = { workspace = true }
 
 tokio = { workspace = true, optional = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [features]
 default = []

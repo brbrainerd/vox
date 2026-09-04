@@ -7,7 +7,7 @@ For example: triangular_number(1) = 1, triangular_number(4) = 10, triangular_num
 Assume n >= 0. Return 0 for n = 0.
 """
 signature = "fn triangular_number(n: int) to int"
-training_eligible = true
+training_eligible = false
 provenance = "original"
 difficulty = "easy"
 tags = []

@@ -16,7 +16,12 @@ mod runtime_config;
 /// same lock too. `cargo test` runs test functions concurrently by default;
 /// a comment-only "don't run this in parallel" convention is not enough once
 /// more than one file touches the same var.
-#[cfg(test)]
+/// Both consumers are feature-gated (`backends::sherpa_model_config` behind
+/// `stt-sherpa`, `backend_dispatch`'s test module behind `stt-candle`), so the
+/// lock must carry the same union predicate — otherwise it is an unused static
+/// on the default feature set, which `clippy --all-targets -- -D warnings`
+/// rejects.
+#[cfg(all(test, any(feature = "stt-sherpa", feature = "stt-candle")))]
 pub(crate) mod env_test_lock {
     pub static SHERPA_MODEL_DIR_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 }

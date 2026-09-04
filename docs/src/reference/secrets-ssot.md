@@ -11,8 +11,10 @@ schema_type: "TechArticle"
 
 `vox-secrets` is the canonical source of truth for managed secret metadata and resolution precedence.
 
-Research and forward-looking analysis live in [Secrets env vars, and API key strategy research 2026](../archive/research-2026-q1/clavis-secrets-env-research-2026.md).
-Threat and policy controls are documented in [Secrets Cloudless Threat Model V1](../archive/research-2026-q1/clavis-cloudless-threat-model-v1.md), with execution steps in [Secrets Cloudless Implementation Catalog](../archive/research-2026-q1/clavis-cloudless-implementation-catalog.md).
+The encrypted local Clavis vault is the standard persistence mechanism. The
+registry metadata in `crates/vox-secrets/src/spec/` defines every accepted
+managed secret name, and `vox_secrets::resolve_secret(...)` is the sole
+consumer resolution API.
 
 ## Naming Convention
 
@@ -66,7 +68,7 @@ For each managed secret ID:
 2. non-deprecated aliases (including opt-in `VOX_*` aliases)
 3. deprecated aliases (returns `DeprecatedAliasUsed` status)
 4. configured external backend (`infisical` or `vault`, when enabled)
-5. secure local store
+5. Clavis vault (the default managed local store)
 6. compatibility file stores (`~/.vox/auth.json`, legacy `~/.vox/auth_token`, `.vox/populi/mesh.env` where applicable)
 
 ### Local Clavis vault troubleshooting (Windows)
@@ -75,10 +77,10 @@ For each managed secret ID:
 | --- | --- | --- |
 | `invalid filename` on `backend-status` | Stale `vox.exe` or `file:` URL passed to Turso | Rebuild `vox-cli`; set `VOX_SECRETS_VAULT_PATH` to a filesystem path (not a `file:` URL) |
 | `decryption failed: aead::Error` | OS keyring master drift vs vault ciphertext | Backup → delete `.vox/clavis_vault.db` → `vox secrets import-env --file <env>` |
-| `secrets set` wrote auth.json but vault empty | `set` targets auth store, not Clavis | Use `import-env` for vault writes |
-| `secrets get` misses vault token | Spec has `auth_registry: None` | Use env var, vault via `resolve_secret`, or wire `auth_registry` |
+| Secret status reports a missing value after storing | The vault account or profile differs from the active process | Check `vox secrets backend-status`, then use `vox secrets status --workflow chat --mode cloud` |
 
-Keyring entry: service `vox-secrets-vault`, user `master`. **Never** commit vault files or `.env` import fragments.
+The OS keyring is used when available; Clavis also supports its encrypted local
+master-key fallback. **Never** commit vault files or `.env` import fragments.
 
 ## Required vs Optional Model
 
@@ -106,10 +108,23 @@ Keyring entry: service `vox-secrets-vault`, user `master`. **Never** commit vaul
 ## Command Surfaces
 
 - `vox secrets doctor --workflow <...> --profile <dev|ci|mobile|prod> --mode <auto|local|cloud> [--bundle <minimal-local-dev|minimal-cloud-dev|gpu-cloud|publish-review>]`
-- `vox secrets set <registry> <token> [--username <name>]`
-- `vox secrets get <registry>`
+- `vox secrets set <CANONICAL_ENV_NAME> --stdin`
+- `vox secrets get <CANONICAL_ENV_NAME>`
 - `vox secrets backend-status`
 - `vox secrets migrate-auth-store`
+
+Copy an OpenRouter key, then run the following in PowerShell. The key travels
+from the clipboard through standard input and is never included in shell
+history or as a process argument:
+
+```powershell
+Get-Clipboard | .\target\debug\vox.exe secrets set OPENROUTER_API_KEY --stdin
+```
+
+`~/.vox/auth.json` is a legacy compatibility and migration source only. Normal
+secret creation, replacement, and deletion use the Clavis vault through the
+Secrets CLI or GUI. `vox secrets migrate-auth-store` moves recognized legacy
+entries into Clavis and removes their `auth.json` records.
 - FORGE_TOKEN
 - GH_TOKEN
 - GITLAB_TOKEN

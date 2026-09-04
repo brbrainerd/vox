@@ -22,7 +22,7 @@ sha3 = { workspace = true }
 blake3 = { workspace = true }
 hex = { workspace = true }
 vox-crypto = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -34,7 +34,7 @@ vox-orchestrator-types = { workspace = true }
 vox-jsonschema-util = { workspace = true }
 vox-rule-pack = { workspace = true }
 vox-telemetry = { workspace = true }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 serde_json = { workspace = true }

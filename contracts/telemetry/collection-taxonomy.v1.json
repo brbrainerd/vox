@@ -193,8 +193,8 @@
       "description": "Research/benchmark metric events. Session prefix is an enum (not the full id); metric value is bucketed. No metadata_json, no raw session ids.",
       "emit_site": "vox-telemetry:record_event!(ResearchMetric)",
       "fields": [
-        { "name": "session_prefix", "type": "enum", "description": "Prefix of the session id (colon-delimited; the suffix is hashed)" },
-        { "name": "metric_type", "type": "enum", "description": "Type of metric (e.g. syntax_k, benchmark, socrates)" },
+        { "name": "session_prefix", "type": "enum", "allowed": ["bench","syntaxk","mcp","workflow","mens","route","lint","repair","audit","model_autonomic","unknown"], "description": "Prefix of the session id (colon-delimited; the suffix is hashed). Sourced from crates/vox-telemetry/src/types.rs SESSION_PREFIX_* constants (without the trailing colon); 'unknown' is the project_event() fallback for a session id with no colon." },
+        { "name": "metric_type", "type": "enum", "allowed": ["benchmark_event","syntax_k_event","socrates_surface","memory_hybrid_fusion","workflow_journal_entry","populi_control_event","questioning_event","agent_exec_time","model_route_event","orch.circuit_breaker.trip","orch.socrates.fusion","orch.routing.tier","orch.plan.mode_decision","orch.hitl.interrupt","orch.risk.score","orch.privacy.route_decision","orch.cache.hit_prediction","orch.budget.decision","orch.calibration.run","orch.calibration.drift_alert","orch.calibration.bandit_update","orch.subagent.dispatch","orch.subagent.chain_depth_alert","orch.agentos.guardrail_deny","model_call_event","task.root_summary","build.summary","telemetry.error","plugin.load_failure","sandbox.timeout_kill","orch.cache.miss","orch.task.cancelled","fixture.model.intent_resolved","fixture.prompt.dispatch","fixture.search.dispatch","fixture.hole.observed","vox.lint.finding","vox.lint.autofix_applied","vox.lint.autofix_rejected","vox.repair.attempt","vox.repair.outcome","vox.audit.run","vox.model.selection_decision","vox.model.discovery","vox.model.classification","vox.model.confidence_promotion","vox.doctor.project_check","audit.effort.run.started","audit.effort.commit.judged","audit.effort.run.completed","audit.effort.run.failed","audit.route.run.started","audit.route.cluster.decided","audit.route.run.completed","audit.route.run.failed"], "description": "Type of metric. Verbatim list of every METRIC_TYPE_* constant defined in crates/vox-telemetry/src/types.rs. Note: several of these (model_call_event, task.root_summary, build.summary, telemetry.error, vox.lint.*, vox.repair.*, vox.audit.run, vox.model.*, vox.doctor.project_check) are emitted today via their own dedicated TelemetryEvent variants routed to other taxonomy categories (model_calls/build/errors/agent_orchestration) in crates/vox-telemetry-otlp/src/project.rs, not via the generic ResearchMetric path this category's emit_site names — included here for completeness of the allowlist, not as a claim that every value is exclusively research_metrics-routed." },
         { "name": "metric_value_bucket", "type": "int", "description": "Rounded/bucketed metric value" }
       ]
     },
@@ -206,20 +206,20 @@
       "description": "Per-LLM-call performance telemetry. Model/provider are enums. Token counts and latency are bucketed. No selection_rationale, trace_id, or caller_agent_id.",
       "emit_site": "vox-telemetry:record_event!(ModelCall,SelectionDecision,ModelDiscovery,ModelClassification,ConfidencePromotion)",
       "fields": [
-        { "name": "model_id", "type": "enum", "description": "Model identifier" },
-        { "name": "provider", "type": "enum", "description": "Provider name" },
+        { "name": "model_id_hash", "type": "hash", "description": "Salted hash of the raw model identifier (open/growing set — new models are auto-discovered by the model-autonomic system, see docs/src/architecture/model-autonomic-system-2026.md — so this cannot be a bounded enum). Computed in crates/vox-telemetry-otlp/src/project.rs via salted_hash() (install_salt + SHA-256), the same pattern as skill_id_hash." },
+        { "name": "provider", "type": "enum", "allowed": ["openrouter","openai","anthropic","hf_router","huggingface","hf_endpoint","ollama"], "description": "Provider name. Sourced from the match arms in crates/vox-config/src/resolve_egress.rs." },
         { "name": "duration_bucket", "type": "enum", "allowed": ["lt1s","1_to_5s","5_to_30s","30s_to_5m","gt5m"], "description": "Latency bucket" },
         { "name": "prompt_tokens_bucket", "type": "enum", "allowed": ["lt512","512_to_2k","2k_to_8k","8k_to_32k","gt32k"], "description": "Prompt token count bucket" },
         { "name": "completion_tokens_bucket", "type": "enum", "allowed": ["lt512","512_to_2k","2k_to_8k","8k_to_32k","gt32k"], "description": "Completion token count bucket" },
-        { "name": "error_class", "type": "enum", "description": "Error class if the call failed, absent otherwise" },
-        { "name": "task", "type": "enum", "description": "Selection decision task tag" },
-        { "name": "chosen_model", "type": "enum", "description": "Chosen model for SelectionDecision events" },
-        { "name": "reason", "type": "enum", "description": "Selection reason tag" },
-        { "name": "source", "type": "enum", "description": "Discovery source" },
-        { "name": "tier", "type": "enum", "description": "Classification tier" },
-        { "name": "from_confidence", "type": "enum", "description": "Pre-promotion confidence tier" },
-        { "name": "to_confidence", "type": "enum", "description": "Post-promotion confidence tier" },
-        { "name": "evidence", "type": "enum", "description": "Promotion evidence tag" }
+        { "name": "error_class", "type": "enum", "allowed": ["rate_limited","server_error","client_error","transport_error","decode_error","timeout","auth_error","not_found","validation","internal","unknown"], "description": "Error class if the call failed, absent otherwise. Reuses the same bounded set as the errors/error_surface categories (crates/vox-telemetry/src/types.rs ErrorSurfaceEvent doc comment)." },
+        { "name": "task", "type": "enum", "allowed": ["codegen","testing","debugging","logic","research","parsing","review","planning","inter_agent","visus"], "description": "Selection decision task tag. Real distinct premium_alias_key values from crates/vox-orchestrator/src/models/routing_table.rs ROUTING_TABLE — several TaskCategory variants (TypeChecking, General, Ars, ToolOrchestration, CodeEffortJudge, Chat) collapse onto 'logic'." },
+        { "name": "chosen_model_id_hash", "type": "hash", "description": "Salted hash of the chosen model identifier for SelectionDecision events (same open-identifier rationale and salted_hash() implementation as model_id_hash)." },
+        { "name": "reason", "type": "enum", "allowed": ["premium_alias","scored","local_only","env_override"], "description": "Selection reason tag (crates/vox-telemetry/src/types.rs SelectionDecisionEvent doc comment)." },
+        { "name": "source", "type": "enum", "allowed": ["openrouter","litellm","anthropic_direct","populi_mesh"], "description": "Discovery source (crates/vox-telemetry/src/types.rs DiscoveryEvent doc comment)." },
+        { "name": "tier", "type": "enum", "allowed": ["unknown","local","free","fast","light","pro","elite"], "description": "Classification tier. ModelTier variants from contracts/orchestration/model-routing.v1.yaml `tiers`, lowercased (crates/vox-orchestrator/src/models/autonomic.rs)." },
+        { "name": "from_confidence", "type": "enum", "allowed": ["provisional","shadowed","confirmed","deprecated"], "description": "Pre-promotion confidence tier (crates/vox-telemetry/src/types.rs ConfidencePromotionEvent doc comment)." },
+        { "name": "to_confidence", "type": "enum", "allowed": ["provisional","shadowed","confirmed","deprecated"], "description": "Post-promotion confidence tier (same set as from_confidence)." },
+        { "name": "evidence", "type": "enum", "allowed": ["scoreboard_threshold","council_approval","shadow_eval","failure_threshold"], "description": "Promotion evidence tag (crates/vox-telemetry/src/types.rs ConfidencePromotionEvent doc comment)." }
       ]
     },
     {
@@ -230,7 +230,7 @@
       "description": "Agent task and orchestration summary events. Counts are bucketed. No task_id, trace_id, or repository_id.",
       "emit_site": "vox-telemetry:record_event!(TaskRootSummary,AiFixture,RepairAttempt,RepairOutcome,AuditRun,DoctorProjectCheck)",
       "fields": [
-        { "name": "outcome", "type": "enum", "description": "Task/run outcome class" },
+        { "name": "outcome", "type": "enum", "allowed": ["completed","failed","doubted","cancelled","ok","bar_missed","infra_error","invalid_input","green","red"], "description": "Task/run outcome class. Union of the real outcome vocabularies projected into this category in crates/vox-telemetry-otlp/src/project.rs: TaskRootSummaryEvent (completed|failed|doubted|cancelled), AuditRunEvent (ok|bar_missed|infra_error|invalid_input), DoctorProjectCheckEvent (green|red|infra_error)." },
         { "name": "child_call_bucket", "type": "enum", "allowed": ["0","1_to_3","4_to_9","10_to_24","gte25"], "description": "Child call count bucket" },
         { "name": "subagent_bucket", "type": "enum", "allowed": ["0","1_to_3","4_to_9","10_to_24","gte25"], "description": "Subagent fanout bucket" },
         { "name": "fixture_kind", "type": "enum", "allowed": ["model_intent","subagent_dispatch","prompt_dispatch","search_dispatch","hole_observed"], "description": "AiFixture inner kind" },
@@ -238,7 +238,7 @@
         { "name": "diagnostics_delta", "type": "int", "description": "Diagnostics-in minus diagnostics-out (progress signal)" },
         { "name": "success", "type": "bool", "description": "Whether the repair/run succeeded" },
         { "name": "attempts_used", "type": "int", "description": "Number of repair attempts used" },
-        { "name": "thing", "type": "enum", "description": "Audit subject tag" },
+        { "name": "thing", "type": "enum", "allowed": ["retirement","humaneval","corpus-feedback","all","code","arch","effort","effort-route"], "description": "Audit subject tag — the `vox audit <thing>` gate name (crates/vox-telemetry/src/types.rs AuditRunEvent doc comment + the `vox audit` umbrella subcommands)." },
         { "name": "passed", "type": "bool", "description": "Whether the check passed" }
       ]
     },
@@ -250,9 +250,9 @@
       "description": "Build and lint summary events. No file paths, build_id, or repository_id.",
       "emit_site": "vox-telemetry:record_event!(BuildSummary,LintFinding)",
       "fields": [
-        { "name": "exit_class", "type": "enum", "description": "Build outcome class" },
+        { "name": "exit_class", "type": "enum", "allowed": ["success","failure","cancelled"], "description": "Build outcome class. Sourced from BuildSummaryEvent.outcome (crates/vox-telemetry/src/types.rs doc comment); projected verbatim in crates/vox-telemetry-otlp/src/project.rs." },
         { "name": "duration_bucket", "type": "enum", "allowed": ["lt1s","1_to_5s","5_to_30s","30s_to_5m","gt5m"], "description": "Build wall-time bucket" },
-        { "name": "rule_id", "type": "enum", "description": "Lint rule id (LintFinding events)" },
+        { "name": "rule_id_hash", "type": "hash", "description": "Salted hash of the lint rule id (open/growing set spanning the whole compiler's detector catalog, e.g. `retired/decorator-usage` — cannot be a bounded enum). Computed in crates/vox-telemetry-otlp/src/project.rs via the same salted_hash() helper as model_id_hash / skill_id_hash." },
         { "name": "severity", "type": "enum", "allowed": ["error","warning","info","hint"], "description": "Lint severity" },
         { "name": "autofix_available", "type": "bool", "description": "Whether an autofix was available" }
       ]
@@ -265,8 +265,8 @@
       "description": "Subsystem error summary events. No trace_id, model, or provider free-form fields.",
       "emit_site": "vox-telemetry:record_event!(Error)",
       "fields": [
-        { "name": "subsystem", "type": "enum", "description": "Subsystem that produced the error" },
-        { "name": "error_class", "type": "enum", "description": "Error class" },
+        { "name": "subsystem", "type": "enum", "allowed": ["llm_http","llm_bridge","tool_dispatch","task_lifecycle","db","plugin","build","audit","unknown"], "description": "Subsystem that produced the error. Same bounded set as error_surface.subsystem (crates/vox-telemetry/src/types.rs ErrorSurfaceEvent doc comment, whose own doc comment marks it 'category=errors'). The older, free-form TelemetryEvent::Error (ErrorEvent — dot-separated subsystem paths like 'llm.http') also routes into this same 'errors' category key in crates/vox-telemetry-otlp/src/project.rs; its raw subsystem is bucketed onto this enum via normalize_error_subsystem() before upload." },
+        { "name": "error_class", "type": "enum", "allowed": ["rate_limited","server_error","client_error","transport_error","decode_error","timeout","auth_error","not_found","validation","internal","unknown","trip_no_progress","trip_same_error","trip_tool_thrash","trip_ngram_overlap","trip_semantic_drift"], "description": "Error class. Superset of error_surface.error_class: the legacy ErrorEvent path's raw kebab-case error_class (e.g. 'rate-limited', 'connection-timeout') is bucketed onto this enum via normalize_error_class() before upload, and the five trip_* values are the closed TripReason enum from crates/vox-orchestrator/src/circuit_breaker.rs, mapped 1:1 so circuit-breaker trip reasons stay analyzable instead of collapsing to 'unknown'." },
         { "name": "recoverable", "type": "bool", "description": "Whether the error was recovered from" }
       ]
     },

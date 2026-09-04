@@ -35,7 +35,9 @@ platforms = [
 [traversal-excludes]
 workspace-members = [
     "vox-orchestrator-types",
+    "vox-db",
     "vox-db-types",
+    "vox-telemetry",
     "vox-foundation",
     "vox-mesh-types",
     "vox-plugin-types",
@@ -59,6 +61,13 @@ third-party = [
     # dom_query / selectors 0.36 parser stack). Only vox-gui / vox-tauri-stt need
     # Tauri; excluding here keeps it out of every non-GUI build (vox-cli default
     # 833 -> 790 crates). See docs/src/architecture build-time audit (2026-06).
+    # `tauri` itself must be excluded too, not just its build-time crates:
+    # workspace-hack re-added `tauri = { version = "2", features = ["test"] }`
+    # on 2026-06-19 (a28fb8d92, an unrelated voxup change's hakari
+    # regeneration), which pulls tauri-utils/wry/webview2-com/html5ever back in
+    # transitively and silently erased the 833 -> 790 win recorded above.
+    # Excluding the parent is what actually holds the line.
+    { name = "tauri" },
     { name = "tauri-utils" },
     { name = "tauri-build" }
 ]

@@ -7,7 +7,7 @@ If the list is empty, return 0.
 The subarray must contain at least one element.
 """
 signature = "fn max_subarray_sum(xs: list[int]) to int"
-training_eligible = true
+training_eligible = false
 provenance = "original"
 difficulty = "medium"
 tags = []

@@ -100,6 +100,27 @@ pub fn transport_wrapper_map(ts_src: &str) -> std::collections::HashMap<String, 
     out
 }
 
+/// Find the start of an `invoke(...)`/`Invoke(...)`/`invoke<...>(...)` call
+/// (case-insensitive on the leading letter, so it matches both the raw
+/// `invoke(...)` calls and transport.ts's `safeInvoke(...)` wrapper) —
+/// distinguished from an `invoke_mcp_tool` string literal by requiring the
+/// match be immediately followed by `(` or `<`, not an identifier character.
+fn find_invoke_call(region: &str) -> Option<usize> {
+    let bytes = region.as_bytes();
+    let mut search_from = 0;
+    while let Some(rel) = region[search_from..].find("nvoke") {
+        let pos = search_from + rel;
+        let prev_is_i = pos > 0 && matches!(bytes[pos - 1], b'i' | b'I');
+        let after = pos + "nvoke".len();
+        let next_is_call = after < bytes.len() && matches!(bytes[after], b'(' | b'<');
+        if prev_is_i && next_is_call {
+            return Some(pos - 1);
+        }
+        search_from = pos + "nvoke".len();
+    }
+    None
+}
+
 /// If `region` contains an `invoke(...)`/`invoke<…>(...)` call, record the mapping
 /// for `name` and return true. Handles command and `invoke_mcp_tool` tool forms.
 fn try_map_invoke(
@@ -107,8 +128,8 @@ fn try_map_invoke(
     name: &str,
     region: &str,
 ) -> bool {
-    // locate `invoke` followed (possibly after a `<...>` generic) by `(`
-    let Some(pos) = region.find("invoke") else {
+    // locate `invoke`/`Invoke` followed (possibly after a `<...>` generic) by `(`
+    let Some(pos) = find_invoke_call(region) else {
         return false;
     };
     let after = region[pos + "invoke".len()..].trim_start();

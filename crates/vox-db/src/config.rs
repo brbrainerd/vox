@@ -32,10 +32,12 @@ pub enum DbConfig {
     },
 }
 
+#[cfg(feature = "host-integration")]
 use vox_secrets::SecretId;
 
+#[cfg(feature = "host-integration")]
 static LEGACY_TURSO_ENV_WARN: std::sync::Once = std::sync::Once::new();
-
+#[cfg(feature = "host-integration")]
 fn try_remote_from_compat_env() -> Option<DbConfig> {
     let hard_cut_strict = std::env::var("VOX_SECRETS_HARD_CUT")
         .ok()
@@ -113,6 +115,7 @@ impl DbConfig {
 
     /// Read config from `VOX_DB_URL` + `VOX_DB_TOKEN` (remote), or `VOX_DB_PATH` (local), or all
     /// three for embedded replica when `replication` is enabled. Empty env + `local` → [`Self::Memory`].
+    #[cfg(feature = "host-integration")]
     pub fn from_env() -> Result<Self, String> {
         let url = vox_secrets::resolve_secret(SecretId::VoxDbUrl)
             .expose()
@@ -155,6 +158,7 @@ impl DbConfig {
     ///
     /// For new code, prefer [`Self::resolve_canonical`] (same behavior; documents SSOT intent). See
     /// [`crate::canonical_store`].
+    #[cfg(feature = "host-integration")]
     pub fn resolve_standalone() -> Result<Self, String> {
         let path_fallback = || {
             std::env::var("VOX_DB_PATH")
@@ -197,6 +201,7 @@ impl DbConfig {
     /// [`crate::open_project_db`] (repo-local cache) and [`crate::VoxDb::connect_legacy_export_only`].
     ///
     /// See [`crate::canonical_store`] for the full storage policy.
+    #[cfg(feature = "host-integration")]
     pub fn resolve_canonical() -> Result<Self, String> {
         Self::resolve_standalone()
     }
@@ -207,6 +212,7 @@ impl DbConfig {
     /// file [`crate::store::DEFAULT_PROJECT_STORE_PATH`] instead of the user data default from
     /// [`Self::resolve_standalone`]. On failure of `from_env`, applies the same Turso compatibility
     /// aliases as [`Self::resolve_standalone`], then falls back to the project store path.
+    #[cfg(feature = "host-integration")]
     pub fn resolve_project_code_store_config() -> Result<Self, String> {
         match Self::from_env() {
             Ok(cfg) => {
@@ -241,6 +247,7 @@ impl DbConfig {
     /// - If `VOX_DB_URL`, `VOX_DB_TOKEN`, AND `VOX_DB_PATH` are set, use `Self::EmbeddedReplica`.
     /// - If only `VOX_DB_URL` + `VOX_DB_TOKEN` are set, use [`Self::Remote`].
     /// - Otherwise, fall back to [`Self::resolve_standalone`] (local file).
+    #[cfg(feature = "host-integration")]
     pub fn resolve_for_mesh() -> Result<Self, String> {
         let url = vox_secrets::resolve_secret(SecretId::VoxDbUrl)
             .expose()
@@ -278,6 +285,7 @@ impl DbConfig {
 /// Generated app runtimes call this to decide backend routing/guards; never read
 /// `VOX_APP_DB_URL` directly.
 #[must_use]
+#[cfg(feature = "host-integration")]
 pub fn resolve_app_db_url() -> Option<String> {
     vox_secrets::resolve_secret(SecretId::VoxAppDbUrl)
         .expose()
@@ -286,13 +294,14 @@ pub fn resolve_app_db_url() -> Option<String> {
 
 /// Resolve the canonical Codex DB URL (`VOX_DB_URL`) via the secret-policy SSOT.
 #[must_use]
+#[cfg(feature = "host-integration")]
 pub fn resolve_codex_db_url() -> Option<String> {
     vox_secrets::resolve_secret(SecretId::VoxDbUrl)
         .expose()
         .map(String::from)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "host-integration"))]
 mod tests {
     use super::{DbConfig, try_remote_from_compat_env};
     use vox_secrets::SecretId;

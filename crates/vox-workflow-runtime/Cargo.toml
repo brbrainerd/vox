@@ -33,7 +33,7 @@ vox-db = { workspace = true, optional = true }
 vox-populi = { workspace = true, optional = true }
 vox-runtime = { path = "../vox-runtime" }
 vox-journal = { path = "../vox-journal" }
-workspace-hack = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 vox-compiler = { workspace = true }

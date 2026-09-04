@@ -1,12 +1,37 @@
 {
   "schema_version": 1,
-  "label": "baseline",
+  "label": "baseline-20260831",
+  "measured_on": "x86_64-windows",
   "records": [
-    { "id": "check_vox_db",              "ok": true, "wall_ms": 0 },
-    { "id": "check_vox_sql",             "ok": true, "wall_ms": 0 },
-    { "id": "check_vox_mcp",             "ok": true, "wall_ms": 0 },
-    { "id": "check_vox_audit",           "ok": true, "wall_ms": 0 },
-    { "id": "check_vox_cli",             "ok": true, "wall_ms": 0 },
-    { "id": "blastradius_vox_db_to_cli", "ok": true, "wall_ms": 0 }
+    {
+      "id": "check_vox_db",
+      "ok": true,
+      "wall_ms": 2186
+    },
+    {
+      "id": "check_vox_sql",
+      "ok": true,
+      "wall_ms": 2290
+    },
+    {
+      "id": "check_vox_mcp",
+      "ok": true,
+      "wall_ms": 20005
+    },
+    {
+      "id": "check_vox_audit",
+      "ok": true,
+      "wall_ms": 2611
+    },
+    {
+      "id": "check_vox_cli",
+      "ok": true,
+      "wall_ms": 24966
+    },
+    {
+      "id": "blastradius_vox_db_to_cli",
+      "ok": true,
+      "wall_ms": 24961
+    }
   ]
 }

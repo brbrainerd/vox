@@ -6,7 +6,7 @@ Sort a list of integers in non-decreasing order using bubble sort.
 Return the sorted list without modifying the original input.
 """
 signature = "fn bubble_sort(xs: list[int]) to list[int]"
-training_eligible = true
+training_eligible = false
 provenance = "original"
 difficulty = "medium"
 tags = []
