@@ -275,6 +275,39 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         detail: format!("to update natively, run: {}", update_hint),
     });
 
+    // Graphify cache. A fresh clone has no corpus graphs, and nothing surfaces
+    // that until a `vox graph query` / MCP search silently returns nothing — so
+    // report it here, where new installs already look. Only meaningful inside the
+    // repo; `vox graph` is a repo-scoped tool.
+    if in_vox_repo {
+        let cache_dir = std::path::Path::new(".vox/cache/graphify");
+        let mut built = 0usize;
+        if let Ok(mut entries) = tokio::fs::read_dir(cache_dir).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                if tokio::fs::try_exists(entry.path().join("graph.json"))
+                    .await
+                    .unwrap_or(false)
+                {
+                    built += 1;
+                }
+            }
+        }
+        checks.push(Check {
+            name: "Graphify cache".to_string(),
+            pass: built > 0,
+            detail: if built > 0 {
+                format!(
+                    "{built} corpus graph(s) built — `vox graph status` for freshness, \
+                     `vox graph refresh --auto` to update"
+                )
+            } else {
+                "no corpus graphs built — run: vox graph refresh --auto \
+                 (code-intelligence queries return nothing until this is built)"
+                    .to_string()
+            },
+        });
+    }
+
     let vox_dir = common::user_home_dir().map(|h| h.join(".vox"));
     let db_check = match vox_dir.as_ref() {
         Some(d) => {

@@ -53,3 +53,14 @@
 # Bind ~/.cargo into containers so cargo registry downloads are cached across runs.
 # Remove this line if your Docker daemon is on a remote host (bind-mounts won't work).
 --bind
+
+# Container architecture — pin to amd64 so local runs match GitHub-hosted runners.
+# Without this, act on Apple Silicon transparently runs the arm64 image variant and
+# warns; jobs then pass locally against arm64 toolchains while CI runs amd64, which
+# is exactly the false-green this file's Windows/macOS note guards against.
+#
+# macOS prerequisite: a Rosetta-backed VM, or amd64 containers fall back to slow
+# QEMU emulation. With colima:
+#   colima start --vm-type vz --vz-rosetta --cpu 12 --memory 48 --disk 100
+# Docker Desktop is NOT required (and is not used here); colima provides the daemon.
+--container-architecture linux/amd64
