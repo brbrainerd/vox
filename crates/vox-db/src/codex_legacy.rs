@@ -191,6 +191,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "knowledge_edges",
     "knowledge_nodes",
     "learned_patterns",
+    "live_chat_completeness_pending",
     "llm_attempts",
     "llm_feedback",
     "llm_interactions",
