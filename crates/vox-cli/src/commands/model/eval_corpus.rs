@@ -305,6 +305,12 @@ pub fn scoreboard_row_from_corpus(
         updated_at_ms: vox_db::now_unix_ms() as i64,
         success_count: (score.pass_at_1 * score.n_fixtures as f64).round() as i64,
         cumulative_cost_usd: score.cumulative_cost_usd.unwrap_or(0.0),
+        // The corpus harness measures pass@1, p50 latency and cost; it never observes
+        // streaming timings. `None` is "not measured", which the Pareto surfaces treat as
+        // incomparable rather than as a zero that would win these axes by default.
+        p95_ttft_ms: None,
+        p95_tpot_ms: None,
+        goodput_tokens_per_sec: None,
     }
 }
 
