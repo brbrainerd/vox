@@ -147,6 +147,49 @@ pub fn drift(expected: &str, declarations: &[Declaration]) -> Vec<Drift> {
 }
 
 
+
+/// The `workspace-hack` pin every member crate carries.
+///
+/// cargo-hakari generates `workspace-hack = { version = "0.6", path = "../workspace-hack" }`
+/// into **every** member `Cargo.toml` — 113 of them here — using a TWO-component
+/// requirement. `workspace-hack` inherits `version.workspace = true`, so bumping
+/// the workspace to 0.7.0 invalidates all 113 pins at once and the whole build
+/// stops resolving:
+///
+/// ```text
+/// candidate versions found which didn't match: 0.7.0
+/// required by package `vox-actor-runtime v0.7.0`
+/// ```
+///
+/// This is the single largest reason a version bump "breaks everything", and it
+/// is invisible to any check that only reads the root manifest.
+pub fn workspace_hack_pin(cargo_toml: &str, file: &Path) -> Option<Declaration> {
+    cargo_toml.lines().enumerate().find_map(|(i, l)| {
+        let t = l.trim_start();
+        if !t.starts_with("workspace-hack") || !t.contains("version") {
+            return None;
+        }
+        let after = &l[l.find("version")? + "version".len()..];
+        let q1 = after.find('"')?;
+        let q2 = after[q1 + 1..].find('"')?;
+        Some(Declaration {
+            file: file.to_path_buf(),
+            line: i + 1,
+            version: after[q1 + 1..q1 + 1 + q2].to_string(),
+            what: "workspace-hack pin".to_string(),
+        })
+    })
+}
+
+/// `0.7.0` -> `0.7`. hakari pins on major.minor only.
+pub fn major_minor(version: &str) -> String {
+    let mut it = version.split('.');
+    match (it.next(), it.next()) {
+        (Some(a), Some(b)) => format!("{a}.{b}"),
+        _ => version.to_string(),
+    }
+}
+
 /// Rewrite every restatement of the version in `text` to `new_version`.
 ///
 /// Line-oriented and surgical: only lines this module would *report* are
@@ -257,6 +300,23 @@ vox-plugin-api = { path = "crates/vox-plugin-api", version = "0.5.0" }
 serde         = { version = "1.0", features = ["derive"] }
 "#;
 
+
+
+    #[test]
+    fn workspace_hack_pin_is_found_and_is_major_minor() {
+        let member = "[dependencies]\nworkspace-hack = { version = \"0.6\", path = \"../workspace-hack\" }\n";
+        let d = workspace_hack_pin(member, Path::new("crates/x/Cargo.toml")).expect("pin found");
+        assert_eq!(d.version, "0.6");
+        assert_eq!(major_minor("0.7.0"), "0.7");
+        assert_eq!(major_minor("1.12.3"), "1.12");
+    }
+
+    #[test]
+    fn a_member_without_the_pin_is_not_flagged() {
+        assert!(workspace_hack_pin("[dependencies]\nserde = \"1\"\n", Path::new("c/Cargo.toml")).is_none());
+        // The `{ workspace = true }` form carries no version and needs no rewrite.
+        assert!(workspace_hack_pin("workspace-hack = { workspace = true }\n", Path::new("c/Cargo.toml")).is_none());
+    }
 
     #[test]
     fn rewrite_moves_workspace_and_path_deps_but_not_registry_deps() {
