@@ -21,8 +21,8 @@ harness but could not run the eval (reasons in §6).
 
 | | |
 |---|---|
-| Branch | `fix-all-ci-failures` (pushed; `afad83017` at time of writing) |
-| vs `origin/main` | 66 ahead, 1 behind — the 1 is `docs: add audited macOS AI development handoff`, already present on the branch as an identical-content commit, so the merge is clean (verified: 0 conflicts) |
+| **Work is on `main`** | Merged and pushed 2026-09-04 (merge commit `a97e2db45`, 67 commits from `fix-all-ci-failures`). **Just use `main`** — the feature branch is fully merged and needs nothing from you. |
+| Caveat on that push | It bypassed two branch-protection rules ("changes must be made through the merge queue", and a required `Check, Build, and Test (Rust)` status check that was still in progress). It went through on account bypass permissions, not because the checks passed. **Treat fleet CI on `main` as the real verdict**, and see §6. |
 | Command | `vox model eval-corpus` → [`crates/vox-cli/src/commands/model/eval_corpus.rs`](../../../crates/vox-cli/src/commands/model/eval_corpus.rs) |
 | Scoring | [`crates/vox-eval/src/corpus_score.rs`](../../../crates/vox-eval/src/corpus_score.rs), [`corpus_stats.rs`](../../../crates/vox-eval/src/corpus_stats.rs) |
 | Verifier | `vox_corpus::humaneval_runner::verify_program` |
@@ -184,7 +184,20 @@ Windows-specific pain that **should not follow you to macOS** (noted so you don'
 inherit workarounds you don't need):
 
 - `rustc` OOM (`STATUS_STACK_BUFFER_OVERRUN`) linking large test binaries on a
-  15.7 GB shared machine; `-j 2`/`-j 1` were the mitigation.
+  15.7 GB shared machine; `-j 2`/`-j 1` were the mitigation. **Root cause is
+  probably portable, so check it on macOS too:** `.cargo/config.toml` commits
+  `[build] jobs = 24`. Twenty-four concurrent `rustc` processes against this
+  workspace's largest crates will exhaust any machine without a lot of RAM —
+  override per-shell with `-j` rather than editing the committed value, which is
+  presumably tuned for the CI fleet.
+- Each worktree gets its own `target/` by design, so N worktrees multiply disk
+  cost (observed: 16 GB + 25 GB concurrently, on a drive that repeatedly hit 0
+  bytes free). `.cargo/config.toml` documents **sccache** as the sanctioned fix —
+  a shared compiler cache across worktrees, deliberately *not* committed to the
+  repo config (hosted runners lack the binary and cargo dies before building).
+  Enable it per-user: `cargo install sccache`, then `[build] rustc-wrapper =
+  "sccache"` in `~/.cargo/config.toml`, or `RUSTC_WRAPPER=sccache` per shell.
+  Not installed on the Windows machine as of this writing.
 - `cargo fmt --all` overflows the Windows command-line limit — the repo mandates
   `vox run scripts/fmt.vox`. On macOS plain `cargo fmt` may be fine, but the repo
   policy still says use the script.
@@ -202,8 +215,10 @@ Not verified anywhere, by anyone, on any platform:
 
 ## 7. Suggested first hour on macOS
 
-1. `git checkout fix-all-ci-failures && git pull` (or work from `main` once merged).
-2. `vox ci pre-push --complete` — close out the verification this handoff couldn't.
+1. `git checkout main && git pull` — everything is already there.
+2. `vox ci pre-push --complete` — close out the verification this handoff couldn't,
+   and check fleet CI's verdict on `main` (the push bypassed the merge queue, so CI
+   is the first honest signal).
 3. `cargo build --release -p vox-cli`.
 4. One cheap smoke run: a frontier model, `--n 1 --temperature 0.0`, `--max-spend-usd 2`,
    `--output` set. Confirm a report JSON lands and a scoreboard row is written.
