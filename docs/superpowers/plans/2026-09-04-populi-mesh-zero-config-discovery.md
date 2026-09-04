@@ -1,512 +1,622 @@
-# Populi Mesh Zero-Config Discovery Implementation Plan
+# Populi Mesh Ticket Pairing and LAN Discovery — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Two machines with vox installed and zero configuration discover each other on a LAN, are trusted with one click in the GUI, and share dispatched work — with no account, no internet, and no central server.
+**Goal:** Two machines with vox installed and no configuration exchange one pasteable ticket and share dispatched work — with no account, no internet, and no central server — plus automatic LAN discovery where the network permits it.
 
-**Architecture:** A new `vox-populi::discovery` module announces and browses `_vox-mesh._tcp.local` over mDNS. Discovered peers are resolved against the existing `vox_identity::TrustedNodeRegistry` and surfaced through the existing `vox_mesh_nodes` MCP tool, which the GUI already polls. Control-plane bind address becomes tier-aware so peers can actually reach the port that gets advertised.
+**Architecture:** A universal `vox-mesh://` ticket carrying a public key is the default pairing path (works on every network). mDNS discovery is a convenience layer over the same trust path. The control plane's auth default becomes fail-closed before any bind widens, so trust is enforced rather than decorative.
 
-**Tech Stack:** Rust 1.96, `mdns-sd` (new, pure-Rust, no daemon), axum control plane, Tauri 2 + React GUI, `vox_identity` ed25519 trust store.
+**Tech Stack:** Rust 1.96, `mdns-sd = "=0.20"` (new, pure-Rust, no daemon), axum control plane, Tauri 2 + React GUI, `vox_identity` ed25519 trust store.
 
-**Spec:** [`docs/superpowers/specs/2026-09-04-populi-mesh-zero-config-discovery-design.md`](../specs/2026-09-04-populi-mesh-zero-config-discovery-design.md)
+**Spec:** [`docs/superpowers/specs/2026-09-04-populi-mesh-zero-config-discovery-design.md`](../specs/2026-09-04-populi-mesh-zero-config-discovery-design.md) — revision 2.
+
+**Provenance:** Revision 2, rewritten after an eight-track adversarial audit found 24 confirmed defects in revision 1, including four false rationales and one security regression. Findings verified *correct* are in the appendix — do not relitigate them.
 
 ## Global Constraints
 
-- **No new workspace crate edges.** Every edge this plan needs already exists: `vox-populi` → `vox-identity`, `vox-orchestrator-mcp` → `vox-populi`, `vox-gui` → `vox-orchestrator-mcp`, `vox-gui` → `vox-identity`. Adding any new edge requires user authorization (`AGENTS.md` §Dependency Discipline). If you believe you need one, stop and ask.
-- **Never bind `0.0.0.0`.** Bind exactly one interface chosen by tier. Synthesizing a wildcard bind exposes the control plane on untrusted networks.
-- **Discovery is never fatal.** Any discovery failure logs at `warn` and leaves the node functional. It is an enhancement, not a precondition.
-- **No central server.** Nothing in this plan may make mesh formation depend on a vox-operated service.
-- **Test-first** (`AGENTS.md` §Test-First Policy): every new `pub fn` in `crates/*/src/**` needs a `#[test]` in the same file before the commit lands.
-- **Formatting:** `vox run scripts/fmt.vox`. **Never** `cargo fmt --all` — it overflows the Windows command-line limit (`os error 206`).
-- **Pre-push:** `vox ci pre-push --complete` for Rust changes. The default fast tier does not run clippy.
-- mDNS service type: `_vox-mesh._tcp.local.` (trailing dot required by `mdns-sd`).
-- Announce interval 30s; stale after 90s; both overridable via `VOX_MESH_DISCOVERY_ANNOUNCE_SECS`.
+- **No new workspace crate edges.** `vox-orchestrator-mcp → vox-identity` and `vox-ml-cli → vox-identity` **do not exist** and must not be added (`AGENTS.md` §Dependency Discipline: exceptions are user-authorized only). Route through `vox-populi`, which already depends on `vox-identity`. If you think you need an edge, stop and ask.
+- **Three processes.** `vox-gui` → TCP `127.0.0.1:9745` → `vox-orchestrator-d` (where `vox_mesh_nodes` executes) → and separately `vox populi serve`. No process-global spans them. Verify which process your code runs in before storing state in one.
+- **Never bind `0.0.0.0`,** and never widen a bind before Phase 0's auth gate has landed.
+- **Discovery is never fatal.** Any failure logs at `warn` and leaves the node working on T0/T1/T3.
+- **Trust binds to the pubkey, never to a self-asserted `node_id`.** No code path may write a trust row with an empty `pubkey_hex`.
+- **Test-first** (`AGENTS.md`): the detector is file-granular — every file with a `pub fn` needs at least one `#[test]` in that same file.
+- **Formatting:** `vox run scripts/fmt.vox`. **Never** `cargo fmt --all` (Windows `os error 206`).
+- **Pre-push:** `vox ci pre-push --complete`; the fast tier runs no clippy.
+- Discovery must **not** ride the `populi-transport` feature — that gates HTTP machinery and is off in every shipped binary.
 
 ---
 
-## File Structure
+## Phase 0 — Security prerequisites (blocking)
 
-| File | Responsibility |
-|---|---|
-| `crates/vox-populi/src/discovery/mod.rs` (create) | Public surface: `NodeAnnouncement`, `DiscoveredPeer`, `DiscoveryHandle`. |
-| `crates/vox-populi/src/discovery/mdns.rs` (create) | mDNS announce + browse loop. The only file that touches `mdns-sd`. |
-| `crates/vox-populi/src/discovery/bind.rs` (create) | Tier-aware bind resolution + defactored `detect_lan_ip`. |
-| `crates/vox-populi/Cargo.toml` (modify) | `discovery` feature, `mdns-sd` dep. |
-| `crates/vox-populi/src/lib.rs` (modify) | `pub mod discovery;` behind the feature. |
-| `crates/vox-ml-cli/src/commands/populi_overlay.rs` (create) | Tailscale binary resolution + `status --json` parse. Pulled out of `populi_lifecycle.rs`. |
-| `crates/vox-ml-cli/src/commands/populi_lifecycle.rs` (modify) | Use tier-aware bind; delegate overlay probing to the new module. |
-| `crates/vox-ml-cli/src/commands/populi_join.rs` (modify) | Deprecate; migrate `config.toml` peers to `TrustedNodeRegistry`. |
-| `crates/vox-orchestrator-mcp/src/populi_tools.rs` (modify) | Add `pending_peers` to the `vox_mesh_nodes` result. |
-| `crates/vox-plugin-populi-mesh/src/lib.rs` (modify) | Remove crate-wide `#![allow(dead_code)]`. |
-| `crates/vox-gui/ui/src/components/surfaces/Mesh/MeshView.tsx` (modify) | Pending-peers section with fingerprint + Trust action. |
-| `crates/vox-gui/ui/src/components/dashboard/widgets/MeshWidget.tsx` (modify) | Trusted / online / pending counts. |
+Nothing in Phase 1+ may land first. Every Phase 0 task fixes a live defect in `main` and is independently valuable.
 
-Splitting `discovery` into three files keeps the `mdns-sd` surface isolated in one place, so swapping the discovery mechanism later touches one file.
+### Task 0.1: `vox populi up` actually starts a server
 
----
+**Files:** Modify `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:178-190`
 
-## Task 1: Discovery types and feature flag
+`up` spawns `populi serve --bind <addr>` with **no `--enable`**; `populi_cli.rs:850` bails immediately without it, and both pipes are `Stdio::null()`, so it dies silently while the parent records a pid and writes `mesh-state.json`. **`vox populi up` has never started a server.** Everything downstream is unverifiable until this is fixed.
 
-**Files:**
-- Create: `crates/vox-populi/src/discovery/mod.rs`
-- Modify: `crates/vox-populi/Cargo.toml`
-- Modify: `crates/vox-populi/src/lib.rs` (after line 393, alongside `pub mod quota;`)
+- [ ] **Step 1: Reproduce**
 
-**Interfaces:**
-- Consumes: nothing.
-- Produces: `NodeAnnouncement { node_id: String, fingerprint: String, port: u16, scope_id: Option<String> }`, `DiscoveredPeer { node_id: String, fingerprint: String, addr: IpAddr, port: u16, last_seen_unix_ms: u64, trusted: bool }`, `DiscoveryError`.
-
-- [ ] **Step 1: Add the dependency and feature**
-
-In `crates/vox-populi/Cargo.toml`, under `[features]` add:
-
-```toml
-# Zero-config LAN peer discovery over mDNS (no daemon, no account, no internet).
-discovery = ["dep:mdns-sd"]
+```bash
+cargo run -p vox-cli --features populi -- populi up --mode lan
 ```
 
-Under `[dependencies]` add:
+Then `curl http://127.0.0.1:9847/health`. Expected: connection refused, despite `up` printing "Populi started" and a pid.
 
-```toml
-mdns-sd = { version = "0.13", optional = true }
-```
-
-- [ ] **Step 2: Verify the dependency resolves and pin the API**
-
-Run: `cargo add --dry-run mdns-sd@0.13 -p vox-populi` then `cargo doc -p mdns-sd --no-deps --open`
-
-Confirm these exist: `ServiceDaemon::new`, `ServiceDaemon::register`, `ServiceDaemon::browse`, `ServiceInfo::new`, `ServiceEvent::ServiceResolved`, `ServiceEvent::ServiceRemoved`. If any signature differs from what Task 2 uses, adjust Task 2's code to match the real API rather than pinning an older version.
-
-Note: `mdns-sd` is not in the local cargo cache, so this first build needs network access.
-
-- [ ] **Step 3: Write the failing test**
-
-Create `crates/vox-populi/src/discovery/mod.rs`:
+- [ ] **Step 2: Write the failing test**
 
 ```rust
-//! Zero-config LAN peer discovery.
-//!
-//! Discovery is unauthenticated and grants nothing: an announcement carries no
-//! secret and a discovered peer is inert until explicitly trusted. See
-//! `docs/superpowers/specs/2026-09-04-populi-mesh-zero-config-discovery-design.md`.
-
-use std::net::IpAddr;
-
-/// What this node broadcasts about itself. Contains no secret.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NodeAnnouncement {
-    /// Stable node id (matches `NodeRecord.id`).
-    pub node_id: String,
-    /// Ed25519 public-key fingerprint, for out-of-band comparison by a human.
-    pub fingerprint: String,
-    /// Control-plane port this node is listening on.
-    pub port: u16,
-    /// Optional mesh scope; peers with a different scope are filtered out.
-    pub scope_id: Option<String>,
-}
-
-/// A peer seen on the local network. `trusted` is resolved at read time.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DiscoveredPeer {
-    pub node_id: String,
-    pub fingerprint: String,
-    pub addr: IpAddr,
-    pub port: u16,
-    pub last_seen_unix_ms: u64,
-    /// True when this peer's `node_id` is present in the local trust registry.
-    pub trusted: bool,
-}
-
-impl DiscoveredPeer {
-    /// Control-plane base URL for this peer.
-    pub fn control_url(&self) -> String {
-        match self.addr {
-            IpAddr::V6(v6) => format!("http://[{}]:{}", v6, self.port),
-            IpAddr::V4(v4) => format!("http://{}:{}", v4, self.port),
-        }
-    }
+/// Build the argv for the spawned `populi serve` child.
+///
+/// Extracted so the argument list is assertable without spawning anything —
+/// the omission of `--enable` silently produced a dead daemon.
+pub(crate) fn serve_child_args(bind: &str) -> Vec<String> {
+    vec![
+        "populi".to_string(),
+        "serve".to_string(),
+        "--enable".to_string(),
+        "--bind".to_string(),
+        bind.trim().to_string(),
+    ]
 }
 
 #[cfg(test)]
-mod tests {
+mod serve_args_tests {
     use super::*;
 
-    fn peer(addr: &str) -> DiscoveredPeer {
-        DiscoveredPeer {
-            node_id: "n1".into(),
-            fingerprint: "ab:cd".into(),
-            addr: addr.parse().unwrap(),
-            port: 9847,
-            last_seen_unix_ms: 0,
-            trusted: false,
-        }
+    #[test]
+    fn serve_child_is_passed_enable_or_it_exits_immediately() {
+        assert!(
+            serve_child_args("127.0.0.1:9847").contains(&"--enable".to_string()),
+            "`populi serve` bails without --enable (populi_cli.rs:850)"
+        );
     }
 
     #[test]
-    fn control_url_formats_ipv4_bare() {
-        assert_eq!(peer("192.168.1.5").control_url(), "http://192.168.1.5:9847");
-    }
-
-    #[test]
-    fn control_url_brackets_ipv6() {
-        assert_eq!(peer("fe80::1").control_url(), "http://[fe80::1]:9847");
+    fn bind_is_forwarded_verbatim_after_trimming() {
+        let a = serve_child_args("  192.168.1.9:7000 ");
+        assert_eq!(a[a.len() - 1], "192.168.1.9:7000");
     }
 }
 ```
 
-- [ ] **Step 4: Register the module**
+- [ ] **Step 3: Run to verify it fails**
 
-In `crates/vox-populi/src/lib.rs`, after the `pub mod quota;` line (~line 393):
+`cargo test -p vox-ml-cli --features populi serve_args_tests`
+Expected: FAIL — `serve_child_args` is not yet used by the spawn path (and the module does not exist).
+
+- [ ] **Step 4: Use it, and stop swallowing stderr**
 
 ```rust
-#[cfg(feature = "discovery")]
-pub mod discovery;
+let exe = std::env::current_exe().context("resolve current executable path")?;
+let log_path = mesh_dir.join("serve.log");
+let log = std::fs::File::create(&log_path)
+    .with_context(|| format!("create {}", log_path.display()))?;
+let mut child = std::process::Command::new(exe);
+child
+    .args(serve_child_args(&effective_bind))
+    .stdout(Stdio::null())
+    .stderr(Stdio::from(log));
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [ ] **Step 5: Add a post-spawn health gate**
 
-Run: `cargo test -p vox-populi --features discovery discovery:: -- --nocapture`
-Expected: PASS, 2 tests.
+Before printing "Populi started", poll `control_plane_health(&control_url)` for up to 5 seconds. On failure, print the tail of `serve.log` and return an error rather than writing `mesh-state.json`.
 
-The IPv6 bracket test is the one that matters — an unbracketed IPv6 URL is a
-silent connection failure that only shows up on IPv6-preferring networks.
+- [ ] **Step 6: Verify manually**
 
-- [ ] **Step 6: Commit**
+`vox populi up --mode lan`, then `curl http://127.0.0.1:9847/health` → success. Then `vox populi down`.
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add crates/vox-populi/Cargo.toml crates/vox-populi/src/lib.rs crates/vox-populi/src/discovery/mod.rs
-git commit -m "feat(populi): add discovery types behind a discovery feature"
+git add crates/vox-ml-cli/
+git commit -m "fix(populi): pass --enable so populi up actually starts the server"
 ```
 
----
+### Task 0.2: Fail-closed auth when the bind is not loopback
 
-## Task 2: mDNS announce and browse
+**Files:** Modify `crates/vox-plugin-populi-mesh/src/transport/{router.rs,auth.rs}`
 
-**Files:**
-- Create: `crates/vox-populi/src/discovery/mdns.rs`
-- Modify: `crates/vox-populi/src/discovery/mod.rs` (add `mod mdns; pub use mdns::DiscoveryHandle;`)
-
-**Interfaces:**
-- Consumes: `NodeAnnouncement`, `DiscoveredPeer` from Task 1.
-- Produces: `DiscoveryHandle::start(announce: NodeAnnouncement) -> Result<DiscoveryHandle, DiscoveryError>`, `DiscoveryHandle::peers(&self) -> Vec<DiscoveredPeer>`, `DiscoveryHandle::shutdown(self)`. `peers()` returns peers with `trusted: false` always — Task 3 adds trust resolution.
+The gate that makes every later task safe. See spec §5: with no auth material configured, `requires_bearer()` is false, every route gets `FullAccess`, and that is the only gate on `POST /v1/populi/worker/execute` — which writes posted bytes to the temp dir and executes them.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `crates/vox-populi/src/discovery/mdns.rs`:
-
 ```rust
-//! mDNS announce + browse. The only module that touches `mdns-sd`.
-
-use super::{DiscoveredPeer, NodeAnnouncement};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-
-/// DNS-SD service type for the Populi mesh. Trailing dot is required.
-pub(crate) const SERVICE_TYPE: &str = "_vox-mesh._tcp.local.";
-
-/// TXT record key for the ed25519 fingerprint.
-pub(crate) const TXT_FINGERPRINT: &str = "fp";
-/// TXT record key for the node id.
-pub(crate) const TXT_NODE_ID: &str = "nid";
-/// TXT record key for the optional mesh scope.
-pub(crate) const TXT_SCOPE: &str = "scope";
-
-/// Peers are dropped after this long without an announcement (3 missed).
-pub(crate) const STALE_AFTER_MS: u64 = 90_000;
-
-#[derive(Debug, thiserror::Error)]
-pub enum DiscoveryError {
-    #[error("mdns daemon: {0}")]
-    Daemon(String),
-}
-
-/// Decide whether a peer should still be listed, given the current clock.
+/// Whether an unauthenticated request may be granted `FullAccess`.
 ///
-/// Split out from the browse loop so staleness is testable without a network.
-pub(crate) fn is_fresh(last_seen_unix_ms: u64, now_unix_ms: u64) -> bool {
-    now_unix_ms.saturating_sub(last_seen_unix_ms) < STALE_AFTER_MS
-}
-
-/// Whether a discovered peer's scope matches ours. `None` on either side means
-/// "unscoped", which matches anything — a fresh install has no scope and must
-/// still find its neighbours.
-pub(crate) fn scope_matches(ours: Option<&str>, theirs: Option<&str>) -> bool {
-    match (ours, theirs) {
-        (Some(a), Some(b)) => a == b,
-        _ => true,
-    }
-}
-
-/// Live handle to the announce + browse tasks.
-pub struct DiscoveryHandle {
-    daemon: mdns_sd::ServiceDaemon,
-    peers: Arc<Mutex<HashMap<String, DiscoveredPeer>>>,
-    announce: NodeAnnouncement,
+/// Historically `!requires_bearer()` granted it unconditionally, which on a
+/// non-loopback bind exposes `/v1/populi/worker/execute` — a write-then-exec
+/// endpoint — to anyone who can reach the port. Absent credentials are only
+/// safe on loopback.
+#[must_use]
+pub fn open_access_permitted(requires_bearer: bool, bind_is_loopback: bool) -> bool {
+    !requires_bearer && bind_is_loopback
 }
 
 #[cfg(test)]
-mod tests {
+mod open_access_tests {
     use super::*;
 
     #[test]
-    fn fresh_peer_is_listed() {
-        assert!(is_fresh(1_000, 1_000 + STALE_AFTER_MS - 1));
+    fn no_auth_on_loopback_stays_open_for_single_machine_use() {
+        assert!(open_access_permitted(false, true));
     }
 
     #[test]
-    fn stale_peer_is_dropped() {
-        assert!(!is_fresh(1_000, 1_000 + STALE_AFTER_MS));
+    fn no_auth_off_loopback_is_denied() {
+        assert!(
+            !open_access_permitted(false, false),
+            "unauthenticated LAN access reaches worker/execute"
+        );
     }
 
     #[test]
-    fn clock_going_backwards_does_not_panic() {
-        // saturating_sub, not subtraction: a peer whose timestamp is ahead of
-        // our clock (NTP skew between machines) must not underflow.
-        assert!(is_fresh(9_000, 1_000));
-    }
-
-    #[test]
-    fn unscoped_matches_anything() {
-        assert!(scope_matches(None, Some("teamA")));
-        assert!(scope_matches(Some("teamA"), None));
-        assert!(scope_matches(None, None));
-    }
-
-    #[test]
-    fn different_scopes_do_not_match() {
-        assert!(!scope_matches(Some("teamA"), Some("teamB")));
+    fn configured_auth_never_takes_the_open_path() {
+        assert!(!open_access_permitted(true, true));
+        assert!(!open_access_permitted(true, false));
     }
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [ ] **Step 2: Run to verify it fails**
 
-Run: `cargo test -p vox-populi --features discovery discovery::mdns -- --nocapture`
-Expected: FAIL to compile — `DiscoveryHandle` has fields but no constructor, and `mod mdns;` is not yet declared.
+`cargo test -p vox-plugin-populi-mesh open_access_tests`
+Expected: FAIL — `open_access_permitted` not defined.
 
-- [ ] **Step 3: Declare the module**
+- [ ] **Step 3: Run to verify it passes** — implementation is in Step 1. PASS, 3 tests.
 
-In `crates/vox-populi/src/discovery/mod.rs`, below the imports:
+- [ ] **Step 4: Wire it into the middleware**
+
+`PopuliTransportState` records whether its listener is loopback at bind time. In `router.rs`, replace `if !runtime.requires_bearer()` with `if open_access_permitted(runtime.requires_bearer(), state.bind_is_loopback)`. When false and no valid bearer or node signature is presented, return `401` naming the fix (set `VOX_MESH_TOKEN`, or trust this node's key).
+
+- [ ] **Step 5: Wire the ed25519 trust verifier**
+
+`auth_ed25519::verify_against_trust` has zero non-test callers. Call it from the middleware's signature branch, so a signed request from a key in `TrustedNodeRegistry` authenticates without a bearer. This is the zero-config auth path, and it depends on Task 0.4's `lookup_by_pubkey_hex` fix.
+
+- [ ] **Step 6: Extend the signed payload to cover the body**
+
+The signature currently covers `path.ts.nonce` only, so it authenticates the sender but not the payload — an active MITM can swap the body of a signed `worker/execute`. Include a body hash.
+
+- [ ] **Step 7: Add the integration test that matters**
 
 ```rust
-mod mdns;
-pub use mdns::{DiscoveryError, DiscoveryHandle};
+#[tokio::test]
+async fn unauthenticated_worker_execute_is_refused_on_a_non_loopback_bind() {
+    let app = populi_http_app(state_bound_to("192.168.1.5:0"));
+    let res = post(&app, "/v1/populi/worker/execute", r#"{"source":"","is_bundle":false}"#).await;
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [ ] **Step 8: Commit**
 
-Run: `cargo test -p vox-populi --features discovery discovery::mdns -- --nocapture`
-Expected: PASS, 5 tests.
+```bash
+git commit -m "fix(populi): deny unauthenticated access on non-loopback binds"
+```
 
-- [ ] **Step 5: Implement announce and browse**
+### Task 0.3: `--insecure-local` refuses a non-loopback bind
 
-Append to `crates/vox-populi/src/discovery/mdns.rs`:
+**Files:** Modify `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:117-130`
+
+- [ ] **Step 1: Write the failing test**
 
 ```rust
-impl DiscoveryHandle {
-    /// Start announcing this node and browsing for peers.
-    ///
-    /// Returns `Err` only when the mDNS daemon cannot be created at all.
-    /// Callers must treat that as non-fatal: discovery is an enhancement.
-    pub fn start(announce: NodeAnnouncement) -> Result<Self, DiscoveryError> {
-        let daemon =
-            mdns_sd::ServiceDaemon::new().map_err(|e| DiscoveryError::Daemon(e.to_string()))?;
+/// `--insecure-local` disables the bearer requirement. Defensible on loopback;
+/// off-loopback it publishes an open control plane to the network.
+pub(crate) fn insecure_local_allowed(bind: &str) -> bool {
+    let b = bind.trim();
+    b.starts_with("127.") || b.starts_with("[::1]")
+}
 
-        let peers: Arc<Mutex<HashMap<String, DiscoveredPeer>>> =
-            Arc::new(Mutex::new(HashMap::new()));
+#[cfg(test)]
+mod insecure_tests {
+    use super::*;
+    #[test]
+    fn allowed_on_loopback() { assert!(insecure_local_allowed("127.0.0.1:9847")); }
+    #[test]
+    fn refused_on_a_lan_address() { assert!(!insecure_local_allowed("192.168.1.9:9847")); }
+    #[test]
+    fn refused_on_a_wildcard() { assert!(!insecure_local_allowed("0.0.0.0:9847")); }
+}
+```
 
-        let addr = super::bind::detect_lan_ip()
-            .unwrap_or_else(|| std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
+- [ ] **Step 2: Run to verify it fails, then passes**
 
-        let mut props = std::collections::HashMap::new();
-        props.insert(TXT_NODE_ID.to_string(), announce.node_id.clone());
-        props.insert(TXT_FINGERPRINT.to_string(), announce.fingerprint.clone());
-        if let Some(scope) = &announce.scope_id {
-            props.insert(TXT_SCOPE.to_string(), scope.clone());
-        }
+`cargo test -p vox-ml-cli --features populi insecure_tests`
 
-        let info = mdns_sd::ServiceInfo::new(
-            SERVICE_TYPE,
-            &announce.node_id,
-            &format!("{}.local.", announce.node_id),
-            addr,
-            announce.port,
-            props,
-        )
-        .map_err(|e| DiscoveryError::Daemon(e.to_string()))?;
+- [ ] **Step 3: Hard-fail in `up`**
 
-        daemon
-            .register(info)
-            .map_err(|e| DiscoveryError::Daemon(e.to_string()))?;
+When `--insecure-local` is set and `insecure_local_allowed(&effective_bind)` is false, `anyhow::bail!` naming the resolved bind.
 
-        let receiver = daemon
-            .browse(SERVICE_TYPE)
-            .map_err(|e| DiscoveryError::Daemon(e.to_string()))?;
+- [ ] **Step 4: Fix the inherited-env hole**
 
-        let peers_bg = Arc::clone(&peers);
-        let our_scope = announce.scope_id.clone();
-        let our_node_id = announce.node_id.clone();
-        std::thread::spawn(move || {
-            while let Ok(event) = receiver.recv() {
-                match event {
-                    mdns_sd::ServiceEvent::ServiceResolved(info) => {
-                        let props = info.get_properties();
-                        let node_id = match props.get_property_val_str(TXT_NODE_ID) {
-                            Some(v) if !v.is_empty() => v.to_string(),
-                            _ => continue,
-                        };
-                        // Never list ourselves.
-                        if node_id == our_node_id {
-                            continue;
-                        }
-                        let their_scope = props.get_property_val_str(TXT_SCOPE);
-                        if !scope_matches(our_scope.as_deref(), their_scope) {
-                            continue;
-                        }
-                        let Some(addr) = info.get_addresses().iter().next().copied() else {
-                            continue;
-                        };
-                        let peer = DiscoveredPeer {
-                            node_id: node_id.clone(),
-                            fingerprint: props
-                                .get_property_val_str(TXT_FINGERPRINT)
-                                .unwrap_or_default()
-                                .to_string(),
-                            addr,
-                            port: info.get_port(),
-                            last_seen_unix_ms: crate::wall_clock_unix_ms(),
-                            trusted: false,
-                        };
-                        if let Ok(mut map) = peers_bg.lock() {
-                            map.insert(node_id, peer);
-                        }
-                    }
-                    mdns_sd::ServiceEvent::ServiceRemoved(_ty, fullname) => {
-                        // fullname is `<instance>._vox-mesh._tcp.local.`; the
-                        // instance segment is the node id we registered under.
-                        let instance = fullname.split('.').next().unwrap_or_default().to_string();
-                        if let Ok(mut map) = peers_bg.lock() {
-                            map.remove(&instance);
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        });
+`env_map.remove("VOX_MESH_TOKEN")` only clears the map; `Command` inherits the parent environment, so an exported token survives and the flag is not honored either way. Add `.env_remove("VOX_MESH_TOKEN")` on the child.
 
-        Ok(Self {
-            daemon,
-            peers,
-            announce,
+- [ ] **Step 5: Commit**
+
+### Task 0.4: Three correctness fixes in the trust and bootstrap paths
+
+**Files:** `crates/vox-plugin-populi-mesh/src/transport/handlers/nodes.rs`, `crates/vox-identity/src/trust.rs`
+
+- [ ] **Step 1: Bootstrap token — compare before burning**
+
+`bootstrap_used.swap(true, SeqCst)` runs *before* the token comparison, so one unauthenticated malformed POST permanently consumes the one-shot window. Move the swap after `bearer_token_eq`.
+
+```rust
+#[tokio::test]
+async fn a_wrong_bootstrap_token_does_not_burn_the_window() {
+    let st = state_with_bootstrap("correct-token");
+    let _ = bootstrap_exchange(&st, "wrong-token").await;
+    assert!(bootstrap_exchange(&st, "correct-token").await.is_ok(),
+        "a failed attempt must not consume the one-shot window");
+}
+```
+
+- [ ] **Step 2: `lookup_by_pubkey_hex` must read disk**
+
+It searches only `self.cache`, always empty for a file-backed registry, so it always returns `None` — and it is what Task 0.2's verifier depends on.
+
+```rust
+pub fn lookup_by_pubkey_hex(&self, pubkey_hex: &str) -> Option<TrustedNode> {
+    if pubkey_hex.is_empty() {
+        return None; // an empty key must never match, including empty stored rows
+    }
+    if let Some(n) = self.cache.values().find(|n| n.pubkey_hex == pubkey_hex) {
+        return Some(n.clone());
+    }
+    self.load().ok()?.into_values().find(|n| n.pubkey_hex == pubkey_hex)
+}
+```
+
+- [ ] **Step 3: Add a file-backed constructor**
+
+`new_in_memory()` silently discards writes (`save()` returns `Ok(())` without storing), so every test using it asserts nothing about persistence — a trap for every task in this plan.
+
+```rust
+/// File-backed registry at an explicit path. Lets tests exercise real
+/// persistence; `new_in_memory()` discards writes silently.
+pub fn at(path: PathBuf) -> Self {
+    Self { path: Some(path), cache: HashMap::new() }
+}
+```
+
+- [ ] **Step 4: Test both against a real temp file**
+
+```rust
+#[test]
+fn lookup_by_pubkey_reads_the_file_not_just_the_cache() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("t.json");
+    TrustedNodeRegistry::at(path.clone()).add("n1".into(), "deadbeef".into(), None).unwrap();
+    // A fresh handle: cache is empty, so this can only pass by loading.
+    assert!(TrustedNodeRegistry::at(path).lookup_by_pubkey_hex("deadbeef").is_some());
+}
+
+#[test]
+fn an_empty_pubkey_never_matches() {
+    let dir = tempfile::tempdir().unwrap();
+    let reg = TrustedNodeRegistry::at(dir.path().join("t.json"));
+    reg.add("legacy".into(), String::new(), None).unwrap();
+    assert!(reg.lookup_by_pubkey_hex("").is_none());
+}
+```
+
+- [ ] **Step 5: Commit**
+
+---
+
+## Phase 1 — The ticket (T1), the universal path
+
+### Task 1.1: Ticket format
+
+**Files:** Create `crates/vox-populi/src/discovery/{mod.rs,ticket.rs}`; modify `crates/vox-populi/src/lib.rs`, `Cargo.toml`
+
+**Produces:** `Ticket { node_id, host, port, pubkey_hex }`, `Ticket::parse`, `Ticket::render`, `Ticket::control_url`, `node_id_for_pubkey`.
+
+No `mdns-sd` dependency — this tier has none.
+
+- [ ] **Step 1: Add the features**
+
+```toml
+# Peer pairing: tickets (always) and mDNS LAN discovery (with `discovery-mdns`).
+# Deliberately NOT part of `transport` — that gates HTTP machinery which is off
+# in every shipped binary, and pairing must work without it.
+discovery = []
+discovery-mdns = ["discovery", "dep:mdns-sd"]
+```
+
+Add `discovery` to `default`. Requirement 1 cannot be met by an opt-in feature.
+
+- [ ] **Step 2: Write the failing test**
+
+```rust
+//! `vox-mesh://` pairing tickets — the universal pairing path (spec §3.1).
+//!
+//! Works on every network, including managed Windows, guest Wi-Fi with client
+//! isolation, and across VLANs, where multicast discovery cannot.
+
+use std::fmt;
+
+/// A pairing ticket. Carries a *public* key: it is not a bearer secret.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Ticket {
+    pub node_id: String,
+    pub host: String,
+    pub port: u16,
+    pub pubkey_hex: String,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum TicketError {
+    Scheme,
+    Malformed,
+    BadKey,
+    /// The node id does not match the key. Tickets are self-verifying; this
+    /// means the ticket was altered or mistyped.
+    IdKeyMismatch,
+}
+
+impl fmt::Display for TicketError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Scheme => "not a vox-mesh:// ticket",
+            Self::Malformed => "malformed ticket (expected vox-mesh://<id>@<host>:<port>#<pubkey>)",
+            Self::BadKey => "public key must be 64 hex characters",
+            Self::IdKeyMismatch => "node id does not match the public key",
         })
     }
+}
 
-    /// Currently-visible peers, stale entries filtered out.
-    ///
-    /// `trusted` is always `false` here; Task 3's wrapper resolves it.
-    pub fn peers(&self) -> Vec<DiscoveredPeer> {
-        let now = crate::wall_clock_unix_ms();
-        let Ok(map) = self.peers.lock() else {
-            return Vec::new();
-        };
-        let mut out: Vec<DiscoveredPeer> = map
-            .values()
-            .filter(|p| is_fresh(p.last_seen_unix_ms, now))
-            .cloned()
-            .collect();
-        out.sort_by(|a, b| a.node_id.cmp(&b.node_id));
-        out
+/// Node id derived from a public key. MUST match `vox auth trust`'s derivation
+/// (crates/vox-cli/src/commands/auth.rs) or tickets produce untrustable rows.
+pub fn node_id_for_pubkey(pubkey_hex: &str) -> Option<String> {
+    let bytes = hex::decode(pubkey_hex).ok()?;
+    Some(hex::encode(&vox_crypto::facades::secure_hash(&bytes)[..8]))
+}
+
+impl Ticket {
+    pub fn parse(raw: &str) -> Result<Self, TicketError> {
+        let rest = raw.trim().strip_prefix("vox-mesh://").ok_or(TicketError::Scheme)?;
+        let (before_hash, pubkey_hex) = rest.rsplit_once('#').ok_or(TicketError::Malformed)?;
+        let (node_id, hostport) = before_hash.rsplit_once('@').ok_or(TicketError::Malformed)?;
+        let (host, port) = hostport.rsplit_once(':').ok_or(TicketError::Malformed)?;
+        let port: u16 = port.parse().map_err(|_| TicketError::Malformed)?;
+        if node_id.is_empty() || host.is_empty() {
+            return Err(TicketError::Malformed);
+        }
+        if pubkey_hex.len() != 64 || !pubkey_hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(TicketError::BadKey);
+        }
+        let pubkey_hex = pubkey_hex.to_ascii_lowercase();
+        if node_id_for_pubkey(&pubkey_hex).as_deref() != Some(node_id) {
+            return Err(TicketError::IdKeyMismatch);
+        }
+        Ok(Self { node_id: node_id.to_string(), host: host.to_string(), port, pubkey_hex })
     }
 
-    /// The announcement this handle is broadcasting.
-    pub fn announcement(&self) -> &NodeAnnouncement {
-        &self.announce
+    pub fn render(&self) -> String {
+        format!("vox-mesh://{}@{}:{}#{}", self.node_id, self.host, self.port, self.pubkey_hex)
     }
 
-    /// Unregister and stop. Sends a DNS-SD goodbye so peers drop us promptly
-    /// rather than waiting out the 90s stale window.
-    pub fn shutdown(self) {
-        let fullname = format!("{}.{}", self.announce.node_id, SERVICE_TYPE);
-        let _ = self.daemon.unregister(&fullname);
-        let _ = self.daemon.shutdown();
+    pub fn control_url(&self) -> String {
+        if self.host.contains(':') && !self.host.starts_with('[') {
+            format!("http://[{}]:{}", self.host, self.port)
+        } else {
+            format!("http://{}:{}", self.host, self.port)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A real key and its derived id, so a wrong derivation cannot round-trip
+    /// self-consistently.
+    fn valid() -> (String, String) {
+        let key = "a".repeat(64);
+        (node_id_for_pubkey(&key).unwrap(), key)
+    }
+
+    #[test]
+    fn round_trips() {
+        let (id, key) = valid();
+        let t = Ticket { node_id: id, host: "192.168.1.5".into(), port: 9847, pubkey_hex: key };
+        assert_eq!(Ticket::parse(&t.render()).unwrap(), t);
+    }
+
+    #[test]
+    fn rejects_an_id_that_does_not_match_the_key() {
+        let (_, key) = valid();
+        assert_eq!(
+            Ticket::parse(&format!("vox-mesh://deadbeefdeadbeef@1.2.3.4:9847#{key}")),
+            Err(TicketError::IdKeyMismatch)
+        );
+    }
+
+    #[test]
+    fn rejects_a_short_or_non_hex_key() {
+        let (id, _) = valid();
+        assert_eq!(Ticket::parse(&format!("vox-mesh://{id}@h:1#abcd")), Err(TicketError::BadKey));
+        assert_eq!(
+            Ticket::parse(&format!("vox-mesh://{id}@h:1#{}", "z".repeat(64))),
+            Err(TicketError::BadKey)
+        );
+    }
+
+    #[test]
+    fn rejects_other_schemes_and_junk() {
+        assert_eq!(Ticket::parse("https://example.com"), Err(TicketError::Scheme));
+        assert_eq!(Ticket::parse(""), Err(TicketError::Scheme));
+    }
+
+    #[test]
+    fn is_case_insensitive_about_the_key() {
+        let (id, key) = valid();
+        let upper = key.to_ascii_uppercase();
+        assert_eq!(
+            Ticket::parse(&format!("vox-mesh://{id}@h:1#{upper}")).unwrap().pubkey_hex,
+            key
+        );
+    }
+
+    #[test]
+    fn brackets_an_ipv6_host_in_the_control_url() {
+        let (id, key) = valid();
+        let t = Ticket { node_id: id, host: "fd00::1".into(), port: 9847, pubkey_hex: key };
+        assert_eq!(t.control_url(), "http://[fd00::1]:9847");
     }
 }
 ```
 
-- [ ] **Step 6: Run the full module tests**
+- [ ] **Step 3: Declare the modules**
 
-Run: `cargo test -p vox-populi --features discovery discovery -- --nocapture`
-Expected: PASS. Fix any `mdns-sd` API mismatches against the real 0.13 docs from Task 1 Step 2.
+`discovery/mod.rs`: `pub mod ticket; pub use ticket::{Ticket, TicketError};`
+`lib.rs`, after `pub mod quota;`: `#[cfg(feature = "discovery")] pub mod discovery;`
 
-- [ ] **Step 7: Format, clippy, commit**
+- [ ] **Step 4: Run to verify PASS**
 
-```bash
-cargo fmt -p vox-populi
-cargo clippy -p vox-populi --features discovery --all-targets -- -D warnings
-git add crates/vox-populi/src/discovery/
-git commit -m "feat(populi): announce and browse mesh peers over mDNS"
-```
+`cargo test -p vox-populi --features discovery discovery::ticket` — 6 tests.
+**Confirm `node_id_for_pubkey` matches `vox auth trust`'s derivation** at `crates/vox-cli/src/commands/auth.rs:126`. A mismatch silently produces rows nothing can look up.
 
----
+- [ ] **Step 5: Commit**
 
-## Task 3: Tier-aware bind resolution
+### Task 1.2: `vox mesh ticket` and `vox auth trust <ticket>`
 
-**Files:**
-- Create: `crates/vox-populi/src/discovery/bind.rs`
-- Modify: `crates/vox-populi/src/discovery/mod.rs` (add `pub mod bind;`)
-
-**Interfaces:**
-- Consumes: nothing.
-- Produces: `bind::detect_lan_ip() -> Option<IpAddr>`, `bind::BindTier` enum, `bind::resolve_bind(tier: BindTier, explicit: Option<&str>, port: u16) -> String`.
-
-`detect_lan_ip` is defactored from `crates/vox-cli-share/src/backends/lan.rs:54` (15 lines) rather than taking a crate edge to `vox-cli-share`, per `AGENTS.md` §Dependency Discipline rule 3.
+**Files:** Modify `crates/vox-cli/src/commands/auth.rs`; add the ticket command.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `crates/vox-populi/src/discovery/bind.rs`:
+```rust
+/// Accept either a raw 64-hex pubkey (existing behaviour) or a full ticket.
+pub(crate) enum TrustInput {
+    Pubkey(String),
+    Ticket(Box<vox_populi::discovery::Ticket>),
+}
+
+pub(crate) fn parse_trust_input(raw: &str) -> anyhow::Result<TrustInput> { /* … */ }
+
+#[cfg(test)]
+mod trust_input_tests {
+    use super::*;
+    use vox_populi::discovery::ticket::node_id_for_pubkey;
+
+    #[test]
+    fn accepts_a_bare_pubkey_as_before() {
+        assert!(matches!(parse_trust_input(&"a".repeat(64)).unwrap(), TrustInput::Pubkey(_)));
+    }
+
+    #[test]
+    fn accepts_a_ticket() {
+        let key = "a".repeat(64);
+        let id = node_id_for_pubkey(&key).unwrap();
+        let t = format!("vox-mesh://{id}@192.168.1.5:9847#{key}");
+        assert!(matches!(parse_trust_input(&t).unwrap(), TrustInput::Ticket(_)));
+    }
+
+    #[test]
+    fn a_tampered_ticket_is_rejected_with_a_useful_message() {
+        let key = "a".repeat(64);
+        let e = parse_trust_input(&format!("vox-mesh://wrongid@h:1#{key}")).unwrap_err();
+        assert!(e.to_string().contains("does not match"));
+    }
+}
+```
+
+- [ ] **Step 2: Run to verify it fails, then implement and pass**
+
+`cargo test -p vox-cli trust_input_tests`
+
+- [ ] **Step 3: Print this node's ticket**
+
+Add `vox mesh ticket [--json] [--host <h>]`, rendering from the local identity's pubkey, `detect_lan_ip()` (Task 2.1) or `--host`, and the configured port. With no routable address, print loopback and say so — still correct for a same-machine test.
+
+- [ ] **Step 4: Regenerate the CLI surface SSOT**
+
+```bash
+cargo run -p vox-cli -- ci command-sync
+```
+
+A **new subcommand does** drift `cli-command-surface.generated.md`, unlike Task 3.1's deprecation.
+
+- [ ] **Step 5: Commit**
+
+### Task 1.3: End-to-end trust over a ticket
+
+**Files:** Create `crates/vox-populi/tests/ticket_pairing.rs`
+
+- [ ] **Step 1: Write the integration test**
 
 ```rust
-//! Tier-aware control-plane bind resolution.
-//!
-//! The mesh binds exactly one interface, chosen by the active transport tier.
-//! `0.0.0.0` is never synthesized: a wildcard bind would expose the control
-//! plane on every interface, including untrusted networks.
+#[tokio::test]
+async fn a_ticket_pairs_two_nodes_and_an_untrusted_peer_is_refused() {
+    let (a, b) = two_nodes().await;
+    // Before pairing, B cannot dispatch to A.
+    assert_eq!(
+        b.dispatch_to(&a, "probe").await.unwrap_err().status(),
+        StatusCode::UNAUTHORIZED
+    );
+    a.trust(Ticket::parse(&b.ticket()).unwrap());
+    b.trust(Ticket::parse(&a.ticket()).unwrap());
+    assert!(b.dispatch_to(&a, "probe").await.is_ok());
+}
+```
+
+This is the test the whole design exists to make pass. It must fail before Task 0.2 and pass after this task. Replaces `crates/vox-populi/tests/pairing_e2e.rs`, currently a one-line placeholder comment.
+
+- [ ] **Step 2: Commit**
+
+---
+
+## Phase 2 — mDNS LAN discovery (T2), the convenience layer
+
+### Task 2.1: Bind resolution
+
+**Files:** Create `crates/vox-populi/src/discovery/bind.rs`
+
+Created **before** the mDNS module that calls into it. (Revision 1 had this backwards and was non-executable.)
+
+- [ ] **Step 1: Write the failing test**
+
+```rust
+//! Tier-aware bind resolution. `0.0.0.0` is never synthesized.
 
 use std::net::{IpAddr, Ipv4Addr};
 
-/// Which transport tier is active. Determines which interface to bind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BindTier {
-    /// T0 — single node, loopback only.
-    Loopback,
-    /// T1 — LAN peers over mDNS; bind the routable LAN address.
-    Lan,
-    /// T3 — an overlay (Tailscale, Nebula, …); bind the overlay address.
-    Overlay(IpAddr),
-}
+pub enum BindTier { Loopback, Lan, Overlay(IpAddr) }
 
-/// Best-effort discovery of a routable LAN IPv4 address.
+/// Whether an address is safe to bind and advertise on the LAN tier.
 ///
-/// Opens a UDP socket toward a public IP; the OS picks a routable local address
-/// as the source without sending any packets.
-///
-// vox:defactored-from vox-cli-share 2026-09-04
-pub fn detect_lan_ip() -> Option<IpAddr> {
-    let sock = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
-    sock.connect("8.8.8.8:80").ok()?;
-    let ip = sock.local_addr().ok()?.ip();
-    if ip.is_unspecified() || ip.is_loopback() {
-        None
-    } else {
-        Some(ip)
+/// `detect_lan_ip` is a *default-route* probe, not a LAN probe: on a
+/// directly-attached host it returns the PUBLIC address. Binding that by
+/// default would publish the control plane to the internet.
+pub fn is_advertisable(ip: IpAddr) -> bool {
+    if ip.is_loopback() || ip.is_unspecified() || ip.is_multicast() {
+        return false;
+    }
+    match ip {
+        IpAddr::V4(v4) => {
+            let o = v4.octets();
+            v4.is_private() || v4.is_link_local() || (o[0] == 100 && (64..128).contains(&o[1]))
+        }
+        IpAddr::V6(v6) => {
+            let s = v6.segments()[0];
+            (s & 0xfe00) == 0xfc00 || (s & 0xffc0) == 0xfe80
+        }
     }
 }
 
-/// Resolve the `host:port` string the control plane should bind.
-///
-/// An explicit operator-supplied bind always wins. Otherwise the tier decides,
-/// falling back to loopback when a tier's address cannot be determined —
-/// binding loopback is always safe, whereas guessing a wider interface is not.
+// vox:defactored-from vox-cli-share 2026-09-04
+pub fn detect_lan_ip() -> Option<IpAddr> {
+    let sock = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+    sock.connect("8.8.8.8:80").ok()?; // no packet is sent; air-gap safe
+    let ip = sock.local_addr().ok()?.ip();
+    is_advertisable(ip).then_some(ip)
+}
+
 pub fn resolve_bind(tier: BindTier, explicit: Option<&str>, port: u16) -> String {
     if let Some(e) = explicit {
         let e = e.trim();
@@ -530,6 +640,28 @@ mod tests {
     use super::*;
 
     #[test]
+    fn public_addresses_are_never_advertisable() {
+        // The bug this predicate exists to prevent: a VPS binding its public IP.
+        for public in ["8.8.8.8", "203.0.113.7", "2606:4700::1111"] {
+            assert!(!is_advertisable(public.parse().unwrap()), "{public} must not be advertised");
+        }
+    }
+
+    #[test]
+    fn private_link_local_and_cgnat_are_advertisable() {
+        for ok in ["192.168.1.5", "10.0.0.5", "172.16.0.1", "169.254.1.1", "100.107.222.96", "fd00::1"] {
+            assert!(is_advertisable(ok.parse().unwrap()), "{ok} must be advertisable");
+        }
+    }
+
+    #[test]
+    fn useless_addresses_are_rejected() {
+        for bad in ["127.0.0.1", "0.0.0.0", "::1", "::", "224.0.0.251"] {
+            assert!(!is_advertisable(bad.parse().unwrap()), "{bad}");
+        }
+    }
+
+    #[test]
     fn loopback_tier_binds_loopback() {
         assert_eq!(resolve_bind(BindTier::Loopback, None, 9847), "127.0.0.1:9847");
     }
@@ -537,806 +669,446 @@ mod tests {
     #[test]
     fn overlay_tier_binds_the_overlay_address() {
         let ip: IpAddr = "100.107.222.96".parse().unwrap();
-        assert_eq!(
-            resolve_bind(BindTier::Overlay(ip), None, 9847),
-            "100.107.222.96:9847"
-        );
+        assert_eq!(resolve_bind(BindTier::Overlay(ip), None, 9847), "100.107.222.96:9847");
     }
 
     #[test]
-    fn explicit_bind_always_wins() {
+    fn explicit_bind_wins_and_blank_falls_through() {
         let ip: IpAddr = "100.64.0.1".parse().unwrap();
-        assert_eq!(
-            resolve_bind(BindTier::Overlay(ip), Some("192.168.1.9:1234"), 9847),
-            "192.168.1.9:1234"
-        );
+        assert_eq!(resolve_bind(BindTier::Overlay(ip), Some("192.168.1.9:1234"), 9847), "192.168.1.9:1234");
+        assert_eq!(resolve_bind(BindTier::Loopback, Some("  "), 9847), "127.0.0.1:9847");
     }
 
     #[test]
-    fn blank_explicit_bind_falls_through_to_tier() {
-        assert_eq!(resolve_bind(BindTier::Loopback, Some("   "), 9847), "127.0.0.1:9847");
-    }
-
-    #[test]
-    fn ipv6_overlay_is_bracketed() {
+    fn ipv6_is_bracketed() {
         let ip: IpAddr = "fd7a:115c:a1e0::1".parse().unwrap();
-        assert_eq!(
-            resolve_bind(BindTier::Overlay(ip), None, 9847),
-            "[fd7a:115c:a1e0::1]:9847"
-        );
+        assert_eq!(resolve_bind(BindTier::Overlay(ip), None, 9847), "[fd7a:115c:a1e0::1]:9847");
     }
 
     #[test]
-    fn wildcard_is_never_synthesized() {
-        // The whole point of the tier model: no tier may produce 0.0.0.0.
-        for tier in [
-            BindTier::Loopback,
-            BindTier::Lan,
-            BindTier::Overlay("10.0.0.5".parse().unwrap()),
-        ] {
-            let bound = resolve_bind(tier, None, 9847);
-            assert!(!bound.starts_with("0.0.0.0"), "tier {tier:?} produced {bound}");
-            assert!(!bound.starts_with("[::]"), "tier {tier:?} produced {bound}");
-        }
-    }
-
-    #[test]
-    fn detect_lan_ip_never_returns_loopback_or_unspecified() {
-        // May be None in a sandbox with no route; must never be a useless address.
-        if let Some(ip) = detect_lan_ip() {
-            assert!(!ip.is_loopback());
-            assert!(!ip.is_unspecified());
+    fn no_tier_ever_synthesizes_a_wildcard() {
+        for tier in [BindTier::Loopback, BindTier::Lan, BindTier::Overlay("10.0.0.5".parse().unwrap())] {
+            let b = resolve_bind(tier, None, 9847);
+            assert!(!b.starts_with("0.0.0.0") && !b.starts_with("[::]"), "{tier:?} -> {b}");
         }
     }
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [ ] **Step 2: Declare `pub mod bind;`, run, verify PASS (8 tests)**
 
-Run: `cargo test -p vox-populi --features discovery discovery::bind -- --nocapture`
-Expected: FAIL to compile — `pub mod bind;` not declared.
+`cargo test -p vox-populi --features discovery discovery::bind`
 
-- [ ] **Step 3: Declare the module**
+- [ ] **Step 3: Commit**
 
-In `crates/vox-populi/src/discovery/mod.rs`:
+### Task 2.2: mDNS announce and browse
 
-```rust
-pub mod bind;
+**Files:** Create `crates/vox-populi/src/discovery/mdns.rs`
+
+**Produces:** `DiscoveredPeer { node_id, pubkey_hex, fingerprint, addr, port, last_seen_unix_ms, trusted }`, `NodeAnnouncement`, `DiscoveryHandle::{start, browse_only, peers, shutdown}`, `PeerMap`, `scope_matches`, `pick_addr`.
+
+Seven corrections, each a real defect in revision 1:
+
+1. **No staleness clock.** `ServiceResolved` fires **once per instance**, not per announcement, so a self-managed 90s window empties the list permanently. `mdns-sd` owns liveness and emits `ServiceRemoved` on TTL expiry and goodbye. Online-vs-offline comes from the control-plane health check.
+2. **Key the map by DNS-SD fullname**, not the announced `node_id`, so an impostor cannot silently replace a real peer.
+3. **Announce the pubkey**, not only a fingerprint — trust must bind to key material.
+4. **`shutdown(&self)`**, not `self`: the production handle lives in a `OnceLock` and cannot be moved out.
+5. **Select the address by family**, rejecting link-local IPv6 (no scope id available) and loopback.
+6. **Do not announce without a routable address** — publishing `127.0.0.1` gives every peer an entry that health-checks green against its own loopback.
+7. **Cap the map at 256** with oldest-eviction; the key is attacker-chosen.
+
+- [ ] **Step 1: Pin the crate and confirm the API**
+
+```toml
+mdns-sd = { version = "=0.20", optional = true } # pinned: 20 breaking releases in 78; 0.15 changed ServiceResolved's payload
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+Confirm against the pinned docs: `ServiceInfo::new` (six args), `get_property_val_str() -> Option<&str>`, `get_addresses() -> &HashSet<IpAddr>`, `ServiceEvent` shapes, `unregister`/`shutdown` on `&self`. **0.20's `ServiceResolved` carries `ResolvedService`, not `ServiceInfo`** — adapt the browse arm to the real type rather than downgrading.
 
-Run: `cargo test -p vox-populi --features discovery discovery::bind -- --nocapture`
-Expected: PASS, 7 tests.
-
-- [ ] **Step 5: Commit**
-
-```bash
-cargo fmt -p vox-populi
-git add crates/vox-populi/src/discovery/
-git commit -m "feat(populi): tier-aware bind resolution that never binds a wildcard"
-```
-
----
-
-## Task 4: Trust resolution for discovered peers
-
-**Files:**
-- Modify: `crates/vox-populi/src/discovery/mod.rs`
-
-**Interfaces:**
-- Consumes: `DiscoveredPeer` (Task 1), `DiscoveryHandle::peers()` (Task 2), `vox_identity::TrustedNodeRegistry`.
-- Produces: `resolve_trust(peers: Vec<DiscoveredPeer>, reg: &TrustedNodeRegistry) -> Vec<DiscoveredPeer>`, `DiscoveryHandle::peers_with_trust(&self) -> Vec<DiscoveredPeer>`.
-
-- [ ] **Step 1: Write the failing test**
-
-Append to `crates/vox-populi/src/discovery/mod.rs`, above the existing `mod tests`:
+- [ ] **Step 2: Write the failing tests (pure logic only — no network in CI)**
 
 ```rust
-use vox_identity::TrustedNodeRegistry;
-
-/// Stamp each peer's `trusted` flag from the local trust registry.
+/// Whether a peer's scope matches ours.
 ///
-/// Discovery grants nothing; this is the only place a discovered peer becomes
-/// trusted, and it reads a store the user controls. A registry read error
-/// yields `trusted: false` for every peer — failing closed, because treating an
-/// unreadable registry as "everyone is trusted" would be a security defect.
-pub fn resolve_trust(
-    peers: Vec<DiscoveredPeer>,
-    reg: &TrustedNodeRegistry,
-) -> Vec<DiscoveredPeer> {
-    peers
-        .into_iter()
-        .map(|mut p| {
-            p.trusted = reg.is_trusted(&p.node_id).unwrap_or(false);
-            p
-        })
-        .collect()
-}
-```
-
-And add these tests inside the existing `mod tests`:
-
-```rust
-    #[test]
-    fn untrusted_peer_stays_untrusted() {
-        let reg = TrustedNodeRegistry::new_in_memory();
-        let out = resolve_trust(vec![peer("192.168.1.5")], &reg);
-        assert!(!out[0].trusted);
-    }
-
-    #[test]
-    fn trusted_peer_is_marked_trusted() {
-        let mut reg = TrustedNodeRegistry::new_in_memory();
-        reg.upsert("n1", "deadbeef");
-        let out = resolve_trust(vec![peer("192.168.1.5")], &reg);
-        assert!(out[0].trusted);
-    }
-
-    #[test]
-    fn trust_is_per_node_id_not_blanket() {
-        let mut reg = TrustedNodeRegistry::new_in_memory();
-        reg.upsert("someone-else", "deadbeef");
-        let out = resolve_trust(vec![peer("192.168.1.5")], &reg);
-        assert!(!out[0].trusted, "trusting one node must not trust another");
-    }
-```
-
-- [ ] **Step 2: Run the tests to verify they fail**
-
-Run: `cargo test -p vox-populi --features discovery discovery::tests -- --nocapture`
-Expected: FAIL — `resolve_trust` not found, or `vox_identity` not imported.
-
-- [ ] **Step 3: Add the handle convenience method**
-
-In `crates/vox-populi/src/discovery/mdns.rs`, inside `impl DiscoveryHandle`:
-
-```rust
-    /// Peers with `trusted` resolved against the file-backed trust registry.
-    ///
-    /// This is what callers outside this module should use.
-    pub fn peers_with_trust(&self) -> Vec<DiscoveredPeer> {
-        let reg = vox_identity::TrustedNodeRegistry::new();
-        super::resolve_trust(self.peers(), &reg)
-    }
-```
-
-- [ ] **Step 4: Run the tests to verify they pass**
-
-Run: `cargo test -p vox-populi --features discovery discovery -- --nocapture`
-Expected: PASS, 15 tests total across the three discovery modules.
-
-- [ ] **Step 5: Commit**
-
-```bash
-cargo fmt -p vox-populi
-cargo clippy -p vox-populi --features discovery --all-targets -- -D warnings
-git add crates/vox-populi/src/discovery/
-git commit -m "feat(populi): resolve discovered-peer trust against the local registry"
-```
-
----
-
-## Task 5: Overlay probing extracted and fixed
-
-**Files:**
-- Create: `crates/vox-ml-cli/src/commands/populi_overlay.rs`
-- Modify: `crates/vox-ml-cli/src/commands/mod.rs` (add `pub mod populi_overlay;`)
-- Modify: `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:378-513` (delete the moved functions)
-
-Fixes spec Defect B (binary not on `PATH` on Windows) and Defect B2 (exit-code probe conflates installed with connected).
-
-**Interfaces:**
-- Consumes: nothing.
-- Produces: `resolve_tailscale_binary() -> Option<PathBuf>`, `TailnetStatus { self_ip: Option<IpAddr>, running: bool }`, `parse_tailnet_status(json: &str) -> Option<TailnetStatus>`, `tailnet_status() -> Option<TailnetStatus>`.
-
-- [ ] **Step 1: Write the failing test**
-
-Create `crates/vox-ml-cli/src/commands/populi_overlay.rs`:
-
-```rust
-//! Tailscale overlay probing (transport tier T3).
-//!
-//! Extracted from `populi_lifecycle.rs`. Two defects fixed here:
-//! the Windows installer does not put `tailscale` on `PATH`, and
-//! `tailscale status`'s exit code does not distinguish "installed but logged
-//! out" from "connected".
-
-use std::net::IpAddr;
-use std::path::PathBuf;
-
-/// What we need to know about the local tailnet node.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TailnetStatus {
-    /// This node's overlay IPv4, when it has one.
-    pub self_ip: Option<IpAddr>,
-    /// True only when the backend is actually connected.
-    pub running: bool,
-}
-
-/// Locate the tailscale CLI. `PATH` first, then per-platform install locations.
-///
-/// The Windows installer does not modify `PATH`, so a `PATH`-only probe reports
-/// "not installed" on a machine where Tailscale is installed and connected.
-pub fn resolve_tailscale_binary() -> Option<PathBuf> {
-    for candidate in [
-        "tailscale",
-        r"C:\Program Files\Tailscale\tailscale.exe",
-        "/Applications/Tailscale.app/Contents/MacOS/Tailscale",
-        "/usr/bin/tailscale",
-        "/usr/local/bin/tailscale",
-        "/opt/homebrew/bin/tailscale",
-    ] {
-        let ok = std::process::Command::new(candidate)
-            .arg("version")
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .is_ok_and(|s| s.success());
-        if ok {
-            return Some(PathBuf::from(candidate));
-        }
-    }
-    None
-}
-
-/// Parse `tailscale status --json`.
-///
-/// Every field is optional: this schema carries no stability guarantee, so any
-/// shape change must degrade to "no overlay" rather than fail the mesh.
-pub fn parse_tailnet_status(json: &str) -> Option<TailnetStatus> {
-    let v: serde_json::Value = serde_json::from_str(json).ok()?;
-    let running = v
-        .get("BackendState")
-        .and_then(|s| s.as_str())
-        .is_some_and(|s| s == "Running");
-    let self_ip = v
-        .get("Self")
-        .and_then(|s| s.get("TailscaleIPs"))
-        .and_then(|ips| ips.as_array())
-        .and_then(|arr| {
-            arr.iter()
-                .filter_map(|i| i.as_str())
-                .filter_map(|s| s.parse::<IpAddr>().ok())
-                .find(|ip| ip.is_ipv4())
-        });
-    Some(TailnetStatus { self_ip, running })
-}
-
-/// Probe the live tailnet, or `None` when tailscale is absent or unreadable.
-pub fn tailnet_status() -> Option<TailnetStatus> {
-    let bin = resolve_tailscale_binary()?;
-    let out = std::process::Command::new(bin)
-        .args(["status", "--json"])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    parse_tailnet_status(&String::from_utf8_lossy(out.stdout.as_slice()))
+/// Fail *closed*: a scoped node must not accept a peer that omits its scope,
+/// or an attacker bypasses the filter by simply not setting the TXT key.
+pub(crate) fn scope_matches(ours: Option<&str>, theirs: Option<&str>) -> bool {
+    match ours { Some(a) => theirs == Some(a), None => true }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// Captured from a real `tailscale status --json` on a connected host,
-    /// trimmed to the fields this module reads.
-    const CONNECTED: &str = r#"{
-        "BackendState": "Running",
-        "CurrentTailnet": {"Name":"user@example.com","MagicDNSSuffix":"tail4f69a0.ts.net"},
-        "Self": {"HostName":"BLAPTOP04","TailscaleIPs":["100.107.222.96","fd7a:115c:a1e0::6e39:de61"],"Online":true}
-    }"#;
-
-    const LOGGED_OUT: &str = r#"{"BackendState":"NeedsLogin","Self":null}"#;
-
     #[test]
-    fn parses_connected_status() {
-        let s = parse_tailnet_status(CONNECTED).unwrap();
-        assert!(s.running);
-        assert_eq!(s.self_ip, Some("100.107.222.96".parse().unwrap()));
+    fn a_scoped_node_rejects_a_peer_that_omits_its_scope() {
+        assert!(!scope_matches(Some("teamA"), None), "omitting scope must not bypass the filter");
     }
 
     #[test]
-    fn prefers_ipv4_over_ipv6() {
-        // TailscaleIPs lists v4 first, but order is not guaranteed; we must
-        // select by family, not by position.
-        let s = parse_tailnet_status(CONNECTED).unwrap();
-        assert!(s.self_ip.unwrap().is_ipv4());
+    fn a_scoped_node_rejects_a_different_scope() {
+        assert!(!scope_matches(Some("teamA"), Some("teamB")));
     }
 
     #[test]
-    fn logged_out_is_not_running() {
-        let s = parse_tailnet_status(LOGGED_OUT).unwrap();
-        assert!(!s.running, "NeedsLogin must not count as connected");
-        assert_eq!(s.self_ip, None);
+    fn an_unscoped_node_lists_everyone() {
+        assert!(scope_matches(None, Some("teamA")));
+        assert!(scope_matches(None, None));
     }
 
     #[test]
-    fn malformed_json_yields_none_not_panic() {
-        assert!(parse_tailnet_status("").is_none());
-        assert!(parse_tailnet_status("{").is_none());
-        assert!(parse_tailnet_status("[]").is_some_and(|s| !s.running));
+    fn two_peers_claiming_one_node_id_are_both_listed() {
+        let mut m = PeerMap::default();
+        m.observe("inst-a._vox-mesh._tcp.local.", peer("n1", "aaaa", "192.168.1.5"));
+        m.observe("inst-b._vox-mesh._tcp.local.", peer("n1", "bbbb", "192.168.1.99"));
+        assert_eq!(m.list().len(), 2, "an impostor must not replace the real peer");
     }
 
     #[test]
-    fn unknown_shape_degrades_to_not_running() {
-        // Upstream renames a field: we must report "no overlay", not crash.
-        let s = parse_tailnet_status(r#"{"Backend":"Running"}"#).unwrap();
-        assert!(!s.running);
-        assert_eq!(s.self_ip, None);
-    }
-}
-```
-
-- [ ] **Step 2: Run the tests to verify they fail**
-
-Run: `cargo test -p vox-ml-cli populi_overlay -- --nocapture`
-Expected: FAIL to compile — module not declared.
-
-- [ ] **Step 3: Declare the module**
-
-In `crates/vox-ml-cli/src/commands/mod.rs`, alphabetically among the other `populi_*` declarations:
-
-```rust
-pub mod populi_overlay;
-```
-
-- [ ] **Step 4: Run the tests to verify they pass**
-
-Run: `cargo test -p vox-ml-cli populi_overlay -- --nocapture`
-Expected: PASS, 5 tests.
-
-- [ ] **Step 5: Delete the superseded functions**
-
-In `crates/vox-ml-cli/src/commands/populi_lifecycle.rs`, delete `overlay_diag_tailscale` (line ~426) and `tailscale_ip` (line ~497). Rewrite `overlay_diag_tailscale`'s replacement in terms of the new module — add to `populi_overlay.rs`:
-
-```rust
-/// Human-readable availability line for `vox populi status`.
-pub fn tailscale_diagnostic_detail() -> (bool, bool, String) {
-    match (resolve_tailscale_binary(), tailnet_status()) {
-        (None, _) => (false, false, "tailscale command not found".to_string()),
-        (Some(_), Some(s)) if s.running => (true, true, "tailscale reachable".to_string()),
-        (Some(_), _) => (
-            true,
-            false,
-            "tailscale installed but not connected".to_string(),
-        ),
-    }
-}
-```
-
-Then in `populi_lifecycle.rs`, replace the body of the deleted `overlay_diag_tailscale` call site:
-
-```rust
-fn overlay_diag_tailscale() -> OverlayDiagnostics {
-    let (available, connected, detail) =
-        crate::commands::populi_overlay::tailscale_diagnostic_detail();
-    OverlayDiagnostics {
-        provider: "tailscale".to_string(),
-        available,
-        connected,
-        detail,
-    }
-}
-```
-
-And replace `overlay_control_url`'s Tailscale arm (line ~408) to use the new probe:
-
-```rust
-        Some(OverlayProvider::Tailscale) => {
-            match crate::commands::populi_overlay::tailnet_status() {
-                Some(s) if s.running => match s.self_ip {
-                    Some(ip) => format!("http://{ip}:{port}"),
-                    None => format!("http://127.0.0.1:{port}"),
-                },
-                _ => format!("http://127.0.0.1:{port}"),
-            }
+    fn the_peer_map_is_capped_against_a_flooding_neighbour() {
+        let mut m = PeerMap::default();
+        for i in 0..1000 {
+            m.observe(&format!("i{i}._vox-mesh._tcp.local."), peer(&format!("n{i}"), "aa", "192.168.1.5"));
         }
+        assert!(m.list().len() <= 256);
+    }
+
+    #[test]
+    fn a_routable_ipv4_is_preferred_over_link_local_ipv6() {
+        let addrs = ["fe80::1".parse().unwrap(), "192.168.1.5".parse().unwrap()].into_iter().collect();
+        assert_eq!(pick_addr(&addrs).unwrap().to_string(), "192.168.1.5");
+    }
+
+    #[test]
+    fn link_local_ipv6_alone_yields_no_address() {
+        // No scope id is available, so http://[fe80::1] is unroutable.
+        let addrs = ["fe80::1".parse().unwrap()].into_iter().collect();
+        assert!(pick_addr(&addrs).is_none());
+    }
+}
 ```
 
-- [ ] **Step 6: Run the crate tests**
+- [ ] **Step 3: Run to verify they fail, implement, verify PASS (7 tests)**
 
-Run: `cargo test -p vox-ml-cli populi -- --nocapture`
-Expected: PASS. No test may now reference `tailscale_ip`.
+- [ ] **Step 4: Add the round-trip test, ignored by default**
 
-- [ ] **Step 7: Commit**
+`#[ignore]` test that registers a service and browses for it, asserting the TXT pubkey survives. Run it in Phase 5, not CI — multicast in CI containers is unreliable.
 
-```bash
-cargo fmt -p vox-ml-cli
-cargo clippy -p vox-ml-cli --all-targets -- -D warnings
-git add crates/vox-ml-cli/src/commands/
-git commit -m "fix(populi): detect tailscale off PATH and distinguish connected from installed"
-```
+- [ ] **Step 5: Commit**
 
----
+### Task 2.3: Trust resolution, batched and pubkey-bound
 
-## Task 6: Fix the overlay bind defect
-
-**Files:**
-- Modify: `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:143-150` and `:175-183`
-
-Fixes spec Defect A. This is the change that makes the mesh reachable at all.
-
-**Interfaces:**
-- Consumes: `vox_populi::discovery::bind::{BindTier, resolve_bind}` (Task 3), `populi_overlay::tailnet_status` (Task 5).
-- Produces: nothing new.
+**Files:** Modify `crates/vox-populi/src/discovery/mod.rs`
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `crates/vox-ml-cli/src/commands/populi_lifecycle.rs`, in its `#[cfg(test)] mod tests` (create the module at the end of the file if absent):
-
 ```rust
+/// Stamp `trusted` from the local registry. Binds to the **pubkey**, with a
+/// node_id cross-check: a peer announcing a trusted id under a different key
+/// is not trusted.
+///
+/// One registry read per batch — `is_trusted` re-reads and re-parses the whole
+/// file per call (vox-identity/src/trust.rs:128), and three GUI callers poll
+/// this every few seconds.
+pub fn resolve_trust(peers: Vec<DiscoveredPeer>, reg: &TrustedNodeRegistry) -> Vec<DiscoveredPeer> {
+    let rows = reg.list().unwrap_or_default(); // fail closed
+    peers.into_iter().map(|mut p| {
+        p.trusted = !p.pubkey_hex.is_empty()
+            && rows.iter().any(|n| n.pubkey_hex == p.pubkey_hex && n.node_id == p.node_id);
+        p
+    }).collect()
+}
+
 #[cfg(test)]
-mod bind_tests {
-    use vox_populi::discovery::bind::{resolve_bind, BindTier};
+mod trust_tests {
+    use super::*;
 
-    /// The shipped default. Before this fix, overlay mode advertised the
-    /// overlay IP while binding this, so every peer got connection-refused.
-    const DEFAULT_BIND: &str = "127.0.0.1:9847";
-
-    fn effective_bind(mode_is_overlay: bool, overlay_ip: Option<&str>, cli_bind: &str) -> String {
-        let explicit = if cli_bind == DEFAULT_BIND { None } else { Some(cli_bind) };
-        let tier = match (mode_is_overlay, overlay_ip) {
-            (true, Some(ip)) => BindTier::Overlay(ip.parse().unwrap()),
-            (true, None) => BindTier::Loopback,
-            (false, _) => BindTier::Lan,
-        };
-        resolve_bind(tier, explicit, 9847)
+    fn reg_with(node_id: &str, key: &str) -> (tempfile::TempDir, TrustedNodeRegistry) {
+        let dir = tempfile::tempdir().unwrap();
+        let reg = TrustedNodeRegistry::at(dir.path().join("t.json"));
+        reg.add(node_id.into(), key.into(), None).unwrap();
+        (dir, reg)
     }
 
     #[test]
-    fn overlay_mode_binds_the_overlay_address_not_loopback() {
-        let bound = effective_bind(true, Some("100.107.222.96"), DEFAULT_BIND);
-        assert_eq!(bound, "100.107.222.96:9847");
-        assert_ne!(bound, DEFAULT_BIND, "regression: overlay bound loopback");
+    fn an_impostor_reusing_a_trusted_node_id_is_not_trusted() {
+        let (_d, reg) = reg_with("n1", "aaaa");
+        let mut imposter = peer("n1", "192.168.1.99");
+        imposter.pubkey_hex = "bbbb".into();
+        assert!(!resolve_trust(vec![imposter], &reg)[0].trusted);
+    }
+
+    #[test]
+    fn a_matching_key_and_id_is_trusted() {
+        let (_d, reg) = reg_with("n1", "aaaa");
+        let mut p = peer("n1", "192.168.1.5");
+        p.pubkey_hex = "aaaa".into();
+        assert!(resolve_trust(vec![p], &reg)[0].trusted);
+    }
+
+    #[test]
+    fn an_empty_pubkey_never_matches_even_an_empty_stored_row() {
+        let (_d, reg) = reg_with("n1", "");
+        let p = peer("n1", "192.168.1.5"); // pubkey_hex defaults empty
+        assert!(!resolve_trust(vec![p], &reg)[0].trusted);
+    }
+
+    #[test]
+    fn trust_survives_an_address_change() {
+        let (_d, reg) = reg_with("n1", "aaaa");
+        let mut moved = peer("n1", "192.168.1.77");
+        moved.pubkey_hex = "aaaa".into();
+        assert!(resolve_trust(vec![moved], &reg)[0].trusted, "trust binds to the key, not the address");
+    }
+}
+```
+
+- [ ] **Step 2: Run to verify fail, then pass. Commit.**
+
+### Task 2.4: Process-correct discovery access
+
+**Files:** Modify `crates/vox-populi/src/discovery/mod.rs`
+
+Revision 1 stored one global and read it from a different process. There are three; a `OnceLock` spans none.
+
+- [ ] **Step 1: Write the failing test**
+
+```rust
+use std::sync::OnceLock;
+
+static GLOBAL: OnceLock<Option<DiscoveryHandle>> = OnceLock::new();
+
+/// Announce **and** browse. Called by `vox populi serve` — the process that is
+/// itself a mesh member. Never fails: discovery is an enhancement.
+pub fn start_global(announce: NodeAnnouncement) {
+    GLOBAL.get_or_init(|| DiscoveryHandle::start(announce).map_err(log_warn).ok());
+}
+
+/// Browse only — no announcement, no node identity. Safe from any process that
+/// only wants to *see* peers, such as the orchestrator daemon serving
+/// `vox_mesh_nodes`. Lazy: the first read starts it.
+///
+/// ponytail: lazy-start on first read; add an explicit start hook if the
+/// one-interval mDNS warm-up on the first poll becomes user-visible.
+pub fn global_peers_browsing() -> Vec<DiscoveredPeer> {
+    peers_of(GLOBAL.get_or_init(|| DiscoveryHandle::browse_only().map_err(log_warn).ok()).as_ref())
+}
+
+/// Peers with trust resolved. Lives here so callers need no `vox-identity` edge.
+pub fn global_peers_with_trust() -> Vec<DiscoveredPeer> {
+    resolve_trust(global_peers_browsing(), &TrustedNodeRegistry::new())
+}
+
+/// Extracted so the never-fatal contract is testable without a network.
+pub(crate) fn peers_of(h: Option<&DiscoveryHandle>) -> Vec<DiscoveredPeer> {
+    h.map(|h| h.peers()).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod global_tests {
+    use super::*;
+
+    #[test]
+    fn a_failed_start_yields_an_empty_list_not_a_panic() {
+        assert!(peers_of(None).is_empty());
+    }
+}
+```
+
+No test calls `start_global`: a `OnceLock` cannot be reset, so such a test would be order-dependent inside the crate's single test binary. The pure `peers_of` carries the contract.
+
+- [ ] **Step 2: Run to verify fail, then pass. Commit.**
+
+### Task 2.5: Tier-aware bind in `populi up`
+
+**Files:** Modify `crates/vox-ml-cli/src/commands/{populi_lifecycle.rs,populi_lifecycle_cmd.rs}`
+
+- [ ] **Step 1: Make `--bind` optional**
+
+Change `bind: String` with `default_value` to `bind: Option<String>`. String-comparing against the default silently overrides a user who deliberately types it.
+
+- [ ] **Step 2: Write the failing test against production functions**
+
+Revision 1 defined the tier logic *inside its own test module*, so reverting the implementation left all three tests green. Test real functions:
+
+```rust
+/// Choose the bind tier. Pure — the overlay probe is injected.
+pub(crate) fn bind_tier_for(mode: PopuliConnectivityMode, overlay_ip: Option<IpAddr>) -> BindTier {
+    match (mode, overlay_ip) {
+        (PopuliConnectivityMode::Overlay, Some(ip)) => BindTier::Overlay(ip),
+        (PopuliConnectivityMode::Overlay, None) => BindTier::Loopback,
+        (PopuliConnectivityMode::Lan, _) => BindTier::Lan,
+    }
+}
+
+#[cfg(test)]
+mod bind_tests {
+    use super::*;
+
+    #[test]
+    fn overlay_mode_binds_the_overlay_address() {
+        let ip: IpAddr = "100.107.222.96".parse().unwrap();
+        assert_eq!(bind_tier_for(PopuliConnectivityMode::Overlay, Some(ip)), BindTier::Overlay(ip));
     }
 
     #[test]
     fn overlay_without_an_ip_stays_on_loopback() {
-        assert_eq!(effective_bind(true, None, DEFAULT_BIND), DEFAULT_BIND);
+        assert_eq!(bind_tier_for(PopuliConnectivityMode::Overlay, None), BindTier::Loopback);
     }
 
     #[test]
-    fn explicit_bind_survives_overlay_mode() {
-        assert_eq!(
-            effective_bind(true, Some("100.107.222.96"), "192.168.1.9:7000"),
-            "192.168.1.9:7000"
-        );
+    fn lan_mode_ignores_an_overlay_address() {
+        let ip: IpAddr = "100.64.0.1".parse().unwrap();
+        assert_eq!(bind_tier_for(PopuliConnectivityMode::Lan, Some(ip)), BindTier::Lan);
+    }
+
+    #[test]
+    fn the_spawned_child_receives_the_resolved_bind_not_the_raw_flag() {
+        // The actual regression: `up` computed a control URL from one value and
+        // passed a different one to the child.
+        assert!(serve_child_args("192.168.1.9:9847").contains(&"192.168.1.9:9847".to_string()));
     }
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [ ] **Step 3: Run with `--features populi`, not default**
 
-Run: `cargo test -p vox-ml-cli bind_tests -- --nocapture`
-Expected: FAIL to compile — `vox-populi`'s `discovery` feature is not enabled for `vox-ml-cli`.
+`cargo test -p vox-ml-cli --features populi bind_tests` — `populi_lifecycle.rs` is `#[cfg(feature = "populi")]`; a default run compiles none of it and reports a **false green**.
 
-- [ ] **Step 3: Enable the feature**
+- [ ] **Step 4: Apply to the real path**
 
-In `crates/vox-ml-cli/Cargo.toml`, on the existing `vox-populi` dependency, add `"discovery"` to its feature list. This is a feature flag on an existing edge, not a new edge.
+Compute `effective_bind` once, derive `control_url` from it, pass it via `serve_child_args`, store it in `PopuliDaemonState.bind`, and confirm Task 0.3's guard reads the same value.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [ ] **Step 5: Commit**
 
-Run: `cargo test -p vox-ml-cli bind_tests -- --nocapture`
-Expected: PASS, 3 tests.
+### Task 2.6: Overlay probing extracted
 
-- [ ] **Step 5: Apply the fix to the real code path**
+**Files:** Create `crates/vox-ml-cli/src/commands/populi_overlay.rs`; modify `populi_lifecycle.rs`
 
-In `populi_lifecycle.rs`, replace the `control_url` block (~line 143) and the `--bind` argument passed to the child process (~line 178):
-
-```rust
-            const DEFAULT_BIND: &str = "127.0.0.1:9847";
-            let explicit_bind = if bind.trim() == DEFAULT_BIND {
-                None
-            } else {
-                Some(bind.trim())
-            };
-            let port: u16 = bind
-                .trim()
-                .rsplit(':')
-                .next()
-                .and_then(|p| p.parse().ok())
-                .unwrap_or(9847);
-
-            let (tier, control_url) = match mode {
-                PopuliConnectivityMode::Lan => (
-                    vox_populi::discovery::bind::BindTier::Lan,
-                    String::new(), // filled below from the resolved bind
-                ),
-                PopuliConnectivityMode::Overlay => {
-                    let provider = choose_overlay_provider(overlay_provider);
-                    provider_name = provider.map(|p| p.as_str().to_string());
-                    let ip = match provider {
-                        Some(OverlayProvider::Tailscale) => {
-                            crate::commands::populi_overlay::tailnet_status()
-                                .filter(|s| s.running)
-                                .and_then(|s| s.self_ip)
-                        }
-                        _ => None,
-                    };
-                    match ip {
-                        Some(ip) => (vox_populi::discovery::bind::BindTier::Overlay(ip), String::new()),
-                        None => (vox_populi::discovery::bind::BindTier::Loopback, String::new()),
-                    }
-                }
-            };
-            let _ = control_url;
-            let effective_bind =
-                vox_populi::discovery::bind::resolve_bind(tier, explicit_bind, port);
-            let control_url = format!("http://{effective_bind}");
-```
-
-Then pass `effective_bind` — not `bind` — to the spawned child:
-
-```rust
-                .arg("--bind")
-                .arg(&effective_bind)
-```
-
-and store `effective_bind` in `PopuliDaemonState.bind`.
-
-- [ ] **Step 6: Verify manually**
-
-Run: `cargo run -p vox-cli -- populi up --mode lan` then `cargo run -p vox-cli -- populi status`
-
-Expected: `control:` shows the LAN IP, not `127.0.0.1`. Confirm something is actually listening: `curl http://<that-ip>:9847/health` returns success. Before this task that curl failed.
-
-Then `cargo run -p vox-cli -- populi down`.
-
-- [ ] **Step 7: Commit**
-
-```bash
-cargo fmt -p vox-ml-cli
-cargo clippy -p vox-ml-cli --all-targets -- -D warnings
-git add crates/vox-ml-cli/
-git commit -m "fix(populi): bind the interface that gets advertised"
-```
-
----
-
-## Task 7: Retire the duplicate peer-trust store
-
-**Files:**
-- Modify: `crates/vox-ml-cli/src/commands/populi_join.rs:140-149`
-
-Fixes spec §5.1 (two opposite meanings of "join") and §5.2 (three stores holding peer trust).
-
-**Interfaces:**
-- Consumes: `vox_identity::TrustedNodeRegistry`.
-- Produces: `migrate_config_toml_peers(reg: &TrustedNodeRegistry, entries: Vec<(String, String)>) -> usize` — returns how many peers were migrated.
+**Scope correction:** revision 1 claimed the exit-code probe conflates "installed" with "connected" for Tailscale. **That was false** — `overlay_diag_tailscale` already separates them. The real conflation is in `overlay_diag_wireguard` (`let connected = available;`) and `overlay_diag_tunnel`. This task fixes the Windows `PATH` issue and the probe cost, and documents honestly that overlay+WireGuard stays non-functional (there is no WireGuard arm in `overlay_control_url`).
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `crates/vox-ml-cli/src/commands/populi_join.rs`:
-
 ```rust
-/// Move federation peers recorded in `~/.vox/config.toml` into the trust
-/// registry, which is the single source of truth for peer trust.
-///
-/// `entries` is `(node_id, manifest_url)`. Idempotent: re-running does not
-/// duplicate, because the registry is keyed by node_id.
-/// Returns the number of entries written.
-pub fn migrate_config_toml_peers(
-    reg: &vox_identity::TrustedNodeRegistry,
-    entries: Vec<(String, String)>,
-) -> usize {
-    let mut n = 0;
-    for (node_id, manifest_url) in entries {
-        if node_id.trim().is_empty() {
-            continue;
-        }
-        // Pubkey is unknown from a manifest URL alone; record the binding
-        // honestly with an empty key and the URL as the label rather than
-        // inventing a key.
-        if reg
-            .add(node_id, String::new(), Some(manifest_url))
-            .is_ok()
-        {
-            n += 1;
-        }
-    }
-    n
+/// Candidate paths in probe order. Split out so the Windows path is asserted
+/// without installing Tailscale.
+pub fn tailscale_candidates() -> &'static [&'static str] {
+    &["tailscale",
+      r"C:\Program Files\Tailscale\tailscale.exe",
+      "/Applications/Tailscale.app/Contents/MacOS/Tailscale",
+      "/usr/bin/tailscale", "/usr/local/bin/tailscale", "/opt/homebrew/bin/tailscale"]
 }
 
 #[cfg(test)]
-mod migration_tests {
+mod tests {
     use super::*;
 
     #[test]
-    fn migrates_each_peer_once() {
-        let reg = vox_identity::TrustedNodeRegistry::new_in_memory();
-        let n = migrate_config_toml_peers(
-            &reg,
-            vec![("nodeA".into(), "https://example/m.json".into())],
-        );
-        assert_eq!(n, 1);
+    fn bare_path_lookup_is_tried_first() {
+        assert_eq!(tailscale_candidates()[0], "tailscale");
     }
 
     #[test]
-    fn skips_blank_node_ids() {
-        let reg = vox_identity::TrustedNodeRegistry::new_in_memory();
-        assert_eq!(
-            migrate_config_toml_peers(&reg, vec![("  ".into(), "https://x".into())]),
-            0
-        );
+    fn the_windows_install_location_is_probed() {
+        assert!(tailscale_candidates().contains(&r"C:\Program Files\Tailscale\tailscale.exe"),
+            "the Windows installer does not modify PATH");
     }
 
-    #[test]
-    fn rerunning_does_not_double_count_entries() {
-        let reg = vox_identity::TrustedNodeRegistry::new_in_memory();
-        let e = vec![("nodeA".into(), "https://example/m.json".into())];
-        migrate_config_toml_peers(&reg, e.clone());
-        // Second run writes the same key again; registry is keyed by node_id so
-        // the store must not grow. In-memory add() is a no-op, so assert on the
-        // file-backed behaviour in the integration check below instead.
-        assert_eq!(migrate_config_toml_peers(&reg, e), 1);
-    }
+    // The five `parse_tailnet_status` tests carry over from revision 1 unchanged
+    // — the audit verified all of them, including the `Self: null` short-circuit.
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [ ] **Step 2: Collapse to one probe, memoized, with a timeout**
 
-Run: `cargo test -p vox-ml-cli migration_tests -- --nocapture`
-Expected: FAIL — `migrate_config_toml_peers` not found.
+Drop the separate `version` probe (if `status --json` runs, the binary exists) and memoize `Option<TailnetStatus>` in a `OnceLock`. Revision 1 spawned up to twelve subprocesses per status line with no timeout on any — a wedged `tailscaled` hangs `vox populi status` forever.
 
-- [ ] **Step 3: Run the tests to verify they pass**
-
-The implementation is in Step 1's block. Run: `cargo test -p vox-ml-cli migration_tests -- --nocapture`
-Expected: PASS, 3 tests.
-
-- [ ] **Step 4: Deprecate the CLI verb**
-
-Replace the persist block in `run()` (line ~140):
-
-```rust
-    // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="ssot-peer-trust" canonical="vox auth trust"
-    // Peer trust lives in vox_identity::TrustedNodeRegistry, not ~/.vox/config.toml.
-    let reg = vox_identity::TrustedNodeRegistry::new();
-    reg.add(
-        manifest.node_id.clone(),
-        String::new(),
-        Some(invite.manifest_url.clone()),
-    )
-    .map_err(|e| anyhow::anyhow!("could not persist peer: {}", e))?;
-
-    println!(
-        "vox populi join: peer '{}' trusted. NOTE: `vox populi join` is deprecated; \
-         use `vox auth trust` instead.",
-        manifest.node_id
-    );
-```
-
-- [ ] **Step 5: Verify no writer of the old key remains**
-
-Run: `rg "mesh\.federation_peers" crates/`
-Expected: no results outside comments. If a reader remains, point it at `TrustedNodeRegistry`.
-
-- [ ] **Step 6: Commit**
-
-```bash
-cargo fmt -p vox-ml-cli
-git add crates/vox-ml-cli/
-git commit -m "refactor(populi): make TrustedNodeRegistry the sole peer-trust store"
-```
+- [ ] **Step 3: Verify PASS, delete the superseded functions, commit**
 
 ---
 
-## Task 8: Remove the crate-wide dead-code allow
+## Phase 3 — SSOT cleanup
 
-**Files:**
-- Modify: `crates/vox-plugin-populi-mesh/src/lib.rs:11-13`
+### Task 3.1: Retire the duplicate peer-trust store
 
-Fixes spec §5.3.
+**Files:** Modify `crates/vox-ml-cli/src/commands/populi_join.rs`; amend the mesh SSOT
 
-**Interfaces:** none.
+Revision 1 planned to *migrate* `config.toml` peers into the trust registry. **Dropped** — a manifest URL is not evidence of a key, and migrating would create exactly the empty-pubkey rows Phase 0 forbids. The key is written by `vox populi join` and read by nothing, so it is removed outright.
 
-- [ ] **Step 1: Remove the allow**
-
-Delete these three lines from `crates/vox-plugin-populi-mesh/src/lib.rs`:
-
-```rust
-// Transport infrastructure ported from vox-populi; not all paths are exercised
-// through the FFI entry points yet. Suppress until mesh integration is complete.
-#![allow(dead_code)]
-```
-
-- [ ] **Step 2: See what it was hiding**
-
-Run: `cargo clippy -p vox-plugin-populi-mesh --all-targets 2>&1 | rg "never used|never read" | sort -u`
-
-Record the full list before changing anything — it is the actual scope of this task.
-
-- [ ] **Step 3: Resolve each warning**
-
-For each item, choose one and apply it:
-- **Reachable from an FFI entry point but not from Rust callers** → add `#[allow(dead_code)]` on that item with a one-line comment naming the entry point.
-- **Genuinely unreachable** → delete it.
-- **Should be wired but isn't** → wire it if it is a one-line hookup; otherwise delete and note it in the commit body.
-
-Prefer deletion. A per-item allow is a claim you must justify; a crate-wide one is the rot this task exists to remove.
-
-- [ ] **Step 4: Verify clean**
-
-Run: `cargo clippy -p vox-plugin-populi-mesh --all-targets -- -D warnings`
-Expected: PASS with no warnings.
-
-- [ ] **Step 5: Verify tests still pass**
-
-Run: `cargo test -p vox-plugin-populi-mesh`
-Expected: PASS. Deleting something a test used means it was not dead — restore it.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 1: Confirm nothing reads it**
 
 ```bash
-cargo fmt -p vox-plugin-populi-mesh
-git add crates/vox-plugin-populi-mesh/
-git commit -m "refactor(populi-mesh): drop crate-wide dead_code allow"
+rg "mesh\.federation_peers" crates/
 ```
+
+Expected: only the writer. If a reader appears, stop and reassess.
+
+- [ ] **Step 2: Deprecate the command**
+
+```rust
+// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="ssot-peer-trust" canonical="vox auth trust"
+```
+
+Print: `vox populi join is deprecated. Pair with a ticket instead: vox auth trust <vox-mesh://...>. Get one from the other machine with: vox mesh ticket`. Stop writing the config key.
+
+- [ ] **Step 3: File the SSOT amendment**
+
+`mesh-and-language-distribution-ssot-2026.md` line 101 states a binding non-goal: *"Paired peers + GitHub attestation are the binary gates."* Add a dated amendment recording that LAN pairing by ticket supersedes attestation for local peers, that P6-T7's invite flow is deliberately replaced, and that the attestation subsystem (`fetch_and_verify`, `device_flow`, `PublicAttestationManifest`) has no non-test callers. **Do not silently contradict a ratified SSOT.**
+
+- [ ] **Step 4: Commit**
+
+### Task 3.2: Remove the crate-wide dead-code allow
+
+**Files:** Modify `crates/vox-plugin-populi-mesh/src/lib.rs:11-13`
+
+- [ ] **Step 1: Remove it, then inventory what it hid**
+
+```bash
+cargo clippy -p vox-plugin-populi-mesh --all-targets 2>&1 | rg "never used|never read" | sort -u
+```
+
+Expect substantially more than revision 1 anticipated — spec §2 documents ~2,500 unreferenced lines across pairing, attestation, and federation.
+
+- [ ] **Step 2: Resolve each — wire, delete, or per-item allow naming the FFI entry point.** Prefer deletion. Anything Phase 0 wires (`verify_against_trust`) is no longer dead.
+
+- [ ] **Step 3: Verify clean, tests pass, commit**
 
 ---
 
-## Task 9: Surface pending peers through the MCP tool
+## Phase 4 — GUI
 
-**Files:**
-- Modify: `crates/vox-orchestrator-mcp/src/populi_tools.rs:123-166`
-- Modify: `crates/vox-orchestrator-mcp/Cargo.toml` (add `vox-populi/discovery` to the `populi-transport` feature)
+### Task 4.1: Serve pending peers and discovery state
 
-This is the no-new-crate-edge path to the GUI: `vox-gui` already polls `vox_mesh_nodes`.
+**Files:** Modify `crates/vox-orchestrator-mcp/src/{populi_tools.rs,Cargo.toml}`; `crates/vox-gui/Cargo.toml`; `crates/vox-orchestrator-d/Cargo.toml`
 
-**Interfaces:**
-- Consumes: `vox_populi::discovery::{DiscoveredPeer, resolve_trust}` (Tasks 1, 4).
-- Produces: `vox_mesh_nodes` result gains `pending_peers: [{node_id, fingerprint, addr, port, control_url, last_seen_unix_ms}]` — only peers with `trusted == false`.
+- [ ] **Step 1: Enable the right feature in the right crates**
 
-- [ ] **Step 1: Write the failing test**
+Add `mesh-discovery = ["vox-populi/discovery-mdns"]` to `vox-orchestrator-mcp`, and enable it from **both** `vox-gui` and `vox-orchestrator-d`. Do **not** attach it to `populi-transport` — that gates HTTP machinery and is off in every shipped binary, which is why revision 1's field would have been permanently empty.
 
-Add to `crates/vox-orchestrator-mcp/src/populi_tools.rs`:
+- [ ] **Step 2: Write the failing test**
 
 ```rust
-/// Serialize discovered-but-untrusted peers for the `vox_mesh_nodes` result.
-///
-/// Trusted peers are omitted: they already appear in the `nodes` list via the
-/// control plane, and listing them twice would double-count in the GUI.
-#[cfg(feature = "populi-transport")]
 pub(crate) fn pending_peers_json(peers: &[vox_populi::discovery::DiscoveredPeer]) -> Vec<Value> {
-    peers
-        .iter()
-        .filter(|p| !p.trusted)
-        .map(|p| {
-            json!({
-                "node_id": p.node_id,
-                "fingerprint": p.fingerprint,
-                "addr": p.addr.to_string(),
-                "port": p.port,
-                "control_url": p.control_url(),
-                "last_seen_unix_ms": p.last_seen_unix_ms,
-            })
-        })
-        .collect()
+    peers.iter().filter(|p| !p.trusted).map(|p| json!({
+        "node_id": p.node_id,
+        "pubkey_hex": p.pubkey_hex,
+        "fingerprint": p.fingerprint,
+        "addr": p.addr.to_string(),
+        "port": p.port,
+        "control_url": p.control_url(),
+        "last_seen_unix_ms": p.last_seen_unix_ms,
+    })).collect()
 }
 
-#[cfg(all(test, feature = "populi-transport"))]
+#[cfg(test)]
 mod pending_tests {
     use super::*;
-    use vox_populi::discovery::DiscoveredPeer;
-
-    fn peer(node_id: &str, trusted: bool) -> DiscoveredPeer {
-        DiscoveredPeer {
-            node_id: node_id.into(),
-            fingerprint: "ab:cd".into(),
-            addr: "192.168.1.5".parse().unwrap(),
-            port: 9847,
-            last_seen_unix_ms: 42,
-            trusted,
-        }
-    }
 
     #[test]
-    fn untrusted_peers_are_listed() {
+    fn the_pubkey_is_carried_so_trust_can_bind_to_it() {
         let out = pending_peers_json(&[peer("n1", false)]);
-        assert_eq!(out.len(), 1);
-        assert_eq!(out[0]["node_id"], "n1");
-        assert_eq!(out[0]["control_url"], "http://192.168.1.5:9847");
+        assert!(!out[0]["pubkey_hex"].as_str().unwrap().is_empty(),
+            "trusting without a key produces an unusable, spoofable row");
     }
 
     #[test]
@@ -1346,429 +1118,226 @@ mod pending_tests {
 
     #[test]
     fn fingerprint_is_carried_for_human_verification() {
-        // The user compares this against the other machine's screen; dropping
-        // it would make the trust decision unverifiable.
-        let out = pending_peers_json(&[peer("n1", false)]);
-        assert_eq!(out[0]["fingerprint"], "ab:cd");
+        assert_eq!(pending_peers_json(&[peer("n1", false)])[0]["fingerprint"], "ab:cd");
     }
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
-
-Run: `cargo test -p vox-orchestrator-mcp --features populi-transport pending_tests -- --nocapture`
-Expected: FAIL — `vox_populi::discovery` not available (feature not enabled).
-
-- [ ] **Step 3: Enable the feature**
-
-In `crates/vox-orchestrator-mcp/Cargo.toml`, extend the existing feature:
-
-```toml
-populi-transport = ["vox-orchestrator/populi-transport", "vox-populi/transport", "vox-populi/discovery"]
-```
-
-- [ ] **Step 4: Run the tests to verify they pass**
-
-Run: `cargo test -p vox-orchestrator-mcp --features populi-transport pending_tests -- --nocapture`
-Expected: PASS, 3 tests.
-
-- [ ] **Step 5: Wire into `mesh_nodes`**
-
-In `mesh_nodes`, compute the pending list once and add it to all three `json!` returns:
+- [ ] **Step 3: Wire without a `vox-identity` edge**
 
 ```rust
-    #[cfg(feature = "populi-transport")]
-    let pending = {
-        let reg = vox_identity::TrustedNodeRegistry::new();
-        let peers = vox_populi::discovery::global_peers();
-        pending_peers_json(&vox_populi::discovery::resolve_trust(peers, &reg))
-    };
-    #[cfg(not(feature = "populi-transport"))]
-    let pending: Vec<Value> = Vec::new();
+let pending = pending_peers_json(&vox_populi::discovery::global_peers_with_trust());
 ```
 
-Add `"pending_peers": pending` to each of the three `json!({...})` blocks (control-plane success, control-plane error fallback, and plain local-registry).
+**No `use vox_identity::...` in this crate** — that edge does not exist and must not be added.
 
-**Do not add a field to `ServerState`.** It has 74 public fields and four constructors (`new_full`, `new_for_daemon`, `hermetic_stub`, `new_test`) that each build `Self { .. }` literally, so a new field means editing all four including a hermetic no-IO test stub. The mDNS responder is genuinely a process singleton — one daemon per process — so a process-global is the honest model here, not a shortcut.
+- [ ] **Step 4: Emit `discovery_state`**
 
-Add to `crates/vox-populi/src/discovery/mod.rs`:
+Add `"discovery_state": "disabled" | "failed" | "running"`, and `"control_plane": "unconfigured"` when no URL is set, so the GUI can distinguish "firewall blocked" from "nobody home". The spec requires an empty mesh to say why.
 
-```rust
-use std::sync::OnceLock;
+- [ ] **Step 5: Add the integration test that would have caught revision 1**
 
-static GLOBAL: OnceLock<Option<DiscoveryHandle>> = OnceLock::new();
-
-/// Start process-wide discovery, once. Subsequent calls are no-ops.
-///
-/// Never returns an error: a discovery failure is logged and leaves the process
-/// running without discovery, per the design's "never fatal" rule.
-pub fn start_global(announce: NodeAnnouncement) {
-    GLOBAL.get_or_init(|| match DiscoveryHandle::start(announce) {
-        Ok(h) => Some(h),
-        Err(e) => {
-            tracing::warn!(target: "vox.populi.discovery", error = %e,
-                "mDNS discovery unavailable; mesh still usable via explicit peers");
-            None
-        }
-    });
-}
-
-/// Peers seen by the process-wide handle. Empty when discovery never started or
-/// failed to start — callers cannot distinguish, and need not.
-pub fn global_peers() -> Vec<DiscoveredPeer> {
-    match GLOBAL.get() {
-        Some(Some(h)) => h.peers(),
-        _ => Vec::new(),
-    }
-}
-```
-
-with a test:
-
-```rust
-    #[test]
-    fn global_peers_is_empty_before_start() {
-        // Must not panic or block when discovery was never started.
-        assert!(global_peers().is_empty());
-    }
-```
-
-Call `start_global` where the populi server starts (`vox populi serve`), building the announcement from `node_record_for_current_process()` and the node's `vox_identity` fingerprint. Because `start_global` cannot fail, no error handling is needed at the call site.
-
-- [ ] **Step 6: Verify the tool output**
-
-Run: `cargo test -p vox-orchestrator-mcp --features populi-transport populi_tools -- --nocapture`
-Expected: PASS. Then confirm the field is always present, even when empty — an absent field and an empty list must not be ambiguous to the GUI.
-
-- [ ] **Step 7: Commit**
-
-```bash
-cargo fmt -p vox-orchestrator-mcp
-cargo clippy -p vox-orchestrator-mcp --features populi-transport --all-targets -- -D warnings
-git add crates/vox-orchestrator-mcp/
-git commit -m "feat(mcp): expose discovered pending peers via vox_mesh_nodes"
-```
-
----
-
-## Task 10: GUI pending-peers section
-
-**Files:**
-- Modify: `crates/vox-gui/ui/src/hooks/useMeshNodes.ts:6-13` (extend `NodesResult`)
-- Modify: `crates/vox-gui/ui/src/components/surfaces/Mesh/MeshView.tsx`
-- Test: `crates/vox-gui/ui/src/components/surfaces/Mesh/MeshView.test.tsx`
-
-**Interfaces:**
-- Consumes: `pending_peers` from Task 9; existing `trust_mesh_node` Tauri command (already registered at `main.rs:316`).
-- Produces: nothing downstream.
-
-- [ ] **Step 1: Write the failing test**
-
-Add to `crates/vox-gui/ui/src/components/surfaces/Mesh/MeshView.test.tsx`:
-
-```tsx
-describe('MeshView pending peers', () => {
-  const pending = [
-    {
-      node_id: 'peer-b',
-      fingerprint: 'ab:cd:ef:12',
-      addr: '192.168.1.42',
-      port: 9847,
-      control_url: 'http://192.168.1.42:9847',
-      last_seen_unix_ms: Date.now(),
-    },
-  ];
-
-  it('lists a discovered untrusted peer with its fingerprint', async () => {
-    renderMeshView({ nodes: [], pending_peers: pending });
-    expect(await screen.findByText('peer-b')).toBeInTheDocument();
-    // The fingerprint is what the user compares against the other machine.
-    expect(screen.getByText(/ab:cd:ef:12/)).toBeInTheDocument();
-  });
-
-  it('offers a Trust action for a pending peer', async () => {
-    renderMeshView({ nodes: [], pending_peers: pending });
-    expect(await screen.findByRole('button', { name: /trust/i })).toBeInTheDocument();
-  });
-
-  it('says why the list is empty rather than showing nothing', async () => {
-    renderMeshView({ nodes: [], pending_peers: [] });
-    expect(await screen.findByText(/no peers discovered/i)).toBeInTheDocument();
-  });
-});
-```
-
-Reuse the file's existing render helper and MCP mock; if it has none, add `renderMeshView(result)` that mocks `voxTransport.invokeMcpTool('vox_mesh_nodes')` to resolve `{ is_error: false, result }`.
-
-- [ ] **Step 2: Run the tests to verify they fail**
-
-Run: `cd crates/vox-gui/ui && pnpm vitest run MeshView`
-Expected: FAIL — no pending section rendered.
-
-- [ ] **Step 3: Extend the result type**
-
-In `useMeshNodes.ts`, add to `NodesResult`:
-
-```ts
-  pending_peers?: PendingPeer[];
-```
-
-and export:
-
-```ts
-/** A peer discovered on the LAN but not yet trusted. Inert until approved. */
-export interface PendingPeer {
-  node_id: string;
-  fingerprint: string;
-  addr: string;
-  port: number;
-  control_url: string;
-  last_seen_unix_ms: number;
-}
-```
-
-Also coerce it alongside `nodes` in `fetchMeshNodesResult`, so consumers never see `undefined`:
-
-```ts
-  return {
-    ...result,
-    nodes: Array.isArray(result.nodes) ? result.nodes : [],
-    pending_peers: Array.isArray(result.pending_peers) ? result.pending_peers : [],
-  };
-```
-
-- [ ] **Step 4: Render the section**
-
-In `MeshView.tsx`, add above the existing node table:
-
-```tsx
-{pendingPeers.length > 0 && (
-  <section aria-label="Pending peers">
-    <h3 className="text-sm font-medium text-text-secondary">
-      Discovered — not yet trusted
-    </h3>
-    <ul>
-      {pendingPeers.map((p) => (
-        <li key={p.node_id} className="flex items-center gap-3">
-          <span className="font-mono">{p.node_id}</span>
-          <span className="font-mono text-xs text-text-secondary">{p.fingerprint}</span>
-          <span className="text-xs text-text-secondary">{p.addr}</span>
-          <button
-            type="button"
-            onClick={() => void trustPeer(p)}
-            className="rounded border border-border-subtle px-2 py-1 text-xs"
-          >
-            Trust
-          </button>
-        </li>
-      ))}
-    </ul>
-    <p className="text-xs text-text-secondary">
-      Compare the fingerprint against the other machine before trusting.
-    </p>
-  </section>
-)}
-{pendingPeers.length === 0 && nodes.length === 0 && (
-  <p className="text-sm text-text-secondary">
-    No peers discovered. Peers on the same network appear automatically;
-    otherwise add one explicitly with <code>vox populi up --bootstrap-peers</code>.
-  </p>
-)}
-```
-
-with the handler:
-
-```tsx
-const trustPeer = useCallback(
-  async (p: PendingPeer) => {
-    try {
-      await invoke('trust_mesh_node', {
-        nodeId: p.node_id,
-        pubkeyHex: '',
-        label: p.control_url,
-      });
-      pushToast({ kind: 'success', message: `Trusted ${p.node_id}` });
-      await refresh();
-    } catch (e) {
-      pushToast({ kind: 'error', message: sanitizeErrorForToast(e) });
-    }
-  },
-  [pushToast, refresh],
-);
-```
-
-Confirm the argument casing `trust_mesh_node` expects — Tauri converts snake_case Rust parameters to camelCase for JS callers by default. If the invoke fails with a missing-argument error, match the casing the other `invoke` calls in this file already use.
-
-- [ ] **Step 5: Run the tests to verify they pass**
-
-Run: `cd crates/vox-gui/ui && pnpm vitest run MeshView`
-Expected: PASS, 3 new tests plus the existing suite.
+Assert `mesh_nodes` returns `pending_peers` sourced from live discovery. Revision 1's three unit tests on `pending_peers_json` passed under all three of its wiring failures.
 
 - [ ] **Step 6: Commit**
 
-```bash
-git add crates/vox-gui/ui/src/
-git commit -m "feat(gui): show discovered pending peers with a trust action"
-```
+### Task 4.2: MeshView — ticket paste, pending peers, local ticket
 
----
+**Files:** Modify `crates/vox-gui/ui/src/hooks/useMeshNodes.ts`, `components/surfaces/Mesh/MeshView.tsx`, `MeshView.test.tsx`
 
-## Task 11: MeshWidget counts
+- [ ] **Step 1: Write the failing tests against the real harness**
 
-**Files:**
-- Modify: `crates/vox-gui/ui/src/components/dashboard/widgets/MeshWidget.tsx`
-- Test: same directory, `MeshWidget.test.tsx` (create if absent)
-
-**Interfaces:**
-- Consumes: `PendingPeer`, `NodesResult` from Task 10.
-- Produces: nothing downstream.
-
-- [ ] **Step 1: Write the failing test**
+There is **no** `renderMeshView` helper. The suite mocks `@tauri-apps/api/core`'s `invoke` (which `voxTransport.invokeMcpTool` bottoms out in) via a module-scope `invokeMock`, and must answer **two** tools. `pushToast` is a required prop. Add below the existing mock:
 
 ```tsx
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+function mockMeshNodes(result: Record<string, unknown>) {
+  invokeMock.mockImplementation((cmd: string, args?: any) => {
+    if (cmd === 'invoke_mcp_tool' && args?.tool === 'vox_mesh_nodes') {
+      return Promise.resolve({ tool: 'vox_mesh_nodes', is_error: false, result });
+    }
+    if (cmd === 'invoke_mcp_tool' && args?.tool === 'vox_mesh_queue_stats') {
+      return Promise.resolve({ tool: 'vox_mesh_queue_stats', is_error: false, result: {} });
+    }
+    return Promise.resolve(null);
+  });
+}
+```
 
-describe('MeshWidget counts', () => {
-  it('reports trusted, online and pending counts', async () => {
-    renderWidget({
-      nodes: [
-        { id: 'a', status: 'online' },
-        { id: 'b', status: 'offline' },
-      ],
-      pending_peers: [{ node_id: 'c', fingerprint: 'x', addr: '1.2.3.4', port: 9847, control_url: '', last_seen_unix_ms: 1 }],
-    });
-    expect(await screen.findByText(/1 online/i)).toBeInTheDocument();
-    expect(screen.getByText(/1 pending/i)).toBeInTheDocument();
+```tsx
+describe('MeshView pending peers', () => {
+  const pending = [{
+    node_id: 'peer-b', fingerprint: 'ab:cd:ef:12', pubkey_hex: 'aa'.repeat(32),
+    addr: '192.168.1.42', port: 9847, control_url: 'http://192.168.1.42:9847',
+    last_seen_unix_ms: Date.now(),
+  }];
+
+  it('lists a discovered untrusted peer with its fingerprint', async () => {
+    mockMeshNodes({ source: 'local_registry', nodes: [], pending_peers: pending });
+    render(<MeshView pushToast={vi.fn()} />);
+    expect(await screen.findByText('peer-b')).toBeInTheDocument();
+    expect(screen.getByText(/ab:cd:ef:12/)).toBeInTheDocument();
   });
 
-  it('shows pending count as zero when nothing is discovered', async () => {
-    renderWidget({ nodes: [], pending_peers: [] });
-    expect(await screen.findByText(/0 pending/i)).toBeInTheDocument();
+  it('trusts with the peer pubkey, never an empty string', async () => {
+    mockMeshNodes({ source: 'local_registry', nodes: [], pending_peers: pending });
+    render(<MeshView pushToast={vi.fn()} />);
+    (await screen.findByRole('button', { name: /^trust/i })).click();
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith(
+      'trust_mesh_node',
+      expect.objectContaining({ nodeId: 'peer-b', pubkeyHex: 'aa'.repeat(32) }),
+    ));
+  });
+
+  it('distinguishes a blocked network from an empty one', async () => {
+    mockMeshNodes({ source: 'local_registry', nodes: [], pending_peers: [], discovery_state: 'failed' });
+    render(<MeshView pushToast={vi.fn()} />);
+    expect(await screen.findByText(/discovery unavailable/i)).toBeInTheDocument();
   });
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+Anchor the button matcher (`/^trust/i`) — it will otherwise collide with "Untrust" from Step 5. The existing suite asserts every button has `type="button"`.
 
-Run: `cd crates/vox-gui/ui && pnpm vitest run MeshWidget`
-Expected: FAIL — no pending count rendered.
+- [ ] **Step 2: Run to verify they fail**
 
-- [ ] **Step 3: Implement the counts**
+`cd crates/vox-gui/ui && pnpm vitest run MeshView`
 
-Derive from the same `useMeshNodesFull` result the widget already consumes:
+- [ ] **Step 3: Extend `NodesResult`**
+
+Add `pending_peers?: PendingPeer[]` and `discovery_state?: 'disabled' | 'failed' | 'running'`; coerce `pending_peers` to `[]` in `fetchMeshNodesResult` so consumers never see `undefined`. `PendingPeer` **includes `pubkey_hex: string`**.
+
+- [ ] **Step 4: Render, with the real Toast shape**
+
+The `Toast` type is `{ tone: 'ok'|'warn'|'info'; title: string; body?: string; cause: ToastCause }` — there is no `kind` or `message`. Getting this wrong fails `vox ci gui-honesty`, a required job that exists to catch exactly this.
 
 ```tsx
-const onlineCount = nodes.filter((n) => n.status === 'online').length;
-const pendingCount = pendingPeers.length;
+const trustPeer = useCallback(async (p: PendingPeer) => {
+  try {
+    await invoke<boolean>('trust_mesh_node', {
+      nodeId: p.node_id, pubkeyHex: p.pubkey_hex, label: p.control_url,
+    });
+    pushToast({ tone: 'ok', title: 'Peer trusted', body: p.node_id, cause: 'backend-ok' });
+    await refresh();
+  } catch (err) {
+    pushToast({ tone: 'warn', title: 'Trust failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+  }
+}, [pushToast, refresh]);
 ```
 
-and render `{onlineCount} online · {pendingCount} pending`.
+Declare it **after** `refresh` (~line 104) or it is a TDZ error. Tauri args are camelCase — settled against `SettingsView.tsx:192` calling this same command; do not hedge.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+The pending section is a sibling `Glass` with **`col-span-12`** (the root is a 12-column grid; an unspanned `<section>` renders as a squashed 1/12 strip). Fold the empty-state copy into the **existing** empty state rather than adding a second competing one.
 
-Run: `cd crates/vox-gui/ui && pnpm vitest run MeshWidget`
-Expected: PASS.
+Use design tokens, not raw Tailwind colors. `docs/agents/gui-honesty-findings/Mesh.json` already flags `statusTone()` (`MeshView.tsx:61`) at `severity: med` for a hardcoded palette — do not copy that pattern into the new rows. Adding a Trust control also adds a `behavioral` entry to that findings file; regenerate it rather than letting it drift.
 
-- [ ] **Step 5: Run the whole frontend suite and commit**
+- [ ] **Step 5: Add the ticket UI — three things revision 1 omitted**
+
+- **Paste box** accepting a `vox-mesh://` ticket → `invoke('trust_mesh_ticket', { ticket })`. This is the universal path and must be at least as prominent as the pending list.
+- **This node's own ticket** with a copy button — the other machine needs it.
+- **Untrust** action, so a mistaken trust is reversible without hunting through Settings.
+
+- [ ] **Step 6: Render trusted peers no control plane reports**
+
+On a LAN-only two-node setup there is no control plane, so a peer filtered out of `pending_peers` on trust would **vanish from the UI entirely**. Merge trusted peers into the table with a trust column, or give them their own section.
+
+- [ ] **Step 7: Show the local fingerprint**
+
+Otherwise the comparison ceremony is unperformable: it lives only in Settings and reads `(locked — provide master password to view)` on a fresh install. Render it in the pending-section header with an unlock affordance.
+
+- [ ] **Step 8: Run tests and the honesty gate**
 
 ```bash
-cd crates/vox-gui/ui && pnpm vitest run && pnpm tsc --noEmit
-cd ../../.. && git add crates/vox-gui/ui/src/
-git commit -m "feat(gui): report pending peer count in the mesh widget"
+cd crates/vox-gui/ui && pnpm test && pnpm typecheck
+cargo run -p vox-cli -- ci gui-honesty
 ```
-
----
-
-## Task 12: Two-node verification
-
-**Files:**
-- Create: `docs/src/how-to/populi-two-node-quickstart.md`
-
-This task is verification, not code. Its deliverable is evidence.
-
-**Prerequisites:** two machines on the same LAN with vox built. `crates/vox-gui` needs its sidecar on a fresh worktree — run `vox run scripts/gui-build.vox` first or `cargo build -p vox-gui` fails inside `tauri-build`.
-
-**Interfaces:** consumes everything above.
-
-- [ ] **Step 1: Start both nodes**
-
-On each machine: `vox populi up --mode lan`
-
-Expected on each: `control:` shows that machine's LAN IP, not `127.0.0.1`.
-
-- [ ] **Step 2: Confirm mutual discovery**
-
-On machine A: `vox populi status --json | rg pending`
-
-Expected: machine B's node_id and fingerprint appear. If empty after 60s, check that UDP 5353 is permitted — on Windows the first run usually raises a firewall prompt that must be accepted for private networks.
-
-- [ ] **Step 3: Confirm an untrusted peer cannot be dispatched to**
-
-On A: `vox populi dispatch --node <B-node-id> --source 'fn main() {}'`
-
-Expected: refused, naming trust as the reason. A pass here would mean discovery grants capability, which is the security property this design exists to preserve — treat a success as a blocking defect.
-
-- [ ] **Step 4: Trust in the GUI (Requirement 6)**
-
-Launch `vox-gui` on A. In the Mesh surface:
-
-1. B appears under "Discovered — not yet trusted" with its fingerprint.
-2. Compare that fingerprint against B's own `vox populi identity show`. They must match.
-3. Click Trust. B moves into the trusted list.
-4. Confirm persistence: `cat ~/.vox/trusted_nodes.json` contains B's node_id.
-5. Repeat on B for A.
-
-**Capture a screenshot of the mesh surface showing the trusted peer.** This is the deliverable for spec Requirement 6 — a passing unit test does not satisfy it.
-
-- [ ] **Step 5: Dispatch across the mesh**
-
-From A's GUI, dispatch a task targeted at B.
-
-Expected: it executes on B and returns. Confirm the same `lease_id` on both via `vox populi exec-leases`.
-
-- [ ] **Step 6: Confirm departure**
-
-Stop vox on B. Within 90 seconds (or immediately, via the goodbye packet), A's GUI shows B offline.
-
-- [ ] **Step 7: Confirm the no-internet requirement**
-
-Disconnect both machines from the internet, keeping them on the same LAN. Repeat steps 1, 2 and 5.
-
-Expected: unchanged behavior. This is the requirement that distinguishes this design from the rejected one — if anything here needs the internet, it is a blocking defect.
-
-- [ ] **Step 8: Write the quickstart**
-
-Create `docs/src/how-to/populi-two-node-quickstart.md` with frontmatter (required under `docs/src/`):
-
-```md
----
-title: "Two-Node Mesh Quickstart"
-description: "Connect two machines into a Populi mesh over the local network, with no account, no internet, and no central server."
-category: "How-To Guides"
----
-```
-
-Body: the exact commands from steps 1-6, the firewall note from step 2, and the fingerprint-comparison instruction from step 4. Verify with `cargo run -p vox-doc-pipeline -- --lint-only --paths docs/src/how-to/populi-two-node-quickstart.md`.
 
 - [ ] **Step 9: Commit**
 
-```bash
-git add docs/src/how-to/populi-two-node-quickstart.md
-git commit -m "docs(populi): two-node LAN mesh quickstart"
-```
+### Task 4.3: MeshWidget counts
 
-- [ ] **Step 10: Full gate**
+**Files:** Modify `crates/vox-gui/ui/src/components/dashboard/widgets/MeshWidget.tsx`; create `MeshWidget.test.tsx`
 
-Run: `vox ci pre-push --complete`
-Expected: PASS. Fix anything red before pushing; do not use GitHub Actions as the feedback loop.
+Revision 1 said to "derive from the same `useMeshNodesFull` result the widget already consumes." **It consumes no such thing** — it is 14 lines taking `{ data }: { data: DashboardData }` and reading `data.peers`, with no hooks and no MCP call. Adding a pending count is a real change to the component, not a derivation.
+
+- [ ] **Step 1: Write the failing test**
+
+Assert the combined string once (`/1 online · 1 pending/`); two matchers against one text node is a false pattern. Mock `@tauri-apps/api/core` — `Dashboard.test.tsx` does not, and this widget will now poll.
+
+- [ ] **Step 2: Implement**
+
+Keep the literal label `Mesh Peers` (`Dashboard.test.tsx:355` asserts on it). The tile is a 4-of-12 slot; the count must **replace** the existing third line, not add a fourth. Poll at 30s, not MeshView's 5s.
+
+- [ ] **Step 3: Run the full frontend suite, commit**
 
 ---
 
-## Self-Review Notes
+## Phase 5 — Two-node verification
 
-**Spec coverage:** T1 mDNS discovery → Tasks 1, 2. Trust model → Tasks 4, 10. Defect A (bind) → Tasks 3, 6. Defects B/B2 (tailscale detection) → Task 5. §5.1 join collision + §5.2 three stores → Task 7. §5.3 dead_code → Task 8. GUI wiring (Requirement 6) → Tasks 9, 10, 11, 12. No-internet requirement → Task 12 Step 7.
+### Task 5.1: Verify and document
 
-**Known gaps, deliberately deferred to the spec's Part 9:** the T3 overlay tier keeps its current provider set (no Headscale or Nebula resolver); pairing codes are not built; the `mdns-sd` 0.13 API surface used in Task 2 is the least-verified part of this plan — Task 1 Step 2 exists to confirm it against real docs before Task 2 depends on it, and Task 2 Step 6 says to adjust the code to the real API rather than downgrade the crate.
+**Prerequisites:** two machines on one LAN. Run `vox run scripts/gui-build.vox` once per worktree, or `cargo build -p vox-gui` fails inside `tauri-build`.
 
-**Cross-task type consistency checked:** `DiscoveredPeer` fields are identical in Tasks 1, 4, 9, and 10. `resolve_bind(tier, explicit, port)` has the same signature in Tasks 3 and 6. `pending_peers` is the same JSON key in Tasks 9, 10, and 11.
+- [ ] **Step 1: Ticket path first (the universal one)**
+
+On B: `vox mesh ticket`. On A: paste into the GUI. Reciprocate. Expected: mutual trust with no discovery involved. **This must work before mDNS is tested** — it is the path that has to work everywhere.
+
+- [ ] **Step 2: Refusal before trust**
+
+```bash
+vox populi dispatch ./probe.vox --node <B-node-id>
+```
+
+Note the real signature: `script` is a **positional `PathBuf`**; there is no `--source`. Expected: refused, naming trust. A success means Phase 0 did not land — blocking.
+
+- [ ] **Step 3: Dispatch after trust**
+
+Same command. Expected: executes on B and returns. Confirm the lease on both via `curl $CONTROL_URL/v1/populi/exec/leases` — `vox populi exec-leases` is **not** a command.
+
+- [ ] **Step 4: mDNS path**
+
+`vox populi up --mode lan` on both. Expected within ~60s: each lists the other as pending. If empty, check UDP 5353 — on Windows the first run raises a firewall prompt that must be accepted for private networks, and a **non-admin user cannot accept it**. That is an expected outcome, not a bug: fall back to the ticket and record which network class you were on.
+
+- [ ] **Step 5: GUI ceremony (spec Requirement 6)**
+
+Pending peer visible with fingerprint → compare against B's fingerprint **on the Mesh surface** (not `vox populi identity show`, which prints the *federation signing key* in a different format from a different store — they can never match) → Trust → persists to `~/.vox/trusted_nodes.json` with a **non-empty** `pubkey_hex` → peer stays visible as trusted → dispatch from the GUI runs on B.
+
+**Capture a screenshot.** This is the deliverable for Requirement 6.
+
+- [ ] **Step 6: Departure**
+
+Stop vox on B. A reflects it via the control-plane health check. `ServiceRemoved` fires on goodbye or TTL expiry; do not assert a specific window.
+
+- [ ] **Step 7: The no-internet requirement**
+
+Disconnect both from the internet, keep them on the LAN, repeat Steps 1 and 3. Expected: unchanged. This is the requirement distinguishing this design from the rejected one — a failure here is blocking.
+
+- [ ] **Step 8: Write the quickstart**
+
+`docs/src/how-to/populi-two-node-quickstart.md`, frontmatter `category: "How-To Guides"` (verified against the canonical vocabulary). **Lead with the ticket**, present mDNS as the shortcut, and state plainly which networks it will not work on.
+
+- [ ] **Step 9: Full gate**
+
+```bash
+vox ci pre-push --complete
+```
+
+---
+
+## Appendix — verified correct, do not relitigate
+
+The audit confirmed these against the codebase. Treat as settled:
+
+- **`mdns-sd` API shapes** — `ServiceInfo::new` takes six args; `HashMap<String,String>` implements `IntoTxtProperties`; `get_property_val_str` returns `Option<&str>`; `unregister`/`shutdown` take `&self` and return `Receiver`s; `ServiceDaemon` is `Clone + Send + Sync`. Port 5353 is shared via `SO_REUSEADDR`, so Bonjour and Avahi coexist.
+- **Self-filtering by `node_id` is required and sufficient** — `mdns-sd` does not exclude the daemon's own registrations from browse results.
+- **Tauri args are camelCase** at the top level; nested struct fields stay snake_case.
+- **`mdns-sd` is license- and policy-clean** — MIT/Apache-2.0, no crypto crates, no cmake/nasm. (`ring` and `aegis` are already in `Cargo.lock` despite the AGENTS.md ban, so that policy is aspirational, not gate-enforced.)
+- **The edge ratchet models edges, not features** — adding a feature to an existing dep is free.
+- **Arch-check LoC budgets are `warn`/`off`** — all three touched crates are already over budget on `main`; this plan cannot fail that gate.
+- **The test-first detector is file-granular**, not per-function.
+- **`category: "How-To Guides"`** is in the canonical vocabulary.
+- **`vox auth trust` exists** (`crates/vox-cli/src/commands/auth.rs:16`) and takes a 64-hex pubkey.
+- **`parse_tailnet_status`'s field names and the `Self: null` short-circuit** are correct; selecting IPv4 by family rather than position is right.
+- **`resolve_bind`'s IPv6 bracketing, blank-explicit fallthrough, and no-wildcard behavior** are correct.
+- **`detect_lan_ip`'s UDP-connect trick sends no packet** and is air-gap safe; defactoring rather than taking a `vox-cli-share` edge is correct under rule 3.
+- **Default `vox populi up` (no `--insecure-local`) does generate a token** — the control plane is not open by default *today*; the risk is created only by widening the bind.
+- **No `contracts/` change is required** for `pending_peers` — the crate has no MCP output schema.
