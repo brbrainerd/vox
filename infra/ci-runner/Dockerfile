@@ -82,9 +82,22 @@ RUN cargo install cargo-nextest cargo-llvm-cov cargo-hakari sccache --locked
 ENV RUSTC_WRAPPER=sccache
 
 # GitHub Actions runner agent.
+#
+# The arch is derived from TARGETARCH rather than hardcoded to x64. Docker sets
+# TARGETARCH automatically (amd64 / arm64); GitHub names the same two artifacts
+# x64 / arm64, hence the one-line mapping. Without this the image only builds
+# for x64, which means an Apple-silicon or Ampere host can only run it under
+# emulation — and emulated compilation of a 136-crate workspace is slow enough
+# to defeat the purpose of hosting a local runner at all.
+ARG TARGETARCH
 RUN mkdir -p /actions-runner && cd /actions-runner \
+    && case "${TARGETARCH}" in \
+         amd64) RUNNER_ARCH=x64 ;; \
+         arm64) RUNNER_ARCH=arm64 ;; \
+         *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+       esac \
     && curl -fsSL -o runner.tar.gz \
-       "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz" \
+       "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz" \
     && tar xzf runner.tar.gz && rm runner.tar.gz \
     && ./bin/installdependencies.sh
 

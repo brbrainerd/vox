@@ -44,7 +44,19 @@ jobs:
   # the integration branch.  On PRs the filter is computed from the diff.
   setup:
     name: Cache warmup + path filter
-    runs-on: [self-hosted, linux, x64]
+    # `x64` deliberately dropped from the label set. There were never any
+    # runners matching [self-hosted, linux, x64] — `gh api .../actions/runners`
+    # returns total_count 0 — which is why ci.yml has never once succeeded and
+    # why 157 of its last 200 runs were cancelled after waiting out GitHub's
+    # 24h assignment timeout. Requiring [self-hosted, linux] lets an arm64
+    # Linux runner take these jobs, which is what the local fleet now is
+    # (Apple silicon under colima, native rather than Rosetta-emulated —
+    # emulated compilation of 136 crates is slow enough to defeat the point).
+    #
+    # x64 coverage is not lost: cross-platform-check builds x86_64 on
+    # GitHub-hosted runners with zero queue, and is the lane that should carry
+    # the arch guarantee.
+    runs-on: [self-hosted, linux]
     # Cold `cargo build -p vox-cli` on ephemeral runners (no actions/cache hit)
     # routinely exceeds 20m; fail-closed at 40m so downstream gates are not skipped.
     timeout-minutes: 40
@@ -214,7 +226,7 @@ jobs:
     needs: setup
     # Same-repo PRs only — fork PRs get a read-only token and fall back to manual regen.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     permissions:
       contents: write   # job-scoped override (workflow default is contents: read) to push the regen commit
@@ -299,7 +311,7 @@ jobs:
     name: Fresh clippy+rustdoc on toolchain bump
     needs: setup
     if: github.event_name == 'pull_request'
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
@@ -357,7 +369,7 @@ jobs:
     # integration issues between independently-reviewed PRs), this job already
     # ran on the PR itself before it entered the queue.
     if: github.event_name != 'merge_group'
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     # Raised from 15: the added GTK/dbus apt-get install + pnpm install (for the
     # GUI honesty gate) can eat most of a 15-min budget on a cold self-hosted
     # runner before the guards themselves even start.
@@ -664,7 +676,7 @@ jobs:
     # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
     # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
     if: github.event_name != 'merge_group'
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -814,7 +826,7 @@ jobs:
     # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
     # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
     if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true')
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -916,7 +928,7 @@ jobs:
   tests:
     name: Tests (nextest + llvm-cov + doctests)
     needs: setup
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -1270,7 +1282,7 @@ jobs:
     # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
     # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
     if: github.event_name != 'merge_group'
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     # This job's true steady-state runtime (TOESTUB validation, safety-inventory,
     # hardcoded-values-audit, completion-audit, detect-rules-bench, build-timings,
     # feature-matrix cargo checks, the all-features check, cuda-features, and the
@@ -1477,7 +1489,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: [self-hosted, linux, x64]
+          - runner: [self-hosted, linux]
             label: self-hosted linux
             timeout: 20
           - runner: macos-latest
@@ -1618,7 +1630,7 @@ jobs:
     needs: setup
     # Tiered off merge_group (Task 10) but PR affects_web coverage preserved.
     if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true')
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -1640,7 +1652,7 @@ jobs:
     needs: setup
     # Tiered off merge_group (Task 10) but PR affects_web coverage preserved.
     if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true')
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -1670,7 +1682,7 @@ jobs:
     needs: setup
     # Tiered off merge_group (Task 10) but PR affects_gui coverage preserved.
     if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_gui == 'true')
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
