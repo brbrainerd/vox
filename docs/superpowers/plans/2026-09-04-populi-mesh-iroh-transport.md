@@ -106,14 +106,55 @@ async fn main() -> anyhow::Result<()> {
 - [ ] **Step 3: Report** to `docs/src/architecture/iroh-spike-findings-2026.md` with frontmatter.
 - [ ] **Step 4: Delete the spike.**
 
-### Task 0.3: Four authorizations — STOP and wait
+### Task 0.3: Apply the authorized decisions
 
-Do not write any of these yourself.
+**All four were decided by the operator on 2026-09-04.** No further approval is
+needed; these are now execution steps.
 
-- [ ] **Step 1: Crate edges.** New crate `vox-mesh-transport` (L2), consumed by `vox-orchestrator-mcp` and `vox-ml-cli` (L4). Both are new edges needing an `exceptions` entry. *(Named `-transport`, not `vox-mesh`: `vox-mesh-types` and `vox-mesh-policy` already exist and a bare `vox-mesh` would read as the umbrella.)*
-- [ ] **Step 2: `vox-schema.json`.** `docs/agents/governance.md:142` — new crate definitions must be registered **before the file is created**. Error severity; blocks the first commit.
-- [ ] **Step 3: The ADR.** ADR-020 §Decision.1 requires a future ADR to replace ADR-008 as the default transport. Draft "ADR-046: iroh QUIC replaces the HTTP populi control plane" — supersedes 008, 020, and 017-partial; **upholds 018**.
-- [ ] **Step 4: The crypto-provider decision** (spec Part 8): standardize on `ring` or `aws-lc-rs`. Both currently ship. Independently of iroh, fix the reqwest feature selection and replace the dead textual detector — `scanner.rs:132` means it has never run.
+- [ ] **Step 1: Crate edges — AUTHORIZED.** Add `["vox-orchestrator-mcp",
+  "vox-mesh-transport"]` and `["vox-ml-cli", "vox-mesh-transport"]` to
+  `contracts/ci/crate-edges.allow.v1.json`, and assign `vox-mesh-transport`
+  layer 2 in `contracts/ci/crate-layers.v1.json`. Both edges are L4→L2,
+  downward, layer-legal.
+
+  **Build-time rationale, since that was the operator's stated condition:**
+  `rustls` and `ring` are already compiled in this tree, so the marginal cost is
+  `iroh` + `noq` + `iroh-tickets` + `iroh-mdns-address-lookup` +
+  `swarm-discovery`. Against that, Phase 6 deletes `axum`, `tower-http`,
+  `jsonwebtoken`, and `reqwest-middleware` from two crates. **Task 0.2 Step 2
+  question 6 measures this on both platforms.** If the delta is worse than ~90 s
+  on a clean build, stop and report before Phase 1 — the authorization was
+  conditional on it not exploding.
+
+- [ ] **Step 2: `vox-schema.json`.** Register the crate definition **before**
+  creating the directory (`docs/agents/governance.md:142`, Error severity).
+
+- [ ] **Step 3: ADR-046.** File `docs/src/adr/046-iroh-transport.md` — supersedes
+  ADR-008 and ADR-020, partially supersedes ADR-017 (grant protocol only; the
+  duplicate-execution guard survives), and **upholds ADR-018**. ADR-020
+  §Decision.1 requires this ADR by name and also pre-authorizes the move by
+  naming QUIC as the future option.
+
+- [ ] **Step 4: Crypto provider — `ring`.** Chosen over `aws-lc-rs`: it is
+  already the deliberate pin at `Cargo.toml:251`, it is iroh's default
+  (`tls-ring`), and it is the smaller change. Three sub-steps:
+  1. Pin `iroh = { version = "1.1", default-features = false, features = ["tls-ring", ...] }`.
+     Never `tls-aws-lc-rs`.
+  2. Fix reqwest's feature selection so `workspace-hack` stops enabling
+     `rustls/aws-lc-rs` on all four target sections, then `cargo hakari generate`.
+     Verify with `cargo tree -i aws-lc-sys` returning nothing. **Worth doing
+     whether or not iroh lands** — the workspace ships two providers today.
+  3. Amend `AGENTS.md` §Cryptography Policy and `cryptography-ssot-2026.md` per
+     spec Part 8: application crypto through `vox-crypto` (source scan, keep),
+     transport crypto allowlisted and pinned (**lockfile** gate,
+     `vox ci crypto-provider-check`), toolchain invariant verified by a CI image
+     without cmake/nasm. Both documents currently ban `ring`, which line 251 uses
+     on purpose. Delete `crypto_ban.rs`'s manifest branch and its four tests —
+     `scanner.rs:132` means that branch has never executed.
+
+- [ ] **Step 5: `PopuliHttpOp` — port, do not retire.** It is a Vox `activity`
+  language surface; retiring it is a language-level breaking change. Resolves
+  Task 3.4.
 
 ---
 
@@ -408,7 +449,7 @@ Nothing in Phase 6 may run until these land. Spec Part 2.
 - [ ] **Task 3.1: A2A mailbox.** Store-and-forward to an offline peer. `remote_worker.rs` (1,325 lines) is the consumer. A request/response RPC is not a substitute — this needs a durable inbox with ack, on its own ALPN.
 - [ ] **Task 3.2: Peer directory → model selector.** Replace `federation_directory()` in `registry.rs:379`, `catalog.rs:535`, `task_submit.rs:700` with an enumeration of trusted, probed peers. **Test: a trusted probed peer appears as a `ProviderType::PopuliMesh` candidate; a dropped peer disappears.** That is goal 4's only real acceptance criterion, and deletion without it is silent.
 - [ ] **Task 3.3: Queue stats.** Axis calls `vox_mesh_queue_stats` today.
-- [ ] **Task 3.4: `PopuliHttpOp`.** Decide: port the Vox `activity` surface, or retire it as a **language-level breaking change** with an ADR. Do not delete it as collateral.
+- [ ] **Task 3.4: `PopuliHttpOp` — port it** (decided in Task 0.3 Step 5). A Vox `activity` language surface; retiring it would be a language-level breaking change. Do not delete it as collateral.
 
 ---
 
