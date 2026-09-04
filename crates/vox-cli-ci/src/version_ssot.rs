@@ -181,6 +181,17 @@ pub fn workspace_hack_pin(cargo_toml: &str, file: &Path) -> Option<Declaration> 
     })
 }
 
+
+/// Whether `version` can be expressed as a hakari `major.minor` pin.
+///
+/// A prerelease or build-metadata version cannot: `major_minor("0.7.0-rc.1")` is
+/// `"0.7"`, and cargo's caret semantics exclude prereleases from `^0.7`, so every
+/// member pin stops matching and the workspace fails to resolve entirely. Callers
+/// must refuse such a bump rather than write a tree that does not build.
+pub fn is_hakari_pinnable(version: &str) -> bool {
+    !version.contains('-') && !version.contains('+')
+}
+
 /// `0.7.0` -> `0.7`. hakari pins on major.minor only.
 pub fn major_minor(version: &str) -> String {
     let mut it = version.split('.');
@@ -188,6 +199,32 @@ pub fn major_minor(version: &str) -> String {
         (Some(a), Some(b)) => format!("{a}.{b}"),
         _ => version.to_string(),
     }
+}
+
+
+/// Byte offset just past a real `version` KEY in a TOML line, or `None`.
+///
+/// "Real" means the token is preceded by `{`, `,`, or nothing but whitespace, and
+/// followed (after whitespace) by `=`. This is what separates the key in
+/// `{ path = "x", version = "1" }` from the substring in `vox-versioning` or
+/// `features = ["versioned-api"]`.
+fn toml_version_key_end(line: &str) -> Option<usize> {
+    const KEY: &str = "version";
+    let bytes = line.as_bytes();
+    let mut from = 0usize;
+    while let Some(rel) = line[from..].find(KEY) {
+        let start = from + rel;
+        let end = start + KEY.len();
+        let before_ok = line[..start]
+            .rfind(|c: char| !c.is_whitespace())
+            .is_none_or(|i| matches!(bytes[i], b'{' | b','));
+        let after_ok = line[end..].trim_start().starts_with('=');
+        if before_ok && after_ok {
+            return Some(end);
+        }
+        from = end;
+    }
+    None
 }
 
 /// Rewrite every restatement of the version in `text` to `new_version`.
@@ -225,7 +262,10 @@ pub fn rewrite(text: &str, file: &Path, new_version: &str, is_npm: bool) -> (Str
         .lines()
         .enumerate()
         .map(|(i, line)| {
-            if !targets.contains(&(i + 1)) {
+            // A commented-out dependency is not a declaration. Rewriting it
+            // churns the diff and, worse, `path_dependency_versions` reports it
+            // as drift — so a stale comment could fail the CI gate.
+            if !targets.contains(&(i + 1)) || line.trim_start().starts_with('#') {
                 return line.to_string();
             }
             // Replace only the first quoted semver on the line, preserving all
@@ -247,7 +287,12 @@ pub fn rewrite(text: &str, file: &Path, new_version: &str, is_npm: bool) -> (Str
             let anchor = if is_npm {
                 line.find(':').map(|i| i + 1)
             } else {
-                line.find("version").map(|i| i + "version".len())
+                // A KEY match, not a substring search. `line.find("version")` hit
+                // the `version` inside `vox-versioning = { path = ... }` and
+                // rewrote the PATH; with a `features = ["versioned-api"]` entry it
+                // produced unparseable TOML. Require the token to be preceded by a
+                // table/list boundary and followed by `=`.
+                toml_version_key_end(line)
             };
             let (start, len, old) = match anchor {
                 Some(a) if a <= line.len() => {
@@ -301,6 +346,50 @@ serde         = { version = "1.0", features = ["derive"] }
 "#;
 
 
+
+
+    /// Regression: `line.find("version")` was a SUBSTRING search, so the
+    /// `version` inside `vox-versioning` anchored the rewrite and destroyed the
+    /// path; a `features = ["versioned-api"]` entry produced unparseable TOML.
+    #[test]
+    fn rewrite_does_not_corrupt_lines_containing_the_word_version() {
+        let cases = [
+            (
+                r#"vox-versioning = { path = "crates/versioning-tools", version = "0.6.0" }"#,
+                r#"vox-versioning = { path = "crates/versioning-tools", version = "0.9.0" }"#,
+            ),
+            (
+                r#"vox-x = { path = "crates/x", features = ["versioned-api"], version = "0.6.0" }"#,
+                r#"vox-x = { path = "crates/x", features = ["versioned-api"], version = "0.9.0" }"#,
+            ),
+        ];
+        for (input, want) in cases {
+            let (out, n) = rewrite(input, Path::new("Cargo.toml"), "0.9.0", false);
+            assert_eq!(out.trim_end(), want, "corrupted: {input}");
+            assert_eq!(n, 1);
+        }
+    }
+
+    /// A commented-out dependency is not a declaration.
+    #[test]
+    fn rewrite_leaves_commented_dependencies_alone() {
+        let line = r#"# vox-old = { path = "crates/old", version = "0.4.0" }"#;
+        let (out, n) = rewrite(line, Path::new("Cargo.toml"), "0.9.0", false);
+        assert_eq!(n, 0);
+        assert_eq!(out.trim_end(), line);
+    }
+
+    /// `major_minor` truncates a prerelease to `0.7`, and cargo's caret
+    /// semantics exclude prereleases from `^0.7` — so a bumped tree does not
+    /// resolve at all. Refuse rather than emit a broken pin.
+    #[test]
+    fn major_minor_rejects_prerelease_and_build_metadata() {
+        assert_eq!(major_minor("1.0.0"), "1.0");
+        assert_eq!(major_minor("0.7.0"), "0.7");
+        assert!(is_hakari_pinnable("0.7.0"));
+        assert!(!is_hakari_pinnable("0.7.0-rc.1"));
+        assert!(!is_hakari_pinnable("0.6.0+build.1917"));
+    }
 
     #[test]
     fn workspace_hack_pin_is_found_and_is_major_minor() {

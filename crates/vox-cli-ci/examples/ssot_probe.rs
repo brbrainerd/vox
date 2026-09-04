@@ -52,6 +52,14 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let write = args.iter().any(|a| a == "--write");
     if let Some(next) = args.iter().find(|a| !a.starts_with("--")) {
+        if !v::is_hakari_pinnable(next) {
+            eprintln!(
+                "refusing to bump to {next}: hakari pins members on major.minor, and cargo's \
+                 caret semantics exclude prereleases — every workspace-hack pin would stop \
+                 matching and the tree would not resolve. Bump to a release version first."
+            );
+            std::process::exit(2);
+        }
         println!("\n-- bump to {next}{} --", if write { "" } else { " (dry run)" });
         let (out, n) = v::rewrite(&root, Path::new("Cargo.toml"), next, false);
         println!("Cargo.toml: {n} line(s)");
