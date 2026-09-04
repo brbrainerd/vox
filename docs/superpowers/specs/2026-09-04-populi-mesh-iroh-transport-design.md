@@ -1,368 +1,458 @@
 ---
-title: "Populi Mesh: iroh Transport, Capability Scheduling, and Transit-Cost Routing"
-description: "Design replacing the hand-rolled Populi mesh transport with iroh, reducing the subsystem to the capability scheduler that is vox's actual value-add, and adding a measured transit-cost model that decides per-machine whether shipping a job is worth it."
+title: "Populi Mesh: iroh Transport, Sandboxed Execution, and Measured Placement"
+description: "Design replacing the hand-rolled Populi mesh transport with iroh, sandboxing mesh-received work by default, porting the four capabilities the HTTP plane still serves, and adding a measured placement model that decides per-machine whether shipping a job is worth it."
 category: "Architecture SSOTs"
 status: "current"
 ---
 
-# Populi Mesh: iroh Transport, Capability Scheduling, and Transit-Cost Routing
+# Populi Mesh: iroh Transport, Sandboxed Execution, and Measured Placement
 
-**Status.** Revision 3, 2026-09-04. Revisions 0–2 are recorded below because each
-was rejected for a reason worth keeping.
+**Revision 4**, 2026-09-04. Revisions 0–3 and the reason each was superseded are
+in §12. Revision 3 was audited across eight tracks; this revision incorporates
+those findings, several of which invalidated its headline claims.
 
 ## Goal
 
 When a user works in the CLI or in Axis, vox distributes CPU and GPU work across
 the machines they own, gets out of the way, and shows honestly what that bought
-or cost. The mesh should be something the user never has to think about.
+or cost.
 
 ## Requirements
 
-Binding, and they order every decision. Unchanged since revision 1.
-
-1. **Works out of the box.** Two machines with vox installed and no
-   configuration can pair and share work.
-2. **No central server.** Fully functional with Vox infrastructure switched off
-   permanently.
+1. **Minimal setup.** Two machines with vox installed pair with **one
+   out-of-band step** and no network configuration.
+   *(Revision 3 said "no configuration." Pasting a ticket is configuration; §5
+   explains why one such step is unavoidable, and the requirement now says so.)*
+2. **No central server.** Fully functional with Vox infrastructure switched off.
 3. **Works without internet.** LAN-only and air-gapped are supported.
 4. **No account required.** No sign-up, no third-party identity provider.
 5. **Secure by default.** The safe configuration is the one reached without
-   reading documentation.
-6. **Confirmed in the GUI.** Not done until visible and operable in Axis.
-
-## Revision history
-
-| Rev | Approach | Why rejected |
-|---|---|---|
-| 0 | Derive mesh identity from a Tailscale tailnet | Requires an account, an internet round-trip to a third-party coordinator, and a third-party install. Fails Requirements 2–4. |
-| 1 | Hand-rolled mDNS discovery as the default | An eight-track audit found 24 defects. mDNS also cannot reach managed Windows (non-admin users cannot accept the firewall prompt), guest Wi-Fi with client isolation, or anything across a VLAN. |
-| 2 | Pasteable `vox-mesh://` ticket first, mDNS as convenience, over the existing HTTP control plane | Correct in shape, but hand-rolls identity, tickets, discovery, liveness, and auth — each of which the audit found defective, and each of which a library provides tested. |
-| **3** | **iroh for transport and identity; vox keeps capability scheduling** | — |
-
-Revision 2's rejection of iroh was factually wrong and is corrected below.
+   reading documentation. **Pairing a machine does not grant it native code
+   execution** (§4).
+6. **Confirmed in Axis.** Not done until visible and operable in the GUI.
 
 ---
 
 ## Part 1 — Why iroh
 
-### The decisive detail
-
 **An iroh `EndpointId` is an ed25519 public key**, and `Connection::remote_id()`
-returns the peer's `EndpointId` derived from their TLS certificate — a
-cryptographically bound identity, not a self-asserted string in a header or a
-TXT record.
+returns the peer's id derived from their TLS certificate. Awaiting `Incoming`
+completes the handshake, so identity is proven before any application byte is
+processed. 0-RTT — the only state where identity is unproven — is opt-in on both
+sides and this design never enables it (§4.1).
 
-`TrustedNodeRegistry` is already keyed by pubkey. So the entire trust decision
-becomes one check at accept time:
+Authorization is therefore one allowlist check at accept time, replacing the
+`FullAccess` / bearer / JWT / role matrix in `transport/auth.rs` and the
+unauthenticated-execute path it guarded.
 
-```rust
-let remote = conn.remote_id()?;
-if !trust.contains(&remote) { return; }   // drop the connection
-```
+### Corrections to revision 3's account of iroh
 
-That single check replaces the `FullAccess` / bearer / JWT / role matrix in
-`transport/auth.rs`. **The unauthenticated-execute hole the audit found does not
-exist in this model** — not because a guard was added, but because there is no
-code path that accepts an unidentified peer. Revision 2 needed a blocking
-security phase to patch that hole; revision 3 deletes the surface it lived on.
+Verified against iroh 1.1.0 source, not doc summaries:
 
-### What revision 2 got wrong about iroh
-
-> "Both supply authenticated streams between opaque NodeIds rather than IP
-> addresses, so adopting either means porting the axum router and every
-> `http://host:port` reference onto their stream abstraction — a rewrite of a
-> working transport."
-
-Two errors. The transport was not working (`vox populi up` has never started a
-server). And the streams are not an obstacle: `SendStream`/`RecvStream` implement
-`AsyncWrite`/`AsyncRead`, so an axum router can be served over one via
-`hyper_util::TokioIo` in a few dozen lines — though this design does not need to,
-because it replaces the routes with a typed protocol instead.
-
-### The correct reasons to have hesitated
-
-Neither appeared in revision 2:
-
-- iroh's own **local discovery is mDNS** (`iroh-mdns-address-lookup`), so
-  adopting iroh does not avoid mDNS's network limitations — it inherits them.
-  The ticket path from revision 2 remains necessary and remains the default.
-- iroh's **`N0` preset contacts n0-operated relay and discovery infrastructure**,
-  which Requirement 2 forbids. The `Minimal` preset is mandatory here, and that
-  choice must be enforced, not merely documented.
+| Rev 3 claim | Correction |
+|---|---|
+| "quinn" throughout | **iroh 1.1 does not use quinn.** It uses `noq` 1.2, n0's own QUIC stack. |
+| "`Connection::stats()` gives throughput, so inputs are measured" | **`ConnectionStats` has no throughput, bandwidth, or congestion window** — only `udp_tx.bytes`, `udp_rx.bytes`, `lost_packets`, `lost_bytes`. RTT comes from `rtt(PathId)`. Throughput must be **derived by vox** by differentiating byte counters across a transfer. Still measured, but by us. |
+| "`TrustedNodeRegistry` is already keyed by pubkey" | **False.** It is keyed by `node_id`; `pubkey_hex` is a separate field that can be empty. The mesh needs its own store (§4.4). |
+| `presets::Minimal` assumed n0-free | **Confirmed** from source: `Builder::empty()` plus a crypto provider. No relay, no DNS, no pkarr. `N0DisableRelay` still publishes to n0 pkarr and DNS — ban it too. |
 
 ---
 
-## Part 2 — What iroh replaces
+## Part 2 — What iroh replaces, and what must be ported first
 
-| Hand-rolled today | Replacement | Lines |
+### Replaced
+
+| Hand-rolled | Replacement | Lines |
 |---|---|---|
-| axum control plane, ~25 routes, in **two near-identical copies** (`vox-populi/src/transport`, `vox-plugin-populi-mesh/src/transport`) | `Endpoint` + ALPN + typed protocol | **9,185** |
-| bearer / JWT / `FullAccess` auth layer | `Connection::remote_id()` against an allowlist | + the RCE |
-| `vox-mesh://` ticket (revision 2's design) | `iroh_tickets::EndpointTicket` | ~200, unwritten |
-| bespoke mDNS module (revision 1's design) | `iroh-mdns-address-lookup` | ~400, unwritten |
-| federation directory + announce | direct connection, or `iroh-gossip` later | ~400 |
-| `bundle_fetch`, `op_fragment` | `iroh-blobs` (BLAKE3-verified, resumable, dedup) | ~600 |
-| `tls.rs` (dead — no caller in `serve()`) | QUIC is encrypted by construction | ~150 |
-| NAT traversal (does not exist) | provided | — |
+| axum control plane, ~25 routes, in two near-identical copies | `Endpoint` + ALPN + typed protocol | 9,185 (largely duplicate) |
+| bearer / JWT / `FullAccess` auth | `Connection::remote_id()` against an allowlist | + the RCE |
+| bespoke ticket and mDNS designs | `iroh_tickets::EndpointTicket`, `iroh-mdns-address-lookup` | ~600 unwritten |
+| `tls.rs` (no caller in `serve()`) | QUIC is encrypted by construction | 119 |
+| exec-lease **grant protocol** | `Connection::closed()` | see below |
 
-Verified API surface (iroh 1.1.0):
+### Must be ported before anything is deleted
 
-- `Endpoint::bind(presets::Minimal)`, `Endpoint::builder(preset)`,
-  `Builder::alpns(Vec<Vec<u8>>)`, `Endpoint::{connect, accept, addr, id, close}`
-- `Connection::{open_bi, accept_bi, closed, remote_id, stats, rtt}`
-- `presets::{Empty, Minimal, N0, N0DisableRelay}` — **`Minimal` is required**
-- `MdnsAddressLookup::builder().build(endpoint.id())`, attached via
-  `endpoint.address_lookup()?.add(mdns)`; `subscribe()` yields `DiscoveryEvent`
-- `iroh_tickets::endpoint::EndpointTicket::new(endpoint.addr())`
+Revision 3 listed these as deleted. They are live, and three of them are load-bearing for goals stated earlier in this project:
 
-### Deleting the lease system
+| Capability | Live consumer | Why it can't just go |
+|---|---|---|
+| **A2A mailbox** (`deliver`/`inbox`/`ack`) | `vox-orchestrator/src/a2a/remote_worker.rs` (1,325 lines) | Store-and-forward delivery to an **offline** peer. A request/response RPC is not a substitute. |
+| **Federation directory** | `models/registry.rs:379`, `catalog.rs:535`, `task_submit.rs:700` | Feeds mesh models to the **model selector**. All three call sites are `if let Ok(…)`, so deletion is **silent**: mesh models vanish with no error. |
+| **Queue stats** | `populi_tools.rs:178` → `MeshView.tsx:93` | **Axis calls it today.** |
+| **`PopuliHttpOp`** | `vox-workflow-runtime/src/workflow/populi.rs` | A Vox **`activity` language surface**. Removing it is a language-level breaking change, not a refactor. |
 
-Exec leases exist to prevent duplicate execution. With one originator per task,
-**the QUIC connection is the lease**: if it drops, the job is orphaned and the
-originator retries. `Connection::closed()` is the expiry signal.
+### Deletion, honestly accounted
 
-This deletes grant / renew / expire / revoke and its persistence — roughly 1,500
-lines — and removes a whole class of distributed-state bugs. A personal mesh of
-2–10 machines the user owns does not need distributed consensus; it needs
-reachability, a capability probe, and retry.
+Revision 3 claimed ~12,000 deleted / ~1,000 written. Verified by symbol search:
 
-ADR-017 is superseded for the personal-mesh case. If a future multi-originator
-tier appears, leases return with it.
+- `vox-mesh-types` dead modules: **37 lines**, not ~600. `secret_sync` is live in `vox secrets`; `kudos` in `vox-gamify` and `vox-db`; `op_fragment` in the hopper mesh adapter. Only `quorum` and `model_inventory` are dead.
+- `PublicAttestationManifest` has **six live call sites** in `vox-ml-cli`. Revision 3's SSOT amendment text claimed zero — it would have filed a false statement against a ratified SSOT.
+- `http_client.rs` (649), `http_auth.rs` (112), `http_lifecycle.rs` (198) are `use crate::transport::…` and **cannot survive** the transport deletion. Not previously counted.
+- The exec-lease **table, `vox-db/src/mesh_exec_leases.rs`, and `lease_gate.rs` stay.** Connection-as-lease replaces the *grant protocol*; the ADR-017 duplicate-execution guard is a **database** check and is transport-independent. `known-tables.txt:112` also pins the table to a drift fixture.
+
+**Revised: ~7,000 lines deleted, ~2,500 rewritten, ~1,500 written.** The bet is
+still good — most of the deletion is a duplicated transport nobody reaches — but
+it is a rewrite with a deletion in it, not a deletion with a rewrite in it.
 
 ---
 
 ## Part 3 — What survives, and why it matters
 
-The parts worth keeping are the parts no library provides:
-
-- **`NodeRecord` capability data** — probe-backed GPU truth, VRAM, CPU load,
-  `host_triple`. iroh gives you a pipe between machines; nothing else knows which
-  of your machines has 12 GB of VRAM free.
-- **`select_best_node`** and the model-registry scoring.
-- **`TrustedNodeRegistry`**, reduced to an allowlist of `EndpointId`s.
-- **Local job queue and journal** for retry.
-
-That is the actual product. Today it is buried under nine thousand lines of
-transport plumbing that a library does better.
+`NodeRecord` capability data (probe-backed GPU truth, VRAM, `host_triple`),
+`select_best_node`'s **admission** logic, and the local job queue. iroh gives a
+pipe between machines; nothing else knows which machine has 12 GB of VRAM free.
 
 ---
 
-## Part 4 — Transit-cost routing
+## Part 4 — Security
 
-The scheduler's question is not "which machine is fastest" but "is shipping this
-worth it at all." Because iroh exposes `Connection::stats()` and
-`Connection::rtt()`, the inputs are **measured rather than configured**:
+Revision 3 argued the RCE "stops existing." That is true of the *transport*. It
+was false of the *executor*, which revision 3 left undefined while Phase 3
+deleted the only gate that existed.
 
-```rust
-/// Should this job go to `peer` instead of running locally?
-fn worth_shipping(job: &Job, peer: &PeerStats, local: &LocalStats) -> bool {
-    let bytes = job.payload_bytes + job.expected_result_bytes;
-    let transit_ms = (bytes as f64 / peer.throughput_bps) * 1000.0 + peer.rtt_ms * 2.0;
-    let remote_ms = transit_ms + peer.median_ms_for(job.kind);
-    remote_ms < local.median_ms_for(job.kind) * SHIP_MARGIN
-}
-```
+### 4.1 Identity and the 0-RTT invariant
 
-`median_ms_for` is a rolling median of observed durations keyed by
-`(job_kind, endpoint_id)`. No model, no configuration, no cold-start guessing:
-**with no history, the job runs locally.** The estimator self-calibrates from
-real outcomes.
+`remote_id()` is infallible on a handshake-completed connection **because** the
+handshake authenticated the peer. In 0-RTT states it returns `Result`, precisely
+because identity is not yet proven. **This design never calls `into_0rtt()`**,
+and a detector enforces that alongside the `presets::N0` ban — otherwise a future
+`?` added to satisfy the compiler silently makes every check advisory.
 
-`SHIP_MARGIN` is 0.8 — a job must be at least 20 % faster remotely to be worth
-shipping. Marginal wins are not worth the failure modes.
+Trust is re-checked **per request**, not only at accept, so revocation bounds
+exposure to one in-flight job.
 
-// ponytail: rolling median over the last 16 samples per (kind, endpoint);
-// a real latency model if the median proves too coarse for heterogeneous GPUs.
+### 4.2 Execution: sandboxed by default
 
-**Surfacing gains and losses (Requirement 6).** Axis shows, per job: where it
-ran, estimate versus actual, and cumulative time saved or lost. This is the
-feedback loop that makes the estimator trustworthy — and auditable when it is
-wrong.
+The existing worker writes posted bytes to the temp dir, `chmod 0755`, and
+executes them natively. Default policy is `"permissive"`. There is **no timeout**
+— `Command::output()` blocks forever — and `max_job_duration_secs` /
+`max_concurrent` in `donation_policy` have **no readers anywhere**. They are
+decorative.
+
+Therefore:
+
+- **The receiver chooses the sandbox, never the sender.** `Isolation::Wasm` is
+  the default for mesh-received work.
+- **Native execution is per-peer opt-in**, recorded as a `TrustLevel` in the
+  trust store and set by an explicit GUI action — never a global secret. A global
+  permissive flag is exactly the control that failed.
+- **`JobLimits` is part of the executor contract**: `wall_clock` (default 300 s,
+  hard kill), `max_output_bytes` (10 MiB, carried forward), `max_payload_bytes`.
+- **`MAX_CONCURRENT_JOBS_PER_PEER = 4`.** The allowlist protects against
+  strangers, not against a trusted machine that has gone bad.
+
+### 4.3 Bounded pre-authorization work
+
+An unauthenticated peer can force a TLS handshake — an X25519 exchange plus a
+signature verification, ~100 µs — and iroh has no built-in connection cap. The
+accept loop bounds in-flight handshakes with a semaphore, applies a handshake
+timeout, and calls `Incoming::retry()` above a threshold to make spoofed sources
+prove reachability.
+
+### 4.4 Trust store
+
+A **separate `~/.vox/mesh_trust.json` keyed by `EndpointId`**, holding
+`{endpoint_id, label, trust_level, added_at}`. Not `trusted_nodes.json`: that is
+keyed by `node_id` from a different keyspace, its `pubkey_hex` can be empty, and
+overloading it would make `untrust` ambiguous by construction. Writes are
+atomic (temp + rename); a read failure fails closed **and logs at `error!`** —
+failing closed silently is how a security control becomes an undiagnosed outage.
+
+### 4.5 Payload and result size
+
+BLAKE3 verification proves the bytes match the hash **the sender chose**. It is
+an integrity property, not a safety one. Sizes are declared in the protocol and
+enforced before *and* during transfer, in **both directions** — the result fetch
+runs on the originator, which is the user's main machine, and revision 3 never
+mentioned it. Per-job caps plus a store budget, with blobs GC'd on completion.
+
+### 4.6 Consuming a ticket is the highest-privilege action in the system
+
+Revision 3 said *"a ticket grants the holder nothing until the far side
+reciprocates."* True of **publishing** one. Backwards for **consuming** one:
+`vox auth trust <ticket>` moves an attacker-chosen key onto the allowlist.
+
+The strongest attack on this design is social — "paste this to pair" in a chat —
+and revision 3's framing actively encouraged treating the paste as low-stakes.
+So: the CLI prints the `EndpointId` and requires confirmation; Axis decodes and
+displays it before the Trust button is live; and §4.2's sandboxed default is what
+makes a mistaken paste survivable rather than fatal.
+
+### 4.7 mDNS supplies addresses, never identity
+
+mDNS is unauthenticated: anyone on the LAN can announce any `(EndpointId,
+addresses)` pair. TLS means they cannot impersonate a peer, but they *can*
+blackhole one by announcing dead addresses, or use the node as a reflector.
+Cap addresses per peer, prefer ticket-learned and previously-successful
+addresses, and refuse discovered addresses outside the local subnet.
+
+### 4.8 The placement model is an attacker-influenced input
+
+A peer reports its own speed by completing jobs quickly. A compromised peer can
+drive its median toward zero and attract **every** job — including payloads that
+are source code and training data — while Axis displays it as the fastest
+machine. Floor each peer's estimate relative to the best honestly-observed time.
+
+Deeper consequence to record now: with placement, the scheduler makes a **data
+placement** decision. Anything that should not leave a machine needs a per-job
+bit the cost model cannot override.
 
 ---
 
-## Part 5 — Pairing and trust
-
-### Tiers, ordered by coverage
+## Part 5 — Pairing
 
 | Tier | Mechanism | Coverage | Status |
 |---|---|---|---|
 | **T0** | loopback | one machine | always |
-| **T1** | `EndpointTicket` paste | **every network** | **default** |
+| **T1** | `EndpointTicket` paste | **every network** | default |
 | **T2** | `iroh-mdns-address-lookup` | most home/office LANs | convenience over T1 |
 | **T3** | self-hosted iroh relay | cross-site | opt-in |
 | **T4** | vox-operated rendezvous | — | **prohibited** |
 
-T1 stays the default for the reason revision 2 established: no multicast
-mechanism reaches managed Windows, isolated guest Wi-Fi, or across a VLAN, and
-the blocker is the firewall and the access point, not the wire format. iroh
-inherits that limitation because its local discovery *is* mDNS.
+T1 remains the default: no multicast mechanism reaches managed Windows (a
+non-admin user **cannot** accept the firewall prompt), guest Wi-Fi with client
+isolation, or across a VLAN. iroh inherits that limit because its local discovery
+*is* mDNS.
 
-The ticket adds no friction the trust model did not already require — an
-out-of-band step is unavoidable (see below), and `EndpointTicket` collapses
-discovery and identity into one pasteable string.
-
-**T3 is compatible with the T4 prohibition** because the user opts into a relay
-they run. n0's relays are not used: the `Minimal` preset contacts no third party,
-and a lint must enforce that the `N0` preset never appears in vox code.
-
-### The constraint, stated plainly
-
-Automatic, secure, and serverless cannot all hold at once. Discovering a peer
-does not prove it is yours. Something must be exchanged out of band exactly once.
-Designs that appear to avoid this have hidden a bearer secret or a trusted third
-party.
-
-### Flow
-
-1. B prints its ticket (`vox mesh ticket`, or Axis displays it). It carries B's
-   `EndpointId` — a public key — and its addresses.
-2. A consumes it: paste into Axis, or `vox auth trust <ticket>`.
-3. A adds B's `EndpointId` to the allowlist. B does the same for A.
-4. Every later connection is authenticated by TLS to that key. An unknown
-   `remote_id()` is dropped before any protocol handler runs.
-
-T2 inserts one optional step: a discovered peer appears with its `EndpointId`,
-and approving it performs step 3 without a paste. **The displayed identity is the
-key itself**, so the comparison the user performs is the thing the system later
-enforces — unlike revision 1, where a fingerprint was displayed and a node_id was
-stored.
-
-### Security properties
-
-- A hostile peer on the LAN can be discovered and can do nothing else: no
-  protocol handler runs before the allowlist check.
-- Trust binds to the key, so it survives address changes and cannot be claimed by
-  announcing someone else's identifier.
-- Revocation is local, immediate, and drops live connections.
-- Ticket contents are public; a ticket grants the holder nothing until the far
-  side reciprocates.
-
-**Rejected: pairing codes as the default.** A short code is a bearer secret;
-anyone who observes it joins silently, failing Requirement 5.
+**The constraint, stated plainly.** Automatic, secure, and serverless cannot all
+hold at once. Discovering a peer does not prove it is yours; something must be
+exchanged out of band exactly once. Designs that appear to avoid this have hidden
+a bearer secret or a trusted third party.
 
 ---
 
-## Part 6 — Component design
+## Part 6 — Placement
 
-### Process topology
-
-Three processes, and this constrains everything:
-
-1. **Axis** (`vox-gui`) — no in-process MCP host; it was deliberately removed.
-2. **`vox-orchestrator-d`** — a child binary over TCP `127.0.0.1:9745`. **This is
-   where `vox_mesh_nodes` executes.**
-3. **`vox populi serve`** — a separate child process.
-
-Revision 1 stored discovery in a process-global read from a different process. In
-this design **the iroh `Endpoint` lives in `vox-orchestrator-d`**, which is the
-process that both serves the GUI's tool calls and dispatches work. `vox populi
-serve` is retired along with the HTTP plane.
-
-### New crate: `vox-mesh`
-
-Roughly 800 lines, replacing ~10,000. One crate so an iroh 2.0 is one file:
-
-```text
-identity.rs   persisted SecretKey; EndpointId = its public key
-endpoint.rs   Endpoint::bind(presets::Minimal) + MdnsAddressLookup + StaticProvider
-trust.rs      EndpointId allowlist, wrapping TrustedNodeRegistry
-protocol.rs   ALPN b"vox/job/1"; Probe / Run / Cancel over one bi-stream
-cost.rs       worth_shipping(), rolling medians, PeerStats from Connection::stats()
-ticket.rs     thin wrapper over iroh_tickets::EndpointTicket
-```
-
-The job protocol is deliberately small:
+The question is not "which machine is fastest" but "is shipping this worth it."
 
 ```rust
-enum JobRequest {
-    Probe,                          // -> Capabilities (GPU, VRAM, load, host_triple)
-    Run { kind: JobKind, blob: Hash },
-    Cancel { job_id: JobId },
+fn worth_shipping(job: &JobEstimate, peer: &PeerStats, local: &LocalStats) -> bool {
+    let Some(peer_ms)    = peer.median_ms_for(job.kind)          else { return false };
+    let Some(result_len) = peer.median_result_bytes_for(job.kind) else { return false };
+    let Some(throughput) = peer.throughput_bps                    else { return false };
+    let Some(rtt_ms)     = peer.rtt_ms                            else { return false };
+    let bytes = (job.payload_bytes + result_len) as f64;
+    let transit_ms = (bytes / throughput.max(1.0)) * 1000.0 + rtt_ms * 2.0;
+    (transit_ms + peer_ms) < local.median_ms_for(job.kind) * SHIP_MARGIN
 }
 ```
 
-Payloads travel as `iroh-blobs` hashes rather than inline bytes: content-addressed,
-resumable, deduplicated across jobs, and BLAKE3-verified on arrival.
+Every input is measured; **absent any measurement, the job stays local.**
+Revision 3 had three fields with no source: `expected_result_bytes` is
+unknowable before running (it is now observed alongside duration), and
+throughput and RTT come from vox's own differentiation of iroh's byte counters.
 
-### Crate edges
+**Admission is separate from cost.** VRAM and `host_triple` are hard gates — a
+16 GB model cannot run on a 6 GB GPU at any speed, and an `x86_64-pc-windows-msvc`
+artifact cannot run on `aarch64-apple-darwin`. Revision 3 had no admission stage
+at all. (Note the existing `select_best_node` admits on *total* VRAM, not free;
+the `Probe` response must report free.)
 
-`vox-mesh` is a new L2 crate depending on `vox-identity` (L1), `vox-mesh-types`
-(L1), and iroh. Consumers are `vox-orchestrator-mcp` and `vox-ml-cli` (both L4).
-These are new workspace edges and **require user authorization** per `AGENTS.md`
-§Dependency Discipline. They are requested explicitly in the plan, not assumed.
+**One scheduler, not two.** `models/registry.rs` and `scoring.rs` already rank
+mesh peers with cost, latency, and reputation terms. Machine placement moves to
+`vox-mesh-policy::cost`; `ProviderType::PopuliMesh` survives as "run this via the
+mesh," but *which machine* stops being the model scorer's business.
 
----
+**Build the data before the model.** Ship placement records and the Axis table
+first, routing on hard admission plus one honest rule — *ship if the peer has a
+GPU and this machine does not and the payload is small*. Record what the medians
+*would* have predicted without acting on them. Requirement 6 is satisfied on day
+one, the GPU case works immediately, and the model switches on only when the
+recorded data shows it would have done better. If it wouldn't have, we deleted a
+model instead of shipping one.
 
-## Part 7 — Deletion inventory
+### Honest telemetry
 
-Confirmed by symbol search to have zero consumers outside their own crate:
-
-| Item | Lines |
-|---|---|
-| `vox-plugin-populi-mesh/src/transport` (dormant — `MeshDriver::start_transport` has no non-test caller) | 3,702 |
-| `vox-populi/src/transport` (live, replaced) | 5,483 |
-| `pairing/{device_flow,github_attestation}` | 422 |
-| `quota/` (no external consumers) | 267 |
-| `vox-mesh-types`: `quorum`, `tee_attestation`, `secret_sync`, `model_inventory`, `op_fragment`, `kudos` | ~600 |
-| `tls.rs` | ~150 |
-| exec-lease machinery | ~1,500 |
-
-**~12,000 lines deleted, ~1,000 written**, subject to a real accounting during
-implementation. `A2ADeliverRequest` (16 consumers) and the capability types stay.
-
----
-
-## Part 8 — Reconciliation with the ratified mesh SSOT
-
-[`mesh-and-language-distribution-ssot-2026.md`](../../src/architecture/mesh-and-language-distribution-ssot-2026.md)
-line 101 states a binding non-goal (council decision D16): *"Paired peers +
-GitHub attestation are the binary gates."* Requirement 4 is incompatible with an
-attestation gate that requires a third-party identity provider and an internet
-round-trip.
-
-The conflict is smaller than it looks: the gate was never wired.
-`fetch_and_verify`, `device_flow`, `PublicAttestationManifest`, and
-`verify_against_trust` all have zero non-test callers; `pairing_e2e.rs` is a
-one-line placeholder; and `vox populi join` writes a config key nothing reads.
-
-This design supersedes the enrollment half of Phase 5/6. **An amendment must be
-filed with the first implementation commit** — a ratified SSOT is not amended
-silently.
+The counterfactual is never observed: for a shipped job, "saved" is an *estimate*
+minus a *measurement*. So the Axis panel shows estimated net saving **beside
+median calibration error**, counts jobs that stayed home when the estimate said
+ship, books failed ships at their full cost, and tags exploratory dispatches so
+they are excluded from calibration.
 
 ---
 
-## Part 9 — Risks
+## Part 7 — VoxScript and automatic distribution
+
+**Question:** can all vox scripts be scalable, parallelizable, and grid-computable
+with no new decorators?
+
+**Answer: no for arbitrary functions, and the research is unambiguous.** No
+system has achieved it. Unison makes `Location` the *first argument* to `forkAt`
+and its design doc forbids implicit node contact. Cloud Haskell's `Closure` /
+`static` is a **type-level tax paid because transparency is impossible**. Erlang
+takes `spawn(Node, M, F, A)`. Chapel and X10 both deliberately made the
+local/remote boundary syntactically visible, on the grounds that invisible
+communication destroys performance predictability — that is prior art *against*
+hiding it.
+
+**What the enabling condition actually is** — and revision 3's instinct was only
+half right. It is not purity, and it is definitely not element cost (Spark's CBO
+estimates SQL cardinality; Dask has a flat overhead constant; Ray has nothing).
+It is **re-executability**: deterministic, idempotent, serializable, and
+appropriately sized. Spark models it as a three-valued `DeterministicLevel`
+lattice; Ray states "tasks are assumed to be deterministic and idempotent"; Dask
+makes it the literal `pure=` parameter.
+
+**Where vox is genuinely better positioned.** Those systems assert purity because
+they cannot prove it — and the barrier is not Python's dynamism. Spark's
+`ClosureCleaner` does JVM bytecode analysis in statically-typed Scala and still
+only *approximates* what a closure captures, then tries serializing and reports
+`Task not serializable`. Vox has `HirEffectSet` and enforced `@pure`. **The
+assertion those systems ask the programmer to make, vox can check.**
+
+**What is attainable with zero new syntax:**
+
+1. **`map` / `filter` / `fold` over a collection** whose element closure is
+   provably pure and whose values are serializable, above a size threshold. This
+   is the Spark/Dask insight with the purity check made real.
+2. **`activity` blocks** — already a distribution boundary by design.
+3. **`@pure fn` above a cost threshold**, where the compiler emits relocatability
+   metadata and the runtime decides at call time.
+
+**What is not attainable, and should not be promised:** anything touching
+non-serializable state (file handles, sockets, GPU contexts, actor refs),
+anything whose captured environment is large enough that shipping costs more than
+computing, and anything non-deterministic — where the failure mode is *silently
+wrong answers*, not errors. Spark shipped exactly that bug for years
+(SPARK-23207: `repartition` returning 931,532 of 1,000,000 rows after an executor
+was killed).
+
+**The bottleneck will be economics, not analysis.** Cilk's `cilk_spawn` is
+permission rather than command and costs 2–6× a function call, so being wrong is
+free. A network hop is 3–5 orders of magnitude more expensive, so the same design
+needs a *predictive* model where Cilk needs none. The field's best answer to
+granularity — heartbeat scheduling — is **ex post**, and cannot port to an
+**ex ante** offload decision. Auto-parallelizing compilers of the 1990s
+frequently made correctly-parallelized code *slower*.
+
+**Therefore: build the accounting first.** GHC reports sparks as
+converted / fizzled / GC'd / overflowed. Without per-decision accounting of
+"shipped it and lost," a runtime cost model is unfalsifiable folklore. That is
+the same conclusion Part 6 reaches from the operational side, and it is why the
+telemetry is the first deliverable rather than the last.
+
+**Scope for this document: none of it.** Part 7 records the finding so the
+question is settled with evidence. Language-level distribution is a separate
+spec that should not start until the mesh moves bytes.
+
+---
+
+## Part 8 — Cryptography policy
+
+The `ring` ban's goals were (a) unify crypto under `vox-crypto`, (b) improve
+security, (c) reduce dependencies. Scored honestly:
+
+- **(a) is already failing by two providers.** Root `Cargo.toml:251` pins
+  `rustls` to `ring` deliberately; `workspace-hack` enables `rustls/aws-lc-rs` on
+  all four target sections, via reqwest's `rustls-tls`. Both ship today, and
+  `ring` is on the SSOT's own banned list — **the root manifest contradicts the
+  SSOT at line 251.**
+- **The gate has never run.** `scanner.rs:132` drops every file whose language is
+  `Unknown`, and `from_extension("toml")` is `Unknown`, so `crypto_ban.rs`'s
+  manifest branch is unreachable. Its tests pass by constructing `SourceFile`
+  directly, **bypassing the scanner that would have excluded them.**
+- **The cmake/nasm fear is empirically false.** `aws-lc-sys` is built in this
+  tree, on Windows, with neither tool on PATH — its own build log says
+  `NASM command not found` and it succeeded via prebuilt objects.
+- **(b) iroh helps most.** We currently hand-roll an ed25519 envelope and a JWT
+  auth matrix outside `vox-crypto`. That is where the RCE was.
+- **(c) iroh makes the literal metric worse** — a QUIC + NAT-traversal stack has
+  more transitive crates than an axum router — and the real metric better, by
+  trading ~7,000 first-party lines for vendored, tested ones.
+
+**Revision: split the policy in two.**
+
+1. **Application crypto** — anything vox performs on vox's data — MUST go through
+   `vox-crypto`. Enforceable by source scan; keep it.
+2. **Transport crypto** lives inside vetted libraries, is **allowlisted, pinned,
+   and ledgered**, and is checked against the **resolved lockfile**, not manifest
+   text. Feature unification is per-package, so a single crate enabling a
+   provider reintroduces it workspace-wide — which is exactly what happened.
+3. **The build-toolchain invariant** — a clean clone builds with only the Rust
+   toolchain, the platform C compiler, and Node/pnpm — is a property of the
+   *build*, verified by CI on an image without cmake/nasm/Go/perl/libclang, not
+   by blacklisting crate names.
+
+**Open decision (yours):** standardize on **`ring`** (already the deliberate pin,
+iroh's default; requires amending the SSOT's ban) or on **`aws-lc-rs`** (rustls's
+default, FIPS-capable, empirically toolchain-free on Windows; requires changing
+line 251 and the reqwest features). Either way, fix the reqwest feature selection
+and replace the dead textual detector with a lockfile gate.
+
+**Identity:** `vox-crypto` pins `ed25519-dalek` 2.x, iroh pins 3.0-rc, so they
+cannot share a Rust type — but both round-trip through 32 bytes. Do **not**
+unify: the mesh key must start headless while `NodeIdentity` is password-sealed,
+so fusing them either breaks unattended start or unseals the signing key.
+
+---
+
+## Part 9 — Process topology
+
+Three processes: **Axis** → TCP `127.0.0.1:9745` → **`vox-orchestrator-d`**
+(where `vox_mesh_nodes` executes and where the iroh `Endpoint` lives) → and
+today a separate `vox populi serve`, being retired.
+
+**Unresolved in revision 3 and resolved here:** `vox mesh` CLI verbs run in a
+*different process* from the daemon. They connect to the daemon over its existing
+IPC and, if it is not running, start it. The user must never learn the word
+`vox-orchestrator-d`, and a ticket must never be minted by a process whose
+addresses die when it exits.
+
+---
+
+## Part 10 — Risks
 
 | Risk | Mitigation |
 |---|---|
-| iroh 1.0 is three months old (June 2026; 1.1 August, after 65 pre-releases) | Confined to `vox-mesh`. Pin exactly. A 2.0 touches one crate. |
-| Losing HTTP means losing `curl` debugging | Keep a loopback-only HTTP admin surface, plus `vox mesh call` for protocol probes. |
-| It is a rewrite | Most of what is rewritten is dead or broken. `vox populi up` has never started a server. |
-| `AGENTS.md` bans `ring` | iroh's active provider is `aws-lc-rs`. `ring`, `aws-lc-rs`, `quinn`, and `rustls` are **already in `Cargo.lock`**, so this does not worsen the policy — but it does make its aspirational status hard to ignore. Decide whether the rule is real. |
-| Accidentally shipping the `N0` preset | A `vox-code-audit` detector failing on `presets::N0` in vox code. Requirement 2 needs a gate, not a comment. |
+| iroh 1.1 is three months old | Confined to one crate. Pin exactly. **Its satellites are pre-1.0** (`iroh-blobs` 0.103, `iroh-mdns-address-lookup` 0.5) and can break on every minor — pin those with `=`. |
+| Losing HTTP loses `curl` debugging | Loopback-only admin surface plus `vox mesh explain`. |
+| The deletion is larger than the replacement | Deletion happens **last**, after the replacement is proven across two machines. |
+| Placement model is wrong or gamed | Data before model (§6); estimate floor (§4.8); calibration error shown beside every claim of savings. |
+| Version skew between machines | A frozen `Hello { proto, vox }` frame. Without it the likely week-one failure is a hang. |
 
 ---
 
-## Part 10 — Future direction
+## Part 11 — Reconciliation with ratified decisions
 
-Each of these is a new ALPN or an existing iroh module, not a transport change:
+**ADR-020 §Decision.1 states the default remains HTTP Populi "until a future ADR
+explicitly replaces ADR-008 as the default transport."** This design does exactly
+that and therefore **requires a new ADR** — filed with the first implementation
+commit, superseding ADR-008 and ADR-020, partially superseding ADR-017 (the
+grant protocol, not the duplicate-execution guard), and **upholding ADR-018**
+(probe-backed GPU truth is Layer A).
 
-- **`iroh-blobs` for model and checkpoint distribution** — content-addressed,
-  resumable, deduplicated. This is workstream W4 (mesh model inventory) with the
-  hard part already solved, and it matters most for MENS checkpoints.
-- **`iroh-gossip`** for mesh-wide state without a directory.
-- **Mobile** — iroh runs on iOS and Android, so the Tauri mobile targets inherit
-  the mesh.
-- **New protocols** are new ALPNs; the transport is never touched again.
-- **Cross-site** via a user-run relay, never a vox-run one.
+ADR-020 also *pre-authorizes* this move by naming QUIC as the future option — a
+supporting argument revision 3 ignored while being in breach of the same ADR.
+
+The mesh SSOT's non-goal that "paired peers + GitHub attestation are the binary
+gates" is superseded for local peers. The attestation subsystem's *pairing* half
+has no non-test callers; `PublicAttestationManifest` itself does, and the
+amendment must say so.
 
 ---
 
-## Part 11 — Out of scope
+## Part 12 — Revision history
 
-- Internet-peer attestation (Part 8) — neither implemented nor forbidden.
-- `iroh-gossip`, `iroh-docs`, mobile — named as direction, not built.
-- Cross-node secret pairing (W3) and trace propagation (W5).
-- Multi-originator leases — deleted, and returning only with a tier that needs them.
-- Any vox-operated coordination service. Rejected, and Part 9 asks for a detector.
+| Rev | Approach | Superseded because |
+|---|---|---|
+| 0 | Tailscale-derived identity | Requires an account, a third-party coordinator, an install. |
+| 1 | Hand-rolled mDNS as the default | 24 defects; mDNS unreachable on managed Windows, isolated guest Wi-Fi, across VLANs. |
+| 2 | Ticket-first over the existing HTTP plane | Hand-rolled identity, tickets, discovery, liveness, and auth — each defective, each provided tested by a library. |
+| 3 | iroh transport | Right direction; overstated the deletion, omitted four live capabilities, left the executor unsandboxed, and had six compile errors plus three cost-model fields with no data source. |
+| **4** | **iroh + sandboxed execution + measured placement, deletion last** | — |
+
+---
+
+## Part 13 — Out of scope
+
+- Language-level distribution (Part 7) — evidence recorded, work deferred.
+- `iroh-blobs` for job payloads — **cut from v1**. A bi-stream already gives
+  ordered, encrypted, flow-controlled bytes; blobs buys resume and dedup that a
+  10 MB payload on a 3 ms LAN does not need, at the cost of a store, a GC policy,
+  and a disk-full failure mode. It earns its place for **model and checkpoint
+  distribution**, where files are gigabytes — introduce it there, as its own ALPN.
+- `irpc` — cut. Three request variants over one bi-stream is four lines of
+  postcard.
+- `iroh-gossip`, mobile — direction, not work.
+- Multi-originator leases — the DB guard stays; the grant protocol goes.
+- Any vox-operated coordination service. Rejected, with a detector.
