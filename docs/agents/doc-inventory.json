@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-04T00:08:38.489Z",
+  "generated_at": "2026-09-04T01:14:10.897Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -79,7 +79,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/chat_tools/mod.rs",
       "kind": "rust",
-      "lines_total": 565,
+      "lines_total": 564,
       "lines_triple_slash": 26,
       "lines_inner_doc": 4,
       "lines_plain_comment": 30,
@@ -12058,7 +12058,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs",
       "kind": "rust",
-      "lines_total": 1745,
+      "lines_total": 1751,
       "lines_triple_slash": 248,
       "lines_inner_doc": 21,
       "lines_plain_comment": 136,
@@ -12465,7 +12465,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs",
       "kind": "rust",
-      "lines_total": 1940,
+      "lines_total": 1949,
       "lines_triple_slash": 121,
       "lines_inner_doc": 0,
       "lines_plain_comment": 177,
@@ -12476,7 +12476,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs",
       "kind": "rust",
-      "lines_total": 1408,
+      "lines_total": 1411,
       "lines_triple_slash": 114,
       "lines_inner_doc": 7,
       "lines_plain_comment": 69,
@@ -13103,7 +13103,7 @@
     {
       "path": "crates/vox-gui/src/commands/chat_turn.rs",
       "kind": "rust",
-      "lines_total": 631,
+      "lines_total": 639,
       "lines_triple_slash": 70,
       "lines_inner_doc": 11,
       "lines_plain_comment": 27,
@@ -14368,7 +14368,7 @@
     {
       "path": "crates/vox-db/src/harness_eval.rs",
       "kind": "rust",
-      "lines_total": 867,
+      "lines_total": 871,
       "lines_triple_slash": 51,
       "lines_inner_doc": 3,
       "lines_plain_comment": 3,
@@ -23333,7 +23333,7 @@
     {
       "path": "crates/vox-orchestrator-mcp/src/chat_tools/plan.rs",
       "kind": "rust",
-      "lines_total": 1191,
+      "lines_total": 1197,
       "lines_triple_slash": 17,
       "lines_inner_doc": 0,
       "lines_plain_comment": 16,
@@ -27722,7 +27722,7 @@
     {
       "path": "crates/vox-db/src/local_tests.rs",
       "kind": "rust",
-      "lines_total": 816,
+      "lines_total": 821,
       "lines_triple_slash": 10,
       "lines_inner_doc": 1,
       "lines_plain_comment": 35,
@@ -34474,23 +34474,23 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-db/tests/model_scoreboard_percentiles.rs",
-      "kind": "rust",
-      "lines_total": 119,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 6,
-      "lines_plain_comment": 7,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-drift-check/src/bin/vox_drift_check.rs",
       "kind": "rust",
       "lines_total": 119,
       "lines_triple_slash": 6,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-db/tests/model_scoreboard_percentiles.rs",
+      "kind": "rust",
+      "lines_total": 118,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 6,
+      "lines_plain_comment": 7,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
