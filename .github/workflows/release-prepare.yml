@@ -80,25 +80,19 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Next version: $version (tag $next)"
 
-      - name: Update the workspace version
+      - name: Bump every restatement of the version
         shell: bash
         run: |
           set -euo pipefail
-          version="${{ steps.next.outputs.version }}"
-          # Rewrite ONLY the first `version = "..."` inside [workspace.package],
-          # mirroring how version-tag-guard.yml reads it, so a dependency's
-          # version is never touched.
-          awk -v v="$version" '
-            /^\[workspace\.package\]/ { in_wp = 1 }
-            in_wp && !done && /^[[:space:]]*version[[:space:]]*=/ {
-              sub(/=.*/, "= \"" v "\""); done = 1
-            }
-            /^\[/ && !/^\[workspace\.package\]/ { in_wp = 0 }
-            { print }
-          ' Cargo.toml > Cargo.toml.next
-          mv Cargo.toml.next Cargo.toml
-          # Prove it took, and that the guard will agree with the tag.
-          grep -A5 '^\[workspace\.package\]' Cargo.toml | grep -m1 'version'
+          # NOT a one-line sed on [workspace.package]. The version is restated in
+          # 13 other places — 9 workspace path-dependencies (Cargo requires an
+          # explicit version on a published path dep) and the clients/* npm
+          # packages, two of which also pin @vox/runtime-types to the same number.
+          # Bumping only the workspace line would publish a release whose own
+          # crates still depend on the previous version.
+          cargo run -q -p vox-cli-ci --example ssot_probe -- "${{ steps.next.outputs.version }}" --write
+          # Fail loudly if anything still disagrees.
+          cargo run -q -p vox-cli-ci --example ssot_probe
 
       - name: Regenerate the changelog
         shell: bash

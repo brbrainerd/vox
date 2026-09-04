@@ -10,7 +10,13 @@ success while installing a media player instead of the toolchain. Verified
 2026-09-04. The installed command is still `vox`.
 
 **Homebrew 6 requires `brew trust vox-foundation/vox`** before it will load any
-third-party tap; `brew install` fails outright without it.
+third-party tap; `brew install` fails outright without it. That is a property of
+taps in general, not a judgement on this one.
+
+**This step is temporary and should be deleted, not inherited.** It disappears
+once `voxlang` is accepted into homebrew-core (`brew install voxlang`, no tap, no
+trust). Submission is blocked until a stable non-prerelease `vX.Y.Z` exists —
+homebrew-core rejects prereleases and applies notability requirements.
 
 ## Why a formula at all
 
