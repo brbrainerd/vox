@@ -488,7 +488,7 @@ jobs:
 
       - uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: 11
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -1517,7 +1517,7 @@ jobs:
       # pnpm shape as gui-cross-build.yml.
       - uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: 11
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -1562,7 +1562,7 @@ jobs:
     name: Check, Build, and Test (Rust)
     # gui-playwright-smoke is now a tiered (post-merge/`full-ci`) job, so it is
     # intentionally NOT a required-gate dependency.
-    needs: [guards-fast, lints, compiler-gates, tests, audits, gui-orchestrator-relaunch-smoke]
+    needs: [setup, guards-fast, lints, compiler-gates, tests, audits, gui-orchestrator-relaunch-smoke]
     if: always()
     # Hosted so the SOLE branch-protection context is fleet-independent
     # (compute-placement.md Invariant 1). The 5 heavy needs stay self-hosted; this
@@ -1575,6 +1575,33 @@ jobs:
         run: |
           set -euo pipefail
           fail=0
+
+          # `setup` is checked SEPARATELY and strictly, and it is the whole
+          # point of this block.
+          #
+          # The six jobs below are allowed to report `skipped`, because several
+          # are deliberately tiered off merge_group (see the note on
+          # gui-orchestrator-relaunch-smoke). But that tolerance used to apply
+          # to `setup` failing too: every one of those jobs `needs: setup`, so
+          # when the self-hosted fleet never picked up `setup` and it was
+          # cancelled at the 24h mark, all six went `skipped`, this loop saw six
+          # allowed values, and the SOLE branch-protection context reported
+          # success with zero tests executed.
+          #
+          # That was not hypothetical. Run 33291831341: `setup` cancelled, all
+          # 17 other jobs skipped, "Check, Build, and Test (Rust)" = success.
+          # 157 of the last 200 ci.yml runs were cancelled the same way, and
+          # ci.yml has never once succeeded — so for that entire window main
+          # was effectively ungated.
+          #
+          # Distinguishing "skipped because tiering said so" from "skipped
+          # because the DAG collapsed" is exactly the setup result.
+          setup_result="${{ needs.setup.result }}"
+          if [ "$setup_result" != "success" ]; then
+            echo "::error::setup did not succeed (result: $setup_result) — every gated job below it was skipped, so nothing was actually verified. Failing the required check rather than reporting a false green. If the self-hosted fleet is down, apply the 'fleet-down' label to route through ci-fallback-hosted."
+            fail=1
+          fi
+
           for r in \
             "${{ needs.guards-fast.result }}" \
             "${{ needs.lints.result }}" \
@@ -1597,7 +1624,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: 11
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -1626,7 +1653,7 @@ jobs:
 
       - uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: 11
 
       - uses: actions/setup-node@v6
         with:
@@ -1750,7 +1777,7 @@ jobs:
 
       - uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: 11
 
       - uses: actions/setup-node@v6
         with:

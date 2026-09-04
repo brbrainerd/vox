@@ -12,7 +12,7 @@
 # Version SSOTs (keep aligned with the rest of the repo):
 #   - Rust 1.96.0   → root Dockerfile (`rust:1.96.0-slim-bookworm`) / rust-toolchain.toml / contracts SSOT
 #   - Node 24       → docs-quality.yml `node-version: 24`
-#   - pnpm 9        → ci.yml `pnpm/action-setup@v6` version 9
+#   - pnpm 11       → ci.yml `pnpm/action-setup@v6` version 11
 #   - Runner 2.336.0 → matches the version GitHub forces via self-update on cold
 #     start; keep this current or every ephemeral runner re-downloads on boot,
 #     defeating "ready to take a job immediately" (see `Downloading N runner` in
@@ -69,10 +69,10 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
     --component rustfmt,clippy,llvm-tools-preview \
     && rustup show
 
-# Node 24 + pnpm 9 (matches ci.yml / docs-quality.yml SSOT).
+# Node 24 + pnpm 11 (matches ci.yml / docs-quality.yml SSOT).
 RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y nodejs \
-    && npm install -g pnpm@9 \
+    && npm install -g pnpm@11 \
     && rm -rf /var/lib/apt/lists/*
 
 # Pinned CI tools + sccache (shared compiler cache for warm ephemeral starts).

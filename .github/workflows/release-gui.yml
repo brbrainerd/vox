@@ -62,8 +62,18 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install pnpm
-        run: npm install -g pnpm
+      # Pinned to 9 to match the nine other workflows that use
+      # pnpm/action-setup. This step used to be `npm install -g pnpm`, which
+      # resolves to whatever is latest — pnpm 11 at time of writing. pnpm 11
+      # stopped reading `pnpm.overrides` from package.json and reads
+      # pnpm-workspace.yaml instead, so it computed a different overrides set
+      # than the pnpm-9-generated lockfile records, and every Linux and macOS
+      # run of this workflow died at `pnpm install` with
+      # ERR_PNPM_LOCKFILE_CONFIG_MISMATCH. This was the sole workflow not
+      # pinning pnpm, and it is the reason this workflow has never succeeded.
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
 
       - name: Install Linux Dependencies
         if: runner.os == 'Linux'
@@ -160,5 +170,10 @@ jobs:
           # v2.0.0 renamed `code-signing-account-name` → `signing-account-name`.
           signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT }}
           certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE }}
-          files-folder: ./crates/vox-gui/src-tauri/target/release/bundle/msi
+          # crates/vox-gui/src-tauri does NOT exist — tauri.conf.json lives
+          # directly at crates/vox-gui/, and the build output goes to the
+          # workspace-level target/. The old path could never contain an MSI,
+          # so this step silently signed nothing and Windows installers
+          # shipped unsigned.
+          files-folder: ./target/release/bundle/msi
           files-folder-filter: msi
