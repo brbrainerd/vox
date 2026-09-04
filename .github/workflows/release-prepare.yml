@@ -1,0 +1,138 @@
+# Compute the next version from conventional commits and open a release PR.
+#
+# WHY THIS EXISTS
+# ---------------
+# Version bumps were manual in two places that could disagree:
+#   1. `[workspace.package] version` in Cargo.toml, typed by hand.
+#   2. The `v*` tag, invented by hand at push time.
+# `version-tag-guard.yml` catches a mismatch, but only after the tag is pushed —
+# it detects the drift rather than preventing it. And because every tag has been
+# cut as `-rc.<commit-count>`, GitHub marks every release a prerelease, which is
+# why `/releases/latest` 404s and both installers needed a workaround.
+#
+# Here the version is COMPUTED, never typed: `git cliff --bumped-version` reads
+# the conventional commits since the last tag and derives the next semver. The
+# repo already ships `cliff.toml` with `conventional_commits = true`; until now
+# nothing consumed it.
+#
+# DELIBERATELY NOT AUTOMATIC
+# --------------------------
+# `workflow_dispatch` only, and it opens a PR — it does not tag, publish, or
+# release. Cutting a release stays a human act; only the arithmetic is automated.
+# To ship: merge the PR, then push the matching `vX.Y.Z` tag, which is what
+# release-binaries.yml / release-gui.yml / release-installers.yml trigger on.
+name: release-prepare
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Override the computed bump (leave as `auto` to derive from commits)"
+        required: false
+        default: auto
+        type: choice
+        options: [auto, patch, minor, major]
+
+concurrency:
+  group: release-prepare
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    name: Compute next version and open release PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history: git-cliff walks commits since the last tag, and
+          # vox-build-meta derives the build number from the commit count.
+          fetch-depth: 0
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Compute the next version
+        id: next
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.bump }}" = "auto" ]; then
+            # Derived from conventional commits: feat -> minor, fix -> patch,
+            # `!`/BREAKING CHANGE -> major.
+            next="$(git cliff --bumped-version)"
+          else
+            next="$(git cliff --bump "${{ inputs.bump }}" --bumped-version)"
+          fi
+          # git-cliff emits a tag (vX.Y.Z); Cargo wants the bare semver.
+          version="${next#v}"
+          if [ -z "$version" ]; then
+            echo "::error::could not compute a next version — are there any conventional commits since the last tag?"
+            exit 1
+          fi
+          echo "tag=$next"        >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Next version: $version (tag $next)"
+
+      - name: Update the workspace version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.next.outputs.version }}"
+          # Rewrite ONLY the first `version = "..."` inside [workspace.package],
+          # mirroring how version-tag-guard.yml reads it, so a dependency's
+          # version is never touched.
+          awk -v v="$version" '
+            /^\[workspace\.package\]/ { in_wp = 1 }
+            in_wp && !done && /^[[:space:]]*version[[:space:]]*=/ {
+              sub(/=.*/, "= \"" v "\""); done = 1
+            }
+            /^\[/ && !/^\[workspace\.package\]/ { in_wp = 0 }
+            { print }
+          ' Cargo.toml > Cargo.toml.next
+          mv Cargo.toml.next Cargo.toml
+          # Prove it took, and that the guard will agree with the tag.
+          grep -A5 '^\[workspace\.package\]' Cargo.toml | grep -m1 'version'
+
+      - name: Regenerate the changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+          git cliff --tag "${{ steps.next.outputs.tag }}" --output CHANGELOG.md
+
+      - name: Refresh Cargo.lock for the new version
+        shell: bash
+        run: |
+          set -euo pipefail
+          # --offline: the version bump cannot change the dependency graph, and a
+          # release PR must not silently pull new upstream versions.
+          cargo update --workspace --offline
+
+      - name: Open the release PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: release/${{ steps.next.outputs.tag }}
+          title: "Release ${{ steps.next.outputs.tag }}"
+          commit-message: "chore(release): ${{ steps.next.outputs.version }}"
+          body: |
+            Computed by `release-prepare` from conventional commits since the last tag.
+
+            **Version:** `${{ steps.next.outputs.version }}` — tag `${{ steps.next.outputs.tag }}`
+
+            To ship, after merging:
+
+            ```bash
+            git tag ${{ steps.next.outputs.tag }} && git push origin ${{ steps.next.outputs.tag }}
+            ```
+
+            Note the tag has **no `-rc.` suffix**. Every previous tag did, which
+            made GitHub mark it a prerelease and `/releases/latest` return 404 —
+            the root cause of the installer workaround in `scripts/install.sh`
+            and `crates/voxup/src/channel.rs`. A plain `vX.Y.Z` tag lets both be
+            simplified back to the `latest` endpoint.
