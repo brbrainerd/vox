@@ -84,6 +84,7 @@ jobs:
         if: runner.os == 'Linux' || github.event_name != 'pull_request'
         run: |
           cargo nextest run -p vox-config
+          cargo nextest run -p vox-config --features llm-egress
           cargo nextest run -p vox-cli-core
           cargo nextest run -p vox-populi --lib
 

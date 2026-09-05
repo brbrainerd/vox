@@ -1011,7 +1011,7 @@ jobs:
             cargo nextest run -p vox-workflow-runtime
           fi
           if affected_has vox-cli; then
-            cargo check -p vox-cli --features workflow-runtime
+            cargo check -p vox-cli --features workflow-runtime,gui
           fi
 
       - name: Arch-check (layer + fan-in + LoC + orphan + docstring)

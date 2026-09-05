@@ -14,6 +14,9 @@ on:
       - "crates/vox-release-artifacts/**"
       - "crates/vox-tauri-codegen/**"
       - "crates/vox-assets/**"
+      - "crates/vox-langtool/**"
+      - "crates/vox-lsp/**"
+      - "crates/vox-sql/**"
       - "examples/compile-suite/**"
       - "contracts/operations/catalog.v1.yaml"
       - ".github/workflows/compile-matrix.yml"
@@ -53,6 +56,39 @@ jobs:
       - name: Compile suite desktop Tauri generation smoke
         working-directory: examples/compile-suite/packages/desktop
         run: ../../../../target/debug/vox compile --target desktop -o dist src/main.vox
+
+  # Standalone `-p` checks for crates whose default features just narrowed
+  # (P7). `cargo check --workspace` unifies features across crates and hides
+  # a crate whose own default-feature set no longer compiles standalone —
+  # this repo has shipped that bug at least twice (see AGENTS.md). One job
+  # per crate/feature-set combo so a broken default is caught in isolation.
+  per-crate-check:
+    name: cargo check -p ${{ matrix.crate }}${{ matrix.no_default_features && ' --no-default-features' || '' }}
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - crate: vox-langtool
+          - crate: vox-lsp
+          - crate: vox-config
+          - crate: vox-sql
+          - crate: vox-codegen
+          - crate: vox-cli
+          - crate: vox-sql
+            no_default_features: true
+          - crate: vox-config
+            no_default_features: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system deps (dbus/GTK, required by vox-cli's keyring-store default)
+        if: matrix.crate == 'vox-cli'
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+      - name: cargo check
+        run: cargo check -p ${{ matrix.crate }} ${{ matrix.no_default_features && '--no-default-features' || '' }}
 
   # compile-help-windows / compile-help-macos removed: their `vox compile --help`
   # smoke is subsumed by cross-platform-check.yml's per-PR `cargo check --workspace
