@@ -19,8 +19,13 @@ use vox_populi::mens::MERGE_QLORA_REJECTS_BURN_BIN;
 // read catalog.toml itself, so this is the caller-supplied SSOT-mirror
 // `resolve_extension_point` needs. Both plugins implement `merge_adapter`
 // (unlike QLoRA *training*, which has no Metal backend yet — see run_train.rs).
+// Shared with `commands::mens::eval_local`, which dispatches the same
+// `MlBackend` extension point for inference — see that file's use of this
+// constant. `crates/vox-plugin-catalog/tests/catalog_validation.rs` pins the
+// two `requires-tag` literals on the catalog side so this mirror can't drift
+// silently.
 // vox:defactored-from vox-plugin-catalog 2026-09-05
-const ML_BACKEND_CANDIDATES: &[vox_plugin_host::ExtensionCandidate] = &[
+pub(crate) const ML_BACKEND_CANDIDATES: &[vox_plugin_host::ExtensionCandidate] = &[
     vox_plugin_host::ExtensionCandidate {
         plugin_id: "mens-candle-cuda",
         requires_tag: Some("nvidia-gpu"),
