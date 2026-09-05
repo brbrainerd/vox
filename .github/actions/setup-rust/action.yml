@@ -17,8 +17,14 @@ inputs:
   targets:
     description: >-
       Extra target triples beyond the SSOT's own list, comma- and/or
-      space-separated. Callers may pass `${{ }}` expressions (e.g.
-      `${{ matrix.target }}`). Unioned with the SSOT's targets.rust list.
+      space-separated. Callers may pass a workflow expression here, such as
+      a matrix target. Unioned with the SSOT's targets.rust list.
+      NOTE: never write a literal, empty GitHub expression delimiter pair
+      anywhere in this file -- not in a description, not in a shell comment
+      inside a `run:` body. Action templates are evaluated before the action
+      runs, and an empty pair is a hard parse error ("An expression was
+      expected") that stops the WHOLE action from loading. That is exactly
+      how this file shipped broken, taking every Rust-installing job with it.
     required: false
     default: ""
   cache:
@@ -108,7 +114,7 @@ runs:
       name: Union caller-supplied components/targets with the SSOT lists
       shell: bash
       env:
-        # Never interpolate `${{ }}` expressions straight into the `run:`
+        # Never interpolate workflow expressions straight into the `run:`
         # script body -- that's GitHub's documented script-injection
         # anti-pattern. Route them through env instead, so a future caller
         # passing attacker-influenced text through `components`/`targets`
