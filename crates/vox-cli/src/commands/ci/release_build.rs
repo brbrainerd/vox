@@ -28,7 +28,7 @@ pub(crate) fn built_binary_path(repo_root: &Path, target: &str, bin: &str) -> Pa
 
 /// Crates the release builder shells `cargo build -p` for. Asserted against the
 /// workspace by `every_release_package_exists_in_the_workspace`.
-pub(crate) const RELEASE_PACKAGES: &[&str] = &["vox-cli", "vox-ml-cli"];
+pub(crate) const RELEASE_PACKAGES: &[&str] = &["vox-cli", "vox-ml-cli", "vox-langtool"];
 
 pub(crate) fn validate_release_target(target: &str) -> Result<()> {
     if SUPPORTED_RELEASE_TARGETS.contains(&target) {
@@ -57,6 +57,7 @@ pub fn run(
     let mut checksum_lines = Vec::new();
     let want_vox = matches!(package, ReleasePackage::Vox | ReleasePackage::All);
     let want_mens = matches!(package, ReleasePackage::Mens | ReleasePackage::All);
+    let want_langtool = matches!(package, ReleasePackage::Langtool | ReleasePackage::All);
 
     if want_vox {
         let artifact_name = build_and_package_binary(
@@ -81,6 +82,20 @@ pub fn run(
             "vox-ml-cli",
             &mens_bin,
             "vox-ml-cli",
+        )?;
+        let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
+        checksum_lines.push(checksum_line(&digest, &artifact_name));
+    }
+    if want_langtool {
+        let langtool_bin = plugin_executable_name(target, "vox-langtool");
+        let artifact_name = build_and_package_binary(
+            repo_root,
+            out_dir_abs.as_path(),
+            target,
+            artifact_version,
+            "vox-langtool",
+            &langtool_bin,
+            "vox-langtool",
         )?;
         let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
         checksum_lines.push(checksum_line(&digest, &artifact_name));
@@ -112,10 +127,10 @@ fn executable_name(target: &str) -> &'static str {
     }
 }
 
-/// Plugin binary name resolution for `vox-ml-cli` archives.
+/// Binary name resolution for non-`vox` release archives (`vox-ml-cli`, `vox-langtool`).
 ///
-/// Returns an owned `String` rather than `&'static str` because plugin names
-/// are dynamic (any `vox-<name>` pattern), unlike the fixed core/bootstrap names.
+/// Returns an owned `String` rather than `&'static str` because these names
+/// are dynamic (any `vox-<name>` pattern), unlike the fixed core `vox` name.
 fn plugin_executable_name(target: &str, plugin: &str) -> String {
     if is_windows_target(target) {
         format!("{plugin}.exe")
@@ -380,7 +395,12 @@ mod tests {
             .collect();
         assert_eq!(
             names,
-            vec!["vox".to_string(), "mens".to_string(), "all".to_string()],
+            vec![
+                "vox".to_string(),
+                "mens".to_string(),
+                "langtool".to_string(),
+                "all".to_string()
+            ],
             "ReleasePackage tiers changed; `bootstrap` and `both` built a deleted crate"
         );
     }

@@ -14,6 +14,8 @@ pub enum ReleasePackage {
     Vox,
     /// `vox-ml-cli` plugin: ML/oratio/speech/populi/train subcommands (heavy: Candle).
     Mens,
+    /// `vox-langtool`: DB-free language toolchain only (check/fmt/run/build). The `minimal` tier.
+    Langtool,
     /// Every artifact: vox + every plugin binary. The "full" tier.
     All,
 }

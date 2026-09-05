@@ -17,8 +17,8 @@ jobs:
     name: Build ${{ matrix.target }}
     runs-on: ${{ fromJson(matrix.runs_on) }}
     timeout-minutes: 240
-    # This job performs three serial fat-LTO links (vox-cli with
-    # heavy-retrieval, vox-ml-cli, voxup) on 4-core/14-16GB hosted runners.
+    # This job performs four serial fat-LTO links (vox-cli with
+    # heavy-retrieval, vox-ml-cli, vox-langtool, voxup) on 4-core/14-16GB hosted runners.
     # CARGO_BUILD_JOBS caps the dep-compile phase's parallelism to protect
     # peak RSS during the link, matching the dist-verify lane's budget for a
     # single such link (see below).
@@ -63,8 +63,9 @@ jobs:
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
       - name: Build and package release artifacts (core + plugins)
-        # `--package all` produces: vox, vox-ml-cli. voxup is built separately below.
-        # Each ships as its own archive so users opt into the heavy ML/scientia plugins.
+        # `--package all` produces: vox, vox-ml-cli, vox-langtool. voxup is built separately below.
+        # Each ships as its own archive so users opt into the heavy ML/scientia plugins,
+        # or install just the lean language toolchain (minimal tier).
         run: cargo run --locked -p vox-cli ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist --package all
 
       - name: Build voxup
@@ -120,6 +121,11 @@ jobs:
             tar -xzf "$f"
             ./vox-ml-cli --help >/dev/null
           done
+          for f in vox-langtool-*.tar.gz; do
+            rm -f vox-langtool
+            tar -xzf "$f"
+            ./vox-langtool --help >/dev/null
+          done
 
       - name: Smoke test packaged binary (Windows)
         if: runner.os == 'Windows'
@@ -135,6 +141,11 @@ jobs:
             if (Test-Path _smoke_mens) { Remove-Item -Recurse -Force _smoke_mens }
             Expand-Archive -Path $_.FullName -DestinationPath _smoke_mens -Force
             & ".\_smoke_mens\vox-ml-cli.exe" --help | Out-Null
+          }
+          Get-ChildItem -Filter 'vox-langtool-*.zip' | ForEach-Object {
+            if (Test-Path _smoke_langtool) { Remove-Item -Recurse -Force _smoke_langtool }
+            Expand-Archive -Path $_.FullName -DestinationPath _smoke_langtool -Force
+            & ".\_smoke_langtool\vox-langtool.exe" --help | Out-Null
           }
 
       - name: Smoke test voxup (Unix)
@@ -170,6 +181,7 @@ jobs:
           path: |
             dist/vox-${{ github.ref_name }}-${{ matrix.target }}.*
             dist/vox-ml-cli-${{ github.ref_name }}-${{ matrix.target }}.*
+            dist/vox-langtool-${{ github.ref_name }}-${{ matrix.target }}.*
             dist/voxup-${{ github.ref_name }}-${{ matrix.target }}.*
           if-no-files-found: error
 
