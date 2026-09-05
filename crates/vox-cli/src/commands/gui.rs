@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub async fn run(args: crate::cli_args::GuiArgs) -> Result<()> {
@@ -65,15 +65,10 @@ fn resolve_or_build_gui(installed: &Path, gui_bin_name: &str) -> Result<PathBuf>
     }
 
     let Some(workspace_root) = locate_workspace_root() else {
-        anyhow::bail!(
-            "the Vox GUI is an optional component and is not installed at {}.\n\
-             You're not in a Vox source checkout, so it can't be built locally. Clone the \
-             repo and run `cargo build -p vox-gui`, or install a prebuilt release asset once \
-             GUI assets ship.\n\
-             Catalog source: {}",
-            installed.display(),
-            component.default_source,
-        );
+        anyhow::bail!(gui_missing_no_checkout_message(
+            installed,
+            &component.default_source,
+        ));
     };
 
     tracing::info!(
@@ -117,4 +112,49 @@ fn resolve_or_build_gui(installed: &Path, gui_bin_name: &str) -> Result<PathBuf>
 /// from inside a Cargo workspace, else `None`.
 fn locate_workspace_root() -> Option<PathBuf> {
     crate::contributor_mode::locate_workspace_root()
+}
+
+/// Message for the "no GUI installed, and no checkout to build one from"
+/// branch — reached precisely when [`locate_workspace_root`] has already
+/// confirmed the caller has no Vox workspace above them (spec §9.1's
+/// non-contributor persona, by construction of this branch).
+///
+/// Leads with the actual status for this user (not installed, no prebuilt
+/// asset, no checkout here) and reports the checkout requirement as a
+/// precondition being described, not as an instruction to someone who by
+/// construction cannot follow it. The source-build route is named only as
+/// "the contributor path" for context, never as this user's remedy.
+fn gui_missing_no_checkout_message(installed: &Path, catalog_source: &str) -> String {
+    format!(
+        "the Vox GUI is an optional component and is not installed at {}.\n\
+         Prebuilt GUI release assets don't ship yet, and this isn't a Vox source \
+         checkout — so there's no way to obtain the GUI here. (Building it from \
+         source with `cargo build -p vox-gui` is the contributor path, from inside \
+         a checkout.)\n\
+         Catalog source: {catalog_source}",
+        installed.display(),
+    )
+}
+
+#[cfg(test)]
+mod gui_missing_message_tests {
+    use super::*;
+
+    #[test]
+    fn leads_with_actual_status_not_installed_instruction() {
+        let msg = gui_missing_no_checkout_message(
+            Path::new("/opt/vox/bin/vox-gui"),
+            "https://example.invalid/vox-gui",
+        );
+        // Reports status honestly: not installed, no prebuilt asset yet, no
+        // checkout here — this is a description of fact, not a command.
+        assert!(msg.contains("is not installed at"));
+        assert!(msg.contains("don't ship yet"));
+        assert!(msg.contains("this isn't a Vox source checkout"));
+        // The checkout route is framed as context ("the contributor path"),
+        // never as an instruction ("Clone the repo and run ...").
+        assert!(msg.contains("the contributor path"));
+        assert!(!msg.contains("Clone the repo"));
+        assert!(msg.contains("https://example.invalid/vox-gui"));
+    }
 }
