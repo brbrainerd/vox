@@ -164,7 +164,16 @@ run_worker() {
       -e REPO_URL="https://github.com/${REPO}" \
       -e RUNNER_TOKEN="$token" \
       -e RUNNER_LABELS="$RUNNER_LABELS" \
-      -e RUNNER_NAME="vox-local-$(hostname -s)-${worker}-${i}" \
+      # $$ (this script's PID) is part of the GitHub-facing runner name for the
+      # same reason it is part of the container name above: worker and
+      # iteration counters both restart at 1 in every invocation, so two
+      # concurrently running copies of this script -- the documented way to
+      # get more runners before RUNNER_COUNT existed -- registered the
+      # identical name and GitHub rejected the second, which then sat
+      # retrying "session already exists" forever while the first quietly did
+      # all the work. Observed in practice: a two-runner setup that was really
+      # one runner plus one stuck container.
+      -e RUNNER_NAME="vox-local-$(hostname -s)-$$-${worker}-${i}" \
       -e RUNNER_EPHEMERAL=1 \
       -v "${CACHE_VOLUME}:/cache" \
       "$IMAGE" || echo "runner[$worker]: container exited non-zero (iteration $i)"
