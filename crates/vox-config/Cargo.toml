@@ -5,6 +5,14 @@ edition.workspace = true
 license.workspace = true
 description = "Centralized configuration and env/default resolution for Vox tooling"
 
+[features]
+default = []
+# `llm-egress` (default-OFF) pulls the model-egress request builder
+# (`resolve_egress`) and with it vox-llm-egress -> vox-openai. It is off by
+# default so the compiler front end (vox-compiler -> vox-config) does not
+# transitively link an OpenAI client: see spec §9, audience A.
+llm-egress = ["dep:vox-llm-egress"]
+
 [dependencies]
 tokio       = { workspace = true, features = ["sync"] }
 serde       = { workspace = true, features = ["derive"] }
@@ -14,7 +22,7 @@ tracing     = { workspace = true }
 vox-secrets    = { workspace = true }
 vox-config-derive = { workspace = true }
 vox-llm-config = { workspace = true }
-vox-llm-egress = { workspace = true }
+vox-llm-egress = { workspace = true, optional = true }
 vox-telemetry  = { workspace = true }
 vox-git        = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }

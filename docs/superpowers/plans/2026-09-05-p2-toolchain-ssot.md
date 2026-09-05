@@ -83,3 +83,11 @@ Rows to generate from `contracts/toolchain/workspace-toolchain.v1.yaml`:
 | P4 | Adopt `./.github/actions/setup-rust` at all 45 sites; add the workflow-side lint |
 | P5 | Let `ssot_probe` own the `voxup/src/profiles.rs` version fixture |
 | P7 | Let `ssot_probe` own `rust_version` in `profiles.v1.yaml` |
+
+## Cross-plan inbox
+
+Rows filed here by other plans. Each must be executable with no conversation.
+
+| From | Request |
+|---|---|
+| P7 | `contracts/distribution/profiles.v1.yaml` carries `rust_version: "1.96.0"`, and `crates/voxup/tests/distribution_parity.rs:68` asserts it EQUALS `contracts/toolchain/workspace-toolchain.v1.yaml`'s `versions.rust`. P7 owns profiles.v1.yaml and is deliberately NOT touching that row, so the toolchain bump must carry it (CRITIQUE-FINDINGS §1). Take ownership of the `rust_version` row at the point of the bump; P7's branch leaves it at `1.96.0` and changes nothing else version-related in that file. |

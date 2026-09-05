@@ -32,7 +32,12 @@ bzip2 = { workspace = true }
 zstd = { workspace = true }
 miette = { workspace = true }
 vox-secrets = { workspace = true }
-vox-sql = { workspace = true, features = ["postgres", "mysql"] }
+# Not `workspace = true`: Cargo rejects a member overriding `default-features`
+# to `false` when the root `workspace.dependencies.vox-sql` entry leaves it
+# implicitly `true` ("`default-features = false` cannot override workspace's
+# `default-features`"). `path = "../vox-cli-core"` in vox-langtool/Cargo.toml
+# is the in-tree precedent for this same override shape.
+vox-sql = { path = "../vox-sql", default-features = false, features = ["postgres", "mysql"] }
 vox-config = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 prettyplease = { workspace = true }

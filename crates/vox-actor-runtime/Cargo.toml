@@ -20,7 +20,7 @@ vox-llm-egress = { workspace = true }
 futures-util = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-vox-config.workspace = true
+vox-config = { workspace = true, features = ["llm-egress"] }
 vox-orchestrator-types.workspace = true
 vox-foundation.workspace = true
 vox-secrets = { workspace = true }

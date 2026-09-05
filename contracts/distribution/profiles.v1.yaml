@@ -10,26 +10,38 @@ rust_version: "1.96.0"
 # Binaries produced by release + nightly. vox-bootstrap and vox-schola are RETIRED.
 binaries:
   - vox
+  - vox-langtool
   - vox-ml-cli
   - voxup
 
 # Install tiers. Each tier declares the binaries it ships, its build-time deps
 # (only relevant on the from-source path), and its runtime-optional deps
 # (detected/enabled by `vox doctor`, never required to install).
+#
+# Tiers (this section) are the Layer-1 axis: audience -> package identity.
+# `bundle:` on each tier names the Layer-2 axis: capability -> plugin set, as
+# defined in crates/vox-plugin-catalog/catalog.toml's `[[bundle]]` entries.
+# The two axes are orthogonal (see docs/superpowers/plans/2026-09-05-00-INDEX.md
+# §2.1, Ruling R4) — a tier answers "who is this for," a bundle answers "which
+# plugins does the install get." `bundle:` is the only cross-reference between
+# them; it is asserted to resolve by crates/vox-cli/tests/distribution_tier_bundle_xref.rs.
 tiers:
   minimal:
-    description: "Compiler / language CLI only."
-    binaries: [vox]
+    description: "Language toolchain only: check, fmt, run, build. No orchestrator, no model catalog, no GPU."
+    binaries: [vox-langtool]
+    bundle: vox-base
     build_deps: [rust]
     runtime_optional: []
   default:
-    description: "CLI plus desktop GUI."
+    description: "Agentic CLI plus desktop GUI (Axis)."
     binaries: [vox]
+    bundle: vox-fullstack
     build_deps: [rust, node, tauri-system-libs]
     runtime_optional: []
   full:
     description: "Everything: CLI, GUI, ML, agy delegation, curated plugins."
     binaries: [vox, vox-ml-cli, voxup]
+    bundle: vox-dev
     build_deps: [rust, node, tauri-system-libs]
     runtime_optional: [agy, model-weights, plugins]
 

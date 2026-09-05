@@ -43,6 +43,7 @@ fn cached_100_calls_complete_under_10ms() {
 }
 
 #[test]
+#[cfg(feature = "llm-egress")]
 fn cached_100_calls_resolve_egress_complete_under_50ms() {
     let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let _ = vox_config::toml_config::unset_user_config_value("OPENROUTER_BASE_URL");

@@ -20,6 +20,7 @@ pub mod operator_registry;
 pub mod paths;
 pub mod policy;
 pub mod project_manifest;
+#[cfg(feature = "llm-egress")]
 pub mod resolve_egress;
 pub mod rollout;
 pub mod routing_migration;

@@ -120,7 +120,7 @@ pub fn run(checks: &mut Vec<Check>) {
             "installed vox binaries disagree on build number ({listing}). Canonical is {} — \
              refresh it ({}) and remove or update any earlier-on-PATH copy.",
             canonical.display(),
-            crate::freshness::REFRESH_GUIDANCE,
+            crate::freshness::refresh_guidance(),
         ),
     ));
 }
