@@ -14,7 +14,15 @@ default = ["mens", "sql"]
 # `sql` enables the VoxDbTracker + scheduled-runner modules that depend on
 # vox-db (which pulls in SQLite and therefore can't cross-compile to mobile).
 sql = ["dep:vox-db"]
-mens = ["dep:vox-populi", "vox-populi/transport"]
+# `mens` now spans two planes: `vox-mesh-transport` (iroh) serves Noop /
+# Snapshot / Join / Heartbeat, and `vox-populi/transport` (HTTP) still serves
+# Dispatch / Wait, which the mesh cannot execute. Phase 6 drops the latter.
+mens = [
+    "dep:vox-populi",
+    "vox-populi/transport",
+    "dep:vox-mesh-transport",
+    "dep:iroh",
+]
 test-support = []
 
 [dependencies]
@@ -30,6 +38,8 @@ tracing = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 vox-compiler = { workspace = true }
 vox-db = { workspace = true, optional = true }
+vox-mesh-transport = { workspace = true, optional = true }
+iroh = { workspace = true, optional = true }
 vox-populi = { workspace = true, optional = true }
 vox-runtime = { path = "../vox-runtime" }
 vox-journal = { path = "../vox-journal" }

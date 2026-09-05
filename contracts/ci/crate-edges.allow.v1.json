@@ -2139,6 +2139,10 @@
     ],
     [
       "vox-workflow-runtime",
+      "vox-mesh-transport"
+    ],
+    [
+      "vox-workflow-runtime",
       "vox-populi"
     ],
     [

@@ -941,6 +941,7 @@
       "vox-config",
       "vox-db",
       "vox-journal",
+      "vox-mesh-transport",
       "vox-populi",
       "vox-runtime",
       "workspace-hack"
