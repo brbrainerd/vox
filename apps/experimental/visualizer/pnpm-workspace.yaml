@@ -1,0 +1,15 @@
+# `packages` is not required by pnpm 10+, which is what every workflow pins.
+# It is kept because pnpm 9 treats the mere existence of this file as declaring
+# a workspace and dies with "packages field missing or empty" without it — so
+# this one line keeps a stray pnpm 9 from failing confusingly. Same shape as
+# crates/vox-gui/ui/pnpm-workspace.yaml.
+packages:
+  - '.'
+
+# esbuild (pulled in by vite) ships a postinstall that fetches its platform
+# binary. pnpm 11 blocks dependency build scripts unless they are explicitly
+# allowed, so without this `pnpm install` exits 1 with ERR_PNPM_IGNORED_BUILDS
+# and ci.yml's `visualizer-ingest-smoke` job never reaches `pnpm run
+# test:ingest`. Verified failing on unmodified main with the pinned pnpm 11.
+allowBuilds:
+  esbuild: true
