@@ -827,7 +827,9 @@ mod tests {
 /// scoped to the `[build]` table so a `rustc-wrapper` under another table (e.g.
 /// `[target.'cfg(...)']`) is not misread.
 fn cargo_config_rustc_wrapper() -> Option<String> {
-    let path = super::super::common::user_home_dir()?.join(".cargo").join("config.toml");
+    let path = super::super::common::user_home_dir()?
+        .join(".cargo")
+        .join("config.toml");
     let text = std::fs::read_to_string(path).ok()?;
     let mut in_build = false;
     for line in text.lines() {

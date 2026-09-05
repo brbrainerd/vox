@@ -651,21 +651,27 @@ version = "0.1.0"
     /// the guard silently skips whichever one it cannot see.
     #[test]
     fn artifacts_are_read_from_both_manifest_shapes() {
-        let code_kind = manifest(
-            "[plugin.payload.artifacts]\n\"macos-aarch64\" = \"libdemo.dylib\"",
-        );
+        let code_kind =
+            manifest("[plugin.payload.artifacts]\n\"macos-aarch64\" = \"libdemo.dylib\"");
         let head: PluginHead = toml::from_str(&code_kind).expect("code-kind manifest");
         assert_eq!(
-            head.plugin.payload.artifacts().get("macos-aarch64").map(String::as_str),
+            head.plugin
+                .payload
+                .artifacts()
+                .get("macos-aarch64")
+                .map(String::as_str),
             Some("libdemo.dylib"),
         );
 
-        let composite = manifest(
-            "[plugin.payload.code.artifacts]\n\"macos-aarch64\" = \"libdemo.dylib\"",
-        );
+        let composite =
+            manifest("[plugin.payload.code.artifacts]\n\"macos-aarch64\" = \"libdemo.dylib\"");
         let head: PluginHead = toml::from_str(&composite).expect("composite manifest");
         assert_eq!(
-            head.plugin.payload.artifacts().get("macos-aarch64").map(String::as_str),
+            head.plugin
+                .payload
+                .artifacts()
+                .get("macos-aarch64")
+                .map(String::as_str),
             Some("libdemo.dylib"),
         );
     }

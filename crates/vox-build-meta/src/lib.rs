@@ -85,7 +85,10 @@ mod tests {
         unsafe { std::env::set_var("VOX_BUILD_NUMBER", "   ") };
         let n = build_number();
         unsafe { std::env::remove_var("VOX_BUILD_NUMBER") };
-        assert_ne!(n, "   ", "a blank override must not become the build number");
+        assert_ne!(
+            n, "   ",
+            "a blank override must not become the build number"
+        );
     }
 
     #[test]
