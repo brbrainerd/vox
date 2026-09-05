@@ -137,25 +137,24 @@ fn platform_data_dir_readonly(home: &Path) -> Option<PathBuf> {
     }
 }
 
-/// Pure, read-only re-derivation of the graphify cache **base** directory
+/// Pure, read-only re-derivation of the *legacy* graphify cache base directory
 /// (the parent of every `<corpus_id>` subdirectory), mirroring
 /// `vox_config::graphify::resolve_graphify_cache_dir`'s base-dir resolution
-/// without requiring a specific corpus id. `None` when
-/// `VOX_GRAPHIFY_DISABLE` is active — there is no directory to report.
-fn graphify_cache_base(
-    repo_root: &Path,
-    disable_raw: Option<&str>,
-    cache_dir_raw: Option<&str>,
-) -> Option<PathBuf> {
-    if vox_config::graphify::graphify_disable_active(disable_raw) {
-        return None;
-    }
-    Some(match cache_dir_raw {
+/// without requiring a specific corpus id.
+///
+/// This always returns a path, never `None`: `VOX_GRAPHIFY_DISABLE` and
+/// `VOX_GRAPHIFY_CACHE_DIR` are declared knobs in `vox_config::graphify`, but
+/// neither is actually consulted by the real graphify cache writer
+/// (`crates/vox-cli/src/commands/graphify/mod.rs`) — see
+/// [`graphify_cache_check`]'s wired-status note. Reporting `None` here would
+/// claim the disable knob works, which it does not yet.
+fn graphify_cache_base(repo_root: &Path, cache_dir_raw: Option<&str>) -> PathBuf {
+    match cache_dir_raw {
         Some(v) if !v.trim().is_empty() => PathBuf::from(v),
         _ => repo_root
             .join(vox_config::paths::REPO_CACHE_DIR)
             .join(vox_config::paths::REPO_GRAPHIFY_CACHE_SUBDIR),
-    })
+    }
 }
 
 fn bin_check(home: &Path) -> Check {
@@ -203,34 +202,53 @@ fn platform_data_dir_check(home: &Path, vox_data_dir_raw: Option<&str>) -> Optio
     ))
 }
 
-fn graphify_cache_check(
-    repo_root: &Path,
-    disable_raw: Option<&str>,
-    cache_dir_raw: Option<&str>,
-) -> Check {
-    match graphify_cache_base(repo_root, disable_raw, cache_dir_raw) {
-        None => Check::pass(
-            "Disk footprint: .vox/cache/graphify (repo graphify cache)",
-            "disabled via VOX_GRAPHIFY_DISABLE — no directory to measure",
+/// Shared disclaimer: `VOX_GRAPHIFY_CACHE_DIR`/`VOX_GRAPHIFY_DISABLE` are
+/// declared config-registry knobs (`vox_config::graphify`) but are not
+/// consumed anywhere in the real graphify cache writer,
+/// `crates/vox-cli/src/commands/graphify/mod.rs` — setting either has no
+/// effect on either cache root below today. A future contributor wiring
+/// these up should start at that file's `primary_cache_dir` (and whatever
+/// resolves the legacy `.vox/cache/graphify/<corpus_id>` root it does not
+/// yet share code with).
+const GRAPHIFY_ENV_NOT_WIRED_NOTE: &str = "declared in vox-config but NOT wired to the real \
+    writer (crates/vox-cli/src/commands/graphify/mod.rs) — setting it has no effect today";
+
+fn graphify_cache_check(repo_root: &Path, cache_dir_raw: Option<&str>) -> Check {
+    let path = graphify_cache_base(repo_root, cache_dir_raw);
+    let requested = cache_dir_raw.is_some_and(|v| !v.trim().is_empty());
+    Check::pass(
+        "Disk footprint: .vox/cache/graphify (legacy graphify corpus cache)",
+        format!(
+            "{} — {} — VOX_GRAPHIFY_CACHE_DIR ({}){}; VOX_GRAPHIFY_DISABLE ({})",
+            path.display(),
+            size_summary(&path),
+            GRAPHIFY_ENV_NOT_WIRED_NOTE,
+            if requested {
+                " (a value is set, but it changed nothing — the writer ignored it)"
+            } else {
+                ""
+            },
+            GRAPHIFY_ENV_NOT_WIRED_NOTE,
         ),
-        Some(path) => {
-            let active = cache_dir_raw.is_some_and(|v| !v.trim().is_empty());
-            Check::pass(
-                "Disk footprint: .vox/cache/graphify (repo graphify cache)",
-                format!(
-                    "{} — {} — relocated by VOX_GRAPHIFY_CACHE_DIR{}, disabled entirely by \
-                     VOX_GRAPHIFY_DISABLE",
-                    path.display(),
-                    size_summary(&path),
-                    if active {
-                        " (active)"
-                    } else {
-                        " (not set — using default)"
-                    }
-                ),
-            )
-        }
-    }
+    )
+}
+
+/// `.vox/cache/vox-graph` — the newer cache root some graphify corpora (e.g.
+/// `crate-map`, via `primary_cache_dir`) now write to directly, alongside the
+/// legacy `.vox/cache/graphify` root — see
+/// `docs/src/architecture/graphify-duplicate-corpus-bytes-findings-2026.md`.
+/// Reported as its own line item so a corpus that has moved to this root
+/// isn't silently excluded from the disk-footprint total.
+fn vox_graph_cache_check(repo_root: &Path) -> Check {
+    let path = repo_root.join(vox_config::paths::REPO_VOX_GRAPH_CACHE_DIR);
+    Check::pass(
+        "Disk footprint: .vox/cache/vox-graph (current graphify corpus cache)",
+        format!(
+            "{} — {} — no environment variable relocates or disables this directory today",
+            path.display(),
+            size_summary(&path)
+        ),
+    )
 }
 
 /// Explicit callout of `VOX_HOME`'s partial relocation, so setting it does
@@ -269,16 +287,12 @@ pub fn run(checks: &mut Vec<Check>) {
 
     let root = crate::commands::ci::repo_root();
     if in_vox_checkout(&root) {
-        let disable_raw = std::env::var(vox_config::graphify::GRAPHIFY_DISABLE_ENV).ok();
         let cache_dir_raw = std::env::var(vox_config::graphify::GRAPHIFY_CACHE_DIR_ENV).ok();
-        checks.push(graphify_cache_check(
-            &root,
-            disable_raw.as_deref(),
-            cache_dir_raw.as_deref(),
-        ));
+        checks.push(graphify_cache_check(&root, cache_dir_raw.as_deref()));
+        checks.push(vox_graph_cache_check(&root));
     }
 
-    let vox_home_raw = std::env::var(vox_config::paths::VOX_HOME_ENV).ok();
+    let vox_home_raw = std::env::var(vox_config::paths::HOME_OVERRIDE_ENV_VAR).ok();
     checks.push(vox_home_partial_relocation_check(vox_home_raw.as_deref()));
 }
 
@@ -378,24 +392,15 @@ mod tests {
     #[test]
     fn graphify_cache_base_default_under_dot_vox_cache() {
         let repo = Path::new("/repo");
-        let got = graphify_cache_base(repo, None, None).unwrap();
+        let got = graphify_cache_base(repo, None);
         assert_eq!(got, Path::new("/repo/.vox/cache/graphify"));
     }
 
     #[test]
     fn graphify_cache_base_honors_cache_dir_override() {
         let repo = Path::new("/repo");
-        let got = graphify_cache_base(repo, None, Some("/mnt/gcache")).unwrap();
+        let got = graphify_cache_base(repo, Some("/mnt/gcache"));
         assert_eq!(got, Path::new("/mnt/gcache"));
-    }
-
-    #[test]
-    fn graphify_cache_base_disable_wins_over_override() {
-        let repo = Path::new("/repo");
-        assert_eq!(
-            graphify_cache_base(repo, Some("1"), Some("/mnt/gcache")),
-            None
-        );
     }
 
     #[test]
@@ -403,7 +408,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let repo = tmp.path().join("ghost-repo");
         assert!(!repo.exists());
-        let _ = graphify_cache_base(&repo, None, None);
+        let _ = graphify_cache_base(&repo, None);
         assert!(
             !repo.exists(),
             "graphify_cache_base must never create the repo root or anything under it"
@@ -437,11 +442,33 @@ mod tests {
     }
 
     #[test]
-    fn graphify_cache_check_reports_disabled_state() {
+    fn graphify_cache_check_flags_env_vars_as_not_wired() {
         let repo = Path::new("/repo");
-        let check = graphify_cache_check(repo, Some("1"), None);
+        let check = graphify_cache_check(repo, None);
         assert!(check.pass);
-        assert!(check.detail.contains("disabled"));
+        assert!(check.detail.contains("NOT wired"));
+        assert!(
+            check
+                .detail
+                .contains("crates/vox-cli/src/commands/graphify/mod.rs")
+        );
+    }
+
+    #[test]
+    fn graphify_cache_check_notes_ignored_override() {
+        let repo = Path::new("/repo");
+        let check = graphify_cache_check(repo, Some("/mnt/gcache"));
+        assert!(check.pass);
+        assert!(check.detail.contains("changed nothing"));
+    }
+
+    #[test]
+    fn vox_graph_cache_check_reports_no_relocation_knob() {
+        let repo = Path::new("/repo");
+        let check = vox_graph_cache_check(repo);
+        assert!(check.pass);
+        assert!(check.detail.contains(".vox/cache/vox-graph"));
+        assert!(check.detail.contains("no environment variable"));
     }
 
     #[test]
