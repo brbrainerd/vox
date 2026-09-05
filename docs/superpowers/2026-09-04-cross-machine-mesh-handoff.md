@@ -12,6 +12,31 @@ did not even compile (see §5.1).
 binds loopback and there is still no cross-machine transport. §4 is what you can
 verify today; §5 is the work that makes it a mesh.
 
+> **SUPERSEDED IN PART, 2026-09-04 (Mac).** Phase 1 has landed and the mesh now
+> works between the two machines. Measured on `007b43c48` with
+> `vox-mesh-transport`'s `mesh_smoke` example, macOS (`aarch64`) dialling
+> BLAPTOP04 (`x86_64`), no relay and no discovery service:
+>
+> ```text
+> # untrusted, before pairing
+> connected in 12.517917ms to 93a10036…6693
+> Error: connection lost
+>   Caused by: closed by peer: not trusted (code 4001)
+>
+> # after `mesh_smoke trust <mac-endpoint-id>` on BLAPTOP04 — no restart,
+> # the allowlist is re-read on every check
+> connected in 10.450042ms to 93a10036…6693
+> response: Probed { host_triple: "x86_64-windows", vox: "0.6.0" }
+> # listener side:  executing Probe for 62333c19…8086 at Wasm
+> ```
+>
+> So: a peer is refused before pairing, admitted after it, and runs
+> **sandboxed** — pairing granted `Wasm`, not native. That is Phase 2 Steps 4
+> and 5 proven with the real crate rather than a spike. Still outstanding for
+> the full Phase 2 sign-off: the `vox mesh join` verbs (Steps 1–3) and the
+> **both-machines-offline** repeat (Step 6), which is blocking and needs the
+> router's uplink physically pulled.
+
 ---
 
 ## 1. Driving BLAPTOP04 from the Mac — enabled 2026-09-04

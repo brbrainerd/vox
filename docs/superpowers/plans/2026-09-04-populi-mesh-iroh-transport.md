@@ -671,6 +671,25 @@ async fn a_payload_larger_than_the_cap_is_refused_before_any_transfer() { /* …
 
 ### Task 2.1: Two-machine ticket pairing
 
+> **PARTIALLY PROVEN, 2026-09-04 (commit `007b43c48`).** Steps 4 and 5 are done
+> ahead of Steps 1–3, using `vox-mesh-transport`'s `mesh_smoke` example instead
+> of the CLI verbs — the transport path underneath is identical, so the evidence
+> stands regardless of how the arguments are parsed. macOS (`aarch64`) dialled
+> BLAPTOP04 (`x86_64`) over the LAN with **no relay and no discovery service**:
+>
+> - **Step 5 (refusal before trust):** `closed by peer: not trusted (code 4001)`,
+>   connect 12.5 ms. The executor was never reached.
+> - **Step 4 (pair and Probe):** after trusting the Mac's `EndpointId` on
+>   BLAPTOP04 — **with the listener still running**, since the allowlist is
+>   re-read on every check — connect 10.5 ms and
+>   `Probed { host_triple: "x86_64-windows", vox: "0.6.0" }`. The listener logged
+>   `executing Probe for 62333c19…8086 at Wasm`: **pairing granted a sandbox,
+>   not native execution.**
+>
+> Still open: Steps 1–3 (the `vox mesh join` verbs and `ci command-sync`) and
+> **Step 6, the both-machines-offline repeat**, which is blocking and needs the
+> router's uplink physically pulled — it cannot be driven over SSH.
+
 - [ ] **Step 1: `vox mesh join`** — one verb, both directions. With no argument: print this node's ticket and listen. With a ticket: connect and trust. The daemon is started if not running; the user never learns the word `vox-orchestrator-d`.
 - [ ] **Step 2: Consuming a ticket requires confirmation.** Print the decoded `EndpointId` and require a yes (`--yes` for non-interactive). This is the highest-privilege action in the system and revision 3's spec implied the opposite.
 - [ ] **Step 3: Register the verbs**, then `cargo run -p vox-cli -- ci command-sync`.
