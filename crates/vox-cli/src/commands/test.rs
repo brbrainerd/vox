@@ -51,6 +51,15 @@ async fn run_once(args: &crate::cli_args::TestArgs) -> Result<()> {
     let generated_dir = Path::new("target").join("generated");
     crate::vox_note!(json, "Running tests in {}...", generated_dir.display());
 
+    // `vox test` compiles the generated backend crate to run its tests,
+    // exactly like `vox run` compiles it to serve — same genuine toolchain
+    // requirement (spec §9.1: state it honestly rather than crash on a raw
+    // spawn failure), same preflight shape (see `run.rs`'s
+    // `missing_cargo_toolchain_message`).
+    if which::which("cargo").is_err() {
+        anyhow::bail!(missing_cargo_toolchain_message());
+    }
+
     let mut cmd = Command::new("cargo");
     cmd.arg("test").current_dir(&generated_dir);
     if let Some(f) = &args.filter {
@@ -140,4 +149,34 @@ async fn run_watch(args: &crate::cli_args::TestArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Message for a missing `cargo`, mirroring `run.rs`'s
+/// `missing_cargo_toolchain_message` — `vox test` has the identical genuine
+/// toolchain requirement (compiling the generated backend crate), just for
+/// `cargo test` instead of `cargo run`.
+fn missing_cargo_toolchain_message() -> String {
+    "`vox test` compiles the generated backend to run its tests, which \
+     requires a Rust toolchain, but `cargo` was not found on PATH. Install \
+     Rust from https://rustup.rs and try again."
+        .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// No cargo, no repo-relative path — an installed user has neither.
+    #[test]
+    fn missing_cargo_message_names_no_repo_path() {
+        let msg = missing_cargo_toolchain_message();
+        assert!(
+            !msg.contains("crates/"),
+            "must not reference a repo path: {msg}"
+        );
+        assert!(
+            msg.contains("rustup.rs"),
+            "must point at the real remedy: {msg}"
+        );
+    }
 }
