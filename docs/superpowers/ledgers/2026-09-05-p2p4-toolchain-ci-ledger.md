@@ -1,3 +1,10 @@
+---
+title: "P2/P4 execution ledger — toolchain SSOT and CI lanes"
+category: "Architecture SSOTs"
+status: living
+date: 2026-09-05
+---
+
 # P2/P4 — Toolchain SSOT & CI Lanes: execution ledger
 
 **Written:** 2026-09-05, from the `claude/plan-p2p4-toolchain-ci-0e5cdb` worktree.
