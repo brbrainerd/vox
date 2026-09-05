@@ -53,8 +53,24 @@ pub async fn trusted_peers() -> Vec<PeerEntry> {
     let Some(ep) = endpoint().await else {
         return Vec::new();
     };
-    let trust = Arc::new(MeshTrust::at(&vox_dir().join("mesh_trust.json")));
-    vox_mesh_transport::directory(ep, &trust).await
+    vox_mesh_transport::directory(ep, &trust_store()).await
+}
+
+/// Queue depth as the trusted peers report it (plan Task 3.3).
+///
+/// Replaces `PopuliHttpClient::queue_stats()` for the MCP tool. Every number is
+/// **peer-asserted** — a peer reports its own depth, and nothing here verifies
+/// it. `peers_answered` is what lets a caller tell "the mesh says zero" from
+/// "no mesh answered"; weighting the claims by trust is Phase 4.
+pub async fn queue_stats() -> vox_mesh_transport::MeshQueueTotals {
+    let Some(ep) = endpoint().await else {
+        return Default::default();
+    };
+    vox_mesh_transport::queue_stats(ep, &trust_store()).await
+}
+
+fn trust_store() -> Arc<MeshTrust> {
+    Arc::new(MeshTrust::at(&vox_dir().join("mesh_trust.json")))
 }
 
 #[cfg(test)]
@@ -69,6 +85,19 @@ mod tests {
             "/nonexistent/dir/mesh_trust.json",
         )));
         assert!(trust.rows().is_empty());
+    }
+
+    #[test]
+    fn the_no_endpoint_answer_reads_as_no_peers_not_as_an_empty_queue() {
+        // What `queue_stats()` returns when the endpoint will not bind. The MCP
+        // tool keys its local-registry fallback on `peers_answered == 0`, so a
+        // default that claimed a peer had answered would silently report a mesh
+        // depth of zero over a real local queue. The wire behaviour itself is
+        // covered live in `vox-mesh-transport/tests/security.rs`; this pins the
+        // degrade contract, which is all this module adds.
+        let totals = vox_mesh_transport::MeshQueueTotals::default();
+        assert_eq!(totals.peers_answered, 0);
+        assert_eq!(totals.pending_count, 0);
     }
 
     #[test]

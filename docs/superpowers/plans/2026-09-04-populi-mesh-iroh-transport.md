@@ -784,6 +784,20 @@ Nothing in Phase 6 may run until these land. Spec Part 2.
   Phase 6 makes the mailbox the inbox too.
 - [ ] **Task 3.2: Peer directory → model selector.** Replace `federation_directory()` in `registry.rs:379`, `catalog.rs:535`, `task_submit.rs:700` with an enumeration of trusted, probed peers. **Test: a trusted probed peer appears as a `ProviderType::PopuliMesh` candidate; a dropped peer disappears.** That is goal 4's only real acceptance criterion, and deletion without it is silent.
 - [ ] **Task 3.3: Queue stats.** Axis calls `vox_mesh_queue_stats` today.
+
+> **`task_submit.rs:700` cannot be ported in 3.2 or 3.3, and the reason is not
+> queue depth.** Measured 2026-09-05 while doing 3.3. That block reads the
+> directory only to obtain a `control_url`: it sorts `MeshDirectoryEntry` by
+> `current_queue_depth`, then calls `exec_lease_grant` against
+> `peer.control_url` over HTTP and assigns that same URL to `base` for the
+> delivery that follows. A mesh `PeerEntry` is addressed by `EndpointId` and
+> carries no HTTP URL, and no `scope_id` ↔ `EndpointId` mapping exists, so
+> porting the *reads* alone leaves nothing to construct the peer client from.
+> The block therefore moves when the **lease** moves — a `Lease`/`LeaseGrant`
+> pair on the job ALPN — which is a protocol addition Phase 6 explicitly did
+> not schedule (it keeps the `mesh_exec_leases` table). Until then the
+> federation-proxy fallback stays on HTTP; queue depth over the mesh is
+> available to it via `vox_mesh_transport::queue_stats` when it is ported.
 - [ ] **Task 3.4: `PopuliHttpOp` — port it** (decided in Task 0.3 Step 5). A Vox `activity` language surface; retiring it would be a language-level breaking change. Do not delete it as collateral.
 
 ---

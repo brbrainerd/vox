@@ -15,6 +15,10 @@ use vox_mesh_transport::protocol::{
 };
 use vox_mesh_transport::trust::MeshTrust;
 
+/// What [`SpyExecutor`] claims is pending. Not 0: a zero total is what a
+/// dropped breakdown and an empty queue look like alike.
+const SPY_PENDING: u64 = 3;
+
 /// Counts invocations and remembers the limits it was handed, so a test can
 /// assert both "the executor was never reached" and "it ran sandboxed".
 #[derive(Default)]
@@ -49,6 +53,14 @@ impl JobExecutor for SpyExecutor {
                     vox: "0.0.0-test".to_string(),
                     task_kinds: vec![vox_mesh_types::TaskKind::VoxScript],
                 },
+                // Likewise for QueueStats: a spy that fell through to Output
+                // here would make the queue-stats tests assert on a shape the
+                // transport never carried.
+                JobRequest::QueueStats => JobResponse::QueueStats(protocol::QueueStats {
+                    pending_count: SPY_PENDING,
+                    pending_by_kind: vec![(vox_mesh_types::TaskKind::VoxScript, SPY_PENDING)],
+                    pending_by_priority: vec![(5, SPY_PENDING)],
+                }),
                 _ => JobResponse::Output(b"ok".to_vec()),
             })
         })
@@ -358,5 +370,96 @@ fn a_peer_with_no_stored_address_is_not_dialable() {
     assert!(
         trust.rows()[0].addrs.is_empty(),
         "plain trust() records no addresses; trust_with_addrs is the pairing path"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Task 3.3 acceptance criteria: queue depth over the mesh, replacing
+// `GET /v1/populi/queue/stats`. The point of the move is that the number comes
+// from a peer we probed rather than from a control plane we were told about,
+// so both tests run live endpoints.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn queue_depth_comes_from_the_peer_that_answered() {
+    let server = start_server().await;
+    let sk = SecretKey::generate();
+    let client_id = sk.public();
+    let client = client_endpoint(sk).await;
+    let dir = tempfile::tempdir().unwrap();
+    let trust = Arc::new(MeshTrust::at(&dir.path().join("mesh_trust.json")));
+    trust
+        .trust_with_addrs(&server.id, Some("server"), &loopback_addr_of(&server))
+        .unwrap();
+    server.trust.trust(&client_id, None).unwrap();
+
+    let totals = vox_mesh_transport::queue_stats(&client, &trust).await;
+
+    assert_eq!(totals.peers_answered, 1, "{totals:?}");
+    assert_eq!(
+        totals.pending_count, SPY_PENDING,
+        "the depth must be the peer's own number, not a local guess"
+    );
+    // The breakdowns are the Axis-visible half of the contract; a total that
+    // survived while they were dropped would still be a regression.
+    assert_eq!(
+        totals.pending_by_kind,
+        vec![(vox_mesh_types::TaskKind::VoxScript, SPY_PENDING)]
+    );
+    assert_eq!(totals.pending_by_priority, vec![(5u8, SPY_PENDING)]);
+}
+
+#[tokio::test]
+async fn two_peers_depths_add_up() {
+    // Aggregation is the only logic here that is not a round-trip, and a
+    // single-peer test cannot tell summing from "take the last answer".
+    let a = start_server().await;
+    let b = start_server().await;
+    let sk = SecretKey::generate();
+    let client_id = sk.public();
+    let client = client_endpoint(sk).await;
+    let dir = tempfile::tempdir().unwrap();
+    let trust = Arc::new(MeshTrust::at(&dir.path().join("mesh_trust.json")));
+    for s in [&a, &b] {
+        trust
+            .trust_with_addrs(&s.id, None, &loopback_addr_of(s))
+            .unwrap();
+        s.trust.trust(&client_id, None).unwrap();
+    }
+
+    let totals = vox_mesh_transport::queue_stats(&client, &trust).await;
+
+    assert_eq!(totals.peers_answered, 2, "{totals:?}");
+    assert_eq!(totals.pending_count, SPY_PENDING * 2);
+    assert_eq!(
+        totals.pending_by_kind,
+        vec![(vox_mesh_types::TaskKind::VoxScript, SPY_PENDING * 2)]
+    );
+}
+
+#[tokio::test]
+async fn an_untrusted_caller_learns_nothing_about_queue_depth() {
+    // Queue depth is a capacity signal. A stranger must not get it, for the
+    // same reason they must not get a probe answer.
+    let server = start_server().await;
+    let client = client_endpoint(SecretKey::generate()).await;
+    let dir = tempfile::tempdir().unwrap();
+    let trust = Arc::new(MeshTrust::at(&dir.path().join("mesh_trust.json")));
+    // The caller trusts the server; the server does NOT trust the caller.
+    trust
+        .trust_with_addrs(&server.id, Some("server"), &loopback_addr_of(&server))
+        .unwrap();
+
+    let totals = vox_mesh_transport::queue_stats(&client, &trust).await;
+
+    assert_eq!(
+        totals.peers_answered, 0,
+        "an untrusted caller must be told nothing: {totals:?}"
+    );
+    assert_eq!(totals.pending_count, 0);
+    assert_eq!(
+        server.spy.invocations(),
+        0,
+        "the trust gate must sit in front of the executor for QueueStats too"
     );
 }

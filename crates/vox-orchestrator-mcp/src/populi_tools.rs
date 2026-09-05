@@ -168,11 +168,42 @@ pub async fn mesh_nodes(state: &ServerState, _args: Value) -> anyhow::Result<Str
 
 /// `vox_mesh_queue_stats` — pending queue depth / breakdown.
 ///
-/// Prefers `GET /v1/populi/queue/stats` (rich `vox_populi::transport::MeshQueueStats`); falls
-/// back to the local registry's `queue_depth` when no control plane is configured or it is
-/// unreachable.
+/// Order: the **mesh** first (plan Task 3.3 — trusted peers probed just now),
+/// then the control plane (`GET /v1/populi/queue/stats`, retained until Phase 6
+/// deletes it), then the local registry's `queue_depth`.
+///
+/// The mesh is preferred because its numbers come from peers that answered,
+/// not from a list a control plane was told about. They are still
+/// *peer-asserted*: `peers_answered` is reported alongside so a reader can see
+/// how many machines the total is made of. When no peer answers, the mesh is
+/// skipped entirely rather than reporting a depth of zero over a real queue.
 #[cfg_attr(not(feature = "populi-transport"), allow(unused_variables))]
 pub async fn mesh_queue_stats(state: &ServerState, _args: Value) -> anyhow::Result<String> {
+    #[cfg(feature = "populi-transport")]
+    {
+        let mesh = vox_orchestrator::models::mesh_directory::queue_stats().await;
+        if mesh.peers_answered > 0 {
+            let by_kind: serde_json::Map<String, Value> = mesh
+                .pending_by_kind
+                .iter()
+                .map(|(k, n)| (k.as_str().to_string(), json!(n)))
+                .collect();
+            let by_priority: serde_json::Map<String, Value> = mesh
+                .pending_by_priority
+                .iter()
+                .map(|(p, n)| (p.to_string(), json!(n)))
+                .collect();
+            return Ok(json!({
+                "source": "mesh",
+                "peers_answered": mesh.peers_answered,
+                "pending_count": mesh.pending_count,
+                "pending_by_kind": by_kind,
+                "pending_by_priority": by_priority,
+            })
+            .to_string());
+        }
+    }
+
     #[cfg(feature = "populi-transport")]
     if let Some(base) = resolve_control_url(state) {
         match control_client(&base).queue_stats().await {

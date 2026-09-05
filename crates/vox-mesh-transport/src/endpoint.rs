@@ -116,6 +116,10 @@ impl JobExecutor for ProbeOnlyExecutor {
                      transport replaced"
                         .to_string(),
                 ),
+                // Honest, not a placeholder: this executor runs nothing, so
+                // nothing is pending. A node that queues work answers with its
+                // real depth by supplying its own `JobExecutor`.
+                JobRequest::QueueStats => JobResponse::QueueStats(protocol::QueueStats::default()),
                 JobRequest::Cancel { .. } => {
                     JobResponse::Failed("nothing to cancel: this node runs no jobs".to_string())
                 }

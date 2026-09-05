@@ -53,6 +53,30 @@ pub enum JobRequest {
     Cancel {
         job_id: JobId,
     },
+    /// How much work is this peer sitting on? Replaces the control plane's
+    /// `GET /v1/populi/queue/stats`. A read, so unlike `Run` it needs no
+    /// sandbox — but it is still capacity intelligence, so it is behind the
+    /// same trust gate as everything else here.
+    QueueStats,
+}
+
+/// One peer's answer to [`JobRequest::QueueStats`].
+///
+/// The breakdowns are `Vec`s of pairs rather than maps: postcard does not care
+/// about the key type, and a `Vec` has a defined order, so the aggregate the
+/// caller builds can be sorted into something stable between refreshes.
+/// `TaskKind` implements neither `Hash` nor `Ord`, so a map would have needed
+/// one of them added for the wire's convenience.
+///
+/// Every number here is **self-reported**. Trust-weighting it is Phase 4's job;
+/// this type's contract is only that it carries what the peer said, unedited.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueStats {
+    pub pending_count: u64,
+    #[serde(default)]
+    pub pending_by_kind: Vec<(TaskKind, u64)>,
+    #[serde(default)]
+    pub pending_by_priority: Vec<(u8, u64)>,
 }
 
 /// The tier a *received* job runs at.
@@ -89,6 +113,8 @@ pub enum JobResponse {
     Output(Vec<u8>),
     /// A refusal or a failure, phrased for a human.
     Failed(String),
+    /// Answer to [`JobRequest::QueueStats`].
+    QueueStats(QueueStats),
 }
 
 /// Bounds applied to every received job.
@@ -204,11 +230,26 @@ mod tests {
                 payload_bytes: 4096,
             },
             JobRequest::Cancel { job_id: 42 },
+            JobRequest::QueueStats,
         ] {
             let bytes = encode(&req).unwrap();
             let back: JobRequest = decode(&bytes).unwrap();
             assert_eq!(req, back);
         }
+    }
+
+    #[test]
+    fn queue_stats_round_trip_carries_the_breakdowns() {
+        // The breakdowns are what the MCP tool's Axis-visible JSON is built
+        // from; a response that only round-tripped `pending_count` would pass a
+        // laxer test and still lose them.
+        let resp = JobResponse::QueueStats(QueueStats {
+            pending_count: 7,
+            pending_by_kind: vec![(TaskKind::VoxScript, 5), (TaskKind::Embed, 2)],
+            pending_by_priority: vec![(0, 3), (9, 4)],
+        });
+        let back: JobResponse = decode(&encode(&resp).unwrap()).unwrap();
+        assert_eq!(resp, back);
     }
 
     #[test]

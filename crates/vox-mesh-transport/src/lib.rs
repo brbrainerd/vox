@@ -23,7 +23,7 @@ pub mod mailbox;
 pub mod protocol;
 pub mod trust;
 
-pub use directory::{PeerEntry, directory};
+pub use directory::{MeshQueueTotals, PeerEntry, directory, queue_stats};
 pub use endpoint::{JobExecutor, ReceivedJob, bind, serve};
 pub use identity::load_or_create;
 pub use mailbox::{Inbox, MailboxLimits, Outbox};
