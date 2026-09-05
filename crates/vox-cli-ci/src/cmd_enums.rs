@@ -383,6 +383,15 @@ pub enum CiCmd {
     /// fails on a violation — a published public release is not advisory.
     #[command(name = "release-draft-guard")]
     ReleaseDraftGuard,
+    /// Forbid any workflow step from installing Rust directly via
+    /// `dtolnay/rust-toolchain` instead of `./.github/actions/setup-rust`.
+    /// Always fails on a violation.
+    #[command(name = "toolchain-workflow-lint")]
+    ToolchainWorkflowLint,
+    /// Forbid an `actions/cache` key that hashes `Cargo.lock` without also
+    /// keying on the Rust toolchain. Always fails on a violation.
+    #[command(name = "cache-key-lint")]
+    CacheKeyLint,
     /// Advisory GUI visual AI review (screenshots vs design principles). Always exits 0; never gates.
     #[command(name = "gui-visual-review")]
     GuiVisualReview {
