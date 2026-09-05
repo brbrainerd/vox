@@ -556,6 +556,7 @@ Full details and per-rule fix patterns: [`docs/src/architecture/vox-language-rul
 
 ## Related Operational Surfaces
 
+- Nightly builds (tag automation, local `voxup install --tag <tag>` to skip a from-source build): [`docs/src/architecture/nightly-builds-ssot.md`](docs/src/architecture/nightly-builds-ssot.md)
 - Canonical vs deprecated runtime names (daemon binary, MCP prefixes, env families): [`docs/src/architecture/canonical-runtime-names.md`](docs/src/architecture/canonical-runtime-names.md)
 - CI and runner behavior: [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)
 - Search & retrieval (agent corpora, MCP tools, policy): [`docs/src/architecture/search-retrieval-ssot-2026.md`](docs/src/architecture/search-retrieval-ssot-2026.md)

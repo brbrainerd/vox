@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -29,6 +32,11 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.96.0"
+      - name: Install system deps (libdbus/GTK)
+        # voxup pulls in glib-sys transitively -- same gap build-linux-deb
+        # already has a fix for. Linux-only; macOS doesn't need it.
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - name: Build voxup
         run: cargo build --release -p voxup
       - name: Smoke — voxup --help (all branches)
@@ -62,7 +70,11 @@ jobs:
           ./target/release/voxup update
   build-windows-msi:
     runs-on: windows-latest
-    timeout-minutes: 45
+    # cargo wix --no-build now runs a real `cargo build --profile dist` first
+    # (fat LTO, codegen-units=1) -- a measured 86m on this workspace for the
+    # sibling jobs below. 45m was sized when this job had no build step at
+    # all (--no-build against nothing); raised to match.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
         # fetch-depth: 0 — vox-build-meta derives the build number from
@@ -81,10 +93,24 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-wix
+      - name: Build the dist binary
+        # `--no-build` below expects target/dist/vox.exe + vox-compilerd.exe to
+        # already exist. Without this step, `cargo wix` links `light.exe`
+        # against nonexistent files and fails with exit 103 (LGHT0103,
+        # file-not-found). Features must match the shipped binary --
+        # release_build.rs adds `heavy-retrieval` for the real release build.
+        run: cargo build --profile dist --locked -p vox-cli --features heavy-retrieval
       - name: Build MSI
         run: cargo wix --no-build --profile dist --package vox-cli
-        # Note: In a real pipeline, `cargo build --profile dist --locked -p vox-cli`
-        # would be run first to populate target/dist/vox.exe.
+      - name: Upload MSI artifact
+        # Built and immediately discarded when the runner tears down unless
+        # captured here -- this job previously had no persistence step at
+        # all, so it reported green while producing zero durable output.
+        uses: actions/upload-artifact@v7
+        with:
+          name: installer-windows-msi
+          path: target/wix/*.msi
+          if-no-files-found: error
 
   build-linux-deb:
     runs-on: ubuntu-latest
@@ -114,6 +140,15 @@ jobs:
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - name: Build DEB
         run: cargo deb -p vox-cli --profile dist
+      - name: Upload DEB artifact
+        # cargo-deb's output path varies with --profile (target/debian/ for
+        # the default profile, target/<profile>/debian/ for a custom one) --
+        # glob covers both without needing to pin the exact convention.
+        uses: actions/upload-artifact@v7
+        with:
+          name: installer-linux-deb
+          path: target/**/debian/*.deb
+          if-no-files-found: error
 
   publish-macos-brew:
     runs-on: macos-latest
@@ -133,10 +168,20 @@ jobs:
         run: |
           tar -czvf vox-darwin.tar.gz -C target/dist vox
           shasum -a 256 vox-darwin.tar.gz > checksum.txt
-      - name: Upload to Homebrew Tap
-        run: |
-          echo "Simulating Homebrew Tap update..."
-          # Logic to dispatch repository event to vox-foundation/homebrew-vox
+      - name: Upload macOS artifact
+        # This job previously ended here with a stub step that only echoed a
+        # message -- nothing was ever uploaded anywhere (not to a release,
+        # not even as a workflow artifact). This makes the built tarball a
+        # real, downloadable asset. It does NOT dispatch to a Homebrew tap
+        # repo (vox-foundation/homebrew-vox) -- that integration was never
+        # implemented and is out of scope here; tracked as a known gap.
+        uses: actions/upload-artifact@v7
+        with:
+          name: installer-macos-brew
+          path: |
+            vox-darwin.tar.gz
+            checksum.txt
+          if-no-files-found: error
 
   test-bootstrap-unix:
     runs-on: ${{ matrix.os }}
@@ -164,6 +209,12 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.96.0"
+
+      - name: Install system deps (libdbus/GTK)
+        # voxup pulls in glib-sys transitively -- same gap build-linux-deb
+        # already has a fix for. Linux-only; macOS doesn't need it.
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
       - name: Build voxup (for E2E bootstrap test)
         run: cargo build --release -p voxup
@@ -241,3 +292,38 @@ jobs:
             Write-Host "FAIL: $voxup not found — install.rs did not place voxup.exe"
             exit 1
           }
+
+  publish:
+    name: Attach installers to GitHub release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build-windows-msi, build-linux-deb, publish-macos-brew]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: installer-artifacts
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v3
+        with:
+          # Not installer-artifacts/*/* -- confirmed via a real tag push that
+          # the .deb artifact preserves cargo-deb's full nested output path
+          # (target/<target-triple>/debian/*.deb) inside the uploaded
+          # artifact, so a 2-level glob silently missed it entirely and
+          # fail_on_unmatched_files: false let the job report success anyway
+          # with the .deb never attached to the release.
+          files: installer-artifacts/**/*
+          fail_on_unmatched_files: false
+          # This job attaches to the SAME tag's release release-binaries.yml
+          # publishes -- softprops/action-gh-release is idempotent per tag,
+          # whichever workflow's publish job runs first creates the release,
+          # the other appends. Same "latest" exposure this repo's other
+          # publish job guards against (see release-binaries.yml's publish
+          # step comment) -- a hyphenated tag (v1.2.3-rc1, v0.0.0-test) is a
+          # prerelease and never becomes "latest"; a plain tag is real.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          make_latest: ${{ !contains(github.ref_name, '-') }}

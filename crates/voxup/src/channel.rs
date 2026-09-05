@@ -11,6 +11,9 @@ use serde::Deserialize;
 // and pick the newest published, non-draft one instead.
 const API_RELEASES: &str =
     "https://api.github.com/repos/vox-foundation/vox/releases?per_page=20";
+// Tag lookup for a specific prerelease (e.g. a nightly), which the listing
+// above intentionally cannot name.
+const API_TAGS: &str = "https://api.github.com/repos/vox-foundation/vox/releases/tags";
 const CLIENT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 #[derive(Debug, Deserialize, Clone)]
@@ -60,23 +63,41 @@ pub fn make_client() -> Result<Client> {
     builder.build().context("failed to build reqwest Client")
 }
 
-pub async fn fetch_latest(client: &Client) -> Result<ReleaseInfo> {
-    #[derive(Deserialize)]
-    struct GhRelease {
-        tag_name: String,
-        assets: Vec<GhAsset>,
-        #[serde(default)]
-        draft: bool,
-        /// `None` while a release is still a draft. Ordering on this rather than
-        /// on the API's default `created_at` matters: `created_at` is the tag's
-        /// commit date, so a hotfix cut from an older commit would otherwise win.
-        #[serde(default)]
-        published_at: Option<String>,
+/// A single release as returned by either endpoint above.
+#[derive(Deserialize)]
+struct GhRelease {
+    tag_name: String,
+    assets: Vec<GhAsset>,
+    #[serde(default)]
+    draft: bool,
+    /// `None` while a release is still a draft. Ordering on this rather than
+    /// on the API's default `created_at` matters: `created_at` is the tag's
+    /// commit date, so a hotfix cut from an older commit would otherwise win.
+    #[serde(default)]
+    published_at: Option<String>,
+}
+
+fn into_release_info(rel: GhRelease) -> Result<ReleaseInfo> {
+    let version = rel.tag_name.trim_start_matches('v').to_string();
+    if version.is_empty() {
+        bail!("release tag {:?} has no version after 'v'", rel.tag_name);
     }
-    let releases: Vec<GhRelease> = client
-        .get(API_RELEASES)
+    Ok(ReleaseInfo {
+        tag: rel.tag_name,
+        version,
+        assets: rel.assets,
+    })
+}
+
+fn get(client: &Client, url: &str) -> reqwest::RequestBuilder {
+    client
+        .get(url)
         .header("User-Agent", concat!("voxup/", env!("CARGO_PKG_VERSION")))
         .header("Accept", "application/vnd.github+json")
+}
+
+pub async fn fetch_latest(client: &Client) -> Result<ReleaseInfo> {
+    let releases: Vec<GhRelease> = get(client, API_RELEASES)
         .send()
         .await
         .context("GET GitHub releases")?
@@ -90,18 +111,29 @@ pub async fn fetch_latest(client: &Client) -> Result<ReleaseInfo> {
         .into_iter()
         .filter(|r| !r.draft && r.published_at.is_some())
         .max_by(|a, b| a.published_at.cmp(&b.published_at))
-        .context(
-            "no published release found (all drafts, or the repository has no releases yet)",
-        )?;
-    let version = rel.tag_name.trim_start_matches('v').to_string();
-    if version.is_empty() {
-        bail!("release tag {:?} has no version after 'v'", rel.tag_name);
-    }
-    Ok(ReleaseInfo {
-        tag: rel.tag_name,
-        version,
-        assets: rel.assets,
-    })
+        .context("no published release found (all drafts, or the repository has no releases yet)")?;
+    into_release_info(rel)
+}
+
+/// Fetch a specific release by its exact git tag (e.g. a nightly prerelease
+/// like `v0.6.0-nightly.4812`). This is how `voxup install --tag <tag>`
+/// fetches one for local use, without requiring a full local `cargo build`.
+///
+/// `fetch_latest` lists releases rather than calling `/releases/latest`,
+/// because that endpoint excludes prereleases and 404s while every published
+/// release is one -- so a tag lookup is the only way to name a specific nightly.
+pub async fn fetch_by_tag(client: &Client, tag: &str) -> Result<ReleaseInfo> {
+    let url = format!("{API_TAGS}/{tag}");
+    let rel: GhRelease = get(client, &url)
+        .send()
+        .await
+        .with_context(|| format!("GET {url}"))?
+        .error_for_status()
+        .context("GitHub API returned an error")?
+        .json()
+        .await
+        .context("parse GitHub release JSON")?;
+    into_release_info(rel)
 }
 
 #[cfg(test)]

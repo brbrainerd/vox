@@ -109,3 +109,4 @@ pub mod test_runtime_report;
 pub mod tier_budget_check;
 pub mod toestub_budget;
 pub mod workflow_concurrency_guard;
+pub mod workflow_permissions_guard;

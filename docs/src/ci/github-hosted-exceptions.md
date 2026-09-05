@@ -14,7 +14,7 @@ The repository defaults to **self-hosted** runners for CI (see [runner contract]
 | Workflow | Runner | Reason |
 |----------|--------|--------|
 | `docs-deploy.yml` | `ubuntu-latest` | GitHub Pages deploy + Astro docs; portable Pages API. |
-| `release-binaries.yml` | `windows-latest`, `macos-latest` (matrix) | Publish tagged Windows/macOS binaries; Linux build lane is self-hosted. |
+| `release-binaries.yml` | `windows-latest`, `macos-latest`, `ubuntu-latest` (matrix + dist-verify + publish) | Publish tagged binaries for all platforms. Linux build, fat-LTO dist-verify, and the release-publish step moved off the self-hosted fleet 2026-08-23 -- the fleet's availability for tag-triggered release runs is unverified (a 2026-05-26 run queued 24h with no runner pickup) and this pipeline needs to be provably reliable, not best-effort. |
 | `release-installers.yml` | `windows-latest`, `ubuntu-latest`, `macos-latest` (matrix) | Cross-platform installer packaging. |
 | `release-gui.yml` | matrix (`ubuntu-latest`, etc.) | Tauri GUI release matrix across host OSes. |
 | `bundle-release.yml` | matrix (`ubuntu-latest`, etc.) | Multi-target bundle publishing. |
@@ -37,6 +37,7 @@ The repository defaults to **self-hosted** runners for CI (see [runner contract]
 | `docker-telemetry.yml` | `ubuntu-latest` | GHCR telemetry image build on the deploy path; free public minutes by policy (compute-placement.md §vox placement). |
 | `distribution-parity.yml` | `ubuntu-latest` | Fleet-independent required parity check — stays green when the fleet is down (Invariant 1). |
 | `version-tag-guard.yml` | `ubuntu-latest` | Lightweight tag-only release guard; fleet-independent by design. |
+| `nightly-tag.yml` | `ubuntu-latest` | Scheduled tag-cutting for the nightly channel; lightweight (git + `gh` only), needs no self-hosted resources, and must stay live on a cron schedule independent of fleet health. |
 | `workflow-lint.yml` | `ubuntu-latest` | actionlint + zizmor; install in seconds, need no self-hosted resources. Non-required early-warning surface. |
 | `ci-health-deadman.yml` | `ubuntu-latest` | CI fleet health deadman switch; must run on a GitHub-hosted runner so it stays live when the self-hosted fleet is down. |
 | `ci-health-watchdog.yml` | `ubuntu-latest` | CI health watchdog monitor; fleet-independent by design (Invariant 1). |

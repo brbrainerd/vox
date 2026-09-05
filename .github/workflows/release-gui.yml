@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,6 +19,15 @@ jobs:
     name: Build Tauri GUI
     runs-on: ${{ matrix.os }}
     timeout-minutes: 240
+    env:
+      # Job-level, NOT step-level: a step's `if:` is evaluated before that
+      # step's own env: block exists, so a step-scoped var reads empty in
+      # its own condition and the step is silently skipped forever. The
+      # `secrets` context is not available in `if:` at all, which is why
+      # this env hop exists -- it just has to happen one scope up.
+      AZURE_CODE_SIGNING_ACCOUNT: ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT }}
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -62,15 +71,13 @@ jobs:
         with:
           node-version: '20'
 
-      # Pinned to 9 to match the nine other workflows that use
-      # pnpm/action-setup. This step used to be `npm install -g pnpm`, which
-      # resolves to whatever is latest — pnpm 11 at time of writing. pnpm 11
-      # stopped reading `pnpm.overrides` from package.json and reads
-      # pnpm-workspace.yaml instead, so it computed a different overrides set
-      # than the pnpm-9-generated lockfile records, and every Linux and macOS
-      # run of this workflow died at `pnpm install` with
-      # ERR_PNPM_LOCKFILE_CONFIG_MISMATCH. This was the sole workflow not
-      # pinning pnpm, and it is the reason this workflow has never succeeded.
+      # Pinned to 11 to match the other eighteen workflows using
+      # pnpm/action-setup, and to match crates/vox-gui/ui/pnpm-workspace.yaml,
+      # which carries pnpm-11-only settings (`allowBuilds`, and the `overrides`
+      # block that pnpm 11 reads from this file instead of package.json#pnpm).
+      # This step used to be `npm install -g pnpm`, which resolves to whatever
+      # is latest and left the workflow's pnpm major unpinned -- it was the sole
+      # workflow not pinning, and the reason it had never succeeded.
       - uses: pnpm/action-setup@v6
         with:
           version: 11
@@ -154,13 +161,21 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Vox Desktop App ${{ github.ref_name }}'
           releaseBody: 'Native graphical environment and visualizer for Vox.'
-          releaseDraft: true
-          prerelease: false
+          # Match release-binaries.yml / release-installers.yml: all three
+          # workflows write the SAME release object for a given tag with no
+          # ordering between them, so their flags must agree or whichever
+          # runs first wins. Hyphen => prerelease, per the repo convention.
+          releaseDraft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
           args: ${{ matrix.target == 'universal-apple-darwin' && '--target universal-apple-darwin' || '' }}
+
+      - name: Note unsigned MSI (no signing cert configured)
+        if: runner.os == 'Windows' && env.AZURE_CODE_SIGNING_ACCOUNT == ''
+        run: echo "::warning::AZURE_CODE_SIGNING_ACCOUNT is not set -- the MSI in this release is UNSIGNED."
 
       # Note: Windows Azure Trusted Signing integration
       - name: Sign Windows Installer
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && env.AZURE_CODE_SIGNING_ACCOUNT != ''
         uses: azure/trusted-signing-action@v2
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -168,12 +183,13 @@ jobs:
           azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           endpoint: 'https://cus.codesigning.azure.net/'
           # v2.0.0 renamed `code-signing-account-name` → `signing-account-name`.
-          signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT }}
+          signing-account-name: ${{ env.AZURE_CODE_SIGNING_ACCOUNT }}
           certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE }}
           # crates/vox-gui/src-tauri does NOT exist — tauri.conf.json lives
           # directly at crates/vox-gui/, and the build output goes to the
-          # workspace-level target/. The old path could never contain an MSI,
-          # so this step silently signed nothing and Windows installers
-          # shipped unsigned.
+          # workspace-level target/ (the workspace-root CARGO_TARGET_DIR set in
+          # .cargo/config.toml). The old path could never contain an MSI, so
+          # this step silently signed nothing and Windows installers shipped
+          # unsigned.
           files-folder: ./target/release/bundle/msi
           files-folder-filter: msi

@@ -61,14 +61,93 @@ pub fn extract(data: &[u8], dest_dir: &Path, filename: &str) -> Result<()> {
     }
 }
 
+/// Maximum total uncompressed bytes from one archive (512 MiB). tar-rs bounds
+/// each entry's reader with `io::Take` at `Entry::size()` — which is the raw
+/// header field, EXCEPT when a PAX `size` extension record is present, in which
+/// case the PAX value wins. Summing `entry.size()` (not `entry.header().size()`)
+/// therefore tracks the same bound the reader is actually limited by, so it is
+/// a real upper bound on bytes written, not merely advisory.
+pub(crate) const MAX_UNCOMPRESSED_BYTES: u64 = 512 * 1024 * 1024;
+/// Maximum entries in one archive.
+const MAX_ENTRIES: usize = 10_000;
+
 fn extract_targz(data: &[u8], dest_dir: &Path) -> Result<()> {
     use flate2::read::GzDecoder;
-    use tar::Archive;
+    use tar::{Archive, EntryType};
+
+    // Explicit entry loop rather than `archive.unpack()`. `unpack` SILENTLY
+    // SKIPS escaping entries, so a tampered archive surfaces as "Extraction
+    // succeeded but 'vox' not found" rather than a security error. It also
+    // writes symlinks. Real Vox archives contain exactly one regular file
+    // (release_artifacts::package_tar_gz calls append_path_with_name once), so
+    // this allowlist is non-breaking.
     let gz = GzDecoder::new(Cursor::new(data));
     let mut archive = Archive::new(gz);
-    archive
-        .unpack(dest_dir)
-        .with_context(|| format!("unpack tar.gz to {}", dest_dir.display()))?;
+
+    let mut total_bytes: u64 = 0;
+    let mut count: usize = 0;
+
+    for entry in archive.entries().context("read tar entries")? {
+        let mut entry = entry.context("read tar entry")?;
+
+        count += 1;
+        if count > MAX_ENTRIES {
+            bail!("archive has more than {MAX_ENTRIES} entries; refusing to extract");
+        }
+
+        let ty = entry.header().entry_type();
+        // A pax global-extension record is metadata, not a file; skip rather
+        // than fail, so a bsdtar-produced archive still extracts.
+        if ty == EntryType::XGlobalHeader {
+            continue;
+        }
+        if !(ty.is_file() || ty.is_dir()) {
+            bail!(
+                "unsupported entry type {:?} in archive entry {:?}; only regular \
+                 files and directories are allowed",
+                ty,
+                entry.path().map(|p| p.display().to_string())
+            );
+        }
+
+        let path = entry.path().context("decode tar entry path")?.into_owned();
+        if path.is_absolute()
+            || path
+                .components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
+            bail!("Tar Slip detected: path {:?} escapes destination", path);
+        }
+        let outpath = dest_dir.join(&path);
+        if !outpath.starts_with(dest_dir) {
+            bail!("Tar Slip detected: path {:?} escapes destination", path);
+        }
+
+        // `entry.size()` (not `entry.header().size()`) — the raw header field is
+        // overridden by a PAX `size` extension record when one is present, and
+        // tar-rs bounds its reader with `entry.size()`, PAX override included
+        // (vendored tar-0.4.46/src/archive.rs:337-360). Checking the header field
+        // alone lets a small ustar size + a large PAX size sail past this cap.
+        let declared = entry.size();
+        total_bytes = total_bytes.saturating_add(declared);
+        if total_bytes > MAX_UNCOMPRESSED_BYTES {
+            bail!("archive expands beyond {MAX_UNCOMPRESSED_BYTES} bytes; refusing to extract");
+        }
+
+        if ty.is_dir() {
+            fs::create_dir_all(&outpath)
+                .with_context(|| format!("create dir {}", outpath.display()))?;
+            continue;
+        }
+        if let Some(parent) = outpath.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("create dir {}", parent.display()))?;
+        }
+        entry
+            .unpack(&outpath)
+            .with_context(|| format!("unpack entry to {}", outpath.display()))?;
+    }
+
     info!("Extracted tar.gz to {}", dest_dir.display());
     Ok(())
 }
@@ -187,6 +266,143 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         extract(&buf, tmp.path(), "vox-0.7.0.tar.gz").unwrap();
         assert!(tmp.path().join("vox").exists());
+    }
+
+    /// Build a gzipped tar whose single entry carries `name` verbatim.
+    ///
+    /// Uses the raw GNU header rather than `append_data`, because tar-rs's
+    /// `Header::set_path` REFUSES `..` — the safe API cannot express the attack
+    /// this test exists to catch.
+    #[cfg(unix)]
+    fn targz_with_raw_name(name: &[u8], contents: &[u8]) -> Vec<u8> {
+        use flate2::Compression;
+        use flate2::write::GzEncoder;
+        use std::io::Write;
+
+        let mut tar_bytes = Vec::new();
+        {
+            let mut builder = tar::Builder::new(&mut tar_bytes);
+            let mut header = tar::Header::new_gnu();
+            header.set_size(contents.len() as u64);
+            header.set_mode(0o644);
+            header.set_entry_type(tar::EntryType::Regular);
+            {
+                let gnu = header.as_gnu_mut().expect("gnu header");
+                assert!(name.len() < gnu.name.len(), "fixture name too long");
+                gnu.name[..name.len()].copy_from_slice(name);
+            }
+            header.set_cksum();
+            builder.append(&header, contents).expect("append raw entry");
+            builder.finish().expect("finish tar");
+        }
+        let mut gz = GzEncoder::new(Vec::new(), Compression::fast());
+        gz.write_all(&tar_bytes).expect("gzip write");
+        gz.finish().expect("gzip finish")
+    }
+
+    /// Guards the fixture itself: if tar-rs ever normalises the raw name, the
+    /// traversal test would silently start asserting nothing.
+    #[cfg(unix)]
+    #[test]
+    fn traversal_fixture_really_contains_an_escaping_entry() {
+        let data = targz_with_raw_name(b"../escaped.txt", b"pwned");
+        let mut ar = tar::Archive::new(flate2::read::GzDecoder::new(Cursor::new(&data)));
+        let paths: Vec<String> = ar
+            .entries()
+            .expect("entries")
+            .map(|e| {
+                e.expect("entry")
+                    .path()
+                    .expect("path")
+                    .display()
+                    .to_string()
+            })
+            .collect();
+        assert_eq!(
+            paths,
+            vec!["../escaped.txt".to_string()],
+            "fixture no longer escapes"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn extract_targz_rejects_path_traversal() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let data = targz_with_raw_name(b"../escaped.txt", b"pwned");
+        let err = extract_targz(&data, dir.path()).expect_err("must reject escaping entry");
+        assert!(
+            err.to_string().contains("escapes destination"),
+            "expected a traversal rejection, got: {err}"
+        );
+        assert!(
+            !dir.path().parent().unwrap().join("escaped.txt").exists(),
+            "escaping entry was written outside the destination"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn extract_targz_rejects_symlink_entries() {
+        use flate2::Compression;
+        use flate2::write::GzEncoder;
+        use std::io::Write;
+
+        let mut tar_bytes = Vec::new();
+        {
+            let mut builder = tar::Builder::new(&mut tar_bytes);
+            let mut header = tar::Header::new_gnu();
+            header.set_entry_type(tar::EntryType::Symlink);
+            header.set_size(0);
+            header.set_mode(0o777);
+            header.set_link_name("/etc/passwd").expect("set link name");
+            header.set_cksum();
+            builder
+                .append_data(&mut header, "link", &[][..])
+                .expect("append symlink");
+            builder.finish().expect("finish tar");
+        }
+        let mut gz = GzEncoder::new(Vec::new(), Compression::fast());
+        gz.write_all(&tar_bytes).expect("gzip write");
+        let data = gz.finish().expect("gzip finish");
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let err = extract_targz(&data, dir.path()).expect_err("must reject symlink entry");
+        assert!(
+            err.to_string().contains("unsupported entry type"),
+            "expected a symlink rejection, got: {err}"
+        );
+    }
+
+    /// tar-rs bounds each entry's reader with `io::Take` at the header-declared
+    /// size, so a lying header can only UNDERSTATE — which is why checking the
+    /// declared size before unpacking is a real upper bound, not advisory.
+    #[cfg(unix)]
+    #[test]
+    fn extract_targz_rejects_an_oversized_archive() {
+        use flate2::Compression;
+        use flate2::write::GzEncoder;
+        use std::io::Write;
+
+        let mut tar_bytes = Vec::new();
+        {
+            let mut b = tar::Builder::new(&mut tar_bytes);
+            let mut h = tar::Header::new_gnu();
+            h.set_size(MAX_UNCOMPRESSED_BYTES + 1);
+            h.set_mode(0o644);
+            h.set_entry_type(tar::EntryType::Regular);
+            h.as_gnu_mut().unwrap().name[..3].copy_from_slice(b"big");
+            h.set_cksum();
+            b.append(&h, &[][..]).expect("append");
+            b.finish().expect("finish");
+        }
+        let mut gz = GzEncoder::new(Vec::new(), Compression::fast());
+        gz.write_all(&tar_bytes).expect("gzip write");
+        let data = gz.finish().expect("gzip finish");
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let err = extract_targz(&data, dir.path()).expect_err("must reject oversized archive");
+        assert!(err.to_string().contains("expands beyond"), "got: {err}");
     }
 
     #[cfg(windows)]
