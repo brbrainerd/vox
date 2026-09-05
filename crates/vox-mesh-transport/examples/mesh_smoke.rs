@@ -129,8 +129,35 @@ async fn main() -> Result<()> {
             }
             ep.close().await;
         }
+        // Dial with NO address at all -- only an EndpointId. The only way this can
+        // succeed is if an AddressLookup service resolves the peer, which under
+        // `presets::Minimal` means mDNS and nothing else (no relay, no DNS, no
+        // pkarr). This is the Q4 test the original spike could not perform,
+        // because it addressed by ticket and tickets carry addresses.
+        "dial-id" => {
+            let peer = args.next().unwrap_or_default();
+            let id = EndpointId::from_str(&peer)?;
+            let addr = iroh::EndpointAddr::new(id);
+            let ep = vox_mesh_transport::endpoint::bind(sk).await?;
+            println!("dialing id ONLY, zero addresses (mDNS must resolve it): {id}");
+            let t0 = std::time::Instant::now();
+            match ep.connect(addr, ALPN).await {
+                Ok(conn) => {
+                    println!("RESOLVED + connected in {:?}", t0.elapsed());
+                    let (mut send, mut recv) = conn.open_bi().await?;
+                    protocol::write_frame(&mut send, &Hello::current()).await?;
+                    protocol::write_frame(&mut send, &JobRequest::Probe).await?;
+                    send.finish()?;
+                    let resp: JobResponse = protocol::read_frame(&mut recv, 1024 * 1024).await?;
+                    println!("response: {resp:?}");
+                    conn.close(0u32.into(), b"done");
+                }
+                Err(e) => println!("FAILED after {:?}: {e}", t0.elapsed()),
+            }
+            ep.close().await;
+        }
         _ => bail!(
-            "serve <dir> | trust <dir> <peer-id> | dial <dir> <ticket> | dial-addr <dir> <peer-id> <ip:port>"
+            "serve <dir> | trust <dir> <peer-id> | dial <dir> <ticket> | dial-addr <dir> <peer-id> <ip:port> | dial-id <dir> <peer-id>"
         ),
     }
     Ok(())

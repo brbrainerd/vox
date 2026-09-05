@@ -46,6 +46,42 @@ pub trait JobExecutor: Send + Sync + 'static {
     ) -> Pin<Box<dyn Future<Output = Result<JobResponse>> + Send + 'a>>;
 }
 
+/// On Windows, report whether inbound UDP to this process is likely to be
+/// dropped by the firewall.
+///
+/// Windows' default inbound action is *block*, and a per-application allow rule
+/// is not created automatically for a console binary. The failure this produces
+/// is silent and badly misleading: outbound dials still work, so the node looks
+/// healthy, and any VPN on the box (Tailscale delivers over `utun`, after its
+/// own daemon has accepted the packet) transparently carries the traffic that
+/// the LAN cannot. Measured 2026-09-05: LAN dial timed out at 30 s while the
+/// tailnet dial to the same peer connected in 73 ms, and one inbound rule took
+/// the LAN path to 25.7 ms.
+///
+/// Returns `None` where the question does not apply, and `Some(advice)` where
+/// the operator should act. Deliberately advisory: creating a firewall rule
+/// needs elevation, and silently elevating during `mesh join` would be worse
+/// than telling the truth.
+#[cfg(windows)]
+pub fn inbound_firewall_advice(program: &std::path::Path) -> Option<String> {
+    Some(format!(
+        "Windows blocks inbound UDP by default, so peers on the LAN cannot reach \
+         this node until an allow rule exists. Without it the mesh appears to \
+         work -- outbound dials succeed, and a VPN will silently carry traffic \
+         the LAN cannot. In an elevated PowerShell:\n\n    \
+         New-NetFirewallRule -DisplayName vox-mesh-inbound -Direction Inbound \
+         -Action Allow -Program '{}' -Protocol UDP -RemoteAddress LocalSubnet \
+         -Profile Any\n",
+        program.display()
+    ))
+}
+
+/// Non-Windows hosts do not gate inbound traffic per application by default.
+#[cfg(not(windows))]
+pub fn inbound_firewall_advice(_program: &std::path::Path) -> Option<String> {
+    None
+}
+
 /// The default executor: answers `Probe`, and **refuses `Run`**.
 ///
 /// Deliberately not a stub that runs things. The sandbox tiers in
@@ -185,4 +221,38 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
     // Task 0.2 spike; see ADR-047.
     conn.closed().await;
     Ok(())
+}
+
+#[cfg(test)]
+mod firewall_advice_tests {
+    use super::*;
+
+    #[test]
+    fn advice_is_windows_only() {
+        let got = inbound_firewall_advice(std::path::Path::new("/tmp/vox"));
+        if cfg!(windows) {
+            let a = got.expect("windows must produce advice");
+            assert!(
+                a.contains("New-NetFirewallRule"),
+                "must give the exact command: {a}"
+            );
+            assert!(
+                a.contains("Inbound"),
+                "the rule must be an INBOUND one: {a}"
+            );
+        } else {
+            assert!(got.is_none(), "only Windows gates inbound per application");
+        }
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn advice_names_the_silent_failure_mode() {
+        // The danger is not that it breaks loudly -- it is that a VPN hides it.
+        let a = inbound_firewall_advice(std::path::Path::new("C:/vox.exe")).unwrap();
+        assert!(
+            a.contains("VPN"),
+            "must warn that a VPN masks the fault: {a}"
+        );
+    }
 }

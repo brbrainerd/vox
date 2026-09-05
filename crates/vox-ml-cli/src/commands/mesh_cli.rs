@@ -169,6 +169,15 @@ pub async fn run(cmd: MeshCli, json: bool) -> Result<()> {
                 println!("Your ticket — paste it on the other machine:\n");
                 println!("  vox mesh join {}\n", EndpointTicket::new(ep.addr()));
                 println!("endpoint-id: {}", ep.id());
+                // Surfaced here because this is the exact moment it bites: this
+                // node is about to wait for INBOUND connections, which is what
+                // Windows drops by default.
+                if let Some(advice) = std::env::current_exe()
+                    .ok()
+                    .and_then(|exe| vox_mesh_transport::endpoint::inbound_firewall_advice(&exe))
+                {
+                    println!("\n! {advice}");
+                }
                 println!("\nWaiting for the peer to pair. Ctrl-C to stop.");
                 let trust = std::sync::Arc::new(MeshTrust::at(&trust_path()));
                 let exec = std::sync::Arc::new(vox_mesh_transport::endpoint::ProbeOnlyExecutor);

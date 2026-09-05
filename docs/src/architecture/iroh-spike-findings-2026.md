@@ -238,18 +238,48 @@ windows, to bring `cv` down before the figure reaches the model.
 Observed RTT was noisy under saturation (10–53 ms on a LAN, versus 10.9 ms at
 handshake) — classic bufferbloat. **Sample RTT when idle, not mid-transfer.**
 
-## Q4 — mDNS discovery
+## Q4 — mDNS discovery: ANSWERED, and the answer is that it does not work
 
-**Still not answered, but it is now live rather than absent.** The spike
-addressed by ticket, which carries the peer's addresses directly, so
-`iroh-mdns-address-lookup` was never *exercised*. Since Phase 1 wired it into
-`endpoint::bind`, the socket census above shows the listener holding
-`UDP *:5353` — the mDNS port — so the service is running and bound.
+**mDNS is wired, bound, and does not discover anything.** Tested directly with
+`mesh_smoke dial-id`, which dials an `EndpointId` carrying **zero addresses** —
+under `presets::Minimal` the only thing that can resolve that is mDNS, since
+there is no relay, no DNS and no pkarr:
 
-That is strictly weaker than the question asks. Bound is not the same as
-*resolving a peer*. The outstanding test is a dial that supplies **no address at
-all**, only an `EndpointId`, forcing resolution to come from mDNS — plus the
-Windows firewall-prompt behaviour the original question raised.
+```text
+dialing id ONLY, zero addresses (mDNS must resolve it): 93a10036…6693
+FAILED after 10.005778125s: No addressing information available
+```
+
+Localised to the **announcing** side, not the lookup side, and not to either
+platform:
+
+| Observation | Result |
+|---|---|
+| `dns-sd -B _irohv1._udp` while a listener runs | **empty** |
+| `dns-sd -B _ssh._tcp` (control, same method) | entries immediately |
+| `dns-sd -B _services._dns-sd._udp` | `_companion-link`, `_smb`, `_rfb`, `_ssh`, `_sftp-ssh` on `en0` |
+| Listener's own socket census | `UDP *:5353` **bound** |
+| Windows listener, then macOS listener | **neither announces** |
+
+So LAN multicast works, macOS's `mDNSResponder` sees plenty of services, our
+process holds the mDNS port — and no `_irohv1._udp` record ever appears from
+either machine. Eliminated by direct test: `advertise` defaults to `true`;
+`AddrFilter::default()` is the identity filter; and removing our
+`NetReportConfig::minimal()` line changed nothing.
+
+**Leading hypothesis, explicitly untested:** `swarm-discovery` (the crate behind
+`iroh-mdns-address-lookup`) implements its *own* mDNS stack on UDP 5353 rather
+than registering with the host responder. On macOS `mDNSResponder` owns that
+port, and iroh's own log line — `swarm_discovery::sender: no addresses for peer,
+not announcing` — says the announcer believed it had nothing to publish. Anyone
+resuming should start there, and should note this is a **third-party crate
+pinned pre-1.0** (`=0.5.0`).
+
+**Product consequence, which is the part that matters.** Discovery-by-`EndpointId`
+does not work, so **ticket-based pairing is the only functioning path today**.
+That is what `vox mesh join` already does, so the product is correct — but no
+document may claim mDNS discovery works, and ADR-047 should not be read as
+promising it.
 
 ## Q5 — Does `ep.online().await` hang under `Minimal`?
 

@@ -104,7 +104,11 @@ full numbers in [iroh spike findings](../architecture/iroh-spike-findings-2026.m
   so **one stored seed derives both identities**. Do not unify them: the mesh key
   must start headless while `NodeIdentity` is password-sealed, so fusing them
   either breaks unattended start or unseals the signing key.
-- **`iroh-mdns-address-lookup` is pre-1.0** and must be pinned with `=`.
+- **`iroh-mdns-address-lookup` is pre-1.0** and must be pinned with `=`. It is
+  also, as of 2026-09-05, **wired but non-functional**: it binds UDP 5353 and
+  never announces, so discovery-by-`EndpointId` fails and ticket-based pairing is
+  the only working path. This ADR does not promise mDNS discovery. See the
+  [spike findings](../architecture/iroh-spike-findings-2026.md) §Q4.
 
 ### Traps this ADR exists to record
 
