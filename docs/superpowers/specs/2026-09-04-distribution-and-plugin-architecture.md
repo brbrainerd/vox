@@ -686,3 +686,86 @@ tables, WiX v4 schema. Repo facts measured against `main` at
 Explicitly UNVERIFIED and flagged as such: npm public-scoped pricing; npm and
 crates.io hard size limits; Debian freeze durations; SmartScreen reputation
 mechanics; current cuDNN package naming.
+
+---
+
+## 16. Build contention across agents, IDEs and sessions
+
+Prompted by saturating the development machine while writing this spec: three
+heavy workloads at once (a containerised CI job on 10 cores, plus two
+concurrent host `cargo` builds) drove load average to 15.4 on 18 cores. Nothing
+deadlocked; everything simply got slow, and the cargo package-cache lock
+serialised work opaquely.
+
+### 16.1 The tool already exists and has never been switched on
+
+`crates/vox-cargo-shim` + `crates/vox-build-queue` are a complete, well-designed
+build broker. Its own documentation states the exact problem: *"When many agents
+/ IDE tabs / git hooks build across many worktrees on one machine…"*.
+
+- A binary **literally named `cargo`**, placed on PATH ahead of the rustup proxy.
+  Intercepts `build`/`test`/`check`/`clippy`/`run`/`bench`, acquires one of N
+  slots, runs the real cargo (so `rust-toolchain.toml` and `+toolchain` still
+  work), records a metric, releases.
+- **Machine-wide N-slot cross-process file semaphore.** Default cap =
+  logical cores / 3 clamped to [2, 8]; `VOX_BROKER_MAX_CONCURRENT` overrides.
+- State at `~/.vox/build-broker/`, deliberately **outside any repo**, so
+  concurrent agents' `git clean` / checkout cannot wipe it.
+- **Already auditable and already global**: `metrics.jsonl` (one record per
+  build) and `broker.log` (one line per build, every worktree, one file), with
+  `wait=`, `ahead=`, `cap=`, `coalesce=`, `exit=`.
+- Daemonless; falls through to real cargo on any error, so it is never a hard
+  dependency. A `VOX_BROKER_DEPTH` guard aborts at depth >= 2 so a
+  misconfiguration cannot fork-bomb.
+- A deliberate **evidence gate**: the coalescing daemon is deferred until
+  `would_coalesce` data justifies it.
+
+**`~/.vox/build-broker` does not exist on this machine.** The broker has never
+run. `which -a cargo` returns only the rustup proxy.
+
+### 16.2 Why it never activated
+
+| # | Gap | Evidence |
+|---|---|---|
+| B1 | Never installed. Install is a manual three-command ritual in a contributors doc. | `docs/src/contributors/build-broker-usage.md` "Install (per machine)" |
+| B2 | **Activation guidance is Windows-only** — `terminal.integrated.env.windows.PATH`, `…\.vox\build-broker\bin`, `cargo[.exe]`. Zero mentions of `.osx`/`.linux`, `.zshrc`, `.bashrc`, or `export PATH`. macOS and Linux developers have no documented activation path. | same doc, measured: 0 matches |
+| B3 | No verification — no `vox doctor` check for whether the shim precedes `~/.cargo/bin` on PATH. | no `broker` reference under `diagnostics/` |
+| B4 | No enforcement — agents and CI call `cargo` directly and bypass it silently. | this session did exactly that |
+| B5 | Workspace-excluded (its bin must be named `cargo`), so it is not built by default and not covered by workspace CI. It rots. | `Cargo.toml:6` |
+
+B2 is the same Windows-era pattern as the 16-bit GUI icons and the
+`.task.xml` / `.cmd` runner scheduling glue.
+
+### 16.3 The limitation that config alone will not fix
+
+The semaphore is a **filesystem** lock under `~/.vox/build-broker/slots/`. A
+containerised CI runner has a separate mount namespace and never sees it, so the
+broker governs host builds only. Today's contention was ~10 container cores plus
+two host builds; the broker would have capped only the latter.
+
+Two options, both real work rather than configuration:
+- bind-mount `~/.vox/build-broker` into the runner container so container and
+  host share one semaphore; or
+- give the container a fixed budget subtracted from the host cap, and have the
+  runner supervisor pass `VOX_BROKER_MAX_CONCURRENT` accordingly.
+
+The first is more correct (one machine, one budget); the second is simpler and
+does not couple the container to host state.
+
+### 16.4 Enhancements
+
+| Goal | Change |
+|---|---|
+| Works on any machine | Install the shim from the standard dev bootstrap, not a manual ritual |
+| Multiple IDEs and sessions | Cross-platform activation: shell profiles plus `terminal.integrated.env.osx` / `.linux` |
+| Auditable, available to all | Surface the existing log as a command (`vox ci build-queue`) rather than `tail -f`; the data is already correct and already global |
+| Enforced, not optional | A `vox doctor` check for shim-precedes-cargo, and a lint so agent-authored commands cannot bypass it |
+| Covers CI | §16.3 |
+| Does not rot | A CI lane that builds and tests the workspace-excluded shim |
+
+The important point: **none of this is new infrastructure.** The queue, the
+semaphore, the audit log and the fork-bomb guard all exist and are sound. What
+is missing is installation, cross-platform activation, a visibility check, and
+enforcement — which is the same failure mode as the plugin capability tags
+(§4.1 P4) and the install tiers (§4.1 P5): a correct mechanism that nothing
+actually invokes.
