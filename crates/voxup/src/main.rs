@@ -27,9 +27,9 @@ enum Commands {
         #[arg(default_value = "default")]
         profile: String,
         /// Install a specific release tag instead of the latest stable
-        /// release — e.g. a nightly prerelease (`v0.6.0-nightly.4812`) built
-        /// by `.github/workflows/nightly-tag.yml`. `/releases/latest`
-        /// excludes prereleases, so this is the only way to fetch one.
+        /// release — e.g. a release-candidate prerelease (`v0.6.0-rc.4`).
+        /// `/releases/latest` excludes prereleases, so this is the only way
+        /// to fetch one.
         #[arg(long)]
         tag: Option<String>,
     },
