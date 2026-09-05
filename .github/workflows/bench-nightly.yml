@@ -57,7 +57,7 @@ jobs:
           set -euo pipefail
           # Bencher output format: "test <name> ... bench: <N> ns/iter (+/- <M>)"
           HELLO_NS=$(grep "full_pipeline/e2e/hello" target/bench-compiler-pipeline.txt \
-            | grep -oP '\d+(?= ns/iter)' | head -1 || echo "")
+            | sed -nE 's/.* ([0-9]+) ns\/iter.*/\1/p' | head -1 || echo "")
           if [ -z "$HELLO_NS" ]; then
             echo "::warning::CR-E1: Could not extract hello-world pipeline timing from bench output."
             exit 0

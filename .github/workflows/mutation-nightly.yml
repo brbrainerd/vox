@@ -93,7 +93,7 @@ jobs:
             sleep 300
             ELAPSED_MIN=$(( ($(date +%s) - START_TS) / 60 ))
             DONE=$(grep -cE "^(MISSED|CAUGHT|TIMEOUT|UNVIABLE)" "$LOG" 2>/dev/null)
-            TOTAL=$(grep -oP '(?<=Found )[0-9]+(?= mutants)' "$LOG" | head -1)
+            TOTAL=$(sed -nE 's/.*Found ([0-9]+) mutants.*/\1/p' "$LOG" | head -1)
             echo "heartbeat: ${ELAPSED_MIN}m elapsed, ${DONE}/${TOTAL:-?} mutants tested so far (still running)"
           done
 
