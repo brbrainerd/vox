@@ -87,7 +87,78 @@ observe independently before trusting a reading from the one under test.
 Corroboration from the Mac listener's socket census during the run: `UDP *:58535`,
 `UDP *:64100`, `UDP *:5353` — three sockets, **zero remote addresses**.
 
-### The macOS half was attempted four times and is unresolved
+### ROOT CAUSE FOUND — it was never `pf`, and it invalidates an earlier claim
+
+**Windows blocks inbound LAN UDP to the mesh binary, so every macOS -> BLAPTOP04
+connection had been silently falling back to the Tailscale tunnel.**
+
+Measured with **no firewall active anywhere**, same peer, same second, one
+explicit address each (`mesh_smoke dial-addr`, added precisely to remove the
+ambiguity of a multi-address ticket):
+
+| Path | Result |
+|---|---|
+| LAN `192.168.50.83` | **FAILED — 30 s timeout** |
+| Tailnet `100.107.222.96` | **connected in 73 ms** |
+
+BLAPTOP04 had **no inbound firewall rule** for the mesh binary, and Windows'
+`NotConfigured` default inbound action is *block*. Tailscale is unaffected
+because it delivers over `utun` after `tailscaled` has already accepted the
+packet, bypassing per-application inbound rules. Adding one rule fixes it:
+
+```powershell
+New-NetFirewallRule -DisplayName vox-mesh-inbound-lan -Direction Inbound `
+  -Action Allow -Program <mesh binary> -Protocol UDP `
+  -RemoteAddress 192.168.50.0/24 -Profile Any
+```
+
+LAN path afterwards: **25.7 ms**.
+
+**What this invalidates.** The earlier claim that the cross-machine demo ran
+"no relay, no discovery service, direct LAN" was **half wrong**: the
+BLAPTOP04 -> macOS direction did use the raw LAN, but macOS -> BLAPTOP04 was
+riding Tailscale. The `pf` experiments then failed because blocking
+`100.64.0.0/10` removed the *only working path* — so `pf` was correctly
+blocking a route the connection genuinely depended on. Four hypotheses were
+tested against the wrong subsystem.
+
+**Why it took four attempts.** A ticket carries several candidate addresses and
+iroh picks among them silently, so a ticket-based dial can never tell you which
+path carried the connection. `dial-addr` exists so a result names its own path.
+**A test that cannot report which mechanism it exercised cannot diagnose one.**
+
+### The corrected offline result
+
+With the inbound allow in place, and the mesh binary on BLAPTOP04 blocked
+**inbound and outbound** from everything outside `192.168.50.0/24`:
+
+| | |
+|---|---|
+| Negative control — tailnet path | **FAILED, 30 s timeout** (the block is real) |
+| **Pure LAN path** | **connected in 12.3 ms, `Probed { host_triple: "x86_64-windows" }`** |
+
+That is the offline requirement met for the listener, with a negative control
+that fails correctly, driven entirely over SSH.
+
+**A second self-inflicted false pass, caught.** The first version of this run
+blocked only *outbound* on the listener and the tailnet negative control
+**passed** — because, exactly as recorded earlier in this document, an outbound
+block on a listener is inert; its replies ride established inbound flows. The
+inbound block is what makes the claim true. The same mistake, twice, in one
+investigation.
+
+### ACTION REQUIRED — this is a product gap, not test scaffolding
+
+`vox-mesh-inbound-lan` is **left in place on BLAPTOP04**, because removing it
+breaks LAN meshing entirely. Nothing in the plan, the ADR, or `vox mesh`
+creates or checks for it, which means **the mesh silently does not work on a
+default Windows install** unless a VPN happens to paper over it. Options, in
+preference order: have `vox mesh join` create the rule on Windows (elevation
+required, so prompt for it); or have `vox doctor` detect its absence and print
+the exact command. Until one lands, LAN meshing on Windows is undocumented
+manual setup.
+
+### The earlier macOS `pf` attempts, and why they are now explained
 
 Four elevated runs with a `pf` LAN-only ruleset, each with a working negative
 control (`1.1.1.1` `000`, `example.com` `000`, tailnet `000`, LAN router `200`)
@@ -104,13 +175,11 @@ Hypotheses tested and eliminated, recorded so nobody repeats them:
 | v3 | pfctl stamps `flags S/SA` (a TCP-only match) on protocol-less rules, so UDP never matches | Wrong — explicit `proto udp` rules parsed correctly and still failed |
 | v4 | Stale listener / wrong subnet | Wrong — listener alive (`pid 7700`), Mac still `192.168.50.208`, route direct on `en0` |
 
-**The leading unfalsified hypothesis** is that a *machine-wide* block is not
-equivalent to a *per-program* one: it also severs `tailscaled`, and Tailscale's
-macOS network extension may reconfigure routes or the `utun` when it loses
-connectivity. The Windows test that succeeded was scoped to one binary and left
-SSH and Tailscale untouched. Anyone resuming this should either scope the block
-to the process (`pf` filters by user/group, not process, so this needs a
-dedicated uid) or stop `tailscaled` for the window.
+**RESOLVED.** None of these were the cause. `pf` was working correctly the whole
+time: it blocked `100.64.0.0/10`, which was the only path that worked, because
+Windows was dropping inbound LAN UDP. The guess recorded here previously — that
+a machine-wide block disturbs `tailscaled` — was never tested and is not needed
+to explain anything.
 
 **This does not weaken the result.** The substantive claim — the mesh needs no
 third party — is carried by the BLAPTOP04 run, which had a calibrated

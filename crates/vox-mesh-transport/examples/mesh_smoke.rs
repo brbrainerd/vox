@@ -99,7 +99,39 @@ async fn main() -> Result<()> {
             println!("response: {resp:?}");
             conn.close(0u32.into(), b"done");
         }
-        _ => bail!("serve <dir> | trust <dir> <peer-id> | dial <dir> <ticket>"),
+        // Dial ONE explicit address, ignoring every other candidate in a ticket.
+        //
+        // Exists to separate "the transport is broken" from "this particular
+        // network path is broken". A ticket lists several addresses and iroh
+        // picks among them, so a ticket-based dial cannot tell you WHICH path
+        // carried the connection — which is exactly the ambiguity that made
+        // four firewall experiments uninterpretable.
+        "dial-addr" => {
+            let peer = args.next().unwrap_or_default();
+            let sock: std::net::SocketAddr = args.next().unwrap_or_default().parse()?;
+            let id = EndpointId::from_str(&peer)?;
+            let addr = iroh::EndpointAddr::new(id).with_ip_addr(sock);
+            let ep = vox_mesh_transport::endpoint::bind(sk).await?;
+            println!("dialing {sock} ONLY (id {id})");
+            let t0 = std::time::Instant::now();
+            match ep.connect(addr, ALPN).await {
+                Ok(conn) => {
+                    println!("connected in {:?}", t0.elapsed());
+                    let (mut send, mut recv) = conn.open_bi().await?;
+                    protocol::write_frame(&mut send, &Hello::current()).await?;
+                    protocol::write_frame(&mut send, &JobRequest::Probe).await?;
+                    send.finish()?;
+                    let resp: JobResponse = protocol::read_frame(&mut recv, 1024 * 1024).await?;
+                    println!("response: {resp:?}");
+                    conn.close(0u32.into(), b"done");
+                }
+                Err(e) => println!("FAILED after {:?}: {e}", t0.elapsed()),
+            }
+            ep.close().await;
+        }
+        _ => bail!(
+            "serve <dir> | trust <dir> <peer-id> | dial <dir> <ticket> | dial-addr <dir> <peer-id> <ip:port>"
+        ),
     }
     Ok(())
 }
