@@ -114,7 +114,7 @@ jobs:
           # rustup target add (no channel arg) always targets whatever
           # toolchain cargo will actually use here — the repo's pinned
           # rust-toolchain.toml channel, matching the toolchain installed by
-          # the pinned dtolnay/rust-toolchain step above. Installing this via
+          # the ./.github/actions/setup-rust step above. Installing this via
           # the action's `targets:` input instead left x86_64-apple-darwin's
           # core/std missing at build time.
           rustup target add x86_64-apple-darwin

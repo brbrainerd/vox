@@ -436,8 +436,9 @@ jobs:
         # scripts/fmt.vox`. See AGENTS.md "Formatting Rust (Windows-safe)".
         #
         # RUSTUP_TOOLCHAIN is unset here so cargo reads rust-toolchain.toml
-        # (1.96.0) instead of the stable override from dtolnay/rust-toolchain@stable
-        # above. Format check must use the pinned toolchain to match local dev.
+        # instead of any override the ./.github/actions/setup-rust step above
+        # left in the environment. Format check must use the pinned toolchain
+        # to match local dev.
         shell: bash
         env:
           RUSTUP_TOOLCHAIN: ""
