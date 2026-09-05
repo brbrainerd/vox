@@ -1050,6 +1050,10 @@
       "vox-mesh-types"
     ],
     [
+      "vox-mesh-transport",
+      "vox-mesh-types"
+    ],
+    [
       "vox-ml-cli",
       "vox-actor-runtime"
     ],
@@ -1208,6 +1212,10 @@
     [
       "vox-orchestrator",
       "vox-mesh-policy"
+    ],
+    [
+      "vox-orchestrator",
+      "vox-mesh-transport"
     ],
     [
       "vox-orchestrator",

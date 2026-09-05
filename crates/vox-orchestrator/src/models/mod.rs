@@ -4,6 +4,8 @@ pub mod cost_tier;
 pub mod discovery_pipeline;
 pub mod generated;
 pub mod key_guard;
+#[cfg(feature = "populi-transport")]
+pub mod mesh_directory;
 mod pareto;
 pub mod policy;
 pub mod prompt_profiles;

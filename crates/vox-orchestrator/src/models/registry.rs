@@ -464,20 +464,18 @@ impl ModelRegistry {
 
                 #[cfg(feature = "populi-transport")]
                 {
-                    let mut control_url_opt = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorMeshControlUrl).expose().map(|s| s.to_string());
-                    if control_url_opt.is_none() {
-                        control_url_opt = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshControlAddr).expose().map(|s| s.to_string());
-                    }
-                    if let Some(control_url) = control_url_opt {
-                        let client = vox_populi::http_client::PopuliHttpClient::new(control_url.trim()).with_env_token();
-                        if let Ok(dir) = client.federation_directory().await {
-                            for peer in dir.entries {
+                    // Task 3.2: trusted, probed peers replace the asserted HTTP
+                    // directory. A peer that is off is absent, so it cannot be
+                    // routed work.
+                    for peer in crate::models::mesh_directory::trusted_peers().await {
+
                                 // Sybil/Reliability check: query peer reputation from db
-                                if let Ok(Some((success, fail, timeout, invalid))) = db.get_peer_reputation(&peer.scope_id).await {
+                                let peer_key = peer.endpoint_id.to_string();
+                                if let Ok(Some((success, fail, timeout, invalid))) = db.get_peer_reputation(&peer_key).await {
                                     let total_bad = fail + timeout + invalid;
                                     // Blacklist condition: more than 3 failures, and bad events exceed successful tasks.
                                     if total_bad > 3 && total_bad > success {
-                                        tracing::warn!(target: "vox.orchestrator.models", peer=%peer.scope_id, success, total_bad, "mesh peer blacklisted due to poor reputation");
+                                        tracing::warn!(target: "vox.orchestrator.models", peer=%peer_key, success, total_bad, "mesh peer blacklisted due to poor reputation");
                                         continue;
                                     }
                                 }
@@ -485,8 +483,8 @@ impl ModelRegistry {
                                 for kind in peer.task_kinds {
                                 let kind_str = serde_json::to_value(&kind).unwrap().as_str().unwrap().to_string();
                                     models.push(ModelSpec {
-                                        id: format!("mesh/{}/{}", peer.scope_id, kind_str),
-                                        canonical_slug: format!("mesh/{}/{}", peer.scope_id, kind_str),
+                                        id: format!("mesh/{}/{}", peer_key, kind_str),
+                                        canonical_slug: format!("mesh/{}/{}", peer_key, kind_str),
                                         provider: "mens".to_string(),
                                         provider_type: ProviderType::PopuliMesh,
                                         max_tokens: 128_000,
@@ -511,8 +509,6 @@ impl ModelRegistry {
                                         pricing_source: super::spec::PricingSource::Bootstrap,
                                     });
                                 }
-                            }
-                        }
                     }
                 }
 

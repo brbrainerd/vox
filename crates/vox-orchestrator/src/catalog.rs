@@ -517,32 +517,20 @@ impl ModelCatalog for PopuliMeshCatalog {
 pub async fn discover_populi_mesh_models() -> Result<Vec<ModelSpec>, anyhow::Error> {
     #[cfg(feature = "populi-transport")]
     {
-        let mut control_url_opt =
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorMeshControlUrl)
-                .expose()
-                .map(|s| s.to_string());
-        if control_url_opt.is_none() {
-            control_url_opt =
-                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshControlAddr)
-                    .expose()
-                    .map(|s| s.to_string());
-        }
-        let Some(control_url) = control_url_opt else {
-            return Ok(vec![]);
-        };
-        let client =
-            vox_populi::http_client::PopuliHttpClient::new(control_url.trim()).with_env_token();
-        let dir = client.federation_directory().await?;
+        // Task 3.2: trusted, probed peers replace the asserted HTTP directory.
+        // No control-URL secret is needed any more -- reachability is the
+        // membership test, so an unconfigured or offline node simply yields no
+        // candidates instead of an error.
         let mut specs = Vec::new();
-        for peer in dir.entries {
+        for peer in crate::models::mesh_directory::trusted_peers().await {
             for kind in peer.task_kinds {
                 let kind_str = serde_json::to_value(&kind)
                     .ok()
                     .and_then(|v| v.as_str().map(str::to_string))
                     .unwrap_or_else(|| "general".to_string());
                 specs.push(ModelSpec {
-                    id: format!("mesh/{}/{}", peer.scope_id, kind_str),
-                    canonical_slug: format!("mesh/{}/{}", peer.scope_id, kind_str),
+                    id: format!("mesh/{}/{}", peer.endpoint_id, kind_str),
+                    canonical_slug: format!("mesh/{}/{}", peer.endpoint_id, kind_str),
                     provider: "mens".to_string(),
                     provider_type: ProviderType::PopuliMesh,
                     max_tokens: 128_000,

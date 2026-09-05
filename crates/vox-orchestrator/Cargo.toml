@@ -36,7 +36,7 @@ corpus-db = ["vox-corpus/database"]
 # can drive them. Never enabled by a shipping binary's default features.
 test-support = []
 # Populi HTTP mesh client (`vox-populi` transport).
-populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
+populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm", "dep:vox-mesh-transport", "dep:iroh"]
 # `vox-speech` speech-to-text / refinement tools.
 oratio-rerank = ["dep:vox-speech"]
 # `vox-publisher` syndication / scientia surfaces.
@@ -131,6 +131,8 @@ vox-skill-runtime = { workspace = true }
 vox-research-events.workspace = true
 vox-telemetry.workspace = true
 vox-mesh-types.workspace = true
+vox-mesh-transport = { workspace = true, optional = true }
+iroh = { workspace = true, optional = true }
 vox-mesh-policy = { workspace = true }
 blake3.workspace = true
 crossbeam-queue = { workspace = true }
