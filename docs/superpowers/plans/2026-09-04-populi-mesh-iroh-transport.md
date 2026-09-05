@@ -26,7 +26,8 @@
 | **Phase 0** | **Done**, except Task 0.4 Steps 5–7 (see the measured correction there — they rest on a premise that proved false) and Task 0.6 (HF seam; needs a crate-edge decision). |
 | **Phase 1** | **Done.** `vox-mesh-transport` at L2 — identity, trust, protocol, bounded accept loop. 27 tests. ADR-047. Detector `vox/mesh/unsafe-iroh-pattern` at Error. |
 | **Phase 2** | Steps 1–5 **done**. Step 6 (both machines offline) **substantially proven**; see Task 2.1. |
-| **Phases 3–6** | Not started. Phase 3's four ports gate everything in Phase 6. |
+| **Phase 3** | Tasks 3.1 (A2A mailbox) and 3.2 (peer directory) **done**. 3.3 and 3.4 not started. |
+| **Phases 4–6** | Not started. Phase 3's four ports gate everything in Phase 6. |
 
 **The mesh works cross-machine.** macOS `aarch64` ↔ BLAPTOP04 `x86_64`, no relay
 and no discovery service: refused before pairing (close code `4001`), ~10 ms
@@ -769,7 +770,18 @@ async fn a_payload_larger_than_the_cap_is_refused_before_any_transfer() { /* …
 
 Nothing in Phase 6 may run until these land. Spec Part 2.
 
-- [ ] **Task 3.1: A2A mailbox.** Store-and-forward to an offline peer. `remote_worker.rs` (1,325 lines) is the consumer. A request/response RPC is not a substitute — this needs a durable inbox with ack, on its own ALPN.
+- [x] **Task 3.1: A2A mailbox.** Store-and-forward to an offline peer. `remote_worker.rs` (1,325 lines) is the consumer. A request/response RPC is not a substitute — this needs a durable inbox with ack, on its own ALPN.
+  **Done.** `vox-mesh-transport::mailbox` on ALPN `vox/a2a/1`: an on-disk `Outbox`
+  written before the dial, an `Inbox` that stores **before** it acks, idempotency
+  by `A2ADeliverRequest::idempotency_key`, trust re-checked per message, and
+  bounded message size / outbox depth / in-flight peers. `endpoint::serve` now
+  dispatches on the negotiated ALPN and takes the inbox (`None` = jobs only,
+  which refuses mail at close code `4004` rather than accepting into a void).
+  Consumer seam is `vox-orchestrator/src/a2a/mesh_relay.rs`; `remote_worker.rs`
+  tries the mesh and falls back to HTTP. **Ceiling:** the mesh path is taken only
+  when exactly one trusted peer has a stored address — A2A addresses an agent id
+  and the mailbox addresses an `EndpointId`, and nothing maps between them until
+  Phase 6 makes the mailbox the inbox too.
 - [ ] **Task 3.2: Peer directory → model selector.** Replace `federation_directory()` in `registry.rs:379`, `catalog.rs:535`, `task_submit.rs:700` with an enumeration of trusted, probed peers. **Test: a trusted probed peer appears as a `ProviderType::PopuliMesh` candidate; a dropped peer disappears.** That is goal 4's only real acceptance criterion, and deletion without it is silent.
 - [ ] **Task 3.3: Queue stats.** Axis calls `vox_mesh_queue_stats` today.
 - [ ] **Task 3.4: `PopuliHttpOp` — port it** (decided in Task 0.3 Step 5). A Vox `activity` language surface; retiring it would be a language-level breaking change. Do not delete it as collateral.

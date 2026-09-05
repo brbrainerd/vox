@@ -52,7 +52,7 @@ pub fn encrypt_jwe_compact(payload: &[u8], symmetric_key: &[u8; 32]) -> Result<S
     let ciphertext = &encrypted[..ct_len];
     let tag = &encrypted[ct_len..];
 
-    let iv_b64 = URL_SAFE_NO_PAD.encode(&iv);
+    let iv_b64 = URL_SAFE_NO_PAD.encode(iv);
     let ct_b64 = URL_SAFE_NO_PAD.encode(ciphertext);
     let tag_b64 = URL_SAFE_NO_PAD.encode(tag);
 

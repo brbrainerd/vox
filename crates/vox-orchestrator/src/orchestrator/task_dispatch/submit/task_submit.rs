@@ -645,7 +645,7 @@ impl Orchestrator {
                                     && n.quarantined != Some(true)
                                     && n.capabilities
                                         .min_vram_mb
-                                        .map_or(false, |v| v >= required_vram)
+                                        .is_some_and(|v| v >= required_vram)
                             });
                             if !fits {
                                 tracing::info!(
@@ -811,7 +811,7 @@ impl Orchestrator {
                         self.attach_goal_search_context_with_retrieval(
                             task_id,
                             &lineage_desc_preview,
-                            &file_manifest,
+                            file_manifest,
                         )
                         .await;
                     }

@@ -76,7 +76,8 @@ async fn main() -> Result<()> {
             println!("ticket: {}", EndpointTicket::new(ep.addr()));
             println!("addr: {:?}", ep.addr());
             let exec: Arc<dyn JobExecutor> = Arc::new(ProbeExecutor);
-            vox_mesh_transport::endpoint::serve(ep, trust, exec).await;
+            let inbox = Arc::new(vox_mesh_transport::Inbox::at(&dir.join("mesh_inbox")));
+            vox_mesh_transport::endpoint::serve(ep, trust, exec, Some(inbox)).await;
         }
         "trust" => {
             let peer = args.next().unwrap_or_default();

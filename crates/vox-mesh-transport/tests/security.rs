@@ -76,6 +76,7 @@ async fn start_server() -> Server {
         ep,
         Arc::clone(&trust),
         exec,
+        None,
     ));
     Server {
         id,

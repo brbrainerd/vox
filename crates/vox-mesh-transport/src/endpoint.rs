@@ -11,6 +11,7 @@ use iroh::{Endpoint, EndpointId, SecretKey};
 use tokio::sync::Semaphore;
 use tokio::time::timeout;
 
+use crate::mailbox::{self, Inbox};
 use crate::protocol::{self, JobLimits, JobRequest, JobResponse};
 use crate::trust::MeshTrust;
 
@@ -27,6 +28,8 @@ const RETRY_THRESHOLD: usize = 32;
 pub const REFUSED_UNTRUSTED: u32 = 4001;
 /// Close code for a payload that exceeds [`JobLimits::max_payload_bytes`].
 pub const REFUSED_TOO_LARGE: u32 = 4002;
+/// Close code for mail arriving at a node that serves jobs only.
+pub const REFUSED_NO_MAILBOX: u32 = 4004;
 
 /// A job that passed the trust gate and the payload check.
 pub struct ReceivedJob {
@@ -130,7 +133,12 @@ pub async fn bind(sk: SecretKey) -> Result<Endpoint> {
         .secret_key(sk)
         // `Endpoint::bind(preset)` takes NO alpns; a server built that way
         // refuses every connection at ALPN negotiation, silently.
-        .alpns(vec![protocol::ALPN.to_vec()])
+        //
+        // Two ALPNs, one endpoint: jobs and mail are different protocols
+        // (plan Task 3.1) but a second Endpoint on the same secret key would
+        // mean one EndpointId reachable at two addresses, which every peer's
+        // stored `addrs` would then be half-right about.
+        .alpns(vec![protocol::ALPN.to_vec(), mailbox::ALPN.to_vec()])
         // Defence in depth. Under Minimal the relay map is empty, so the
         // default HTTPS latency probes and captive-portal check have no target
         // — but that is a property of another struct's defaults, not of ours.
@@ -142,7 +150,17 @@ pub async fn bind(sk: SecretKey) -> Result<Endpoint> {
 }
 
 /// Accept loop. Bounded, trust-gated, and free of 0-RTT.
-pub async fn serve(ep: Endpoint, trust: Arc<MeshTrust>, exec: Arc<dyn JobExecutor>) {
+///
+/// `mailbox` is the durable A2A inbox (plan Task 3.1). `None` serves jobs only
+/// and refuses mail at the ALPN, which is the honest answer for a node that has
+/// nowhere to put it — accepting mail into a discarded buffer would let a peer
+/// delete its only copy.
+pub async fn serve(
+    ep: Endpoint,
+    trust: Arc<MeshTrust>,
+    exec: Arc<dyn JobExecutor>,
+    mailbox: Option<Arc<Inbox>>,
+) {
     let gate = Arc::new(Semaphore::new(MAX_INFLIGHT_HANDSHAKES));
     while let Some(incoming) = ep.accept().await {
         if gate.available_permits() < MAX_INFLIGHT_HANDSHAKES - RETRY_THRESHOLD
@@ -157,7 +175,7 @@ pub async fn serve(ep: Endpoint, trust: Arc<MeshTrust>, exec: Arc<dyn JobExecuto
             incoming.ignore();
             continue;
         };
-        let (trust, exec) = (Arc::clone(&trust), Arc::clone(&exec));
+        let (trust, exec, mailbox) = (Arc::clone(&trust), Arc::clone(&exec), mailbox.clone());
         tokio::spawn(async move {
             let _permit = permit;
             // Awaiting `incoming` completes the handshake, so `remote_id()`
@@ -175,8 +193,22 @@ pub async fn serve(ep: Endpoint, trust: Arc<MeshTrust>, exec: Arc<dyn JobExecuto
                 return;
             }
             trust.register(remote, conn.clone());
-            if let Err(e) = handle(conn, remote, exec).await {
-                tracing::debug!(peer = %remote, error = %e, "mesh job stream ended");
+            // Dispatch on the negotiated ALPN. Mail is not a JobRequest
+            // variant: it is handed over and forgotten, where a job is a
+            // question whose answer the caller waits for.
+            let outcome = if conn.alpn() == mailbox::ALPN {
+                match mailbox {
+                    Some(inbox) => mailbox::handle(conn, remote, trust, inbox).await,
+                    None => {
+                        conn.close(REFUSED_NO_MAILBOX.into(), b"no mailbox configured");
+                        Ok(())
+                    }
+                }
+            } else {
+                handle(conn, remote, exec).await
+            };
+            if let Err(e) = outcome {
+                tracing::debug!(peer = %remote, error = %e, "mesh stream ended");
             }
         });
     }
@@ -194,17 +226,17 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
 
     // Checked BEFORE the transfer, so an oversized job costs us a frame rather
     // than a gigabyte of disk.
-    if let JobRequest::Run { payload_bytes, .. } = &request {
-        if *payload_bytes > limits.max_payload_bytes {
-            let msg = format!(
-                "payload of {payload_bytes} bytes exceeds the {} byte cap",
-                limits.max_payload_bytes
-            );
-            protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
-            send.finish()?;
-            conn.closed().await;
-            return Ok(());
-        }
+    if let JobRequest::Run { payload_bytes, .. } = &request
+        && *payload_bytes > limits.max_payload_bytes
+    {
+        let msg = format!(
+            "payload of {payload_bytes} bytes exceeds the {} byte cap",
+            limits.max_payload_bytes
+        );
+        protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
+        send.finish()?;
+        conn.closed().await;
+        return Ok(());
     }
 
     let response = exec

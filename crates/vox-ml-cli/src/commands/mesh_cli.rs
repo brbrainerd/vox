@@ -60,6 +60,14 @@ fn trust_path() -> PathBuf {
     vox_config::paths::dot_vox_user_dir().join("mesh_trust.json")
 }
 
+/// `~/.vox/mesh_inbox/` — durably accepted A2A messages, one file per message
+/// under a directory per sending peer. Beside `mesh.key` and the trust store
+/// because it is the same piece of state: what this node's mesh identity has
+/// agreed to hold.
+fn inbox_path() -> PathBuf {
+    vox_config::paths::dot_vox_user_dir().join("mesh_inbox")
+}
+
 /// Decode a ticket to the `EndpointId` it would admit, so the user is shown the
 /// identity **before** being asked to approve it.
 fn peer_of(ticket: &str) -> Result<(EndpointTicket, EndpointId)> {
@@ -187,7 +195,8 @@ pub async fn run(cmd: MeshCli, json: bool) -> Result<()> {
                 println!("\nWaiting for the peer to pair. Ctrl-C to stop.");
                 let trust = std::sync::Arc::new(MeshTrust::at(&trust_path()));
                 let exec = std::sync::Arc::new(vox_mesh_transport::endpoint::ProbeOnlyExecutor);
-                vox_mesh_transport::endpoint::serve(ep, trust, exec).await;
+                let inbox = std::sync::Arc::new(vox_mesh_transport::Inbox::at(&inbox_path()));
+                vox_mesh_transport::endpoint::serve(ep, trust, exec, Some(inbox)).await;
                 Ok(())
             }
             Some(t) => {

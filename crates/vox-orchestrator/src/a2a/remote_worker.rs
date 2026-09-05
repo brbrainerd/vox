@@ -747,26 +747,34 @@ async fn process_one_envelope(
         }
     };
 
-    let deliver_res = client
-        .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
-            sender_agent_id: receiver_agent.to_string(),
-            receiver_agent_id: sender_agent.to_string(),
-            message_type: REMOTE_TASK_RESULT_TYPE.to_string(),
-            payload: result_json,
-            idempotency_key: Some(format!(
-                "remote-result-{}-{}",
-                envelope.task_id, envelope.idempotency_key
-            )),
-            privacy_class: envelope.privacy_class.clone(),
-            payload_blake3_hex: None,
-            worker_ed25519_sig_b64: None,
-            jwe_payload: None,
-            task_kind: None,
-            model_id: None,
-            traceparent: msg.traceparent.clone(),
-            priority: 128,
-        })
-        .await;
+    let deliver_req = vox_populi::transport::A2ADeliverRequest {
+        sender_agent_id: receiver_agent.to_string(),
+        receiver_agent_id: sender_agent.to_string(),
+        message_type: REMOTE_TASK_RESULT_TYPE.to_string(),
+        payload: result_json,
+        idempotency_key: Some(format!(
+            "remote-result-{}-{}",
+            envelope.task_id, envelope.idempotency_key
+        )),
+        privacy_class: envelope.privacy_class.clone(),
+        payload_blake3_hex: None,
+        worker_ed25519_sig_b64: None,
+        jwe_payload: None,
+        task_kind: None,
+        model_id: None,
+        traceparent: msg.traceparent.clone(),
+        priority: 128,
+    };
+    // Mesh first when this node has a mesh identity and a trusted, addressable
+    // peer (plan Task 3.1). The mailbox queues durably before it dials, so a
+    // peer that is switched off is a delay rather than the delivery failure the
+    // HTTP call below turns it into. HTTP stays as the fallback; deleting it is
+    // Phase 6, after this is proven on two machines.
+    let deliver_res: Result<(), ()> = if crate::a2a::mesh_relay::try_relay(&deliver_req).await {
+        Ok(())
+    } else {
+        client.relay_a2a(&deliver_req).await.map(|_| ()).map_err(|_| ())
+    };
     if deliver_res.is_err() {
         tracing::debug!(
             message_id = msg.id,
@@ -812,6 +820,13 @@ async fn run_remote_worker_tick(
     receiver_agent: u64,
     sender_agent: u64,
 ) {
+    // Carry any mail queued for a peer that was off last tick. Nothing arrives
+    // to trigger this retry on its own: the message is already ours to deliver.
+    let flushed = crate::a2a::mesh_relay::flush_pending().await;
+    if flushed > 0 {
+        tracing::info!(flushed, "populi remote worker: delivered queued mesh mail");
+    }
+
     let Ok(inbox) = client.relay_a2a_inbox(&receiver_agent.to_string()).await else {
         tracing::debug!(
             receiver_agent = receiver_agent,

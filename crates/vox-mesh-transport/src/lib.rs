@@ -19,11 +19,13 @@
 pub mod directory;
 pub mod endpoint;
 pub mod identity;
+pub mod mailbox;
 pub mod protocol;
 pub mod trust;
 
 pub use directory::{PeerEntry, directory};
 pub use endpoint::{JobExecutor, ReceivedJob, bind, serve};
 pub use identity::load_or_create;
+pub use mailbox::{Inbox, MailboxLimits, Outbox};
 pub use protocol::{ALPN, Hello, Isolation, JobLimits, JobRequest, PROTO, check_hello};
 pub use trust::{MeshTrust, TrustLevel, TrustedEndpoint};

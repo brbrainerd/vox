@@ -7,6 +7,8 @@ pub mod exec_source;
 #[cfg(feature = "populi-transport")]
 pub mod jwe;
 #[cfg(feature = "populi-transport")]
+pub mod mesh_relay;
+#[cfg(feature = "populi-transport")]
 mod remote_poller;
 #[cfg(not(feature = "populi-transport"))]
 #[path = "remote_poller_noop.rs"]

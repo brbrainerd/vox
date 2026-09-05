@@ -558,7 +558,7 @@ pub async fn discover_populi_mesh_models() -> Result<Vec<ModelSpec>, anyhow::Err
                 });
             }
         }
-        return Ok(specs);
+        Ok(specs)
     }
     #[cfg(not(feature = "populi-transport"))]
     {

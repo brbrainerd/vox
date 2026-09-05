@@ -14,14 +14,18 @@ use vox_mesh_transport::{MeshTrust, PeerEntry};
 /// background tasks, which is far too heavy for a catalog refresh.
 static ENDPOINT: OnceCell<Option<iroh::Endpoint>> = OnceCell::const_new();
 
-fn vox_dir() -> std::path::PathBuf {
+pub(crate) fn vox_dir() -> std::path::PathBuf {
     vox_config::paths::dot_vox_user_dir()
 }
 
-/// Peers that are trusted *and* answered a probe. Empty on any failure —
-/// the selector must degrade to "no mesh candidates", never to an error.
-pub async fn trusted_peers() -> Vec<PeerEntry> {
-    let ep = ENDPOINT
+/// The process's one mesh endpoint, or `None` when this node has no usable mesh
+/// identity.
+///
+/// Shared rather than per-caller: two endpoints built from the same `mesh.key`
+/// would be one `EndpointId` reachable at two ports, and every peer's stored
+/// `addrs` would then be half-right about where to find us.
+pub async fn endpoint() -> Option<&'static iroh::Endpoint> {
+    ENDPOINT
         .get_or_init(|| async {
             let sk = match vox_mesh_transport::identity::load_or_create(&vox_dir().join("mesh.key"))
             {
@@ -39,9 +43,14 @@ pub async fn trusted_peers() -> Vec<PeerEntry> {
                 }
             }
         })
-        .await;
+        .await
+        .as_ref()
+}
 
-    let Some(ep) = ep.as_ref() else {
+/// Peers that are trusted *and* answered a probe. Empty on any failure —
+/// the selector must degrade to "no mesh candidates", never to an error.
+pub async fn trusted_peers() -> Vec<PeerEntry> {
+    let Some(ep) = endpoint().await else {
         return Vec::new();
     };
     let trust = Arc::new(MeshTrust::at(&vox_dir().join("mesh_trust.json")));
