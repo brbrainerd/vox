@@ -1,3 +1,9 @@
+// Requires the `runtime` feature (default-on): this test exercises live
+// LibsqlBackend connections and the migrate module, which vox-sql's
+// `runtime` feature gate (see crates/vox-sql/Cargo.toml) makes optional.
+// `--no-default-features` no-ops this file rather than failing to compile.
+#![cfg(feature = "runtime")]
+
 use vox_ast::decl::{TableDecl, TableField};
 use vox_ast::span::Span;
 use vox_ast::types::TypeExpr;

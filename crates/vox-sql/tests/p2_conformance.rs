@@ -1,3 +1,9 @@
+// Requires `postgres` and `mysql`: this test asserts cross-dialect
+// conformance using `BackendKind::Postgres`/`BackendKind::MySql`, which
+// vox-sql cfg-gates behind those features independently of `runtime` (see
+// crates/vox-sql/Cargo.toml and THE TRAP note on `BackendKind`).
+#![cfg(all(feature = "postgres", feature = "mysql"))]
+
 use vox_sql::BackendKind;
 use vox_sql::SqlDialect;
 use vox_sql::build::{SqlPredicate, placeholder_sql, predicate_sql};
