@@ -714,6 +714,39 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     }
 }
 
+/// Read `build.rustc-wrapper` from the user's `~/.cargo/config.toml`.
+///
+/// Cargo resolves the wrapper from the environment *or* its config; doctor used to
+/// consult only the environment and so reported a persistently-configured sccache
+/// as missing. Deliberately minimal: a line-scan rather than a TOML dependency,
+/// scoped to the `[build]` table so a `rustc-wrapper` under another table (e.g.
+/// `[target.'cfg(...)']`) is not misread.
+fn cargo_config_rustc_wrapper() -> Option<String> {
+    let path = super::super::common::user_home_dir()?
+        .join(".cargo")
+        .join("config.toml");
+    let text = std::fs::read_to_string(path).ok()?;
+    let mut in_build = false;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            in_build = line == "[build]";
+            continue;
+        }
+        if !in_build {
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("rustc-wrapper") {
+            let value = rest.trim_start().strip_prefix('=')?.trim();
+            let value = value.trim_matches(|c| c == '"' || c == '\'');
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -817,35 +850,4 @@ mod tests {
         }
         assert_eq!(check_kind_for_diag("nope.unknown"), None);
     }
-}
-
-/// Read `build.rustc-wrapper` from the user's `~/.cargo/config.toml`.
-///
-/// Cargo resolves the wrapper from the environment *or* its config; doctor used to
-/// consult only the environment and so reported a persistently-configured sccache
-/// as missing. Deliberately minimal: a line-scan rather than a TOML dependency,
-/// scoped to the `[build]` table so a `rustc-wrapper` under another table (e.g.
-/// `[target.'cfg(...)']`) is not misread.
-fn cargo_config_rustc_wrapper() -> Option<String> {
-    let path = super::super::common::user_home_dir()?.join(".cargo").join("config.toml");
-    let text = std::fs::read_to_string(path).ok()?;
-    let mut in_build = false;
-    for line in text.lines() {
-        let line = line.trim();
-        if line.starts_with('[') {
-            in_build = line == "[build]";
-            continue;
-        }
-        if !in_build {
-            continue;
-        }
-        if let Some(rest) = line.strip_prefix("rustc-wrapper") {
-            let value = rest.trim_start().strip_prefix('=')?.trim();
-            let value = value.trim_matches(|c| c == '"' || c == '\'');
-            if !value.is_empty() {
-                return Some(value.to_string());
-            }
-        }
-    }
-    None
 }
