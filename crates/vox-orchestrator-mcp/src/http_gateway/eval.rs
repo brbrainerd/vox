@@ -60,7 +60,7 @@ pub(super) async fn http_eval(
         }
     } else {
         if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
-            return resp;
+            return *resp;
         }
 
         let _role = match resolve_access_role(&state, &headers, Some(&connect.0)) {

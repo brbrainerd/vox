@@ -59,7 +59,7 @@ pub(super) fn crossref_from_secrets() -> Result<CrossrefDepositAdapter, Scholarl
 
 /// Build a minimal Crossref Deposit XML for a journal article / preprint.
 pub fn build_crossref_deposit_xml(doi: &str, title: &str, author: &str, date: &str) -> String {
-    let batch_id = format!("vox-{}", &sha3_short(doi));
+    let batch_id = format!("vox-{}", sha3_short(doi));
     format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <doi_batch version="5.3.1"
@@ -143,7 +143,7 @@ impl ScholarlyAdapter for CrossrefDepositAdapter {
             .as_deref()
             .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
             .and_then(|v| v["doi"].as_str().map(str::to_string))
-            .unwrap_or_else(|| format!("10.5281/vox-provisional-{}", &manifest.publication_id));
+            .unwrap_or_else(|| format!("10.5281/vox-provisional-{}", manifest.publication_id));
         let today = Utc::now().format("%Y-%m-%d").to_string();
         let xml = build_crossref_deposit_xml(&doi, &manifest.title, &manifest.author, &today);
         let part = reqwest::multipart::Part::bytes(xml.into_bytes())

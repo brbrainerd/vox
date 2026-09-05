@@ -183,13 +183,7 @@ pub fn decide(
     let intent = &request.intent;
 
     let selected = select(intent, registry)
-        .and_then(|o| {
-            if candidate_ids.contains(&o.model_id) {
-                Some(o)
-            } else {
-                None
-            }
-        })
+        .filter(|o| candidate_ids.contains(&o.model_id))
         .or_else(|| {
             // Scoped fallback through registry scorer constrained to candidate set.
             // Intentionally inherits `intent.allow_free_in_performance_mode` here
@@ -1190,7 +1184,6 @@ mod tests {
 
     #[cfg(test)]
     mod semcov_wave14_tests {
-        use super::super::*;
         use super::*;
         use crate::models::{ModelRegistry, TaskCategory};
 

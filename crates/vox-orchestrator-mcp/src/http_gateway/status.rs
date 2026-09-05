@@ -30,7 +30,7 @@ pub(super) async fn http_info(
     headers: HeaderMap,
 ) -> Response {
     if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
-        return resp;
+        return *resp;
     }
     let bind_host = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpHost)
         .expose()
@@ -67,7 +67,7 @@ pub(super) async fn http_mobile_workspace(
     headers: HeaderMap,
 ) -> Response {
     if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
-        return resp;
+        return *resp;
     }
     let mut resp = Html(mobile_workspace_html()).into_response();
     resp.headers_mut().insert(
@@ -84,7 +84,7 @@ pub(super) async fn http_mobile_status(
     headers: HeaderMap,
 ) -> Response {
     if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
-        return resp;
+        return *resp;
     }
 
     let git = call_tool_json(

@@ -84,8 +84,8 @@ impl OpIdBloom {
             return None;
         }
         let mut bits = vec![0u64; M_BITS / 64];
-        for (i, chunk) in b.chunks_exact(8).enumerate() {
-            bits[i] = u64::from_be_bytes(chunk.try_into().ok()?);
+        for (i, chunk) in b.as_chunks::<8>().0.iter().enumerate() {
+            bits[i] = u64::from_be_bytes(*chunk);
         }
         Some(Self {
             bits,

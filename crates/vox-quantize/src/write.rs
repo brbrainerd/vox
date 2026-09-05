@@ -93,8 +93,10 @@ impl ArtifactWriter {
                 candle_core::DType::U8 => Tensor::from_vec(bytes, shape.clone(), &Device::Cpu)?,
                 candle_core::DType::F32 => {
                     let floats: Vec<f32> = bytes
-                        .chunks_exact(4)
-                        .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .map(|c| f32::from_le_bytes(*c))
                         .collect();
                     Tensor::from_vec(floats, shape.clone(), &Device::Cpu)?
                 }

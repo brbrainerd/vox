@@ -373,12 +373,12 @@ impl<'a> BehavioralLearner<'a> {
                 let description = if rating >= 4 {
                     format!(
                         "User prefers responses like: {}",
-                        &pair.response.chars().take(60).collect::<String>()
+                        pair.response.chars().take(60).collect::<String>()
                     )
                 } else {
                     format!(
                         "User dislikes responses like: {}",
-                        &pair.response.chars().take(60).collect::<String>()
+                        pair.response.chars().take(60).collect::<String>()
                     )
                 };
 
