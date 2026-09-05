@@ -1,0 +1,23 @@
+# Allowlist for scripts/broker-bypass-lint.sh.
+#
+# Format, one entry per line, colon-delimited:
+#   path:line:reason text...   (exempts one matched line)
+#   path:reason text...        (exempts the whole file)
+# Blank lines and lines starting with # are ignored.
+#
+# Every entry here is a REAL, currently-existing broker bypass that this
+# plan (P3-3/P3-6, task-p3-36) is deliberately not fixing, because the
+# owning file belongs to a different plan/task. Recording them here keeps
+# them visible instead of silently passing.
+
+# crates/vox-cli-ci/src/helpers.rs:cargo_bin() -- returns the resolved
+# ~/.cargo/bin/cargo.exe path on Windows (falls back to the literal "cargo"
+# name everywhere else). This is a pre-existing, Windows-only bypass in a
+# CI helper used by `vox ci` guards. It is not owned by this plan (P3-3/
+# P3-6); flagging it here documents it rather than papering over it.
+crates/vox-cli-ci/src/helpers.rs:15:pre-existing; Windows-only bypass in a CI helper (cargo_bin()), owner not this plan
+
+# crates/vox-cli-ci/src/dep_sprawl.rs -- a second, near-identical cargo_bin()
+# helper with the same Windows-only resolved-path pattern as helpers.rs
+# above. Same reasoning: pre-existing, not owned by this plan.
+crates/vox-cli-ci/src/dep_sprawl.rs:23:pre-existing; Windows-only bypass in a CI helper (cargo_bin()), owner not this plan

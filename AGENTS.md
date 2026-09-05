@@ -645,3 +645,28 @@ Full details and per-rule fix patterns: [`docs/src/architecture/vox-language-rul
 ## Archival Protocol (LLM Guard)
 
 Do **NOT** read, ingest, or attempt to modify files in the `archive/` or `docs/src/archive/` directories when planning new features or writing new code. These directories are tombstoned. They exist for manual human reference only. If an LLM includes an archived pattern in new code, it is considered a severe system hallucination. If you need historical context about an archived pattern, ask the human operator to retrieve it; do not ingest the archive autonomously. See [`docs/agents/governance.md`](docs/agents/governance.md) §Nomenclature for canonical migration paths.
+
+## Build Broker (Machine-Wide Cargo Coordination)
+
+Route every `cargo` invocation through the build broker; never run concurrent
+`cargo` commands against one workspace by hand, and never call the real cargo
+binary by an explicit resolved path (`~/.cargo/bin/cargo`, `rustup run
+<toolchain> cargo`, or Rust code built the same way) — that bypasses the
+broker's queue. Plain `cargo` on PATH is correct: the broker is a `cargo`-named
+shim placed ahead of the rustup proxy, so PATH resolution is what makes
+interception work in the first place.
+
+- Installed by `scripts/broker-install.sh` (dry-run by default; `--apply` to
+  build the shim, install it, and edit your shell profile). State and
+  activation are checked by `vox doctor`.
+- Tunables: `VOX_BROKER_MAX_CONCURRENT` (max simultaneous builds
+  machine-wide) and `VOX_BROKER_RESERVED_SLOTS` (slots reserved for a build
+  domain the broker's file-lock semaphore can't see, e.g. a containerised CI
+  runner sharing the host's CPU but not its mount namespace). Full reference:
+  [`docs/src/contributors/build-broker-usage.md`](docs/src/contributors/build-broker-usage.md).
+- `crates/vox-cargo-shim` is excluded from the root workspace (its `cargo`-named
+  binary can't join workspace resolution) and is built with `--manifest-path
+  crates/vox-cargo-shim/Cargo.toml`, never `-p vox-cargo-shim`.
+- Bypass shapes are caught by `scripts/broker-bypass-lint.sh`; known,
+  not-this-plan's-to-fix cases are recorded in
+  `scripts/broker-bypass-allowlist.txt` with a reason, not silently skipped.
