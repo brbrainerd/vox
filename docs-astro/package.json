@@ -11,16 +11,16 @@
     "check": "astro check"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.8",
-    "@astrojs/rss": "^4.0.18",
-    "@astrojs/starlight": "^0.38.3",
+    "@astrojs/check": "^0.9.10",
+    "@astrojs/rss": "^4.0.19",
+    "@astrojs/starlight": "^0.41.11",
     "astro": "^6.0.1",
     "gray-matter": "^4.0.3",
-    "sharp": "^0.34.2",
-    "starlight-llms-txt": "^0.8.1",
+    "sharp": "^0.35.4",
+    "starlight-llms-txt": "^0.11.0",
     "typescript": "^6.0.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0"
+    "@playwright/test": "^1.62.1"
   }
 }
