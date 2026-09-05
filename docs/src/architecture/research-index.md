@@ -23,6 +23,8 @@ This file tracks the single source of truth for Vox architecture, research findi
 
 ## Strategic & Value Proposition
 
+- [VoxScript portability substrate: research and findings (2026-09)](voxscript-portability-substrate-research-2026.md) — Measured answer to "make VoxScripts run the same on every system": the goal is two goals (deterministic compute vs universal availability) with opposite solutions; WASM alone gives bit-identity but cannot spawn a process; native compilation fixes almost none of the divergence. Includes an audit of Vox's three execution tiers, the fail-open `// vox:caps` gate, and the still-open window to prevent the transcendental-divergence class.
+
 - [Windows-to-macOS application handoff (September 2026)](windows-macos-application-handoff-findings-2026-09.md) — Evidence-based Windows workstation software inventory across Winget, Program Files, and Appx registrations, with a macOS continuity/replacement matrix and data-transfer checklist.
 - [Cross-project environment variable handoff (September 2026)](cross-project-environment-variable-handoff-findings-2026-09-01.md) — Values-free catalog of declared Vox, FableForge, and GigMe/GIGME environment-variable names with project-specific ownership and secret-boundary guidance.
 
