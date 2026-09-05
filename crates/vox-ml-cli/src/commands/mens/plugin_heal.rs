@@ -112,8 +112,34 @@ fn probe_reason() -> Option<String> {
 /// fails with an actionable message rather than silently rebuilding from
 /// source — that fallback is exactly the runtime-cargo dependency this
 /// module removes.
+/// Resolve the `vox` binary, preferring the one sitting beside THIS binary
+/// over whatever `vox` a PATH lookup happens to find first.
+///
+/// `Command::new("vox")` alone is a hijack vector: any directory earlier on
+/// PATH containing an executable named `vox` gets run instead, with this
+/// process's privileges, from inside the auto-heal path of a security
+/// hardening feature. Installers put `vox` and `vox-ml-cli` in the same
+/// directory, so the sibling lookup succeeds in the normal case and PATH stays
+/// as the fallback for development checkouts where they are built separately.
+///
+/// `current_exe()` cannot be used directly for this -- it resolves to
+/// vox-ml-cli's own path, never vox's -- but its PARENT is exactly the
+/// directory a co-installed `vox` lives in.
+fn resolve_vox_binary() -> std::ffi::OsString {
+    let exe_name = if cfg!(windows) { "vox.exe" } else { "vox" };
+    if let Ok(me) = std::env::current_exe()
+        && let Some(dir) = me.parent()
+    {
+        let sibling = dir.join(exe_name);
+        if sibling.is_file() {
+            return sibling.into_os_string();
+        }
+    }
+    exe_name.into()
+}
+
 fn reinstall_via_vox_plugin_install(plugin_id: &str) -> Result<()> {
-    let status = Command::new("vox")
+    let status = Command::new(resolve_vox_binary())
         .args(["plugin", "install", plugin_id, "--yes"])
         .status()
         .with_context(|| {

@@ -232,11 +232,31 @@ pub fn load_code_plugin(
             ));
         }
     } else {
+        // BOTH a trace event and a direct stderr line, deliberately.
+        //
+        // `vox-cli` initialises NO tracing subscriber anywhere (verified by
+        // grep across crates/: only vox-actor-runtime, vox-orchestrator and
+        // vox-gui do). A `tracing::warn!` on this path is therefore discarded
+        // with no output at all, so the one case where this gate does NOT
+        // verify the dylib was the one case that told the user nothing.
+        //
+        // That matters because the absent-checksum branch is also how the
+        // gate is bypassed: `artifacts_sha3` lives in Plugin.toml INSIDE
+        // `install_dir`, next to the artifact it protects, so anyone able to
+        // replace the dylib can also delete this table and silently take this
+        // branch. Making it loud does not close that hole -- see the note on
+        // `LoadError::ChecksumMismatch` -- but it removes the silence.
         tracing::warn!(
             plugin_id = %entry.id,
             triple,
             "no artifact checksum recorded for this plugin/triple; proceeding \
              without verifying dylib integrity (reinstall the plugin to record one)"
+        );
+        eprintln!(
+            "warning: plugin '{}' has no recorded artifact checksum for {triple}; \
+             loading it WITHOUT integrity verification. Reinstall it (`vox plugin \
+             install {}`) to record one.",
+            entry.id, entry.id
         );
     }
 
