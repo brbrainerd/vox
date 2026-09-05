@@ -1,6 +1,7 @@
 //! Default `vox doctor` checks: optional test-health tools, then full toolchain audit.
 
 mod binary_ssot;
+mod build_broker;
 mod build_health;
 mod compile_target;
 mod freshness;
@@ -60,6 +61,7 @@ pub async fn run_checks(
     gui_sidecar::run(checks);
     model_telemetry::run(checks).await;
     model_catalog::run(checks).await;
+    build_broker::run(checks);
     tail::run(auto_heal, checks).await;
 
     // Per-tier runtime-optional dep surfacing (reads distribution SSOT).
