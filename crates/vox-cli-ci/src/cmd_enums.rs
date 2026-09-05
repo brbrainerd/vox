@@ -1207,6 +1207,15 @@ pub enum CiCmd {
         #[arg(long)]
         failures_only: bool,
     },
+    /// Rust toolchain SSOT drift guard: `contracts/toolchain/workspace-toolchain.v1.yaml`
+    /// (`versions.rust`) against every restatement (rust-toolchain.toml, the
+    /// Cargo.toml `rust-version` MSRV floor, both CI-runner Dockerfiles, the
+    /// distribution profile, the stable channel manifest, and the voxup
+    /// profiles test fixture). Portable (POSIX-only parsing, no `grep -oP`)
+    /// replacement for the guard at ci.yml:788-808, which checks only two of
+    /// the rows and cannot run on macOS.
+    #[command(name = "toolchain-ssot")]
+    ToolchainSsot,
 }
 
 impl CiCmd {

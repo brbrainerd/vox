@@ -1,6 +1,7 @@
 //! Dry-run probe: report every version restatement, and optionally show what a
 //! bump would rewrite. Never writes to the repo.
 use std::path::Path;
+use vox_cli_ci::toolchain_ssot as t;
 use vox_cli_ci::version_ssot as v;
 
 const NPM: &[&str] = &[
@@ -67,6 +68,31 @@ fn main() {
         );
     }
 
+    // Rust toolchain SSOT (contracts/toolchain/workspace-toolchain.v1.yaml
+    // `versions.rust`): the nine restatements the `vox ci toolchain-ssot`
+    // guard checks. A separate SSOT and value space from the Vox package
+    // version above -- reported here, but not touched by the `--write`
+    // bump below (that positional argument is a Vox package version, not a
+    // Rust toolchain version; use `vox ci toolchain-ssot` / `rewrite_all`
+    // directly to move the toolchain pin).
+    let toolchain_root = Path::new(".");
+    let toolchain_decls = t::declarations(toolchain_root);
+    println!("toolchain restatements: {}", toolchain_decls.len());
+    let toolchain_drift = t::drift(toolchain_root);
+    if toolchain_drift.is_empty() {
+        println!("✅ no toolchain drift");
+    }
+    for x in &toolchain_drift {
+        println!(
+            "DRIFT {}:{} {} = {} (want {})",
+            x.declaration.file.display(),
+            x.declaration.line,
+            x.declaration.what,
+            x.declaration.version,
+            x.expected
+        );
+    }
+
     let args: Vec<String> = std::env::args().skip(1).collect();
     let write = args.iter().any(|a| a == "--write");
     if let Some(next) = args.iter().find(|a| !a.starts_with("--")) {
@@ -120,7 +146,7 @@ fn main() {
             }
         }
         println!("workspace-hack pins: {hacked} crate(s)");
-    } else if !d.is_empty() {
+    } else if !d.is_empty() || !toolchain_drift.is_empty() {
         std::process::exit(1);
     }
 }

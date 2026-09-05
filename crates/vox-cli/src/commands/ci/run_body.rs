@@ -799,6 +799,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             })
             .await
         }
+        CiCmd::ToolchainSsot => vox_cli_ci::toolchain_ssot::run(&root),
     };
 
     // Record the gate's pass/fail into the per-branch status store (best-effort:
