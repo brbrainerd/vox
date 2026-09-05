@@ -398,7 +398,6 @@ jobs:
         with:
           # No public release is published from this repo; drafts are promoted by hand.
           draft: true
-          prerelease: true
           files: |
             release-artifacts/release-*/*
             release-artifacts/checksums.txt
