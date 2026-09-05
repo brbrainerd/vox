@@ -26,7 +26,7 @@
 | **Phase 0** | **Done**, except Task 0.4 Steps 5–7 (see the measured correction there — they rest on a premise that proved false) and Task 0.6 (HF seam; needs a crate-edge decision). |
 | **Phase 1** | **Done.** `vox-mesh-transport` at L2 — identity, trust, protocol, bounded accept loop. 27 tests. ADR-047. Detector `vox/mesh/unsafe-iroh-pattern` at Error. |
 | **Phase 2** | Steps 1–5 **done**. Step 6 (both machines offline) **substantially proven**; see Task 2.1. |
-| **Phase 3** | Tasks 3.1 (A2A mailbox) and 3.2 (peer directory) **done**. 3.3 and 3.4 not started. |
+| **Phase 3** | Tasks 3.1, 3.2, 3.3 **done and merged**. Task 3.4 is **implemented but held unmerged** on `mesh-phase3-populi-httpop` — it takes a `vox-workflow-runtime -> vox-mesh-transport` crate edge, which is user-authorised-only. |
 | **Phases 4–6** | Not started. Phase 3's four ports gate everything in Phase 6. |
 
 **The mesh works cross-machine.** macOS `aarch64` ↔ BLAPTOP04 `x86_64`, no relay
@@ -782,8 +782,18 @@ Nothing in Phase 6 may run until these land. Spec Part 2.
   when exactly one trusted peer has a stored address — A2A addresses an agent id
   and the mailbox addresses an `EndpointId`, and nothing maps between them until
   Phase 6 makes the mailbox the inbox too.
-- [ ] **Task 3.2: Peer directory → model selector.** Replace `federation_directory()` in `registry.rs:379`, `catalog.rs:535`, `task_submit.rs:700` with an enumeration of trusted, probed peers. **Test: a trusted probed peer appears as a `ProviderType::PopuliMesh` candidate; a dropped peer disappears.** That is goal 4's only real acceptance criterion, and deletion without it is silent.
-- [ ] **Task 3.3: Queue stats.** Axis calls `vox_mesh_queue_stats` today.
+- [x] **Task 3.2: Peer directory → model selector.** Replace `federation_directory()` in `registry.rs:379`, `catalog.rs:535`, `task_submit.rs:700` with an enumeration of trusted, probed peers. **Test: a trusted probed peer appears as a `ProviderType::PopuliMesh` candidate; a dropped peer disappears.** That is goal 4's only real acceptance criterion, and deletion without it is silent.
+- [x] **Task 3.3: Queue stats.** Axis calls `vox_mesh_queue_stats` today.
+  **Done.** `JobRequest::QueueStats` / `JobResponse::QueueStats` on the existing
+  job ALPN, answered under the same trust gate as `Probe`. `directory()` and
+  `queue_stats()` share one `fan_out()`, so the address handling exists once.
+  `MeshQueueTotals::peers_answered` is what lets a caller distinguish "the mesh
+  says zero" from "no mesh answered" — the MCP tool keys its local-registry
+  fallback on it, so a default claiming a peer had answered would silently
+  report a mesh depth of zero over a real local queue. Every number is
+  **peer-asserted**; weighting the claims by trust is Phase 4. No new crate edge
+  was needed — `mesh_directory.rs` routes through the orchestrator's already-bound
+  endpoint rather than binding a second one.
 
 > **`task_submit.rs:700` cannot be ported in 3.2 or 3.3, and the reason is not
 > queue depth.** Measured 2026-09-05 while doing 3.3. That block reads the
@@ -798,7 +808,19 @@ Nothing in Phase 6 may run until these land. Spec Part 2.
 > not schedule (it keeps the `mesh_exec_leases` table). Until then the
 > federation-proxy fallback stays on HTTP; queue depth over the mesh is
 > available to it via `vox_mesh_transport::queue_stats` when it is ported.
-- [ ] **Task 3.4: `PopuliHttpOp` — port it** (decided in Task 0.3 Step 5). A Vox `activity` language surface; retiring it would be a language-level breaking change. Do not delete it as collateral.
+- [~] **Task 3.4: `PopuliHttpOp` — port it** (decided in Task 0.3 Step 5). A Vox `activity` language surface; retiring it would be a language-level breaking change. Do not delete it as collateral.
+  **Implemented, held unmerged** on `mesh-phase3-populi-httpop` (`1cd2b31a4`)
+  pending sign-off on the `["vox-workflow-runtime", "vox-mesh-transport"]` edge
+  (L4 -> L2, downward and layer-legal; added to `edges`, **not** `exceptions`).
+  `Noop` unchanged; `Snapshot` becomes `directory()`; `Join` and `Heartbeat`
+  report state (`pairing_is_out_of_band`, `reachability_probed`) instead of
+  emitting a `join_ok` / `heartbeat_ok` for an acknowledgement nobody sent —
+  on iroh there is nothing to register with, because membership *is* pairing.
+  **`Dispatch` and `Wait` are not ported**, because the mesh probes and does not
+  execute; they keep the HTTP plane that Phase 6 deletes. One behaviour change
+  worth knowing: the *unconfigured* case used to return a `local_registry_only`
+  **success** envelope, telling a workflow a dispatch had happened when nothing
+  ran; it is now an error naming the reason and the fix.
 
 ---
 
