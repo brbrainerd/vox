@@ -5,6 +5,7 @@
 
 #![allow(clippy::result_large_err)]
 
+pub mod capability;
 pub mod discover;
 pub mod errors;
 pub mod external_skills;
@@ -19,8 +20,11 @@ pub mod skill_registry;
 pub mod telemetry;
 pub mod user_install;
 
+pub use capability::{CapabilitySet, probe};
 pub use discover::discover;
-pub use errors::{AbiMismatchError, LoadError, PluginMissingError, SkillNotInstalledError};
+pub use errors::{
+    AbiMismatchError, ChecksumMismatchError, LoadError, PluginMissingError, SkillNotInstalledError,
+};
 pub use host_impl::DefaultVoxHost;
 pub use loader::{LoadedCodePlugin, Loader};
 pub use registry::{PluginEntry, Registry};
@@ -154,10 +158,25 @@ pub fn load_code_plugin(
         ))
     })?;
 
+    // Spec §4.2(d): refuse to load a plugin built for a different core version
+    // before touching its dylib. The artifact name already encodes the version
+    // (`{id}-v{version}-{triple}.zip`), so this is a plain string comparison
+    // against the manifest's own `version` field, not new metadata. Matches
+    // the `env!("CARGO_PKG_VERSION")` precedent in
+    // `install_first_party_plugin` (crates/vox-cli/src/commands/plugin/install.rs).
+    let host_version = env!("CARGO_PKG_VERSION");
+    if entry.version != host_version {
+        return Err(errors::LoadError::VersionMismatch {
+            plugin_id: plugin_id.to_string(),
+            expected: host_version.to_string(),
+            found: entry.version.clone(),
+        });
+    }
+
     let triple = current_target_triple_key();
-    let artifacts = match &entry.payload {
-        PluginPayload::Code(c) => &c.artifacts,
-        PluginPayload::Composite(c) => &c.code.artifacts,
+    let (artifacts, artifacts_sha3) = match &entry.payload {
+        PluginPayload::Code(c) => (&c.artifacts, &c.artifacts_sha3),
+        PluginPayload::Composite(c) => (&c.code.artifacts, &c.code.artifacts_sha3),
         PluginPayload::Skill(_) => {
             return Err(errors::LoadError::InitFailed(format!(
                 "plugin '{plugin_id}' is a skill-only plugin and cannot be loaded as a code plugin"
@@ -174,7 +193,126 @@ pub fn load_code_plugin(
     })?;
 
     let dylib_path = entry.install_dir.join(filename);
+
+    // Checksum verification: the other half of the load-time security gate
+    // (spec §4.2(d)), running after the version-match check above. The two
+    // checks are independent (different failure modes, no shared state) and
+    // were originally developed on separate branches; composing them here
+    // needed no logic change, only a test fixture fix (see the merge commit
+    // that brought both together) — the fixtures below use the real running
+    // version so the version check doesn't intercept them first.
+    // `artifacts_sha3` is populated at install time (`install_from_path` in
+    // crates/vox-cli/src/commands/plugin/install.rs) from the SAME
+    // already-parsed, already-trusted manifest `artifacts` was just read
+    // from — no new crate-graph edge to vox-plugin-catalog needed to get it.
+    //
+    // An absent entry (no hash recorded for this plugin/triple) is a
+    // deliberate migration affordance, not a bypass: the field is brand new,
+    // so every plugin installed before this shipped legitimately has none.
+    // Refusing to load any of them the moment this check ships would be a
+    // much worse regression than the tampering gap it closes. Such a plugin
+    // simply gets no NEW protection until it is reinstalled/upgraded through
+    // the fixed install path — an accepted, explicitly-documented gap.
+    if let Some(expected) = artifacts_sha3.get(triple) {
+        let bytes = std::fs::read(&dylib_path).map_err(|source| errors::LoadError::Io {
+            path: dylib_path.clone(),
+            source,
+        })?;
+        use sha3::{Digest, Sha3_256};
+        let mut h = Sha3_256::new();
+        h.update(&bytes);
+        let actual = data_encoding::HEXLOWER.encode(&h.finalize());
+        if &actual != expected {
+            return Err(errors::LoadError::ChecksumMismatch(
+                errors::ChecksumMismatchError {
+                    id: entry.id.clone(),
+                    expected: expected.clone(),
+                    actual,
+                },
+            ));
+        }
+    } else {
+        // BOTH a trace event and a direct stderr line, deliberately.
+        //
+        // `vox-cli` initialises NO tracing subscriber anywhere (verified by
+        // grep across crates/: only vox-actor-runtime, vox-orchestrator and
+        // vox-gui do). A `tracing::warn!` on this path is therefore discarded
+        // with no output at all, so the one case where this gate does NOT
+        // verify the dylib was the one case that told the user nothing.
+        //
+        // That matters because the absent-checksum branch is also how the
+        // gate is bypassed: `artifacts_sha3` lives in Plugin.toml INSIDE
+        // `install_dir`, next to the artifact it protects, so anyone able to
+        // replace the dylib can also delete this table and silently take this
+        // branch. Making it loud does not close that hole -- see the note on
+        // `LoadError::ChecksumMismatch` -- but it removes the silence.
+        tracing::warn!(
+            plugin_id = %entry.id,
+            triple,
+            "no artifact checksum recorded for this plugin/triple; proceeding \
+             without verifying dylib integrity (reinstall the plugin to record one)"
+        );
+        eprintln!(
+            "warning: plugin '{}' has no recorded artifact checksum for {triple}; \
+             loading it WITHOUT integrity verification. Reinstall it (`vox plugin \
+             install {}`) to record one.",
+            entry.id, entry.id
+        );
+    }
+
     Loader::load(&entry.id, &entry.version, &dylib_path)
+}
+
+/// A first-party candidate plugin known to implement a given extension point,
+/// paired with the host capability tag (mirroring `catalog.toml`'s
+/// `requires-tag`) it needs to be selectable.
+///
+/// `vox-plugin-host` is deliberately dependency-free (see the note on
+/// `user_install.rs` in `layers.toml`), so it does not read `catalog.toml`
+/// itself — callers pass in the small, stable candidate list for the
+/// extension point they care about (see [`resolve_extension_point`]).
+#[derive(Debug, Clone, Copy)]
+pub struct ExtensionCandidate {
+    pub plugin_id: &'static str,
+    pub requires_tag: Option<&'static str>,
+}
+
+/// Pick which of `candidates` should service `extension_point` on this host.
+///
+/// Returns the first candidate whose `requires_tag` is satisfied by `caps`
+/// (typically [`probe`]). This is pure selection with no I/O — callers still
+/// load the winner via [`cached_code_plugin`].
+///
+/// On no match, the error names every candidate considered (and the tag it
+/// needed) plus the host's actual capabilities, so the failure is
+/// diagnosable rather than a bare "not found".
+pub fn resolve_extension_point(
+    extension_point: &str,
+    candidates: &[ExtensionCandidate],
+    caps: &CapabilitySet,
+) -> Result<&'static str, errors::LoadError> {
+    candidates
+        .iter()
+        .find(|c| caps.satisfies(c.requires_tag))
+        .map(|c| c.plugin_id)
+        .ok_or_else(|| {
+            let wanted: Vec<String> = candidates
+                .iter()
+                .map(|c| {
+                    format!(
+                        "{} (requires-tag: {})",
+                        c.plugin_id,
+                        c.requires_tag.unwrap_or("<none>")
+                    )
+                })
+                .collect();
+            errors::LoadError::InitFailed(format!(
+                "no candidate plugin for extension point '{extension_point}' matches this host.\n\
+                 candidates considered:\n  {}\n\
+                 host capabilities: {caps:?}",
+                wanted.join("\n  ")
+            ))
+        })
 }
 
 /// Cached singleton: load a code plugin once and reuse the handle process-wide.
@@ -199,6 +337,122 @@ pub fn cached_code_plugin(
     let leaked: &'static LoadedCodePlugin = Box::leak(Box::new(loaded));
     guard.insert(plugin_id, leaked);
     Ok(leaked)
+}
+
+#[cfg(test)]
+mod load_code_plugin_version_gate_tests {
+    //! Spec §4.2(d): a plugin whose manifest `version` disagrees with the
+    //! running core's own `CARGO_PKG_VERSION` must be refused before any
+    //! attempt to resolve or dlopen its dylib.
+    use super::*;
+    use registry::{PluginEntry, Registry};
+    use vox_plugin_api::manifest::{CodePayload, PluginPayload};
+
+    fn code_entry(id: &str, version: &str) -> PluginEntry {
+        PluginEntry {
+            id: id.to_string(),
+            version: version.to_string(),
+            // Deliberately nonexistent: a version mismatch must be caught
+            // before this path is ever touched, so it need not resolve.
+            install_dir: std::path::PathBuf::from("/nonexistent/does-not-matter"),
+            payload: PluginPayload::Code(CodePayload {
+                abi_version: VOX_PLUGIN_ABI_VERSION,
+                provides: Default::default(),
+                requires: Default::default(),
+                artifacts: Default::default(),
+                artifacts_sha3: Default::default(),
+            }),
+        }
+    }
+
+    #[test]
+    fn mismatched_version_is_refused_before_dlopen() {
+        let registry = Registry::new();
+        let host_version = env!("CARGO_PKG_VERSION");
+        let bogus_version = format!("{host_version}-definitely-not-installed");
+        registry.record(code_entry("versioned-plugin", &bogus_version));
+
+        let err = match load_code_plugin(&registry, "versioned-plugin") {
+            Ok(_) => panic!("expected VersionMismatch, got Ok"),
+            Err(e) => e,
+        };
+        match err {
+            LoadError::VersionMismatch {
+                plugin_id,
+                expected,
+                found,
+            } => {
+                assert_eq!(plugin_id, "versioned-plugin");
+                assert_eq!(expected, host_version);
+                assert_eq!(found, bogus_version);
+            }
+            other => panic!("expected VersionMismatch, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn matching_version_proceeds_past_the_version_gate() {
+        // A matching version must not be rejected as a VersionMismatch. It will
+        // still fail past the gate (no real artifact for this triple exists),
+        // which proves the gate let it through rather than swallowing the error.
+        let registry = Registry::new();
+        let host_version = env!("CARGO_PKG_VERSION");
+        registry.record(code_entry("versioned-plugin-ok", host_version));
+
+        let err = match load_code_plugin(&registry, "versioned-plugin-ok") {
+            Ok(_) => panic!("expected an error past the version gate (no real artifact exists)"),
+            Err(e) => e,
+        };
+        assert!(
+            !matches!(err, LoadError::VersionMismatch { .. }),
+            "matching version must not be rejected as a mismatch, got: {err:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod resolve_extension_point_tests {
+    use super::*;
+
+    // Fake catalog: mirrors catalog.toml's mens-candle-cuda/mens-candle-metal
+    // `MlBackend` entries (id + requires-tag) without depending on the
+    // vox-plugin-catalog crate.
+    const ML_BACKEND_CANDIDATES: &[ExtensionCandidate] = &[
+        ExtensionCandidate {
+            plugin_id: "mens-candle-cuda",
+            requires_tag: Some("nvidia-gpu"),
+        },
+        ExtensionCandidate {
+            plugin_id: "mens-candle-metal",
+            requires_tag: Some("apple-silicon"),
+        },
+    ];
+
+    #[test]
+    fn picks_metal_when_only_apple_silicon_present() {
+        let caps = CapabilitySet::from_tags(["cpu-only", "apple-silicon", "metal"]);
+        let id = resolve_extension_point("MlBackend", ML_BACKEND_CANDIDATES, &caps).unwrap();
+        assert_eq!(id, "mens-candle-metal");
+    }
+
+    #[test]
+    fn picks_cuda_when_only_nvidia_gpu_present() {
+        let caps = CapabilitySet::from_tags(["cpu-only", "nvidia-gpu"]);
+        let id = resolve_extension_point("MlBackend", ML_BACKEND_CANDIDATES, &caps).unwrap();
+        assert_eq!(id, "mens-candle-cuda");
+    }
+
+    #[test]
+    fn errors_diagnosably_when_neither_tag_present() {
+        let caps = CapabilitySet::from_tags(["cpu-only"]);
+        let err = resolve_extension_point("MlBackend", ML_BACKEND_CANDIDATES, &caps).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("MlBackend"), "msg: {msg}");
+        assert!(msg.contains("nvidia-gpu"), "msg: {msg}");
+        assert!(msg.contains("apple-silicon"), "msg: {msg}");
+        assert!(msg.contains("mens-candle-cuda"), "msg: {msg}");
+        assert!(msg.contains("mens-candle-metal"), "msg: {msg}");
+    }
 }
 
 #[cfg(test)]
@@ -311,5 +565,126 @@ mod semcov_wave3_tests {
         let result = workspace_local_plugin_source("myplugin");
         unsafe { std::env::remove_var("VOX_WORKSPACE_ROOT") };
         assert_eq!(result, Some(crate_dir));
+    }
+}
+
+/// `load_code_plugin`'s checksum gate (spec §4.2(d), second half). Every case
+/// here uses a fake, non-dylib artifact file — the point is to prove the
+/// gate's ORDERING, not to exercise a real `dlopen`. `Loader::load` on garbage
+/// bytes always fails with an `InitFailed("loading root module: ...")` error
+/// (abi_stable's loader rejects it before this crate's own logic runs), which
+/// is trivially distinguishable from `LoadError::ChecksumMismatch`. So: if a
+/// case reaches `Loader::load` at all, its error names "loading root module"
+/// and never mentions a checksum; if the gate refuses first, the error is
+/// `ChecksumMismatch` and `Loader::load` is never reached.
+#[cfg(test)]
+mod load_code_plugin_checksum_tests {
+    use super::*;
+    use vox_plugin_api::manifest::{CodePayload, PluginPayload};
+
+    const ARTIFACT_BYTES: &[u8] = b"not a real dylib, just checksum bait";
+
+    fn artifact_hash(bytes: &[u8]) -> String {
+        use sha3::{Digest, Sha3_256};
+        let mut h = Sha3_256::new();
+        h.update(bytes);
+        data_encoding::HEXLOWER.encode(&h.finalize())
+    }
+
+    /// Builds a registry with one code-payload entry whose artifact for the
+    /// TEST HOST's own target triple (`current_target_triple_key()` — the
+    /// same lookup `load_code_plugin` performs internally, so a made-up
+    /// triple would never be found) is `ARTIFACT_BYTES` written under
+    /// `install_dir`, with `artifacts_sha3` set to `recorded_hash` (or left
+    /// empty when `None`, simulating a plugin installed before this field
+    /// existed).
+    fn registry_with_entry(install_dir: &std::path::Path, recorded_hash: Option<&str>) -> Registry {
+        let triple = current_target_triple_key();
+        std::fs::write(install_dir.join("libfake.bin"), ARTIFACT_BYTES).expect("write artifact");
+        let mut artifacts = std::collections::BTreeMap::new();
+        artifacts.insert(triple.to_string(), "libfake.bin".to_string());
+        let mut artifacts_sha3 = std::collections::BTreeMap::new();
+        if let Some(hash) = recorded_hash {
+            artifacts_sha3.insert(triple.to_string(), hash.to_string());
+        }
+        let registry = Registry::new();
+        registry.record(PluginEntry {
+            id: "checksum-demo".to_string(),
+            // Must match the running core's own version: a version-match
+            // gate runs before the checksum gate this test exercises (see
+            // load_code_plugin above), so a mismatched fixture version would
+            // be refused there first and never reach the checksum logic at
+            // all — exactly what happened here before this fix.
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            install_dir: install_dir.to_path_buf(),
+            payload: PluginPayload::Code(CodePayload {
+                abi_version: 1,
+                provides: Default::default(),
+                requires: Default::default(),
+                artifacts,
+                artifacts_sha3,
+            }),
+        });
+        registry
+    }
+
+    #[test]
+    fn no_recorded_hash_proceeds_past_the_checksum_gate() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let registry = registry_with_entry(dir.path(), None);
+        // `LoadedCodePlugin` (the `Ok` type) doesn't implement `Debug`, so
+        // `.expect_err()` won't compile here — match instead.
+        let err = match load_code_plugin(&registry, "checksum-demo") {
+            Ok(_) => panic!("garbage bytes can never dlopen successfully"),
+            Err(e) => e,
+        };
+        let msg = err.to_string();
+        assert!(
+            msg.contains("loading root module"),
+            "absent checksum must not block loading; expected to reach Loader::load, got: {msg}"
+        );
+        assert!(
+            !matches!(err, LoadError::ChecksumMismatch(_)),
+            "absent checksum must never itself be reported as a mismatch: {msg}"
+        );
+    }
+
+    #[test]
+    fn matching_hash_proceeds_past_the_checksum_gate() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let expected = artifact_hash(ARTIFACT_BYTES);
+        let registry = registry_with_entry(dir.path(), Some(&expected));
+        let err = match load_code_plugin(&registry, "checksum-demo") {
+            Ok(_) => panic!("garbage bytes can never dlopen successfully"),
+            Err(e) => e,
+        };
+        let msg = err.to_string();
+        assert!(
+            msg.contains("loading root module"),
+            "a matching checksum must not block loading; expected to reach Loader::load, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn wrong_hash_refuses_before_any_dylib_resolution() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let wrong = "0".repeat(64);
+        let registry = registry_with_entry(dir.path(), Some(&wrong));
+        let err = match load_code_plugin(&registry, "checksum-demo") {
+            Ok(_) => panic!("a wrong checksum must refuse to load"),
+            Err(e) => e,
+        };
+        match err {
+            LoadError::ChecksumMismatch(inner) => {
+                assert_eq!(inner.id, "checksum-demo");
+                assert_eq!(inner.expected, wrong);
+                assert_eq!(inner.actual, artifact_hash(ARTIFACT_BYTES));
+            }
+            other => panic!(
+                "expected ChecksumMismatch (refused before Loader::load), got: {other} \
+                 -- if this names 'loading root module', the gate ran AFTER dlopen \
+                 resolution instead of before it"
+            ),
+        }
     }
 }

@@ -265,6 +265,7 @@ Spec §4.2(d) and §4.1 P8. `installed_version()` currently returns readdir orde
 | P4 | Publish `mens-candle-{cuda,metal}-v{version}-{triple}.zip` as release assets and include them in `checksums.txt` |
 | P5 | Make `install.rs` honour the tier, using `resolve_bundle` from Task 6 |
 | P7 | Decide whether `profiles.v1.yaml` tiers survive; if so, reconcile them with `catalog.toml` bundles — today the two taxonomies share no ids and no code path |
+| P7 (general `vox-cli/` ownership — Task 4 explicitly excludes reaching into these) | Task 4 fixed the runtime `Command::new("cargo")` in `crates/vox-ml-cli/src/commands/mens/plugin_heal.rs`. Measured on `main` at `0be37f694`, `vox-cli` still has 11 unaddressed runtime-`cargo` sites (P7's own persona-bleed work already fixed the `tail.rs`/`main.rs`/`freshness.rs` instances; these were not in that pass): `commands/test.rs:54`, `commands/run.rs:213`, `commands/gui.rs:10,77`, `commands/diagnostics/doctor/checks_codex.rs:19,49`, `commands/diagnostics/doctor/checks_standard/toolchain.rs:20`, `commands/diagnostics/doctor/checks_standard/test_health.rs:14,40,58`, `commands/graphify/mod.rs:658,667`. Most look like `vox ci`/`vox doctor` contributor-only tooling (legitimately needing a toolchain) rather than end-user paths, but each should be confirmed contributor-gated or reworded per spec §9.1 by whoever owns general `vox-cli/` persona work next. |
 
 ## Cross-plan inbox
 

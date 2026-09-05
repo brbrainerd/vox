@@ -76,6 +76,15 @@ pub struct CodePayload {
     pub requires: PayloadRequires,
     #[serde(default)]
     pub artifacts: BTreeMap<String, String>,
+    /// Hex-lowercase SHA3-256 of each artifact's file bytes, keyed by the same
+    /// target-triple as `artifacts`. Populated at install time by
+    /// `install_from_path` (crates/vox-cli/src/commands/plugin/install.rs)
+    /// after the archive is extracted; absent on plugins installed before
+    /// this field existed. `#[serde(default)]` so old manifests without it
+    /// still parse — `load_code_plugin` treats an absent entry as "no
+    /// checksum recorded yet" and proceeds, not as tampering.
+    #[serde(default)]
+    pub artifacts_sha3: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -125,4 +134,32 @@ pub struct SkillTools {
 pub struct CompositePayload {
     pub code: CodePayload,
     pub skill: SkillPayload,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A `Plugin.toml` installed before `artifacts_sha3` existed carries no
+    /// `artifacts-sha3` table at all. `#[serde(default)]` must let it keep
+    /// deserializing rather than becoming a hard parse failure — the field is
+    /// meant to be a purely additive, migration-safe addition.
+    #[test]
+    fn code_payload_without_artifacts_sha3_still_deserializes() {
+        let toml_src = r#"
+            abi-version = 1
+
+            [artifacts]
+            "macos-aarch64" = "libdemo.dylib"
+        "#;
+        let payload: CodePayload = toml::from_str(toml_src).expect("must parse without the field");
+        assert_eq!(
+            payload.artifacts.get("macos-aarch64").map(String::as_str),
+            Some("libdemo.dylib")
+        );
+        assert!(
+            payload.artifacts_sha3.is_empty(),
+            "absent table must default to empty, not error"
+        );
+    }
 }

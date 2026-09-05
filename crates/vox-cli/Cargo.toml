@@ -166,6 +166,8 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 strsim = { workspace = true }
 sha2.workspace = true
+sha3 = { workspace = true }
+data-encoding = { workspace = true }
 tokio = { workspace = true, features = ["io-std"] }
 vox-cli-core = { workspace = true }
 vox-cli-ci = { workspace = true }

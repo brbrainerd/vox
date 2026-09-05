@@ -59,6 +59,8 @@ pub enum LoadError {
     },
     #[error("plugin '{0}' has mismatched ABI: {0:?}")]
     AbiMismatch(AbiMismatchError),
+    #[error("plugin '{0}' failed checksum verification: {0:?}")]
+    ChecksumMismatch(ChecksumMismatchError),
     #[error("plugin init returned an error: {0}")]
     InitFailed(String),
     #[error("io error reading {path:?}: {source}")]
@@ -66,6 +68,19 @@ pub enum LoadError {
         path: PathBuf,
         #[source]
         source: std::io::Error,
+    },
+    /// The plugin's own manifest `version` does not match the running core's
+    /// `CARGO_PKG_VERSION`. Unlike the ABI-range check in
+    /// [`crate::loader::Loader::load`], there is no compatibility window
+    /// here: a stale or newer plugin binary is refused rather than risking
+    /// an incompatible in-memory layout with the host.
+    #[error(
+        "plugin '{plugin_id}' version {found} does not match running core version {expected}; reinstall the plugin to match this vox build"
+    )]
+    VersionMismatch {
+        plugin_id: String,
+        expected: String,
+        found: String,
     },
 }
 
@@ -78,4 +93,18 @@ pub struct AbiMismatchError {
     pub host_abi: u32,
     /// Oldest ABI the host still accepts ([`vox_plugin_api::VOX_PLUGIN_ABI_MIN_SUPPORTED`]).
     pub host_abi_min: u32,
+}
+
+/// A plugin's on-disk dylib does not match the SHA3-256 recorded for it in
+/// `Plugin.toml`'s `artifacts_sha3` at install time. Either the file was
+/// corrupted or tampered with after install, or it was swapped for a
+/// different build without going through `vox plugin install` again.
+#[derive(Debug, Error)]
+#[error(
+    "plugin '{id}' artifact checksum mismatch: manifest records sha3-256 {expected}, on-disk file hashes to {actual}"
+)]
+pub struct ChecksumMismatchError {
+    pub id: String,
+    pub expected: String,
+    pub actual: String,
 }

@@ -3,7 +3,7 @@
 use super::eval_local_prompt::{
     PreparedBench, prepare_bench_item, sort_prepared_benches_lexicographic,
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 use vox_bounded_fs::read_utf8_path_capped;
@@ -73,24 +73,35 @@ pub fn run_eval_local(
         system_prompt: None,
     };
 
-    // Inference runs through the `mens-candle-cuda` plugin host: load the model directory
-    // once (the handle carries the dir; `run_inference` rebuilds the engine from disk per
-    // call), then dispatch one generation per benchmark prompt below. `--model` must be the
-    // training run directory containing the merged/adapter + manifest + tokenizer + config.
+    // Inference runs through whichever `MlBackend` plugin matches this host's
+    // capabilities (CUDA on an NVIDIA host, Metal on Apple Silicon), not a
+    // hardcoded id — see vox_plugin_host::resolve_extension_point. Load the
+    // model directory once (the handle carries the dir; `run_inference`
+    // rebuilds the engine from disk per call), then dispatch one generation
+    // per benchmark prompt below. `--model` must be the training run
+    // directory containing the merged/adapter + manifest + tokenizer + config.
     #[cfg(feature = "gpu")]
     let engine = {
-        let loaded = vox_plugin_host::cached_code_plugin("mens-candle-cuda")
-            .map_err(|e| anyhow::anyhow!("mens-candle-cuda plugin not found: {e}"))?;
-        let backend =
-            loaded.plugin.as_ml_backend().into_option().ok_or_else(|| {
-                anyhow::anyhow!("mens-candle-cuda plugin does not provide MlBackend")
-            })?;
+        let plugin_id = vox_plugin_host::resolve_extension_point(
+            "MlBackend",
+            crate::commands::schola::merge_qlora::ML_BACKEND_CANDIDATES,
+            &vox_plugin_host::probe(),
+        )
+        .context("no ML backend plugin matches this host's capabilities")?;
+        let loaded = vox_plugin_host::cached_code_plugin(plugin_id).with_context(|| {
+            format!("{plugin_id} plugin not found — install vox-plugin-{plugin_id}")
+        })?;
+        let backend = loaded
+            .plugin
+            .as_ml_backend()
+            .into_option()
+            .ok_or_else(|| anyhow::anyhow!("{plugin_id} plugin does not provide MlBackend"))?;
         let handle = backend
             .load_model(model.to_string_lossy().as_ref().into())
             .into_result()
             .map_err(|e| anyhow::anyhow!("load_model({}): {e}", model.display()))?;
         eprintln!(
-            "  {} Inference backend: mens-candle-cuda plugin loaded",
+            "  {} Inference backend: {plugin_id} plugin loaded",
             "✓".green()
         );
         // Keep `loaded` alive alongside the handle for the duration of the eval.
