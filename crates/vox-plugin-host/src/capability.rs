@@ -61,7 +61,6 @@ pub fn probe() -> CapabilitySet {
 // The workspace denies unsafe_code by default (Cargo.toml `[workspace.lints]`);
 // this is the one deliberate FFI-adjacent exception for this task, see the
 // SAFETY comment on the unsafe block below.
-#[allow(unsafe_code)]
 fn cuda_driver_present() -> bool {
     let candidates: &[&str] = if cfg!(target_os = "windows") {
         &["nvcuda.dll"]
@@ -77,7 +76,9 @@ fn cuda_driver_present() -> bool {
         // exist and are loadable — no symbols are resolved or called here,
         // so there is no untrusted code path beyond what the OS's dynamic
         // linker already runs for any loaded library.
-        unsafe { libloading::Library::new(name) }.is_ok()
+        #[allow(unsafe_code)]
+        let loaded = unsafe { libloading::Library::new(name) };
+        loaded.is_ok()
     })
 }
 
@@ -102,5 +103,16 @@ mod tests {
     fn probe_never_panics_and_always_reports_cpu_only() {
         let caps = probe();
         assert!(caps.satisfies(Some("cpu-only")));
+        // This test runs on macOS/aarch64 CI and dev machines: assert the probe
+        // actually detected that, not merely that it returned *something*.
+        #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+        {
+            assert!(caps.satisfies(Some("apple-silicon")));
+            assert!(caps.satisfies(Some("metal")));
+        }
+        // No CUDA driver ships for macOS (post-2021, and never for Apple Silicon),
+        // so this platform must never report nvidia-gpu.
+        #[cfg(target_os = "macos")]
+        assert!(!caps.satisfies(Some("nvidia-gpu")));
     }
 }
