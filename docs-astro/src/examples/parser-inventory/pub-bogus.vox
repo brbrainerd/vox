@@ -1,6 +1,0 @@
-// INV-03: `pub` must be followed by fn or type.
-pub let x = 1
-
-fn ok() -> int {
-    return 0
-}

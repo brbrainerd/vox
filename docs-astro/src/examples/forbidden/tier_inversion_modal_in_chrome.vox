@@ -1,8 +1,0 @@
-// expect-error: vox/layer/tier-inversion
-@layer(tier: chrome)
-component Shell() {
-    state n: int = 0
-    view: column() {
-        modal() { text() { "nope" } }
-    }
-}

@@ -1,7 +1,0 @@
-// expect-error: vox/layer/absolute-in-partition
-component Bad() {
-    state n: int = 0
-    view: row() {
-        panel(position="absolute") { text() { "floating" } }
-    }
-}

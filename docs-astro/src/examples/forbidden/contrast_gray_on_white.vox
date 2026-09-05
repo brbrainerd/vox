@@ -1,7 +1,0 @@
-// expect-error: web_ir_validate.a11y.insufficient_contrast
-component Bad() {
-    state n: int = 0
-    view: panel(bg="white") {
-        text(color="gray.300") { "unreadable" }
-    }
-}

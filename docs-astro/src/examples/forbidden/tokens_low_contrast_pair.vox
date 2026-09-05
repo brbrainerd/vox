@@ -1,6 +1,0 @@
-// expect-error: vox/tokens/contrast-violation
-@tokens {
-    color surface_page light: "#ffffff" dark: "#1a1a1a"
-    color text_muted light: "#d1d5db" dark: "#6b7280" on: surface_page
-}
-fn dummy() -> Str { "ok" }

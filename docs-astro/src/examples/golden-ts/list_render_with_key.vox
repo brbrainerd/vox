@@ -1,9 +1,0 @@
-component ItemList(items: any) {
-    view: column() {
-        for item, i in items key=item.id {
-            panel() {
-                text() { item.name }
-            }
-        }
-    }
-}

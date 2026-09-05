@@ -1,5 +1,0 @@
-mutation submit_item(name: str) to int { return 0 }
-form Item {
-    field name: str required label("Item name")
-    on_submit: submit_item
-}

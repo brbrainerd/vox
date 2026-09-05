@@ -1,5 +1,0 @@
-component SafeView() {
-    view: stack(safe_area="top") {
-        text() { "Content" }
-    }
-}

@@ -1,3 +1,0 @@
-// expect-error: vox/codegen/mens-decorator-unimplemented
-@inference(model = "qwen3.5-2b")
-fn classify(text: str) -> str { text }

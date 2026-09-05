@@ -1,0 +1,11 @@
+# esbuild (pulled in by Astro's Vite pipeline) and sharp (Astro's default
+# image service) both ship a postinstall that fetches/builds a native
+# binary. pnpm 11 blocks dependency build scripts unless explicitly allowed,
+# so without this file `pnpm install` exits 1 with ERR_PNPM_IGNORED_BUILDS
+# and docs-deploy.yml's `pnpm install --frozen-lockfile` step never reaches
+# `pnpm build`. Verified failing the same way on a clean clone of main.
+# Same shape as crates/vox-gui/ui's and apps/experimental/visualizer's
+# pnpm-workspace.yaml, for the same reason.
+allowBuilds:
+  esbuild: true
+  sharp: true

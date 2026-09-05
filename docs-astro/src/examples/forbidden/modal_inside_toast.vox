@@ -1,7 +1,0 @@
-// expect-error: vox/layer/leaf-surface
-component Bad() {
-    state n: int = 0
-    view: toast() {
-        modal() { text() { "orphaned" } }
-    }
-}

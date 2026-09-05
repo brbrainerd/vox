@@ -1,4 +1,0 @@
-query on_back() to bool { return true }
-@back_button {
-    on_press: on_back
-}

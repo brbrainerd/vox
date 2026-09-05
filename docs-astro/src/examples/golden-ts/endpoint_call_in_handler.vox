@@ -1,9 +1,0 @@
-query get_count() to int { return 42 }
-
-component Counter() {
-    state count: int = 0
-    view: column() {
-        text() { "Value: " + str(count) }
-        button(on_click={count = get_count()}) { "Fetch" }
-    }
-}
