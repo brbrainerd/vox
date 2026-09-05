@@ -40,6 +40,13 @@ pub struct TrustedEndpoint {
     #[serde(default)]
     pub label: Option<String>,
     pub level: TrustLevel,
+    /// Last-known socket addresses, captured from the ticket at pairing time.
+    ///
+    /// Required, not an optimisation: mDNS discovery does not work (see the
+    /// spike findings, Q4), so an `EndpointId` alone is not dialable. Without
+    /// these the peer directory can never reach anybody.
+    #[serde(default)]
+    pub addrs: Vec<String>,
 }
 
 /// The allowlist plus the live connections it can revoke.
@@ -136,15 +143,34 @@ impl MeshTrust {
     /// There is deliberately no `level` parameter: a caller that could pass
     /// `Native` here is one refactor away from pairing granting it.
     pub fn trust(&self, id: &EndpointId, label: Option<&str>) -> Result<()> {
-        self.upsert(id, label, TrustLevel::Sandboxed)
+        self.upsert(id, label, TrustLevel::Sandboxed, &[])
+    }
+
+    /// Trust `id`, recording the addresses it can be reached on.
+    ///
+    /// Pairing is the only moment these are known — the ticket carries them —
+    /// so this is what `vox mesh join <ticket>` calls.
+    pub fn trust_with_addrs(
+        &self,
+        id: &EndpointId,
+        label: Option<&str>,
+        addrs: &[std::net::SocketAddr],
+    ) -> Result<()> {
+        self.upsert(id, label, TrustLevel::Sandboxed, addrs)
     }
 
     /// Promote `id` to native execution. Never reachable from pairing.
     pub fn grant_native(&self, id: &EndpointId, label: Option<&str>) -> Result<()> {
-        self.upsert(id, label, TrustLevel::Native)
+        self.upsert(id, label, TrustLevel::Native, &[])
     }
 
-    fn upsert(&self, id: &EndpointId, label: Option<&str>, level: TrustLevel) -> Result<()> {
+    fn upsert(
+        &self,
+        id: &EndpointId,
+        label: Option<&str>,
+        level: TrustLevel,
+        addrs: &[std::net::SocketAddr],
+    ) -> Result<()> {
         let key = id.to_string();
         let mut rows = self.read();
         match rows.iter_mut().find(|r| r.endpoint_id == key) {
@@ -153,11 +179,15 @@ impl MeshTrust {
                 if label.is_some() {
                     r.label = label.map(str::to_owned);
                 }
+                if !addrs.is_empty() {
+                    r.addrs = addrs.iter().map(ToString::to_string).collect();
+                }
             }
             None => rows.push(TrustedEndpoint {
                 endpoint_id: key,
                 label: label.map(str::to_owned),
                 level,
+                addrs: addrs.iter().map(ToString::to_string).collect(),
             }),
         }
         self.write(&rows)

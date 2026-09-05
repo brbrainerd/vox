@@ -103,6 +103,9 @@ impl JobExecutor for ProbeOnlyExecutor {
                 JobRequest::Probe => JobResponse::Probed {
                     host_triple: format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS),
                     vox: env!("CARGO_PKG_VERSION").to_string(),
+                    // Empty on purpose: this executor refuses `Run`, so advertising
+                    // task kinds would be a lie the model selector acts on.
+                    task_kinds: Vec::new(),
                 },
                 JobRequest::Run { .. } => JobResponse::Failed(
                     "this node accepts Probe only: no sandbox is wired up yet, and \

@@ -40,7 +40,17 @@ impl JobExecutor for SpyExecutor {
         Box::pin(async move {
             self.invocations.fetch_add(1, Ordering::SeqCst);
             *self.last_limits.lock().unwrap() = Some(job.limits);
-            Ok(JobResponse::Output(b"ok".to_vec()))
+            // Probe must answer Probed: a directory entry is built from that
+            // shape, and a spy that answered Output for everything silently
+            // failed the directory tests while the transport was fine.
+            Ok(match job.request {
+                JobRequest::Probe => JobResponse::Probed {
+                    host_triple: "test-triple".to_string(),
+                    vox: "0.0.0-test".to_string(),
+                    task_kinds: vec![vox_mesh_types::TaskKind::VoxScript],
+                },
+                _ => JobResponse::Output(b"ok".to_vec()),
+            })
         })
     }
 }
@@ -95,6 +105,21 @@ async fn send_request_on(
     protocol::write_frame(&mut send, &request).await?;
     send.finish()?;
     protocol::read_frame(&mut recv, 16 * 1024 * 1024).await
+}
+
+/// The server's port on loopback.
+///
+/// `Endpoint::addr()` advertises LAN/VPN addresses, never loopback, and dialing
+/// this host's own LAN IP is both slow and environment-dependent. The endpoint
+/// binds `0.0.0.0`, so loopback reaches it and the test stays hermetic.
+fn loopback_addr_of(server: &Server) -> Vec<std::net::SocketAddr> {
+    let port = server
+        .addr
+        .ip_addrs()
+        .next()
+        .expect("a bound endpoint advertises at least one address")
+        .port();
+    vec![format!("127.0.0.1:{port}").parse().unwrap()]
 }
 
 #[tokio::test]
@@ -246,4 +271,91 @@ async fn the_server_id_is_the_public_key() {
     // divergence here would silently break every allowlist lookup.
     let server = start_server().await;
     assert_eq!(server.id, server.addr.id);
+}
+
+// ---------------------------------------------------------------------------
+// Task 3.2 acceptance criterion: the peer directory that replaces
+// `federation_directory()`. This is goal 4's only real acceptance test, so it
+// runs two live endpoints rather than asserting against a mock.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn a_trusted_probed_peer_appears_and_a_dropped_peer_disappears() {
+    let server = start_server().await;
+    let sk = SecretKey::generate();
+    let client_id = sk.public();
+    let client = client_endpoint(sk).await;
+
+    // The directory is built by the CLIENT against peers IT trusts, so the
+    // client's store is the one that must name the server.
+    let dir = tempfile::tempdir().unwrap();
+    let trust = Arc::new(MeshTrust::at(&dir.path().join("mesh_trust.json")));
+    trust
+        .trust_with_addrs(&server.id, Some("server"), &loopback_addr_of(&server))
+        .unwrap();
+    // ...and the server must trust the client back, or the probe is refused.
+    server.trust.trust(&client_id, None).unwrap();
+
+    let listed = vox_mesh_transport::directory(&client, &trust).await;
+    assert_eq!(
+        listed.len(),
+        1,
+        "a trusted, reachable peer must appear: {listed:?}"
+    );
+    assert_eq!(listed[0].endpoint_id, server.id);
+    assert_eq!(listed[0].label.as_deref(), Some("server"));
+    assert!(
+        !listed[0].host_triple.is_empty(),
+        "the entry must carry what the selector routes on"
+    );
+
+    // Drop the peer: revoking trust is what an operator does, and the directory
+    // must stop offering it immediately.
+    trust.untrust(&server.id).unwrap();
+    let after = vox_mesh_transport::directory(&client, &trust).await;
+    assert!(after.is_empty(), "an untrusted peer must vanish: {after:?}");
+}
+
+#[tokio::test]
+async fn an_unreachable_peer_is_omitted_rather_than_failing_the_whole_directory() {
+    // One dark machine must not hide the others -- the old HTTP directory
+    // returned a list someone asserted; this one returns what answered.
+    let server = start_server().await;
+    let client = client_endpoint(SecretKey::generate()).await;
+    let dir = tempfile::tempdir().unwrap();
+    let trust = Arc::new(MeshTrust::at(&dir.path().join("mesh_trust.json")));
+
+    // A peer that will never answer: valid id, address nothing listens on.
+    let ghost = SecretKey::generate().public();
+    trust
+        .trust_with_addrs(&ghost, Some("ghost"), &["127.0.0.1:1".parse().unwrap()])
+        .unwrap();
+    trust
+        .trust_with_addrs(&server.id, Some("real"), &loopback_addr_of(&server))
+        .unwrap();
+    server.trust.trust(&client.id(), None).unwrap();
+
+    let listed = vox_mesh_transport::directory(&client, &trust).await;
+    assert_eq!(
+        listed
+            .iter()
+            .map(|e| e.label.as_deref())
+            .collect::<Vec<_>>(),
+        vec![Some("real")],
+        "the reachable peer survives the unreachable one: {listed:?}"
+    );
+}
+
+#[test]
+fn a_peer_with_no_stored_address_is_not_dialable() {
+    // Regression guard for the mDNS finding: an EndpointId alone cannot be
+    // dialed, so pairing MUST capture addresses or the directory is always empty.
+    let dir = tempfile::tempdir().unwrap();
+    let trust = MeshTrust::at(&dir.path().join("mesh_trust.json"));
+    let id = SecretKey::generate().public();
+    trust.trust(&id, None).unwrap();
+    assert!(
+        trust.rows()[0].addrs.is_empty(),
+        "plain trust() records no addresses; trust_with_addrs is the pairing path"
+    );
 }

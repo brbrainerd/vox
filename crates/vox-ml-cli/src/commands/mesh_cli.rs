@@ -106,11 +106,17 @@ pub async fn run(cmd: MeshCli, json: bool) -> Result<()> {
                         TrustLevel::Sandboxed => "sandboxed",
                         TrustLevel::Native => "NATIVE",
                     };
+                    let reach = if r.addrs.is_empty() {
+                        " (no address — re-pair; not reachable)"
+                    } else {
+                        ""
+                    };
                     println!(
-                        "{}  {:<10}  {}",
+                        "{}  {:<10}  {}{}",
                         r.endpoint_id,
                         level,
-                        r.label.as_deref().unwrap_or("")
+                        r.label.as_deref().unwrap_or(""),
+                        reach
                     );
                 }
             }
@@ -203,7 +209,13 @@ pub async fn run(cmd: MeshCli, json: bool) -> Result<()> {
                     }
                 }
                 let trust = MeshTrust::at(&trust_path());
-                trust.trust(&peer, label.as_deref())?;
+                // Capture the ticket's addresses. Pairing is the only moment they
+                // are known, and without them the peer directory can never reach
+                // this peer -- mDNS does not announce, so an EndpointId alone is
+                // not dialable.
+                let addrs: Vec<std::net::SocketAddr> =
+                    ticket.endpoint_addr().ip_addrs().copied().collect();
+                trust.trust_with_addrs(&peer, label.as_deref(), &addrs)?;
                 println!("Trusted {peer} (sandboxed).");
 
                 let sk = identity::load_or_create(&key_path())?;

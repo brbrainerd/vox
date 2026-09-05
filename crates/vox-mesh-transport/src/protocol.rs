@@ -76,7 +76,15 @@ impl Isolation {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum JobResponse {
     /// Capability answer to [`JobRequest::Probe`].
-    Probed { host_triple: String, vox: String },
+    Probed {
+        host_triple: String,
+        vox: String,
+        /// What this peer will accept. Empty means "reachable but offering
+        /// nothing", which is a different fact from "unreachable" and the model
+        /// selector needs to tell them apart.
+        #[serde(default)]
+        task_kinds: Vec<TaskKind>,
+    },
     /// Job output, already bounded by [`JobLimits::max_output_bytes`].
     Output(Vec<u8>),
     /// A refusal or a failure, phrased for a human.
