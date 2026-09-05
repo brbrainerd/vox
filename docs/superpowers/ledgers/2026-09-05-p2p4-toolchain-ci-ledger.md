@@ -174,3 +174,57 @@ failure mode to the two least healthy lanes.
 - **Workflow health** (46 workflows, last 30 runs, cancelled split from failed):
   18 healthy / 10 all-cancelled / 10 broken / 3 flaky / 3 never-run / 2 all-skipped.
   Raw table and per-workflow failing steps were captured during execution.
+
+## 8. Workspace test sweep — the 20 failures, measured and attributed
+
+The plan asked for this to be recorded in-repo because it "existed only in a conversation".
+Command (nextest, so the counts are comparable to CI's):
+
+    cargo nextest run --workspace --exclude vox-gui --no-fail-fast
+
+Run on the settled branch tip:
+
+    11582 tests run: 11567 passed, 15 failed, 143 skipped
+
+**All 15 are pre-existing.** They cluster into related families, which is what genuine
+breakage looks like — not scattered flakiness:
+
+| count | area | tests |
+|---|---|---|
+| 4 | `vox-compiler::emission_ladder_test` | ladder_{auth_patterns,crud_api,db_native_ir}_compiles_as_rust_script, ladder_contract_drives_each_fixture_target |
+| 4 | `vox-codegen::emit_compile_harness` | golden_option_type_compiles, ladder_{auth_patterns,crud_api,db_native_ir}_golden_compiles |
+| 3 | `vox-cli` integration | ci_workflow_contract linux_ci_runs_workspace_tests…, command_catalog_paths_match_baseline, db_migrate_semantics migrate_dry_run_defaults_to_local_codex… |
+| 2 | `vox-arch-check::integration` | arch_check_description_rule_fixture, arch_check_smoke_fixture |
+| 2 | `vox-orchestrator::models::select` | select_with_empty_policy_falls_through_to_cascade, select_with_premium_alias_honors_alias_when_intelligence_high |
+
+The two `select` failures were the only ones this branch could plausibly have caused — its
+clippy pass rewrote `and_then(|o| if p(o) { Some(o) } else { None })` to `filter(p)` in that
+file. Ruled out by differential test: main's own `select.rs`, dropped into this tree, fails
+the identical two (31 passed / 2 failed). The rewrite is also semantically equivalent for
+`Option`. Pre-existing.
+
+### Two regressions this branch DID cause, found only by the sweep
+
+Both were in `vox-cli`. Every scoped check run during this work used `-p vox-cli-ci`, so
+every green result reported was true and none of them reached the crate that broke.
+
+1. `release_workflows_pin_the_toolchain` — asserts that a release workflow mentioning
+   `dtolnay/rust-toolchain` must also pin the version. release-gui.yml stopped USING the
+   action but still NAMED it in a comment I had deliberately kept as "still accurate". A
+   substring check cannot separate prose from configuration. The adjacent comment also read
+   "channel 1.96.0", stale the moment this branch's own bump landed.
+2. `merge_group_fanout_guard::ci_yml_merge_group_required_lane_fits_runner_ceiling` — buckets
+   merge_group jobs by label set and looked up `linux,self-hosted,x64`. Removing the
+   unschedulable `x64` label emptied that bucket; the guard panicked with its own
+   anticipatory message, "label set renamed?". It was right.
+
+Both fixed in c06ce0aa8. A first attempt at (2) used a blanket string replace and also
+rewrote a unit test's synthetic fixture, where the old label set was correct — a textual
+replace cannot distinguish a fact about the repo from a fact about a fixture.
+
+### The pattern behind all three
+Each defect came from applying a locally-correct edit uniformly: keeping a comment that read
+as accurate, removing a label everywhere, replacing a string everywhere. Each was right where
+I was looking and wrong somewhere I was not. It is the same shape as the plan errors catalogued
+in §1 — an absolute claim derived from a scoped look — which suggests it is a property of this
+kind of work rather than of any one agent.
