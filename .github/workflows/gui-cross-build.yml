@@ -66,16 +66,6 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.10
 
-      - uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-gui-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-gui-
-
       - name: Install WebKitGTK + ALSA (Ubuntu)
         if: runner.os == 'Linux'
         # libasound2-dev: vox-gui's cpal mic-capture (desktop speech-to-text) pulls

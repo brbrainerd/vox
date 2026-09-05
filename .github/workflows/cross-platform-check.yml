@@ -64,16 +64,6 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.10
 
-      - uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-cross-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-cross-
-
       # Per-PR depth (cheap): prove the whole workspace COMPILES on every OS.
       # vox-gui is a Tauri bin needing the pnpm-built ui/dist at compile time, so
       # it is excluded here and covered separately (Phase 5 / release-gui.yml).

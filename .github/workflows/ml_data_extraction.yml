@@ -3,7 +3,6 @@ name: ML Pipeline
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-
 on:
   push:
     branches:
@@ -81,17 +80,6 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust
 
-      - name: Cache Cargo
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-ml-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-ml-
-
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.10
 
@@ -168,7 +156,6 @@ jobs:
       - name: Run native eval on training corpus
         run: |
           ./target/release/vox mens corpus eval target/dogfood/train.jsonl -o target/dogfood/eval_results.json --print-summary 2>/dev/null || true
-
 
       - name: Count generated pairs
         id: count_pairs

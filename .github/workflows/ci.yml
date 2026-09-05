@@ -79,9 +79,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - id: k
-        run: echo "key=${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}" >> "$GITHUB_OUTPUT"
-
       # Compute path-filters.  On merge_group (the integration path) always emit
       # true so we never skip gates on the integration branch.
       # (merge_group has no github.base_ref, so the PR-style diff below would be
@@ -109,15 +106,30 @@ jobs:
             fi
           fi
 
-      - uses: ./.github/actions/setup-rust
+      - id: rust
+        uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy, llvm-tools-preview
+          # This job hand-rolls its own cache below so the resulting key can be
+          # exported as `cache-key` for the six downstream gating jobs to
+          # reuse (they don't each call setup-rust's own cache — that would
+          # give each job an independent, non-shared cache entry). Disable
+          # setup-rust's internal cache to avoid two caches writing the same
+          # paths under two different steps.
+          cache: "false"
+
+      - id: k
+        run: echo "key=${{ runner.os }}-cargo-${{ steps.rust.outputs.toolchain }}-${{ hashFiles('Cargo.lock') }}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ steps.k.outputs.key }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-${{ steps.rust.outputs.toolchain }}-
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
       - name: Build vox-cli (warms sccache + downstream artifact)
@@ -387,9 +399,13 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
+          cache: "false"
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -691,9 +707,13 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy, llvm-tools-preview
+          cache: "false"
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -841,9 +861,13 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
+          cache: "false"
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -943,9 +967,13 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy, llvm-tools-preview
+          cache: "false"
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -1306,9 +1334,13 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
+          cache: "false"
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -1513,9 +1545,13 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
+          cache: "false"
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -1745,18 +1781,9 @@ jobs:
       - name: Install Rust toolchain
         uses: ./.github/actions/setup-rust
 
-      - name: Cache Cargo
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-browser-smoke-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-browser-smoke-
-            ${{ runner.os }}-cargo-
-
+      # setup-rust's own cache (cache: true default) already covers
+      # ~/.cargo/registry, ~/.cargo/git, and target/ keyed on OS + toolchain +
+      # Cargo.lock -- a separate hand-rolled cache here would just duplicate it.
       # Prefer nextest for ignored-only integration tests when present; compile-check so the lane
       # stays meaningful until CDP tests land on `vox-plugin-browser`.
       - name: CDP smoke (ignored tests or compile fallback)
@@ -1869,18 +1896,9 @@ jobs:
           fi
         continue-on-error: true
 
-      - name: Cache Cargo
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-gui-playwright-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-gui-playwright-
-            ${{ runner.os }}-cargo-
-
+      # setup-rust's own cache (cache: true default), installed earlier in this
+      # job, already covers ~/.cargo/registry, ~/.cargo/git, and target/ keyed
+      # on OS + toolchain + Cargo.lock -- no separate cache step needed here.
       - name: Install Playwright deps + Chromium
         run: |
           cd crates/vox-integration-tests
@@ -1931,16 +1949,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
-      - name: Cache Cargo
-        uses: actions/cache@v5
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-matrix-${{ matrix.crate }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-matrix-${{ matrix.crate }}-
-            ${{ runner.os }}-cargo-
+          # Per-matrix-leg cache: each crate's all-features build is independent,
+          # so give it its own cache entry instead of sharing one across the
+          # whole matrix (setup-rust's cache already keys on OS + toolchain +
+          # Cargo.lock; this just adds the per-crate discriminator that the old
+          # hand-rolled `-matrix-${{ matrix.crate }}-` cache key provided).
+          cache-key-suffix: -matrix-${{ matrix.crate }}
       - name: Check with all features
         run: cargo check -p ${{ matrix.crate }} --all-features

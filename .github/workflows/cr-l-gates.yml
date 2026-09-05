@@ -67,7 +67,14 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-cr-l-gates-${{ hashFiles('**/Cargo.lock') }}
+          # This job installs no toolchain of its own (relies on the self-hosted
+          # image's rustup auto-switching on rust-toolchain.toml), so there's no
+          # setup-rust `toolchain` output to key on. Hashing rust-toolchain.toml
+          # alongside Cargo.lock makes the key toolchain-sensitive without one --
+          # anchored to the top-level Cargo.lock only, per the setup-rust action's
+          # rationale (the `**/` glob also matches server/telemetry/Cargo.lock,
+          # a deliberately excluded separate workspace).
+          key: ${{ runner.os }}-cargo-cr-l-gates-${{ hashFiles('rust-toolchain.toml', 'Cargo.lock') }}
 
       - name: Install system deps (dbus/GTK required by wry/keyring on Linux)
         # `|| true` on update only: this shared self-hosted runner has other
@@ -154,7 +161,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-arch-check-${{ hashFiles('**/Cargo.lock') }}
+          # See the `umbrella` job's cache step for why rust-toolchain.toml is
+          # hashed alongside Cargo.lock here (no setup-rust toolchain output to
+          # key on in this job).
+          key: ${{ runner.os }}-cargo-arch-check-${{ hashFiles('rust-toolchain.toml', 'Cargo.lock') }}
 
       - name: Install system deps (dbus/GTK required by wry/keyring on Linux)
         # `|| true` on update only: this shared self-hosted runner has other
