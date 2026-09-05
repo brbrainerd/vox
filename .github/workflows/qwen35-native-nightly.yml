@@ -12,7 +12,7 @@ env:
 jobs:
   qwen35-native-smoke:
     name: Native Qwen3.5 smoke ladder
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     # The training step itself is bounded (--max-runtime-secs 300), but build
     # + corpus-prep steps aren't — without this, a hang defaults to GitHub's
     # 360-min job timeout, squatting a scarce self-hosted/GPU runner slot for

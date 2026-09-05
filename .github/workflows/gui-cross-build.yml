@@ -23,7 +23,7 @@ jobs:
   matrix-setup:
     name: Compute GUI matrix (Win/macOS off per-PR)
     # Pure-bash compute job — runs on the local fleet per local-first policy.
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 10
     outputs:
       include: ${{ steps.gen.outputs.include }}

@@ -40,7 +40,7 @@ jobs:
     name: Generate + export Expo bundle
     # Tier: heavy (self-hosted). merge_group + 'full-ci' label only.
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -103,7 +103,7 @@ jobs:
   # ── Cloud APK build: only when an Expo account token is wired up. ─────────
   eas-build:
     name: EAS cloud build (Android APK)
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 20
     needs: bundle
     # NOTE: the `secrets` context is NOT allowed in a job-level `if:` (GitHub

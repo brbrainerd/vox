@@ -57,7 +57,7 @@ env:
 jobs:
   corpus-feedback:
     name: Exercise loop + aggregate
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -211,7 +211,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   stdlib-coverage:
     name: stdlib-coverage parity
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -330,7 +330,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   scripts-check:
     name: vox check on scripts/
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7

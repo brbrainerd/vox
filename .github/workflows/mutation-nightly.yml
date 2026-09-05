@@ -23,7 +23,7 @@ env:
 jobs:
   cargo-mutants:
     name: cargo-mutants (vox-compiler)
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     # Without this, a hang defaults to GitHub's 360-min job timeout, squatting
     # a scarce self-hosted runner slot for up to 6h and starving the other
     # nightlies (2026-07-27 audit finding — this and the Qwen3.5 job were the

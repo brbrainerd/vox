@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   ts-noemit:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7

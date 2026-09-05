@@ -55,7 +55,7 @@ permissions:
 jobs:
   umbrella:
     name: vox audit --gate all --strict-block-ga
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -142,7 +142,7 @@ jobs:
 
   arch-check-evidence:
     name: vox-arch-check evidence-ledger lint
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7

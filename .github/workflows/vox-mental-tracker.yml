@@ -23,7 +23,7 @@ env:
 
 jobs:
   vox-check:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -35,7 +35,7 @@ jobs:
         working-directory: "."
 
   vitest:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -60,7 +60,7 @@ jobs:
         working-directory: apps/vox-mental-tracker
 
   playwright:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -109,7 +109,7 @@ jobs:
           if-no-files-found: ignore
 
   contracts:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -125,7 +125,7 @@ jobs:
 
   app-summary:
     needs: [vox-check, vitest, playwright, contracts]
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 10
     if: always()
     steps:

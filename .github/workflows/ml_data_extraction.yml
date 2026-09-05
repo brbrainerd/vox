@@ -60,7 +60,7 @@ concurrency:
 jobs:
   extract:
     name: Extract & Validate Training Corpus
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     # Missing until 2026-07-27 (found in the same audit that fixed the
     # nightly workflows' missing timeouts) — GitHub's 360-min default lets
     # a hang squat a scarce self-hosted runner slot for hours.

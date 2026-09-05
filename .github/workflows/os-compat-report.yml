@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: [self-hosted, linux, x64]
+          - runner: [self-hosted, linux]
             label: self-hosted linux
           - runner: macos-latest
             label: macOS
