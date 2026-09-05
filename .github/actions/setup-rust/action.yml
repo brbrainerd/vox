@@ -1,0 +1,154 @@
+name: setup-rust
+description: >-
+  Install the workspace's SSOT-pinned Rust toolchain and configure a
+  toolchain-aware cargo cache. The version, default components, and default
+  targets are always read from contracts/toolchain/workspace-toolchain.v1.yaml
+  -- there is deliberately no `toolchain` input, so a call site can never
+  hand-pin a version that drifts from the SSOT.
+
+inputs:
+  components:
+    description: >-
+      Extra rustup components beyond the SSOT's own list, comma- and/or
+      space-separated (e.g. "llvm-tools-preview" or "rustfmt, clippy").
+      Unioned with the SSOT's components.rust list.
+    required: false
+    default: ""
+  targets:
+    description: >-
+      Extra target triples beyond the SSOT's own list, comma- and/or
+      space-separated. Callers may pass `${{ }}` expressions (e.g.
+      `${{ matrix.target }}`). Unioned with the SSOT's targets.rust list.
+    required: false
+    default: ""
+  cache:
+    description: Whether to configure the cargo/target cache.
+    required: false
+    default: "true"
+  cache-key-suffix:
+    description: Extra job-discriminating suffix appended to the cache key.
+    required: false
+    default: ""
+
+outputs:
+  toolchain:
+    description: The Rust toolchain version resolved from the SSOT (e.g. "1.96.0").
+    value: ${{ steps.ssot.outputs.toolchain }}
+
+runs:
+  using: composite
+  steps:
+    - id: ssot
+      name: Read Rust toolchain from SSOT
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        ssot_file="${GITHUB_ACTION_PATH}/../../../contracts/toolchain/workspace-toolchain.v1.yaml"
+        if [[ ! -f "$ssot_file" ]]; then
+          echo "::error::SSOT file not found at $ssot_file -- was actions/checkout run before this action?" >&2
+          exit 1
+        fi
+
+        # Portable parse: POSIX awk only (no `grep -oP`, which is GNU-only and
+        # fails on macOS runners and under some `act` images -- this action
+        # exists to replace exactly that failure mode). Verified against
+        # macOS's built-in one-true-awk in addition to gawk/mawk on Linux.
+
+        toolchain=$(awk '
+          /^versions:/{f=1;next}
+          f && /^[^[:space:]]/{f=0}
+          f && /^[[:space:]]*rust:[[:space:]]*"/{
+            match($0,/"[^"]*"/); print substr($0,RSTART+1,RLENGTH-2); exit
+          }
+        ' "$ssot_file")
+
+        if [[ -z "$toolchain" ]]; then
+          echo "::error::could not parse versions.rust out of $ssot_file" >&2
+          exit 1
+        fi
+
+        ssot_components=$(awk -v section="components" '
+          $0 ~ "^"section":"{insec=1;next}
+          insec && /^[^[:space:]]/{insec=0}
+          insec && /^[[:space:]]*rust:[[:space:]]*$/{inrust=1;next}
+          insec && inrust && /^[[:space:]]*-[[:space:]]*"/{
+            match($0,/"[^"]*"/); print substr($0,RSTART+1,RLENGTH-2); next
+          }
+          insec && inrust && !/^[[:space:]]*-/{inrust=0}
+        ' "$ssot_file")
+
+        ssot_targets=$(awk -v section="targets" '
+          $0 ~ "^"section":"{insec=1;next}
+          insec && /^[^[:space:]]/{insec=0}
+          insec && /^[[:space:]]*rust:[[:space:]]*$/{inrust=1;next}
+          insec && inrust && /^[[:space:]]*-[[:space:]]*"/{
+            match($0,/"[^"]*"/); print substr($0,RSTART+1,RLENGTH-2); next
+          }
+          insec && inrust && !/^[[:space:]]*-/{inrust=0}
+        ' "$ssot_file")
+
+        echo "toolchain=${toolchain}" >> "$GITHUB_OUTPUT"
+
+        # Normalize each list to a single comma-separated line (no spaces),
+        # deduping via a simple awk pass so a caller re-listing an SSOT
+        # component/target doesn't produce a duplicate rustup arg.
+        {
+          echo "ssot-components<<EOF_SSOT_COMPONENTS"
+          echo "$ssot_components"
+          echo "EOF_SSOT_COMPONENTS"
+        } >> "$GITHUB_OUTPUT"
+        {
+          echo "ssot-targets<<EOF_SSOT_TARGETS"
+          echo "$ssot_targets"
+          echo "EOF_SSOT_TARGETS"
+        } >> "$GITHUB_OUTPUT"
+
+    - id: union
+      name: Union caller-supplied components/targets with the SSOT lists
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        normalize_and_union() {
+          # Args: SSOT newline list (via stdin heredoc-free var), extra
+          # comma/space-separated string. Emits a deduped comma-separated list.
+          local ssot_list="$1"
+          local extra="$2"
+          printf '%s\n' "$ssot_list" | tr ',' '\n' | tr ' ' '\n' \
+            | awk 'NF' \
+            | { cat; printf '%s\n' "$extra" | tr ',' '\n' | tr ' ' '\n' | awk 'NF'; } \
+            | awk '!seen[$0]++' \
+            | paste -sd, -
+        }
+
+        components=$(normalize_and_union "${{ steps.ssot.outputs.ssot-components }}" "${{ inputs.components }}")
+        targets=$(normalize_and_union "${{ steps.ssot.outputs.ssot-targets }}" "${{ inputs.targets }}")
+
+        echo "components=${components}" >> "$GITHUB_OUTPUT"
+        echo "targets=${targets}" >> "$GITHUB_OUTPUT"
+
+    # Pinned by commit SHA (dtolnay/rust-toolchain, branch `master` at time of
+    # pinning) -- never a floating ref such as @stable/@master/@v1.
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+      with:
+        toolchain: ${{ steps.ssot.outputs.toolchain }}
+        components: ${{ steps.union.outputs.components }}
+        targets: ${{ steps.union.outputs.targets }}
+
+    - name: Cache cargo registry, git, and target directories
+      if: ${{ inputs.cache == 'true' }}
+      uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target/
+        # Anchored to the top-level Cargo.lock only -- `**/Cargo.lock` also
+        # matches server/telemetry/Cargo.lock (a deliberately separate,
+        # excluded workspace) and any Cargo.lock copied under target/, which
+        # was silently poisoning 18 of the 26 pre-existing cache keys.
+        key: ${{ runner.os }}-cargo-${{ steps.ssot.outputs.toolchain }}-${{ hashFiles('Cargo.lock') }}${{ inputs.cache-key-suffix }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ steps.ssot.outputs.toolchain }}-
