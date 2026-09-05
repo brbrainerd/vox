@@ -807,26 +807,17 @@ jobs:
           fi
 
       - name: Toolchain SSoT Drift Guard
-        shell: bash
-        run: |
-          set -euo pipefail
-          EXPECTED_RUST=$(grep -oP 'rust:\s*"\K[^"]+' contracts/toolchain/workspace-toolchain.v1.yaml)
-          ACTUAL_RUST_TOOLCHAIN=$(grep -oP 'channel\s*=\s*"\K[^"]+' rust-toolchain.toml)
-          ACTUAL_CARGO=$(grep -oP '^rust-version\s*=\s*"\K[^"]+' Cargo.toml)
-          
-          if [[ "$EXPECTED_RUST" != "$ACTUAL_RUST_TOOLCHAIN" ]]; then
-            echo "Drift detected: SSoT wants Rust $EXPECTED_RUST but rust-toolchain.toml has $ACTUAL_RUST_TOOLCHAIN"
-            exit 1
-          fi
-          
-          # Cargo.toml rust-version usually only specifies major.minor, not patch.
-          # We check if it matches the prefix.
-          if [[ ! "$EXPECTED_RUST" == "$ACTUAL_CARGO"* ]]; then
-            echo "Drift detected: SSoT wants Rust $EXPECTED_RUST but Cargo.toml rust-version is $ACTUAL_CARGO"
-            exit 1
-          fi
-          
-          echo "Toolchain SSoT Parity Verified."
+        run: ./target/debug/vox --quiet ci toolchain-ssot
+
+      # version_ssot.rs's own module doc claims drift here is "a CI failure
+      # rather than a release surprise" -- ssot_probe (no args, no --write)
+      # is the only place that check actually runs; wire it in next to the
+      # toolchain guard above so both SSOT checks live in the same
+      # always-completing lane instead of only in the workflow_dispatch-only
+      # release-prepare.yml (0 runs ever). Never pass --write here -- that is
+      # the release bump path and stays in release-prepare.yml.
+      - name: Version SSoT Drift Guard
+        run: cargo run -q -p vox-cli-ci --example ssot_probe
 
       # Workspace-wide pattern drift check (6 rules: reqwest_bypass, vox_path_literal,
       # timeout_literal, serde_default_dup, version_string, bearer_header).
