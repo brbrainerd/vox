@@ -509,18 +509,42 @@ Coverage of these classes by detector + severity + enforcement point (and the st
 
 ## PR & Review Discipline (Required, Cross-Tool)
 
-> **Canonical config:** `.coderabbit.yaml` (repo root; CodeRabbit reads it from the **default branch**).
+> **CodeRabbit is RETIRED.** Do not comment `@coderabbitai review`, do not wait on
+> an automated reviewer, and do not treat a PR as reviewed because it was opened.
+> No bot will review it. Review is now performed by the agent or human opening the
+> PR, before asking for a merge.
 
-Automated PR review (CodeRabbit) is **rate-limited and shared** across every branch, worktree, and IDE (same GitHub identity, one per-developer allowance) — and `.coderabbit.yaml` sets `auto_review.auto_incremental_review: false`, so a PR is reviewed **once on open**, never automatically on later pushes.
+Because nothing reviews a PR automatically:
 
-Therefore, across **all** branches/tabs/IDEs:
+- **Review your own diff before proposing a merge.** Read every hunk you are about
+  to ship, not just the ones you remember writing. Run `/code-review high` (or an
+  equivalent careful pass) over the full branch range, not the last commit.
+- **Batch commits; push once when the branch is review-ready** — not after every commit.
+- **Don't open a PR before it's review-ready.** Use a **Draft** if you must push early.
+- `vox ci pre-push` prints an **advisory** reminder on re-push to a branch with an
+  upstream; it never blocks.
 
-- **Batch commits; push once when the PR is review-ready** — not after every commit.
-- **Request re-review explicitly** by commenting **`@coderabbitai review`** — never by pushing repeatedly.
-- **Don't open a PR before it's review-ready.** If you must push early, keep it a **Draft** (`auto_review.drafts: false`).
-- `vox ci pre-push` prints an **advisory** reminder on re-push to a branch with an upstream; it never blocks.
+**Verify security-relevant guards by mutation, not by observing green tests.** Break
+the guard deliberately and confirm the test fails, then restore. A test that passes
+against both the fixed and unfixed code is worthless, and this repo has shipped
+several: a validator unit-tested directly still passed with every call site deleted,
+and a shell test asserting only "failed, no marker" could not distinguish *failed
+closed* from *never ran*. Guard the mutation with a before/after presence check —
+a concurrent `cargo fmt` or another agent can revert your edit and hand you a
+meaningless pass.
 
-One-line takeaway: **one deliberate review per ready PR**, not one per push.
+**Never edit a tree another agent owns.** "Completed" status is not sufficient;
+orphaned background shells keep writing. Verify what actually shipped by inspecting
+the **committed object** (`git show <sha>:<path>`), never the working tree — a clean
+working tree can hide a poisoned commit.
+
+One-line takeaway: **nothing reviews it but you.**
+
+**Residual CodeRabbit surfaces (not yet removed).** `.coderabbit.yaml`,
+`contracts/review/coderabbit-semantic-groups.v1.yaml`, and CodeRabbit entries in
+`.github/workflows/ci.yml`, `contracts/operations/catalog.v1.yaml`, and the secrets
+registry are still present. Removing them is a tracked migration of its own — do not
+half-remove them in an unrelated PR, and do not rely on them meanwhile.
 
 ## Markdown Hygiene and Code Snippets (Doctest Policy)
 

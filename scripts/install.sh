@@ -115,6 +115,17 @@ main() {
         | head -1 \
         | sed 's/.*"tag_name" *: *"\([^"]*\)".*/\1/')"
     [ -n "$_tag" ] || err "Could not determine latest release tag from GitHub API"
+    # The tag is remote input and is interpolated into three download URLs
+    # below. A tag bearing `/` or `..` re-points those URLs at another path --
+    # and checksums.txt travels with the archive, so verification would still
+    # agree with itself. Allowlist the shape a real release tag has.
+    case "$_tag" in
+        v[0-9]*) ;;
+        *) err "Refusing a release tag with an unexpected shape: $_tag" ;;
+    esac
+    case "$_tag" in
+        */*|*..*|*' '*) err "Refusing a release tag containing a path separator: $_tag" ;;
+    esac
     say "Latest release: $_tag"
 
     _archive="voxup-${_tag}-${_target}.tar.gz"

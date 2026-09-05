@@ -17,6 +17,11 @@ pub fn top_level_permissions(yml: &str) -> Option<serde_yaml::Value> {
 /// Check every workflow. In `strict` mode a missing block is an error.
 pub fn run(root: &Path, strict: bool) -> Result<()> {
     let dir = root.join(".github/workflows");
+    // A checkout without workflows is not a violation — `read_dir` on a missing
+    // path is an Err, which would fail every pre-push in such a tree.
+    if !dir.is_dir() {
+        return Ok(());
+    }
     let mut offenders = Vec::new();
     for entry in std::fs::read_dir(&dir)? {
         let path = entry?.path();
@@ -59,15 +64,24 @@ mod tests {
     #[test]
     fn release_workflows_grant_write_only_where_needed() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        // release-gui's sole job both builds and uploads, so it needs write
-        // until that job is split — see the plan's honesty table.
         for (wf, writer) in [
             ("release-binaries.yml", Some("publish")),
-            ("release-gui.yml", Some("build-tauri")),
-            // `publish` attaches the .deb and the other installers to the
-            // release, which needs contents:write. The job was added by
-            // 96c1c7c84 after this expectation was written as `None`, so the
-            // test — not the workflow — was the stale half.
+            // Both rows moved, for different reasons, in changes that landed
+            // independently — so neither side of this conflict was right alone.
+            //
+            // release-gui: #473's d21ae53d6 moved contents:write off `build-tauri`,
+            // a 240-minute job running `pnpm install`, onto a download-and-attach
+            // `publish` job. Holding a release-writing token for four hours across
+            // a dependency install is the thing that change fixes.
+            //
+            // release-installers: `publish` attaches the .deb and the other
+            // installers, which needs write. That job arrived in 96c1c7c84 after
+            // this expectation was first written as `None`, so the test was the
+            // stale half there.
+            //
+            // Verified against the merged tree rather than assumed: `publish` is
+            // the sole contents:write holder in both workflows.
+            ("release-gui.yml", Some("publish")),
             ("release-installers.yml", Some("publish")),
         ] {
             let text = std::fs::read_to_string(root.join(".github/workflows").join(wf))

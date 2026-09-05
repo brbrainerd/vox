@@ -37,6 +37,20 @@ fn repo_root() -> PathBuf {
     }
 }
 
+/// Sidecar command paths this panel invokes.
+///
+/// These exist as constants, and are validated against the CLI's own command
+/// catalog by `sidecar_command_paths_exist_in_the_cli_catalog` below, because
+/// the GUI reaches the CLI through a subprocess: a path that stops existing is
+/// a RUNTIME failure with no compile-time signal. The generic action-manifest
+/// path (`execute.rs`) is already safe — it receives catalog-derived paths — so
+/// hand-written panels like this one are the only place that can drift.
+///
+/// Build every sidecar argv from these, never from inline string literals; a
+/// literal is invisible to the test and reintroduces the silent break.
+pub(crate) const SEMANTIC_SUBMIT_PATH: [&str; 3] = ["review", "coderabbit", "semantic-submit"];
+pub(crate) const DB_STATUS_PATH: [&str; 3] = ["review", "coderabbit", "db-status"];
+
 /// Run the `vox` sidecar with `args`, returning stdout (or stderr on failure).
 async fn run_vox(app: &AppHandle, args: Vec<String>) -> Result<String, String> {
     let out = app
@@ -65,16 +79,17 @@ fn submit_args(
     full_repo: bool,
     execute: bool,
 ) -> Vec<String> {
-    let mut a = vec![
-        "review".into(),
-        "coderabbit".into(),
-        "semantic-submit".into(),
+    let mut a: Vec<String> = SEMANTIC_SUBMIT_PATH
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    a.extend([
         repo.into(),
         "--max-files-per-pr".into(),
         cap.to_string(),
         "--rank-weights".into(),
         rank_weights.into(),
-    ];
+    ]);
     if full_repo {
         a.push("--full-repo".into());
     } else {
@@ -186,12 +201,11 @@ pub async fn coderabbit_report(app: AppHandle) -> Result<Value, String> {
     // difference instead of silently rendering an error as an empty report.
     let (db_status, db_error) = match run_vox(
         &app,
-        vec![
-            "review".into(),
-            "coderabbit".into(),
-            "db-status".into(),
-            "--json".into(),
-        ],
+        DB_STATUS_PATH
+            .iter()
+            .map(|s| (*s).to_string())
+            .chain(std::iter::once("--json".to_string()))
+            .collect(),
     )
     .await
     {
@@ -211,4 +225,60 @@ pub fn coderabbit_token_present() -> bool {
     vox_secrets::resolve_secret(vox_secrets::SecretId::ForgeToken)
         .expose()
         .is_some()
+}
+
+#[cfg(test)]
+mod sidecar_path_tests {
+    use super::*;
+    use serde_yaml::Value;
+
+    /// The GUI reaches the CLI through a subprocess, so a removed subcommand does
+    /// not fail to compile — the panel breaks at runtime, silently, for whoever
+    /// clicks it.
+    ///
+    /// This validates against the OPERATIONS CATALOG rather than
+    /// `vox_cli::command_catalog::build_catalog()`, deliberately. `coderabbit` is
+    /// not a default feature of `vox-cli`, and `vox-gui` links it with default
+    /// features, so the compiled clap catalog here would never contain these
+    /// paths and the assertion would fail for a reason that has nothing to do
+    /// with the command actually existing. The YAML catalog is feature-
+    /// independent and carries `feature_gate: coderabbit` as data.
+    ///
+    /// SCOPE, stated honestly: this asserts the ROOT command still exists. That
+    /// is the failure mode that matters here — retiring CodeRabbit deletes the
+    /// whole `vox review` surface — but it does NOT catch a rename of a leaf
+    /// subcommand like `semantic-submit`. Catching that needs the feature
+    /// enabled in a test build; see the residual-gap note in the retirement plan.
+    #[test]
+    fn sidecar_root_commands_still_exist_in_the_operations_catalog() {
+        let root = vox_repository::resolve_repo_root_for_ci();
+        let raw = std::fs::read_to_string(root.join("contracts/operations/catalog.v1.yaml"))
+            .expect("read operations catalog");
+        let parsed: Value = serde_yaml::from_str(&raw).expect("parse operations catalog");
+        let ops = parsed
+            .get("operations")
+            .and_then(Value::as_sequence)
+            .expect("catalog has an operations sequence");
+
+        let cli_roots: Vec<String> = ops
+            .iter()
+            .filter_map(|op| {
+                op.get("cli")?
+                    .get("path")?
+                    .as_sequence()?
+                    .first()?
+                    .as_str()
+                    .map(str::to_owned)
+            })
+            .collect();
+
+        for path in [SEMANTIC_SUBMIT_PATH.as_slice(), DB_STATUS_PATH.as_slice()] {
+            let wanted = path[0];
+            assert!(
+                cli_roots.iter().any(|r| r == wanted),
+                "the GUI shells out to `vox {}`, but no operation in                  contracts/operations/catalog.v1.yaml declares a cli.path starting with                  {wanted:?}. The panel would fail at runtime with no compile error. If this                  command was retired on purpose, remove the panel and these constants too.",
+                path.join(" ")
+            );
+        }
+    }
 }
