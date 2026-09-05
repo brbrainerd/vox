@@ -26,12 +26,16 @@ fn auto_heal_reaches_post_heal_probe_without_a_compiler_on_path() {
     // SAFETY: this is the only test in this binary that touches `PATH`, and
     // integration test files each compile to their own test binary, so there
     // is no cross-test race on the process environment.
+    #[allow(unsafe_code)]
     unsafe {
         std::env::set_var("PATH", dir.path());
     }
 
     let result = vox_ml_cli::commands::mens::plugin_heal::ensure_cuda_plugin(true);
 
+    // SAFETY: see the comment on the same call above — this restores the
+    // pre-test PATH before any other test in this binary can observe it.
+    #[allow(unsafe_code)]
     unsafe {
         match &original_path {
             Some(p) => std::env::set_var("PATH", p),
