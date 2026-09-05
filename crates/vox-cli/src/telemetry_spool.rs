@@ -19,10 +19,15 @@ fn default_spool_root() -> PathBuf {
             return PathBuf::from(t);
         }
     }
-    std::env::current_dir()
-        .unwrap_or_else(|_| PathBuf::from("."))
-        .join(".vox")
-        .join("telemetry-upload-queue")
+    // Anchored to the REPOSITORY ROOT, never to the current directory.
+    //
+    // This used to be `current_dir().join(".vox")`. Telemetry initializes before
+    // command dispatch (see lib.rs), so every `vox` invocation from a
+    // subdirectory created a fresh `.vox/telemetry-upload-queue/` right there.
+    // Two strays were found in a single afternoon, in different directories, and
+    // a stray `.vox` under `crates/` has broken cargo before now because the root
+    // manifest globs `crates/*`.
+    vox_config::paths::repo_dot_vox_dir().join("telemetry-upload-queue")
 }
 
 /// Resolved spool directory.
