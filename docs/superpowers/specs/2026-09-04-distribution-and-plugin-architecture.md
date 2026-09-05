@@ -111,7 +111,9 @@ Measured against the tree at `main`:
 
 | # | Defect | Evidence |
 |---|---|---|
-| P1 | **Both GPU backends are unreachable for any installed user.** CUDA's `default-source` is `github:vox-foundation/vox-plugin-mens-candle-cuda`, which **404s**. Metal's is `local:crates/vox-plugin-mens-candle-metal` — a repo-relative path that does not exist off a clone, and `local:` is deliberately gated behind `VOX_LOCAL_PLUGIN_FALLBACK` because CWD-relative native code gets `dlopen`'d. | `catalog.toml:31,42`; PR #472 analysis |
+| P1 | **The entire plugin catalog is unreachable for an installed user** — broader than first stated. All **12** `github:vox-foundation/vox-plugin-*` sources 404, not just CUDA. Six sources are `local:<repo-relative path>`, which cannot resolve off a clone: `nvml-probe`, `mens-candle-metal`, `webhook`, `runtime-wasm`, `runtime-container`, `publication`. | `catalog.toml:20,30,40,154,172,181,190` |
+| P1b | **The release-asset URL is malformed regardless of source.** `install.rs:232` hardcodes `let version = "latest"`, producing `…/releases/latest/download/{id}-latest-{triple}.zip`. **Corrects an earlier claim in this spec** that the resolver already produces `…/download/v{version}/{id}-v{version}-{triple}.zip` — it does not, so repointing a source at a valid repo still 404s. | `install.rs:226-241` |
+| P1c | **`local:` has no env gate at all.** An earlier draft said it was "deliberately gated behind `VOX_LOCAL_PLUGIN_FALLBACK`". That variable **does not exist**. The real one is `VOX_NO_LOCAL_PLUGIN_FALLBACK` (opt-**out**, fallback on by default) and it guards only the `github:` branch (`install.rs:219`). The `local:` branch at `:226` is ungated. Metal is not "refused by design" — it is a plain unreachable-path bug. | `install.rs:213,219,226` |
 | P2 | Nothing loads Metal. Every `MlBackend` call site names `"mens-candle-cuda"` literally. | `schola/merge_qlora.rs:105` |
 | P3 | Metal training is a stub returning "requires host protocol (SP3-D)". | `vox-plugin-mens-candle-metal/src/training.rs:30,52` |
 | P4 | `requires-tag = "nvidia-gpu"` / `"apple-silicon"` exists in the catalog and **nothing consumes it**. The capability concept is declared but unwired. | `catalog.toml:30,41` |
@@ -289,7 +291,7 @@ Three audiences, and they want disjoint things:
 | Gets | compiler, stdlib, LSP, tree-sitter, `.vox` association | orchestrator, models, plugin host, GUI | `git clone` + rustup + pnpm |
 | Must NOT need | orchestrator, model catalog, GPU | the compiler surface | — |
 
-**B is deliberately not a package.** A contributor needs the 136-crate workspace,
+**B is deliberately not a package.** A contributor needs the 126-crate workspace,
 pinned Rust 1.96.0, pnpm, cargo-hakari, graphify and arch-check. No package
 manager should ever be the contributor path, and trying to make one serve that
 role is what produces the bleed described next.
@@ -338,7 +340,7 @@ Consequences, in order of severity:
 | # | Finding | Evidence |
 |---|---|---|
 | D1 | **No uninstall exists anywhere.** No `voxup uninstall` (only Install/Update/Proxy), no brew `uninstall` hook, no deb `postrm`. The only cleanup in the project is the MSI's PATH feature. | `crates/voxup/src/main.rs:24-37` |
-| D2 | `~/.vox/toolchains/vox-<version>/` accumulates **one full extraction per install, forever**; nothing prunes. With `~/.vox/bin` measured at 136 MB, this is the largest unbounded growth in the product. | `install.rs:97` |
+| D2 | `~/.vox/toolchains/vox-<version>/` would accumulate **one full extraction per install, forever**, with nothing pruning. Note the directory **does not currently exist** — voxup has never completed an install on this machine; the measured 136 MB is `~/.vox/bin`. The defect is real in the code path, not yet observable on disk. | `install.rs:97` |
 | D3 | PATH modification is **unconditional** — no `--no-modify-path`, which every packaging system and CI image expects. It also writes an undisclosed second copy at `~/.cargo/bin/vox`, not mentioned in the install output. | `shell.rs:8`, `install.rs:108,130` |
 | D4 | `bundle.active` defaults to **`false`** (`#[serde(default)] pub active: bool`, tauri-utils 2.9.3) and is unset. Whether `tauri build` honours it is UNVERIFIED — tauri-cli was not available to inspect — but it is a latent reason for producing no installers. | `config.rs:1564` |
 | D5 | No `bundle.category` / `shortDescription` → the generated Linux `.desktop` is **uncategorised and description-less**, and macOS gets no `LSApplicationCategoryType`. | derived from the empty bundle block |
@@ -392,13 +394,23 @@ raw success counts make concurrency supersessions look like failures:
 
 | Class | Count | Meaning |
 |---|---|---|
-| **ALL CANCELLED** | 8 | Never completes. Superseded by the next push before finishing. |
-| **BROKEN** | 13 | Completes, fails every time. |
+| **ALL CANCELLED** | 6 | Never completes. Superseded by the next push before finishing. |
+| **BROKEN** | 9 | Completes, fails every time. |
+| **ALL SKIPPED** | 1 | Runs, does nothing (`mobile-e2e-android`: 30/30 skipped). |
 | **FLAKY** | 3 | 33–40% success. |
-| **NEVER RUN** | 2 | Zero runs, ever. |
+| **NEVER RUN** | 3 | Zero runs (incl. `release-prepare.yml`, not even registered with GitHub). |
 | Healthy | ~21 | Real signal. |
 
-**26 of 47 workflows produce no reliable signal.**
+**22 of 46 workflows produce no reliable signal.**
+
+**Corrected 2026-09-05.** The first pass said 8 / 13 / 2 of 47 and *made the very
+error §11.4 warns against*: four of the thirteen "BROKEN" were predominantly
+**cancelled**, not failed — `mutation-nightly` (24c/5f), `qwen35-native-nightly`
+(22c/7f), `harness-eval-nightly` (23c/6f), `vox-mental-tracker` (23c/3f). Two of
+the eight "ALL CANCELLED" were wrong too: `mobile-e2e-android` is 30/30 *skipped*
+and `mobile-eas-build` is mostly skipped. And the denominator is 46 files, not 47
+— `gh workflow list` returns 47 because it counts two dynamic pseudo-workflows.
+Stating the rule is not the same as applying it.
 
 The ALL CANCELLED class is the important one, and it is the direct measurement
 of the feedback-latency complaint: `ci.yml` (28 cancelled), `compile-matrix`

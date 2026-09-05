@@ -21,18 +21,41 @@ See the index. The two that bite hardest here:
 
 ## Why this is the critical path
 
-Measured on `main`: **both GPU backends are unreachable for every installed user.**
+Measured on `main`, and **broader than the first draft of this plan claimed**:
 
-- `mens-candle-cuda` → `default-source = "github:vox-foundation/vox-plugin-mens-candle-cuda"`, which **404s**.
-- `mens-candle-metal` → `default-source = "local:crates/vox-plugin-mens-candle-metal"`, a repo-relative path that does not exist off a clone — and `local:` is deliberately gated behind `VOX_LOCAL_PLUGIN_FALLBACK` because CWD-relative native code gets `dlopen`'d.
+- **All 12** `github:vox-foundation/vox-plugin-*` sources 404 — not just CUDA. That
+  includes `oratio`, `populi-mesh`, `browser`, and seven `skill-*` plugins.
+- **Six** sources are `local:<repo-relative>` and cannot resolve off a clone:
+  `nvml-probe` (:20), `mens-candle-metal` (:40), `webhook` (:154), `runtime-wasm`
+  (:172), `runtime-container` (:181), `publication` (:190).
+- **The URL is malformed regardless.** `install.rs:232` hardcodes
+  `let version = "latest"`, emitting
+  `…/releases/latest/download/{id}-latest-{triple}.zip`. An earlier draft of this
+  plan said the resolver already produces `…/download/v{version}/{id}-v{version}-{triple}.zip`
+  and concluded that repointing was "sufficient". **That was wrong** — repointing
+  at a valid repo still 404s, and P4 would be asked to publish assets under a name
+  nothing ever requests.
+- **`local:` is not gated.** An earlier draft said it was "deliberately gated behind
+  `VOX_LOCAL_PLUGIN_FALLBACK`". **No such variable exists.** The real one is
+  `VOX_NO_LOCAL_PLUGIN_FALLBACK` (opt-**out**) and it guards only the `github:`
+  branch at `:219`; the `local:` branch at `:226` is ungated. Metal is not "refused
+  by design" — it is an unreachable-path bug.
 
-So CUDA 404s and Metal is refused by design. Everything else in the spec assumes this layer works.
+So the whole catalog is unreachable for an installed user. Everything else in the
+spec assumes this layer works.
+
+**Read `install.rs:213-241` before starting Task 2.**
 
 ---
 
 ## Task 1: Make the capability tags load-bearing
 
-`requires-tag = "nvidia-gpu"` / `"apple-silicon"` already exist in `catalog.toml` and **nothing reads them** (spec §4.1 P4). This is the piece no package manager can do.
+`requires-tag = "nvidia-gpu"` / `"apple-silicon"` already exist in `catalog.toml`
+(`:19, :29, :39`). **No *resolver* consumes them** — the only reader is
+`crates/vox-cli/src/commands/plugin/info.rs:22`, which prints the value. (An earlier
+draft said "nothing reads them"; that absolute phrasing would stall an executor who
+greps and finds the hit.) Making the tags decide *which plugin loads* is the piece
+no package manager can do.
 
 **Files:**
 - Create: `crates/vox-plugin-host/src/capability.rs`
@@ -91,17 +114,46 @@ fn probe_never_panics_and_always_reports_cpu_only() {
 - Modify: `crates/vox-plugin-catalog/catalog.toml`
 - Test: `crates/vox-plugin-catalog/tests/sources_are_reachable.rs` (create)
 
-`install_from_catalog` already resolves `github:OWNER/REPO` to
-`https://github.com/{gh}/releases/download/v{version}/{id}-v{version}-{triple}.zip`.
-Repointing both plugins at `github:vox-foundation/vox` and naming the release assets to match is sufficient — **no new source kind is needed** (this is PR #472's own finding).
+No new source *kind* is needed — but the existing resolver cannot be reused as-is
+(see "Why this is the critical path"). Step 0 extracts and tests URL construction
+first; only then is repointing meaningful.
 
-- [ ] **Step 1: Write the failing test** — assert no `[[plugin]]` has a `local:` `default-source`, and every `github:` source names a repo that exists.
+- [ ] **Step 0: Extract and test URL construction first.** This is the blocking
+      correction. Create `crates/vox-plugin-catalog/src/artifact.rs`:
+      `pub fn release_asset_url(gh: &str, id: &str, version: &str, triple: &str) -> String`.
+      Assert the exact literal, and assert it contains no `"latest"`:
 
-- [ ] **Step 2: Run it, confirm it fails** on `mens-candle-metal`'s `local:` source.
+```rust
+#[test]
+fn release_asset_url_interpolates_the_real_version() {
+    let u = release_asset_url("vox-foundation/vox", "mens-candle-metal", "0.6.0", "macos-aarch64");
+    assert_eq!(u, "https://github.com/vox-foundation/vox/releases/download/v0.6.0/mens-candle-metal-v0.6.0-macos-aarch64.zip");
+    assert!(!u.contains("latest"), "resolver must not emit the literal `latest`");
+}
+```
 
-- [ ] **Step 3: Repoint both** to `github:vox-foundation/vox`.
+- [ ] **Step 1: Write the failing test** — assert every `[[plugin]]` with
+      `payload-kind = "code"` resolves to a URL via `release_asset_url`.
+      **Do not** assert "no `local:` sources" — there are **six**, and only one is in
+      this task's scope, so that assertion stays red after the task is complete.
+      **Do not** assert "the repo exists": `github:vox-foundation/vox` obviously
+      exists, so it passes on a URL that 404s at download — the exact defect being
+      fixed. It is also a network call inside a unit test, which contradicts the
+      hermeticity gate P4 is adding.
+
+- [ ] **Step 2: Run it, confirm it fails.**
+      Run: `cargo test -p vox-plugin-catalog --all-targets artifact > /tmp/p1t2.log 2>&1; echo $?`
+      Expected: FAIL — `release_asset_url` not found.
+
+- [ ] **Step 3: Repoint the two GPU plugins** to `github:vox-foundation/vox`.
+      **Land the flip behind a fail-closed message naming the missing asset**, and do
+      not switch it live until P4 confirms the asset publishes — otherwise this
+      converts one 404 into two and removes the only signal that made the Metal case
+      legible. Record the `HEAD` status code when you flip it.
 
 - [ ] **Step 4: Run, confirm pass.**
+      Run: `cargo test -p vox-plugin-catalog --all-targets > /tmp/p1t2.log 2>&1; echo $?`
+      then `grep -E '^test result:' /tmp/p1t2.log` — fail if absent or `0 passed`.
 
 - [ ] **Step 5: Commit** — `fix(catalog): point GPU plugins at reachable release assets`
 
@@ -144,7 +196,14 @@ Every `MlBackend` call site names `"mens-candle-cuda"` literally, so **nothing c
 - Modify: `crates/vox-ml-cli/src/commands/mens/plugin_heal.rs`
 - Test: `crates/vox-ml-cli/tests/no_runtime_cargo.rs` (create)
 
-- [ ] **Step 1: Write the failing test** — grep the crate's own source for `Command::new("cargo")` outside `#[cfg(test)]` and assert zero matches. This is a lint, and it must be a lint: prose in a review will not hold the line.
+- [ ] **Step 1: Write the failing test** — assert no runtime `cargo` invocation.
+      A bare grep for `Command::new("cargo")` is **defeatable** (`Command::new(cargo_bin())`,
+      `env cargo`, a `const CARGO: &str`), so also assert behaviourally: run the heal
+      path with `PATH` set to an empty directory and assert it still succeeds.
+      **Scope note:** this lint covers `vox-ml-cli` only. There are ~9 more runtime-`cargo`
+      sites in `vox-cli` (`run.rs:209`, `test.rs:54`, `gui.rs:10,82,119`,
+      `checks_codex.rs:19,49`, `tail.rs:78`, `test_health.rs:14`) which **no plan owns**.
+      File a cross-plan request rather than reaching into them.
 
 - [ ] **Step 2: Run, confirm fail.**
 

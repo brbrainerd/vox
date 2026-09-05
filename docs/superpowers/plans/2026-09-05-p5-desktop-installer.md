@@ -30,10 +30,55 @@ See the index. Non-negotiable everywhere: assert on the artifact never the exit 
 
 ---
 
-## Task 1: Uninstall (D1, D2)
-- [ ] Add `voxup uninstall`: removes binaries, prunes `~/.vox/toolchains`, reverts the `# Added by voxup` profile blocks, and reports what it will not remove (user data).
+## Task 1: Uninstall (D1, D2) — **the most dangerous task in the seven plans**
+
+Two unrecoverable, silent losses are one naive implementation away. Read this
+before writing any code.
+
+**`~/.zshrc`.** On a pristine macOS account voxup *creates* it (`shell.rs:26-57`,
+via `fs::write`, truncating) containing only its own PATH line. Weeks later it is
+the user's shell rc, holding their aliases and init. "We created it, so delete it"
+destroys that — not in Trash, not in git. "Delete from the marker to EOF" is also
+wrong: the snippet is appended (`shell.rs:165`), so on a repeat install the marker
+may not be last.
+
+**`~/.vox/.vox-master-key`** — 32 bytes, the vault's fallback decryption key,
+sitting inside the directory an uninstaller is aimed at. `login.toml` and the model
+catalog are beside it.
+
+- [ ] Add `voxup uninstall` operating on an **explicit allowlist**: `~/.vox/bin`,
+      `~/.vox/toolchains`, `~/.vox/run`. **Never `~/.vox` itself. Never
+      `remove_dir_all` on any path outside the list.**
+- [ ] **Refuse to run if `HOME` is unset or empty.** `paths.rs:141` falls back to
+      `PathBuf::from(".")`, so an uninstall with no HOME targets `./.vox` relative to
+      whatever CWD the agent happens to be in.
+- [ ] Profile edits: remove **only** the exact contiguous two-line block
+      (`# Added by voxup` + its one PATH line), leaving every other byte identical.
+      Write to a temp file and `fs::rename`; never `fs::write` in place. Back up to
+      `<profile>.voxup-backup-<ISO8601>` first and print the path.
+- [ ] If the marker is absent but `~/.vox/bin` appears in the profile, **do not edit** —
+      print the file and line and tell the user to remove it by hand. `try_append`'s
+      idempotency check is a substring test, so a user's own hand-written PATH line
+      never got a marker.
+- [ ] `--dry-run` prints the exact diff, and is the **default when stdin is not a TTY**.
+- [ ] **Do not touch `~/.cargo/bin/vox` unless provenance is provable** — verify it is a
+      hardlink to `~/.vox/bin/vox` (same inode, `st_nlink > 1`). That directory
+      currently holds `vox`, `vox-compilerd`, `vox-ml-cli`, `vox-orchestrator-d`
+      installed by `cargo install`, not by voxup. Never glob `~/.cargo/bin/vox*`.
+- [ ] Toolchain pruning must resolve the active version by reading
+      `~/.vox/toolchains/active` and **fail closed** (delete nothing) if that file is
+      missing or unparseable.
 - [ ] Prune old toolchains on install — keep the active one plus N.
-- [ ] Test on a simulated pristine home (`HOME` pointed at a temp dir), asserting the filesystem afterwards.
+- [ ] Test on a temp `HOME`. **The assertion is not "the filesystem is clean"** — that
+      phrasing would drive an implementation toward `remove_dir_all`. Assert instead:
+      the allowlisted paths are gone, **and** `.vox-master-key`, `login.toml`, `cache/`
+      and every pre-seeded user file are byte-identical, **and** `~/.vox` still exists.
+- [ ] Guard the test itself: fail immediately if the resolved home equals the outer
+      process's `$HOME` or is not under the temp dir. On macOS `dirs` falls back to
+      `getpwuid` when `HOME` is empty, so a botched setup silently operates on the
+      real home directory.
+- [ ] Profile test fixture: the block **in the middle** of a file with user content on
+      both sides; compare full file bytes before and after.
 
 ## Task 2: Optional PATH (D3)
 - [ ] Add `--no-modify-path`. Every packaging system and CI image expects it.
@@ -47,7 +92,16 @@ See the index. Non-negotiable everywhere: assert on the artifact never the exit 
 ## Task 4: Two Homebrew identities
 - [ ] `/Applications` requires a **cask**, not a formula — a formula installs to the Cellar. Axis and the CLI must be two identities regardless of anything else.
 - [ ] Keep `voxlang` as the formula token; `vox` collides with the VOX music-player cask.
-- [ ] Resolve the **three-way** contradiction about tap publication: `installation.md:151` says "Not published", `Formula/README.md` says published *and* contradicts itself, and `release-installers.yml:138` is still `echo "Simulating Homebrew Tap update..."`. The code settles it — nothing publishes.
+- [ ] Resolve the **three-way** contradiction about tap publication by **fixing the
+      documentation to match the code**: `installation.md:151` says "Not published",
+      `Formula/README.md` says published *and* contradicts itself two paragraphs later,
+      and `release-installers.yml:138` is still `echo "Simulating Homebrew Tap
+      update..."`. The code settles it — nothing publishes.
+      **Do not implement the tap dispatch.** Do not create, push to, or open a PR
+      against `vox-foundation/homebrew-vox` or any tap repo. Leave the no-op in place;
+      if you think it should go, file a cross-plan request to P4 (which owns
+      `.github/workflows/`). `installation.md` is unowned — file a request rather than
+      editing it.
 
 ## Task 5: MSI identity
 - [ ] `wix/main.wxs:63,65` has `Product Name = vox-cli` and `Manufacturer = Bert Brainerd`. Both must become the product identity.
@@ -62,3 +116,29 @@ See the index. Non-negotiable everywhere: assert on the artifact never the exit 
 - [ ] Install → uninstall → assert the filesystem is clean, on a temp `HOME`.
 - [ ] `cargo test -p voxup --all-targets` with real counts.
 - [ ] Never execute a downloaded binary; never set `com.apple.quarantine`.
+
+## Cross-plan inbox
+
+Rows filed here by other plans. Each must be executable with no conversation.
+
+| From | Request |
+|---|---|
+| _(none yet)_ | |
+
+## Cross-plan requests
+
+| To | Request |
+|---|---|
+| P1 | `bundle_resolved()` for Task 6 — extend the existing function, do not add a third spelling |
+| P4 | Remove or implement `release-installers.yml:138`'s tap no-op (P4 owns workflows) |
+| P4 | Linux release signing + `checksums.txt.asc`; macOS/Windows are signed, Linux is not |
+| — | `docs/src/reference/installation.md` is unowned; Task 4's doc fix needs an owner |
+
+## Added by critique
+
+- [ ] **`vox-gui` cannot be built in a fresh worktree** until the sidecar exists.
+      Run `cargo build -p vox-cli --release` and copy `target/release/vox` to the
+      triple-suffixed sidecar path first. A `tauri-build` "resource path doesn't exist"
+      error is **this**, not your config change.
+- [ ] `vox upgrade --rollback` — Task 1 covers uninstall but not rollback.
+- [ ] GUI auto-update: `tauri.conf.json` has no `updater` block.
