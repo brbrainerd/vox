@@ -85,7 +85,7 @@ jobs:
             ${{ runner.os }}-cargo-ml-
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.10
+        uses: mozilla-actions/sccache-action@v0.0.11
 
       - name: Build Vox Compiler
         # `vox mens ...` / `vox train ...` delegate to a separate `vox-ml-cli`
