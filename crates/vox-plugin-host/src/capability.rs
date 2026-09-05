@@ -52,6 +52,14 @@ pub fn probe() -> CapabilitySet {
     if cuda_driver_present() {
         tags.insert("nvidia-gpu".to_string());
     }
+    // No `cuda-<major>` tag: getting one means resolving and calling
+    // `cuDriverGetVersion`, which is a symbol lookup and a call into the
+    // driver, not just a presence check — and the `SAFETY` argument for
+    // `cuda_driver_present`'s `unsafe` block rests specifically on this
+    // module never resolving or calling into an untrusted library. Nothing
+    // in the catalog uses `requires-tag`s finer than `nvidia-gpu` today; add
+    // the tag as its own deliberate, separately-reviewed follow-up if a
+    // consumer ever needs a CUDA major-version distinction.
     CapabilitySet(tags)
 }
 
