@@ -1820,6 +1820,24 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         label: "Sherpa No Download",
         hint: "Refuse to download Sherpa-ONNX speech models; point VOX_ORATIO_SHERPA_MODEL_DIR at a local copy instead.",
     },
+    // --- P6-7: explicit opt-out for the vox-populi Mens training-weight
+    // download (the actual `download_model` HF Hub downloader, ~16 GB for
+    // the default model), so a user or CI job can guarantee nothing large
+    // is fetched. ---
+    ConfigKey {
+        key: "VOX_MENS_NO_DOWNLOAD",
+        kind: ConfigKind::Bool,
+        default: DefaultValue::Literal("false"),
+        bound: None,
+        group: Group::Storage,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Mens No Download",
+        hint: "Refuse to download Mens training-weight models from Hugging Face Hub; there is no local-directory alternative today.",
+    },
 ];
 
 /// All registered keys (for the parity gate).
