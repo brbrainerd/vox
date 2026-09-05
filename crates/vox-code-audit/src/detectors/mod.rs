@@ -99,6 +99,7 @@ pub mod crypto_ban;
 pub mod env_secret_shape;
 /// Direct HTTP calls to known LLM provider hostnames, bypassing `populi.*`.
 pub mod llm_provider_call;
+pub mod mesh_transport_unsafe;
 /// LLM/AI env vars not declared in the vox-llm-config SSOT.
 pub mod unregistered_llm_env;
 
@@ -181,6 +182,7 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(untested_pub_api::UntestedPubApiDetector::new()),
         // Phase 2 security detectors (Error severity)
         Box::new(llm_provider_call::LlmProviderCallDetector::new()),
+        Box::new(mesh_transport_unsafe::MeshTransportUnsafeDetector::new()),
         Box::new(env_secret_shape::EnvSecretShapeDetector::new()),
         Box::new(unregistered_llm_env::UnregisteredLlmEnvDetector::new()),
         Box::new(crypto_ban::CryptoBanDetector::new()),
@@ -219,7 +221,7 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    54
+    55
 }
 
 #[cfg(test)]

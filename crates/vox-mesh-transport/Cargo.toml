@@ -1,0 +1,21 @@
+[package]
+name = "vox-mesh-transport"
+description = "iroh QUIC mesh transport: persisted mesh identity, EndpointId trust allowlist, and the job wire protocol."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+iroh = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
