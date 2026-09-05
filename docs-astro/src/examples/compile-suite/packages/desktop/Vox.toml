@@ -1,7 +1,0 @@
-[package]
-name = "suite-desktop"
-version = "0.0.0"
-
-[bundle]
-identifier = "dev.vox.compile_suite.desktop"
-display_name = "Desktop Member"

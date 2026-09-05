@@ -1,5 +1,0 @@
-// expect-error: web_ir_validate.style.unknown_kwarg
-component Bad() {
-    state n: int = 0
-    view: text(colr="zinc.400") { "typo" }
-}

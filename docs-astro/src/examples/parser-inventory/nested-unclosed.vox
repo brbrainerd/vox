@@ -1,4 +1,0 @@
-// INV-02: unclosed block inside fn — should produce parse errors without panicking.
-fn broken() -> int {
-    return 1
-    {

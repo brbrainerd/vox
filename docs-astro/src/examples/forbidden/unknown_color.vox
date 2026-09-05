@@ -1,5 +1,0 @@
-// expect-error: web_ir_validate.style.unknown_color
-component Bad() {
-    state n: int = 0
-    view: text(color="zink.400") { "typo" }
-}

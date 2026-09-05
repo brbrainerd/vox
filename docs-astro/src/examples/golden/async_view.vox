@@ -1,9 +1,0 @@
-// A minimal async view demonstrating all four arms.
-fn v(d: Async[Int]) -> Int {
-    when d {
-        fetching => 0
-        empty => 0
-        error e => -1
-        ok x => x
-    }
-}

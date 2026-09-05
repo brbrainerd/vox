@@ -1,6 +1,0 @@
-// expect-error: vox/layer/reserved-tier
-@layer(tier: system_overlay)
-component Debug() {
-    state n: int = 0
-    view: text() { "debug" }
-}

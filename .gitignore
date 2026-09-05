@@ -19,6 +19,12 @@ node_modules/
 dist/
 dist1/
 docs-astro/src/content/docs
+# setup-content.mjs also symlinks this one from repo-root examples/, but a
+# real 200-file copy was committed here at some point and has since drifted
+# from the source of truth (13 files differ; the real examples/ tree was
+# last touched 2026-08-30, this copy's last real edit was 2026-08-22). Once
+# untracked, the symlink takes over and docs render the current examples.
+docs-astro/src/examples
 docs-astro/public/assets
 docs-astro/public/.well-known
 .env

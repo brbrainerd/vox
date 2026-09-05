@@ -1,6 +1,0 @@
-fn read_kind(payload_json: str) to str {
-    return match std.json.parse(payload_json) {
-        Ok(j) => j.get("kind").and_then(fn(jv: Json) to Option[str] { jv.as_str() }).unwrap_or("")
-        Error(m) => "parse failed: " + m
-    }
-}

@@ -1,5 +1,0 @@
-// expect-error: vox/layer/raw-z-index
-component Bad() {
-    state n: int = 0
-    view: panel(z="999") { text() { "hi" } }
-}

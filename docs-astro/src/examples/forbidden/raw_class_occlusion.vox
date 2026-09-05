@@ -1,7 +1,0 @@
-// expect-error: vox/layer/raw-class-occlusion
-component Bad() {
-    state n: int = 0
-    view: column() {
-        panel(raw_class="shrink-0 absolute z-[9999]") { text() { "smuggled" } }
-    }
-}

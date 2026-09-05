@@ -1,3 +1,0 @@
-query health() to str {
-    return "ok"
-}
