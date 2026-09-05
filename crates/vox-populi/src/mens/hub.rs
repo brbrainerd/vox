@@ -29,7 +29,7 @@ fn no_download_requested(raw: Option<&str>) -> bool {
 }
 
 /// Refuse the download when [`NO_DOWNLOAD_ENV`] is set. Called before
-/// `Api::new()` so an opted-out caller never touches the network at all.
+/// `HFClient::new()` so an opted-out caller never touches the network at all.
 fn ensure_download_allowed(repo_id: &str) -> anyhow::Result<()> {
     if no_download_requested(std::env::var(NO_DOWNLOAD_ENV).ok().as_deref()) {
         anyhow::bail!(
@@ -61,7 +61,7 @@ fn is_default_model_repo(repo_id: &str) -> bool {
 }
 
 /// Compose the pre-download disclosure line printed before the first weight
-/// byte is fetched (i.e. before `repo.get("config.json")` in
+/// byte is fetched (i.e. before `repo.download_file("config.json")` in
 /// [`download_model`]). Pure function of already-known inputs, so it is
 /// testable without any `hf_hub` types:
 ///
