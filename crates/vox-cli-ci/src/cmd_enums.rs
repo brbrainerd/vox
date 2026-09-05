@@ -378,6 +378,11 @@ pub enum CiCmd {
         #[arg(long)]
         strict: bool,
     },
+    /// Require every `softprops/action-gh-release` workflow step to set
+    /// `draft: true` (boolean). Unlike the advisory guards, this one always
+    /// fails on a violation — a published public release is not advisory.
+    #[command(name = "release-draft-guard")]
+    ReleaseDraftGuard,
     /// Advisory GUI visual AI review (screenshots vs design principles). Always exits 0; never gates.
     #[command(name = "gui-visual-review")]
     GuiVisualReview {

@@ -95,6 +95,7 @@ pub mod plugin_skill_parity;
 pub mod plugin_surface;
 pub mod pm_provenance;
 pub mod profile_parity;
+pub mod release_draft_guard;
 pub mod retirement_audit;
 pub mod row_serde_lint;
 pub mod runner_policy_check;

@@ -396,6 +396,9 @@ jobs:
       - name: Create release with assets
         uses: softprops/action-gh-release@v3
         with:
+          # No public release is published from this repo; drafts are promoted by hand.
+          draft: true
+          prerelease: true
           files: |
             release-artifacts/release-*/*
             release-artifacts/checksums.txt

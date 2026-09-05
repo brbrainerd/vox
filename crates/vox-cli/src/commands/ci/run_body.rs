@@ -328,6 +328,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::WorkflowConcurrencyGuard { strict } => {
             vox_cli_ci::workflow_concurrency_guard::run(&root, strict)
         }
+        CiCmd::ReleaseDraftGuard => vox_cli_ci::release_draft_guard::run(&root),
         CiCmd::GuiVisualReview { no_ai } => vox_cli_ci::gui_visual_review::run(&root, no_ai),
         CiCmd::LineEndings { all, base, autofix } => {
             vox_cli_ci::line_endings::run(&root, all, base, autofix)
