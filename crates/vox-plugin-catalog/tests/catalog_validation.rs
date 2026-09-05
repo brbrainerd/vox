@@ -144,6 +144,36 @@ fn gpu_ml_backends_use_the_first_party_release_asset_source() {
 }
 
 #[test]
+fn ml_backend_requires_tag_matches_the_hand_mirrored_candidate_list() {
+    // `crates/vox-ml-cli/src/commands/schola/merge_qlora.rs` (shared by
+    // `commands::mens::eval_local`) cannot depend on vox-plugin-catalog (see
+    // AGENTS.md Dependency Discipline), so it hand-mirrors these two
+    // `requires-tag` values in its `ML_BACKEND_CANDIDATES` constant instead
+    // of reading catalog.toml. Nothing else ties that mirror back to this
+    // file, so if either tag ever changed here, ML_BACKEND_CANDIDATES would
+    // silently drift and backend selection would silently stop matching the
+    // right plugin. This test exists solely to guard against that drift.
+    const EXPECTED: &[(&str, &str)] = &[
+        ("mens-candle-cuda", "nvidia-gpu"),
+        ("mens-candle-metal", "apple-silicon"),
+    ];
+    for (id, expected_tag) in EXPECTED {
+        let plugin = all_plugins()
+            .iter()
+            .find(|p| p.id == *id)
+            .unwrap_or_else(|| panic!("expected plugin '{id}' in the catalog"));
+        assert_eq!(
+            plugin.requires_tag.as_deref(),
+            Some(*expected_tag),
+            "plugin '{}' requires-tag must stay '{}' to match ML_BACKEND_CANDIDATES, got {:?}",
+            id,
+            expected_tag,
+            plugin.requires_tag
+        );
+    }
+}
+
+#[test]
 fn every_plugin_bundled_in_claim_is_satisfied_by_the_named_bundle() {
     use vox_plugin_catalog::bundle_resolved;
     for plugin in all_plugins() {
