@@ -110,7 +110,7 @@
         "vox.vcs.showSnapshotBar": {
           "type": "boolean",
           "default": true,
-          "description": "Show the Snapshots tree under the Vox sidebar. VCS commands (undo/redo, snapshot list, …) stay available when this is off."
+          "description": "Show the Snapshots tree under the Vox sidebar. VCS commands (undo/redo, snapshot list, \u2026) stay available when this is off."
         },
         "vox.gamify.showHud": {
           "type": "boolean",
@@ -188,7 +188,11 @@
         },
         "vox.attention.notificationLevel": {
           "type": "string",
-          "enum": ["none", "high", "critical"],
+          "enum": [
+            "none",
+            "high",
+            "critical"
+          ],
           "default": "high",
           "description": "Verbosity level for Vox attention interruption notifications/toasts."
         },
@@ -271,7 +275,7 @@
       },
       {
         "command": "vox.plan",
-        "title": "Vox: Planning Mode — Generate PLAN.md"
+        "title": "Vox: Planning Mode \u2014 Generate PLAN.md"
       },
       {
         "command": "vox.journey.canonicalChecklist",
@@ -293,22 +297,22 @@
       },
       {
         "command": "vox.oratio.transcribeFile",
-        "title": "Vox: Oratio — Transcribe audio file",
+        "title": "Vox: Oratio \u2014 Transcribe audio file",
         "category": "Vox"
       },
       {
         "command": "vox.oratio.speechToCodeFile",
-        "title": "Vox: Oratio — Speech to code (audio file)",
+        "title": "Vox: Oratio \u2014 Speech to code (audio file)",
         "category": "Vox"
       },
       {
         "command": "vox.oratio.voiceCaptureTranscribe",
-        "title": "Vox: Oratio — Voice capture → transcribe",
+        "title": "Vox: Oratio \u2014 Voice capture \u2192 transcribe",
         "category": "Vox"
       },
       {
         "command": "vox.oratio.voiceCaptureSpeechToCode",
-        "title": "Vox: Oratio — Voice capture → speech to code",
+        "title": "Vox: Oratio \u2014 Voice capture \u2192 speech to code",
         "category": "Vox"
       },
       {
@@ -406,39 +410,12 @@
     "@types/node": "^24.0.0",
     "@types/vscode": "^1.125.0",
     "@vscode/vsce": "^3.9.2",
-    "concurrently": "^10.0.3",
-    "esbuild": "^0.28.1",
     "eslint": "^10.6.0",
-    "tailwindcss": "^3.4.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "@radix-ui/react-accordion": "^1.2.0",
-    "@radix-ui/react-dialog": "^1.1.1",
-    "@radix-ui/react-dropdown-menu": "^2.1.19",
-    "@radix-ui/react-progress": "^1.1.0",
-    "@radix-ui/react-scroll-area": "^1.1.0",
-    "@radix-ui/react-separator": "^1.1.0",
-    "@radix-ui/react-slot": "^1.1.0",
-    "@radix-ui/react-tooltip": "^1.1.2",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vscode/webview-ui-toolkit": "^1.4.0",
-    "@xyflow/react": "^12.11.0",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.1",
-    "framer-motion": "^12.38.0",
-    "lucide-react": "^1.17.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.4",
-    "react-markdown": "^10.1.0",
-    "recharts": "^3.8.1",
-    "remark-gfm": "^4.0.1",
-    "shiki": "^4.3.0",
-    "tailwind-merge": "^3.6.0",
-    "vscode-languageclient": "^9.0.1",
-    "zod": "^3.25.76"
+    "vscode-languageclient": "^9.0.1"
   }
 }

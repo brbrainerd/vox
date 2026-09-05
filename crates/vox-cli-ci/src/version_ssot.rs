@@ -146,8 +146,6 @@ pub fn drift(expected: &str, declarations: &[Declaration]) -> Vec<Drift> {
         .collect()
 }
 
-
-
 /// The `workspace-hack` pin every member crate carries.
 ///
 /// cargo-hakari generates `workspace-hack = { version = "0.6", path = "../workspace-hack" }`
@@ -181,7 +179,6 @@ pub fn workspace_hack_pin(cargo_toml: &str, file: &Path) -> Option<Declaration> 
     })
 }
 
-
 /// Whether `version` can be expressed as a hakari `major.minor` pin.
 ///
 /// A prerelease or build-metadata version cannot: `major_minor("0.7.0-rc.1")` is
@@ -200,7 +197,6 @@ pub fn major_minor(version: &str) -> String {
         _ => version.to_string(),
     }
 }
-
 
 /// Byte offset just past a real `version` KEY in a TOML line, or `None`.
 ///
@@ -235,7 +231,10 @@ fn toml_version_key_end(line: &str) -> Option<usize> {
 /// of lines changed, so a caller can assert it changed what it expected.
 pub fn rewrite(text: &str, file: &Path, new_version: &str, is_npm: bool) -> (String, usize) {
     let targets: std::collections::HashSet<usize> = if is_npm {
-        npm_versions(text, file).into_iter().map(|d| d.line).collect()
+        npm_versions(text, file)
+            .into_iter()
+            .map(|d| d.line)
+            .collect()
     } else {
         let mut t: std::collections::HashSet<usize> = path_dependency_versions(text, file)
             .into_iter()
@@ -345,9 +344,6 @@ vox-plugin-api = { path = "crates/vox-plugin-api", version = "0.5.0" }
 serde         = { version = "1.0", features = ["derive"] }
 "#;
 
-
-
-
     /// Regression: `line.find("version")` was a SUBSTRING search, so the
     /// `version` inside `vox-versioning` anchored the rewrite and destroyed the
     /// path; a `features = ["versioned-api"]` entry produced unparseable TOML.
@@ -402,21 +398,42 @@ serde         = { version = "1.0", features = ["derive"] }
 
     #[test]
     fn a_member_without_the_pin_is_not_flagged() {
-        assert!(workspace_hack_pin("[dependencies]\nserde = \"1\"\n", Path::new("c/Cargo.toml")).is_none());
+        assert!(
+            workspace_hack_pin("[dependencies]\nserde = \"1\"\n", Path::new("c/Cargo.toml"))
+                .is_none()
+        );
         // The `{ workspace = true }` form carries no version and needs no rewrite.
-        assert!(workspace_hack_pin("workspace-hack = { workspace = true }\n", Path::new("c/Cargo.toml")).is_none());
+        assert!(
+            workspace_hack_pin(
+                "workspace-hack = { workspace = true }\n",
+                Path::new("c/Cargo.toml")
+            )
+            .is_none()
+        );
     }
 
     #[test]
     fn rewrite_moves_workspace_and_path_deps_but_not_registry_deps() {
         let (out, n) = rewrite(ROOT, Path::new("Cargo.toml"), "0.7.0", false);
         assert_eq!(n, 3, "workspace version + two path deps");
-        assert!(out.contains(r#"vox-secrets   = { path = "crates/vox-secrets", version = "0.7.0" }"#));
-        assert!(out.contains(r#"vox-plugin-api = { path = "crates/vox-plugin-api", version = "0.7.0" }"#));
+        assert!(
+            out.contains(r#"vox-secrets   = { path = "crates/vox-secrets", version = "0.7.0" }"#)
+        );
+        assert!(
+            out.contains(
+                r#"vox-plugin-api = { path = "crates/vox-plugin-api", version = "0.7.0" }"#
+            )
+        );
         // serde must be untouched.
         assert!(out.contains(r#"serde         = { version = "1.0", features = ["derive"] }"#));
         assert!(workspace_version(&out).as_deref() == Some("0.7.0"));
-        assert!(drift("0.7.0", &path_dependency_versions(&out, Path::new("Cargo.toml"))).is_empty());
+        assert!(
+            drift(
+                "0.7.0",
+                &path_dependency_versions(&out, Path::new("Cargo.toml"))
+            )
+            .is_empty()
+        );
     }
 
     #[test]
@@ -425,7 +442,10 @@ serde         = { version = "1.0", features = ["derive"] }
         assert_eq!(n, 2);
         assert!(out.contains(r#""version": "0.7.0""#));
         assert!(out.contains(r#""@vox/runtime-types": "0.7.0""#));
-        assert!(out.contains(r#""react": "^19.0.0""#), "third-party range must not move");
+        assert!(
+            out.contains(r#""react": "^19.0.0""#),
+            "third-party range must not move"
+        );
     }
 
     #[test]
@@ -445,7 +465,11 @@ serde         = { version = "1.0", features = ["derive"] }
     #[test]
     fn path_dependencies_are_collected_and_registry_deps_are_not() {
         let d = path_dependency_versions(ROOT, Path::new("Cargo.toml"));
-        assert_eq!(d.len(), 2, "serde is a registry dep and must be ignored: {d:?}");
+        assert_eq!(
+            d.len(),
+            2,
+            "serde is a registry dep and must be ignored: {d:?}"
+        );
         assert!(d.iter().any(|x| x.what.contains("vox-secrets")));
     }
 
@@ -470,7 +494,11 @@ serde         = { version = "1.0", features = ["derive"] }
     #[test]
     fn npm_top_level_and_sibling_pin_are_both_found() {
         let d = npm_versions(PKG, Path::new("clients/runtime-web/package.json"));
-        assert_eq!(d.len(), 2, "want the package version and the @vox pin: {d:?}");
+        assert_eq!(
+            d.len(),
+            2,
+            "want the package version and the @vox pin: {d:?}"
+        );
         assert!(d.iter().any(|x| x.what == "package version"));
         assert!(d.iter().any(|x| x.what.contains("@vox/runtime-types")));
         // A caret range is deliberate looseness on a third-party dep, not drift.
@@ -479,15 +507,20 @@ serde         = { version = "1.0", features = ["derive"] }
 
     #[test]
     fn npm_drift_is_detected() {
-        let stale = PKG.replace(r#""@vox/runtime-types": "0.6.0""#, r#""@vox/runtime-types": "0.5.0""#);
+        let stale = PKG.replace(
+            r#""@vox/runtime-types": "0.6.0""#,
+            r#""@vox/runtime-types": "0.5.0""#,
+        );
         let d = npm_versions(&stale, Path::new("p.json"));
         assert_eq!(drift("0.6.0", &d).len(), 1);
     }
 
     #[test]
     fn a_consistent_workspace_reports_no_drift() {
-        let clean = ROOT.replace(r#"vox-plugin-api = { path = "crates/vox-plugin-api", version = "0.5.0" }"#,
-                                 r#"vox-plugin-api = { path = "crates/vox-plugin-api", version = "0.6.0" }"#);
+        let clean = ROOT.replace(
+            r#"vox-plugin-api = { path = "crates/vox-plugin-api", version = "0.5.0" }"#,
+            r#"vox-plugin-api = { path = "crates/vox-plugin-api", version = "0.6.0" }"#,
+        );
         let d = path_dependency_versions(&clean, Path::new("Cargo.toml"));
         assert!(drift("0.6.0", &d).is_empty());
     }

@@ -171,10 +171,7 @@ pub async fn run_install(profile: &str, tag: Option<&str>) -> Result<()> {
     // pristine account) to source a file it had not touched — and which usually
     // does not exist there.
     match modified.first() {
-        Some(profile) => println!(
-            "   Restart your shell or: source {}",
-            profile.display()
-        ),
+        Some(profile) => println!("   Restart your shell or: source {}", profile.display()),
         None => println!(
             "   Add {} to your PATH, then restart your shell",
             bin_dir.display()

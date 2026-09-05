@@ -298,7 +298,10 @@ mod tests {
             zshrc.exists(),
             "voxup must create the login shell's profile when none exists"
         );
-        assert!(modified.contains(&zshrc), "created profile must be reported");
+        assert!(
+            modified.contains(&zshrc),
+            "created profile must be reported"
+        );
         let body = std::fs::read_to_string(&zshrc).expect("read .zshrc");
         assert!(
             body.contains(&posix_path(&bin_dir)),

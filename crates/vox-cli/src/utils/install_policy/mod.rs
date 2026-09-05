@@ -117,7 +117,10 @@ mod tests {
     /// Every documented source install is reproducible against the workspace lockfile.
     #[test]
     fn every_source_install_argv_passes_locked() {
-        for argv in [CARGO_INSTALL_CLI_FROM_SOURCE, CARGO_INSTALL_ML_CLI_FROM_SOURCE] {
+        for argv in [
+            CARGO_INSTALL_CLI_FROM_SOURCE,
+            CARGO_INSTALL_ML_CLI_FROM_SOURCE,
+        ] {
             assert!(
                 argv.contains(&"--locked"),
                 "source install argv must pass --locked: {argv:?}"

@@ -23,38 +23,118 @@ updates:
           - "patch"
 
   # GitHub Actions used by the workflows in .github/workflows.
+  # Grouped for the same reason as npm below: an action bump touches up to 28
+  # workflow files at once, and one PR per action serialises them all behind the
+  # single required check.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
-  # npm packages (one entry per directory that has a package.json).
+  # npm packages (one entry per directory that has a package.json AND is built
+  # or tested by a workflow -- an unbuilt manifest only generates noise).
+  #
+  # Every npm entry groups minor+patch into one PR per directory, mirroring the
+  # cargo "rust-deps" group above. Ungrouped, a single week produced 14 open PRs
+  # against a merge gate that admits roughly one run at a time.
   - package-ecosystem: "npm"
     directory: "/clients/runtime-web"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "npm"
     directory: "/clients/runtime-types"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "npm"
     directory: "/apps/editor/vox-vscode"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "npm"
     directory: "/apps/experimental/visualizer"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "npm"
     directory: "/crates/vox-integration-tests"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Vox Axis (the going-forward GUI). 40 dependencies, embedded into every
+  # vox-gui build via tauri.conf.json's frontendDist and exercised by four
+  # workflows -- it had no coverage at all while the retiring vox-vscode had five.
+  - package-ecosystem: "npm"
+    directory: "/crates/vox-gui/ui"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Documentation site (Astro). Built by docs-quality.yml and the link checker.
+  - package-ecosystem: "npm"
+    directory: "/docs-astro"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
