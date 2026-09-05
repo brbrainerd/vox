@@ -385,6 +385,11 @@ pub enum CiCmd {
     /// fails on a violation — a published public release is not advisory.
     #[command(name = "release-draft-guard")]
     ReleaseDraftGuard,
+    /// Forbid any workflow but ci.yml from naming a job with the required
+    /// branch-protection context when it fires on ordinary PR events -- a
+    /// skipped job posts that context and satisfies the gate. Always fails.
+    #[command(name = "required-context-guard")]
+    RequiredContextGuard,
     /// Forbid any workflow step from installing Rust directly via
     /// `dtolnay/rust-toolchain` instead of `./.github/actions/setup-rust`.
     /// Always fails on a violation.

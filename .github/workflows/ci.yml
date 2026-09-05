@@ -820,6 +820,14 @@ jobs:
       - name: Release Draft Guard (no auto-published public releases)
         run: ./target/debug/vox --quiet ci release-draft-guard
 
+      # The gate that guards the gate. See required_context_guard.rs: a job
+      # named for the required context posts that context even when SKIPPED,
+      # which GitHub counts as satisfied -- so the sole branch-protection
+      # check was being met one second after every push by a job designed
+      # never to run.
+      - name: Required Context Guard (only ci.yml may claim the gate)
+        run: ./target/debug/vox --quiet ci required-context-guard
+
       - name: Toolchain Workflow Lint (all Rust installs via setup-rust)
         run: ./target/debug/vox --quiet ci toolchain-workflow-lint
 

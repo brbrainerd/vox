@@ -25,14 +25,38 @@ on:
   schedule:
     - cron: '0 6 * * *'   # Nightly hosted mirror — recent portable green signal on main
   pull_request:
-    # `unlabeled` so removing `fleet-down` re-fires the workflow (the gate then skips,
-    # leaving the required context to ci.yml's ci-summary). NOTE: a skipped job cannot
-    # clear a previously-posted green status, so after removing the label either push a
-    # commit (fires `synchronize` → ci-summary re-posts) or use the ruleset-relax in the
-    # break-glass runbook. We deliberately do NOT auto-post a failing status here: this
-    # job shares the `Check, Build, and Test (Rust)` context name with ci-summary, and a
-    # red duplicate on normal PRs would conflict with ci-summary's green.
-    types: [labeled, unlabeled, synchronize, reopened]
+    # ONLY `labeled`. This is a correctness requirement, not a preference.
+    #
+    # The `gate` job below deliberately shares the `Check, Build, and Test (Rust)`
+    # context name with ci.yml's `ci-summary`, so that a green run here can satisfy
+    # branch protection during a fleet outage. The previous trigger list included
+    # `synchronize`, so this workflow fired on EVERY push to EVERY pull request. The
+    # gate job's `if` then evaluated false (no `fleet-down` label) and the job was
+    # skipped -- but a skipped job still POSTS a check-run under its name, and GitHub
+    # counts a skipped required check as SATISFIED.
+    #
+    # The result: the repo's sole required context was satisfied within one second of
+    # every push, by a job designed never to run. Measured on PR #502 --
+    #
+    #   "Check, Build, and Test (Rust)"  started 18:34:38Z  completed 18:34:38Z
+    #   conclusion=skipped, emitted by THIS workflow (run 33984495969)
+    #   while ci.yml's `setup` was still queued and nothing had compiled;
+    #   mergeable=MERGEABLE, mergeStateStatus=UNSTABLE.
+    #
+    # The comment this replaces asserted the opposite -- that skipping "leaves the
+    # required context to ci.yml's ci-summary". It does not. It claims the context
+    # first, and ci-summary's later post cannot un-satisfy a gate already satisfied.
+    #
+    # Firing only on `labeled` means: no label, no run, no check-run, so ci-summary is
+    # the sole publisher of that context on a normal PR and the gate means something.
+    # Applying `fleet-down` fires `labeled`, the job runs for real, and the valve works
+    # as designed.
+    #
+    # TRADE-OFF, deliberate: pushing a new commit to an already-labelled PR during an
+    # outage will NOT re-fire this workflow. Re-apply the label (remove and re-add) to
+    # get a fresh hosted run against the new head, or use the ruleset-relax in the
+    # break-glass runbook (docs/src/ci/runner-contract.md).
+    types: [labeled]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
