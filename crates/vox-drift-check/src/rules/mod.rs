@@ -8,6 +8,7 @@ pub mod reqwest_bypass;
 pub mod serde_default_dup;
 pub mod timeout_literal;
 pub mod version_string;
+pub mod vox_dir_unanchored;
 pub mod vox_path_literal;
 
 pub struct WorkspaceContext {
@@ -34,5 +35,6 @@ pub fn all_drift_rules() -> Vec<Box<dyn DriftRule>> {
         Box::new(serde_default_dup::SerdeDefaultDupRule),
         Box::new(version_string::VersionStringRule),
         Box::new(bearer_header::BearerHeaderRule),
+        Box::new(vox_dir_unanchored::VoxDirUnanchoredRule),
     ]
 }
