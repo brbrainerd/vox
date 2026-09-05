@@ -19,6 +19,33 @@
 
 **Provenance:** Revision 4. Revision 3 was audited across eight tracks; it had six compile errors, three cost-model fields with no data source, an unsandboxed executor, four live capabilities listed as deleted, and a deletion inventory wrong by ~5,000 lines. Findings verified *correct* are in the appendix.
 
+## Status — 2026-09-05
+
+| | |
+|---|---|
+| **Phase 0** | **Done**, except Task 0.4 Steps 5–7 (see the measured correction there — they rest on a premise that proved false) and Task 0.6 (HF seam; needs a crate-edge decision). |
+| **Phase 1** | **Done.** `vox-mesh-transport` at L2 — identity, trust, protocol, bounded accept loop. 27 tests. ADR-047. Detector `vox/mesh/unsafe-iroh-pattern` at Error. |
+| **Phase 2** | Steps 1–5 **done**. Step 6 (both machines offline) **substantially proven**; see Task 2.1. |
+| **Phases 3–6** | Not started. Phase 3's four ports gate everything in Phase 6. |
+
+**The mesh works cross-machine.** macOS `aarch64` ↔ BLAPTOP04 `x86_64`, no relay
+and no discovery service: refused before pairing (close code `4001`), ~10 ms
+connect after it, `Probe` executing on the peer at `Wasm` isolation.
+
+**Known gaps, stated rather than buried:**
+
+- **Q4 (mDNS) is not answered.** It is *live* — the listener holds `UDP *:5353`
+  and `swarm_discovery` logs — but bound is not the same as resolving a peer.
+  The test that closes it: a dial carrying an `EndpointId` and **no address**.
+- **No sandbox exists.** `Isolation`'s tiers are declared, not implemented, which
+  is why `ProbeOnlyExecutor` **refuses `Run`**. Until a sandbox backs it, this
+  mesh probes and does not execute. Do not "temporarily" wire an executor to
+  `Run` — that reintroduces F2.
+- **Windows at-rest key protection** is a marked TODO; the key file carries a
+  version byte so DPAPI slots in without a format break.
+
+---
+
 ## Global Constraints
 
 - **Deletion is Phase 6 and happens after the two-machine demo passes.** Revision 3's Global Constraints said deletion follows the replacement; its phase numbering did not obey that. This one does.
