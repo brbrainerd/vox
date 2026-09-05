@@ -148,9 +148,9 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
 
     // Disclosure before the first weight byte moves: `repo.info()` above
     // already fetched the manifest, so counting `*.safetensors` siblings
-    // here adds no extra network call.
-    let safetensors_count = info
-        .siblings
+    // here adds no extra network call. Uses the already-unwrapped `siblings`
+    // (not `info.siblings`, which `ok_or_else` above moved out of `info`).
+    let safetensors_count = siblings
         .iter()
         .filter(|s| s.rfilename.ends_with(".safetensors"))
         .count();

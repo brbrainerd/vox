@@ -143,7 +143,7 @@ fn ensure_download_allowed(model_id: &str) -> Result<()> {
 /// Print the model id, approximate size, and destination directory before any
 /// network byte is fetched.
 fn print_download_notice(model_id: &str, size_note: &str) {
-    let dest = hf_hub::Cache::default().path().display().to_string();
+    let dest = hf_hub::resolve_cache_dir().display().to_string();
     eprintln!(
         "vox-speech: downloading Sherpa-ONNX model `{model_id}` (approximate size: \
          {size_note}) to {dest}"
