@@ -107,6 +107,33 @@ fn max_concurrent_from(raw: Option<&str>, parallelism: usize) -> usize {
     (parallelism / 3).clamp(2, 8)
 }
 
+/// Slots reserved for a build domain the filesystem semaphore cannot see (a
+/// containerised CI runner on this host).
+///
+// vox:defactored-from vox-build-queue 2026-09-04
+/// Mirrors `vox_build_queue::global::reserved_slots_from` exactly (unset,
+/// unparseable, or negative -> 0 reserved) without taking a
+/// `vox-build-queue` crate edge.
+fn reserved_slots_from(raw: Option<&str>) -> usize {
+    raw.and_then(|v| v.parse::<usize>().ok()).unwrap_or(0)
+}
+
+/// The effective cap after the reservation is subtracted, floored at 1.
+///
+// vox:defactored-from vox-build-queue 2026-09-04
+/// Mirrors `vox_build_queue::global::effective_max_concurrent_from` exactly
+/// (the reservation applies *after* an explicit `VOX_BROKER_MAX_CONCURRENT`
+/// override) without taking a `vox-build-queue` crate edge.
+fn effective_cap_from(
+    max_raw: Option<&str>,
+    reserved_raw: Option<&str>,
+    parallelism: usize,
+) -> usize {
+    let base = max_concurrent_from(max_raw, parallelism);
+    let reserved = reserved_slots_from(reserved_raw);
+    base.saturating_sub(reserved).max(1)
+}
+
 fn path_check(precedence: &PathPrecedence, installed: bool, broker_bin: &Path) -> Check {
     let not_installed_suffix = format!("broker not installed — {INSTALL_HINT}");
     let installed_suffix = format!(
@@ -189,20 +216,27 @@ fn install_check(broker_home: &Path, installed: bool) -> Check {
     }
 }
 
-fn cap_check(raw: Option<&str>, cores: usize) -> Check {
-    let cap = max_concurrent_from(raw, cores);
+fn cap_check(max_raw: Option<&str>, reserved_raw: Option<&str>, cores: usize) -> Check {
+    let cap = effective_cap_from(max_raw, reserved_raw, cores);
+    let reserved = reserved_slots_from(reserved_raw);
+    let reserved_suffix = if reserved > 0 {
+        format!(" ({reserved} reserved for a containerized build domain)")
+    } else {
+        String::new()
+    };
     if cap > cores {
         Check::fail(
             CHECK_NAME_CONCURRENCY,
             format!(
-                "effective cap {cap} exceeds {cores} logical core(s) detected on this machine — \
-                 a cap that large caps nothing; unset VOX_BROKER_MAX_CONCURRENT or lower it"
+                "effective cap {cap}{reserved_suffix} exceeds {cores} logical core(s) detected \
+                 on this machine — a cap that large caps nothing; unset \
+                 VOX_BROKER_MAX_CONCURRENT or lower it"
             ),
         )
     } else {
         Check::pass(
             CHECK_NAME_CONCURRENCY,
-            format!("effective cap {cap} ({cores} logical core(s) detected)"),
+            format!("effective cap {cap}{reserved_suffix} ({cores} logical core(s) detected)"),
         )
     }
 }
@@ -225,10 +259,15 @@ pub fn run(checks: &mut Vec<Check>) {
     checks.push(install_check(&broker_home, installed));
 
     let cap_raw = std::env::var("VOX_BROKER_MAX_CONCURRENT").ok();
+    let reserved_raw = std::env::var("VOX_BROKER_RESERVED_SLOTS").ok();
     let cores = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(4);
-    checks.push(cap_check(cap_raw.as_deref(), cores));
+    checks.push(cap_check(
+        cap_raw.as_deref(),
+        reserved_raw.as_deref(),
+        cores,
+    ));
 }
 
 #[cfg(test)]
@@ -395,19 +434,47 @@ mod tests {
         assert_eq!(max_concurrent_from(None, 24), 8); // 24/3=8, clamped at 8
     }
 
+    // --- reserved_slots_from / effective_cap_from ---------------------------
+
+    #[test]
+    fn reserved_slots_ignores_bad_values() {
+        assert_eq!(reserved_slots_from(None), 0);
+        assert_eq!(reserved_slots_from(Some("0")), 0);
+        assert_eq!(reserved_slots_from(Some("-1")), 0);
+        assert_eq!(reserved_slots_from(Some("nope")), 0);
+        assert_eq!(reserved_slots_from(Some("3")), 3);
+    }
+
+    #[test]
+    fn effective_cap_applies_reservation_after_override() {
+        assert_eq!(effective_cap_from(None, None, 24), 8); // unchanged, no reservation
+        assert_eq!(effective_cap_from(None, Some("3"), 24), 5); // base 8 - 3
+        assert_eq!(effective_cap_from(None, Some("99"), 24), 1); // floors at 1
+        assert_eq!(effective_cap_from(Some("4"), Some("1"), 24), 3); // override still reserved-down
+        assert_eq!(effective_cap_from(Some("4"), Some("10"), 24), 1);
+    }
+
     // --- cap_check ---------------------------------------------------------
 
     #[test]
     fn cap_greater_than_cores_is_flagged() {
-        let check = cap_check(Some("16"), 8);
+        let check = cap_check(Some("16"), None, 8);
         assert!(!check.pass, "a cap exceeding core count must be flagged");
         assert!(check.detail.contains("exceeds"));
     }
 
     #[test]
     fn cap_within_cores_passes() {
-        let check = cap_check(None, 24);
+        let check = cap_check(None, None, 24);
         assert!(check.pass);
+    }
+
+    #[test]
+    fn cap_check_reports_reservation_when_set() {
+        let check = cap_check(None, Some("3"), 24);
+        assert!(check.pass);
+        assert!(check.detail.contains("effective cap 5"));
+        assert!(check.detail.contains("3 reserved"));
     }
 
     // --- path_check / install_check -----------------------------------------

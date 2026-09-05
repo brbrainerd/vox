@@ -137,7 +137,7 @@ fn run_global(
     toolchain: Option<&str>,
 ) -> anyhow::Result<i32> {
     let root = global::global_root();
-    let n = global::max_concurrent();
+    let n = global::effective_max_concurrent();
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
     let env = env_filter::passthrough_env(std::env::vars());

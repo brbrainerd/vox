@@ -1,5 +1,6 @@
 ---
 title: "Build broker — machine-wide cargo coordination"
+description: "How the vox-cargo-shim build broker caps concurrent cargo builds machine-wide, its tunables, install steps, and how to inspect its audit log with vox-broker."
 category: "Contributors"
 ---
 
@@ -37,6 +38,15 @@ fork-bomb.
 
 - `VOX_BROKER_MAX_CONCURRENT` — max simultaneous builds machine-wide. Default
   ≈ logical-cores / 3, clamped to [2, 8]. Lower it when the machine thrashes.
+- `VOX_BROKER_RESERVED_SLOTS` — slots subtracted from the host cap for a build
+  domain the file-lock semaphore cannot see, chiefly a containerised CI runner
+  sharing this host's CPU/RAM but not its mount namespace (the broker's
+  `flock`-based semaphore is invisible across that boundary, so a container's
+  builds would otherwise run uncounted alongside the host's). Effective cap is
+  `max(1, base_cap - reserved)` — it never drops to 0, since a cap of 0 slots
+  would spin forever. Applies after `VOX_BROKER_MAX_CONCURRENT` too: an
+  explicit override is still reduced by the reservation. A non-numeric or
+  negative value is ignored (treated as 0). Default: 0 (no reservation).
 - `VOX_BROKER_HOME` — relocate broker state (tests / isolation).
 - `VOX_BROKER_DEBUG` — print resolution and exit without building.
 
