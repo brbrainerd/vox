@@ -135,25 +135,37 @@ sh -lc 'command -v cargo'
 zsh -lc 'which -a cargo'      # first hit should be …/.vox/build-broker/bin/cargo
 ```
 
-Once activated, tail the broker's own log to confirm builds are actually
-flowing through it:
+Once activated, `vox-broker` (installed alongside the shim, on the same PATH
+entry) reads the broker's own audit files for you — no more `tail -f` plus a
+`grep`:
 
 ```sh
-# live tail of every build the broker handles, across all worktrees
-tail -f ~/.vox/build-broker/broker.log
-
-# how many builds queued behind the cap (ahead>0 = contention absorbed)
-grep -v 'ahead=0' ~/.vox/build-broker/broker.log | wc -l
+vox-broker stats   # summary over metrics.jsonl: p50/p95 queue wait, coalesce rate,
+                    # and the coalescing-daemon go/no-go verdict
+vox-broker log     # last 20 lines of broker.log (add -n N for a different count)
+vox-broker status  # effective cap, any VOX_BROKER_RESERVED_SLOTS reservation,
+                    # a sampled count of busy slots, and the broker home path
 ```
 
-A line reads e.g.:
+`vox-broker` is strictly read-only: it never creates, deletes, or modifies any
+broker state (including the broker home directory itself), and its slot count
+in `status` is an explicit sample, not a snapshot — another process can take
+or release a slot between the read and your acting on it. Before the broker has
+ever run, every subcommand says so plainly and exits 0, rather than printing a
+row of zeros.
+
+A `broker.log` line reads e.g.:
 
 ```text
 <ts> test   wait=  4200ms ran= 18000ms ahead=3 cap=4 coalesce=false exit=0 <worktree>
 ```
 
 `ahead>0` / `wait>0` means the cap absorbed contention that would otherwise have
-blocked opaquely on cargo's locks or thrashed the machine.
+blocked opaquely on cargo's locks or thrashed the machine. For anyone who wants
+the raw files instead: `~/.vox/build-broker/broker.log` (human-readable,
+one line per build, every worktree) and `~/.vox/build-broker/metrics.jsonl`
+(machine-readable, one JSON record per build) — both overridable via
+`VOX_BROKER_HOME`.
 
 ## Evidence gate (coalescing daemon)
 
