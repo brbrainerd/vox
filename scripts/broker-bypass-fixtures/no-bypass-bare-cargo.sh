@@ -8,7 +8,8 @@
 #
 #   vox run scripts/broker-bypass-lint.vox -- scripts/broker-bypass-fixtures/no-bypass-bare-cargo.sh
 #
-# must exit 0 with no match lines (only the summary line on stderr).
+# must exit 0 with no match lines (the summary line goes to stdout in the
+# current .vox implementation -- Vox has no stderr-print builtin).
 set -eu
 
 cargo build --release

@@ -15,6 +15,10 @@
 //   vox run scripts/broker-install.vox -- --dry-run              # same as above
 //   vox run scripts/broker-install.vox -- --apply [--profile <path>] [--no-profile]
 //
+// This script is only correct under compiled `vox run scripts/broker-install.vox`
+// -- NOT `vox run --interp`, since env.args() skips argv[0] under the compiled
+// tier but not under the interpreter (a confirmed Vox compiler/interpreter gap).
+//
 // Env:
 //   VOX_BROKER_HOME   Broker install root. Default: $HOME/.vox/build-broker
 //   VOX_REPO_ROOT     Repo root, used to find crates/vox-cargo-shim for the
@@ -280,6 +284,11 @@ fn main() {
     }
 
     match fs.mkdir(bin_dir) {
+        // `{}` here is an empty object literal, not an empty block (see
+        // stmt_expr_tail.rs:284); this only compiles because the sibling
+        // Error arm ends in process.exit(1) (Never-typed), letting the two
+        // arms unify. If that arm is ever softened to warn-and-continue,
+        // this arm must change too or the match stops compiling.
         Ok(_) => {}
         Error(m) => {
             print("broker-install: mkdir " + bin_dir + ": " + m);
@@ -287,12 +296,15 @@ fn main() {
         }
     }
 
-    // No pre-sort needed: bin_paths was already built de-duplicated above
-    // (`.sorted()`/`.sort()` are typechecked but not implemented by the
-    // native codegen backend `vox run` compiles through -- confirmed by a
-    // real `cargo build` failure, "no method named `sorted` found for
-    // struct `Vec<String>`" -- so install order here is simply insertion
-    // order, which does not affect correctness).
+    // No pre-sort needed: bin_paths was already built de-duplicated above.
+    // `.sorted()` typechecks but has no codegen backing at all (confirmed
+    // unimplemented in crates/vox-codegen/src/codegen_rust/emit/method_emit.rs
+    // -- a real `cargo build` failure, "no method named `sorted` found for
+    // struct `Vec<String>`"). `.sorted_by_key()` DOES have codegen support
+    // (method_emit.rs:815,941); it was avoided here only because a naive call
+    // with a mismatched-signature named function fails to compile, not
+    // because it's unimplemented. So install order here is simply insertion
+    // order, which does not affect correctness.
     for bin_path in bin_paths {
         let bin_name = std.path.basename(bin_path);
         let dst = path.join(bin_dir, bin_name);
@@ -329,6 +341,9 @@ fn main() {
             let profile_dir = profile_dir_opt.unwrap();
             if profile_dir != "" {
                 match fs.mkdir(profile_dir) {
+                    // See the mkdir(bin_dir) match above: this `{}` is an
+                    // empty object literal, and only compiles because the
+                    // sibling Error arm below is Never-typed (process.exit).
                     Ok(_) => {}
                     Error(m) => {
                         print("broker-install: mkdir " + profile_dir + ": " + m);

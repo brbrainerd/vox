@@ -73,6 +73,10 @@
 //   vox run scripts/broker-bypass-lint.vox -- <path> [<path> ...]     # scan only these paths
 //   vox run scripts/broker-bypass-lint.vox -- --allow-file <path>     # also allow a whole file
 //
+// This script is only correct under compiled `vox run scripts/broker-bypass-lint.vox`
+// -- NOT `vox run --interp`, since env.args() skips argv[0] under the compiled
+// tier but not under the interpreter (a confirmed Vox compiler/interpreter gap).
+//
 // A checked-in allowlist at scripts/broker-bypass-allowlist.txt records
 // known, honestly-not-fixed bypasses with a reason so they stay visible
 // instead of being silently skipped. One entry per line, colon-delimited:
@@ -294,11 +298,14 @@ fn gather_from_positional(paths: list[str]) to list[str] {
 }
 
 // Manual selection sort + adjacent dedup for the final match list.
-// `.sorted()`/`.sorted_by_key()` typecheck (crates/vox-compiler/src/typeck/
-// builtins.rs) but are NOT implemented by the native codegen backend `vox
-// run` compiles through -- confirmed by a real `cargo build` failure ("no
-// method named `sorted` found for struct `Vec<String>`"), so this rewrite
-// avoids them everywhere. The file list itself is deliberately left
+// `.sorted()` typechecks (crates/vox-compiler/src/typeck/builtins.rs) but has
+// no codegen backing at all -- confirmed unimplemented in
+// crates/vox-codegen/src/codegen_rust/emit/method_emit.rs, via a real
+// `cargo build` failure ("no method named `sorted` found for struct
+// `Vec<String>`"), so this rewrite avoids it. `.sorted_by_key()` DOES have
+// codegen support (method_emit.rs:815,941); it's avoided here only because a
+// naive call with a mismatched-signature named function fails to compile,
+// not because it's unimplemented. The file list itself is deliberately left
 // unsorted/undeduped: the three default scan roots (scripts/,
 // .github/workflows/, crates/**/*.rs) never overlap, so no real run
 // produces duplicate files, and the sort+dedup below on the much smaller

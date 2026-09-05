@@ -1,4 +1,4 @@
-# Allowlist for scripts/broker-bypass-lint.sh.
+# Allowlist for scripts/broker-bypass-lint.vox.
 #
 # Format, one entry per line, colon-delimited:
 #   path:line:reason text...   (exempts one matched line)
