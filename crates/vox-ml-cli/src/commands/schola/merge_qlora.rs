@@ -1,6 +1,8 @@
 //! `vox schola merge-qlora` — fold QLoRA adapter tensors into base f32 weights.
 //!
-//! Dispatches to the `mens-candle-cuda` plugin via `MlBackend::merge_adapter`.
+//! Dispatches to whichever `MlBackend` plugin matches this host's capabilities
+//! (`mens-candle-cuda` on an NVIDIA host, `mens-candle-metal` on Apple Silicon)
+//! via `MlBackend::merge_adapter`.
 //! The adapter directory must contain `adapter_manifest.json` (v3) written by training.
 
 use std::path::PathBuf;
@@ -10,6 +12,24 @@ use serde::{Deserialize, Serialize};
 
 use vox_bounded_fs::read_utf8_path_capped;
 use vox_populi::mens::MERGE_QLORA_REJECTS_BURN_BIN;
+
+// Candidate plugins for the `MlBackend` extension point, mirroring
+// catalog.toml's `mens-candle-cuda`/`mens-candle-metal` entries (id +
+// requires-tag). vox-plugin-host is deliberately dependency-free and cannot
+// read catalog.toml itself, so this is the caller-supplied SSOT-mirror
+// `resolve_extension_point` needs. Both plugins implement `merge_adapter`
+// (unlike QLoRA *training*, which has no Metal backend yet — see run_train.rs).
+// vox:defactored-from vox-plugin-catalog 2026-09-05
+const ML_BACKEND_CANDIDATES: &[vox_plugin_host::ExtensionCandidate] = &[
+    vox_plugin_host::ExtensionCandidate {
+        plugin_id: "mens-candle-cuda",
+        requires_tag: Some("nvidia-gpu"),
+    },
+    vox_plugin_host::ExtensionCandidate {
+        plugin_id: "mens-candle-metal",
+        requires_tag: Some("apple-silicon"),
+    },
+];
 
 // ---------------------------------------------------------------------------
 // Inline serde-only schema types (no candle deps).
@@ -100,14 +120,24 @@ pub fn run_merge_qlora(
         .map(std::path::Path::to_path_buf)
         .unwrap_or_else(|| std::path::PathBuf::from("."));
 
-    // Dispatch to the plugin.
+    // Dispatch to whichever MlBackend plugin matches this host's capabilities
+    // (CUDA on an NVIDIA host, Metal on Apple Silicon), not a hardcoded id —
+    // see vox_plugin_host::resolve_extension_point.
     let result = (|| -> anyhow::Result<()> {
-        let plugin = vox_plugin_host::cached_code_plugin("mens-candle-cuda")
-            .context("mens-candle-cuda plugin not found — install vox-plugin-mens-candle-cuda")?;
-        let backend =
-            plugin.plugin.as_ml_backend().into_option().ok_or_else(|| {
-                anyhow::anyhow!("mens-candle-cuda plugin does not provide MlBackend")
-            })?;
+        let plugin_id = vox_plugin_host::resolve_extension_point(
+            "MlBackend",
+            ML_BACKEND_CANDIDATES,
+            &vox_plugin_host::probe(),
+        )
+        .context("no ML backend plugin matches this host's capabilities")?;
+        let plugin = vox_plugin_host::cached_code_plugin(plugin_id).with_context(|| {
+            format!("{plugin_id} plugin not found — install vox-plugin-{plugin_id}")
+        })?;
+        let backend = plugin
+            .plugin
+            .as_ml_backend()
+            .into_option()
+            .ok_or_else(|| anyhow::anyhow!("{plugin_id} plugin does not provide MlBackend"))?;
         backend
             .merge_adapter(
                 base_dir.to_string_lossy().as_ref().into(),
