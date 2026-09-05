@@ -64,7 +64,11 @@ mod tests {
         for (wf, writer) in [
             ("release-binaries.yml", Some("publish")),
             ("release-gui.yml", Some("build-tauri")),
-            ("release-installers.yml", None),
+            // `publish` attaches the .deb and the other installers to the
+            // release, which needs contents:write. The job was added by
+            // 96c1c7c84 after this expectation was written as `None`, so the
+            // test — not the workflow — was the stale half.
+            ("release-installers.yml", Some("publish")),
         ] {
             let text = std::fs::read_to_string(root.join(".github/workflows").join(wf))
                 .unwrap_or_else(|e| panic!("read {wf}: {e}"));
