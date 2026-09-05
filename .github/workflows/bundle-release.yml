@@ -56,23 +56,22 @@ jobs:
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
         # CI gates use (rust-toolchain.toml). @stable also imports each new
         # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
-        uses: dtolnay/rust-toolchain@master
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: "1.96.0"
           targets: ${{ matrix.target }}
+          # This matrix has TWO dimensions. runner.os discriminates the target
+          # dimension on its own (linux vs windows), but the 7 bundles all
+          # share an OS, so without a suffix all 7 legs of a platform compute
+          # one identical key -- 7 jobs racing to save it (6 saves discarded),
+          # and each restoring a target/ built for a different feature set.
+          # The hand-rolled cache this replaced had the same gap; keying on the
+          # bundle closes it rather than carrying it forward.
+          cache-key-suffix: -bundle-${{ matrix.bundle }}
 
-      - name: Cache Cargo Registry & Target
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-bundle-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-bundle-
-            ${{ runner.os }}-cargo-
-
+      # setup-rust's own cache (cache: true default) already covers
+      # ~/.cargo/registry, ~/.cargo/git, and target/ keyed on OS + toolchain +
+      # Cargo.lock, plus the bundle suffix above -- a separate hand-rolled
+      # cache block here would just duplicate it.
       - name: Build vox CLI
         run: cargo build --profile dist --locked -p vox-cli --target ${{ matrix.target }}
 
@@ -139,6 +138,9 @@ jobs:
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v3
         with:
+          # No public release is published from this repo; drafts are promoted by hand.
+          draft: true
+          prerelease: true
           files: |
             ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
             ${{ matrix.bundle }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz.sha256

@@ -1,9 +1,29 @@
 name: Release Installers
 
+# The build/syntax-check jobs (voxup build, install.sh/.ps1 syntax, MSI/DEB/brew
+# packaging) run on every `v*` tag push and are useful signal on their own.
+#
+# The "E2E — ... (tag runs only)" steps below are a different story: they download
+# the *just-tagged* release from GitHub Releases (voxup install / install.sh /
+# install.ps1 full bootstrap). release-binaries.yml and bundle-release.yml publish
+# with `draft: true` (required — see AGENTS.md release-safety rule), so at tag-push
+# time there is no public release for them to fetch: `/releases/latest` 404s, or an
+# `-rc.<n>` tag never resolves at all. That is unfixable without publishing a real
+# release automatically, which is forbidden. Making these E2E steps green would mean
+# either faking a release (defeats the point of the test) or auto-publishing
+# (forbidden) — so instead of failing on every tag push (5/5 measured), they now
+# require an explicit manual opt-in via workflow_dispatch, to be run by a release
+# manager once an actual public release exists to test against.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      run_e2e_downloads:
+        description: "Run the GitHub-Releases-downloading E2E steps (voxup install, install.sh/.ps1 full bootstrap). Only meaningful once a real, non-draft release exists for the target tag."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -29,9 +49,7 @@ jobs:
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
         # CI gates use (rust-toolchain.toml). @stable also imports each new
         # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.96.0"
+        uses: ./.github/actions/setup-rust
       - name: Install system deps (libdbus/GTK)
         # voxup pulls in glib-sys transitively -- same gap build-linux-deb
         # already has a fix for. Linux-only; macOS doesn't need it.
@@ -46,8 +64,8 @@ jobs:
           ./target/release/voxup update --help
           ./target/release/voxup proxy --help
 
-      - name: E2E — voxup install (downloads from GitHub, tag runs only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: E2E — voxup install (downloads from GitHub, manual opt-in only)
+        if: github.event_name == 'workflow_dispatch' && inputs.run_e2e_downloads == true
         run: |
           export HOME=/tmp/fake_home
           mkdir -p $HOME
@@ -63,8 +81,8 @@ jobs:
             exit 1
           fi
 
-      - name: E2E — voxup update (no-op, tag runs only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: E2E — voxup update (no-op, manual opt-in only)
+        if: github.event_name == 'workflow_dispatch' && inputs.run_e2e_downloads == true
         run: |
           export HOME=/tmp/fake_home
           ./target/release/voxup update
@@ -86,9 +104,7 @@ jobs:
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
         # CI gates use (rust-toolchain.toml). @stable also imports each new
         # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.96.0"
+        uses: ./.github/actions/setup-rust
       - name: Install cargo-wix
         uses: taiki-e/install-action@v2
         with:
@@ -129,9 +145,7 @@ jobs:
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
         # CI gates use (rust-toolchain.toml). @stable also imports each new
         # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.96.0"
+        uses: ./.github/actions/setup-rust
       - name: Install cargo-deb
         uses: taiki-e/install-action@v2
         with:
@@ -206,10 +220,7 @@ jobs:
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
         # CI gates use (rust-toolchain.toml). @stable also imports each new
         # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.96.0"
-
+        uses: ./.github/actions/setup-rust
       - name: Install system deps (libdbus/GTK)
         # voxup pulls in glib-sys transitively -- same gap build-linux-deb
         # already has a fix for. Linux-only; macOS doesn't need it.
@@ -219,8 +230,8 @@ jobs:
       - name: Build voxup (for E2E bootstrap test)
         run: cargo build --release -p voxup
 
-      - name: E2E — install.sh full (tag runs only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: E2E — install.sh full (manual opt-in only)
+        if: github.event_name == 'workflow_dispatch' && inputs.run_e2e_downloads == true
         run: |
           export HOME=/tmp/fake_home_bootstrap
           mkdir -p $HOME
@@ -266,8 +277,8 @@ jobs:
           }
           Write-Host "install.ps1 syntax OK"
 
-      - name: E2E — install.ps1 full (tag runs only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: E2E — install.ps1 full (manual opt-in only)
+        if: github.event_name == 'workflow_dispatch' && inputs.run_e2e_downloads == true
         shell: pwsh
         run: |
           $fakeHome = "$env:TEMP\fake_home_bootstrap"

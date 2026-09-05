@@ -1,8 +1,10 @@
-# cargo-mutants config for vox-compiler / vox-codegen (mutation-pr.yml).
+# cargo-mutants config for vox-compiler / vox-codegen, shared by mutation-nightly.yml
+# (the former PR-scoped mutation-pr.yml was deleted 2026-09: 95 min median / 407 min
+# max, not a required check, fully duplicated by this nightly lane).
 # See https://mutants.rs/config-file.html
 #
-# PRs to these crates now fail if mutations survive — use this file to add
-# targeted exclusions rather than reverting the workflow to continue-on-error.
+# Use this file to add targeted exclusions rather than reverting the workflow
+# to continue-on-error.
 
 test_tool = "nextest"
 cap_lints = true

@@ -14,6 +14,8 @@ pub enum ReleasePackage {
     Vox,
     /// `vox-ml-cli` plugin: ML/oratio/speech/populi/train subcommands (heavy: Candle).
     Mens,
+    /// `vox-langtool`: DB-free language toolchain only (check/fmt/run/build). The `minimal` tier.
+    Langtool,
     /// Every artifact: vox + every plugin binary. The "full" tier.
     All,
 }
@@ -378,6 +380,25 @@ pub enum CiCmd {
         #[arg(long)]
         strict: bool,
     },
+    /// Require every `softprops/action-gh-release` workflow step to set
+    /// `draft: true` (boolean). Unlike the advisory guards, this one always
+    /// fails on a violation — a published public release is not advisory.
+    #[command(name = "release-draft-guard")]
+    ReleaseDraftGuard,
+    /// Forbid any workflow but ci.yml from naming a job with the required
+    /// branch-protection context when it fires on ordinary PR events -- a
+    /// skipped job posts that context and satisfies the gate. Always fails.
+    #[command(name = "required-context-guard")]
+    RequiredContextGuard,
+    /// Forbid any workflow step from installing Rust directly via
+    /// `dtolnay/rust-toolchain` instead of `./.github/actions/setup-rust`.
+    /// Always fails on a violation.
+    #[command(name = "toolchain-workflow-lint")]
+    ToolchainWorkflowLint,
+    /// Forbid an `actions/cache` key that hashes `Cargo.lock` without also
+    /// keying on the Rust toolchain. Always fails on a violation.
+    #[command(name = "cache-key-lint")]
+    CacheKeyLint,
     /// Advisory GUI visual AI review (screenshots vs design principles). Always exits 0; never gates.
     #[command(name = "gui-visual-review")]
     GuiVisualReview {
@@ -1202,6 +1223,15 @@ pub enum CiCmd {
         #[arg(long)]
         failures_only: bool,
     },
+    /// Rust toolchain SSOT drift guard: `contracts/toolchain/workspace-toolchain.v1.yaml`
+    /// (`versions.rust`) against every restatement (rust-toolchain.toml, the
+    /// Cargo.toml `rust-version` MSRV floor, both CI-runner Dockerfiles, the
+    /// distribution profile, the stable channel manifest, and the voxup
+    /// profiles test fixture). Portable (POSIX-only parsing, no `grep -oP`)
+    /// replacement for the guard at ci.yml:788-808, which checks only two of
+    /// the rows and cannot run on macOS.
+    #[command(name = "toolchain-ssot")]
+    ToolchainSsot,
 }
 
 impl CiCmd {

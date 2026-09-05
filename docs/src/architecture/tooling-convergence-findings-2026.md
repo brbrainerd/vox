@@ -113,8 +113,10 @@ floors in [`.config/coverage-gates.toml`](../../../.config/coverage-gates.toml).
 - **No property-based testing.** No `proptest`, `quickcheck`, or `arbitrary` in
   workspace deps. The compiler and codegen are obvious candidates; mutation
   tests partially compensate but only on those two crates.
-- **Mutation testing is non-blocking.** [`mutation-pr.yml`](../../../.github/workflows/mutation-pr.yml)
-  uses `continue-on-error: true`. PRs report results but don't fail.
+- **Mutation testing is non-blocking.** [`mutation-nightly.yml`](../../../.github/workflows/mutation-nightly.yml)
+  uses `continue-on-error: true`. The former PR-scoped lane (`mutation-pr.yml`) was deleted
+  2026-09 — 95 min median / 407 min max, not a required check, and fully duplicated by this
+  nightly lane; see `.superpowers/sdd/2026-09-05-p4-ci-lanes/`.
 - **No `vox ci test` subcommand.** Test invocation is encoded in
   [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml) lines 244–280;
   changing it requires editing YAML, not Rust.
@@ -221,7 +223,7 @@ have well-defined regenerate commands.
 | Pre-commit (lefthook) | `vox ci sync-ignore-files`, `command-sync`, `generate-plugin-catalog-docs`, `tdd-guard` | yes (commit blocked) | only if hooks not installed |
 | Pre-push (lefthook + `vox ci pre-push`) | `vox-drift-check`, `cargo fmt`, `line-endings`, `ssot-drift`, `doc-inventory verify`, clippy, `toestub-scoped`, optional `nextest` | local-only | bypassable; not in CI |
 | GitHub Actions (`ci.yml`) | guards-fast → lints → audits → tests | yes | docs-quality is separate workflow |
-| GitHub Actions (`docs-quality.yml`, `link_checker.yml`, `mutation-pr.yml`, `ssot-drift.yml`, …) | per-axis | partial; many `continue-on-error: true` | local has no equivalent |
+| GitHub Actions (`docs-quality.yml`, `link_checker.yml`, `mutation-nightly.yml`, `ssot-drift.yml`, …) | per-axis | partial; many `continue-on-error: true` | local has no equivalent |
 
 **Redundancy:**
 - `cargo fmt --check`, line-endings, ssot-drift, clippy, scoped TOESTUB run
@@ -416,10 +418,11 @@ Ship these in any order; each is independent and small.
    tests can be flaky; constrain `cases` and shrink time budgets.
 2. **Make mutation testing blocking on `vox-compiler` / `vox-codegen`.**
    Drop `continue-on-error` from
-   [`mutation-pr.yml`](../../../.github/workflows/mutation-pr.yml) for those
-   two crates. Pros: tests stop being optional. Risks: false positives are
-   real; expect to add `cargo-mutants` exclusions for known-irrelevant
-   mutations.
+   [`mutation-nightly.yml`](../../../.github/workflows/mutation-nightly.yml)
+   (the PR-scoped `mutation-pr.yml` lane was deleted 2026-09 as a fully
+   duplicated, non-required lane) for those two crates. Pros: tests stop
+   being optional. Risks: false positives are real; expect to add
+   `cargo-mutants` exclusions for known-irrelevant mutations.
 3. **TypeScript linting via biome.** Workspace-root `biome.json`. Lint TS in
    `docs-astro/`, `apps/editor/vox-vscode/`, `apps/experimental/visualizer/`, **and** the output
    from `crates/vox-codegen/codegen_ts/` test fixtures. Pros: codegen
@@ -503,7 +506,7 @@ half the silent-failure surface in docs-quality.
   [`.config/coverage-gates.toml`](../../../.config/coverage-gates.toml),
   [`.markdownlint.jsonc`](../../../.markdownlint.jsonc)
 - [`.github/workflows/`](../../../.github/workflows/) — ci.yml,
-  docs-quality.yml, link_checker.yml, mutation-pr.yml, ssot-drift.yml,
+  docs-quality.yml, link_checker.yml, mutation-nightly.yml, ssot-drift.yml,
   bench-nightly.yml, mutation-nightly.yml
 - [`crates/vox-arch-check/`](../../../crates/vox-arch-check/),
   [`crates/vox-code-audit/`](../../../crates/vox-code-audit/),

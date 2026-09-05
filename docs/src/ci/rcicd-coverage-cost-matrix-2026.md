@@ -27,8 +27,7 @@ This document implements the RCICD audit plan: what is covered where, what belon
 | `docs-deploy.yml` | Path-filtered push `main` | Site deploy | Medium |
 | `link_checker.yml` | PR + push `main` | External links | Medium |
 | `ssot-drift.yml` | PR + push `main` | Crate version / dashboard SSOT (overlaps theme with `ci.yml`, not identical steps) | Low–medium |
-| `mutation-pr.yml` | Path-filtered PR (`vox-compiler`, `vox-codegen`) | `cargo mutants` | High |
-| `mutation-nightly.yml` / `bench-nightly.yml` / `qwen35-native-nightly.yml` | Schedule | Nightly quality / perf | High (scheduled) |
+| `mutation-nightly.yml` / `bench-nightly.yml` / `qwen35-native-nightly.yml` | Schedule | Nightly quality / perf (`cargo mutants` for the first) | High (scheduled) |
 | `mobile-e2e-android.yml` | Path-filtered PR/push (`apps/vox-mental-tracker/**`) | Android emulator E2E | High |
 | `deploy-hetzner.yml` | Push `main`, `workflow_dispatch` | Coolify deploy + health probes; Gate 1 is minimal ubuntu build only | Low (smoke) + deploy wall time |
 | Tag/release workflows | Tags / `release` | Artifacts | Variable |
@@ -55,7 +54,7 @@ For runner labels and exceptions, see [runner-contract.md](runner-contract.md) a
 ## Ongoing gaps / debt (monitor)
 
 - **Ignored tests:** Inventory in `contracts/reports/test-inventory.v1.json`; governance via `vox ci ignored-test-age`, `test-inventory`. Large ignored counts hide regressions if ignored-only lanes are skipped.
-- **Mutation scope:** PR mutation gate is limited to compiler/codegen paths; other crates rely on unit/integration coverage only.
+- **Mutation scope:** the nightly mutation gate (`mutation-nightly.yml`) is limited to `vox-compiler`; other crates rely on unit/integration coverage only. The former PR-scoped lane (`mutation-pr.yml`) was deleted 2026-09 as a fully duplicated, non-required lane (95 min median / 407 min max).
 - **GitLab mirror retired (2026-06-03):** the `.gitlab-ci.yml` mirror and its **`vox-ci-guards`** job have been deleted; GitLab CI is no longer a supported target, so GitLab↔GitHub parity is no longer tracked.
 
 ## Cost optimizations applied

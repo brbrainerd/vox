@@ -3,7 +3,6 @@ name: ML Pipeline
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-
 on:
   push:
     branches:
@@ -40,8 +39,16 @@ on:
         required: false
         default: 'false'
 
+# A schedule-triggered run and a push-to-main-triggered run both resolve
+# github.ref to refs/heads/main, so a plain `${{ github.workflow }}-${{ github.ref }}`
+# group put the nightly cron leg in the SAME concurrency group as every push to
+# main — a merge landing mid-run cancelled the nightly extraction outright
+# (measured: 23/29 cancelled, ALL-CANCELLED per wf-health-measured.tsv). Give
+# scheduled runs their own group so a push to main can no longer cancel the
+# nightly leg; push- and workflow_dispatch-triggered runs keep the original
+# per-ref group and continue to supersede each other as intended.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
   cancel-in-progress: true
 
 # ── Platform portability notes ───────────────────────────────────────────────
@@ -52,7 +59,7 @@ concurrency:
 jobs:
   extract:
     name: Extract & Validate Training Corpus
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     # Missing until 2026-07-27 (found in the same audit that fixed the
     # nightly workflows' missing timeouts) — GitHub's 360-min default lets
     # a hang squat a scarce self-hosted runner slot for hours.
@@ -71,18 +78,7 @@ jobs:
           fetch-depth: 2   # need HEAD^ for diff
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-ml-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-ml-
+        uses: ./.github/actions/setup-rust
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.10
@@ -160,7 +156,6 @@ jobs:
       - name: Run native eval on training corpus
         run: |
           ./target/release/vox mens corpus eval target/dogfood/train.jsonl -o target/dogfood/eval_results.json --print-summary 2>/dev/null || true
-
 
       - name: Count generated pairs
         id: count_pairs
@@ -255,7 +250,7 @@ jobs:
           fi
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
       - name: Build Vox Compiler
         # `vox train --native` delegates to `vox-ml-cli` the same way `vox

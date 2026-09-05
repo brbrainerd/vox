@@ -6,7 +6,7 @@ pub(super) async fn http_ws(
     headers: HeaderMap,
 ) -> Response {
     if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
-        return resp;
+        return *resp;
     }
 
     let role_res = resolve_access_role(&state, &headers, Some(&connect.0));

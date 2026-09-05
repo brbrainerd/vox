@@ -5,7 +5,7 @@ pub(super) async fn http_tools(
     headers: HeaderMap,
 ) -> Response {
     if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
-        return resp;
+        return *resp;
     }
     let role = match resolve_access_role(&state, &headers, Some(&connect.0)) {
         Ok(r) => r,
@@ -47,7 +47,7 @@ pub(super) async fn http_call_tool(
     Json(req): Json<ToolCallRequest>,
 ) -> Response {
     if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
-        return resp;
+        return *resp;
     }
     let role = match resolve_access_role(&state, &headers, Some(&connect.0)) {
         Ok(r) => r,
@@ -132,28 +132,34 @@ pub(super) async fn enforce_request_guards(
     state: &GatewayState,
     peer: &SocketAddr,
     headers: &HeaderMap,
-) -> std::result::Result<(), Response> {
+) -> std::result::Result<(), Box<Response>> {
     let identity = request_identity(state, peer, headers);
     if let Err(msg) = enforce_auth(state, headers, Some(peer)) {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({ "error": msg })),
-        )
-            .into_response());
+        return Err(Box::new(
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({ "error": msg })),
+            )
+                .into_response(),
+        ));
     }
     if let Err(msg) = enforce_https_requirement(state, headers) {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({ "error": msg })),
-        )
-            .into_response());
+        return Err(Box::new(
+            (
+                StatusCode::FORBIDDEN,
+                Json(serde_json::json!({ "error": msg })),
+            )
+                .into_response(),
+        ));
     }
     if let Err(msg) = enforce_rate_limit(state, &identity) {
-        return Err((
-            StatusCode::TOO_MANY_REQUESTS,
-            Json(serde_json::json!({ "error": msg })),
-        )
-            .into_response());
+        return Err(Box::new(
+            (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(serde_json::json!({ "error": msg })),
+            )
+                .into_response(),
+        ));
     }
     Ok(())
 }

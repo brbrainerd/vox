@@ -57,25 +57,13 @@ env:
 jobs:
   corpus-feedback:
     name: Exercise loop + aggregate
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo Registry & Target
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-cr-l8-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-cr-l8-
-            ${{ runner.os }}-cargo-
+        uses: ./.github/actions/setup-rust
 
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
@@ -211,25 +199,13 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   stdlib-coverage:
     name: stdlib-coverage parity
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo Registry & Target
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-stdlib-coverage-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-stdlib-coverage-
-            ${{ runner.os }}-cargo-
+        uses: ./.github/actions/setup-rust
 
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
@@ -330,25 +306,13 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   scripts-check:
     name: vox check on scripts/
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo Registry & Target
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-scripts-check-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-scripts-check-
-            ${{ runner.os }}-cargo-
+        uses: ./.github/actions/setup-rust
 
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev

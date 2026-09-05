@@ -200,9 +200,13 @@ Before adding one:
 - Give the job an explicit `timeout-minutes` — GitHub's 360-min default lets
   a hang squat a scarce runner slot for hours, starving the other nightlies
   (two of the three existing nightlies were missing this until 2026-07-27).
-- Pick a cron time — existing nightlies run at 03:17, 05:17, and 06:20 UTC;
-  avoid clustering more jobs into that same window, since they'd all compete
-  for the same 2-runner pool.
+- Pick a cron time — existing nightlies run at 03:17 and 06:20 UTC, with the
+  06:00 hour additionally carrying `gitleaks` (05:00), `cr-l-gates`,
+  `ci-fallback-hosted`, and `link_checker` (all 06:00); `mutation-nightly.yml`
+  was moved from 05:17 to 13:00 UTC in 2026-09 after measuring 24/29 runs
+  cancelled by contention in that cluster. Avoid clustering more jobs into
+  the 02:00–06:00 UTC window, since they'd all compete for the same 2-runner
+  pool.
 - A GPU-requiring job (labels including `gpu`, like `qwen35-native-nightly.yml`)
   draws from a wholly separate capacity pool — see `runner-contract.md` — so
   its demand doesn't compete with `linux`/`docker`-labeled jobs, but does

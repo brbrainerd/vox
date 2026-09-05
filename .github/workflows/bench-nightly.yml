@@ -22,7 +22,7 @@ env:
 jobs:
   criterion-bench:
     name: criterion (vox-compiler, CR-E1)
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     # 60m gives a cold-cache run (compiling both bench suites from scratch)
     # enough headroom to finish and save the cargo cache; every prior run had
     # failed fast at step 5 (see fix above), so the cache post-step never ran
@@ -33,18 +33,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo Registry & Target
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-bench-
+        uses: ./.github/actions/setup-rust
 
       - name: Run compiler_pipeline benchmarks (CR-E1 proxy)
         run: |
@@ -68,7 +57,7 @@ jobs:
           set -euo pipefail
           # Bencher output format: "test <name> ... bench: <N> ns/iter (+/- <M>)"
           HELLO_NS=$(grep "full_pipeline/e2e/hello" target/bench-compiler-pipeline.txt \
-            | grep -oP '\d+(?= ns/iter)' | head -1 || echo "")
+            | sed -nE 's/.* ([0-9]+) ns\/iter.*/\1/p' | head -1 || echo "")
           if [ -z "$HELLO_NS" ]; then
             echo "::warning::CR-E1: Could not extract hello-world pipeline timing from bench output."
             exit 0

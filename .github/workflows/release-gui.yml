@@ -51,19 +51,19 @@ jobs:
           fetch-depth: 0
 
       - name: Install Rust toolchain
-        # Pinned, not the floating alias: dtolnay/rust-toolchain's floating
-        # form exports RUSTUP_TOOLCHAIN, which OVERRIDES rust-toolchain.toml —
-        # so the shipped GUI would be built by whatever stable is current,
-        # not the channel every CI gate ran against. See AGENTS.md's
-        # Perennial Bug Patterns for the toolchain-bump lint-wave class this
-        # avoids.
-        uses: dtolnay/rust-toolchain@master
+        # setup-rust reads the version from
+        # contracts/toolchain/workspace-toolchain.v1.yaml and accepts no
+        # `toolchain:` input, so this step cannot install a floating channel.
+        # That matters here: a floating install exports RUSTUP_TOOLCHAIN, which
+        # OVERRIDES rust-toolchain.toml, and the shipped GUI would then be built
+        # by whatever stable is current rather than the channel every CI gate
+        # ran against. See AGENTS.md's Perennial Bug Patterns.
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: "1.96.0"
           # universal-apple-darwin is a Tauri meta-target, not a real rustup
           # triple. The x86_64-apple-darwin cross target is added separately
           # below via `rustup target add` (not here) because this repo pins
-          # its toolchain via rust-toolchain.toml (channel 1.96.0) — `rustup
+          # its toolchain via rust-toolchain.toml (the pinned channel) — `rustup
           # target add`, run with no channel argument, always targets whatever
           # toolchain cargo will actually use (the pinned one), avoiding a
           # mismatch between this action's `@stable` alias and that pin.
@@ -115,7 +115,7 @@ jobs:
           # rustup target add (no channel arg) always targets whatever
           # toolchain cargo will actually use here — the repo's pinned
           # rust-toolchain.toml channel, matching the toolchain installed by
-          # the pinned dtolnay/rust-toolchain step above. Installing this via
+          # the ./.github/actions/setup-rust step above. Installing this via
           # the action's `targets:` input instead left x86_64-apple-darwin's
           # core/std missing at build time.
           rustup target add x86_64-apple-darwin

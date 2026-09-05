@@ -57,7 +57,7 @@ impl DiscoveryGate {
     }
 
     async fn promote_to_publication(&self, entry: DiscoveryEntry) -> Result<(), StoreError> {
-        let publication_id = format!("pub_{}", &entry.discovery_id);
+        let publication_id = format!("pub_{}", entry.discovery_id);
 
         self.writer
             .insert_telemetry_flat(

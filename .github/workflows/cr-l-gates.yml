@@ -37,8 +37,16 @@ on:
     # or a CR-L8 corpus-feedback artifact ages past its 90-day window.
     - cron: '0 6 * * *'
 
+# A schedule-triggered run and a push-to-main-triggered run both resolve
+# github.ref to refs/heads/main, so a plain `${{ github.workflow }}-${{ github.ref }}`
+# group put the nightly cron leg in the SAME concurrency group as every push to
+# main — any merge landing while the nightly run was still going cancelled it
+# outright (measured: 28/28 cancelled, ALL-CANCELLED per wf-health-measured.tsv).
+# Give scheduled runs their own group so a push to main can no longer cancel
+# the nightly leg (or vice versa); PR-triggered runs keep their own
+# per-PR-ref group and continue to supersede each other as intended.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -47,7 +55,7 @@ permissions:
 jobs:
   umbrella:
     name: vox audit --gate all --strict-block-ga
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -59,7 +67,14 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-cr-l-gates-${{ hashFiles('**/Cargo.lock') }}
+          # This job installs no toolchain of its own (relies on the self-hosted
+          # image's rustup auto-switching on rust-toolchain.toml), so there's no
+          # setup-rust `toolchain` output to key on. Hashing rust-toolchain.toml
+          # alongside Cargo.lock makes the key toolchain-sensitive without one --
+          # anchored to the top-level Cargo.lock only, per the setup-rust action's
+          # rationale (the `**/` glob also matches server/telemetry/Cargo.lock,
+          # a deliberately excluded separate workspace).
+          key: ${{ runner.os }}-cargo-cr-l-gates-${{ hashFiles('rust-toolchain.toml', 'Cargo.lock') }}
 
       - name: Install system deps (dbus/GTK required by wry/keyring on Linux)
         # `|| true` on update only: this shared self-hosted runner has other
@@ -134,7 +149,7 @@ jobs:
 
   arch-check-evidence:
     name: vox-arch-check evidence-ledger lint
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -146,7 +161,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-arch-check-${{ hashFiles('**/Cargo.lock') }}
+          # See the `umbrella` job's cache step for why rust-toolchain.toml is
+          # hashed alongside Cargo.lock here (no setup-rust toolchain output to
+          # key on in this job).
+          key: ${{ runner.os }}-cargo-arch-check-${{ hashFiles('rust-toolchain.toml', 'Cargo.lock') }}
 
       - name: Install system deps (dbus/GTK required by wry/keyring on Linux)
         # `|| true` on update only: this shared self-hosted runner has other

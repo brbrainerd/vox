@@ -6,7 +6,7 @@ name        = "stable"
 version     = "0.6.0"
 release_tag = "v0.6.0"
 github_repo = "vox-foundation/vox"
-min_rust    = "1.96.0"
+min_rust    = "1.98.1"
 
 [targets]
 linux   = ["x86_64-unknown-linux-gnu"]

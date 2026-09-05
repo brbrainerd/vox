@@ -88,8 +88,10 @@ impl crate::VoxDb {
             let metadata: Option<String> = row.get(5).map_err(|e| StoreError::Db(e.to_string()))?;
             // Deserialise little-endian f32 bytes
             let stored: Vec<f32> = blob
-                .chunks_exact(4)
-                .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|c| f32::from_le_bytes(*c))
                 .collect();
             let dot: f32 = vector.iter().zip(stored.iter()).map(|(a, b)| a * b).sum();
             let mag_a: f32 = vector.iter().map(|x| x * x).sum::<f32>().sqrt();

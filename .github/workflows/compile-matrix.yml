@@ -14,8 +14,12 @@ on:
       - "crates/vox-release-artifacts/**"
       - "crates/vox-tauri-codegen/**"
       - "crates/vox-assets/**"
+      - "crates/vox-langtool/**"
+      - "crates/vox-lsp/**"
+      - "crates/vox-sql/**"
       - "examples/compile-suite/**"
       - "contracts/operations/catalog.v1.yaml"
+      - "crates/vox-cargo-shim/**"
       - ".github/workflows/compile-matrix.yml"
 
 concurrency:
@@ -31,11 +35,11 @@ env:
 jobs:
   compile-help-linux:
     name: vox compile --help (Linux self-hosted)
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@v2
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
@@ -53,6 +57,70 @@ jobs:
       - name: Compile suite desktop Tauri generation smoke
         working-directory: examples/compile-suite/packages/desktop
         run: ../../../../target/debug/vox compile --target desktop -o dist src/main.vox
+
+  # Standalone `-p` checks for crates whose default features just narrowed
+  # (P7). `cargo check --workspace` unifies features across crates and hides
+  # a crate whose own default-feature set no longer compiles standalone —
+  # this repo has shipped that bug at least twice (see AGENTS.md). One job
+  # per crate/feature-set combo so a broken default is caught in isolation.
+  per-crate-check:
+    name: cargo check -p ${{ matrix.crate }}${{ matrix.no_default_features && ' --no-default-features' || '' }}
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - crate: vox-langtool
+          - crate: vox-lsp
+          - crate: vox-config
+          - crate: vox-sql
+          - crate: vox-codegen
+          - crate: vox-cli
+          - crate: vox-sql
+            no_default_features: true
+          - crate: vox-config
+            no_default_features: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system deps (dbus/GTK, required by vox-cli's keyring-store default)
+        if: matrix.crate == 'vox-cli'
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+      - name: cargo check
+        run: cargo check -p ${{ matrix.crate }} ${{ matrix.no_default_features && '--no-default-features' || '' }}
+
+  # vox-cargo-shim is excluded from the root workspace (its binary must be
+  # literally named `cargo` for PATH interception, which a `--workspace`
+  # build must never emit) and per-crate-check above uses `-p`, which only
+  # resolves members of the root workspace — it cannot reach an excluded
+  # crate. That gap is exactly how vox-cargo-shim shipped a manifest that
+  # failed at parse time (a8965e4b4): being excluded also means no lane
+  # compiles it, so nothing noticed. This job is the crate's only lane; it
+  # uses --manifest-path (its own standalone `[workspace]`, own Cargo.lock)
+  # rather than `-p`, and covers check + clippy + test because the crate
+  # intercepts `cargo` on PATH — a silent break here is high-consequence.
+  cargo-shim-check:
+    name: cargo check/clippy/test -p vox-cargo-shim (standalone manifest)
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Separate workspace/lockfile from the root — cache it under its
+          # own key so it never collides with (or gets evicted by) the main
+          # workspace's cache entries.
+          workspaces: "crates/vox-cargo-shim -> target"
+          shared-key: "vox-cargo-shim"
+      - name: cargo check
+        run: cargo check --manifest-path crates/vox-cargo-shim/Cargo.toml --all-targets
+      - name: cargo clippy
+        run: cargo clippy --manifest-path crates/vox-cargo-shim/Cargo.toml --all-targets -- -D warnings
+      - name: cargo test
+        run: cargo test --manifest-path crates/vox-cargo-shim/Cargo.toml
 
   # compile-help-windows / compile-help-macos removed: their `vox compile --help`
   # smoke is subsumed by cross-platform-check.yml's per-PR `cargo check --workspace

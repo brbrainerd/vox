@@ -4,7 +4,16 @@ name: Mutation (nightly, vox-compiler)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 5 * * *"
+    # Moved off 05:17 UTC (measured: 24/29 runs cancelled, ALL-CANCELLED per
+    # wf-health-measured.tsv). 05:17 sat inside the densest self-hosted-linux
+    # cron cluster in this repo — gitleaks (05:00), then cr-l-gates,
+    # ci-fallback-hosted, and link_checker all firing at 06:00 — so a 120-minute
+    # mutation run competed with four other nightlies for the same fleet
+    # capacity and was starving/being starved (see the job's own
+    # "starving the other nightlies" comment below, from a prior 2026-07-27
+    # audit of this exact contention pattern). 13:00 UTC has no other
+    # self-hosted-linux cron in this repo, giving this job the fleet to itself.
+    - cron: "0 13 * * *"
 
 env:
   CARGO_TERM_COLOR: always
@@ -14,7 +23,7 @@ env:
 jobs:
   cargo-mutants:
     name: cargo-mutants (vox-compiler)
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     # Without this, a hang defaults to GitHub's 360-min job timeout, squatting
     # a scarce self-hosted runner slot for up to 6h and starving the other
     # nightlies (2026-07-27 audit finding — this and the Qwen3.5 job were the
@@ -24,18 +33,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo Registry & Target
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-mutants-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-mutants-
+        uses: ./.github/actions/setup-rust
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
@@ -95,7 +93,7 @@ jobs:
             sleep 300
             ELAPSED_MIN=$(( ($(date +%s) - START_TS) / 60 ))
             DONE=$(grep -cE "^(MISSED|CAUGHT|TIMEOUT|UNVIABLE)" "$LOG" 2>/dev/null)
-            TOTAL=$(grep -oP '(?<=Found )[0-9]+(?= mutants)' "$LOG" | head -1)
+            TOTAL=$(sed -nE 's/.*Found ([0-9]+) mutants.*/\1/p' "$LOG" | head -1)
             echo "heartbeat: ${ELAPSED_MIN}m elapsed, ${DONE}/${TOTAL:-?} mutants tested so far (still running)"
           done
 

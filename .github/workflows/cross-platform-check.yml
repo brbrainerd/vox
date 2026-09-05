@@ -1,15 +1,14 @@
 name: Cross-Platform Check (Windows + macOS + Ubuntu)
 on:
+  # No `paths:` filter here (deliberately — see `path-check` job below): a
+  # path-filtered `pull_request` trigger means the workflow never runs at all
+  # on a non-matching PR, so it can never post a status — which makes its
+  # per-leg contexts (and any summary job) permanently unusable as a required
+  # check (a PR that doesn't touch the filtered paths would block forever).
+  # `path-check` reinstates the same path scoping *inside* the workflow so the
+  # two expensive matrix jobs still skip on irrelevant PRs, while the summary
+  # job itself always runs and reports.
   pull_request:
-    paths:
-      - 'crates/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.cargo/**'
-      - 'rust-toolchain.toml'
-      - '.config/hakari.toml'
-      - 'contracts/**'
-      - 'examples/golden/**'
   merge_group:
   schedule:
     - cron: '0 4 * * 1'   # Weekly Monday belt-and-suspenders run (full Win/macOS)
@@ -23,8 +22,45 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # Reinstates the old `paths:` filter as an in-workflow check (see the `on:`
+  # comment above) so the two heavy matrix jobs below still skip cheaply on a
+  # PR that doesn't touch Rust/build-graph paths. Hosted because it's a single
+  # `git diff`, not a build (row in github-hosted-exceptions.md already covers
+  # every ubuntu-latest job in this file).
+  path-check:
+    name: Detect relevant changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      relevant: ${{ steps.check.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: check
+        run: |
+          set -euo pipefail
+          BASE="${{ github.event.pull_request.base.sha }}"
+          if ! git diff --name-only "${BASE}...HEAD" > /tmp/changed.txt 2>/dev/null; then
+            git diff --name-only HEAD~1...HEAD > /tmp/changed.txt
+          fi
+          echo "Changed files:"
+          cat /tmp/changed.txt
+          if grep -qE '^(crates/|Cargo\.toml$|Cargo\.lock$|\.cargo/|rust-toolchain\.toml$|\.config/hakari\.toml$|contracts/|examples/golden/)' /tmp/changed.txt; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+
   cross-check:
     name: Cross-Platform (Win/macOS/Ubuntu)
+    needs: path-check
+    # Non-PR events (merge_group/schedule/workflow_dispatch) always run full —
+    # `path-check` only exists for `pull_request` and reports `skipped` there,
+    # so the first clause covers those; PRs run only when `path-check` found a
+    # relevant file.
+    if: github.event_name != 'pull_request' || needs.path-check.outputs.relevant == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -52,7 +88,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
         with:
           targets: ${{ matrix.target }}
           components: clippy
@@ -63,16 +99,6 @@ jobs:
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.10
-
-      - uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-cross-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-cross-
 
       # Per-PR depth (cheap): prove the whole workspace COMPILES on every OS.
       # vox-gui is a Tauri bin needing the pnpm-built ui/dist at compile time, so
@@ -94,6 +120,7 @@ jobs:
         if: runner.os == 'Linux' || github.event_name != 'pull_request'
         run: |
           cargo nextest run -p vox-config
+          cargo nextest run -p vox-config --features llm-egress
           cargo nextest run -p vox-cli-core
           cargo nextest run -p vox-populi --lib
 
@@ -125,6 +152,8 @@ jobs:
   # feature unification cannot mask an under-declared dependency again.
   standalone-installables:
     name: Standalone installable crates (no feature unification)
+    needs: path-check
+    if: github.event_name != 'pull_request' || needs.path-check.outputs.relevant == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -135,7 +164,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
       - name: Install system deps (Linux — GTK/wry required)
         if: runner.os == 'Linux'
@@ -162,3 +191,38 @@ jobs:
       # does not exist on a fresh checkout without a pnpm build, which is why the
       # workspace check above excludes vox-gui too. Those guards live in
       # gui-cross-build.yml, after its frontend build step.
+
+  # Single stable context for branch protection. `cross-check` and
+  # `standalone-installables` are matrix jobs whose GitHub-reported context
+  # names embed the OS/target/sccache-flag tuple (e.g. "Cross-Platform
+  # (Win/macOS/Ubuntu) (windows-latest, x86_64-pc-windows-msvc, true)") — those
+  # names change whenever a leg is added, renamed, or re-flagged, so they can
+  # never be required without branch protection silently going stale. This
+  # job's `name:` is a fixed string with no matrix interpolation, so it is the
+  # only context that should ever be marked required for this workflow.
+  #
+  # `if: always()` + explicit success-or-skipped check (mirrors ci.yml's
+  # `ci-summary`) so this job runs — and reports correctly — even when
+  # `path-check` skipped the heavy jobs on an irrelevant PR, or when a leg
+  # genuinely failed.
+  cross-platform-summary:
+    name: Cross-Platform Check
+    needs: [path-check, cross-check, standalone-installables]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All needed jobs succeeded or were skipped
+        run: |
+          set -euo pipefail
+          fail=0
+          for r in \
+            "${{ needs.path-check.result }}" \
+            "${{ needs.cross-check.result }}" \
+            "${{ needs.standalone-installables.result }}"; do
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
+              echo "::error::a needed job did not succeed (result: $r)"
+              fail=1
+            fi
+          done
+          exit $fail

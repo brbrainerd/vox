@@ -102,7 +102,7 @@ mod tests {
     fn parses_minimal_manifest() {
         let yaml = r#"
 schema_version: 1
-rust_version: "1.96.0"
+rust_version: "1.98.1"
 binaries: [vox]
 tiers:
   minimal:
@@ -117,7 +117,7 @@ non_publishable: [vox-orchestrator-mcp]
 "#;
         let p = parse(yaml).expect("must parse");
         assert_eq!(p.schema_version, 1);
-        assert_eq!(p.rust_version, "1.96.0");
+        assert_eq!(p.rust_version, "1.98.1");
         assert!(p.tiers.contains_key("minimal"));
         assert!(!p.publish.enabled);
     }

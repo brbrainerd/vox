@@ -22,7 +22,7 @@
 #     container has no restart loop, the exit kills the job (2026-07-27 incident:
 #     3 nightly workflows failed for days from exactly this).
 
-ARG RUST_VERSION=1.96.0
+ARG RUST_VERSION=1.98.1
 ARG RUNNER_VERSION=2.337.0
 
 FROM ubuntu:24.04

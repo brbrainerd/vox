@@ -328,6 +328,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::WorkflowConcurrencyGuard { strict } => {
             vox_cli_ci::workflow_concurrency_guard::run(&root, strict)
         }
+        CiCmd::ReleaseDraftGuard => vox_cli_ci::release_draft_guard::run(&root),
+        CiCmd::RequiredContextGuard => vox_cli_ci::required_context_guard::run(&root),
+        CiCmd::ToolchainWorkflowLint => vox_cli_ci::toolchain_workflow_lint::run(&root),
+        CiCmd::CacheKeyLint => vox_cli_ci::cache_key_lint::run(&root),
         CiCmd::GuiVisualReview { no_ai } => vox_cli_ci::gui_visual_review::run(&root, no_ai),
         CiCmd::LineEndings { all, base, autofix } => {
             vox_cli_ci::line_endings::run(&root, all, base, autofix)
@@ -798,6 +802,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             })
             .await
         }
+        CiCmd::ToolchainSsot => vox_cli_ci::toolchain_ssot::run(&root),
     };
 
     // Record the gate's pass/fail into the per-branch status store (best-effort:

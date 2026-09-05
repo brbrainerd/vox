@@ -124,22 +124,22 @@ jobs:\n  a:\n    runs-on: [self-hosted, linux, x64]\n  b:\n    runs-on: [self-ho
         );
         let buckets = merge_group_self_hosted_fanout(&yaml);
         let general = buckets
-            .get("linux,self-hosted,x64")
+            .get("linux,self-hosted")
             .copied()
             .unwrap_or_else(|| {
                 panic!(
-                    "expected `linux,self-hosted,x64` bucket missing — label set renamed? \
+                    "expected `linux,self-hosted` bucket missing — label set renamed? \
                      Buckets: {buckets:?}"
                 )
             });
         assert!(
             general > 0,
-            "merge_group `linux,self-hosted,x64` fan-out is zero — the guard is measuring nothing. \
+            "merge_group `linux,self-hosted` fan-out is zero — the guard is measuring nothing. \
              Buckets: {buckets:?}"
         );
         assert!(
             general <= DEFAULT_MAX_RUNNERS as usize,
-            "merge_group `linux,self-hosted,x64` fan-out {general} exceeds runner ceiling {} — \
+            "merge_group `linux,self-hosted` fan-out {general} exceeds runner ceiling {} — \
              tier a job off merge_group (add `github.event_name != 'merge_group'`) or raise the ceiling. \
              Buckets: {buckets:?}",
             DEFAULT_MAX_RUNNERS

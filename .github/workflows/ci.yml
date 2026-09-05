@@ -79,9 +79,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - id: k
-        run: echo "key=${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}" >> "$GITHUB_OUTPUT"
-
       # Compute path-filters.  On merge_group (the integration path) always emit
       # true so we never skip gates on the integration branch.
       # (merge_group has no github.base_ref, so the PR-style diff below would be
@@ -109,15 +106,30 @@ jobs:
             fi
           fi
 
-      - uses: dtolnay/rust-toolchain@stable
+      - id: rust
+        uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy, llvm-tools-preview
+          # This job hand-rolls its own cache below so the resulting key can be
+          # exported as `cache-key` for the six downstream gating jobs to
+          # reuse (they don't each call setup-rust's own cache — that would
+          # give each job an independent, non-shared cache entry). Disable
+          # setup-rust's internal cache to avoid two caches writing the same
+          # paths under two different steps.
+          cache: "false"
+
+      - id: k
+        run: echo "key=${{ runner.os }}-cargo-${{ steps.rust.outputs.toolchain }}-${{ hashFiles('Cargo.lock') }}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ steps.k.outputs.key }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-${{ steps.rust.outputs.toolchain }}-
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
       - name: Build vox-cli (warms sccache + downstream artifact)
@@ -330,7 +342,7 @@ jobs:
             echo "rust-toolchain.toml unchanged — skipping the cold rebuild"
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         if: steps.tc.outputs.changed == 'true'
         with:
           components: rustfmt, clippy
@@ -384,12 +396,16 @@ jobs:
         run: chmod +x target/debug/vox
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
+          cache: "false"
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -420,8 +436,9 @@ jobs:
         # scripts/fmt.vox`. See AGENTS.md "Formatting Rust (Windows-safe)".
         #
         # RUSTUP_TOOLCHAIN is unset here so cargo reads rust-toolchain.toml
-        # (1.96.0) instead of the stable override from dtolnay/rust-toolchain@stable
-        # above. Format check must use the pinned toolchain to match local dev.
+        # instead of any override the ./.github/actions/setup-rust step above
+        # left in the environment. Format check must use the pinned toolchain
+        # to match local dev.
         shell: bash
         env:
           RUSTUP_TOOLCHAIN: ""
@@ -554,10 +571,10 @@ jobs:
         continue-on-error: true
 
       - name: Dynamic Workspace Health Audit
-        run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-workspace-health.vox
+        run: ./target/debug/vox run --interp scripts/quality/audit-workspace-health.vox
 
       - name: Telemetry-Driven Architectural Audit
-        run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-telemetry.vox
+        run: ./target/debug/vox run --interp scripts/quality/audit-telemetry.vox
 
       - name: Secrets SSOT parity + secret direct-read guard
         shell: bash
@@ -688,12 +705,16 @@ jobs:
         run: chmod +x target/debug/vox
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy, llvm-tools-preview
+          cache: "false"
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -786,26 +807,42 @@ jobs:
           fi
 
       - name: Toolchain SSoT Drift Guard
-        shell: bash
-        run: |
-          set -euo pipefail
-          EXPECTED_RUST=$(grep -oP 'rust:\s*"\K[^"]+' contracts/toolchain/workspace-toolchain.v1.yaml)
-          ACTUAL_RUST_TOOLCHAIN=$(grep -oP 'channel\s*=\s*"\K[^"]+' rust-toolchain.toml)
-          ACTUAL_CARGO=$(grep -oP '^rust-version\s*=\s*"\K[^"]+' Cargo.toml)
-          
-          if [[ "$EXPECTED_RUST" != "$ACTUAL_RUST_TOOLCHAIN" ]]; then
-            echo "Drift detected: SSoT wants Rust $EXPECTED_RUST but rust-toolchain.toml has $ACTUAL_RUST_TOOLCHAIN"
-            exit 1
-          fi
-          
-          # Cargo.toml rust-version usually only specifies major.minor, not patch.
-          # We check if it matches the prefix.
-          if [[ ! "$EXPECTED_RUST" == "$ACTUAL_CARGO"* ]]; then
-            echo "Drift detected: SSoT wants Rust $EXPECTED_RUST but Cargo.toml rust-version is $ACTUAL_CARGO"
-            exit 1
-          fi
-          
-          echo "Toolchain SSoT Parity Verified."
+        run: ./target/debug/vox --quiet ci toolchain-ssot
+
+      # These three guards shipped as CLI subcommands with unit tests but were
+      # wired into no workflow and no script, so none of them could ever fail
+      # in CI. release-draft-guard is the one that matters most: it enforces
+      # this repo's standing "never auto-publish a public GitHub release" rule,
+      # and unwired it would have let a future PR drop a `draft: true` with
+      # every lane staying green. They live here, in the same always-completing
+      # lane as the SSOT guards, because all three are static YAML reads that
+      # need no build.
+      - name: Release Draft Guard (no auto-published public releases)
+        run: ./target/debug/vox --quiet ci release-draft-guard
+
+      # The gate that guards the gate. See required_context_guard.rs: a job
+      # named for the required context posts that context even when SKIPPED,
+      # which GitHub counts as satisfied -- so the sole branch-protection
+      # check was being met one second after every push by a job designed
+      # never to run.
+      - name: Required Context Guard (only ci.yml may claim the gate)
+        run: ./target/debug/vox --quiet ci required-context-guard
+
+      - name: Toolchain Workflow Lint (all Rust installs via setup-rust)
+        run: ./target/debug/vox --quiet ci toolchain-workflow-lint
+
+      - name: Cache Key Lint
+        run: ./target/debug/vox --quiet ci cache-key-lint
+
+      # version_ssot.rs's own module doc claims drift here is "a CI failure
+      # rather than a release surprise" -- ssot_probe (no args, no --write)
+      # is the only place that check actually runs; wire it in next to the
+      # toolchain guard above so both SSOT checks live in the same
+      # always-completing lane instead of only in the workflow_dispatch-only
+      # release-prepare.yml (0 runs ever). Never pass --write here -- that is
+      # the release bump path and stays in release-prepare.yml.
+      - name: Version SSoT Drift Guard
+        run: cargo run -q -p vox-cli-ci --example ssot_probe
 
       # Workspace-wide pattern drift check (6 rules: reqwest_bypass, vox_path_literal,
       # timeout_literal, serde_default_dup, version_string, bearer_header).
@@ -838,12 +875,16 @@ jobs:
         run: chmod +x target/debug/vox
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
+          cache: "false"
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -940,12 +981,16 @@ jobs:
         run: chmod +x target/debug/vox
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy, llvm-tools-preview
+          cache: "false"
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -982,7 +1027,7 @@ jobs:
             cargo nextest run -p vox-workflow-runtime
           fi
           if affected_has vox-cli; then
-            cargo check -p vox-cli --features workflow-runtime
+            cargo check -p vox-cli --features workflow-runtime,gui
           fi
 
       - name: Arch-check (layer + fan-in + LoC + orphan + docstring)
@@ -1303,12 +1348,16 @@ jobs:
         run: chmod +x target/debug/vox
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
+          cache: "false"
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -1510,12 +1559,16 @@ jobs:
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
+          cache: "false"
       - uses: actions/cache@v5
         with:
-          path: ~/.cargo/git
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -1661,7 +1714,7 @@ jobs:
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
       - uses: pnpm/action-setup@v6
         with:
@@ -1743,20 +1796,11 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
-      - name: Cache Cargo
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-browser-smoke-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-browser-smoke-
-            ${{ runner.os }}-cargo-
-
+      # setup-rust's own cache (cache: true default) already covers
+      # ~/.cargo/registry, ~/.cargo/git, and target/ keyed on OS + toolchain +
+      # Cargo.lock -- a separate hand-rolled cache here would just duplicate it.
       # Prefer nextest for ignored-only integration tests when present; compile-check so the lane
       # stays meaningful until CDP tests land on `vox-plugin-browser`.
       - name: CDP smoke (ignored tests or compile fallback)
@@ -1785,7 +1829,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
       - uses: pnpm/action-setup@v6
         with:
@@ -1869,18 +1913,9 @@ jobs:
           fi
         continue-on-error: true
 
-      - name: Cache Cargo
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-gui-playwright-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-gui-playwright-
-            ${{ runner.os }}-cargo-
-
+      # setup-rust's own cache (cache: true default), installed earlier in this
+      # job, already covers ~/.cargo/registry, ~/.cargo/git, and target/ keyed
+      # on OS + toolchain + Cargo.lock -- no separate cache step needed here.
       - name: Install Playwright deps + Chromium
         run: |
           cd crates/vox-integration-tests
@@ -1930,17 +1965,13 @@ jobs:
           - vox-openclaw-runtime
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Cache Cargo
-        uses: actions/cache@v5
+      - uses: ./.github/actions/setup-rust
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-matrix-${{ matrix.crate }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-matrix-${{ matrix.crate }}-
-            ${{ runner.os }}-cargo-
+          # Per-matrix-leg cache: each crate's all-features build is independent,
+          # so give it its own cache entry instead of sharing one across the
+          # whole matrix (setup-rust's cache already keys on OS + toolchain +
+          # Cargo.lock; this just adds the per-crate discriminator that the old
+          # hand-rolled `-matrix-${{ matrix.crate }}-` cache key provided).
+          cache-key-suffix: -matrix-${{ matrix.crate }}
       - name: Check with all features
         run: cargo check -p ${{ matrix.crate }} --all-features
