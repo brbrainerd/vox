@@ -143,7 +143,12 @@ pub fn user_home_dir() -> PathBuf {
 }
 
 /// Env var overriding the root that [`dot_vox_user_dir`] resolves under.
-pub const VOX_HOME_ENV: &str = "VOX_HOME";
+///
+/// Named without a `VOX_` prefix (unlike the env var it names) so the
+/// `config-registry-parity` gate's `VOX_[A-Z0-9_]+` scan doesn't pick up this
+/// identifier as a second, phantom knob distinct from the real `VOX_HOME`
+/// string literal it holds.
+pub const HOME_OVERRIDE_ENV_VAR: &str = "VOX_HOME";
 
 /// `~/.vox` under [`user_home_dir`] (CLI script cache, etc.) — or `$VOX_HOME` when set.
 ///
@@ -182,7 +187,7 @@ pub const VOX_HOME_ENV: &str = "VOX_HOME";
 /// `$HOME/.vox`. That is accepted, not silent: this doc comment is the record of it.
 pub fn dot_vox_user_dir() -> PathBuf {
     resolve_dot_vox_user_dir(
-        std::env::var(VOX_HOME_ENV).ok().as_deref(),
+        std::env::var(HOME_OVERRIDE_ENV_VAR).ok().as_deref(),
         &user_home_dir(),
     )
 }

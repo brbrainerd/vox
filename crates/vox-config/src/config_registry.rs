@@ -1838,6 +1838,37 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         label: "Mens No Download",
         hint: "Refuse to download Mens training-weight models from Hugging Face Hub; there is no local-directory alternative today.",
     },
+    // --- P3P6: broker/home knobs surfaced by the config-registry-parity gate ---
+    ConfigKey {
+        key: "VOX_HOME",
+        kind: ConfigKind::Path,
+        default: DefaultValue::Computed("<home>/.vox"),
+        bound: None,
+        group: Group::General,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Vox Home",
+        hint: "Overrides the root vox_config::paths::dot_vox_user_dir() resolves under; a \
+            partial relocation only (see that function's doc comment for what it does not move).",
+    },
+    ConfigKey {
+        key: "VOX_BROKER_RESERVED_SLOTS",
+        kind: ConfigKind::Int,
+        default: DefaultValue::Literal("0"),
+        bound: None,
+        group: Group::Runtime,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Broker Reserved Slots",
+        hint: "Slots reserved for a build domain the broker's filesystem semaphore can't see \
+            (e.g. a containerised CI runner sharing this host's CPU but not its mount namespace).",
+    },
 ];
 
 /// All registered keys (for the parity gate).
