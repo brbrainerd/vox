@@ -4,7 +4,16 @@ name: Mutation (nightly, vox-compiler)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 5 * * *"
+    # Moved off 05:17 UTC (measured: 24/29 runs cancelled, ALL-CANCELLED per
+    # wf-health-measured.tsv). 05:17 sat inside the densest self-hosted-linux
+    # cron cluster in this repo — gitleaks (05:00), then cr-l-gates,
+    # ci-fallback-hosted, and link_checker all firing at 06:00 — so a 120-minute
+    # mutation run competed with four other nightlies for the same fleet
+    # capacity and was starving/being starved (see the job's own
+    # "starving the other nightlies" comment below, from a prior 2026-07-27
+    # audit of this exact contention pattern). 13:00 UTC has no other
+    # self-hosted-linux cron in this repo, giving this job the fleet to itself.
+    - cron: "0 13 * * *"
 
 env:
   CARGO_TERM_COLOR: always
