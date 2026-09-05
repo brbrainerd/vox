@@ -69,6 +69,19 @@ pub enum LoadError {
         #[source]
         source: std::io::Error,
     },
+    /// The plugin's own manifest `version` does not match the running core's
+    /// `CARGO_PKG_VERSION`. Unlike the ABI-range check in
+    /// [`crate::loader::Loader::load`], there is no compatibility window
+    /// here: a stale or newer plugin binary is refused rather than risking
+    /// an incompatible in-memory layout with the host.
+    #[error(
+        "plugin '{plugin_id}' version {found} does not match running core version {expected}; reinstall the plugin to match this vox build"
+    )]
+    VersionMismatch {
+        plugin_id: String,
+        expected: String,
+        found: String,
+    },
 }
 
 #[derive(Debug, Error)]

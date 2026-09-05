@@ -5,6 +5,7 @@
 
 #![allow(clippy::result_large_err)]
 
+pub mod capability;
 pub mod discover;
 pub mod errors;
 pub mod external_skills;
@@ -19,6 +20,7 @@ pub mod skill_registry;
 pub mod telemetry;
 pub mod user_install;
 
+pub use capability::{CapabilitySet, probe};
 pub use discover::discover;
 pub use errors::{
     AbiMismatchError, ChecksumMismatchError, LoadError, PluginMissingError, SkillNotInstalledError,
@@ -156,6 +158,21 @@ pub fn load_code_plugin(
         ))
     })?;
 
+    // Spec §4.2(d): refuse to load a plugin built for a different core version
+    // before touching its dylib. The artifact name already encodes the version
+    // (`{id}-v{version}-{triple}.zip`), so this is a plain string comparison
+    // against the manifest's own `version` field, not new metadata. Matches
+    // the `env!("CARGO_PKG_VERSION")` precedent in
+    // `install_first_party_plugin` (crates/vox-cli/src/commands/plugin/install.rs).
+    let host_version = env!("CARGO_PKG_VERSION");
+    if entry.version != host_version {
+        return Err(errors::LoadError::VersionMismatch {
+            plugin_id: plugin_id.to_string(),
+            expected: host_version.to_string(),
+            found: entry.version.clone(),
+        });
+    }
+
     let triple = current_target_triple_key();
     let (artifacts, artifacts_sha3) = match &entry.payload {
         PluginPayload::Code(c) => (&c.artifacts, &c.artifacts_sha3),
@@ -225,6 +242,58 @@ pub fn load_code_plugin(
     Loader::load(&entry.id, &entry.version, &dylib_path)
 }
 
+/// A first-party candidate plugin known to implement a given extension point,
+/// paired with the host capability tag (mirroring `catalog.toml`'s
+/// `requires-tag`) it needs to be selectable.
+///
+/// `vox-plugin-host` is deliberately dependency-free (see the note on
+/// `user_install.rs` in `layers.toml`), so it does not read `catalog.toml`
+/// itself — callers pass in the small, stable candidate list for the
+/// extension point they care about (see [`resolve_extension_point`]).
+#[derive(Debug, Clone, Copy)]
+pub struct ExtensionCandidate {
+    pub plugin_id: &'static str,
+    pub requires_tag: Option<&'static str>,
+}
+
+/// Pick which of `candidates` should service `extension_point` on this host.
+///
+/// Returns the first candidate whose `requires_tag` is satisfied by `caps`
+/// (typically [`probe`]). This is pure selection with no I/O — callers still
+/// load the winner via [`cached_code_plugin`].
+///
+/// On no match, the error names every candidate considered (and the tag it
+/// needed) plus the host's actual capabilities, so the failure is
+/// diagnosable rather than a bare "not found".
+pub fn resolve_extension_point(
+    extension_point: &str,
+    candidates: &[ExtensionCandidate],
+    caps: &CapabilitySet,
+) -> Result<&'static str, errors::LoadError> {
+    candidates
+        .iter()
+        .find(|c| caps.satisfies(c.requires_tag))
+        .map(|c| c.plugin_id)
+        .ok_or_else(|| {
+            let wanted: Vec<String> = candidates
+                .iter()
+                .map(|c| {
+                    format!(
+                        "{} (requires-tag: {})",
+                        c.plugin_id,
+                        c.requires_tag.unwrap_or("<none>")
+                    )
+                })
+                .collect();
+            errors::LoadError::InitFailed(format!(
+                "no candidate plugin for extension point '{extension_point}' matches this host.\n\
+                 candidates considered:\n  {}\n\
+                 host capabilities: {caps:?}",
+                wanted.join("\n  ")
+            ))
+        })
+}
+
 /// Cached singleton: load a code plugin once and reuse the handle process-wide.
 /// First call: discover + dlopen (tens of ms). Subsequent calls: O(1) HashMap lookup.
 ///
@@ -247,6 +316,122 @@ pub fn cached_code_plugin(
     let leaked: &'static LoadedCodePlugin = Box::leak(Box::new(loaded));
     guard.insert(plugin_id, leaked);
     Ok(leaked)
+}
+
+#[cfg(test)]
+mod load_code_plugin_version_gate_tests {
+    //! Spec §4.2(d): a plugin whose manifest `version` disagrees with the
+    //! running core's own `CARGO_PKG_VERSION` must be refused before any
+    //! attempt to resolve or dlopen its dylib.
+    use super::*;
+    use registry::{PluginEntry, Registry};
+    use vox_plugin_api::manifest::{CodePayload, PluginPayload};
+
+    fn code_entry(id: &str, version: &str) -> PluginEntry {
+        PluginEntry {
+            id: id.to_string(),
+            version: version.to_string(),
+            // Deliberately nonexistent: a version mismatch must be caught
+            // before this path is ever touched, so it need not resolve.
+            install_dir: std::path::PathBuf::from("/nonexistent/does-not-matter"),
+            payload: PluginPayload::Code(CodePayload {
+                abi_version: VOX_PLUGIN_ABI_VERSION,
+                provides: Default::default(),
+                requires: Default::default(),
+                artifacts: Default::default(),
+                artifacts_sha3: Default::default(),
+            }),
+        }
+    }
+
+    #[test]
+    fn mismatched_version_is_refused_before_dlopen() {
+        let registry = Registry::new();
+        let host_version = env!("CARGO_PKG_VERSION");
+        let bogus_version = format!("{host_version}-definitely-not-installed");
+        registry.record(code_entry("versioned-plugin", &bogus_version));
+
+        let err = match load_code_plugin(&registry, "versioned-plugin") {
+            Ok(_) => panic!("expected VersionMismatch, got Ok"),
+            Err(e) => e,
+        };
+        match err {
+            LoadError::VersionMismatch {
+                plugin_id,
+                expected,
+                found,
+            } => {
+                assert_eq!(plugin_id, "versioned-plugin");
+                assert_eq!(expected, host_version);
+                assert_eq!(found, bogus_version);
+            }
+            other => panic!("expected VersionMismatch, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn matching_version_proceeds_past_the_version_gate() {
+        // A matching version must not be rejected as a VersionMismatch. It will
+        // still fail past the gate (no real artifact for this triple exists),
+        // which proves the gate let it through rather than swallowing the error.
+        let registry = Registry::new();
+        let host_version = env!("CARGO_PKG_VERSION");
+        registry.record(code_entry("versioned-plugin-ok", host_version));
+
+        let err = match load_code_plugin(&registry, "versioned-plugin-ok") {
+            Ok(_) => panic!("expected an error past the version gate (no real artifact exists)"),
+            Err(e) => e,
+        };
+        assert!(
+            !matches!(err, LoadError::VersionMismatch { .. }),
+            "matching version must not be rejected as a mismatch, got: {err:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod resolve_extension_point_tests {
+    use super::*;
+
+    // Fake catalog: mirrors catalog.toml's mens-candle-cuda/mens-candle-metal
+    // `MlBackend` entries (id + requires-tag) without depending on the
+    // vox-plugin-catalog crate.
+    const ML_BACKEND_CANDIDATES: &[ExtensionCandidate] = &[
+        ExtensionCandidate {
+            plugin_id: "mens-candle-cuda",
+            requires_tag: Some("nvidia-gpu"),
+        },
+        ExtensionCandidate {
+            plugin_id: "mens-candle-metal",
+            requires_tag: Some("apple-silicon"),
+        },
+    ];
+
+    #[test]
+    fn picks_metal_when_only_apple_silicon_present() {
+        let caps = CapabilitySet::from_tags(["cpu-only", "apple-silicon", "metal"]);
+        let id = resolve_extension_point("MlBackend", ML_BACKEND_CANDIDATES, &caps).unwrap();
+        assert_eq!(id, "mens-candle-metal");
+    }
+
+    #[test]
+    fn picks_cuda_when_only_nvidia_gpu_present() {
+        let caps = CapabilitySet::from_tags(["cpu-only", "nvidia-gpu"]);
+        let id = resolve_extension_point("MlBackend", ML_BACKEND_CANDIDATES, &caps).unwrap();
+        assert_eq!(id, "mens-candle-cuda");
+    }
+
+    #[test]
+    fn errors_diagnosably_when_neither_tag_present() {
+        let caps = CapabilitySet::from_tags(["cpu-only"]);
+        let err = resolve_extension_point("MlBackend", ML_BACKEND_CANDIDATES, &caps).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("MlBackend"), "msg: {msg}");
+        assert!(msg.contains("nvidia-gpu"), "msg: {msg}");
+        assert!(msg.contains("apple-silicon"), "msg: {msg}");
+        assert!(msg.contains("mens-candle-cuda"), "msg: {msg}");
+        assert!(msg.contains("mens-candle-metal"), "msg: {msg}");
+    }
 }
 
 #[cfg(test)]
@@ -404,7 +589,12 @@ mod load_code_plugin_checksum_tests {
         let registry = Registry::new();
         registry.record(PluginEntry {
             id: "checksum-demo".to_string(),
-            version: "0.1.0".to_string(),
+            // Must match the running core's own version: a version-match
+            // gate runs before the checksum gate this test exercises (see
+            // load_code_plugin above), so a mismatched fixture version would
+            // be refused there first and never reach the checksum logic at
+            // all — exactly what happened here before this fix.
+            version: env!("CARGO_PKG_VERSION").to_string(),
             install_dir: install_dir.to_path_buf(),
             payload: PluginPayload::Code(CodePayload {
                 abi_version: 1,

@@ -171,8 +171,10 @@ pub async fn run_train(
             anyhow::bail!(
                 "`--device metal` for Candle QLoRA is not supported yet: there is no \
                  Metal-enabled Candle training backend in this build.\n\
-                 Use `--device cpu` on Apple Silicon, or `--device cuda` on an \
-                 NVIDIA host built with `cargo build -p vox-ml-cli --features gpu,mens-candle-cuda`.\n\
+                 Use `--device cpu` instead.\n\
+                 (`--device cuda` needs a separate, NVIDIA-equipped machine — it is not \
+                 an alternative on this host, and this message deliberately does not \
+                 suggest a rebuild: an installed user has no toolchain to rebuild with.)\n\
                  (Tracking: vox-populi needs a Metal twin of `mens-candle-qlora-cuda`, and \
                  the `mens-candle-metal` plugin needs the SP3-D training host protocol.)"
             );
