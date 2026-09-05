@@ -68,6 +68,12 @@ fn git_stdout(args: &[&str]) -> Option<String> {
 }
 
 #[cfg(test)]
+// `std::env::set_var`/`remove_var` are unsafe in edition 2024 (they race any
+// concurrent getenv in another thread). The workspace denies `unsafe_code` via
+// `-D warnings`, so the tests below need an explicit, scoped exemption rather
+// than a workspace-wide relaxation. Each block is single-threaded and restores
+// the variable immediately; see the SAFETY note on the first one.
+#[allow(unsafe_code)]
 mod tests {
     use super::*;
 
