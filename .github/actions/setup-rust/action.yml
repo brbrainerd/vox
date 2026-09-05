@@ -107,6 +107,16 @@ runs:
     - id: union
       name: Union caller-supplied components/targets with the SSOT lists
       shell: bash
+      env:
+        # Never interpolate `${{ }}` expressions straight into the `run:`
+        # script body -- that's GitHub's documented script-injection
+        # anti-pattern. Route them through env instead, so a future caller
+        # passing attacker-influenced text through `components`/`targets`
+        # (e.g. a PR title) is treated as inert shell-variable content.
+        SSOT_COMPONENTS: ${{ steps.ssot.outputs.ssot-components }}
+        SSOT_TARGETS: ${{ steps.ssot.outputs.ssot-targets }}
+        EXTRA_COMPONENTS: ${{ inputs.components }}
+        EXTRA_TARGETS: ${{ inputs.targets }}
       run: |
         set -euo pipefail
 
@@ -122,8 +132,8 @@ runs:
             | paste -sd, -
         }
 
-        components=$(normalize_and_union "${{ steps.ssot.outputs.ssot-components }}" "${{ inputs.components }}")
-        targets=$(normalize_and_union "${{ steps.ssot.outputs.ssot-targets }}" "${{ inputs.targets }}")
+        components=$(normalize_and_union "$SSOT_COMPONENTS" "$EXTRA_COMPONENTS")
+        targets=$(normalize_and_union "$SSOT_TARGETS" "$EXTRA_TARGETS")
 
         echo "components=${components}" >> "$GITHUB_OUTPUT"
         echo "targets=${targets}" >> "$GITHUB_OUTPUT"
