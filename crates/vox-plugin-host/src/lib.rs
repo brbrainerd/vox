@@ -5,6 +5,7 @@
 
 #![allow(clippy::result_large_err)]
 
+pub mod capability;
 pub mod discover;
 pub mod errors;
 pub mod external_skills;
@@ -19,6 +20,7 @@ pub mod skill_registry;
 pub mod telemetry;
 pub mod user_install;
 
+pub use capability::{CapabilitySet, probe};
 pub use discover::discover;
 pub use errors::{AbiMismatchError, LoadError, PluginMissingError, SkillNotInstalledError};
 pub use host_impl::DefaultVoxHost;
