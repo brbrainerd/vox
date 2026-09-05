@@ -179,6 +179,58 @@ pub fn load_code_plugin(
     Loader::load(&entry.id, &entry.version, &dylib_path)
 }
 
+/// A first-party candidate plugin known to implement a given extension point,
+/// paired with the host capability tag (mirroring `catalog.toml`'s
+/// `requires-tag`) it needs to be selectable.
+///
+/// `vox-plugin-host` is deliberately dependency-free (see the note on
+/// `user_install.rs` in `layers.toml`), so it does not read `catalog.toml`
+/// itself — callers pass in the small, stable candidate list for the
+/// extension point they care about (see [`resolve_extension_point`]).
+#[derive(Debug, Clone, Copy)]
+pub struct ExtensionCandidate {
+    pub plugin_id: &'static str,
+    pub requires_tag: Option<&'static str>,
+}
+
+/// Pick which of `candidates` should service `extension_point` on this host.
+///
+/// Returns the first candidate whose `requires_tag` is satisfied by `caps`
+/// (typically [`probe`]). This is pure selection with no I/O — callers still
+/// load the winner via [`cached_code_plugin`].
+///
+/// On no match, the error names every candidate considered (and the tag it
+/// needed) plus the host's actual capabilities, so the failure is
+/// diagnosable rather than a bare "not found".
+pub fn resolve_extension_point(
+    extension_point: &str,
+    candidates: &[ExtensionCandidate],
+    caps: &CapabilitySet,
+) -> Result<&'static str, errors::LoadError> {
+    candidates
+        .iter()
+        .find(|c| caps.satisfies(c.requires_tag))
+        .map(|c| c.plugin_id)
+        .ok_or_else(|| {
+            let wanted: Vec<String> = candidates
+                .iter()
+                .map(|c| {
+                    format!(
+                        "{} (requires-tag: {})",
+                        c.plugin_id,
+                        c.requires_tag.unwrap_or("<none>")
+                    )
+                })
+                .collect();
+            errors::LoadError::InitFailed(format!(
+                "no candidate plugin for extension point '{extension_point}' matches this host.\n\
+                 candidates considered:\n  {}\n\
+                 host capabilities: {caps:?}",
+                wanted.join("\n  ")
+            ))
+        })
+}
+
 /// Cached singleton: load a code plugin once and reuse the handle process-wide.
 /// First call: discover + dlopen (tens of ms). Subsequent calls: O(1) HashMap lookup.
 ///
@@ -201,6 +253,51 @@ pub fn cached_code_plugin(
     let leaked: &'static LoadedCodePlugin = Box::leak(Box::new(loaded));
     guard.insert(plugin_id, leaked);
     Ok(leaked)
+}
+
+#[cfg(test)]
+mod resolve_extension_point_tests {
+    use super::*;
+
+    // Fake catalog: mirrors catalog.toml's mens-candle-cuda/mens-candle-metal
+    // `MlBackend` entries (id + requires-tag) without depending on the
+    // vox-plugin-catalog crate.
+    const ML_BACKEND_CANDIDATES: &[ExtensionCandidate] = &[
+        ExtensionCandidate {
+            plugin_id: "mens-candle-cuda",
+            requires_tag: Some("nvidia-gpu"),
+        },
+        ExtensionCandidate {
+            plugin_id: "mens-candle-metal",
+            requires_tag: Some("apple-silicon"),
+        },
+    ];
+
+    #[test]
+    fn picks_metal_when_only_apple_silicon_present() {
+        let caps = CapabilitySet::from_tags(["cpu-only", "apple-silicon", "metal"]);
+        let id = resolve_extension_point("MlBackend", ML_BACKEND_CANDIDATES, &caps).unwrap();
+        assert_eq!(id, "mens-candle-metal");
+    }
+
+    #[test]
+    fn picks_cuda_when_only_nvidia_gpu_present() {
+        let caps = CapabilitySet::from_tags(["cpu-only", "nvidia-gpu"]);
+        let id = resolve_extension_point("MlBackend", ML_BACKEND_CANDIDATES, &caps).unwrap();
+        assert_eq!(id, "mens-candle-cuda");
+    }
+
+    #[test]
+    fn errors_diagnosably_when_neither_tag_present() {
+        let caps = CapabilitySet::from_tags(["cpu-only"]);
+        let err = resolve_extension_point("MlBackend", ML_BACKEND_CANDIDATES, &caps).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("MlBackend"), "msg: {msg}");
+        assert!(msg.contains("nvidia-gpu"), "msg: {msg}");
+        assert!(msg.contains("apple-silicon"), "msg: {msg}");
+        assert!(msg.contains("mens-candle-cuda"), "msg: {msg}");
+        assert!(msg.contains("mens-candle-metal"), "msg: {msg}");
+    }
 }
 
 #[cfg(test)]
