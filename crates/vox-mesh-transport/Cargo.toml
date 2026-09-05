@@ -8,6 +8,10 @@ license.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 iroh = { workspace = true }
+iroh-mdns-address-lookup = { workspace = true }
+postcard = { workspace = true }
+tokio = { workspace = true }
+vox-mesh-types = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -16,6 +20,8 @@ workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+vox-mesh-types = { workspace = true }
 
 [lints]
 workspace = true

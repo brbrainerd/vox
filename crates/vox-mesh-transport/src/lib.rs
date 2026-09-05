@@ -16,8 +16,12 @@
 //! 3. **Pairing grants reachability, never native execution.** A trusted peer
 //!    gets a sandbox by default.
 
+pub mod endpoint;
 pub mod identity;
+pub mod protocol;
 pub mod trust;
 
+pub use endpoint::{JobExecutor, ReceivedJob, bind, serve};
 pub use identity::load_or_create;
+pub use protocol::{ALPN, Hello, Isolation, JobLimits, JobRequest, PROTO, check_hello};
 pub use trust::{MeshTrust, TrustLevel, TrustedEndpoint};
