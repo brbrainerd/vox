@@ -1,0 +1,385 @@
+name: Nightly Artifacts
+
+# Exercises the release-artifact pipeline every day WITHOUT ever creating a
+# public release. Today every release artifact is tag-triggered (a `v*` push
+# fans out to release-binaries.yml, release-gui.yml, release-installers.yml,
+# version-tag-guard.yml; bundle-release.yml fires on `release: published`), so
+# a real version tag is the FIRST time those lanes ever execute end to end.
+# `release-installers` is 0/5 and `bundle-release` has never run because of
+# exactly this gap.
+#
+# SAFETY (do not weaken any of this — see AGENTS.md and the P4 task-5 brief):
+#   - Trigger is `schedule:` + `workflow_dispatch:` ONLY. This workflow MUST
+#     NEVER be wired to `push: tags:` or any tag-creating step.
+#   - The release object created below is always `--draft --prerelease`, on a
+#     ref named `nightly-YYYYMMDD` — which does not match the `v*` pattern
+#     that fans out release-binaries.yml / release-gui.yml /
+#     release-installers.yml / version-tag-guard.yml. A GitHub draft release
+#     also does not create the underlying git tag ref until it is published
+#     (and nothing here ever publishes it), so no tag-push event fires either.
+#   - A draft release never fires `release: published`, so bundle-release.yml
+#     cannot fan out from this workflow.
+#   - Nothing in this workflow may call `gh release edit`/`publish`, delete a
+#     release, or push a tag. The single release-creating step is
+#     `gh release create ... --draft --prerelease`, matched by an
+#     idempotent "update if it already exists today" branch.
+
+on:
+  schedule:
+    # 07:00 UTC nightly. Checked against nightly-slots.txt: taken slots
+    # include 0 2/3/4/5/6/9 * * *, 17 3/5 * * *, 20 6 * * *, */10 * * * *,
+    # and 7-59/15 * * * * (a sub-hourly watchdog, not an hour-7 collision) —
+    # `0 7 * * *` is free.
+    - cron: '0 7 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  # Not required by `vox ci workflow-concurrency-guard` (it only gates
+  # push/pull_request triggers), but a schedule + manual-dispatch lane that
+  # publishes to the same nightly ref benefits from the same flood
+  # protection: an in-flight nightly run should not race a manual re-run.
+  group: nightly-artifacts
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  compute-ref:
+    name: Compute nightly ref
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 5
+    outputs:
+      nightly_ref: ${{ steps.vars.outputs.nightly_ref }}
+      version: ${{ steps.vars.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+          nightly_ref="nightly-$(date -u +%Y%m%d)"
+          # Scoped to the [workspace.package] table so a dependency's own
+          # `version = "..."` line elsewhere in Cargo.toml is never picked up.
+          version=$(sed -n '/^\[workspace\.package\]/,/^\[/p' Cargo.toml | grep '^version' | head -1 | cut -d'"' -f2)
+          if [[ -z "$version" ]]; then
+            echo "::error::could not read [workspace.package] version from Cargo.toml" >&2
+            exit 1
+          fi
+          echo "nightly_ref=${nightly_ref}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Nightly ref: ${nightly_ref} (does not match v*, so it cannot fan out release-*.yml)"
+          echo "Artifact version: ${version}"
+
+  build-binaries:
+    name: Build ${{ matrix.target }}
+    needs: compute-ref
+    runs-on: ${{ fromJson(matrix.runs_on) }}
+    timeout-minutes: 240
+    env:
+      CARGO_BUILD_JOBS: "2"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["self-hosted","linux","x64"]'
+          - target: x86_64-pc-windows-msvc
+            runs_on: '["windows-latest"]'
+          - target: x86_64-apple-darwin
+            runs_on: '["macos-latest"]'
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-latest"]'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build and package release artifacts (core + plugins)
+        # Same command release-binaries.yml runs on a real tag, just with the
+        # nightly ref standing in for `github.ref_name`.
+        run: cargo run --locked -p vox-cli ci release-build --target ${{ matrix.target }} --version ${{ needs.compute-ref.outputs.nightly_ref }} --out-dir dist --package all
+
+      - name: Build voxup
+        run: cargo build --profile dist --locked -p voxup --target ${{ matrix.target }}
+
+      - name: Package voxup (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cd target/${{ matrix.target }}/dist
+          tar -czf "../../../dist/voxup-${{ needs.compute-ref.outputs.nightly_ref }}-${{ matrix.target }}.tar.gz" voxup
+
+      - name: Package voxup (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive `
+            -Path "target\${{ matrix.target }}\dist\voxup.exe" `
+            -DestinationPath "dist\voxup-${{ needs.compute-ref.outputs.nightly_ref }}-${{ matrix.target }}.zip" `
+            -Force
+
+      - name: Smoke test packaged binary (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          shopt -s nullglob
+          for f in vox-${{ needs.compute-ref.outputs.nightly_ref }}-*.tar.gz; do
+            rm -f vox
+            tar -xzf "$f"
+            ./vox --version
+          done
+
+      - name: Smoke test packaged binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-Location dist
+          Get-ChildItem -Filter 'vox-${{ needs.compute-ref.outputs.nightly_ref }}-*.zip' | ForEach-Object {
+            if (Test-Path _smoke) { Remove-Item -Recurse -Force _smoke }
+            Expand-Archive -Path $_.FullName -DestinationPath _smoke -Force
+            & ".\_smoke\vox.exe" --version
+          }
+
+      - name: Upload packaged binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-${{ matrix.target }}
+          path: |
+            dist/vox-${{ needs.compute-ref.outputs.nightly_ref }}-${{ matrix.target }}.*
+            dist/vox-ml-cli-${{ needs.compute-ref.outputs.nightly_ref }}-${{ matrix.target }}.*
+            dist/voxup-${{ needs.compute-ref.outputs.nightly_ref }}-${{ matrix.target }}.*
+          if-no-files-found: error
+          retention-days: 7
+
+  build-gui:
+    name: Build GUI (${{ matrix.target }})
+    needs: compute-ref
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Install Linux Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev
+
+      - name: Build frontend
+        working-directory: ./crates/vox-gui/ui
+        run: |
+          pnpm install
+          pnpm build
+
+      # Same sidecar-staging requirement as release-gui.yml: tauri.conf.json's
+      # externalBin expects target/release/vox-<triple> to exist before build.
+      - name: Build vox CLI sidecar
+        run: cargo build -p vox-cli --profile dist --target ${{ matrix.target }}
+
+      - name: Stage Tauri external sidecar (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force (Split-Path "target/release/vox-${{ matrix.target }}.exe") | Out-Null
+          Copy-Item target/${{ matrix.target }}/dist/vox.exe target/release/vox-${{ matrix.target }}.exe -Force
+
+      - name: Stage Tauri external sidecar (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p "$(dirname "target/release/vox-${{ matrix.target }}")"
+          cp target/${{ matrix.target }}/dist/vox target/release/vox-${{ matrix.target }}
+
+      - name: Install tauri-cli
+        run: cargo install tauri-cli --locked --version "^2"
+
+      # Deliberately UNSIGNED and does not create its own GitHub release
+      # (unlike release-gui.yml's tauri-action step): this is a nightly
+      # exercise build, not a shippable artifact, and the one release object
+      # for the day is created/updated once by the `publish` job below. Using
+      # tauri-action's built-in release-publish here would create a second,
+      # competing release write path against the same nightly ref.
+      - name: Build Tauri Application (unsigned nightly exercise build)
+        working-directory: ./crates/vox-gui
+        run: cargo tauri build --target ${{ matrix.target }}
+
+      - name: Collect GUI bundle artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p gui-dist
+          find target/${{ matrix.target }}/release/bundle -maxdepth 2 -type f \
+            \( -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.msi' -o -name '*.exe' \
+               -o -name '*.deb' -o -name '*.AppImage' -o -name '*.rpm' \) \
+            -exec cp {} gui-dist/ \; || true
+          ls -la gui-dist || true
+
+      - name: Upload GUI bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-gui-${{ matrix.target }}
+          path: gui-dist/*
+          if-no-files-found: warn
+          retention-days: 7
+
+  build-plugin-zips:
+    name: Build plugin zip (${{ matrix.plugin }})
+    needs: compute-ref
+    runs-on: ${{ fromJson(matrix.runs_on) }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # nvidia-gpu tagged plugin — self-hosted GPU runner (see
+          # ml_data_extraction.yml / runner-contract.md for the `gpu` label),
+          # not a GitHub-hosted runner, so no runner-policy-check row needed.
+          - plugin: mens-candle-cuda
+            crate: vox-plugin-mens-candle-cuda
+            feature: cuda
+            target: x86_64-unknown-linux-gnu
+            runs_on: '["self-hosted","linux","x64","gpu"]'
+          # apple-silicon tagged plugin — Metal only compiles on macOS.
+          - plugin: mens-candle-metal
+            crate: vox-plugin-mens-candle-metal
+            feature: metal
+            target: aarch64-apple-darwin
+            runs_on: '["macos-latest"]'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build plugin cdylib
+        run: cargo build --profile dist --locked -p ${{ matrix.crate }} --features ${{ matrix.feature }} --target ${{ matrix.target }}
+
+      - name: Package plugin zip
+        shell: bash
+        env:
+          VERSION: ${{ needs.compute-ref.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p plugin-dist
+          zip_name="${{ matrix.plugin }}-v${VERSION}-${{ matrix.target }}.zip"
+          libdir="target/${{ matrix.target }}/dist"
+          shopt -s nullglob
+          libs=("$libdir"/*.so "$libdir"/*.dylib "$libdir"/*.dll)
+          if [ ${#libs[@]} -eq 0 ]; then
+            echo "::error::no built cdylib found under $libdir" >&2
+            exit 1
+          fi
+          zip -j "plugin-dist/${zip_name}" "${libs[@]}"
+          ( cd plugin-dist && sha256sum "${zip_name}" > "${zip_name}.sha256" ) 2>/dev/null || \
+            ( cd plugin-dist && shasum -a 256 "${zip_name}" > "${zip_name}.sha256" )
+          ls -la plugin-dist
+
+      - name: Upload plugin zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-plugin-${{ matrix.plugin }}
+          path: plugin-dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish draft nightly release
+    needs: [compute-ref, build-binaries, build-gui, build-plugin-zips]
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: release-artifacts
+
+      - name: Generate consolidated checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-artifacts
+          rm -f checksums.txt
+          find . -type f ! -name '*.sha256' ! -name 'checksums.txt' -print0 \
+            | while IFS= read -r -d '' f; do
+                sum="$(sha256sum "$f" | cut -d ' ' -f 1)"
+                echo "$sum  $(basename "$f")" >> checksums.txt
+              done
+          echo "--- checksums.txt ---"
+          cat checksums.txt
+
+      - name: Create or update draft nightly release
+        # SAFETY: `--draft --prerelease` on every path. `gh release view`
+        # existing → upload/replace assets on the SAME draft (idempotent
+        # re-run); missing → create a new draft. Never `gh release edit`
+        # to flip draft/prerelease off, never `gh release publish`, never a
+        # tag push. `${nightly_ref}` (nightly-YYYYMMDD) never matches `v*`.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NIGHTLY_REF: ${{ needs.compute-ref.outputs.nightly_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-artifacts
+          shopt -s nullglob globstar
+          assets=(**/*)
+          files=()
+          for a in "${assets[@]}"; do
+            [ -f "$a" ] && files+=("$a")
+          done
+          echo "Uploading ${#files[@]} asset(s) to ${NIGHTLY_REF}"
+
+          if gh release view "$NIGHTLY_REF" >/dev/null 2>&1; then
+            echo "Draft ${NIGHTLY_REF} already exists — updating in place."
+            gh release upload "$NIGHTLY_REF" "${files[@]}" --clobber
+          else
+            gh release create "$NIGHTLY_REF" "${files[@]}" \
+              --draft --prerelease \
+              --title "Nightly exercise build ${NIGHTLY_REF}" \
+              --notes "Automated nightly exercise of the release pipeline (binaries, GUI bundles, mens-candle plugin zips). Draft only — never promoted automatically. Not a real Vox release."
+          fi

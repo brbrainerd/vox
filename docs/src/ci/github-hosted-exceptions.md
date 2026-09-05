@@ -46,6 +46,7 @@ The repository defaults to **self-hosted** runners for CI (see [runner contract]
 | `ci-health-watchdog-test.yml` | `ubuntu-latest` | Watchdog integration test; isolated harness that needs no self-hosted resources. |
 | `gitleaks.yml` | `ubuntu-latest` | Secret scan across full repo/PR history; gitleaks-action is free for public repos and needs no self-hosted resources. |
 | `link_checker.yml` | `ubuntu-latest` | Moved off self-hosted (runner-remediation Task 9) — lychee is a pure network job; local exclude-paths become harmless no-ops on a clean clone. Nightly schedule only, not per-PR. |
+| `nightly-artifacts.yml` | `windows-latest`, `macos-latest`, `ubuntu-latest` (matrix) | Same cross-platform requirement as `release-binaries.yml`/`release-gui.yml`, run nightly (`schedule:` + `workflow_dispatch:` only, never on a tag) to exercise the release path daily instead of first discovering breakage on a real tag push. Never creates a non-draft release — see the workflow's own safety header. |
 
 > `compile-matrix.yml` no longer appears here: its Windows/macOS help-smoke jobs were cut (the Linux lane is self-hosted), so it uses no hosted runner. `cross-platform-check.yml` / `gui-cross-build.yml` keep their rows but now run Win/macOS legs only on `merge_group` + schedule (not per-PR).
 
