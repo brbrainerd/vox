@@ -5,6 +5,17 @@
 //! told not to publish a genuinely public release, so a missing or falsy
 //! `draft` is a hard failure, not an advisory warning.
 //!
+//! It also scans `run:` step script bodies for a `gh release create`
+//! invocation and requires `--draft` on the same logical command line
+//! (joining `\`-continued lines first). The action-based check alone once
+//! missed this: a scripted `gh release create` is a second, independent way
+//! to auto-publish a genuinely public release, and this repo has already
+//! shipped one nightly-tag workflow that fanned out to an unguarded
+//! `action-gh-release` step (see `docs/src/architecture/nightly-builds-ssot.md`
+//! "History: the removed `nightly-tag.yml`"). A comment line mentioning `gh
+//! release create` (e.g. explaining another step's safety invariant) is not
+//! itself a violation.
+//!
 //! Unlike the advisory guards in this crate, this one takes no `--strict`
 //! flag: it always fails on a violation.
 
@@ -13,6 +24,7 @@ use std::path::Path;
 use anyhow::{Context, Result, anyhow};
 
 const RELEASE_ACTION_PREFIX: &str = "softprops/action-gh-release";
+const GH_RELEASE_CREATE: &str = "gh release create";
 
 /// One violation: a `uses: softprops/action-gh-release*` step in `file` named
 /// `step` that does not set `with.draft: true`.
@@ -32,6 +44,57 @@ fn step_has_draft_true(step: &serde_yaml::Mapping) -> bool {
         .and_then(|w| w.get(serde_yaml::Value::String("draft".into())))
         .and_then(|v| v.as_bool())
         .unwrap_or(false)
+}
+
+/// Joins shell `\`-continued lines in a `run:` script into logical command
+/// lines, so a `gh release create ... \` spread across several physical
+/// lines is scanned as one command. A trailing `\` (optionally followed by
+/// trailing whitespace) merges the current physical line with the next.
+fn join_continuations(script: &str) -> Vec<String> {
+    let mut logical = Vec::new();
+    let mut buf = String::new();
+    for raw_line in script.lines() {
+        let trimmed_end = raw_line.trim_end();
+        if let Some(stripped) = trimmed_end.strip_suffix('\\') {
+            if !buf.is_empty() {
+                buf.push(' ');
+            }
+            buf.push_str(stripped.trim_end());
+        } else {
+            if !buf.is_empty() {
+                buf.push(' ');
+                buf.push_str(trimmed_end.trim());
+                logical.push(std::mem::take(&mut buf));
+            } else {
+                logical.push(trimmed_end.to_string());
+            }
+        }
+    }
+    if !buf.is_empty() {
+        logical.push(buf);
+    }
+    logical
+}
+
+/// Returns `true` if `logical_line` is a `gh release create` invocation that
+/// lacks `--draft` on the same (continuation-joined) logical line. Comment
+/// lines (whose trimmed text starts with `#`) never count, even if they
+/// happen to mention `gh release create` while explaining another step.
+fn is_undrafted_release_create(logical_line: &str) -> bool {
+    let trimmed = logical_line.trim_start();
+    if trimmed.starts_with('#') {
+        return false;
+    }
+    trimmed.contains(GH_RELEASE_CREATE) && !logical_line.contains("--draft")
+}
+
+/// Scans a `run:` step's script body for an unguarded `gh release create`.
+/// Returns the first offending logical line, if any, for use in the
+/// violation message.
+fn find_undrafted_release_create(script: &str) -> Option<String> {
+    join_continuations(script)
+        .into_iter()
+        .find(|line| is_undrafted_release_create(line))
 }
 
 /// Step display name: prefers the `name:` field, falls back to `uses:`.
@@ -79,6 +142,17 @@ fn check_doc(doc: &serde_yaml::Value, file: &str, out: &mut Vec<Violation>) {
                     step: step_name(step_map),
                 });
             }
+
+            let run_violation = step_map
+                .get(serde_yaml::Value::String("run".into()))
+                .and_then(|v| v.as_str())
+                .and_then(find_undrafted_release_create);
+            if let Some(offending_line) = run_violation {
+                out.push(Violation {
+                    file: file.to_string(),
+                    step: format!("{} (run: `{}`)", step_name(step_map), offending_line.trim()),
+                });
+            }
         }
     }
 }
@@ -109,7 +183,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
 
     if violations.is_empty() {
         println!(
-            "release-draft-guard OK (no softprops/action-gh-release step without draft: true)"
+            "release-draft-guard OK (no undrafted softprops/action-gh-release step or `gh release create` invocation)"
         );
         return Ok(());
     }
@@ -119,8 +193,9 @@ pub fn run(repo_root: &Path) -> Result<()> {
         .map(|v| format!("{}: step \"{}\"", v.file, v.step))
         .collect();
     Err(anyhow!(
-        "release-draft-guard: {} softprops/action-gh-release step(s) without `draft: true`:\n  {}\n\
-         Fix: add `draft: true` (and `prerelease: true`) under that step's `with:`. \
+        "release-draft-guard: {} undrafted release-publishing step(s):\n  {}\n\
+         Fix: add `draft: true` (and `prerelease: true`) to the `action-gh-release` step's \
+         `with:`, or `--draft` to the `gh release create` invocation. \
          This repo never publishes a genuinely public GitHub release automatically; \
          drafts are promoted by hand.",
         violations.len(),
@@ -187,6 +262,120 @@ mod tests {
             violations.len(),
             1,
             "quoted \"true\" string must not satisfy the bool check"
+        );
+    }
+
+    #[test]
+    fn run_gh_release_create_with_draft_passes() {
+        let yaml = r#"
+jobs:
+  publish:
+    steps:
+      - name: Create draft nightly release
+        run: |
+          gh release create x --draft --prerelease
+"#;
+        let violations = violations_for(yaml, "run-ok.yml");
+        assert!(
+            violations.is_empty(),
+            "gh release create with --draft on the same line must pass"
+        );
+    }
+
+    #[test]
+    fn run_gh_release_create_without_draft_fails() {
+        let yaml = r#"
+jobs:
+  publish:
+    steps:
+      - name: Create release
+        run: |
+          gh release create x
+"#;
+        let violations = violations_for(yaml, "run-missing.yml");
+        assert_eq!(
+            violations.len(),
+            1,
+            "gh release create without --draft must fail"
+        );
+        assert_eq!(violations[0].file, "run-missing.yml");
+    }
+
+    #[test]
+    fn run_gh_release_view_and_upload_do_not_trip() {
+        let yaml = r#"
+jobs:
+  publish:
+    steps:
+      - name: Update existing release
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1
+          gh release upload "$TAG" file.txt --clobber
+"#;
+        let violations = violations_for(yaml, "view-upload.yml");
+        assert!(
+            violations.is_empty(),
+            "gh release view/upload (no `create`) must never trip the guard"
+        );
+    }
+
+    #[test]
+    fn run_gh_release_create_split_across_continuation_fails() {
+        let yaml = r#"
+jobs:
+  publish:
+    steps:
+      - name: Create release
+        run: |
+          gh release create "$TAG" "${files[@]}" \
+            --title "Nightly" \
+            --notes "auto"
+"#;
+        let violations = violations_for(yaml, "continuation.yml");
+        assert_eq!(
+            violations.len(),
+            1,
+            "a `gh release create` split across `\\` continuations without \
+             --draft anywhere on the joined command must still be caught"
+        );
+    }
+
+    #[test]
+    fn run_gh_release_create_continuation_with_draft_passes() {
+        let yaml = r#"
+jobs:
+  publish:
+    steps:
+      - name: Create release
+        run: |
+          gh release create "$TAG" "${files[@]}" \
+            --draft --prerelease \
+            --title "Nightly"
+"#;
+        let violations = violations_for(yaml, "continuation-ok.yml");
+        assert!(
+            violations.is_empty(),
+            "--draft on a continuation line of the same logical command must satisfy the guard"
+        );
+    }
+
+    #[test]
+    fn comment_mentioning_gh_release_create_does_not_trip() {
+        let yaml = r#"
+jobs:
+  publish:
+    steps:
+      - name: Create draft nightly release
+        run: |
+          # SAFETY: the single release-creating step is
+          # `gh release create ... --draft --prerelease`, matched by an
+          # idempotent "update if it already exists" branch.
+          gh release create x --draft --prerelease
+"#;
+        let violations = violations_for(yaml, "comment.yml");
+        assert!(
+            violations.is_empty(),
+            "a comment line mentioning gh release create must not itself count as a violation"
         );
     }
 }
