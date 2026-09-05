@@ -3,12 +3,14 @@
 **Written:** 2026-09-04 from `BLAPTOP04` (Windows), as the last session on that
 machine. Every fact was checked on the machine it describes.
 
-**Read this first:** the mesh **does not work today**, and not because of
-configuration. `vox populi up` has never started a server on any machine — it
-spawns `populi serve` without `--enable`, the child bails on its first statement,
-and both pipes are `Stdio::null()`, so it fails silently while the parent prints
-"Populi started" and a pid. There is nothing to "get working" by fixing settings.
-§4 is what you can actually verify; §5 is the work that would make the mesh real.
+**Read this first.** As of `60d51c520`, `vox populi up` starts a real control
+plane for the first time — verified on BLAPTOP04: `curl /health` returns **HTTP
+200**. Getting there took five separate pre-existing fixes, because `vox populi`
+did not even compile (see §5.1).
+
+**That is a single-machine milestone, not a working mesh.** The control plane
+binds loopback and there is still no cross-machine transport. §4 is what you can
+verify today; §5 is the work that makes it a mesh.
 
 ---
 
@@ -131,19 +133,22 @@ tailscale ping blaptop04
 that survives the rewrite and is the part vox actually contributes:
 
 ```bash
-cargo run -q -p vox-cli --features populi -- populi registry-snapshot
+cargo run -q -p vox-ml-cli --features populi -- populi registry-snapshot
 ```
 
-Note `--features populi` — **`vox populi` is not compiled into default builds.**
-`vox-ml-cli`'s default is `["mens-base"]` and the release builder passes no
-features, so a released `vox` has no `populi` subcommand at all.
+**Note the crate: `-p vox-ml-cli`, not `-p vox-cli`.** `vox populi` is
+intercepted in `vox-cli`'s `main.rs` and delegated to the separate `vox-ml-cli`
+binary, and the `populi` feature lives on *that* crate — `cargo run -p vox-cli
+--features populi` fails with "the package 'vox-cli' does not contain this
+feature". `vox-ml-cli`'s default is `["mens-base"]` and the release builder
+passes no features, so a released `vox` has no `populi` subcommand at all.
 
 **4.4 The daemon now starts — on loopback only.** Run on either machine:
 
 ```bash
-cargo run -q -p vox-cli --features populi -- populi up --mode lan
+cargo run -q -p vox-ml-cli --features populi -- populi up --mode lan
 curl http://127.0.0.1:9847/health          # expect success
-cargo run -q -p vox-cli --features populi -- populi down
+cargo run -q -p vox-ml-cli --features populi -- populi down
 ```
 
 Until 2026-09-04 this returned connection-refused on every machine: `up` spawned
@@ -168,7 +173,7 @@ Design: [`specs/2026-09-04-populi-mesh-iroh-transport-design.md`](specs/2026-09-
 
 ### 5.1 Standalone fixes — real bugs in `main`, independent of the mesh rewrite
 
-**Two are already done** (F6, F7 — struck through below). `workspace-hack` is
+**Six are now done** (F1, F3, F4, F5, F6, F7 — struck through below), and two new ones (F10, F11) were found while verifying. `workspace-hack` is
 **not** among the problems: 116 crates depend on it, CI gates it
 (`cargo hakari generate --diff`), and it exists to unify features so dependencies
 are not rebuilt. It faithfully mirrored the duplication; it did not cause it.
@@ -178,7 +183,12 @@ Each is small, each is live today, and none needs the iroh work to land first.
 
 | # | Fix | Location |
 |---|---|---|
-| F1 | `vox populi up` never passes `--enable`, so the daemon has never started | `populi_lifecycle.rs:178-190` |
+| ~~F1~~ | **FIXED 2026-09-04** (`60d51c520`). Passes `--enable`; child stderr now goes to `.vox/populi/serve.log`. **Verified end-to-end on BLAPTOP04: `populi up` → `curl /health` → HTTP 200**, the first time the control plane has ever served. | `populi_lifecycle.rs` |
+| ~~F3~~ | **FIXED** (`60d51c520`). Bootstrap now verifies the token before consuming the one-shot window, in **both** handler copies, with a regression test. | `handlers/nodes.rs` ×2 |
+| ~~F4~~ | **FIXED** (`60d51c520`). `lookup_by_pubkey_hex` loads from disk, returns owned, and refuses an empty key. | `vox-identity/src/trust.rs` |
+| ~~F5~~ | **FIXED** (`60d51c520`). Effect inference is now a fixpoint over the call graph; `map(named_fn)` is governed; `placement.rs` blind spot closed. 4 new tests. | `typeck/effect_check.rs`, `placement.rs` |
+| **F10** | **NEW.** `vox populi down` fails on Windows with `Access is denied. (os error 5)` from `terminate_process_tree`, leaving the daemon running. Kill by port until fixed: `Get-NetTCPConnection -LocalPort 9847 -State Listen \| %{Stop-Process -Id $_.OwningProcess -Force}` | `vox-ml-cli` process supervision |
+| **F11** | **NEW.** `WorkerDonationPolicy` had no `Default`, so adding fields broke struct literals silently — that is what stopped `vox populi` compiling. Derive added and the call site spreads it; watch for the same pattern on other shared structs. | fixed in `60d51c520` |
 | F2 | Unauthenticated `FullAccess` when no token is configured — gates `worker/execute`, which writes posted bytes to temp, `chmod 0755`, and runs them, with policy defaulting to `"permissive"` and **no timeout**. Contained today only by the loopback bind. | `router.rs:124`, `auth.rs:148`, `dispatch.rs:230,263` |
 | F3 | `/v1/populi/bootstrap/exchange` swaps its used-flag **before** comparing the token — one bad POST permanently burns the window | `handlers/nodes.rs` |
 | F4 | `lookup_by_pubkey_hex` never reads disk, so on the production file-backed registry it always returns `None` — and it is the only function the wire-path verifier consults | `vox-identity/src/trust.rs:110` |
@@ -285,10 +295,10 @@ features. So "enabling populi" means building with the feature:
 
 ```bash
 cd ~/vox && git pull --ff-only
-cargo build -p vox-cli --features populi
-cargo run -q -p vox-cli --features populi -- populi up --mode lan
+cargo build -p vox-ml-cli --features populi
+cargo run -q -p vox-ml-cli --features populi -- populi up --mode lan
 curl http://127.0.0.1:9847/health          # expect success once F1 has landed
-cargo run -q -p vox-cli --features populi -- populi down
+cargo run -q -p vox-ml-cli --features populi -- populi down
 ```
 
 Before the `--enable` fix this returned connection-refused; after it, the
