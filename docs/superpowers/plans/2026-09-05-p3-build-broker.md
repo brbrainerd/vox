@@ -68,5 +68,7 @@ The semaphore is a filesystem lock under `~/.vox/build-broker/slots/`. A contain
 ## Cross-plan requests
 | To | Request |
 |---|---|
-| P4 | CI lane building the workspace-excluded shim; runner-side container budget from Task 4 |
+| P4 | CI lane: add a required job that runs `sh scripts/broker-ci.sh` (builds, tests, and clippy-checks the workspace-excluded `crates/vox-cargo-shim` with `--manifest-path`, asserts a real `test result:` line with a non-zero passed count, and confirms the produced `cargo`/`cargo.exe` binary exists) and `sh scripts/broker-bypass-lint.sh` (exits non-zero on any un-allowlisted broker bypass in `scripts/`, `.github/workflows/`, or `crates/**/*.rs`). |
+| P4 | Container budget: the runner supervisor (`scripts/ci-runner-local.sh`, owned by P4) must export `VOX_BROKER_RESERVED_SLOTS` on the host, set to the container's concurrent-build budget, before starting containerised builds — the broker's `flock`-based semaphore can't see across the container's mount namespace, so without this the container's builds run uncounted alongside the host's. |
+| P7 | Add a `vox ci build-queue` alias that shells to the `vox-broker` binary this plan ships (the `vox-broker` `[[bin]]` target in `crates/vox-cargo-shim/Cargo.toml`, a read-only viewer over `~/.vox/build-broker/metrics.jsonl` / `broker.log`; see `docs/src/contributors/build-broker-usage.md`). |
 | P5 | If `voxup` gains a dev-setup path, call `broker-install.sh` from it |
