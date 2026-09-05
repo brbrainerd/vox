@@ -48,11 +48,23 @@ mod tests {
     #[test]
     fn stale_message_delegates_to_persona_aware_refresh_guidance() {
         let src = include_str!("freshness.rs");
+        // Exclude this test module from the search — otherwise the string
+        // literal below would trivially match itself regardless of what the
+        // production code does.
+        let production = src
+            .split("#[cfg(test)]")
+            .next()
+            .expect("file must contain a #[cfg(test)] module");
         assert!(
-            src.contains("freshness::refresh_guidance()"),
+            production.contains("freshness::refresh_guidance()"),
             "expected the stale-binary message to use the persona-aware \
              refresh_guidance() helper instead of a hardcoded cargo/crates \
              literal"
+        );
+        assert!(
+            !production.contains("cargo install"),
+            "the stale-binary message must not hardcode a cargo/crates literal; \
+             found one in the production (non-test) portion of this file"
         );
     }
 }
