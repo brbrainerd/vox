@@ -84,7 +84,10 @@ mod remediation_tests {
     /// Extract every `vox …` invocation a check's detail text recommends, as the
     /// longest prefix that matches a real catalog entry. Returns the *unmatched*
     /// candidates — a `vox foo bar` whose longest known prefix is nothing.
-    fn unknown_vox_invocations(detail: &str, known: &std::collections::HashSet<String>) -> Vec<String> {
+    fn unknown_vox_invocations(
+        detail: &str,
+        known: &std::collections::HashSet<String>,
+    ) -> Vec<String> {
         let mut unknown = Vec::new();
         let words: Vec<&str> = detail.split_whitespace().collect();
         for (i, w) in words.iter().enumerate() {
@@ -97,7 +100,10 @@ mod remediation_tests {
             let in_backticks = w.starts_with('`');
             let after_run = i > 0
                 && matches!(
-                    words[i - 1].trim_end_matches(':').to_ascii_lowercase().as_str(),
+                    words[i - 1]
+                        .trim_end_matches(':')
+                        .to_ascii_lowercase()
+                        .as_str(),
                     "run" | "try"
                 );
             if !in_backticks && !after_run {
@@ -142,10 +148,14 @@ mod remediation_tests {
             unknown_vox_invocations("not registered — run: vox setup", &known),
             vec!["vox setup".to_string()]
         );
-        assert!(!unknown_vox_invocations("run: vox login --registry google KEY", &known).is_empty());
+        assert!(
+            !unknown_vox_invocations("run: vox login --registry google KEY", &known).is_empty()
+        );
 
         // Real commands, and prose after them, must not be flagged.
-        assert!(unknown_vox_invocations("run: vox repo init (writes the catalog)", &known).is_empty());
+        assert!(
+            unknown_vox_invocations("run: vox repo init (writes the catalog)", &known).is_empty()
+        );
         assert!(unknown_vox_invocations("see `vox doctor` output", &known).is_empty());
         assert!(unknown_vox_invocations("the vox binary is fine", &known).is_empty());
     }
