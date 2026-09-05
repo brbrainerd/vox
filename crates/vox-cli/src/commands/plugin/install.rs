@@ -153,6 +153,16 @@ fn install_from_path(src_dir: &Path, yes: bool) -> Result<()> {
         }
     }
 
+    // Record a SHA3-256 of every artifact NOW present in `dest` into its own
+    // Plugin.toml, so `vox-plugin-host::load_code_plugin` can verify dylib
+    // integrity at load time from the same already-parsed, already-trusted
+    // manifest it reads `artifacts` from -- with no crate-graph edge to
+    // vox-plugin-catalog (whose catalog.toml checksums are install-time-only
+    // and unavailable to the host). Every install path funnels through this
+    // function, so this is the single place that needs to run it.
+    record_artifact_checksums(&dest, declared)
+        .with_context(|| format!("recording artifact checksums for plugin '{id}' v{version}"))?;
+
     println!(
         "✓ Installed plugin '{}' v{} ({} files) → {}",
         id,
@@ -172,6 +182,85 @@ fn id_to_crate_name(id: &str) -> String {
     } else {
         format!("vox-plugin-{id}")
     }
+}
+
+/// Hash every `(triple, filename)` artifact now on disk under `dest` and
+/// record the results into `dest`'s `Plugin.toml` as an `artifacts-sha3`
+/// table, keyed identically to `artifacts`. A no-op for skill-only plugins
+/// (`declared` empty).
+///
+/// Uses `sha3`/`data-encoding`, matching the hashing precedent already
+/// shipping in `vox-plugin-host::skill_bundle` (SHA3-256, lowercase hex) --
+/// the same pattern the read side verifies against, not `sha2` (used
+/// elsewhere in this file for a different purpose: hashing the whole
+/// downloaded archive before extraction).
+///
+/// Edits the manifest surgically via `toml_edit` (same approach as
+/// `vox-cli-ci::plugin_catalog_sync`) rather than round-tripping through the
+/// typed `PluginManifest` struct, so comments and formatting outside the
+/// touched table survive untouched.
+fn record_artifact_checksums(
+    dest: &Path,
+    declared: &std::collections::BTreeMap<String, String>,
+) -> Result<()> {
+    if declared.is_empty() {
+        return Ok(());
+    }
+
+    let mut hashes = std::collections::BTreeMap::new();
+    for (triple, filename) in declared {
+        let artifact_path = dest.join(filename);
+        let bytes = std::fs::read(&artifact_path)
+            .with_context(|| format!("reading {} to checksum it", artifact_path.display()))?;
+        use sha3::{Digest, Sha3_256};
+        let mut h = Sha3_256::new();
+        h.update(&bytes);
+        hashes.insert(
+            triple.clone(),
+            data_encoding::HEXLOWER.encode(&h.finalize()),
+        );
+    }
+
+    let manifest_path = dest.join("Plugin.toml");
+    let raw = std::fs::read_to_string(&manifest_path)
+        .with_context(|| format!("reading {}", manifest_path.display()))?;
+    let mut doc = raw
+        .parse::<toml_edit::DocumentMut>()
+        .with_context(|| format!("parsing {} for checksum recording", manifest_path.display()))?;
+
+    let payload_tbl = doc
+        .get_mut("plugin")
+        .and_then(|i| i.as_table_mut())
+        .and_then(|plugin| plugin.get_mut("payload"))
+        .and_then(|i| i.as_table_mut())
+        .with_context(|| format!("{} has no [plugin.payload] table", manifest_path.display()))?;
+    // Mirrors the two manifest shapes `load_code_plugin` and `PluginPayload`
+    // above both understand: a `kind = "code"` payload puts `artifacts`
+    // directly on `[plugin.payload]`, a composite payload nests it under
+    // `[plugin.payload.code]`.
+    let target_tbl = if payload_tbl.contains_key("code") {
+        payload_tbl
+            .get_mut("code")
+            .and_then(|i| i.as_table_mut())
+            .with_context(|| {
+                format!(
+                    "{} has [plugin.payload.code] but it is not a table",
+                    manifest_path.display()
+                )
+            })?
+    } else {
+        payload_tbl
+    };
+
+    let mut hash_tbl = toml_edit::Table::new();
+    for (triple, hash) in &hashes {
+        hash_tbl.insert(triple, toml_edit::value(hash.as_str()));
+    }
+    target_tbl.insert("artifacts-sha3", toml_edit::Item::Table(hash_tbl));
+
+    std::fs::write(&manifest_path, doc.to_string())
+        .with_context(|| format!("writing {}", manifest_path.display()))?;
+    Ok(())
 }
 
 /// Fetch a .zip from `url`, unpack to a temp dir, then install-from-path.
@@ -1000,6 +1089,64 @@ version = \"../../..\"
         assert!(
             m.contains("no pinned `version`") || m.contains("no sha256"),
             "expected a pre-network refusal, got: {m}"
+        );
+    }
+
+    /// Serialises tests that point `VOX_PLUGINS_DIR` at a private tempdir —
+    /// a process-global var, so parallel tests touching it must not race.
+    static PLUGINS_DIR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// After a real install, the extracted `Plugin.toml`'s `artifacts-sha3`
+    /// table must hold the ACTUAL SHA3-256 of the installed dylib bytes — not
+    /// merely be present. A test that only checked presence would pass even
+    /// if the write side recorded the wrong file's hash, hashed nothing, or
+    /// hashed a stale copy.
+    #[test]
+    #[allow(unsafe_code)] // `set_var`/`remove_var` are unsafe on Rust 2024; PLUGINS_DIR_LOCK serialises this test's mutators.
+    fn install_from_path_records_a_correct_artifacts_sha3_for_the_current_triple() {
+        let _guard = PLUGINS_DIR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let triple = vox_plugin_types::current_target_triple()
+            .expect("test host must be a supported triple");
+
+        let src = tempfile::tempdir().expect("src tempdir");
+        let dylib_bytes = b"totally-a-real-dylib, trust me";
+        std::fs::write(src.path().join("libdemo.bin"), dylib_bytes).expect("write fake dylib");
+        std::fs::write(
+            src.path().join("Plugin.toml"),
+            format!(
+                "[plugin]\nid = \"checksum-demo\"\nversion = \"0.1.0\"\n\n\
+                 [plugin.payload]\nkind = \"code\"\nabi-version = 1\n\n\
+                 [plugin.payload.artifacts]\n\"{triple}\" = \"libdemo.bin\"\n"
+            ),
+        )
+        .expect("write Plugin.toml");
+
+        let plugins_dir = tempfile::tempdir().expect("plugins tempdir");
+        // vox-arch-check: allow abs-path (test-local tempdir, not a repo path)
+        unsafe { std::env::set_var("VOX_PLUGINS_DIR", plugins_dir.path()) };
+        let result = install_from_path(src.path(), true);
+        unsafe { std::env::remove_var("VOX_PLUGINS_DIR") };
+        result.expect("install must succeed");
+
+        let dest = plugins_dir
+            .path()
+            .join("checksum-demo")
+            .join("0.1.0")
+            .join("Plugin.toml");
+        let installed: toml::Value =
+            toml::from_str(&std::fs::read_to_string(&dest).expect("read installed manifest"))
+                .expect("installed manifest must still parse");
+        let recorded = installed["plugin"]["payload"]["artifacts-sha3"][triple]
+            .as_str()
+            .expect("hash must be recorded for the current triple");
+
+        use sha3::{Digest, Sha3_256};
+        let mut h = Sha3_256::new();
+        h.update(dylib_bytes);
+        let expected = data_encoding::HEXLOWER.encode(&h.finalize());
+        assert_eq!(
+            recorded, expected,
+            "recorded hash must match the real artifact bytes, not a placeholder"
         );
     }
 
