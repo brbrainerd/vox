@@ -88,9 +88,6 @@
     "workflow"
   ],
   "surface_count": 109,
-  "unclassified_backfilled": [
-    "gamify",
-    "openclaw"
-  ],
+  "unclassified_backfilled": [],
   "wiring_violations": []
 }
