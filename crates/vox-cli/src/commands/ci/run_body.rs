@@ -52,10 +52,20 @@ use vox_cli_ci::retired_symbol_check;
 /// `false` for infra reconcile/read commands (runner autoscaler/preflight/status):
 /// they carry no correctness verdict and must keep the CI fleet alive even when the
 /// installed binary lags a fast-moving source tree.
+///
+/// `ArtifactAudit` joins them for the same reason: it is read-only (never deletes,
+/// never mutates the workspace) and produces an inventory, not a pass/fail guard
+/// verdict, so a stale binary running outdated retention logic against a live tree
+/// is a stale *report*, not a false CI signal. `ArtifactPrune` is deliberately NOT
+/// exempted here: it deletes, and a stale binary running outdated retention logic
+/// against a live tree while deleting is exactly what this guard exists to prevent.
 fn should_enforce_freshness(cmd: &CiCmd) -> bool {
     !matches!(
         cmd,
-        CiCmd::RunnerScale { .. } | CiCmd::RunnerPreflight | CiCmd::RunnerStatus
+        CiCmd::RunnerScale { .. }
+            | CiCmd::RunnerPreflight
+            | CiCmd::RunnerStatus
+            | CiCmd::ArtifactAudit { .. }
     )
 }
 
@@ -910,6 +920,26 @@ mod gate_status_tests {
         }));
         assert!(!should_enforce_freshness(&CiCmd::RunnerPreflight));
         assert!(!should_enforce_freshness(&CiCmd::RunnerStatus));
+        // ArtifactAudit is read-only (no delete, no guard verdict) and joins the
+        // exemption; ArtifactPrune deletes and must stay gated.
+        assert!(!should_enforce_freshness(&CiCmd::ArtifactAudit {
+            json: false,
+            include_worktrees: false
+        }));
+        assert!(!should_enforce_freshness(&CiCmd::ArtifactAudit {
+            json: true,
+            include_worktrees: true
+        }));
+        assert!(should_enforce_freshness(&CiCmd::ArtifactPrune {
+            dry_run: true,
+            apply: false,
+            policy: None,
+            include_worktrees: false,
+            remove_stale_worktrees: false,
+            include_dirty_targets: false,
+            incremental_only: false,
+            max_age_days: None,
+        }));
         // Real guard verdicts still require freshness.
         assert!(should_enforce_freshness(&CiCmd::SsotDrift));
         assert!(should_enforce_freshness(&CiCmd::RepoGuards));

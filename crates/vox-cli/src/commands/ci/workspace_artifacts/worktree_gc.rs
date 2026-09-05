@@ -267,6 +267,16 @@ fn worktree_last_touched(wt: &Path) -> SystemTime {
 }
 
 /// True when the worktree has uncommitted *source* changes (build junk ignored).
+///
+/// This is the discrimination `protect_dirty` needs to not be a permanent,
+/// blanket "some worktree is always dirty" veto: an untracked path is checked
+/// against [`is_build_junk`] and does not count as dirty on its own (a fresh
+/// `target/` sitting untracked in a worktree with no other changes must not
+/// block cleaning *that same* `target/`); any tracked add/modify/delete/rename
+/// always counts as real, uncommitted work and always protects. See
+/// `worktree_dirty_source_tests` below for git-repo-backed coverage of both
+/// branches — this function was previously exercised only indirectly through
+/// [`is_build_junk`]'s own unit tests, never directly.
 fn worktree_dirty_source(wt: &Path) -> bool {
     // vox-arch-check: allow git-exec
     let Ok(out) = Command::new("git")
@@ -347,9 +357,20 @@ pub fn plan(
     let mut items = Vec::new();
 
     for wt in &worktrees {
-        if wt.is_main {
-            continue; // primary checkout — its target is the canonical-target class
-        }
+        // The primary checkout used to be skipped here unconditionally — its
+        // `target/` is the biggest one on the machine and was permanently out of
+        // scope "by design". It is now scoped in like any other worktree, gated
+        // on the caller having opted into worktree scanning at all (`plan` only
+        // runs under `--include-worktrees`, never for a bare `artifact-audit` /
+        // `artifact-prune`). Nothing below is weaker for main than for any other
+        // worktree: `decide_target_clean` still applies the same active-build /
+        // locked / dirty / age gates, and `decide_worktree_remove` still hard-codes
+        // `Some("main-worktree")` so the *whole worktree* removal path can never
+        // touch it — only its `target/` dir is now eligible, and only when every
+        // other safety predicate agrees. In the common case of running the tool
+        // from inside the main checkout itself, `is_current` protects it anyway
+        // (the "current worktree" gate), so this mainly changes what the report
+        // *shows*, not what a bare in-tree invocation can delete.
         let wt_canon = std::fs::canonicalize(&wt.path).unwrap_or_else(|_| wt.path.clone());
         let is_current = wt_canon == root_canon;
         let active = worktree_active(&wt.path, &haystacks);
@@ -627,6 +648,88 @@ locked some reason
         assert!(is_build_junk("cr-l-per-gate-reports-abc/x"));
         assert!(!is_build_junk("src/main.rs"));
         assert!(!is_build_junk("Cargo.toml"));
+    }
+
+    // --- worktree_dirty_source: real git-repo-backed discrimination ---------
+    //
+    // `is_build_junk` and the pure `decide_*` functions were already unit
+    // tested, but `worktree_dirty_source` itself — the function that actually
+    // combines `git status --porcelain` with `is_build_junk` to decide whether
+    // "dirty" means real work or just rebuildable output — had no direct
+    // coverage. These exercise it against a real temp git repo so task P6-5's
+    // fix (b) claim ("uncommitted source protects a target; untracked build
+    // junk does not") is verified, not just asserted in a doc comment.
+
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .current_dir(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed in {dir:?}");
+    }
+
+    fn init_repo(dir: &Path) {
+        git(dir, &["init", "-q"]);
+        git(dir, &["config", "user.email", "test@example.com"]);
+        git(dir, &["config", "user.name", "Test"]);
+    }
+
+    #[test]
+    fn worktree_dirty_source_clean_repo_is_not_dirty() {
+        let tmp = tempfile::tempdir().unwrap();
+        init_repo(tmp.path());
+        std::fs::write(tmp.path().join("README.md"), "hello").unwrap();
+        git(tmp.path(), &["add", "."]);
+        git(tmp.path(), &["commit", "-q", "-m", "init"]);
+
+        assert!(!worktree_dirty_source(tmp.path()));
+    }
+
+    #[test]
+    fn worktree_dirty_source_untracked_build_junk_is_not_dirty() {
+        let tmp = tempfile::tempdir().unwrap();
+        init_repo(tmp.path());
+        std::fs::write(tmp.path().join("README.md"), "hello").unwrap();
+        git(tmp.path(), &["add", "."]);
+        git(tmp.path(), &["commit", "-q", "-m", "init"]);
+
+        // An untracked build-junk path with nothing else changed must not
+        // count as dirty — it is exactly the rebuildable output the target
+        // itself is made of, not real uncommitted work.
+        std::fs::create_dir_all(tmp.path().join("target/debug")).unwrap();
+        std::fs::write(tmp.path().join("target/debug/foo.exe"), "binary").unwrap();
+
+        assert!(!worktree_dirty_source(tmp.path()));
+    }
+
+    #[test]
+    fn worktree_dirty_source_untracked_real_file_is_dirty() {
+        let tmp = tempfile::tempdir().unwrap();
+        init_repo(tmp.path());
+        std::fs::write(tmp.path().join("README.md"), "hello").unwrap();
+        git(tmp.path(), &["add", "."]);
+        git(tmp.path(), &["commit", "-q", "-m", "init"]);
+
+        // A new, untracked source file is real uncommitted work and must
+        // protect the target even though it hasn't been `git add`ed yet.
+        std::fs::write(tmp.path().join("src_new_feature.rs"), "fn x() {}").unwrap();
+
+        assert!(worktree_dirty_source(tmp.path()));
+    }
+
+    #[test]
+    fn worktree_dirty_source_tracked_modification_is_dirty() {
+        let tmp = tempfile::tempdir().unwrap();
+        init_repo(tmp.path());
+        std::fs::write(tmp.path().join("README.md"), "hello").unwrap();
+        git(tmp.path(), &["add", "."]);
+        git(tmp.path(), &["commit", "-q", "-m", "init"]);
+
+        // A modified tracked file is real WIP regardless of its name.
+        std::fs::write(tmp.path().join("README.md"), "hello, edited").unwrap();
+
+        assert!(worktree_dirty_source(tmp.path()));
     }
 
     #[test]
