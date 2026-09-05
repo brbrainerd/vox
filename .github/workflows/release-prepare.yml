@@ -126,7 +126,7 @@ jobs:
           cargo update --workspace
 
       - name: Open the release PR
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: release/${{ steps.next.outputs.tag }}
           title: "Release ${{ steps.next.outputs.tag }}"
