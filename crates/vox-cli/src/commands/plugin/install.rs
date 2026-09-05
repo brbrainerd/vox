@@ -1070,4 +1070,17 @@ bbbb000000000000000000000000000000000000000000000000000000002222  checksums.txt
             "https://github.com/vox-foundation/vox/releases/download/v0.6.0-rc.4735/checksums.txt"
         );
     }
+
+    /// Regression guard: an earlier version of this resolver interpolated the
+    /// literal string `"latest"` instead of the running binary's version,
+    /// silently pointing every install at whatever the newest GitHub release
+    /// happened to be. That bug is fixed, but nothing else in this file
+    /// stops it from coming back -- this test is that guard.
+    #[test]
+    fn first_party_plugin_urls_never_contain_the_literal_latest() {
+        let (asset_url, checksums_url, _) =
+            first_party_plugin_urls("mens-candle-cuda", "0.6.0", "linux-x86_64");
+        assert!(!asset_url.contains("latest"), "got {asset_url}");
+        assert!(!checksums_url.contains("latest"), "got {checksums_url}");
+    }
 }

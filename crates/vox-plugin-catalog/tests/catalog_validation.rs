@@ -124,6 +124,26 @@ fn every_plugin_has_default_source() {
 }
 
 #[test]
+fn gpu_ml_backends_use_the_first_party_release_asset_source() {
+    // mens-candle-cuda and mens-candle-metal ship as release assets of vox's
+    // own repo (see install_first_party_plugin), not a per-plugin repo or a
+    // `local:` path. This guards against a future catalog edit accidentally
+    // reverting either entry back to one of those other source forms.
+    const FIRST_PARTY_SOURCE: &str = "github:vox-foundation/vox";
+    for id in ["mens-candle-cuda", "mens-candle-metal"] {
+        let plugin = all_plugins()
+            .iter()
+            .find(|p| p.id == id)
+            .unwrap_or_else(|| panic!("expected plugin '{id}' in the catalog"));
+        assert_eq!(
+            plugin.default_source, FIRST_PARTY_SOURCE,
+            "plugin '{}' must use the first-party release-asset source '{}', got '{}'",
+            id, FIRST_PARTY_SOURCE, plugin.default_source
+        );
+    }
+}
+
+#[test]
 fn every_plugin_bundled_in_claim_is_satisfied_by_the_named_bundle() {
     use vox_plugin_catalog::bundle_resolved;
     for plugin in all_plugins() {
