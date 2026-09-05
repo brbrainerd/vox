@@ -70,7 +70,7 @@ jobs:
           targets: ${{ matrix.target == 'universal-apple-darwin' && 'aarch64-apple-darwin' || matrix.target }}
 
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
 

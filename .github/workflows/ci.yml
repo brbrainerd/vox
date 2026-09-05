@@ -518,7 +518,7 @@ jobs:
       - uses: pnpm/action-setup@v6
         with:
           version: 11
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           package-manager-cache: false
@@ -1583,7 +1583,7 @@ jobs:
       - uses: pnpm/action-setup@v6
         with:
           version: 11
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -1690,7 +1690,7 @@ jobs:
       - uses: pnpm/action-setup@v6
         with:
           version: 11
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           package-manager-cache: false
@@ -1720,7 +1720,7 @@ jobs:
         with:
           version: 11
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           package-manager-cache: false
@@ -1739,7 +1739,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           package-manager-cache: false
@@ -1835,7 +1835,7 @@ jobs:
         with:
           version: 11
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           package-manager-cache: false
