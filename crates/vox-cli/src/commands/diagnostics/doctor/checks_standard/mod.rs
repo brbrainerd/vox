@@ -48,7 +48,7 @@ pub async fn run_checks(
     if test_health::run(test_health, checks).await {
         return;
     }
-    toolchain::run(auto_heal, checks).await;
+    toolchain::run(auto_heal, tier, checks).await;
     build_health::run(auto_heal, checks).await;
     freshness::run(checks);
     binary_ssot::run(checks);
