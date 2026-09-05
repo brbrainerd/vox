@@ -12,7 +12,16 @@
     "any detector saw it; fixed 2026-09-04). A provider is chosen by a FEATURE on",
     "a shared crate, so the only sound input is the resolved lockfile.",
     "",
-    "Verified 2026-09-04 by `cargo tree -i <crate> -e features --workspace`."
+    "Verified 2026-09-04 by `cargo tree -i <crate> -e features --workspace`.",
+    "",
+    "REFINEMENT, 2026-09-04: the lockfile is necessary but NOT sufficient. It records",
+    "what cargo RESOLVED, not what it BUILDS. Measured: a lockfile resolved for hf-hub",
+    "1.0 alone lists `ring`, yet `cargo tree -i ring` reports \"nothing to print\" for the",
+    "host target -- it is a target-gated entry that never compiles, while aws-lc-rs is",
+    "the provider actually built. So `vox ci crate-edges`-style name intersection over",
+    "Cargo.lock would FAIL CI on a provider that ships no code. The gate planned as",
+    "`vox ci crypto-provider-check` must resolve per target and feature set (cargo",
+    "metadata resolve graph, or an equivalent walk) and report BUILT providers."
   ],
   "allowed_providers": [
     {
@@ -25,7 +34,7 @@
       ],
       "reviewer": "brbrainerd",
       "reviewed": "2026-09-04",
-      "planned_removal": "Interim only. Once hf-hub 1.0 moves the last reqwest-0.12 consumer to 0.13, every consumer is on 0.13, which selects aws-lc-rs. `ring` is then removed and aws-lc-rs becomes the sole provider. VCS is unaffected: jj-lib and gix already require reqwest 0.13. Tracked by plan Task 0.4 Step 5."
+      "planned_removal": "Interim, but NOT on the path previously recorded here. CORRECTED 2026-09-04 (macOS, commit f48dbc810) after the hf-hub 1.0 port landed: hf-hub was never the load-bearing reqwest-0.12 consumer. The root manifest pins reqwest 0.12 at Cargo.toml:227 and 28 first-party vox crates depend on it (vox-http-client, vox-actor-runtime, vox-llm-egress, vox-compiler, vox-cli, ...), alongside nanopub, tavily, reqwest-middleware 0.4 and reqwest-retry 0.7. With hf-hub on 1.0/reqwest 0.13, Cargo.lock STILL carries both reqwest majors and both providers. Removing `ring` therefore requires a workspace-wide reqwest 0.12 -> 0.13 pin bump (which also drags the reqwest-middleware and reqwest-retry majors), not the hf-hub upgrade. Needs its own task; not tracked by plan Task 0.4 Step 5 any more."
     },
     {
       "crate": "aws-lc-rs",
@@ -37,7 +46,7 @@
       ],
       "reviewer": "brbrainerd",
       "reviewed": "2026-09-04",
-      "planned_role": "Becomes the SOLE provider after plan Task 0.4. iroh supports it via `tls-aws-lc-rs`, so the mesh transport does not force `ring` to stay."
+      "planned_role": "Would become the sole provider only after a workspace-wide reqwest 0.12 -> 0.13 pin bump. CORRECTED 2026-09-04: plan Task 0.4 (hf-hub 1.0) has landed and did NOT achieve this -- see the `ring` entry. iroh supports aws-lc-rs via `tls-aws-lc-rs`, so the mesh transport does not force `ring` to stay whenever that bump does happen."
     }
   ],
   "duplicates": [
@@ -47,8 +56,8 @@
         "0.12.28",
         "0.13.4"
       ],
-      "reason": "hf-hub 0.5.0 requires reqwest ^0.12.2; chromiumoxide 0.9.1 and gix-transport 0.57.1 require ^0.13. Incompatible semver majors, so cargo builds both. This split is the ROOT CAUSE of the two-provider state.",
-      "resolution": "hf-hub 1.0.0 (2026-07-10) moved to reqwest ^0.13 and dropped ureq and native-tls. Upgrading collapses reqwest to one major and is expected to leave aws-lc-rs as the sole provider. It is a real API port -- 1.0 drops ureq, and four call sites use hf_hub::api::sync::Api -- so it is tracked as a plan task, not a version bump.",
+      "reason": "The workspace's own root pin is reqwest 0.12 (Cargo.toml:227), used directly by 28 first-party vox crates, plus nanopub, tavily, reqwest-middleware 0.4 and reqwest-retry 0.7; chromiumoxide 0.9.1 and gix-transport 0.57.1 require ^0.13. Incompatible semver majors, so cargo builds both. This split is the ROOT CAUSE of the two-provider state. CORRECTED 2026-09-04: an earlier revision of this entry named hf-hub 0.5.0 as the 0.12 side. It was one consumer among thirty-odd and not the one that matters.",
+      "resolution": "UNRESOLVED. The hf-hub 1.0 port is DONE (2026-09-04, commit ca7ce2023) -- a genuine API rewrite, not a bump: HFClient/HFClientSync behind feature `blocking` (1.0 has no `tokio` or `ureq` feature), split_id + client.model(owner, name), repo.download_file().filename(f).revision(r).send(), and info().siblings now Option<Vec<_>>. All four call sites across vox-populi, vox-speech and vox-plugin-speech compile and their tests pass. What it bought: hf-hub no longer pulls ureq (the remaining ureq 2.12.1 comes from sherpa-onnx-sys, unrelated) and hf-xet brings chunk-deduplicated model downloads to the MENS path. What it did NOT buy: the reqwest split survives untouched, because the root pin -- not hf-hub -- anchors the 0.12 side. Resolving this duplicate now means bumping that pin workspace-wide.",
       "tracked_by": "docs/superpowers/plans/2026-09-04-populi-mesh-iroh-transport.md Task 0.4",
       "reviewer": "brbrainerd",
       "reviewed": "2026-09-04"
@@ -99,8 +108,8 @@
     "providers": [
       "aws-lc-rs"
     ],
-    "rationale": "Single provider, reached by collapsing reqwest to one major rather than by banning a crate name. Costs no features: HuggingFace keeps working (hf-hub 1.0), VCS keeps working (jj-lib/gix already want reqwest 0.13), and iroh supports aws-lc-rs directly.",
+    "rationale": "Single provider, reached by collapsing reqwest to one major rather than by banning a crate name. Costs no features: HuggingFace keeps working (hf-hub 1.0, already ported), VCS keeps working (jj-lib/gix already want reqwest 0.13), and iroh supports aws-lc-rs directly. SCOPE CORRECTED 2026-09-04: the collapse is a workspace-wide reqwest pin bump touching 28 first-party crates and the reqwest-middleware/reqwest-retry majors -- materially larger than the hf-hub port that was assumed to deliver it.",
     "abort_condition": "If removing ring forces jj-lib, gix, or chromiumoxide onto a different reqwest major, or breaks the no-cmake/no-nasm build invariant on any platform, keep both providers and record why here.",
-    "tracked_by": "docs/superpowers/plans/2026-09-04-populi-mesh-iroh-transport.md Task 0.4 Step 5"
+    "tracked_by": "UNASSIGNED as of 2026-09-04. Was plan Task 0.4 Step 5; that task has landed without collapsing reqwest, so single-provider needs a new task for the workspace-wide reqwest 0.12 -> 0.13 pin bump."
   }
 }
