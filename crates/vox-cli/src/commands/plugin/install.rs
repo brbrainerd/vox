@@ -80,6 +80,46 @@ fn install_from_path(src_dir: &Path, yes: bool) -> Result<()> {
         }
     }
 
+    // A code plugin is only installed if its cdylib landed. This loop copies
+    // top-level files; a workspace source directory contains Cargo.toml and
+    // Plugin.toml but no built artifact, so without this check the command
+    // printed "✓ Installed" over a directory the host loader cannot dlopen —
+    // and `vox plugin list` then reported it as installed.
+    let declared = head.plugin.payload.artifacts();
+    if !declared.is_empty() {
+        let triple = vox_plugin_types::current_target_triple().ok_or_else(|| {
+            anyhow::anyhow!(
+                "plugin '{id}' ships code artifacts, but this platform is not a supported \
+                 plugin target (expected one of {:?})",
+                vox_plugin_types::PLUGIN_TARGET_TRIPLES
+            )
+        })?;
+        let filename = declared.get(triple).ok_or_else(|| {
+            anyhow::anyhow!(
+                "plugin '{id}' declares no artifact for '{triple}' (declares: {:?}). \
+                 Add a '{triple}' entry to the artifacts map in Plugin.toml.",
+                declared.keys().collect::<Vec<_>>()
+            )
+        })?;
+        if !dest.join(filename).is_file() {
+            // Remove the half-installed directory so `vox plugin list` cannot
+            // report a plugin that will fail to load. Also drop the now-empty
+            // `<id>/` parent (remove_dir only succeeds when it is empty, so a
+            // second installed version is never disturbed).
+            let _ = std::fs::remove_dir_all(&dest);
+            if let Some(parent) = dest.parent() {
+                let _ = std::fs::remove_dir(parent);
+            }
+            bail!(
+                "plugin '{id}' v{version}: artifact '{filename}' for '{triple}' was not found in \
+                 {}.\nBuild it first, then install from the directory containing it:\n  \
+                 cargo build -p {} --release",
+                src_dir.display(),
+                id_to_crate_name(id),
+            );
+        }
+    }
+
     println!(
         "✓ Installed plugin '{}' v{} ({} files) → {}",
         id,
@@ -88,6 +128,17 @@ fn install_from_path(src_dir: &Path, yes: bool) -> Result<()> {
         dest.display()
     );
     Ok(())
+}
+
+/// Plugin ids are the crate name minus the `vox-plugin-` prefix
+/// (`populi-mesh` ⇄ `vox-plugin-populi-mesh`), which is the form `cargo build -p`
+/// wants in the remediation above.
+fn id_to_crate_name(id: &str) -> String {
+    if id.starts_with("vox-plugin-") {
+        id.to_string()
+    } else {
+        format!("vox-plugin-{id}")
+    }
 }
 
 /// Fetch a .zip from `url`, unpack to a temp dir, then install-from-path.
@@ -205,4 +256,94 @@ struct PluginHead {
 struct PluginMeta {
     id: String,
     version: String,
+    #[serde(default)]
+    payload: PluginPayload,
+}
+
+/// Mirrors the two manifest shapes the host loader accepts
+/// (`vox_plugin_host::load_code_plugin`): a `kind = "code"` payload puts the map
+/// at `[plugin.payload.artifacts]`, while a composite payload nests it at
+/// `[plugin.payload.code.artifacts]`. Skill-only plugins have neither.
+#[derive(serde::Deserialize, Default)]
+struct PluginPayload {
+    /// `kind = "code"` — artifacts directly on the payload.
+    #[serde(default)]
+    artifacts: std::collections::BTreeMap<String, String>,
+    /// Composite payload — artifacts nested under `code`.
+    #[serde(default)]
+    code: Option<PluginCodePayload>,
+}
+
+impl PluginPayload {
+    /// Platform key (`<os>-<arch>`, see `vox_plugin_types::PLUGIN_TARGET_TRIPLES`)
+    /// → cdylib filename, from whichever shape this manifest uses.
+    fn artifacts(&self) -> &std::collections::BTreeMap<String, String> {
+        match self.code.as_ref() {
+            Some(code) if !code.artifacts.is_empty() => &code.artifacts,
+            _ => &self.artifacts,
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct PluginCodePayload {
+    #[serde(default)]
+    artifacts: std::collections::BTreeMap<String, String>,
+}
+
+#[cfg(test)]
+mod artifact_guard_tests {
+    use super::*;
+
+    fn manifest(artifacts_table: &str) -> String {
+        format!(
+            r#"
+[plugin]
+id = "demo"
+version = "0.1.0"
+
+{artifacts_table}
+"#
+        )
+    }
+
+    /// Both manifest shapes the host loader accepts must be understood here, or
+    /// the guard silently skips whichever one it cannot see.
+    #[test]
+    fn artifacts_are_read_from_both_manifest_shapes() {
+        let code_kind = manifest(
+            "[plugin.payload.artifacts]\n\"macos-aarch64\" = \"libdemo.dylib\"",
+        );
+        let head: PluginHead = toml::from_str(&code_kind).expect("code-kind manifest");
+        assert_eq!(
+            head.plugin.payload.artifacts().get("macos-aarch64").map(String::as_str),
+            Some("libdemo.dylib"),
+        );
+
+        let composite = manifest(
+            "[plugin.payload.code.artifacts]\n\"macos-aarch64\" = \"libdemo.dylib\"",
+        );
+        let head: PluginHead = toml::from_str(&composite).expect("composite manifest");
+        assert_eq!(
+            head.plugin.payload.artifacts().get("macos-aarch64").map(String::as_str),
+            Some("libdemo.dylib"),
+        );
+    }
+
+    /// A skill-only plugin declares no artifacts and must remain installable.
+    #[test]
+    fn skill_only_plugins_declare_no_artifacts() {
+        let head: PluginHead = toml::from_str(&manifest("")).expect("skill manifest");
+        assert!(head.plugin.payload.artifacts().is_empty());
+    }
+
+    /// The remediation must name the crate `cargo build -p` actually accepts.
+    #[test]
+    fn crate_name_remediation_is_buildable() {
+        assert_eq!(id_to_crate_name("populi-mesh"), "vox-plugin-populi-mesh");
+        assert_eq!(
+            id_to_crate_name("vox-plugin-populi-mesh"),
+            "vox-plugin-populi-mesh"
+        );
+    }
 }

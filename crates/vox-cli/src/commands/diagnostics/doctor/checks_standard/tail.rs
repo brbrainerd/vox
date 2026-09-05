@@ -67,7 +67,10 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     let mut lsp_detail = if lsp_bin {
         "found in PATH".to_string()
     } else {
-        "not built — run: cargo build -p vox-lsp --release".to_string()
+        // The lookup below is relative to current_exe(), i.e. the profile vox itself
+        // was built with. Advising --release sent people to target/release/ while the
+        // check kept reading target/debug/ and stayed red.
+        "not built — run: cargo build -p vox-lsp".to_string()
     };
 
     if !lsp_bin && auto_heal {
@@ -100,7 +103,9 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     let mut config_detail = if has_config {
         "found in ~/.vox/config.toml".to_string()
     } else {
-        "not found — run: vox login".to_string()
+        // `vox login` writes ~/.vox/login.toml; this check reads ~/.vox/config.toml,
+        // whose only writer is doctor's own auto-heal branch.
+        "not found — run: vox doctor --auto-heal".to_string()
     };
 
     if !has_config
@@ -143,7 +148,7 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         None => Check {
             name: "Google AI Studio Key".to_string(),
             pass: false,
-            detail: "not found — run: vox login --registry google YOUR_KEY\n                          get a free key at: https://aistudio.google.com/apikey".to_string(),
+            detail: "not found — run: vox secrets set google YOUR_KEY\n                          get a free key at: https://aistudio.google.com/apikey".to_string(),
         },
     });
 
@@ -275,6 +280,39 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         detail: format!("to update natively, run: {}", update_hint),
     });
 
+    // Graphify cache. A fresh clone has no corpus graphs, and nothing surfaces
+    // that until a `vox graph query` / MCP search silently returns nothing — so
+    // report it here, where new installs already look. Only meaningful inside the
+    // repo; `vox graph` is a repo-scoped tool.
+    if in_vox_repo {
+        let cache_dir = std::path::Path::new(".vox/cache/graphify");
+        let mut built = 0usize;
+        if let Ok(mut entries) = tokio::fs::read_dir(cache_dir).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                if tokio::fs::try_exists(entry.path().join("graph.json"))
+                    .await
+                    .unwrap_or(false)
+                {
+                    built += 1;
+                }
+            }
+        }
+        checks.push(Check {
+            name: "Graphify cache".to_string(),
+            pass: built > 0,
+            detail: if built > 0 {
+                format!(
+                    "{built} corpus graph(s) built — `vox graph status` for freshness, \
+                     `vox graph refresh --auto` to update"
+                )
+            } else {
+                "no corpus graphs built — run: vox graph refresh --auto \
+                 (code-intelligence queries return nothing until this is built)"
+                    .to_string()
+            },
+        });
+    }
+
     let vox_dir = common::user_home_dir().map(|h| h.join(".vox"));
     let db_check = match vox_dir.as_ref() {
         Some(d) => {
@@ -303,21 +341,18 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         },
     });
 
-    let mut reg_pass = false;
-    let mut reg_detail = "not registered — run: vox setup".to_string();
-    if let Ok(db) = vox_db::Codex::connect_default().await {
-        let key = "project.vox-workspace.path".to_string();
-        if let Ok(path) = db.get_object_metadata("vox-workspace", &key).await {
-            reg_pass = true;
-            reg_detail = format!("registered at {}", path);
-        } else if let Ok(path) = db.get_object_metadata("vox-workspace", "path").await {
-            reg_pass = true;
-            reg_detail = format!("registered at {}", path);
-        } else if let Ok(Some(val)) = db.get_user_preference_value_by_key(&key).await {
-            reg_pass = true;
-            reg_detail = format!("registered at {}", val);
-        }
-    }
+    // Check the artifact the remediation actually produces. This used to read
+    // `project.vox-workspace.path` from the DB — a key **nothing in the tree
+    // writes** — so the check could never pass and no advice could ever cure it.
+    // `vox repo init` writes `.vox/repositories.yaml`; that is the observable
+    // registration state, so check for it and the cure now matches the symptom.
+    let repo_yaml = std::path::Path::new(".vox/repositories.yaml");
+    let reg_pass = tokio::fs::try_exists(repo_yaml).await.unwrap_or(false);
+    let reg_detail = if reg_pass {
+        format!("registered — {} present", repo_yaml.display())
+    } else {
+        "not registered — run: vox repo init (writes .vox/repositories.yaml)".to_string()
+    };
 
     checks.push(Check {
         name: "Workspace Registration".to_string(),

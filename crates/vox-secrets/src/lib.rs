@@ -696,6 +696,15 @@ pub fn import_env_from_path(
         let key = key.trim();
         let val = val.trim().trim_matches(|c| c == '"' || c == '\'');
 
+        // An empty value is the `.env.example` placeholder, not a configured
+        // secret. Importing it writes a blank into the vault, which then reads
+        // back as "configured": an empty VOX_DB_URL masks the local SQLite
+        // default ("Database not available"), and an empty GEMINI_API_KEY makes
+        // `vox doctor` report "configured — (empty)".
+        if val.is_empty() {
+            continue;
+        }
+
         let Some(spec) = specs.iter().find(|s| {
             s.canonical_env == key
                 || s.aliases.contains(&key)

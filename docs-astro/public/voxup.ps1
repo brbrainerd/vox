@@ -13,7 +13,9 @@ param()
 
 $ErrorActionPreference = 'Stop'
 
-$GithubApi = 'https://api.github.com/repos/vox-foundation/vox/releases/latest'
+# NOTE: `/releases/latest` excludes pre-releases and 404s while every published
+# release is a pre-release. List releases instead and take the newest entry.
+$GithubApi = 'https://api.github.com/repos/vox-foundation/vox/releases?per_page=1'
 $GithubDl  = 'https://github.com/vox-foundation/vox/releases/download'
 
 function Write-Step([string]$Msg) { Write-Host "voxup: $Msg" -ForegroundColor Cyan }
@@ -25,9 +27,13 @@ function Write-Fail([string]$Msg) {
 # ── Platform detection ────────────────────────────────────────────────────────
 
 function Get-VoxupTarget {
-    $cpu = $env:PROCESSOR_ARCHITECTURE
-    $arch = if ($cpu -eq 'ARM64') { 'aarch64' } else { 'x86_64' }
-    return "${arch}-pc-windows-msvc"
+    # Only x86_64-pc-windows-msvc is published. ARM64 Windows runs x64 binaries
+    # under emulation, so resolve to the x64 target rather than requesting an
+    # aarch64-pc-windows-msvc asset that is never built (download would 404).
+    if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {
+        Write-Step "ARM64 Windows detected — using the x86_64 build (runs under emulation)"
+    }
+    return 'x86_64-pc-windows-msvc'
 }
 
 # ── SHA-256 verification ──────────────────────────────────────────────────────
@@ -56,7 +62,8 @@ try {
 } catch {
     Write-Fail "Failed to fetch release info from GitHub: $_"
 }
-$Tag = $release.tag_name
+# The list endpoint returns an array; take the newest entry.
+$Tag = @($release)[0].tag_name
 if (-not $Tag) { Write-Fail "Could not determine latest release tag from GitHub API" }
 Write-Step "Latest release: $Tag"
 

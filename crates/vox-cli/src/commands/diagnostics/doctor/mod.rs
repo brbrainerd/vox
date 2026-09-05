@@ -104,10 +104,14 @@ pub async fn run(
 
     checks_standard::run_checks(auto_heal, test_health, compile_target, tier, &mut checks).await;
 
-    let failed = checks.iter().filter(|c| !c.pass).count();
     if probe {
-        if failed > 0 {
-            anyhow::bail!("health probe: {failed} environment check(s) failed");
+        let failed = failed_probe_required(&checks);
+        if !probe_verdict(&checks) {
+            anyhow::bail!(
+                "health probe: {} required environment check(s) failed: {}",
+                failed.len(),
+                failed.join(", ")
+            );
         }
         return Ok(());
     }
@@ -115,6 +119,57 @@ pub async fn run(
     output::print_results(&checks, test_health, json);
 
     Ok(())
+}
+
+// ── `--probe` required-check subset ───────────────────────────────────────────
+
+/// Checks whose failure means *this binary is not functional*. `--probe` is the
+/// container HEALTHCHECK (`Dockerfile`: `vox doctor --probe`), and the runtime
+/// image has no repo, no `Vox.toml` and no API keys — so gating on "any check
+/// failed" made the container permanently unhealthy. Everything repo-scoped
+/// (`Vox.toml`, `Vox Config`, `Workspace Registration`, `vox-lsp binary`),
+/// credential-scoped (`Google AI Studio Key`, …) or tier-optional (`tier dep: …`)
+/// is advisory and must NOT sink the probe.
+///
+/// `docker: not installed` is deliberately absent: Docker is only required
+/// *if applicable*, and a runtime container legitimately has no docker CLI. A
+/// docker daemon that is present but unreachable IS a real failure.
+const PROBE_REQUIRED_CHECKS: &[&str] = &[
+    // Docker reachability, but only when docker is actually installed.
+    "docker: unreachable",
+    "docker: WSL wedged",
+    // VoxDB data directory must be writable or nothing the binary does persists.
+    "VoxDB directory",
+    // Schema must match the binary's baseline (pass name / drift-failure name).
+    "vox: schema version",
+    "vox: schema drift",
+];
+
+/// A check is required when it is named in [`PROBE_REQUIRED_CHECKS`].
+///
+/// Toolchain identity rows are deliberately **not** required. `--probe` is the
+/// container HEALTHCHECK (`Dockerfile`), and the runtime image is a slim Debian
+/// carrying only the `vox` binary — it has no Rust toolchain at all, so requiring
+/// `toolchain: rustc identity` would keep every container permanently unhealthy,
+/// which is the bug this required-subset exists to fix. A shadowed toolchain is a
+/// real problem on a developer machine, and `vox doctor` still reports it there;
+/// it just is not a statement about whether a shipped binary is functional.
+fn is_probe_required(name: &str) -> bool {
+    PROBE_REQUIRED_CHECKS.contains(&name)
+}
+
+/// Names of the *required* checks that are currently failing.
+fn failed_probe_required(checks: &[common::Check]) -> Vec<&str> {
+    checks
+        .iter()
+        .filter(|c| !c.pass && is_probe_required(&c.name))
+        .map(|c| c.name.as_str())
+        .collect()
+}
+
+/// Pure `--probe` verdict: `true` = healthy. Kept I/O-free so it is unit-testable.
+fn probe_verdict(checks: &[common::Check]) -> bool {
+    failed_probe_required(checks).is_empty()
 }
 
 fn run_fix_cuda_path() -> Result<()> {
@@ -161,6 +216,95 @@ fn run_fix_cuda_path() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use common::Check;
+
+    /// The checks a *runtime container* (no repo, no Vox.toml, no API keys) always
+    /// fails. None of them says the binary is broken, so none may sink the probe.
+    fn container_advisory_failures() -> Vec<Check> {
+        vec![
+            Check::fail("Vox.toml", "no Vox.toml in cwd"),
+            Check::fail("Vox Config", "not loadable"),
+            Check::fail("Google AI Studio Key", "missing"),
+            Check::fail("vox-lsp binary", "not built"),
+            Check::fail("Workspace Registration", "not registered"),
+            Check::fail("tier dep: ffmpeg", "not found"),
+            Check::fail("tier dep: onnxruntime", "not found"),
+            Check::fail("docker: not installed", "`docker` not on PATH"),
+        ]
+    }
+
+    fn required_passing() -> Vec<Check> {
+        vec![
+            Check::pass("toolchain: rustc identity", "rustc 1.96.0"),
+            Check::pass("toolchain: rustup identity", "rustup 1.29.0"),
+            Check::pass("docker: reachable", "docker info ok"),
+            Check::pass("VoxDB directory", "/root/.vox (writable)"),
+            Check::pass("vox: schema version", "binary baseline 42, DB on baseline"),
+        ]
+    }
+
+    #[test]
+    fn probe_ignores_advisory_failures() {
+        let mut checks = required_passing();
+        checks.extend(container_advisory_failures());
+        assert!(
+            probe_verdict(&checks),
+            "advisory failures must not sink the probe; failed required: {:?}",
+            failed_probe_required(&checks)
+        );
+    }
+
+    /// The runtime image (`Dockerfile`) is a slim Debian carrying only the `vox`
+    /// binary — no Rust toolchain. Requiring toolchain identity would keep every
+    /// container permanently unhealthy, which is the exact bug the required-subset
+    /// exists to fix. `vox doctor` still surfaces a shadowed toolchain on a dev box.
+    #[test]
+    fn probe_ignores_a_missing_toolchain() {
+        for advisory in [
+            Check::fail("toolchain: rustc identity", "not found on PATH"),
+            Check::fail("toolchain: rustup identity", "not found on PATH"),
+            Check::fail("toolchain: compile probe", "cargo absent"),
+        ] {
+            let name = advisory.name.clone();
+            let mut checks = required_passing();
+            checks.push(advisory);
+            assert!(
+                probe_verdict(&checks),
+                "a failing `{name}` must not sink the container health probe"
+            );
+        }
+    }
+
+    #[test]
+    fn probe_fails_on_required_check_failure() {
+        for bad in [
+            Check::fail("docker: unreachable", "Docker daemon not reachable"),
+            Check::fail("docker: WSL wedged", "WSL2 Docker Engine unreachable"),
+            Check::fail("VoxDB directory", "~/.vox/ not writable"),
+            Check::fail("vox: schema drift", "DB ahead of binary baseline"),
+        ] {
+            let name = bad.name.clone();
+            let mut checks = required_passing();
+            checks.extend(container_advisory_failures());
+            checks.push(bad);
+            assert!(
+                !probe_verdict(&checks),
+                "a failing `{name}` must make the probe unhealthy"
+            );
+            assert!(
+                failed_probe_required(&checks).contains(&name.as_str()),
+                "`{name}` should be reported as a failed required check"
+            );
+        }
+    }
+
+    /// An all-green environment is healthy, and an empty check list is not
+    /// "unhealthy" by accident.
+    #[test]
+    fn probe_healthy_when_all_required_pass() {
+        assert!(probe_verdict(&required_passing()));
+        assert!(probe_verdict(&[]));
+    }
 
     #[tokio::test]
     #[cfg(not(feature = "codex"))]

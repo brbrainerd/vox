@@ -20,6 +20,33 @@ Welcome. This file is the **short golden path**; deeper policy lives in [AGENTS.
 4. If you touch CLI flags or help text:  
    `cargo run -p vox-cli -- ci command-compliance`
 
+## Beyond `vox` itself
+
+`cargo build -p vox-cli` (and the `voxup` installer) give you the **CLI only**.
+These subsystems live in separate binaries or plugins and are *not* installed by
+either — `vox doctor` will keep reporting them as missing until you add them:
+
+| Subsystem | Install | Needed for |
+|---|---|---|
+| ML / mesh CLI | `cargo install --locked --path crates/vox-ml-cli --features populi` | `vox mens`, `vox populi` (both delegate to it; `populi` is **not** a default feature — a bare install yields a mesh-less binary) |
+| Orchestrator daemon | `cargo install --path crates/vox-orchestrator-d` | Axis; otherwise the GUI retries the spawn forever |
+| Mesh transport | `vox plugin install populi-mesh --yes` | Mesh control plane / A2A dispatch |
+| GPU backend | `vox plugin install mens-candle-metal --yes` (Apple Silicon)<br>`vox plugin install mens-candle-cuda --yes` (NVIDIA) | Accelerated inference |
+| Language server | `cargo build -p vox-lsp --release` | Editor integration |
+
+The **Axis** GUI (`crates/vox-gui`) additionally needs its frontend built first —
+Tauri's `beforeDevCommand` / `beforeBuildCommand` are empty, so nothing builds
+`ui/dist` for you:
+
+```bash
+cd crates/vox-gui/ui && pnpm install && pnpm build
+```
+
+Requires **pnpm 11+**. Settings live in `ui/pnpm-workspace.yaml`, not the `pnpm`
+field of `package.json` — pnpm 11 ignores that field once the workspace file
+exists, so dependency `overrides` must be kept in **both** or the floor is
+silently dropped.
+
 ## Pre-commit hooks
 
 Run once after cloning to install generators that auto-maintain `.generated.md` files and ignore-file sync on every commit:

@@ -24,7 +24,7 @@ owo-colors = { workspace = true }
 bytes = { workspace = true }
 rand = { workspace = true }
 chrono = { workspace = true }
-vox-db = { path = "../vox-db" }
+vox-db = { workspace = true, features = ["host-integration"] }
 vox-config = { workspace = true }
 vox-llm-egress = { workspace = true }
 vox-actor-runtime = { workspace = true }

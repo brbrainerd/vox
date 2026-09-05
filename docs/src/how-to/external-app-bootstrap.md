@@ -7,11 +7,11 @@ status: "current"
 
 # Bootstrap a Vox application outside the monorepo
 
-This guide is for consumer-facing apps that live in **their own Git repository** (not under `vox-lang/vox`). It complements **`docs/src/tutorials/tut-getting-started.md`** and **`docs/src/reference/ref-installation.md`**.
+This guide is for consumer-facing apps that live in **their own Git repository** (not under `vox-lang/vox`). It complements **`docs/src/tutorials/tut-getting-started.md`** and **`docs/src/reference/installation.md`**.
 
 ## 1. Install `vox`
 
-- Prefer release binaries per **`docs/src/reference/ref-installation.md`** (`scripts/install.ps1` / `scripts/install.sh`), or **`vox upgrade`** from an existing install.
+- Prefer release binaries per **`docs/src/reference/installation.md`** (`scripts/install.ps1` / `scripts/install.sh`), or **`vox upgrade`** from an existing install.
 - Until `vox` is on `PATH`, use the thin launchers **`scripts/windows/vox-dev.ps1`** / **`scripts/vox-dev.sh`** only when developing **inside** this repository.
 
 ## 2. Scaffold the project

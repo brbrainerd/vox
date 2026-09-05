@@ -109,6 +109,19 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
                 allowed_mesh_networks: None, // Used in routing, populated from allowed_scopes currently
                 accept_sensitive_workloads: false,
                 redundancy: None,
+                // Match the two other policy parsers (vox-mesh-policy and
+                // vox-scaling-policy, both `false`) and the `#[serde(default)]` on
+                // the fields themselves. `accepts_inference_workloads` is read by
+                // no admission path yet — a2a.rs gates on public_mesh_opt_in,
+                // min_priority, slots and the user lists — so defaulting it true
+                // here would silently make every `vox populi up` node an inference
+                // donor the day a planner starts honoring it.
+                accepts_inference_workloads: false,
+                accepts_training_workloads: false,
+                accepts_sensitive_training_data: false,
+                cuda_tier: 0,
+                metal_tier: 0,
+                vram_min_gb: 0,
             };
             if let Ok(json) = serde_json::to_string(&donation_policy) {
                 env_map.insert("VOX_MESH_DONATION_POLICY_JSON".to_string(), json);
