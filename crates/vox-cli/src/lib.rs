@@ -25,6 +25,8 @@ pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
 pub mod config;
+/// Spec §9.1 contributor-mode detector — see module docs for the exemption it implements.
+pub mod contributor_mode;
 /// External `vox-orchestrator-d` RPC boundary (method id SSOT).
 pub mod dei_daemon;
 /// Colored CLI output helpers (`print_info`, `print_success`, …).

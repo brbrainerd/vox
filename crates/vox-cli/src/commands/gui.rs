@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
 pub async fn run(args: crate::cli_args::GuiArgs) -> Result<()> {
@@ -116,17 +116,5 @@ fn resolve_or_build_gui(installed: &Path, gui_bin_name: &str) -> Result<PathBuf>
 /// Path to the workspace root (parent of the workspace `Cargo.toml`) when invoked
 /// from inside a Cargo workspace, else `None`.
 fn locate_workspace_root() -> Option<PathBuf> {
-    let out = Command::new("cargo")
-        .args(["locate-project", "--workspace", "--message-format", "plain"])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let manifest = String::from_utf8(out.stdout).ok()?;
-    let manifest = manifest.trim();
-    if manifest.is_empty() {
-        return None;
-    }
-    Path::new(manifest).parent().map(|p| p.to_path_buf())
+    crate::contributor_mode::locate_workspace_root()
 }
