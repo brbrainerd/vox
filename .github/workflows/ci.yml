@@ -554,10 +554,10 @@ jobs:
         continue-on-error: true
 
       - name: Dynamic Workspace Health Audit
-        run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-workspace-health.vox
+        run: ./target/debug/vox run --interp scripts/quality/audit-workspace-health.vox
 
       - name: Telemetry-Driven Architectural Audit
-        run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-telemetry.vox
+        run: ./target/debug/vox run --interp scripts/quality/audit-telemetry.vox
 
       - name: Secrets SSOT parity + secret direct-read guard
         shell: bash
