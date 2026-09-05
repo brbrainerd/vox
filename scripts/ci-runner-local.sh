@@ -110,10 +110,15 @@ docker image inspect "$IMAGE" >/dev/null 2>&1 || {
 }
 docker volume create "$CACHE_VOLUME" >/dev/null
 
-# Each worker reuses one container name across its own iterations (the name
-# is unique per worker and per script invocation via $$), so cleanup can
-# always find and remove it regardless of which iteration is in flight.
-container_name() { echo "vox-runner-local-$$-$1"; }
+# Container names stay unique PER ITERATION (worker + iteration), not just per
+# worker. `docker run --rm` returns as soon as the container exits, but the
+# daemon removes it asynchronously -- reusing one fixed name per worker meant
+# the next iteration could race that removal and die on
+# `Conflict. The container name "..." is already in use`. Cleanup therefore
+# finds containers by a run-scoped label instead of by name, which works
+# regardless of which iteration is in flight.
+RUN_LABEL="vox-runner-local-run=$$"
+container_name() { echo "vox-runner-local-$$-$1-$2"; }
 
 cleaned=0
 worker_pids=()
@@ -126,20 +131,25 @@ cleanup() {
   for pid in "${worker_pids[@]:-}"; do
     [ -n "$pid" ] && kill "$pid" >/dev/null 2>&1 || true
   done
-  for w in $(seq 1 "$RUNNER_COUNT"); do
-    docker rm -f "$(container_name "$w")" >/dev/null 2>&1 || true
-  done
+  # Label lookup, not name reconstruction: the iteration counter lives inside
+  # each worker subshell, so the parent cannot know which name is live.
+  local ids
+  ids="$(docker ps -aq --filter "label=${RUN_LABEL}" 2>/dev/null || true)"
+  if [ -n "$ids" ]; then
+    # shellcheck disable=SC2086
+    docker rm -f $ids >/dev/null 2>&1 || true
+  fi
   wait >/dev/null 2>&1 || true
 }
 trap cleanup INT TERM EXIT
 
 run_worker() {
   local worker="$1"
-  local name
-  name="$(container_name "$worker")"
   local i=0
   while :; do
     i=$((i + 1))
+    local name
+    name="$(container_name "$worker" "$i")"
     # Fresh token per job: ephemeral runners re-register on every start, and a
     # registration token only lives ~1h.
     local token
@@ -150,7 +160,7 @@ run_worker() {
     }
 
     echo "runner[$worker]: waiting for a job (iteration $i)"
-    docker run --rm --name "$name" \
+    docker run --rm --name "$name" --label "$RUN_LABEL" \
       -e REPO_URL="https://github.com/${REPO}" \
       -e RUNNER_TOKEN="$token" \
       -e RUNNER_LABELS="$RUNNER_LABELS" \

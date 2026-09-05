@@ -59,12 +59,19 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           targets: ${{ matrix.target }}
+          # This matrix has TWO dimensions. runner.os discriminates the target
+          # dimension on its own (linux vs windows), but the 7 bundles all
+          # share an OS, so without a suffix all 7 legs of a platform compute
+          # one identical key -- 7 jobs racing to save it (6 saves discarded),
+          # and each restoring a target/ built for a different feature set.
+          # The hand-rolled cache this replaced had the same gap; keying on the
+          # bundle closes it rather than carrying it forward.
+          cache-key-suffix: -bundle-${{ matrix.bundle }}
 
       # setup-rust's own cache (cache: true default) already covers
       # ~/.cargo/registry, ~/.cargo/git, and target/ keyed on OS + toolchain +
-      # Cargo.lock -- the two targets in this matrix run on different OSes
-      # (linux/windows), which already discriminates the key via runner.os, so
-      # a separate hand-rolled cache here would just duplicate it.
+      # Cargo.lock, plus the bundle suffix above -- a separate hand-rolled
+      # cache block here would just duplicate it.
       - name: Build vox CLI
         run: cargo build --profile dist --locked -p vox-cli --target ${{ matrix.target }}
 

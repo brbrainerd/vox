@@ -809,6 +809,23 @@ jobs:
       - name: Toolchain SSoT Drift Guard
         run: ./target/debug/vox --quiet ci toolchain-ssot
 
+      # These three guards shipped as CLI subcommands with unit tests but were
+      # wired into no workflow and no script, so none of them could ever fail
+      # in CI. release-draft-guard is the one that matters most: it enforces
+      # this repo's standing "never auto-publish a public GitHub release" rule,
+      # and unwired it would have let a future PR drop a `draft: true` with
+      # every lane staying green. They live here, in the same always-completing
+      # lane as the SSOT guards, because all three are static YAML reads that
+      # need no build.
+      - name: Release Draft Guard (no auto-published public releases)
+        run: ./target/debug/vox --quiet ci release-draft-guard
+
+      - name: Toolchain Workflow Lint (all Rust installs via setup-rust)
+        run: ./target/debug/vox --quiet ci toolchain-workflow-lint
+
+      - name: Cache Key Lint
+        run: ./target/debug/vox --quiet ci cache-key-lint
+
       # version_ssot.rs's own module doc claims drift here is "a CI failure
       # rather than a release surprise" -- ssot_probe (no args, no --write)
       # is the only place that check actually runs; wire it in next to the
