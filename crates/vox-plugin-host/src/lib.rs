@@ -156,6 +156,21 @@ pub fn load_code_plugin(
         ))
     })?;
 
+    // Spec §4.2(d): refuse to load a plugin built for a different core version
+    // before touching its dylib. The artifact name already encodes the version
+    // (`{id}-v{version}-{triple}.zip`), so this is a plain string comparison
+    // against the manifest's own `version` field, not new metadata. Matches
+    // the `env!("CARGO_PKG_VERSION")` precedent in
+    // `install_first_party_plugin` (crates/vox-cli/src/commands/plugin/install.rs).
+    let host_version = env!("CARGO_PKG_VERSION");
+    if entry.version != host_version {
+        return Err(errors::LoadError::VersionMismatch {
+            plugin_id: plugin_id.to_string(),
+            expected: host_version.to_string(),
+            found: entry.version.clone(),
+        });
+    }
+
     let triple = current_target_triple_key();
     let artifacts = match &entry.payload {
         PluginPayload::Code(c) => &c.artifacts,
@@ -253,6 +268,76 @@ pub fn cached_code_plugin(
     let leaked: &'static LoadedCodePlugin = Box::leak(Box::new(loaded));
     guard.insert(plugin_id, leaked);
     Ok(leaked)
+}
+
+#[cfg(test)]
+mod load_code_plugin_version_gate_tests {
+    //! Spec §4.2(d): a plugin whose manifest `version` disagrees with the
+    //! running core's own `CARGO_PKG_VERSION` must be refused before any
+    //! attempt to resolve or dlopen its dylib.
+    use super::*;
+    use registry::{PluginEntry, Registry};
+    use vox_plugin_api::manifest::{CodePayload, PluginPayload};
+
+    fn code_entry(id: &str, version: &str) -> PluginEntry {
+        PluginEntry {
+            id: id.to_string(),
+            version: version.to_string(),
+            // Deliberately nonexistent: a version mismatch must be caught
+            // before this path is ever touched, so it need not resolve.
+            install_dir: std::path::PathBuf::from("/nonexistent/does-not-matter"),
+            payload: PluginPayload::Code(CodePayload {
+                abi_version: VOX_PLUGIN_ABI_VERSION,
+                provides: Default::default(),
+                requires: Default::default(),
+                artifacts: Default::default(),
+            }),
+        }
+    }
+
+    #[test]
+    fn mismatched_version_is_refused_before_dlopen() {
+        let registry = Registry::new();
+        let host_version = env!("CARGO_PKG_VERSION");
+        let bogus_version = format!("{host_version}-definitely-not-installed");
+        registry.record(code_entry("versioned-plugin", &bogus_version));
+
+        let err = match load_code_plugin(&registry, "versioned-plugin") {
+            Ok(_) => panic!("expected VersionMismatch, got Ok"),
+            Err(e) => e,
+        };
+        match err {
+            LoadError::VersionMismatch {
+                plugin_id,
+                expected,
+                found,
+            } => {
+                assert_eq!(plugin_id, "versioned-plugin");
+                assert_eq!(expected, host_version);
+                assert_eq!(found, bogus_version);
+            }
+            other => panic!("expected VersionMismatch, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn matching_version_proceeds_past_the_version_gate() {
+        // A matching version must not be rejected as a VersionMismatch. It will
+        // still fail past the gate (no real artifact for this triple exists),
+        // which proves the gate let it through rather than swallowing the error.
+        let registry = Registry::new();
+        let host_version = env!("CARGO_PKG_VERSION");
+        registry.record(code_entry("versioned-plugin-ok", host_version));
+
+        let err = match load_code_plugin(&registry, "versioned-plugin-ok") {
+            Ok(_) => panic!("expected an error past the version gate (no real artifact exists)"),
+            Err(e) => e,
+        };
+        assert!(
+            !matches!(err, LoadError::VersionMismatch { .. }),
+            "matching version must not be rejected as a mismatch, got: {err:?}"
+        );
+    }
 }
 
 #[cfg(test)]
