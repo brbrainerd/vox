@@ -9,8 +9,7 @@ use serde::Deserialize;
 // install run failed here even after the shell wrapper was fixed, because the
 // wrapper and this binary each resolve the release independently. List releases
 // and pick the newest published, non-draft one instead.
-const API_RELEASES: &str =
-    "https://api.github.com/repos/vox-foundation/vox/releases?per_page=20";
+const API_RELEASES: &str = "https://api.github.com/repos/vox-foundation/vox/releases?per_page=20";
 // Tag lookup for a specific prerelease (e.g. a nightly), which the listing
 // above intentionally cannot name.
 const API_TAGS: &str = "https://api.github.com/repos/vox-foundation/vox/releases/tags";
@@ -111,7 +110,9 @@ pub async fn fetch_latest(client: &Client) -> Result<ReleaseInfo> {
         .into_iter()
         .filter(|r| !r.draft && r.published_at.is_some())
         .max_by(|a, b| a.published_at.cmp(&b.published_at))
-        .context("no published release found (all drafts, or the repository has no releases yet)")?;
+        .context(
+            "no published release found (all drafts, or the repository has no releases yet)",
+        )?;
     into_release_info(rel)
 }
 
