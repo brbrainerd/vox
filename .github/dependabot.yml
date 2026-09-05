@@ -138,3 +138,12 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # 0.38 -> 0.41 (a "minor" bump under 0.x semver, so it lands in the
+      # group above by default) declares `peerDependencies: { astro: "^7.0.2" }`.
+      # This repo pins astro ^6.0.1. Grouped with five otherwise-safe updates,
+      # it broke the whole group: "Cannot read properties of undefined
+      # (reading 'name')" in @astrojs/markdown-satteri's isSatteriProcessor,
+      # confirmed by checking the declared peer directly (verified on PR #485).
+      # Remove this entry only alongside a deliberate, verified astro 7 migration.
+      - dependency-name: "@astrojs/starlight"
