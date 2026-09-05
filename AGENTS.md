@@ -656,7 +656,7 @@ broker's queue. Plain `cargo` on PATH is correct: the broker is a `cargo`-named
 shim placed ahead of the rustup proxy, so PATH resolution is what makes
 interception work in the first place.
 
-- Installed by `scripts/broker-install.sh` (dry-run by default; `--apply` to
+- Installed by `scripts/broker-install.vox` (dry-run by default; `--apply` to
   build the shim, install it, and edit your shell profile). State and
   activation are checked by `vox doctor`.
 - Tunables: `VOX_BROKER_MAX_CONCURRENT` (max simultaneous builds
@@ -667,6 +667,6 @@ interception work in the first place.
 - `crates/vox-cargo-shim` is excluded from the root workspace (its `cargo`-named
   binary can't join workspace resolution) and is built with `--manifest-path
   crates/vox-cargo-shim/Cargo.toml`, never `-p vox-cargo-shim`.
-- Bypass shapes are caught by `scripts/broker-bypass-lint.sh`; known,
+- Bypass shapes are caught by `scripts/broker-bypass-lint.vox`; known,
   not-this-plan's-to-fix cases are recorded in
   `scripts/broker-bypass-allowlist.txt` with a reason, not silently skipped.

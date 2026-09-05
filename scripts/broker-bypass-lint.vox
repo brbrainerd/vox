@@ -406,6 +406,17 @@ fn scan_file(file: str) to list[BypassMatch] {
         if regex.is_match(line, pattern_join_cargo()) and not has_marker {
             matches = matches.push({ file: file, match_line: line_no, reason: reason_join() });
         }
+        // KNOWN GAP (found in code review, not fixed): `templ` requires both
+        // sub-patterns on this SAME line, unlike case 2's rustup-run check,
+        // which joins `\`-continued physical lines before matching. A
+        // rustfmt-wrapped multi-arg `format!(\n    "{}/bin/{}",\n    ...,\n
+        // "cargo"\n)` call splits the template and the "cargo" argument onto
+        // different lines and evades this case entirely. Not fixed here:
+        // doing so needs a paren-balance-aware join (this case has no
+        // trailing-backslash continuation marker to key off, unlike case 2),
+        // and no evidence in this repo's real-tree scan shows this shape
+        // actually occurring — case 1's literal-substring match already
+        // catches every bypass this scan has found in practice.
         let embed = regex.is_match(line, pattern_format_embed());
         let templ = regex.is_match(line, pattern_format_template()) and regex.is_match(line, pattern_format_cargo_arg());
         if (embed or templ) and not has_marker {

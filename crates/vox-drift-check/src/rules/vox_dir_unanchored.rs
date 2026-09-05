@@ -122,10 +122,18 @@ fn line_window_is_unanchored_current_dir(lines: &[&str], literal_line_1_indexed:
         return false;
     }
 
+    // Isolate the statement that actually contains the flagged `.vox`
+    // literal. Regression for a false positive found in code review: an
+    // unrelated statement earlier on the same physical line (e.g.
+    // `let _ = std::env::current_dir(); let p = already_anchored.join(".vox");`)
+    // must not implicate an already-anchored join later on the line just
+    // because the whole line contains the substring `current_dir()`.
+    let statement = statement_containing_vox_literal(current_line);
+
     // Same-line chain: `current_dir().join(".vox")`, with or without
     // intervening `.unwrap()`/`.unwrap_or_default()` calls. No identifier
     // binding to check — the call is used directly.
-    if current_line.contains("current_dir()") {
+    if statement.contains("current_dir()") {
         return true;
     }
 
@@ -138,18 +146,48 @@ fn line_window_is_unanchored_current_dir(lines: &[&str], literal_line_1_indexed:
     if !above_line.contains("current_dir()") {
         return false;
     }
-    match receiver_ident_before_join(current_line) {
+    match receiver_ident_before_join(statement) {
         Some(ident) => line_binds_ident_before_current_dir(above_line, ident),
         None => false,
     }
+}
+
+/// Returns the `;`-delimited statement segment of `line` that contains the
+/// literal text `.vox` (i.e. the statement the flagged string literal
+/// actually lives in), or the whole line if no `;` splits it — a cheap,
+/// column-free stand-in for "which statement is this on" that keeps a
+/// same-line multi-statement false positive from bleeding across an earlier,
+/// unrelated statement. Also fixes a false NEGATIVE in
+/// `receiver_ident_before_join`: without this isolation, a line with more
+/// than one `.join(` call (e.g. `a.join("bin").join(cwd.join(".vox"))`) would
+/// hand the whole line to that function, which only looks at the first
+/// `.join(` occurrence — this isolates to the statement first, so callers
+/// only ever see the `.join(` calls relevant to the flagged literal's own
+/// statement.
+fn statement_containing_vox_literal(line: &str) -> &str {
+    if !line.contains(';') {
+        return line;
+    }
+    line.split(';')
+        .find(|seg| seg.contains(".vox"))
+        .unwrap_or(line)
 }
 
 /// Extracts the identifier immediately preceding a `.join(` call on `line`,
 /// e.g. `"cwd"` from `out.push(cwd.join(".vox"))`. Returns `None` when the
 /// receiver isn't a bare identifier (a chained call, an index expression,
 /// etc.) — those are handled by the same-line-chain path instead.
+///
+/// Uses `rfind`, not `find`: `line` is already isolated to the statement
+/// containing the flagged `.vox` literal (see `statement_containing_vox_literal`),
+/// so the *last* `.join(` on it is the innermost/rightmost one — the one
+/// whose argument is the `.vox` literal itself, e.g. in
+/// `already_anchored.join("bin").join(cwd.join(".vox"))` the last `.join(`
+/// is `cwd.join(`, not the outer `already_anchored.join(`. A prior `find`
+/// (first occurrence) picked the wrong receiver whenever more than one
+/// `.join(` appeared before the flagged one, producing a false negative.
 fn receiver_ident_before_join(line: &str) -> Option<&str> {
-    let join_pos = line.find(".join(")?;
+    let join_pos = line.rfind(".join(")?;
     let before = &line[..join_pos];
     let start = before
         .rfind(|c: char| !(c.is_alphanumeric() || c == '_'))
@@ -307,6 +345,33 @@ mod tests {
         let (_dir, f) = features_for(src, 3);
         let rule = VoxDirUnanchoredRule;
         assert!(rule.check(&f, &ctx()).is_empty());
+    }
+
+    #[test]
+    fn allows_join_vox_when_current_dir_is_an_earlier_unrelated_statement_on_the_same_line() {
+        // Regression for a false positive found in code review: two
+        // statements on one physical line, where an unrelated `current_dir()`
+        // call precedes an already-anchored `.join(".vox")`. Before the fix,
+        // `current_line.contains("current_dir()")` matched the whole line and
+        // ignored the `;` statement boundary between them.
+        let src = "fn f() {\n    let _ = std::env::current_dir(); let p = already_anchored_root.join(\".vox\");\n}\n";
+        let (_dir, f) = features_for(src, 2);
+        let rule = VoxDirUnanchoredRule;
+        assert!(rule.check(&f, &ctx()).is_empty());
+    }
+
+    #[test]
+    fn flags_the_innermost_join_when_the_statement_has_multiple_join_calls() {
+        // Regression for a false negative found in code review:
+        // `receiver_ident_before_join` used `find` (first `.join(`), so a
+        // statement with more than one `.join(` call before the `.vox` one
+        // extracted the wrong receiver identifier and silently missed a
+        // genuinely unanchored join. `already_anchored.join("bin")` is an
+        // anchored, irrelevant outer call; `cwd.join(".vox")` is the real bug.
+        let src = "fn f() {\n    let cwd = std::env::current_dir().unwrap();\n    already_anchored.join(\"bin\").join(cwd.join(\".vox\"));\n}\n";
+        let (_dir, f) = features_for(src, 3);
+        let rule = VoxDirUnanchoredRule;
+        assert_eq!(rule.check(&f, &ctx()).len(), 1);
     }
 
     #[test]
