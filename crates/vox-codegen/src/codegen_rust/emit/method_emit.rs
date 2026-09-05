@@ -861,6 +861,23 @@ fn try_emit_list_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<S
             "({{ let mut __lst = {}; __lst.reverse(); __lst }})",
             o
         )),
+        // `sorted()` (arity 0): natural-order sort, returning a NEW list (value
+        // semantics, matching `reverse`/`reversed` above). Was typechecked
+        // (typeck/builtins.rs) and interpreted (eval/builtins.rs, via
+        // `vox_value_cmp`) but had NO codegen arm at all — `vox run` (compiled)
+        // rejected any `.sorted()` call with "no method named `sorted` found for
+        // struct `Vec<String>`", while `vox check`/`vox run --interp` both
+        // accepted it. `partial_cmp` (not `Ord::cmp`/`.sort()`) is used
+        // deliberately: it works for every concrete element type this codegen
+        // backend can produce a `Vec<T>` of (str/String, i64, bool, f64 — floats
+        // implement `PartialOrd` but not `Ord`), so this one arm covers all of
+        // them without needing per-type dispatch via `inferred_types`. A NaN
+        // comparison degrades to `Equal` (stable, non-panicking) rather than the
+        // `.unwrap()`-and-panic a naive `partial_cmp(..).unwrap()` would risk.
+        "sorted" if arg_exprs.is_empty() => Some(format!(
+            "({{ let mut __lst = {}; __lst.sort_by(|__a, __b| __a.partial_cmp(__b).unwrap_or(std::cmp::Ordering::Equal)); __lst }})",
+            o
+        )),
         "extend" if arg_exprs.len() == 1 => Some(format!(
             "({{ let mut __lst = {}; __lst.extend(({}).into_iter()); __lst }})",
             o, arg_exprs[0]

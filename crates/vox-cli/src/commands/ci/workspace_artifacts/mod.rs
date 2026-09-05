@@ -155,6 +155,7 @@ fn emit_large_tracked_mens_advisories(rows: &[ArtifactAuditRow]) {
 fn collect_inventory(
     root: &Path,
     policy: &WorkspaceArtifactRetentionFile,
+    include_worktrees: bool,
 ) -> Result<Vec<ArtifactAuditRow>> {
     let (mens_delete, _) = plan_mens_run_deletions(root, &policy.mens)?;
     let mens_set: HashSet<PathBuf> = mens_delete.into_iter().collect();
@@ -260,16 +261,29 @@ fn collect_inventory(
         rows.push(r);
     }
 
-    let cw = artifact_policy::canonical_workspace_target(root);
-    if cw.is_dir() {
-        let mut r = classify_row(
-            cw.clone(),
-            "WorkspaceTarget",
-            Some("canonical Cargo target — not removed by artifact-prune; use cargo clean".into()),
-            Some(false),
-        );
-        refresh_tracked(root, &mut r, &cw);
-        rows.push(r);
+    // When `--include-worktrees` is NOT in play, the main worktree's `target/` is
+    // permanently out of `worktree_gc`'s scope (it only iterates worktrees at all
+    // under that flag), so report it here as a fixed, never-removed advisory row.
+    // When the flag IS set, `worktree_gc::plan` now scopes the main worktree in
+    // (see `worktree_gc.rs`) and reports this same directory with the real
+    // active-build/locked/dirty/age verdict — emitting both would show two
+    // contradictory rows for one path (one saying "never removed", the other
+    // saying it's a live delete candidate), so skip the fixed advisory here.
+    if !include_worktrees {
+        let cw = artifact_policy::canonical_workspace_target(root);
+        if cw.is_dir() {
+            let mut r = classify_row(
+                cw.clone(),
+                "WorkspaceTarget",
+                Some(
+                    "canonical Cargo target — not removed by artifact-prune; use cargo clean"
+                        .into(),
+                ),
+                Some(false),
+            );
+            refresh_tracked(root, &mut r, &cw);
+            rows.push(r);
+        }
     }
 
     Ok(rows)
@@ -283,7 +297,7 @@ pub fn run_audit(root: &Path, json: bool, include_worktrees: bool) -> Result<()>
         WorkspaceArtifactRetentionFile::embedded_defaults()
     };
 
-    let mut rows = collect_inventory(root, &policy)?;
+    let mut rows = collect_inventory(root, &policy, include_worktrees)?;
     if include_worktrees {
         let opts = WorktreeGcOpts {
             include_worktrees: true,
@@ -424,7 +438,7 @@ pub fn run_prune(
         eprintln!("[warn] {w}");
     }
 
-    let mut rows = collect_inventory(root, &policy)?;
+    let mut rows = collect_inventory(root, &policy, wt_opts.include_worktrees)?;
     for r in &mut rows {
         let p = PathBuf::from(&r.path);
         refresh_tracked(root, r, &p);

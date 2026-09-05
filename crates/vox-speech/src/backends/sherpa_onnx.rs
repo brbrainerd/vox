@@ -3,9 +3,7 @@
 #![cfg(feature = "stt-sherpa")]
 
 use super::asr_backend::{AsrBackend, AsrOutput};
-use super::sherpa_model_config::{
-    resolve_sherpa_model_paths, resolve_sherpa_transducer_model_paths,
-};
+use super::sherpa_model_config::{ensure_sherpa_model_paths, ensure_sherpa_transducer_model_paths};
 use anyhow::Result;
 use sherpa_onnx::{
     OfflineRecognizer, OfflineRecognizerConfig, OfflineTransducerModelConfig,
@@ -35,8 +33,8 @@ impl SherpaOnnxBackend {
     /// once Sherpa has already been chosen. Same literal value ("whisper"),
     /// different env var, different meaning — don't conflate the two.
     ///
-    /// **Known gotcha**: `resolve_sherpa_model_paths` (Whisper) and
-    /// `resolve_sherpa_transducer_model_paths` (this default path) both key
+    /// **Known gotcha**: `ensure_sherpa_model_paths` (Whisper) and
+    /// `ensure_sherpa_transducer_model_paths` (this default path) both key
     /// off the same `VOX_ORATIO_SHERPA_MODEL_DIR` override, but expect
     /// different files in that directory (Whisper needs no `joiner.onnx`;
     /// transducer does). A local dir set up for one shape and read under the
@@ -55,7 +53,7 @@ impl SherpaOnnxBackend {
         let mut config = OfflineRecognizerConfig::default();
 
         if is_whisper {
-            let paths = resolve_sherpa_model_paths()?;
+            let paths = ensure_sherpa_model_paths()?;
             config.model_config.whisper = OfflineWhisperModelConfig {
                 encoder: Some(paths.encoder.to_string_lossy().to_string()),
                 decoder: Some(paths.decoder.to_string_lossy().to_string()),
@@ -63,7 +61,7 @@ impl SherpaOnnxBackend {
             };
             config.model_config.tokens = Some(paths.tokens.to_string_lossy().to_string());
         } else {
-            let paths = resolve_sherpa_transducer_model_paths()?;
+            let paths = ensure_sherpa_transducer_model_paths()?;
             config.model_config.transducer = OfflineTransducerModelConfig {
                 encoder: Some(paths.encoder.to_string_lossy().to_string()),
                 decoder: Some(paths.decoder.to_string_lossy().to_string()),

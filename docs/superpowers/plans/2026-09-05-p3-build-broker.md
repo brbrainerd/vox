@@ -26,7 +26,7 @@ See the index. Non-negotiable everywhere: assert on the artifact never the exit 
 
 The usage doc's activation section is **Windows-only**: `terminal.integrated.env.windows.PATH`, `…\.vox\build-broker\bin`, `cargo[.exe]`. Zero mentions of `.osx`/`.linux`, `.zshrc`, `.bashrc`, or `export PATH`. macOS and Linux developers have no documented path at all.
 
-- [ ] Add `scripts/broker-install.sh` (POSIX `sh`, validated with `sh -n` and `shellcheck`): builds the shim, installs to `~/.vox/build-broker/bin`, prepends to the login shell profile **ahead of `~/.cargo/bin`**, idempotently.
+- [ ] Add `scripts/broker-install.vox` (VoxScript, per AGENTS.md "VoxScript-First Glue Code"): builds the shim, installs to `~/.vox/build-broker/bin`, prepends to the login shell profile **ahead of `~/.cargo/bin`**, idempotently.
 - [ ] Reuse `voxup`'s profile-detection approach — it already handles zsh/bash/fish and creates a profile on a pristine macOS account.
 - [ ] Document `terminal.integrated.env.osx` / `.linux` alongside the existing Windows guidance.
 - [ ] Verify by artifact: after running, `which -a cargo` lists the shim first.
@@ -68,5 +68,7 @@ The semaphore is a filesystem lock under `~/.vox/build-broker/slots/`. A contain
 ## Cross-plan requests
 | To | Request |
 |---|---|
-| P4 | CI lane building the workspace-excluded shim; runner-side container budget from Task 4 |
-| P5 | If `voxup` gains a dev-setup path, call `broker-install.sh` from it |
+| P4 | CI lane: add a required job that runs `vox run scripts/broker-ci.vox` (builds, tests, and clippy-checks the workspace-excluded `crates/vox-cargo-shim` with `--manifest-path`, asserts a real `test result:` line with a non-zero passed count, and confirms the produced `cargo`/`cargo.exe` binary exists) and `vox run scripts/broker-bypass-lint.vox` (exits non-zero on any un-allowlisted broker bypass in `scripts/`, `.github/workflows/`, or `crates/**/*.rs`). |
+| P4 | Container budget: the runner supervisor (`scripts/ci-runner-local.sh`, owned by P4) must export `VOX_BROKER_RESERVED_SLOTS` on the host, set to the container's concurrent-build budget, before starting containerised builds — the broker's `flock`-based semaphore can't see across the container's mount namespace, so without this the container's builds run uncounted alongside the host's. |
+| P7 | Add a `vox ci build-queue` alias that shells to the `vox-broker` binary this plan ships (the `vox-broker` `[[bin]]` target in `crates/vox-cargo-shim/Cargo.toml`, a read-only viewer over `~/.vox/build-broker/metrics.jsonl` / `broker.log`; see `docs/src/contributors/build-broker-usage.md`). |
+| P5 | If `voxup` gains a dev-setup path, call `broker-install.vox` (via `vox run scripts/broker-install.vox`) from it |

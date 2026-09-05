@@ -29,9 +29,16 @@ description = "Scoped daemonless cargo shim that fair-queues builds within a vox
 [lints.rust]
 unsafe_code = "warn"
 
+[lints.clippy]
+all = "warn"
+
 [[bin]]
 name = "cargo" # MUST be literally `cargo` so PATH interception works
 path = "src/main.rs"
+
+[[bin]]
+name = "vox-broker" # read-only viewer for the broker's audit log; see docs/src/contributors/build-broker-usage.md
+path = "src/bin/vox-broker.rs"
 
 [dependencies]
 anyhow = "1"

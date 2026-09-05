@@ -1760,6 +1760,123 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         label: "Db Mvcc",
         hint: "Enable experimental MVCC for SQLite (1/true to enable).",
     },
+    // --- P6-2: graphify cache disk-footprint knobs (VOX_GRAPHIFY_TTL_DAYS was already
+    // read in code but not yet a CONFIG_KEYS row; registering all three together). ---
+    ConfigKey {
+        key: "VOX_GRAPHIFY_CACHE_DIR",
+        kind: ConfigKind::Path,
+        default: DefaultValue::Computed("<repo>/.vox/cache/graphify"),
+        bound: None,
+        group: Group::Storage,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        // NOT wired to the real cache writer today (crates/vox-cli/src/commands/
+        // graphify/mod.rs::primary_cache_dir builds its path from
+        // REPO_VOX_GRAPH_CACHE_DIR directly and never calls this resolver) —
+        // the doctor check's GRAPHIFY_ENV_NOT_WIRED_NOTE already says so;
+        // Status::Declared makes the registry say the same thing.
+        status: Status::Declared,
+        label: "Graphify Cache Dir",
+        hint: "Base dir for graphify's Tier D cache (per-corpus subdir kept underneath). \
+               NOT YET WIRED to the real writer -- setting this has no effect today.",
+    },
+    ConfigKey {
+        key: "VOX_GRAPHIFY_DISABLE",
+        kind: ConfigKind::Bool,
+        default: DefaultValue::Literal("false"),
+        bound: None,
+        group: Group::Storage,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        // See VOX_GRAPHIFY_CACHE_DIR above: same gap, same reason.
+        status: Status::Declared,
+        label: "Graphify Disable",
+        hint: "Disable the graphify cache outright (no corpus graph reads or writes). \
+               NOT YET WIRED to the real writer -- setting this has no effect today.",
+    },
+    ConfigKey {
+        key: "VOX_GRAPHIFY_TTL_DAYS",
+        kind: ConfigKind::Int,
+        default: DefaultValue::Literal("30"),
+        bound: Some((1.0, 3650.0)),
+        group: Group::Storage,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Graphify Ttl Days",
+        hint: "Freshness TTL in days for all graphify corpora, overriding the contract default.",
+    },
+    // --- P6-3: explicit opt-out for the Sherpa-ONNX speech-model download,
+    // so a user or CI job can guarantee nothing large is fetched. ---
+    ConfigKey {
+        key: "VOX_ORATIO_SHERPA_NO_DOWNLOAD",
+        kind: ConfigKind::Bool,
+        default: DefaultValue::Literal("false"),
+        bound: None,
+        group: Group::Storage,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Sherpa No Download",
+        hint: "Refuse to download Sherpa-ONNX speech models; point VOX_ORATIO_SHERPA_MODEL_DIR at a local copy instead.",
+    },
+    // --- P6-7: explicit opt-out for the vox-populi Mens training-weight
+    // download (the actual `download_model` HF Hub downloader, ~16 GB for
+    // the default model), so a user or CI job can guarantee nothing large
+    // is fetched. ---
+    ConfigKey {
+        key: "VOX_MENS_NO_DOWNLOAD",
+        kind: ConfigKind::Bool,
+        default: DefaultValue::Literal("false"),
+        bound: None,
+        group: Group::Storage,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Mens No Download",
+        hint: "Refuse to download Mens training-weight models from Hugging Face Hub; there is no local-directory alternative today.",
+    },
+    // --- P3P6: broker/home knobs surfaced by the config-registry-parity gate ---
+    ConfigKey {
+        key: "VOX_HOME",
+        kind: ConfigKind::Path,
+        default: DefaultValue::Computed("<home>/.vox"),
+        bound: None,
+        group: Group::General,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Vox Home",
+        hint: "Overrides the root vox_config::paths::dot_vox_user_dir() resolves under; a \
+            partial relocation only (see that function's doc comment for what it does not move).",
+    },
+    ConfigKey {
+        key: "VOX_BROKER_RESERVED_SLOTS",
+        kind: ConfigKind::Int,
+        default: DefaultValue::Literal("0"),
+        bound: None,
+        group: Group::Runtime,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Broker Reserved Slots",
+        hint: "Slots reserved for a build domain the broker's filesystem semaphore can't see \
+            (e.g. a containerised CI runner sharing this host's CPU but not its mount namespace).",
+    },
 ];
 
 /// All registered keys (for the parity gate).

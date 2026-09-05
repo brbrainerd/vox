@@ -65,6 +65,30 @@ fn reversed_emits_same_as_reverse() {
 }
 
 #[test]
+fn sorted_emits_value_returning_block() {
+    // `sorted()` had NO codegen arm at all (only `sorted_by`/`sorted_by_key`
+    // did) — typechecked and interpreted, but `vox run` rejected any call with
+    // "no method named `sorted` found for struct `Vec<String>`". This asserts
+    // the emitted Rust actually calls a sort method and yields the list.
+    let out = emit_first_fn("fn f(xs: List[str]) to List[str] { return xs.sorted() }");
+    assert!(
+        out.contains("__lst.sort_by(") && out.contains("__lst }"),
+        "`xs.sorted()` must emit a value-returning sort block; got:\n{out}"
+    );
+}
+
+#[test]
+fn sorted_uses_partial_cmp_not_ord_cmp() {
+    // Must work for float lists too (f64 is PartialOrd but not Ord, so a plain
+    // `.sort()` (which requires `Ord`) would fail to compile for `List[float]`).
+    let out = emit_first_fn("fn f(xs: List[float]) to List[float] { return xs.sorted() }");
+    assert!(
+        out.contains("partial_cmp"),
+        "`xs.sorted()` must use partial_cmp (works for float lists, which are not Ord); got:\n{out}"
+    );
+}
+
+#[test]
 fn extend_emits_value_returning_block() {
     let out =
         emit_first_fn("fn f(xs: List[str], ys: List[str]) to List[str] { return xs.extend(ys) }");

@@ -1,0 +1,411 @@
+// vox:caps fs process env
+// scripts/broker-install.vox
+//
+// Install and activate the vox build broker (a `cargo`-named shim that
+// fair-queues cargo builds machine-wide). See:
+//   docs/src/contributors/build-broker-usage.md
+//
+// Dry-run by default. Nothing is built, copied, or edited unless --apply is
+// given. This installs a binary literally named `cargo` ahead of the rustup
+// proxy on PATH -- a machine-wide change -- so the safe default is to show
+// the plan and touch nothing.
+//
+// Usage:
+//   vox run scripts/broker-install.vox                          # dry run
+//   vox run scripts/broker-install.vox -- --dry-run              # same as above
+//   vox run scripts/broker-install.vox -- --apply [--profile <path>] [--no-profile]
+//
+// This script is only correct under compiled `vox run scripts/broker-install.vox`
+// -- NOT `vox run --interp`, since env.args() skips argv[0] under the compiled
+// tier but not under the interpreter (a confirmed Vox compiler/interpreter gap).
+//
+// Env:
+//   VOX_BROKER_HOME   Broker install root. Default: $HOME/.vox/build-broker
+//   VOX_REPO_ROOT     Repo root, used to find crates/vox-cargo-shim for the
+//                     --apply build step and for the self-install copy step.
+//                     Default "." -- assumes this script is invoked from a
+//                     repo checkout root, e.g. `vox run
+//                     scripts/broker-install.vox` (the established idiom in
+//                     this directory; see vendor-skills.vox).
+
+import fs;
+import path;
+import process;
+import env;
+import regex;
+
+fn repo_root() to str {
+    let root_opt = env.get("VOX_REPO_ROOT");
+    let base = if root_opt.is_some() { root_opt.unwrap() } else { "." };
+    match std.fs.canonicalize(base) {
+        Ok(p) => p
+        Error(_) => base
+    }
+}
+
+fn usage() {
+    print("Usage: vox run scripts/broker-install.vox [-- --dry-run]");
+    print("       vox run scripts/broker-install.vox -- --apply [--profile <path>] [--no-profile]");
+    print("");
+    print("Install the vox build broker's cargo shim into $VOX_BROKER_HOME/bin");
+    print("(default: $HOME/.vox/build-broker/bin) and, unless --no-profile is given,");
+    print("prepend that directory to PATH in the detected login-shell profile.");
+    print("");
+    print("Options:");
+    print("  (none)            Same as --dry-run.");
+    print("  --dry-run         Print the plan; change nothing on disk. Default.");
+    print("  --apply           Build the shim, install it, and edit the shell profile.");
+    print("  --profile <path>  Write the PATH block to this file instead of the");
+    print("                     auto-detected login-shell profile. Required for testing.");
+    print("  --no-profile      Install the binaries but do not touch any shell profile.");
+    print("  --help            Show this help.");
+    print("");
+    print("Env:");
+    print("  VOX_BROKER_HOME   Broker install root (default: $HOME/.vox/build-broker).");
+    print("  VOX_REPO_ROOT     Repo root (default \".\").");
+}
+
+fn detect_shell_name(shell: str) to str {
+    if shell.ends_with("/zsh") {
+        return "zsh";
+    }
+    if shell.ends_with("/bash") {
+        return "bash";
+    }
+    if shell.ends_with("/fish") {
+        return "fish";
+    }
+    return "unknown";
+}
+
+fn is_macos() to bool {
+    let r = process.run("uname", ["-s"]);
+    if r is null {
+        return false;
+    }
+    return r.unwrap().stdout.trim() == "Darwin";
+}
+
+// Strips any existing `start_mark`..`end_mark` block(s) from `content` and
+// returns what remains, always terminated with a trailing "\n" if non-empty
+// (matching the awk original: `print` always appends its output record
+// separator, regardless of whether the source file itself ended in a
+// newline -- so a fresh re-apply never leaves a stray blank line, and a
+// profile lacking a final newline still gets one before the re-appended
+// block).
+fn strip_marker_block(content: str, start_mark: str, end_mark: str) to str {
+    if content == "" {
+        return "";
+    }
+    let raw_lines = content.split("\n");
+    let n = raw_lines.len();
+    let ends_nl = content.ends_with("\n");
+    let mut kept: list[str] = [];
+    let mut skip = false;
+    let mut i = 0;
+    while i < n {
+        let line = raw_lines.get(i).unwrap();
+        let is_phantom_last = (i == n - 1) and ends_nl and (line == "");
+        if not is_phantom_last {
+            if line == start_mark {
+                skip = true;
+            } else if line == end_mark {
+                skip = false;
+            } else if not skip {
+                kept = kept.push(line);
+            }
+        }
+        i = i + 1;
+    }
+    if kept.len() == 0 {
+        return "";
+    }
+    return kept.join("\n") + "\n";
+}
+
+fn main() {
+    // argv[0] is the running script binary's own path (confirmed against
+    // the actual `vox run` behavior -- `env.args()` is NOT pre-trimmed to
+    // just the user-supplied `-- ...` tail despite that being the documented
+    // intent), so real arguments start at index 1.
+    let argv = env.args();
+
+    let mut apply = false;
+    let mut no_profile = false;
+    let mut profile_override = "";
+    let mut profile_given = false;
+
+    let mut i = 1;
+    while i < argv.len() {
+        let arg = argv.get(i).unwrap();
+        if arg == "--dry-run" {
+            apply = false;
+        } else if arg == "--apply" {
+            apply = true;
+        } else if arg == "--profile" {
+            if i + 1 >= argv.len() {
+                print("broker-install: --profile requires a path argument");
+                process.exit(2);
+            }
+            profile_override = argv.get(i + 1).unwrap();
+            profile_given = true;
+            i = i + 1;
+        } else if arg == "--no-profile" {
+            no_profile = true;
+        } else if arg == "--help" or arg == "-h" {
+            usage();
+            process.exit(0);
+        } else {
+            print("broker-install: unknown argument: " + arg);
+            usage();
+            process.exit(2);
+        }
+        i = i + 1;
+    }
+
+    let root = repo_root();
+    let manifest = path.join(root, "crates/vox-cargo-shim/Cargo.toml");
+
+    let home = env.get("HOME").unwrap_or("");
+    let broker_home = env.get("VOX_BROKER_HOME").unwrap_or(path.join(home, ".vox/build-broker"));
+    let bin_dir = path.join(broker_home, "bin");
+    let cargo_bin_dir = path.join(home, ".cargo/bin");
+
+    let start_mark = "# >>> vox build broker >>>";
+    let end_mark = "# <<< vox build broker <<<";
+
+    let mut profile = "";
+    let mut profile_kind = "posix";
+    if not no_profile {
+        if profile_given {
+            profile = profile_override;
+            if profile.ends_with("config.fish") {
+                profile_kind = "fish";
+            } else {
+                profile_kind = "posix";
+            }
+        } else {
+            let shell_name = detect_shell_name(env.get("SHELL").unwrap_or(""));
+            if shell_name == "zsh" {
+                profile = path.join(home, ".zshrc");
+                profile_kind = "posix";
+            } else if shell_name == "bash" {
+                if is_macos() {
+                    profile = path.join(home, ".bash_profile");
+                } else {
+                    profile = path.join(home, ".bashrc");
+                }
+                profile_kind = "posix";
+            } else if shell_name == "fish" {
+                profile = path.join(home, ".config/fish/config.fish");
+                profile_kind = "fish";
+            } else {
+                profile = path.join(home, ".profile");
+                profile_kind = "posix";
+            }
+        }
+    }
+
+    let path_line = if profile_kind == "fish" {
+        "set -gx PATH \"" + bin_dir + "\" $PATH"
+    } else {
+        "export PATH=\"" + bin_dir + ":$PATH\""
+    };
+
+    if not apply {
+        print("vox build broker installer -- DRY RUN (no changes made)");
+        print("");
+        print("Would build:");
+        print("  cargo build --release --manifest-path " + manifest);
+        print("");
+        print("Would install into: " + bin_dir);
+        print("  (every [[bin]] the vox-cargo-shim crate produces, e.g. cargo[.exe])");
+        print("  " + path.join(bin_dir, "broker-install.vox") + "  (self-install, for later remediation)");
+        print("");
+        if no_profile {
+            print("Would NOT edit any shell profile (--no-profile).");
+        } else {
+            print("Would prepend to PATH ahead of " + cargo_bin_dir + " in: " + profile);
+            print("  " + path_line);
+            if not fs.exists(profile) {
+                print("  (this file does not exist yet -- it would be created)");
+            }
+        }
+        print("");
+        print("Re-run with --apply to make these changes.");
+        process.exit(0);
+    }
+
+    // --- Apply -----------------------------------------------------------
+    if not fs.is_file(manifest) {
+        print("broker-install: cannot find " + manifest);
+        print("broker-install: run this from a vox repository checkout");
+        process.exit(1);
+    }
+
+    print("Building vox-cargo-shim (release)...");
+    let build_res = std.process.run_capture_ex(
+        "cargo",
+        ["build", "--release", "--manifest-path", manifest, "--message-format=json"],
+        root,
+        [],
+    );
+    if build_res.is_err() {
+        print("broker-install: build failed to spawn: " + build_res.unwrap_err());
+        process.exit(1);
+    }
+    let build_out = build_res.unwrap();
+    if build_out.exit != 0 {
+        print("broker-install: build failed");
+        process.exit(1);
+    }
+
+    // Parse every `"executable":"<path>"` occurrence out of the
+    // newline-delimited JSON stdout -- one JSON object per line, so this
+    // scans line-by-line rather than parsing the whole stdout as one
+    // document.
+    let mut bin_paths: list[str] = [];
+    for line in build_out.stdout.split("\n") {
+        let caps = regex.captures(line, "\"executable\":\"([^\"]*)\"");
+        if caps.is_some() {
+            let groups = caps.unwrap();
+            if groups.len() >= 2 {
+                let p = groups.get(1).unwrap();
+                if not bin_paths.contains(p) {
+                    bin_paths = bin_paths.push(p);
+                }
+            }
+        }
+    }
+
+    if bin_paths.len() == 0 {
+        print("broker-install: build produced no binaries");
+        process.exit(1);
+    }
+
+    match fs.mkdir(bin_dir) {
+        // `{}` here is an empty object literal, not an empty block (see
+        // stmt_expr_tail.rs:284); this only compiles because the sibling
+        // Error arm ends in process.exit(1) (Never-typed), letting the two
+        // arms unify. If that arm is ever softened to warn-and-continue,
+        // this arm must change too or the match stops compiling.
+        Ok(_) => {}
+        Error(m) => {
+            print("broker-install: mkdir " + bin_dir + ": " + m);
+            process.exit(1);
+        }
+    }
+
+    // No pre-sort needed: bin_paths was already built de-duplicated above.
+    // `.sorted()` typechecks but has no codegen backing at all (confirmed
+    // unimplemented in crates/vox-codegen/src/codegen_rust/emit/method_emit.rs
+    // -- a real `cargo build` failure, "no method named `sorted` found for
+    // struct `Vec<String>`"). `.sorted_by_key()` DOES have codegen support
+    // (method_emit.rs:815,941); it was avoided here only because a naive call
+    // with a mismatched-signature named function fails to compile, not
+    // because it's unimplemented. So install order here is simply insertion
+    // order, which does not affect correctness.
+    for bin_path in bin_paths {
+        let bin_name = std.path.basename(bin_path);
+        let dst = path.join(bin_dir, bin_name);
+        match fs.copy(bin_path, dst) {
+            Ok(_) => print("Installed " + dst)
+            Error(m) => {
+                print("broker-install: copy " + bin_path + " -> " + dst + ": " + m);
+                process.exit(1);
+            }
+        }
+    }
+
+    // Self-install copy: the shell original copied itself so a later
+    // remediation step (`vox doctor`) has an absolute, checkout-free path to
+    // name. A `.vox` file needs the `vox` binary on PATH to run at all
+    // (unlike a directly-executable `sh` script), so the copy is inert
+    // without `vox` alongside it, and it cannot rebuild the shim without a
+    // checkout beside it either -- both gaps were already flagged in this
+    // PR's own review history and are preserved here, not fixed.
+    let self_src = path.join(root, "scripts/broker-install.vox");
+    let self_dst = path.join(bin_dir, "broker-install.vox");
+    match fs.copy(self_src, self_dst) {
+        Ok(_) => print("Installed " + self_dst + " (self-install copy; run later with `vox run " + self_dst + "`)")
+        Error(m) => print("broker-install: warning: could not copy self-install script: " + m)
+    }
+
+    if no_profile {
+        print("");
+        print("--no-profile given: no shell profile was edited.");
+        print("Add " + bin_dir + " to PATH ahead of " + cargo_bin_dir + " yourself.");
+    } else {
+        let profile_dir_opt = std.path.parent(profile);
+        if profile_dir_opt.is_some() {
+            let profile_dir = profile_dir_opt.unwrap();
+            if profile_dir != "" {
+                match fs.mkdir(profile_dir) {
+                    // See the mkdir(bin_dir) match above: this `{}` is an
+                    // empty object literal, and only compiles because the
+                    // sibling Error arm below is Never-typed (process.exit).
+                    Ok(_) => {}
+                    Error(m) => {
+                        print("broker-install: mkdir " + profile_dir + ": " + m);
+                        process.exit(1);
+                    }
+                }
+            }
+        }
+
+        let existed_before = fs.exists(profile);
+        let existing_content = if existed_before {
+            match fs.read(profile) {
+                Ok(c) => c
+                Error(m) => {
+                    print("broker-install: read " + profile + ": " + m);
+                    process.exit(1);
+                }
+            }
+        } else {
+            ""
+        };
+
+        let stripped = strip_marker_block(existing_content, start_mark, end_mark);
+        let new_content = stripped + start_mark + "\n" + path_line + "\n" + end_mark + "\n";
+
+        // Never truncate or edit the real profile in place: write to a temp
+        // file in the same directory, then atomically replace the real file.
+        // No `fs.rename`/move builtin exists, so this shells out to `mv`
+        // (atomic on POSIX for a same-filesystem rename, which this is --
+        // both paths are under the profile's own directory), mirroring the
+        // existing `process.run("cp", ...)` shell-out precedent in
+        // start-marquee.vox for filesystem operations the stdlib doesn't
+        // cover.
+        let tmp_path = profile + ".vox-broker-install.tmp";
+        match fs.write(tmp_path, new_content) {
+            Ok(_) => {}
+            Error(m) => {
+                print("broker-install: write " + tmp_path + ": " + m);
+                process.exit(1);
+            }
+        }
+
+        let mv_res = process.run("mv", [tmp_path, profile]);
+        if mv_res is null {
+            print("broker-install: failed to spawn mv to replace " + profile);
+            process.exit(1);
+        }
+        let mv_out = mv_res.unwrap();
+        if mv_out.code != 0 {
+            print("broker-install: mv failed: " + mv_out.stderr);
+            process.exit(1);
+        }
+
+        print("");
+        if not existed_before {
+            print("Created " + profile + " (it did not exist).");
+        }
+        print("Edited " + profile + ":");
+        print("  " + path_line);
+    }
+
+    print("");
+    print("A running shell/IDE keeps its launch-time PATH -- open a new terminal (or reload the IDE window) for the shim to take effect there.");
+    process.exit(0);
+}

@@ -50,6 +50,47 @@ pub fn max_concurrent_from(raw: Option<&str>, parallelism: usize) -> usize {
     (parallelism / 3).clamp(2, 8)
 }
 
+/// Slots reserved for a build domain the filesystem semaphore cannot see (a
+/// containerised CI runner sharing this host's CPU but not its mount
+/// namespace). `VOX_BROKER_RESERVED_SLOTS` overrides; unset, unparseable, or
+/// negative is treated as 0 reserved slots.
+pub fn reserved_slots() -> usize {
+    let raw = std::env::var("VOX_BROKER_RESERVED_SLOTS").ok();
+    reserved_slots_from(raw.as_deref())
+}
+
+/// Pure core of [`reserved_slots`], split out for the same reason as
+/// [`max_concurrent_from`].
+pub fn reserved_slots_from(raw: Option<&str>) -> usize {
+    raw.and_then(|v| v.parse::<usize>().ok()).unwrap_or(0)
+}
+
+/// The effective machine-wide concurrency cap: [`max_concurrent`] reduced by
+/// [`reserved_slots`], floored at 1 (never 0 — `acquire_slot` loops until a
+/// slot frees, and a cap of 0 slots never frees one).
+pub fn effective_max_concurrent() -> usize {
+    let max_raw = std::env::var("VOX_BROKER_MAX_CONCURRENT").ok();
+    let reserved_raw = std::env::var("VOX_BROKER_RESERVED_SLOTS").ok();
+    let par = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4);
+    effective_max_concurrent_from(max_raw.as_deref(), reserved_raw.as_deref(), par)
+}
+
+/// Pure core of [`effective_max_concurrent`]. The reservation is applied
+/// *after* `VOX_BROKER_MAX_CONCURRENT` — an explicit override is still
+/// subject to it, because the reserved slots are physically in use by a
+/// kernel this semaphore can't see regardless of what the override says.
+pub fn effective_max_concurrent_from(
+    max_raw: Option<&str>,
+    reserved_raw: Option<&str>,
+    parallelism: usize,
+) -> usize {
+    let base = max_concurrent_from(max_raw, parallelism);
+    let reserved = reserved_slots_from(reserved_raw);
+    base.saturating_sub(reserved).max(1)
+}
+
 /// A held global slot; dropping it (closing the file handle) frees the slot.
 pub struct Slot {
     _f: std::fs::File,
@@ -88,6 +129,41 @@ pub fn acquire_slot(root: &Path, n: usize) -> Result<(Slot, u64, usize)> {
         }
         std::thread::sleep(Duration::from_millis(150));
     }
+}
+
+/// Count how many of the N slots are currently held, WITHOUT disturbing them:
+/// each slot is probed with a non-blocking lock attempt and immediately
+/// released if acquired (never held past the probe). Unlike
+/// [`try_acquire_slot`] this never returns a slot to the caller, so calling it
+/// (e.g. from a read-only status viewer) can't itself perturb the count it's
+/// trying to measure.
+///
+/// This is inherently a **sample, not a snapshot**: another process may take
+/// or release a slot between this probing two different slot files, so the
+/// count can be stale the instant it's returned.
+pub fn probe_busy_slots(root: &Path, n: usize) -> Result<usize> {
+    let slots_dir = root.join("slots");
+    if !slots_dir.is_dir() {
+        return Ok(0);
+    }
+    let mut busy = 0;
+    for i in 0..n.max(1) {
+        let path = slots_dir.join(format!("slot_{i}"));
+        if !path.is_file() {
+            continue; // never claimed yet -> free
+        }
+        let f = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)?;
+        match f.try_lock_exclusive() {
+            Ok(()) => {
+                let _ = f.unlock();
+            }
+            Err(_) => busy += 1,
+        }
+    }
+    Ok(busy)
 }
 
 /// Marker for an in-flight build identity; dropping it removes the marker.
@@ -144,6 +220,81 @@ mod tests {
         assert!(
             try_acquire_slot(root, 2).unwrap().is_some(),
             "freed slot reusable"
+        );
+    }
+
+    #[test]
+    fn semaphore_caps_concurrency_with_reservation() {
+        // Same shape as `semaphore_caps_concurrency`, but exercising the
+        // scenario the reservation exists for: an effective cap of 1 (base 3,
+        // reserved 2) must serialize -- hold a slot, prove the second
+        // acquisition is blocked, release, and prove it succeeds again. This
+        // is the deliberate proof the brief asks for in place of a timing race.
+        let n = effective_max_concurrent_from(Some("3"), Some("2"), 24);
+        assert_eq!(n, 1);
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let (s1, b1) = try_acquire_slot(root, n).unwrap().unwrap();
+        assert_eq!(b1, 0);
+        assert!(
+            try_acquire_slot(root, n).unwrap().is_none(),
+            "reserved-down cap of 1 must block a second acquisition"
+        );
+        drop(s1);
+        assert!(
+            try_acquire_slot(root, n).unwrap().is_some(),
+            "freed slot reusable"
+        );
+    }
+
+    #[test]
+    fn probe_busy_slots_never_holds_what_it_counts() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        assert_eq!(probe_busy_slots(root, 2).unwrap(), 0, "nothing held yet");
+
+        let (_s1, _) = try_acquire_slot(root, 2).unwrap().unwrap();
+        assert_eq!(probe_busy_slots(root, 2).unwrap(), 1);
+
+        // The probe must not itself hold the free slot: a real acquire must
+        // still succeed right after probing.
+        let (_s2, busy) = try_acquire_slot(root, 2).unwrap().unwrap();
+        assert_eq!(busy, 1);
+        assert_eq!(probe_busy_slots(root, 2).unwrap(), 2);
+    }
+
+    #[test]
+    fn probe_busy_slots_on_missing_root_is_zero() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Root exists but `slots/` was never created -- broker never ran.
+        assert_eq!(probe_busy_slots(tmp.path(), 4).unwrap(), 0);
+    }
+
+    #[test]
+    fn reserved_slots_logic() {
+        assert_eq!(reserved_slots_from(None), 0);
+        assert_eq!(reserved_slots_from(Some("0")), 0);
+        assert_eq!(reserved_slots_from(Some("3")), 3);
+        assert_eq!(reserved_slots_from(Some("-1")), 0, "negative -> ignored");
+        assert_eq!(reserved_slots_from(Some("xx")), 0, "unparseable -> ignored");
+    }
+
+    #[test]
+    fn effective_max_concurrent_logic() {
+        // No reservation: falls through to the base cap unchanged.
+        assert_eq!(effective_max_concurrent_from(None, None, 24), 8);
+        assert_eq!(effective_max_concurrent_from(None, Some("0"), 24), 8);
+        // Normal reservation: base 8, reserve 3 -> 5.
+        assert_eq!(effective_max_concurrent_from(None, Some("3"), 24), 5);
+        // Reservation exceeding the base cap floors at 1, never 0.
+        assert_eq!(effective_max_concurrent_from(None, Some("99"), 24), 1);
+        // Reservation applies AFTER an explicit override too.
+        assert_eq!(effective_max_concurrent_from(Some("4"), Some("1"), 24), 3);
+        assert_eq!(effective_max_concurrent_from(Some("4"), Some("10"), 24), 1);
+        // Unparseable reservation is ignored (treated as 0).
+        assert_eq!(
+            effective_max_concurrent_from(Some("4"), Some("nope"), 24),
+            4
         );
     }
 
