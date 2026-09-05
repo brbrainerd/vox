@@ -13,7 +13,7 @@
 #   - Rust 1.96.0   → root Dockerfile (`rust:1.96.0-slim-bookworm`) / rust-toolchain.toml / contracts SSOT
 #   - Node 24       → docs-quality.yml `node-version: 24`
 #   - pnpm 11       → ci.yml `pnpm/action-setup@v6` version 11
-#   - Runner 2.336.0 → matches the version GitHub forces via self-update on cold
+#   - Runner 2.337.0 → matches the version GitHub forces via self-update on cold
 #     start; keep this current or every ephemeral runner re-downloads on boot,
 #     defeating "ready to take a job immediately" (see `Downloading N runner` in
 #     the container's startup log to check for drift). A stale pin here doesn't
@@ -23,7 +23,7 @@
 #     3 nightly workflows failed for days from exactly this).
 
 ARG RUST_VERSION=1.96.0
-ARG RUNNER_VERSION=2.336.0
+ARG RUNNER_VERSION=2.337.0
 
 FROM ubuntu:24.04
 
