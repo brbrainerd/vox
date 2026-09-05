@@ -38,7 +38,7 @@ jobs:
           node-version: '24'
           cache: 'pnpm'
           cache-dependency-path: 'crates/vox-integration-tests/ts-noemit-scratch/pnpm-lock.yaml'
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@v2
       - name: Install scratch deps
         run: pnpm install --frozen-lockfile

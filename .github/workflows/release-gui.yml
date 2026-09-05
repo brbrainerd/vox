@@ -57,9 +57,8 @@ jobs:
         # not the channel every CI gate ran against. See AGENTS.md's
         # Perennial Bug Patterns for the toolchain-bump lint-wave class this
         # avoids.
-        uses: dtolnay/rust-toolchain@master
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: "1.96.0"
           # universal-apple-darwin is a Tauri meta-target, not a real rustup
           # triple. The x86_64-apple-darwin cross target is added separately
           # below via `rustup target add` (not here) because this repo pins

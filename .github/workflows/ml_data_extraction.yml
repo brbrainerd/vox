@@ -79,7 +79,7 @@ jobs:
           fetch-depth: 2   # need HEAD^ for diff
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
       - name: Cache Cargo
         uses: actions/cache@v5
@@ -263,7 +263,7 @@ jobs:
           fi
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
       - name: Build Vox Compiler
         # `vox train --native` delegates to `vox-ml-cli` the same way `vox

@@ -45,7 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
 
       - uses: Swatinem/rust-cache@v2
 
@@ -127,7 +127,7 @@ jobs:
       - if: steps.guard.outputs.enabled == 'true'
         uses: actions/checkout@v7
       - if: steps.guard.outputs.enabled == 'true'
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
       - if: steps.guard.outputs.enabled == 'true'
         uses: Swatinem/rust-cache@v2
       - if: steps.guard.outputs.enabled == 'true'

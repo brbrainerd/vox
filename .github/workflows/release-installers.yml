@@ -49,9 +49,7 @@ jobs:
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
         # CI gates use (rust-toolchain.toml). @stable also imports each new
         # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.96.0"
+        uses: ./.github/actions/setup-rust
       - name: Install system deps (libdbus/GTK)
         # voxup pulls in glib-sys transitively -- same gap build-linux-deb
         # already has a fix for. Linux-only; macOS doesn't need it.
@@ -106,9 +104,7 @@ jobs:
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
         # CI gates use (rust-toolchain.toml). @stable also imports each new
         # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.96.0"
+        uses: ./.github/actions/setup-rust
       - name: Install cargo-wix
         uses: taiki-e/install-action@v2
         with:
@@ -149,9 +145,7 @@ jobs:
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
         # CI gates use (rust-toolchain.toml). @stable also imports each new
         # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.96.0"
+        uses: ./.github/actions/setup-rust
       - name: Install cargo-deb
         uses: taiki-e/install-action@v2
         with:
@@ -226,10 +220,7 @@ jobs:
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
         # CI gates use (rust-toolchain.toml). @stable also imports each new
         # release's lint wave — see AGENTS.md §Perennial Bug Patterns.
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.96.0"
-
+        uses: ./.github/actions/setup-rust
       - name: Install system deps (libdbus/GTK)
         # voxup pulls in glib-sys transitively -- same gap build-linux-deb
         # already has a fix for. Linux-only; macOS doesn't need it.

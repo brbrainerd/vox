@@ -109,7 +109,7 @@ jobs:
             fi
           fi
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy, llvm-tools-preview
       - uses: actions/cache@v5
@@ -330,7 +330,7 @@ jobs:
             echo "rust-toolchain.toml unchanged — skipping the cold rebuild"
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         if: steps.tc.outputs.changed == 'true'
         with:
           components: rustfmt, clippy
@@ -384,7 +384,7 @@ jobs:
         run: chmod +x target/debug/vox
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
       - uses: actions/cache@v5
@@ -688,7 +688,7 @@ jobs:
         run: chmod +x target/debug/vox
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy, llvm-tools-preview
       - uses: actions/cache@v5
@@ -838,7 +838,7 @@ jobs:
         run: chmod +x target/debug/vox
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
       - uses: actions/cache@v5
@@ -940,7 +940,7 @@ jobs:
         run: chmod +x target/debug/vox
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy, llvm-tools-preview
       - uses: actions/cache@v5
@@ -1303,7 +1303,7 @@ jobs:
         run: chmod +x target/debug/vox
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
       - uses: actions/cache@v5
@@ -1510,7 +1510,7 @@ jobs:
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
       - uses: actions/cache@v5
@@ -1661,7 +1661,7 @@ jobs:
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
       - uses: pnpm/action-setup@v6
         with:
@@ -1743,7 +1743,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
       - name: Cache Cargo
         uses: actions/cache@v5
@@ -1785,7 +1785,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
       - uses: pnpm/action-setup@v6
         with:
@@ -1930,7 +1930,7 @@ jobs:
           - vox-openclaw-runtime
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
       - name: Cache Cargo
         uses: actions/cache@v5
         with:
