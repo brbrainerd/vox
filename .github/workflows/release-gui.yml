@@ -26,8 +26,11 @@ jobs:
       # `secrets` context is not available in `if:` at all, which is why
       # this env hop exists -- it just has to happen one scope up.
       AZURE_CODE_SIGNING_ACCOUNT: ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT }}
-    permissions:
-      contents: write
+    # No job-level permissions override: this job only builds and signs, and
+    # inherits the workflow's top-level `contents: read`. It must never hold
+    # a write-scoped token for a ~240-minute job that runs `pnpm install`
+    # and the full Rust dependency graph. The `publish` job below (short,
+    # download-and-attach only) is the sole holder of `contents: write`.
     strategy:
       fail-fast: false
       matrix:
@@ -145,6 +148,12 @@ jobs:
           mkdir -p "$(dirname "target/release/vox-${{ matrix.target }}")"
           cp target/${{ matrix.target }}/dist/vox target/release/vox-${{ matrix.target }}
 
+      # Build-only: `tagName`/`releaseName`/`releaseId` are deliberately
+      # omitted. Per tauri-action's docs, omitting all three makes it build
+      # the app without creating or uploading to a GitHub release — this job
+      # has no `contents: write` token to do that with. The `publish` job
+      # below uploads the bundle (via actions/upload-artifact here) to the
+      # release instead.
       - name: Build Tauri Application
         uses: tauri-apps/tauri-action@v1
         env:
@@ -158,15 +167,6 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: ./crates/vox-gui
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Vox Desktop App ${{ github.ref_name }}'
-          releaseBody: 'Native graphical environment and visualizer for Vox.'
-          # Match release-binaries.yml / release-installers.yml: all three
-          # workflows write the SAME release object for a given tag with no
-          # ordering between them, so their flags must agree or whichever
-          # runs first wins. Hyphen => prerelease, per the repo convention.
-          releaseDraft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
           args: ${{ matrix.target == 'universal-apple-darwin' && '--target universal-apple-darwin' || '' }}
 
       - name: Note unsigned MSI (no signing cert configured)
@@ -193,3 +193,38 @@ jobs:
           # unsigned.
           files-folder: ./target/release/bundle/msi
           files-folder-filter: msi
+
+      - name: Upload GUI bundle artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: gui-bundle-${{ matrix.target }}
+          path: crates/vox-gui/src-tauri/target/release/bundle/**
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub release
+    needs: build-tauri
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: gui-bundle-*
+          path: release-artifacts
+
+      - name: Create release with assets
+        uses: softprops/action-gh-release@v3
+        with:
+          name: 'Vox Desktop App ${{ github.ref_name }}'
+          body: 'Native graphical environment and visualizer for Vox.'
+          draft: true
+          prerelease: false
+          files: release-artifacts/**/*
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
