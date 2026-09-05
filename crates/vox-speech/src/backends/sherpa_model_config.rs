@@ -67,28 +67,27 @@ pub fn resolve_sherpa_transducer_model_paths() -> Result<SherpaTransducerModelPa
     let model_id = std::env::var("VOX_ORATIO_SHERPA_HF_MODEL")
         .unwrap_or_else(|_| DEFAULT_SHERPA_TRANSDUCER_HF_MODEL.to_string());
     let revision = "main";
-    let api = hf_hub::api::sync::Api::new().context("HF API init")?;
-    let repo = api.repo(hf_hub::Repo::with_revision(
-        model_id.clone(),
-        hf_hub::RepoType::Model,
-        revision.to_string(),
-    ));
+    let client = hf_hub::HFClientSync::new().context("HF API init")?;
+    let (owner, name) = hf_hub::split_id(&model_id);
+    let repo = client.model(owner, name);
+    let fetch = |filename: &str| {
+        repo.download_file()
+            .filename(filename)
+            .revision(revision)
+            .send()
+    };
 
-    let encoder = repo
-        .get("encoder.int8.onnx")
-        .or_else(|_| repo.get("encoder.onnx"))
+    let encoder = fetch("encoder.int8.onnx")
+        .or_else(|_| fetch("encoder.onnx"))
         .with_context(|| format!("fetch encoder from {model_id}"))?;
-    let decoder = repo
-        .get("decoder.int8.onnx")
-        .or_else(|_| repo.get("decoder.onnx"))
+    let decoder = fetch("decoder.int8.onnx")
+        .or_else(|_| fetch("decoder.onnx"))
         .with_context(|| format!("fetch decoder from {model_id}"))?;
-    let joiner = repo
-        .get("joiner.int8.onnx")
-        .or_else(|_| repo.get("joiner.onnx"))
+    let joiner = fetch("joiner.int8.onnx")
+        .or_else(|_| fetch("joiner.onnx"))
         .with_context(|| format!("fetch joiner from {model_id}"))?;
-    let tokens = repo
-        .get("tokens.txt")
-        .with_context(|| format!("fetch tokens.txt from {model_id}"))?;
+    let tokens =
+        fetch("tokens.txt").with_context(|| format!("fetch tokens.txt from {model_id}"))?;
     Ok(SherpaTransducerModelPaths {
         encoder,
         decoder,
@@ -117,25 +116,25 @@ pub fn resolve_sherpa_model_paths() -> Result<SherpaModelPaths> {
             .unwrap_or_else(|_| DEFAULT_SHERPA_HF_MODEL.to_string())
     });
     let revision = "main";
-    let api = hf_hub::api::sync::Api::new().context("HF API init")?;
-    let repo = api.repo(hf_hub::Repo::with_revision(
-        model_id.clone(),
-        hf_hub::RepoType::Model,
-        revision.to_string(),
-    ));
+    let client = hf_hub::HFClientSync::new().context("HF API init")?;
+    let (owner, name) = hf_hub::split_id(&model_id);
+    let repo = client.model(owner, name);
+    let fetch = |filename: &str| {
+        repo.download_file()
+            .filename(filename)
+            .revision(revision)
+            .send()
+    };
 
-    let encoder = repo
-        .get("tiny.en-encoder.int8.onnx")
-        .or_else(|_| repo.get("encoder.onnx"))
-        .or_else(|_| repo.get("model.onnx"))
+    let encoder = fetch("tiny.en-encoder.int8.onnx")
+        .or_else(|_| fetch("encoder.onnx"))
+        .or_else(|_| fetch("model.onnx"))
         .with_context(|| format!("fetch encoder from {model_id}"))?;
-    let decoder = repo
-        .get("tiny.en-decoder.int8.onnx")
-        .or_else(|_| repo.get("decoder.onnx"))
+    let decoder = fetch("tiny.en-decoder.int8.onnx")
+        .or_else(|_| fetch("decoder.onnx"))
         .unwrap_or_default(); // Might be optional for some models?
-    let tokens = repo
-        .get("tiny.en-tokens.txt")
-        .or_else(|_| repo.get("tokens.txt"))
+    let tokens = fetch("tiny.en-tokens.txt")
+        .or_else(|_| fetch("tokens.txt"))
         .with_context(|| format!("fetch tokens.txt from {model_id}"))?;
     Ok(SherpaModelPaths {
         encoder,

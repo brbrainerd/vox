@@ -288,7 +288,7 @@ memmap2            = "0.9"
 # `reqwest/default` is still enabled by other paths. See
 # `contracts/crypto/transport-providers.v1.json` for the full provider
 # accounting and why two providers are currently unavoidable.
-hf-hub             = { version = "0.5", default-features = false, features = ["tokio", "ureq", "rustls-tls"] }
+hf-hub             = { version = "1", default-features = false, features = ["blocking", "rustls-tls"] }
 keyring            = "3"
 qlora-rs           = "1.0.5"
 peft-rs            = "1.0"

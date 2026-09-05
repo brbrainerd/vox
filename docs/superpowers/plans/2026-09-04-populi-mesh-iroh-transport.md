@@ -247,6 +247,34 @@ needed; these are now execution steps.
 
 ### Task 0.4: Collapse reqwest to one major via hf-hub 1.0
 
+> **MEASURED CORRECTION, 2026-09-04 (Mac, commit `f48dbc810`).** The port is
+> **done** — Steps 1–3 landed; all four call sites compile. But two premises
+> below were checked and are **false**, so Steps 5–7 do not follow from it:
+>
+> 1. **`hf-hub` is not the only `reqwest 0.12` consumer, and never was the
+>    important one.** The root manifest pins `reqwest = "0.12"` at
+>    `Cargo.toml:227`, and **28 first-party `vox-*` crates** depend on it
+>    (`vox-http-client`, `vox-actor-runtime`, `vox-llm-egress`, `vox-compiler`,
+>    `vox-cli`, …), plus `nanopub`, `tavily`, `reqwest-middleware 0.4` and
+>    `reqwest-retry 0.7`. After the hf-hub port, `Cargo.lock` **still shows both
+>    `0.12.28` and `0.13.4`**, and both `ring 0.17.14` and `aws-lc-rs 1.17.0`
+>    remain. Collapsing reqwest is a **workspace-wide pin bump**, not a
+>    consequence of this task — re-scope it as its own task and cost it
+>    accordingly (it also drags `reqwest-middleware` and `reqwest-retry` majors).
+> 2. **hf-hub 1.0 is an API rewrite, not a renamed `Api`.** There is no
+>    `api::sync` / `api::tokio`, no `Repo`, no `RepoType::Model` value, and no
+>    `tokio` or `ureq` feature. The surface is `HFClient` / `HFClientSync`
+>    (feature **`blocking`**, not `tokio`), `split_id("owner/name")`,
+>    `client.model(owner, name)`, and
+>    `repo.download_file().filename(f).revision(r).send()`. `info()` became
+>    `info().send()` and its `siblings` field is now
+>    `Option<Vec<RepoSibling>>` — an absent listing must be distinguished from an
+>    empty one or a failed listing reads as "repo has no safetensors".
+>
+> What the port **did** buy: `hf-hub` no longer pulls `ureq` (the remaining
+> `ureq 2.12.1` comes from `sherpa-onnx-sys`, unrelated), and `hf-xet` brings
+> chunk-deduplicated model downloads to the MENS path.
+
 **Why this is a task and not a version bump.** The workspace builds two reqwest
 majors, and that is the root cause of shipping two TLS providers: 0.12's
 `rustls-tls` selects `ring`, 0.13's selects `aws-lc-rs`. Verified requirements:
@@ -335,6 +363,16 @@ names no banned crate. The sound input is `Cargo.lock`.
 - [ ] **Step 1:** New gate in `crates/vox-cli-ci/`, ~120 lines, no cargo
   invocation: parse `Cargo.lock`, intersect package names with the known provider
   set, compare against `contracts/crypto/transport-providers.v1.json`.
+
+  > **MEASURED CORRECTION, 2026-09-04.** A pure `Cargo.lock` name-intersection
+  > produces **false positives**. `ring` is present in a lockfile resolved for
+  > `hf-hub 1.0` alone, yet `cargo tree -i ring` reports *nothing to print* for
+  > the host target — it is a target-gated entry that is never compiled, while
+  > `aws-lc-rs` is the provider actually built. `Cargo.lock` records what was
+  > *resolved*, not what is *built*. The gate must therefore resolve for the
+  > target set (via `cargo metadata` and the resolve graph, or an equivalent
+  > feature/target-aware walk) and report built providers — or it will fail CI on
+  > a provider that ships no code.
 - [ ] **Step 2:** Fail on an unexpected provider, a vanished allowlisted one, a
   version drift, or an unwaived duplicate-major.
 - [ ] **Step 3:** Wire into `vox ci pre-push` (fast tier) and CI `ssot-drift`.
