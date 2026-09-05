@@ -171,7 +171,10 @@ USER-AUTHORIZED-ONLY; never add one yourself.
 explicit pin and reqwest 0.12's choice; `aws-lc-rs` arrives with reqwest 0.13 via
 `chromiumoxide` and `gix`→`jj-lib`→`vox-vcs`, and cannot be steered from our
 manifests because `jj-lib` exposes no TLS feature. Removing it means dropping the
-browser plugin or VCS. The ledger records the collapse path (hf-hub 1.0).
+browser plugin or VCS. **The collapse path is a workspace-wide `reqwest` pin
+bump, not the hf-hub upgrade.** hf-hub is on 1.0/reqwest 0.13 as of 2026-09-04 and
+both providers remain, because the root manifest pins `reqwest 0.12` for 28
+first-party crates. See plan Task 0.4 for the measured correction.
 
 **Cargo feature unification is per-package**, so one crate enabling
 `rustls/aws-lc-rs` reintroduces it workspace-wide. The invariant is therefore

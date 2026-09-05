@@ -2,7 +2,7 @@
 title: "iroh transport spike — measured findings"
 description: "Answers to the six load-bearing questions from Task 0.2 of the populi-mesh iroh plan, measured between a macOS and a Windows machine on 2026-09-04."
 category: "Architecture SSOTs"
-status: "shipped"
+status: "current"
 ---
 
 # iroh transport spike — measured findings

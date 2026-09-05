@@ -1107,6 +1107,10 @@
     ],
     [
       "vox-ml-cli",
+      "vox-mesh-transport"
+    ],
+    [
+      "vox-ml-cli",
       "vox-mesh-types"
     ],
     [
@@ -1360,6 +1364,10 @@
     [
       "vox-orchestrator-mcp",
       "vox-mcp-registry"
+    ],
+    [
+      "vox-orchestrator-mcp",
+      "vox-mesh-transport"
     ],
     [
       "vox-orchestrator-mcp",
