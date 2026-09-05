@@ -330,10 +330,48 @@ pub fn declarations(root: &Path) -> Vec<Declaration> {
 }
 
 /// Whether a `Kind::Floor` value (major.minor) is satisfied by the full SSOT
-/// version (major.minor.patch): the SSOT version must start with the floor
-/// followed by a `.`.
+/// version (major.minor.patch).
+///
+/// `rust-version` is an MSRV **floor**: it declares the OLDEST Rust that can
+/// build this workspace, which is a different question from which toolchain we
+/// happen to pin. Cargo reads it that way, and so do the plan and AGENTS.md
+/// ("MSRV is a floor and may stay at 1.96 while the toolchain moves").
+///
+/// This used to be a prefix test (`ssot.starts_with("{floor}.")`), inherited
+/// from the shell guard it replaced (ci.yml's "Toolchain SSoT Drift Guard").
+/// A prefix test is not a floor — it demands the same major.minor — so every
+/// toolchain minor bump silently ratcheted the public MSRV up with it, locking
+/// out users on older Rust for no technical reason. Bumping 1.96.0 -> 1.98.1
+/// forced `rust-version` to 1.98 even though the workspace still compiles on
+/// 1.96.
+///
+/// Satisfied when the SSOT toolchain is >= the floor, compared numerically so
+/// that "1.9" does not sort above "1.10". Real drift is still caught: a floor
+/// ABOVE the pinned toolchain means we claim to need more Rust than we build
+/// with, which is broken.
 fn floor_satisfied(floor: &str, ssot: &str) -> bool {
-    ssot == floor || ssot.starts_with(&format!("{floor}."))
+    fn parts(v: &str) -> Vec<u64> {
+        v.split(['.', '-', '+'])
+            .map_while(|p| p.parse::<u64>().ok())
+            .collect()
+    }
+    let (f, s) = (parts(floor), parts(ssot));
+    if f.is_empty() || s.is_empty() {
+        // Unparseable on either side: fall back to the old exact/prefix rule
+        // rather than silently passing everything.
+        return ssot == floor || ssot.starts_with(&format!("{floor}."));
+    }
+    // Compare component-wise; a missing component reads as 0 ("1.96" == "1.96.0").
+    for i in 0..f.len().max(s.len()) {
+        let (a, b) = (
+            s.get(i).copied().unwrap_or(0),
+            f.get(i).copied().unwrap_or(0),
+        );
+        if a != b {
+            return a > b;
+        }
+    }
+    true
 }
 
 /// Every declaration under `root` that disagrees with the SSOT.
@@ -540,12 +578,26 @@ mod tests {
     // ---- row 2 is a floor, not a pin ----
 
     #[test]
-    fn floor_accepts_a_prefix_and_rejects_a_mismatch() {
+    fn floor_is_a_minimum_not_a_prefix() {
+        // Same series: satisfied.
         assert!(floor_satisfied("1.96", "1.96.0"));
         assert!(floor_satisfied("1.96", "1.96.1"));
-        assert!(!floor_satisfied("1.95", "1.96.0"));
-        // A floor equal to the full version (degenerate, but not a bug) still holds.
         assert!(floor_satisfied("1.96.0", "1.96.0"));
+        // A floor BELOW the pin is satisfied — this is the whole point of an
+        // MSRV floor, and the prefix rule this replaced got it wrong. Under
+        // the old rule bumping the pin to 1.98.1 forced rust-version to 1.98
+        // even though the workspace still compiles on 1.96.
+        assert!(floor_satisfied("1.95", "1.96.0"));
+        assert!(floor_satisfied("1.96", "1.98.1"));
+        assert!(floor_satisfied("1.90", "1.98.1"));
+        // A floor ABOVE the pin is NOT satisfied: we would be claiming to need
+        // more Rust than we build with. That is the drift worth catching.
+        assert!(!floor_satisfied("1.99", "1.98.1"));
+        assert!(!floor_satisfied("2.0", "1.98.1"));
+        // Numeric, not lexicographic: "1.10" is ABOVE "1.9", which a string
+        // compare gets backwards.
+        assert!(floor_satisfied("1.9", "1.10.0"));
+        assert!(!floor_satisfied("1.10", "1.9.0"));
     }
 
     // ---- rows 8a and 8b move together ----
@@ -759,12 +811,12 @@ targets:
     }
 
     #[test]
-    fn a_floor_that_does_not_prefix_the_toolchain_is_drift() {
+    fn a_floor_above_the_toolchain_is_drift() {
         let dir = tempdir();
         write_all_rows(dir.path(), "1.96.0");
         std::fs::write(
             dir.path().join("Cargo.toml"),
-            "[workspace.package]\nversion = \"0.6.0\"\nrust-version = \"1.90\"\n",
+            "[workspace.package]\nversion = \"0.6.0\"\nrust-version = \"1.99\"\n",
         )
         .unwrap();
         let d = drift(dir.path());
@@ -773,16 +825,18 @@ targets:
     }
 
     #[test]
-    fn a_floor_that_lags_but_still_prefixes_is_not_drift() {
-        // rust-version is allowed to be a genuine floor below the pinned
-        // toolchain's minor, as long as the toolchain STARTS WITH it is not
-        // required — only that the floor doesn't claim a HIGHER minor than
-        // the pin. Per the brief: drift means "the toolchain does not start
-        // with the declared floor" — so a floor of "1.96" against toolchain
-        // "1.96.0" holds; this test locks that reading in.
+    fn a_floor_below_the_toolchain_is_not_drift() {
+        // The case the repo actually lives in: rust-version declares the
+        // oldest Rust that can build the workspace, and the pin moves ahead of
+        // it. A floor of "1.90" against a pinned "1.96.0" is correct, not drift.
         let dir = tempdir();
         write_all_rows(dir.path(), "1.96.0");
-        assert!(drift(dir.path()).is_empty());
+        std::fs::write(
+            dir.path().join("Cargo.toml"),
+            "[workspace.package]\nversion = \"0.6.0\"\nrust-version = \"1.90\"\n",
+        )
+        .unwrap();
+        assert!(drift(dir.path()).is_empty(), "{:#?}", drift(dir.path()));
     }
 
     #[test]
