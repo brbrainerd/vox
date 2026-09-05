@@ -329,8 +329,6 @@ jobs:
           # with the .deb never attached to the release.
           files: installer-artifacts/**/*
           fail_on_unmatched_files: false
-          # No public release is published from this repo; drafts are promoted by hand.
-          draft: true
           # This job attaches to the SAME tag's release release-binaries.yml
           # publishes -- softprops/action-gh-release is idempotent per tag,
           # whichever workflow's publish job runs first creates the release,
