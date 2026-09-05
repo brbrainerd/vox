@@ -147,8 +147,13 @@ passes no features, so a released `vox` has no `populi` subcommand at all.
 
 ```bash
 cargo run -q -p vox-ml-cli --features populi -- populi up --mode lan
-curl http://127.0.0.1:9847/health          # expect success
-cargo run -q -p vox-ml-cli --features populi -- populi down
+curl http://127.0.0.1:9847/health          # expect 200
+
+# NOTE: use the BUILT BINARY for `down`, not `cargo run`. While the daemon is
+# up it holds a lock on target/debug/vox-ml-cli.exe, so cargo cannot relink and
+# fails with "Access is denied (os error 5)" -- which looks like a permissions
+# bug and is a file lock. The binary itself works fine.
+./target/debug/vox-ml-cli.exe populi down
 ```
 
 Until 2026-09-04 this returned connection-refused on every machine: `up` spawned
@@ -187,7 +192,7 @@ Each is small, each is live today, and none needs the iroh work to land first.
 | ~~F3~~ | **FIXED** (`60d51c520`). Bootstrap now verifies the token before consuming the one-shot window, in **both** handler copies, with a regression test. | `handlers/nodes.rs` ×2 |
 | ~~F4~~ | **FIXED** (`60d51c520`). `lookup_by_pubkey_hex` loads from disk, returns owned, and refuses an empty key. | `vox-identity/src/trust.rs` |
 | ~~F5~~ | **FIXED** (`60d51c520`). Effect inference is now a fixpoint over the call graph; `map(named_fn)` is governed; `placement.rs` blind spot closed. 4 new tests. | `typeck/effect_check.rs`, `placement.rs` |
-| **F10** | **NEW.** `vox populi down` fails on Windows with `Access is denied. (os error 5)` from `terminate_process_tree`, leaving the daemon running. Kill by port until fixed: `Get-NetTCPConnection -LocalPort 9847 -State Listen \| %{Stop-Process -Id $_.OwningProcess -Force}` | `vox-ml-cli` process supervision |
+| ~~F10~~ | **NOT A PRODUCT BUG — corrected.** `vox populi down` works. The `Access is denied (os error 5)` is **cargo** failing to relink `vox-ml-cli.exe` while the running daemon holds a lock on that same file. Run the built binary directly and it succeeds: `./target/debug/vox-ml-cli.exe populi down` → `SUCCESS: process ... terminated`. **Never wrap `down` in `cargo run` while the daemon is up.** Separately hardened `terminate_process_tree` to resolve `taskkill.exe` from `%SystemRoot%` instead of `PATH` — defensive only (sanitized PATHs in services/CI omit System32); it was not the cause here. | `vox-cli-core/.../process_supervision.rs` |
 | **F11** | **NEW.** `WorkerDonationPolicy` had no `Default`, so adding fields broke struct literals silently — that is what stopped `vox populi` compiling. Derive added and the call site spreads it; watch for the same pattern on other shared structs. | fixed in `60d51c520` |
 | F2 | Unauthenticated `FullAccess` when no token is configured — gates `worker/execute`, which writes posted bytes to temp, `chmod 0755`, and runs them, with policy defaulting to `"permissive"` and **no timeout**. Contained today only by the loopback bind. | `router.rs:124`, `auth.rs:148`, `dispatch.rs:230,263` |
 | F3 | `/v1/populi/bootstrap/exchange` swaps its used-flag **before** comparing the token — one bad POST permanently burns the window | `handlers/nodes.rs` |
