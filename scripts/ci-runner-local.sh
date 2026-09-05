@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run a local, EPHEMERAL self-hosted GitHub Actions runner for this repo.
+# Run local, EPHEMERAL self-hosted GitHub Actions runner(s) for this repo.
 #
 # WHY EPHEMERAL
 # -------------
@@ -8,13 +8,14 @@
 # pull request can cause a workflow to execute code on the runner host. This
 # script does not remove that risk; it bounds it:
 #
-#   * --ephemeral: the runner takes exactly ONE job, then deregisters and the
+#   * --ephemeral: each runner takes exactly ONE job, then deregisters and its
 #     container exits. Nothing a job leaves behind survives into the next job.
-#   * The container mounts NO host filesystem except a named Docker volume for
-#     the cargo/sccache caches, and NOT the Docker socket. A job cannot reach
-#     your home directory, your keychain, or the host daemon.
-#   * A fresh registration token is minted per iteration. Tokens live ~1 hour,
-#     so a long-running loop cannot be resumed with a stale credential.
+#   * Each container mounts NO host filesystem except a named Docker volume
+#     for the cargo/sccache caches, and NOT the Docker socket. A job cannot
+#     reach your home directory, your keychain, or the host daemon.
+#   * A fresh registration token is minted per iteration, per runner. Tokens
+#     live ~1 hour, so a long-running loop cannot be resumed with a stale
+#     credential.
 #
 # You should ALSO set, in the repo's Actions settings:
 #   Settings -> Actions -> General -> Fork pull request workflows from
@@ -22,9 +23,29 @@
 # That setting is UI-only (no REST endpoint), so this script cannot set it or
 # verify it for you.
 #
+# CONCURRENCY (RUNNER_COUNT)
+# ---------------------------
+# The repo normally has exactly one registered runner, so concurrent workflow
+# runs queue behind each other and a slow one can get cancelled by the next
+# push. RUNNER_COUNT supervises that many independent ephemeral-runner loops
+# side by side, each with its own container name, token, and lifecycle — the
+# per-job security properties above are unchanged, just replicated N times.
+#
+# It defaults to 1 (identical to the old single-runner behavior) and is
+# capped at 8: the host has 18 cores and colima's VM caps out at 12, amd64
+# runners run under Rosetta emulation (heavier per runner than native), and
+# 8 leaves headroom for the host OS, Docker itself, and whatever else is
+# running instead of assuming the whole colima budget is free for CI. Raise
+# the cap only if you've checked the machine can actually take it.
+#
 # USAGE
 #   scripts/ci-runner-local.sh                  # serve jobs until Ctrl-C
-#   RUNNER_ONCE=1 scripts/ci-runner-local.sh    # serve exactly one job, stop
+#   RUNNER_ONCE=1 scripts/ci-runner-local.sh    # each runner serves one job, stops
+#   RUNNER_COUNT=4 scripts/ci-runner-local.sh   # supervise 4 concurrent runners
+#
+# RUNNER_ONCE + RUNNER_COUNT compose per-worker: with RUNNER_COUNT=N, each of
+# the N workers stops after its own first job, so the whole script serves at
+# most N jobs total (fewer if Ctrl-C'd first) and then exits.
 #
 # Requires: docker, gh (authenticated, `repo` scope), and the image:
 #   docker build --platform linux/amd64 -t vox-ci-runner-local:amd64 \
@@ -34,6 +55,26 @@ set -euo pipefail
 
 REPO="${REPO:-vox-foundation/vox}"
 CACHE_VOLUME="${CACHE_VOLUME:-vox-ci-cache}"
+
+# How many concurrent ephemeral runners to supervise. See CONCURRENCY above.
+RUNNER_COUNT="${RUNNER_COUNT:-1}"
+MAX_RUNNER_COUNT=8
+case "$RUNNER_COUNT" in
+  ''|*[!0-9]*)
+    echo "RUNNER_COUNT must be a positive integer (got: $RUNNER_COUNT)" >&2
+    exit 1
+    ;;
+esac
+if [ "$RUNNER_COUNT" -lt 1 ]; then
+  echo "RUNNER_COUNT must be a positive integer (got: $RUNNER_COUNT)" >&2
+  exit 1
+fi
+if [ "$RUNNER_COUNT" -gt "$MAX_RUNNER_COUNT" ]; then
+  echo "RUNNER_COUNT=$RUNNER_COUNT exceeds the safety cap of $MAX_RUNNER_COUNT" \
+    "(this spawns containers on your laptop — raise MAX_RUNNER_COUNT in the" \
+    "script only after checking the host can take it)" >&2
+  exit 1
+fi
 
 # ARCH: fidelity vs speed. This is a real tradeoff, not a default to skip past.
 #
@@ -69,40 +110,65 @@ docker image inspect "$IMAGE" >/dev/null 2>&1 || {
 }
 docker volume create "$CACHE_VOLUME" >/dev/null
 
-name=""
+# Each worker reuses one container name across its own iterations (the name
+# is unique per worker and per script invocation via $$), so cleanup can
+# always find and remove it regardless of which iteration is in flight.
+container_name() { echo "vox-runner-local-$$-$1"; }
+
+cleaned=0
+worker_pids=()
 cleanup() {
+  # Idempotent: INT/TERM and the script's own EXIT can all reach this.
+  [ "$cleaned" = "1" ] && return 0
+  cleaned=1
   echo
-  echo "runner: stopping"
-  [ -n "$name" ] && docker rm -f "$name" >/dev/null 2>&1 || true
-  exit 0
+  echo "runner: stopping ($RUNNER_COUNT worker(s))"
+  for pid in "${worker_pids[@]:-}"; do
+    [ -n "$pid" ] && kill "$pid" >/dev/null 2>&1 || true
+  done
+  for w in $(seq 1 "$RUNNER_COUNT"); do
+    docker rm -f "$(container_name "$w")" >/dev/null 2>&1 || true
+  done
+  wait >/dev/null 2>&1 || true
 }
-trap cleanup INT TERM
+trap cleanup INT TERM EXIT
 
-echo "runner: repo=$REPO arch=$ARCH image=$IMAGE labels=$RUNNER_LABELS (ephemeral)"
-i=0
-while :; do
-  i=$((i + 1))
-  name="vox-runner-local-$$-$i"
-  # Fresh token per job: ephemeral runners re-register on every start, and a
-  # registration token only lives ~1h.
-  token="$(gh api -X POST "repos/${REPO}/actions/runners/registration-token" --jq .token)"
-  [ -n "$token" ] || {
-    echo "runner: could not mint a registration token" >&2
-    exit 1
-  }
+run_worker() {
+  local worker="$1"
+  local name
+  name="$(container_name "$worker")"
+  local i=0
+  while :; do
+    i=$((i + 1))
+    # Fresh token per job: ephemeral runners re-register on every start, and a
+    # registration token only lives ~1h.
+    local token
+    token="$(gh api -X POST "repos/${REPO}/actions/runners/registration-token" --jq .token)"
+    [ -n "$token" ] || {
+      echo "runner[$worker]: could not mint a registration token" >&2
+      return 1
+    }
 
-  echo "runner: waiting for a job (iteration $i)"
-  docker run --rm --name "$name" \
-    -e REPO_URL="https://github.com/${REPO}" \
-    -e RUNNER_TOKEN="$token" \
-    -e RUNNER_LABELS="$RUNNER_LABELS" \
-    -e RUNNER_NAME="vox-local-$(hostname -s)-$i" \
-    -e RUNNER_EPHEMERAL=1 \
-    -v "${CACHE_VOLUME}:/cache" \
-    "$IMAGE" || echo "runner: container exited non-zero (iteration $i)"
+    echo "runner[$worker]: waiting for a job (iteration $i)"
+    docker run --rm --name "$name" \
+      -e REPO_URL="https://github.com/${REPO}" \
+      -e RUNNER_TOKEN="$token" \
+      -e RUNNER_LABELS="$RUNNER_LABELS" \
+      -e RUNNER_NAME="vox-local-$(hostname -s)-${worker}-${i}" \
+      -e RUNNER_EPHEMERAL=1 \
+      -v "${CACHE_VOLUME}:/cache" \
+      "$IMAGE" || echo "runner[$worker]: container exited non-zero (iteration $i)"
 
-  if [ "${RUNNER_ONCE:-0}" = "1" ]; then
-    echo "runner: RUNNER_ONCE set, stopping"
-    break
-  fi
+    if [ "${RUNNER_ONCE:-0}" = "1" ]; then
+      echo "runner[$worker]: RUNNER_ONCE set, stopping"
+      break
+    fi
+  done
+}
+
+echo "runner: repo=$REPO arch=$ARCH image=$IMAGE labels=$RUNNER_LABELS count=$RUNNER_COUNT (ephemeral)"
+for w in $(seq 1 "$RUNNER_COUNT"); do
+  run_worker "$w" &
+  worker_pids+=("$!")
 done
+wait "${worker_pids[@]}"
