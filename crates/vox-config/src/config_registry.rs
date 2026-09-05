@@ -1804,6 +1804,22 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         label: "Graphify Ttl Days",
         hint: "Freshness TTL in days for all graphify corpora, overriding the contract default.",
     },
+    // --- P6-3: explicit opt-out for the Sherpa-ONNX speech-model download,
+    // so a user or CI job can guarantee nothing large is fetched. ---
+    ConfigKey {
+        key: "VOX_ORATIO_SHERPA_NO_DOWNLOAD",
+        kind: ConfigKind::Bool,
+        default: DefaultValue::Literal("false"),
+        bound: None,
+        group: Group::Storage,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Sherpa No Download",
+        hint: "Refuse to download Sherpa-ONNX speech models; point VOX_ORATIO_SHERPA_MODEL_DIR at a local copy instead.",
+    },
 ];
 
 /// All registered keys (for the parity gate).

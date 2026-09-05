@@ -45,6 +45,34 @@ pub mod serving;
 /// `qwen_4080_16g` preset remain unchanged; `qwen3_*` rungs are additive.
 pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
 
+/// Approximate on-disk download size of [`DEFAULT_MODEL_ID`]'s weights, in
+/// bytes, so a user opting into the default can see the cost before it lands.
+///
+/// **Arithmetic (checkable, not folklore):** Qwen3-8B has ~8.19 billion
+/// parameters (per the upstream model card); the pinned revision is served as
+/// bf16 safetensors, i.e. 2 bytes per parameter:
+///
+/// ```text
+/// 8_190_000_000 params × 2 bytes/param = 16_380_000_000 bytes ≈ 16.4 GB
+/// ```
+///
+/// This is **approximate**, not a verified byte count: it ignores the small
+/// tokenizer/config files bundled alongside the weights, and a network call
+/// would be required to read the repo's exact reported size — which resolution
+/// code must not make just to print a number (see `vox-speech`'s
+/// `sherpa_model_config` for the same discipline applied to speech models).
+/// Treat this as an order-of-magnitude warning, not an exact byte count.
+pub const DEFAULT_MODEL_APPROX_BYTES: u64 = 8_190_000_000 * 2;
+
+/// Human-readable rendering of [`DEFAULT_MODEL_APPROX_BYTES`], for display to
+/// a user or CI log *before* a training run starts pulling the default base
+/// model — see [`DEFAULT_MODEL_APPROX_BYTES`] for the underlying arithmetic
+/// and its approximation caveats.
+pub fn default_model_approx_size_human() -> String {
+    let gb = DEFAULT_MODEL_APPROX_BYTES as f64 / 1_000_000_000.0;
+    format!("~{gb:.1} GB (approximate — see DEFAULT_MODEL_APPROX_BYTES doc)")
+}
+
 /// Resolve the default training/inference base model id from a raw env override,
 /// falling back to [`DEFAULT_MODEL_ID`]. Blank/whitespace overrides fall back.
 pub fn resolve_default_model_id(raw: Option<&str>) -> String {
@@ -105,5 +133,25 @@ mod default_model_tests {
     #[test]
     fn empty_string_keeps_default() {
         assert_eq!(resolve_default_model_id(Some("")), DEFAULT_MODEL_ID);
+    }
+
+    #[test]
+    fn default_model_approx_bytes_matches_documented_arithmetic() {
+        // 8.19B params x 2 bytes/param (bf16) — keep this in lockstep with the
+        // arithmetic spelled out in the doc comment above the constant.
+        assert_eq!(DEFAULT_MODEL_APPROX_BYTES, 8_190_000_000 * 2);
+    }
+
+    #[test]
+    fn default_model_approx_size_human_reports_gb() {
+        let human = default_model_approx_size_human();
+        assert!(
+            human.contains("GB"),
+            "expected a GB-scale human size, got: {human}"
+        );
+        assert!(
+            human.contains("16.4"),
+            "expected ~16.4 GB for Qwen3-8B at bf16, got: {human}"
+        );
     }
 }
