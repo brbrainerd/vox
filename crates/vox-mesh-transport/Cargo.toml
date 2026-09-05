@@ -9,6 +9,7 @@ license.workspace = true
 anyhow = { workspace = true }
 iroh = { workspace = true }
 iroh-mdns-address-lookup = { workspace = true }
+iroh-tickets = { workspace = true }
 postcard = { workspace = true }
 tokio = { workspace = true }
 vox-mesh-types = { workspace = true }
