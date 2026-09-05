@@ -98,7 +98,7 @@ jobs:
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.10
+        uses: mozilla-actions/sccache-action@v0.0.11
 
       # Per-PR depth (cheap): prove the whole workspace COMPILES on every OS.
       # vox-gui is a Tauri bin needing the pnpm-built ui/dist at compile time, so
