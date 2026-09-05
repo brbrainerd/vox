@@ -64,7 +64,7 @@ Stack `claude/plan-p2p4-followup` — 3 further commits: `grep -oP` in workflows
 version-SSOT check that previously ran only in a workflow with **0 runs ever**), plus the
 first-ever CI lane for `vox-cargo-shim`.
 
-## 3. The 1.98.1 bump — not applied, and the traps waiting for whoever does it
+## 3. The 1.98.1 bump — APPLIED (see §9); the traps below are what it had to clear
 
 **Decision: adopt 1.98.1.** Both candidates satisfy the no-`.0` rule, so that is not a
 discriminator; the wave is bounded and enumerated; choosing 1.96.1 defers the identical wave
@@ -228,3 +228,59 @@ as accurate, removing a label everywhere, replacing a string everywhere. Each wa
 I was looking and wrong somewhere I was not. It is the same shape as the plan errors catalogued
 in §1 — an absolute claim derived from a scoped look — which suggests it is a property of this
 kind of work rather than of any one agent.
+
+## 9. Final round — what landed after §3 was written
+
+§3 was written while the bump was still deferred. It has since been applied, along with the
+rest of the deferred list. All three traps §3 names were hit and cleared:
+
+  TRAP 1 (`ssot_probe --write` skips the toolchain rows) — avoided; the bump drove
+      `toolchain_ssot::rewrite_all` through a purpose-built example rather than the probe.
+  TRAP 2 (atomicity) — all four coupled rows moved in one commit; `distribution_parity` and
+      `parses_minimal_manifest` both green.
+  TRAP 3 (re-measure the wave) — necessary. The wave was 10 on the tree actually built, not
+      the 5 measured earlier on a different tree. A lint count is a fact about a
+      (toolchain, tree) pair, and both sides had moved.
+
+**The MSRV was being ratcheted silently, and the bump exposed it.** Applying 1.98.1 pushed
+`Cargo.toml`'s `rust-version` 1.96 -> 1.98, i.e. Vox began claiming it needs Rust 1.98.
+Measured: `cargo +1.96.0 check --workspace --all-targets --exclude vox-gui` exits **0 with 0
+errors** — the claim was false. Cause: `floor_satisfied` was a prefix test (`ssot.starts_with(
+"{floor}.")`), inherited verbatim from the shell guard it replaced (ci.yml:803), so it
+demanded the MSRV and the pin share a major.minor. Under it every future minor bump narrows
+who can build Vox, silently, with the gate green. Now a numeric floor: below the pin passes,
+above it is drift. `rust-version` reverted to 1.96. Three tests changed because they encoded
+the bug — one asserted a 1.95 floor is *violated* by a 1.96 toolchain.
+
+**`cross-platform-check` could not have been made required, and nearly was.** Promotion was
+recommended (84.6% success excluding supersessions) and approved. The recommendation was
+wrong: it measured whether the workflow PASSES and never asked whether it REPORTS. It was
+path-filtered, so a PR touching none of `crates/**`, `Cargo.toml`, `contracts/**` never
+posted the context. Measured against the dependabot PRs held for this branch: **#496 (7
+files) and #497 (1 file) match ZERO of those paths and would have become permanently
+unmergeable**, as would every docs-only PR. Fixed by making it eligible instead: no trigger
+path filter, an internal `path-check` job so the expensive legs still skip, and a
+`cross-platform-summary` posting one fixed context that fails unless every dependency is
+`success` or `skipped`. Branch protection deliberately NOT changed — a required context that
+has never reported blocks every merge, so that step must follow the first green run on main.
+
+**`vox-langtool` now ships.** The `minimal` tier listed it as its only binary and the release
+builder shipped two other packages, so that tier delivered nothing. Not a one-liner:
+packaging is driven by the `ReleasePackage` enum, so it needed a new variant, a
+build/package/checksum arm, the `RELEASE_PACKAGES` entry, the variant-list test, and the
+workflow's upload glob. Binary naming uses the dynamic `vox-<name>` helper, NOT vox-cli's
+fixed path — vox-cli's binary is literally named `vox`, so copying it would have shipped a
+`vox-langtool` archive containing a binary called `vox`. Accepted only after running the
+artifact: `./vox-langtool --help` -> "DB-free Vox language tooling".
+
+**Also landed:** N-parallel supervision in ci-runner-local.sh (default 1, capped at 8, bad
+input refused before any container starts); a first-ever CI lane for `vox-cargo-shim`, the
+one genuinely-excluded Rust crate; `grep -oP` eliminated from workflows entirely.
+
+### Two subagents overrode my instructions and both were right
+One refused to delete `scripts/ci/voxcirunnerscale.task.xml` after my brief called it
+"referenced by NOTHING" — it is live infrastructure with an installer, a `.cmd` companion,
+and a documented role. One ignored "follow the vox-cli path" for langtool naming, correctly,
+for the reason above. Both of my errors were the same shape as the plan errors in §1: an
+absolute instruction derived from a scoped look. Briefs should state the goal and the
+evidence; the agent closest to the code is better placed to pick the mechanism.
