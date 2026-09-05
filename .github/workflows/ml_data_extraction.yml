@@ -40,8 +40,16 @@ on:
         required: false
         default: 'false'
 
+# A schedule-triggered run and a push-to-main-triggered run both resolve
+# github.ref to refs/heads/main, so a plain `${{ github.workflow }}-${{ github.ref }}`
+# group put the nightly cron leg in the SAME concurrency group as every push to
+# main — a merge landing mid-run cancelled the nightly extraction outright
+# (measured: 23/29 cancelled, ALL-CANCELLED per wf-health-measured.tsv). Give
+# scheduled runs their own group so a push to main can no longer cancel the
+# nightly leg; push- and workflow_dispatch-triggered runs keep the original
+# per-ref group and continue to supersede each other as intended.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
   cancel-in-progress: true
 
 # ── Platform portability notes ───────────────────────────────────────────────
