@@ -57,12 +57,13 @@
       "crate": "ed25519-dalek",
       "majors": [
         "2.x",
-        "3.0-rc"
+        "3.0.0"
       ],
-      "reason": "vox-crypto pins 2.x; iroh 1.1 pins >=3.0.0-rc. Two majors coexist by necessity. They cannot share a Rust type, but both round-trip through 32 raw bytes, so one stored seed derives both identities.",
+      "reason": "vox-crypto pins 2.x; iroh 1.1 requires >=3.0.0-rc and resolves to ed25519-dalek 3.0.0 STABLE (verified on macOS 2026-09-04 in an iroh-only tree; an earlier note in this ledger said `-rc`, which was the version requirement, not the resolved version). Two majors coexist by necessity. They cannot share a Rust type, but both round-trip through 32 raw bytes, so one stored seed derives both identities.",
       "resolution": "Accepted. Bridge via SecretKey::from_bytes; never let iroh generate and persist an independent key.",
       "reviewer": "brbrainerd",
-      "reviewed": "2026-09-04"
+      "reviewed": "2026-09-04",
+      "verified_resolution": "iroh 1.1.0 + noq 1.2.0 + iroh-tickets 1.0.0 -> ed25519-dalek 3.0.0, ring 0.17.14, no aws-lc-rs. NOTE: iroh-tickets must be 1.0 -- 0.1 pulls iroh-base 0.94 which pins ed25519-dalek =3.0.0-pre.1 and conflicts."
     }
   ],
   "forbidden_providers": [

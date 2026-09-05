@@ -6,7 +6,14 @@
 
 **Architecture:** iroh provides transport, identity, and NAT traversal. Vox keeps capability scheduling. Work received from a peer runs sandboxed by default. Deletion happens **last**, after the replacement is proven across two machines.
 
-**Tech Stack:** Rust 1.96, `iroh 1.1` (pinned, `noq` QUIC — not quinn), `iroh-tickets`, `iroh-mdns-address-lookup` (pinned `=`, pre-1.0), Tauri 2 + React (Axis). **No `iroh-blobs`, no `irpc`** in v1 — see spec Part 13.
+**Tech Stack:** Rust 1.96, `iroh 1.1` (pinned, `noq` QUIC — not quinn), **`iroh-tickets 1.0`**, `iroh-mdns-address-lookup` (pinned `=`, pre-1.0), Tauri 2 + React (Axis). **No `iroh-blobs`, no `irpc`** in v1 — see spec Part 13.
+
+> **`iroh-tickets` must be `1.0`, not `0.1`** — verified on the Mac 2026-09-04.
+> `0.1` pulls `iroh-base 0.94`, which pins `ed25519-dalek =3.0.0-pre.1` and
+> conflicts irreconcilably with `iroh 1.1`'s `>=3.0.0-rc`. With `1.0` the tree
+> resolves clean: `iroh 1.1.0`, `noq 1.2.0`, `iroh-tickets 1.0.0`,
+> `ed25519-dalek 3.0.0` (**stable**, not `-rc`), `ring 0.17.14`, and **no
+> `aws-lc-rs`** — confirming `tls-ring` holds for an iroh-only tree.
 
 **Spec:** [`2026-09-04-populi-mesh-iroh-transport-design.md`](../specs/2026-09-04-populi-mesh-iroh-transport-design.md) — revision 4.
 

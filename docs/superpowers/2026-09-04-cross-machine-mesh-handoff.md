@@ -39,7 +39,7 @@ Password authentication works today (Windows OpenSSH defaults to it).
 
 **`iacch` is a member of Administrators**, so Windows OpenSSH does **not** read
 `~/.ssh/authorized_keys` for this account. It reads
-`C:\ProgramData\sshdministrators_authorized_keys`, and that file must be
+`C:\ProgramData\ssh\administrators_authorized_keys`, and that file must be
 owned by Administrators/SYSTEM with inheritance disabled or sshd silently
 ignores it. Both facts are undocumented in most guides and produce a
 "permission denied (publickey)" with nothing in the logs.
@@ -55,7 +55,7 @@ the ACL in the same step:
 
 ```powershell
 $key = '<paste the ed25519 line here>'
-$f = "$env:ProgramData\sshdministrators_authorized_keys"
+$f = "$env:ProgramData\ssh\administrators_authorized_keys"
 Add-Content -Path $f -Value $key
 icacls $f /inheritance:r /grant 'Administrators:F' /grant 'SYSTEM:F'
 Restart-Service sshd
@@ -367,7 +367,7 @@ git -C ~/Developer/GitHub/vox rev-parse HEAD      # must match
 Two Windows-specific notes for anything you run over that link:
 
 - Use the **built binary** for `populi down`, not `cargo run` — the daemon locks
-  `target\debugox-ml-cli.exe` and cargo's relink fails with a misleading
+  `target\debug\vox-ml-cli.exe` and cargo's relink fails with a misleading
   "Access is denied". See F10.
 - `--features populi` goes on **`-p vox-ml-cli`**, never `-p vox-cli`.
 
