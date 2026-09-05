@@ -87,10 +87,40 @@ observe independently before trusting a reading from the one under test.
 Corroboration from the Mac listener's socket census during the run: `UDP *:58535`,
 `UDP *:64100`, `UDP *:5353` — three sockets, **zero remote addresses**.
 
+### The macOS half was attempted four times and is unresolved
+
+Four elevated runs with a `pf` LAN-only ruleset, each with a working negative
+control (`1.1.1.1` `000`, `example.com` `000`, tailnet `000`, LAN router `200`)
+and clean restore. **Every one timed out on the dial**, while the identical
+ticket connected in **8–11 ms with `pf` off, immediately before and after.** So
+`pf` was blocking the QUIC path; the mesh was never in question.
+
+Hypotheses tested and eliminated, recorded so nobody repeats them:
+
+| Attempt | Hypothesis | Outcome |
+|---|---|---|
+| v1 | — | **Invalid run.** The listener was started over SSH, and the `pf` block killed the tailnet, killing its child. Testing against nothing. |
+| v2 | `block drop` blackholes the ticket's unreachable candidates so their probes hang past the connect deadline | Wrong — `block return` failed identically |
+| v3 | pfctl stamps `flags S/SA` (a TCP-only match) on protocol-less rules, so UDP never matches | Wrong — explicit `proto udp` rules parsed correctly and still failed |
+| v4 | Stale listener / wrong subnet | Wrong — listener alive (`pid 7700`), Mac still `192.168.50.208`, route direct on `en0` |
+
+**The leading unfalsified hypothesis** is that a *machine-wide* block is not
+equivalent to a *per-program* one: it also severs `tailscaled`, and Tailscale's
+macOS network extension may reconfigure routes or the `utun` when it loses
+connectivity. The Windows test that succeeded was scoped to one binary and left
+SSH and Tailscale untouched. Anyone resuming this should either scope the block
+to the process (`pf` filters by user/group, not process, so this needs a
+dedicated uid) or stop `tailscaled` for the window.
+
+**This does not weaken the result.** The substantive claim — the mesh needs no
+third party — is carried by the BLAPTOP04 run, which had a calibrated
+instrument and a negative control that failed correctly. The macOS run would
+have been confirmation of symmetry, not new information.
+
 Still open, and cheap: both machines offline *simultaneously* at OS level. The
 router is an ASUS at `192.168.50.1` with a reachable admin UI, so a per-client
 block covers it without taking the household offline — which is what pulling the
-uplink would have done.
+uplink would have done, and without the `pf`-versus-Tailscale interaction above.
 
 ## Q2 — Does LAN connection succeed with no relay?
 
