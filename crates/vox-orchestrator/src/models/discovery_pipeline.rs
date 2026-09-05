@@ -138,6 +138,9 @@ mod tests {
             updated_at_ms: 0,
             success_count,
             cumulative_cost_usd: 0.0,
+            p95_ttft_ms: None,
+            p95_tpot_ms: None,
+            goodput_tokens_per_sec: None,
         }
     }
 

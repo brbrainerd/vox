@@ -330,6 +330,18 @@ pub struct LlmResponse {
     /// same reason as `latency_ms`.
     #[serde(default)]
     pub cache_read_tokens: u32,
+    /// Task M3: time to first token, in ms — wall-clock from issuing the request to the
+    /// first content chunk received. Only genuinely measured on the streaming path
+    /// (`agent_loop.rs`'s `stream_final_answer`); the non-streaming path has no partial
+    /// data, so it reports `latency_ms` here (time-to-first-token equals time-to-whole-
+    /// response when nothing streams). `None` when not computed at all (e.g. an error path).
+    #[serde(default)]
+    pub ttft_ms: Option<u64>,
+    /// Task M3: time per output token, in ms — `(latency_ms - ttft_ms) / completion_tokens`
+    /// on the streaming path (the generation phase after the first token), or
+    /// `latency_ms / completion_tokens` non-streaming. `None` when `completion_tokens == 0`.
+    #[serde(default)]
+    pub tpot_ms: Option<f64>,
 }
 
 #[cfg(test)]
@@ -351,6 +363,8 @@ mod tests {
             tool_calls: None,
             latency_ms: 42,
             cache_read_tokens: 7,
+            ttft_ms: Some(15),
+            tpot_ms: Some(5.4),
         };
         let json = serde_json::to_string(&resp).expect("serialize");
         let back: LlmResponse = serde_json::from_str(&json).expect("deserialize");
@@ -364,8 +378,12 @@ mod tests {
         assert_eq!(legacy_resp.tool_calls, None);
         assert_eq!(legacy_resp.latency_ms, 0);
         assert_eq!(legacy_resp.cache_read_tokens, 0);
+        assert_eq!(legacy_resp.ttft_ms, None);
+        assert_eq!(legacy_resp.tpot_ms, None);
         assert_eq!(back.latency_ms, 42);
         assert_eq!(back.cache_read_tokens, 7);
+        assert_eq!(back.ttft_ms, Some(15));
+        assert_eq!(back.tpot_ms, Some(5.4));
     }
 
     #[test]
@@ -383,6 +401,8 @@ mod tests {
             }]),
             latency_ms: 0,
             cache_read_tokens: 0,
+            ttft_ms: None,
+            tpot_ms: None,
         };
         let json = serde_json::to_string(&resp).expect("serialize");
         let back: LlmResponse = serde_json::from_str(&json).expect("deserialize");

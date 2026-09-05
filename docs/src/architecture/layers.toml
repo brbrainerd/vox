@@ -539,6 +539,19 @@ allow_annotation = "// vox-arch-check: allow dynlib-ext"
 reason           = "Shared-lib suffix differs per OS (.so/.dll/.dylib); derive it from target, do not hardcode."
 
 [[forbidden_pattern]]
+name             = "no-literal-home-tilde"
+exempt_tests     = true
+# Anchored to a path constructor on purpose. The bare `"~/` form is 100% false
+# positives on this tree: error-message text, a CARGO_HOME documentation default,
+# and `strip_prefix("~/")` in the tilde-EXPANSION helper — i.e. it would flag its
+# own fix. This form catches the real shape (PathBuf::from("~/...")), which never
+# resolves because Rust does not expand `~`.
+pattern          = '(PathBuf::from|Path::new)\(\s*"~/'
+file_glob        = "crates/**/*.rs"
+allow_annotation = "// vox-arch-check: allow home-tilde"
+reason           = "Rust does not expand `~`; use dirs/home or vox_config::paths for the home directory."
+
+[[forbidden_pattern]]
 name             = "no-otlp-in-emitters"
 pattern          = 'vox.telemetry.otlp'
 file_glob        = "crates/**/Cargo.toml"

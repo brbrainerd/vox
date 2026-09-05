@@ -214,6 +214,7 @@ async fn orchestrator_daemon_subscribe_events_inner() {
             orch_emit.event_bus().emit(AgentEventKind::TokenStreamed {
                 agent_id: vox_orchestrator::AgentId(7),
                 text: "hello".to_string(),
+                session_id: None,
             });
             tokio::time::sleep(D_20MS).await;
         }
@@ -653,6 +654,7 @@ async fn orchestrator_daemon_subscribe_events_replays_from_offset_inner() {
             orch_emit.event_bus().emit(AgentEventKind::TokenStreamed {
                 agent_id: aid,
                 text: "post-replay-live".to_string(),
+                session_id: None,
             });
             tokio::time::sleep(D_20MS).await;
         }
@@ -751,6 +753,7 @@ async fn orchestrator_daemon_subscribe_events_without_offset_inner() {
             orch_emit.event_bus().emit(AgentEventKind::TokenStreamed {
                 agent_id: aid,
                 text: "live-only".to_string(),
+                session_id: None,
             });
             tokio::time::sleep(D_20MS).await;
         }

@@ -447,6 +447,8 @@ pub async fn spawn_agent(state: &ServerState, params: crate::params::SpawnAgentP
             params.delegation_reason.as_deref(),
             out_source.map(vox_orchestrator::TaskId),
             None,
+            params.chat_session_id.clone(),
+            params.origin_turn_id.clone(),
         )
     } else {
         state.orchestrator.spawn_agent(&out_name)

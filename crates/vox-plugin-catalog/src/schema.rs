@@ -42,7 +42,9 @@ pub struct PluginCatalogEntry {
     #[serde(default)]
     pub exposes_tools: Option<Vec<String>>,
 
-    /// Optional capability tag (e.g. "nvidia-gpu") informational only.
+    /// Capability tag (e.g. "nvidia-gpu") gating this plugin to matching
+    /// hardware. Load-bearing: installers preselect tagged plugins only when the
+    /// tag matches detected hardware.
     #[serde(default)]
     pub requires_tag: Option<String>,
 
@@ -55,6 +57,30 @@ pub struct PluginCatalogEntry {
     /// Shown by `vox plugin info`. Does not gate standalone install.
     #[serde(default)]
     pub bundled_in: Vec<String>,
+
+    /// SHA-256 (lowercase hex) of the published plugin ARCHIVE.
+    ///
+    /// Checked by `vox plugin install` before extraction. Absent for `local:`
+    /// sources, which are built from already-trusted workspace source.
+    #[serde(default)]
+    pub sha256: Option<String>,
+
+    /// Release version for `github:` sources, without a leading `v`.
+    ///
+    /// Required alongside `sha256`: the previous code built a
+    /// `releases/latest/download/...` URL, and the bytes behind a floating
+    /// `latest` change, so no recorded hash could ever match it.
+    #[serde(default)]
+    pub version: Option<String>,
+
+    /// SHA-256 per target triple of the installed DYLIB, keyed like `artifacts`
+    /// in `Plugin.toml`.
+    ///
+    /// Distinct from `sha256` and NOT derivable from it: one covers the archive,
+    /// the other the file that gets `dlopen`'d. Consumed by the load-time check,
+    /// which is gated on the crate-edge authorization in Step 8.
+    #[serde(default)]
+    pub artifacts_sha256: Option<std::collections::BTreeMap<String, String>>,
 }
 
 /// Discriminator for plugin payload kind.

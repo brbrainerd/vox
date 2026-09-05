@@ -31,6 +31,11 @@ pub(super) async fn install_external_skills(
         match registry.install_bundle(&ext.bundle).await {
             Ok(res) if !res.already_installed => {
                 installed += 1;
+                // See Cargo.toml: `vox-gamify` is now a declared feature
+                // (`vox-gamify = ["dep:vox-gamify"]`). Before that it named no
+                // feature — `dep:vox-gamify` suppresses the implicit one — so
+                // this skill_published event was never emitted. Kept gated so
+                // the dependency stays optional.
                 #[cfg(feature = "vox-gamify")]
                 {
                     if let Ok(db) = vox_db::Codex::connect_default().await {

@@ -117,6 +117,14 @@ pub async fn ingest_workflow_traces_to_jsonl(
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string(),
+                            // The outer loop already grouped these lineage rows by
+                            // their persisted `session_id` column, which is the
+                            // chat_session_id written at spawn time (Phase D Task D1).
+                            chat_session_id: Some(session_id.clone()),
+                            origin_turn_id: payload
+                                .get("origin_turn_id")
+                                .and_then(|v| v.as_str())
+                                .map(str::to_string),
                         });
 
                         // Update child's parent link in the reconstructed node set

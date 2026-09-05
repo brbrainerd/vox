@@ -107,6 +107,10 @@ populi/data/*.jsonl
 # upload queue; pending/ holds per-event JSON until upload succeeds.
 # Not source-of-truth, regenerated on every run, should not be committed.
 .vox/telemetry-upload-queue/
+# Nested form, matching the **/ anchoring used for cache/ and artifacts/ above.
+# Belt and braces only: a nested .vox is a BUG (see paths::repo_dot_vox_dir),
+# and ignoring it must not become the way we stop noticing.
+**/.vox/telemetry-upload-queue/
 # Runtime memory stubs (regenerated locally; never commit)
 /.vox/memory/
 # Per-branch policy run-status overlay (Phase 1c): machine-specific, written by

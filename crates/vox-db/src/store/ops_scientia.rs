@@ -18,11 +18,12 @@ impl crate::VoxDb {
                 async move {
                     let mut rows = conn
                         .query(
-                            "SELECT 
-                                model_id, task_category, strength_tag, window_days, 
-                                n_calls, success_rate, p50_latency_ms, p99_latency_ms, 
+                            "SELECT
+                                model_id, task_category, strength_tag, window_days,
+                                n_calls, success_rate, p50_latency_ms, p99_latency_ms,
                                 cost_per_success_usd, quality_score, updated_at_ms,
-                                success_count, cumulative_cost_usd
+                                success_count, cumulative_cost_usd,
+                                p95_ttft_ms, p95_tpot_ms, goodput_tokens_per_sec
                              FROM model_scoreboard
                              WHERE window_days = ?1",
                             params![window_days],
@@ -45,6 +46,9 @@ impl crate::VoxDb {
                             updated_at_ms: row.get(10)?,
                             success_count: row.get(11)?,
                             cumulative_cost_usd: row.get(12)?,
+                            p95_ttft_ms: row.get(13)?,
+                            p95_tpot_ms: row.get(14)?,
+                            goodput_tokens_per_sec: row.get(15)?,
                         });
                     }
                     Ok::<_, StoreError>(out)
@@ -87,11 +91,12 @@ impl crate::VoxDb {
                 async move {
                     conn.execute(
                         "INSERT INTO model_scoreboard (
-                            model_id, task_category, strength_tag, window_days, 
-                            n_calls, success_rate, p50_latency_ms, p99_latency_ms, 
+                            model_id, task_category, strength_tag, window_days,
+                            n_calls, success_rate, p50_latency_ms, p99_latency_ms,
                             cost_per_success_usd, quality_score, updated_at_ms,
-                            success_count, cumulative_cost_usd
-                         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                            success_count, cumulative_cost_usd,
+                            p95_ttft_ms, p95_tpot_ms, goodput_tokens_per_sec
+                         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
                          ON CONFLICT(model_id, task_category, strength_tag, window_days) DO UPDATE SET
                             n_calls = excluded.n_calls,
                             success_rate = excluded.success_rate,
@@ -101,7 +106,10 @@ impl crate::VoxDb {
                             quality_score = excluded.quality_score,
                             updated_at_ms = excluded.updated_at_ms,
                             success_count = excluded.success_count,
-                            cumulative_cost_usd = excluded.cumulative_cost_usd",
+                            cumulative_cost_usd = excluded.cumulative_cost_usd,
+                            p95_ttft_ms = excluded.p95_ttft_ms,
+                            p95_tpot_ms = excluded.p95_tpot_ms,
+                            goodput_tokens_per_sec = excluded.goodput_tokens_per_sec",
                         params![
                             row.model_id.as_str(),
                             row.task_category.as_str(),
@@ -116,6 +124,9 @@ impl crate::VoxDb {
                             row.updated_at_ms,
                             row.success_count,
                             row.cumulative_cost_usd,
+                            row.p95_ttft_ms,
+                            row.p95_tpot_ms,
+                            row.goodput_tokens_per_sec,
                         ],
                     )
                     .await?;
@@ -159,29 +170,31 @@ impl crate::VoxDb {
                             model_id, task_category, strength_tag, window_days,
                             n_calls, success_rate, p50_latency_ms, p99_latency_ms,
                             cost_per_success_usd, quality_score, updated_at_ms,
-                            success_count, cumulative_cost_usd
+                            success_count, cumulative_cost_usd,
+                            p95_ttft_ms, p95_tpot_ms, goodput_tokens_per_sec
                         )
                         WITH interaction_stats AS (
-                            SELECT 
+                            SELECT
                                 id,
-                                model_version, 
-                                task_category, 
+                                model_version,
+                                task_category,
                                 strength_tag,
                                 success,
                                 latency_ms,
-                                cost_usd
+                                cost_usd,
+                                output_tokens
                             FROM llm_interactions
                             WHERE created_at >= datetime('now', '-{} days')
                         ),
                         feedback_agg AS (
-                            SELECT interaction_id, AVG(rating) as rating 
-                            FROM llm_feedback 
+                            SELECT interaction_id, AVG(rating) as rating
+                            FROM llm_feedback
                             GROUP BY interaction_id
                         )
-                        SELECT 
-                            s.model_version, 
-                            s.task_category, 
-                            s.strength_tag, 
+                        SELECT
+                            s.model_version,
+                            s.task_category,
+                            s.strength_tag,
                             ?1,
                             COUNT(*),
                             AVG(CAST(s.success AS REAL)),
@@ -191,7 +204,17 @@ impl crate::VoxDb {
                             COALESCE(AVG(CAST(f.rating AS REAL) / 5.0), 1.0),
                             ?2,
                             SUM(s.success),
-                            COALESCE(SUM(s.cost_usd), 0.0)
+                            COALESCE(SUM(s.cost_usd), 0.0),
+                            NULL,
+                            NULL,
+                            -- Task M3: mean successful-call throughput. Guards latency_ms > 0
+                            -- (avoid div-by-zero) and output_tokens > 0 (a call with no output
+                            -- tokens has no meaningful tokens/sec, not a real 0).
+                            AVG(CASE
+                                WHEN s.success = 1 AND s.latency_ms > 0 AND s.output_tokens > 0
+                                THEN CAST(s.output_tokens AS REAL) / (s.latency_ms / 1000.0)
+                                ELSE NULL
+                            END)
                         FROM interaction_stats s
                         LEFT JOIN feedback_agg f ON s.id = f.interaction_id
                         GROUP BY s.model_version, s.task_category, s.strength_tag
@@ -204,7 +227,10 @@ impl crate::VoxDb {
                             quality_score = excluded.quality_score,
                             updated_at_ms = excluded.updated_at_ms,
                             success_count = excluded.success_count,
-                            cumulative_cost_usd = excluded.cumulative_cost_usd",
+                            cumulative_cost_usd = excluded.cumulative_cost_usd,
+                            p95_ttft_ms = excluded.p95_ttft_ms,
+                            p95_tpot_ms = excluded.p95_tpot_ms,
+                            goodput_tokens_per_sec = excluded.goodput_tokens_per_sec",
                         window_days
                     );
 
@@ -258,6 +284,109 @@ impl crate::VoxDb {
                             params![
                                 p50,
                                 p99,
+                                model_id.as_str(),
+                                task_category.as_str(),
+                                strength_tag.as_str(),
+                                window_days
+                            ],
+                        )
+                        .await?;
+                    }
+
+                    // Task M3: same nearest-rank streaming pass, for ttft_ms -- only rows
+                    // where it was actually recorded (most callers don't measure it yet, see
+                    // ModelOutcome's doc comment), so most groups here are smaller than the
+                    // latency pass above.
+                    let mut rows = conn
+                        .query(
+                            &format!(
+                                "SELECT model_version, task_category, strength_tag, ttft_ms
+                                   FROM llm_interactions
+                                  WHERE created_at >= datetime('now', '-{window_days} days')
+                                    AND ttft_ms IS NOT NULL
+                                  ORDER BY model_version, task_category, strength_tag, ttft_ms"
+                            ),
+                            (),
+                        )
+                        .await?;
+                    let mut group: Option<(String, String, String)> = None;
+                    let mut values: Vec<i64> = Vec::new();
+                    let mut pending: Vec<((String, String, String), i64)> = Vec::new();
+                    while let Some(row) = rows.next().await? {
+                        let key = (row.get(0)?, row.get(1)?, row.get(2)?);
+                        let v: i64 = row.get(3)?;
+                        if group.as_ref() != Some(&key) {
+                            if let (Some(k), Some(p95)) =
+                                (group.take(), percentile_p95_i64(&values))
+                            {
+                                pending.push((k, p95));
+                            }
+                            values.clear();
+                            group = Some(key);
+                        }
+                        values.push(v);
+                    }
+                    if let (Some(k), Some(p95)) = (group.take(), percentile_p95_i64(&values)) {
+                        pending.push((k, p95));
+                    }
+                    for ((model_id, task_category, strength_tag), p95) in pending {
+                        conn.execute(
+                            "UPDATE model_scoreboard
+                                SET p95_ttft_ms = ?1
+                              WHERE model_id = ?2 AND task_category = ?3
+                                AND strength_tag = ?4 AND window_days = ?5",
+                            params![
+                                p95,
+                                model_id.as_str(),
+                                task_category.as_str(),
+                                strength_tag.as_str(),
+                                window_days
+                            ],
+                        )
+                        .await?;
+                    }
+
+                    // Task M3: same pass again, for tpot_ms (REAL, not INTEGER).
+                    let mut rows = conn
+                        .query(
+                            &format!(
+                                "SELECT model_version, task_category, strength_tag, tpot_ms
+                                   FROM llm_interactions
+                                  WHERE created_at >= datetime('now', '-{window_days} days')
+                                    AND tpot_ms IS NOT NULL
+                                  ORDER BY model_version, task_category, strength_tag, tpot_ms"
+                            ),
+                            (),
+                        )
+                        .await?;
+                    let mut group: Option<(String, String, String)> = None;
+                    let mut values: Vec<f64> = Vec::new();
+                    let mut pending: Vec<((String, String, String), f64)> = Vec::new();
+                    while let Some(row) = rows.next().await? {
+                        let key = (row.get(0)?, row.get(1)?, row.get(2)?);
+                        let v: f64 = row.get(3)?;
+                        if group.as_ref() != Some(&key) {
+                            if let (Some(k), Some(p95)) =
+                                (group.take(), percentile_p95_f64(&values))
+                            {
+                                pending.push((k, p95));
+                            }
+                            values.clear();
+                            group = Some(key);
+                        }
+                        values.push(v);
+                    }
+                    if let (Some(k), Some(p95)) = (group.take(), percentile_p95_f64(&values)) {
+                        pending.push((k, p95));
+                    }
+                    for ((model_id, task_category, strength_tag), p95) in pending {
+                        conn.execute(
+                            "UPDATE model_scoreboard
+                                SET p95_tpot_ms = ?1
+                              WHERE model_id = ?2 AND task_category = ?3
+                                AND strength_tag = ?4 AND window_days = ?5",
+                            params![
+                                p95,
                                 model_id.as_str(),
                                 task_category.as_str(),
                                 strength_tag.as_str(),
@@ -453,6 +582,24 @@ fn percentiles_p50_p99(sorted: &[i64]) -> Option<(i64, i64)> {
     let p50_idx = n.div_ceil(2) - 1;
     let p99_idx = (99 * n).div_ceil(100) - 1;
     Some((sorted[p50_idx], sorted[p99_idx]))
+}
+
+/// Task M3: nearest-rank index shared by every percentile helper here — `ceil(pct * n /
+/// 100)`-th element, 1-based, converted to a 0-based index.
+fn nearest_rank_idx(n: usize, pct: usize) -> usize {
+    (pct * n).div_ceil(100) - 1
+}
+
+/// Task M3: nearest-rank p95 of an **ascending-sorted** integer slice (used for
+/// `p95_ttft_ms`). `None` for an empty slice.
+fn percentile_p95_i64(sorted: &[i64]) -> Option<i64> {
+    (!sorted.is_empty()).then(|| sorted[nearest_rank_idx(sorted.len(), 95)])
+}
+
+/// Task M3: nearest-rank p95 of an **ascending-sorted** float slice (used for
+/// `p95_tpot_ms`). `None` for an empty slice.
+fn percentile_p95_f64(sorted: &[f64]) -> Option<f64> {
+    (!sorted.is_empty()).then(|| sorted[nearest_rank_idx(sorted.len(), 95)])
 }
 
 #[cfg(test)]

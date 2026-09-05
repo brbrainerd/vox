@@ -83,3 +83,24 @@ jobs:
           else
             cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
           fi
+
+      # `populi` is a NON-DEFAULT feature of vox-ml-cli, so a bare
+      # `cargo install --path crates/vox-ml-cli` produces a binary whose
+      # `populi` subcommand is cfg'd out — the exact rot this branch had to fix,
+      # and the reason vox-cli's delegation error path (crates/vox-cli/src/main.rs)
+      # spells the `--features populi` install out for the user. This clean-room
+      # leg is what stops it rotting again on macOS: install the mesh CLI with
+      # the feature on, then prove `vox`'s delegation resolves the subcommand.
+      # `vox populi` spawns `vox-ml-cli` from PATH, so the install above is what
+      # the delegation actually resolves against.
+      - name: Mesh CLI installs and answers
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
+          cargo install --path crates/vox-ml-cli --features populi --locked --debug
+          vox-ml-cli --help | grep -q populi
+          # setup.vox does not `cargo install` vox onto PATH, so invoke the debug
+          # binary the two runs above already built (vox-cli's `default-run`).
+          ./target/debug/vox populi --help

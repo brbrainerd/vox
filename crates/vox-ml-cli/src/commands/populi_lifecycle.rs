@@ -113,8 +113,17 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
                 // vram_min_gb, ...) have no `populi up` flags yet, so they take
                 // their conservative defaults: accept nothing, advertise
                 // nothing. Spreading Default here means the next field added to
-                // WorkerDonationPolicy does not break this initializer again —
+                // WorkerDonationPolicy does not break this initializer again --
                 // that omission is what stopped `vox populi` compiling.
+                //
+                // The safety property this used to lean on -- "a new field
+                // breaks the build, so someone must decide" -- was never real
+                // HERE: `mod populi_lifecycle` is `#[cfg(feature = "populi")]`
+                // and `vox-ml-cli`'s default is ["mens-base"], so this file is
+                // not compiled by the default build or by the release builder.
+                // That is precisely why the break went unnoticed. The property
+                // is enforced instead in vox-mesh-types, which has no features
+                // and is therefore always compiled and always tested.
                 ..Default::default()
             };
             if let Ok(json) = serde_json::to_string(&donation_policy) {

@@ -590,6 +590,19 @@ Always available in the minimal binary. **`vox snippet`** — `save`, `search`, 
 
 **Not in default builds.** `cargo build -p vox-cli --features ars`. Subcommands mirror the ARS helpers: `list`, `install`, `uninstall`, `search`, `info`, `create`, `eval-task`, `promote`, `run`, `context-assemble`, `discover` (see `commands::extras::ars`).
 
+### `vox plugin install`
+
+Installs a plugin from the catalog (`<id>`), a local directory (`--path <DIR>`), or a direct HTTPS URL (`--url <URL>`). The fetched archive is verified against a SHA-256 before extraction — it is `dlopen`'d as native code afterward, so an unverified download is arbitrary code execution. Catalog `github:` sources must pin a `version` and record a `sha256` in `catalog.toml`; an unpinned `latest` asset is refused before any network call, because the bytes behind a floating release change and no recorded hash could ever match them.
+
+| Flag | Description |
+|------|-------------|
+| `--path <DIR>` | Install from a local directory containing `Plugin.toml`. No checksum (already-trusted workspace source). |
+| `--url <URL>` | Install from an HTTPS URL pointing to a `.zip` archive. |
+| `--yes` | Skip the confirmation prompt. |
+| `--allow-unverified` | Install even when no `sha256` is recorded for the plugin. The archive is loaded as native code — only use this for a source you trust. |
+
+Without `--allow-unverified`, an install with no matching `sha256` fails closed: `refusing to install …: no sha256 recorded for this plugin`. **`vox bundle apply`** (`vox plugin-bundle apply`) always passes `false` for this flag, so it refuses `github:` plugins until hashes are recorded in the catalog.
+
 ### `vox gamify` (alias `vox ludus`, feature `extras-ludus`)
 
 **Not in default builds.** `cargo build -p vox-cli --features extras-ludus`. Companions, quests, shop, arena, collegium, etc. (`commands::extras::ludus`). Canonical command is **`vox gamify`**; the Latin **`vox ludus`** alias keeps working. Terminal HUD: **`vox gamify hud`** (alias `vox ludus hud`) requires **`--features ludus-hud`** (implies `extras-ludus` + `vox-orchestrator`).

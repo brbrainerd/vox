@@ -114,6 +114,47 @@ describe('sessionChatStore', () => {
     ).toBe('sess-x');
   });
 
+  // Task G1: the sync chat path (`chat_turn`'s `run_sync`) has no
+  // submit/submitResolved/task_started correlation at all -- it drives the
+  // store via `chatPending`/`chatReplySettled` keyed by a client-minted
+  // `tempId`, with no task_id or agentToTask entry ever populated. Before
+  // this, `token_streamed` could ONLY resolve a session via the
+  // agentToTask scan, so tokens streamed during a sync turn had nowhere to
+  // route. `resolveSessionForEvent` must route a `token_streamed` frame
+  // that carries `session_id` DIRECTLY, with no task/agent bookkeeping
+  // required at all.
+  it('resolveSessionForEvent routes token_streamed directly via session_id, with no task/agent mapping', () => {
+    const store = { sessions: {}, taskToSession: {}, pending: [] };
+    expect(
+      resolveSessionForEvent(
+        store,
+        evt({ type: 'token_streamed', agent_id: 0, text: 'Hi', session_id: 'sess-sync' }),
+      ),
+    ).toBe('sess-sync');
+  });
+
+  it('sync quick-chat: token_streamed with session_id appends to the chatPending bubble with no task/agent correlation', () => {
+    let store = sessionChatReducer(initialSessionChatStore, {
+      type: 'chatPending',
+      sessionId: 'sess-a',
+      tempId: 'temp-1',
+      userText: 'hello',
+    });
+    store = sessionChatReducer(store, {
+      type: 'agentEvent',
+      event: evt({ type: 'token_streamed', agent_id: 0, text: 'Hi ', session_id: 'sess-a' }),
+    });
+    store = sessionChatReducer(store, {
+      type: 'agentEvent',
+      event: evt({ type: 'token_streamed', agent_id: 0, text: 'there', session_id: 'sess-a' }),
+    });
+    const assistant = getSessionMessages(store, 'sess-a').find((m) => m.role === 'assistant');
+    expect(assistant?.text).toBe('Hi there');
+    expect(assistant?.status).toBe('streaming');
+    // Never touches the background-task correlation maps.
+    expect(store.taskToSession).toEqual({});
+  });
+
   it('routes activity_changed to the session that owns the agent mapping', () => {
     let store = sessionChatReducer(initialSessionChatStore, {
       type: 'submit',

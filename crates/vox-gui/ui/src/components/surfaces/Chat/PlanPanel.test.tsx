@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 
@@ -15,6 +15,10 @@ const nodes = [
 ];
 
 describe('PlanPanel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders each node with a status-appropriate visual state', () => {
     render(<PlanPanel planSessionId="ps1" planVersion={1} nodes={nodes} />);
     expect(screen.getByText('first step')).toBeInTheDocument();
@@ -70,5 +74,32 @@ describe('PlanPanel', () => {
   it('shows to-do-list-labeled zero-step copy, not "plan" language', () => {
     render(<PlanPanel planSessionId="s1" planVersion={1} nodes={[]} />);
     expect(screen.getByText('Nothing to do yet.')).toBeInTheDocument();
+  });
+
+  it('renders an approval footer and approves via approve_plan_nodes when steps are blocked', async () => {
+    const blockedNodes = [
+      { node_id: 'n1', description: 'first step', status: 'blocked_on_approval' as const },
+      { node_id: 'n2', description: 'second step', status: 'blocked_on_approval' as const },
+    ];
+    render(<PlanPanel planSessionId="ps1" planVersion={1} nodes={blockedNodes} />);
+    expect(screen.getByText('2 steps awaiting approval')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /approve/i }));
+    expect(invoke).toHaveBeenCalledWith('approve_plan_nodes', { planSessionId: 'ps1' });
+  });
+
+  it('does not render the approval footer once nothing is blocked', () => {
+    render(<PlanPanel planSessionId="ps1" planVersion={1} nodes={nodes} />);
+    expect(screen.queryByTestId('plan-approval-footer')).not.toBeInTheDocument();
+  });
+
+  it('discard calls the onDiscard callback without touching the backend', () => {
+    const onDiscard = vi.fn();
+    const blockedNodes = [
+      { node_id: 'n1', description: 'first step', status: 'blocked_on_approval' as const },
+    ];
+    render(<PlanPanel planSessionId="ps1" planVersion={1} nodes={blockedNodes} onDiscard={onDiscard} />);
+    fireEvent.click(screen.getByRole('button', { name: /discard/i }));
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+    expect(invoke).not.toHaveBeenCalled();
   });
 });

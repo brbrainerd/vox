@@ -525,6 +525,8 @@ impl Orchestrator {
                 Some("route_spawn"),
                 source_task_id,
                 Some(effective_requirements),
+                None,
+                None,
             ),
         }
     }

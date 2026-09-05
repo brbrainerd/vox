@@ -319,6 +319,42 @@ tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 
 **Implementation status.** `actor`/`workflow`/`activity` and `@durable`/`@scheduled` are stable, backed by a durable runtime for the supported subset (ADR-041 supersedes the old ADR-028 reservation gate — out-of-subset behavior is now policed by the determinism lint, not a reservation gate). Contract: [ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md), [ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md), [ADR-041](docs/src/adr/041-durable-functions-completion-2026.md). Drift between this section and `pipeline.rs` is checked by the [`docs-reality-audit-program`](docs/src/contributors/docs-reality-audit-program.md).
 
+## Code Intelligence — Graphify (Required, SSOT)
+
+**Vox ships its own code-intelligence graph — `vox graph` (formerly `vox graphify`).**
+It is a native Rust subcommand over this repo's AST, **not** the Python
+`scripts/coverage-graph/*.py` scanners, which are separate report generators. When
+someone says "graphify" in a Vox context they mean `vox graph`.
+
+**Before you start**, the corpus graphs must exist. A fresh clone has none, and an
+unbuilt graph fails *silently* — queries just return nothing, which reads like "no
+results" rather than "no index":
+
+```bash
+vox graph status          # per-corpus freshness; --strict exits non-zero when stale
+vox graph refresh --auto  # build/rebuild every stale corpus (do this once per clone)
+```
+
+`vox doctor` reports this as **Graphify cache**, so a new install sees it without
+knowing to look.
+
+**Reach for it instead of grep when the question is structural:**
+
+| Question | Command |
+|---|---|
+| Where is this symbol / concept? | `vox graph query "<terms>"` |
+| Is this backend node reachable from a surface? | `vox graph coverage --kind <kind>` (Surfaced / OrphanBackend / DeadEnd) |
+| What does changing this crate rebuild? | `vox graph crate-map` (Leiden communities + blast radius) |
+| Why did all these crates recompile? | `vox graph why-rebuilt` |
+
+`rg` still wins for literal strings and one-off greps. The graph wins for reachability,
+blast radius, and dead-surface questions — the ones where grep gives you *mentions*
+rather than *structure*, and where a missed call site becomes a bug.
+
+**Keep it fresh when it matters.** The graph is keyed to a commit; after large
+refactors re-run `vox graph refresh --auto`, and treat `worktree_drift` on a corpus
+you are about to query as "rebuild first". Snapshots are pruned with `vox graph gc`.
+
 ## Cross-Platform Shell Discipline (Stable Rules)
 
 > **Scope of the PowerShell preference.** The PS-first stance below is a **host-side allowlisting and output-parsing** preference, not a claim that agents produce better code in PowerShell than Bash. Project automation is **Vox** (see §VoxScript-First Glue Code). See [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md) for what this policy does and does not claim.
@@ -326,7 +362,7 @@ tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 - **PowerShell 7 (`pwsh`) when available:** On any host where `pwsh` is installed, prefer it for the **two retained launcher files** and for interactive terminal work, so behavior matches [`contracts/terminal/exec-policy.v1.yaml`](contracts/terminal/exec-policy.v1.yaml) and [`vox shell check`](docs/src/reference/cli.md). On Windows, PowerShell is the default expectation even when only Windows PowerShell 5.1 (`powershell.exe`) is present.
 - **CI vs local:** Repository CI jobs often run under **bash** on Linux self-hosted runners ([`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)); that does not override the **local/agent** preference for `pwsh` when you have it.
 - Prefer structured tooling and project CLIs (`vox`, `cargo`, `pnpm`, `rg`) over ad hoc shell pipelines. **`uv` and Python are no longer preferred** for project automation — use `vox run` instead.
-- **Search Optimization**: Do not run blind recursive searches (ripgrep searching) in the workspace root as it takes too long. Always narrow down the search path (e.g. to specific crate subdirectories like `crates/vox-cli/`) or use glob patterns. Prefer native `rg` via `run_command` with precise paths over the built-in `grep_search` tool, which can fail on Windows.
+- **Search Optimization**: Do not run blind recursive searches (ripgrep searching) in the workspace root as it takes too long. Always narrow down the search path (e.g. to specific crate subdirectories like `crates/vox-cli/`) or use glob patterns. Prefer native `rg` via `run_command` with precise paths over the built-in `grep_search` tool, which can fail on Windows. **Before reaching for `rg` at all, check §Code Intelligence — Graphify:** for "who calls this", "what is unreachable", "what does this crate pull in", a graph query beats any grep.
 - **Dev launcher when `vox` is missing from `PATH`:** [`scripts/windows/vox-dev.ps1`](scripts/windows/vox-dev.ps1) / [`scripts/vox-dev.sh`](scripts/vox-dev.sh) — forwards argv to `vox` via `cargo run -p vox-cli` from the workspace root (optional env: `VOX_REPO_ROOT`, `VOX_USE_PATH=1`, `VOX_DEV_FEATURES`, `VOX_DEV_QUIET=1`). See [`docs/src/reference/cli.md`](docs/src/reference/cli.md) (heading **Bootstrap / dev launcher (missing `vox` on `PATH`)**).
 - Do not rely on shell-specific one-liners as policy boundaries; approvals and allowlists vary across IDEs.
 - Keep commands decomposed into clear steps when safety or portability is at risk.
@@ -572,6 +608,7 @@ Full details and per-rule fix patterns: [`docs/src/architecture/vox-language-rul
 
 ## Related Operational Surfaces
 
+- Nightly builds (tag automation, local `voxup install --tag <tag>` to skip a from-source build): [`docs/src/architecture/nightly-builds-ssot.md`](docs/src/architecture/nightly-builds-ssot.md)
 - Canonical vs deprecated runtime names (daemon binary, MCP prefixes, env families): [`docs/src/architecture/canonical-runtime-names.md`](docs/src/architecture/canonical-runtime-names.md)
 - CI and runner behavior: [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)
 - Search & retrieval (agent corpora, MCP tools, policy): [`docs/src/architecture/search-retrieval-ssot-2026.md`](docs/src/architecture/search-retrieval-ssot-2026.md)

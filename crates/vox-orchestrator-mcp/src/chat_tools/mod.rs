@@ -86,7 +86,69 @@ fn telemetry_model_bucket(key: &str) -> &'static str {
 
 /// Build the full system prompt for the Vox chat assistant.
 pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<&str>) -> String {
-    build_system_prompt_with_skill(state, session_id, None, None).await
+    build_system_prompt_with_skill(state, session_id, None, None, &[]).await
+}
+
+/// Drop excluded skills before either consumer (the tier-1 catalog and the
+/// pinned-skill lookup) ever sees them. A single filter point upstream of
+/// both — rather than filtering each consumer separately — is what makes
+/// "cannot be pinned" a structural guarantee instead of a second place this
+/// could be (and, per the harness-unification plan's Task E2 note, first
+/// was) forgotten.
+fn filter_excluded_skills(
+    manifests: Vec<vox_skills::SkillManifest>,
+    excluded: &[String],
+) -> Vec<vox_skills::SkillManifest> {
+    if excluded.is_empty() {
+        return manifests;
+    }
+    manifests
+        .into_iter()
+        .filter(|m| !excluded.iter().any(|e| e == &m.id || e == &m.name))
+        .collect()
+}
+
+#[cfg(test)]
+mod skill_exclusion_tests {
+    use super::filter_excluded_skills;
+    use vox_skills::SkillManifest;
+
+    fn manifest(id: &str) -> SkillManifest {
+        SkillManifest {
+            id: id.to_string(),
+            name: id.to_string(),
+            version: "1.0.0".to_string(),
+            description: "d".to_string(),
+            ..Default::default()
+        }
+    }
+
+    /// Task E2 Step 1: an excluded id must be absent from the rendered
+    /// catalog and cannot be pinned. `filter_excluded_skills` is the single
+    /// upstream filter `build_system_prompt_with_skill` applies before
+    /// either consumer runs, so "absent from the catalog" and "cannot be
+    /// pinned" are both proven by this one assertion: the excluded skill is
+    /// gone from the list both the catalog renderer and the pinned-skill
+    /// `.find()` read from.
+    #[test]
+    fn excluded_skill_is_absent_and_therefore_unpinnable() {
+        let manifests = vec![manifest("ponytail"), manifest("brainstorming")];
+        let filtered = filter_excluded_skills(manifests, &["ponytail".to_string()]);
+        assert!(filtered.iter().all(|m| m.id != "ponytail"));
+        assert!(filtered.iter().any(|m| m.id == "brainstorming"));
+        // The pinned-skill lookup in `build_system_prompt_with_skill` is
+        // `manifests.iter().find(|m| m.id == pinned || m.name == pinned)` —
+        // proving it against the SAME filtered list is what makes "cannot be
+        // pinned" a real assertion, not just a catalog-rendering one.
+        assert!(filtered.iter().find(|m| m.id == "ponytail").is_none());
+    }
+
+    #[test]
+    fn no_exclusions_is_a_no_op() {
+        let manifests = vec![manifest("a"), manifest("b")];
+        let filtered = filter_excluded_skills(manifests, &[]);
+        assert_eq!(filtered.len(), 2);
+    }
 }
 
 /// Like [`build_system_prompt`], but injects the full body of a user-pinned
@@ -100,6 +162,7 @@ pub(crate) async fn build_system_prompt_with_skill(
     session_id: Option<&str>,
     pinned_skill: Option<&str>,
     model_key: Option<&str>,
+    excluded_skills: &[String],
 ) -> String {
     let ws_root = state
         .workspace_root
@@ -146,7 +209,10 @@ pub(crate) async fn build_system_prompt_with_skill(
     // know which skills exist. Alphabetical + capped → cache-prefix stable.
     // One registry read, reused below for the pinned-skill lookup.
     let reg = &state.orchestrator.skill_registry;
-    let manifests = reg.list(None);
+    // Filtered once here: both the tier-1 catalog below and the pinned-skill
+    // lookup (`manifests.iter().find(...)`) read from this same, already-
+    // excluded list — see `filter_excluded_skills`'s doc comment.
+    let manifests = filter_excluded_skills(reg.list(None), excluded_skills);
     // Task 3.1: join against `reliability_scores` (`entity_type = 'skill'`) so
     // the catalog ranks by reliability rather than alphabet. No producer has
     // written skill rows yet, so this is typically empty — every skill then
@@ -401,6 +467,9 @@ mod routing_tests {
             clutch: None,
             risk: None,
             skill_exclusions: vec![],
+            mode: None,
+            priority: None,
+            dry_run: None,
             force_research: None,
             research_scope: None,
         };
@@ -428,6 +497,9 @@ mod routing_tests {
             clutch: None,
             risk: None,
             skill_exclusions: vec![],
+            mode: None,
+            priority: None,
+            dry_run: None,
             force_research: None,
             research_scope: None,
         };

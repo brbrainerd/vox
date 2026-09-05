@@ -20,6 +20,11 @@ extension-points = ["MeshDriver"]
 [plugin.payload.code.artifacts]
 "windows-x86_64" = "vox_plugin_populi_mesh.dll"
 "linux-x86_64"   = "libvox_plugin_populi_mesh.so"
+# The transport is pure Rust/axum — there was never a platform reason to omit
+# macOS. Without these keys the host loader errors with "no artifact for target
+# triple 'macos-aarch64'", so mesh could not load on any Mac.
+"macos-aarch64"  = "libvox_plugin_populi_mesh.dylib"
+"macos-x86_64"   = "libvox_plugin_populi_mesh.dylib"
 
 [plugin.payload.skill]
 format-version = 1

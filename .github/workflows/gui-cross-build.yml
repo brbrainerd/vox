@@ -84,7 +84,7 @@ jobs:
 
       - uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: 11
 
       - uses: actions/setup-node@v6
         with:
@@ -97,6 +97,16 @@ jobs:
           cd crates/vox-gui/ui
           pnpm install --prefer-offline
           pnpm run build
+
+      # Asset-level guards for the Tauri shell. Lives here rather than in a
+      # workspace-check lane because compiling any vox-gui target runs tauri-build,
+      # which embeds `ui/dist` — gitignored, so it only exists after the pnpm step
+      # above. `png_icons_are_8_bit` catches 16-bit PNGs, which tao rejects inside
+      # the macOS did_finish_launching delegate as a non-unwinding panic: the app
+      # aborts before a window appears, and Windows never sees it because it loads
+      # icon.ico instead.
+      - name: Tauri prerequisites (icon bit depth, sidecar paths)
+        run: cargo test -p vox-gui --test gui_tauri_prereqs
 
       - name: Build vox CLI sidecar (release)
         run: cargo build -p vox-cli --release --target ${{ matrix.target }}

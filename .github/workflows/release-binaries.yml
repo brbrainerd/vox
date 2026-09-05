@@ -6,7 +6,7 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -29,7 +29,7 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            runs_on: '["self-hosted","linux","x64"]'
+            runs_on: '["ubuntu-latest"]'
           - target: x86_64-pc-windows-msvc
             runs_on: '["windows-latest"]'
           - target: x86_64-apple-darwin
@@ -38,6 +38,11 @@ jobs:
             runs_on: '["macos-latest"]'
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         # Pinned, not @stable: shipped artifacts must be built by the same compiler
@@ -47,6 +52,16 @@ jobs:
         with:
           toolchain: "1.96.0"
           targets: ${{ matrix.target }}
+
+      - name: Install system deps (libdbus/GTK)
+        # vox-cli pulls in glib-sys transitively; the self-hosted fleet image
+        # this Linux leg used to run on had these preinstalled, ubuntu-latest
+        # doesn't. Same package list as release-installers.yml's
+        # build-linux-deb job, which hit and fixed the identical gap for the
+        # same crate. Linux-only: Windows/macOS legs of this matrix don't
+        # need it and `apt-get` doesn't exist there.
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
       - name: Build and package release artifacts (core + plugins)
         # `--package all` produces: vox, vox-ml-cli. voxup is built separately below.
@@ -168,14 +183,132 @@ jobs:
   #
   # One lane only: `cargo test --profile dist` across the workspace would
   # fat-LTO-link each of the 80+ integration targets against a 1656-package
-  # graph, exceeding the 14 GB runner budget (runner_scale.rs MEM_PER_RUNNER,
-  # whose own test cites a measured ~12 GB peak at THIN LTO).
+  # graph.
   #
-  # No rust-toolchain step: the fleet image ships the pinned 1.96.0 toolchain
-  # and rust-toolchain.toml is authoritative.
+  # 2026-08-23: moved off [self-hosted, linux, x64] to ubuntu-latest -- the
+  # self-hosted fleet's Linux queue never picked up a release-tag run (one
+  # recorded attempt queued 24:00:00 with zero pickup). NOTE: the 14 GB
+  # self-hosted budget this job used to cite (runner_scale.rs MEM_PER_RUNNER,
+  # measured from a THIN-LTO `cargo doc` workload, not this job's FAT-LTO
+  # link) never actually applied to ubuntu-latest, and this job's real
+  # peak RSS under fat LTO has never been measured on ANY runner -- the
+  # 2026-05-26 self-hosted attempt queued forever and never reached the
+  # link step. ubuntu-latest is nominally 16 GB; if this job OOMs there,
+  # that is new, useful information the self-hosted hang never gave us.
+  gpu-plugin-metal:
+    name: Build mens-candle-metal plugin (${{ matrix.triple }})
+    runs-on: macos-latest
+    timeout-minutes: 240
+    # Non-blocking: a plugin build failure must never take down the core
+    # vox/vox-ml-cli/voxup release. Job-level continue-on-error sets the job
+    # conclusion to success for `needs:` resolution, so publish still WAITS
+    # for it (no race where checksums.txt is built before the zip exists)
+    # without being blocked by it.
+    continue-on-error: true
+    # Both arches: Plugin.toml declares macos-aarch64 AND macos-x86_64, and
+    # current_target_triple() will resolve to macos-x86_64 on an Intel Mac.
+    # Building only the runner's native arch guarantees a 404 for those users.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - triple: macos-aarch64
+            rust_target: aarch64-apple-darwin
+          - triple: macos-x86_64
+            rust_target: x86_64-apple-darwin
+    env:
+      # Same RSS reason as the build/dist-verify jobs: .cargo/config.toml sets
+      # [build] jobs = 24 repo-wide, which would run 24 rustc processes on a
+      # 4-core hosted runner against a fat-LTO, codegen-units=1 profile.
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+          targets: ${{ matrix.rust_target }}
+
+      - name: Build the Metal cdylib
+        run: cargo build -p vox-plugin-mens-candle-metal --profile dist --features metal --target ${{ matrix.rust_target }}
+
+      - name: Package the plugin zip
+        # Flat by construction: Plugin.toml and the cdylib go into an empty
+        # staging dir and are zipped with -j (junk paths). install_from_path
+        # reads ONLY top-level files -- anything nested extracts fine and is
+        # then silently ignored, producing an install that appears to succeed.
+        run: |
+          set -euo pipefail
+          version="$(cargo pkgid -p vox-plugin-mens-candle-metal | sed -E 's/.*[#@]//')"
+          staging="$(mktemp -d)"
+          cp crates/vox-plugin-mens-candle-metal/Plugin.toml "$staging/"
+          cp "target/${{ matrix.rust_target }}/dist/libvox_plugin_mens_candle_metal.dylib" "$staging/"
+          mkdir -p dist
+          zip -j "dist/mens-candle-metal-v${version}-${{ matrix.triple }}.zip" "$staging"/*
+          echo "Packaged: mens-candle-metal-v${version}-${{ matrix.triple }}.zip"
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-gpu-metal-${{ matrix.triple }}
+          path: dist/mens-candle-metal-v*.zip
+          if-no-files-found: error
+
+  gpu-plugin-cuda:
+    name: Build mens-candle-cuda plugin
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    # See gpu-plugin-metal -- same non-blocking contract. CUDA is the least
+    # proven part of this plan: no workflow in this repo has ever installed a
+    # CUDA toolkit on a hosted runner, and the only CUDA-compiling job in CI
+    # runs on the self-hosted fleet this whole effort routes around.
+    continue-on-error: true
+    env:
+      CARGO_BUILD_JOBS: "2"
+      # candle-kernels/bindgen_cuda derives the target compute capability from
+      # this env var or from nvidia-smi. A hosted runner has no GPU and no
+      # nvidia-smi, so without this the build fails even when the toolkit
+      # installs cleanly. 80 = Ampere (A100/A10), a reasonable default target.
+      CUDA_COMPUTE_CAP: "80"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+
+      - name: Install CUDA toolkit
+        uses: Jimver/cuda-toolkit@v0.2.24
+        with:
+          cuda: "12.4.0"
+          method: "network"
+
+      - name: Build the CUDA cdylib
+        run: cargo build -p vox-plugin-mens-candle-cuda --profile dist --features cuda
+
+      - name: Package the plugin zip
+        run: |
+          set -euo pipefail
+          version="$(cargo pkgid -p vox-plugin-mens-candle-cuda | sed -E 's/.*[#@]//')"
+          staging="$(mktemp -d)"
+          cp crates/vox-plugin-mens-candle-cuda/Plugin.toml "$staging/"
+          cp target/dist/libvox_plugin_mens_candle_cuda.so "$staging/"
+          mkdir -p dist
+          zip -j "dist/mens-candle-cuda-v${version}-linux-x86_64.zip" "$staging"/*
+          echo "Packaged: mens-candle-cuda-v${version}-linux-x86_64.zip"
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-gpu-cuda
+          path: dist/mens-candle-cuda-v*.zip
+          if-no-files-found: error
+
   dist-verify:
     name: dist verification (fat LTO)
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     # ~90-180m dep compile at codegen-units=1 + a serial fat-LTO link + the e2e
     # test target. CARGO_BUILD_JOBS caps the dep phase for RSS headroom.
     timeout-minutes: 240
@@ -185,6 +318,24 @@ jobs:
       CARGO_BUILD_JOBS: "2"
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        # ubuntu-latest ships no pinned toolchain (the self-hosted fleet
+        # image this job used to run on did) -- pinned, not @stable, so
+        # shipped artifacts are built by the same compiler CI gates use.
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+
+      - name: Install system deps (libdbus/GTK)
+        # Same gap as the build job's Linux leg -- vox-cli pulls in glib-sys
+        # transitively, and this job also builds vox-cli directly.
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
       - name: Build the real dist binary
         # Feature set MUST match release_build.rs::build_and_package_binary.
@@ -197,11 +348,21 @@ jobs:
 
   publish:
     name: Publish GitHub release
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [build, dist-verify]
+    # gpu-plugin-* are continue-on-error, so listing them here only makes
+    # publish WAIT (so checksums.txt is generated after their zips exist) --
+    # it does not make publish depend on their success.
+    needs: [build, dist-verify, gpu-plugin-metal, gpu-plugin-cuda]
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
+        # fetch-depth: 0 — vox-build-meta derives the build number from
+        # `git rev-list --count HEAD`; checkout defaults to depth 1, which
+        # made every shipped binary report `+build.1`.
+        with:
+          fetch-depth: 0
 
       - uses: actions/download-artifact@v8
         with:
@@ -243,3 +404,12 @@ jobs:
             scripts/install.ps1
           generate_release_notes: true
           fail_on_unmatched_files: false
+          # softprops defaults to make_latest: true with no prerelease flag --
+          # a tag like v0.0.0-test (used for pipeline verification) would
+          # otherwise become the public "latest" release, servable to any
+          # real user's `voxup install` (which has no version-floor guard,
+          # unlike `voxup update`). Semver convention: a hyphenated tag
+          # (v1.2.3-rc1, v0.0.0-test) is a prerelease and never "latest";
+          # a plain tag (v1.2.3) is a real release and becomes latest.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          make_latest: ${{ !contains(github.ref_name, '-') }}

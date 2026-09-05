@@ -113,3 +113,52 @@ jobs:
         run: sccache --show-stats
       # Portability report (os_compat.py) removed from the per-merge path — the weekly
       # os-compat-report.yml is the canonical portability scan.
+
+  # The `cross-check` job above builds with `--workspace`, which unifies Cargo
+  # features across the entire graph — so a crate that under-declares a feature
+  # still compiles there. `vox-gamify` used `vox_db::paths` (gated behind vox-db's
+  # `host-integration`) without enabling it, and only broke when built from a graph
+  # that excludes vox-cli: `cargo install --path crates/vox-ml-cli` failed on a
+  # fresh macOS clone while all of CI stayed green.
+  #
+  # Build the installable leaf binaries STANDALONE (`-p`, no `--workspace`) so
+  # feature unification cannot mask an under-declared dependency again.
+  standalone-installables:
+    name: Standalone installable crates (no feature unification)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system deps (Linux — GTK/wry required)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+
+      # `-p` with no `--workspace`: each is a separate feature resolution, which is
+      # what `cargo install --path` does. `--all-targets` because plain `cargo check`
+      # skips tests and benches, where feature-gated code also rots.
+      - name: cargo check (standalone, per-crate)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo check --all-targets -p vox-ml-cli
+          cargo check --all-targets -p vox-ml-cli --features populi
+          cargo check --all-targets -p vox-gamify
+          cargo check --all-targets -p vox-orchestrator-d
+          # Installed by `vox plugin install`; both under-declared
+          # vox-db/host-integration and compiled only under feature unification.
+          cargo check --all-targets -p vox-plugin-mens-candle-metal
+          cargo check --all-targets -p vox-plugin-mens-candle-cuda
+
+      # NOTE: the vox-gui asset guards deliberately do NOT run here. Compiling any
+      # vox-gui target runs tauri-build, which embeds the gitignored `ui/dist` — it
+      # does not exist on a fresh checkout without a pnpm build, which is why the
+      # workspace check above excludes vox-gui too. Those guards live in
+      # gui-cross-build.yml, after its frontend build step.

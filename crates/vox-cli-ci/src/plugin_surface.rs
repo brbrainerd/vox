@@ -225,6 +225,10 @@ fn check_manifests(repo_root: &Path, surface: &Surface) -> Result<()> {
             }
         }
 
+        // macOS coverage: a code/composite plugin must ship a macos-* artifact (or be an
+        // approved, `requires.os`-declared non-macOS plugin).
+        violations.extend(macos_artifact_violation(path, &val));
+
         // artifact parity: every key is a canonical target triple, and every filename
         // follows the cdylib naming rule derived from the crate directory name.
         let crate_name = path
@@ -262,6 +266,84 @@ fn check_manifests(repo_root: &Path, surface: &Surface) -> Result<()> {
         );
     }
     Ok(())
+}
+
+/// The `<os>` segment of the canonical macOS target-triple keys. Triple keys are
+/// `<os>-<arch>` (see `vox_plugin_types::PLUGIN_TARGET_TRIPLES`) and `requires.os` uses the
+/// same OS token, so one constant covers both sides of the rule.
+const MACOS_OS: &str = "macos";
+
+/// Plugin ids reviewed and allowed to ship with no macOS artifact. Being listed here is
+/// **not** sufficient on its own: the manifest must also declare a `requires.os` that omits
+/// `"macos"`, so the exemption is visible in the manifest itself and a new plugin can't
+/// quietly drop macOS by adding a line to this list.
+const MACOS_ARTIFACT_OPT_OUT: &[&str] = &[
+    // NVIDIA CUDA runtime + cuBLAS have no macOS build; Macs are served by mens-candle-metal.
+    "mens-candle-cuda",
+    // NVIDIA NVML ships only with the Windows/Linux NVIDIA drivers; there is no macOS NVML.
+    "nvml-probe",
+];
+
+/// The canonical macOS triple keys, derived from the SSOT list rather than hand-listed.
+fn macos_triples() -> impl Iterator<Item = &'static str> {
+    vox_plugin_types::PLUGIN_TARGET_TRIPLES
+        .iter()
+        .copied()
+        .filter(|t| t.split('-').next() == Some(MACOS_OS))
+}
+
+/// macOS coverage: every code/composite plugin must declare at least one `macos-*` artifact
+/// key, unless it is an approved opt-out that *also* excludes macOS in `requires.os`.
+///
+/// Without this rule a manifest can list only `windows-*`/`linux-*` keys and still pass every
+/// other gate — each key it *does* list is a valid triple with a correct filename — while the
+/// host loader fails at runtime with "no artifact for target triple 'macos-aarch64'". That is
+/// exactly how `populi-mesh` shipped unloadable on every Mac.
+///
+/// Handles both manifest shapes: `[plugin.payload.artifacts]` (`kind = "code"`) and
+/// `[plugin.payload.code.artifacts]` (`kind = "composite"`), matching the host loader.
+fn macos_artifact_violation(path: &Path, val: &toml::Value) -> Option<String> {
+    let plugin = val.get("plugin")?;
+    let payload = plugin.get("payload")?;
+    let kind = payload.get("kind").and_then(|k| k.as_str()).unwrap_or("");
+    if kind != "code" && kind != "composite" {
+        return None; // skill-only payloads ship no cdylib
+    }
+    let code = payload.get("code").unwrap_or(payload);
+
+    let has_macos = code
+        .get("artifacts")
+        .and_then(|a| a.as_table())
+        .is_some_and(|a| a.keys().any(|k| macos_triples().any(|m| m == k)));
+    if has_macos {
+        return None;
+    }
+
+    // Approved opt-out: an id on the reviewed list whose manifest also says, declaratively,
+    // that it does not run on macOS.
+    let id = plugin.get("id").and_then(|i| i.as_str()).unwrap_or("");
+    let excludes_macos_in_requires = code
+        .get("requires")
+        .and_then(|r| r.get("os"))
+        .and_then(|o| o.as_array())
+        .is_some_and(|oses| !oses.iter().any(|o| o.as_str() == Some(MACOS_OS)));
+    if MACOS_ARTIFACT_OPT_OUT.contains(&id) && excludes_macos_in_requires {
+        return None;
+    }
+
+    let expected: Vec<&str> = macos_triples().collect();
+    let mut msg = format!(
+        "{}: no macos artifact key — a {kind} plugin must declare at least one of {expected:?} \
+         or the host loader cannot load it on any Mac",
+        path.display()
+    );
+    if MACOS_ARTIFACT_OPT_OUT.contains(&id) {
+        msg.push_str(&format!(
+            " (plugin {id:?} is on the macOS opt-out list but its `requires.os` does not \
+             exclude {MACOS_OS:?}; both are required)"
+        ));
+    }
+    Some(msg)
 }
 
 /// manifest↔impl parity: a code/composite plugin's `provides.extension-points` must exactly
@@ -435,6 +517,106 @@ mod tests {
         assert_eq!(hw.name, "HardwareProbe");
         assert_eq!(hw.accessor, "as_hardware_probe");
         assert!(hw.methods.contains(&"probe_summary_json".to_string()));
+    }
+
+    /// A code plugin that ships Windows + Linux but no macOS artifact is the
+    /// `populi-mesh` bug: it loads everywhere except a Mac. The gate must reject it.
+    #[test]
+    fn windows_and_linux_only_manifest_is_rejected_for_missing_macos() {
+        let raw = r#"
+[plugin]
+id = "widget"
+[plugin.payload]
+kind = "code"
+abi-version = 12
+[plugin.payload.artifacts]
+"windows-x86_64" = "vox_plugin_widget.dll"
+"linux-x86_64" = "libvox_plugin_widget.so"
+"#;
+        let val = raw.parse::<toml::Value>().expect("parse");
+        let v = macos_artifact_violation(Path::new("crates/vox-plugin-widget/Plugin.toml"), &val)
+            .expect("windows+linux-only manifest must be a violation");
+        assert!(v.contains("macos"), "error must mention macos, got: {v}");
+    }
+
+    /// The composite shape nests artifacts one level deeper; the rule must see both.
+    #[test]
+    fn composite_payload_macos_key_is_seen() {
+        let ok = r#"
+[plugin]
+id = "widget"
+[plugin.payload]
+kind = "composite"
+[plugin.payload.code]
+abi-version = 12
+[plugin.payload.code.artifacts]
+"linux-x86_64" = "libvox_plugin_widget.so"
+"macos-aarch64" = "libvox_plugin_widget.dylib"
+"#;
+        let bad = ok.replace("\"macos-aarch64\" = \"libvox_plugin_widget.dylib\"", "");
+        let p = Path::new("crates/vox-plugin-widget/Plugin.toml");
+        assert!(macos_artifact_violation(p, &ok.parse().expect("parse")).is_none());
+        assert!(macos_artifact_violation(p, &bad.parse().expect("parse")).is_some());
+    }
+
+    /// Opting out needs BOTH the reviewed id and a `requires.os` that excludes macos —
+    /// neither half alone lets a plugin drop macOS.
+    #[test]
+    fn macos_opt_out_requires_both_the_list_and_requires_os() {
+        let manifest = |id: &str, oses: &str| {
+            format!(
+                r#"
+[plugin]
+id = "{id}"
+[plugin.payload]
+kind = "code"
+abi-version = 12
+[plugin.payload.requires]
+os = {oses}
+[plugin.payload.artifacts]
+"linux-x86_64" = "libvox_plugin_widget.so"
+"#
+            )
+        };
+        let p = Path::new("crates/vox-plugin-widget/Plugin.toml");
+        let parse = |s: String| s.parse::<toml::Value>().expect("parse");
+
+        // Approved id + macOS excluded in requires.os → exempt.
+        assert!(
+            macos_artifact_violation(p, &parse(manifest("nvml-probe", r#"["windows", "linux"]"#)))
+                .is_none()
+        );
+        // Approved id but requires.os still claims macOS → not exempt.
+        assert!(
+            macos_artifact_violation(
+                p,
+                &parse(manifest("nvml-probe", r#"["windows", "linux", "macos"]"#))
+            )
+            .is_some()
+        );
+        // Un-reviewed id can't exempt itself just by dropping macos from requires.os.
+        assert!(
+            macos_artifact_violation(p, &parse(manifest("widget", r#"["windows", "linux"]"#)))
+                .is_some()
+        );
+    }
+
+    /// Skill-only payloads ship no cdylib, so the rule must not fire on them.
+    #[test]
+    fn skill_payload_is_exempt_from_macos_rule() {
+        let raw = r#"
+[plugin]
+id = "skill-git"
+[plugin.payload]
+kind = "skill"
+format-version = 1
+skill-md = "git.skill.md"
+"#;
+        let val = raw.parse::<toml::Value>().expect("parse");
+        assert!(
+            macos_artifact_violation(Path::new("crates/vox-plugin-skill-git/Plugin.toml"), &val)
+                .is_none()
+        );
     }
 
     #[test]

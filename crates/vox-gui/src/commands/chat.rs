@@ -400,6 +400,11 @@ pub(crate) struct ParsedChatReply {
     pub(crate) model_id: Option<String>,
     pub(crate) latency_ms: Option<u64>,
     pub(crate) selection_reason: Option<String>,
+    /// Turn events derived from tool results this turn (Phase E Task E1) —
+    /// e.g. a skill-activation chip. Session-live only: not persisted into
+    /// `payload` by `persist_assistant_reply`, so it does not survive a
+    /// reload — reload persistence was not in the Task E1 Observable.
+    pub(crate) events: Vec<serde_json::Value>,
 }
 
 /// Extracts a [`ParsedChatReply`] from a `vox_chat_message` `ToolResult`
@@ -439,10 +444,16 @@ pub(crate) fn parse_chat_message_envelope(
         .get("selection_reason")
         .and_then(|v| v.as_str())
         .map(str::to_string);
+    let events = data
+        .get("events")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     Ok(ParsedChatReply {
         content,
         model_id,
         latency_ms,
+        events,
         selection_reason,
     })
 }

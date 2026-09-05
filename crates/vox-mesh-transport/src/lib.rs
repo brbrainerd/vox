@@ -1,11 +1,11 @@
-//! iroh QUIC mesh transport (ADR-046).
+//! iroh QUIC mesh transport (ADR-047).
 //!
 //! Replaces the hand-rolled HTTP control plane, ed25519 envelope, and JWT auth
 //! matrix that `vox populi` used to carry. iroh supplies transport, identity,
 //! and NAT traversal; vox keeps capability scheduling.
 //!
 //! Three invariants this crate exists to hold, all of them learned the hard way
-//! and recorded in [ADR-046](../../../docs/src/adr/046-iroh-transport.md):
+//! and recorded in [ADR-047](../../../docs/src/adr/047-iroh-transport.md):
 //!
 //! 1. **`presets::Minimal` only.** `presets::N0` adds pkarr publishing, DNS
 //!    address lookup, and n0's relay servers. The mesh must contact no third

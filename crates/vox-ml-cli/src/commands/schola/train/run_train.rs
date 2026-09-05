@@ -137,7 +137,7 @@ pub async fn run_train(
             #[cfg(not(feature = "mens-candle-cuda"))]
             anyhow::bail!(
                 "`--device cuda` for Candle QLoRA requires a CUDA-enabled build.\n\
-                 Rebuild: `cargo build -p vox-cli --features gpu,mens-candle-cuda` (or `cargo vox-cuda-release`).\n\
+                 Rebuild: `cargo build -p vox-ml-cli --features gpu,mens-candle-cuda` (or `cargo vox-cuda-release`).\n\
                  On Windows use a VS Developer shell so `nvcc` can find MSVC."
             );
             // Preflight: make sure the runtime cuda plugin is installed + loadable,
@@ -151,10 +151,30 @@ pub async fn run_train(
         }
         #[cfg(target_os = "macos")]
         if matches!(device_kind, vox_populi::mens::DeviceKind::Metal) {
-            #[cfg(not(feature = "mens-candle-metal"))]
+            // DEAD GATE REMOVED: this used to be `#[cfg(not(feature =
+            // "mens-candle-metal"))]`, but no such Cargo feature exists on
+            // vox-ml-cli (or any crate) — `mens-candle-metal` is a *runtime
+            // plugin* id (crates/vox-plugin-mens-candle-metal, see
+            // vox-plugin-catalog/catalog.toml), not a build feature. The
+            // negation was therefore always true, so the bail always fired
+            // while advertising an unbuildable remediation.
+            //
+            // The gate is now unconditional, which is behaviourally identical
+            // and honest: Metal QLoRA training genuinely has no backend today.
+            // vox-populi exposes `mens-candle-qlora-cuda` but no Metal twin
+            // (no `candle-core/metal` wiring), and the plugin's
+            // `run_train_step`/`run_eval_step` still return unimplemented
+            // pending the SP3-D host protocol
+            // (crates/vox-plugin-mens-candle-metal/src/training.rs). Declaring
+            // a `mens-candle-metal` feature here would only move the dead end.
+            // Re-gate this once vox-populi grows a Metal Candle backend.
             anyhow::bail!(
-                "`--device metal` for Candle QLoRA requires `mens-candle-metal`.\n\
-                 Rebuild: `cargo build -p vox-cli --features gpu,mens-candle-metal`."
+                "`--device metal` for Candle QLoRA is not supported yet: there is no \
+                 Metal-enabled Candle training backend in this build.\n\
+                 Use `--device cpu` on Apple Silicon, or `--device cuda` on an \
+                 NVIDIA host built with `cargo build -p vox-ml-cli --features gpu,mens-candle-cuda`.\n\
+                 (Tracking: vox-populi needs a Metal twin of `mens-candle-qlora-cuda`, and \
+                 the `mens-candle-metal` plugin needs the SP3-D training host protocol.)"
             );
         }
     }

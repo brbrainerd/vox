@@ -2,7 +2,7 @@
   "name": "vox-mental-tracker",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@9",
+  "packageManager": "pnpm@11",
   "type": "module",
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

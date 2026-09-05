@@ -49,7 +49,7 @@ pub trait JobExecutor: Send + Sync + 'static {
 /// Bind a mesh endpoint.
 ///
 /// `presets::Minimal` is not a default to be revisited — it is the whole
-/// isolation guarantee. See the crate docs and ADR-046.
+/// isolation guarantee. See the crate docs and ADR-047.
 pub async fn bind(sk: SecretKey) -> Result<Endpoint> {
     let ep = Endpoint::builder(presets::Minimal)
         .secret_key(sk)
@@ -146,7 +146,7 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
     // `finish()` signals end-of-stream; it does NOT flush. Dropping the
     // Connection here would close it before the bytes reach the wire and the
     // peer would see `closed by peer: 0` with no payload. Measured during the
-    // Task 0.2 spike; see ADR-046.
+    // Task 0.2 spike; see ADR-047.
     conn.closed().await;
     Ok(())
 }

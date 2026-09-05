@@ -19,6 +19,11 @@ body = """
 trim = true
 
 [git]
+# Only plain vX.Y.Z tags are release predecessors. Without this, a `-rc.N` tag
+# landing on the release branch would be chosen as the base and --bumped-version
+# would emit another prerelease — reintroducing the /releases/latest 404 that
+# both installers had to work around.
+tag_pattern = "v[0-9]*.[0-9]*.[0-9]*"
 conventional_commits = true
 filter_unconventional = true
 commit_preprocessors = [

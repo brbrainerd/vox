@@ -40,6 +40,15 @@ pub struct SubagentTreeNode {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_task_id: Option<u64>,
     pub reason: String,
+    /// Chat session that originated this delegation (Phase D Task D1/D3), when
+    /// the spawn happened inside a chat turn. `None` for spawns with no chat
+    /// origin (e.g. scaling/handoff spawns).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_session_id: Option<String>,
+    /// Provider tool-call id of the spawn request, for correlating this edge
+    /// back to the exact turn (Phase D Task D1/D3).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin_turn_id: Option<String>,
 }
 
 /// Returns the current subagent delegation tree from the orchestrator.

@@ -269,12 +269,31 @@ mod tests {
 
 #[cfg(test)]
 mod semcov_wave2_tests {
-    // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
+    // These tests mutate PROCESS-GLOBAL env vars. `cargo test` runs them on a
+    // thread pool, not single-threaded as an earlier comment here claimed — one
+    // test removing VOX_MESH_ADVERTISE_GPU raced a sibling setting it, and
+    // `apply_mesh_env_does_not_set_flag_when_env_absent` failed intermittently
+    // (reproduced: 2 of 5 parallel runs on an 18-core host; always green under
+    // --test-threads=1). Every test that touches the environment must hold
+    // ENV_LOCK for the whole set/act/assert sequence.
     #![allow(unused_imports, unsafe_code)]
     use super::*;
+    use std::sync::{Mutex, MutexGuard, OnceLock};
+
+    fn env_lock() -> MutexGuard<'static, ()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        // A panicking test poisons the lock; the guarded state is the process
+        // environment, which each test sets before reading, so recovering is safe
+        // and avoids one failure cascading into three misleading ones.
+        ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
 
     #[test]
     fn apply_mesh_env_sets_gpu_cuda_when_env_is_one() {
+        let _guard = env_lock();
         unsafe { std::env::set_var("VOX_MESH_ADVERTISE_GPU", "1") };
         let mut h = TaskCapabilityHints::default();
         apply_mesh_capability_env(&mut h);
@@ -284,6 +303,7 @@ mod semcov_wave2_tests {
 
     #[test]
     fn apply_mesh_env_sets_gpu_cuda_when_env_is_true_mixed_case() {
+        let _guard = env_lock();
         unsafe { std::env::set_var("VOX_MESH_ADVERTISE_GPU", "True") };
         let mut h = TaskCapabilityHints::default();
         apply_mesh_capability_env(&mut h);
@@ -293,6 +313,7 @@ mod semcov_wave2_tests {
 
     #[test]
     fn apply_mesh_env_does_not_set_flag_when_env_absent() {
+        let _guard = env_lock();
         unsafe { std::env::remove_var("VOX_MESH_ADVERTISE_GPU") };
         let mut h = TaskCapabilityHints::default();
         apply_mesh_capability_env(&mut h);
@@ -301,6 +322,7 @@ mod semcov_wave2_tests {
 
     #[test]
     fn apply_mesh_env_sets_device_class_from_env() {
+        let _guard = env_lock();
         unsafe { std::env::set_var("VOX_MESH_DEVICE_CLASS", "server") };
         let mut h = TaskCapabilityHints::default();
         apply_mesh_capability_env(&mut h);

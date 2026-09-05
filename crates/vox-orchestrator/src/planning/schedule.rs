@@ -23,6 +23,12 @@ fn row_to_plan_node(row: &PlanNodeRow) -> Result<PlanNode, OrchestratorError> {
         "failed" => PlanStatus::Failed,
         "cancelled" => PlanStatus::Cancelled,
         "superseded" => PlanStatus::Superseded,
+        // Not runnable — the one call site above only reaches here for rows
+        // already filtered to `status == "pending"`, so this never actually
+        // fires today. Named explicitly (instead of falling through to the
+        // wildcard below) so a future second call site doesn't silently
+        // schedule an unapproved node by aliasing it to Pending.
+        "blocked_on_approval" => PlanStatus::Pending,
         _ => PlanStatus::Pending,
     };
     Ok(PlanNode {

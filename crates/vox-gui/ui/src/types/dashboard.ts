@@ -49,6 +49,20 @@ export interface StreamItem {
   metadata?: Record<string, any>;
 }
 
+/** A chat-turn-visible event derived from a tool call's RESULT (never its
+ *  arguments alone) — see Rust `turn_event_for_result`
+ *  (`crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs`). Shape
+ *  is intentionally open (`kind` is a free string, not a union) so an
+ *  unrecognized future `kind` renders as a no-op chip instead of a crash —
+ *  see `ChatTurnEventRow`. */
+export interface TurnEventDto {
+  kind: string;
+  /** Present when `kind === 'skill_activated'`. Always a validated slug or
+   *  the literal `"unknown"` — never raw, untrusted tool-call content. */
+  skill_id?: string;
+  [key: string]: unknown;
+}
+
 export interface LudusAlert {
   id: string;
   level: 'ok' | 'warn' | 'info' | 'error';

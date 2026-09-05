@@ -38,6 +38,76 @@ fn pass_rate(run: &vox_db::HarnessEvalRunRecord) -> f64 {
     (run.pass_count as f64 / graded as f64) * 100.0
 }
 
+/// Task M3: unbiased pass@k estimator (Chen et al. 2021, "Evaluating Large Language Models
+/// Trained on Code", eq. 1) for one task's `n` total samples and `c` passing ones. Using
+/// `c/n >= threshold` instead would need `k` *independently drawn* reruns to be unbiased;
+/// this needs only the single `n`-sample batch already recorded.
+///
+/// Returns `None` when `k > n` — not enough samples were drawn to estimate at that `k`.
+fn pass_at_k(n: i64, c: i64, k: i64) -> Option<f64> {
+    if k > n || n <= 0 || k <= 0 {
+        return None;
+    }
+    if n - c < k {
+        // Fewer than k failures exist, so every size-k sample includes at least one pass.
+        return Some(1.0);
+    }
+    let mut prob_all_fail = 1.0;
+    for i in 0..k {
+        prob_all_fail *= (n - c - i) as f64 / (n - i) as f64;
+    }
+    Some(1.0 - prob_all_fail)
+}
+
+/// Task M3: mean pass@k across every task in a run for which `k <= total_samples` — tasks
+/// sampled fewer than `k` times are excluded rather than treated as 0, since "not enough
+/// samples to know" and "known to always fail" are different facts. `None` when no task in
+/// the run has enough samples for this `k`.
+fn mean_pass_at_k(task_results: &[vox_db::HarnessEvalTaskResultRecord], k: i64) -> Option<f64> {
+    let scores: Vec<f64> = task_results
+        .iter()
+        .filter_map(|t| pass_at_k(t.total_samples, t.pass_samples, k))
+        .collect();
+    if scores.is_empty() {
+        return None;
+    }
+    Some(scores.iter().sum::<f64>() / scores.len() as f64)
+}
+
+/// Task M3: `pass^k` — the probability that **all** `k` drawn samples pass, i.e.
+/// `C(c,k)/C(n,k)`. The reliability sibling of [`pass_at_k`] ("at least one of `k` passes");
+/// the two answer opposite questions and `pass^k <= pass@k` always.
+///
+/// `None` when `k > n` (not enough samples drawn) or when `c > n` (more passes than samples —
+/// DB data, not an invariant; without the guard the product exceeds 1.0).
+fn pass_hat_k(n: i64, c: i64, k: i64) -> Option<f64> {
+    if k > n || n <= 0 || k <= 0 || c > n || c < 0 {
+        return None;
+    }
+    if c < k {
+        // Fewer than k passes exist, so no size-k draw can be all-passes.
+        return Some(0.0);
+    }
+    let mut prob_all_pass = 1.0;
+    for i in 0..k {
+        prob_all_pass *= (c - i) as f64 / (n - i) as f64;
+    }
+    Some(prob_all_pass)
+}
+
+/// Task M3: mean `pass^k` over every task with at least `k` samples. Same exclusion rule as
+/// [`mean_pass_at_k`] — an undersampled task is unknown, not a failure.
+fn mean_pass_hat_k(task_results: &[vox_db::HarnessEvalTaskResultRecord], k: i64) -> Option<f64> {
+    let scores: Vec<f64> = task_results
+        .iter()
+        .filter_map(|t| pass_hat_k(t.total_samples, t.pass_samples, k))
+        .collect();
+    if scores.is_empty() {
+        return None;
+    }
+    Some(scores.iter().sum::<f64>() / scores.len() as f64)
+}
+
 fn free_cheap_ratio(events: &[vox_db::ModelSelectionEventRecord]) -> f64 {
     let non_privacy_forced: Vec<_> = events.iter().filter(|e| !e.was_privacy_gated).collect();
     if non_privacy_forced.is_empty() {
@@ -264,6 +334,30 @@ pub async fn run_report(args: ReportArgs) -> anyhow::Result<()> {
         &current_events,
         &changed_files,
     );
+    // Reported per metric rather than under one shared reason: both need a task sampled >= 3x,
+    // but `pass_hat_k` additionally rejects records with `pass_samples > total_samples` (DB data,
+    // explicitly not an invariant), so `pass^3` can be unavailable while `pass@3` is not — in
+    // which case a shared "no task sampled >= 3x" would be a false reason.
+    if let Some(p1) = mean_pass_at_k(&current_task_results, 1) {
+        let pct_or = |v: Option<f64>, reason: &str| {
+            v.map_or_else(
+                || format!("insufficient data ({reason})"),
+                |x| format!("{:.1}%", x * 100.0),
+            )
+        };
+        println!(
+            "pass@1: {:.1}%  pass@3: {}  pass^3: {}",
+            p1 * 100.0,
+            pct_or(
+                mean_pass_at_k(&current_task_results, 3),
+                "no task sampled >= 3x"
+            ),
+            pct_or(
+                mean_pass_hat_k(&current_task_results, 3),
+                "no task has 3+ samples with a valid pass count"
+            )
+        );
+    }
     if flags.is_empty() {
         println!(
             "no regressions detected between {} and {}",
@@ -340,6 +434,178 @@ mod tests {
             failure_detail: None,
             recorded_at_ms: 1000,
         }
+    }
+
+    #[test]
+    fn pass_at_k_returns_none_when_k_exceeds_samples_drawn() {
+        assert_eq!(pass_at_k(1, 1, 3), None);
+        assert_eq!(pass_at_k(2, 0, 3), None);
+    }
+
+    #[test]
+    fn pass_at_k_matches_naive_ratio_when_k_equals_1() {
+        // pass@1 with n samples and c passes reduces to the plain success ratio.
+        assert_eq!(pass_at_k(4, 2, 1), Some(0.5));
+        assert_eq!(pass_at_k(5, 5, 1), Some(1.0));
+        assert_eq!(pass_at_k(5, 0, 1), Some(0.0));
+    }
+
+    #[test]
+    fn pass_at_k_is_one_when_failures_are_fewer_than_k() {
+        // Only 1 failure exists among 5 samples, so every 3-sample draw includes a pass.
+        assert_eq!(pass_at_k(5, 4, 3), Some(1.0));
+    }
+
+    #[test]
+    fn pass_at_k_of_all_failures_is_zero() {
+        assert_eq!(pass_at_k(5, 0, 3), Some(0.0));
+    }
+
+    #[test]
+    fn mean_pass_at_k_excludes_undersampled_tasks_rather_than_scoring_them_zero() {
+        let results = vec![
+            {
+                let mut t = task_result("t1", "pass");
+                t.total_samples = 1;
+                t.pass_samples = 1;
+                t
+            },
+            {
+                let mut t = task_result("t2", "pass");
+                t.total_samples = 3;
+                t.pass_samples = 3;
+                t
+            },
+        ];
+        // pass@3 only has one task with >= 3 samples (t2, always passes) -- t1 must be
+        // excluded, not counted as a 0.
+        assert_eq!(mean_pass_at_k(&results, 3), Some(1.0));
+    }
+
+    #[test]
+    fn mean_pass_at_k_is_none_when_no_task_has_enough_samples() {
+        let results = vec![{
+            let mut t = task_result("t1", "pass");
+            t.total_samples = 1;
+            t.pass_samples = 1;
+            t
+        }];
+        assert_eq!(mean_pass_at_k(&results, 3), None);
+    }
+
+    #[test]
+    fn pass_hat_k_is_probability_that_all_k_drawn_samples_pass() {
+        // C(4,3)/C(5,3) = 4/10. Kills: a step function (c>=k -> 1.0) returns 1.0; a swapped
+        // numerator (n-i)/(c-i) returns 2.5; a copy-paste of pass_at_k returns 1.0 (its
+        // n-c<k early return fires here).
+        let got = pass_hat_k(5, 4, 3).expect("computable");
+        assert!((got - 0.4).abs() < 1e-12, "expected 0.4, got {got}");
+    }
+
+    #[test]
+    fn pass_hat_k_reduces_to_the_plain_pass_ratio_at_k_equals_1() {
+        // C(c,1)/C(n,1) = c/n. Pins k as a real parameter: an implementation that ignores `k`
+        // and hardcodes a 3-term product passes every other test in this file.
+        assert_eq!(pass_hat_k(4, 2, 1), Some(0.5));
+        assert_eq!(pass_hat_k(5, 4, 1), Some(0.8));
+    }
+
+    #[test]
+    fn pass_hat_k_falls_as_k_rises_for_the_same_record() {
+        // 5 samples, 4 passes: k=1 -> 4/5 = .8; k=2 -> .6; k=3 -> .4; k=4 -> .2.
+        for (k, want) in [(1_i64, 0.8_f64), (2, 0.6), (3, 0.4), (4, 0.2)] {
+            let got = pass_hat_k(5, 4, k).expect("k <= n");
+            assert!(
+                (got - want).abs() < 1e-12,
+                "k={k}: expected {want}, got {got}"
+            );
+        }
+        assert_eq!(
+            pass_hat_k(5, 4, 5),
+            Some(0.0),
+            "c=4 < k=5: no all-pass draw exists"
+        );
+    }
+
+    #[test]
+    fn pass_hat_k_is_one_only_when_every_sample_passed() {
+        assert_eq!(pass_hat_k(3, 3, 3), Some(1.0));
+        assert_eq!(pass_hat_k(5, 5, 3), Some(1.0));
+    }
+
+    #[test]
+    fn pass_hat_k_is_zero_when_fewer_than_k_samples_passed() {
+        // Also kills the with-replacement form (c/n)^k, which would give (2/5)^3 = 0.064.
+        assert_eq!(pass_hat_k(5, 2, 3), Some(0.0));
+        assert_eq!(pass_hat_k(5, 0, 3), Some(0.0));
+    }
+
+    #[test]
+    fn pass_hat_k_returns_none_when_k_exceeds_samples_drawn() {
+        assert_eq!(pass_hat_k(2, 2, 3), None);
+        assert_eq!(pass_hat_k(0, 0, 3), None);
+    }
+
+    #[test]
+    fn pass_hat_k_rejects_more_passes_than_samples() {
+        // `pass_samples > total_samples` is DB data, not a proven invariant. Without a guard the
+        // product runs anyway: (7/5)(6/4)(5/3) = 3.5, outside [0,1]. `pass_at_k` is accidentally
+        // safe here (its n-c<k branch catches it); this one is not.
+        assert_eq!(pass_hat_k(5, 7, 3), None);
+    }
+
+    #[test]
+    fn pass_hat_k_never_exceeds_pass_at_k_and_both_stay_in_unit_range() {
+        // All four pairs yield Some from BOTH functions, so no .expect() panics:
+        //   (5,4): at=1.000000 hat=0.400000   (10,7): at=0.991667 hat=0.291667
+        //   (20,13): at=0.969298 hat=0.250877 (4,2):  at=1.000000 hat=0.000000
+        for (n, c) in [(5_i64, 4_i64), (10, 7), (20, 13), (4, 2)] {
+            let at = pass_at_k(n, c, 3).expect("pass@3");
+            let hat = pass_hat_k(n, c, 3).expect("pass^3");
+            assert!(
+                hat <= at,
+                "pass^3 ({hat}) must not exceed pass@3 ({at}) for n={n}, c={c}"
+            );
+            // Both bounds on both values -- the earlier draft checked only hat's floor and at's
+            // ceiling, i.e. exactly the two halves the swapped-numerator bug cannot violate.
+            assert!(
+                (0.0..=1.0).contains(&hat),
+                "pass^3 out of [0,1]: {hat} for n={n}, c={c}"
+            );
+            assert!(
+                (0.0..=1.0).contains(&at),
+                "pass@3 out of [0,1]: {at} for n={n}, c={c}"
+            );
+        }
+    }
+
+    #[test]
+    fn mean_pass_hat_k_averages_over_only_the_qualifying_tasks() {
+        // t1: 1 sample  -> excluded (not scored 0, not in the denominator)
+        // t2: 5 samples, 4 passes -> 0.4
+        // t3: 3 samples, 3 passes -> 1.0
+        // Correct mean = 0.7. Kills: scoring t1 as 0 -> 0.4667; max() -> 1.0; first() -> 0.4;
+        // last() -> 1.0. The earlier draft's only mean test was {excluded, 1.0} -> 1.0, which
+        // every one of those survives.
+        let mut t1 = task_result("t1", "pass");
+        t1.total_samples = 1;
+        t1.pass_samples = 1;
+        let mut t2 = task_result("t2", "pass");
+        t2.total_samples = 5;
+        t2.pass_samples = 4;
+        let mut t3 = task_result("t3", "pass");
+        t3.total_samples = 3;
+        t3.pass_samples = 3;
+        let got = mean_pass_hat_k(&[t1, t2, t3], 3).expect("two tasks qualify");
+        assert!((got - 0.7).abs() < 1e-12, "expected 0.7, got {got}");
+    }
+
+    #[test]
+    fn mean_pass_hat_k_is_none_when_no_task_has_enough_samples() {
+        let mut t1 = task_result("t1", "pass");
+        t1.total_samples = 1;
+        t1.pass_samples = 1;
+        assert_eq!(mean_pass_hat_k(&[t1], 3), None);
     }
 
     #[test]

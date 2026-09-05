@@ -26,7 +26,7 @@ pub async fn run(id: &str, yes: bool) -> Result<()> {
         }
 
         println!("  installing {} …", p.id);
-        match install::run(Some(&p.id), None, None, yes).await {
+        match install::run(Some(&p.id), None, None, yes, false).await {
             Ok(()) => {
                 installed_count += 1;
             }

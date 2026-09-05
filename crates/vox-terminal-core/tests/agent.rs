@@ -15,6 +15,7 @@ fn token_streamed_maps_to_agent_message() {
         kind: AgentEventKind::TokenStreamed {
             agent_id: fake_agent_id(),
             text: "hello world".into(),
+            session_id: None,
         },
     };
     let cfg = AgentAdapterConfig { agent_id: None };

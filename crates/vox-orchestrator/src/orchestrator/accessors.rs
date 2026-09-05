@@ -389,6 +389,8 @@ impl Orchestrator {
                 child_agent_id: *child,
                 source_task_id: binding.source_task_id,
                 reason: binding.reason.clone(),
+                chat_session_id: binding.chat_session_id.clone(),
+                origin_turn_id: binding.origin_turn_id.clone(),
             })
             .collect();
         delegation_edges.sort_by_key(|e| (e.parent_agent_id.0, e.child_agent_id.0));

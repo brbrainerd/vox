@@ -13,7 +13,7 @@
 # Version SSOTs (keep aligned with the rest of the repo):
 #   - Rust 1.96.0          → root Dockerfile (`rust:1.96.0-slim-bookworm`) / rust-toolchain.toml / contracts SSOT
 #   - Node 24              → docs-quality.yml / docs-deploy.yml `node-version: 24`
-#   - pnpm 9               → ci.yml / docs-quality.yml `pnpm/action-setup@v6` `version: 9`
+#   - pnpm 11              → ci.yml / docs-quality.yml `pnpm/action-setup@v6` `version: 11`
 #   - Ubuntu 24.04         → matches `ubuntu-latest` on GitHub-hosted (2026-Q2)
 
 ARG RUST_VERSION=1.96.0
@@ -59,10 +59,10 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
     --component rustfmt,clippy,llvm-tools-preview \
     && rustup show
 
-# Node 24 + pnpm 9 (matches ci.yml / docs-quality.yml SSOT)
+# Node 24 + pnpm 11 (matches ci.yml / docs-quality.yml SSOT)
 RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y nodejs \
-    && npm install -g pnpm@9 \
+    && npm install -g pnpm@11 \
     && rm -rf /var/lib/apt/lists/*
 
 # cargo-nextest + cargo-llvm-cov + cargo-hakari (pinned tools used in ci.yml)

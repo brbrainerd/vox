@@ -8,6 +8,12 @@ export interface SubagentTreeEdge {
   parent_agent_id?: number | null;
   source_task_id?: number | null;
   reason: string;
+  /** Chat session that originated this delegation (Phase D Task D1/D3), when
+   *  the spawn happened inside a chat turn. */
+  chat_session_id?: string | null;
+  /** Provider tool-call id of the spawn request, for correlating this edge
+   *  back to the exact turn (Phase D Task D1/D3). */
+  origin_turn_id?: string | null;
 }
 
 /** Map the orchestrator's flat delegation edges into the SubAgentNode tree. */
@@ -51,14 +57,22 @@ export function buildSubAgentTree(edges: SubagentTreeEdge[]): SubAgentNode[] {
   return roots;
 }
 
-export async function fetchTree(): Promise<SubAgentNode[]> {
+/** Raw delegation edges, straight from the daemon — unlike `fetchTree()`,
+ *  which discards `chat_session_id`/`origin_turn_id` while building the
+ *  windowed `SubAgentNode[]` tree. Callers that need to correlate a spawn back
+ *  to the chat turn/session that caused it (Phase D Task D3 — e.g.
+ *  `agentsForSession`/`pausedAgentForSession`) should use this, not `fetchTree()`. */
+export async function fetchEdges(): Promise<SubagentTreeEdge[]> {
   const edges = await invoke<SubagentTreeEdge[]>('list_subagent_tree');
   if (!Array.isArray(edges)) {
-    // A resolved non-array payload likely means a frontend/backend version
-    // skew rather than "no data yet" — worth a signal, not a silent [].
     console.warn('SubAgents: list_subagent_tree resolved a non-array payload', edges);
     return [];
   }
+  return edges;
+}
+
+export async function fetchTree(): Promise<SubAgentNode[]> {
+  const edges = await fetchEdges();
   return buildSubAgentTree(edges);
 }
 

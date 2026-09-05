@@ -112,7 +112,12 @@ async fn main() -> anyhow::Result<()> {
                         "The '{}' subsystem has been extracted to a separate crate.",
                         primary_cmd
                     );
-                    eprintln!("Please run: cargo install --path crates/vox-ml-cli");
+                    // `populi` is not in vox-ml-cli's default features, so a bare
+                    // install produces a binary whose `populi` subcommand is
+                    // cfg'd out — and the user retries the same failing command.
+                    eprintln!(
+                        "Please run: cargo install --path crates/vox-ml-cli --features populi"
+                    );
                     eprintln!("Underlying error: {}", e);
                     std::process::exit(1);
                 }

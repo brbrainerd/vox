@@ -19,10 +19,15 @@ fn default_spool_root() -> PathBuf {
             return PathBuf::from(t);
         }
     }
-    std::env::current_dir()
-        .unwrap_or_else(|_| PathBuf::from("."))
-        .join(".vox")
-        .join("telemetry-upload-queue")
+    // Anchored to the REPOSITORY ROOT, never to the current directory.
+    //
+    // This used to be `current_dir().join(".vox")`. Telemetry initializes before
+    // command dispatch (see lib.rs), so every `vox` invocation from a
+    // subdirectory created a fresh `.vox/telemetry-upload-queue/` right there.
+    // Two strays were found in a single afternoon, in different directories, and
+    // a stray `.vox` under `crates/` has broken cargo before now because the root
+    // manifest globs `crates/*`.
+    vox_config::paths::repo_dot_vox_dir().join("telemetry-upload-queue")
 }
 
 /// Resolved spool directory.
@@ -125,6 +130,10 @@ pub async fn upload_pending(
             ok += 1;
             continue;
         }
+        // Captured before `raw` is moved into the request body: the gamify
+        // event below reports it after the POST completes.
+        #[cfg(feature = "vox-gamify")]
+        let raw_len = raw.len();
         let mut req = client.post(url).body(raw).header(
             reqwest::header::CONTENT_TYPE,
             "application/json; charset=utf-8",
@@ -144,13 +153,19 @@ pub async fn upload_pending(
             ack(&p)?;
             ok += 1;
 
+            // `vox-gamify` is now an explicitly declared feature in Cargo.toml
+            // (`vox-gamify = ["dep:vox-gamify"]`). It previously named no
+            // feature at all — the crate is an optional dep referenced as
+            // `dep:vox-gamify`, which suppresses the implicit feature — so this
+            // block was unreachable. Kept gated rather than made unconditional:
+            // the optional dependency must stay optional for lean builds.
             #[cfg(feature = "vox-gamify")]
             {
                 if let Ok(db) = vox_db::Codex::connect_default().await {
                     let ev = serde_json::json!({
                         "type": "telemetry_shared",
                         "source": "vox-telemetry",
-                        "payload": { "bytes_shared": raw.len() },
+                        "payload": { "bytes_shared": raw_len },
                     });
                     if let Err(e) = vox_gamify::event_router::route_event_auto_user(&db, &ev).await
                     {

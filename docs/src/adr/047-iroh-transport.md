@@ -1,5 +1,5 @@
 ---
-title: "ADR 046: iroh QUIC replaces the bespoke populi mesh transport"
+title: "ADR 047: iroh QUIC replaces the bespoke populi mesh transport"
 description: "Adopts iroh 1.1 for mesh transport, identity, and NAT traversal, retiring the hand-rolled HTTP/JWT control plane. Records the measured evidence from the Task 0.2 spike."
 category: "Architecture Decisions (ADRs)"
 status: "current"
@@ -8,11 +8,15 @@ training_eligible: true
 schema_type: "TechArticle"
 ---
 
-# ADR 046: iroh QUIC replaces the bespoke populi mesh transport
+# ADR 047: iroh QUIC replaces the bespoke populi mesh transport
 
 ## Status
 
 **Accepted (2026-09-04).**
+
+(Numbering note: drafted as ADR-046, renumbered on merge with `origin/main`,
+which had taken 046 for Pareto-frontier reporting. Commit messages and the plan
+predating the merge still say 046.)
 
 - **Supersedes** [ADR-008](008-populi-transport.md) (Mens transport) and
   [ADR-020](020-populi-mesh-scaling-transport-default.md) (default transport

@@ -14,6 +14,7 @@ export const SHELL_PREFERENCE_KEYS = {
   sign: 'gui.sign',
   checkpointMins: 'gui.checkpointMins',
   memoryAutoRecall: 'gui.memory.autoRecall',
+  chatModelOverride: 'vox_chat_model.v1',
 } as const;
 
 export type ShellPreferenceKey =

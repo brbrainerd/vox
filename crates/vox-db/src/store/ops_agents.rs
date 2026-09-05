@@ -298,6 +298,8 @@ impl crate::VoxDb {
         let success = outcome.success;
         let cost_usd = outcome.cost_usd;
         let quality_score = outcome.quality_score.unwrap_or(1.0);
+        let ttft_ms = outcome.ttft_ms;
+        let tpot_ms = outcome.tpot_ms;
 
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
@@ -312,8 +314,8 @@ impl crate::VoxDb {
                 // 1. Insert detailed interaction
                 conn.execute(
                     "INSERT INTO llm_interactions
-                         (session_id, user_id, tenant_id, prompt, response, model_version, task_category, strength_tag, trace_id, context_utilization_pct, cache_read_tokens, success, latency_ms, input_tokens, output_tokens, cost_usd)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+                         (session_id, user_id, tenant_id, prompt, response, model_version, task_category, strength_tag, trace_id, context_utilization_pct, cache_read_tokens, success, latency_ms, input_tokens, output_tokens, cost_usd, ttft_ms, tpot_ms)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
                     params![
                         session_id.as_str(),
                         user_id.as_deref(),
@@ -330,7 +332,9 @@ impl crate::VoxDb {
                         latency_ms,
                         input_tokens,
                         output_tokens,
-                        cost_usd
+                        cost_usd,
+                        ttft_ms,
+                        tpot_ms
                     ],
                 )
                 .await?;
@@ -963,6 +967,8 @@ mod spend_tests {
             success: true,
             cost_usd: Some(cost),
             quality_score: Some(1.0),
+            ttft_ms: None,
+            tpot_ms: None,
         }
     }
 

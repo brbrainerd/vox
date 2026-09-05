@@ -106,6 +106,32 @@ client. Install + troubleshooting tables: [local-ci-pre-push.md
 Both `--bind` (cargo cache mount) and `--artifact-server-path` may need
 Windows-specific overrides; documented in the same section.
 
+**macOS support.** `act` installs via Homebrew (`brew install act`). As on Windows,
+**Docker Desktop is not used** — the supported daemon is [colima](https://github.com/abiosoft/colima)
+(`brew install colima`), which exposes a normal Docker socket that `act` picks up
+through its own `colima` context with no special invocation.
+
+Size the VM for the host and enable Rosetta — `.actrc` pins
+`--container-architecture linux/amd64` so local runs match the amd64
+GitHub-hosted runners, and without Rosetta those containers fall back to slow QEMU
+emulation:
+
+```bash
+colima start --vm-type vz --vz-rosetta --cpu 12 --memory 48 --disk 100
+```
+
+colima defaults to 2 CPU / 2 GiB, which is far too small for a Rust workspace this
+size; scale the flags to the machine (leave the host several cores and enough RAM
+for a native `cargo build` alongside). Verify with `colima list` and
+`docker info --format '{{.NCPU}} {{.MemTotal}}'`, and confirm emulation works with
+`docker run --rm --platform linux/amd64 alpine uname -m` (expect `x86_64`).
+
+Apple Silicon caveat: the pinned `catthehacker/ubuntu:act-*` images publish
+`linux/arm64/v8` as well as `linux/amd64`. Dropping the architecture pin makes act
+silently use the arm64 variant — faster, but it exercises a different toolchain
+than CI, the same class of false green as mapping `windows-latest` onto a Linux
+image.
+
 ### Option B — Earthly
 
 Earthly compiles `Earthfile`s into Buildkit pipelines that run in Docker.

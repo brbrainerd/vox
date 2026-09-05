@@ -194,6 +194,8 @@ pub(crate) fn spawn_socrates_telemetry_with_llm(
                 success: l.success,
                 cost_usd: l.cost_usd,
                 quality_score: l.quality_score,
+                ttft_ms: None,
+                tpot_ms: None,
             };
             match db
                 .record_unified_llm_turn(

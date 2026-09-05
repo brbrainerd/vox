@@ -90,9 +90,19 @@ execution-api = ["script-execution", "dep:tokio-stream"]
 # status_writer::code_audit_results, which is gated behind that feature.
 stub-check = [
     "dep:vox-code-audit",
-    "dep:vox-gamify",
+    "vox-gamify",
     "completion-toestub",
 ]
+# Gamification event emission from otherwise non-gamify code paths
+# (telemetry_spool, pipeline, ars::registry) — those sites are behind
+# `#[cfg(feature = "vox-gamify")]`. `vox-gamify` is an optional dependency
+# referenced only as `dep:vox-gamify`, so Cargo does NOT synthesize an implicit
+# feature of that name; without this explicit declaration those three cfgs were
+# permanently false (dead code). Named to match the existing cfgs, i.e. exactly
+# the implicit feature Cargo would have created had `dep:` not been used.
+# Every feature that pulls the crate in (`stub-check`, `extras-ludus`) enables
+# this, so the event hooks light up whenever vox-gamify is actually linked.
+vox-gamify = ["dep:vox-gamify"]
 # Merge `vox-code-audit` victory-claim / premature-done heuristics into `vox ci completion-audit` (CI enables this).
 completion-toestub = ["dep:vox-code-audit", "vox-cli-ci/completion-toestub"]
 # No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to `vox-dei` (still do not add `vox-dei` as a dependency; see `vox ci no-vox-dei-import`).
@@ -102,7 +112,7 @@ gui = []
 # OpenClaw / skill registry (`openclaw`); ARS runtime types live in `vox-openclaw-runtime`; `vox-skills` is the marketplace registry.
 ars = ["dep:vox-openclaw-runtime", "dep:vox-skill-discovery"]
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-gamify` (uses `vox-db`).
-extras-ludus = ["dep:vox-gamify", "dep:vox-code-audit"]
+extras-ludus = ["vox-gamify", "dep:vox-code-audit"]
 # Ludus terminal HUD over the in-process orchestrator bulletin (`vox ludus hud`).
 ludus-hud = ["extras-ludus"]
 # Terminal live event dashboard: `vox live` + `commands::live` (in-process `vox-orchestrator` demo bus).

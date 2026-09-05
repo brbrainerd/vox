@@ -18,7 +18,10 @@ pub mod tool_selection;
 /// Single agent id for MCP-hosted LLM usage accounting (not per-tool agents).
 pub(crate) const MCP_GLOBAL_LLM_AGENT: AgentId = AgentId(0);
 
-pub use infer::{McpInferRouting, call_llm, emit_cache_miss_if_applicable, mcp_infer_completion};
+pub use infer::{
+    McpInferRouting, call_llm, call_llm_with_pref, emit_cache_miss_if_applicable,
+    mcp_infer_completion,
+};
 pub use model_route_policy::budget_guard;
 pub use model_route_policy::{
     McpChatModelResolution, mcp_global_llm_context_fill_ratio, mcp_provider_telemetry_labels,

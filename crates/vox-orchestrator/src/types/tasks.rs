@@ -302,6 +302,10 @@ pub struct TaskEnqueueHints {
     /// "caller didn't say").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trigger_source: Option<String>,
+    /// Chat session that issued the submit call (Phase D Task D1 durable
+    /// lineage); stored on [`AgentTask::chat_session_id`] for correlation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_session_id: Option<String>,
 }
 
 /// Attribution record for which model was actually used to execute a task.
@@ -622,6 +626,12 @@ pub struct AgentTask {
     /// Optional session link (for chat/workflow grouping in Mens).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    /// Chat session that issued the submit call (Phase D Task D1 durable
+    /// lineage). Distinct from `session_id` above (Mens telemetry grouping,
+    /// caller-supplied) — this one is injected server-side by `run_agent_turn`
+    /// for calls dispatched inside a chat turn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_session_id: Option<String>,
     /// Optional logical thread id preserving branch continuity for handoff or remote execution.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thread_id: Option<String>,
@@ -766,6 +776,7 @@ impl AgentTask {
             socrates: None,
             capability_requirements: None,
             session_id: None,
+            chat_session_id: None,
             thread_id: None,
             attention_weight: 0.0,
             approval_tier: None,
@@ -907,6 +918,12 @@ impl AgentTask {
             let trimmed = thread_id.trim();
             if !trimmed.is_empty() {
                 self.thread_id = Some(trimmed.to_string());
+            }
+        }
+        if let Some(ref chat_session_id) = h.chat_session_id {
+            let trimmed = chat_session_id.trim();
+            if !trimmed.is_empty() {
+                self.chat_session_id = Some(trimmed.to_string());
             }
         }
         if !h.tool_hints.is_empty() {
@@ -1384,6 +1401,7 @@ mod tests {
             risk: None,
             grounding_check_enabled: None,
             trigger_source: None,
+            chat_session_id: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");

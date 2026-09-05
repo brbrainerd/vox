@@ -702,4 +702,67 @@ mod tests {
              publish while verification was still running, or after it failed"
         );
     }
+
+    /// `install.sh` must abort, not continue, when no SHA-256 tool exists. Executes
+    /// the real `verify_checksum` with every hash tool reported missing.
+    #[cfg(unix)]
+    #[test]
+    fn install_sh_aborts_when_no_hash_tool_exists() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let sh = std::fs::read_to_string(root.join("scripts/install.sh")).expect("read install.sh");
+
+        // Source the helpers without running main(), then shadow `command -v` so
+        // every hash tool reports missing.
+        let harness = format!(
+            "{}\n\
+             command() {{ if [ \"$1\" = \"-v\" ]; then case \"$2\" in \
+               sha256sum|shasum|openssl) return 1;; esac; fi; builtin command \"$@\"; }}\n\
+             verify_checksum /dev/null deadbeef\n\
+             echo REACHED_INSTALL\n",
+            sh.replace("main \"$@\"", "")
+        );
+
+        let out = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&harness)
+            .output()
+            .expect("spawn sh");
+
+        assert!(
+            !out.status.success(),
+            "verify_checksum returned success with no hash tool available"
+        );
+        assert!(
+            !String::from_utf8_lossy(&out.stdout).contains("REACHED_INSTALL"),
+            "install.sh continued past an unverifiable checksum"
+        );
+
+        // POSITIVE CONTROL. Without this the assertions above are vacuous: any
+        // harness breakage (a shell lacking `builtin`, a renamed helper, a typo
+        // in the sourced text) also produces "failed, no marker" and would be
+        // read as "failed closed". Run the same harness WITHOUT shadowing and
+        // with the true SHA-256 of an empty file; it must reach the marker. If
+        // this half fails, the negative half proves nothing.
+        let empty_sha = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let control = format!(
+            "{}
+verify_checksum /dev/null {empty_sha}
+echo REACHED_INSTALL
+",
+            sh.replace("main \"$@\"", "")
+        );
+        let ok = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&control)
+            .output()
+            .expect("spawn sh");
+        assert!(
+            String::from_utf8_lossy(&ok.stdout).contains("REACHED_INSTALL"),
+            "positive control failed — the harness cannot reach the success path, so the 
+             negative assertion above is vacuous. stdout: {}
+stderr: {}",
+            String::from_utf8_lossy(&ok.stdout),
+            String::from_utf8_lossy(&ok.stderr)
+        );
+    }
 }

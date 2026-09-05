@@ -80,6 +80,13 @@ pub struct AgentDelegationBinding {
     pub parent_agent_id: AgentId,
     pub source_task_id: Option<TaskId>,
     pub reason: String,
+    /// Chat session that originated this delegation, when spawned from a chat turn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_session_id: Option<String>,
+    /// Provider tool-call id of the `vox_spawn_agent`/`vox_submit_task` call that
+    /// caused this spawn, for correlating an edge back to the exact turn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin_turn_id: Option<String>,
 }
 
 /// Spawn provenance attached to dynamic agents even when no parent edge exists.
@@ -96,6 +103,12 @@ pub struct DelegationEdge {
     pub child_agent_id: AgentId,
     pub source_task_id: Option<TaskId>,
     pub reason: String,
+    /// Chat session that originated this delegation, when spawned from a chat turn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_session_id: Option<String>,
+    /// Provider tool-call id of the spawn that created this edge.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin_turn_id: Option<String>,
 }
 
 /// One node in the orchestrator topology graph.

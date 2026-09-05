@@ -147,6 +147,44 @@ pub fn dot_vox_user_dir() -> PathBuf {
     user_home_dir().join(".vox")
 }
 
+/// The repository root containing `cwd`, found by walking up for `.git` or
+/// `Vox.toml`. `None` when `cwd` is not inside a repository.
+///
+/// Exists so nothing has to reach for `current_dir()` when it means "this repo".
+pub fn find_repo_root(start: &std::path::Path) -> Option<PathBuf> {
+    let mut dir = Some(start);
+    while let Some(d) = dir {
+        if d.join(".git").exists() || d.join("Vox.toml").is_file() {
+            return Some(d.to_path_buf());
+        }
+        dir = d.parent();
+    }
+    None
+}
+
+/// The `.vox` directory for repo-scoped state, anchored to the **repository
+/// root** — never to the current working directory.
+///
+/// WHY THIS EXISTS. Several call sites used to build
+/// `current_dir().join(".vox")`, so every `vox` invocation from a subdirectory
+/// minted a fresh `.vox/` wherever the shell happened to be. Telemetry
+/// initializes before command dispatch, so this fired on *every* command, and
+/// two stray trees were found in one afternoon — one under
+/// `crates/vox-cli/src/commands/diagnostics/doctor/`, one under
+/// `docs/superpowers/plans/`. A stray `.vox` under `crates/` has previously
+/// broken cargo outright, because the root manifest globs `crates/*`.
+///
+/// Falls back to `~/.vox` when not inside a repository, which is the correct
+/// home for a user-scoped tool run from an arbitrary directory. It never
+/// returns a bare-CWD path.
+pub fn repo_dot_vox_dir() -> PathBuf {
+    std::env::current_dir()
+        .ok()
+        .and_then(|cwd| find_repo_root(&cwd))
+        .map(|root| root.join(".vox"))
+        .unwrap_or_else(dot_vox_user_dir)
+}
+
 /// Script compilation cache under `~/.vox/script-cache` or `~/.vox/script-cache-wasi`.
 pub fn script_cache_dir(wasi_target: bool) -> PathBuf {
     let name = if wasi_target {
@@ -275,6 +313,43 @@ pub fn mcp_sessions_dir(repository_id: &str) -> PathBuf {
 
 #[cfg(test)]
 mod repo_path_tests {
+
+    #[test]
+    fn repo_dot_vox_dir_anchors_to_the_repo_root_not_the_cwd() {
+        // Guards the bug that produced two stray .vox trees in one afternoon:
+        // `current_dir().join(".vox")` minted one wherever the shell happened to
+        // be, and telemetry runs before command dispatch, so it fired on every
+        // invocation. A stray .vox under crates/ has broken cargo before, because
+        // the root manifest globs crates/*.
+        let tmp = std::env::temp_dir().join(format!("voxroot-{}", std::process::id()));
+        let deep = tmp.join("crates").join("some-crate").join("src");
+        std::fs::create_dir_all(&deep).expect("mkdir");
+        std::fs::create_dir_all(tmp.join(".git")).expect("mkdir .git");
+
+        let found = find_repo_root(&deep).expect("repo root must be found from a deep subdir");
+        assert_eq!(
+            std::fs::canonicalize(&found).unwrap(),
+            std::fs::canonicalize(&tmp).unwrap(),
+            "walking up from a subdirectory must find the repo root, not the subdirectory"
+        );
+
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    #[test]
+    fn repo_dot_vox_dir_never_returns_a_bare_cwd_path() {
+        // The fallback when outside a repository must be ~/.vox, never ".".
+        let got = repo_dot_vox_dir();
+        assert!(
+            got.is_absolute(),
+            "repo_dot_vox_dir must be absolute, got {got:?}"
+        );
+        assert_ne!(
+            got,
+            std::path::PathBuf::from(".").join(".vox"),
+            "repo_dot_vox_dir must never fall back to a bare CWD path"
+        );
+    }
     use super::*;
 
     #[test]

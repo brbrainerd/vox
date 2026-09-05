@@ -34,6 +34,10 @@ pub enum PluginCmd {
         /// Skip the confirmation prompt.
         #[arg(long)]
         yes: bool,
+        /// Install even when no sha256 is recorded for the plugin. The archive is
+        /// loaded as native code — only use this for a source you trust.
+        #[arg(long)]
+        allow_unverified: bool,
     },
     /// Remove an installed plugin.
     Remove {
@@ -70,8 +74,21 @@ pub async fn run(cmd: PluginCmd) -> anyhow::Result<()> {
     match cmd {
         PluginCmd::List => list::run(),
         PluginCmd::Info { id } => info::run(&id),
-        PluginCmd::Install { id, path, url, yes } => {
-            install::run(id.as_deref(), path.as_deref(), url.as_deref(), yes).await
+        PluginCmd::Install {
+            id,
+            path,
+            url,
+            yes,
+            allow_unverified,
+        } => {
+            install::run(
+                id.as_deref(),
+                path.as_deref(),
+                url.as_deref(),
+                yes,
+                allow_unverified,
+            )
+            .await
         }
         PluginCmd::Remove { id } => remove::run(&id),
         PluginCmd::Doctor => doctor::run(),

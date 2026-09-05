@@ -44,7 +44,19 @@ jobs:
   # the integration branch.  On PRs the filter is computed from the diff.
   setup:
     name: Cache warmup + path filter
-    runs-on: [self-hosted, linux, x64]
+    # `x64` deliberately dropped from the label set. There were never any
+    # runners matching [self-hosted, linux, x64] — `gh api .../actions/runners`
+    # returns total_count 0 — which is why ci.yml has never once succeeded and
+    # why 157 of its last 200 runs were cancelled after waiting out GitHub's
+    # 24h assignment timeout. Requiring [self-hosted, linux] lets an arm64
+    # Linux runner take these jobs, which is what the local fleet now is
+    # (Apple silicon under colima, native rather than Rosetta-emulated —
+    # emulated compilation of 136 crates is slow enough to defeat the point).
+    #
+    # x64 coverage is not lost: cross-platform-check builds x86_64 on
+    # GitHub-hosted runners with zero queue, and is the lane that should carry
+    # the arch guarantee.
+    runs-on: [self-hosted, linux]
     # Cold `cargo build -p vox-cli` on ephemeral runners (no actions/cache hit)
     # routinely exceeds 20m; fail-closed at 40m so downstream gates are not skipped.
     timeout-minutes: 40
@@ -214,7 +226,7 @@ jobs:
     needs: setup
     # Same-repo PRs only — fork PRs get a read-only token and fall back to manual regen.
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     permissions:
       contents: write   # job-scoped override (workflow default is contents: read) to push the regen commit
@@ -299,7 +311,7 @@ jobs:
     name: Fresh clippy+rustdoc on toolchain bump
     needs: setup
     if: github.event_name == 'pull_request'
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
@@ -357,7 +369,7 @@ jobs:
     # integration issues between independently-reviewed PRs), this job already
     # ran on the PR itself before it entered the queue.
     if: github.event_name != 'merge_group'
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     # Raised from 15: the added GTK/dbus apt-get install + pnpm install (for the
     # GUI honesty gate) can eat most of a 15-min budget on a cold self-hosted
     # runner before the guards themselves even start.
@@ -488,7 +500,7 @@ jobs:
 
       - uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: 11
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -664,7 +676,7 @@ jobs:
     # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
     # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
     if: github.event_name != 'merge_group'
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -814,7 +826,7 @@ jobs:
     # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
     # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
     if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true')
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -916,7 +928,7 @@ jobs:
   tests:
     name: Tests (nextest + llvm-cov + doctests)
     needs: setup
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -1270,7 +1282,7 @@ jobs:
     # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
     # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
     if: github.event_name != 'merge_group'
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     # This job's true steady-state runtime (TOESTUB validation, safety-inventory,
     # hardcoded-values-audit, completion-audit, detect-rules-bench, build-timings,
     # feature-matrix cargo checks, the all-features check, cuda-features, and the
@@ -1457,18 +1469,46 @@ jobs:
   # this proves flaky in practice on the self-hosted fleet, consider a
   # burn-in period as an advisory (non-required) job before re-promoting.
   gui-orchestrator-relaunch-smoke:
-    name: GUI/orchestrator relaunch smoke (CR-U6)
+    name: GUI/orchestrator relaunch smoke (CR-U6) — ${{ matrix.label }}
     needs: setup
     # Tiered off merge_group: the merge-queue box caps self-hosted
     # linux,x64 fan-out at DEFAULT_MAX_RUNNERS (2); with setup and tests
     # already in that bucket, this job pushed it to 3. ci-summary treats
     # `skipped` as passing, so this is a no-op for the required gate.
     if: github.event_name != 'merge_group'
-    runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 20
+    # Matrix over the RUNNER LABEL, not an `os:` string — an `os:` matrix would
+    # have to name `ubuntu-latest` for the first leg and would move it off the
+    # self-hosted fleet, contradicting the local-first compute policy. The label
+    # list IS the runs-on value.
+    #
+    # macOS matters here because gui_relaunch_smoke.rs is display-free BY
+    # CONSTRUCTION (it never builds a `tauri::Builder`), so it is the only lane
+    # that can exercise GUI→orchestrator process wiring on macOS without a
+    # window server. Until now this job had only ever run on Linux.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: [self-hosted, linux]
+            label: self-hosted linux
+            timeout: 20
+          - runner: macos-latest
+            label: macOS
+            # Cold hosted runner: no warm target/, and the vox-gui build.rs
+            # sidecar step below is a full release build of vox-cli. 20m is a
+            # warm-fleet number and does not transfer.
+            timeout: 90
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ matrix.timeout }}
+    # BURN-IN: this job is in ci-summary's `needs`, and GitHub collapses a matrix
+    # into one result — so an unproven macOS leg would block the merge queue for
+    # everyone. Advisory until it has a green history, per this job's own note on
+    # introducing new legs. Remove this line to make macOS blocking.
+    continue-on-error: ${{ matrix.label == 'macOS' }}
     steps:
       - uses: actions/checkout@v7
       - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        if: runner.os == 'Linux'
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -1480,8 +1520,46 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      # Compiling ANY vox-gui target runs tauri-build, which embeds
+      # `crates/vox-gui/ui/dist` (frontendDist in tauri.conf.json). That
+      # directory is gitignored, so a fresh checkout does not have it and
+      # tauri_build::try_build fails. The Linux leg has been getting away with
+      # this only because the self-hosted workspace is persistent and carries a
+      # stale dist across checkouts; a hosted macOS runner has nothing. Same
+      # pnpm shape as gui-cross-build.yml.
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: crates/vox-gui/ui/pnpm-lock.yaml
+      - name: GUI frontend build (pnpm)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd crates/vox-gui/ui
+          pnpm install --prefer-offline
+          pnpm run build
+
       - name: Build vox-orchestrator-d
         run: cargo build -p vox-orchestrator-d
+
+      # vox-gui's build.rs hard-fails unless the triple-suffixed Tauri sidecar
+      # (bundle.externalBin) exists. It can self-heal by spawning a nested
+      # `cargo build` from inside a build script; stage it explicitly instead so
+      # a required lane does not depend on that path. Same staging as
+      # gui-cross-build.yml, with the triple read from rustc so one step covers
+      # both legs.
+      - name: Build + stage Tauri sidecar (vox CLI, release)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p vox-cli --release --bin vox
+          triple="$(rustc -vV | sed -n 's|^host: ||p')"
+          mkdir -p target/release
+          cp target/release/vox "target/release/vox-${triple}"
 
       - name: Build vox-gui (Rust crate only, no Tauri UI bundle)
         run: cargo build -p vox-gui
@@ -1496,7 +1574,7 @@ jobs:
     name: Check, Build, and Test (Rust)
     # gui-playwright-smoke is now a tiered (post-merge/`full-ci`) job, so it is
     # intentionally NOT a required-gate dependency.
-    needs: [guards-fast, lints, compiler-gates, tests, audits, gui-orchestrator-relaunch-smoke]
+    needs: [setup, guards-fast, lints, compiler-gates, tests, audits, gui-orchestrator-relaunch-smoke]
     if: always()
     # Hosted so the SOLE branch-protection context is fleet-independent
     # (compute-placement.md Invariant 1). The 5 heavy needs stay self-hosted; this
@@ -1509,6 +1587,33 @@ jobs:
         run: |
           set -euo pipefail
           fail=0
+
+          # `setup` is checked SEPARATELY and strictly, and it is the whole
+          # point of this block.
+          #
+          # The six jobs below are allowed to report `skipped`, because several
+          # are deliberately tiered off merge_group (see the note on
+          # gui-orchestrator-relaunch-smoke). But that tolerance used to apply
+          # to `setup` failing too: every one of those jobs `needs: setup`, so
+          # when the self-hosted fleet never picked up `setup` and it was
+          # cancelled at the 24h mark, all six went `skipped`, this loop saw six
+          # allowed values, and the SOLE branch-protection context reported
+          # success with zero tests executed.
+          #
+          # That was not hypothetical. Run 33291831341: `setup` cancelled, all
+          # 17 other jobs skipped, "Check, Build, and Test (Rust)" = success.
+          # 157 of the last 200 ci.yml runs were cancelled the same way, and
+          # ci.yml has never once succeeded — so for that entire window main
+          # was effectively ungated.
+          #
+          # Distinguishing "skipped because tiering said so" from "skipped
+          # because the DAG collapsed" is exactly the setup result.
+          setup_result="${{ needs.setup.result }}"
+          if [ "$setup_result" != "success" ]; then
+            echo "::error::setup did not succeed (result: $setup_result) — every gated job below it was skipped, so nothing was actually verified. Failing the required check rather than reporting a false green. If the self-hosted fleet is down, apply the 'fleet-down' label to route through ci-fallback-hosted."
+            fail=1
+          fi
+
           for r in \
             "${{ needs.guards-fast.result }}" \
             "${{ needs.lints.result }}" \
@@ -1525,13 +1630,13 @@ jobs:
     needs: setup
     # Tiered off merge_group (Task 10) but PR affects_web coverage preserved.
     if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true')
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: 11
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -1547,7 +1652,7 @@ jobs:
     needs: setup
     # Tiered off merge_group (Task 10) but PR affects_web coverage preserved.
     if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true')
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -1560,7 +1665,7 @@ jobs:
 
       - uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: 11
 
       - uses: actions/setup-node@v6
         with:
@@ -1577,7 +1682,7 @@ jobs:
     needs: setup
     # Tiered off merge_group (Task 10) but PR affects_gui coverage preserved.
     if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_gui == 'true')
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -1684,7 +1789,7 @@ jobs:
 
       - uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: 11
 
       - uses: actions/setup-node@v6
         with:

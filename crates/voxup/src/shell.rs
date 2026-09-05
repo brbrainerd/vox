@@ -18,8 +18,43 @@ pub fn add_to_path(home: &Path, bin_dir: &Path) -> Vec<PathBuf> {
         }
     }
     let fish = home.join(".config").join("fish").join("config.fish");
+    let fish_exists = fish.exists();
     if try_append(&fish, &fish_snippet(bin_dir), bin_dir) {
         modified.push(fish);
+    }
+
+    // `try_append` skips profiles that don't exist. A pristine macOS account has
+    // none of them — macOS ships no default `~/.zshrc` even though zsh is the
+    // login shell — so every append above bails and voxup silently puts
+    // `~/.vox/bin` on no PATH at all, with `vox` missing after a "successful"
+    // install. Create the profile for the login shell instead of giving up.
+    // Gate on "no profile exists at all", not "nothing was modified" — a repeat
+    // run finds its own entry already present and modifies nothing, which must
+    // not be mistaken for the pristine case.
+    #[cfg(unix)]
+    if [".bashrc", ".bash_profile", ".zshrc", ".profile"]
+        .iter()
+        .all(|n| !home.join(n).exists())
+        && !fish_exists
+    {
+        let shell = std::env::var("SHELL").unwrap_or_default();
+        let shell_name = Path::new(&shell)
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let (profile, snippet) = match shell_name.as_str() {
+            "fish" => (
+                home.join(".config").join("fish").join("config.fish"),
+                fish_snippet(bin_dir),
+            ),
+            "bash" => (home.join(".bashrc"), posix_snippet(bin_dir)),
+            // zsh is the macOS default; `.profile` is the portable fallback.
+            "zsh" => (home.join(".zshrc"), posix_snippet(bin_dir)),
+            _ => (home.join(".profile"), posix_snippet(bin_dir)),
+        };
+        if create_and_append(&profile, &snippet) {
+            modified.push(profile);
+        }
     }
     if let Some(docs) = ps_documents_dir(home) {
         let ps = ps_snippet(bin_dir);
@@ -89,6 +124,29 @@ fn ps_snippet(bin_dir: &Path) -> String {
         "\n# Added by voxup\n$env:PATH = \"{};$env:PATH\"\n",
         bin_dir.display()
     )
+}
+
+/// Create `profile` (and any missing parent directories) and write `snippet` to it.
+///
+/// Only called when no existing profile could be updated — see `add_to_path`.
+#[cfg(unix)]
+fn create_and_append(profile: &Path, snippet: &str) -> bool {
+    if let Some(parent) = profile.parent()
+        && let Err(e) = fs::create_dir_all(parent)
+    {
+        warn!("Cannot create {}: {e}", parent.display());
+        return false;
+    }
+    match fs::write(profile, snippet) {
+        Ok(()) => {
+            info!("Created {} with voxup PATH entry", profile.display());
+            true
+        }
+        Err(e) => {
+            warn!("Cannot write {}: {e}", profile.display());
+            false
+        }
+    }
 }
 
 fn try_append(profile: &Path, snippet: &str, bin_dir: &Path) -> bool {
@@ -163,10 +221,16 @@ mod tests {
     }
 
     #[test]
-    fn skips_missing_profiles() {
+    fn try_append_skips_missing_profiles() {
         let tmp = tempdir().unwrap();
         let bin = tmp.path().join(".vox").join("bin");
-        assert!(add_to_path(tmp.path(), &bin).is_empty());
+        let bashrc = tmp.path().join(".bashrc");
+        // `try_append` never creates a profile. Bootstrapping one when the account
+        // has none is `add_to_path`'s job — see
+        // `creates_login_shell_profile_when_none_exist`, which covers the pristine
+        // macOS case this used to (incorrectly) assert was a no-op.
+        assert!(!try_append(&bashrc, "# x\n", &bin));
+        assert!(!bashrc.exists());
     }
 
     #[test]
@@ -203,5 +267,42 @@ mod tests {
         );
         assert_eq!(posix_path(Path::new("d:\\path\\to\\bin")), "/d/path/to/bin");
         assert_eq!(posix_path(Path::new("/usr/local/bin")), "/usr/local/bin");
+    }
+
+    /// A pristine macOS account has no `~/.zshrc` (macOS ships none), and no
+    /// `.bashrc`/`.bash_profile`/`.profile` either. Every `try_append` bails on a
+    /// missing file, so without a fallback voxup reports success while adding
+    /// `~/.vox/bin` to no profile at all and `vox` stays off PATH.
+    #[cfg(unix)]
+    #[test]
+    fn creates_login_shell_profile_when_none_exist() {
+        let home = tempfile::tempdir().expect("tempdir");
+        let bin_dir = home.path().join(".vox/bin");
+
+        // Sanity: this is the pristine case — nothing for try_append to find.
+        for name in [".bashrc", ".bash_profile", ".zshrc", ".profile"] {
+            assert!(!home.path().join(name).exists());
+        }
+
+        let prev = std::env::var_os("SHELL");
+        // SAFETY: single-threaded test; restored below.
+        unsafe { std::env::set_var("SHELL", "/bin/zsh") };
+        let modified = add_to_path(home.path(), &bin_dir);
+        match prev {
+            Some(v) => unsafe { std::env::set_var("SHELL", v) },
+            None => unsafe { std::env::remove_var("SHELL") },
+        }
+
+        let zshrc = home.path().join(".zshrc");
+        assert!(
+            zshrc.exists(),
+            "voxup must create the login shell's profile when none exists"
+        );
+        assert!(modified.contains(&zshrc), "created profile must be reported");
+        let body = std::fs::read_to_string(&zshrc).expect("read .zshrc");
+        assert!(
+            body.contains(&posix_path(&bin_dir)),
+            "profile must put the bin dir on PATH, got: {body}"
+        );
     }
 }

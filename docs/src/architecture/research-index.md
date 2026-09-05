@@ -310,6 +310,7 @@ Not a new architecture doc — a process log for the recurring hand-triage backl
 - **Status:** current
 - **Date:** 2026-06-18
 - **Description:** 6-task TDD implementation plan for raising Vox parse rate from 75.1% to 88%+, fixing 93.7% Rust-source mix dominance, adding max_lines deterministic caps and content-hash deduplication to MixSource, making the Replay pipeline stage lock-resilient (os error 33), fixing @tool decorator syntax in preflight templates, and raising eval gate thresholds. Saved at docs/superpowers/plans/2026-06-18-mens-corpus-health.md.
+- [Windows-to-macOS application handoff (September 2026)](windows-macos-application-handoff-findings-2026-09.md) — Evidence-based Windows workstation software inventory across Winget, Program Files, and Appx registrations, with a macOS continuity/replacement matrix and data-transfer checklist.
 
 ## iroh-spike-findings-2026.md
 

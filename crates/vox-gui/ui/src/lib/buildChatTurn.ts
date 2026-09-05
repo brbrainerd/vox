@@ -10,6 +10,7 @@ export const CHAT_TURN_KEYS = [
   'session_id', 'content', 'execution', 'model_override', 'tier',
   'clutch', 'risk', 'context_files', 'active_skill', 'skill_exclusions',
   'grounding_check_enabled', 'priority', 'dry_run', 'allow_duplicate',
+  'mode', 'chat_session_id',
 ] as const;
 
 export interface BuildChatTurnCtx {
@@ -19,6 +20,13 @@ export interface BuildChatTurnCtx {
   activeSkillId?: string | null;
   skillExclusions?: string[];
   allowDuplicate?: boolean;
+  /** The real originating chat session (e.g. App.tsx's `activeSessionId`),
+   *  distinct from `sessionId` above -- which on the background dispatch
+   *  path can be a synthetic, throwaway session id (see `newBackgroundSessionId`
+   *  call sites in App.tsx). Falls back to `sessionId` when omitted, so
+   *  callers that don't set it (the sync path, where the two are the same)
+   *  still get a correct value. */
+  chatSessionId?: string | null;
 }
 
 /** The composer-payload subset the builder reads. Structural rather than
@@ -26,7 +34,7 @@ export interface BuildChatTurnCtx {
  *  dispatch type. */
 export interface ChatTurnSource {
   description: string;
-  execution_mode?: 'chat' | 'task';
+  execution_mode?: 'chat' | 'task' | 'plan';
   model_override?: string | null;
   tier?: string | null;
   clutch?: string | null;
@@ -34,6 +42,9 @@ export interface ChatTurnSource {
   active_skill?: string | null;
   priority?: string | null;
   dry_run?: boolean | null;
+  /** Interaction mode from the composer (plan|act|verify); forwarded as an
+   *  enqueue hint on the background path. */
+  mode?: string | null;
   files?: string[];
   context?: unknown;
 }
@@ -42,7 +53,12 @@ export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): C
   return {
     session_id: ctx.sessionId,
     content: payload.description,
-    execution: payload.execution_mode === 'task' ? 'background' : 'sync',
+    execution:
+      payload.execution_mode === 'task'
+        ? 'background'
+        : payload.execution_mode === 'plan'
+          ? 'plan'
+          : 'sync',
     model_override: payload.model_override ?? ctx.modelOverride ?? null,
     tier: payload.tier ?? null,
     clutch: payload.clutch ?? null,
@@ -54,5 +70,7 @@ export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): C
     priority: payload.priority ?? null,
     dry_run: payload.dry_run ?? null,
     allow_duplicate: ctx.allowDuplicate ?? null,
+    mode: payload.mode ?? null,
+    chat_session_id: ctx.chatSessionId ?? ctx.sessionId ?? null,
   };
 }

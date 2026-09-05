@@ -233,6 +233,7 @@ async fn main() {
             commands::mcp::invoke_mcp_tool,
             commands::plan_panel::update_plan_node,
             commands::plan_panel::insert_plan_node,
+            commands::plan_panel::approve_plan_nodes,
             commands::plan_panel::list_plan_nodes,
             commands::plan_panel::plan_open_task_counts,
             commands::plan_panel::latest_plan_session_for_chat,

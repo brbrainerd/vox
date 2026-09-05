@@ -39,7 +39,7 @@ unsafe_code = "warn"
 # `standalone` is vox-codegen-ts's own feature; the crate is also #[path]-embedded
 # into vox-codegen (where the feature isn't set), so declare it known to silence the
 # unexpected_cfgs warning in that embed context.
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("standalone"))'] }
+unexpected_cfgs = { level = "deny", check-cfg = ['cfg(feature, values("standalone"))'] }
 
 [workspace.lints.clippy]
 all = "warn"
@@ -249,7 +249,7 @@ blake3             = { version = "1", features = ["pure"] }
 jsonwebtoken       = { version = "10", default-features = false, features = ["rust_crypto"] }
 ed25519-dalek      = { version = "2", default-features = false }
 x25519-dalek       = { version = "2", default-features = false, features = ["static_secrets"] }
-# Mesh transport (ADR-046). `default-features = false` deliberately drops iroh's
+# Mesh transport (ADR-047). `default-features = false` deliberately drops iroh's
 # `portmapper` default: it is what performs UPnP/PCP gateway probing and SSDP
 # multicast, which raises a firewall dialog on macOS and buys nothing on a LAN
 # mesh addressed by ticket. `fast-apple-datapath` is kept from the default set.

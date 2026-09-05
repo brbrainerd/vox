@@ -16,6 +16,7 @@ import {
 import type { ActiveSkill, CatalogEntry, ChatPayload, Toast } from '../../../types/tauri';
 import {
   formatSessionBudget,
+  isAppSlashCommand,
   resolveInternalModeSlash,
 } from '../../../lib/slashRouter';
 import { DriveConsole } from './DriveConsole';
@@ -468,8 +469,25 @@ export function Loquela({
 
   const canSend = !!text.trim() || !!intent.goal.trim();
 
-  const send = () => {
+  const send = async () => {
     if (!canSend) return;
+    // A slash command typed and Entered directly (never opening/selecting
+    // from the autocomplete dropdown) skips `runSlash` entirely -- that's
+    // the ONLY place `onSlashCommand` was wired. Without this check, e.g.
+    // "/spawn fix the login bug" (dropdown closes once trailing text no
+    // longer looks like an active command search) fell through to a plain
+    // chat submit with the literal "/spawn " prefix still in the text.
+    if (isAppSlashCommand(text)) {
+      const handled = await onSlashCommand?.(text.trim(), { setText });
+      if (handled) {
+        setHistory(h => [text.trim(), ...h].slice(0, COMPOSER_HISTORY_CAP));
+        setHistIdx(-1);
+        setText('');
+        setIntent(EMPTY_INTENT);
+        setIntentOpen(false);
+        return;
+      }
+    }
     const payload = {
       description: composeDescription(text, intent),
       priority: effortToPriority(intent.effort),
@@ -510,12 +528,12 @@ export function Loquela({
     }
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      if (taskInProgress) { onInterrupt?.(currentTaskId); } else { send(); }
+      if (taskInProgress) { onInterrupt?.(currentTaskId); } else { void send(); }
       return;
     }
     if (e.key === "Enter" && !e.shiftKey && !slashOpen && !atOpen) {
       e.preventDefault();
-      if (taskInProgress) { onInterrupt?.(currentTaskId); } else { send(); }
+      if (taskInProgress) { onInterrupt?.(currentTaskId); } else { void send(); }
     }
   };
 
@@ -626,7 +644,7 @@ export function Loquela({
           ) : (
             <button
               type="button"
-              onClick={send}
+              onClick={() => void send()}
               disabled={!canSend}
               aria-label="Run (Enter)"
               className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}

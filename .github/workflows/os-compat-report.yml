@@ -12,27 +12,47 @@ concurrency:
 
 jobs:
   scan:
-    name: OS compatibility scan
-    runs-on: [self-hosted, linux, x64]
+    name: OS compatibility scan (${{ matrix.label }})
+    # Matrix over the RUNNER LABEL, not an `os:` string: a naive
+    # `runs-on: ${{ matrix.os }}` would have to name `ubuntu-latest` and would
+    # thereby move the Linux leg off the self-hosted fleet, contradicting the
+    # local-first compute policy. The label list IS the runs-on value.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: [self-hosted, linux, x64]
+            label: self-hosted linux
+          - runner: macos-latest
+            label: macOS
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
 
+      # No pip install here on purpose: os_compat.py imports only argparse, re,
+      # sys, collections, pathlib and tomllib — all stdlib. It needs no pyyaml.
       - name: Run OS compatibility scanner
-        run: python scripts/coverage-graph/os_compat.py --repo-root . --out graphify-out/OS_COMPATIBILITY.md
+        shell: bash
+        run: python3 scripts/coverage-graph/os_compat.py --repo-root . --out graphify-out/OS_COMPATIBILITY.md
 
+      # Both legs write the SAME graphify-out/OS_COMPATIBILITY.md, so the
+      # artifact name must be per-leg or the second upload collides with the
+      # first and fails. Only the Linux leg's output is the canonical report;
+      # the macOS leg exists to prove the scanner runs there at all.
       - name: Upload report artifact
         uses: actions/upload-artifact@v7
         with:
-          name: os-compat-report-${{ github.run_number }}
+          name: os-compat-report-${{ github.run_number }}-${{ runner.os }}
           path: graphify-out/OS_COMPATIBILITY.md
           if-no-files-found: warn
 
       - name: Print summary
+        shell: bash
         run: |
-          echo "## OS Compatibility Summary" >> $GITHUB_STEP_SUMMARY
-          python -c "
+          echo "## OS Compatibility Summary (${{ matrix.label }})" >> $GITHUB_STEP_SUMMARY
+          python3 -c "
           from pathlib import Path
           lines = Path('graphify-out/OS_COMPATIBILITY.md').read_text().splitlines()
           for l in lines[:30]:

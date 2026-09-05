@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 const invokeMock = vi.fn();
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a: unknown[]) => invokeMock(...a) }));
-import { fetchTree, buildSubAgentTree } from './subAgentClient';
+import { fetchTree, fetchEdges, buildSubAgentTree } from './subAgentClient';
 
 beforeEach(() => invokeMock.mockReset());
 
@@ -21,6 +21,43 @@ describe('fetchTree', () => {
   it('returns [] on a non-array payload', async () => {
     invokeMock.mockResolvedValue(null);
     expect(await fetchTree()).toEqual([]);
+  });
+});
+
+describe('fetchEdges', () => {
+  // Phase D Task D3: `fetchTree()` discards `chat_session_id`/`origin_turn_id`
+  // while flattening edges into the windowed `SubAgentNode[]` tree — a
+  // correlation caller (e.g. a future `agentsForSession`) needs the raw edges,
+  // not the tree. This is the sibling accessor for that; `fetchTree()` must
+  // still work unchanged (built on top of it below).
+  it('returns the raw edges, including chat_session_id/origin_turn_id', async () => {
+    invokeMock.mockResolvedValue([
+      {
+        task_id: 10,
+        agent_id: 1,
+        parent_agent_id: null,
+        reason: 'root plan',
+        chat_session_id: 'chat-session-abc',
+        origin_turn_id: 'call_1',
+      },
+    ]);
+    const edges = await fetchEdges();
+    expect(invokeMock).toHaveBeenCalledWith('list_subagent_tree');
+    expect(edges).toEqual([
+      {
+        task_id: 10,
+        agent_id: 1,
+        parent_agent_id: null,
+        reason: 'root plan',
+        chat_session_id: 'chat-session-abc',
+        origin_turn_id: 'call_1',
+      },
+    ]);
+  });
+
+  it('returns [] on a non-array payload, same as fetchTree', async () => {
+    invokeMock.mockResolvedValue(null);
+    expect(await fetchEdges()).toEqual([]);
   });
 });
 

@@ -94,6 +94,11 @@ pub struct ModelOutcome<'a> {
     pub success: bool,
     pub cost_usd: Option<f64>,
     pub quality_score: Option<f64>,
+    /// Task M3: time to first token, in ms. `None` when not measured (e.g. the
+    /// non-streaming path in most callers, which hasn't been threaded through yet).
+    pub ttft_ms: Option<i64>,
+    /// Task M3: time per output token, in ms.
+    pub tpot_ms: Option<f64>,
 }
 
 /// A report on a single LLM request attempt (success or failure).

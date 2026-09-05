@@ -21,9 +21,13 @@
 //! requires (an authenticated transport-layer value, never LLM-composed).
 
 use vox_actor_runtime::ActivityOptions;
-use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig, LlmToolDef, llm_chat};
+use vox_actor_runtime::llm::{
+    LlmChatMessage, LlmConfig, LlmResponse, LlmToolDef, llm_chat, llm_stream_activity,
+};
 use vox_mcp_registry::TOOL_REGISTRY;
+use vox_orchestrator::events::AgentEventKind;
 use vox_orchestrator::models::{ModelSpec, ProviderType};
+use vox_orchestrator::types::AgentId;
 
 use crate::input_schemas::tool_input_schema;
 use crate::llm_bridge::tool_selection::{DEFAULT_MAX_TOOLS, TurnContext, select_tools_for_turn};
@@ -141,6 +145,276 @@ pub struct AgentTurnOutcome {
     /// across every `llm_chat` round-trip made during this turn (for transcript
     /// bookkeeping — `message.rs` records this alongside the persisted turn).
     pub total_tokens: u64,
+    /// Chat-turn-visible events derived from tool RESULTS during this turn (see
+    /// [`turn_event_for_result`]) — e.g. a skill activation chip. Empty unless a
+    /// dispatched tool call both matches a known event-worthy tool AND actually
+    /// succeeded.
+    pub events: Vec<serde_json::Value>,
+    /// Wall-clock latency of the final iteration's `llm_chat`/`stream_final_answer` call, in
+    /// ms. `None` only if every iteration failed before any response was received (in which
+    /// case the turn as a whole already errored out before `AgentTurnOutcome` is built).
+    pub latency_ms: Option<u64>,
+    /// Task M3: time to first token, in ms, from the final iteration's response. Only real on
+    /// the streaming path (`stream_tokens: true`); the non-streaming path reports
+    /// `latency_ms` here (see [`LlmResponse::ttft_ms`]'s doc comment).
+    pub ttft_ms: Option<u64>,
+    /// Task M3: time per output token, in ms, from the final iteration's response. `None`
+    /// when that iteration had zero completion tokens.
+    pub tpot_ms: Option<f64>,
+}
+
+/// Max chars of a model-authored string (e.g. a raw skill id) echoed into a
+/// turn event. Events render in trusted, system-styled chrome, so anything
+/// derived from model/tool-call content must be bounded before it reaches
+/// the UI, independent of the id-shape validation below.
+const TURN_EVENT_STRING_CAP: usize = 200;
+
+/// A skill id is only ever a short slug (see `SkillManifest::id` producers —
+/// installer-assigned, never user/model free text at creation time). Reject
+/// anything else (path separators, `..`, whitespace, control chars) rather
+/// than echoing it into system-styled UI: a model can put an arbitrary string
+/// in a tool call's `id` argument (including content it read from untrusted
+/// tool output earlier in the transcript), so this is a format allowlist, not
+/// a registry lookup — [`run_agent_turn`]'s call site additionally confirms
+/// the id resolves in the real skill registry before trusting it further.
+fn is_plausible_skill_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= TURN_EVENT_STRING_CAP
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+/// Derive a chat-turn-visible event from a dispatched tool call's RESULT —
+/// never from the call's arguments alone. `success` must reflect whether the
+/// dispatch actually succeeded (e.g. `!tool_json_envelope_is_error(&content)`
+/// at the call site), not merely whether the model requested the call.
+///
+/// Security rationale (see module docs and
+/// `docs/superpowers/plans/2026-08-28-chat-harness-unification.md` Phase E
+/// Task E1): a model can put anything in `args`, including text an earlier,
+/// untrusted tool result injected into the conversation. Gating purely on
+/// `success` — which is derived from what the tool dispatcher actually did,
+/// not from what the model claimed — is what keeps a denied/errored/unknown
+/// call from rendering a trusted-looking "skill activated" chip.
+///
+/// `result_content` is the raw dispatch response body (a [`crate::params::ToolResult`]
+/// JSON envelope, e.g. `{"success":true,"data":{"agent_id":7,...}}`) — needed for
+/// the delegation event (Phase D Task D3) because the spawned `agent_id` is
+/// server-generated and only exists in the RESULT, never in `args`.
+///
+/// Returns `None` when `success` is `false`, or when `tool_name` is not a
+/// tool this function knows how to turn into an event.
+pub(crate) fn turn_event_for_result(
+    tool_name: &str,
+    args: &serde_json::Value,
+    result_content: &str,
+    success: bool,
+) -> Option<serde_json::Value> {
+    if !success {
+        return None;
+    }
+    match tool_name {
+        "vox_skill_use" => {
+            let raw_id = args.get("id").and_then(|v| v.as_str()).unwrap_or("");
+            let skill_id = if is_plausible_skill_id(raw_id) {
+                raw_id.to_string()
+            } else {
+                "unknown".to_string()
+            };
+            Some(serde_json::json!({
+                "kind": "skill_activated",
+                "skill_id": skill_id,
+            }))
+        }
+        "vox_spawn_agent" | "vox_submit_task" => {
+            // Phase D Task D3: a "delegation" transcript row correlating this
+            // turn to the agent/task it spawned. `agent_id` is always present
+            // on both tools' success payloads (`SpawnAgentParams`'s handler and
+            // `SubmitTaskResponse`); `task_id` only on `vox_submit_task`.
+            let envelope: serde_json::Value = serde_json::from_str(result_content).ok()?;
+            let data = envelope.get("data")?;
+            let agent_id = data.get("agent_id").and_then(serde_json::Value::as_u64)?;
+            Some(serde_json::json!({
+                "kind": "delegation_spawned",
+                "tool": tool_name,
+                "agent_id": agent_id,
+                "task_id": data.get("task_id").and_then(serde_json::Value::as_u64),
+            }))
+        }
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod turn_event_tests {
+    use super::turn_event_for_result;
+    use serde_json::json;
+
+    #[test]
+    fn skill_event_comes_from_the_result_not_the_call() {
+        // Emitting from args would render "skill activated · X" for a call that
+        // was denied, unknown, or errored — letting injected content assert in
+        // system-styled UI that a trusted skill ran.
+        assert!(
+            turn_event_for_result("vox_skill_use", &json!({"id":"ponytail"}), "", true).is_some()
+        );
+        assert!(
+            turn_event_for_result("vox_skill_use", &json!({"id":"ponytail"}), "", false).is_none()
+        );
+    }
+
+    #[test]
+    fn unknown_skill_ids_are_labelled_unknown() {
+        let ev =
+            turn_event_for_result("vox_skill_use", &json!({"id":"../../etc/passwd"}), "", true)
+                .expect("event");
+        assert_eq!(ev["skill_id"], "unknown");
+    }
+
+    /// Phase D Task D3: a successful `vox_spawn_agent` call must produce a
+    /// transcript-visible delegation event carrying the spawned `agent_id` —
+    /// read from the dispatch RESULT (never from `args`, which a model
+    /// controls and which never contains the server-assigned id anyway).
+    #[test]
+    fn spawn_agent_success_emits_delegation_event_with_agent_id() {
+        let result = r#"{"success":true,"data":{"agent_id":42,"name":"child","dynamic":true}}"#;
+        let ev = turn_event_for_result("vox_spawn_agent", &json!({}), result, true)
+            .expect("delegation event");
+        assert_eq!(ev["kind"], "delegation_spawned");
+        assert_eq!(ev["tool"], "vox_spawn_agent");
+        assert_eq!(ev["agent_id"], 42);
+        assert!(ev["task_id"].is_null());
+    }
+
+    #[test]
+    fn submit_task_success_emits_delegation_event_with_task_and_agent_id() {
+        let result = r#"{"success":true,"data":{"task_id":9,"agent_id":3}}"#;
+        let ev = turn_event_for_result("vox_submit_task", &json!({}), result, true)
+            .expect("delegation event");
+        assert_eq!(ev["agent_id"], 3);
+        assert_eq!(ev["task_id"], 9);
+    }
+
+    #[test]
+    fn failed_spawn_emits_no_delegation_event() {
+        // Same rationale as the skill test above: a denied/errored call must
+        // not render a trusted-looking "delegated" chip.
+        let result = r#"{"success":false,"error":"boom"}"#;
+        assert!(turn_event_for_result("vox_spawn_agent", &json!({}), result, false).is_none());
+    }
+
+    #[test]
+    fn malformed_result_body_yields_no_event_rather_than_panicking() {
+        assert!(turn_event_for_result("vox_spawn_agent", &json!({}), "not json", true).is_none());
+    }
+}
+
+/// Task G1: attempt one iteration's model call via [`llm_stream_activity`],
+/// emitting `AgentEventKind::TokenStreamed { session_id, .. }` on the existing
+/// agent-events bus as each content chunk arrives, and returning a synthetic
+/// [`LlmResponse`] built from the accumulated text. Returns `None` — meaning
+/// "the caller should fall back to a plain, non-streaming `llm_chat` call for
+/// this iteration" — whenever streaming can't be trusted to have captured the
+/// real answer:
+///
+/// - the stream failed to connect or errored mid-stream, or
+/// - it produced no text at all, which is the observable signature of the
+///   model requesting a tool call instead of answering directly:
+///   `vox_llm_egress::wire::stream_once` only parses `delta.content` out of
+///   the SSE frames (see its doc comment), so `delta.tool_calls` fragments a
+///   provider sends while the model is composing a tool call are silently
+///   dropped rather than surfaced — there's no way to distinguish "the model
+///   is calling a tool" from "the model streamed nothing" from inside this
+///   function today. Treating an empty stream as "assume it needs the
+///   non-streaming fallback" costs one extra round-trip on tool-call turns
+///   (which weren't streaming usefully anyway) while keeping tool dispatch
+///   exactly as correct as it was before this task.
+///
+/// The synthetic response has no real `prompt_tokens`/provider-reported
+/// `completion_tokens` (streaming discards usage accounting) or `tool_calls`
+/// (by construction — a non-empty stream is exactly the case this function
+/// treats as "not a tool call"); `completion_tokens` is estimated the same
+/// way `chat/message.rs` already estimates attention-budget spend elsewhere
+/// in this crate.
+///
+/// ponytail: this ceiling (fallback-on-empty rather than genuinely streaming
+/// tool-call turns) is what keeps this task's diff to one call site instead
+/// of teaching `vox-llm-egress` to parse `delta.tool_calls`. Revisit if the
+/// duplicate-call cost on tool-heavy chat turns becomes measurable.
+async fn stream_final_answer(
+    state: &ServerState,
+    activity_options: &ActivityOptions,
+    messages: &[LlmChatMessage],
+    config: LlmConfig,
+    session_id: Option<&str>,
+) -> Option<LlmResponse> {
+    use futures_util::StreamExt;
+
+    let model = config.model.clone();
+    let mut stream = match llm_stream_activity(activity_options, messages.to_vec(), config).await {
+        vox_actor_runtime::ActivityResult::Ok(s) => s,
+        vox_actor_runtime::ActivityResult::Failed(_)
+        | vox_actor_runtime::ActivityResult::Cancelled => return None,
+    };
+
+    let bus = state.orchestrator.event_bus();
+    let agent_id = AgentId(0); // chat's pseudo-agent id, matching message.rs's convention.
+    let start = std::time::Instant::now();
+    let mut ttft_ms: Option<u64> = None;
+    let mut content = String::new();
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(chunk) => {
+                if chunk.is_empty() {
+                    continue;
+                }
+                // Task M3: the FIRST non-empty chunk is the only meaningful "time to first
+                // token" reading — later chunks are generation throughput, not connect+queue
+                // latency.
+                if ttft_ms.is_none() {
+                    ttft_ms = Some(start.elapsed().as_millis() as u64);
+                }
+                content.push_str(&chunk);
+                bus.emit(AgentEventKind::TokenStreamed {
+                    agent_id,
+                    text: chunk,
+                    session_id: session_id.map(str::to_string),
+                });
+            }
+            // Mid-stream transport failure: fall back rather than surfacing a
+            // partial/garbled answer as final.
+            Err(_) => return None,
+        }
+    }
+    if content.trim().is_empty() {
+        return None;
+    }
+    // `latency_ms` used to be hardcoded `0` here (Task M3) -- same class of bug Task M0
+    // fixed for the non-streaming path's `infer_with_retry`, just undiscovered until this
+    // task went looking for a place to measure TTFT.
+    let latency_ms = start.elapsed().as_millis() as u64;
+    let completion_tokens =
+        vox_orchestrator::compaction::CompactionEngine::estimate_tokens(&content) as u32;
+    // Generation-phase throughput: time AFTER the first token arrived, divided across the
+    // tokens that followed it. `ttft_ms` is always `Some` here (content is non-empty, so the
+    // loop above set it on the first chunk).
+    let tpot_ms = ttft_ms.and_then(|t| {
+        (completion_tokens > 0)
+            .then(|| latency_ms.saturating_sub(t) as f64 / completion_tokens as f64)
+    });
+    Some(LlmResponse {
+        content,
+        prompt_tokens: 0,
+        completion_tokens,
+        model,
+        cost_usd: None,
+        tool_calls: None,
+        latency_ms,
+        cache_read_tokens: 0,
+        ttft_ms,
+        tpot_ms,
+    })
 }
 
 /// Run one user turn of the tool-calling agent loop to completion.
@@ -157,6 +431,21 @@ pub struct AgentTurnOutcome {
 /// soon as a response has no tool_calls (returns its `content` as the final
 /// answer), or after `max_iterations` model round-trips (whichever comes first —
 /// see [`DEFAULT_MAX_ITERATIONS`] for why this bound must be real and finite).
+///
+/// `stream_tokens`: Task G1 (chat-harness-unification plan, Phase G). When
+/// `true`, each iteration first tries [`llm_stream_activity`] instead of
+/// [`llm_chat`], emitting `AgentEventKind::TokenStreamed { session_id, .. }`
+/// on `state.orchestrator.event_bus()` — the SAME bus `orch_daemon` already
+/// forwards to the GUI's `vox://agent-events` listener for background-task
+/// streaming — as each content chunk arrives, so the GUI's quick-chat bubble
+/// fills in progressively instead of only updating once the whole reply is
+/// back. `vox_llm_egress::wire::stream_once` only parses `delta.content`, not
+/// `delta.tool_calls`, so a turn where the model requests a tool call instead
+/// of answering directly streams zero chunks; that (or any other stream
+/// error) falls back to one ordinary non-streaming `llm_chat` call so tool
+/// dispatch is never affected — see [`stream_final_answer`]'s doc comment.
+/// `false` (every pre-existing caller) reproduces the exact prior behavior:
+/// one plain `llm_chat` call per iteration, no bus emissions.
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_agent_turn(
     state: &ServerState,
@@ -168,6 +457,7 @@ pub(crate) async fn run_agent_turn(
     active_skill_id: Option<String>,
     llm_config_template: LlmConfig,
     max_iterations: usize,
+    stream_tokens: bool,
 ) -> Result<AgentTurnOutcome, String> {
     let mut harness_scorer = super::harness_issue_scorer::HarnessIssueScorer::new();
     // Read once per turn, not per tool call — the flag cannot change mid-turn
@@ -244,6 +534,10 @@ pub(crate) async fn run_agent_turn(
     let mut model_used = String::new();
     let mut tool_calls_made = 0usize;
     let mut total_tokens = 0u64;
+    let mut events: Vec<serde_json::Value> = Vec::new();
+    let mut latency_ms: Option<u64> = None;
+    let mut ttft_ms: Option<u64> = None;
+    let mut tpot_ms: Option<f64> = None;
 
     for iteration in 0..max_iterations {
         let mut config = llm_config_template.clone();
@@ -253,16 +547,41 @@ pub(crate) async fn run_agent_turn(
             Some(tool_defs.clone())
         };
 
-        let resp = match llm_chat(&activity_options, messages.clone(), config).await {
-            vox_actor_runtime::ActivityResult::Ok(Ok(r)) => r,
-            vox_actor_runtime::ActivityResult::Ok(Err(e)) => return Err(e),
-            vox_actor_runtime::ActivityResult::Failed(e) => return Err(format!("{e:?}")),
-            vox_actor_runtime::ActivityResult::Cancelled => {
-                return Err("llm_chat activity cancelled".to_string());
+        let resp = if stream_tokens {
+            match stream_final_answer(
+                state,
+                &activity_options,
+                &messages,
+                config.clone(),
+                session_id,
+            )
+            .await
+            {
+                Some(r) => r,
+                None => match llm_chat(&activity_options, messages.clone(), config).await {
+                    vox_actor_runtime::ActivityResult::Ok(Ok(r)) => r,
+                    vox_actor_runtime::ActivityResult::Ok(Err(e)) => return Err(e),
+                    vox_actor_runtime::ActivityResult::Failed(e) => return Err(format!("{e:?}")),
+                    vox_actor_runtime::ActivityResult::Cancelled => {
+                        return Err("llm_chat activity cancelled".to_string());
+                    }
+                },
+            }
+        } else {
+            match llm_chat(&activity_options, messages.clone(), config).await {
+                vox_actor_runtime::ActivityResult::Ok(Ok(r)) => r,
+                vox_actor_runtime::ActivityResult::Ok(Err(e)) => return Err(e),
+                vox_actor_runtime::ActivityResult::Failed(e) => return Err(format!("{e:?}")),
+                vox_actor_runtime::ActivityResult::Cancelled => {
+                    return Err("llm_chat activity cancelled".to_string());
+                }
             }
         };
         model_used = resp.model.clone();
         total_tokens += u64::from(resp.prompt_tokens) + u64::from(resp.completion_tokens);
+        latency_ms = Some(resp.latency_ms);
+        ttft_ms = resp.ttft_ms;
+        tpot_ms = resp.tpot_ms;
 
         match resp.tool_calls {
             Some(calls) if !calls.is_empty() => {
@@ -275,17 +594,57 @@ pub(crate) async fn run_agent_turn(
 
                 for call in &calls {
                     tool_calls_made += 1;
+                    // Phase D Task D1: inject the chat session id (and this
+                    // call's own provider id as the delegation "origin turn")
+                    // into the OUTGOING dispatch args only — never into
+                    // `call.arguments` itself, which is what gets recorded into
+                    // `messages`/`events`/the harness scorer below. Only
+                    // `vox_spawn_agent`/`vox_submit_task` params structs declare
+                    // these fields; every other tool's `deny_unknown_fields`
+                    // schema would reject them, so this is scoped to the two
+                    // delegation tools rather than injected unconditionally.
+                    let mut dispatch_args = call.arguments.clone();
+                    if matches!(call.name.as_str(), "vox_spawn_agent" | "vox_submit_task") {
+                        if let Some(session) = session_id.filter(|s| !s.is_empty()) {
+                            if dispatch_args.is_null() {
+                                dispatch_args = serde_json::Value::Object(serde_json::Map::new());
+                            }
+                            if let Some(obj) = dispatch_args.as_object_mut() {
+                                obj.insert(
+                                    "chat_session_id".to_string(),
+                                    serde_json::Value::String(session.to_string()),
+                                );
+                                obj.insert(
+                                    "origin_turn_id".to_string(),
+                                    serde_json::Value::String(call.id.clone()),
+                                );
+                            }
+                        }
+                    }
                     let result = crate::dispatch::handle_tool_call_with_mode(
                         state,
                         &call.name,
-                        call.arguments.clone(),
+                        dispatch_args,
                         permission_mode,
                     )
                     .await;
+                    let dispatch_ok = result.is_ok();
                     let content = match result {
                         Ok(s) => s,
                         Err(e) => format!("Error: {e}"),
                     };
+                    let call_succeeded = dispatch_ok
+                        && !content.starts_with("Error:")
+                        && !crate::server_state::tool_json_envelope_is_error(&content);
+                    // Derived from the RESULT (`call_succeeded`, computed above from
+                    // what dispatch actually did), never from `call.arguments` alone
+                    // — see `turn_event_for_result`'s doc comment for why that
+                    // distinction is security-load-bearing.
+                    if let Some(ev) =
+                        turn_event_for_result(&call.name, &call.arguments, &content, call_succeeded)
+                    {
+                        events.push(ev);
+                    }
 
                     if harness_detection_enabled {
                         let is_error = content.starts_with("Error:")
@@ -414,6 +773,10 @@ pub(crate) async fn run_agent_turn(
                         tool_calls_made,
                         hit_iteration_limit: true,
                         total_tokens,
+                        events,
+                        latency_ms,
+                        ttft_ms,
+                        tpot_ms,
                     });
                 }
                 // Otherwise loop: ask the model again with the tool results appended.
@@ -425,6 +788,10 @@ pub(crate) async fn run_agent_turn(
                     tool_calls_made,
                     hit_iteration_limit: false,
                     total_tokens,
+                    events,
+                    latency_ms,
+                    ttft_ms,
+                    tpot_ms,
                 });
             }
         }
@@ -440,6 +807,10 @@ pub(crate) async fn run_agent_turn(
         tool_calls_made,
         hit_iteration_limit: true,
         total_tokens,
+        events,
+        latency_ms,
+        ttft_ms,
+        tpot_ms,
     })
 }
 
@@ -567,6 +938,7 @@ pub async fn eval_gate_agent_loop_terminates_check() -> Result<(), String> {
         None,
         llm_config,
         max_iterations,
+        false,
     )
     .await?;
 
@@ -719,6 +1091,7 @@ mod tests {
             None,
             config,
             DEFAULT_MAX_ITERATIONS,
+            false,
         )
         .await
         .expect("run_agent_turn should succeed");
@@ -761,6 +1134,7 @@ mod tests {
             None,
             config,
             DEFAULT_MAX_ITERATIONS,
+            false,
         )
         .await
         .expect("run_agent_turn should succeed");
@@ -817,6 +1191,7 @@ mod tests {
             None,
             config,
             DEFAULT_MAX_ITERATIONS,
+            false,
         )
         .await
         .expect("run_agent_turn should succeed");
@@ -869,6 +1244,7 @@ mod tests {
             None,
             config,
             max_iterations,
+            false,
         )
         .await
         .expect("run_agent_turn should return Ok even when the bound is hit");
@@ -960,6 +1336,7 @@ mod tests {
             None,
             config,
             max_iterations,
+            false,
         )
         .await
         .expect("run_agent_turn should succeed even though every tool call errors");
@@ -1224,6 +1601,151 @@ mod tests {
             body.get("top_p").and_then(serde_json::Value::as_f64),
             Some(0.42_f64),
             "params.top_p must reach the wire request on the mapped path: {body}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Task G1: sync-path token streaming
+    // -----------------------------------------------------------------------
+
+    /// `stream_tokens: true` against a real SSE response: `TokenStreamed`
+    /// events carrying the turn's `session_id` must appear on the existing
+    /// agent-events bus (`state.orchestrator.event_bus()` — the same bus
+    /// `orch_daemon` forwards to the GUI) as chunks arrive, concatenating to
+    /// the same text `run_agent_turn`'s own return value reports, and exactly
+    /// one HTTP round-trip must occur (no non-streaming fallback needed).
+    #[tokio::test]
+    async fn stream_tokens_emits_token_streamed_events_with_session_id() {
+        let server = MockServer::start().await;
+        let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"Hi \"}}]}\n\
+                   data: {\"choices\":[{\"delta\":{\"content\":\"there\"}}]}\n\
+                   data: [DONE]\n\n";
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("content-type", "text/event-stream")
+                    .set_body_string(sse),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let state = test_state();
+        let mut rx = state.orchestrator.event_bus().subscribe();
+        let config = test_config(format!("{}/chat/completions", server.uri()));
+        let outcome = run_agent_turn(
+            &state,
+            Some("sess-g1"),
+            vec![],
+            "system prompt".to_string(),
+            "hi".to_string(),
+            None,
+            None,
+            config,
+            DEFAULT_MAX_ITERATIONS,
+            true,
+        )
+        .await
+        .expect("run_agent_turn should succeed");
+
+        assert_eq!(outcome.final_text, "Hi there");
+        assert_eq!(outcome.tool_calls_made, 0);
+        assert!(
+            outcome.latency_ms.is_some(),
+            "Task M3: streaming latency_ms must no longer be the hardcoded 0"
+        );
+        assert!(
+            outcome.ttft_ms.is_some(),
+            "Task M3: a genuinely streamed reply must report a real time-to-first-token"
+        );
+        assert!(
+            outcome.tpot_ms.is_some(),
+            "Task M3: a genuinely streamed reply with completion tokens must report tpot_ms"
+        );
+
+        let mut streamed_text = String::new();
+        let mut saw_session_id = false;
+        while let Ok(evt) = rx.try_recv() {
+            if let AgentEventKind::TokenStreamed {
+                text, session_id, ..
+            } = evt.kind
+            {
+                streamed_text.push_str(&text);
+                assert_eq!(
+                    session_id.as_deref(),
+                    Some("sess-g1"),
+                    "every TokenStreamed frame from the sync path must carry this turn's session_id"
+                );
+                saw_session_id = true;
+            }
+        }
+        assert!(
+            saw_session_id,
+            "expected at least one TokenStreamed event on the bus"
+        );
+        assert_eq!(streamed_text, "Hi there");
+    }
+
+    /// `stream_tokens: true` against a plain (non-SSE) JSON response — the
+    /// observable shape of a turn where the model requested a tool call
+    /// instead of streaming text (`vox_llm_egress::wire::stream_once` doesn't
+    /// parse `delta.tool_calls`, so that turn streams zero content chunks).
+    /// Must fall back to one ordinary non-streaming `llm_chat` call and reach
+    /// the exact same outcome `stream_tokens: false` would, proving tool
+    /// dispatch is unaffected by this task.
+    #[tokio::test]
+    async fn stream_tokens_falls_back_to_non_streaming_when_stream_yields_no_content() {
+        let server = MockServer::start().await;
+        // `up_to_n_times(2)`: iteration 1 costs two requests under
+        // `stream_tokens: true` — the empty streaming attempt, then the
+        // non-streaming fallback that actually carries the tool_calls.
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(tool_call_response_body()))
+            .up_to_n_times(2)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(plain_response_body("done, saw the tool result")),
+            )
+            .mount(&server)
+            .await;
+
+        let state = test_state();
+        let config = test_config(format!("{}/chat/completions", server.uri()));
+        let outcome = run_agent_turn(
+            &state,
+            Some("sess-g1-fallback"),
+            vec![],
+            "system prompt".to_string(),
+            "what's the git status?".to_string(),
+            None,
+            None,
+            config,
+            DEFAULT_MAX_ITERATIONS,
+            true,
+        )
+        .await
+        .expect("run_agent_turn should succeed via the non-streaming fallback");
+
+        assert_eq!(outcome.final_text, "done, saw the tool result");
+        assert_eq!(
+            outcome.tool_calls_made, 1,
+            "the tool call from the first (streaming-attempted, empty) iteration must still \
+             dispatch via the non-streaming fallback"
+        );
+
+        // Two iterations, each of which first attempts streaming (empty/no
+        // SSE body -> falls back) then makes its real non-streaming call:
+        // iteration 1 = [stream-attempt, fallback-that-returns-tool_calls],
+        // iteration 2 = [stream-attempt, fallback-that-returns-final-text].
+        let requests = server.received_requests().await.expect("received requests");
+        assert_eq!(
+            requests.len(),
+            4,
+            "each of the two iterations costs one wasted stream-attempt request plus one real \
+             non-streaming request while the model is calling tools"
         );
     }
 }

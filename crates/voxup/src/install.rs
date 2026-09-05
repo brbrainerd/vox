@@ -37,7 +37,17 @@ pub(crate) fn place_binaries(
     Ok(())
 }
 
-pub async fn run_install(profile: &str) -> Result<()> {
+/// Staging dir for an in-progress extraction of `version` under `cache_dir`.
+///
+/// Built as a string, not `tc_dir.with_extension("incoming")` — `with_extension`
+/// replaces everything after the LAST dot, so "vox-0.7.0" would collide with
+/// "vox-0.7.5" at the same "vox-0.7.incoming" staging path, letting one
+/// in-progress install's `remove_dir_all` delete another's.
+fn staging_dir_for(cache_dir: &Path, version: &str) -> std::path::PathBuf {
+    cache_dir.join(format!("vox-{version}.incoming"))
+}
+
+pub async fn run_install(profile: &str, tag: Option<&str>) -> Result<()> {
     // Validate tier before touching the network.
     crate::profiles::validate_tier(crate::profiles::PROFILES_YAML, profile)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -54,10 +64,18 @@ pub async fn run_install(profile: &str) -> Result<()> {
     fs::create_dir_all(&bin_dir)?;
     fs::create_dir_all(&cache_dir)?;
 
-    info!("Fetching latest Vox release from GitHub…");
     let client = crate::channel::make_client()?;
-    let release = crate::channel::fetch_latest(&client).await?;
-    info!("Latest release: {} ({})", release.tag, release.version);
+    let release = match tag {
+        Some(tag) => {
+            info!("Fetching release '{tag}' from GitHub…");
+            crate::channel::fetch_by_tag(&client, tag).await?
+        }
+        None => {
+            info!("Fetching latest Vox release from GitHub…");
+            crate::channel::fetch_latest(&client).await?
+        }
+    };
+    info!("Release: {} ({})", release.tag, release.version);
 
     // Download and parse checksums.txt
     let ck_asset = release
@@ -93,9 +111,16 @@ pub async fn run_install(profile: &str) -> Result<()> {
         .with_context(|| format!("Integrity check failed for {archive_name}"))?;
     info!("Checksum OK");
 
-    // Extract to versioned dir
+    // Extract to versioned dir. A mid-extraction failure must not leave a
+    // partially-populated version dir behind for the next run, so extract into
+    // a sibling staging dir and rename on success.
     let tc_dir = cache_dir.join(format!("vox-{}", release.version));
-    crate::download::extract(&ar_bytes, &tc_dir, &archive_name)?;
+    let staging = staging_dir_for(&cache_dir, &release.version);
+    let _ = fs::remove_dir_all(&staging);
+    crate::download::extract(&ar_bytes, &staging, &archive_name)?;
+    let _ = fs::remove_dir_all(&tc_dir);
+    fs::rename(&staging, &tc_dir)
+        .with_context(|| format!("promote {} -> {}", staging.display(), tc_dir.display()))?;
 
     // Write active version
     fs::write(cache_dir.join("active"), &release.version)
@@ -141,7 +166,20 @@ pub async fn run_install(profile: &str) -> Result<()> {
     println!("   vox:   {}", canonical.display());
     println!("   voxup: {}", voxup_canonical.display());
     println!("   Run: vox --version");
-    println!("   Restart your shell or: source ~/.bashrc");
+    // Name the profile that was actually modified. Hardcoding ~/.bashrc told
+    // macOS users (zsh by default, and where voxup now creates ~/.zshrc on a
+    // pristine account) to source a file it had not touched — and which usually
+    // does not exist there.
+    match modified.first() {
+        Some(profile) => println!(
+            "   Restart your shell or: source {}",
+            profile.display()
+        ),
+        None => println!(
+            "   Add {} to your PATH, then restart your shell",
+            bin_dir.display()
+        ),
+    }
     Ok(())
 }
 
@@ -296,6 +334,21 @@ mod tests {
     fn write_fake_binary(path: &Path, byte: u8) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, vec![byte; (MIN_REAL_BINARY_BYTES + 1) as usize]).unwrap();
+    }
+
+    #[test]
+    fn staging_dir_keeps_full_dotted_version_and_does_not_collide() {
+        let cache_dir = Path::new("/cache");
+        let staging_070 = staging_dir_for(cache_dir, "0.7.0");
+        let staging_075 = staging_dir_for(cache_dir, "0.7.5");
+        assert_eq!(
+            staging_070.file_name().unwrap().to_str().unwrap(),
+            "vox-0.7.0.incoming"
+        );
+        assert_ne!(
+            staging_070, staging_075,
+            "distinct patch versions must not collide"
+        );
     }
 
     #[test]

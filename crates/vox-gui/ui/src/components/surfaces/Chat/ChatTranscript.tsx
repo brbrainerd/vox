@@ -5,6 +5,7 @@ import type { StreamItem } from '../../../types/dashboard';
 import { buildChatOnlyTimeline } from '../../../lib/chatTranscriptTimeline';
 import { StatusLine } from './StatusLine';
 import { ModelBadge } from './ModelBadge';
+import { ChatTurnEventRow } from './ChatTurnEventRow';
 import { useChatVerbosity } from '../../../hooks/useChatVerbosity';
 import { listHarnessIssuesForSession, type HarnessIssueRow } from '../Scientia/harnessIssuesApi';
 
@@ -12,9 +13,17 @@ interface ChatTranscriptProps {
   messages: ChatMessage[];
   agentStreamItems?: StreamItem[];
   sessionId?: string;
+  /** "not this one" on a skill-activation chip — see `ChatTurnEventRow`. */
+  onExcludeSkill?: (skillId: string) => void;
 }
 
-export function MessageBubble({ message }: { message: ChatMessage }) {
+export function MessageBubble({
+  message,
+  onExcludeSkill,
+}: {
+  message: ChatMessage;
+  onExcludeSkill?: (skillId: string) => void;
+}) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const streaming = message.status === 'streaming' || message.status === 'pending';
@@ -64,6 +73,13 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
           </span>
         </div>
       )}
+      {message.role === 'assistant' && message.events && message.events.length > 0 && (
+        <div className="mt-1 flex flex-wrap justify-end gap-1">
+          {message.events.map((ev, i) => (
+            <ChatTurnEventRow key={i} event={ev} onExcludeSkill={onExcludeSkill} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -82,7 +98,7 @@ function HarnessIssueSummary({ issue }: { issue: HarnessIssueRow }) {
 }
 
 /** Merged chat bubbles + inline agent execution rows for the active session. */
-export function ChatTranscript({ messages, agentStreamItems, sessionId }: ChatTranscriptProps) {
+export function ChatTranscript({ messages, agentStreamItems, sessionId, onExcludeSkill }: ChatTranscriptProps) {
   const [verbosity] = useChatVerbosity();
   const timeline = buildChatOnlyTimeline(messages, agentStreamItems ?? [], { verbosity });
   const [harnessIssues, setHarnessIssues] = useState<HarnessIssueRow[]>([]);
@@ -135,7 +151,7 @@ export function ChatTranscript({ messages, agentStreamItems, sessionId }: ChatTr
         )}
         {timeline.map((row) => {
           if (row.kind === 'message') {
-            return <MessageBubble key={row.id} message={row.message} />;
+            return <MessageBubble key={row.id} message={row.message} onExcludeSkill={onExcludeSkill} />;
           }
           if (row.kind === 'status') {
             return <StatusLine key={row.id} phase={row.phase} elapsedMs={row.elapsedMs} />;

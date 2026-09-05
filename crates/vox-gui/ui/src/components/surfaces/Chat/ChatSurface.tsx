@@ -311,6 +311,7 @@ interface ChatSurfaceProps {
   /** Live plan-DAG identity for this session, if the current task has synthesized a plan. */
   planSessionId?: string | null;
   planVersion?: number | null;
+  onDiscardPlan?: () => void;
   /** Shared attention inbox (App owns polling) — sources the opt-in Needs You dock panel. */
   attention?: AttentionInbox;
   onOpenFeedbackContext?: (id: string) => void;
@@ -318,6 +319,8 @@ interface ChatSurfaceProps {
   pendingApprovals?: number;
   /** Currently pinned skill id (App.tsx `activeSkill`), threaded into secretary task submission. */
   activeSkillId?: string | null;
+  /** "not this one" on a skill-activation chip — see `ChatTranscript`/`ChatTurnEventRow`. */
+  onExcludeSkill?: (skillId: string) => void;
 }
 
 export function ChatSurface({
@@ -344,10 +347,12 @@ export function ChatSurface({
   blockedTasks = 0,
   planSessionId,
   planVersion,
+  onDiscardPlan,
   attention,
   onOpenFeedbackContext,
   pendingApprovals = 0,
   activeSkillId,
+  onExcludeSkill,
 }: ChatSurfaceProps) {
   // Task 9: session switching lives in the global Sidebar
   // (SessionSidebarSection) now, backed by App.tsx's single owning call to
@@ -639,7 +644,14 @@ export function ChatSurface({
     />
   );
 
-  const todosNode = <PlanPanel planSessionId={planSessionId} planVersion={planVersion} nodes={planNodes} />;
+  const todosNode = (
+    <PlanPanel
+      planSessionId={planSessionId}
+      planVersion={planVersion}
+      nodes={planNodes}
+      onDiscard={onDiscardPlan}
+    />
+  );
 
   const needsYouNode = (
     <NeedsYouSurface
@@ -678,6 +690,7 @@ export function ChatSurface({
           messages={messages}
           agentStreamItems={agentStreamItems}
           sessionId={activeId}
+          onExcludeSkill={onExcludeSkill}
         />
       )}
       {composer != null ? (

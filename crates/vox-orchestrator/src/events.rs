@@ -401,6 +401,15 @@ pub enum AgentEventKind {
     TokenStreamed {
         agent_id: AgentId,
         text: String,
+        /// Chat session this token belongs to (Task G1). `None` for the
+        /// pre-existing background-task streaming path
+        /// (`Orchestrator::run_phase_stream_with_bus`), which has no chat
+        /// session concept — only the sync `vox_chat_message` path
+        /// (`agent_loop::run_agent_turn`) sets this, so the frontend's
+        /// `resolveSessionForEvent` can route the frame directly instead of
+        /// falling back to the `agentToTask` scan.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        session_id: Option<String>,
     },
     /// Opt-in, non-blocking post-reply grounding/hallucination check
     /// (chat gate policy) completed for a chat task. Never delays the
@@ -1169,12 +1178,65 @@ mod tests {
         let kind = AgentEventKind::TokenStreamed {
             agent_id: AgentId(1),
             text: "hello".into(),
+            session_id: None,
         };
         assert!(
             is_tier_b(&kind),
             "TokenStreamed must be Tier B (broadcast-only, never durably journaled)"
         );
         assert!(!is_tier_a(&kind), "is_tier_a must be the exact complement");
+    }
+
+    /// Task G1: the sync chat path needs `TokenStreamed` to carry `session_id`
+    /// so the GUI's `resolveSessionForEvent` can route a frame directly to the
+    /// chat bubble, instead of only being reachable via the background-task
+    /// `agentToTask` scan. Field must serialize (not `skip_serializing_if`
+    /// away a `Some`) so the wire frame the GUI reads actually carries it.
+    #[test]
+    fn token_streamed_carries_session_id_when_set() {
+        let event = AgentEvent {
+            id: EventId(1),
+            timestamp_ms: 0,
+            kind: AgentEventKind::TokenStreamed {
+                agent_id: AgentId(1),
+                text: "hi".into(),
+                session_id: Some("sess-42".into()),
+            },
+        };
+        let json = serde_json::to_string(&event).expect("serialize");
+        assert!(
+            json.contains("\"session_id\":\"sess-42\""),
+            "session_id must be present on the wire frame: {json}"
+        );
+        let back: AgentEvent = serde_json::from_str(&json).expect("deserialize");
+        match back.kind {
+            AgentEventKind::TokenStreamed { session_id, .. } => {
+                assert_eq!(session_id.as_deref(), Some("sess-42"));
+            }
+            other => panic!("expected TokenStreamed, got {other:?}"),
+        }
+    }
+
+    /// `session_id: None` (the pre-existing background-task streaming path)
+    /// must NOT serialize a `session_id` key at all — additive change,
+    /// existing consumers that don't know the field must see the same wire
+    /// shape as before.
+    #[test]
+    fn token_streamed_omits_session_id_when_absent() {
+        let event = AgentEvent {
+            id: EventId(2),
+            timestamp_ms: 0,
+            kind: AgentEventKind::TokenStreamed {
+                agent_id: AgentId(1),
+                text: "hi".into(),
+                session_id: None,
+            },
+        };
+        let json = serde_json::to_string(&event).expect("serialize");
+        assert!(
+            !json.contains("session_id"),
+            "session_id must be omitted from the wire frame when None: {json}"
+        );
     }
 
     #[test]
@@ -1252,6 +1314,7 @@ mod tests {
             AgentEventKind::TokenStreamed {
                 agent_id: AgentId(1),
                 text: "x".into(),
+                session_id: None,
             },
             AgentEventKind::AgentHeartbeat {
                 agent_id: AgentId(1),

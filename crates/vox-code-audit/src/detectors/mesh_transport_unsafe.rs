@@ -2,7 +2,7 @@ use crate::diagnostics::catalog;
 use crate::rules::{DetectionRule, Finding, FindingConfidence, Language, Severity, SourceFile};
 use regex::Regex;
 
-/// Three iroh patterns that silently defeat the mesh's security model (ADR-046).
+/// Three iroh patterns that silently defeat the mesh's security model (ADR-047).
 ///
 /// Each is a compile-clean, test-passing change that removes a guarantee the
 /// rest of `vox-mesh-transport` assumes, which is exactly why a detector and
@@ -76,7 +76,7 @@ impl MeshTransportUnsafeDetector {
             file: file.path.clone(),
             line: line_num,
             column: 0,
-            message: format!("`{matched}` defeats the mesh transport security model (ADR-046)."),
+            message: format!("`{matched}` defeats the mesh transport security model (ADR-047)."),
             suggestion: Some(Self::why(matched).to_string()),
             alternatives: vec![
                 "iroh::endpoint::presets::Minimal".to_string(),
@@ -117,7 +117,7 @@ impl DetectionRule for MeshTransportUnsafeDetector {
     }
 
     fn explain(&self) -> &'static str {
-        "Three iroh patterns silently defeat the mesh security model (ADR-046). All three \
+        "Three iroh patterns silently defeat the mesh security model (ADR-047). All three \
          compile, pass tests, and pass review.\n\n\
          BAD:\n  Endpoint::builder(presets::N0)          // contacts n0 DNS, pkarr, relays\n\
          \x20 Endpoint::builder(presets::N0DisableRelay) // still contacts n0 DNS and pkarr\n\

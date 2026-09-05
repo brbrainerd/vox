@@ -14,7 +14,7 @@ vox-config = { workspace = true }
 vox-plugin-api = { workspace = true }
 vox-hf-layout = { workspace = true }
 vox-tensor = { workspace = true }
-vox-db = { workspace = true }
+vox-db = { workspace = true, features = ["host-integration"] }
 vox-secrets = { workspace = true }
 vox-eval = { workspace = true }
 vox-compiler = { workspace = true }
@@ -48,6 +48,7 @@ cuda = ["candle-core/cuda", "candle-nn/cuda"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
+toml = { workspace = true }
 
 [lints]
 workspace = true

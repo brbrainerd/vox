@@ -29,6 +29,9 @@ async fn test_forced_autonomous_chat_research_triggers() {
         clutch: None,
         risk: None,
         skill_exclusions: vec![],
+        mode: None,
+        priority: None,
+        dry_run: None,
         force_research: Some(true),
         research_scope: Some("web".to_string()),
     };

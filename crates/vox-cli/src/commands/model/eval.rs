@@ -197,6 +197,9 @@ pub fn scoreboard_row_from_eval(
         updated_at_ms: now,
         success_count: result.passed as i64,
         cumulative_cost_usd: result.cumulative_cost_usd,
+        p95_ttft_ms: None,
+        p95_tpot_ms: None,
+        goodput_tokens_per_sec: None,
     }
 }
 

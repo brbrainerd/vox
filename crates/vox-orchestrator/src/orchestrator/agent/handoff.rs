@@ -131,6 +131,8 @@ impl crate::orchestrator::Orchestrator {
                     Some("handoff_resume"),
                     None,
                     hints,
+                    None,
+                    None,
                 ) {
                     Ok(new_id) => new_id,
                     Err(e) => {
@@ -150,6 +152,8 @@ impl crate::orchestrator::Orchestrator {
                 Some("handoff_resume"),
                 None,
                 hints,
+                None,
+                None,
             ) {
                 Ok(new_id) => new_id,
                 Err(e) => {
@@ -203,6 +207,8 @@ impl crate::orchestrator::Orchestrator {
                     parent_agent_id: from_agent,
                     source_task_id: None,
                     reason: "handoff_accept".to_string(),
+                    chat_session_id: None,
+                    origin_turn_id: None,
                 },
             );
             self.record_lineage_event(

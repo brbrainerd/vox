@@ -4,6 +4,7 @@ pub mod cost_tier;
 pub mod discovery_pipeline;
 pub mod generated;
 pub mod key_guard;
+mod pareto;
 pub mod policy;
 pub mod prompt_profiles;
 mod registry;
@@ -22,13 +23,16 @@ pub use generated::{
     Capability, CapabilityFlags, ModelTier, PromptIntent, StrengthTag, TaskCategory,
     infer_capabilities, infer_prompt_intents, intent_required_capabilities,
 };
+pub use pareto::{ParetoPoint, is_observed, pareto_frontier, pareto_point_for};
 pub use policy::{
     FallbackCondition, PolicyContext, SelectionAxisKind, SelectionPolicy, SelectionStep,
     active_policy, install_active_policy, policy_for_profile, resolve_policy,
 };
 #[cfg(feature = "runtime")]
 pub use registry::llm_config_for_spec;
-pub use registry::{ModelRegistry, ModelScore};
+pub use registry::{
+    MIN_CALLS_FOR_CONFIDENT_RANK, ModelRegistry, ModelScore, wilson_score_interval,
+};
 pub use scoring::install_base_routing_priority;
 pub use select::{
     CandidateScope, ModelSelectionDecision, ModelSelectionRequest, ScoreBreakdown, SelectionAxes,

@@ -171,23 +171,24 @@ recall_async(agent, type, limit, min_importance)  # Query with relevance filteri
 
 ## Installation
 
+Canonical page: [Installing Vox](../reference/installation.md).
+
 ### Automated (recommended)
 
 ```bash
-# Linux / macOS
-./scripts/install.sh          # End-user install
-./scripts/install.sh --dev    # Full contributor setup
-./scripts/install.sh plan     # JSON install plan (CI/tooling)
+curl --proto '=https' --tlsv1.2 -sSf https://voxlang.org/voxup | sh
+```
 
-# Windows (PowerShell)
-.\scripts\install.ps1         # End-user install
-.\scripts\install.ps1 -Dev    # Full contributor setup
-.\scripts\install.ps1 plan    # JSON install plan (CI/tooling)
+From a checkout, the same scripts run directly — they take **no arguments**:
+
+```bash
+sh scripts/install.sh        # Linux / macOS
+.\scripts\install.ps1        # Windows (PowerShell)
 ```
 
 ### Manual
 
-Prerequisites: Rust >= 1.75, Node.js >= 18, C compiler (gcc/clang/MSVC). Full workspace + **Turso** crates: **clang** on Linux/macOS; **clang-cl** (LLVM) on Windows — see `docs/src/how-to-setup.md`.
+Prerequisites: Rust 1.96 (`rust-toolchain.toml` pins `1.96.0`), Node.js >= 18, C compiler (gcc/clang/MSVC). Full workspace + **Turso** crates: **clang** on Linux/macOS; **clang-cl** (LLVM) on Windows.
 
 ```bash
 cargo install --locked --path crates/vox-cli

@@ -297,6 +297,14 @@ pub struct ModelScoreboardRow {
     pub updated_at_ms: i64,
     pub success_count: i64,
     pub cumulative_cost_usd: f64,
+    /// Task M3: p95 time-to-first-token, ms. `None` until at least one row in the window has
+    /// `ttft_ms` recorded (see `crates/vox-db-types/src/store_types/params.rs`'s `ModelOutcome`).
+    pub p95_ttft_ms: Option<i64>,
+    /// Task M3: p95 time-per-output-token, ms. Same NULL condition as `p95_ttft_ms`.
+    pub p95_tpot_ms: Option<f64>,
+    /// Task M3: mean successful-call throughput (output_tokens / (latency_ms / 1000.0)) over
+    /// the window — "goodput" in the LLM-serving sense.
+    pub goodput_tokens_per_sec: Option<f64>,
 }
 
 /// The most recently recorded row from `llm_attempts`, with its age precomputed in SQL

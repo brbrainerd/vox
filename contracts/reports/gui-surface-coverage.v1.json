@@ -1242,6 +1242,7 @@
     "acknowledge_discovery",
     "activity_query",
     "approve_orchestrator_task_plan",
+    "approve_plan_nodes",
     "browser_attach_session",
     "browser_click_xy",
     "browser_close_page",

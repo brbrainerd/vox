@@ -38,6 +38,33 @@ pub(crate) fn plan_result_blocked_by_adequacy_enforce(
     cfg.plan_adequacy_enforce && report.adequacy.is_too_thin
 }
 
+/// Status a freshly-inserted plan node gets. `blocked_on_approval` only when
+/// the caller opts in (`require_approval: true`, GUI's `/plan`); every other
+/// caller — `ai.plan.execute`, `goal.rs`'s submit path, successor-node
+/// scheduling — keeps getting `pending` so nothing changes for them.
+pub(crate) fn initial_node_status(require_approval: bool) -> &'static str {
+    if require_approval {
+        "blocked_on_approval"
+    } else {
+        "pending"
+    }
+}
+
+/// Flips every `blocked_on_approval` node in `plan_session_id` back to
+/// `pending` so the scheduler picks them up. Delegates to the existing
+/// `VoxDb::approve_all_blocked_plan_nodes` — one SQL statement, no new status
+/// vocabulary. `plan_version` is accepted for API symmetry with the rest of
+/// the plan surface but unused: approval is a session-wide action, and the
+/// underlying SQL already scopes by `plan_session_id` alone.
+#[allow(dead_code)] // exercised by `approval_gate_tests`; no MCP tool wires it yet — GUI approves via its own vox-gui::commands::plan_panel::approve_plan_nodes copy (see defactor note there).
+pub(crate) async fn approve_plan_inner(
+    db: &vox_db::VoxDb,
+    plan_session_id: &str,
+    _plan_version: i64,
+) -> Result<u64, vox_db::StoreError> {
+    db.approve_all_blocked_plan_nodes(plan_session_id).await
+}
+
 fn plan_depth_rider(depth: PlanDepth) -> &'static str {
     match depth {
         PlanDepth::Minimal => {
@@ -428,8 +455,19 @@ Invalid prior output (may be truncated):
         .to_json();
     }
 
+    // GUI callers pass only `session_id`; falling back to it here means the
+    // plan still gets persisted (and `plan_session_id`/`plan_version` come
+    // back in the result) without the caller having to know about this
+    // separate telemetry-session concept.
+    let telemetry_session_id = params
+        .plan_telemetry_session_id
+        .clone()
+        .or_else(|| params.session_id.clone());
+    let mut result_plan_session_id: Option<String> = None;
+    let mut result_plan_version: Option<i64> = None;
+
     if let Some(db) = state.db.as_ref() {
-        if let Some(pid) = params.plan_telemetry_session_id.as_deref() {
+        if let Some(pid) = telemetry_session_id.as_deref() {
             let strat = format!(
                 "mcp_plan:{}:{}",
                 effective_loop_mode_label(&params),
@@ -501,6 +539,7 @@ Invalid prior output (may be truncated):
                     .append_plan_version(pid, 1, None, Some("initial"), None)
                     .await;
             }
+            let node_status = initial_node_status(params.require_approval.unwrap_or(false));
             for t in &tasks {
                 let policy = serde_json::json!({
                     "file_manifest": t.files,
@@ -514,11 +553,13 @@ Invalid prior output (may be truncated):
                         &t.description,
                         &serde_json::to_string(&t.depends_on).unwrap_or_default(),
                         &policy.to_string(),
-                        "pending",
+                        node_status,
                         None,
                     )
                     .await;
             }
+            result_plan_session_id = Some(pid.to_string());
+            result_plan_version = Some(ver);
         }
     }
 
@@ -657,6 +698,8 @@ Invalid prior output (may be truncated):
         plan_depth_effective: format!("{:?}", params.plan_depth.unwrap_or_default())
             .to_ascii_lowercase(),
         content_blocks,
+        plan_session_id: result_plan_session_id,
+        plan_version: result_plan_version,
     };
 
     let grounding = if params.scope_files.is_empty() {
@@ -1114,5 +1157,41 @@ mod adequacy_enforce_tests {
             "adequate plan must not trip enforce: {:?}",
             report.adequacy
         );
+    }
+}
+
+#[cfg(test)]
+mod approval_gate_tests {
+    use super::{approve_plan_inner, initial_node_status};
+    use vox_db::{DbConfig, VoxDb};
+
+    #[tokio::test]
+    async fn approve_flips_blocked_nodes_and_leaves_finished_ones() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        db.upsert_plan_node("s", 1, "n1", "a", "[]", "{}", "blocked_on_approval", None)
+            .await
+            .unwrap();
+        db.upsert_plan_node("s", 1, "n2", "b", "[]", "{}", "completed", None)
+            .await
+            .unwrap();
+        approve_plan_inner(&db, "s", 1).await.expect("approve");
+        let rows = db.load_plan_nodes_with_status("s", 1).await.unwrap();
+        let by = |id: &str| {
+            rows.iter()
+                .find(|r| r.node_id == id)
+                .unwrap()
+                .status
+                .clone()
+        };
+        assert_eq!(by("n1"), "pending");
+        assert_eq!(by("n2"), "completed");
+    }
+
+    #[tokio::test]
+    async fn non_gui_callers_still_get_runnable_plans() {
+        // require_approval defaults false: ai.plan.execute, goal.rs's submit
+        // path, and successor-node scheduling all break silently otherwise.
+        assert_eq!(initial_node_status(false), "pending");
+        assert_eq!(initial_node_status(true), "blocked_on_approval");
     }
 }
