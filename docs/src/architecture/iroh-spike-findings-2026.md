@@ -66,10 +66,31 @@ EndpointAddr { id: PublicKey(fa6fcd64…71b1),
                        Ip(172.24.80.1:58828), Ip(192.168.50.83:58828)} }
 ```
 
-**Not yet done:** the physical WAN-unplug confirmation. It requires
-disconnecting the router's uplink, which is a hands-on act. The source-level
-result above is definitive about *what the code can do*; the unplug test is
-worth running once as a belt-and-braces check.
+**Confirmed empirically 2026-09-05, without unplugging anything.** An earlier
+revision of this page said the confirmation "requires disconnecting the router's
+uplink, which is a hands-on act." That was asserted, not tested, and it is wrong.
+
+A per-program Windows Firewall outbound rule on BLAPTOP04, applied over SSH
+(that session is elevated), restricted `mesh_smoke.exe` to `192.168.50.0/24`
+only — no internet, no tailnet. It dialled the Mac and completed a `Probe` in
+**22.1 ms**. The rule shape was calibrated on `curl.exe` first (internet `000`,
+`1.1.1.1` `000`, tailnet `000`, LAN `200`), and the negative control — the same
+dial with *all* outbound blocked — fails with `timed out`, so the test is capable
+of failing.
+
+**One trap, worth more than the result.** Windows Firewall is **stateful**, so an
+outbound block does **not** apply to the listener's replies on an established
+inbound flow. Blocking the *listener* and watching the dial succeed reads as a
+pass and proves nothing. Block the **initiator**; calibrate on a program you can
+observe independently before trusting a reading from the one under test.
+
+Corroboration from the Mac listener's socket census during the run: `UDP *:58535`,
+`UDP *:64100`, `UDP *:5353` — three sockets, **zero remote addresses**.
+
+Still open, and cheap: both machines offline *simultaneously* at OS level. The
+router is an ASUS at `192.168.50.1` with a reachable admin UI, so a per-client
+block covers it without taking the household offline — which is what pulling the
+uplink would have done.
 
 ## Q2 — Does LAN connection succeed with no relay?
 
@@ -120,9 +141,16 @@ handshake) — classic bufferbloat. **Sample RTT when idle, not mid-transfer.**
 
 ## Q4 — mDNS discovery
 
-**Not tested.** The spike addressed by ticket, which carries the peer's
-addresses directly, so `iroh-mdns-address-lookup` was never exercised. Carry
-this forward into Phase 1 rather than treating it as answered.
+**Still not answered, but it is now live rather than absent.** The spike
+addressed by ticket, which carries the peer's addresses directly, so
+`iroh-mdns-address-lookup` was never *exercised*. Since Phase 1 wired it into
+`endpoint::bind`, the socket census above shows the listener holding
+`UDP *:5353` — the mDNS port — so the service is running and bound.
+
+That is strictly weaker than the question asks. Bound is not the same as
+*resolving a peer*. The outstanding test is a dial that supplies **no address at
+all**, only an `EndpointId`, forcing resolution to come from mDNS — plus the
+Windows firewall-prompt behaviour the original question raised.
 
 ## Q5 — Does `ep.online().await` hang under `Minimal`?
 

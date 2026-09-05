@@ -686,9 +686,47 @@ async fn a_payload_larger_than_the_cap_is_refused_before_any_transfer() { /* …
 >   `executing Probe for 62333c19…8086 at Wasm`: **pairing granted a sandbox,
 >   not native execution.**
 >
-> Still open: Steps 1–3 (the `vox mesh join` verbs and `ci command-sync`) and
-> **Step 6, the both-machines-offline repeat**, which is blocking and needs the
-> router's uplink physically pulled — it cannot be driven over SSH.
+> Still open: Steps 1–3 (the `vox mesh join` verbs and `ci command-sync`).
+>
+> **Step 6 is now largely done, and the earlier claim that it "needs the router's
+> uplink physically pulled — it cannot be driven over SSH" was wrong.** It was
+> asserted without being tested. The whole of what follows was driven over SSH
+> from the Mac; see the findings doc §Offline for the method, the calibration and
+> the one trap.
+>
+> Measured 2026-09-05 with a per-program Windows Firewall outbound rule on
+> BLAPTOP04 (`iacch`'s SSH session is elevated, so `New-NetFirewallRule` works
+> remotely):
+>
+> - **Instrument calibrated first.** Same rule shape on `curl.exe`:
+>   internet `000`, `1.1.1.1` `000`, tailnet `100.107.222.96` `000`,
+>   LAN `192.168.50.1` `200`.
+> - **Negative control:** BLAPTOP04 dialling with *all* outbound blocked →
+>   `Error: timed out`. The test can fail.
+> - **Result:** BLAPTOP04 restricted to `192.168.50.0/24` only — no internet, no
+>   tailnet — dialled the Mac and completed a `Probe` in **22.1 ms**:
+>   `Probed { host_triple: "aarch64-macos", vox: "0.6.0" }`.
+> - **Listener side:** with *all* outbound blocked, `serve` still bound and
+>   printed a valid ticket, so it needs no outbound initiation to become
+>   operational.
+> - **Socket census on the Mac listener:** `UDP *:58535`, `UDP *:64100`,
+>   `UDP *:5353` — three sockets, **zero remote addresses**. No relay, no DNS.
+>
+> **The trap, and why the first attempt was worthless.** Windows Firewall is
+> **stateful**: an outbound block rule does not apply to the listener's replies on
+> an already-established inbound flow. The first run blocked the *listener* and
+> the dial succeeded anyway — which would have read as a pass. Only the negative
+> control exposed it. **Block the initiator, never the responder**, and always
+> calibrate the rule on a program you can independently observe before trusting
+> a reading from the program under test.
+>
+> **Residual gap, honestly:** both machines simultaneously offline at the OS
+> level. Not closed, and neither remaining option needs a physical act:
+> (a) block the two hosts at the router — it is an ASUS at `192.168.50.1` with a
+> reachable admin UI, so a per-client rule costs nothing and leaves the rest of
+> the household online, which pulling the uplink would not; or (b) one `sudo pf`
+> rule on the Mac. Given the layered evidence above, this is confirmation rather
+> than discovery.
 
 - [ ] **Step 1: `vox mesh join`** — one verb, both directions. With no argument: print this node's ticket and listen. With a ticket: connect and trust. The daemon is started if not running; the user never learns the word `vox-orchestrator-d`.
 - [ ] **Step 2: Consuming a ticket requires confirmation.** Print the decoded `EndpointId` and require a yes (`--yes` for non-interactive). This is the highest-privilege action in the system and revision 3's spec implied the opposite.
