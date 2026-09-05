@@ -238,7 +238,8 @@ da632656969b441b5b37c047366535a948a432468ad82699de5e6ab7202f5659  vox-v0.6.0-rc.
         let map = parse_checksums(&format!("# a header\n\n{FIXTURE}")).expect("valid");
         assert_eq!(map.len(), 5, "header and blank line must be ignored");
         assert_eq!(
-            map.get("vox-v0.6.0-rc.4748-aarch64-apple-darwin.tar.gz").unwrap(),
+            map.get("vox-v0.6.0-rc.4748-aarch64-apple-darwin.tar.gz")
+                .unwrap(),
             "91060c1f32ddc1b03b67a41bf824506d8619ab184f6d18a030087d491fa0a456"
         );
     }
@@ -252,8 +253,14 @@ da632656969b441b5b37c047366535a948a432468ad82699de5e6ab7202f5659  vox-v0.6.0-rc.
         );
         // The vox-ml-cli / voxup rows share the tag and triple; picking either
         // would ship the wrong binary under the vox name.
-        assert_ne!(a.macos_arm.sha256, "1111111111111111111111111111111111111111111111111111111111111111");
-        assert_ne!(a.macos_arm.sha256, "2222222222222222222222222222222222222222222222222222222222222222");
+        assert_ne!(
+            a.macos_arm.sha256,
+            "1111111111111111111111111111111111111111111111111111111111111111"
+        );
+        assert_ne!(
+            a.macos_arm.sha256,
+            "2222222222222222222222222222222222222222222222222222222222222222"
+        );
     }
 
     #[test]
@@ -279,14 +286,24 @@ da632656969b441b5b37c047366535a948a432468ad82699de5e6ab7202f5659  vox-v0.6.0-rc.
     fn formula_pins_every_url_and_sha_to_this_release() {
         let a = resolve_assets("v0.6.0-rc.4748", FIXTURE).unwrap();
         let f = render_homebrew_formula(&a);
-        assert!(f.contains("class Voxlang < Formula"), "must not be named Vox — that collides with the VOX cask");
+        assert!(
+            f.contains("class Voxlang < Formula"),
+            "must not be named Vox — that collides with the VOX cask"
+        );
         assert!(f.contains(r#"version "0.6.0-rc.4748""#));
-        for sha in [&a.macos_arm.sha256, &a.macos_x64.sha256, &a.linux_x64.sha256] {
+        for sha in [
+            &a.macos_arm.sha256,
+            &a.macos_x64.sha256,
+            &a.linux_x64.sha256,
+        ] {
             assert!(f.contains(sha.as_str()), "formula must pin {sha}");
         }
         // The test block must assert the core version, or every RC formula fails.
         assert!(f.contains(r#"assert_match "vox 0.6.0""#));
-        assert!(!f.contains("assert_match \"vox 0.6.0-rc"), "must not assert the prerelease suffix");
+        assert!(
+            !f.contains("assert_match \"vox 0.6.0-rc"),
+            "must not assert the prerelease suffix"
+        );
     }
 
     #[test]
