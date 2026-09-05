@@ -142,9 +142,120 @@ pub fn user_home_dir() -> PathBuf {
     }
 }
 
-/// `~/.vox` under [`user_home_dir`] (CLI script cache, etc.).
+/// Env var overriding the root that [`dot_vox_user_dir`] resolves under.
+pub const VOX_HOME_ENV: &str = "VOX_HOME";
+
+/// `~/.vox` under [`user_home_dir`] (CLI script cache, etc.) — or `$VOX_HOME` when set.
+///
+/// Precedence matches [`data_dir`]: `VOX_HOME` wins when set and non-blank, otherwise
+/// the platform default (`<home>/.vox`). An empty or whitespace-only value falls back
+/// to the default rather than resolving to, say, the current directory. A relative
+/// value is used exactly as given — resolved against whatever the process's current
+/// directory is wherever the returned path is later joined or opened, not against
+/// `home` — because canonicalizing it here would silently change behavior the caller
+/// cannot see by inspecting the returned path.
+///
+/// Unlike [`data_dir`], this does **not** create the directory: every call site under
+/// this root (`script_cache_dir` and its callers in `vox-cli`) already calls
+/// `create_dir_all` itself before writing, so creating it here too would just be a
+/// redundant syscall on every resolution, including read-only ones (e.g. doctor
+/// checks that only want to know where the directory *would* be).
+///
+/// ## Known partial relocation (by design, not an oversight)
+///
+/// This is one of at least two independent `~/.vox` resolvers in the tree, and
+/// `VOX_HOME` only relocates the consumers that go through this function:
+///
+/// - `crates/vox-secrets/src/sources/auth_json.rs::vox_dir()` builds `$HOME/.vox`
+///   itself and does **not** consult `VOX_HOME`. In particular, **the vault's
+///   fallback master key (`~/.vox/.vox-master-key`) stays under `$HOME/.vox`
+///   regardless of `VOX_HOME`** — that file is 32 unrecoverable bytes, so relocating
+///   it (or teaching that resolver to honour this env var) is deliberately out of
+///   scope here.
+/// - Roughly thirty other home-relative `.vox` joins exist across `crates/voxup/`,
+///   `crates/vox-cli/`, `crates/vox-gui/`, `crates/vox-cli-core/`,
+///   `crates/vox-runtime/`, and `crates/vox-plugin-host/`, each owned by its own work
+///   stream and not migrated by this change.
+///
+/// So setting `VOX_HOME` relocates the script cache (and anything else built on this
+/// function) but leaves the secrets vault and the other resolvers above pointed at
+/// `$HOME/.vox`. That is accepted, not silent: this doc comment is the record of it.
 pub fn dot_vox_user_dir() -> PathBuf {
-    user_home_dir().join(".vox")
+    resolve_dot_vox_user_dir(
+        std::env::var(VOX_HOME_ENV).ok().as_deref(),
+        &user_home_dir(),
+    )
+}
+
+/// Pure resolver behind [`dot_vox_user_dir`]: takes the raw `VOX_HOME` env value and
+/// the resolved home dir as arguments so tests need neither `unsafe` env mutation
+/// (required to set process env under edition 2024) nor a real `$HOME`.
+fn resolve_dot_vox_user_dir(vox_home: Option<&str>, home: &Path) -> PathBuf {
+    match vox_home {
+        Some(v) if !v.trim().is_empty() => PathBuf::from(v),
+        _ => home.join(".vox"),
+    }
+}
+
+#[cfg(test)]
+mod dot_vox_user_dir_tests {
+    use super::*;
+
+    #[test]
+    fn unset_falls_back_to_home_dot_vox() {
+        let home = Path::new("/home/alice");
+        assert_eq!(resolve_dot_vox_user_dir(None, home), home.join(".vox"));
+    }
+
+    #[test]
+    fn set_to_absolute_path_is_used_exactly() {
+        let home = Path::new("/home/alice");
+        assert_eq!(
+            resolve_dot_vox_user_dir(Some("/mnt/vox-home"), home),
+            PathBuf::from("/mnt/vox-home")
+        );
+    }
+
+    #[test]
+    fn empty_value_falls_back_to_default() {
+        let home = Path::new("/home/alice");
+        assert_eq!(resolve_dot_vox_user_dir(Some(""), home), home.join(".vox"));
+    }
+
+    #[test]
+    fn whitespace_only_value_falls_back_to_default() {
+        let home = Path::new("/home/alice");
+        assert_eq!(
+            resolve_dot_vox_user_dir(Some("   \t"), home),
+            home.join(".vox")
+        );
+    }
+
+    #[test]
+    fn relative_value_is_used_as_given() {
+        // Documented choice: a relative VOX_HOME is not resolved against `home` or
+        // canonicalized here — it is returned exactly as given, to be interpreted
+        // wherever it is later joined or opened (typically against the process cwd).
+        let home = Path::new("/home/alice");
+        assert_eq!(
+            resolve_dot_vox_user_dir(Some("relative/vox-home"), home),
+            PathBuf::from("relative/vox-home")
+        );
+    }
+
+    #[test]
+    fn script_cache_dir_follows_the_vox_home_root() {
+        let home = Path::new("/home/alice");
+        let root = resolve_dot_vox_user_dir(Some("/mnt/vox-home"), home);
+        assert_eq!(
+            root.join("script-cache"),
+            PathBuf::from("/mnt/vox-home/script-cache")
+        );
+        assert_eq!(
+            root.join("script-cache-wasi"),
+            PathBuf::from("/mnt/vox-home/script-cache-wasi")
+        );
+    }
 }
 
 /// The repository root containing `cwd`, found by walking up for `.git` or
@@ -282,13 +393,38 @@ pub const REPO_VOX_MD_FILE: &str = ".vox/VOX.md";
 
 /// `.vox/skills` — repo-local Vox skill discovery root (highest precedence in skill search).
 pub const REPO_SKILLS_DIR: &str = ".vox/skills";
-/// `.vox/cache/vox-graph` — legacy Vox code-graph cache root (pre-graphify migration).
+/// `.vox/cache/vox-graph` — despite the name (a holdover from the pre-graphify code
+/// graph), this is the **current** target for new corpus registrations: the runtime
+/// overlay `graphify::REGISTERED_REL_PATH` (`.vox/cache/vox-graph/registered.v1.json`,
+/// see [`REPO_VOX_GRAPH_REGISTERED_FILE`]) writes here, not to
+/// [`REPO_GRAPHIFY_REGISTERED_FILE`]. Meanwhile the per-corpus graph *data* directories
+/// (`repo_graphify_cache_dir` in `graphify.rs`, and every `graph_path` in
+/// `contracts/retrieval/vox-graph-corpora.v1.yaml`) all still live under
+/// `.vox/cache/graphify/<corpus_id>/`, i.e. [`REPO_GRAPHIFY_CACHE_SUBDIR`], not here.
+/// So the "legacy" label on this constant and the "legacy" label on
+/// [`REPO_GRAPHIFY_REGISTERED_FILE`] are inverted relative to which one new writes
+/// actually go to for the registry overlay — this constant is the live one for that
+/// one file. The migration between the two roots is not finished and this crate does
+/// not attempt to finish it (see the module doc); this comment is the accurate map of
+/// which surface uses which root today, not a description of an intended end state.
 pub const REPO_VOX_GRAPH_CACHE_DIR: &str = ".vox/cache/vox-graph";
-/// `.vox/cache/vox-graph/registered.v1.json` — Vox graph corpus registry overlay.
+/// `.vox/cache/vox-graph/registered.v1.json` — the runtime corpus-registration overlay
+/// `graphify::upsert_registered_corpus` writes to and `graphify::load_registered_corpora`
+/// reads from first (falling back to [`REPO_GRAPHIFY_REGISTERED_FILE`] only if this is
+/// absent). This is the currently-active overlay path, not the legacy one.
 pub const REPO_VOX_GRAPH_REGISTERED_FILE: &str = ".vox/cache/vox-graph/registered.v1.json";
-/// `.vox/cache/graphify/repo-code-graph` — Graphify repository code-graph corpus directory.
+/// `.vox/cache/graphify/repo-code-graph` — Graphify repository code-graph corpus
+/// directory. Graph *data* (`graph.json` + manifest) for every corpus in
+/// `contracts/retrieval/vox-graph-corpora.v1.yaml` lives under this
+/// `.vox/cache/graphify/` root regardless of which root the registry overlay above
+/// uses — the two roots serve different files (graph data vs. registration overlay),
+/// not two generations of the same file.
 pub const REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR: &str = ".vox/cache/graphify/repo-code-graph";
-/// `.vox/cache/graphify/registered.v1.json` — Graphify legacy corpus registry overlay.
+/// `.vox/cache/graphify/registered.v1.json` — one-release back-compat fallback for the
+/// corpus-registration overlay (`graphify::LEGACY_REGISTERED_REL_PATH`). Despite the
+/// non-"legacy" name of this Rust constant, this IS the legacy path: new registrations
+/// go to [`REPO_VOX_GRAPH_REGISTERED_FILE`] instead, and this one is read only when
+/// that path is absent.
 pub const REPO_GRAPHIFY_REGISTERED_FILE: &str = ".vox/cache/graphify/registered.v1.json";
 /// `.vox/cache/graphify/ext` — Graphify external-source corpus cache directory.
 pub const REPO_GRAPHIFY_EXT_DIR: &str = ".vox/cache/graphify/ext";
