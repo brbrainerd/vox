@@ -80,9 +80,10 @@ impl DriftRule for VoxDirUnanchoredRule {
     }
 }
 
-/// True when the `.vox`-literal's source line, or the line immediately before
-/// it, textually mentions `current_dir()` and neither line mentions one of
-/// [`ANCHOR_MARKERS`].
+/// True when the `.vox`-literal's `.join(...)` call is textually unanchored:
+/// either it chains directly off a `current_dir()` call on the same line, or
+/// its receiver identifier is bound to a `current_dir()` call on the line
+/// immediately above — and neither line mentions one of [`ANCHOR_MARKERS`].
 ///
 /// Deliberately a *narrow* (same-line-or-adjacent-line) textual window, not a
 /// data-flow analysis: a local variable named `cwd` that was itself derived
@@ -92,23 +93,109 @@ impl DriftRule for VoxDirUnanchoredRule {
 /// anchored call sites in the tree (e.g. `repo_root.join(".vox")` where
 /// `repo_root` came from a secret or a `discover_repository_or_fallback` call
 /// several lines above).
+///
+/// The adjacent-line case additionally requires an identifier binding between
+/// the two lines (the `.join(...)` receiver must be the same name a
+/// `current_dir()` call bound on the line above) rather than merely "the word
+/// `current_dir` appears somewhere nearby" — otherwise an unrelated
+/// `current_dir()` call captured into an unrelated variable on the adjacent
+/// line (e.g. a `_cwd_for_log` binding used only for logging) would falsely
+/// implicate an already-anchored `.join(".vox")` on the next line.
 fn line_window_is_unanchored_current_dir(lines: &[&str], literal_line_1_indexed: usize) -> bool {
     if literal_line_1_indexed == 0 {
         return false;
     }
     let idx = literal_line_1_indexed - 1; // 0-indexed
-    let window: Vec<&str> = [idx.checked_sub(1), Some(idx)]
+    let Some(current_line) = lines.get(idx).copied() else {
+        return false;
+    };
+    let above_line = idx.checked_sub(1).and_then(|i| lines.get(i).copied());
+
+    let window: Vec<&str> = [above_line, Some(current_line)]
         .into_iter()
         .flatten()
-        .filter_map(|i| lines.get(i).copied())
         .collect();
-
-    let mentions_current_dir = window.iter().any(|l| l.contains("current_dir()"));
     let mentions_anchor = window
         .iter()
         .any(|l| ANCHOR_MARKERS.iter().any(|m| l.contains(m)));
+    if mentions_anchor {
+        return false;
+    }
 
-    mentions_current_dir && !mentions_anchor
+    // Same-line chain: `current_dir().join(".vox")`, with or without
+    // intervening `.unwrap()`/`.unwrap_or_default()` calls. No identifier
+    // binding to check — the call is used directly.
+    if current_line.contains("current_dir()") {
+        return true;
+    }
+
+    // Adjacent-line split-statement form: `let cwd = ...current_dir()...;`
+    // followed by `cwd.join(".vox")`. Require the `.join(...)` receiver to be
+    // the *same* identifier the line above binds a `current_dir()` call to.
+    let Some(above_line) = above_line else {
+        return false;
+    };
+    if !above_line.contains("current_dir()") {
+        return false;
+    }
+    match receiver_ident_before_join(current_line) {
+        Some(ident) => line_binds_ident_before_current_dir(above_line, ident),
+        None => false,
+    }
+}
+
+/// Extracts the identifier immediately preceding a `.join(` call on `line`,
+/// e.g. `"cwd"` from `out.push(cwd.join(".vox"))`. Returns `None` when the
+/// receiver isn't a bare identifier (a chained call, an index expression,
+/// etc.) — those are handled by the same-line-chain path instead.
+fn receiver_ident_before_join(line: &str) -> Option<&str> {
+    let join_pos = line.find(".join(")?;
+    let before = &line[..join_pos];
+    let start = before
+        .rfind(|c: char| !(c.is_alphanumeric() || c == '_'))
+        .map_or(0, |i| i + 1);
+    let ident = &before[start..];
+    if ident.is_empty() { None } else { Some(ident) }
+}
+
+/// True when `line` binds `ident` (as a whole word, on the left-hand side of
+/// an assignment/pattern binding — a `let <ident> = ...`, `let mut <ident> =
+/// ...`, `Ok(<ident>) = ...`, or `Some(<ident>) = ...` shape) somewhere before
+/// its first `=`, and the line also calls `current_dir()`.
+fn line_binds_ident_before_current_dir(line: &str, ident: &str) -> bool {
+    if !line.contains("current_dir()") {
+        return false;
+    }
+    let Some(eq_pos) = line.find('=') else {
+        return false;
+    };
+    let binding_side = &line[..eq_pos];
+    contains_whole_word(binding_side, ident)
+}
+
+/// True when `haystack` contains `word` bounded on both sides by a
+/// non-identifier character (or the string edge) — a cheap stand-in for a
+/// regex word-boundary match without pulling in a `regex` dependency.
+fn contains_whole_word(haystack: &str, word: &str) -> bool {
+    if word.is_empty() {
+        return false;
+    }
+    let bytes = haystack.as_bytes();
+    let wlen = word.len();
+    let mut search_from = 0usize;
+    while let Some(rel_pos) = haystack[search_from..].find(word) {
+        let pos = search_from + rel_pos;
+        let before_ok =
+            pos == 0 || !(bytes[pos - 1] as char).is_alphanumeric() && bytes[pos - 1] != b'_';
+        let after_idx = pos + wlen;
+        let after_ok = after_idx >= bytes.len()
+            || !(bytes[after_idx] as char).is_alphanumeric() && bytes[after_idx] != b'_';
+        if before_ok && after_ok {
+            return true;
+        }
+        search_from = pos + 1;
+    }
+    false
 }
 
 #[cfg(test)]
@@ -204,6 +291,20 @@ mod tests {
         // through a secret with a cwd fallback in a different branch.
         let src = "fn f() {\n    let repo_root = if let Some(p) = resolve() {\n        PathBuf::from(p)\n    } else {\n        std::env::current_dir().unwrap_or_default()\n    };\n\n    let dot_vox = repo_root.join(\".vox\");\n}\n";
         let (_dir, f) = features_for(src, 8);
+        let rule = VoxDirUnanchoredRule;
+        assert!(rule.check(&f, &ctx()).is_empty());
+    }
+
+    #[test]
+    fn allows_join_vox_when_adjacent_current_dir_binds_an_unrelated_identifier() {
+        // Regression for the false positive found in code review: a
+        // `current_dir()` call captured into an unrelated variable (here,
+        // one only used for logging) on the line immediately above an
+        // already-anchored `.join(".vox")` must NOT be flagged just because
+        // `current_dir()` is textually adjacent — the two lines share no
+        // identifier binding.
+        let src = "fn f() {\n    let _cwd_for_log = std::env::current_dir().unwrap_or_default();\n    let path = already_anchored_root.join(\".vox\");\n}\n";
+        let (_dir, f) = features_for(src, 3);
         let rule = VoxDirUnanchoredRule;
         assert!(rule.check(&f, &ctx()).is_empty());
     }
