@@ -1,21 +1,44 @@
+﻿# STANDALONE MANIFEST — deliberately not part of the root workspace.
+#
+# This crate is in the root Cargo.toml's `exclude` list because its binary must
+# be named literally `cargo` (PATH interception), and a `--workspace` build must
+# not drop a `cargo` binary into target/{debug,release} where it could shadow the
+# real one.
+#
+# But `exclude` and `x.workspace = true` are contradictory: an excluded package
+# has no workspace root to inherit from. Every field below used to be inherited,
+# so `cargo build --manifest-path crates/vox-cargo-shim/Cargo.toml` failed with
+# "failed to find a workspace root" — from every directory, by every means. That
+# is why ~/.vox/build-broker has never existed: the broker was not merely
+# un-activated, it was unbuildable. Nothing caught it because being excluded also
+# means no CI lane compiles it.
+#
+# So this manifest declares its own `[workspace]` and spells out what it used to
+# inherit. Keep the values below in step with the root `[workspace.package]`;
+# they are restatements and belong in the version SSOT's managed rows.
+[workspace]
+
 [package]
 name = "vox-cargo-shim"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+version = "0.6.0"    # SSOT: root Cargo.toml [workspace.package] version
+edition = "2024"     # SSOT: root Cargo.toml [workspace.package] edition
+license = "Apache-2.0"
 description = "Scoped daemonless cargo shim that fair-queues builds within a vox worktree"
 
-[lints]
-workspace = true
+# Inlined from the root [workspace.lints]; an excluded crate cannot inherit them.
+[lints.rust]
+unsafe_code = "warn"
 
 [[bin]]
 name = "cargo" # MUST be literally `cargo` so PATH interception works
 path = "src/main.rs"
 
 [dependencies]
-anyhow = { workspace = true }
+anyhow = "1"
 vox-build-queue = { path = "../vox-build-queue" }
-workspace-hack = { workspace = true }
+# `workspace-hack` is deliberately absent. It is a feature-unification device for
+# members of the root workspace; depending on it from an excluded crate both fails
+# to resolve and would defeat the point of excluding this one.
 
 [dev-dependencies]
-tempfile = { workspace = true }
+tempfile = "3"
