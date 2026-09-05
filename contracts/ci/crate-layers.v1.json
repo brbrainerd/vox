@@ -54,6 +54,7 @@
     "vox-lsp": 4,
     "vox-mcp-registry": 0,
     "vox-mesh-policy": 1,
+    "vox-mesh-transport": 2,
     "vox-mesh-types": 0,
     "vox-ml-cli": 4,
     "vox-oauth-pkce": 3,

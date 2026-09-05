@@ -131,6 +131,10 @@
       "role": "Compile-time MCP tool registry from contracts YAML (SSOT)",
       "path_pattern": "crates/vox-mcp-registry/**/*.rs"
     },
+    "vox-mesh-transport": {
+      "role": "iroh QUIC transport: mesh identity, trust allowlist, wire protocol",
+      "path_pattern": "crates/vox-mesh-transport/**/*.rs"
+    },
     "vox-openai-sse": {
       "role": "OpenAI-compat SSE reassembly and chat completion delta extraction",
       "path_pattern": "crates/vox-openai-sse/**/*.rs"

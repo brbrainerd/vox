@@ -311,3 +311,10 @@ Not a new architecture doc — a process log for the recurring hand-triage backl
 - **Date:** 2026-06-18
 - **Description:** 6-task TDD implementation plan for raising Vox parse rate from 75.1% to 88%+, fixing 93.7% Rust-source mix dominance, adding max_lines deterministic caps and content-hash deduplication to MixSource, making the Replay pipeline stage lock-resilient (os error 33), fixing @tool decorator syntax in preflight templates, and raising eval gate thresholds. Saved at docs/superpowers/plans/2026-06-18-mens-corpus-health.md.
 - [Windows-to-macOS application handoff (September 2026)](windows-macos-application-handoff-findings-2026-09.md) — Evidence-based Windows workstation software inventory across Winget, Program Files, and Appx registrations, with a macOS continuity/replacement matrix and data-transfer checklist.
+
+## iroh-spike-findings-2026.md
+
+- **Title:** iroh transport spike — measured findings (2026-09-04)
+- **Status:** current
+- **Date:** 2026-09-04
+- **Description:** Output of Task 0.2 of the populi-mesh iroh plan, measured between macOS (`aarch64-apple-darwin`) and BLAPTOP04 (Windows) on commit `f48dbc810`. Q1 `presets::Minimal` contacts zero third parties (proven at source: `Builder::empty()` = no address lookup + `RelayMode::Disabled`; `Minimal::apply` sets only `crypto_provider`); Q2 direct LAN QUIC connect in 12.8 ms with no relay, 300 MiB transferred; Q3 differentiating `udp_tx.bytes` over 200 ms windows lands within 3.6 % of wall-clock truth at cv 14.6 % — good enough for placement, but `cwnd` is debug-only so BDP is unavailable; Q4 mDNS untested, deferred to Phase 1; Q5 `online()` hangs forever under `Minimal`, confirmed at source; Q6 55 marginal crates (+3.8 %) and 71.95 s wall / 245.83 s user CPU clean release build, under the ~90 s abort threshold. Six findings change the plan, including that `default-features = false` removes the portmapper entirely (no UPnP/SSDP, no firewall dialog) and that `send.finish()` does not flush — dropping the `Connection` after it silently loses the response.

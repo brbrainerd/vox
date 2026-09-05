@@ -292,3 +292,9 @@ build-out.txt
 voxup-deps.txt
 *-out.txt
 
+
+# Per-machine mesh state: contains VOX_MESH_TOKEN. Never commit.
+/.vox/populi/
+
+# graphify pre-run backup: regenerable local artifact, same class as graphify-out/*
+graphify-out.pre-graphify-backup/

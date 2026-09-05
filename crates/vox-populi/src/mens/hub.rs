@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use hf_hub::api::tokio::Api;
+use hf_hub::{HFClient, split_id};
 
 fn normalize_hf_token_env() {
     let token_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::HuggingFaceToken);
@@ -45,15 +45,25 @@ impl DownloadedModelFiles {
 /// Download `config.json`, tokenizer files (if listed), and all `*.safetensors` shards.
 pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFiles> {
     normalize_hf_token_env();
-    let api = Api::new().map_err(|e| anyhow::anyhow!("hf-hub Api::new: {e}"))?;
-    let repo = api.model(repo_id.to_string());
+    let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
+    let (owner, name) = split_id(repo_id);
+    let repo = client.model(owner, name);
     let info = repo
         .info()
+        .send()
         .await
         .map_err(|e| anyhow::anyhow!("hf-hub repo info for {repo_id}: {e}"))?;
+    // 1.0 makes `siblings` optional; an absent listing is indistinguishable from
+    // an empty one at the type level, so name the difference here rather than
+    // silently reporting "no safetensors" for a repo we simply failed to list.
+    let siblings = info
+        .siblings
+        .ok_or_else(|| anyhow::anyhow!("repo {repo_id} info returned no file listing"))?;
 
     let config = repo
-        .get("config.json")
+        .download_file()
+        .filename("config.json")
+        .send()
         .await
         .map_err(|e| anyhow::anyhow!("download config.json: {e}"))?;
 
@@ -64,9 +74,11 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
 
     let mut tokenizer = None::<PathBuf>;
     for name in ["tokenizer.json", "tokenizer.model"] {
-        if info.siblings.iter().any(|s| s.rfilename == name) {
+        if siblings.iter().any(|s| s.rfilename == name) {
             tokenizer = Some(
-                repo.get(name)
+                repo.download_file()
+                    .filename(name)
+                    .send()
                     .await
                     .map_err(|e| anyhow::anyhow!("download {name}: {e}"))?,
             );
@@ -74,8 +86,7 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         }
     }
 
-    let mut weight_names: Vec<&str> = info
-        .siblings
+    let mut weight_names: Vec<&str> = siblings
         .iter()
         .map(|s| s.rfilename.as_str())
         .filter(|n| n.ends_with(".safetensors"))
@@ -90,7 +101,9 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
     let mut weights = Vec::with_capacity(weight_names.len());
     for w in weight_names {
         let p = repo
-            .get(w)
+            .download_file()
+            .filename(w)
+            .send()
             .await
             .map_err(|e| anyhow::anyhow!("download {w}: {e}"))?;
         weights.push(p);

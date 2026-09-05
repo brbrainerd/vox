@@ -8,7 +8,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use candle_core::{Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::whisper::{self as m, Config, SAMPLE_RATE, audio};
-use hf_hub::{Repo, RepoType, api::sync::Api};
+use hf_hub::{HFClientSync, split_id};
 use tokenizers::Tokenizer;
 
 use super::audio_io::pcm_decode_to_16k_mono;
@@ -106,17 +106,18 @@ fn download_artifacts(
     for attempt in 1..=hf_retry_attempts {
         let outcome: Result<(std::path::PathBuf, std::path::PathBuf, std::path::PathBuf)> =
             (|| {
-                let api = Api::new().context("hf-hub Api::new")?;
-                let repo = api.repo(Repo::with_revision(
-                    model_id.to_string(),
-                    RepoType::Model,
-                    revision.to_string(),
-                ));
-                let config = repo.get("config.json").context("fetch config.json")?;
-                let tokenizer = repo.get("tokenizer.json").context("fetch tokenizer.json")?;
-                let weights = repo
-                    .get("model.safetensors")
-                    .context("fetch model.safetensors")?;
+                let client = HFClientSync::new().context("hf-hub HFClientSync::new")?;
+                let (owner, name) = split_id(model_id);
+                let repo = client.model(owner, name);
+                let fetch = |filename: &str| {
+                    repo.download_file()
+                        .filename(filename)
+                        .revision(revision)
+                        .send()
+                };
+                let config = fetch("config.json").context("fetch config.json")?;
+                let tokenizer = fetch("tokenizer.json").context("fetch tokenizer.json")?;
+                let weights = fetch("model.safetensors").context("fetch model.safetensors")?;
                 Ok((config, tokenizer, weights))
             })();
         match outcome {

@@ -84,3 +84,100 @@ fn unannotated_callers_are_open_world() {
         "unannotated caller should be open-world and not flagged; got: {ds:?}"
     );
 }
+
+/// Two hops: `@pure` → undeclared `middle` → undeclared `leaf` → `http.get`.
+/// One-hop inference misses this entirely.
+#[test]
+fn pure_caller_flagged_across_two_undeclared_hops() {
+    let src = r#"
+        fn leaf(url: str) to str {
+            return http.get(url)
+        }
+
+        fn middle(url: str) to str {
+            return leaf(url)
+        }
+
+        @pure
+        fn pure_op(url: str) to str {
+            return middle(url)
+        }
+    "#;
+    let ds = effect_violations(src);
+    assert!(
+        !ds.is_empty(),
+        "@pure fn two hops from http.get must be flagged; got: {:?}",
+        check(src)
+    );
+}
+
+/// A named function passed as a value (`xs.map(fetch_one)`) carries its effects.
+#[test]
+fn named_fn_reference_in_argument_position_carries_effects() {
+    let src = r#"
+        fn fetch_one(url: str) to str {
+            return http.get(url)
+        }
+
+        @pure
+        fn pure_op(xs: list[str]) to list[str] {
+            return xs.map(fetch_one)
+        }
+    "#;
+    let ds = effect_violations(src);
+    assert!(
+        !ds.is_empty(),
+        "passing a net-using fn as a value must be flagged; got: {:?}",
+        check(src)
+    );
+}
+
+/// Mutual recursion must terminate and still propagate the effect.
+#[test]
+fn mutually_recursive_helpers_terminate_and_propagate() {
+    let src = r#"
+        fn ping(url: str) to str {
+            return pong(url)
+        }
+
+        fn pong(url: str) to str {
+            return http.get(url)
+        }
+
+        fn loopy(url: str) to str {
+            return loopy(url)
+        }
+
+        @pure
+        fn pure_op(url: str) to str {
+            return ping(url)
+        }
+    "#;
+    let ds = effect_violations(src);
+    assert!(
+        !ds.is_empty(),
+        "recursive chain reaching http.get must be flagged; got: {:?}",
+        check(src)
+    );
+}
+
+/// A genuinely pure two-hop chain must NOT be flagged (over-reporting guard).
+#[test]
+fn pure_two_hop_chain_is_clean() {
+    let src = r#"
+        fn leaf(a: int) to int {
+            return a + 1
+        }
+
+        fn middle(a: int) to int {
+            return leaf(a)
+        }
+
+        @pure
+        fn pure_op(a: int) to int {
+            return middle(a)
+        }
+    "#;
+    let ds = effect_violations(src);
+    assert!(ds.is_empty(), "pure chain must not be flagged; got: {ds:?}");
+}

@@ -218,30 +218,53 @@ pub fn stop_managed_process(base: &str) -> anyhow::Result<StopManagedProcessResu
     })
 }
 
+/// Absolute path to Windows' `taskkill.exe`.
+///
+/// Resolved from `%SystemRoot%` rather than looked up on `PATH`. A sanitized or
+/// minimal `PATH` — services, CI runners, restricted shells, and some terminal
+/// integrations — frequently omits `System32`, and `Command::new("taskkill")`
+/// then fails to spawn. That surfaced as `vox populi down` reporting
+/// "Access is denied. (os error 5)" and leaving the daemon running, which reads
+/// like a permissions problem and is not one: invoking the same command by
+/// absolute path succeeds for the same user against the same pid.
+#[cfg(windows)]
+fn taskkill_path() -> std::path::PathBuf {
+    let root = std::env::var_os("SystemRoot")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from(r"C:\Windows"));
+    root.join("System32").join("taskkill.exe")
+}
+
 pub fn terminate_process_tree(pid: u32) -> anyhow::Result<()> {
-    if cfg!(windows) {
-        let mut cmd = Command::new("taskkill");
+    #[cfg(windows)]
+    {
+        let exe = taskkill_path();
+        let mut cmd = Command::new(&exe);
         cmd.args(["/PID", &pid.to_string(), "/T", "/F"]);
-        #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x0800_0000);
+            cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
         }
-        let status = cmd.status().context("run taskkill")?;
+        let status = cmd
+            .status()
+            .with_context(|| format!("run {}", exe.display()))?;
         if !status.success() {
-            bail!("taskkill failed for pid {pid}");
+            bail!("taskkill failed for pid {pid} (exit {status})");
         }
         return Ok(());
     }
 
-    let status = Command::new("kill")
-        .args(["-TERM", &pid.to_string()])
-        .status()
-        .context("run kill")?;
-    if !status.success() {
-        bail!("kill failed for pid {pid}");
+    #[cfg(not(windows))]
+    {
+        let status = Command::new("kill")
+            .args(["-TERM", &pid.to_string()])
+            .status()
+            .context("run kill")?;
+        if !status.success() {
+            bail!("kill failed for pid {pid}");
+        }
+        Ok(())
     }
-    Ok(())
 }
 
 pub fn process_is_running(pid: u32) -> bool {
@@ -416,5 +439,37 @@ mod stage_tests {
             resolve_or_stage_daemon_with_version_hint(&nonexistent_src, &dest_dir);
         assert_eq!(version_hint, None);
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+}
+
+#[cfg(test)]
+mod terminate_tests {
+    #[test]
+    #[cfg(windows)]
+    fn taskkill_is_resolved_absolutely_not_via_path() {
+        // The bug: `Command::new("taskkill")` needs System32 on PATH, and a
+        // sanitized PATH (services, CI, some terminals) omits it — which
+        // surfaced as a misleading "Access is denied (os error 5)" while the
+        // daemon kept running. Resolving from %SystemRoot% removes the
+        // dependency on PATH entirely.
+        let p = super::taskkill_path();
+        assert!(
+            p.is_absolute(),
+            "must not depend on PATH lookup: {}",
+            p.display()
+        );
+        assert!(p.ends_with("taskkill.exe"), "{}", p.display());
+        assert!(p.exists(), "taskkill.exe not found at {}", p.display());
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn taskkill_path_falls_back_when_systemroot_is_unset() {
+        // Reading %SystemRoot% must not panic or yield a relative path even in
+        // a stripped environment; the fallback is the standard location.
+        let p = super::taskkill_path();
+        assert!(p.starts_with(std::path::Path::new(
+            &std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".to_string())
+        )));
     }
 }

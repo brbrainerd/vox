@@ -11,6 +11,7 @@ use crate::hir::nodes::effect::HirEffectKind;
 use crate::hir::nodes::{HirEndpointFn, HirFn};
 use crate::hir::{HirArg, HirCapability, HirExpr, HirModule, HirStmt};
 use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
+use crate::typeck::placement::callee_names;
 
 /// Run effect propagation checks across all annotated functions in the module.
 pub fn check_effect_compliance(module: &HirModule, source: &str) -> Vec<Diagnostic> {
@@ -34,15 +35,51 @@ pub fn check_effect_compliance(module: &HirModule, source: &str) -> Vec<Diagnost
     }
 
     // Bottom-up effect inference (P1-T6): for every unannotated function, infer
-    // its direct stdlib capabilities from its body and add them to cap_map.
-    // This lets annotated callers be checked against a callee's inferred effects
-    // even when the callee carries no explicit `uses` clause.
-    for f in &module.functions {
-        if !cap_map.contains_key(&f.name) {
-            let inferred = infer_body_effects(&f.body);
-            if !inferred.is_empty() {
-                cap_map.insert(f.name.clone(), inferred);
+    // its capabilities from its body — its direct stdlib calls PLUS, transitively,
+    // everything its callees require. Fixpoint over the call graph (same shape as
+    // `placement::PlacementMap::infer`): the join is monotone and the sets are
+    // bounded, so cycles (recursion, mutual recursion) terminate.
+    let edges: Vec<(String, Vec<String>)> = module
+        .functions
+        .iter()
+        .filter(|f| !cap_map.contains_key(&f.name))
+        .map(|f| (f.name.clone(), callee_names(&f.body)))
+        .collect();
+    let mut inferred: HashMap<String, HashSet<HirCapability>> = module
+        .functions
+        .iter()
+        .filter(|f| !cap_map.contains_key(&f.name))
+        .map(|f| {
+            (
+                f.name.clone(),
+                infer_body_effects(&f.body).into_iter().collect(),
+            )
+        })
+        .collect();
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for (name, callees) in &edges {
+            let mut incoming: Vec<HirCapability> = Vec::new();
+            for callee in callees {
+                // Annotated callees contribute their *declared* contract; the
+                // inferred map covers the rest.
+                if let Some(caps) = cap_map.get(callee) {
+                    incoming.extend(caps.iter().cloned());
+                } else if let Some(caps) = inferred.get(callee) {
+                    incoming.extend(caps.iter().cloned());
+                }
             }
+            if let Some(set) = inferred.get_mut(name) {
+                for cap in incoming {
+                    changed |= set.insert(cap);
+                }
+            }
+        }
+    }
+    for (name, caps) in inferred {
+        if !caps.is_empty() {
+            cap_map.insert(name, caps.into_iter().collect());
         }
     }
 
@@ -194,22 +231,15 @@ fn check_expr(
         HirExpr::Call(callee_expr, args, _, span) => {
             // Only enforce when callee is a direct identifier (not a method/closure).
             if let HirExpr::Ident(callee_name, _) = callee_expr.as_ref() {
-                if let Some(callee_caps) = cap_map.get(callee_name) {
-                    for cap in callee_caps {
-                        if !caller_set.contains(cap) {
-                            let mut d = Diagnostic::error(
-                                format!(
-                                    "Function `{}` calls `{}` which requires `{}`, but `{}` does not declare `uses {}`",
-                                    caller_name, callee_name, cap, caller_name, cap
-                                ),
-                                *span,
-                                source,
-                            );
-                            d.category = DiagnosticCategory::EffectViolation;
-                            diags.push(d);
-                        }
-                    }
-                }
+                check_name_ref(
+                    callee_name,
+                    *span,
+                    caller_name,
+                    caller_set,
+                    cap_map,
+                    source,
+                    diags,
+                );
             }
             // Recurse into callee expression and arguments.
             check_expr(callee_expr, caller_name, caller_set, cap_map, source, diags);
@@ -542,7 +572,42 @@ fn check_arg(
     source: &str,
     diags: &mut Vec<Diagnostic>,
 ) {
+    // A bare identifier in argument position may be a function *reference*
+    // (`xs.map(fetch_one)`) — the effects still run, so govern it like a call.
+    if let HirExpr::Ident(name, span) = &arg.value {
+        check_name_ref(name, *span, caller_name, caller_set, cap_map, source, diags);
+    }
     check_expr(&arg.value, caller_name, caller_set, cap_map, source, diags);
+}
+
+/// Report a violation for every capability `name` requires that the caller lacks.
+#[allow(clippy::too_many_arguments)]
+fn check_name_ref(
+    name: &str,
+    span: crate::ast::span::Span,
+    caller_name: &str,
+    caller_set: &HashSet<HirCapability>,
+    cap_map: &HashMap<String, Vec<HirCapability>>,
+    source: &str,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let Some(caps) = cap_map.get(name) else {
+        return;
+    };
+    for cap in caps {
+        if !caller_set.contains(cap) {
+            let mut d = Diagnostic::error(
+                format!(
+                    "Function `{caller_name}` calls `{name}` which requires `{cap}`, \
+                     but `{caller_name}` does not declare `uses {cap}`"
+                ),
+                span,
+                source,
+            );
+            d.category = DiagnosticCategory::EffectViolation;
+            diags.push(d);
+        }
+    }
 }
 
 fn check_one_endpoint_fn(f: &HirEndpointFn, diags: &mut Vec<Diagnostic>) {

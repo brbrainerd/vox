@@ -231,6 +231,13 @@ fn walk_expr(e: &HirExpr, out: &mut Vec<String>) {
 }
 
 fn walk_arg(a: &HirArg, out: &mut Vec<String>) {
+    // A bare identifier in argument position may be a *function reference*
+    // (`xs.map(read_db)`); its callee edge is real even though it is never
+    // syntactically applied here. Only names that resolve to declarations are
+    // used by callers, so a same-named local is harmless.
+    if let HirExpr::Ident(name, _) = &a.value {
+        out.push(name.clone());
+    }
     walk_expr(&a.value, out);
 }
 

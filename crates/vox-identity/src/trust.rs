@@ -41,7 +41,18 @@ impl TrustedNodeRegistry {
         }
     }
 
-    /// Pure in-memory registry — no disk I/O. Used by tests and the P5 auth path.
+    /// File-backed registry rooted at an explicit path (tests, alternate roots).
+    pub fn at(path: PathBuf) -> Self {
+        Self {
+            path: Some(path),
+            cache: HashMap::new(),
+        }
+    }
+
+    /// Pure in-memory registry — no disk I/O. Note: [`add`](Self::add) and
+    /// [`remove`](Self::remove) are no-ops here (nothing is persisted); use
+    /// [`upsert`](Self::upsert) to populate one, or [`at`](Self::at) if you need
+    /// writes to be readable back.
     pub fn new_in_memory() -> Self {
         Self {
             path: None,
@@ -109,11 +120,20 @@ impl TrustedNodeRegistry {
 
     /// Look up a trusted node by its Ed25519 pubkey hex. Searches in-memory
     /// cache first, then the file-backed store (if any).
-    pub fn lookup_by_pubkey_hex(&self, pubkey_hex: &str) -> Option<&TrustedNode> {
-        if let Some(node) = self.cache.values().find(|n| n.pubkey_hex == pubkey_hex) {
-            return Some(node);
+    ///
+    /// An empty `pubkey_hex` never matches — otherwise a stored row with a blank
+    /// key would authenticate any keyless caller.
+    pub fn lookup_by_pubkey_hex(&self, pubkey_hex: &str) -> Option<TrustedNode> {
+        if pubkey_hex.is_empty() {
+            return None;
         }
-        None
+        if let Some(node) = self.cache.values().find(|n| n.pubkey_hex == pubkey_hex) {
+            return Some(node.clone());
+        }
+        self.load()
+            .ok()?
+            .into_values()
+            .find(|n| n.pubkey_hex == pubkey_hex)
     }
 
     pub fn remove(&self, node_id: &str) -> Result<bool> {
@@ -146,5 +166,37 @@ impl Default for TrustedNodeRegistry {
     /// file-backed production registry.
     fn default() -> Self {
         Self::new_in_memory()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lookup_by_pubkey_reads_the_file_not_just_the_cache() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("trusted_nodes.json");
+
+        TrustedNodeRegistry::at(path.clone())
+            .add("node-1".into(), "aabbcc".into(), None)
+            .expect("add");
+
+        // Fresh handle: cache is empty, so this can only pass by loading the file.
+        let found = TrustedNodeRegistry::at(path)
+            .lookup_by_pubkey_hex("aabbcc")
+            .expect("pubkey should resolve from disk");
+        assert_eq!(found.node_id(), "node-1");
+    }
+
+    #[test]
+    fn an_empty_pubkey_never_matches() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("trusted_nodes.json");
+
+        let reg = TrustedNodeRegistry::at(path);
+        reg.add("keyless".into(), String::new(), None).expect("add");
+
+        assert!(reg.lookup_by_pubkey_hex("").is_none());
     }
 }

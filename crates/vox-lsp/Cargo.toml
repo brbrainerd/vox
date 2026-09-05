@@ -24,7 +24,12 @@ tracing = { workspace = true }
 vox-foundation = { workspace = true }
 
 vox-compiler = { workspace = true }
-vox-db = { workspace = true, optional = true }
+# `host-integration` gates `vox_db::project_store` (`open_project_db`), which the
+# LSP calls to open a workspace's database. `49fb36bc6` introduced that gate and
+# updated vox-cli and vox-sql but missed this consumer, so `-p vox-lsp` has not
+# compiled since. Unlike vox-gamify's `paths` re-export, this is a real module
+# behind the feature, so enabling it is the correct fix rather than a workaround.
+vox-db = { workspace = true, optional = true, features = ["host-integration"] }
 vox-gamify = { workspace = true, optional = true }
 vox-bounded-fs = { workspace = true }
 vox-secrets.workspace = true

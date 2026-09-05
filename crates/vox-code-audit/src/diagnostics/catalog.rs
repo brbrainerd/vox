@@ -24,6 +24,10 @@ pub const SECRET_ENV_GET_SHAPE: &str = "vox/secret/env-get-shape";
 /// Phase 2 / audit item A.30.
 pub const CRYPTO_BANNED_CRATE_IMPORT: &str = "vox/crypto/banned-crate-import";
 
+/// iroh pattern that defeats the mesh transport security model (ADR-047):
+/// `presets::N0`, `N0DisableRelay`, or `into_0rtt`.
+pub const MESH_TRANSPORT_UNSAFE_IROH: &str = "vox/mesh/unsafe-iroh-pattern";
+
 /// `@secret`-tagged struct field appearing as a `tracing` span attribute or log argument.
 /// Phase 2 (descoped runtime-only from A.11 full taint).
 pub const SECRET_LEAKED_TO_SPAN: &str = "vox/secret/leaked-to-span";
@@ -291,6 +295,7 @@ pub const ALL_KNOWN_IDS: &[&str] = &[
     LLM_DIRECT_PROVIDER_CALL,
     SECRET_ENV_GET_SHAPE,
     CRYPTO_BANNED_CRATE_IMPORT,
+    MESH_TRANSPORT_UNSAFE_IROH,
     SECRET_LEAKED_TO_SPAN,
     STYLE_DUPLICATE_PREFIX_NAME,
     STYLE_LONG_RANGE_COUPLING,

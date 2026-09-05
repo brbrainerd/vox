@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "_comment": [
+    "Transport-crypto provider ledger. See AGENTS.md \u00a7Cryptography Policy.",
+    "",
+    "This file records which TLS/QUIC crypto providers are present in the",
+    "resolved dependency graph, why each is there, and who reviewed it.",
+    "",
+    "It exists because the previous control -- a source-text ban on crate names",
+    "-- could not see feature-mediated provider selection and, separately, had",
+    "never executed (vox-code-audit's scanner dropped every Cargo.toml before",
+    "any detector saw it; fixed 2026-09-04). A provider is chosen by a FEATURE on",
+    "a shared crate, so the only sound input is the resolved lockfile.",
+    "",
+    "Verified 2026-09-04 by `cargo tree -i <crate> -e features --workspace`.",
+    "",
+    "REFINEMENT, 2026-09-04: the lockfile is necessary but NOT sufficient. It records",
+    "what cargo RESOLVED, not what it BUILDS. Measured: a lockfile resolved for hf-hub",
+    "1.0 alone lists `ring`, yet `cargo tree -i ring` reports \"nothing to print\" for the",
+    "host target -- it is a target-gated entry that never compiles, while aws-lc-rs is",
+    "the provider actually built. So `vox ci crate-edges`-style name intersection over",
+    "Cargo.lock would FAIL CI on a provider that ships no code. The gate planned as",
+    "`vox ci crypto-provider-check` must resolve per target and feature set (cargo",
+    "metadata resolve graph, or an equivalent walk) and report BUILT providers."
+  ],
+  "allowed_providers": [
+    {
+      "crate": "ring",
+      "version": "0.17.14",
+      "reason": "Explicit workspace pin: Cargo.toml `rustls`/`tokio-rustls` both use features = [\"ring\"]. Also the provider reqwest 0.12.x selects (rustls-tls -> rustls-tls-webpki-roots -> __rustls-ring). iroh 1.x defaults to tls-ring, so the planned mesh transport adds no new provider.",
+      "entered_via": [
+        "Cargo.toml rustls pin",
+        "reqwest 0.12.28"
+      ],
+      "reviewer": "brbrainerd",
+      "reviewed": "2026-09-04",
+      "planned_removal": "Interim, but NOT on the path previously recorded here. CORRECTED 2026-09-04 (macOS, commit f48dbc810) after the hf-hub 1.0 port landed: hf-hub was never the load-bearing reqwest-0.12 consumer. The root manifest pins reqwest 0.12 at Cargo.toml:227 and 28 first-party vox crates depend on it (vox-http-client, vox-actor-runtime, vox-llm-egress, vox-compiler, vox-cli, ...), alongside nanopub, tavily, reqwest-middleware 0.4 and reqwest-retry 0.7. With hf-hub on 1.0/reqwest 0.13, Cargo.lock STILL carries both reqwest majors and both providers. Removing `ring` therefore requires a workspace-wide reqwest 0.12 -> 0.13 pin bump (which also drags the reqwest-middleware and reqwest-retry majors), not the hf-hub upgrade. Needs its own task; not tracked by plan Task 0.4 Step 5 any more."
+    },
+    {
+      "crate": "aws-lc-rs",
+      "version": "1.17.0",
+      "reason": "UNAVOIDABLE while preserving features. reqwest 0.13.x maps rustls-tls to __rustls-aws-lc-rs (the provider default changed between reqwest majors). reqwest 0.13 is required by chromiumoxide 0.9.1 (browser plugin) and by gix-transport 0.57.1 <- gix <- jj-lib 0.42 <- vox-vcs. jj-lib exposes no TLS feature at all (default = [\"git\"], git = [\"dep:gix\"]), so this cannot be steered from our manifests. Removing it means dropping the browser plugin or VCS.",
+      "entered_via": [
+        "reqwest 0.13.4 via chromiumoxide",
+        "reqwest 0.13.4 via gix-transport/jj-lib"
+      ],
+      "reviewer": "brbrainerd",
+      "reviewed": "2026-09-04",
+      "planned_role": "Would become the sole provider only after a workspace-wide reqwest 0.12 -> 0.13 pin bump. CORRECTED 2026-09-04: plan Task 0.4 (hf-hub 1.0) has landed and did NOT achieve this -- see the `ring` entry. iroh supports aws-lc-rs via `tls-aws-lc-rs`, so the mesh transport does not force `ring` to stay whenever that bump does happen."
+    }
+  ],
+  "duplicates": [
+    {
+      "crate": "reqwest",
+      "majors": [
+        "0.12.28",
+        "0.13.4"
+      ],
+      "reason": "The workspace's own root pin is reqwest 0.12 (Cargo.toml:227), used directly by 28 first-party vox crates, plus nanopub, tavily, reqwest-middleware 0.4 and reqwest-retry 0.7; chromiumoxide 0.9.1 and gix-transport 0.57.1 require ^0.13. Incompatible semver majors, so cargo builds both. This split is the ROOT CAUSE of the two-provider state. CORRECTED 2026-09-04: an earlier revision of this entry named hf-hub 0.5.0 as the 0.12 side. It was one consumer among thirty-odd and not the one that matters.",
+      "resolution": "UNRESOLVED. The hf-hub 1.0 port is DONE (2026-09-04, commit ca7ce2023) -- a genuine API rewrite, not a bump: HFClient/HFClientSync behind feature `blocking` (1.0 has no `tokio` or `ureq` feature), split_id + client.model(owner, name), repo.download_file().filename(f).revision(r).send(), and info().siblings now Option<Vec<_>>. All four call sites across vox-populi, vox-speech and vox-plugin-speech compile and their tests pass. What it bought: hf-hub no longer pulls ureq (the remaining ureq 2.12.1 comes from sherpa-onnx-sys, unrelated) and hf-xet brings chunk-deduplicated model downloads to the MENS path. What it did NOT buy: the reqwest split survives untouched, because the root pin -- not hf-hub -- anchors the 0.12 side. Resolving this duplicate now means bumping that pin workspace-wide.",
+      "tracked_by": "docs/superpowers/plans/2026-09-04-populi-mesh-iroh-transport.md Task 0.4",
+      "reviewer": "brbrainerd",
+      "reviewed": "2026-09-04"
+    },
+    {
+      "crate": "ed25519-dalek",
+      "majors": [
+        "2.x",
+        "3.0.0"
+      ],
+      "reason": "vox-crypto pins 2.x; iroh 1.1 requires >=3.0.0-rc and resolves to ed25519-dalek 3.0.0 STABLE (verified on macOS 2026-09-04 in an iroh-only tree; an earlier note in this ledger said `-rc`, which was the version requirement, not the resolved version). Two majors coexist by necessity. They cannot share a Rust type, but both round-trip through 32 raw bytes, so one stored seed derives both identities.",
+      "resolution": "Accepted. Bridge via SecretKey::from_bytes; never let iroh generate and persist an independent key.",
+      "reviewer": "brbrainerd",
+      "reviewed": "2026-09-04",
+      "verified_resolution": "iroh 1.1.0 + noq 1.2.0 + iroh-tickets 1.0.0 -> ed25519-dalek 3.0.0, ring 0.17.14, no aws-lc-rs. NOTE: iroh-tickets must be 1.0 -- 0.1 pulls iroh-base 0.94 which pins ed25519-dalek =3.0.0-pre.1 and conflicts."
+    }
+  ],
+  "forbidden_providers": [
+    {
+      "crate": "openssl-sys",
+      "reason": "C toolchain dependency; not currently in the graph. Keep it that way."
+    },
+    {
+      "crate": "boring-sys",
+      "reason": "C toolchain dependency."
+    },
+    {
+      "crate": "aws-lc-fips-sys",
+      "reason": "FIPS variant requires cmake + Go, which the build-toolchain invariant forbids."
+    },
+    {
+      "crate": "rustls-rustcrypto",
+      "reason": "Pure-Rust provider, but 0.0.2-alpha, unmaintained since 2024-04, README says do not use in production, and its QUIC HeaderProtectionKey is todo!() -- it panics at runtime under a QUIC stack."
+    }
+  ],
+  "build_toolchain_invariant": {
+    "requirement": "A clean clone builds with only the pinned Rust toolchain, the platform C compiler, and Node+pnpm for the GUI.",
+    "forbidden_tools": [
+      "cmake",
+      "nasm",
+      "go",
+      "perl",
+      "libclang"
+    ],
+    "note": "aws-lc-sys >= 0.41 satisfies this on x86_64-pc-windows-msvc via pregenerated bindings and prebuilt NASM objects. Verified empirically on BLAPTOP04 2026-09-04: aws-lc-sys built successfully with neither cmake nor nasm on PATH; its own build log records 'NASM command not found'. The old policy banned crates that 'drag in cmake or nasm' -- that hazard is not real for this crate at this version, which is why the invariant is now stated as a property of the build and checked by a CI image lacking those tools."
+  },
+  "_target_state": {
+    "providers": [
+      "aws-lc-rs"
+    ],
+    "rationale": "Single provider, reached by collapsing reqwest to one major rather than by banning a crate name. Costs no features: HuggingFace keeps working (hf-hub 1.0, already ported), VCS keeps working (jj-lib/gix already want reqwest 0.13), and iroh supports aws-lc-rs directly. SCOPE CORRECTED 2026-09-04: the collapse is a workspace-wide reqwest pin bump touching 28 first-party crates and the reqwest-middleware/reqwest-retry majors -- materially larger than the hf-hub port that was assumed to deliver it.",
+    "abort_condition": "If removing ring forces jj-lib, gix, or chromiumoxide onto a different reqwest major, or breaks the no-cmake/no-nasm build invariant on any platform, keep both providers and record why here.",
+    "tracked_by": "UNASSIGNED as of 2026-09-04. Was plan Task 0.4 Step 5; that task has landed without collapsing reqwest, so single-provider needs a new task for the workspace-wide reqwest 0.12 -> 0.13 pin bump."
+  }
+}

@@ -24,6 +24,13 @@ pub enum MensSubcommand {
         #[command(subcommand)]
         action: Box<vox_ml_cli::commands::oratio_cmd::OratioAction>,
     },
+    /// Pair machines and manage the mesh trust allowlist (ADR-047).
+    #[cfg(feature = "populi")]
+    #[command(name = "mesh")]
+    Mesh {
+        #[command(subcommand)]
+        cmd: Box<vox_ml_cli::commands::mesh_cli::MeshCli>,
+    },
     #[cfg(feature = "populi")]
     #[command(name = "populi")]
     Populi {
@@ -51,6 +58,10 @@ async fn main() -> anyhow::Result<()> {
         #[cfg(feature = "oratio")]
         MensSubcommand::Oratio { action } => {
             vox_ml_cli::commands::oratio_cmd::run(*action, root.global.json).await
+        }
+        #[cfg(feature = "populi")]
+        MensSubcommand::Mesh { cmd } => {
+            vox_ml_cli::commands::mesh_cli::run(*cmd, root.global.json).await
         }
         #[cfg(feature = "populi")]
         MensSubcommand::Populi { cmd } => {

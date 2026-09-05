@@ -468,6 +468,10 @@
       "vox-mesh-types",
       "workspace-hack"
     ],
+    "vox-mesh-transport": [
+      "vox-mesh-types",
+      "workspace-hack"
+    ],
     "vox-mesh-types": [],
     "vox-ml-cli": [
       "vox-actor-runtime",

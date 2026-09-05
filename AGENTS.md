@@ -137,8 +137,60 @@ API key lifecycle checklist:
 
 ## Cryptography Policy (SSOT)
 
-All cryptographic logic MUST use the `vox-crypto` crate. We explicitly ban AEGIS, `ring`, `zig`-chains, and any wrapper dragging in `cmake` or `nasm` for C-assembly optimization on Windows. Pure-Rust `chacha20poly1305` is standard for AEAD. See:
-- Policy: [`docs/src/architecture/cryptography-ssot-2026.md`](docs/src/architecture/cryptography-ssot-2026.md)
+**Two different concerns, two different controls. Do not conflate them** — the
+previous single rule did, which is why it was unenforceable and silently violated.
+
+### 1. Application crypto — must go through `vox-crypto`
+
+Any cryptographic operation **vox performs on vox's own data** — hashing,
+signing, verifying, sealing, symmetric encryption, key derivation, key storage —
+MUST call `vox-crypto`. Do not import `chacha20poly1305`, `ed25519-dalek`,
+`x25519-dalek`, `blake3`, `sha2`, or `sha3` directly outside `crates/vox-crypto/`,
+and do not hand-roll a signature envelope, a nonce scheme, or a KDF anywhere else.
+
+Standard primitives: ChaCha20-Poly1305 (AEAD), BLAKE3 (hashing), SHA3-256
+(compliance), ed25519 (signing), X25519 (key agreement).
+
+Permanently banned in application code: MD5, SHA-1, AEGIS, DES/3DES, RC4, ECB,
+and any construction requiring the caller to manage nonce uniqueness by hand.
+
+Enforced by `vox-code-audit` detector `vox/crypto/banned-crate-import`.
+
+### 2. Transport crypto — allowlisted, pinned, and ledgered
+
+TLS and QUIC crypto lives inside vetted third-party libraries. Vox does not
+reimplement it and MUST NOT route it through `vox-crypto`.
+
+Providers in the resolved graph are recorded in
+[`contracts/crypto/transport-providers.v1.json`](contracts/crypto/transport-providers.v1.json)
+with attribution and a reviewer. **Adding, removing, or version-bumping a
+provider requires a ledger entry in the same PR.** Ledger entries are
+USER-AUTHORIZED-ONLY; never add one yourself.
+
+**The workspace currently ships two providers, deliberately.** `ring` is our
+explicit pin and reqwest 0.12's choice; `aws-lc-rs` arrives with reqwest 0.13 via
+`chromiumoxide` and `gix`→`jj-lib`→`vox-vcs`, and cannot be steered from our
+manifests because `jj-lib` exposes no TLS feature. Removing it means dropping the
+browser plugin or VCS. **The collapse path is a workspace-wide `reqwest` pin
+bump, not the hf-hub upgrade.** hf-hub is on 1.0/reqwest 0.13 as of 2026-09-04 and
+both providers remain, because the root manifest pins `reqwest 0.12` for 28
+first-party crates. See plan Task 0.4 for the measured correction.
+
+**Cargo feature unification is per-package**, so one crate enabling
+`rustls/aws-lc-rs` reintroduces it workspace-wide. The invariant is therefore
+checked against the **resolved lockfile**, not against manifest text — a regex
+cannot see a provider selected by a feature on a shared dependency.
+
+### 3. Build-toolchain invariant
+
+A clean clone must build with only the pinned Rust toolchain, the platform C
+compiler, and Node+pnpm. No dependency may add **cmake, nasm, Go, perl, or
+libclang**. This is a property of the *build*, verified by a CI image lacking
+those tools — not a crate blacklist. (The old rule banned crates that "drag in
+cmake or nasm"; `aws-lc-sys` ≥ 0.41 provably does not on Windows, so the ban
+described a hazard that no longer existed while missing the real one.)
+
+See: [`docs/src/architecture/cryptography-ssot-2026.md`](docs/src/architecture/cryptography-ssot-2026.md)
 
 ## `vox audit` Umbrella (SSOT)
 
