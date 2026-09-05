@@ -195,12 +195,13 @@ pub fn load_code_plugin(
     let dylib_path = entry.install_dir.join(filename);
 
     // Checksum verification: the other half of the load-time security gate
-    // (spec §4.2(d)). The version-match half (`LoadError::VersionMismatch`)
-    // lands via a separate branch and is not present here yet — the two
-    // checks are independent (different failure modes, no shared state), so
-    // whichever branch merges second just needs a straightforward rebase to
-    // run both in `load_code_plugin`. `artifacts_sha3` is populated at
-    // install time (`install_from_path` in
+    // (spec §4.2(d)), running after the version-match check above. The two
+    // checks are independent (different failure modes, no shared state) and
+    // were originally developed on separate branches; composing them here
+    // needed no logic change, only a test fixture fix (see the merge commit
+    // that brought both together) — the fixtures below use the real running
+    // version so the version check doesn't intercept them first.
+    // `artifacts_sha3` is populated at install time (`install_from_path` in
     // crates/vox-cli/src/commands/plugin/install.rs) from the SAME
     // already-parsed, already-trusted manifest `artifacts` was just read
     // from — no new crate-graph edge to vox-plugin-catalog needed to get it.
