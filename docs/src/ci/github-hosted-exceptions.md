@@ -37,6 +37,8 @@ The repository defaults to **self-hosted** runners for CI (see [runner contract]
 | `docker-telemetry.yml` | `ubuntu-latest` | GHCR telemetry image build on the deploy path; free public minutes by policy (compute-placement.md §vox placement). |
 | `distribution-parity.yml` | `ubuntu-latest` | Fleet-independent required parity check — stays green when the fleet is down (Invariant 1). |
 | `version-tag-guard.yml` | `ubuntu-latest` | Lightweight tag-only release guard; fleet-independent by design. |
+| `release-prepare.yml` | `ubuntu-latest` | `workflow_dispatch` only; computes the next version from conventional commits and opens a PR. Deliberately fleet-independent: the fleet's unavailability is what this lane exists to route around, so putting release preparation behind it would reintroduce the failure it prevents. Cheap (git-cliff + one cargo run). |
+| `os-compat-report.yml` | matrix (`ubuntu-latest`, `windows-latest`, `macos-latest`) | Reports OS compatibility across all three hosts. The self-hosted fleet is Linux-only, so Windows and macOS coverage is not something it can provide at any capacity. |
 | `nightly-tag.yml` | `ubuntu-latest` | Scheduled tag-cutting for the nightly channel; lightweight (git + `gh` only), needs no self-hosted resources, and must stay live on a cron schedule independent of fleet health. |
 | `workflow-lint.yml` | `ubuntu-latest` | actionlint + zizmor; install in seconds, need no self-hosted resources. Non-required early-warning surface. |
 | `ci-health-deadman.yml` | `ubuntu-latest` | CI fleet health deadman switch; must run on a GitHub-hosted runner so it stays live when the self-hosted fleet is down. |

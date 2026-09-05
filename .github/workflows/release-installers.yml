@@ -325,5 +325,8 @@ jobs:
           # publish job guards against (see release-binaries.yml's publish
           # step comment) -- a hyphenated tag (v1.2.3-rc1, v0.0.0-test) is a
           # prerelease and never becomes "latest"; a plain tag is real.
+          # No public release is published from this repo; drafts are
+          # promoted by hand. release-binaries.yml carries the same guard.
+          draft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           make_latest: ${{ !contains(github.ref_name, '-') }}
