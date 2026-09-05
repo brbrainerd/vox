@@ -14,40 +14,61 @@ verify today; §5 is the work that makes it a mesh.
 
 ---
 
-## 1. The blocker for driving both machines from the Mac
+## 1. Driving BLAPTOP04 from the Mac — enabled 2026-09-04
 
-**BLAPTOP04 has no SSH server.** Verified: `Get-Service sshd` → *NOT INSTALLED*;
-zero listeners on port 22. Tailscale SSH is **client-only on Windows** — the
-`tailscale status --json` capability map advertises SSH, but there is no server
-to accept it.
+**OpenSSH Server is installed, running, and tailnet-scoped.** Verified on the
+machine:
 
-So from the Mac you can reach the Mac, and you cannot reach BLAPTOP04.
+| | |
+|---|---|
+| Service | `sshd: Running / Automatic` |
+| Listening | `0.0.0.0:22` and `[::]:22` |
+| Banner | `SSH-2.0-OpenSSH_for_Windows_9.5` |
+| Firewall | `sshd-tailscale` allows **only** `100.64.0.0/10` (the tailnet CGNAT range) |
+| Windows' broad rule | `OpenSSH-Server-In-TCP` **disabled** — port 22 is not reachable from the LAN or the internet |
 
-Two ways forward. Pick one before starting §3.
+From the Mac:
 
-**Option A — enable OpenSSH Server on BLAPTOP04 (recommended, one time).**
-Run this *at* BLAPTOP04, in an **Administrator** PowerShell:
-
-```powershell
-Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
-Set-Service -Name sshd -StartupType Automatic
-Start-Service sshd
-# Tailnet-only: no public exposure.
-New-NetFirewallRule -Name sshd-tailscale -DisplayName "OpenSSH (Tailscale only)" `
-  -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 `
-  -RemoteAddress 100.64.0.0/10
+```bash
+ssh iacch@100.107.222.96          # or: ssh iacch@blaptop04.tail4f69a0.ts.net
 ```
 
-Then from the Mac: `ssh iacch@100.107.222.96` (BLAPTOP04's tailnet address).
-Everything in §3–§4 becomes a single-seat operation.
+Password authentication works today (Windows OpenSSH defaults to it).
 
-This is a system settings change and requires elevation, which is why it was
-left for you rather than done automatically.
+### Key-based auth — one gotcha that catches everyone
 
-**Option B — two seats.** Run the Mac half from the Mac, walk to BLAPTOP04 for
-its half. Every block below is labelled with which machine it runs on.
+**`iacch` is a member of Administrators**, so Windows OpenSSH does **not** read
+`~/.ssh/authorized_keys` for this account. It reads
+`C:\ProgramData\sshdministrators_authorized_keys`, and that file must be
+owned by Administrators/SYSTEM with inheritance disabled or sshd silently
+ignores it. Both facts are undocumented in most guides and produce a
+"permission denied (publickey)" with nothing in the logs.
 
----
+From the **Mac**, print your public key:
+
+```bash
+cat ~/.ssh/id_ed25519.pub    # or generate: ssh-keygen -t ed25519
+```
+
+Then on **BLAPTOP04**, in an **Administrator** PowerShell, paste it in and fix
+the ACL in the same step:
+
+```powershell
+$key = '<paste the ed25519 line here>'
+$f = "$env:ProgramData\sshdministrators_authorized_keys"
+Add-Content -Path $f -Value $key
+icacls $f /inheritance:r /grant 'Administrators:F' /grant 'SYSTEM:F'
+Restart-Service sshd
+```
+
+### Why not Tailscale SSH
+
+Tailscale's SSH **server** does not run on Windows — v1.60+ disables it
+deliberately over privilege-delegation and session-isolation constraints
+(tailscale/tailscale#14942, #17261). Windows can be a Tailscale SSH *client*
+only, which is why OpenSSH Server is the path. The Tailscale GUI
+(`tailscale-ipn`) and the `Tailscale` service run together with no conflict —
+both were live while this was verified.
 
 ## 2. State BLAPTOP04 was left in
 
@@ -329,12 +350,26 @@ Then repeat it with **both machines disconnected from the internet** — that is
 the requirement separating this design from the rejected ones, and a failure
 there is blocking.
 
-### One caveat that will bite otherwise
+### Single-seat operation
 
-Until Option A in §1 is done, the Mac **cannot** reach BLAPTOP04 — no SSH server,
-and Tailscale SSH is client-only on Windows. Phase C is therefore a
-walk-to-the-machine operation unless you enable OpenSSH first. Enabling it is ten
-minutes and makes every later verification single-seat.
+§1 is done: BLAPTOP04 accepts SSH over the tailnet, so **every step above can be
+driven from the Mac**. A two-machine check is now one terminal:
+
+```bash
+# from the Mac — build both sides in parallel, then compare
+ssh iacch@100.107.222.96 'cd ~/vox && git pull --ff-only && cargo build -p vox-cli' &
+(cd ~/Developer/GitHub/vox && git pull --ff-only && cargo build -p vox-cli)
+wait
+ssh iacch@100.107.222.96 'cd ~/vox && git rev-parse HEAD'
+git -C ~/Developer/GitHub/vox rev-parse HEAD      # must match
+```
+
+Two Windows-specific notes for anything you run over that link:
+
+- Use the **built binary** for `populi down`, not `cargo run` — the daemon locks
+  `target\debugox-ml-cli.exe` and cargo's relink fails with a misleading
+  "Access is denied". See F10.
+- `--features populi` goes on **`-p vox-ml-cli`**, never `-p vox-cli`.
 
 ---
 

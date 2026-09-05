@@ -25,6 +25,60 @@
 
 ---
 
+## Execution model — parallelism, and where it actively hurts
+
+**BLAPTOP04 is now SSH-reachable over the tailnet** (`ssh iacch@100.107.222.96`),
+so every two-machine step is single-seat from the Mac. That changes the shape of
+this plan: the spike, the demo, and all cross-platform verification are now
+scriptable rather than a walk to the other desk.
+
+### What to parallelise
+
+**Across machines — always.** Builds on the Mac and BLAPTOP04 are independent
+and should overlap:
+
+```bash
+ssh iacch@100.107.222.96 'cd ~/vox && git pull --ff-only && cargo build -p vox-cli' &
+(cd ~/vox && git pull --ff-only && cargo build -p vox-cli)
+wait
+```
+
+**Subagent-driven development, per task, one agent at a time.** Each task in this
+plan is scoped to a disjoint file set precisely so a fresh subagent can own it
+with full context and no merge risk. Give the agent the task's own section, its
+Interfaces block, and the appendix. Review between tasks, not during.
+
+Good candidates for *concurrent* subagents, because their file sets do not
+overlap:
+
+| Group | Tasks | Files |
+|---|---|---|
+| A | 0.6 (HF seam) | `vox-speech`, `vox-plugin-speech`, `vox-populi/mens` |
+| B | 0.5 (lockfile gate) | `vox-cli-ci`, `contracts/crypto` |
+| C | 0.3 Steps 2–3 (schema, ADR) | `vox-schema.json`, `docs/src/adr` |
+
+### What NOT to parallelise — learned the hard way
+
+**Never run concurrent subagents that each invoke cargo on the same worktree.**
+They serialise on `target/`'s build lock and then deadlock: a real attempt during
+this planning session produced 17 cargo/rustc processes, the oldest blocked 50
+minutes, with zero forward progress. The analysis phases parallelise; the
+compilation phases do not.
+
+Two ways to get real parallelism if you want it:
+
+1. **`git worktree` per agent**, each with its own `target/` (this repo already
+   sets per-worktree target dirs in `.cargo/config.toml`). Costs disk and a cold
+   cache per worktree.
+2. **One agent holds cargo**; the others do analysis, docs, and contract edits
+   only. Simpler, and usually enough.
+
+**Phases 1 → 2 are strictly sequential** — Phase 2 is the demo that proves Phase
+1. Do not start Phase 3's ports before the demo passes; the whole point of the
+ordering is that deletion follows proof.
+
+---
+
 ## Phase 0 — Prerequisites and the spike
 
 ### Task 0.1: Build vox on the Mac
@@ -34,10 +88,16 @@
 - [ ] **Step 1**
 
 ```bash
-ssh bertrands-macbook-pro 'cd ~/Developer/GitHub && \
-  git clone https://github.com/vox-foundation/vox.git && cd vox && \
-  git checkout fix-all-ci-failures && rustup target add wasm32-wasip1 && \
-  cargo build -p vox-cli'
+# Kick BLAPTOP04's build off FIRST so the two overlap — SSH is live now.
+ssh iacch@100.107.222.96 'cd ~/vox && git pull --ff-only && cargo build -p vox-cli' &
+
+# Then build here, on the Mac (now the development machine).
+mkdir -p ~/Developer/GitHub && cd ~/Developer/GitHub
+git clone https://github.com/vox-foundation/vox.git && cd vox
+git checkout fix-all-ci-failures
+rustup target add wasm32-wasip1
+cargo build -p vox-cli
+wait
 ```
 
 - [ ] **Step 2:** Record the `host_triple` (`aarch64-apple-darwin`) and build time. This is the first cross-platform build verification in the project.
@@ -45,6 +105,19 @@ ssh bertrands-macbook-pro 'cd ~/Developer/GitHub && \
 ### Task 0.2: Throwaway spike, run between the two machines
 
 **Output is an answer, not code.** If question 1 or 3 fails, stop and reassess.
+
+**Now single-seat.** Copy the spike to BLAPTOP04 and drive both ends from the Mac:
+
+```bash
+scp -r $SCRATCH/iroh-spike iacch@100.107.222.96:C:/Users/iacch/iroh-spike
+ssh iacch@100.107.222.96 'cd C:/Users/iacch/iroh-spike && cargo run --release -- serve' &
+# read the printed ticket, then dial from the Mac:
+cargo run --release -- dial '<ticket>'
+```
+
+For question 1 (zero third-party contact), disconnect **both** machines from the
+internet first — the tailnet is not needed for a LAN dial, and leaving it up
+would not prove the point.
 
 - [ ] **Step 1: Scratch binary** in `$SCRATCH/iroh-spike/`
 
