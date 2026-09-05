@@ -109,6 +109,13 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
                 allowed_mesh_networks: None, // Used in routing, populated from allowed_scopes currently
                 accept_sensitive_workloads: false,
                 redundancy: None,
+                // The Mn-T7 fields (accepts_inference_workloads, cuda_tier,
+                // vram_min_gb, ...) have no `populi up` flags yet, so they take
+                // their conservative defaults: accept nothing, advertise
+                // nothing. Spreading Default here means the next field added to
+                // WorkerDonationPolicy does not break this initializer again —
+                // that omission is what stopped `vox populi` compiling.
+                ..Default::default()
             };
             if let Ok(json) = serde_json::to_string(&donation_policy) {
                 env_map.insert("VOX_MESH_DONATION_POLICY_JSON".to_string(), json);
@@ -175,14 +182,17 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
             save_env_file(&env_file, &env_map)?;
 
             let exe = std::env::current_exe().context("resolve current executable path")?;
+            let log_path = state_dir.join("serve.log");
+            let log = std::fs::File::create(&log_path)
+                .with_context(|| format!("create {}", log_path.display()))?;
             let mut child = std::process::Command::new(exe);
             child
-                .arg("populi")
-                .arg("serve")
-                .arg("--bind")
-                .arg(bind.trim())
+                .args(serve_child_args(bind.trim()))
                 .stdout(Stdio::null())
-                .stderr(Stdio::null());
+                // Was `Stdio::null()`: the child bailed instantly for want of
+                // `--enable` and nobody could see why, because its only
+                // diagnostic went to the void while the parent printed a pid.
+                .stderr(Stdio::from(log));
             for (k, v) in &env_map {
                 child.env(k, v);
             }
@@ -519,4 +529,47 @@ async fn control_plane_health(control_url: &str) -> bool {
         .send()
         .await
         .is_ok_and(|r| r.status().is_success())
+}
+
+/// argv for the spawned `populi serve` child.
+///
+/// Extracted so the argument list is assertable without spawning anything.
+/// `populi serve` bails on its first statement without `--enable`
+/// (`populi_cli.rs`), so omitting it produced a daemon that died instantly
+/// while `up` reported success — the mesh has never started on any machine.
+pub(crate) fn serve_child_args(bind: &str) -> Vec<String> {
+    vec![
+        "populi".to_string(),
+        "serve".to_string(),
+        "--enable".to_string(),
+        "--bind".to_string(),
+        bind.trim().to_string(),
+    ]
+}
+
+#[cfg(test)]
+mod serve_args_tests {
+    use super::serve_child_args;
+
+    #[test]
+    fn serve_child_is_passed_enable_or_it_exits_immediately() {
+        assert!(
+            serve_child_args("127.0.0.1:9847").contains(&"--enable".to_string()),
+            "`populi serve` bails without --enable; omitting it is why `populi up` \
+             has never started a server"
+        );
+    }
+
+    #[test]
+    fn bind_is_forwarded_verbatim_after_trimming() {
+        let a = serve_child_args("  192.168.1.9:7000 ");
+        assert_eq!(a.last().map(String::as_str), Some("192.168.1.9:7000"));
+    }
+
+    #[test]
+    fn the_subcommand_path_is_populi_serve() {
+        let a = serve_child_args("127.0.0.1:9847");
+        assert_eq!(&a[0], "populi");
+        assert_eq!(&a[1], "serve");
+    }
 }

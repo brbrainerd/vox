@@ -135,9 +135,18 @@ needed; these are now execution steps.
   §Decision.1 requires this ADR by name and also pre-authorizes the move by
   naming QUIC as the future option.
 
-- [ ] **Step 4: Crypto provider — `ring`.** Chosen over `aws-lc-rs`: it is
-  already the deliberate pin at `Cargo.toml:251`, it is iroh's default
-  (`tls-ring`), and it is the smaller change. Three sub-steps:
+- [ ] **Step 4: Crypto provider — `ring`, *provisionally*.** Chosen over
+  `aws-lc-rs` because it is already the deliberate pin at `Cargo.toml:251`, it is
+  iroh's default (`tls-ring`), and it is the smaller change **while two reqwest
+  majors coexist**.
+
+  > **This is an interim state, not the destination.** Task 0.4 Step 5 collapses
+  > to a single provider, and that provider is `aws-lc-rs` — because once
+  > hf-hub moves to reqwest 0.13, every consumer is on 0.13 and 0.13 selects
+  > `aws-lc-rs`. Keeping `ring` past that point would mean carrying a second
+  > provider solely to honour this pin. Do not treat this step as settled policy.
+
+  Three sub-steps:
   1. Pin `iroh = { version = "1.1", default-features = false, features = ["tls-ring", ...] }`.
      Never `tls-aws-lc-rs`.
   2. Fix reqwest's feature selection so `workspace-hack` stops enabling
@@ -173,6 +182,11 @@ moved to `reqwest ^0.13`**. Upgrading collapses reqwest to one major, drops
 `native-tls`/`hyper-tls` and `ureq`, and is expected to leave `aws-lc-rs` as the
 sole provider — a real build-time and audit-surface win.
 
+**hf-xet is a win, not a cost.** 1.0 adds `hf-xet` (HuggingFace's Xet storage
+layer: chunk-level dedup and parallel range fetches) — materially faster model
+and checkpoint downloads, which is exactly the path MENS uses. Step 4 still
+measures compile time, but do not treat `hf-xet` as a regression to justify.
+
 **It is an API port, not a bump.** hf-hub 1.0 drops `ureq`, and four call sites
 use `hf_hub::api::sync::Api`:
 
@@ -193,10 +207,44 @@ before assuming the build gets smaller.
 - [ ] **Step 4: Measure.** Clean-build wall time and `cargo tree | wc -l` before
   and after. If `hf-xet` costs more than the removals save, keep the port but say
   so in the ledger.
-- [ ] **Step 5: Update the ledger** — `contracts/crypto/transport-providers.v1.json`
-  `duplicates[reqwest]` becomes resolved, and `ring` moves out of
-  `allowed_providers` if nothing else selects it. **Ledger edits are
-  user-authorized; propose, do not write.**
+- [ ] **Step 5: Collapse crypto to a single provider — the whole point.**
+
+  With hf-hub on 0.13, **every** reqwest consumer is on 0.13 (chromiumoxide and
+  `gix-transport` already require it), and 0.13 selects `aws-lc-rs`. So the
+  single surviving provider is `aws-lc-rs`, and **VCS is untouched** — `jj-lib`
+  and `gix` keep the reqwest major they already wanted. Nothing is given up.
+
+  This **inverts the provider choice made in Task 0.3 Step 4.** `ring` was the
+  right answer while two majors coexisted, because it was already pinned. Once
+  the split is gone, holding `ring` would mean carrying a second provider *purely
+  to honour the old pin* — the opposite of consolidation. Concretely:
+
+  1. Flip the root pins: `rustls` and `tokio-rustls` from `features = ["ring"]`
+     to `["aws-lc-rs"]`.
+  2. Flip the mesh crate: `iroh` from `tls-ring` to `tls-aws-lc-rs`.
+     **Both features exist; iroh does not require its default.** If Phase 1 has
+     already landed on `tls-ring`, this is a one-line change there.
+  3. `cargo hakari generate`, then verify: `cargo tree -i ring` **empty**,
+     `cargo tree -i aws-lc-sys` non-empty and sole, `cargo tree -d | rg reqwest`
+     shows one major.
+  4. Confirm the build-toolchain invariant still holds — `aws-lc-sys` >= 0.41
+     needs neither cmake nor nasm on Windows (verified empirically on BLAPTOP04
+     2026-09-04), but re-verify on macOS and Linux before declaring it.
+
+  **Abort condition:** if removing `ring` forces `jj-lib`, `gix`, or
+  `chromiumoxide` onto a different major, or breaks the toolchain invariant on
+  any platform, stop and keep both providers. Consolidation is not worth losing
+  VCS or a clean-clone build.
+
+- [ ] **Step 6: Update the ledger** — `contracts/crypto/transport-providers.v1.json`:
+  `duplicates[reqwest]` resolved, `ring` removed from `allowed_providers`,
+  `aws-lc-rs` restated as the sole provider with its new attribution. **Ledger
+  edits are user-authorized; propose the diff, do not write it.**
+
+- [ ] **Step 7: Tighten the policy once it is true.** `AGENTS.md` §Cryptography
+  Policy currently says two providers ship deliberately. After the collapse it
+  should say **one**, and `vox ci crypto-provider-check` (Task 0.5) should fail on
+  a second appearing. A gate that permits two forever is not consolidation.
 
 ### Task 0.5: `vox ci crypto-provider-check` — the lockfile gate
 

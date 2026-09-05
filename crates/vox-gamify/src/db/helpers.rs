@@ -20,10 +20,10 @@ pub async fn apply_ludus_migrations(db: &vox_db::Codex) -> Result<()> {
 
 /// Canonical user-identity normalisation.
 ///
-/// Priority: non-empty `vox_db::paths::local_user_id()` > `DEFAULT_USER_ID`.
+/// Priority: non-empty `vox_config::local_user_id()` > `DEFAULT_USER_ID`.
 /// All reward/event write paths MUST call this instead of constructing IDs inline.
 pub fn canonical_user_id() -> String {
-    let from_db = vox_db::paths::local_user_id();
+    let from_db = vox_config::local_user_id();
     if !from_db.is_empty() && from_db != "user" {
         from_db
     } else {
@@ -53,5 +53,27 @@ pub(super) fn parse_quest_type(s: &str) -> crate::quest::QuestType {
             tracing::warn!("unknown quest_type '{}' in DB, defaulting to Create", other);
             QuestType::Create
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonical_user_id_never_placeholder() {
+        let id = canonical_user_id();
+        assert!(!id.is_empty(), "canonical_user_id() must never be empty");
+        assert_ne!(
+            id, "user",
+            "the generic 'user' id must fall back to DEFAULT_USER_ID"
+        );
+    }
+
+    #[test]
+    fn parse_quest_type_falls_back_to_create() {
+        use crate::quest::QuestType;
+        assert!(matches!(parse_quest_type("battle"), QuestType::Battle));
+        assert!(matches!(parse_quest_type("nonsense"), QuestType::Create));
     }
 }

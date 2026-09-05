@@ -8,7 +8,16 @@ pub struct DonationSlot {
     pub weight_pct: u8,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// `Default` is derived deliberately. Every field added since the original
+/// shape carries `#[serde(default)]`, but a struct *literal* must still name
+/// every field — so the Mn-T7 additions silently broke
+/// `vox-ml-cli`'s `populi up` initializer, and `vox populi` stopped compiling
+/// with no test covering it. Constructors should spread `..Default::default()`
+/// so the next field is additive rather than breaking.
+///
+/// The derived defaults are the conservative ones: accept nothing, advertise
+/// nothing. A node opts in explicitly.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct WorkerDonationPolicy {
     pub slots: Vec<DonationSlot>,
     pub nsfw_allowed: bool,

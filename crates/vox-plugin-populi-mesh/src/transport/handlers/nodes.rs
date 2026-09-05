@@ -256,13 +256,10 @@ pub(crate) async fn bootstrap_exchange(
             "bootstrap exchange is not enabled".into(),
         ));
     };
-    if st.bootstrap_used.swap(true, Ordering::SeqCst) {
-        warn!("bootstrap exchange rejected: token already used");
-        return Err(ResponseErr(
-            StatusCode::GONE,
-            "bootstrap token already consumed".into(),
-        ));
-    }
+    // Cheap rejections first, and CRUCIALLY the token comparison before the
+    // one-shot window is consumed. This previously swapped `bootstrap_used`
+    // ahead of `bearer_token_eq`, so a single unauthenticated POST carrying any
+    // wrong token permanently burned the window and locked the real peer out.
     if let Some(expires) = st.bootstrap_expires_unix_ms
         && crate::now_ms() > expires
     {
@@ -277,6 +274,16 @@ pub(crate) async fn bootstrap_exchange(
         return Err(ResponseErr(
             StatusCode::UNAUTHORIZED,
             "invalid bootstrap token".into(),
+        ));
+    }
+    // Only a request that proved the token consumes the window. `swap` stays the
+    // claim so two concurrent CORRECT requests cannot both be granted — the
+    // loser sees `true` and is told the token is spent.
+    if st.bootstrap_used.swap(true, Ordering::SeqCst) {
+        warn!("bootstrap exchange rejected: token already used");
+        return Err(ResponseErr(
+            StatusCode::GONE,
+            "bootstrap token already consumed".into(),
         ));
     }
     let mesh_token = populi_control_token_from_env().ok_or_else(|| {

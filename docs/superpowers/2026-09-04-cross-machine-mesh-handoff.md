@@ -116,7 +116,7 @@ merge to resolve — this branch is linear.
 
 ## 4. What you can actually confirm today
 
-Three things are verifiable now. The fourth is the honest negative result.
+Four things are verifiable now. None of them is "the mesh works" — that comes in Phase 2.
 
 **4.1 Both machines build the same commit.** §3.1.
 
@@ -138,22 +138,26 @@ Note `--features populi` — **`vox populi` is not compiled into default builds.
 `vox-ml-cli`'s default is `["mens-base"]` and the release builder passes no
 features, so a released `vox` has no `populi` subcommand at all.
 
-**4.4 The mesh does not connect, and here is the proof.** Run on either machine:
+**4.4 The daemon now starts — on loopback only.** Run on either machine:
 
 ```bash
 cargo run -q -p vox-cli --features populi -- populi up --mode lan
-curl http://127.0.0.1:9847/health          # connection refused
+curl http://127.0.0.1:9847/health          # expect success
 cargo run -q -p vox-cli --features populi -- populi down
 ```
 
-`up` prints "Populi started" with a pid and writes `mesh-state.json`. The health
-check fails because the child died immediately. Root cause:
-`crates/vox-ml-cli/src/commands/populi_lifecycle.rs:178-190` spawns
-`populi serve --bind <addr>` with **no `--enable`**, and
-`crates/vox-ml-cli/src/commands/populi_cli.rs:850` bails without it.
+Until 2026-09-04 this returned connection-refused on every machine: `up` spawned
+`populi serve` **without `--enable`**, so the child bailed on its first statement
+while the parent printed a pid and wrote `mesh-state.json`. Both pipes went to
+`Stdio::null()`, so the one diagnostic that would have explained it was
+discarded. Fixed, with the child's stderr now captured to
+`.vox/populi/serve.log`.
 
-**Do not spend time debugging this.** It is a known one-argument bug and it is
-Task 0.1 of the implementation plan.
+**Read the scope of this correctly.** It proves the daemon runs and the control
+plane answers on loopback. It is **not** a mesh check — there is still no
+cross-machine transport, and the control plane binds loopback, which is the only
+thing currently containing the unauthenticated-execute path in F2. Do not widen
+that bind by hand; Phase 1 replaces the plane entirely and does it safely.
 
 ---
 
@@ -164,6 +168,12 @@ Design: [`specs/2026-09-04-populi-mesh-iroh-transport-design.md`](specs/2026-09-
 
 ### 5.1 Standalone fixes — real bugs in `main`, independent of the mesh rewrite
 
+**Two are already done** (F6, F7 — struck through below). `workspace-hack` is
+**not** among the problems: 116 crates depend on it, CI gates it
+(`cargo hakari generate --diff`), and it exists to unify features so dependencies
+are not rebuilt. It faithfully mirrored the duplication; it did not cause it.
+Removing it would increase build times.
+
 Each is small, each is live today, and none needs the iroh work to land first.
 
 | # | Fix | Location |
@@ -173,8 +183,8 @@ Each is small, each is live today, and none needs the iroh work to land first.
 | F3 | `/v1/populi/bootstrap/exchange` swaps its used-flag **before** comparing the token — one bad POST permanently burns the window | `handlers/nodes.rs` |
 | F4 | `lookup_by_pubkey_hex` never reads disk, so on the production file-backed registry it always returns `None` — and it is the only function the wire-path verifier consults | `vox-identity/src/trust.rs:110` |
 | F5 | Effect inference propagates **one hop**; `@pure` admits `net` at two. `xs.map(named_fn)` is unchecked entirely. `placement.rs` inherits the same blind spot. | `typeck/effect_check.rs:413` |
-| F6 | The crypto detector's manifest branch has **never executed** — `scanner.rs:132` drops every file whose language is `Unknown`, and `.toml` is `Unknown`. Its tests pass by bypassing the scanner. | `vox-code-audit/src/scanner.rs:132` |
-| F7 | The workspace ships **two** TLS providers: `ring` (pinned on purpose at `Cargo.toml:251`) and `aws-lc-rs` (via `workspace-hack`, from reqwest). The SSOT bans `ring`, so the root manifest contradicts it. | `Cargo.toml:251`, `workspace-hack/Cargo.toml:373,467` |
+| ~~F6~~ | **FIXED 2026-09-04** (`63b2ea303`). The scanner now takes `Cargo.toml`/`Cargo.lock` by filename, with two regression tests that go *through* `scan()`. Verified: the gate runs against the workspace and reports nothing, so it does not break CI. | `vox-code-audit/src/scanner.rs` |
+| F7 | **INVESTIGATED + LEDGERED 2026-09-04** (`63b2ea303`). Two providers are **unavoidable while preserving features**: two reqwest majors, and 0.13 (required by `chromiumoxide` and `gix`→`jj-lib`→`vox-vcs`) selects `aws-lc-rs`. `jj-lib` exposes no TLS feature. Recorded with attribution in `contracts/crypto/transport-providers.v1.json`; the SSOT no longer bans the provider the manifest chooses. **Collapse is Task 0.4** (hf-hub 1.0 → reqwest 0.13). | `contracts/crypto/transport-providers.v1.json` |
 | F8 | `donation_policy`'s `max_job_duration_secs` and `max_concurrent` have **no readers anywhere** — decorative | `vox-mesh-types/src/donation_policy.rs` |
 
 **F5 is the one worth doing first if you want a win before the mesh work.** It
@@ -216,6 +226,100 @@ Decisions are made; nothing is waiting on approval.
   corpus has no surface for it anyway: 0 combinator calls in `scripts/` against
   143 `for` loops, 2 files declaring `@pure`, 74 of 84 touching I/O by design.
   Spec Part 7 has the evidence.
+
+---
+
+## 5.4 The two-machine runbook
+
+Three phases. A is today, B is the Mac's work, C is what BLAPTOP04 does once the
+Mac has pushed. Every block says which machine it runs on.
+
+### Phase A — parity (today, both machines)
+
+**Mac** — vox is not installed there yet:
+
+```bash
+mkdir -p ~/Developer/GitHub && cd ~/Developer/GitHub
+git clone https://github.com/vox-foundation/vox.git && cd vox
+git checkout fix-all-ci-failures
+rustup target add wasm32-wasip1
+cargo build -p vox-cli
+```
+
+**BLAPTOP04**:
+
+```bash
+cd ~/vox && git fetch origin && git pull --ff-only && cargo build -p vox-cli
+```
+
+**Both** — this is the parity signal:
+
+```bash
+git rev-parse HEAD          # SHAs must match exactly
+```
+
+The `--version` strings will differ in their `+build.N (GITHASH)` suffix. That is
+`vox-build-meta` stamping per-machine metadata and is expected. **Compare SHAs,
+not version strings.**
+
+### Phase B — implementation (Mac)
+
+Order matters; each unblocks the next.
+
+| Step | Task | Why first |
+|---|---|---|
+| B1 | Plan Task 0.2 — the iroh spike, run **between both machines** | Two assumptions are load-bearing and unverified: does `presets::Minimal` contact nothing, and do iroh's byte counters support a placement estimate. Everything downstream assumes both. |
+| B2 | Task 0.6 — sequester HF behind one seam | Turns B3 from a three-crate port into a one-file port. |
+| B3 | Task 0.4 — hf-hub 1.0 (reqwest 0.13) | Collapses the reqwest split, which is what makes single-provider possible. Measure build time before/after. |
+| B4 | Task 0.5 — `vox ci crypto-provider-check` | The lockfile gate. Land it *after* B3 so it locks in the collapsed state. |
+| B5 | Task 0.3 — crate edges, `vox-schema.json`, ADR-046 | Contract/registration work; no code depends on it landing earlier. |
+| B6 | Phases 1–2 — `vox-mesh-transport`, then the two-machine demo | Phase 2 is where "online and interop" is actually proven. |
+
+Push after each step. BLAPTOP04 pulls; it does not develop.
+
+### Phase C — enable populi on BLAPTOP04 (after the Mac pushes)
+
+**Today, and until the iroh work lands**, `vox populi` is not in a default build —
+`vox-ml-cli`'s default is `["mens-base"]` and the release builder passes no
+features. So "enabling populi" means building with the feature:
+
+```bash
+cd ~/vox && git pull --ff-only
+cargo build -p vox-cli --features populi
+cargo run -q -p vox-cli --features populi -- populi up --mode lan
+curl http://127.0.0.1:9847/health          # expect success once F1 has landed
+cargo run -q -p vox-cli --features populi -- populi down
+```
+
+Before the `--enable` fix this returned connection-refused; after it, the
+loopback control plane actually starts. **That is a single-machine check, not a
+mesh check** — it proves the daemon runs, nothing more.
+
+**After Phase 2 lands**, the check becomes the real one:
+
+```bash
+# Mac
+cargo run -q -p vox-cli -- mesh join            # prints this node's ticket
+
+# BLAPTOP04 — paste the Mac's ticket
+cargo run -q -p vox-cli -- mesh join <vox-mesh://...>
+cargo run -q -p vox-cli -- mesh join            # reciprocate; paste back on the Mac
+
+# Either machine
+cargo run -q -p vox-cli -- populi dispatch ./probe.vox --node <peer-id>
+```
+
+Success is a job dispatched on one machine executing on the other and returning.
+Then repeat it with **both machines disconnected from the internet** — that is
+the requirement separating this design from the rejected ones, and a failure
+there is blocking.
+
+### One caveat that will bite otherwise
+
+Until Option A in §1 is done, the Mac **cannot** reach BLAPTOP04 — no SSH server,
+and Tailscale SSH is client-only on Windows. Phase C is therefore a
+walk-to-the-machine operation unless you enable OpenSSH first. Enabling it is ten
+minutes and makes every later verification single-seat.
 
 ---
 

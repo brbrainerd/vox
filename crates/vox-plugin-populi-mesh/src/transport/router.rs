@@ -347,6 +347,60 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn bootstrap_exchange_wrong_token_does_not_consume_the_window() {
+        const TOKEN: &str = "test-bootstrap-abc123";
+        const MESH_TOKEN: &str = "mesh-bearer-xyz789";
+
+        // SAFETY: same value as the other bootstrap tests, so a concurrent set is benign.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_MESH_TOKEN", MESH_TOKEN);
+        }
+
+        let state = PopuliTransportState::new().with_bootstrap_token(TOKEN);
+        let app = populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind");
+        let addr = listener.local_addr().expect("local addr");
+        let server = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<SocketAddr>(),
+            )
+            .await
+            .expect("serve");
+        });
+
+        let client = vox_http_client::client();
+        let url = format!("http://{addr}/v1/populi/bootstrap/exchange");
+
+        // A wrong token must not burn the one-shot window.
+        let bad = client
+            .post(&url)
+            .json(&crate::transport::BootstrapExchangeRequest {
+                bootstrap_token: "wrong-token".to_string(),
+            })
+            .send()
+            .await
+            .expect("POST bootstrap/exchange (wrong)");
+        assert_eq!(bad.status(), StatusCode::UNAUTHORIZED);
+
+        // The correct token still works afterwards.
+        let good = client
+            .post(&url)
+            .json(&crate::transport::BootstrapExchangeRequest {
+                bootstrap_token: TOKEN.to_string(),
+            })
+            .send()
+            .await
+            .expect("POST bootstrap/exchange (correct)");
+        assert_eq!(good.status(), StatusCode::OK);
+
+        server.abort();
+    }
+
+    #[tokio::test]
     async fn bootstrap_exchange_disabled_returns_404() {
         // State without bootstrap token → 404.
         let app = populi_http_app_with_auth(PopuliTransportState::new(), PopuliHttpAuth::Open);
