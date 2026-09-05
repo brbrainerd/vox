@@ -46,6 +46,42 @@ pub trait JobExecutor: Send + Sync + 'static {
     ) -> Pin<Box<dyn Future<Output = Result<JobResponse>> + Send + 'a>>;
 }
 
+/// The default executor: answers `Probe`, and **refuses `Run`**.
+///
+/// Deliberately not a stub that runs things. The sandbox tiers in
+/// [`Isolation`](crate::protocol::Isolation) are declared but not yet
+/// implemented, and an executor that ran `Run` "for now" would be an
+/// unsandboxed remote-execution path reachable by any paired peer — the exact
+/// hole the HTTP plane had. Refusing is the safe default until a real sandbox
+/// backs it.
+#[derive(Debug, Clone, Copy)]
+pub struct ProbeOnlyExecutor;
+
+impl JobExecutor for ProbeOnlyExecutor {
+    fn execute<'a>(
+        &'a self,
+        job: ReceivedJob,
+    ) -> Pin<Box<dyn Future<Output = Result<JobResponse>> + Send + 'a>> {
+        Box::pin(async move {
+            Ok(match job.request {
+                JobRequest::Probe => JobResponse::Probed {
+                    host_triple: format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS),
+                    vox: env!("CARGO_PKG_VERSION").to_string(),
+                },
+                JobRequest::Run { .. } => JobResponse::Failed(
+                    "this node accepts Probe only: no sandbox is wired up yet, and \
+                     running mesh-received work unsandboxed is exactly the hole this \
+                     transport replaced"
+                        .to_string(),
+                ),
+                JobRequest::Cancel { .. } => {
+                    JobResponse::Failed("nothing to cancel: this node runs no jobs".to_string())
+                }
+            })
+        })
+    }
+}
+
 /// Bind a mesh endpoint.
 ///
 /// `presets::Minimal` is not a default to be revisited — it is the whole

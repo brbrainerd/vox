@@ -32,7 +32,7 @@ mens-candle-cuda = ["gpu", "vox-populi/mens-candle-qlora-cuda"]
 cloud = ["gpu", "vox-populi/mens-cloud"]
 mens-dei = ["dep:vox-tensor", "dep:vox-orchestrator", "dep:vox-cli"]
 workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime", "vox-workflow-runtime/mens"]
-populi = ["dep:vox-populi", "vox-populi/transport", "dep:blake3"]
+populi = ["dep:vox-populi", "vox-populi/transport", "dep:blake3", "dep:vox-mesh-transport", "dep:iroh", "dep:iroh-tickets"]
 codex = []
 # Data-free k-quant PTQ engine (vox-quantize -> candle/gemm subtree). Off by
 # default to keep the mens-base build lean; `gpu` implies it (see above).
@@ -49,6 +49,9 @@ vox-cli = { workspace = true, optional = true }
 vox-cli-core = { workspace = true }
 vox-config = { workspace = true }
 vox-mesh-types = { workspace = true }
+vox-mesh-transport = { workspace = true, optional = true }
+iroh = { workspace = true, optional = true }
+iroh-tickets = { workspace = true, optional = true }
 vox-compiler = { workspace = true }
 vox-db = { workspace = true }
 vox-orchestrator = { workspace = true, optional = true }

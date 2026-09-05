@@ -110,6 +110,14 @@ impl MeshTrust {
         Ok(())
     }
 
+    /// Every trusted peer, for `vox mesh list`.
+    ///
+    /// Returns owned rows rather than a borrow: the store is re-read from disk
+    /// on every call so an out-of-band edit or a second process takes effect.
+    pub fn rows(&self) -> Vec<TrustedEndpoint> {
+        self.read()
+    }
+
     /// The level `id` is trusted at, or `None` if it is not trusted.
     pub fn level(&self, id: &EndpointId) -> Option<TrustLevel> {
         let want = id.to_string();

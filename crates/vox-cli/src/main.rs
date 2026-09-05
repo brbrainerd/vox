@@ -77,12 +77,15 @@ async fn main() -> anyhow::Result<()> {
         .map(|(i, _)| i);
     if let Some(idx) = sub_idx {
         let cmd = args[idx].as_str();
-        let is_ml = matches!(cmd, "mens" | "oratio" | "speech" | "populi" | "train");
+        let is_ml = matches!(
+            cmd,
+            "mens" | "oratio" | "speech" | "populi" | "mesh" | "train"
+        );
         let is_ext_ml = cmd == "ext"
             && args.len() > idx + 1
             && matches!(
                 args[idx + 1].as_str(),
-                "mens" | "oratio" | "speech" | "populi" | "train"
+                "mens" | "oratio" | "speech" | "populi" | "mesh" | "train"
             );
 
         if is_ml || is_ext_ml {
