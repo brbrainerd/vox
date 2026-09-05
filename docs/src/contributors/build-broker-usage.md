@@ -57,8 +57,8 @@ changes nothing until you pass `--apply`. Prepending a binary literally named
 `cargo` onto PATH is a machine-wide change, so always look at the plan first:
 
 ```sh
-scripts/broker-install.sh              # dry run: prints the plan, touches nothing
-scripts/broker-install.sh --apply      # builds, installs, and edits your shell profile
+vox run scripts/broker-install.vox              # dry run: prints the plan, touches nothing
+vox run scripts/broker-install.vox -- --apply   # builds, installs, and edits your shell profile
 ```
 
 `--apply` builds `vox-cargo-shim` in release mode, copies every binary it
@@ -99,10 +99,11 @@ workspace's own cargo resolution — hence `--manifest-path`.)
 ## Activate (per environment)
 
 Prepend the shim dir to PATH **ahead of `~/.cargo/bin`** so cargo invocations are
-intercepted. `scripts/broker-install.sh --apply` does the POSIX-shell-profile
-route below for you; the IDE / Windows routes still need manual setup:
+intercepted. `vox run scripts/broker-install.vox -- --apply` does the
+POSIX-shell-profile route below for you; the IDE / Windows routes still need
+manual setup:
 
-- **POSIX shells (macOS / Linux):** `scripts/broker-install.sh --apply` adds
+- **POSIX shells (macOS / Linux):** `vox run scripts/broker-install.vox -- --apply` adds
   an `export PATH="…/.vox/build-broker/bin:$PATH"` block to your `.zshrc`,
   `.bash_profile`/`.bashrc`, or `.config/fish/config.fish` (fish uses
   `set -gx PATH … $PATH`, not `export`). This covers all future-launched

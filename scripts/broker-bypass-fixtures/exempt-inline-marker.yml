@@ -1,11 +1,11 @@
-# Fixture for scripts/broker-bypass-lint.sh's self-test.
+# Fixture for scripts/broker-bypass-lint.vox's self-test.
 #
 # This file is NOT excluded from the lint's default scan by accident -- it
-# is excluded on purpose (see broker-bypass-lint.sh's fixtures-dir skip)
+# is excluded on purpose (see broker-bypass-lint.vox's fixtures-dir skip)
 # because it deliberately contains bypass-shaped text that must NOT be
 # flagged, so it must only be scanned when passed explicitly:
 #
-#   sh scripts/broker-bypass-lint.sh scripts/broker-bypass-fixtures/exempt-inline-marker.yml
+#   vox run scripts/broker-bypass-lint.vox -- scripts/broker-bypass-fixtures/exempt-inline-marker.yml
 #
 # and must exit 0 with no match lines -- this is the workflow-comment
 # self-exclusion analog: a doc/example line that would otherwise match a

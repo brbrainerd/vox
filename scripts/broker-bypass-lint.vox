@@ -1,0 +1,588 @@
+// vox:caps fs process env
+// scripts/broker-bypass-lint.vox
+//
+// Lints for build-broker BYPASSES: code that names the real cargo binary
+// directly instead of resolving `cargo` through PATH. The broker
+// (crates/vox-cargo-shim) works by PATH interception -- a script that calls
+// plain `cargo` is exactly what the broker catches, NOT a bypass. Do not
+// "fix" this script to flag bare `cargo`; that would be backwards.
+//
+// Detected bypass shapes:
+//   1. An explicit path to the rustup proxy: `~/.cargo/bin/cargo`,
+//      `$HOME/.cargo/bin/cargo`, `$CARGO_HOME/bin/cargo`, or the `.exe`
+//      forms -- including Rust code that builds such a path as one string
+//      literal (matched by the same literal substring).
+//   2. `rustup run <toolchain> cargo ...` (also across a `\`-continued
+//      line), and `rustup which cargo` used to capture the resolved path
+//      for later use (e.g. `REAL_CARGO=$(rustup which cargo)`), both of
+//      which resolve the toolchain cargo directly.
+//   3. Rust code that builds a resolved cargo-bin path via chained
+//      `PathBuf`/`.join()` calls, naming the binary itself as the final
+//      segment -- `.join("cargo")` or `.join("cargo.exe")` -- even when the
+//      chain is split across several `.join()` calls (a real instance, and
+//      a plausible rustfmt-driven refactor of it, is
+//      `crates/vox-cli-ci/src/helpers.rs`'s `cargo_bin()`, which builds
+//      `~/.cargo/bin/cargo.exe` this way on Windows). `.join(".cargo")`
+//      alone is deliberately NOT flagged -- see the case-3 pattern comment
+//      below for why.
+//   4. Rust `format!`/string-template code that assembles a `<dir>/bin/cargo`
+//      path piecewise, e.g. `format!("{}/bin/{}", env::var("CARGO_HOME")..,
+//      "cargo")` or `format!("{}/bin/cargo", home)`.
+//
+// `$CARGO` (which cargo itself sets for child processes, e.g. for build
+// scripts) is deliberately NOT flagged: it names whatever cargo invoked the
+// current process -- if that invocation went through the broker, `$CARGO`
+// *is* the broker. Using it does not bypass anything; it is the recommended
+// way for a build script to find "the cargo that is running me".
+//
+// Known coverage gap (text-pattern lints cannot see everything): a bypass
+// built by concatenating dynamic pieces across separate statements -- e.g.
+// assigning `"cargo"` (or `"cargo.exe"`) to a variable on one line and a
+// directory to another, then joining/formatting them together several
+// lines later with no single line carrying enough context -- can still slip
+// past every case above. Case 3/4 catch the common single-statement and
+// single-call forms (including chains split one-`.join()`-per-line, since
+// each matched call itself carries the literal), but a chain deliberately
+// spread across unrelated statements is a real, acknowledged blind spot.
+// Treat this lint as raising confidence, not proving absence, of a bypass.
+//
+// An inline marker `broker-bypass-lint:allow-line` on (or continuing into)
+// a matched line exempts that one line without a checked-in allowlist
+// entry -- e.g. for a workflow or doc comment that intentionally shows a
+// bypass pattern as an example rather than executing one. This is the
+// `.github/workflows` analog of this script excluding its own path below:
+// a file doesn't have to be a script to document a bypass shape.
+//
+// For a `rustup run \`-continued match (case 2), the marker is honored
+// anywhere across the full joined range of physical lines, not just the
+// first -- a marker placed only on the continuation line still exempts the
+// match. (A backslash-continued match reported only against its first
+// physical line, ignoring a marker placed on the continuation line, is a
+// real gap a peer reviewer found in an earlier version of this lint; this
+// rewrite checks the whole joined range instead of repeating it.)
+//
+// Scans (default, no positional args): scripts/, .github/workflows/, and
+// crates/**/*.rs. `crates/vox-cargo-shim/` and `crates/vox-build-queue/` are
+// inherently exempt -- they *are* the broker and must resolve the real cargo
+// by path to do their job. This script itself and its fixtures directory
+// (scripts/broker-bypass-fixtures/) are also excluded from the default scan
+// since they intentionally contain bypass text for self-testing/docs.
+//
+// Usage:
+//   vox run scripts/broker-bypass-lint.vox                            # scan the committed tree
+//   vox run scripts/broker-bypass-lint.vox -- <path> [<path> ...]     # scan only these paths
+//   vox run scripts/broker-bypass-lint.vox -- --allow-file <path>     # also allow a whole file
+//
+// A checked-in allowlist at scripts/broker-bypass-allowlist.txt records
+// known, honestly-not-fixed bypasses with a reason so they stay visible
+// instead of being silently skipped. One entry per line, colon-delimited:
+//   path:line:reason text...   (exempts one line)
+//   path:reason text...        (exempts the whole file)
+// Blank lines and lines starting with `#` are ignored.
+
+import fs;
+import path;
+import process;
+import env;
+import regex;
+
+fn self_path() to str {
+    return "scripts/broker-bypass-lint.vox";
+}
+
+fn default_allowlist() to str {
+    return "scripts/broker-bypass-allowlist.txt";
+}
+
+fn inline_marker() to str {
+    return "broker-bypass-lint:allow-line";
+}
+
+// Case 1: explicit path to the rustup-proxy cargo binary (shell or Rust).
+fn pattern_path() to str {
+    return r#"(\.cargo/bin/cargo(\.exe)?|\$CARGO_HOME/bin/cargo(\.exe)?)"#;
+}
+
+fn reason_path() to str {
+    return "names the real cargo binary by path, bypassing the broker (case 1)";
+}
+
+// Case 3: Rust code building a resolved cargo-bin path via a `.join()` call
+// naming the binary itself -- `cargo` or `cargo.exe` -- as the final path
+// segment. Deliberately per-`.join()`-call (not per-chain): a chain split
+// one call per line still matches on whichever line names the binary.
+//
+// Intentionally does NOT match `.join(".cargo")` alone: that call only
+// reaches the `~/.cargo` directory (config, the `bin` dir itself, or some
+// *other* binary installed there), which several real, unrelated call
+// sites do (config-file reads, `vox`/`voxup` binary-location helpers,
+// per-crate script caches) -- none of them resolve cargo. Requiring the
+// terminal `"cargo"`/`"cargo.exe"` segment is what makes this case 3, not
+// case 1's broader literal-substring match.
+fn pattern_join_cargo() to str {
+    return r#"\.join\(\s*"cargo(\.exe)?"\s*\)"#;
+}
+
+fn reason_join() to str {
+    return "builds a resolved cargo-bin path via .join(), bypassing the broker (case 3)";
+}
+
+// Case 4a: a format!/string literal directly embedding "/bin/cargo(.exe)?".
+fn pattern_format_embed() to str {
+    return r##"/bin/cargo(\.exe)?""##;
+}
+
+// Case 4b: a two-placeholder template ("{}/bin/{}") paired on the same line
+// with a "cargo"/"cargo.exe" argument.
+fn pattern_format_template() to str {
+    return r#"\{\}/bin/\{\}"#;
+}
+
+fn pattern_format_cargo_arg() to str {
+    return r##""cargo(\.exe)?""##;
+}
+
+fn reason_format() to str {
+    return "assembles a cargo-bin path via format!/template, bypassing the broker (case 4)";
+}
+
+// Case 2: `rustup run <toolchain> cargo ...` / `rustup which cargo`,
+// evaluated after joining a trailing `\` line continuation so a wrapped
+// `rustup run \` / `<toolchain> cargo ...` pair is still caught as one
+// logical line.
+fn pattern_continuation() to str {
+    return r#"\\[ \t]*$"#;
+}
+
+fn pattern_rustup_run() to str {
+    return r#"rustup[ \t]+run[ \t]+[^ \t]+[ \t]+cargo([ \t]|$)"#;
+}
+
+fn reason_rustup_run() to str {
+    return "rustup run resolves the toolchain cargo directly, bypassing the broker (case 2)";
+}
+
+fn pattern_rustup_which() to str {
+    return r#"rustup[ \t]+which[ \t]+cargo([ \t]|$|["\)])"#;
+}
+
+fn reason_rustup_which() to str {
+    return "rustup which resolves + captures the real cargo path, bypassing the broker (case 2)";
+}
+
+type BypassMatch {
+    file: str,
+    match_line: int,
+    reason: str,
+}
+
+type AllowlistEntry {
+    path: str,
+    has_line: bool,
+    entry_line: int,
+    reason: str,
+}
+
+fn usage() {
+    print("Usage: vox run scripts/broker-bypass-lint.vox -- [--allow-file <path>]... [path]...");
+    print("");
+    print("Scan for build-broker bypasses (direct calls to the real cargo binary");
+    print("instead of PATH-resolved `cargo`).");
+    print("");
+    print("With no positional [path] arguments, scans the default committed set:");
+    print("scripts/, .github/workflows/, crates/**/*.rs (excluding the broker's own");
+    print("crates, which are inherently exempt).");
+    print("");
+    print("With one or more [path] arguments, scans only those files/directories");
+    print("instead -- used for self-test fixtures.");
+    print("");
+    print("Options:");
+    print("  --allow-file <path>  Exempt this whole file in addition to the checked-in");
+    print("                        allowlist (scripts/broker-bypass-allowlist.txt).");
+    print("                        May be repeated.");
+    print("  --help                Show this help.");
+    print("");
+    print("Exit status: 0 if no unallowlisted bypasses found, 1 otherwise.");
+}
+
+fn contains_str(xs: list[str], v: str) to bool {
+    for x in xs {
+        if x == v {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn norm(p: str) to str {
+    return p.replace("\\", "/");
+}
+
+fn list_files_recursive(dir: str) to list[str] {
+    let mut out: list[str] = [];
+    if not fs.is_dir(dir) {
+        return out;
+    }
+    // Avoids `match ... { Ok(x) => {...} Error(_) => {} }`: the native
+    // codegen backend `vox run` compiles through mis-lowers an empty
+    // `Error(_) => {}` arm as an empty JSON-object literal rather than a
+    // unit block, causing a "match arms have incompatible types" build
+    // failure (confirmed by a real `cargo build` error) even though `vox
+    // check` accepts the construct fine. `is_ok()` + `unwrap()` sidesteps
+    // the empty-arm case entirely.
+    let glob_res = fs.glob(norm(dir) + "/**/*");
+    if glob_res.is_ok() {
+        for p in glob_res.unwrap() {
+            if fs.is_file(p) {
+                out = out.push(norm(p));
+            }
+        }
+    }
+    return out;
+}
+
+fn default_files() to list[str] {
+    let mut files: list[str] = [];
+    if fs.is_dir("scripts") {
+        for f in list_files_recursive("scripts") {
+            if f == self_path() {
+                continue;
+            }
+            if f == default_allowlist() {
+                continue;
+            }
+            if f.starts_with("scripts/broker-bypass-fixtures/") {
+                continue;
+            }
+            files = files.push(f);
+        }
+    }
+    if fs.is_dir(".github/workflows") {
+        for f in list_files_recursive(".github/workflows") {
+            files = files.push(f);
+        }
+    }
+    if fs.is_dir("crates") {
+        for f in list_files_recursive("crates") {
+            if not f.ends_with(".rs") {
+                continue;
+            }
+            if f.contains("/vox-cargo-shim/") {
+                continue;
+            }
+            if f.contains("/vox-build-queue/") {
+                continue;
+            }
+            files = files.push(f);
+        }
+    }
+    return files;
+}
+
+fn gather_from_positional(paths: list[str]) to list[str] {
+    let mut files: list[str] = [];
+    for p in paths {
+        if fs.is_dir(p) {
+            for f in list_files_recursive(p) {
+                files = files.push(f);
+            }
+        } else if fs.is_file(p) {
+            files = files.push(norm(p));
+        }
+    }
+    return files;
+}
+
+// Manual selection sort + adjacent dedup for the final match list.
+// `.sorted()`/`.sorted_by_key()` typecheck (crates/vox-compiler/src/typeck/
+// builtins.rs) but are NOT implemented by the native codegen backend `vox
+// run` compiles through -- confirmed by a real `cargo build` failure ("no
+// method named `sorted` found for struct `Vec<String>`"), so this rewrite
+// avoids them everywhere. The file list itself is deliberately left
+// unsorted/undeduped: the three default scan roots (scripts/,
+// .github/workflows/, crates/**/*.rs) never overlap, so no real run
+// produces duplicate files, and the sort+dedup below on the much smaller
+// final match list is what the shell original's `sort -u "$MATCHES_TMP"`
+// actually guaranteed (byte-order sort of the full "path:line:reason"
+// string, including the "line 10 sorts before line 2" quirk).
+fn match_key(m: BypassMatch) to str {
+    return m.file + ":" + str(m.match_line) + ":" + m.reason;
+}
+
+fn sort_matches(xs: list[BypassMatch]) to list[BypassMatch] {
+    let mut remaining = xs;
+    let mut out: list[BypassMatch] = [];
+    while remaining.len() > 0 {
+        let mut min_idx = 0;
+        let mut i = 1;
+        while i < remaining.len() {
+            if match_key(remaining.get(i).unwrap()) < match_key(remaining.get(min_idx).unwrap()) {
+                min_idx = i;
+            }
+            i = i + 1;
+        }
+        out = out.push(remaining.get(min_idx).unwrap());
+        let mut next: list[BypassMatch] = [];
+        let mut j = 0;
+        while j < remaining.len() {
+            if j != min_idx {
+                next = next.push(remaining.get(j).unwrap());
+            }
+            j = j + 1;
+        }
+        remaining = next;
+    }
+    return out;
+}
+
+fn dedup_matches(xs: list[BypassMatch]) to list[BypassMatch] {
+    let mut out: list[BypassMatch] = [];
+    let mut prev_key = "";
+    let mut first = true;
+    for x in xs {
+        let k = match_key(x);
+        if first or k != prev_key {
+            out = out.push(x);
+        }
+        prev_key = k;
+        first = false;
+    }
+    return out;
+}
+
+fn range_has_marker(lines: list[str], start0: int, end0: int) to bool {
+    let mut i = start0;
+    while i <= end0 {
+        if lines.get(i).unwrap().contains(inline_marker()) {
+            return true;
+        }
+        i = i + 1;
+    }
+    return false;
+}
+
+fn scan_file(file: str) to list[BypassMatch] {
+    let mut matches: list[BypassMatch] = [];
+    let content_res = fs.read(file);
+    if content_res.is_err() {
+        return matches;
+    }
+    let content = content_res.unwrap();
+
+    // Every one of the four bypass shapes names "cargo" literally somewhere
+    // in the matched text (a path segment, a `.join("cargo")` argument, a
+    // format!-embedded "cargo", or the token after `rustup run`/`which`).
+    // Gating on this one substring check, before splitting into lines and
+    // running any regex, cuts a real, measured multi-minute runtime against
+    // this repo's ~4000 `crates/**/*.rs` files (thousands of regex
+    // compilations against files that never mention cargo at all) down to a
+    // single fast `content.contains()` per file for the overwhelming
+    // majority that don't. Safe: it can only skip files that no pattern
+    // below could possibly match.
+    if not content.contains("cargo") {
+        return matches;
+    }
+
+    let lines = content.split("\n");
+    let n = lines.len();
+
+    // Cases 1, 3, 4: single-line patterns, scanned directly per line.
+    let mut i = 0;
+    while i < n {
+        let line = lines.get(i).unwrap();
+        let line_no = i + 1;
+        let has_marker = line.contains(inline_marker());
+
+        if regex.is_match(line, pattern_path()) and not has_marker {
+            matches = matches.push({ file: file, match_line: line_no, reason: reason_path() });
+        }
+        if regex.is_match(line, pattern_join_cargo()) and not has_marker {
+            matches = matches.push({ file: file, match_line: line_no, reason: reason_join() });
+        }
+        let embed = regex.is_match(line, pattern_format_embed());
+        let templ = regex.is_match(line, pattern_format_template()) and regex.is_match(line, pattern_format_cargo_arg());
+        if (embed or templ) and not has_marker {
+            matches = matches.push({ file: file, match_line: line_no, reason: reason_format() });
+        }
+        i = i + 1;
+    }
+
+    // Case 2: joined across `\` line continuations first, then tested
+    // against both rustup patterns. The inline-marker check considers the
+    // full joined range of physical lines, not just the first (see the
+    // module comment on the fixed continuation-marker gap).
+    i = 0;
+    while i < n {
+        let mut buf = lines.get(i).unwrap();
+        let start0 = i;
+        let mut end0 = i;
+        while regex.is_match(buf, pattern_continuation()) and (end0 + 1) < n {
+            end0 = end0 + 1;
+            let next_line = lines.get(end0).unwrap();
+            buf = regex.replace(buf, pattern_continuation(), " ") + next_line;
+        }
+
+        let marker_in_range = range_has_marker(lines, start0, end0);
+
+        if regex.is_match(buf, pattern_rustup_run()) and not marker_in_range {
+            matches = matches.push({ file: file, match_line: start0 + 1, reason: reason_rustup_run() });
+        }
+        if regex.is_match(buf, pattern_rustup_which()) and not marker_in_range {
+            matches = matches.push({ file: file, match_line: start0 + 1, reason: reason_rustup_which() });
+        }
+        i = end0 + 1;
+    }
+
+    return matches;
+}
+
+fn parse_allowlist(text: str) to list[AllowlistEntry] {
+    let mut entries: list[AllowlistEntry] = [];
+    for raw_line in text.split("\n") {
+        let line = raw_line.trim();
+        if line == "" {
+            continue;
+        }
+        if line.starts_with("#") {
+            continue;
+        }
+        let parts = line.split(":");
+        if parts.len() < 2 {
+            continue;
+        }
+        let p0 = parts.get(0).unwrap();
+        let p1 = parts.get(1).unwrap();
+        if regex.is_match(p1, "^[0-9]+$") {
+            if parts.len() < 3 {
+                continue;
+            }
+            let ln_opt = p1.to_int();
+            if ln_opt.is_none() {
+                continue;
+            }
+            let mut reason = parts.get(2).unwrap();
+            let mut k = 3;
+            while k < parts.len() {
+                reason = reason + ":" + parts.get(k).unwrap();
+                k = k + 1;
+            }
+            entries = entries.push({ path: p0, has_line: true, entry_line: ln_opt.unwrap(), reason: reason });
+        } else {
+            let mut reason = p1;
+            let mut k = 2;
+            while k < parts.len() {
+                reason = reason + ":" + parts.get(k).unwrap();
+                k = k + 1;
+            }
+            entries = entries.push({ path: p0, has_line: false, entry_line: 0, reason: reason });
+        }
+    }
+    return entries;
+}
+
+fn is_allowlisted(entries: list[AllowlistEntry], cli_allow_files: list[str], file: str, match_line: int) to Option[str] {
+    for e in entries {
+        if e.has_line {
+            if e.path == file and e.entry_line == match_line {
+                return Some(e.reason);
+            }
+        } else {
+            if e.path == file {
+                return Some(e.reason);
+            }
+        }
+    }
+    if contains_str(cli_allow_files, file) {
+        return Some("cli-provided --allow-file");
+    }
+    return None;
+}
+
+fn main() {
+    // argv[0] is the running script binary's own path, not a user argument
+    // (confirmed against actual `vox run` behavior) -- real arguments start
+    // at index 1.
+    let argv = env.args();
+
+    let mut cli_allow_files: list[str] = [];
+    let mut positional: list[str] = [];
+
+    let mut i = 1;
+    while i < argv.len() {
+        let arg = argv.get(i).unwrap();
+        if arg == "--allow-file" {
+            if i + 1 >= argv.len() {
+                print("broker-bypass-lint: --allow-file requires a path argument");
+                process.exit(2);
+            }
+            cli_allow_files = cli_allow_files.push(argv.get(i + 1).unwrap());
+            i = i + 1;
+        } else if arg == "--help" or arg == "-h" {
+            usage();
+            process.exit(0);
+        } else if arg == "--" {
+            i = i + 1;
+            while i < argv.len() {
+                positional = positional.push(argv.get(i).unwrap());
+                i = i + 1;
+            }
+        } else if arg.starts_with("-") {
+            print("broker-bypass-lint: unknown option: " + arg);
+            usage();
+            process.exit(2);
+        } else {
+            positional = positional.push(arg);
+        }
+        i = i + 1;
+    }
+
+    let mut files: list[str] = [];
+    if positional.len() > 0 {
+        files = gather_from_positional(positional);
+    } else {
+        files = default_files();
+    }
+    let mut all_matches: list[BypassMatch] = [];
+    for f in files {
+        for m in scan_file(f) {
+            all_matches = all_matches.push(m);
+        }
+    }
+
+    // Sort (string-lexicographically, matching the shell original's
+    // `sort -u "path:line:reason"` byte-order behavior -- e.g. line 10
+    // sorts before line 2 within the same file) then dedup exact-duplicate
+    // matches (which the file list, left unsorted/undeduped above, could
+    // otherwise surface if a caller passes overlapping positional paths).
+    all_matches = dedup_matches(sort_matches(all_matches));
+
+    let allowlist_text = if fs.is_file(default_allowlist()) {
+        match fs.read(default_allowlist()) {
+            Ok(c) => c
+            Error(_) => ""
+        }
+    } else {
+        ""
+    };
+    let entries = parse_allowlist(allowlist_text);
+
+    let mut found = 0;
+    let mut allowed = 0;
+    for m in all_matches {
+        let allow = is_allowlisted(entries, cli_allow_files, m.file, m.match_line);
+        if allow.is_some() {
+            print(m.file + ":" + str(m.match_line) + ": ALLOWLISTED: " + m.reason + " (" + allow.unwrap() + ")");
+            allowed = allowed + 1;
+        } else {
+            print(m.file + ":" + str(m.match_line) + ": " + m.reason);
+            found = found + 1;
+        }
+    }
+
+    print("broker-bypass-lint: " + str(found) + " unallowlisted bypass(es), " + str(allowed) + " allowlisted");
+
+    if found > 0 {
+        process.exit(1);
+    }
+    process.exit(0);
+}

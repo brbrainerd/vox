@@ -1,0 +1,140 @@
+// vox:caps fs process env
+// scripts/broker-ci.vox
+//
+// Builds, tests, and clippy-checks crates/vox-cargo-shim exactly as CI would.
+//
+// vox-cargo-shim is excluded from the root Cargo.toml [workspace] -- its
+// `cargo`-named binary can't join ordinary workspace cargo resolution
+// without risking the same-directory fork-bomb hazard documented at
+// resolve_skips_same_dir_sibling_copy in crates/vox-build-queue/src/resolve.rs
+// -- so plain `cargo test --workspace` never builds or tests it. That is
+// exactly how a manifest defect making the crate completely unbuildable can
+// sit undetected: nothing in normal workspace CI ever touches it. Run this
+// script whenever crates/vox-cargo-shim or crates/vox-build-queue changes.
+//
+// Runs, in order (fails fast, prints which step failed):
+//   cargo build   --manifest-path crates/vox-cargo-shim/Cargo.toml --release
+//   cargo test    --manifest-path crates/vox-cargo-shim/Cargo.toml --all-targets
+//   cargo clippy  --manifest-path crates/vox-cargo-shim/Cargo.toml --all-targets -- -D warnings
+// then confirms a real `test result:` line with a non-zero passed count
+// appeared (a target with no tests prints "running 0 tests" and exits 0 --
+// that must not read as success), and confirms the release binary named
+// `cargo` (`cargo.exe` on Windows) actually exists.
+//
+// Usage: vox run scripts/broker-ci.vox
+//
+// This calls cargo three times. Do not run anything else that invokes cargo
+// concurrently with this script.
+//
+// Respects CARGO_TARGET_DIR if set; does not hardcode a target directory.
+// vox-cargo-shim declares its own [workspace] table, so with no
+// CARGO_TARGET_DIR set its default target dir is crates/vox-cargo-shim/target
+// (not the repo root's target/), which is what this script checks by default.
+//
+// Env:
+//   VOX_REPO_ROOT   Repo root (default ".") -- see vendor-skills.vox.
+
+import fs;
+import path;
+import process;
+import env;
+import regex;
+
+fn repo_root() to str {
+    let root_opt = env.get("VOX_REPO_ROOT");
+    if root_opt.is_some() {
+        return root_opt.unwrap();
+    }
+    return ".";
+}
+
+fn fail(step: str, output: str) {
+    print("broker-ci: FAILED at step: " + step);
+    print("--- last step output ---");
+    print(output);
+    process.exit(1);
+}
+
+// Runs one step with its stdout+stderr combined (matching the shell
+// original's `>"$STEP_LOG" 2>&1`), printing the combined output on success
+// and failing loudly (with that output) otherwise.
+fn run_step(root: str, label: str, cmd: str, args: list[str]) to str {
+    print("==> " + label);
+    let res = std.process.run_capture_ex(cmd, args, root, []);
+    if res.is_err() {
+        fail(label, "(failed to spawn: " + res.unwrap_err() + ")");
+    }
+    let out = res.unwrap();
+    let combined = out.stdout + out.stderr;
+    if out.exit != 0 {
+        fail(label, combined);
+    }
+    print(combined);
+    return combined;
+}
+
+fn main() {
+    let root = repo_root();
+    let manifest = "crates/vox-cargo-shim/Cargo.toml";
+
+    let bin_name = if env.get("OS").unwrap_or("") == "Windows_NT" {
+        "cargo.exe"
+    } else {
+        "cargo"
+    };
+
+    run_step(
+        root,
+        "cargo build --manifest-path " + manifest + " --release",
+        "cargo",
+        ["build", "--manifest-path", manifest, "--release"],
+    );
+
+    let test_output = run_step(
+        root,
+        "cargo test --manifest-path " + manifest + " --all-targets",
+        "cargo",
+        ["test", "--manifest-path", manifest, "--all-targets"],
+    );
+
+    // Assert on the artifact, not the exit code: a target with no tests
+    // prints "running 0 tests" / "test result: ok. 0 passed" and exits 0.
+    if not regex.is_match(test_output, r#"(?m)^test result:"#) {
+        print("broker-ci: NO TESTS RAN (no 'test result:' line in cargo test output)");
+        process.exit(1);
+    }
+    if not regex.is_match(test_output, r#"(?m)^test result:.*[1-9][0-9]* passed"#) {
+        print("broker-ci: NO TESTS RAN (every 'test result:' line reports 0 passed)");
+        process.exit(1);
+    }
+
+    run_step(
+        root,
+        "cargo clippy --manifest-path " + manifest + " --all-targets -- -D warnings",
+        "cargo",
+        ["clippy", "--manifest-path", manifest, "--all-targets", "--", "-D", "warnings"],
+    );
+
+    print("==> confirm the produced binary");
+    let target_dir_opt = env.get("CARGO_TARGET_DIR");
+    let target_dir = if target_dir_opt.is_some() {
+        target_dir_opt.unwrap()
+    } else {
+        "crates/vox-cargo-shim/target"
+    };
+    let bin_path = path.join(path.join(root, target_dir), path.join("release", bin_name));
+    if not fs.is_file(bin_path) {
+        print("broker-ci: FAILED at step: artifact check");
+        print("expected release binary not found at: " + bin_path);
+        process.exit(1);
+    }
+    let base_name = std.path.basename(bin_path);
+    if base_name != "cargo" and base_name != "cargo.exe" {
+        print("broker-ci: FAILED at step: artifact check");
+        print("binary at " + bin_path + " is not named cargo/cargo.exe (found: " + base_name + ")");
+        process.exit(1);
+    }
+
+    print("broker-ci: OK -- build, test, and clippy all passed; binary present at " + bin_path);
+    process.exit(0);
+}

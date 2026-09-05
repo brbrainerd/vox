@@ -8,7 +8,7 @@
 //! this machine.
 //!
 //! Worktree-gated: silent outside a vox checkout. The remediation strings
-//! below name `scripts/broker-install.sh`, a repo-relative path — legitimate
+//! below name `scripts/broker-install.vox`, a repo-relative path — legitimate
 //! advice only when the reader has a checkout to run it from.
 
 use std::path::{Path, PathBuf};
@@ -20,7 +20,7 @@ const CHECK_NAME_INSTALL: &str = "Build broker: install state";
 const CHECK_NAME_CONCURRENCY: &str = "Build broker: concurrency cap";
 
 const INSTALL_HINT: &str =
-    "run scripts/broker-install.sh (dry-run by default, pass --apply to write)";
+    "run `vox run scripts/broker-install.vox` (dry-run by default, pass -- --apply to write)";
 
 fn cargo_exe_name() -> &'static str {
     if cfg!(windows) { "cargo.exe" } else { "cargo" }
@@ -497,7 +497,7 @@ mod tests {
         let check = path_check(&PathPrecedence::RustupProxy(cargo_bin), true, &broker_bin);
         assert!(!check.pass);
         assert!(check.detail.contains("new terminal"));
-        assert!(!check.detail.contains("broker-install.sh"));
+        assert!(!check.detail.contains("broker-install.vox"));
     }
 
     #[test]
@@ -506,7 +506,7 @@ mod tests {
         let cargo_bin = PathBuf::from("/home/dev/.cargo/bin");
         let check = path_check(&PathPrecedence::RustupProxy(cargo_bin), false, &broker_bin);
         assert!(!check.pass);
-        assert!(check.detail.contains("scripts/broker-install.sh"));
+        assert!(check.detail.contains("scripts/broker-install.vox"));
     }
 
     #[test]
@@ -515,7 +515,7 @@ mod tests {
         let broker_home = tmp.path().join("does-not-exist");
         let check = install_check(&broker_home, false);
         assert!(!check.pass);
-        assert!(check.detail.contains("scripts/broker-install.sh"));
+        assert!(check.detail.contains("scripts/broker-install.vox"));
     }
 
     #[test]

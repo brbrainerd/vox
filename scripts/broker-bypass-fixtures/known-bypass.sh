@@ -1,12 +1,12 @@
 #!/bin/sh
-# Fixture for scripts/broker-bypass-lint.sh's self-test.
+# Fixture for scripts/broker-bypass-lint.vox's self-test.
 #
 # This file is NOT excluded from the lint's default scan by accident -- it is
-# excluded on purpose (see broker-bypass-lint.sh's SELF_PATH/fixtures skip)
+# excluded on purpose (see broker-bypass-lint.vox's SELF_PATH/fixtures skip)
 # because it deliberately contains a real bypass shape, so it must only be
 # scanned when passed explicitly:
 #
-#   sh scripts/broker-bypass-lint.sh scripts/broker-bypass-fixtures/known-bypass.sh
+#   vox run scripts/broker-bypass-lint.vox -- scripts/broker-bypass-fixtures/known-bypass.sh
 #
 # and must make the lint exit non-zero with a "path:line:" report line.
 set -eu
