@@ -3,26 +3,31 @@
 //! Connects via `VOX_APP_DB_URL`, normalizes rows/values, and exposes DDL,
 //! introspection, and migration helpers for brownfield database interop.
 
+#[cfg(feature = "runtime")]
 use async_trait::async_trait;
-#[cfg(feature = "mysql")]
+#[cfg(all(feature = "runtime", feature = "mysql"))]
 use sqlx::mysql::{MySqlArguments, MySqlPoolOptions};
-#[cfg(feature = "postgres")]
+#[cfg(all(feature = "runtime", feature = "postgres"))]
 use sqlx::postgres::{PgArguments, PgPoolOptions};
-#[cfg(feature = "postgres")]
+#[cfg(all(feature = "runtime", feature = "postgres"))]
 use sqlx::{
     Arguments as _, Column as _, PgPool, Postgres, Row as _,
     pool::PoolConnection as PgPoolConnection,
 };
-#[cfg(feature = "mysql")]
+#[cfg(all(feature = "runtime", feature = "mysql"))]
 use sqlx::{MySql, MySqlPool, pool::PoolConnection as MyPoolConnection};
-#[cfg(any(feature = "postgres", feature = "mysql"))]
+#[cfg(all(feature = "runtime", any(feature = "postgres", feature = "mysql")))]
 use tokio::sync::Mutex;
+#[cfg(feature = "runtime")]
 use vox_db::{Codex, DbConfig};
+#[cfg(feature = "runtime")]
 use vox_secrets::SecretId;
 
 pub mod build;
 pub mod ddl;
+#[cfg(feature = "runtime")]
 pub mod introspect;
+#[cfg(feature = "runtime")]
 pub mod migrate;
 pub mod schema_model;
 pub mod type_map;
@@ -159,6 +164,7 @@ impl BackendKind {
     }
 }
 
+#[cfg(feature = "runtime")]
 #[async_trait]
 pub trait SqlBackend: Send + Sync {
     async fn connect(url: &str) -> Result<Self, SqlBackendError>
@@ -176,6 +182,7 @@ pub trait SqlBackend: Send + Sync {
     async fn rollback_transaction(&self) -> Result<(), SqlBackendError>;
 }
 
+#[cfg(feature = "runtime")]
 pub enum AnySqlBackend {
     Libsql(LibsqlBackend),
     #[cfg(feature = "postgres")]
@@ -184,6 +191,7 @@ pub enum AnySqlBackend {
     MySql(MySqlBackend),
 }
 
+#[cfg(feature = "runtime")]
 impl AnySqlBackend {
     #[must_use]
     pub fn backend_kind(&self) -> BackendKind {
@@ -289,11 +297,13 @@ impl AnySqlBackend {
     }
 }
 
+#[cfg(feature = "runtime")]
 pub struct LibsqlBackend {
     codex: Codex,
     dialect: SqlDialect,
 }
 
+#[cfg(feature = "runtime")]
 impl LibsqlBackend {
     #[must_use]
     pub fn codex(&self) -> &Codex {
@@ -311,6 +321,7 @@ impl LibsqlBackend {
     }
 }
 
+#[cfg(feature = "runtime")]
 #[async_trait]
 impl SqlBackend for LibsqlBackend {
     async fn connect(url: &str) -> Result<Self, SqlBackendError> {
@@ -399,14 +410,14 @@ impl SqlBackend for LibsqlBackend {
     }
 }
 
-#[cfg(feature = "postgres")]
+#[cfg(all(feature = "runtime", feature = "postgres"))]
 pub struct PostgresBackend {
     pool: PgPool,
     dialect: SqlDialect,
     tx_conn: Mutex<Option<PgPoolConnection<Postgres>>>,
 }
 
-#[cfg(feature = "postgres")]
+#[cfg(all(feature = "runtime", feature = "postgres"))]
 impl PostgresBackend {
     #[must_use]
     pub fn pool(&self) -> &PgPool {
@@ -414,7 +425,7 @@ impl PostgresBackend {
     }
 }
 
-#[cfg(feature = "postgres")]
+#[cfg(all(feature = "runtime", feature = "postgres"))]
 #[async_trait]
 impl SqlBackend for PostgresBackend {
     async fn connect(url: &str) -> Result<Self, SqlBackendError> {
@@ -528,14 +539,14 @@ impl SqlBackend for PostgresBackend {
     }
 }
 
-#[cfg(feature = "mysql")]
+#[cfg(all(feature = "runtime", feature = "mysql"))]
 pub struct MySqlBackend {
     pool: MySqlPool,
     dialect: SqlDialect,
     tx_conn: Mutex<Option<MyPoolConnection<MySql>>>,
 }
 
-#[cfg(feature = "mysql")]
+#[cfg(all(feature = "runtime", feature = "mysql"))]
 impl MySqlBackend {
     #[must_use]
     pub fn pool(&self) -> &MySqlPool {
@@ -543,7 +554,7 @@ impl MySqlBackend {
     }
 }
 
-#[cfg(feature = "mysql")]
+#[cfg(all(feature = "runtime", feature = "mysql"))]
 #[async_trait]
 impl SqlBackend for MySqlBackend {
     async fn connect(url: &str) -> Result<Self, SqlBackendError> {
@@ -657,7 +668,7 @@ impl SqlBackend for MySqlBackend {
     }
 }
 
-#[cfg(feature = "postgres")]
+#[cfg(all(feature = "runtime", feature = "postgres"))]
 fn add_pg_argument(args: &mut PgArguments, value: &SqlValue) -> Result<(), SqlBackendError> {
     match value {
         SqlValue::Null => args.add::<Option<i64>>(None),
@@ -671,7 +682,7 @@ fn add_pg_argument(args: &mut PgArguments, value: &SqlValue) -> Result<(), SqlBa
     Ok(())
 }
 
-#[cfg(feature = "mysql")]
+#[cfg(all(feature = "runtime", feature = "mysql"))]
 fn add_mysql_argument(args: &mut MySqlArguments, value: &SqlValue) -> Result<(), SqlBackendError> {
     match value {
         SqlValue::Null => args.add::<Option<i64>>(None),
@@ -685,6 +696,7 @@ fn add_mysql_argument(args: &mut MySqlArguments, value: &SqlValue) -> Result<(),
     Ok(())
 }
 
+#[cfg(feature = "runtime")]
 fn sql_value_to_turso_value(value: &SqlValue) -> turso::Value {
     match value {
         SqlValue::Null => turso::Value::Null,
@@ -696,6 +708,7 @@ fn sql_value_to_turso_value(value: &SqlValue) -> turso::Value {
     }
 }
 
+#[cfg(feature = "runtime")]
 fn map_turso_row(row: &turso::Row) -> Result<SqlRow, SqlBackendError> {
     let mut out = Vec::with_capacity(row.column_count());
     for idx in 0..row.column_count() {
@@ -709,6 +722,7 @@ fn map_turso_row(row: &turso::Row) -> Result<SqlRow, SqlBackendError> {
     Ok(out)
 }
 
+#[cfg(feature = "runtime")]
 fn turso_value_to_sql_value(value: turso::Value) -> SqlValue {
     match value {
         turso::Value::Null => SqlValue::Null,
@@ -719,7 +733,7 @@ fn turso_value_to_sql_value(value: turso::Value) -> SqlValue {
     }
 }
 
-#[cfg(feature = "postgres")]
+#[cfg(all(feature = "runtime", feature = "postgres"))]
 fn map_postgres_row(row: &sqlx::postgres::PgRow) -> Result<SqlRow, SqlBackendError> {
     let mut out = Vec::with_capacity(row.columns().len());
     for (idx, col) in row.columns().iter().enumerate() {
@@ -728,7 +742,7 @@ fn map_postgres_row(row: &sqlx::postgres::PgRow) -> Result<SqlRow, SqlBackendErr
     Ok(out)
 }
 
-#[cfg(feature = "mysql")]
+#[cfg(all(feature = "runtime", feature = "mysql"))]
 fn map_mysql_row(row: &sqlx::mysql::MySqlRow) -> Result<SqlRow, SqlBackendError> {
     let mut out = Vec::with_capacity(row.columns().len());
     for (idx, col) in row.columns().iter().enumerate() {
@@ -737,7 +751,7 @@ fn map_mysql_row(row: &sqlx::mysql::MySqlRow) -> Result<SqlRow, SqlBackendError>
     Ok(out)
 }
 
-#[cfg(feature = "postgres")]
+#[cfg(all(feature = "runtime", feature = "postgres"))]
 fn decode_postgres_cell(
     row: &sqlx::postgres::PgRow,
     idx: usize,
@@ -774,7 +788,7 @@ fn decode_postgres_cell(
     )))
 }
 
-#[cfg(feature = "mysql")]
+#[cfg(all(feature = "runtime", feature = "mysql"))]
 fn decode_mysql_cell(row: &sqlx::mysql::MySqlRow, idx: usize) -> Result<SqlValue, SqlBackendError> {
     if let Ok(v) = row.try_get::<Option<i32>, _>(idx) {
         return Ok(v.map_or(SqlValue::Null, |n| SqlValue::Int(i64::from(n))));
@@ -863,6 +877,7 @@ mod tests {
         assert!(BackendKind::from_url("mssql://localhost/db").is_err());
     }
 
+    #[cfg(feature = "runtime")]
     #[test]
     fn sql_value_to_turso_roundtrip_scalar_shapes() {
         assert_eq!(

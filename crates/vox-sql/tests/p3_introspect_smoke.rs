@@ -1,3 +1,9 @@
+// Requires the `runtime` feature (default-on): this test exercises the live
+// introspect module, which vox-sql's `runtime` feature gate (see
+// crates/vox-sql/Cargo.toml) makes optional. `--no-default-features` no-ops
+// this file rather than failing to compile.
+#![cfg(feature = "runtime")]
+
 use vox_db::DbConfig;
 use vox_sql::schema_model::IntrospectedSchema;
 use vox_sql::{AnySqlBackend, LibsqlBackend, SqlBackend, SqlValue};

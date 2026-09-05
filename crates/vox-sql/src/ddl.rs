@@ -240,6 +240,7 @@ mod semcov_wave2_tests {
     }
 
     #[test]
+    #[cfg(any(feature = "postgres", feature = "mysql"))]
     fn collection_to_ddl_non_libsql_returns_error() {
         let col = CollectionDecl {
             name: "Msg".to_string(),

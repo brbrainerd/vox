@@ -1,11 +1,51 @@
 //! Manifest, LSP, config, keys, Ollama, registration, …
 
+use std::path::Path;
+
 use tokio::process::Command;
 
 use vox_bounded_fs::read_utf8_path_capped_async;
 
 use super::super::common::{self, AuthRegistriesOnly, Check};
 use super::super::provider_policy::{ProviderPolicyEngine, ProviderSupportLevel};
+
+/// `vox-lsp binary` detail for a contributor (source checkout): the real
+/// build command, which only resolves inside the Vox workspace.
+///
+/// Only shown behind [`lsp_missing_detail`]/[`lsp_missing_detail_from`]'s
+/// contributor-mode gate (spec §9.1) — an installed, non-contributor user has
+/// neither `cargo` nor a checkout, so they get [`LSP_INSTALLED_MISSING_DETAIL`]
+/// instead.
+const LSP_CONTRIBUTOR_MISSING_DETAIL: &str = "not built — run: cargo build -p vox-lsp";
+
+/// `vox-lsp binary` detail for an installed, non-contributor user: must not
+/// name `cargo` or a repo-relative path (spec §9.1) — neither applies to
+/// someone without a source checkout. `vox-lsp` is not part of any standard
+/// distribution bundle today, so there is no install-side remedy to offer;
+/// state that honestly instead of fabricating a command.
+const LSP_INSTALLED_MISSING_DETAIL: &str = "not found — vox-lsp is not included in standard installs yet; it currently ships only from a source checkout";
+
+/// Persona-aware `vox-lsp binary` missing-detail, evaluated from an explicit
+/// start path.
+///
+/// Pure and testable without mutating `cwd` — mirrors
+/// [`crate::contributor_mode::locate_workspace_root_from`], which this is
+/// built on.
+fn lsp_missing_detail_from(start: &Path) -> &'static str {
+    if crate::contributor_mode::locate_workspace_root_from(start).is_some() {
+        LSP_CONTRIBUTOR_MISSING_DETAIL
+    } else {
+        LSP_INSTALLED_MISSING_DETAIL
+    }
+}
+
+/// Persona-aware `vox-lsp binary` missing-detail for the running process's
+/// current directory.
+fn lsp_missing_detail() -> &'static str {
+    std::env::current_dir()
+        .map(|cwd| lsp_missing_detail_from(&cwd))
+        .unwrap_or(LSP_INSTALLED_MISSING_DETAIL)
+}
 
 pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     let kube = Command::new("kubectl")
@@ -70,21 +110,30 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         // The lookup below is relative to current_exe(), i.e. the profile vox itself
         // was built with. Advising --release sent people to target/release/ while the
         // check kept reading target/debug/ and stayed red.
-        "not built — run: cargo build -p vox-lsp".to_string()
+        lsp_missing_detail().to_string()
     };
 
     if !lsp_bin && auto_heal {
-        println!("  [auto-heal] Building vox-lsp...");
-        if Command::new("cargo")
-            .args(["build", "-p", "vox-lsp", "--release"])
-            .status()
-            .await
-            .is_ok_and(|s| s.success())
-        {
-            lsp_bin = true;
-            lsp_detail = "built successfully via auto-heal".to_string();
+        // §9.1: `cargo` may only be invoked behind the contributor-mode gate —
+        // an installed user has no toolchain to run it with.
+        if crate::contributor_mode::is_contributor_mode() {
+            println!("  [auto-heal] Building vox-lsp...");
+            if Command::new("cargo")
+                .args(["build", "-p", "vox-lsp", "--release"])
+                .status()
+                .await
+                .is_ok_and(|s| s.success())
+            {
+                lsp_bin = true;
+                lsp_detail = "built successfully via auto-heal".to_string();
+            } else {
+                lsp_detail = "auto-heal failed to build vox-lsp".to_string();
+            }
         } else {
-            lsp_detail = "auto-heal failed to build vox-lsp".to_string();
+            lsp_detail = format!(
+                "{} (auto-heal cannot build vox-lsp outside a source checkout)",
+                lsp_missing_detail()
+            );
         }
     }
 
@@ -422,5 +471,65 @@ async fn v0_named_export_doctor_check(checks: &mut Vec<Check>) {
         ));
     } else {
         checks.push(Check::fail("@v0 TSX named exports", failures.join("; ")));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lsp_missing_detail_from_is_persona_aware() {
+        // Inside this real workspace checkout: contributor guidance.
+        let here = std::env::current_dir().expect("cwd");
+        assert_eq!(
+            lsp_missing_detail_from(&here),
+            LSP_CONTRIBUTOR_MISSING_DETAIL
+        );
+
+        // A bare temp dir has no workspace above it: installed-user guidance.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let detail = lsp_missing_detail_from(tmp.path());
+        assert_eq!(detail, LSP_INSTALLED_MISSING_DETAIL);
+        assert!(!detail.contains("cargo"));
+        assert!(!detail.contains("crates/"));
+    }
+
+    /// Spec §9.1: an installed, non-contributor user must never be told to
+    /// run `cargo` or shown a repo-relative path.
+    #[test]
+    fn installed_missing_detail_names_no_cargo_and_no_repo_path() {
+        assert!(!LSP_INSTALLED_MISSING_DETAIL.contains("cargo"));
+        assert!(!LSP_INSTALLED_MISSING_DETAIL.contains("crates/"));
+    }
+
+    /// The contributor detail is the one place `cargo build -p vox-lsp` is
+    /// still advertised — verify it says exactly that, so a drift here is
+    /// caught rather than silently losing the real remedy.
+    #[test]
+    fn contributor_missing_detail_names_the_real_build_command() {
+        assert!(LSP_CONTRIBUTOR_MISSING_DETAIL.contains("cargo build -p vox-lsp"));
+    }
+
+    /// `tail::run` is called unconditionally from `checks_standard/mod.rs`
+    /// (the last check, run on every plain `vox doctor`), so the runtime
+    /// `cargo build -p vox-lsp` auto-heal invocation must never fire outside
+    /// contributor mode (spec §9.1). This is a source-shape guard against the
+    /// gate being refactored away: the `Command::new("cargo")` call for
+    /// vox-lsp must sit textually behind an `is_contributor_mode()` check.
+    #[test]
+    fn lsp_auto_heal_cargo_invocation_is_contributor_gated() {
+        let src = include_str!("tail.rs");
+        let cargo_idx = src
+            .find("Command::new(\"cargo\")")
+            .expect("expected a cargo invocation for the vox-lsp auto-heal build");
+        let gate_idx = src
+            .find("crate::contributor_mode::is_contributor_mode()")
+            .expect("expected an is_contributor_mode() gate before the cargo invocation");
+        assert!(
+            gate_idx < cargo_idx,
+            "the vox-lsp auto-heal cargo build must be preceded by an \
+             is_contributor_mode() gate (spec §9.1)"
+        );
     }
 }

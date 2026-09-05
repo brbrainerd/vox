@@ -19,17 +19,52 @@ pub fn run(checks: &mut Vec<Check>) {
                 freshness::EMBEDDED_BUILD_NUMBER
             ),
         )),
-        Freshness::Stale { embedded, live } => checks.push(Check::fail(
-            CHECK_NAME,
-            format!(
-                "stale: built at commit {embedded}, working tree is at {live} — \
-                 refresh with `cargo install --path crates/vox-cli --force`"
-            ),
-        )),
+        Freshness::Stale { embedded, live } => {
+            let guidance = freshness::refresh_guidance();
+            checks.push(Check::fail(
+                CHECK_NAME,
+                format!(
+                    "stale: built at commit {embedded}, working tree is at {live} — \
+                     refresh: {guidance}"
+                ),
+            ))
+        }
         // Dev builds / non-git trees are not a problem to report.
         Freshness::Unknown(reason) => checks.push(Check::pass(
             CHECK_NAME,
             format!("freshness not applicable ({reason})"),
         )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// This check runs unconditionally on every plain `vox doctor` (see
+    /// `checks_standard/mod.rs`'s `run_checks`), so its stale-binary message
+    /// must be persona-aware (spec §9.1): it must delegate to
+    /// [`freshness::refresh_guidance`] rather than hardcoding a `cargo
+    /// install`/`crates/`-relative remedy that only applies to a contributor.
+    /// This guards against the message drifting back to a hardcoded literal.
+    #[test]
+    fn stale_message_delegates_to_persona_aware_refresh_guidance() {
+        let src = include_str!("freshness.rs");
+        // Exclude this test module from the search — otherwise the string
+        // literal below would trivially match itself regardless of what the
+        // production code does.
+        let production = src
+            .split("#[cfg(test)]")
+            .next()
+            .expect("file must contain a #[cfg(test)] module");
+        assert!(
+            production.contains("freshness::refresh_guidance()"),
+            "expected the stale-binary message to use the persona-aware \
+             refresh_guidance() helper instead of a hardcoded cargo/crates \
+             literal"
+        );
+        assert!(
+            !production.contains("cargo install"),
+            "the stale-binary message must not hardcode a cargo/crates literal; \
+             found one in the production (non-test) portion of this file"
+        );
     }
 }

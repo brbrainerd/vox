@@ -4,7 +4,19 @@ use tokio::process::Command;
 
 use super::super::common::Check;
 
-pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
+/// Whether Node.js / pnpm are optional for the given install tier, per
+/// `contracts/distribution/profiles.v1.yaml`.
+///
+/// `minimal` (`vox-langtool`) is a language toolchain only — check, fmt, run,
+/// build — with no frontend bundling, so Node/pnpm are not needed. `default`
+/// and `full` both ship the GUI (Axis) and/or fullstack scaffolding, which
+/// bundle a frontend with pnpm, so both are required there. An unknown tier
+/// is treated as `default` (required) rather than silently passing everything.
+fn node_is_optional_for(tier: &str) -> bool {
+    tier == "minimal"
+}
+
+pub async fn run(auto_heal: bool, tier: &str, checks: &mut Vec<Check>) {
     let cargo = Command::new("cargo").arg("--version").output().await;
     checks.push(match cargo {
         Ok(o) if o.status.success() => Check {
@@ -19,12 +31,22 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         },
     });
 
+    let node_optional = node_is_optional_for(tier);
     let node = Command::new("node").arg("--version").output().await;
     checks.push(match node {
         Ok(o) if o.status.success() => Check {
-            name: "Node.js".to_string(),
+            name: if node_optional {
+                "Node.js (optional)".to_string()
+            } else {
+                "Node.js".to_string()
+            },
             pass: true,
             detail: String::from_utf8_lossy(&o.stdout).trim().to_string(),
+        },
+        _ if node_optional => Check {
+            name: "Node.js (optional)".to_string(),
+            pass: true,
+            detail: "not installed — not needed for this tier (language toolchain only, no frontend bundling)".to_string(),
         },
         _ => Check {
             name: "Node.js".to_string(),
@@ -42,12 +64,15 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     let pnpm_pass = matches!(&pnpm, Ok(o) if o.status.success());
     let mut pnpm_detail = if pnpm_pass {
         format!("v{}", String::from_utf8_lossy(&pnpm.unwrap().stdout).trim())
+    } else if node_optional {
+        "not installed — not needed for this tier (language toolchain only, no frontend bundling)"
+            .to_string()
     } else {
         "not found — run: npm install -g pnpm".to_string()
     };
 
     let mut actual_pnpm_pass = pnpm_pass;
-    if !pnpm_pass && auto_heal {
+    if !pnpm_pass && auto_heal && !node_optional {
         println!("  [auto-heal] Installing pnpm...");
         let npm_exe = if cfg!(target_os = "windows") {
             "npm.cmd"
@@ -68,8 +93,12 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     }
 
     checks.push(Check {
-        name: "pnpm".to_string(),
-        pass: actual_pnpm_pass,
+        name: if node_optional {
+            "pnpm (optional)".to_string()
+        } else {
+            "pnpm".to_string()
+        },
+        pass: actual_pnpm_pass || node_optional,
         detail: pnpm_detail,
     });
 
@@ -254,5 +283,27 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
                 "not installed — recommended for fast dev builds: rustup component add rustc-codegen-cranelift-preview".to_string()
             },
         });
+    }
+}
+
+#[cfg(test)]
+mod tier_severity_tests {
+    use super::node_is_optional_for;
+
+    #[test]
+    fn minimal_tier_makes_node_and_pnpm_optional() {
+        assert!(node_is_optional_for("minimal"));
+    }
+
+    #[test]
+    fn default_and_full_tiers_require_node_and_pnpm() {
+        assert!(!node_is_optional_for("default"));
+        assert!(!node_is_optional_for("full"));
+    }
+
+    #[test]
+    fn unknown_tier_is_treated_as_default_never_crashes_never_passes_everything() {
+        assert!(!node_is_optional_for(""));
+        assert!(!node_is_optional_for("not-a-real-tier"));
     }
 }

@@ -206,6 +206,10 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
     }
     println!("  Press Ctrl+C to stop\n");
 
+    if which::which("cargo").is_err() {
+        anyhow::bail!(missing_cargo_toolchain_message());
+    }
+
     let mut cargo_cmd = Command::new("cargo");
     cargo_cmd
         .arg("run")
@@ -238,6 +242,9 @@ fn build_frontend(generated_ts_dir: &Path) -> Result<()> {
     // pnpm install (skip if node_modules exists and is fresh)
     let node_modules = app_dir.join("node_modules");
     let pnpm = frontend::pnpm_executable();
+    if which::which(pnpm).is_err() {
+        anyhow::bail!(missing_pnpm_message(pnpm));
+    }
     if !node_modules.exists() {
         println!("  Installing frontend dependencies (pnpm)...");
         let status = Command::new(pnpm)
@@ -298,6 +305,30 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Message for a missing `cargo` toolchain, shown before `vox run` shells out
+/// to `cargo run` in the generated project directory.
+///
+/// `vox run` generates a Rust crate and compiles it, so a Rust toolchain is
+/// genuinely required (spec §9.1's cargo-invocation exemption applies: this is
+/// not a repo-relative path, and the dependency is stated honestly rather than
+/// silently assumed).
+fn missing_cargo_toolchain_message() -> String {
+    "`vox run` compiles the generated backend, which requires a Rust toolchain, \
+     but `cargo` was not found on PATH. Install Rust from https://rustup.rs and \
+     try again."
+        .to_string()
+}
+
+/// Message for a missing `pnpm`, shown only on the `has_frontend` path so a
+/// backend-only `.vox` program never mentions it.
+fn missing_pnpm_message(pnpm_exe: &str) -> String {
+    format!(
+        "This program has a frontend, which `vox run` bundles with pnpm, but \
+         `{pnpm_exe}` was not found on PATH. Install Node.js from \
+         https://nodejs.org, then `npm install -g pnpm`, and try again."
+    )
+}
+
 /// Determine `has_frontend` given a `BuildTarget` and an optional existing `dist/` scan.
 ///
 /// - `BuildTarget::Server` always returns `false` (no frontend regardless of what's in dist/).
@@ -325,6 +356,36 @@ mod parse_mode_tests {
         assert_eq!(parse_run_mode_from_str("App "), RunMode::App);
         assert_eq!(parse_run_mode_from_str("auto"), RunMode::Auto);
         assert_eq!(parse_run_mode_from_str("unknown"), RunMode::Auto);
+    }
+}
+
+#[cfg(test)]
+mod toolchain_preflight_message_tests {
+    use super::{missing_cargo_toolchain_message, missing_pnpm_message};
+
+    #[test]
+    fn cargo_message_names_the_dependency_and_install_url_with_no_repo_path() {
+        let msg = missing_cargo_toolchain_message();
+        assert!(msg.contains("Rust toolchain"));
+        assert!(msg.contains("https://rustup.rs"));
+        assert!(
+            !msg.contains("crates/"),
+            "installed-user message must not reference a repo-relative path: {msg}"
+        );
+    }
+
+    #[test]
+    fn pnpm_message_names_the_missing_executable_and_install_path() {
+        let msg = missing_pnpm_message("pnpm");
+        assert!(msg.contains("pnpm"));
+        assert!(msg.contains("https://nodejs.org"));
+        assert!(msg.contains("npm install -g pnpm"));
+    }
+
+    #[test]
+    fn pnpm_message_uses_the_platform_specific_executable_name() {
+        let msg = missing_pnpm_message("pnpm.cmd");
+        assert!(msg.contains("pnpm.cmd"));
     }
 }
 

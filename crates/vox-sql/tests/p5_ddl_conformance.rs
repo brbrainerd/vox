@@ -1,3 +1,9 @@
+// Requires `postgres` and `mysql`: this test asserts cross-dialect DDL
+// conformance using `BackendKind::Postgres`/`BackendKind::MySql`, which
+// vox-sql cfg-gates behind those features independently of `runtime` (see
+// crates/vox-sql/Cargo.toml and THE TRAP note on `BackendKind`).
+#![cfg(all(feature = "postgres", feature = "mysql"))]
+
 use vox_ast::decl::{IndexDecl, TableDecl, TableField};
 use vox_ast::span::Span;
 use vox_ast::types::TypeExpr;

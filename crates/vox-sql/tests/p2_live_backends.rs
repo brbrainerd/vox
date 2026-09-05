@@ -1,3 +1,11 @@
+// Requires `runtime` (default-on) plus `postgres` and `mysql`: this test
+// exercises live SqlBackend connections for all three backends, and
+// vox-sql cfg-gates the Postgres/MySql backends behind those features
+// independently of `runtime` (see crates/vox-sql/Cargo.toml and THE TRAP
+// note on `BackendKind`). Missing any of the three no-ops this file rather
+// than failing to compile.
+#![cfg(all(feature = "runtime", feature = "postgres", feature = "mysql"))]
+
 use std::env;
 
 use vox_db::DbConfig;

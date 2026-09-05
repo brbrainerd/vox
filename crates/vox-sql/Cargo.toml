@@ -9,19 +9,28 @@ repository.workspace = true
 rust-version.workspace = true
 
 [features]
-default = []
-postgres = ["sqlx/postgres"]
-mysql = ["sqlx/mysql"]
+# `runtime` (default-ON) enables the live SQL backends (libSQL/Postgres/MySQL) and
+# with them vox-db, turso and sqlx. `--no-default-features` leaves the pure
+# dialect/DDL surface — SqlDialect, BackendKind, build::*, type_map, ddl,
+# schema_model — which is all a code generator needs. That is what keeps
+# vox-codegen (and therefore vox-langtool) free of vox-db: see spec §9, audience A.
+default = ["runtime"]
+runtime = ["dep:vox-db", "dep:turso", "dep:sqlx", "dep:async-trait", "dep:tokio", "dep:vox-secrets"]
+# Dialect selectors. Orthogonal to `runtime`: they add BackendKind variants and
+# dialect support for codegen, and only pull a driver when `runtime` is also on
+# (weak `sqlx?/…` dependency features).
+postgres = ["sqlx?/postgres"]
+mysql = ["sqlx?/mysql"]
 
 [dependencies]
-async-trait = { workspace = true }
-vox-db = { workspace = true, features = ["host-integration"] }
-vox-secrets = { workspace = true }
+async-trait = { workspace = true, optional = true }
+vox-db = { workspace = true, features = ["host-integration"], optional = true }
+vox-secrets = { workspace = true, optional = true }
 vox-ast = { workspace = true }
-turso = { workspace = true }
-sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio"] }
+turso = { workspace = true, optional = true }
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio"], optional = true }
 serde = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["sync"] }
+tokio = { workspace = true, features = ["sync"], optional = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]

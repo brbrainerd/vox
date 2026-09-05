@@ -265,3 +265,11 @@ Spec §4.2(d) and §4.1 P8. `installed_version()` currently returns readdir orde
 | P4 | Publish `mens-candle-{cuda,metal}-v{version}-{triple}.zip` as release assets and include them in `checksums.txt` |
 | P5 | Make `install.rs` honour the tier, using `resolve_bundle` from Task 6 |
 | P7 | Decide whether `profiles.v1.yaml` tiers survive; if so, reconcile them with `catalog.toml` bundles — today the two taxonomies share no ids and no code path |
+
+## Cross-plan inbox
+
+Rows filed here by other plans. Each must be executable with no conversation.
+
+| From | Request |
+|---|---|
+| P7 | Tier ↔ bundle taxonomy is DECIDED — see INDEX §2.1. Both taxonomies are kept as orthogonal axes; P7 adds a `bundle:` key to each tier in `contracts/distribution/profiles.v1.yaml`, mapping `minimal→vox-base`, `default→vox-fullstack`, `full→vox-dev`. No new bundle ids; P7 does NOT edit `catalog.toml` (yours). P1 Task 6 implements against INDEX §2.1 and must keep using the existing `bundle_resolved()` at `crates/vox-plugin-catalog/src/lib.rs:72` — no third spelling. If you rename or remove any of those three bundle ids, tell P7: a test in `crates/vox-cli/tests/` asserts every tier's `bundle` resolves. |

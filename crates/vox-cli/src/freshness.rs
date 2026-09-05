@@ -30,15 +30,46 @@ pub const EMBEDDED_GIT_HASH: &str = env!("VOX_GIT_HASH");
 /// Environment variable that downgrades the `vox ci *` hard-fail to a note.
 pub const SKIP_ENV: &str = "VOX_SKIP_FRESHNESS_CHECK";
 
-/// Refresh guidance shown in staleness diagnostics.
+/// Refresh guidance for a contributor (source checkout): both the
+/// managed-install and source-checkout remedies.
 ///
 /// Install-method aware and ordered by the canonical model: the managed
 /// `~/.vox/bin` install refreshes via `vox upgrade`; a source checkout via
 /// `cargo install` (argv is the [`crate::utils::install_policy`] SSOT). The
 /// embedded `crates/vox-cli` path is asserted to match the SSOT by a unit test
 /// so the two cannot drift.
-pub(crate) const REFRESH_GUIDANCE: &str = "for a managed install run `vox upgrade`; \
+///
+/// Only shown behind [`refresh_guidance`]/[`refresh_guidance_from`]'s
+/// contributor-mode gate (spec §9.1) — an installed, non-contributor user has
+/// neither `cargo` nor a checkout, so they get [`INSTALLED_REFRESH_GUIDANCE`]
+/// instead.
+pub(crate) const CONTRIBUTOR_REFRESH_GUIDANCE: &str = "for a managed install run `vox upgrade`; \
      from a source checkout run `cargo install --locked --path crates/vox-cli --force`";
+
+/// Refresh guidance for an installed, non-contributor user: the managed-install
+/// remedy only. Must not name `cargo` or a repo-relative path (spec §9.1) —
+/// neither applies to someone without a source checkout.
+pub(crate) const INSTALLED_REFRESH_GUIDANCE: &str = "run `vox upgrade`";
+
+/// Persona-aware refresh guidance, evaluated from an explicit start path.
+///
+/// Pure and testable without mutating `cwd` — mirrors
+/// [`crate::contributor_mode::locate_workspace_root_from`], which this is
+/// built on.
+pub(crate) fn refresh_guidance_from(start: &Path) -> &'static str {
+    if crate::contributor_mode::locate_workspace_root_from(start).is_some() {
+        CONTRIBUTOR_REFRESH_GUIDANCE
+    } else {
+        INSTALLED_REFRESH_GUIDANCE
+    }
+}
+
+/// Persona-aware refresh guidance for the running process's current directory.
+pub(crate) fn refresh_guidance() -> &'static str {
+    std::env::current_dir()
+        .map(|cwd| refresh_guidance_from(&cwd))
+        .unwrap_or(INSTALLED_REFRESH_GUIDANCE)
+}
 
 /// True when `dir` is a Cargo build-output directory (`…/target/{debug,release}`
 /// and below). Such dirs land on a developer's `PATH` and would otherwise make
@@ -180,11 +211,14 @@ fn skip_requested() -> bool {
 /// Human-readable staleness message for a verdict, or `None` when fresh/unknown.
 fn staleness_message(freshness: &Freshness) -> Option<String> {
     match freshness {
-        Freshness::Stale { embedded, live } => Some(format!(
-            "installed vox is stale: built at commit {embedded} ({EMBEDDED_GIT_HASH}), \
-             but the working tree is at commit {live}. Its guard logic and allowlists \
-             may be outdated. Refresh: {REFRESH_GUIDANCE}."
-        )),
+        Freshness::Stale { embedded, live } => {
+            let guidance = refresh_guidance();
+            Some(format!(
+                "installed vox is stale: built at commit {embedded} ({EMBEDDED_GIT_HASH}), \
+                 but the working tree is at commit {live}. Its guard logic and allowlists \
+                 may be outdated. Refresh: {guidance}."
+            ))
+        }
         Freshness::Fresh | Freshness::Unknown(_) => None,
     }
 }
@@ -292,14 +326,39 @@ mod tests {
     }
 
     #[test]
-    fn refresh_guidance_matches_install_policy_ssot() {
-        // The source-install path embedded in the message must equal the SSOT,
-        // and the release path must mention `vox upgrade`.
+    fn contributor_refresh_guidance_matches_install_policy_ssot() {
+        // The source-install path embedded in the contributor message must
+        // equal the SSOT, and it must also mention the managed-install path.
         assert!(
-            REFRESH_GUIDANCE.contains(crate::utils::install_policy::SOURCE_INSTALL_CLI_REL_PATH)
+            CONTRIBUTOR_REFRESH_GUIDANCE
+                .contains(crate::utils::install_policy::SOURCE_INSTALL_CLI_REL_PATH)
         );
-        assert!(REFRESH_GUIDANCE.contains("--locked"));
-        assert!(REFRESH_GUIDANCE.contains("vox upgrade"));
+        assert!(CONTRIBUTOR_REFRESH_GUIDANCE.contains("--locked"));
+        assert!(CONTRIBUTOR_REFRESH_GUIDANCE.contains("vox upgrade"));
+    }
+
+    #[test]
+    fn installed_refresh_guidance_names_no_cargo_and_no_repo_path() {
+        // Spec §9.1: an installed, non-contributor user must never be told to
+        // run `cargo` or shown a repo-relative path.
+        assert!(!INSTALLED_REFRESH_GUIDANCE.contains("cargo"));
+        assert!(!INSTALLED_REFRESH_GUIDANCE.contains("crates/"));
+        assert!(INSTALLED_REFRESH_GUIDANCE.contains("vox upgrade"));
+    }
+
+    #[test]
+    fn refresh_guidance_from_is_persona_aware() {
+        // Inside this real workspace checkout: contributor guidance.
+        let here = std::env::current_dir().expect("cwd");
+        assert_eq!(refresh_guidance_from(&here), CONTRIBUTOR_REFRESH_GUIDANCE);
+
+        // A bare temp dir has no workspace above it: installed-user guidance,
+        // with no `cargo` and no repo-relative path.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let guidance = refresh_guidance_from(tmp.path());
+        assert_eq!(guidance, INSTALLED_REFRESH_GUIDANCE);
+        assert!(!guidance.contains("cargo"));
+        assert!(!guidance.contains("crates/"));
     }
 
     #[test]
