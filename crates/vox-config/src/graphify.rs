@@ -57,6 +57,87 @@ pub fn ttl_env_override_active_now() -> bool {
     ttl_env_override_active(std::env::var(GRAPHIFY_TTL_DAYS_ENV).ok().as_deref())
 }
 
+/// Env var overriding the base dir under which per-corpus graphify cache
+/// directories are composed (`<base>/<corpus_id>`), in place of the default
+/// `<repo>/.vox/cache/graphify`. See [`repo_graphify_cache_dir`].
+pub const GRAPHIFY_CACHE_DIR_ENV: &str = "VOX_GRAPHIFY_CACHE_DIR";
+
+/// Env var disabling the graphify cache outright, regardless of
+/// `VOX_GRAPHIFY_CACHE_DIR`. See [`graphify_disable_active`] for accepted values.
+pub const GRAPHIFY_DISABLE_ENV: &str = "VOX_GRAPHIFY_DISABLE";
+
+/// True when `raw` (the value of `VOX_GRAPHIFY_CACHE_DIR`) overrides the cache base
+/// dir — i.e. [`repo_graphify_cache_dir`] uses it instead of the default
+/// `<repo>/.vox/cache/graphify`.
+///
+/// [`ttl_env_override_active`]'s shape: keyed off presence of a non-blank value,
+/// pure over the raw value so it is testable without mutating process-wide env.
+#[must_use]
+pub fn cache_dir_env_override_active(raw: Option<&str>) -> bool {
+    raw.is_some_and(|v| !v.trim().is_empty())
+}
+
+/// [`cache_dir_env_override_active`] applied to the current process environment.
+#[must_use]
+pub fn cache_dir_env_override_active_now() -> bool {
+    cache_dir_env_override_active(std::env::var(GRAPHIFY_CACHE_DIR_ENV).ok().as_deref())
+}
+
+/// True when `raw` (the value of `VOX_GRAPHIFY_DISABLE`) disables the graphify
+/// cache. Blank/absent, `"0"`, `"false"`, `"no"`, and `"off"` (case-insensitive,
+/// surrounding whitespace ignored) are treated as *not* disabling; every other
+/// non-blank value disables — so a typo like `VOX_GRAPHIFY_DISABLE=1` or
+/// `=please` still disables rather than being silently ignored.
+#[must_use]
+pub fn graphify_disable_active(raw: Option<&str>) -> bool {
+    match raw.map(str::trim) {
+        Some(v) if !v.is_empty() => !matches!(
+            v.to_ascii_lowercase().as_str(),
+            "0" | "false" | "no" | "off"
+        ),
+        _ => false,
+    }
+}
+
+/// [`graphify_disable_active`] applied to the current process environment.
+#[must_use]
+pub fn graphify_disable_active_now() -> bool {
+    graphify_disable_active(std::env::var(GRAPHIFY_DISABLE_ENV).ok().as_deref())
+}
+
+/// Where a corpus's on-disk graphify cache directory lives, or that the cache is
+/// disabled outright.
+///
+/// Deliberately not a bare `PathBuf`: a disabled cache has no harmless path to
+/// point at, and a plain path return would let a caller skip checking
+/// `VOX_GRAPHIFY_DISABLE` and write anyway. Matching on this enum is required to
+/// get a directory out, so the disable switch cannot be silently ignored.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GraphifyCacheDir {
+    /// The cache is enabled; reads/writes may use this directory.
+    Enabled(PathBuf),
+    /// `VOX_GRAPHIFY_DISABLE` is active — callers MUST NOT read or write any
+    /// graphify cache for this corpus.
+    Disabled,
+}
+
+impl GraphifyCacheDir {
+    /// The directory, if the cache is enabled.
+    #[must_use]
+    pub fn path(&self) -> Option<&Path> {
+        match self {
+            GraphifyCacheDir::Enabled(p) => Some(p.as_path()),
+            GraphifyCacheDir::Disabled => None,
+        }
+    }
+
+    /// True iff the cache is disabled.
+    #[must_use]
+    pub fn is_disabled(&self) -> bool {
+        matches!(self, GraphifyCacheDir::Disabled)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 struct CorporaFile {
     default_corpus_id: String,
@@ -323,12 +404,44 @@ pub fn load_all_corpora(repo_root: &Path) -> Result<GraphifyCorporaRegistry, Gra
     Ok(reg)
 }
 
-/// Tier D cache dir for a named corpus: `<repo>/.vox/cache/graphify/<corpus_id>/`.
-pub fn repo_graphify_cache_dir(repo_root: &Path, corpus_id: &str) -> PathBuf {
-    repo_root
-        .join(super::paths::REPO_CACHE_DIR)
-        .join(super::paths::REPO_GRAPHIFY_CACHE_SUBDIR)
-        .join(corpus_id)
+/// Pure resolver behind [`repo_graphify_cache_dir`]: takes the raw `VOX_GRAPHIFY_DISABLE`
+/// and `VOX_GRAPHIFY_CACHE_DIR` env values as arguments so tests need neither `unsafe`
+/// env mutation (required under edition 2024) nor a real process environment.
+///
+/// `VOX_GRAPHIFY_DISABLE` wins outright; otherwise `VOX_GRAPHIFY_CACHE_DIR` overrides
+/// the base dir (default `<repo>/.vox/cache/graphify`), with the `<corpus_id>` leaf
+/// always preserved so corpora stay separated under either base.
+#[must_use]
+pub fn resolve_graphify_cache_dir(
+    repo_root: &Path,
+    corpus_id: &str,
+    disable_raw: Option<&str>,
+    cache_dir_raw: Option<&str>,
+) -> GraphifyCacheDir {
+    if graphify_disable_active(disable_raw) {
+        return GraphifyCacheDir::Disabled;
+    }
+    let base = match cache_dir_raw {
+        Some(v) if !v.trim().is_empty() => PathBuf::from(v),
+        _ => repo_root
+            .join(super::paths::REPO_CACHE_DIR)
+            .join(super::paths::REPO_GRAPHIFY_CACHE_SUBDIR),
+    };
+    GraphifyCacheDir::Enabled(base.join(corpus_id))
+}
+
+/// Tier D cache dir for a named corpus: `<repo>/.vox/cache/graphify/<corpus_id>/` by
+/// default, relocatable via `VOX_GRAPHIFY_CACHE_DIR` and disableable via
+/// `VOX_GRAPHIFY_DISABLE` (see [`GraphifyCacheDir`] for why the disable switch is a
+/// type, not a sentinel path).
+#[must_use]
+pub fn repo_graphify_cache_dir(repo_root: &Path, corpus_id: &str) -> GraphifyCacheDir {
+    resolve_graphify_cache_dir(
+        repo_root,
+        corpus_id,
+        std::env::var(GRAPHIFY_DISABLE_ENV).ok().as_deref(),
+        std::env::var(GRAPHIFY_CACHE_DIR_ENV).ok().as_deref(),
+    )
 }
 
 /// Count nodes and edges/links in a graphify NetworkX export JSON value.
@@ -810,11 +923,79 @@ mod tests {
     #[test]
     fn repo_graphify_cache_dir_under_dot_vox_cache() {
         let tmp = tempfile::tempdir().unwrap();
-        let p = repo_graphify_cache_dir(tmp.path(), "repo-code-graph");
+        let status = repo_graphify_cache_dir(tmp.path(), "repo-code-graph");
+        let p = status.path().expect("enabled by default").to_path_buf();
         let s = p.to_string_lossy();
         assert!(s.contains(".vox"));
         assert!(s.contains("graphify"));
         assert!(s.ends_with("repo-code-graph") || s.contains("repo-code-graph"));
+    }
+
+    #[test]
+    fn cache_dir_env_override_replaces_base_but_keeps_corpus_leaf() {
+        let tmp = tempfile::tempdir().unwrap();
+        let status =
+            resolve_graphify_cache_dir(tmp.path(), "repo-code-graph", None, Some("/mnt/vcache"));
+        assert_eq!(
+            status,
+            GraphifyCacheDir::Enabled(PathBuf::from("/mnt/vcache/repo-code-graph"))
+        );
+    }
+
+    #[test]
+    fn cache_dir_env_blank_falls_back_to_default_base() {
+        let tmp = tempfile::tempdir().unwrap();
+        let status = resolve_graphify_cache_dir(tmp.path(), "repo-code-graph", None, Some("   "));
+        assert_eq!(
+            status,
+            GraphifyCacheDir::Enabled(
+                tmp.path()
+                    .join(".vox")
+                    .join("cache")
+                    .join("graphify")
+                    .join("repo-code-graph")
+            )
+        );
+    }
+
+    #[test]
+    fn disable_wins_over_cache_dir_override() {
+        let tmp = tempfile::tempdir().unwrap();
+        let status = resolve_graphify_cache_dir(
+            tmp.path(),
+            "repo-code-graph",
+            Some("1"),
+            Some("/mnt/vcache"),
+        );
+        assert_eq!(status, GraphifyCacheDir::Disabled);
+        assert!(status.is_disabled());
+        assert_eq!(status.path(), None);
+    }
+
+    #[test]
+    fn graphify_disable_active_recognizes_falsey_and_truthy_spellings() {
+        // Falsey / absent => not disabled.
+        assert!(!graphify_disable_active(None));
+        assert!(!graphify_disable_active(Some("")));
+        assert!(!graphify_disable_active(Some("   ")));
+        assert!(!graphify_disable_active(Some("0")));
+        assert!(!graphify_disable_active(Some("false")));
+        assert!(!graphify_disable_active(Some("FALSE")));
+        assert!(!graphify_disable_active(Some("no")));
+        assert!(!graphify_disable_active(Some("off")));
+        // Truthy / anything else non-blank => disabled, including typos.
+        assert!(graphify_disable_active(Some("1")));
+        assert!(graphify_disable_active(Some("true")));
+        assert!(graphify_disable_active(Some("yes")));
+        assert!(graphify_disable_active(Some("please")));
+    }
+
+    #[test]
+    fn cache_dir_env_override_active_keys_off_presence() {
+        assert!(!cache_dir_env_override_active(None));
+        assert!(!cache_dir_env_override_active(Some("")));
+        assert!(!cache_dir_env_override_active(Some("   ")));
+        assert!(cache_dir_env_override_active(Some("/mnt/vcache")));
     }
 
     #[test]
