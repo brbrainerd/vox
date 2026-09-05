@@ -1772,9 +1772,15 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         home: Home::Env,
         gui: None,
         secret: false,
-        status: Status::Active,
+        // NOT wired to the real cache writer today (crates/vox-cli/src/commands/
+        // graphify/mod.rs::primary_cache_dir builds its path from
+        // REPO_VOX_GRAPH_CACHE_DIR directly and never calls this resolver) —
+        // the doctor check's GRAPHIFY_ENV_NOT_WIRED_NOTE already says so;
+        // Status::Declared makes the registry say the same thing.
+        status: Status::Declared,
         label: "Graphify Cache Dir",
-        hint: "Base dir for graphify's Tier D cache (per-corpus subdir kept underneath).",
+        hint: "Base dir for graphify's Tier D cache (per-corpus subdir kept underneath). \
+               NOT YET WIRED to the real writer -- setting this has no effect today.",
     },
     ConfigKey {
         key: "VOX_GRAPHIFY_DISABLE",
@@ -1786,9 +1792,11 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         home: Home::Env,
         gui: None,
         secret: false,
-        status: Status::Active,
+        // See VOX_GRAPHIFY_CACHE_DIR above: same gap, same reason.
+        status: Status::Declared,
         label: "Graphify Disable",
-        hint: "Disable the graphify cache outright (no corpus graph reads or writes).",
+        hint: "Disable the graphify cache outright (no corpus graph reads or writes). \
+               NOT YET WIRED to the real writer -- setting this has no effect today.",
     },
     ConfigKey {
         key: "VOX_GRAPHIFY_TTL_DAYS",

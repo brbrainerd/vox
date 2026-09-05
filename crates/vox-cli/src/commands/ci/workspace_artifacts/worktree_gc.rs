@@ -291,7 +291,11 @@ fn worktree_dirty_source(wt: &Path) -> bool {
             continue;
         }
         let (status, path) = line.split_at(2);
-        let path = path.trim().trim_start_matches('"');
+        // `git status --porcelain` quotes (and octal-escapes) a path containing
+        // non-ASCII or other special characters, e.g. `?? "caf\303\251.dll"`.
+        // Stripping only the leading quote left a trailing one on the string,
+        // which defeated `is_build_junk`'s `ends_with(".ext")` checks below.
+        let path = path.trim().trim_matches('"');
         if status == "??" {
             if !is_build_junk(path) {
                 return true;

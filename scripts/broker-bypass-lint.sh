@@ -226,10 +226,18 @@ is_allowlisted() {
 # files (e.g. .github/workflows/*.yml comments, doc snippets) that must
 # show a bypass pattern without triggering the lint and without needing a
 # checked-in allowlist entry.
+#
+# Optional third argument: an end-line, for a bypass detected across a `\`
+# line continuation (case 2). The marker is honored on EITHER the reported
+# start line or that end line, because the end line -- where the actual
+# `cargo` invocation lives -- is the natural place a reader puts the comment,
+# and requiring it on the continuation's first line specifically was an
+# undocumented trap (a marker on the last line was silently ignored).
 has_inline_marker() {
     marker_file=$1
     marker_line=$2
-    sed -n "${marker_line}p" "$marker_file" 2>/dev/null | grep -qF "$INLINE_MARKER"
+    marker_end_line=${3:-$marker_line}
+    sed -n "${marker_line},${marker_end_line}p" "$marker_file" 2>/dev/null | grep -qF "$INLINE_MARKER"
 }
 
 # --- Scan --------------------------------------------------------------------
@@ -306,11 +314,12 @@ RUSTUP_JOIN_AWK='
         sub(/\\[ \t]*$/, " ", buf)
         buf = buf nxt
     }
+    endline = NR
     if (buf ~ /rustup[ \t]+run[ \t]+[^ \t]+[ \t]+cargo([ \t]|$)/) {
-        print startline "\tRUN"
+        print startline "\t" endline "\tRUN"
     }
     if (buf ~ /rustup[ \t]+which[ \t]+cargo([ \t]|$|[")])/) {
-        print startline "\tWHICH"
+        print startline "\t" endline "\tWHICH"
     }
 }
 '
@@ -339,14 +348,14 @@ if [ -s "$FILES_TMP" ]; then
         # Case 2: joined across `\` line continuations first; awk itself
         # decides match/no-match (see RUSTUP_JOIN_AWK above), so this loop
         # only ever iterates over the rare actual matches.
-        awk "$RUSTUP_JOIN_AWK" "$f" 2>/dev/null | while IFS="$(printf '\t')" read -r ln tag; do
+        awk "$RUSTUP_JOIN_AWK" "$f" 2>/dev/null | while IFS="$(printf '\t')" read -r ln endln tag; do
             [ -n "$ln" ] || continue
             case "$tag" in
                 RUN)
-                    has_inline_marker "$f" "$ln" || printf '%s:%s:%s\n' "$f" "$ln" "$REASON_RUSTUP_RUN" >>"$MATCHES_TMP"
+                    has_inline_marker "$f" "$ln" "$endln" || printf '%s:%s:%s\n' "$f" "$ln" "$REASON_RUSTUP_RUN" >>"$MATCHES_TMP"
                     ;;
                 WHICH)
-                    has_inline_marker "$f" "$ln" || printf '%s:%s:%s\n' "$f" "$ln" "$REASON_RUSTUP_WHICH" >>"$MATCHES_TMP"
+                    has_inline_marker "$f" "$ln" "$endln" || printf '%s:%s:%s\n' "$f" "$ln" "$REASON_RUSTUP_WHICH" >>"$MATCHES_TMP"
                     ;;
             esac
         done

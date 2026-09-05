@@ -185,6 +185,18 @@ pub const HOME_OVERRIDE_ENV_VAR: &str = "VOX_HOME";
 /// So setting `VOX_HOME` relocates the script cache (and anything else built on this
 /// function) but leaves the secrets vault and the other resolvers above pointed at
 /// `$HOME/.vox`. That is accepted, not silent: this doc comment is the record of it.
+///
+/// **"Anything else built on this function" includes `vox mesh`'s identity key
+/// and trust list** (`crates/vox-ml-cli/src/commands/mesh_cli.rs::key_path`/
+/// `trust_path`), which is a materially different case from a cache: a cache
+/// regenerating at a new location is expected and harmless, but an identity
+/// key and a peer trust list do not "regenerate" — pointing `VOX_HOME`
+/// somewhere new after already pairing mesh peers finds no existing
+/// `mesh.key`/`mesh_trust.json` there, mints a fresh `EndpointId`, and starts
+/// with an empty trust list, with no peer or file deleted anywhere. Calling
+/// out this specific consequence here (not just "anything else") is
+/// deliberate: a cache miss and a trust-relationship reset read very
+/// differently to a user even though both are the same underlying mechanism.
 pub fn dot_vox_user_dir() -> PathBuf {
     resolve_dot_vox_user_dir(
         std::env::var(HOME_OVERRIDE_ENV_VAR).ok().as_deref(),
