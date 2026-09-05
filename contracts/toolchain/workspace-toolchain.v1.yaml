@@ -1,6 +1,6 @@
 schema: vox.workspace.toolchain.v1
 versions:
-  rust: "1.96.0"
+  rust: "1.98.1"
   node: "22.0.0"
   pnpm: "9.1.0"
   cuda: "12.1"

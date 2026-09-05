@@ -1,7 +1,7 @@
 # Multi-stage build for minimal production image (~50MB)
 # Cross-platform lanes, feature matrix, and env toggles: docs/src/architecture/vox-cross-platform-runbook.md
 
-FROM rust:1.96.0-slim-bookworm AS builder
+FROM rust:1.98.1-slim-bookworm AS builder
 # Install system dependencies (required by openssl-sys and other C-bound crates)
 RUN apt-get update && apt-get install -y pkg-config libssl-dev build-essential && rm -rf /var/lib/apt/lists/*
 # Install libdbus and GTK dependencies (required by wry/keyring on Linux)
