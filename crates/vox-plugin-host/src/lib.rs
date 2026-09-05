@@ -20,7 +20,9 @@ pub mod telemetry;
 pub mod user_install;
 
 pub use discover::discover;
-pub use errors::{AbiMismatchError, LoadError, PluginMissingError, SkillNotInstalledError};
+pub use errors::{
+    AbiMismatchError, ChecksumMismatchError, LoadError, PluginMissingError, SkillNotInstalledError,
+};
 pub use host_impl::DefaultVoxHost;
 pub use loader::{LoadedCodePlugin, Loader};
 pub use registry::{PluginEntry, Registry};
@@ -155,9 +157,9 @@ pub fn load_code_plugin(
     })?;
 
     let triple = current_target_triple_key();
-    let artifacts = match &entry.payload {
-        PluginPayload::Code(c) => &c.artifacts,
-        PluginPayload::Composite(c) => &c.code.artifacts,
+    let (artifacts, artifacts_sha3) = match &entry.payload {
+        PluginPayload::Code(c) => (&c.artifacts, &c.artifacts_sha3),
+        PluginPayload::Composite(c) => (&c.code.artifacts, &c.code.artifacts_sha3),
         PluginPayload::Skill(_) => {
             return Err(errors::LoadError::InitFailed(format!(
                 "plugin '{plugin_id}' is a skill-only plugin and cannot be loaded as a code plugin"
@@ -174,6 +176,48 @@ pub fn load_code_plugin(
     })?;
 
     let dylib_path = entry.install_dir.join(filename);
+
+    // Checksum verification: the other half of the load-time security gate
+    // (spec §4.2(d)) alongside the version-match check above. `artifacts_sha3`
+    // is populated at install time (`install_from_path` in
+    // crates/vox-cli/src/commands/plugin/install.rs) from the SAME
+    // already-parsed, already-trusted manifest `artifacts` was just read
+    // from — no new crate-graph edge to vox-plugin-catalog needed to get it.
+    //
+    // An absent entry (no hash recorded for this plugin/triple) is a
+    // deliberate migration affordance, not a bypass: the field is brand new,
+    // so every plugin installed before this shipped legitimately has none.
+    // Refusing to load any of them the moment this check ships would be a
+    // much worse regression than the tampering gap it closes. Such a plugin
+    // simply gets no NEW protection until it is reinstalled/upgraded through
+    // the fixed install path — an accepted, explicitly-documented gap.
+    if let Some(expected) = artifacts_sha3.get(triple) {
+        let bytes = std::fs::read(&dylib_path).map_err(|source| errors::LoadError::Io {
+            path: dylib_path.clone(),
+            source,
+        })?;
+        use sha3::{Digest, Sha3_256};
+        let mut h = Sha3_256::new();
+        h.update(&bytes);
+        let actual = data_encoding::HEXLOWER.encode(&h.finalize());
+        if &actual != expected {
+            return Err(errors::LoadError::ChecksumMismatch(
+                errors::ChecksumMismatchError {
+                    id: entry.id.clone(),
+                    expected: expected.clone(),
+                    actual,
+                },
+            ));
+        }
+    } else {
+        tracing::warn!(
+            plugin_id = %entry.id,
+            triple,
+            "no artifact checksum recorded for this plugin/triple; proceeding \
+             without verifying dylib integrity (reinstall the plugin to record one)"
+        );
+    }
+
     Loader::load(&entry.id, &entry.version, &dylib_path)
 }
 
@@ -311,5 +355,121 @@ mod semcov_wave3_tests {
         let result = workspace_local_plugin_source("myplugin");
         unsafe { std::env::remove_var("VOX_WORKSPACE_ROOT") };
         assert_eq!(result, Some(crate_dir));
+    }
+}
+
+/// `load_code_plugin`'s checksum gate (spec §4.2(d), second half). Every case
+/// here uses a fake, non-dylib artifact file — the point is to prove the
+/// gate's ORDERING, not to exercise a real `dlopen`. `Loader::load` on garbage
+/// bytes always fails with an `InitFailed("loading root module: ...")` error
+/// (abi_stable's loader rejects it before this crate's own logic runs), which
+/// is trivially distinguishable from `LoadError::ChecksumMismatch`. So: if a
+/// case reaches `Loader::load` at all, its error names "loading root module"
+/// and never mentions a checksum; if the gate refuses first, the error is
+/// `ChecksumMismatch` and `Loader::load` is never reached.
+#[cfg(test)]
+mod load_code_plugin_checksum_tests {
+    use super::*;
+    use vox_plugin_api::manifest::{CodePayload, PluginPayload};
+
+    const ARTIFACT_BYTES: &[u8] = b"not a real dylib, just checksum bait";
+
+    fn artifact_hash(bytes: &[u8]) -> String {
+        use sha3::{Digest, Sha3_256};
+        let mut h = Sha3_256::new();
+        h.update(bytes);
+        data_encoding::HEXLOWER.encode(&h.finalize())
+    }
+
+    /// Builds a registry with one code-payload entry whose artifact for the
+    /// TEST HOST's own target triple (`current_target_triple_key()` — the
+    /// same lookup `load_code_plugin` performs internally, so a made-up
+    /// triple would never be found) is `ARTIFACT_BYTES` written under
+    /// `install_dir`, with `artifacts_sha3` set to `recorded_hash` (or left
+    /// empty when `None`, simulating a plugin installed before this field
+    /// existed).
+    fn registry_with_entry(install_dir: &std::path::Path, recorded_hash: Option<&str>) -> Registry {
+        let triple = current_target_triple_key();
+        std::fs::write(install_dir.join("libfake.bin"), ARTIFACT_BYTES).expect("write artifact");
+        let mut artifacts = std::collections::BTreeMap::new();
+        artifacts.insert(triple.to_string(), "libfake.bin".to_string());
+        let mut artifacts_sha3 = std::collections::BTreeMap::new();
+        if let Some(hash) = recorded_hash {
+            artifacts_sha3.insert(triple.to_string(), hash.to_string());
+        }
+        let registry = Registry::new();
+        registry.record(PluginEntry {
+            id: "checksum-demo".to_string(),
+            version: "0.1.0".to_string(),
+            install_dir: install_dir.to_path_buf(),
+            payload: PluginPayload::Code(CodePayload {
+                abi_version: 1,
+                provides: Default::default(),
+                requires: Default::default(),
+                artifacts,
+                artifacts_sha3,
+            }),
+        });
+        registry
+    }
+
+    #[test]
+    fn no_recorded_hash_proceeds_past_the_checksum_gate() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let registry = registry_with_entry(dir.path(), None);
+        // `LoadedCodePlugin` (the `Ok` type) doesn't implement `Debug`, so
+        // `.expect_err()` won't compile here — match instead.
+        let err = match load_code_plugin(&registry, "checksum-demo") {
+            Ok(_) => panic!("garbage bytes can never dlopen successfully"),
+            Err(e) => e,
+        };
+        let msg = err.to_string();
+        assert!(
+            msg.contains("loading root module"),
+            "absent checksum must not block loading; expected to reach Loader::load, got: {msg}"
+        );
+        assert!(
+            !matches!(err, LoadError::ChecksumMismatch(_)),
+            "absent checksum must never itself be reported as a mismatch: {msg}"
+        );
+    }
+
+    #[test]
+    fn matching_hash_proceeds_past_the_checksum_gate() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let expected = artifact_hash(ARTIFACT_BYTES);
+        let registry = registry_with_entry(dir.path(), Some(&expected));
+        let err = match load_code_plugin(&registry, "checksum-demo") {
+            Ok(_) => panic!("garbage bytes can never dlopen successfully"),
+            Err(e) => e,
+        };
+        let msg = err.to_string();
+        assert!(
+            msg.contains("loading root module"),
+            "a matching checksum must not block loading; expected to reach Loader::load, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn wrong_hash_refuses_before_any_dylib_resolution() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let wrong = "0".repeat(64);
+        let registry = registry_with_entry(dir.path(), Some(&wrong));
+        let err = match load_code_plugin(&registry, "checksum-demo") {
+            Ok(_) => panic!("a wrong checksum must refuse to load"),
+            Err(e) => e,
+        };
+        match err {
+            LoadError::ChecksumMismatch(inner) => {
+                assert_eq!(inner.id, "checksum-demo");
+                assert_eq!(inner.expected, wrong);
+                assert_eq!(inner.actual, artifact_hash(ARTIFACT_BYTES));
+            }
+            other => panic!(
+                "expected ChecksumMismatch (refused before Loader::load), got: {other} \
+                 -- if this names 'loading root module', the gate ran AFTER dlopen \
+                 resolution instead of before it"
+            ),
+        }
     }
 }
