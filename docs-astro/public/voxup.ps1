@@ -9,7 +9,9 @@
 # Usage (local dev):
 #   .\scripts\install.ps1
 [CmdletBinding()]
-param()
+param(
+    [switch]$NoModifyPath
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -99,10 +101,12 @@ try {
         Write-Fail "voxup.exe not found after extraction in $TmpDir"
     }
 
-    Write-Step "Running: voxup install default"
-    & $VoxupExe install default
+    $installArgs = @('install', 'default')
+    if ($NoModifyPath) { $installArgs += '--no-modify-path' }
+    Write-Step "Running: voxup $($installArgs -join ' ')"
+    & $VoxupExe @installArgs
     if ($LASTEXITCODE -ne 0) {
-        Write-Fail "voxup install default exited with code $LASTEXITCODE"
+        Write-Fail "voxup $($installArgs -join ' ') exited with code $LASTEXITCODE"
     }
 } finally {
     Remove-Item -Recurse -Force $TmpDir -ErrorAction SilentlyContinue
