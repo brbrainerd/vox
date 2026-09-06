@@ -4,6 +4,7 @@ description: "Frozen hand-curated architecture/research index. Not a completenes
 category: "archive"
 status: "archived"
 training_eligible: false
+archived_date: 2026-09-06
 ---
 
 # research-index — retired 2026-09
