@@ -2,7 +2,7 @@
 title: "True workflow durability: corrected design"
 description: "Audit-corrected design for making Vox workflow replay real — execute the workflow body in the interpreter, intercept activity calls, journal real results."
 category: "Architecture SSOTs"
-status: "planned"
+status: "roadmap"
 ---
 
 # True workflow durability: corrected design
