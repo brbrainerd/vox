@@ -102,19 +102,13 @@ fn speech_audit_docs_are_published_and_indexed() {
         let raw =
             fs::read_to_string(&abs).unwrap_or_else(|e| panic!("read {}: {e}", abs.display()));
         assert!(raw.contains("title:"), "{rel} must have frontmatter title");
-        // Note: `last_updated` is intentionally NOT hand-authored in frontmatter —
-        // the doc pipeline derives it from Git history (see AGENTS.md §Auto-generated
-        // documentation files). Asserting its presence in the raw source is wrong.
-    }
-
-    let index_path = root.join("docs/src/architecture/research-index.md");
-    let index = fs::read_to_string(&index_path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", index_path.display()));
-    for rel in required_docs {
-        let file_name = rel.rsplit('/').next().expect("file name");
         assert!(
-            index.contains(file_name),
-            "research-index.md must link {file_name}"
+            raw.contains("category:"),
+            "{rel} must have frontmatter category so Starlight sidebar.mjs collectPages() lists it"
+        );
+        assert!(
+            !rel.contains("/archive/"),
+            "{rel} must stay in the live docs tree, not docs/src/archive/"
         );
     }
 }
