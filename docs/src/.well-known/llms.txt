@@ -15,9 +15,9 @@
 - [Secrets (Secret Management)](https://voxlang.org/reference/secrets-ssot/): API keys and credentials
 
 ## Architecture Authority
-- [Research Index](https://voxlang.org/architecture/research-index/): Architecture and research document map (hand-maintained)
 - [Where things live](https://voxlang.org/architecture/where-things-live/): Concept → crate lookup table
 - [Classification SSOT](https://voxlang.org/architecture/classification-ssot-2026/): Canonical surface classifications
+- [Contributor Hub](https://voxlang.org/contributors/contributor-hub/): Start here; Architecture SSOTs are listed in the Starlight sidebar
 
 ## Contributor Hub
 - [Contributor Hub](https://voxlang.org/contributors/contributor-hub/): Entry point for contributors

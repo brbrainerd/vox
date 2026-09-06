@@ -21,7 +21,7 @@ training_rationale: "Project architecture context."
 ## Research storage
 - Research findings → `docs/src/architecture/`
 - Naming: `*-research-2026.md` or `*-findings-2026.md`
-- After writing, update `docs/src/architecture/research-index.md`
+- After writing, set frontmatter (`title`, `description`, `category`, `status`). Do not edit `research-index.md` (retired).
 
 ## Archive prohibition
 - Do NOT read or modify files in `docs/src/archive/` for new work
