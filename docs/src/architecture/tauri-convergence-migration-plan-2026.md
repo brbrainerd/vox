@@ -205,7 +205,7 @@ vox doc-pipeline --mode linkcheck docs/src/adr/037-tauri-convergence.md
 1. Create the plan with frontmatter matching other architecture roadmaps.
 2. Include phases 0 through 8 and all `TASK-N.M` headings.
 3. Include the three-layer retirement marker convention.
-4. Cross-link the new plan from the research index and audit.
+4. Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.
 5. Keep this document actionable: every task must include files, steps, verification, acceptance, and do-not lists.
 
 **Verification commands**:
