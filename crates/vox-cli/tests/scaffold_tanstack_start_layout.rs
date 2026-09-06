@@ -27,6 +27,13 @@ fn tanstack_start_with_route_manifest_uses_file_route_fallback() {
 
     frontend::scaffold_react_app(&app, &ts_out, true).expect("scaffold");
 
+    let workspace =
+        fs::read_to_string(app.join("pnpm-workspace.yaml")).expect("pnpm-workspace.yaml");
+    assert!(
+        workspace.contains("allowBuilds:") && workspace.contains("esbuild: true"),
+        "scaffold must emit pnpm 11 allowBuilds for esbuild, got:\n{workspace}"
+    );
+
     let components = fs::read_to_string(app.join("components.json")).expect("components.json");
     assert!(
         components.contains("\"rsc\": false"),

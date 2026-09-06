@@ -395,6 +395,10 @@ pub enum CiCmd {
     /// Always fails on a violation.
     #[command(name = "toolchain-workflow-lint")]
     ToolchainWorkflowLint,
+    /// Require every workflow's Node and pnpm pins to match
+    /// `contracts/toolchain/workspace-toolchain.v1.yaml`. Always fails.
+    #[command(name = "node-pnpm-ssot-guard")]
+    NodePnpmSsotGuard,
     /// Forbid an `actions/cache` key that hashes `Cargo.lock` without also
     /// keying on the Rust toolchain. Always fails on a violation.
     #[command(name = "cache-key-lint")]

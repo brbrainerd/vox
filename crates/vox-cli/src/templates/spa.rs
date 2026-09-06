@@ -166,6 +166,25 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     )
 }
 
+/// `pnpm-workspace.yaml` for a generated Vite app.
+///
+/// pnpm 11 blocks dependency build scripts unless they are listed in
+/// `allowBuilds`. Vite pulls in `esbuild`, whose postinstall fetches the
+/// platform binary; without this file a scaffolded `pnpm install` exits
+/// non-zero with `ERR_PNPM_IGNORED_BUILDS` and the generated app never
+/// builds. Mirrors `crates/vox-gui/ui/pnpm-workspace.yaml`.
+pub fn pnpm_workspace_yaml() -> &'static str {
+    r#"packages:
+  - '.'
+
+# esbuild ships a postinstall that fetches its platform binary. pnpm 11
+# blocks dependency build scripts unless they are explicitly allowed;
+# without this the binary is never materialized and `pnpm run build` fails.
+allowBuilds:
+  esbuild: true
+"#
+}
+
 /// Base stylesheet for the generated dark-theme app shell.
 pub fn index_css() -> &'static str {
     r#"/* Vox Generated App — Dark Theme Design System */
@@ -443,5 +462,12 @@ mod tests {
     fn components_json_shadcn_client_disables_rsc() {
         let j = components_json_shadcn_client();
         assert!(j.contains("\"rsc\": false"), "{j}");
+    }
+
+    #[test]
+    fn pnpm_workspace_yaml_allows_esbuild() {
+        let yaml = pnpm_workspace_yaml();
+        assert!(yaml.contains("allowBuilds:"), "{yaml}");
+        assert!(yaml.contains("esbuild: true"), "{yaml}");
     }
 }

@@ -125,6 +125,11 @@ pub fn scaffold_react_app(
     let vite = templates::vite_config(port, tanstack_start);
 
     std::fs::write(app_dir.join("package.json"), pkg).context("Failed to write package.json")?;
+    std::fs::write(
+        app_dir.join("pnpm-workspace.yaml"),
+        templates::pnpm_workspace_yaml(),
+    )
+    .context("Failed to write pnpm-workspace.yaml")?;
     std::fs::write(app_dir.join("vite.config.ts"), vite)
         .context("Failed to write vite.config.ts")?;
     std::fs::write(app_dir.join("tsconfig.json"), templates::tsconfig_json())
@@ -219,44 +224,58 @@ pub fn scaffold_react_app(
     Ok(())
 }
 
+/// Format captured subprocess streams so a failed `pnpm` invocation surfaces
+/// the real error instead of a one-line "pnpm install failed".
+pub fn format_process_output(output: &std::process::Output) -> String {
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    format!("--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}")
+}
+
+/// Run `pnpm` in `app_dir`, capturing both streams. On failure the returned
+/// error includes the exit status and the captured output.
+pub fn run_pnpm(app_dir: &Path, args: &[&str], fail_label: &str) -> Result<()> {
+    let pnpm = pnpm_executable();
+    let output = std::process::Command::new(pnpm)
+        .args(args)
+        .current_dir(app_dir)
+        .output()
+        .with_context(|| {
+            format!(
+                "Failed to run {pnpm} {}. Is Node.js and pnpm installed?",
+                args.join(" ")
+            )
+        })?;
+    if !output.status.success() {
+        let text = format_process_output(&output);
+        eprint!("{text}");
+        anyhow::bail!("{fail_label} (exit {}):\n{text}", output.status);
+    }
+    Ok(())
+}
+
 /// Run pnpm install and build in the scaffolded project.
 pub fn npm_install_and_build(app_dir: &Path) -> Result<()> {
-    let pnpm = pnpm_executable();
-
     if !app_dir.join("node_modules").exists() {
         println!("  Installing pnpm dependencies...");
-        let status = std::process::Command::new(pnpm)
-            .args(["install", "--prefer-offline"])
-            .current_dir(app_dir)
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::inherit())
-            .status()
-            .context("Failed to run pnpm install. Is Node.js and pnpm installed?")?;
-        if !status.success() {
-            anyhow::bail!("pnpm install failed");
-        }
+        run_pnpm(
+            app_dir,
+            &["install", "--prefer-offline"],
+            "pnpm install failed",
+        )?;
     }
 
-    try_pnpm_routes_gen(app_dir, pnpm)?;
+    try_pnpm_routes_gen(app_dir)?;
 
     println!("  Building frontend assets...");
-    let build_status = std::process::Command::new(pnpm)
-        .args(["run", "build"])
-        .current_dir(app_dir)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::inherit())
-        .status()
-        .context("Failed to build frontend")?;
-    if !build_status.success() {
-        anyhow::bail!("Frontend build failed");
-    }
+    run_pnpm(app_dir, &["run", "build"], "Frontend build failed")?;
 
     Ok(())
 }
 
 /// When the app uses TanStack file routes (not programmatic `voxRouteTree` re-export), run
 /// **`pnpm run routes:gen`** so `routeTree.gen.ts` matches `src/routes/**` (TanStack Router CLI).
-fn try_pnpm_routes_gen(app_dir: &Path, pnpm: &str) -> Result<()> {
+fn try_pnpm_routes_gen(app_dir: &Path) -> Result<()> {
     let route_tree = app_dir.join("src").join("routeTree.gen.ts");
     if !route_tree.is_file() {
         return Ok(());
@@ -276,16 +295,35 @@ fn try_pnpm_routes_gen(app_dir: &Path, pnpm: &str) -> Result<()> {
         return Ok(());
     }
     println!("  Regenerating TanStack route tree (pnpm run routes:gen)...");
-    let status = std::process::Command::new(pnpm)
-        .args(["run", "routes:gen"])
-        .current_dir(app_dir)
-        .stderr(std::process::Stdio::inherit())
-        .status()
-        .context("Failed to run pnpm run routes:gen. Is @tanstack/router-cli installed?")?;
-    if !status.success() {
-        anyhow::bail!("pnpm run routes:gen failed");
-    }
+    run_pnpm(
+        app_dir,
+        &["run", "routes:gen"],
+        "pnpm run routes:gen failed",
+    )?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_process_output_includes_both_streams() {
+        let probed = std::process::Command::new(env!("CARGO"))
+            .arg("--version")
+            .output()
+            .expect("cargo --version");
+        let output = std::process::Output {
+            status: probed.status,
+            stdout: b"OUT-PAYLOAD".to_vec(),
+            stderr: b"ERR-PAYLOAD".to_vec(),
+        };
+        let text = format_process_output(&output);
+        assert!(text.contains("OUT-PAYLOAD"), "{text}");
+        assert!(text.contains("ERR-PAYLOAD"), "{text}");
+        assert!(text.contains("--- stdout ---"), "{text}");
+        assert!(text.contains("--- stderr ---"), "{text}");
+    }
 }
 
 /// Copy built static assets from Vite output to the backend's public directory.

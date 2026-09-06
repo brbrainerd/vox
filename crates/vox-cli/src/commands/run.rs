@@ -247,32 +247,15 @@ fn build_frontend(generated_ts_dir: &Path) -> Result<()> {
     }
     if !node_modules.exists() {
         println!("  Installing frontend dependencies (pnpm)...");
-        let status = Command::new(pnpm)
-            .args(["install", "--prefer-offline"])
-            .current_dir(&app_dir)
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::inherit())
-            .status()
-            .context("Failed to run pnpm install. Is pnpm on PATH?")?;
-
-        if !status.success() {
-            anyhow::bail!("pnpm install failed");
-        }
+        crate::frontend::run_pnpm(
+            &app_dir,
+            &["install", "--prefer-offline"],
+            "pnpm install failed",
+        )?;
     }
 
-    // pnpm run build
     println!("  Building frontend assets...");
-    let status = Command::new(pnpm)
-        .args(["run", "build"])
-        .current_dir(&app_dir)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::inherit())
-        .status()
-        .context("Failed to build frontend")?;
-
-    if !status.success() {
-        anyhow::bail!("Frontend build failed");
-    }
+    crate::frontend::run_pnpm(&app_dir, &["run", "build"], "Frontend build failed")?;
 
     // Copy built assets to target/generated/public/
     let public_dir = Path::new("target").join("generated").join("public");

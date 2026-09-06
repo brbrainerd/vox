@@ -831,6 +831,12 @@ jobs:
       - name: Toolchain Workflow Lint (all Rust installs via setup-rust)
         run: ./target/debug/vox --quiet ci toolchain-workflow-lint
 
+      # Same contract as toolchain-ssot, for the two JS pins the SSOT already
+      # declares. Without this, `versions.node` / `versions.pnpm` can lie
+      # indefinitely while every workflow installs something else.
+      - name: Node/pnpm SSoT Guard (workflows match workspace-toolchain.v1.yaml)
+        run: ./target/debug/vox --quiet ci node-pnpm-ssot-guard
+
       - name: Cache Key Lint
         run: ./target/debug/vox --quiet ci cache-key-lint
 
@@ -1563,6 +1569,13 @@ jobs:
         with:
           components: rustfmt, clippy
           cache: "false"
+      # Workflow-level `RUSTC_WRAPPER: sccache` is for the self-hosted image,
+      # which ships the binary. The hosted macOS runner does not, and this
+      # job never installs mozilla-actions/sccache-action — rustc then fails
+      # with "could not execute process `sccache` (os error 2)".
+      - name: Clear sccache wrapper on hosted macOS
+        if: runner.os == 'macOS'
+        run: echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - uses: actions/cache@v5
         with:
           path: |

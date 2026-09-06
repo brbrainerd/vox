@@ -52,6 +52,7 @@ ci/build-bench
 ci/build-cache-doctor
 ci/build-docs
 ci/build-timings
+ci/cache-key-lint
 ci/canonical-map-verify
 ci/capability-snapshot
 ci/capability-sync
@@ -142,6 +143,7 @@ ci/model-routing-check
 ci/no-dei-import
 ci/no-plugin-cdylib-as-compile-dep
 ci/no-tauri-in-core
+ci/node-pnpm-ssot-guard
 ci/nomenclature-guard
 ci/openclaw-contract
 ci/operations-sync
@@ -165,7 +167,9 @@ ci/profile-parity
 ci/query-all-guard
 ci/queue
 ci/release-build
+ci/release-draft-guard
 ci/repo-guards
+ci/required-context-guard
 ci/retired-symbol-check
 ci/retirement-audit
 ci/row-serde-lint
@@ -202,6 +206,8 @@ ci/tier-budget-check
 ci/toestub-budget
 ci/toestub-scoped
 ci/toestub-self-apply
+ci/toolchain-ssot
+ci/toolchain-workflow-lint
 ci/turso-import-guard
 ci/vox-parse-check
 ci/watch-run
@@ -387,6 +393,7 @@ model/costs
 model/council-report
 model/discover
 model/eval
+model/eval-corpus
 model/explain
 model/list
 model/preferences

@@ -1,8 +1,11 @@
 schema: vox.workspace.toolchain.v1
 versions:
   rust: "1.98.1"
-  node: "22.0.0"
-  pnpm: "9.1.0"
+  # Majors only — every workflow pins `node-version: 24` / `version: 11`.
+  # The previous 22.0.0 / 9.1.0 values were stale: CI has installed 24 / 11
+  # since the pnpm-11 allowBuilds migration, with nothing enforcing it.
+  node: "24"
+  pnpm: "11"
   cuda: "12.1"
 targets:
   rust:

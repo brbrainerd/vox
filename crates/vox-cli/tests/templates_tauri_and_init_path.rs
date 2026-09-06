@@ -17,6 +17,19 @@ fn tauri_packaging_readme_path_is_project_root_not_target_generated() {
 }
 
 #[test]
+fn pnpm_workspace_yaml_allows_esbuild_builds() {
+    let yaml = templates::pnpm_workspace_yaml();
+    assert!(
+        yaml.contains("allowBuilds:"),
+        "generated pnpm-workspace.yaml must declare allowBuilds:\n{yaml}"
+    );
+    assert!(
+        yaml.contains("esbuild: true"),
+        "generated pnpm-workspace.yaml must allow esbuild's postinstall:\n{yaml}"
+    );
+}
+
+#[test]
 fn spa_package_json_includes_tauri_apps_api_spa_and_tanstack_start() {
     for (label, json_str) in [
         ("spa", templates::package_json(false, false)),
