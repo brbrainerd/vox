@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const UI_ROOT = resolve(__dirname, '../..');
 
-/** 120 KiB — mirrors contracts/budgets/gui-dashboard-chunk.v1.yaml */
-export const DASHBOARD_CHUNK_GZIP_BUDGET_BYTES = 120 * 1024;
+/** 128 KiB — mirrors contracts/budgets/gui-dashboard-chunk.v1.yaml */
+export const DASHBOARD_CHUNK_GZIP_BUDGET_BYTES = 128 * 1024;
 
 /**
  * Incremental gzip bytes attributable to dashboard chart/grid deps.

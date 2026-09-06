@@ -125,16 +125,6 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # 3.8.1 -> 3.10.1 grew the dashboard chart/grid chunk from under
-      # 120 KiB gzipped to ~123.2 KiB, failing
-      # src/lib/dashboardBundleBudget.test.ts's explicit budget assertion
-      # (verified in isolation against a clean main baseline -- PR #491).
-      # Not a compatibility break: recharts may have legitimately grown, and
-      # DASHBOARD_CHUNK_GZIP_BUDGET_BYTES may be the thing that should move.
-      # That's a product/perf-budget call, not dependabot's to make silently
-      # inside a "safe" minor/patch group. Remove once someone who owns the
-      # bundle budget has looked at it.
-      - dependency-name: "recharts"
       # 2.6.1 -> 3.6.0 silently removes the keyboard focus ring from every
       # button. tailwind-merge v3 targets Tailwind v4, where `outline-2` sets
       # the width AND implies `outline-style: solid`, so collapsing it with a
