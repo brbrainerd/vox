@@ -105,7 +105,7 @@ export function ChatModelPicker({
               role="option"
               aria-selected={activeModel == null}
               onClick={() => apply(null, false)}
-              className="w-full truncate rounded px-2 py-1 text-left font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
+              className="w-full truncate rounded-sm px-2 py-1 text-left font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
             >
               auto-route (clear override)
             </button>

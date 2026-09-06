@@ -37,7 +37,7 @@ export function WidgetPickerDrawer({ layout, open, onClose, onAdd, onAddSurface 
     <div
       role="dialog"
       aria-label="Add dashboard widget"
-      className="absolute right-5 top-10 z-30 w-72 rounded-lg border border-border-subtle bg-bg-base/95 p-3 shadow-xl backdrop-blur"
+      className="absolute right-5 top-10 z-30 w-72 rounded-lg border border-border-subtle bg-bg-base/95 p-3 shadow-xl backdrop-blur-sm"
     >
       <div className="mb-2 flex items-center justify-between">
         <h3 className="font-display text-[12px] font-semibold tracking-wide text-text-secondary">
@@ -47,7 +47,7 @@ export function WidgetPickerDrawer({ layout, open, onClose, onAdd, onAddSurface 
           type="button"
           aria-label="Close widget picker"
           onClick={onClose}
-          className="rounded px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary"
+          className="rounded-sm px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary"
         >
           ✕
         </button>

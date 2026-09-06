@@ -433,7 +433,7 @@ function MarketplaceTab(props: {
             onKeyDown={(e) => e.key === 'Enter' && runSearch()}
             placeholder="Search for skills…"
             aria-label="Search for skills"
-            className="flex-1 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brass/40"
+            className="flex-1 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-hidden focus:ring-1 focus:ring-brass/40"
           />
           <button
             type="button"
@@ -514,7 +514,7 @@ function DiscoveredTab(props: {
             onKeyDown={(e) => e.key === 'Enter' && onAdd()}
             placeholder="https://github.com/owner/repo  or  C:/path/to/skill"
             aria-label="Skill git URL or path"
-            className="flex-1 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brass/40"
+            className="flex-1 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-hidden focus:ring-1 focus:ring-brass/40"
           />
           <button
             type="button"
@@ -614,12 +614,12 @@ function Row(props: {
           <span className="font-mono text-xs text-brass">{title}</span>
           {version ? <span className="font-mono text-[10px] text-text-muted">{version}</span> : null}
         </div>
-        {subtitle ? <div className="mt-1 break-words text-xs text-text-secondary">{subtitle}</div> : null}
+        {subtitle ? <div className="mt-1 wrap-break-word text-xs text-text-secondary">{subtitle}</div> : null}
         <div className="mt-1 font-mono text-[10px] text-text-muted break-all">{id}</div>
         {tags && tags.length > 0 ? (
           <div className="mt-1.5 flex flex-wrap gap-1">
             {tags.filter(Boolean).map((t, i) => (
-              <span key={`${t}-${i}`} className="rounded bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-muted">
+              <span key={`${t}-${i}`} className="rounded-sm bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-muted">
                 {t}
               </span>
             ))}

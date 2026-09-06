@@ -32,12 +32,12 @@ export class WidgetErrorBoundary extends React.Component<WidgetErrorBoundaryProp
         <div
           data-testid="widget-error-tile"
           role="alert"
-          className="flex h-full min-h-0 flex-col gap-1 overflow-hidden rounded-lg border border-[var(--color-status-fail)]/30 bg-[var(--color-status-fail)]/[0.06] p-3"
+          className="flex h-full min-h-0 flex-col gap-1 overflow-hidden rounded-lg border border-(--color-status-fail)/30 bg-(--color-status-fail)/6 p-3"
         >
-          <span className="font-display text-[11px] uppercase tracking-[0.18em] text-[var(--color-status-fail)]">
+          <span className="font-display text-[11px] uppercase tracking-[0.18em] text-(--color-status-fail)">
             {this.props.label} · widget error
           </span>
-          <span className="font-mono text-[10px] text-text-muted break-words">{error.message}</span>
+          <span className="font-mono text-[10px] text-text-muted wrap-break-word">{error.message}</span>
         </div>
       );
     }

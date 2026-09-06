@@ -18,7 +18,7 @@ export function AchievementToast({ title, body, autoDismissMs, onDismiss }: Achi
 
   return (
     <Glass className="pointer-events-auto flex items-start gap-2 p-3 shadow-lg">
-      <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded bg-brass/15 text-brass">
+      <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-sm bg-brass/15 text-brass">
         <Icon.spark className="size-3.5" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1 leading-tight">

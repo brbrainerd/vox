@@ -9,7 +9,7 @@ import {
 } from '../../../hooks/useHudTiles';
 
 const BTN =
-  'rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40';
+  'rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40';
 
 interface HudTilesEditorProps {
   config: HudTilesConfig;
@@ -39,7 +39,7 @@ export function HudTilesEditor({ config, onChange }: HudTilesEditorProps) {
                 checked={tile.enabled}
                 aria-label={HUD_TILE_LABELS[tile.kind]}
                 onChange={(e) => onChange(toggleHudTile(config, tile.id, e.target.checked))}
-                className="size-4 rounded border-white/20 bg-black/30 accent-[rgb(var(--brass))]"
+                className="size-4 rounded-sm border-white/20 bg-black/30 accent-[rgb(var(--brass))]"
               />
               <span className="font-display text-[12px] text-text-secondary">
                 {HUD_TILE_LABELS[tile.kind]}
@@ -73,7 +73,7 @@ export function HudTilesEditor({ config, onChange }: HudTilesEditorProps) {
       <button
         type="button"
         onClick={() => onChange(defaultHudTiles())}
-        className="mt-4 rounded border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
+        className="mt-4 rounded-sm border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
       >
         Reset to defaults
       </button>

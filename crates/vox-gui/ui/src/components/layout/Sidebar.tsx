@@ -176,7 +176,7 @@ export function Sidebar({
       <Glass className="flex h-full flex-col p-3 rounded-none border-y-0 border-l-0">
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} pb-3 shrink-0`}>
           {collapsed && (
-            <div className="grid size-6 place-items-center rounded-md bg-white/[0.04] ring-1 ring-brass/40 shrink-0">
+            <div className="grid size-6 place-items-center rounded-md bg-white/4 ring-1 ring-brass/40 shrink-0">
               <AxisMark className="size-4 text-brass" />
             </div>
           )}
@@ -217,7 +217,7 @@ export function Sidebar({
                 <span className="flex-1 min-w-0 text-left font-display text-[12px] tracking-[0.12em] uppercase whitespace-nowrap overflow-hidden text-ellipsis">
                   Search
                 </span>
-                <span className="rounded border border-border-subtle bg-overlay-subtle px-1 text-[9px] tracking-widest text-text-muted">⌘K</span>
+                <span className="rounded-sm border border-border-subtle bg-overlay-subtle px-1 text-[9px] tracking-widest text-text-muted">⌘K</span>
               </>
             )}
           </button>
@@ -294,7 +294,7 @@ export function Sidebar({
                         type="button"
                         onClick={() => onOpenTab(childKey)}
                         aria-current={view === childKey ? 'page' : undefined}
-                        className={`w-full rounded-lg px-2 py-1.5 text-left font-display text-[11px] tracking-[0.1em] uppercase transition ${
+                        className={`w-full rounded-lg px-2 py-1.5 text-left font-display text-[11px] tracking-widest uppercase transition ${
                           view === childKey
                             ? 'bg-brass/10 text-brass'
                             : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
@@ -343,7 +343,7 @@ export function Sidebar({
           )}
 
           <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2 px-2"} pb-1 pt-1`}>
-            <div className="relative size-7 shrink-0 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500">
+            <div className="relative size-7 shrink-0 rounded-full bg-linear-to-br from-violet-500 to-cyan-500">
               <span
                 data-testid="sidebar-orch-freshness-dot"
                 aria-hidden="true"

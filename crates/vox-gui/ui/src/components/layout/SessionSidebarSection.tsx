@@ -60,7 +60,7 @@ function SessionRow({
         onChange={e => setDraft(e.target.value)}
         onBlur={() => { setEditing(false); if (draft.trim() && draft !== s.title) onRenameSession(s.session_id, draft.trim()); }}
         onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { setDraft(s.title); setEditing(false); } }}
-        className="w-full rounded px-2 py-1 text-[12px] bg-overlay-subtle"
+        className="w-full rounded-sm px-2 py-1 text-[12px] bg-overlay-subtle"
       />
     );
   }
@@ -69,8 +69,8 @@ function SessionRow({
     <div role="tab" aria-selected={isActive}
          onClick={() => onSessionChange(s.session_id)}
          onDoubleClick={() => setEditing(true)}
-         className="flex items-center justify-between rounded px-2 py-1 text-[12px] cursor-pointer hover:bg-overlay-hover group">
-      <span title={s.title} className="line-clamp-2 break-words">{s.title}</span>
+         className="flex items-center justify-between rounded-sm px-2 py-1 text-[12px] cursor-pointer hover:bg-overlay-hover group">
+      <span title={s.title} className="line-clamp-2 wrap-break-word">{s.title}</span>
       <span className="flex items-center gap-1 shrink-0">
         {hasPendingIssue && (
           <span
@@ -182,7 +182,7 @@ export function SessionSidebarSection({
         <div key={`archived-${repo}`} className="opacity-60">
           <div className="px-2 pt-1 pb-0.5 text-[10px] uppercase tracking-wide text-text-muted">{repo} (archived)</div>
           {groupSessions.map(s => (
-            <div key={s.session_id} className="flex items-center justify-between rounded px-2 py-1 text-[12px]">
+            <div key={s.session_id} className="flex items-center justify-between rounded-sm px-2 py-1 text-[12px]">
               <span className="truncate">{s.title}</span>
               <button type="button" onClick={() => onUnarchiveSession(s.session_id)} className="text-[10px] text-accent-secondary">
                 Unarchive

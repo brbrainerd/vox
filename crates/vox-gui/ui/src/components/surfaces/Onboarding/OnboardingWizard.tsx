@@ -173,7 +173,7 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby={WIZARD_HEADING_ID} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
+    <div role="dialog" aria-modal="true" aria-labelledby={WIZARD_HEADING_ID} className="fixed inset-0 z-70 flex items-center justify-center bg-black/60">
       <div className="max-w-lg w-full rounded-xl border border-border-subtle bg-bg-base p-6 shadow-2xl">
         {screen === 'entry' && (
           <>

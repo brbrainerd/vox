@@ -79,7 +79,7 @@ function HitCard({
       className={`group flex items-start gap-3 rounded-md border border-border-subtle bg-overlay-subtle p-3 hover:border-white/15 transition ${isOpenable ? 'cursor-pointer' : ''}`}
       onClick={isOpenable ? onOpen : undefined}
     >
-      <div className="flex size-7 shrink-0 items-center justify-center rounded bg-overlay-subtle text-text-muted">
+      <div className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-overlay-subtle text-text-muted">
         {kindIcon[hit.kind] ?? <Icon.file className="size-3.5" />}
       </div>
       <div className="flex-1 min-w-0">
@@ -93,7 +93,7 @@ function HitCard({
         <div className="mt-1 text-[12px] leading-relaxed text-text-secondary line-clamp-2">
           {segments.map((seg, i) =>
             seg.mark ? (
-              <mark key={i} className="bg-brass/20 text-brass rounded px-0.5">{seg.text}</mark>
+              <mark key={i} className="bg-brass/20 text-brass rounded-sm px-0.5">{seg.text}</mark>
             ) : (
               <span key={i}>{seg.text}</span>
             )
@@ -103,7 +103,7 @@ function HitCard({
       <div className="flex flex-col items-end gap-1">
         <div className="h-1 w-16 overflow-hidden rounded-full bg-overlay-subtle">
           <div
-            className="h-full bg-gradient-to-r from-violet-400 to-emerald-400"
+            className="h-full bg-linear-to-r from-violet-400 to-emerald-400"
             style={{ width: `${hit.score * 100}%` }}
           />
         </div>
@@ -112,7 +112,7 @@ function HitCard({
             <button
               type="button"
               onClick={e => { e.stopPropagation(); onOpen(); }}
-              className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-secondary hover:bg-overlay-subtle"
+              className="rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-secondary hover:bg-overlay-subtle"
             >
               <Icon.link aria-hidden="true" className="size-2.5 inline mr-0.5" />open
             </button>
@@ -120,7 +120,7 @@ function HitCard({
           <button
             type="button"
             onClick={e => { e.stopPropagation(); onPin(); }}
-            className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-secondary hover:bg-overlay-subtle"
+            className="rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-secondary hover:bg-overlay-subtle"
           >
             <Icon.pin aria-hidden="true" className="size-2.5 inline mr-0.5" />pin
           </button>
@@ -348,14 +348,14 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
             onKeyDown={e => e.key === 'Enter' && recall()}
             aria-label="Recall query"
             placeholder="Recall… e.g. 'ed25519 invariants', 'checkpoint stall'"
-            className="flex-1 bg-transparent text-[13px] text-text-primary placeholder:text-text-muted outline-none"
+            className="flex-1 bg-transparent text-[13px] text-text-primary placeholder:text-text-muted outline-hidden"
           />
           <span className="font-mono text-[10px] text-text-muted">top</span>
           <input
             type="number" min={1} max={50} value={topK}
             onChange={e => setTopK(parseInt(e.target.value) || 8)}
             aria-label="Number of top hits"
-            className="w-12 rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 text-center font-mono text-[11px] text-text-secondary outline-none"
+            className="w-12 rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 text-center font-mono text-[11px] text-text-secondary outline-hidden"
           />
           <button
             type="button"
@@ -455,7 +455,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           {recalling &&
             Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-12 rounded-md border border-border-subtle bg-overlay-subtle relative overflow-hidden">
-                <span className="absolute inset-0 -translate-x-full animate-vox-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+                <span className="absolute inset-0 -translate-x-full animate-vox-shimmer bg-linear-to-r from-transparent via-white/5 to-transparent" />
               </div>
             ))}
           {!recalling && hits.length === 0 && (
@@ -513,8 +513,8 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                       <div
                         key={s.id}
                         className={`rounded-xl border p-3 transition hover:border-white/15 ${
-                          s.hot   ? 'border-brass/30 bg-brass/[0.04]' :
-                          s.dirty ? 'border-amber-400/30 bg-amber-400/[0.04]' :
+                          s.hot   ? 'border-brass/30 bg-brass/4' :
+                          s.dirty ? 'border-amber-400/30 bg-amber-400/4' :
                                     'border-border-subtle bg-overlay-subtle'
                         }`}
                       >
@@ -524,11 +524,11 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                           {s.dirty && <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">dirty</span>}
                         </div>
                         <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px]">
-                          <div className="rounded border border-border-subtle bg-bg-base/40 px-2 py-1.5">
+                          <div className="rounded-sm border border-border-subtle bg-bg-base/40 px-2 py-1.5">
                             <div className="uppercase tracking-widest text-text-muted">Depth</div>
                             <div className="mt-0.5 font-mono text-[11px] text-text-secondary">{s.depth}</div>
                           </div>
-                          <div className="rounded border border-border-subtle bg-bg-base/40 px-2 py-1.5">
+                          <div className="rounded-sm border border-border-subtle bg-bg-base/40 px-2 py-1.5">
                             <div className="uppercase tracking-widest text-text-muted">Entries</div>
                             <div className="mt-0.5 font-mono text-[11px] text-text-secondary">{(s.entries ?? 0).toLocaleString()}</div>
                           </div>

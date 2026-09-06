@@ -65,7 +65,7 @@ function PillList({ items }: { items: string[] }) {
       {items.map((item, i) => (
         <span
           key={`${item}-${i}`}
-          className="rounded bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass ring-1 ring-brass/20"
+          className="rounded-sm bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass ring-1 ring-brass/20"
         >
           {item}
         </span>
@@ -80,7 +80,7 @@ function SkillInfoView({ d }: { d: SkillInfoDetail }) {
       <div className="flex items-center gap-2">
         <span className="font-mono text-sm text-brass">{d.name}</span>
         <span className="font-mono text-[10px] text-text-muted">{d.version}</span>
-        <span className="rounded bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-muted ring-1 ring-border-subtle">
+        <span className="rounded-sm bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-text-muted ring-1 ring-border-subtle">
           {d.category}
         </span>
       </div>
@@ -114,7 +114,7 @@ function SkillUseView({ d }: { d: SkillUseDetail }) {
     <>
       <div className="font-mono text-sm text-brass">{d.name}</div>
       <div className="text-xs text-text-secondary">{d.description}</div>
-      <pre className="overflow-auto rounded bg-overlay-subtle p-3 font-mono text-[11px] text-text-secondary whitespace-pre-wrap">
+      <pre className="overflow-auto rounded-sm bg-overlay-subtle p-3 font-mono text-[11px] text-text-secondary whitespace-pre-wrap">
         {d.body}
       </pre>
     </>

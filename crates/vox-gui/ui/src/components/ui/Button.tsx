@@ -12,7 +12,7 @@ const VARIANT_CLASS = {
 };
 
 const SIZE_CLASS = {
-  xs: 'px-2 py-0.5 text-[10px] h-6 rounded',
+  xs: 'px-2 py-0.5 text-[10px] h-6 rounded-sm',
   sm: 'px-2.5 py-1 text-[11px] h-7 rounded-md',
   md: 'px-3.5 py-1.5 text-[13px] h-9 rounded-lg',
   lg: 'px-4.5 py-2 text-[15px] h-11 rounded-xl',
@@ -49,7 +49,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         <Slot
           ref={ref}
           className={cn(
-            "inline-flex items-center justify-center font-medium tracking-wide transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass",
+            "inline-flex items-center justify-center font-medium tracking-wide transition-all focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass",
             VARIANT_CLASS[variant],
             SIZE_CLASS[size],
             className
@@ -67,7 +67,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         type={type}
         disabled={loading || disabled}
         className={cn(
-          "inline-flex items-center justify-center font-medium tracking-wide transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass",
+          "inline-flex items-center justify-center font-medium tracking-wide transition-all focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass",
           VARIANT_CLASS[variant],
           SIZE_CLASS[size],
           className

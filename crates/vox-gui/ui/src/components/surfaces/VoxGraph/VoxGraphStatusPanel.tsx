@@ -277,8 +277,8 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
             key={c.corpus_id}
             className={`group rounded-lg border p-4 transition-all duration-200 ${
               c.is_fresh
-                ? 'border-emerald-500/10 bg-emerald-500/[0.02] hover:border-emerald-500/20'
-                : 'border-amber-500/10 bg-amber-500/[0.02] hover:border-amber-500/20'
+                ? 'border-emerald-500/10 bg-emerald-500/2 hover:border-emerald-500/20'
+                : 'border-amber-500/10 bg-amber-500/2 hover:border-amber-500/20'
             }`}
           >
             <div className="flex items-start justify-between">
@@ -334,7 +334,7 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
                     {c.stale_reasons.map((r) => (
                       <span
                         key={r}
-                        className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-mono text-amber-400"
+                        className="rounded-sm bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-mono text-amber-400"
                       >
                         {r}
                       </span>
@@ -344,7 +344,7 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
 
                 <RebuildButton corpusId={c.corpus_id} />
 
-                <div className="relative mt-2 rounded bg-zinc-950/40 p-2 border border-white/5">
+                <div className="relative mt-2 rounded-sm bg-zinc-950/40 p-2 border border-white/5">
                   <span className="text-[9px] text-zinc-500 block uppercase mb-1">Rebuild Command</span>
                   <code className="block select-all font-mono text-[10px] text-zinc-300 break-all leading-normal">
                     vox graphify rebuild --corpus {c.corpus_id}

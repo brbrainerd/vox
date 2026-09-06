@@ -157,7 +157,7 @@ function SortableWidgetCell({
       {customizeMode && (
         <button
           type="button"
-          className="absolute left-2 top-2 z-10 cursor-grab rounded border border-border-subtle bg-bg-base/80 px-1.5 py-0.5 font-mono text-[10px] text-text-muted active:cursor-grabbing"
+          className="absolute left-2 top-2 z-10 cursor-grab rounded-sm border border-border-subtle bg-bg-base/80 px-1.5 py-0.5 font-mono text-[10px] text-text-muted active:cursor-grabbing"
           aria-label={`Drag to reorder ${widget.kind}`}
           {...attributes}
           {...listeners}
@@ -168,7 +168,7 @@ function SortableWidgetCell({
       {customizeMode && (
         <button
           type="button"
-          className="absolute bottom-1 right-1 z-10 h-4 w-4 cursor-se-resize rounded-sm border border-white/20 bg-bg-base/90"
+          className="absolute bottom-1 right-1 z-10 h-4 w-4 cursor-se-resize rounded-xs border border-white/20 bg-bg-base/90"
           aria-label="Resize widget"
           onPointerDown={handleResizePointerDown}
           onPointerMove={handleResizePointerMove}

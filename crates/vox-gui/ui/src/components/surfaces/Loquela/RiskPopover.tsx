@@ -45,7 +45,7 @@ export function RiskPopover({ risk, open, onChange, onClose }: RiskPopoverProps)
           onClick={() => { onChange({ risk: p.id }); }}
           aria-pressed={risk === p.id}
           className={`mb-1 flex w-full flex-col rounded-md border px-2 py-1.5 text-left ${
-            risk === p.id ? 'border-brass/40 bg-brass/10' : 'border-white/[0.08] hover:border-white/20'
+            risk === p.id ? 'border-brass/40 bg-brass/10' : 'border-white/8 hover:border-white/20'
           }`}
         >
           <span className="font-medium capitalize">{p.label} risk</span>

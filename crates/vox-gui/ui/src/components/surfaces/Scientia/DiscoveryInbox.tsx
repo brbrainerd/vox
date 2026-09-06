@@ -245,7 +245,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                       {r.signal_codes.map((c) => (
                         <span
                           key={c}
-                          className="rounded border border-violet-400/20 bg-violet-400/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-violet-200/90"
+                          className="rounded-sm border border-violet-400/20 bg-violet-400/6 px-1.5 py-0.5 font-mono text-[10px] text-violet-200/90"
                         >
                           {c}
                         </span>

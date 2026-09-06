@@ -116,7 +116,7 @@ function AgentInspector({ node, agent }: { node: GraphNode; agent?: Agent }) {
               aria-valuemax={100}
             >
               <div
-                className="h-full bg-gradient-to-r from-violet-400 to-emerald-400 transition-all duration-700"
+                className="h-full bg-linear-to-r from-violet-400 to-emerald-400 transition-all duration-700"
                 style={{ width: `${agent.progress * 100}%` }}
               />
             </div>
@@ -170,7 +170,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
 
       <div className="relative h-[600px] w-full">
         {/* Grid background */}
-        <div className="absolute inset-0 [background-image:radial-gradient(circle_at_center,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:32px_32px] opacity-50" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-size-[32px_32px] opacity-50" />
 
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -244,7 +244,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                     onSelect?.(n.id);
                   }
                 }}
-                className="cursor-pointer focus:outline-none focus-visible:[outline:2px_solid_rgb(var(--brass))]"
+                className="cursor-pointer focus:outline-hidden focus-visible:[outline:2px_solid_rgb(var(--brass))]"
               >
                 {isRoot && <circle cx={x} cy={y} r={100} fill="url(#ag-root-glow)" />}
                 <circle

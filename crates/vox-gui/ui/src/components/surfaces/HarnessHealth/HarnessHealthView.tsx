@@ -38,7 +38,7 @@ export function HarnessHealthView() {
           {regressions.map((r) => (
             <div
               key={`${r.kind}-${r.previous_run_id}-${r.current_run_id}`}
-              className="rounded-lg border border-red-400/30 bg-red-400/[0.06] p-3 text-[12px]"
+              className="rounded-lg border border-red-400/30 bg-red-400/6 p-3 text-[12px]"
             >
               <p className="font-medium text-red-300">
                 Regression detected ({r.kind}): {r.detail}

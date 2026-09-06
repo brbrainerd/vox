@@ -16,9 +16,9 @@ const ALL_CATEGORIES = [
 const ALL_SOURCES = ['Interactive', 'Automated', 'Subagent', 'Mesh'];
 
 const BTN =
-  'rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40';
+  'rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40';
 const SEL =
-  'rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary focus:border-brass/40 focus:outline-none';
+  'rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary focus:border-brass/40 focus:outline-hidden';
 
 export function TaskPolicySection() {
   const [overrides, setOverrides] = useState<TaskPolicyOverrides>({ category: {}, source: {} });
@@ -115,7 +115,7 @@ export function TaskPolicySection() {
               </select>
               <button
                 type="button"
-                className="rounded border border-rose-500/20 bg-rose-500/[0.04] px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10"
+                className="rounded-sm border border-rose-500/20 bg-rose-500/4 px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10"
                 onClick={() => clearOverride(scopeKind, scopeKey)}
                 aria-label={`Remove override for ${scopeKey}`}
               >

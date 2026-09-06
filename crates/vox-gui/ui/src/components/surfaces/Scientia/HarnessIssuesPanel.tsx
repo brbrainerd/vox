@@ -111,7 +111,7 @@ export function HarnessIssuesPanel({ pushToast }: SurfaceDecoratorProps) {
             aria-label="Filter by status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="rounded border border-border-subtle bg-transparent px-2 py-1 text-xs text-text-secondary"
+            className="rounded-sm border border-border-subtle bg-transparent px-2 py-1 text-xs text-text-secondary"
           >
             <option value="pending">Pending</option>
             <option value="confirmed">Confirmed</option>
@@ -121,7 +121,7 @@ export function HarnessIssuesPanel({ pushToast }: SurfaceDecoratorProps) {
             aria-label="Filter by source"
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value as typeof sourceFilter)}
-            className="rounded border border-border-subtle bg-transparent px-2 py-1 text-xs text-text-secondary"
+            className="rounded-sm border border-border-subtle bg-transparent px-2 py-1 text-xs text-text-secondary"
           >
             <option value="all">All sources</option>
             <option value="chat_session">Chat sessions</option>
@@ -153,14 +153,14 @@ export function HarnessIssuesPanel({ pushToast }: SurfaceDecoratorProps) {
                   <button
                     type="button"
                     onClick={() => decide(issue, 'confirmed')}
-                    className="rounded border border-brass/30 bg-brass/10 px-2 py-1 text-xs text-brass"
+                    className="rounded-sm border border-brass/30 bg-brass/10 px-2 py-1 text-xs text-brass"
                   >
                     {issue.target_path ? 'Confirm & propose fix' : 'Confirm'}
                   </button>
                   <button
                     type="button"
                     onClick={() => decide(issue, 'dismissed')}
-                    className="rounded border border-border-subtle px-2 py-1 text-xs text-text-muted"
+                    className="rounded-sm border border-border-subtle px-2 py-1 text-xs text-text-muted"
                   >
                     Dismiss
                   </button>
@@ -173,7 +173,7 @@ export function HarnessIssuesPanel({ pushToast }: SurfaceDecoratorProps) {
                     <button
                       type="button"
                       onClick={() => retryProposeFix(issue)}
-                      className="rounded border border-brass/30 bg-brass/10 px-2 py-1 text-xs text-brass"
+                      className="rounded-sm border border-brass/30 bg-brass/10 px-2 py-1 text-xs text-brass"
                     >
                       Retry propose fix
                     </button>
@@ -196,14 +196,14 @@ export function HarnessIssuesPanel({ pushToast }: SurfaceDecoratorProps) {
                 <button
                   type="button"
                   onClick={() => resolveProposal(p.id, true)}
-                  className="rounded border border-brass/30 bg-brass/10 px-2 py-1 text-xs text-brass"
+                  className="rounded-sm border border-brass/30 bg-brass/10 px-2 py-1 text-xs text-brass"
                 >
                   Approve & apply
                 </button>
                 <button
                   type="button"
                   onClick={() => resolveProposal(p.id, false)}
-                  className="rounded border border-border-subtle px-2 py-1 text-xs text-text-muted"
+                  className="rounded-sm border border-border-subtle px-2 py-1 text-xs text-text-muted"
                 >
                   Reject
                 </button>

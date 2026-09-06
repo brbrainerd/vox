@@ -36,7 +36,7 @@ function HexCell({ intention, onSelect, selected }: { intention: RoutingIntentio
       onClick={() => onSelect(intention.id)}
       aria-pressed={selected}
       aria-label={`${intention.branch} routing axis (${intention.parent}, ${Math.round(conf * 100)}% weight, ${intention.phase})`}
-      className="group relative aspect-[1/1.05] [clip-path:polygon(50%_0,100%_25%,100%_75%,50%_100%,0_75%,0_25%)] focus:outline-none"
+      className="group relative aspect-[1/1.05] [clip-path:polygon(50%_0,100%_25%,100%_75%,50%_100%,0_75%,0_25%)] focus:outline-hidden"
       style={{ background: phaseTone.fill, boxShadow: `inset 0 0 0 1px ${phaseTone.stroke}40` }}
     >
       <div className="absolute inset-0 [clip-path:polygon(50%_0,100%_25%,100%_75%,50%_100%,0_75%,0_25%)] opacity-60" style={{ background: `radial-gradient(circle at center, ${phaseTone.glow}33, transparent 70%)` }} />
@@ -142,9 +142,9 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
           {Object.entries(groups).map(([parent, items]) => (
             <div key={parent}>
               <div className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted">
-                <span className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                <span className="h-px flex-1 bg-linear-to-r from-white/10 to-transparent" />
                 <span className="text-text-muted">{parent}</span>
-                <span className="h-px flex-1 bg-gradient-to-l from-white/10 to-transparent" />
+                <span className="h-px flex-1 bg-linear-to-l from-white/10 to-transparent" />
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {items.map(i => <HexCell key={i.id} intention={i} onSelect={setSel} selected={sel === i.id} />)}
@@ -175,7 +175,7 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
               aria-valuemax={100}
               aria-label={`${active.branch} routing weight`}
             >
-              <div className="h-full rounded-full bg-gradient-to-r from-violet-400 via-cyan-400 to-emerald-400" style={{ width: `${active.conf*100}%` }} />
+              <div className="h-full rounded-full bg-linear-to-r from-violet-400 via-cyan-400 to-emerald-400" style={{ width: `${active.conf*100}%` }} />
             </div>
           </div>
           <div className="mt-4 flex gap-2">

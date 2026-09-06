@@ -257,7 +257,7 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
                     type="button"
                     disabled={busy === p.id}
                     onClick={() => toggleTrust(p)}
-                    className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+                    className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
                   >{isTrusted ? 'untrust' : 'trust'}</button>
                 </div>
               </div>
@@ -332,7 +332,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
               type="button"
               disabled={rotating}
               onClick={rotate}
-              className="mt-3 rounded border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+              className="mt-3 rounded-sm border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
             >{rotating ? 'working…' : 'create identity'}</button>
           </div>
         ) : (
@@ -350,7 +350,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
                 type="button"
                 disabled={rotating}
                 onClick={rotate}
-                className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+                className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
               >{rotating ? 'rotating…' : 'rotate'}</button>
             </div>
           </div>
@@ -576,19 +576,19 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
           placeholder="Paste new value…"
           value={drafts[r.canonicalEnv] ?? ''}
           onChange={e => setDrafts(d => ({ ...d, [r.canonicalEnv]: e.target.value }))}
-          className="flex-1 rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
+          className="flex-1 rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
         />
         <button
           type="button"
           disabled={!drafts[r.canonicalEnv] || busy === r.canonicalEnv}
           onClick={() => save(r.canonicalEnv)}
-          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+          className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
         >save</button>
         <button
           type="button"
           disabled={!r.isPresent || busy === r.canonicalEnv}
           onClick={() => remove(r.canonicalEnv)}
-          className="rounded border border-rose-500/20 bg-rose-500/[0.04] px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
+          className="rounded-sm border border-rose-500/20 bg-rose-500/4 px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
         >remove</button>
       </div>
     </div>
@@ -627,32 +627,32 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
             type="button"
             disabled={importBusy}
             onClick={migrate}
-            className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+            className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
           >Migrate auth.json → vault</button>
           <input
             type="text"
             value={envPath}
             placeholder="default .env (optional path)"
             onChange={e => { setEnvPath(e.target.value); setPreview(null); }}
-            className="min-w-[180px] flex-1 rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
+            className="min-w-[180px] flex-1 rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
           />
           <button
             type="button"
             disabled={importBusy}
             onClick={runPreview}
-            className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+            className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
           >Preview</button>
           {preview && preview.count > 0 && (
             <button
               type="button"
               disabled={importBusy}
               onClick={runImport}
-              className="rounded border border-emerald-400/20 bg-emerald-400/[0.06] px-2 py-1 font-mono text-[10px] text-emerald-300 hover:bg-emerald-400/10 disabled:opacity-40"
+              className="rounded-sm border border-emerald-400/20 bg-emerald-400/6 px-2 py-1 font-mono text-[10px] text-emerald-300 hover:bg-emerald-400/10 disabled:opacity-40"
             >Import {preview.count}</button>
           )}
         </div>
         {preview && (
-          <div className="mt-2 rounded border border-border-subtle bg-black/20 p-2">
+          <div className="mt-2 rounded-sm border border-border-subtle bg-black/20 p-2">
             <div className="font-display text-[10px] uppercase tracking-widest text-text-muted">
               {preview.count} managed secret{preview.count === 1 ? '' : 's'} would import (names only — no values shown)
             </div>
@@ -827,13 +827,13 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
           value={draftFor(f)}
           placeholder={f.default || '—'}
           onChange={e => setDrafts(d => ({ ...d, [f.key]: e.target.value }))}
-          className="w-56 rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
+          className="w-56 rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
         />
         <button
           type="button"
           disabled={busy === f.key || draftFor(f) === f.currentValue}
           onClick={() => save(f, draftFor(f))}
-          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+          className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
         >save</button>
       </div>
     );
@@ -850,7 +850,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
         Core user config persisted to your Vox user config (effective values: ENV &gt; Vox.toml &gt; global &gt; defaults)
       </p>
       {spend && (
-        <div className="mt-3 rounded border border-border-subtle bg-black/20 p-3" data-testid="llm-spend">
+        <div className="mt-3 rounded-sm border border-border-subtle bg-black/20 p-3" data-testid="llm-spend">
           <div className="font-mono text-[10px] uppercase tracking-wide text-text-muted">LLM spend (recorded actuals)</div>
           <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1 font-mono text-[11px] text-text-secondary">
             <span>session ${spend.sessionUsd.toFixed(4)} / ${spend.perSessionBudgetUsd.toFixed(2)}</span>
@@ -876,7 +876,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
                         disabled={busy === f.key}
                         onClick={() => reset(f)}
                         title="Reset to default"
-                        className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-muted hover:bg-overlay-subtle disabled:opacity-40"
+                        className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-muted hover:bg-overlay-subtle disabled:opacity-40"
                       >reset</button>
                     </div>
                   </Row>
@@ -1332,7 +1332,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           onChange={e => setFilter(e.target.value)}
           placeholder="Search settings…"
           aria-label="Search settings"
-          className="mb-2 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-[12px] text-text-secondary placeholder:text-text-muted outline-none focus:border-brass/30"
+          className="mb-2 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-[12px] text-text-secondary placeholder:text-text-muted outline-hidden focus:border-brass/30"
         />
         {filter.trim() ? (
           <nav className="flex flex-col gap-1">
@@ -1341,7 +1341,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                 key={entry.id}
                 type="button"
                 onClick={() => { setSection(entry.section); setFilter(''); }}
-                className="flex flex-col rounded-lg px-3 py-2 text-left text-text-secondary hover:bg-overlay-subtle hover:text-text-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
+                className="flex flex-col rounded-lg px-3 py-2 text-left text-text-secondary hover:bg-overlay-subtle hover:text-text-primary focus:outline-hidden focus-visible:ring-1 focus-visible:ring-brass/40"
               >
                 <span className="text-[12px]">{entry.label}</span>
                 <span className="text-[10px] text-text-muted">{entry.hint}</span>
@@ -1479,7 +1479,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                     type="button"
                     onClick={() => applyEmphasis(preset)}
                     className={`rounded-lg border p-2 text-center transition ${
-                      activePreset === name ? 'border-brass/40 bg-brass/[0.05] text-text-primary' : 'border-border-subtle bg-overlay-subtle text-text-muted hover:border-white/15 hover:text-text-secondary'
+                      activePreset === name ? 'border-brass/40 bg-brass/5 text-text-primary' : 'border-border-subtle bg-overlay-subtle text-text-muted hover:border-white/15 hover:text-text-secondary'
                     }`}
                   >
                     <span className="font-display text-[11px] tracking-wide">{name}</span>
@@ -1566,7 +1566,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                   type="button"
                   onClick={() => update({ telemetry: id })}
                   className={`rounded-xl border p-3 text-left transition ${
-                    vals.telemetry === id ? 'border-brass/40 bg-brass/[0.05]' : 'border-border-subtle hover:border-white/15 bg-overlay-subtle'
+                    vals.telemetry === id ? 'border-brass/40 bg-brass/5' : 'border-border-subtle hover:border-white/15 bg-overlay-subtle'
                   }`}
                 >
                   <div className="font-display text-[12px] tracking-wider text-text-primary">{l}</div>
@@ -1626,7 +1626,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
               <span>Mode</span>
               <select value={gamify.mode} disabled={!gamify.enabled}
                 onChange={e => updateGamify({ mode: e.target.value })}
-                className="rounded bg-black/40 px-2 py-1 text-text-secondary">
+                className="rounded-sm bg-black/40 px-2 py-1 text-text-secondary">
                 <option value="balanced">Balanced</option>
                 <option value="serious">Serious (silent)</option>
                 <option value="learning">Learning</option>
@@ -1651,10 +1651,10 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                   type="button"
                   onClick={() => update({ theme: t.id })}
                   className={`rounded-xl border p-3 text-left transition ${
-                    vals.theme === t.id ? 'border-brass/40 bg-brass/[0.05]' : 'border-border-subtle hover:border-white/15 bg-overlay-subtle'
+                    vals.theme === t.id ? 'border-brass/40 bg-brass/5' : 'border-border-subtle hover:border-white/15 bg-overlay-subtle'
                   }`}
                 >
-                  <div className={`h-16 w-full rounded-lg bg-gradient-to-br ${t.swatch}`} />
+                  <div className={`h-16 w-full rounded-lg bg-linear-to-br ${t.swatch}`} />
                   <div className="mt-2 font-display text-[12px] tracking-wider text-text-secondary">{t.name}</div>
                 </button>
               ))}

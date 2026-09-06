@@ -41,7 +41,7 @@ export function CoverageView(_props: SurfaceDecoratorProps) {
               <tr key={i} className="border-t border-border-subtle">
                 <td className="p-2 font-mono text-text-secondary">{r.cliGroup ?? '—'}</td>
                 <td className="p-2 text-text-muted">{r.viewKey ?? '—'}</td>
-                <td className="p-2"><span className={`rounded px-1.5 py-0.5 ring-1 ${TIER_STYLE[r.tier].cls}`}>{TIER_STYLE[r.tier].label}</span></td>
+                <td className="p-2"><span className={`rounded-sm px-1.5 py-0.5 ring-1 ${TIER_STYLE[r.tier].cls}`}>{TIER_STYLE[r.tier].label}</span></td>
               </tr>
             ))}
           </tbody>

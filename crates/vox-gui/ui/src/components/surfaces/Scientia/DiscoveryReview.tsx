@@ -236,7 +236,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
             value={pubId}
             onChange={(e) => setPubId(e.target.value)}
             placeholder="publication id"
-            className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[12px] text-text-secondary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
+            className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[12px] text-text-secondary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
           />
           <button
             type="button"
@@ -362,7 +362,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Why approve / reject / defer…"
-                  className="mt-1 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-[12px] text-text-secondary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
+                  className="mt-1 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-2 text-[12px] text-text-secondary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
                 />
               </div>
 
@@ -402,7 +402,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
               </div>
 
               {suggestions.length > 0 && (
-                <div className="rounded-xl border border-violet-400/20 bg-violet-400/[0.04] p-4">
+                <div className="rounded-xl border border-violet-400/20 bg-violet-400/4 p-4">
                   <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-violet-300/80">
                     Evidence suggestions
                   </div>
@@ -419,7 +419,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
               )}
 
               {isApproved && (
-                <div className="rounded-xl border border-brass/20 bg-brass/[0.04] p-4">
+                <div className="rounded-xl border border-brass/20 bg-brass/4 p-4">
                   <div className="font-mono text-[11px] text-emerald-300/90">
                     ✓ Approved by you · approval token bound to this claim
                   </div>
@@ -463,7 +463,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
             <p className="text-[12.5px] leading-relaxed text-text-secondary">
               Builds + signs + offline-validates, stores locally. Nothing is sent to any network.
             </p>
-            <div className="mt-4 grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 font-mono text-[11px]">
+            <div className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 font-mono text-[11px]">
               <span className="text-text-muted">Publication</span>
               <span className="text-text-secondary">{pubId.trim()}</span>
               <span className="text-text-muted">Claim</span>

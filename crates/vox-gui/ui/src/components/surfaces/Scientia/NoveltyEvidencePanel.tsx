@@ -51,7 +51,7 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
       </div>
 
       {insufficient && (
-        <div className="mb-3 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-3 py-2 font-mono text-[11px] text-amber-200/90">
+        <div className="mb-3 rounded-lg border border-amber-400/30 bg-amber-400/6 px-3 py-2 font-mono text-[11px] text-amber-200/90">
           <span aria-hidden="true">⚠</span> Retrieval failed or never ran — do not treat as novel.
           {assessment.insufficient_evidence_reason && (
             <div className="mt-1 text-amber-100/80">{assessment.insufficient_evidence_reason}</div>
@@ -122,7 +122,7 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
           </div>
           <div className="space-y-2">
             {assessment.conflicts.map((c, i) => (
-              <div key={i} className="rounded-lg border border-rose-400/20 bg-rose-400/[0.04] px-3 py-2 font-mono text-[11px]">
+              <div key={i} className="rounded-lg border border-rose-400/20 bg-rose-400/4 px-3 py-2 font-mono text-[11px]">
                 <div className="mb-1 text-rose-200/90">
                   conflict score {num(c.conflict_score)}
                 </div>

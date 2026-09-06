@@ -127,7 +127,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
           value={pubId}
           onChange={(e) => setPubId(e.target.value)}
           placeholder="publication id"
-          className="flex-1 rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brass/40"
+          className="flex-1 rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary placeholder:text-text-muted focus:outline-hidden focus:ring-1 focus:ring-brass/40"
         />
         <button
           type="submit"
@@ -204,7 +204,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
                 {report.human_only_pending.map((f) => (
                   <span
                     key={f}
-                    className="rounded border border-amber-400/20 bg-amber-400/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-amber-200/90"
+                    className="rounded-sm border border-amber-400/20 bg-amber-400/6 px-1.5 py-0.5 font-mono text-[10px] text-amber-200/90"
                   >
                     {f}
                   </span>
@@ -224,7 +224,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
                   <span
                     key={`${p.field}-${i}`}
                     title={p.notes ?? undefined}
-                    className="rounded border border-violet-400/20 bg-violet-400/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-violet-200/90"
+                    className="rounded-sm border border-violet-400/20 bg-violet-400/6 px-1.5 py-0.5 font-mono text-[10px] text-violet-200/90"
                   >
                     {p.field} → {p.origin}
                   </span>

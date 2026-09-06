@@ -19,8 +19,8 @@ export function StreamCard({ item, onDoubt, onOverrule }: StreamCardProps) {
   const tone = toneMap[item.kind] || toneMap.speculative;
 
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-border-subtle bg-overlay-subtle p-3.5 transition hover:border-white/15 hover:bg-overlay-subtle hover:translate-y-[-1px]">
-      <div className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b ${tone.bar}`} />
+    <div className="group relative overflow-hidden rounded-xl border border-border-subtle bg-overlay-subtle p-3.5 transition hover:border-white/15 hover:bg-overlay-subtle hover:-translate-y-px">
+      <div className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-linear-to-b ${tone.bar}`} />
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1.5">
           <div className="flex items-center gap-2">

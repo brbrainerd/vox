@@ -104,7 +104,7 @@ export function DiscoveryRail({ actionId, nowMs, gamifyEnabled = false, onUseAct
             aria-label="Collapse discovery rail"
             aria-expanded={true}
             onClick={() => setCollapsed(true)}
-            className="rounded p-1 text-text-muted transition hover:bg-overlay-subtle hover:text-text-secondary"
+            className="rounded-sm p-1 text-text-muted transition hover:bg-overlay-subtle hover:text-text-secondary"
           >
             <span className="font-mono text-xs" aria-hidden="true">
               «

@@ -38,7 +38,7 @@ export function Toasts({ items, onClose }: ToastsProps) {
       {items.map(t => (
         <div key={t.id} className="pointer-events-auto rounded-xl border border-border-subtle bg-bg-base/90 p-3 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] animate-vox-toast-in">
           <div className="flex items-start gap-2">
-            <div className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded ${TONE_ICON_CLASS[t.tone]}`}>
+            <div className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-sm ${TONE_ICON_CLASS[t.tone]}`}>
               {t.tone === "ok" ? <Icon.check className="size-3.5" aria-hidden="true"/> : t.tone === "warn" ? <Icon.alert className="size-3.5" aria-hidden="true"/> : <Icon.bolt className="size-3.5" aria-hidden="true"/>}
             </div>
             <div className="flex-1 leading-tight">

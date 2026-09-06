@@ -28,7 +28,7 @@ function renderItemBody(item: StreamItem) {
     <>
       <div className="font-display text-[13px] font-medium tracking-tight text-text-primary">{item.title}</div>
       {item.body ? (
-        <div className="text-[12px] leading-relaxed text-text-muted whitespace-pre-wrap break-words">{item.body}</div>
+        <div className="text-[12px] leading-relaxed text-text-muted whitespace-pre-wrap wrap-break-word">{item.body}</div>
       ) : null}
     </>
   );
@@ -49,7 +49,7 @@ export function ChatAgentEventRow({ row, onOpenAgent }: ChatAgentEventRowProps) 
         className="relative overflow-hidden rounded-xl border border-border-subtle bg-overlay-subtle p-3"
         data-testid="chat-agent-token-group"
       >
-        <div className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b ${tone.bar}`} />
+        <div className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-linear-to-b ${tone.bar}`} />
         <div className="flex items-start justify-between gap-3 pl-1">
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex flex-wrap items-center gap-2">
@@ -66,7 +66,7 @@ export function ChatAgentEventRow({ row, onOpenAgent }: ChatAgentEventRowProps) 
               {expanded ? 'Hide token stream' : summary || 'Show token stream'}
             </button>
             {expanded && (
-              <div className="mt-2 rounded-lg border border-border-subtle bg-black/20 p-2 font-mono text-[11px] text-text-secondary whitespace-pre-wrap break-words">
+              <div className="mt-2 rounded-lg border border-border-subtle bg-black/20 p-2 font-mono text-[11px] text-text-secondary whitespace-pre-wrap wrap-break-word">
                 {combinedBody || '(empty)'}
               </div>
             )}
@@ -109,7 +109,7 @@ export function ChatAgentEventRow({ row, onOpenAgent }: ChatAgentEventRowProps) 
       className="relative overflow-hidden rounded-xl border border-border-subtle bg-overlay-subtle p-3"
       data-testid="chat-agent-event-row"
     >
-      <div className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b ${tone.bar}`} />
+      <div className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-linear-to-b ${tone.bar}`} />
       <div className="flex items-start justify-between gap-3 pl-1">
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">

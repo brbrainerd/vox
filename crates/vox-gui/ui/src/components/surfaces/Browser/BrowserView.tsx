@@ -619,7 +619,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
                 type="checkbox"
                 checked={headless}
                 onChange={(e) => setHeadless(e.target.checked)}
-                className="rounded"
+                className="rounded-sm"
               />
               <span className="text-[11px] text-text-muted">Headless</span>
             </label>
@@ -752,7 +752,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               onClick={onFrameClick}
               onWheel={onFrameWheel}
               onKeyDown={onFrameKeyDown}
-              className="rounded-xl border border-border-subtle bg-black/30 min-h-[360px] flex items-center justify-center overflow-hidden focus:outline-none focus:ring-2 focus:ring-brass/30"
+              className="rounded-xl border border-border-subtle bg-black/30 min-h-[360px] flex items-center justify-center overflow-hidden focus:outline-hidden focus:ring-2 focus:ring-brass/30"
             >
               {frame?.image_base64 ? (
                 <img

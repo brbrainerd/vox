@@ -1,12 +1,179 @@
-@import './styles/fonts.css';
+@import './styles/fonts.css' layer(base);
 @import './styles/tokens.generated.css';
 @import './styles/tokens.contrast.generated.css';
 @import './styles/tokens.travertine.generated.css';
-@import 'dockview/dist/styles/dockview.css';
-@import './styles/dockview-vox.css';
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'dockview/dist/styles/dockview.css' layer(base);
+@import './styles/dockview-vox.css' layer(base);
+@import 'tailwindcss';
+
+@theme {
+  --color-void: var(--color-bg-base);
+  --color-steel: var(--color-text-muted);
+  --color-brass: rgb(var(--brass));
+  --color-amber-glow: rgb(var(--brass) / 0.5);
+  --color-border: var(--color-border-subtle);
+  --color-background: var(--color-bg-base);
+  --color-primary: rgb(var(--brass));
+  --color-accent: var(--color-accent-default);
+
+  --font-display: Cinzel, Georgia, serif;
+  --font-sans: Inter, system-ui, Segoe UI, sans-serif;
+  --font-serif: EB Garamond, Georgia, serif;
+  --font-mono: ui-monospace, Cascadia Code, Consolas, JetBrains Mono, monospace;
+
+  --animate-vox-ping: vox-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  --animate-vox-shimmer: vox-shimmer 2.5s infinite linear;
+  --animate-vox-toast-in: vox-toast-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
+
+  @keyframes vox-ping {
+    75%,
+    100% {
+      transform: scale(2.5);
+      opacity: 0;
+    }
+  }
+  @keyframes vox-shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes vox-toast-in {
+    0% {
+      transform: translateX(24px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+}
+
+/* Register Style Dictionary --color-* names as Tailwind colors without
+   emitting a second (circular) declaration that would shadow the hex tokens. */
+@theme reference {
+  --color-bg-base: var(--color-bg-base);
+  --color-bg-surface: var(--color-bg-surface);
+  --color-bg-elevated: var(--color-bg-elevated);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-border-strong: var(--color-border-strong);
+  --color-accent-secondary: var(--color-accent-secondary);
+  --color-overlay-subtle: var(--color-overlay-subtle);
+  --color-overlay-hover: var(--color-overlay-hover);
+  --color-overlay-solid: var(--color-overlay-solid);
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-overlay-subtle);
+    border-radius: 10px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--color-overlay-hover);
+  }
+}
+
+@utility vox-range {
+  /* Range slider styles */
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border: 2px solid rgb(var(--brass));
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgb(var(--brass) / 0.5);
+  }
+}
+
+@utility vox-rule {
+  /* Roman ornament utilities */
+  height: 1px;
+  background: linear-gradient(90deg, rgb(var(--brass)), rgb(var(--brass) / 0));
+}
+
+@utility vox-tick {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  pointer-events: none;
+}
+
+@utility vox-tick-tl {
+  top: 9px;
+  left: 9px;
+  border-top: 1px solid rgb(var(--brass));
+  border-left: 1px solid rgb(var(--brass));
+}
+
+@utility vox-tick-tr {
+  top: 9px;
+  right: 9px;
+  border-top: 1px solid var(--color-accent-secondary);
+  border-right: 1px solid var(--color-accent-secondary);
+}
+
+@utility vox-display {
+  font-family: var(--font-family-display);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+@utility ds-section-head {
+  /* Section heading — migrated from ds/components.css `.ds-section-head` (B7:
+     the ds/ sheet is not imported by the app, so the class was dead). A divider
+     that introduces a section UNDERLINES its heading (border-bottom beneath the
+     label) — it never caps the section with a top border above the first label.
+     Keep in sync with ds/components.css. */
+  font-family: var(--font-family-display);
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
 
 @layer base {
   /* Native controls (<select> option popups, etc.) render with browser/OS
@@ -28,61 +195,12 @@
 }
 
 @layer components {
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--color-overlay-subtle);
-    border-radius: 10px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--color-overlay-hover);
-  }
-
   /* dark scrollbar applies app-wide; .custom-scrollbar remains for opt-in slim variant */
   * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.12) transparent; }
   *::-webkit-scrollbar { width: 8px; height: 8px; }
   *::-webkit-scrollbar-track { background: transparent; }
   *::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 8px; }
   *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.14); }
-
-  /* Range slider styles */
-  .vox-range::-webkit-slider-thumb {
-    appearance: none;
-    width: 12px;
-    height: 12px;
-    background: #fff;
-    border: 2px solid rgb(var(--brass));
-    border-radius: 50%;
-    cursor: pointer;
-    box-shadow: 0 0 10px rgb(var(--brass) / 0.5);
-  }
-
-  /* Roman ornament utilities */
-  .vox-rule { height: 1px; background: linear-gradient(90deg, rgb(var(--brass)), rgb(var(--brass) / 0)); }
-  .vox-tick { position: absolute; width: 11px; height: 11px; pointer-events: none; }
-  .vox-tick-tl { top: 9px; left: 9px; border-top: 1px solid rgb(var(--brass)); border-left: 1px solid rgb(var(--brass)); }
-  .vox-tick-tr { top: 9px; right: 9px; border-top: 1px solid var(--color-accent-secondary); border-right: 1px solid var(--color-accent-secondary); }
-  .vox-display { font-family: var(--font-family-display); letter-spacing: 0.13em; text-transform: uppercase; }
-
-  /* Section heading — migrated from ds/components.css `.ds-section-head` (B7:
-     the ds/ sheet is not imported by the app, so the class was dead). A divider
-     that introduces a section UNDERLINES its heading (border-bottom beneath the
-     label) — it never caps the section with a top border above the first label.
-     Keep in sync with ds/components.css. */
-  .ds-section-head {
-    font-family: var(--font-family-display);
-    font-size: 9px;
-    letter-spacing: 0.28em;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-    padding-bottom: 4px;
-    margin-bottom: 6px;
-    border-bottom: 1px solid var(--color-border-subtle);
-  }
 }
 
 /* ─── Global accessibility: focus ring ────────────────────────────────────

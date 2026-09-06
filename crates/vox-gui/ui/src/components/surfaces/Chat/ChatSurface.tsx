@@ -916,11 +916,11 @@ export function ChatSurface({
                   return (
                     <label
                       key={id}
-                      className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
+                      className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
                     >
                       <input
                         type="checkbox"
-                        className="rounded border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
+                        className="rounded-sm border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
                         checked={isOpen}
                         onChange={() => {
                           const api = dockApiRef.current;
@@ -974,7 +974,7 @@ export function ChatSurface({
                     setPanelsMenuOpen(false);
                     panelsTriggerRef.current?.focus();
                   }}
-                  className="block w-full rounded px-2 py-1.5 text-left text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
+                  className="block w-full rounded-sm px-2 py-1.5 text-left text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
                 >
                   Reset layout
                 </button>
@@ -1092,7 +1092,7 @@ export function ChatSurface({
       </div>
 
       {secretaryToast && (
-        <div className="absolute bottom-4 left-1/2 z-[60] w-[min(480px,90%)] -translate-x-1/2">
+        <div className="absolute bottom-4 left-1/2 z-60 w-[min(480px,90%)] -translate-x-1/2">
           <SecretaryToast
             intent={secretaryToast.intent}
             itemId={secretaryToast.item_id}
@@ -1103,7 +1103,7 @@ export function ChatSurface({
       )}
 
       {routingOpen && (
-        <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Routing">
+        <div className="fixed inset-0 z-60" role="dialog" aria-modal="true" aria-label="Routing">
           <div className="absolute inset-0 bg-black/60" onClick={() => setRoutingOpen(false)} />
           <div className="absolute right-0 top-0 h-full w-[760px] max-w-full overflow-y-auto border-l border-border-subtle bg-bg-base shadow-2xl">
             <div className="flex items-center justify-between px-5 pt-4">

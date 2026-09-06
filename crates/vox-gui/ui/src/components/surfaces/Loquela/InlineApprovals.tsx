@@ -87,7 +87,7 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
       role="region"
       aria-label="Approval required"
       aria-live="polite"
-      className="mb-3 border border-amber-400/20 bg-amber-400/[0.04] p-3"
+      className="mb-3 border border-amber-400/20 bg-amber-400/4 p-3"
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -126,7 +126,7 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
                   type="button"
                   disabled={busy}
                   onClick={() => resolve(a.approval_id, 'rejected')}
-                  className="rounded border border-border-subtle px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-text-muted hover:border-rose-400/40 hover:text-rose-300 disabled:opacity-40"
+                  className="rounded-sm border border-border-subtle px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-text-muted hover:border-rose-400/40 hover:text-rose-300 disabled:opacity-40"
                 >
                   Reject
                 </button>
@@ -134,7 +134,7 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
                   type="button"
                   disabled={busy}
                   onClick={() => resolve(a.approval_id, 'approved')}
-                  className="rounded border border-brass/30 bg-brass/10 px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-brass hover:bg-brass/20 disabled:opacity-40"
+                  className="rounded-sm border border-brass/30 bg-brass/10 px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-brass hover:bg-brass/20 disabled:opacity-40"
                 >
                   Approve
                 </button>

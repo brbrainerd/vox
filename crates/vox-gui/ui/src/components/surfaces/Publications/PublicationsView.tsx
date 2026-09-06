@@ -62,7 +62,7 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
           {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-3 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]">
+      <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.15)_transparent]">
         {PUBLICATION_STAGES.map(stage => (
           <div key={stage} className="w-44 shrink-0">
             <div className="mb-2 flex items-center justify-between">
@@ -236,7 +236,7 @@ function PublicationDetail({
                 {venue.recommended_venues.length === 0 ? (
                   <span className="font-mono text-[11px] text-text-muted">No recommended venues.</span>
                 ) : venue.recommended_venues.map(v => (
-                  <span key={v} className="rounded bg-cyan/10 px-2 py-0.5 font-mono text-[11px] text-cyan">{v}</span>
+                  <span key={v} className="rounded-sm bg-cyan/10 px-2 py-0.5 font-mono text-[11px] text-cyan">{v}</span>
                 ))}
               </div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px] text-text-muted">
@@ -246,7 +246,7 @@ function PublicationDetail({
                 <span>Atlas gate</span><span className="text-text-secondary">{venue.atlas_gate_applies ? 'applies' : '—'}</span>
               </div>
               {!venue.critic_allowed && (
-                <div className="rounded border border-amber-500/20 bg-amber-500/[0.04] p-2 text-[11px] text-amber-300/90">
+                <div className="rounded-sm border border-amber-500/20 bg-amber-500/4 p-2 text-[11px] text-amber-300/90">
                   Venue forbids LLM-critic approvals — add a second human approver.
                 </div>
               )}

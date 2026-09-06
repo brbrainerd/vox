@@ -375,7 +375,7 @@ export function Dashboard({
           "The Stream" below is a section heading, not the surface root title. */}
       <h1 className="sr-only">Dashboard</h1>
       {onOpenChat && (
-        <div className="mx-5 mb-4 mt-2 flex items-center justify-between gap-4 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.06] px-4 py-3">
+        <div className="mx-5 mb-4 mt-2 flex items-center justify-between gap-4 rounded-xl border border-indigo-500/20 bg-indigo-500/6 px-4 py-3">
           <div>
             <p className="font-display text-[13px] font-semibold text-text-primary">Submit tasks in Chat</p>
             <p className="mt-0.5 text-[11px] text-text-muted">The Loquela composer lives on the Chat surface — open it to describe work and spin up agents.</p>
