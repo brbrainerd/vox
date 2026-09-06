@@ -10,7 +10,7 @@ training_rationale: "Normative delta-verification of the 2026-06-17 deep-researc
 # Deep Research Capabilities Audit — Verification Pass
 
 **Date:** 2026-08-01 (six weeks after the original audit)
-**Scope:** Re-checks each of the 9 ranked gaps from [deep-research-capabilities-audit-2026-06-17.md](deep-research-capabilities-audit-2026-06-17.md) against current source, with file:line evidence and `git log` commit references. Companion to [deep-research-fundamentals-2026-08-01.md](deep-research-fundamentals-2026-08-01.md) and the other 2026-08-01 deep-research docs — see [research-index.md](research-index.md).
+**Scope:** Re-checks each of the 9 ranked gaps from [deep-research-capabilities-audit-2026-06-17.md](deep-research-capabilities-audit-2026-06-17.md) against current source, with file:line evidence and `git log` commit references. Companion to [deep-research-fundamentals-2026-08-01.md](deep-research-fundamentals-2026-08-01.md) and the other 2026-08-01 deep-research docs.
 
 ---
 

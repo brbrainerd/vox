@@ -23,7 +23,7 @@ Primary navigation:
 - **Architectural rules:** [`docs/src/architecture/layers.toml`](docs/src/architecture/layers.toml) — layer assignments, fan-in / LoC budgets, allowed inversions. Enforced by `cargo run -p vox-arch-check`.
 - Contributor entry point: [`docs/src/contributors/contributor-hub.md`](docs/src/contributors/contributor-hub.md)
 - Documentation authority map: [`docs/src/contributors/documentation-governance.md`](docs/src/contributors/documentation-governance.md)
-- Architecture map: [`docs/src/architecture/architecture-index.md`](docs/src/architecture/architecture-index.md)
+- Architecture map: Starlight sidebar (frontmatter `category` / `sort_order`) — do not revive `docs/src/architecture/architecture-index.md`
 - See [phase-numbering-index](docs/src/architecture/phase-numbering-index.md) for disambiguation of the three independent phase sequences used in plans (frontend interop, GUI-native language, workspace reorg).
 - Classification SSOT: [`docs/src/architecture/classification-ssot-2026.md`](docs/src/architecture/classification-ssot-2026.md)
 - AgentOS / ACI SSOT: [`docs/src/architecture/agentos-ssot-2026.md`](docs/src/architecture/agentos-ssot-2026.md)
@@ -35,7 +35,7 @@ When working under the Vox repository, ALL research findings, architecture docum
 
 - Research docs follow the naming pattern: `*-research-2026.md`, `*-findings-2026.md`
 - Architecture SSoT docs: `*-ssot.md` or descriptive names in `docs/src/architecture/`
-- After writing to `docs/`, update [`docs/src/architecture/research-index.md`](docs/src/architecture/research-index.md)
+- After writing a page, set valid YAML frontmatter (`title`, `description`, `category`, `status`). Starlight `docs-astro/src/utils/sidebar.mjs` lists it automatically. Do **not** create or edit `docs/src/architecture/research-index.md` (retired; snapshot under `docs/src/archive/`).
 - Do not store Vox-specific research in IDE knowledge bases that are only accessible to one tool
 
 ## Auto-generated documentation files (do not edit manually)
@@ -55,7 +55,6 @@ Install the pre-commit hooks once after cloning: `vox run scripts/install-hooks.
 
 Manually-maintained files that **are** safe to edit:
 - `docs/src/adr/index.md`, `docs/src/adr/README.md` — hand-rolled ADR tables, not generated.
-- `docs/src/architecture/research-index.md` — a hand-curated SSOT index (manual frontmatter), **not** generated despite the name. Edit it directly.
 - Individual ADR / architecture / how-to / tutorial / reference markdown files — these are the **sources** the generators read from.
 
 **Reading diffs cheaply (agents).** Tracked generated artifacts are marked

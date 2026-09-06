@@ -580,4 +580,4 @@ path.
 
 ## 8. Index
 
-Added to [`research-index.md`](research-index.md) under Strategic & Value Proposition.
+Browse **Architecture SSOTs** in the Starlight sidebar, or start at [contributor-hub](../contributors/contributor-hub.md).

@@ -85,7 +85,7 @@ jobs:
       # Hard gate: was continue-on-error.  Markdownlint rules are explicitly
       # configured in .markdownlint.jsonc; no surprise failures from rule changes.
       - name: Markdown lint
-        run: pnpm dlx markdownlint-cli2 "docs/src/contributors/**/*.md" "docs/src/architecture/research-index.md"
+        run: pnpm dlx markdownlint-cli2 "docs/src/contributors/**/*.md"
 
   generator-drift:
     runs-on: [self-hosted, linux]

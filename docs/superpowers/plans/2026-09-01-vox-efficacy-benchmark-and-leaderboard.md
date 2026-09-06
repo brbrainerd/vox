@@ -3150,7 +3150,6 @@ git commit -m "feat(vox-cli): MENS checkpoint row identity for longitudinal scor
 
 **Files:**
 - Create: `docs/src/reference/vox-efficacy-benchmark.md`
-- Modify: `docs/src/architecture/research-index.md`
 
 - [ ] **Step 1: Write the reference doc**
 
@@ -3251,11 +3250,8 @@ Expected: no output (clean).
 
 - [ ] **Step 3: Index the doc**
 
-Add this line to `docs/src/architecture/research-index.md`, immediately after the "Vox & MENS Comparative Efficacy Benchmarking" entry added when the research doc landed:
-
-```markdown
-- [Vox efficacy benchmark — operator reference](../reference/vox-efficacy-benchmark.md) — How to run `vox model eval-corpus` against the held-out HumanEval-Vox corpus (live generation, external-harness ingest, MENS checkpoints), publish the leaderboard artifact rendered at `/benchmarks`, and emit SCIENTIA finding candidates for statistically-resolvable deltas only.
-```
+Set valid frontmatter on the new page (`title`, `description`, `category`, `status`).
+Starlight lists it. Do **not** create or edit `docs/src/architecture/research-index.md` (retired 2026-09).
 
 - [ ] **Step 4: Run the full local gate**
 
@@ -3269,7 +3265,7 @@ Expected: green. Investigate and fix any failure locally — do not push to see 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docs/src/reference/vox-efficacy-benchmark.md docs/src/architecture/research-index.md
+git add docs/src/reference/vox-efficacy-benchmark.md
 git commit -m "docs: operator reference for the Vox efficacy benchmark"
 ```
 

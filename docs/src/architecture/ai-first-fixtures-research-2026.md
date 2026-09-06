@@ -731,7 +731,6 @@ fixtures:
 - [`search-retrieval-ssot-2026.md`](search-retrieval-ssot-2026.md)
 - [`boilerplate-reduction-gap-analysis-2026.md`](boilerplate-reduction-gap-analysis-2026.md)
 - [`where-things-live.md`](where-things-live.md)
-- [`research-index.md`](research-index.md)
 
 ## Appendix — Self-review checklist (plan §17)
 
@@ -745,7 +744,6 @@ fixtures:
 - [x] No banned tooling/crates list items in prose.
 - [x] Mermaid node IDs are alphanumeric/underscore safe.
 - [x] `contracts/index.yaml` lists ai-first catalog + schema + telemetry schemas.
-- [x] `research-index.md` includes **AI-First Language Fixtures** section.
 - [x] Open questions between 3 and 8.
 - [x] Follow-on plan filename declared (Part 13).
 - [x] No emoji in this document.

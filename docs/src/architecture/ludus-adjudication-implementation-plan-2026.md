@@ -60,7 +60,7 @@ Dispute Lifecycle:
 | VoxDb misc ops | `crates/vox-db/src/store/ops_ludus/gamify_ludus_misc.rs` |
 | VoxDb rewards/collegium | `crates/vox-db/src/store/ops_ludus/gamify_rewards_collegium.rs` |
 | Research doc (security) | `docs/src/architecture/ludus-security-and-anti-cheat-research-2026.md` |
-| Research index | `docs/src/architecture/research-index.md` |
+| Research index | Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`. |
 
 ### Migration Ladder (verified state)
 - V19: `vox_identities` table

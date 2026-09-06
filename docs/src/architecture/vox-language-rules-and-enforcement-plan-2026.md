@@ -25,7 +25,7 @@ vox_relevance:
 > - [Phase 4 — Runtime monitors (Rust-only domain)](vox-language-rules-phase4-runtime-monitors-2026.md)
 > - [Phase 5 — Effect system + workflow determinism](vox-language-rules-phase5-effects-determinism-2026.md)
 >
-> **Language platform orientation (2026):** [Compiler pipeline map](vox-compiler-architecture-research-2026.md), [LSP capability matrix](vox-lsp-capabilities-ssot-2026.md), [Diagnostic UX taxonomy](vox-diagnostic-ux-ssot-2026.md) — also listed in [research-index.md](research-index.md) (*Language platform (compiler, LSP, diagnostics)*).
+> **Language platform orientation (2026):** [Compiler pipeline map](vox-compiler-architecture-research-2026.md), [LSP capability matrix](vox-lsp-capabilities-ssot-2026.md), [Diagnostic UX taxonomy](vox-diagnostic-ux-ssot-2026.md).
 >
 > **Source audit:** A 73-item Rust↔Vox AI-rules interplay audit, originally generated against a sister project (FableForge) and re-scoped to Vox-only. The audit's item numbers are referenced inline as `[A.NN]` so a reader can trace any plan task back to the original observation.
 

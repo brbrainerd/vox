@@ -32,7 +32,8 @@ We will use two locations:
 - [ ] **Step 2: Ingest Assets**
   - Copy all 10 files from `C:\Users\Owner\Downloads\Vox gui\` to both locations.
 - [ ] **Step 3: Document Landing**
-  - Add entry to `docs/src/architecture/research-index.md`.
+  - Set valid frontmatter on the new page (`title`, `description`, `category`, `status`).
+    Starlight lists it. Do **not** create or edit `docs/src/architecture/research-index.md` (retired 2026-09).
   - Add tombstone README to the archive.
 - [ ] **Step 4: Update Master Plan**
   - Mark Phase 0 asset ingestion as "Landed" in `2026-05-03-vox-dashboard-claude-design-port.md`.

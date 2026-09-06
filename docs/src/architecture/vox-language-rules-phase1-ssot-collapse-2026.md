@@ -333,7 +333,7 @@ For markdown / text files, use `<!--` comments instead of `//`.
 **Files:**
 - Modify: `AGENTS.md` — add §"Generated File Discipline" near §40–53 with the new rules, link to this phase plan
 - Modify: `docs/src/architecture/where-things-live.md` — add rows for `vox-code-audit-macros`, `crates/vox-compiler-macros` (if new), `tools/tree-sitter-vox`, `crates/xtask/src/bin/gen_*`
-- Modify: `docs/src/architecture/research-index.md` — add this phase plan
+- Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.
 - Modify: `docs/src/architecture/cli-command-surface.generated.md` — auto-regenerate; expect new `xtask` subcommands to appear
 
 **Verify:** All three doc updates pass `cargo run -p vox-doc-pipeline -- --check`. `where-things-live.md` change shows in same PR.

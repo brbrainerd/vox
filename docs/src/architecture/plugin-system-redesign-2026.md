@@ -671,8 +671,8 @@ Each iteration mirrors SP3's pattern: define trait → extract crate → wire ho
 - How-to: `how-to-write-a-plugin.md`, `how-to-write-a-skill-plugin.md`, `how-to-migrate-from-cargo-features.md`, `how-to-pick-a-vox-bundle.md`.
 - Architecture: this file.
 - Update [`AGENTS.md`](../../../AGENTS.md) "Auto-generated documentation files" list with `plugin-catalog.generated.md` and `distribution-bundles.generated.md`.
-- Update [`research-index.md`](research-index.md) to point at this spec.
-- Architecture discovery: [`research-index.md`](research-index.md) and Starlight sidebar; run `cargo run -p vox-doc-pipeline -- --lint-only` after doc edits — do not hand-edit generated stubs listed in root `AGENTS.md`.
+- Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.
+- Architecture discovery: Starlight sidebar; run `cargo run -p vox-doc-pipeline -- --lint-only` after doc edits — do not hand-edit generated stubs listed in root `AGENTS.md`.
 
 ### Telemetry
 

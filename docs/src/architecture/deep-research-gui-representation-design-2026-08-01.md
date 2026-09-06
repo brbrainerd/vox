@@ -10,7 +10,7 @@ training_rationale: "Normative GUI design for surfacing deep-research trust/cita
 # Deep Research GUI Representation Design
 
 **Date:** 2026-08-01 (Stage 2)
-**Scope:** How research runs, citations, trust/novelty/worthiness signals, and audit trails should be shown to a user — across subject types, not just code/technical queries. Companion to [deep-research-domain-agnosticism-audit-2026-08-01.md](deep-research-domain-agnosticism-audit-2026-08-01.md) and [research-index.md](research-index.md).
+**Scope:** How research runs, citations, trust/novelty/worthiness signals, and audit trails should be shown to a user — across subject types, not just code/technical queries. Companion to [deep-research-domain-agnosticism-audit-2026-08-01.md](deep-research-domain-agnosticism-audit-2026-08-01.md).
 
 ---
 

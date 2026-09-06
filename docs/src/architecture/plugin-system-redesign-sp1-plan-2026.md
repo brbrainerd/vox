@@ -1954,7 +1954,7 @@ Run:
 cargo run -p vox-doc-pipeline -- --check 2>&1 | tail -20
 ```
 
-Expected: green or warnings unrelated to the new docs. (The new docs are referenced by [research-index.md](research-index.md) indirectly through the parent spec; SUMMARY.md regeneration may be needed in Task 13.)
+Expected: green or warnings unrelated to the new docs. (SUMMARY.md regeneration may be needed in Task 13.)
 
 - [ ] **Step 5: Commit**
 

@@ -661,7 +661,6 @@ test.describe('Workbench tabs', () => {
 
 **Files:**
 - Modify: `docs/src/reference/gui-navigation.md` (workbench tabs, Chat attention, help search)
-- Modify: `docs/src/architecture/research-index.md` (link new spec — if policy requires)
 
 - [ ] **Step 1: Update gui-navigation.md §Navigation model**
 

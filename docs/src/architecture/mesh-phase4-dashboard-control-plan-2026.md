@@ -117,7 +117,7 @@ training_rationale: "Implementation plan; gets stale as tasks are completed. SSO
 - `crates/vox-mesh-types/src/donation_policy.rs` — add `per_peer_overrides: Vec<PeerOverride>` field.
 - `crates/vox-orchestrator/Cargo.toml`, `crates/vox-dashboard/Cargo.toml` — add `vox-mesh-policy`, `vox-mesh-models`, `qrcode`.
 
-**Do NOT edit:** `docs/SUMMARY.md`, `docs/src/architecture/architecture-index.md`, `docs/src/architecture/research-index.md`, `docs/feed.xml`, any `*.generated.md`, `.cursorignore` — all of these are tool-regenerated. Re-run the doc generator after merging this plan; never hand-edit.
+**Do NOT edit:** `docs/SUMMARY.md`, `docs/src/architecture/architecture-index.md`, `docs/feed.xml`, any `*.generated.md`, `.cursorignore` — all of these are tool-regenerated. Re-run the doc generator after merging this plan; never hand-edit. `research-index.md` is retired (archived 2026-09). The Starlight sidebar is the browse surface. `architecture-index.md` stays gitignored.
 
 ---
 

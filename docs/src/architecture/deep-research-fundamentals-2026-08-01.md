@@ -10,7 +10,7 @@ training_rationale: "Normative technical reference for deep-research system arch
 # Deep Research Systems: A From-First-Principles Technical Reference
 
 **Date:** 2026-08-01
-**Scope:** What "deep research" / agentic-research systems are architecturally, independent of any vendor product, with each concept mapped onto Vox's current (partially stubbed) pipeline. This document complements the product-specific competitive audit and code-verification pass produced alongside it — see [research-index.md](research-index.md).
+**Scope:** What "deep research" / agentic-research systems are architecturally, independent of any vendor product, with each concept mapped onto Vox's current (partially stubbed) pipeline. This document complements the product-specific competitive audit and code-verification pass produced alongside it. Browse **Architecture SSOTs** in the Starlight sidebar, or start at [contributor-hub](../contributors/contributor-hub.md).
 
 ---
 

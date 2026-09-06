@@ -96,25 +96,41 @@ fn speech_audit_docs_are_published_and_indexed() {
         "docs/src/architecture/vox-speech-improvement-backlog-2026.md",
         "docs/src/architecture/vox-speech-ci-gates-proposal-2026.md",
     ];
+    let docs_src = root.join("docs/src");
+    let archive = docs_src.join("archive");
     for rel in required_docs {
         let abs = root.join(rel);
         assert!(abs.exists(), "missing speech audit doc: {}", abs.display());
+        assert!(
+            abs.starts_with(&docs_src),
+            "{} must be under docs/src/",
+            abs.display()
+        );
+        assert!(
+            !abs.starts_with(&archive),
+            "{} must not be under docs/src/archive/",
+            abs.display()
+        );
         let raw =
             fs::read_to_string(&abs).unwrap_or_else(|e| panic!("read {}: {e}", abs.display()));
-        assert!(raw.contains("title:"), "{rel} must have frontmatter title");
-        // Note: `last_updated` is intentionally NOT hand-authored in frontmatter —
-        // the doc pipeline derives it from Git history (see AGENTS.md §Auto-generated
-        // documentation files). Asserting its presence in the raw source is wrong.
-    }
-
-    let index_path = root.join("docs/src/architecture/research-index.md");
-    let index = fs::read_to_string(&index_path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", index_path.display()));
-    for rel in required_docs {
-        let file_name = rel.rsplit('/').next().expect("file name");
+        let frontmatter = yaml_frontmatter(&raw)
+            .unwrap_or_else(|| panic!("{rel} must start with a YAML frontmatter block"));
         assert!(
-            index.contains(file_name),
-            "research-index.md must link {file_name}"
+            frontmatter.contains("title:"),
+            "{rel} must have title: in the YAML frontmatter block (before the closing ---)"
+        );
+        assert!(
+            frontmatter.contains("category:"),
+            "{rel} must have category: in the YAML frontmatter block so Starlight sidebar.mjs collectPages() lists it"
         );
     }
+}
+
+/// Body of the opening YAML frontmatter block, excluding both `---` fences.
+fn yaml_frontmatter(raw: &str) -> Option<&str> {
+    let rest = raw
+        .strip_prefix("---\n")
+        .or_else(|| raw.strip_prefix("---\r\n"))?;
+    let end = rest.find("\n---").or_else(|| rest.find("\r\n---"))?;
+    Some(&rest[..end])
 }

@@ -1172,12 +1172,13 @@ Explicitly out of scope for automation per the spec's non-goals — this task ju
 
 - [ ] **Step 1: Run the report and file it**
 
-Run Task 12's script, take its candidate list, and add it as a dated entry under `docs/src/architecture/research-index.md`'s existing hand-curated index (per its documented purpose — "a human/agent manually appends a bullet... whenever a new architecture doc lands"; add a note here instead pointing at the backlog rather than a new doc), or open a tracking issue with the list attached — whichever this repo's existing convention favors for multi-item backlogs (check a handful of recent issues via `gh issue list --limit 20` for the pattern before choosing).
+Run Task 12's script, take its candidate list, and open a tracking issue with the list attached — whichever this repo's existing convention favors for multi-item backlogs (check a handful of recent issues via `gh issue list --limit 20` for the pattern before choosing). Do **not** create or edit `docs/src/architecture/research-index.md` (retired 2026-09).
 
 - [ ] **Step 2: Commit if a doc changed, otherwise just leave the filed issue**
 
+If a doc changed during triage filing, commit it. Do not add `docs/src/architecture/research-index.md`.
+
 ```bash
-git add docs/src/architecture/research-index.md
 git commit -m "docs: log architecture-directory staleness triage backlog"
 ```
 

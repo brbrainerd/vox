@@ -10,7 +10,7 @@ training_rationale: "Normative divergence audit between the deep-research Stage 
 # Deep Research Implementation Divergence Audit
 
 **Date:** 2026-08-01 (Stage 2)
-**Scope:** Diffs the Stage 1 synthesis doc's P0-P4 gap list and both implementation plans (trust/novelty-core, multi-provider-routing) against the actual current code, not the plan docs' own claims of completion. Companion to [deep-research-synthesis-and-priorities-2026-08-01.md](deep-research-synthesis-and-priorities-2026-08-01.md) and [research-index.md](research-index.md).
+**Scope:** Diffs the Stage 1 synthesis doc's P0-P4 gap list and both implementation plans (trust/novelty-core, multi-provider-routing) against the actual current code, not the plan docs' own claims of completion. Companion to [deep-research-synthesis-and-priorities-2026-08-01.md](deep-research-synthesis-and-priorities-2026-08-01.md).
 
 ---
 

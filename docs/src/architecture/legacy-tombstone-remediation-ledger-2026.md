@@ -65,6 +65,7 @@ cargo test -p vox-compiler --test golden_examples_strict_parse
 
 ## Related
 
-- [Research index](./research-index.md)
+- [Contributor hub](../contributors/contributor-hub.md)
+- [Where things live](./where-things-live.md)
 - [Contracts non-indexed classification](./contracts-non-indexed-classification-2026.md)
 - `contracts/documentation/retired-symbols.v1.yaml`

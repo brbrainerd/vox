@@ -95,7 +95,7 @@ business logic, GPU UI framework, or Vox already has equivalents.
 | `fuzzy-search` feature wire-up | `crates/vox-cli/Cargo.toml`, `src/lib.rs`; `Cargo.toml` workspace dep |
 | `.voxindexingignore` | `.voxindexingignore` |
 | This research doc | `docs/src/architecture/warp-research-findings-2026.md` |
-| Research index update | `docs/src/architecture/research-index.md` |
+| Research index update | Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`. |
 
 ## Next Steps (ordered by value)
 

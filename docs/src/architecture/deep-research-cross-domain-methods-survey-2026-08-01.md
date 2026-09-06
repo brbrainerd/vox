@@ -10,7 +10,7 @@ training_rationale: "Normative cross-domain research-methods survey grounding th
 # Beyond Crossref/OpenAlex: Cross-Domain Research Methods Survey
 
 **Date:** 2026-08-01 (Stage 2)
-**Scope:** How legal, medical, historical, journalistic, and general/consumer research validate sources and claims without a DOI-keyed academic citation graph — the exact gap in Vox's current `TrustScorer` (Crossref retraction + OpenAlex venue reputation), which only functions for scholarly-paper-shaped sources. Companion to [deep-research-domain-agnosticism-audit-2026-08-01.md](deep-research-domain-agnosticism-audit-2026-08-01.md) and [research-index.md](research-index.md).
+**Scope:** How legal, medical, historical, journalistic, and general/consumer research validate sources and claims without a DOI-keyed academic citation graph — the exact gap in Vox's current `TrustScorer` (Crossref retraction + OpenAlex venue reputation), which only functions for scholarly-paper-shaped sources. Companion to [deep-research-domain-agnosticism-audit-2026-08-01.md](deep-research-domain-agnosticism-audit-2026-08-01.md).
 
 ---
 

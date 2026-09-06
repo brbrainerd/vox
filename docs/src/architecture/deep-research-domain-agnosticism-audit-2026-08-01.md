@@ -10,7 +10,7 @@ training_rationale: "Normative code-level bias audit for the deep-research domai
 # Deep Research Domain-Agnosticism Audit
 
 **Date:** 2026-08-01 (Stage 2)
-**Scope:** Does Vox's deep-research pipeline structurally assume an academic/scholarly or code/technical research query? Audited against the actual current code (not docs). Companion to [deep-research-cross-domain-methods-survey-2026-08-01.md](deep-research-cross-domain-methods-survey-2026-08-01.md) and [research-index.md](research-index.md).
+**Scope:** Does Vox's deep-research pipeline structurally assume an academic/scholarly or code/technical research query? Audited against the actual current code (not docs). Companion to [deep-research-cross-domain-methods-survey-2026-08-01.md](deep-research-cross-domain-methods-survey-2026-08-01.md).
 
 ---
 

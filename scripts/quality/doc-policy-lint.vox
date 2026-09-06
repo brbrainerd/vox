@@ -27,7 +27,7 @@ import path;
 // ---------------------------------------------------------------------------
 fn is_auto_generated(file_path: str) to bool {
     let normalized = file_path.replace("\\", "/");
-    return normalized.ends_with("/SUMMARY.md") or normalized.ends_with("/architecture-index.md") or normalized.ends_with("/research-index.md") or normalized.ends_with("feed.xml");
+    return normalized.ends_with("/SUMMARY.md") or normalized.ends_with("/architecture-index.md") or normalized.ends_with("feed.xml");
 }
 
 // ---------------------------------------------------------------------------

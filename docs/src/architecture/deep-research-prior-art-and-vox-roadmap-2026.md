@@ -233,7 +233,7 @@ Canonical retrieval policy and corpus matrix: [`search-retrieval-ssot-2026.md`](
 - [x] Tavily SSOT cited, not duplicated
 - [x] Scientia finalization plan referenced
 - [x] Stub inventory + vox-search mapping (§5)
-- [x] `research-index.md`, `where-things-live.md`, `search-retrieval-ssot-2026.md` cross-links
+- [x] `where-things-live.md`, `search-retrieval-ssot-2026.md` cross-links
 - [x] CLI + MCP surfaces shipped
 - [x] No new shell/Python automation
 

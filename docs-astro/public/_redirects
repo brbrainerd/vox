@@ -21,7 +21,12 @@
 /reference/clavis-ssot               /reference/secrets-ssot/          301
 /reference/secrets-ssot.html          /reference/secrets-ssot/          301
 
-/architecture/research-index.html     /architecture/research-index/     301
+/architecture/research-index.html     /contributors/contributor-hub/    301
+/architecture/research-index          /contributors/contributor-hub/    301
+/architecture/research-index/         /contributors/contributor-hub/    301
+/architecture/architecture-index.html /contributors/contributor-hub/    301
+/architecture/architecture-index      /contributors/contributor-hub/    301
+/architecture/architecture-index/     /contributors/contributor-hub/    301
 
 /contributors/contributor-hub.html    /contributors/contributor-hub/    301
 

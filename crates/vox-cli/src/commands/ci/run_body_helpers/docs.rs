@@ -178,6 +178,15 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
         }
     }
 
+    let retired_research_index = root.join("docs/src/architecture/research-index.md");
+    if retired_research_index.is_file() {
+        return Err(anyhow!(
+            "retired completeness index recreated: {} — Starlight sidebar.mjs collectPages() \
+             is the browse surface. Snapshot: docs/src/archive/research-index-hand-curated-retired-2026-09.md",
+            retired_research_index.display()
+        ));
+    }
+
     let mut src_files = Vec::new();
     let src_dir = root.join("docs/src");
     if src_dir.is_dir() {

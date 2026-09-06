@@ -116,7 +116,13 @@ fn print_grouped_summary(errors: &[LintError]) {
     }
 }
 
-fn parse_paths_arg(args: &[String], docs_src: &Path) -> Vec<PathBuf> {
+/// Resolve `--paths` / `--paths=` arguments relative to `docs_src`.
+///
+/// Returns `Ok(empty)` when the flag is absent (lint the whole tree).
+/// Returns `Err(missing)` when any resolved path does not exist — a silent empty
+/// match used to print a false green (e.g. `--paths docs/src/archive/foo.md`
+/// joined onto `docs/src/` → `docs/src/docs/src/archive/foo.md`).
+fn parse_paths_arg(args: &[String], docs_src: &Path) -> Result<Vec<PathBuf>, Vec<PathBuf>> {
     let mut out = Vec::new();
     let mut i = 0_usize;
     while i < args.len() {
@@ -141,7 +147,12 @@ fn parse_paths_arg(args: &[String], docs_src: &Path) -> Vec<PathBuf> {
         }
         i += 1;
     }
-    out
+    let missing: Vec<PathBuf> = out.iter().filter(|p| !p.exists()).cloned().collect();
+    if missing.is_empty() {
+        Ok(out)
+    } else {
+        Err(missing)
+    }
 }
 
 fn try_autofix_status_draft(path: &Path) -> bool {
@@ -233,7 +244,23 @@ pub fn run() {
         return;
     }
 
-    let lint_targets = parse_paths_arg(&args, docs_src);
+    let lint_targets = match parse_paths_arg(&args, docs_src) {
+        Ok(paths) => paths,
+        Err(missing) => {
+            for p in &missing {
+                eprintln!(
+                    "Error: --paths did not match any file or directory: {}",
+                    p.display()
+                );
+            }
+            std::process::exit(1);
+        }
+    };
+    if !lint_targets.is_empty() {
+        for t in &lint_targets {
+            println!("vox-doc-pipeline: linting {}", t.display());
+        }
+    }
     if fix_mode {
         let mut fixed = 0_usize;
         if lint_targets.is_empty() {
@@ -468,4 +495,36 @@ pub fn run() {
     }
 
     println!("vox-doc-pipeline lint complete — no hard errors.");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_paths_arg_nonexistent_is_error() {
+        let docs_src = Path::new("/tmp/vox-doc-pipeline-paths-test-docs-src");
+        let args = [
+            "vox-doc-pipeline".to_string(),
+            "--paths".to_string(),
+            "does-not-exist.md".to_string(),
+        ];
+        let err = parse_paths_arg(&args, docs_src)
+            .expect_err("nonexistent --paths value must be an error");
+        assert_eq!(err.len(), 1);
+        assert!(
+            err[0].ends_with("does-not-exist.md"),
+            "unmatched path should be listed, got {:?}",
+            err
+        );
+        assert!(!err[0].exists());
+    }
+
+    #[test]
+    fn parse_paths_arg_absent_flag_is_ok_empty() {
+        let docs_src = Path::new("/tmp/vox-doc-pipeline-paths-test-docs-src");
+        let args = ["vox-doc-pipeline".to_string(), "--lint-only".to_string()];
+        let paths = parse_paths_arg(&args, docs_src).expect("no --paths is not an error");
+        assert!(paths.is_empty());
+    }
 }

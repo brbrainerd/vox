@@ -12,4 +12,4 @@ category: release-note
 - **TypeScript emit** surfaces `vox/codegen/missing-ts-ai-lowering` as a structured diagnostic; set **`VOX_TS_STRICT_AI=1`** to fail codegen when AI fixtures are present.
 - **`@subagent(policy = distributed)`** generates `cfg(feature = "populi-transport")` bodies and adds a matching **`[features]`** section to generated `Cargo.toml` when that policy appears (full mesh relay remains incremental).
 
-See `contracts/agentos/ai-first-fixtures.v1.yaml` and `docs/src/architecture/research-index.md` for SSOT links.
+See `contracts/agentos/ai-first-fixtures.v1.yaml` for SSOT links.

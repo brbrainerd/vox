@@ -77,9 +77,10 @@ training_rationale: "Implementation plan; gets stale as tasks are completed. Spe
 
 - `docs/src/SUMMARY.md`
 - `docs/src/architecture/architecture-index.md`
-- `docs/src/architecture/research-index.md`
 - `docs/src/feed.xml`
 - Any `*.generated.md`
+
+`research-index.md` is retired (archived 2026-09). The Starlight sidebar is the browse surface. `architecture-index.md` stays gitignored.
 
 ---
 
@@ -2364,7 +2365,7 @@ A full Phase 0 rollback is achieved by reverting each commit in **reverse** depe
 - **Layer compliance.** `vox-orchestrator-queue` gains a `vox-db` dep (both at L3); `vox-orchestrator` gains a `vox-skill-runtime` dep. `vox-arch-check` is invoked at every task boundary.
 - **`vox-crypto` boundary.** All crypto stays in `vox-crypto` / `rustls`. We do not roll any new primitives.
 - **No `.ps1` / `.sh` / `.py` scripts.** No automation glue introduced.
-- **Auto-generated docs.** `SUMMARY.md`, `architecture-index.md`, `research-index.md`, `feed.xml` are not touched. Only `where-things-live.md` and `populi.md` are hand-edited (both legitimate).
+- **Auto-generated docs.** `SUMMARY.md`, `architecture-index.md`, `feed.xml` are not touched. Only `where-things-live.md` and `populi.md` are hand-edited (both legitimate). `research-index.md` is retired (archived 2026-09). The Starlight sidebar is the browse surface. `architecture-index.md` stays gitignored.
 - **Atomicity.** Each task ends with one commit. Rollback is task-granular.
 - **Probe plan delegation.** P0-T6 explicitly defers to `populi-mesh-probe-correctness-plan-2026.md`; we do not duplicate or summarize it.
 
