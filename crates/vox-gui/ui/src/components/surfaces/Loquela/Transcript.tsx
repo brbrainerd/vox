@@ -35,14 +35,14 @@ function Bubble({ message }: { message: ChatMessage }) {
   const failed = message.status === 'failed';
 
   const tone = isSystem
-    ? 'self-center border-amber-400/20 bg-amber-400/[0.06] text-amber-100/90 text-center max-w-full'
+    ? 'self-center border-amber-400/20 bg-amber-400/6 text-amber-100/90 text-center max-w-full'
     : isUser
-      ? 'self-end border-brass/30 bg-brass/[0.08] text-text-primary'
+      ? 'self-end border-brass/30 bg-brass/8 text-text-primary'
       : 'self-start border-border-subtle bg-overlay-subtle text-text-secondary';
 
   return (
     <div
-      className={`max-w-[80%] rounded-xl border px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap break-words ${tone}`}
+      className={`max-w-[80%] rounded-xl border px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap wrap-break-word ${tone}`}
     >
       {!isSystem && (
         <div className="mb-0.5 vox-display text-[9px] text-text-muted">

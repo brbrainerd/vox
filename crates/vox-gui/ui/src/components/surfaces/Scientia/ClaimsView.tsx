@@ -32,7 +32,7 @@ export function VerdictBadge({ verdict }: { verdict: string | null }) {
   const label = verdict ?? 'pending';
   const cls = verdict ? VERDICT_STYLE[verdict] ?? VERDICT_STYLE.Abstain : 'bg-overlay-subtle text-text-muted ring-1 ring-white/10';
   return (
-    <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}>{label}</span>
+    <span className={`rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}>{label}</span>
   );
 }
 
@@ -103,7 +103,7 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
           value={publicationId}
           onChange={(e) => setPublicationId(e.target.value)}
           placeholder="publication id"
-          className="bg-bg-base min-w-[16rem] flex-1 rounded-lg border border-border-subtle bg-black/30 px-3 py-1.5 font-mono text-sm text-text-secondary focus:border-cyan focus:outline-none"
+          className="bg-bg-base min-w-[16rem] flex-1 rounded-lg border border-border-subtle bg-black/30 px-3 py-1.5 font-mono text-sm text-text-secondary focus:border-cyan focus:outline-hidden"
         />
         <button
           type="button"
@@ -147,7 +147,7 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
                   <span className="font-mono text-[10px] text-text-muted">vscore {c.verifiability_score.toFixed(2)}</span>
                 )}
                 {c.is_numeric && (
-                  <span className="rounded bg-cyan/10 px-1 font-mono text-[9px] uppercase tracking-wider text-cyan">numeric</span>
+                  <span className="rounded-sm bg-cyan/10 px-1 font-mono text-[9px] uppercase tracking-wider text-cyan">numeric</span>
                 )}
                 {c.verifier_model && (
                   <span className="ml-auto font-mono text-[9px] text-text-muted">{c.verifier_model}</span>

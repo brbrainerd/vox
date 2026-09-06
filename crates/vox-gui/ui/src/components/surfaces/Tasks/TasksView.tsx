@@ -195,7 +195,7 @@ export function TasksView({
             reprioritize(r, val);
           }}
           disabled={busy || r.lifecycle === 'blocked'}
-          className="bg-zinc-900 text-zinc-100 border border-white/10 rounded px-1.5 py-0.5 text-xs outline-none focus:border-brass/50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-zinc-900 text-zinc-100 border border-white/10 rounded-sm px-1.5 py-0.5 text-xs outline-hidden focus:border-brass/50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <option value={TASK_PRIORITY_WIRE.urgent}>Urgent</option>
           <option value={TASK_PRIORITY_WIRE.normal}>Normal</option>
@@ -244,7 +244,7 @@ export function TasksView({
               {r.depends_on.length > 0 && (
                 <span
                   title="Runs after the listed task(s) complete"
-                  className="rounded border border-border-subtle bg-overlay-subtle px-1 font-mono text-[9px] text-text-muted"
+                  className="rounded-sm border border-border-subtle bg-overlay-subtle px-1 font-mono text-[9px] text-text-muted"
                 >
                   → after #{r.depends_on.join(', #')}
                 </span>
@@ -252,7 +252,7 @@ export function TasksView({
               {(overlaps.get(r.id)?.length ?? 0) > 0 && (
                 <span
                   title="These tasks write the same files — the orchestrator serializes them via file locks and may split VCS changes"
-                  className="rounded border border-amber-400/30 bg-amber-400/10 px-1 font-mono text-[9px] text-amber-300"
+                  className="rounded-sm border border-amber-400/30 bg-amber-400/10 px-1 font-mono text-[9px] text-amber-300"
                 >
                   ⚠ overlaps #{overlaps.get(r.id)!.join(', #')}
                 </span>
@@ -260,12 +260,12 @@ export function TasksView({
               {r.remote_node && (
                 <span
                   title="Executing remotely on a mesh node via A2A lease"
-                  className="rounded border border-cyan-400/30 bg-cyan-400/10 px-1 font-mono text-[9px] text-cyan-300"
+                  className="rounded-sm border border-cyan-400/30 bg-cyan-400/10 px-1 font-mono text-[9px] text-cyan-300"
                 >
                   mesh: {r.remote_node}
                 </span>
               )}
-              <span className="rounded border border-border-subtle px-1 font-mono text-[9px] text-text-muted">{r.origin}</span>
+              <span className="rounded-sm border border-border-subtle px-1 font-mono text-[9px] text-text-muted">{r.origin}</span>
             </div>
           </div>
         );
@@ -332,7 +332,7 @@ export function TasksView({
                   type="button"
                   onClick={() => setSessionFilter(sid)}
                   aria-pressed={active}
-                  className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
+                  className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors focus:outline-hidden focus-visible:ring-1 focus-visible:ring-brass/40 ${
                     active
                       ? 'border-brass/40 bg-brass/10 text-brass'
                       : 'border-border-subtle bg-overlay-subtle text-text-muted hover:border-border-subtle hover:text-text-secondary'
@@ -349,7 +349,7 @@ export function TasksView({
             type="checkbox"
             checked={showBlocked}
             onChange={(e) => setShowBlocked(e.target.checked)}
-            className="rounded border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
+            className="rounded-sm border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
           />
           Show blocked tasks
         </label>

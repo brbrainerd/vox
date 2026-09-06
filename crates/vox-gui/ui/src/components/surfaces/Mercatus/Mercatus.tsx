@@ -66,7 +66,7 @@ export function Mercatus({ condensed }: { condensed?: boolean }) {
         <button
           type="button"
           onClick={reload}
-          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted hover:text-text-secondary"
+          className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted hover:text-text-secondary"
         >
           {state === 'loading' ? 'loading…' : 'refresh'}
         </button>

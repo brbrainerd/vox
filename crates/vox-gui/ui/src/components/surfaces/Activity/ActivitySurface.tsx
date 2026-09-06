@@ -154,7 +154,7 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
                 row.kind
               )}`}
             >
-              <div className="flex items-center justify-center p-1.5 rounded bg-zinc-900/50 border border-zinc-800">
+              <div className="flex items-center justify-center p-1.5 rounded-sm bg-zinc-900/50 border border-zinc-800">
                 {getIcon(row.kind)}
               </div>
               <div className="flex-1 min-w-0">
@@ -166,7 +166,7 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
                     {new Date(row.ts_ms).toLocaleTimeString()}
                   </span>
                   {row.agent_id && (
-                    <span className="px-1.5 py-0.5 rounded bg-zinc-900/60 border border-zinc-800/50 text-[10px] text-zinc-400">
+                    <span className="px-1.5 py-0.5 rounded-sm bg-zinc-900/60 border border-zinc-800/50 text-[10px] text-zinc-400">
                       Agent: {row.agent_id}
                     </span>
                   )}
@@ -186,7 +186,7 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
               )}`}
             >
               <div className="flex items-start gap-4">
-                <div className="flex items-center justify-center p-1.5 rounded bg-zinc-900/50 border border-zinc-800">
+                <div className="flex items-center justify-center p-1.5 rounded-sm bg-zinc-900/50 border border-zinc-800">
                   {getIcon('CostIncurred')}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -198,7 +198,7 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
                       {new Date(item.rows[0].ts_ms).toLocaleTimeString()}
                     </span>
                     {item.agentId && (
-                      <span className="px-1.5 py-0.5 rounded bg-zinc-900/60 border border-zinc-800/50 text-[10px] text-zinc-400">
+                      <span className="px-1.5 py-0.5 rounded-sm bg-zinc-900/60 border border-zinc-800/50 text-[10px] text-zinc-400">
                         Agent: {item.agentId}
                       </span>
                     )}
@@ -209,7 +209,7 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
                     </p>
                     <button
                       onClick={() => toggleExpand(item.key)}
-                      className="px-2 py-0.5 rounded bg-zinc-900/60 border border-zinc-800 hover:bg-zinc-800 text-[10px] text-zinc-400 hover:text-zinc-200 font-medium transition-colors"
+                      className="px-2 py-0.5 rounded-sm bg-zinc-900/60 border border-zinc-800 hover:bg-zinc-800 text-[10px] text-zinc-400 hover:text-zinc-200 font-medium transition-colors"
                       data-testid="fold-toggle"
                     >
                       {isExpanded ? 'Hide' : 'Expand'}
@@ -334,7 +334,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
           <select
             value={agentFilter}
             onChange={(e) => setAgentFilter(e.target.value)}
-            className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-300 focus:outline-none focus:border-zinc-700"
+            className="bg-zinc-900 border border-zinc-800 rounded-sm px-2 py-1 text-xs text-zinc-300 focus:outline-hidden focus:border-zinc-700"
           >
             <option value="">All Agents</option>
             {uniqueAgents.map((id) => (
@@ -352,7 +352,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
           <select
             value={kindFilter}
             onChange={(e) => setKindFilter(e.target.value)}
-            className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-300 focus:outline-none focus:border-zinc-700"
+            className="bg-zinc-900 border border-zinc-800 rounded-sm px-2 py-1 text-xs text-zinc-300 focus:outline-hidden focus:border-zinc-700"
           >
             <option value="">All Kinds</option>
             {uniqueKinds.map((kind) => (
@@ -367,7 +367,7 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
           <button
             onClick={fetchLogs}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 disabled:opacity-50 text-xs font-medium text-zinc-200 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 disabled:opacity-50 text-xs font-medium text-zinc-200 transition-colors"
           >
             <Icon.alert className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh

@@ -78,7 +78,7 @@ describe('DriveConsole', () => {
   it('shows budget bar when budgetUsd > 0', () => {
     const { container } = render(<DriveConsole {...base} />);
     // The bar span exists
-    const bar = container.querySelector('.bg-gradient-to-r');
+    const bar = container.querySelector('.bg-linear-to-r');
     expect(bar).toBeTruthy();
   });
 });

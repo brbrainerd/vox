@@ -56,7 +56,7 @@ export function DriveConsole({
               onClick={() => onControlChange({ clutch: d.id })}
               className={`min-h-[24px] rounded px-1.5 font-medium ${
                 control.clutch === d.id
-                  ? 'bg-brass/[0.16] text-brass'
+                  ? 'bg-brass/16 text-brass'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -73,9 +73,9 @@ export function DriveConsole({
       >
         <span className="font-mono text-brass">${spentUsd.toFixed(2)}</span>
         <span className="font-mono text-zinc-500">/{budgetUsd.toFixed(2)}</span>
-        <span className="relative h-[3px] w-12 rounded bg-white/[0.08]">
+        <span className="relative h-[3px] w-12 rounded-sm bg-white/8">
           <span
-            className="absolute inset-y-0 left-0 rounded bg-gradient-to-r from-emerald-400 to-brass"
+            className="absolute inset-y-0 left-0 rounded-sm bg-linear-to-r from-emerald-400 to-brass"
             style={{ width: `${pct}%` }}
           />
         </span>
@@ -93,9 +93,9 @@ export function DriveConsole({
           aria-label={`Risk: ${risk.label} — click to configure`}
           aria-expanded={riskOpen}
           onClick={() => setRiskOpen(o => !o)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-white/[0.03]"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-white/3"
         >
-          <span className={`h-3.5 w-[3px] rounded ${TONE_BG[risk.tone]}`} aria-hidden />
+          <span className={`h-3.5 w-[3px] rounded-sm ${TONE_BG[risk.tone]}`} aria-hidden />
           <span>{risk.label}</span>
           <span className="text-zinc-600">▾</span>
         </button>

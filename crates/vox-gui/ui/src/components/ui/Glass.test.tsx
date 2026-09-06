@@ -18,7 +18,7 @@ describe('Glass Primitive', () => {
     expect(screen.getByTestId('g')).toHaveClass('cursor-pointer');
   });
 
-  it('uses an opaque background, not a low-alpha overlay tint (Firefox backdrop-blur compositing bug)', () => {
+  it('uses an opaque background, not a low-alpha overlay tint (Firefox backdrop-blur-sm compositing bug)', () => {
     render(<Glass data-testid="g">Content</Glass>);
     const el = screen.getByTestId('g');
     expect(el).toHaveClass('bg-overlay-solid');

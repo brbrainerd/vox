@@ -71,7 +71,7 @@ function stepIcon(s: SelectionStep): string {
 }
 
 const BTN =
-  'rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40';
+  'rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40';
 
 interface Props {
   pushToast: (t: any) => void;
@@ -199,7 +199,7 @@ export function PriorityChainEditor({ pushToast }: Props) {
                 onDrop(i);
               }}
               className={`flex items-center gap-2 rounded-md border bg-overlay-subtle p-2 transition ${
-                dragOver === i ? 'border-brass/50 bg-brass/[0.05]' : 'border-border-subtle'
+                dragOver === i ? 'border-brass/50 bg-brass/5' : 'border-border-subtle'
               }`}
             >
               <span aria-hidden="true" className="cursor-grab select-none font-mono text-[11px] text-text-muted" title="Drag to reorder">
@@ -223,7 +223,7 @@ export function PriorityChainEditor({ pushToast }: Props) {
               </button>
               <button
                 type="button"
-                className="rounded border border-rose-500/20 bg-rose-500/[0.04] px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10"
+                className="rounded-sm border border-rose-500/20 bg-rose-500/4 px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10"
                 onClick={() => removeStep(i)}
                 aria-label={`Remove step ${i + 1}`}
                 title="Remove step"
@@ -290,7 +290,7 @@ function AddStepMenu({
   };
 
   const sel =
-    'rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary focus:border-brass/40 focus:outline-none';
+    'rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary focus:border-brass/40 focus:outline-hidden';
 
   return (
     <div className="mt-3 space-y-2 rounded-md border border-border-subtle bg-black/20 p-3">
@@ -384,7 +384,7 @@ function AddStepMenu({
             </select>
             {thenKind === 'pin_model' &&
               (models.length > 0 ? (
-                <select className={`${sel} min-w-[14rem]`} value={thenPin} onChange={(e) => setThenPin(e.target.value)}>
+                <select className={`${sel} min-w-56`} value={thenPin} onChange={(e) => setThenPin(e.target.value)}>
                   {models.map((m) => (
                     <option key={m} value={m}>
                       {m}
@@ -393,7 +393,7 @@ function AddStepMenu({
                 </select>
               ) : (
                 <input
-                  className={`${sel} min-w-[14rem]`}
+                  className={`${sel} min-w-56`}
                   aria-label="Fallback model id to pin"
                   placeholder="model id"
                   value={thenPin}

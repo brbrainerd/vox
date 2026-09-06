@@ -116,7 +116,7 @@ export function DataTable<T>({
                   type="checkbox" 
                   checked={selectedIds.size === rows.length && rows.length > 0}
                   onChange={toggleSelectAll}
-                  className="rounded border-border-subtle bg-bg-base text-brass focus:ring-brass/40"
+                  className="rounded-sm border-border-subtle bg-bg-base text-brass focus:ring-brass/40"
                   aria-label="Select all rows"
                 />
               </th>
@@ -160,7 +160,7 @@ export function DataTable<T>({
                       key={id} 
                       className={cn(
                         "border-b border-border-subtle last:border-0 hover:bg-overlay-subtle transition-colors",
-                        isSelected && "bg-brass/[0.02]"
+                        isSelected && "bg-brass/2"
                       )}
                     >
                       {selectable && (
@@ -169,7 +169,7 @@ export function DataTable<T>({
                             type="checkbox" 
                             checked={isSelected}
                             onChange={() => toggleSelectRow(id)}
-                            className="rounded border-brass/40 bg-bg-base text-brass focus:ring-brass/40"
+                            className="rounded-sm border-brass/40 bg-bg-base text-brass focus:ring-brass/40"
                             aria-label={`Select row ${id}`}
                           />
                         </td>

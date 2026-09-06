@@ -48,7 +48,7 @@ function Segment({
   onClick?: () => void;
 }) {
   const className =
-    'inline-flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-[10px] text-text-muted transition hover:bg-overlay-subtle hover:text-text-secondary';
+    'inline-flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1 text-[10px] text-text-muted transition hover:bg-overlay-subtle hover:text-text-secondary';
 
   if (onClick) {
     return (
@@ -135,7 +135,7 @@ export function ChatExecutionRail({
                 type="button"
                 aria-label={intent}
                 onClick={() => onOpenRouting?.()}
-                className="rounded px-2 py-1 text-left text-[11px] text-text-secondary transition hover:bg-overlay-subtle hover:text-brass"
+                className="rounded-sm px-2 py-1 text-left text-[11px] text-text-secondary transition hover:bg-overlay-subtle hover:text-brass"
               >
                 {intent}
               </button>

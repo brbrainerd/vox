@@ -23,7 +23,7 @@ export function FeedbackCard({ row, onResolve, onOpenContext }: Props) {
           <button
             type="button"
             aria-label="Save as skill"
-            className="text-[11px] font-semibold px-2.5 py-1 rounded border border-emerald-400/30 text-emerald-300 bg-emerald-400/10 hover:bg-emerald-400/20"
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-sm border border-emerald-400/30 text-emerald-300 bg-emerald-400/10 hover:bg-emerald-400/20"
             onClick={() => onResolve(row.feedbackId, { action: 'accept_skill' })}
           >
             Save as skill
@@ -31,7 +31,7 @@ export function FeedbackCard({ row, onResolve, onOpenContext }: Props) {
           <button
             type="button"
             aria-label="Dismiss this skill proposal"
-            className="text-[11px] font-semibold px-2.5 py-1 rounded border border-border-subtle text-text-muted hover:bg-overlay-subtle"
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-sm border border-border-subtle text-text-muted hover:bg-overlay-subtle"
             onClick={() => onResolve(row.feedbackId, { action: 'skip' })}
           >
             Dismiss
@@ -62,14 +62,14 @@ export function FeedbackCard({ row, onResolve, onOpenContext }: Props) {
           <>
             <button
               aria-label="Overrule the doubt"
-              className="text-[11px] font-semibold px-2.5 py-1 rounded border border-emerald-400/30 text-emerald-300 bg-emerald-400/10 inline-flex items-center gap-1 hover:bg-emerald-400/20"
+              className="text-[11px] font-semibold px-2.5 py-1 rounded-sm border border-emerald-400/30 text-emerald-300 bg-emerald-400/10 inline-flex items-center gap-1 hover:bg-emerald-400/20"
               onClick={() => onResolve(row.feedbackId, { action: 'overrule' })}
             >
               <Icon.gavel className="size-3.5" />Overrule
             </button>
             <button
               aria-label="Let the agent verify"
-              className="text-[11px] font-semibold px-2.5 py-1 rounded border border-border-subtle text-text-muted hover:bg-overlay-subtle"
+              className="text-[11px] font-semibold px-2.5 py-1 rounded-sm border border-border-subtle text-text-muted hover:bg-overlay-subtle"
               onClick={() => onResolve(row.feedbackId, { action: 'let_verify' })}
             >
               Let it verify
@@ -81,7 +81,7 @@ export function FeedbackCard({ row, onResolve, onOpenContext }: Props) {
               <button
                 key={i}
                 aria-label={`Answer: ${opt}`}
-                className="text-[11px] font-semibold px-2.5 py-1 rounded border border-emerald-400/30 text-emerald-300 bg-emerald-400/10 hover:bg-emerald-400/20"
+                className="text-[11px] font-semibold px-2.5 py-1 rounded-sm border border-emerald-400/30 text-emerald-300 bg-emerald-400/10 hover:bg-emerald-400/20"
                 onClick={() => onResolve(row.feedbackId, { action: 'answer', option: i, text: null })}
               >
                 {opt}
@@ -89,14 +89,14 @@ export function FeedbackCard({ row, onResolve, onOpenContext }: Props) {
             ))}
             <button
               aria-label="Answer in free text"
-              className="text-[11px] font-semibold px-2.5 py-1 rounded border border-border-subtle text-text-muted hover:bg-overlay-subtle"
+              className="text-[11px] font-semibold px-2.5 py-1 rounded-sm border border-border-subtle text-text-muted hover:bg-overlay-subtle"
               onClick={() => onOpenContext(row.feedbackId)}
             >
               ✎ Answer…
             </button>
             <button
               aria-label="Skip this question"
-              className="text-[11px] font-semibold px-2.5 py-1 rounded border border-border-subtle text-text-muted hover:bg-overlay-subtle"
+              className="text-[11px] font-semibold px-2.5 py-1 rounded-sm border border-border-subtle text-text-muted hover:bg-overlay-subtle"
               onClick={() => onResolve(row.feedbackId, { action: 'skip' })}
             >
               Skip

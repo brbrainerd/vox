@@ -159,7 +159,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
           type="button"
           onClick={() => setSelectedRunId(r.run_id)}
           aria-pressed={selectedRun?.run_id === r.run_id}
-          className="hover:text-brass text-left font-medium outline-none focus:ring-1 focus:ring-brass/40 rounded px-1 -mx-1"
+          className="hover:text-brass text-left font-medium outline-hidden focus:ring-1 focus:ring-brass/40 rounded-sm px-1 -mx-1"
         >
           {r.workflow_name}
         </button>
@@ -256,7 +256,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
               </div>
             ) : null}
             {selectedRun.last_error ? (
-              <pre className="mt-2 whitespace-pre-wrap rounded border border-rose-300/20 bg-rose-950/20 p-2 text-[10px] text-rose-200">
+              <pre className="mt-2 whitespace-pre-wrap rounded-sm border border-rose-300/20 bg-rose-950/20 p-2 text-[10px] text-rose-200">
                 {selectedRun.last_error}
               </pre>
             ) : (

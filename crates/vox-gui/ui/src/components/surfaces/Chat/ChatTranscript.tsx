@@ -30,15 +30,15 @@ export function MessageBubble({
   const failed = message.status === 'failed';
 
   const tone = isSystem
-    ? 'self-center border-amber-400/20 bg-amber-400/[0.06] text-amber-100/90 text-center max-w-full'
+    ? 'self-center border-amber-400/20 bg-amber-400/6 text-amber-100/90 text-center max-w-full'
     : isUser
-      ? 'self-end border-brass/30 bg-brass/[0.08] text-text-primary'
+      ? 'self-end border-brass/30 bg-brass/8 text-text-primary'
       : 'self-start border-border-subtle bg-overlay-subtle text-text-secondary';
 
   return (
     <div
       id={`msg-${message.id}`}
-      className={`max-w-[80%] rounded-xl border px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap break-words ${tone}`}
+      className={`max-w-[80%] rounded-xl border px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap wrap-break-word ${tone}`}
     >
       {!isSystem && (
         <div className="mb-0.5 font-mono text-[9px] uppercase tracking-wide text-text-muted">
@@ -68,7 +68,7 @@ export function MessageBubble({
       )}
       {message.role === 'assistant' && message.groundingFlagged && (
         <div className="mt-1 flex justify-end">
-          <span className="rounded border border-amber-400/30 bg-amber-400/[0.08] px-1.5 py-0.5 font-mono text-[9px] text-amber-300">
+          <span className="rounded-sm border border-amber-400/30 bg-amber-400/8 px-1.5 py-0.5 font-mono text-[9px] text-amber-300">
             low confidence — unverified
           </span>
         </div>
@@ -90,7 +90,7 @@ function HarnessIssueSummary({ issue }: { issue: HarnessIssueRow }) {
   return (
     <div
       data-testid={`transcript-harness-issue-${issue.id}`}
-      className={`self-center rounded border border-amber-400/30 bg-amber-400/[0.08] px-2 py-1 text-center text-[10px] ${statusTone}`}
+      className={`self-center rounded-sm border border-amber-400/30 bg-amber-400/8 px-2 py-1 text-center text-[10px] ${statusTone}`}
     >
       Issue detected ({issue.status}): {issue.summary}
     </div>

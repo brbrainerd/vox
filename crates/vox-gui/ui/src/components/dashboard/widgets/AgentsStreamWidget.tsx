@@ -16,7 +16,7 @@ export function AgentsStreamWidget({ data }: { data: DashboardData }) {
           </div>
         ) : (
           data.agents.slice(0, 6).map((a) => (
-            <div key={a.id} className="flex items-center justify-between rounded border border-border-subtle bg-overlay-subtle px-2 py-1 text-[11px]">
+            <div key={a.id} className="flex items-center justify-between rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 text-[11px]">
               <span className="truncate text-text-secondary">{a.codename}</span>
               <span className="font-mono text-[10px] text-text-muted">{a.phase}</span>
             </div>

@@ -207,7 +207,7 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
                     <div className="truncate text-[12px] text-text-secondary">{q.description}</div>
                     <div className="truncate text-[11px] text-text-muted">{q.hint}</div>
                   </div>
-                  <span className={`shrink-0 rounded px-2 py-0.5 font-mono text-[10px] uppercase ${q.completed ? 'bg-emerald-500/15 text-emerald-300' : 'bg-overlay-subtle text-text-muted'}`}>
+                  <span className={`shrink-0 rounded-sm px-2 py-0.5 font-mono text-[10px] uppercase ${q.completed ? 'bg-emerald-500/15 text-emerald-300' : 'bg-overlay-subtle text-text-muted'}`}>
                     {q.completed ? 'done' : q.status}
                   </span>
                 </div>

@@ -335,18 +335,18 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
           >
             <div className="flex flex-col items-center">
               <span className="text-lg leading-none">🧍</span>
-              <span className="rounded bg-bg-base/80 px-1 font-mono text-[9px] text-text-secondary">{id}</span>
+              <span className="rounded-sm bg-bg-base/80 px-1 font-mono text-[9px] text-text-secondary">{id}</span>
             </div>
           </div>
         ))}
       </div>
       {buildStage && (
-        <div className="absolute right-2 top-2 rounded border border-border-subtle bg-black/70 px-2 py-1 font-serif text-[10px] tracking-widest text-amber-200">
+        <div className="absolute right-2 top-2 rounded-sm border border-border-subtle bg-black/70 px-2 py-1 font-serif text-[10px] tracking-widest text-amber-200">
           FABRICA · {buildStage}
         </div>
       )}
       {paused && (
-        <div className="absolute left-1/2 top-2 -translate-x-1/2 rounded border border-amber-700/50 bg-black/70 px-3 py-1 font-serif text-[11px] tracking-widest text-amber-300">
+        <div className="absolute left-1/2 top-2 -translate-x-1/2 rounded-sm border border-amber-700/50 bg-black/70 px-3 py-1 font-serif text-[11px] tracking-widest text-amber-300">
           SIM PAVSED — live stream unavailable
         </div>
       )}
@@ -356,11 +356,11 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
           style={{ left: menu.sx + 8, top: menu.sy + 8 }}
         >
           <div className="max-w-[220px] truncate px-2 py-1 font-mono text-text-muted">{menu.path}</div>
-          <button type="button" className="block w-full rounded px-2 py-1 text-left hover:bg-overlay-subtle"
+          <button type="button" className="block w-full rounded-sm px-2 py-1 text-left hover:bg-overlay-subtle"
             onClick={() => { voxTransport.openLocator({ kind: 'file', value: scanRoot ? `${scanRoot}/${menu.path}` : menu.path }).catch(() => {}); setMenu(null); }}>
             Open file
           </button>
-          <button type="button" className="block w-full rounded px-2 py-1 text-left hover:bg-overlay-subtle"
+          <button type="button" className="block w-full rounded-sm px-2 py-1 text-left hover:bg-overlay-subtle"
             onClick={() => { useLudusStore.getState().setFocusedFile(menu.path); setMenu(null); }}>
             Focus
           </button>
@@ -372,7 +372,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
       <div className="absolute bottom-2 left-2 flex items-center gap-2">
         <HudPanels treasuryUsd={treasuryUsd} energy={energy} maxEnergy={maxEnergy} speed={speed} onSetSpeed={setSpeed} />
         <button type="button" onClick={fitWorld}
-          className="pointer-events-auto rounded border border-border-subtle bg-bg-base/80 px-2 py-1 text-[10px] text-text-muted hover:text-text-primary">
+          className="pointer-events-auto rounded-sm border border-border-subtle bg-bg-base/80 px-2 py-1 text-[10px] text-text-muted hover:text-text-primary">
           ⌂ fit
         </button>
       </div>

@@ -35,14 +35,14 @@ export interface BottomStatusBarProps {
 function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
   if (tone === 'live') {
     return {
-      pill: 'border-emerald-400/20 bg-emerald-400/[0.04] text-emerald-300',
+      pill: 'border-emerald-400/20 bg-emerald-400/4 text-emerald-300',
       dot: 'bg-emerald-400',
       label: 'Live',
     };
   }
   if (tone === 'poll') {
     return {
-      pill: 'border-amber-400/20 bg-amber-400/[0.04] text-amber-300',
+      pill: 'border-amber-400/20 bg-amber-400/4 text-amber-300',
       dot: 'bg-amber-400',
       label: 'Poll',
     };
@@ -70,7 +70,7 @@ function Segment({
       type="button"
       data-testid={testId}
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+      className="inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
     >
       <span className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
       <span className="font-mono tabular-nums text-text-secondary">{value}</span>
@@ -237,7 +237,7 @@ export function BottomStatusBar({
           data-testid="achievements-trigger"
           aria-label="Open achievements"
           onClick={onOpenAchievements}
-          className="inline-flex shrink-0 items-center justify-center rounded px-1.5 py-0.5 text-amber-300/80 hover:bg-overlay-subtle hover:text-amber-200 transition"
+          className="inline-flex shrink-0 items-center justify-center rounded-sm px-1.5 py-0.5 text-amber-300/80 hover:bg-overlay-subtle hover:text-amber-200 transition"
         >
           <Icon.trophy className="size-3.5" aria-hidden="true" />
         </button>
@@ -249,7 +249,7 @@ export function BottomStatusBar({
           onClick={() => setMenuOpen((o) => !o)}
           aria-expanded={menuOpen}
           aria-label="Configure status bar"
-          className="rounded px-1.5 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+          className="rounded-sm px-1.5 py-0.5 text-[10px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
         >
           Configure ▾
         </button>
@@ -261,7 +261,7 @@ export function BottomStatusBar({
             {hudTilesConfig.tiles.map((tile) => (
               <label
                 key={tile.id}
-                className="flex items-center gap-2 rounded px-2 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
+                className="flex items-center gap-2 rounded-sm px-2 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
               >
                 <input
                   type="checkbox"
@@ -269,7 +269,7 @@ export function BottomStatusBar({
                   onChange={(e) =>
                     onHudTilesChange(toggleHudTile(hudTilesConfig, tile.id, e.target.checked))
                   }
-                  className="rounded border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
+                  className="rounded-sm border-border-subtle bg-bg-base text-brass focus:ring-brass/40 focus:ring-offset-bg-base size-3.5"
                 />
                 {HUD_TILE_LABELS[tile.kind]}
               </label>
@@ -279,7 +279,7 @@ export function BottomStatusBar({
       </div>
       <div
         data-testid="bottom-status-bar-freshness"
-        className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded border px-2 py-0.5 ${fresh.pill}`}
+        className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2 py-0.5 ${fresh.pill}`}
       >
         <span className={`size-1.5 rounded-full ${fresh.dot}`} />
         <span className="uppercase tracking-[0.14em]">{fresh.label}</span>

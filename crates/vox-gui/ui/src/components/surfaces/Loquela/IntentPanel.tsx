@@ -7,7 +7,7 @@ interface IntentPanelProps {
 }
 
 const FIELD_CLS =
-  'w-full rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1.5 text-[12px] text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brass/40';
+  'w-full rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1.5 text-[12px] text-text-primary placeholder:text-text-muted focus:outline-hidden focus:ring-1 focus:ring-brass/40';
 const LABEL_CLS = 'font-display text-[9px] uppercase tracking-[0.22em] text-text-muted';
 
 export function IntentPanel({ intent, onChange }: IntentPanelProps) {

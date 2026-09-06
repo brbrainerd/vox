@@ -1886,12 +1886,12 @@ export default function App() {
 
       {achievementToasts.toasts.length > 0 && (
         <div
-          // z-[80]: must render above every modal/overlay in the app, including
-          // OnboardingWizard's z-[70] backdrop — otherwise an error toast fired
+          // z-80: must render above every modal/overlay in the app, including
+          // OnboardingWizard's z-70 backdrop — otherwise an error toast fired
           // while the wizard is open (e.g. BudgetSetupScreen.save() failing)
           // renders invisibly underneath it. Toasts are terminal user feedback
           // and should never be hidden behind any overlay.
-          className="pointer-events-none fixed bottom-4 right-4 z-[80] flex max-w-sm flex-col gap-2"
+          className="pointer-events-none fixed bottom-4 right-4 z-80 flex max-w-sm flex-col gap-2"
           aria-live="polite"
           aria-label="Achievement notifications"
         >

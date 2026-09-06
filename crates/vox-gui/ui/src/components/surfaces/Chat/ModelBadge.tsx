@@ -53,7 +53,7 @@ export function ModelBadge({
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         aria-label={`Completed by ${model} — details`}
-        className="rounded border border-brass/30 px-1.5 py-0.5 text-[10px] text-brass hover:bg-brass/[0.08]"
+        className="rounded-sm border border-brass/30 px-1.5 py-0.5 text-[10px] text-brass hover:bg-brass/8"
       >
         {model}
         {reqTokens != null && (

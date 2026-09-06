@@ -232,14 +232,14 @@ export function PoliciesView({
                     aria-label="Policy title"
                     value={editTitle}
                     onChange={e => setEditTitle(e.target.value)}
-                    className="rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-brass/40"
+                    className="rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-xs text-text-primary focus:outline-hidden focus:ring-1 focus:ring-brass/40"
                   />
                   <textarea
                     aria-label="Policy description"
                     value={editDesc}
                     onChange={e => setEditDesc(e.target.value)}
                     rows={3}
-                    className="rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-xs text-text-secondary focus:outline-none focus:ring-1 focus:ring-brass/40 resize-y"
+                    className="rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-xs text-text-secondary focus:outline-hidden focus:ring-1 focus:ring-brass/40 resize-y"
                   />
                   <div className="flex gap-2">
                     <button type="button"

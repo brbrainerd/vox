@@ -144,7 +144,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
                 <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">Candidates by class</div>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(snap.candidates.by_class).map(([cls, n]) => (
-                    <span key={cls} className="rounded bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-secondary">
+                    <span key={cls} className="rounded-sm bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-secondary">
                       {cls} <span className="text-text-muted">{n}</span>
                     </span>
                   ))}
@@ -169,7 +169,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
             )}
 
             {snap.stalls.length > 0 && (
-              <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.03] p-3">
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/3 p-3">
                 <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-amber-300/80">Stalled candidates</div>
                 <div className="space-y-1">
                   {snap.stalls.map((s) => (

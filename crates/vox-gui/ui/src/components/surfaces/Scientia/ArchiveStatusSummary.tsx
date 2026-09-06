@@ -74,7 +74,7 @@ export function ArchiveStatusSummary({ onFetchError }: ArchiveStatusSummaryProps
           type="button"
           onClick={load}
           disabled={loading}
-          className="rounded border border-border-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted hover:bg-overlay-subtle disabled:opacity-40"
+          className="rounded-sm border border-border-subtle px-2 py-0.5 font-mono text-[10px] text-text-muted hover:bg-overlay-subtle disabled:opacity-40"
         >
           {loading ? '…' : 'Refresh'}
         </button>

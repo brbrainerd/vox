@@ -148,7 +148,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Ask a research question…"
           aria-label="Research question"
           onKeyDown={e => { if (e.key === 'Enter') void run(); }}
-          className="flex-1 rounded-lg border border-border-subtle bg-black/40 px-3 py-2 text-sm text-text-secondary outline-none focus:border-brass/40" />
+          className="flex-1 rounded-lg border border-border-subtle bg-black/40 px-3 py-2 text-sm text-text-secondary outline-hidden focus:border-brass/40" />
         <button type="button" onClick={run} disabled={running}
           className="rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass hover:bg-brass/20 disabled:opacity-50">
           {running ? 'Running…' : 'Run'}

@@ -11,7 +11,7 @@ const TRUST_STYLE: Record<string, string> = {
 };
 
 function chip(cls: string, label: string) {
-  return <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}>{label}</span>;
+  return <span className={`rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}>{label}</span>;
 }
 
 /**

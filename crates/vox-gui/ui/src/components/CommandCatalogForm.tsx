@@ -96,7 +96,7 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                                     {cmd.has_subcommands && <span className="text-xs text-steel/50">▸</span>}
                                 </div>
                                 <div className="mt-1 flex gap-2">
-                                    <span className="text-[10px] uppercase tracking-wider bg-black/30 px-1 rounded text-brass">
+                                    <span className="text-[10px] uppercase tracking-wider bg-black/30 px-1 rounded-sm text-brass">
                                         {cmd.tier}
                                     </span>
                                     {cmd.aliases.length > 0 && (
@@ -124,7 +124,7 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                                         const control = argControl(arg);
                                         const label = arg.long ? `--${arg.long}` : (arg.short ? `-${arg.short}` : arg.name);
                                         const fieldKey = arg.long || arg.name;
-                                        const inputClass = "bg-bg-base border border-border rounded px-3 py-1.5 text-sm text-foreground font-mono focus:border-cyan focus:outline-none transition-colors max-w-md";
+                                        const inputClass = "bg-bg-base border border-border rounded-sm px-3 py-1.5 text-sm text-foreground font-mono focus:border-cyan focus:outline-hidden transition-colors max-w-md";
                                         return (
                                             <div key={arg.name} className="flex flex-col">
                                                 <div className="flex items-center gap-2 mb-1">
@@ -134,7 +134,7 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                                                             id={arg.name}
                                                             checked={!!argValues[fieldKey]}
                                                             onChange={e => setArgValues(prev => ({ ...prev, [fieldKey]: e.target.checked }))}
-                                                            className="bg-bg-base border border-border rounded focus:border-cyan"
+                                                            className="bg-bg-base border border-border rounded-sm focus:border-cyan"
                                                         />
                                                     )}
                                                     <label htmlFor={arg.name} className="text-xs font-bold tracking-widest text-steel font-mono">{label}</label>
@@ -190,20 +190,20 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                                     placeholder="e.g. --json --force"
                                     value={argsInput}
                                     onChange={e => setArgsInput(e.target.value)}
-                                    className="bg-bg-base border border-border rounded px-3 py-2 text-sm text-foreground font-mono focus:border-cyan focus:outline-none transition-colors w-full"
+                                    className="bg-bg-base border border-border rounded-sm px-3 py-2 text-sm text-foreground font-mono focus:border-cyan focus:outline-hidden transition-colors w-full"
                                 />
                             </div>
                         </div>
 
                         <button 
                             onClick={handleExecute}
-                            className="bg-primary text-void font-bold px-4 py-2 rounded uppercase tracking-widest hover:bg-cyan/80 transition-colors"
+                            className="bg-primary text-void font-bold px-4 py-2 rounded-sm uppercase tracking-widest hover:bg-cyan/80 transition-colors"
                         >
                             Execute
                         </button>
 
                         {output && (
-                            <div className="mt-8 p-4 bg-bg-base border border-border rounded">
+                            <div className="mt-8 p-4 bg-bg-base border border-border rounded-sm">
                                 <h4 className="text-sm font-bold tracking-widest text-steel uppercase mb-2">Execution Result</h4>
                                 {output.error ? (
                                     <div className="text-red-500 font-mono text-sm">Error: {output.error}</div>

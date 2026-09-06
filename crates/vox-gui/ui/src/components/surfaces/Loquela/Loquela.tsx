@@ -66,10 +66,10 @@ function Chip({ chip, onRemove }: { chip: ChipData; onRemove: (c: ChipData) => v
   // chip visually distinct from the brass "skill" chip while staying inside
   // the app's existing warm accent family (amber is already used elsewhere
   // for Doubted/low-confidence states) instead of reusing brass outright.
-  const tone = chip.kind === "file"   ? "border-amber-400/25 text-amber-300 bg-amber-400/[0.05]"
-            : chip.kind === "skill"  ? "border-brass/30 text-brass bg-brass/[0.05]"
-            : chip.kind === "agent"  ? "border-violet-400/25 text-violet-300 bg-violet-400/[0.05]"
-            : chip.kind === "branch" ? "border-emerald-400/25 text-emerald-300 bg-emerald-400/[0.05]"
+  const tone = chip.kind === "file"   ? "border-amber-400/25 text-amber-300 bg-amber-400/5"
+            : chip.kind === "skill"  ? "border-brass/30 text-brass bg-brass/5"
+            : chip.kind === "agent"  ? "border-violet-400/25 text-violet-300 bg-violet-400/5"
+            : chip.kind === "branch" ? "border-emerald-400/25 text-emerald-300 bg-emerald-400/5"
             :                          "border-border-subtle text-text-secondary bg-overlay-subtle";
   return (
     <span className={`group inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] ${tone}`}>
@@ -539,7 +539,7 @@ export function Loquela({
 
   return (
     <div className="pointer-events-auto" data-testid="loquela-composer">
-      <Glass className={`relative px-3 py-2 transition ${focused ? "ring-1 ring-brass/30 shadow-[0_0_60px_-20px_rgb(var(--brass)_/_0.45)]" : ""}`}>
+      <Glass className={`relative px-3 py-2 transition ${focused ? "ring-1 ring-brass/30 shadow-[0_0_60px_-20px_rgb(var(--brass)/0.45)]" : ""}`}>
         {chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 pb-1.5">
             <span className="font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Context</span>
@@ -560,7 +560,7 @@ export function Loquela({
               onBlur={() => setTimeout(() => setFocused(false), 120)}
               rows={1}
               placeholder="Describe a task — e.g. ‘harden cryptographic invariants’. / for commands, @ for agents or files"
-              className={`min-h-[36px] ${expanded ? "max-h-[360px]" : "max-h-[160px]"} w-full resize-none bg-transparent py-1.5 text-[14px] leading-relaxed text-text-primary placeholder:text-text-muted outline-none`}
+              className={`min-h-[36px] ${expanded ? "max-h-[360px]" : "max-h-[160px]"} w-full resize-none bg-transparent py-1.5 text-[14px] leading-relaxed text-text-primary placeholder:text-text-muted outline-hidden`}
             />
 
             {slashOpen && filteredSlash.length > 0 && (
@@ -570,7 +570,7 @@ export function Loquela({
                   const IcoCmp = (Icon as any)[s.icon] || Icon.bolt;
                   return (
                     <button type="button" key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => void runSlash(s)}
-                            className={`flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left ${i === slashIdx ? "bg-overlay-subtle" : ""}`}>
+                            className={`flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left ${i === slashIdx ? "bg-overlay-subtle" : ""}`}>
                       <IcoCmp className="size-3.5 text-brass" />
                       <span className="font-mono text-[11px] text-text-primary">{s.cmd}</span>
                       <span className="ml-auto text-[10px] text-text-muted">{s.desc}</span>
@@ -587,7 +587,7 @@ export function Loquela({
                     <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Agents</div>
                     {filteredAt.map(a => (
                       <button type="button" key={a.id} onClick={() => insertAt(a)}
-                              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle">
+                              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle">
                         <span className="font-mono text-[10px] text-violet-300">{a.id}</span>
                         <span className="text-[11px] text-text-secondary">{a.codename}</span>
                         <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-text-muted">{a.phase}</span>
@@ -605,7 +605,7 @@ export function Loquela({
                     )}
                     {fileSuggestions.map(p => (
                       <button type="button" key={p} onClick={() => insertAtFile(p)}
-                              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle">
+                              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle">
                         {/* Matches the file chip's new amber tone above, not the old cyan. */}
                         <Icon.file className="size-3 shrink-0 text-amber-300" />
                         <span className="truncate font-mono text-[10px] text-text-secondary">{p}</span>
@@ -625,18 +625,18 @@ export function Loquela({
               type="button"
               onClick={() => onInterrupt?.(currentTaskId)}
               aria-label="Stop (Enter)"
-              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/[0.12] px-3 text-rose-300 transition hover:bg-rose-400/[0.18]"
+              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/12 px-3 text-rose-300 transition hover:bg-rose-400/18"
             >
               <Icon.stop className="size-3.5" />
               <span className="font-display text-[11px] uppercase tracking-[0.18em]">Stop</span>
-              <kbd className="rounded border border-current px-1 text-[9px] opacity-75">↵</kbd>
+              <kbd className="rounded-sm border border-current px-1 text-[9px] opacity-75">↵</kbd>
             </button>
           ) : agentPaused && currentAgent ? (
             <button
               type="button"
               onClick={() => onResume?.(currentAgent)}
               aria-label="Resume"
-              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/[0.12] px-3 text-rose-300 transition hover:bg-rose-400/[0.18]"
+              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/12 px-3 text-rose-300 transition hover:bg-rose-400/18"
             >
               <Icon.play className="size-3.5" />
               <span className="font-display text-[11px] uppercase tracking-[0.18em]">Resume</span>
@@ -647,11 +647,11 @@ export function Loquela({
               onClick={() => void send()}
               disabled={!canSend}
               aria-label="Run (Enter)"
-              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}
+              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)/0.6)]" : "border-white/5 bg-white/2 text-zinc-600 cursor-not-allowed"}`}
             >
               <Icon.send className="size-3.5" />
               {dryRun ? "Dry-run" : "Run"}
-              <kbd className="rounded border border-current px-1 text-[9px] opacity-75">⌘↵</kbd>
+              <kbd className="rounded-sm border border-current px-1 text-[9px] opacity-75">⌘↵</kbd>
             </button>
           )}
         </div>
@@ -704,7 +704,7 @@ export function Loquela({
               type="button"
               onClick={onOpenTasks}
               title="Open task list"
-              className="flex items-center gap-1 rounded-full border border-brass/25 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20 focus:outline-none focus:ring-1 focus:ring-brass/40"
+              className="flex items-center gap-1 rounded-full border border-brass/25 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20 focus:outline-hidden focus:ring-1 focus:ring-brass/40"
             >
               {queueDepth} queued
             </button>
@@ -727,7 +727,7 @@ export function Loquela({
             </button>
             <Popover open={tierOpen}>
               {runtimeTiers.map(t => (
-                <button type="button" key={t.id} onClick={() => { setTier(t.id); setTierOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle ${tier === t.id ? "bg-overlay-subtle" : ""}`}>
+                <button type="button" key={t.id} onClick={() => { setTier(t.id); setTierOpen(false); }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${tier === t.id ? "bg-overlay-subtle" : ""}`}>
                   <div className="flex-1">
                     <div className="text-[11px] text-text-primary">{t.label}</div>
                     <div className="font-mono text-[9px] text-text-muted">{t.detail}</div>
@@ -738,16 +738,16 @@ export function Loquela({
           </div>
 
           <div className="relative">
-            <button type="button" aria-expanded={skillOpen} aria-label="Choose skill" onClick={() => { setSkillOpen(o => !o); setTierOpen(false); setModeOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/[0.06] px-2 py-1 text-brass hover:bg-brass/[0.12]">
+            <button type="button" aria-expanded={skillOpen} aria-label="Choose skill" onClick={() => { setSkillOpen(o => !o); setTierOpen(false); setModeOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/6 px-2 py-1 text-brass hover:bg-brass/12">
               <Icon.bolt className="size-3" /><span className="text-brass/70">Skill</span> <span>{activeSkill ? (activeSkill.name ?? activeSkill.command ?? activeSkill.id) : "auto"}</span>
               <Icon.chevR className="size-2.5 text-brass/60 rotate-90" />
             </button>
             <Popover open={skillOpen}>
-              <button type="button" onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className="block w-full rounded px-2 py-1.5 text-left text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-primary">auto</button>
+              <button type="button" onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className="block w-full rounded-sm px-2 py-1.5 text-left text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-primary">auto</button>
               {skills.map(s => {
                 const skillId = s.capability_id ?? s.command;
                 return (
-                <button type="button" key={skillId} onClick={() => { setActiveSkill({ id: skillId, name: s.command, command: s.command }); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[11px] hover:bg-overlay-subtle ${activeSkill?.id === skillId ? "bg-overlay-subtle text-brass" : "text-text-secondary"}`}>
+                <button type="button" key={skillId} onClick={() => { setActiveSkill({ id: skillId, name: s.command, command: s.command }); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-[11px] hover:bg-overlay-subtle ${activeSkill?.id === skillId ? "bg-overlay-subtle text-brass" : "text-text-secondary"}`}>
                   <span>{s.command}</span>
                 </button>
               );})}
@@ -760,13 +760,13 @@ export function Loquela({
               <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
             </button>
             <Popover open={modeOpen}>
-              <button type="button" aria-label="Set send mode: Quick chat" onClick={() => { setExecutionMode('chat'); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === 'chat' ? "bg-overlay-subtle" : ""}`}>
+              <button type="button" aria-label="Set send mode: Quick chat" onClick={() => { setExecutionMode('chat'); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === 'chat' ? "bg-overlay-subtle" : ""}`}>
                 <div className="flex-1">
                   <div className="text-[11px] text-text-primary">Quick chat</div>
                   <div className="font-mono text-[9px] text-text-muted">Synchronous reply, no background task</div>
                 </div>
               </button>
-              <button type="button" aria-label="Set send mode: Background task" onClick={() => { setExecutionMode('task'); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === 'task' ? "bg-overlay-subtle" : ""}`}>
+              <button type="button" aria-label="Set send mode: Background task" onClick={() => { setExecutionMode('task'); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === 'task' ? "bg-overlay-subtle" : ""}`}>
                 <div className="flex-1">
                   <div className="text-[11px] text-text-primary">Background task</div>
                   <div className="font-mono text-[9px] text-text-muted">Dispatch as an autonomous task, not blocking</div>

@@ -113,7 +113,7 @@ const SUBMIT_TASK_ROW: OmnibarRow = {
 
 function ProvenanceBadge({ hint }: { hint: string }) {
   return (
-    <span className="shrink-0 rounded border border-border-subtle bg-overlay-subtle px-1.5 py-px font-mono text-[9px] uppercase tracking-widest text-text-muted">
+    <span className="shrink-0 rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-px font-mono text-[9px] uppercase tracking-widest text-text-muted">
       {hint}
     </span>
   );
@@ -389,7 +389,7 @@ export function Omnibar({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm pt-[14vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-xs pt-[14vh]"
       onClick={onClose}
     >
       <div
@@ -407,9 +407,9 @@ export function Omnibar({
               setSearchQuery(v);
             }}
             placeholder="Search surfaces, commands, on-screen text, graph, docs…  ⇧⏎ to ask chat"
-            className="flex-1 bg-transparent text-[14px] text-text-primary placeholder:text-text-muted outline-none"
+            className="flex-1 bg-transparent text-[14px] text-text-primary placeholder:text-text-muted outline-hidden"
           />
-          <kbd className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-text-muted">esc</kbd>
+          <kbd className="rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-text-muted">esc</kbd>
         </div>
 
         <div className="max-h-[480px] overflow-auto p-2 custom-scrollbar">
@@ -435,7 +435,7 @@ export function Omnibar({
                         key={row.id}
                         onClick={() => activateRow(row)}
                         className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition ${
-                          selected ? 'bg-brass/[0.08] border border-brass/20' : 'hover:bg-overlay-subtle'
+                          selected ? 'bg-brass/8 border border-brass/20' : 'hover:bg-overlay-subtle'
                         }`}
                       >
                         <div className="flex flex-col min-w-0">

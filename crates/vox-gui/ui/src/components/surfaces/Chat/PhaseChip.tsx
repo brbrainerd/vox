@@ -35,7 +35,7 @@ export function PhaseChip({
     <span className="inline-flex items-center gap-2 text-[10px]">
       {/* Phase badge */}
       <span
-        className="rounded border border-brass/30 px-1.5 py-0.5 font-mono text-brass"
+        className="rounded-sm border border-brass/30 px-1.5 py-0.5 font-mono text-brass"
         data-testid="phase-chip-label"
       >
         {LABEL[phase]}

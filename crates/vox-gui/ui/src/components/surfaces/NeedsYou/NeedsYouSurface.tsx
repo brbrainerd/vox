@@ -152,7 +152,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       type="button"
                       aria-label={`Reject ${a.summary}`}
                       onClick={() => handleResolveApproval(a.approval_id, a.summary, 'rejected')}
-                      className="rounded border border-border-subtle px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-text-muted hover:border-rose-400/40 hover:text-rose-300"
+                      className="rounded-sm border border-border-subtle px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-text-muted hover:border-rose-400/40 hover:text-rose-300"
                     >
                       Reject
                     </button>
@@ -160,7 +160,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
                       type="button"
                       aria-label={`Approve ${a.summary}`}
                       onClick={() => handleResolveApproval(a.approval_id, a.summary, 'approved')}
-                      className="rounded border border-brass/30 bg-brass/10 px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-brass hover:bg-brass/20"
+                      className="rounded-sm border border-brass/30 bg-brass/10 px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-brass hover:bg-brass/20"
                     >
                       Approve
                     </button>

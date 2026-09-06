@@ -41,9 +41,9 @@ export function Skeleton({ className, height, width }: SkeletonProps) {
       data-slot="skeleton"
       style={style}
       className={cn(
-        'animate-[shimmer_1.5s_ease-in-out_infinite]',
+        'animate-shimmer',
         'bg-[linear-gradient(90deg,var(--color-bg-elevated)_25%,var(--color-border-strong)_50%,var(--color-bg-elevated)_75%)]',
-        'bg-[length:200%_100%]',
+        'bg-size-[200%_100%]',
         'rounded-md',
         className
       )}

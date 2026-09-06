@@ -17,7 +17,7 @@ export function BackendBanner() {
         type="button"
         aria-label="Dismiss browser preview notice"
         onClick={() => setDismissed(true)}
-        className="rounded px-1.5 text-amber-300 hover:bg-amber-900/60"
+        className="rounded-sm px-1.5 text-amber-300 hover:bg-amber-900/60"
       >
         ×
       </button>

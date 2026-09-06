@@ -74,7 +74,7 @@ export const CitizenSprite: React.FC<CitizenProps> = ({
       className="absolute flex flex-col items-center pointer-events-none"
       style={{ left: 0, top: 0 }}
     >
-      <div className="text-[9px] bg-black/80 px-1 py-0.5 rounded border border-blue-500/20 text-blue-400 font-mono scale-75 whitespace-nowrap mb-1">
+      <div className="text-[9px] bg-black/80 px-1 py-0.5 rounded-sm border border-blue-500/20 text-blue-400 font-mono scale-75 whitespace-nowrap mb-1">
         {name}
       </div>
       <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center border border-white/20 shadow-lg">
