@@ -56,6 +56,31 @@ fn newest_first(a: &str, b: &str) -> std::cmp::Ordering {
     }
 }
 
+pub fn run() -> Result<()> {
+    let root = plugins_root();
+    let plugins = vox_plugin_catalog::all_plugins();
+
+    // Header
+    println!("{:<30} {:<11} {:<12} DESCRIPTION", "ID", "KIND", "STATUS");
+    println!("{}", "-".repeat(90));
+
+    for p in plugins {
+        let kind = format!("{:?}", p.payload_kind).to_lowercase();
+        let status = match installed_version(&root, &p.id) {
+            Some(v) => format!("installed ({})", v),
+            None => {
+                // Check if this host OS/arch is covered by any artifact declared in the catalog.
+                // For catalog entries we don't have full payload data, so just report "available".
+                "available".to_string()
+            }
+        };
+        println!("{:<30} {:<11} {:<12} {}", p.id, kind, status, p.description);
+    }
+    println!();
+    println!("Install root: {}", root.display());
+    Ok(())
+}
+
 #[cfg(test)]
 mod installed_version_tests {
     use super::*;
@@ -133,29 +158,4 @@ mod installed_version_tests {
             Some("1.0.0".to_string())
         );
     }
-}
-
-pub fn run() -> Result<()> {
-    let root = plugins_root();
-    let plugins = vox_plugin_catalog::all_plugins();
-
-    // Header
-    println!("{:<30} {:<11} {:<12} DESCRIPTION", "ID", "KIND", "STATUS");
-    println!("{}", "-".repeat(90));
-
-    for p in plugins {
-        let kind = format!("{:?}", p.payload_kind).to_lowercase();
-        let status = match installed_version(&root, &p.id) {
-            Some(v) => format!("installed ({})", v),
-            None => {
-                // Check if this host OS/arch is covered by any artifact declared in the catalog.
-                // For catalog entries we don't have full payload data, so just report "available".
-                "available".to_string()
-            }
-        };
-        println!("{:<30} {:<11} {:<12} {}", p.id, kind, status, p.description);
-    }
-    println!();
-    println!("Install root: {}", root.display());
-    Ok(())
 }
