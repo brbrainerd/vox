@@ -711,7 +711,6 @@ cargo fmt -p vox-config
 
 **Files:**
 - Modify: `docs/src/architecture/graphify-integration-research-2026-06-16.md`
-- Modify: `docs/src/architecture/research-index.md`
 - Modify: `docs/src/architecture/where-things-live.md` (only if `graphify-out/` appears there)
 
 - [ ] **Step 6.1: Update corpus paths in the research doc**
@@ -737,13 +736,10 @@ cargo fmt -p vox-config
   **Fix:** `vox graphify ingest --corpus <id>` or `vox run scripts/graphify-refresh.vox -- --ingest`.
   ```
 
-- [ ] **Step 6.2: Add a row to `research-index.md`**
+- [ ] **Step 6.2: Frontmatter on updated docs**
 
-  Open `docs/src/architecture/research-index.md`. In the graphify section, add:
-
-  ```markdown
-  | Graphify Run Lifecycle | [2026-06-18-graphify-run-lifecycle.md](../../superpowers/plans/2026-06-18-graphify-run-lifecycle.md) | Path migration, lexical_lag, TTL env, VoxScript refresh, CI gate |
-  ```
+Set valid frontmatter on the new page (`title`, `description`, `category`, `status`).
+Starlight lists it. Do **not** create or edit `docs/src/architecture/research-index.md` (retired 2026-09).
 
 - [ ] **Step 6.3: Check `where-things-live.md` for stale paths**
 
@@ -757,7 +753,6 @@ cargo fmt -p vox-config
 
   ```powershell
   git add docs/src/architecture/graphify-integration-research-2026-06-16.md
-  git add docs/src/architecture/research-index.md
   git add docs/src/architecture/where-things-live.md
   git commit -m "docs: update graphify SSOT — new corpus paths, lexical_lag, TTL env var"
   ```

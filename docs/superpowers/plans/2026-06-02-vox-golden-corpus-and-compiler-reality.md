@@ -463,7 +463,7 @@ await parallel([G2,G3,G5,G6,H1,H2,H3,H4,I1,I3].map(t => () =>
 
 ## 5. Findings appendix (commit alongside this plan)
 
-The scout's full structured output (per-file `golden_files` verdicts, the 6 domain `feature_reports`, the HumanEval `tree_report`) is the authoritative enumeration behind the §2 index. Before executing, persist it as `docs/src/architecture/vox-golden-corpus-and-compiler-reality-findings-2026.md` (research doc — needs YAML frontmatter per AGENTS.md) so E1/E7/E10's "the ~22 / ~13 / per-file delog list" are concretely named, and update `docs/src/architecture/research-index.md`. (Deferred from this plan-only pass; create it as task **A0** when execution begins.)
+The scout's full structured output (per-file `golden_files` verdicts, the 6 domain `feature_reports`, the HumanEval `tree_report`) is the authoritative enumeration behind the §2 index. Before executing, persist it as `docs/src/architecture/vox-golden-corpus-and-compiler-reality-findings-2026.md` (research doc — needs YAML frontmatter per AGENTS.md) so E1/E7/E10's "the ~22 / ~13 / per-file delog list" are concretely named. Set valid frontmatter on the new page (`title`, `description`, `category`, `status`). Starlight lists it. Do **not** create or edit `docs/src/architecture/research-index.md` (retired 2026-09). (Deferred from this plan-only pass; create it as task **A0** when execution begins.)
 
 ---
 

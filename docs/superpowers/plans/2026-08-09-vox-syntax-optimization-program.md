@@ -538,7 +538,8 @@ retirement-marker policy exists to prevent.
 Complete `axis-tsx-gap-inventory-2026.md`: every TSX pattern hit, status
 (expressible / fixed-in-program / inexpressible), with the inexpressible set
 explicitly framed as the requirements list for the follow-up TS-elimination
-program. Update `docs/src/architecture/research-index.md`.
+program. Set valid frontmatter on the new page (`title`, `description`, `category`, `status`).
+Starlight lists it. Do **not** create or edit `docs/src/architecture/research-index.md` (retired 2026-09).
 
 ---
 
