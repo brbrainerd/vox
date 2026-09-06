@@ -46,7 +46,7 @@ Store optional snapshots under `.tmp_audit/` (gitignored) for local diffing; do 
 - **`cargo shear`** — unused dependency hints; cross-check with `rg` before removing anything.
 - **`cargo outdated`** — drift vs crates.io; non-blocking; does not authorize silent major bumps without review.
 
-See also: [Workspace dependency audit findings](../architecture/workspace-dependency-audit-2026.md) (linked from [research index](../architecture/research-index.md)).
+See also: [Workspace dependency audit findings](../architecture/workspace-dependency-audit-2026.md).
 
 ## JavaScript / pnpm
 

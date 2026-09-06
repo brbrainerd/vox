@@ -112,4 +112,4 @@ Orchestrator wraps retrieval in **`RetrievalEvidenceEnvelope`** (`crates/vox-orc
 
 - After retrieval / persistence changes: `cargo test -p vox-db`, `cargo test -p vox-search`, and **`vox ci data-storage-guard`** when contracts shift.
 - After new Secrets-backed env: `SecretId` + `SecretSpec`, bump [`contracts/config/env-vars.v1.yaml`](../../../contracts/config/env-vars.v1.yaml), run **`vox ci secrets-contracts`**.
-- After new architecture pages: link from [`research-index.md`](research-index.md) and root [`AGENTS.md`](../../../AGENTS.md).
+- After new architecture pages: set frontmatter so the Starlight sidebar lists them; add a row to [`where-things-live.md`](where-things-live.md) if the page introduces a new concept→crate mapping. Link from root [`AGENTS.md`](../../../AGENTS.md) only when the page is a new always-loaded policy pointer.

@@ -43,7 +43,7 @@ Quick routing by goal. All links resolve from this directory.
 | Add a CLI command | [CLI reference](../reference/cli.md) + [Command compliance](../reference/command-compliance.md) |
 | Work with secrets or credentials | [Secrets SSOT](../reference/secrets-ssot.md) |
 | Understand the agentic quality model | [Coding agent instructions](coding-agents.md) + [Governance (TOESTUB)](../../agents/governance.md) |
-| Read architecture or research context | [Research index](../architecture/research-index.md) |
+| Read architecture or research context | [Where things live](../architecture/where-things-live.md) · Starlight sidebar section **Architecture SSOTs** |
 
 ## Contributor map
 
@@ -59,7 +59,7 @@ Use these surfaces intentionally:
 | CLI or command-surface changes | [CLI reference](../reference/cli.md), [Command compliance](../reference/command-compliance.md) |
 | Documentation updates or new docs | [Documentation governance](documentation-governance.md) |
 | Telemetry, metrics, privacy boundaries | [Telemetry trust SSOT](../architecture/telemetry-trust-ssot.md), [Telemetry metric contract](../reference/telemetry-metric-contract.md) |
-| Architecture or roadmap context | [Where things live](../architecture/where-things-live.md), [Research index](../architecture/research-index.md) |
+| Architecture or roadmap context | [Where things live](../architecture/where-things-live.md) · Starlight sidebar **Architecture SSOTs** |
 | Contracts and schema-backed behavior | [contracts/README.md](../../../contracts/README.md), related reference pages under `docs/src/reference/` |
 | MCP, HTTP, Populi mesh, SSE, WebSockets | [Communication protocols](../reference/communication-protocols.md), [protocol catalog](../../../contracts/communication/protocol-catalog.yaml); research [Protocol convergence research 2026](../archive/research-2026-q1/protocol-convergence-research-2026.md) |
 | CI, workflow, or policy guardrails | [CI runner contract](../ci/runner-contract.md), [Dependency policy](dependency-policy.md), [Pre-push local CI parity](#pre-push-local-ci-parity) (below), [Architectural governance (TOESTUB)](../../agents/governance.md) |
