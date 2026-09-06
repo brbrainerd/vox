@@ -37,12 +37,13 @@ reference/env-vars.html
 reference/clavis-ssot.html
 reference/secrets-ssot.html
 architecture/architecture-index.html
+architecture/architecture-index/index.html
 architecture/research-index.html
 architecture/research-index/index.html
 contributors/contributor-hub.html
 ```
 
-Both architecture indexes (`architecture/research-index.html`, `architecture/research-index/index.html`, and `architecture/architecture-index.html`) redirect to `/contributors/contributor-hub/`, not to each other.
+Both architecture indexes (`architecture/architecture-index.html`, `architecture/architecture-index/index.html`, `architecture/research-index.html`, and `architecture/research-index/index.html`) redirect to `/contributors/contributor-hub/`, not to each other.
 
 Astro's build copies everything in `public/` verbatim to `dist/`, so these files land at the correct paths without any build-time configuration changes.
 

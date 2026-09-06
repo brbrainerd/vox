@@ -2,7 +2,7 @@
 title: "research-index (retired 2026-09)"
 description: "Frozen hand-curated architecture/research index. Not a completeness gate. Do not ingest for new work."
 category: "archive"
-status: "archived"
+status: deprecated
 training_eligible: false
 archived_date: 2026-09-06
 ---

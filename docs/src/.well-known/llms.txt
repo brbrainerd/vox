@@ -17,10 +17,9 @@
 ## Architecture Authority
 - [Where things live](https://voxlang.org/architecture/where-things-live/): Concept → crate lookup table
 - [Classification SSOT](https://voxlang.org/architecture/classification-ssot-2026/): Canonical surface classifications
-- [Contributor Hub](https://voxlang.org/contributors/contributor-hub/): Start here; Architecture SSOTs are listed in the Starlight sidebar
 
 ## Contributor Hub
-- [Contributor Hub](https://voxlang.org/contributors/contributor-hub/): Entry point for contributors
+- [Contributor Hub](https://voxlang.org/contributors/contributor-hub/): Start here; Architecture SSOTs are listed in the Starlight sidebar
 - [Documentation Governance](https://voxlang.org/contributors/documentation-governance/): Doc authority map
 - [Agent Instruction Architecture](https://voxlang.org/contributors/agent-instruction-architecture/): How AI agents should navigate this repo
 
