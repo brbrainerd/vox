@@ -46,7 +46,7 @@
     "@testing-library/user-event": "^14.6.7",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-react": "^5.2.0",
     "autoprefixer": "^10.5.4",
     "jsdom": "^30.0.1",
     "npm-run-all2": "^9.0.3",
