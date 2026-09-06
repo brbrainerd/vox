@@ -54,8 +54,8 @@ fn live_policy_does_not_instruct_research_index_updates() {
         if !path.exists() {
             continue;
         }
-        let text = fs::read_to_string(&path)
-            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let text =
+            fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
         for needle in banned {
             assert!(
                 !text.contains(needle),
