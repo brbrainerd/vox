@@ -11,7 +11,7 @@ describe('index.css global a11y rules', () => {
     expect(css).toContain(':focus-visible');
   });
 
-  it('uses --color-accent-default for the focus ring-3 color', () => {
+  it('uses --color-accent-default for the focus ring color', () => {
     // The ring must reference the token, not a hardcoded hex.
     expect(css).toContain('--color-accent-default');
   });
