@@ -255,9 +255,12 @@ cargo run -p vox-doc-pipeline -- --lint-only --paths docs/src/explanation/expl-d
 
 Expected: PASS (frontmatter present on all four).
 
-- [ ] **Step 6: Update the research index and commit**
+- [ ] **Step 6: Frontmatter and commit**
 
-Add a row for `true-workflow-durability-design-2026.md` to `docs/src/architecture/research-index.md` following the format of the surrounding rows, then:
+Set valid frontmatter on the new page (`title`, `description`, `category`, `status`).
+Starlight lists it. Do **not** create or edit `docs/src/architecture/research-index.md` (retired 2026-09).
+
+Then:
 
 ```bash
 git add docs/
