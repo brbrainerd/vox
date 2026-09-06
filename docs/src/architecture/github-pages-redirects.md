@@ -18,7 +18,7 @@ The site deploys via `.github/workflows/docs-deploy.yml` using `actions/deploy-p
 
 ## Current fix: static HTML stub files
 
-For the 15 specific legacy routes, `docs-astro/public/` now contains static HTML stubs that GitHub Pages serves as ordinary files. Each stub uses `<meta http-equiv="refresh">` to redirect the browser client-side and a `<link rel="canonical">` to signal the correct URL to crawlers.
+For the specific legacy routes, `docs-astro/public/` now contains static HTML stubs that GitHub Pages serves as ordinary files. Each stub uses `<meta http-equiv="refresh">` to redirect the browser client-side and a `<link rel="canonical">` to signal the correct URL to crawlers.
 
 Files created under `docs-astro/public/`:
 
@@ -38,8 +38,11 @@ reference/clavis-ssot.html
 reference/secrets-ssot.html
 architecture/architecture-index.html
 architecture/research-index.html
+architecture/research-index/index.html
 contributors/contributor-hub.html
 ```
+
+Both architecture indexes (`architecture/research-index.html`, `architecture/research-index/index.html`, and `architecture/architecture-index.html`) redirect to `/contributors/contributor-hub/`, not to each other.
 
 Astro's build copies everything in `public/` verbatim to `dist/`, so these files land at the correct paths without any build-time configuration changes.
 

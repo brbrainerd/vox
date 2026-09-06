@@ -1,10 +1,27 @@
 ---
-title: "research-index"
-description: "Curated index of Vox architecture SSOT pages, mesh plans, language enforcement phases, and research artifacts."
-category: "Architecture SSOTs"
-status: "current"
+title: "research-index (retired 2026-09)"
+description: "Frozen hand-curated architecture/research index. Not a completeness gate. Do not ingest for new work."
+category: "archive"
+status: "archived"
 training_eligible: false
 ---
+
+# research-index — retired 2026-09
+
+**Do not update this file.** It is a snapshot of `docs/src/architecture/research-index.md` as of the retirement PR.
+
+Replacement discoverability:
+
+- Starlight sidebar via `docs-astro/src/utils/sidebar.mjs` `collectPages()` (frontmatter `category` / `sort_order` / `status`)
+- Concept → crate: [`docs/src/architecture/where-things-live.md`](../architecture/where-things-live.md)
+- Contributor start: [`docs/src/contributors/contributor-hub.md`](../contributors/contributor-hub.md)
+
+Old URLs `/architecture/research-index/` and `/architecture/research-index.html` redirect to `/contributors/contributor-hub/`.
+
+A still-older copy already lives at `docs/src/archive/research-2026-q1/research-index.md`. Leave that Q1 file untouched.
+
+## Frozen snapshot
+
 # Vox Architecture & Research Index (2026)
 
 This file tracks the single source of truth for Vox architecture, research findings, and strategic explainers.
