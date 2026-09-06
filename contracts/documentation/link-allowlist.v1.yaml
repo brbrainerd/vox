@@ -128,38 +128,6 @@ allowlist:
     reason: "renamed: codegen_ts/routes.rs was split into route_manifest.rs + route_pattern.rs"
     expires: "2026-11-30"
 
-  # ── model-routing placeholder text ───────────────────────────────────────────
-  - source: "docs/src/architecture/research-index.md"
-    target: "model-routing.v1.yaml-not-direct-link"
-    reason: "placeholder-text: research-index prose accidentally parsed as link target"
-    expires: "2026-11-30"
-
-  # ── research-index missing-relative-prefix (bare crates/ path) ───────────────
-  - source: "docs/src/architecture/research-index.md"
-    target: "crates/vox-compiler/src/typeck/effect_check.rs"
-    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
-    expires: "2026-11-30"
-
-  - source: "docs/src/architecture/research-index.md"
-    target: "crates/vox-code-audit/src/detectors/"
-    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
-    expires: "2026-11-30"
-
-  - source: "docs/src/architecture/research-index.md"
-    target: "crates/vox-cli/src/commands/repair.rs"
-    reason: "planned-file: repair command will be split from audit in tooling convergence"
-    expires: "2026-11-30"
-
-  - source: "docs/src/architecture/research-index.md"
-    target: "crates/vox-compiler/src/typeck/diagnostics.rs:96"
-    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
-    expires: "2026-11-30"
-
-  - source: "docs/src/architecture/research-index.md"
-    target: "crates/vox-compiler/src/pipeline.rs:21"
-    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
-    expires: "2026-11-30"
-
   # ── v1-llm-target-implementation-plan-2026.md ─────────────────────────────────
   - source: "docs/src/architecture/v1-llm-target-implementation-plan-2026.md"
     target: "crates/vox-code-audit/src/detectors/anonymous_error.rs"
