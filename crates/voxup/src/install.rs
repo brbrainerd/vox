@@ -47,18 +47,28 @@ fn staging_dir_for(cache_dir: &Path, version: &str) -> std::path::PathBuf {
     cache_dir.join(format!("vox-{version}.incoming"))
 }
 
-pub async fn run_install(profile: &str, tag: Option<&str>) -> Result<()> {
+pub struct InstallOpts {
+    pub no_modify_path: bool,
+}
+
+pub async fn run_install(profile: &str, tag: Option<&str>, opts: InstallOpts) -> Result<()> {
     // Validate tier before touching the network.
     crate::profiles::validate_tier(crate::profiles::PROFILES_YAML, profile)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let profiles = crate::profiles::parse(crate::profiles::PROFILES_YAML)
         .expect("embedded SSOT must be valid");
+    let binaries = crate::install_plan::binaries_for_tier(&profiles, profile)?;
+    let bundle_id = crate::install_plan::bundle_id_for_tier(&profiles, profile)?;
     if let Some(tier) = profiles.tiers.get(profile) {
-        info!("Installing Vox ({profile}) — {}", tier.description);
+        info!(
+            "Installing Vox ({profile}) — {} [bundle={bundle_id}, binaries={}]",
+            tier.description,
+            binaries.join(",")
+        );
     }
 
-    let home = dirs::home_dir().context("cannot determine home directory")?;
+    let home = crate::home::require_home()?;
     let bin_dir = home.join(".vox").join("bin");
     let cache_dir = home.join(".vox").join("toolchains");
     fs::create_dir_all(&bin_dir)?;
@@ -138,62 +148,147 @@ pub async fn run_install(profile: &str, tag: Option<&str>) -> Result<()> {
     }
     let _ = fs::remove_dir_all(&retired);
 
-    // Write active version
+    // Write active version and the bundle this install honoured.
     fs::write(cache_dir.join("active"), &release.version)
         .with_context(|| format!("failed to write active file in {}", cache_dir.display()))?;
+    fs::write(cache_dir.join("active-bundle"), bundle_id)
+        .with_context(|| format!("failed to write active-bundle in {}", cache_dir.display()))?;
 
-    // Establish canonical binary (the voxup proxy renamed/copied as vox)
-    let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
-    let extracted_bin = tc_dir.join(exe);
-    let canonical = bin_dir.join(exe);
-    let secondary = home.join(".cargo").join("bin").join(exe);
-    if !extracted_bin.exists() {
-        bail!(
-            "Extraction succeeded but '{exe}' not found in {}",
-            tc_dir.display()
-        );
-    }
-    let voxup_exe = if cfg!(windows) { "voxup.exe" } else { "voxup" };
-    let voxup_canonical = bin_dir.join(voxup_exe);
     let current_voxup = std::env::current_exe().context("cannot get current exe path")?;
-    place_binaries(
-        &extracted_bin,
-        &canonical,
-        &secondary,
+    let voxup_canonical = bin_dir.join(crate::install_plan::exe_name("voxup"));
+    let placed = place_tier_binaries(
+        &tc_dir,
+        &bin_dir,
+        &home,
+        binaries,
         &current_voxup,
         &voxup_canonical,
     )?;
 
+    match crate::uninstall::prune_old_toolchains(
+        &cache_dir,
+        crate::uninstall::DEFAULT_KEEP_PREVIOUS,
+    ) {
+        Ok(pruned) if !pruned.is_empty() => {
+            info!("Pruned {} previous toolchain(s)", pruned.len());
+        }
+        Ok(_) => {}
+        Err(e) => warn!("toolchain prune skipped: {e}"),
+    }
+
     // WASM sysroots
     provision_wasm_sysroots(&cache_dir, &release.version).await?;
 
-    // Persistent PATH
-    let modified = crate::shell::add_to_path(&home, &bin_dir);
-    if modified.is_empty() {
+    // Persistent PATH — skipped when `--no-modify-path` is set (packaging / CI).
+    let modified = if opts.no_modify_path {
+        info!("--no-modify-path: leaving shell profiles untouched");
+        Vec::new()
+    } else {
+        crate::shell::add_to_path(&home, &bin_dir)
+    };
+    if !opts.no_modify_path && modified.is_empty() {
         info!(
             "No shell profiles found. Add {} to your PATH manually.",
             bin_dir.display()
         );
-    } else {
+    } else if !modified.is_empty() {
         info!("Updated {} shell profile(s).", modified.len());
     }
 
     println!("\n✅ Vox {} installed!", release.version);
-    println!("   vox:   {}", canonical.display());
-    println!("   voxup: {}", voxup_canonical.display());
+    println!("   tier:   {profile} (bundle {bundle_id})");
+    for p in &placed {
+        println!("   bin:    {}", p.display());
+    }
+    println!("   voxup:  {}", voxup_canonical.display());
+    if let Some(secondary) = cargo_vox_path(&home)
+        && secondary.exists()
+    {
+        println!(
+            "   also:   {} (hardlink of ~/.vox/bin/vox — same inode; \
+             not a second copy)",
+            secondary.display()
+        );
+    }
     println!("   Run: vox --version");
     // Name the profile that was actually modified. Hardcoding ~/.bashrc told
     // macOS users (zsh by default, and where voxup now creates ~/.zshrc on a
     // pristine account) to source a file it had not touched — and which usually
     // does not exist there.
-    match modified.first() {
-        Some(profile) => println!("   Restart your shell or: source {}", profile.display()),
-        None => println!(
-            "   Add {} to your PATH, then restart your shell",
+    if opts.no_modify_path {
+        println!(
+            "   --no-modify-path: add {} to PATH yourself, then restart your shell",
             bin_dir.display()
-        ),
+        );
+    } else {
+        match modified.first() {
+            Some(profile) => println!("   Restart your shell or: source {}", profile.display()),
+            None => println!(
+                "   Add {} to your PATH, then restart your shell",
+                bin_dir.display()
+            ),
+        }
     }
     Ok(())
+}
+
+fn cargo_vox_path(home: &Path) -> Option<std::path::PathBuf> {
+    Some(
+        home.join(".cargo")
+            .join("bin")
+            .join(crate::install_plan::exe_name("vox")),
+    )
+}
+
+/// Place each binary the tier ships, plus `voxup` itself (so uninstall works
+/// even for `minimal`). `vox` also gets the disclosed `~/.cargo/bin/vox` hardlink.
+pub(crate) fn place_tier_binaries(
+    tc_dir: &Path,
+    bin_dir: &Path,
+    home: &Path,
+    binaries: &[String],
+    current_voxup: &Path,
+    voxup_canonical: &Path,
+) -> Result<Vec<std::path::PathBuf>> {
+    let mut placed = Vec::new();
+    for binary in binaries {
+        if binary == "voxup" {
+            continue;
+        }
+        let exe = crate::install_plan::exe_name(binary);
+        let extracted = tc_dir.join(&exe);
+        if !extracted.exists() {
+            bail!(
+                "Extraction succeeded but '{exe}' (tier binary '{binary}') not found in {}",
+                tc_dir.display()
+            );
+        }
+        let dest = bin_dir.join(&exe);
+        if binary == "vox" {
+            let secondary = cargo_vox_path(home).expect("cargo path");
+            place_binaries(
+                &extracted,
+                &dest,
+                &secondary,
+                current_voxup,
+                voxup_canonical,
+            )?;
+        } else {
+            if let Some(parent) = dest.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            replace_file(&extracted, &dest)?;
+        }
+        placed.push(dest);
+    }
+    // Always leave a current voxup on the allowlisted bin dir, even if the
+    // tier already listed it (overwrite with the running installer).
+    if let Some(parent) = voxup_canonical.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    replace_file(current_voxup, voxup_canonical)?;
+    info!("voxup installed at {}", voxup_canonical.display());
+    Ok(placed)
 }
 
 /// A real `vox` executable is multi-megabyte; the legacy proxy stub this
@@ -430,6 +525,52 @@ mod tests {
         fs::write(&canonical, b"stub").unwrap();
         let err = establish_single_binary(&canonical, &cargo).unwrap_err();
         assert!(err.to_string().contains("no real `vox` binary"));
+    }
+
+    #[test]
+    fn place_tier_binaries_places_only_listed_bins() {
+        let dir = tempdir().unwrap();
+        let exe_lt = crate::install_plan::exe_name("vox-langtool");
+        let voxup_exe = crate::install_plan::exe_name("voxup");
+        let tc_dir = dir.path().join("tc");
+        write_fake_binary(&tc_dir.join(&exe_lt), 0x11);
+        write_fake_binary(&tc_dir.join(crate::install_plan::exe_name("vox")), 0x22);
+        write_fake_binary(
+            &tc_dir.join(crate::install_plan::exe_name("vox-ml-cli")),
+            0x33,
+        );
+        let fake_voxup = dir.path().join(&voxup_exe);
+        write_fake_binary(&fake_voxup, 0xBB);
+        let bin_dir = dir.path().join("bin");
+        let home = dir.path().join("home");
+        let voxup_canonical = bin_dir.join(&voxup_exe);
+
+        let placed = place_tier_binaries(
+            &tc_dir,
+            &bin_dir,
+            &home,
+            &["vox-langtool".to_string()],
+            &fake_voxup,
+            &voxup_canonical,
+        )
+        .unwrap();
+
+        assert_eq!(placed.len(), 1);
+        assert!(bin_dir.join(&exe_lt).exists());
+        assert!(!bin_dir.join(crate::install_plan::exe_name("vox")).exists());
+        assert!(
+            !bin_dir
+                .join(crate::install_plan::exe_name("vox-ml-cli"))
+                .exists()
+        );
+        assert!(voxup_canonical.exists(), "voxup is always placed");
+        assert!(
+            !home
+                .join(".cargo")
+                .join("bin")
+                .join(crate::install_plan::exe_name("vox"))
+                .exists()
+        );
     }
 
     #[test]

@@ -9,8 +9,10 @@
 # voxup installer — macOS and Linux
 # Usage (production):
 #   curl --proto '=https' --tlsv1.2 -sSf https://voxlang.org/voxup | sh
+#   curl --proto '=https' --tlsv1.2 -sSf https://voxlang.org/voxup | sh -s -- --no-modify-path
 # Usage (local dev):
 #   sh scripts/install.sh
+#   sh scripts/install.sh --no-modify-path
 set -eu
 
 # NOTE: `/releases/latest` excludes pre-releases and 404s while every published
@@ -160,8 +162,15 @@ main() {
     [ -f "$_tmpdir/voxup" ] || err "voxup binary not found after extraction"
     chmod +x "$_tmpdir/voxup"
 
-    say "Running: voxup install default"
-    "$_tmpdir/voxup" install default
+    _extra=""
+    for _arg in "$@"; do
+        case "$_arg" in
+            --no-modify-path) _extra="$_extra --no-modify-path" ;;
+        esac
+    done
+    say "Running: voxup install default$_extra"
+    # shellcheck disable=SC2086
+    "$_tmpdir/voxup" install default $_extra
 }
 
 main "$@"

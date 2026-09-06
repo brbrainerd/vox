@@ -24,6 +24,11 @@
   "bundle": {
     "active": true,
     "targets": ["msi", "dmg", "app", "appimage", "deb"],
+    "publisher": "Vox Foundation",
+    "category": "DeveloperTool",
+    "shortDescription": "Axis — the Vox desktop shell",
+    "longDescription": "Axis is the Vox desktop application: editor, agent harness, and language toolchain in one window.",
+    "homepage": "https://voxlang.org",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -31,8 +36,31 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["vox"],
+        "name": "Vox Source",
+        "description": "Vox source file",
+        "role": "Editor",
+        "mimeType": "text/x-vox",
+        "exportedType": {
+          "identifier": "org.vox-foundation.vox-source",
+          "conformsTo": ["public.source-code", "public.plain-text"]
+        }
+      }
+    ],
     "externalBin": [
       "../../target/release/vox"
-    ]
+    ],
+    "createUpdaterArtifacts": false,
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    },
+    "windows": {}
   }
 }

@@ -118,6 +118,37 @@ fn when_publish_enabled_every_crate_is_actually_publishable() {
     }
 }
 
+/// Installer behaviour: the plan `voxup` will execute for each tier, not a
+/// YAML-self-consistency check. `full` must ask for `vox-ml-cli`; every
+/// tier's `bundle:` must resolve through the existing `bundle_resolved()`.
+#[test]
+fn installer_plan_honours_tier_binaries_and_resolved_bundle() {
+    let p = load();
+    let cases: &[(&str, &[&str], &str)] = &[
+        ("minimal", &["vox-langtool"], "vox-base"),
+        ("default", &["vox"], "vox-fullstack"),
+        ("full", &["vox", "vox-ml-cli", "voxup"], "vox-dev"),
+    ];
+    for (tier, expected_bins, expected_bundle) in cases {
+        let bins = voxup::install_plan::binaries_for_tier(&p, tier)
+            .unwrap_or_else(|e| panic!("installer plan for '{tier}': {e}"));
+        let got: Vec<&str> = bins.iter().map(String::as_str).collect();
+        assert_eq!(
+            got, *expected_bins,
+            "installer would place the wrong binaries for tier '{tier}'"
+        );
+        let bundle = voxup::install_plan::bundle_id_for_tier(&p, tier)
+            .unwrap_or_else(|e| panic!("installer plan for '{tier}' bundle: {e}"));
+        assert_eq!(bundle, *expected_bundle);
+        vox_plugin_catalog::bundle_resolved(bundle).unwrap_or_else(|e| {
+            panic!(
+                "installer-selected bundle '{bundle}' for tier '{tier}' \
+                 must resolve via bundle_resolved(): {e}"
+            )
+        });
+    }
+}
+
 #[test]
 fn declared_binaries_have_crate_dirs() {
     // Maps SSOT binary name -> crate directory under crates/.

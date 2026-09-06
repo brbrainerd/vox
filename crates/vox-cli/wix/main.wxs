@@ -58,11 +58,18 @@
 
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
 
+    <!--
+      Product identity: Vox = product, Axis = GUI, voxlang = registry token,
+      vox = command. MSI compares only the first three version fields
+      (Major.Minor.Build). cargo-wix's $(var.Version) is Major.Minor.Patch from
+      Cargo.toml (currently 0.6.0) — do not add a fourth build field, or every
+      build looks like the same version for MajorUpgrade.
+    -->
     <Product
         Id='*'
-        Name='vox-cli'
+        Name='Vox'
         UpgradeCode='81F3E1E5-8B6D-484F-B19F-8CA168016428'
-        Manufacturer='Bert Brainerd'
+        Manufacturer='Vox Foundation'
         Language='1033'
         Codepage='1252'
         Version='$(var.Version)'>
@@ -70,7 +77,7 @@
         <Package Id='*'
             Keywords='Installer'
             Description='Vox command-line interface: compile, run, bundle, and workspace diagnostics.'
-            Manufacturer='Bert Brainerd'
+            Manufacturer='Vox Foundation'
             InstallerVersion='450'
             Languages='1033'
             Compressed='yes'
@@ -83,11 +90,11 @@
             DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
 
         <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1'/>
-        <Property Id='DiskPrompt' Value='vox-cli Installation'/>
+        <Property Id='DiskPrompt' Value='Vox Installation'/>
 
         <Directory Id='TARGETDIR' Name='SourceDir'>
             <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
-                <Directory Id='APPLICATIONFOLDER' Name='vox-cli'>
+                <Directory Id='APPLICATIONFOLDER' Name='Vox'>
                     
                     <!--
                       Enabling the license sidecar file in the installer is a four step process:
@@ -127,6 +134,11 @@
                                 DiskId='1'
                                 Source='$(var.CargoTargetBinDir)\vox.exe'
                                 KeyPath='yes'/>
+                            <ProgId Id='Vox.Source' Description='Vox source file'>
+                                <Extension Id='vox' ContentType='text/x-vox'>
+                                    <Verb Id='open' Command='Open' TargetFile='exe0' Argument='"%1"'/>
+                                </Extension>
+                            </ProgId>
                         </Component>
                         <Component Id='binary1' Guid='*'>
                             <File
@@ -141,8 +153,15 @@
             </Directory>
         </Directory>
 
+        <!--
+          Silent / enterprise installs pass ADDLOCAL, which sets Preselected=1
+          and skips the entire Condition table. There is therefore no
+          auto-detection on the explicit path — ADDLOCAL=Core,Environment must
+          be self-sufficient. Interactive installs can still tick features in
+          the FeatureTree UI. GUI (Axis) is a separate MSI, not a feature here.
+        -->
         <Feature
-            Id='Binaries'
+            Id='Core'
             Title='Application'
             Description='Installs all binaries and the license.'
             Level='1'

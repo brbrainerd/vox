@@ -41,7 +41,14 @@ pub async fn run_update() -> Result<bool> {
         return Ok(false);
     }
     println!("⬆  Upgrading {installed} → {latest}…");
-    crate::install::run_install("default", None).await?;
+    crate::install::run_install(
+        "default",
+        None,
+        crate::install::InstallOpts {
+            no_modify_path: false,
+        },
+    )
+    .await?;
     Ok(true)
 }
 
