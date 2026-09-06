@@ -83,6 +83,7 @@ pub mod line_endings;
 pub mod model_routing_check;
 pub mod no_plugin_cdylib_as_compile_dep;
 pub mod no_tauri_in_core;
+pub mod node_pnpm_ssot_guard;
 pub mod nomenclature_guard;
 pub mod openclaw_contract;
 pub mod package_manifests;

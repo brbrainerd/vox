@@ -673,6 +673,10 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
         "runner_policy_check",
         vox_cli_ci::runner_policy_check::run(root, true)
     )?;
+    ds!(
+        "node_pnpm_ssot_guard",
+        vox_cli_ci::node_pnpm_ssot_guard::run(root)
+    )?;
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())
 }

@@ -72,7 +72,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: 24
 
       # Pinned to 11 to match the other eighteen workflows using
       # pnpm/action-setup, and to match crates/vox-gui/ui/pnpm-workspace.yaml,
