@@ -240,7 +240,7 @@ Power-user dogfood means **BC can break with notes**. Rules:
 - `docs/src/reference/populi.md` is the SSOT for the runtime contract; every spec change updates it.
 - ADR amendments for architectural changes; new ADRs for new architectural decisions (libp2p adoption, durable-queue choice, etc.).
 - Operator-facing changes ship with a how-to in `docs/src/how-to/`.
-- The auto-generated `architecture-index.md` is regenerated, never hand-edited; `research-index.md` is hand-edited and gets entries for new docs.
+- The auto-generated `architecture-index.md` is regenerated, never hand-edited. `research-index.md` is retired (archived 2026-09). The Starlight sidebar is the browse surface. `architecture-index.md` stays gitignored.
 
 ---
 

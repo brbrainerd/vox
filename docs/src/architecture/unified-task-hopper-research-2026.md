@@ -799,6 +799,6 @@ While preparing this document, two pieces of repository state were verified agai
   this writing. Memory indexed it as the canonical mesh SSOT; the actual canonical file is
   [`populi-mesh-north-star-2026.md`](populi-mesh-north-star-2026.md). The memory pointer should
   be updated to reflect this. This document cites the populi-mesh-north-star file directly.
-- The agentic-VCS Phase 1 commits (`3e294c1a5..7ca219d90`) have shipped per the research-index;
+- The agentic-VCS Phase 1 commits (`3e294c1a5..7ca219d90`) have shipped;
   capability tokens, `GitExec`, secret scanner, and `vox.vcs.*` telemetry contract are present.
   The hopper recommendation assumes these guarantees are real — re-verify before implementation.

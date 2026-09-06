@@ -7,7 +7,6 @@ training_eligible: true
 training_rationale: "Research on documentation platforms."
 authors: ["Bert Brainerd"]
 related:
-  - docs/src/architecture/research-index.md
   - docs/src/architecture/architecture-index.md
   - docs/src/archive/research-2026-q1/vox-syntax-highlighting-ssot-2026.md
   - apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json
@@ -331,7 +330,7 @@ The following documents were verified to exist before being linked:
 - **Current highlight.js grammar:** Legacy mdBook `highlight-vox.js` — retired with the Astro migration.
 - **VS Code extension:** [`apps/editor/vox-vscode/package.json`](../../../apps/editor/vox-vscode/package.json) — already declares `shiki ^4.0.1` as a dependency (line 441).
 - **Agent policy:** [`AGENTS.md`](../../../AGENTS.md) — mandates VoxScript-first glue, no Python, doctest compliance.
-- **Research index:** [`docs/src/architecture/research-index.md`](research-index.md) — this document should be registered there.
+- Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.
 
 ---
 

@@ -192,13 +192,12 @@ vox doc-pipeline --mode linkcheck docs/src/adr/037-tauri-convergence.md
 **Files to read first**:
 - `docs/src/architecture/vox-gui-native-roadmap-2026.md` — form reference.
 - `docs/src/architecture/tauri-audit-2026.md:100-128` — retirement candidates and ADR decision criteria.
-- `docs/src/architecture/research-index.md:39-45` — audit cluster placement.
 
 **Files to create**:
 - `docs/src/architecture/tauri-convergence-migration-plan-2026.md`
 
 **Files to modify**:
-- `docs/src/architecture/research-index.md`
+- Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.
 - `docs/src/architecture/tauri-audit-2026.md`
 - `docs/src/architecture/vox-application-packaging-ssot-2026.md`
 

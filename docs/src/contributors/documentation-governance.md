@@ -114,7 +114,7 @@ Use one authority tier per documentation domain. The canonical registry is
 | `A-spec` | normative machine-readable contract | `contracts/`, schema-backed registries | contract validator must pass |
 | `B-canon` | one canonical human page for the domain | usually `docs/src/reference/` (or one ADR) | no second canon for same domain id |
 | `C-generated` | code-derived docs | `*.generated.md` and include fragments | generation verify command must pass |
-| `D-index` | navigation, index, compatibility stubs, research maps; do not maintain a committed research-index.md — Starlight sidebar is the D-index for architecture/research pages | `architecture`/`ci` pointers and index pages | must link to canon, not restate canonical behavior |
+| `D-index` | navigation, index, compatibility stubs, research maps; Starlight sidebar is the D-index — do not maintain a committed research catalog | `architecture`/`ci` pointers and index pages | must link to canon, not restate canonical behavior |
 
 Rules:
 

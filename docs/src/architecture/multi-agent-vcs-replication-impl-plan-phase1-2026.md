@@ -1684,7 +1684,7 @@ git commit -m "test(convergence): conflicting payloads surface conflict"
 
 **Files:**
 - Modify: `docs/src/architecture/multi-agent-vcs-replication-spec-2026.md`
-- Modify: `docs/src/architecture/research-index.md`
+- Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.
 
 - [ ] **Step 1: Update the spec's Phase 1 status to "in progress / partially shipped"**
 

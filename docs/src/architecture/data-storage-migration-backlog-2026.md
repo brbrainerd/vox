@@ -51,9 +51,9 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   1. Write `docs/src/architecture/data-storage-ssot-2026.md` (this series).
   2. Write `docs/src/architecture/data-storage-migration-backlog-2026.md` (this document).
   3. Write `docs/src/architecture/data-storage-lint-and-ci-spec-2026.md`.
-  4. Add entries under a new "Data Storage" section in `docs/src/architecture/research-index.md`.
+  4. Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.
   5. Link from `docs/src/SUMMARY.md` if it exists (check first).
-- **Verification**: `rg '^# Data Storage SSOT' docs/src/architecture/` returns exactly the three docs; `rg 'data-storage-ssot-2026.md' docs/src/architecture/research-index.md` non-empty.
+- **Verification**: `rg '^# Data Storage SSOT' docs/src/architecture/` returns exactly the three docs.
 
 > Landed in a029121a on 2026-04-22; verification: green.
 

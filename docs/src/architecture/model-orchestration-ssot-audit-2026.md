@@ -524,10 +524,10 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Add a `CatalogSourceHealth` check that prints `OpenRouter: 312 models (fresh 02h ago) | Ollama: 8 models (fresh 05m ago) | PopuliMesh: 3 models (fresh 00m ago) | HFHub: STALE (38h ago)`.
 - *Success.* Doctor output visually obvious.
 
-**FIX-70. [FIXED] Update `docs/src/architecture/research-index.md`.**
-- *Problem.* New research/plan docs must be linked.
-- *Operation.* Add an entry for this document (`model-orchestration-ssot-audit-2026.md`).
-- *Success.* `vox ci research-index-check` green.
+**FIX-70. [FIXED] Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.**
+- *Problem.* New research/plan docs must be discoverable.
+- *Operation.* Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.
+- *Success.* Page listed by the Starlight sidebar.
 
 ---
 

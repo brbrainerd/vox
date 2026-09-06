@@ -285,8 +285,7 @@ will look for the decision record in `docs/src/adr/` and not find it.
 
 **Files to modify**:
 - `docs/src/adr/index.md` — add entry for ADR 024.
-- `docs/src/architecture/research-index.md` — link back to ADR 024 from the
-  dashboard-migration-research entry.
+- Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.
 
 **Step-by-step work**:
 1. Create `docs/src/adr/024-dashboard-axum-spa.md` with frontmatter matching
@@ -314,8 +313,7 @@ will look for the decision record in `docs/src/adr/` and not find it.
      runtime-level JS dependency.
    - **References** — link ADR 010, ADR 012, and the research note.
 4. Update `docs/src/adr/index.md` to list ADR 024 after ADR 023.
-5. Update `docs/src/architecture/research-index.md` so the
-   dashboard-migration-research entry links to ADR 024.
+5. Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.
 
 **Verification commands**:
 ```bash
@@ -329,7 +327,7 @@ markdownlint docs/src/adr/024-dashboard-axum-spa.md
 **Acceptance criteria**:
 - ADR file exists with the sections above.
 - `docs/src/adr/index.md` lists ADR 024.
-- `research-index.md` links both directions.
+- Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.
 - No markdown lint errors.
 
 **Do NOT**:
