@@ -3,10 +3,13 @@ use tracing::{Level, info};
 
 mod channel;
 mod download;
+mod home;
 mod install;
+mod install_plan;
 mod profiles;
 mod proxy;
 mod shell;
+mod uninstall;
 mod update;
 
 #[derive(Parser)]
@@ -32,7 +35,24 @@ enum Commands {
         /// to fetch one.
         #[arg(long)]
         tag: Option<String>,
+        /// Do not edit shell profiles. Expected by packaging systems and CI images.
+        #[arg(long)]
+        no_modify_path: bool,
     },
+    /// Remove installer-owned paths (`~/.vox/bin`, `toolchains`, `run`) only.
+    ///
+    /// Never deletes `~/.vox` itself or `.vox-master-key`. `--dry-run` is the
+    /// default when stdin is not a TTY; pass `--apply` to actually remove.
+    Uninstall {
+        /// Print the planned removals and profile diff; do not write.
+        #[arg(long)]
+        dry_run: bool,
+        /// Perform the uninstall even when stdin is not a TTY.
+        #[arg(long)]
+        apply: bool,
+    },
+    /// Point `toolchains/active` at the next-oldest remaining toolchain.
+    Rollback,
     /// Check for a newer Vox release and upgrade if one is available.
     Update,
     /// Proxy a vox command through the hermetic environment.
@@ -68,9 +88,28 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
     match &cli.command {
-        Commands::Install { profile, tag } => {
+        Commands::Install {
+            profile,
+            tag,
+            no_modify_path,
+        } => {
             info!("Installing Vox (profile: {profile})");
-            install::run_install(profile, tag.as_deref()).await?;
+            install::run_install(
+                profile,
+                tag.as_deref(),
+                install::InstallOpts {
+                    no_modify_path: *no_modify_path,
+                },
+            )
+            .await?;
+        }
+        Commands::Uninstall { dry_run, apply } => {
+            let opts = uninstall::UninstallOpts::from_cli(*dry_run, *apply);
+            uninstall::run_uninstall(opts)?;
+        }
+        Commands::Rollback => {
+            let version = uninstall::run_rollback()?;
+            println!("Rolled back active toolchain to {version}");
         }
         Commands::Update => {
             info!("Checking for Vox updates…");

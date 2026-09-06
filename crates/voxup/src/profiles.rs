@@ -22,6 +22,10 @@ pub struct Profiles {
 pub struct Tier {
     pub description: String,
     pub binaries: Vec<String>,
+    /// Layer-2 catalog bundle id (`vox-base` / `vox-fullstack` / `vox-dev`).
+    /// Orthogonal to `binaries`; resolved by `vox_plugin_catalog::bundle_resolved`.
+    #[serde(default)]
+    pub bundle: Option<String>,
     pub build_deps: Vec<String>,
     pub runtime_optional: Vec<String>,
 }

@@ -19305,6 +19305,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "vox-plugin-catalog",
  "workspace-hack",
  "zip 2.4.2",
 ]

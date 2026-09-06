@@ -40,3 +40,4 @@ libc = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+vox-plugin-catalog = { path = "../vox-plugin-catalog" }
