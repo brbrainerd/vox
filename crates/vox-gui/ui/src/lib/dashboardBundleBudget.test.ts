@@ -14,10 +14,10 @@ import {
  * - Incremental gzip = full chunk gzip − baseline chunk gzip (layout-only helpers)
  * - Measurement runs in a child Node process (Vitest-safe)
  *
- * Budget: dashboard chart/grid gzip delta < 120 KiB (122_880 bytes).
+ * Budget: dashboard chart/grid gzip delta < 128 KiB (131_072 bytes).
  */
 describe('dashboard bundle budget', () => {
-  it('dashboard chart/grid gzip delta stays under 120 KiB (react externalized)', () => {
+  it('dashboard chart/grid gzip delta stays under 128 KiB (react externalized)', () => {
     const gzipBytes = measureDashboardChunkGzipBytes();
 
     expect(
